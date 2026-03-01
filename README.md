@@ -78,25 +78,42 @@ public class MyTools {
 
 ## Modules
 
+### Core
+
 | Module | Artifact | What it does |
 |--------|----------|--------------|
-| [**Core**](docs/core.md) | `atmosphere-runtime` | WebSocket, SSE, Long-Polling (Servlet 6.0+) |
+| [**Runtime**](docs/core.md) | `atmosphere-runtime` | WebSocket, SSE, Long-Polling (Servlet 6.0+) |
 | [**gRPC**](docs/grpc.md) | `atmosphere-grpc` | Bidirectional streaming transport (grpc-java 1.71) |
+| [**Rooms**](docs/rooms.md) | built into runtime | Room management with join/leave and presence |
+
+### AI
+
+| Module | Artifact | What it does |
+|--------|----------|--------------|
+| [**AI core**](docs/ai.md) | `atmosphere-ai` | `AiSupport` SPI, `@AiEndpoint`, filters, routing, conversation memory |
+| [**Spring AI**](docs/spring-ai.md) | `atmosphere-spring-ai` | Adapter for Spring AI `ChatClient` |
+| [**LangChain4j**](docs/langchain4j.md) | `atmosphere-langchain4j` | Adapter for LangChain4j `StreamingChatLanguageModel` |
+| [**Google ADK**](docs/adk.md) | `atmosphere-adk` | Adapter for Google ADK `Runner` |
+| [**Embabel**](docs/embabel.md) | `atmosphere-embabel` | Adapter for Embabel `AgentPlatform` |
+| [**MCP server**](docs/mcp.md) | `atmosphere-mcp` | Model Context Protocol server over WebSocket |
+
+### Cloud
+
+| Module | Artifact | What it does |
+|--------|----------|--------------|
+| [**Redis**](docs/redis.md) | `atmosphere-redis` | Cross-node broadcasting via Redis pub/sub |
+| [**Kafka**](docs/kafka.md) | `atmosphere-kafka` | Cross-node broadcasting via Kafka |
+| [**Durable sessions**](docs/durable-sessions.md) | `atmosphere-durable-sessions` | Session persistence across restarts (SQLite / Redis) |
+
+### Extensions
+
+| Module | Artifact | What it does |
+|--------|----------|--------------|
 | [**Spring Boot**](docs/spring-boot.md) | `atmosphere-spring-boot-starter` | Auto-configuration for Spring Boot 4.0+ |
 | [**Quarkus**](docs/quarkus.md) | `atmosphere-quarkus-extension` | Build-time processing for Quarkus 3.21+ |
-| [**AI core**](docs/ai.md) | `atmosphere-ai` | `AiSupport` SPI, `@AiEndpoint`, filters, routing, conversation memory |
-| [**Spring AI adapter**](docs/spring-ai.md) | `atmosphere-spring-ai` | `AiSupport` backed by Spring AI `ChatClient` |
-| [**LangChain4j adapter**](docs/langchain4j.md) | `atmosphere-langchain4j` | `AiSupport` backed by LangChain4j `StreamingChatLanguageModel` |
-| [**Google ADK adapter**](docs/adk.md) | `atmosphere-adk` | `AiSupport` backed by Google ADK `Runner` |
-| [**Embabel adapter**](docs/embabel.md) | `atmosphere-embabel` | `AiSupport` backed by Embabel `AgentPlatform` |
-| [**MCP server**](docs/mcp.md) | `atmosphere-mcp` | Model Context Protocol server over WebSocket |
-| [**Rooms**](docs/rooms.md) | built into core | Room management with join/leave and presence |
-| [**Redis clustering**](docs/redis.md) | `atmosphere-redis` | Cross-node broadcasting via Redis pub/sub |
-| [**Kafka clustering**](docs/kafka.md) | `atmosphere-kafka` | Cross-node broadcasting via Kafka |
-| [**Durable sessions**](docs/durable-sessions.md) | `atmosphere-durable-sessions` | Session persistence across restarts (SQLite / Redis) |
 | [**Kotlin DSL**](docs/kotlin.md) | `atmosphere-kotlin` | Builder API and coroutine extensions |
-| [**TypeScript client**](docs/client-javascript.md) | `atmosphere.js` (npm) | Browser client with React, Vue, and Svelte hooks |
-| [**Java client**](docs/client-java.md) | `atmosphere-wasync` | Async Java client — WebSocket, SSE, streaming, long-polling, gRPC (JDK 21+) |
+| [**atmosphere.js**](docs/client-javascript.md) | `atmosphere.js` (npm) | Browser client with React, Vue, and Svelte hooks |
+| [**wAsync**](docs/client-java.md) | `atmosphere-wasync` | Async Java client — WebSocket, SSE, long-polling, gRPC |
 
 ## Requirements
 
