@@ -89,6 +89,12 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8086,
     type: 'spring-boot',
   },
+  'spring-boot-adk-chat': {
+    name: 'spring-boot-adk-chat',
+    dir: 'spring-boot-adk-chat',
+    port: 8080,
+    type: 'spring-boot',
+  },
   'spring-boot-adk-tools': {
     name: 'spring-boot-adk-tools',
     dir: 'spring-boot-adk-tools',

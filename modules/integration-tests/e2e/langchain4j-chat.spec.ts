@@ -18,16 +18,37 @@ test.describe('LangChain4j Chat', () => {
     await expect(page.getByTestId('chat-input')).toBeVisible();
   });
 
+  test('shows demo mode banner when no API key', async ({ page }) => {
+    await page.goto(server.baseUrl);
+    await page.getByTestId('chat-input').fill('Hello');
+    await page.getByTestId('chat-send').click();
+
+    await expect(page.getByText('Demo mode')).toBeVisible({ timeout: 15_000 });
+  });
+
   test('user can send a prompt and receive streaming response', async ({ page }) => {
     await page.goto(server.baseUrl);
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
-    await page.getByTestId('chat-input').fill('Say hello in one word');
+    await page.getByTestId('chat-input').fill('What is Atmosphere?');
     await page.getByTestId('chat-send').click();
 
-    await expect(page.getByText('Say hello in one word')).toBeVisible();
+    await expect(page.getByText('What is Atmosphere?')).toBeVisible();
 
-    await expect(page.getByText('demo mode', { exact: false }))
+    await expect(page.getByText('real-time', { exact: false }))
       .toBeVisible({ timeout: 30_000 });
+  });
+
+  test('input clears after sending', async ({ page }) => {
+    await page.goto(server.baseUrl);
+    await page.getByTestId('chat-input').fill('Test message');
+    await page.getByTestId('chat-send').click();
+
+    await expect(page.getByTestId('chat-input')).toHaveValue('');
+  });
+
+  test('send button is disabled when input is empty', async ({ page }) => {
+    await page.goto(server.baseUrl);
+    await expect(page.getByTestId('chat-send')).toBeDisabled();
   });
 });

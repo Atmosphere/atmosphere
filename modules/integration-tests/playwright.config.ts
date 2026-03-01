@@ -119,6 +119,10 @@ export default defineConfig({
       testMatch: /langchain4j-tools\.spec\.ts/,
     },
     {
+      name: 'adk-chat',
+      testMatch: /adk-chat\.spec\.ts/,
+    },
+    {
       name: 'adk-tools',
       testMatch: /adk-tools\.spec\.ts/,
     },
