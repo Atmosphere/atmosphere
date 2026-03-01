@@ -32,3 +32,4 @@ node_modules/
 website-astro/
 .copilot/
 claude_docs/
+.copilot/
