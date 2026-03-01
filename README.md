@@ -249,7 +249,7 @@ room.joinVirtual(assistant);
 // Now when any user sends a message, the LLM responds in the same room
 ```
 
-See the [AI / LLM Streaming wiki](https://github.com/Atmosphere/atmosphere/wiki/AI-LLM-Streaming) for the full guide.
+See [modules/ai/README.md](modules/ai/) for the full API reference.
 
 ## Rooms & Presence
 
@@ -661,16 +661,15 @@ JDK 21 virtual threads are used by default.
 
 ## Documentation
 
-- [Samples](https://github.com/Atmosphere/atmosphere/tree/main/samples)
-- [Wiki](https://github.com/Atmosphere/atmosphere/wiki)
-- [AI / LLM Streaming](https://github.com/Atmosphere/atmosphere/wiki/AI-LLM-Streaming)
-- [MCP Server](https://github.com/Atmosphere/atmosphere/wiki/MCP-Server)
-- [Durable Sessions](https://github.com/Atmosphere/atmosphere/wiki/Durable-Sessions)
-- [Kotlin DSL](https://github.com/Atmosphere/atmosphere/wiki/Kotlin-DSL)
-- [Migration Guide](https://github.com/Atmosphere/atmosphere/wiki/Migrating-from-2.x-to-4.0)
+- [Samples](samples/) — 15 runnable apps covering every transport and integration
+- [atmosphere-runtime](modules/cpr/) — core framework
+- [atmosphere-ai](modules/ai/) — AI/LLM integration, filters, routing, conversation memory
+- [atmosphere-mcp](modules/mcp/) — MCP server
+- [atmosphere-spring-boot-starter](modules/spring-boot-starter/) — Spring Boot auto-configuration
+- [atmosphere-quarkus-extension](modules/quarkus-extension/) — Quarkus extension
+- [atmosphere-wasync](modules/wasync/) — Java client
+- [atmosphere.js](atmosphere.js/) — TypeScript client, React/Vue/Svelte hooks
 - [Javadoc](http://atmosphere.github.io/atmosphere/apidocs/)
-- [atmosphere.js API](https://github.com/Atmosphere/atmosphere/wiki/atmosphere.js-API)
-- [React / Vue / Svelte bindings](https://github.com/Atmosphere/atmosphere/wiki/Framework-Hooks-React-Vue-Svelte)
 
 ## Client Libraries
 
