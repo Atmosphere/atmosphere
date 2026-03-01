@@ -280,6 +280,9 @@ class ChatIntegrationTest {
 
         assertTrue(openLatch.await(10, TimeUnit.SECONDS), "Should connect");
 
+        // Allow time for the resource to be fully registered in the Broadcaster
+        Thread.sleep(200);
+
         // Send multiple messages rapidly
         for (int i = 1; i <= messageCount; i++) {
             socket.fire(mapper.writeValueAsString(
