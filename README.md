@@ -20,7 +20,7 @@
 
 Atmosphere was built on one idea: **your application code shouldn't care how the client is connected.** Write to a Broadcaster, and the framework delivers to every subscriber — whether they're on a WebSocket, an SSE stream, a long-polling loop, a gRPC channel, or an MCP session. The transport is pluggable and transparent.
 
-That transport-agnostic design made Atmosphere one of the most widely deployed WebSocket frameworks on the JVM. Over the years, as we ran it in production and saw what developers kept building on top, we extracted those patterns into first-class modules — rooms with presence, AI/LLM streaming, durable sessions, clustering, observability, and more. The core hasn't changed: Broadcaster + AtmosphereResource. Everything else layers on top.
+The two core abstractions are **Broadcaster** (a named pub/sub channel) and **AtmosphereResource** (a single connection). Additional modules — rooms, AI/LLM streaming, clustering, observability — build on top of these.
 
 ## Quick Start
 
@@ -53,7 +53,7 @@ public class Chat {
 
 ## Modules
 
-The core runtime handles transport-agnostic real-time messaging. Everything below was extracted from patterns we kept seeing in production.
+The core runtime handles transport-agnostic real-time messaging. Additional modules cover common patterns:
 
 | Module | Artifact | What it does |
 |--------|----------|--------------|
