@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -31,8 +32,11 @@ import java.util.concurrent.atomic.AtomicLong;
  * Default implementation of {@link StreamingSession} that writes
  * JSON-encoded streaming messages directly to an {@link AtmosphereResource}.
  *
- * <p>Uses {@code resource.getBroadcaster().broadcast()} so that all connected
- * clients receive AI tokens, not just the originator.</p>
+ * <p>Messages are delivered only to the originating resource via
+ * {@code broadcaster.broadcast(msg, Set.of(resource))}. This ensures each
+ * client receives only its own AI response while still passing through
+ * the broadcaster's filter/cache chain. For broadcast-to-all semantics,
+ * use {@link BroadcasterStreamingSession}.</p>
  *
  * <p>Wire protocol:</p>
  * <pre>
@@ -139,10 +143,11 @@ final class DefaultStreamingSession implements StreamingSession {
 
     private void broadcast(String json) {
         // Wrap in RawMessage so ManagedAtmosphereHandler.onStateChange()
-        // delivers the JSON as-is without re-invoking @Message handlers,
-        // which would cause infinite recursion.
+        // delivers the JSON as-is without re-invoking @Message handlers.
+        // Deliver only to the originating resource (unicast) while still
+        // passing through the broadcaster's filter/cache chain.
         try {
-            resource.getBroadcaster().broadcast(new RawMessage(json));
+            resource.getBroadcaster().broadcast(new RawMessage(json), Set.of(resource));
         } catch (Exception e) {
             logger.warn("Failed to broadcast from session {}: {}", sessionId, e.getMessage());
         }

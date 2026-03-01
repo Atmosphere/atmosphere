@@ -26,6 +26,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 import java.util.concurrent.Future;
 
 import static org.mockito.Mockito.*;
@@ -46,7 +47,7 @@ public class OpenAiCompatibleClientTest {
         broadcaster = mock(Broadcaster.class);
         when(resource.uuid()).thenReturn("r1");
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class), any(Set.class))).thenReturn(mock(Future.class));
     }
 
     /** Extract the JSON string from a captured RawMessage. */
@@ -123,7 +124,7 @@ public class OpenAiCompatibleClientTest {
         client.streamChatCompletion(request, session);
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster, atLeast(3)).broadcast(captor.capture());
+        verify(broadcaster, atLeast(3)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
 
@@ -153,7 +154,7 @@ public class OpenAiCompatibleClientTest {
         client.streamChatCompletion(request, session);
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster, atLeast(2)).broadcast(captor.capture());
+        verify(broadcaster, atLeast(2)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"error\"")));
@@ -181,7 +182,7 @@ public class OpenAiCompatibleClientTest {
         client.streamChatCompletion(ChatCompletionRequest.of("test", "Hi"), session);
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster, atLeast(3)).broadcast(captor.capture());
+        verify(broadcaster, atLeast(3)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"metadata\"") && m.contains("usage.totalTokens")));
@@ -210,7 +211,7 @@ public class OpenAiCompatibleClientTest {
         client.streamChatCompletion(ChatCompletionRequest.of("test", "Hi"), session);
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster, atLeast(2)).broadcast(captor.capture());
+        verify(broadcaster, atLeast(2)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
         // Only "OK" should be sent as a token, not empty string
@@ -248,7 +249,7 @@ public class OpenAiCompatibleClientTest {
         // Should have retried and succeeded
         verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster, atLeast(2)).broadcast(captor.capture());
+        verify(broadcaster, atLeast(2)).broadcast(captor.capture(), any(Set.class));
         assertTrue(captor.getAllValues().stream().map(m -> raw(m)).anyMatch(m -> m.contains("\"data\":\"OK\"")));
     }
 
@@ -274,7 +275,7 @@ public class OpenAiCompatibleClientTest {
         // Should NOT retry on 401
         verify(httpClient, times(1)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster, atLeast(1)).broadcast(captor.capture());
+        verify(broadcaster, atLeast(1)).broadcast(captor.capture(), any(Set.class));
         assertTrue(captor.getAllValues().stream().map(m -> raw(m)).anyMatch(m -> m.contains("\"type\":\"error\"")));
     }
 
@@ -302,7 +303,7 @@ public class OpenAiCompatibleClientTest {
         // Should have tried 3 times (initial + 2 retries)
         verify(httpClient, times(3)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster, atLeast(1)).broadcast(captor.capture());
+        verify(broadcaster, atLeast(1)).broadcast(captor.capture(), any(Set.class));
         assertTrue(captor.getAllValues().stream().map(m -> raw(m)).anyMatch(m -> m.contains("\"type\":\"error\"")));
     }
 
@@ -328,7 +329,7 @@ public class OpenAiCompatibleClientTest {
 
         verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster, atLeast(2)).broadcast(captor.capture());
+        verify(broadcaster, atLeast(2)).broadcast(captor.capture(), any(Set.class));
         assertTrue(captor.getAllValues().stream().map(m -> raw(m)).anyMatch(m -> m.contains("\"data\":\"OK\"")));
     }
 

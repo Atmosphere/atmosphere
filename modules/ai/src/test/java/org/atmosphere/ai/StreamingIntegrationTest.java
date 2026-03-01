@@ -55,7 +55,7 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class), any(Set.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("concurrent-session", resource);
 
         int threadCount = 10;
@@ -79,7 +79,7 @@ public class StreamingIntegrationTest {
         assertTrue(latch.await(10, TimeUnit.SECONDS), "All threads should complete");
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster, times(threadCount * tokensPerThread)).broadcast(captor.capture());
+        verify(broadcaster, times(threadCount * tokensPerThread)).broadcast(captor.capture(), any(Set.class));
 
         // Verify all sequence numbers are unique
         Set<Long> seqs = ConcurrentHashMap.newKeySet();
@@ -98,7 +98,7 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class), any(Set.class))).thenReturn(mock(Future.class));
 
         var session1 = StreamingSessions.start("session-1", resource);
         var session2 = StreamingSessions.start("session-2", resource);
@@ -110,7 +110,7 @@ public class StreamingIntegrationTest {
         session2.complete();
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster, times(5)).broadcast(captor.capture());
+        verify(broadcaster, times(5)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream()
                 .map(m -> {
@@ -154,8 +154,8 @@ public class StreamingIntegrationTest {
         session1.send("Only for broadcaster1");
         session2.send("Only for broadcaster2");
 
-        verify(broadcaster1, times(1)).broadcast(any(RawMessage.class));
-        verify(broadcaster2, times(1)).broadcast(any(RawMessage.class));
+        verify(broadcaster1, times(1)).broadcast(any(RawMessage.class), any(Set.class));
+        verify(broadcaster2, times(1)).broadcast(any(RawMessage.class), any(Set.class));
 
         // Closing one should not affect the other
         session1.complete();
@@ -163,7 +163,7 @@ public class StreamingIntegrationTest {
         assertFalse(session2.isClosed());
 
         session2.send("Still works");
-        verify(broadcaster2, times(2)).broadcast(any(RawMessage.class));
+        verify(broadcaster2, times(2)).broadcast(any(RawMessage.class), any(Set.class));
     }
 
     @Test
@@ -172,7 +172,7 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class), any(Set.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("race-session", resource);
 
         int threadCount = 50;
@@ -213,7 +213,7 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class), any(Set.class))).thenReturn(mock(Future.class));
         List<String> capturedTypes = new ArrayList<>();
 
         doAnswer(inv -> {
@@ -222,7 +222,7 @@ public class StreamingIntegrationTest {
             var node = MAPPER.readTree(json);
             capturedTypes.add(node.get("type").asText());
             return null;
-        }).when(broadcaster).broadcast(any(RawMessage.class));
+        }).when(broadcaster).broadcast(any(RawMessage.class), any(Set.class));
 
         try (var session = StreamingSessions.start("auto-close", resource)) {
             session.send("token1");
@@ -244,7 +244,7 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class), any(Set.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("meta-session", resource);
 
         session.sendMetadata("model", "gpt-4o");
@@ -255,7 +255,7 @@ public class StreamingIntegrationTest {
         session.complete("Hello world");
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster, times(6)).broadcast(captor.capture());
+        verify(broadcaster, times(6)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream()
                 .map(m -> {
@@ -286,7 +286,7 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class), any(Set.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("error-session", resource);
 
         session.send("some data");
@@ -297,7 +297,7 @@ public class StreamingIntegrationTest {
         // Subsequent sends should be ignored
         session.send("ignored");
 
-        verify(broadcaster, times(2)).broadcast(any(RawMessage.class)); // token + error only
+        verify(broadcaster, times(2)).broadcast(any(RawMessage.class), any(Set.class)); // token + error only
     }
 
     @Test
@@ -306,13 +306,13 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class), any(Set.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("double-close", resource);
 
         session.complete();
         session.error(new RuntimeException("Should be ignored"));
 
-        verify(broadcaster, times(1)).broadcast(any(RawMessage.class)); // only complete
+        verify(broadcaster, times(1)).broadcast(any(RawMessage.class), any(Set.class)); // only complete
     }
 
     @Test
@@ -321,13 +321,13 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class), any(Set.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("wire-test", resource);
 
         session.send("Hello");
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster).broadcast(captor.capture());
+        verify(broadcaster).broadcast(captor.capture(), any(Set.class));
 
         String wireJson = raw(captor.getValue());
         JsonNode json = MAPPER.readTree(wireJson);
@@ -353,7 +353,7 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class), any(Set.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("large-session", resource);
 
         // Simulate a large token (e.g. a code block)
@@ -361,7 +361,7 @@ public class StreamingIntegrationTest {
         session.send(largeToken);
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster).broadcast(captor.capture());
+        verify(broadcaster).broadcast(captor.capture(), any(Set.class));
 
         var json = MAPPER.readTree(raw(captor.getValue()));
         assertEquals(10_000, json.get("data").asText().length());
@@ -373,7 +373,7 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class), any(Set.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("special-session", resource);
 
         session.send("He said \"hello\" and\nnewline\ttab");
@@ -381,7 +381,7 @@ public class StreamingIntegrationTest {
         session.send("<script>alert('xss')</script>");
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster, times(3)).broadcast(captor.capture());
+        verify(broadcaster, times(3)).broadcast(captor.capture(), any(Set.class));
 
         // All should be valid JSON
         for (var msg : captor.getAllValues()) {

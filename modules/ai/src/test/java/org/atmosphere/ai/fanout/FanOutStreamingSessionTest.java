@@ -26,6 +26,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Future;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -44,7 +45,7 @@ public class FanOutStreamingSessionTest {
         broadcaster = mock(Broadcaster.class);
         when(resource.uuid()).thenReturn("resource-uuid");
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class), any(Set.class))).thenReturn(mock(Future.class));
         parentSession = StreamingSessions.start("parent-123", resource);
     }
 

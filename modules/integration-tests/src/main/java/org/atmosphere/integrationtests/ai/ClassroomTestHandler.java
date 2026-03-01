@@ -54,7 +54,7 @@ public class ClassroomTestHandler implements AtmosphereHandler {
         if (prompt != null && !prompt.trim().isEmpty()) {
             var trimmed = prompt.trim();
             Thread.ofVirtual().name("classroom-" + roomName).start(() -> {
-                var session = StreamingSessions.start(resource);
+                var session = StreamingSessions.start(resource.getBroadcaster());
                 session.sendMetadata("room", roomName);
                 llmClient.streamChatCompletion(
                         ChatCompletionRequest.of(roomName + "-model", trimmed),
