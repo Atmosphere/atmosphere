@@ -50,6 +50,7 @@ public class AiStreamingSessionTest {
                 "You are helpful", null, List.of(), resource);
 
         session.stream("Hello");
+        session.close();
 
         assertEquals(1, aiSupport.requests.size());
         assertEquals("Hello", aiSupport.requests.get(0).message());
@@ -70,6 +71,7 @@ public class AiStreamingSessionTest {
                 "", null, List.of(interceptor), resource);
 
         session.stream("Hello");
+        session.close();
 
         assertEquals("[augmented] Hello", aiSupport.requests.get(0).message());
     }
@@ -89,6 +91,7 @@ public class AiStreamingSessionTest {
                 "", null, List.of(interceptor), resource);
 
         session.stream("Hello");
+        session.close();
 
         assertEquals(1, postProcessed.size());
         assertEquals("Hello", postProcessed.get(0));
@@ -129,6 +132,7 @@ public class AiStreamingSessionTest {
                 "", null, List.of(first, second), resource);
 
         session.stream("Hello");
+        session.close();
 
         // Pre: FIFO, Post: LIFO
         assertEquals(List.of("pre-first", "pre-second", "post-second", "post-first"), order);
@@ -148,6 +152,7 @@ public class AiStreamingSessionTest {
                 "", null, List.of(interceptor), resource);
 
         session.stream("Hello");
+        session.close();
 
         // AiSupport should NOT be called
         assertTrue(aiSupport.requests.isEmpty());
@@ -184,6 +189,8 @@ public class AiStreamingSessionTest {
 
         session.error(new RuntimeException("fail"));
         verify(delegate).error(any(RuntimeException.class));
+
+        session.close();
     }
 
     @Test
@@ -196,6 +203,8 @@ public class AiStreamingSessionTest {
 
         assertEquals(1, aiSupport.requests.size());
         assertEquals("system", session.systemPrompt());
+
+        session.close();
     }
 
     @Test
@@ -265,6 +274,7 @@ public class AiStreamingSessionTest {
                 "system", null, List.of(), resource, memory);
 
         session.stream("new question");
+        session.close();
 
         assertEquals(1, aiSupport.requests.size());
         var request = aiSupport.requests.get(0);
@@ -282,6 +292,7 @@ public class AiStreamingSessionTest {
                 "system", null, List.of(), resource);
 
         session.stream("Hello");
+        session.close();
 
         assertEquals(1, aiSupport.requests.size());
         assertTrue(aiSupport.requests.get(0).history().isEmpty());
@@ -294,8 +305,6 @@ public class AiStreamingSessionTest {
         when(resource.uuid()).thenReturn("res-1");
 
         var capturingAiSupport = new AiSupport() {
-            StreamingSession capturedSession;
-
             @Override
             public String name() { return "capturing"; }
 
@@ -310,7 +319,6 @@ public class AiStreamingSessionTest {
 
             @Override
             public void stream(AiRequest request, StreamingSession session) {
-                capturedSession = session;
                 // Simulate LLM response
                 session.send("Hello");
                 session.send(" world");
@@ -322,6 +330,7 @@ public class AiStreamingSessionTest {
                 "", null, List.of(), resource, memory);
 
         session.stream("Hi");
+        session.close();
 
         // Memory should now contain the conversation
         var history = memory.getHistory("res-1");

@@ -1,0 +1,79 @@
+#!/bin/bash
+# Pre-push hook — blocks push unless pre-push-validate.sh has been run.
+# Validates the marker file is fresh and matches the current commit.
+#
+# Install: git config core.hooksPath .githooks
+
+set -e
+
+GIT_DIR="$(git rev-parse --git-dir)"
+MARKER_FILE="$GIT_DIR/validation-passed"
+VALIDATION_TTL_MINUTES=30
+
+# Skip validation for branch deletes
+ZERO_SHA="0000000000000000000000000000000000000000"
+IS_DELETE=true
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    if [ "$local_sha" != "$ZERO_SHA" ]; then
+        IS_DELETE=false
+        break
+    fi
+done
+
+if [ "$IS_DELETE" = true ]; then
+    exit 0
+fi
+
+CURRENT_COMMIT=$(git rev-parse HEAD)
+
+print_blocked() {
+    local reason="$1"
+    echo ""
+    echo "🚫 Push blocked — validation required"
+    echo "======================================="
+    echo ""
+    echo "Reason: $reason"
+    echo ""
+    echo "Run validation first:"
+    echo "  ./scripts/pre-push-validate.sh          # full build + tests"
+    echo "  ./scripts/pre-push-validate.sh --fast   # compile only"
+    echo ""
+    echo "Then push:"
+    echo "  git push"
+    echo ""
+    exit 1
+}
+
+# Check marker exists
+if [ ! -f "$MARKER_FILE" ]; then
+    print_blocked "No validation marker found"
+fi
+
+# Parse marker
+MARKER_CONTENT=$(cat "$MARKER_FILE")
+MARKER_TIMESTAMP=$(echo "$MARKER_CONTENT" | cut -d' ' -f1)
+MARKER_COMMIT=$(echo "$MARKER_CONTENT" | cut -d' ' -f2)
+
+# Check freshness
+CURRENT_TIMESTAMP=$(date +%s)
+AGE_SECONDS=$((CURRENT_TIMESTAMP - MARKER_TIMESTAMP))
+AGE_MINUTES=$((AGE_SECONDS / 60))
+TTL_SECONDS=$((VALIDATION_TTL_MINUTES * 60))
+
+if [ "$AGE_SECONDS" -gt "$TTL_SECONDS" ]; then
+    print_blocked "Validation expired (${AGE_MINUTES}m old, TTL is ${VALIDATION_TTL_MINUTES}m)"
+fi
+
+# Check commit matches
+if [ "$MARKER_COMMIT" != "$CURRENT_COMMIT" ]; then
+    print_blocked "Commit changed since validation (validated: ${MARKER_COMMIT:0:8}, current: ${CURRENT_COMMIT:0:8})"
+fi
+
+echo ""
+echo "✅ Validation marker valid (${AGE_MINUTES}m ago)"
+echo "🚀 Push proceeding..."
+echo ""
+
+# Consume the marker
+rm -f "$MARKER_FILE"

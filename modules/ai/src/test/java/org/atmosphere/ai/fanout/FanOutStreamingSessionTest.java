@@ -22,6 +22,7 @@ import org.atmosphere.ai.llm.LlmClient;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.RawMessage;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -47,6 +48,11 @@ public class FanOutStreamingSessionTest {
         when(resource.getBroadcaster()).thenReturn(broadcaster);
         when(broadcaster.broadcast(any(RawMessage.class), any(Set.class))).thenReturn(mock(Future.class));
         parentSession = StreamingSessions.start("parent-123", resource);
+    }
+
+    @AfterEach
+    public void tearDown() {
+        parentSession.close();
     }
 
     /** A mock LlmClient that sends a fixed number of tokens. */
@@ -164,6 +170,8 @@ public class FanOutStreamingSessionTest {
             assertEquals(1, results.size());
             assertEquals("Hello", results.get("model1").fullResponse());
         }
+
+        parentFromBroadcaster.close();
     }
 
     @Test

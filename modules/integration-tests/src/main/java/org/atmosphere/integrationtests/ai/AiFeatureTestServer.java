@@ -31,40 +31,33 @@ public class AiFeatureTestServer {
     public static void main(String[] args) throws Exception {
         int port = Integer.getInteger("server.port", 8090);
 
-        var server = new EmbeddedAtmosphereServer()
+        try (var server = new EmbeddedAtmosphereServer()
                 .withPort(port)
                 .withInitParam(ApplicationConfig.ANNOTATION_PACKAGE, "NONE")
-                .withInitParam(ApplicationConfig.WEBSOCKET_SUPPORT, "true");
-        server.start();
+                .withInitParam(ApplicationConfig.WEBSOCKET_SUPPORT, "true")) {
+            server.start();
 
-        var framework = server.getFramework();
+            var framework = server.getFramework();
 
-        // Register AI test handlers
-        framework.addAtmosphereHandler("/ai/filters", new FilterTestHandler());
-        framework.addAtmosphereHandler("/ai/fanout", new FanOutTestHandler());
-        framework.addAtmosphereHandler("/ai/cache", new CacheTestHandler());
-        framework.addAtmosphereHandler("/ai/routing", new RoutingTestHandler());
-        framework.addAtmosphereHandler("/ai/budget", new BudgetTestHandler());
-        framework.addAtmosphereHandler("/ai/cache-coalescing", new CacheCoalescingTestHandler());
-        framework.addAtmosphereHandler("/ai/cost-routing", new CostLatencyRoutingTestHandler());
-        framework.addAtmosphereHandler("/ai/combined-cost-cache", new CombinedCostCacheTestHandler());
-        framework.addAtmosphereHandler("/ai/classroom/math", new ClassroomTestHandler("math"));
-        framework.addAtmosphereHandler("/ai/classroom/code", new ClassroomTestHandler("code"));
-        framework.addAtmosphereHandler("/ai/memory", new ConversationMemoryTestHandler(20));
+            // Register AI test handlers
+            framework.addAtmosphereHandler("/ai/filters", new FilterTestHandler());
+            framework.addAtmosphereHandler("/ai/fanout", new FanOutTestHandler());
+            framework.addAtmosphereHandler("/ai/cache", new CacheTestHandler());
+            framework.addAtmosphereHandler("/ai/routing", new RoutingTestHandler());
+            framework.addAtmosphereHandler("/ai/budget", new BudgetTestHandler());
+            framework.addAtmosphereHandler("/ai/cache-coalescing", new CacheCoalescingTestHandler());
+            framework.addAtmosphereHandler("/ai/cost-routing", new CostLatencyRoutingTestHandler());
+            framework.addAtmosphereHandler("/ai/combined-cost-cache", new CombinedCostCacheTestHandler());
+            framework.addAtmosphereHandler("/ai/classroom/math", new ClassroomTestHandler("math"));
+            framework.addAtmosphereHandler("/ai/classroom/code", new ClassroomTestHandler("code"));
+            framework.addAtmosphereHandler("/ai/memory", new ConversationMemoryTestHandler(20));
 
-        logger.info("AI Feature Test Server started on port {}", server.getPort());
-        logger.info("Endpoints: /ai/filters, /ai/fanout, /ai/cache, /ai/routing, /ai/budget, "
-                + "/ai/cache-coalescing, /ai/cost-routing, /ai/combined-cost-cache, "
-                + "/ai/classroom/math, /ai/classroom/code, /ai/memory");
+            logger.info("AI Feature Test Server started on port {}", server.getPort());
+            logger.info("Endpoints: /ai/filters, /ai/fanout, /ai/cache, /ai/routing, /ai/budget, "
+                    + "/ai/cache-coalescing, /ai/cost-routing, /ai/combined-cost-cache, "
+                    + "/ai/classroom/math, /ai/classroom/code, /ai/memory");
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                server.close();
-            } catch (Exception e) {
-                logger.warn("Error stopping server", e);
-            }
-        }));
-
-        Thread.currentThread().join();
+            Thread.currentThread().join();
+        }
     }
 }

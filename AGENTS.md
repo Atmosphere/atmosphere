@@ -34,13 +34,14 @@ Build a specific module (faster iteration):
 ```bash
 git config core.hooksPath .githooks
 ```
-This enables pre-commit and commit-msg hooks. Sessions get archived/revived, so this must run EVERY time you start working.
+This enables pre-commit, commit-msg, and pre-push hooks. Sessions get archived/revived, so this must run EVERY time you start working.
 
 **NEVER use `--no-verify` when committing or pushing.** The hooks enforce:
 - Apache 2.0 copyright headers on all Java source files
 - No unused or duplicate imports in staged Java files
 - Commit message format (max 2 lines, conventional commits recommended)
 - No AI-generated commit signatures
+- Pre-push: Maven build must pass (via validation marker)
 
 ### Commit Message Format
 Use conventional commit prefixes. The commit-msg hook warns if missing:
@@ -203,6 +204,17 @@ All Java source files must start with:
 ```
 
 **Do NOT commit or push if the build produces warnings.** Treat compiler warnings, deprecation warnings, and static analysis warnings as errors. Fix them before committing. The compiler runs with `-Xlint:all,-processing,-serial` and Checkstyle enforces `UnusedImports`/`RedundantImport` — both will catch common issues.
+
+### Before Pushing
+The pre-push hook blocks `git push` unless you run the validation script first:
+```bash
+# Full build + tests (recommended)
+./scripts/pre-push-validate.sh
+
+# Compile only (faster iteration)
+./scripts/pre-push-validate.sh --fast
+```
+The script stamps a marker valid for 30 minutes. The pre-push hook checks the marker is fresh and matches the current commit.
 
 ### Before Merging / PR
 ```bash

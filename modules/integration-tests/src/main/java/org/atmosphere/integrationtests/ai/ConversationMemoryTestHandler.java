@@ -57,10 +57,10 @@ public class ConversationMemoryTestHandler implements AtmosphereHandler {
         if (prompt != null && !prompt.trim().isEmpty()) {
             var trimmed = prompt.trim();
             Thread.ofVirtual().name("memory-test").start(() -> {
-                var delegate = StreamingSessions.start(resource);
-                var session = new AiStreamingSession(delegate, echoingSupport,
-                        "You are a test assistant", null, List.of(), resource, memory);
-                session.stream(trimmed);
+                try (var session = new AiStreamingSession(StreamingSessions.start(resource), echoingSupport,
+                        "You are a test assistant", null, List.of(), resource, memory)) {
+                    session.stream(trimmed);
+                }
             });
         }
     }
