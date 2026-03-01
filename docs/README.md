@@ -2,6 +2,8 @@
 
 Atmosphere is a transport-agnostic real-time framework for the JVM. Write to a Broadcaster, and the framework delivers to every subscriber -- whether they're on a WebSocket, SSE stream, long-polling loop, gRPC channel, or MCP session.
 
+- [**What's New in 4.0**](whats-new-4.0.md)
+
 ## Core
 
 - [**Core Runtime**](core.md) -- Broadcaster, AtmosphereResource, `@ManagedService`, transport negotiation
