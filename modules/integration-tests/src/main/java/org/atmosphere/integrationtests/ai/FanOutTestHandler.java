@@ -56,12 +56,12 @@ public class FanOutTestHandler implements AtmosphereHandler {
         if (prompt != null && !prompt.trim().isEmpty()) {
             var trimmed = prompt.trim();
             Thread.ofVirtual().name("fanout-handler").start(() -> {
-                var parentSession = StreamingSessions.start(resource);
+                var parentSession = StreamingSessions.start(resource.getBroadcaster());
                 var strategy = parseStrategy(trimmed);
                 var baseRequest = ChatCompletionRequest.of("ignored", extractPrompt(trimmed));
 
                 try (var fanOut = new FanOutStreamingSession(
-                        parentSession, ENDPOINTS, strategy, resource)) {
+                        parentSession, ENDPOINTS, strategy, resource.getBroadcaster())) {
                     fanOut.fanOut(baseRequest);
                 }
             });

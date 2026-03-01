@@ -64,7 +64,7 @@ public class RoutingTestHandler implements AtmosphereHandler {
         if (prompt != null && !prompt.trim().isEmpty()) {
             var trimmed = prompt.trim();
             Thread.ofVirtual().name("routing-handler").start(() -> {
-                var session = StreamingSessions.start(resource);
+                var session = StreamingSessions.start(resource.getBroadcaster());
                 var request = ChatCompletionRequest.of("auto", trimmed);
                 router.streamChatCompletion(request, session);
             });

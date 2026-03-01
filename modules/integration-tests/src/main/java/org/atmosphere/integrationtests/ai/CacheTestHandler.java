@@ -49,7 +49,7 @@ public class CacheTestHandler implements AtmosphereHandler {
         if (prompt != null && !prompt.trim().isEmpty()) {
             var trimmed = prompt.trim();
             Thread.ofVirtual().name("cache-handler").start(() -> {
-                var session = StreamingSessions.start(resource);
+                var session = StreamingSessions.start(resource.getBroadcaster());
                 session.progress("Thinking...");
                 var client = selectClient(trimmed);
                 var request = ChatCompletionRequest.of(client.modelName(), trimmed);
