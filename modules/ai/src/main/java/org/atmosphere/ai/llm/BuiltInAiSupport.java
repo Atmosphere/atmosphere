@@ -67,6 +67,10 @@ public class BuiltInAiSupport implements AiSupport {
         if (request.systemPrompt() != null && !request.systemPrompt().isEmpty()) {
             builder.system(request.systemPrompt());
         }
+        // Insert conversation history between system prompt and current user message
+        for (var historyMsg : request.history()) {
+            builder.message(historyMsg);
+        }
         builder.user(request.message());
 
         // Apply hints

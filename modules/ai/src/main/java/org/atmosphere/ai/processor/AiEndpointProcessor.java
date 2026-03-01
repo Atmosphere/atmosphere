@@ -16,9 +16,11 @@
 package org.atmosphere.ai.processor;
 
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.DefaultAiSupportResolver;
+import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
@@ -66,16 +68,22 @@ public class AiEndpointProcessor implements Processor<Object> {
             var systemPrompt = resolveSystemPrompt(annotation);
             var aiSupport = resolveAiSupport();
             var interceptors = instantiateInterceptors(annotation.interceptors());
+            AiConversationMemory memory = null;
+            if (annotation.conversationMemory()) {
+                memory = new InMemoryConversationMemory(annotation.maxHistoryMessages());
+            }
             var handler = new AiEndpointHandler(instance, promptMethod,
-                    annotation.timeout(), systemPrompt, aiSupport, interceptors);
+                    annotation.timeout(), systemPrompt, aiSupport, interceptors, memory);
 
             List<AtmosphereInterceptor> frameworkInterceptors = new LinkedList<>();
             AnnotationUtil.defaultManagedServiceInterceptors(framework, frameworkInterceptors);
             framework.addAtmosphereHandler(annotation.path(), handler, frameworkInterceptors);
 
-            logger.info("AI endpoint registered at {} (class: {}, aiSupport: {}, interceptors: {}, timeout: {}ms)",
+            logger.info("AI endpoint registered at {} (class: {}, aiSupport: {}, interceptors: {}, memory: {}, timeout: {}ms)",
                     annotation.path(), annotatedClass.getSimpleName(),
-                    aiSupport.name(), interceptors.size(), annotation.timeout());
+                    aiSupport.name(), interceptors.size(),
+                    memory != null ? "on(max=" + memory.maxMessages() + ")" : "off",
+                    annotation.timeout());
 
         } catch (Exception e) {
             logger.error("Failed to register AI endpoint from {}", annotatedClass.getName(), e);

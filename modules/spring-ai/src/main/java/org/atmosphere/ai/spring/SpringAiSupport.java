@@ -21,9 +21,16 @@ import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.StreamingSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.atmosphere.ai.llm.ChatMessage;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import reactor.core.publisher.Flux;
+
+import java.util.ArrayList;
 
 /**
  * {@link AiSupport} implementation backed by Spring AI's {@link ChatClient}.
@@ -118,10 +125,19 @@ public class SpringAiSupport implements AiSupport {
 
         session.progress("Connecting to AI model...");
 
-        var promptSpec = client.prompt(request.message());
+        var promptSpec = client.prompt();
         if (request.systemPrompt() != null && !request.systemPrompt().isEmpty()) {
             promptSpec.system(request.systemPrompt());
         }
+        // Insert conversation history between system prompt and current user message
+        if (!request.history().isEmpty()) {
+            var historyMessages = new ArrayList<Message>();
+            for (var historyMsg : request.history()) {
+                historyMessages.add(toSpringMessage(historyMsg));
+            }
+            promptSpec.messages(historyMessages);
+        }
+        promptSpec.user(request.message());
 
         Flux<ChatResponse> flux = promptSpec.stream().chatResponse();
         flux.doOnNext(response -> {
@@ -134,5 +150,13 @@ public class SpringAiSupport implements AiSupport {
                 .doOnComplete(session::complete)
                 .doOnError(session::error)
                 .subscribe();
+    }
+
+    private static Message toSpringMessage(ChatMessage msg) {
+        return switch (msg.role()) {
+            case "assistant" -> new AssistantMessage(msg.content());
+            case "system" -> new SystemMessage(msg.content());
+            default -> new UserMessage(msg.content());
+        };
     }
 }

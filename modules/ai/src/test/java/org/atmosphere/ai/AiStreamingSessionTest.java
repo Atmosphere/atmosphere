@@ -19,6 +19,8 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.atmosphere.ai.llm.ChatMessage;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -198,12 +200,13 @@ public class AiStreamingSessionTest {
 
     @Test
     public void testAiRequestRecord() {
-        var request = new AiRequest("msg", "sys", "gpt-4", Map.of("temp", 0.5));
+        var request = new AiRequest("msg", "sys", "gpt-4", Map.of("temp", 0.5), List.of());
 
         assertEquals("msg", request.message());
         assertEquals("sys", request.systemPrompt());
         assertEquals("gpt-4", request.model());
         assertEquals(0.5, request.hints().get("temp"));
+        assertTrue(request.history().isEmpty());
 
         var withMsg = request.withMessage("new msg");
         assertEquals("new msg", withMsg.message());
@@ -228,9 +231,103 @@ public class AiStreamingSessionTest {
         assertEquals("", simple.systemPrompt());
         assertNull(simple.model());
         assertTrue(simple.hints().isEmpty());
+        assertTrue(simple.history().isEmpty());
 
         var withSys = new AiRequest("msg", "sys");
         assertEquals("sys", withSys.systemPrompt());
+        assertTrue(withSys.history().isEmpty());
+    }
+
+    @Test
+    public void testAiRequestWithHistory() {
+        var history = List.of(
+                ChatMessage.user("prev question"),
+                ChatMessage.assistant("prev answer")
+        );
+        var request = new AiRequest("msg").withHistory(history);
+
+        assertEquals(2, request.history().size());
+        assertEquals("prev question", request.history().get(0).content());
+        assertEquals("prev answer", request.history().get(1).content());
+        assertEquals("msg", request.message());
+    }
+
+    @Test
+    public void testStreamWithMemoryLoadsHistory() {
+        var aiSupport = new RecordingAiSupport();
+        var memory = new InMemoryConversationMemory();
+        memory.addMessage("res-1", ChatMessage.user("prev question"));
+        memory.addMessage("res-1", ChatMessage.assistant("prev answer"));
+
+        when(resource.uuid()).thenReturn("res-1");
+
+        var session = new AiStreamingSession(delegate, aiSupport,
+                "system", null, List.of(), resource, memory);
+
+        session.stream("new question");
+
+        assertEquals(1, aiSupport.requests.size());
+        var request = aiSupport.requests.get(0);
+        assertEquals("new question", request.message());
+        assertEquals(2, request.history().size());
+        assertEquals("prev question", request.history().get(0).content());
+        assertEquals("prev answer", request.history().get(1).content());
+    }
+
+    @Test
+    public void testStreamWithoutMemoryHasEmptyHistory() {
+        var aiSupport = new RecordingAiSupport();
+
+        var session = new AiStreamingSession(delegate, aiSupport,
+                "system", null, List.of(), resource);
+
+        session.stream("Hello");
+
+        assertEquals(1, aiSupport.requests.size());
+        assertTrue(aiSupport.requests.get(0).history().isEmpty());
+    }
+
+    @Test
+    public void testStreamWrapsInMemoryCapturingSession() {
+        // Verify that the session passed to aiSupport.stream() is a MemoryCapturingSession
+        var memory = new InMemoryConversationMemory();
+        when(resource.uuid()).thenReturn("res-1");
+
+        var capturingAiSupport = new AiSupport() {
+            StreamingSession capturedSession;
+
+            @Override
+            public String name() { return "capturing"; }
+
+            @Override
+            public boolean isAvailable() { return true; }
+
+            @Override
+            public int priority() { return 0; }
+
+            @Override
+            public void configure(AiConfig.LlmSettings settings) { }
+
+            @Override
+            public void stream(AiRequest request, StreamingSession session) {
+                capturedSession = session;
+                // Simulate LLM response
+                session.send("Hello");
+                session.send(" world");
+                session.complete();
+            }
+        };
+
+        var session = new AiStreamingSession(delegate, capturingAiSupport,
+                "", null, List.of(), resource, memory);
+
+        session.stream("Hi");
+
+        // Memory should now contain the conversation
+        var history = memory.getHistory("res-1");
+        assertEquals(2, history.size());
+        assertEquals(ChatMessage.user("Hi"), history.get(0));
+        assertEquals(ChatMessage.assistant("Hello world"), history.get(1));
     }
 
     /**

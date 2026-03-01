@@ -50,11 +50,12 @@ public class AiFeatureTestServer {
         framework.addAtmosphereHandler("/ai/combined-cost-cache", new CombinedCostCacheTestHandler());
         framework.addAtmosphereHandler("/ai/classroom/math", new ClassroomTestHandler("math"));
         framework.addAtmosphereHandler("/ai/classroom/code", new ClassroomTestHandler("code"));
+        framework.addAtmosphereHandler("/ai/memory", new ConversationMemoryTestHandler(20));
 
         logger.info("AI Feature Test Server started on port {}", server.getPort());
         logger.info("Endpoints: /ai/filters, /ai/fanout, /ai/cache, /ai/routing, /ai/budget, "
                 + "/ai/cache-coalescing, /ai/cost-routing, /ai/combined-cost-cache, "
-                + "/ai/classroom/math, /ai/classroom/code");
+                + "/ai/classroom/math, /ai/classroom/code, /ai/memory");
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {

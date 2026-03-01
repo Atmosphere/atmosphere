@@ -107,4 +107,22 @@ public @interface AiEndpoint {
      * }</pre>
      */
     Class<? extends AiInterceptor>[] interceptors() default {};
+
+    /**
+     * Whether to enable automatic conversation memory for this endpoint.
+     * When {@code true}, the framework accumulates user/assistant turns per
+     * {@link org.atmosphere.cpr.AtmosphereResource} and injects the history
+     * into every {@link org.atmosphere.ai.AiRequest} so all adapters get
+     * multi-turn context for free.
+     *
+     * <p>Memory is cleared automatically when the client disconnects.</p>
+     */
+    boolean conversationMemory() default false;
+
+    /**
+     * Maximum number of messages to retain in conversation memory per client.
+     * Only relevant when {@link #conversationMemory()} is {@code true}.
+     * Defaults to 20 messages (10 turns).
+     */
+    int maxHistoryMessages() default 20;
 }

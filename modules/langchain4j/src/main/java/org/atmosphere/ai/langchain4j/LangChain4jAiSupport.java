@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.langchain4j;
 
+import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
@@ -117,6 +118,15 @@ public class LangChain4jAiSupport implements AiSupport {
         var messages = new ArrayList<dev.langchain4j.data.message.ChatMessage>();
         if (request.systemPrompt() != null && !request.systemPrompt().isEmpty()) {
             messages.add(SystemMessage.from(request.systemPrompt()));
+        }
+        // Insert conversation history between system prompt and current user message
+        for (var historyMsg : request.history()) {
+            switch (historyMsg.role()) {
+                case "user" -> messages.add(UserMessage.from(historyMsg.content()));
+                case "assistant" -> messages.add(AiMessage.from(historyMsg.content()));
+                case "system" -> messages.add(SystemMessage.from(historyMsg.content()));
+                default -> messages.add(UserMessage.from(historyMsg.content()));
+            }
         }
         messages.add(UserMessage.from(request.message()));
 

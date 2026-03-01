@@ -35,8 +35,10 @@ import java.util.Map;
  *
  * <p>When {@code stream(message)} is called, this session:</p>
  * <ol>
- *   <li>Builds an {@link AiRequest} from the message + stored system prompt + model</li>
+ *   <li>Loads conversation history from {@link AiConversationMemory} (if enabled)</li>
+ *   <li>Builds an {@link AiRequest} from the message + stored system prompt + model + history</li>
  *   <li>Runs {@link AiInterceptor#preProcess} in FIFO order</li>
+ *   <li>Wraps the delegate in a {@link MemoryCapturingSession} to capture the response</li>
  *   <li>Delegates to {@link AiSupport#stream(AiRequest, StreamingSession)}</li>
  *   <li>Runs {@link AiInterceptor#postProcess} in LIFO order</li>
  * </ol>
@@ -51,6 +53,7 @@ public class AiStreamingSession implements StreamingSession {
     private final String model;
     private final List<AiInterceptor> interceptors;
     private final AtmosphereResource resource;
+    private final AiConversationMemory memory;
 
     /**
      * @param delegate     the underlying streaming session
@@ -64,17 +67,40 @@ public class AiStreamingSession implements StreamingSession {
                               String systemPrompt, String model,
                               List<AiInterceptor> interceptors,
                               AtmosphereResource resource) {
+        this(delegate, aiSupport, systemPrompt, model, interceptors, resource, null);
+    }
+
+    /**
+     * @param delegate     the underlying streaming session
+     * @param aiSupport    the resolved AI support implementation
+     * @param systemPrompt the system prompt from {@code @AiEndpoint}
+     * @param model        the model name (may be null for provider default)
+     * @param interceptors the interceptor chain
+     * @param resource     the atmosphere resource for this client
+     * @param memory       conversation memory (may be null if disabled)
+     */
+    public AiStreamingSession(StreamingSession delegate, AiSupport aiSupport,
+                              String systemPrompt, String model,
+                              List<AiInterceptor> interceptors,
+                              AtmosphereResource resource,
+                              AiConversationMemory memory) {
         this.delegate = delegate;
         this.aiSupport = aiSupport;
         this.systemPrompt = systemPrompt != null ? systemPrompt : "";
         this.model = model;
         this.interceptors = interceptors != null ? interceptors : List.of();
         this.resource = resource;
+        this.memory = memory;
     }
 
     @Override
     public void stream(String message) {
-        var request = new AiRequest(message, systemPrompt, model, Map.of());
+        // Load conversation history if memory is enabled
+        var history = memory != null
+                ? memory.getHistory(resource.uuid())
+                : List.<org.atmosphere.ai.llm.ChatMessage>of();
+
+        var request = new AiRequest(message, systemPrompt, model, Map.of(), history);
 
         // Pre-process: FIFO order
         for (var interceptor : interceptors) {
@@ -87,10 +113,16 @@ public class AiStreamingSession implements StreamingSession {
             }
         }
 
+        // Wrap delegate in MemoryCapturingSession if memory is enabled
+        StreamingSession target = delegate;
+        if (memory != null) {
+            target = new MemoryCapturingSession(delegate, memory, resource.uuid(), message);
+        }
+
         // Delegate to the AI support
         var finalRequest = request;
         try {
-            aiSupport.stream(finalRequest, delegate);
+            aiSupport.stream(finalRequest, target);
         } finally {
             // Post-process: LIFO order (matching AtmosphereInterceptor convention)
             for (int i = interceptors.size() - 1; i >= 0; i--) {

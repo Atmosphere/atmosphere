@@ -110,5 +110,9 @@ export default defineConfig({
       name: 'spring-boot-ai-classroom',
       testMatch: /spring-boot-ai-classroom\.spec\.ts/,
     },
+    {
+      name: 'ai-memory',
+      testMatch: /ai-memory\.spec\.ts/,
+    },
   ],
 });

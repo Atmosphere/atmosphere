@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.processor;
 
+import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiStreamingSession;
 import org.atmosphere.ai.AiSupport;
@@ -62,6 +63,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
     private final String systemPrompt;
     private final AiSupport aiSupport;
     private final List<AiInterceptor> interceptors;
+    private final AiConversationMemory memory;
 
     /**
      * @param target       the user's @AiEndpoint instance
@@ -74,6 +76,22 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
     public AiEndpointHandler(Object target, Method promptMethod, long timeout,
                              String systemPrompt, AiSupport aiSupport,
                              List<AiInterceptor> interceptors) {
+        this(target, promptMethod, timeout, systemPrompt, aiSupport, interceptors, null);
+    }
+
+    /**
+     * @param target       the user's @AiEndpoint instance
+     * @param promptMethod the @Prompt-annotated method
+     * @param timeout      per-resource suspend timeout in milliseconds
+     * @param systemPrompt the system prompt from the @AiEndpoint annotation (may be empty)
+     * @param aiSupport    the resolved AI support implementation
+     * @param interceptors the interceptor chain
+     * @param memory       conversation memory (may be null if disabled)
+     */
+    public AiEndpointHandler(Object target, Method promptMethod, long timeout,
+                             String systemPrompt, AiSupport aiSupport,
+                             List<AiInterceptor> interceptors,
+                             AiConversationMemory memory) {
         this.target = target;
         this.promptMethod = promptMethod;
         this.paramCount = promptMethod.getParameterCount();
@@ -81,6 +99,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
         this.systemPrompt = systemPrompt != null ? systemPrompt : "";
         this.aiSupport = aiSupport;
         this.interceptors = interceptors != null ? interceptors : List.of();
+        this.memory = memory;
         this.promptMethod.setAccessible(true);
     }
 
@@ -116,11 +135,17 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
         var resource = event.getResource();
 
         if (event.isClosedByClient() || event.isClosedByApplication()) {
+            if (memory != null) {
+                memory.clear(resource.uuid());
+            }
             logger.info("Client {} disconnected from AI endpoint", resource.uuid());
             return;
         }
 
         if (event.isCancelled()) {
+            if (memory != null) {
+                memory.clear(resource.uuid());
+            }
             logger.info("Client {} unexpectedly disconnected from AI endpoint", resource.uuid());
             return;
         }
@@ -146,7 +171,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
 
         var delegate = StreamingSessions.start(resource);
         var session = new AiStreamingSession(delegate, aiSupport,
-                systemPrompt, null, interceptors, resource);
+                systemPrompt, null, interceptors, resource, memory);
 
         Thread.startVirtualThread(() -> {
             try {
@@ -190,5 +215,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
 
     List<AiInterceptor> interceptors() {
         return interceptors;
+    }
+
+    AiConversationMemory memory() {
+        return memory;
     }
 }
