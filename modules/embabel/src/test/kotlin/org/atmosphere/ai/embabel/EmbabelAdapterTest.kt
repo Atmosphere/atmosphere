@@ -42,7 +42,7 @@ class EmbabelAdapterTest {
         broadcaster = mock(Broadcaster::class.java)
         `when`(resource.uuid()).thenReturn("resource-1")
         `when`(resource.getBroadcaster()).thenReturn(broadcaster)
-        `when`(broadcaster.broadcast(any())).thenReturn(mock(Future::class.java) as Future<Any>)
+        `when`(broadcaster.broadcast(any<Any>(), any<Set<AtmosphereResource>>())).thenReturn(mock(Future::class.java) as Future<Any>)
         val session = StreamingSessions.start("test-session", resource)
         channel = AtmosphereOutputChannel(session)
     }
@@ -65,7 +65,7 @@ class EmbabelAdapterTest {
         channel.send(event)
 
         val captor = ArgumentCaptor.forClass(Any::class.java)
-        verify(broadcaster).broadcast(captor.capture())
+        verify(broadcaster).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val msg = captor.value.toString()
         assertTrue(msg.contains("\"type\":\"token\""))
@@ -78,7 +78,7 @@ class EmbabelAdapterTest {
         channel.send(event)
 
         val captor = ArgumentCaptor.forClass(Any::class.java)
-        verify(broadcaster).broadcast(captor.capture())
+        verify(broadcaster).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val msg = captor.value.toString()
         assertTrue(msg.contains("\"type\":\"token\""))
@@ -91,7 +91,7 @@ class EmbabelAdapterTest {
         channel.send(event)
 
         val captor = ArgumentCaptor.forClass(Any::class.java)
-        verify(broadcaster).broadcast(captor.capture())
+        verify(broadcaster).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val msg = captor.value.toString()
         assertTrue(msg.contains("\"type\":\"progress\""))
@@ -106,7 +106,7 @@ class EmbabelAdapterTest {
         channel.send(event)
 
         val captor = ArgumentCaptor.forClass(Any::class.java)
-        verify(broadcaster).broadcast(captor.capture())
+        verify(broadcaster).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val msg = captor.value.toString()
         assertTrue(msg.contains("\"type\":\"progress\""))
@@ -120,7 +120,7 @@ class EmbabelAdapterTest {
         )
         channel.send(event)
 
-        verify(broadcaster, never()).broadcast(any())
+        verify(broadcaster, never()).broadcast(any<Any>(), any<Set<AtmosphereResource>>())
     }
 
     @Test
@@ -135,7 +135,7 @@ class EmbabelAdapterTest {
             MessageOutputChannelEvent("proc-1", mockMessage("Should be ignored"))
         )
 
-        verify(broadcaster, never()).broadcast(any())
+        verify(broadcaster, never()).broadcast(any<Any>(), any<Set<AtmosphereResource>>())
     }
 
     @Test
@@ -150,7 +150,7 @@ class EmbabelAdapterTest {
         session.complete()
 
         val captor = ArgumentCaptor.forClass(Any::class.java)
-        verify(broadcaster, times(5)).broadcast(captor.capture())
+        verify(broadcaster, times(5)).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val messages = captor.allValues.map { it.toString() }
         assertTrue(messages[0].contains("\"type\":\"progress\""))
@@ -179,7 +179,7 @@ class EmbabelAdapterTest {
 
         val captor = ArgumentCaptor.forClass(Any::class.java)
         // progress ("Starting agent: test-agent...") + token + complete
-        verify(broadcaster, times(3)).broadcast(captor.capture())
+        verify(broadcaster, times(3)).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val messages = captor.allValues.map { it.toString() }
         assertTrue(messages[0].contains("\"type\":\"progress\""))
@@ -200,6 +200,6 @@ class EmbabelAdapterTest {
         adapter.stream(request, session)
 
         val captor = ArgumentCaptor.forClass(Any::class.java)
-        verify(broadcaster, atLeast(2)).broadcast(captor.capture())
+        verify(broadcaster, atLeast(2)).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
     }
 }
