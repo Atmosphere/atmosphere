@@ -19,4 +19,4 @@ Common stylesheets shared across sample UIs.
 
 **To use:** Import the JSON file into Grafana (`Dashboards → Import → Upload JSON file`). Requires a Prometheus data source scraping your Atmosphere application's `/actuator/prometheus` endpoint.
 
-See [Observability](https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-Spring-Boot#observability) in the wiki for setup details.
+See [Observability](../../docs/observability.md) for setup details.

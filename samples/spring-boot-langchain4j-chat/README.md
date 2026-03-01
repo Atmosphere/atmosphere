@@ -65,6 +65,6 @@ spring-boot-langchain4j-chat/
 
 ## See Also
 
-- [AI / LLM Streaming Guide](https://github.com/Atmosphere/atmosphere/wiki/AI-LLM-Streaming)
+- [AI / LLM Streaming Guide](../../docs/ai.md)
 - [AI chat sample](../spring-boot-ai-chat/) — built-in LLM client (no framework dependency)
 - [Embabel sample](../spring-boot-embabel-chat/) — agentic AI with Embabel

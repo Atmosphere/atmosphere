@@ -1,4 +1,4 @@
-# Atmosphere MCP
+# MCP Server
 
 MCP (Model Context Protocol) server module for Atmosphere. Exposes annotation-driven tools, resources, and prompt templates to AI agents over Streamable HTTP, WebSocket, or SSE transport.
 
@@ -8,11 +8,11 @@ MCP (Model Context Protocol) server module for Atmosphere. Exposes annotation-dr
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-mcp</artifactId>
-    <version>4.0.2</version>
+    <version>4.0.8-SNAPSHOT</version>
 </dependency>
 ```
 
-## Minimal Example
+## Quick Start
 
 ```java
 @McpServer(name = "my-server", path = "/atmosphere/mcp")
@@ -48,7 +48,7 @@ public class MyMcpServer {
 | `@McpTool` | Method | Exposes a method as a callable tool (`tools/call`) |
 | `@McpResource` | Method | Exposes a method as a read-only resource (`resources/read`) |
 | `@McpPrompt` | Method | Exposes a method as a prompt template (`prompts/get`) |
-| `@McpParam` | Parameter | Annotates method parameters with name, description, and required flag |
+| `@McpParam` | Parameter | Annotates parameters with name, description, and required flag |
 
 ## Supported Transports
 
@@ -74,42 +74,32 @@ Works with Claude Desktop, VS Code Copilot, Cursor, and any MCP-compatible agent
 
 For clients that only support stdio, build the bridge JAR with `mvn package -Pstdio-bridge -DskipTests` and point the client at the resulting `atmosphere-mcp-*-stdio-bridge.jar`.
 
-## Sample
-
-- [Spring Boot MCP Server](../../samples/spring-boot-mcp-server/) -- tools, resources, and prompts with a React frontend
-
 ## Injectable Parameters
 
-`@McpTool` methods can declare framework types as parameters. These are auto-injected at invocation time and excluded from the tool's JSON Schema (MCP clients never see them):
+`@McpTool` methods can declare framework types as parameters. These are auto-injected at invocation time and excluded from the tool's JSON Schema:
 
 | Type | What's injected | Requires |
 |------|----------------|----------|
-| `Broadcaster` | `BroadcasterFactory.lookup(topic, true)` | A `@McpParam(name="topic")` argument in the call |
-| `StreamingSession` | `BroadcasterStreamingSession` wrapping the topic's Broadcaster | A `@McpParam(name="topic")` argument + `atmosphere-ai` on classpath |
+| `Broadcaster` | `BroadcasterFactory.lookup(topic, true)` | A `@McpParam(name="topic")` argument |
+| `StreamingSession` | `BroadcasterStreamingSession` wrapping the topic's Broadcaster | A `@McpParam(name="topic")` + `atmosphere-ai` |
 | `AtmosphereConfig` | The framework's `AtmosphereConfig` | Nothing |
 | `BroadcasterFactory` | The framework's `BroadcasterFactory` | Nothing |
 | `AtmosphereFramework` | The framework instance | Nothing |
 
-### Example: Push Messages to Browser Clients
+### Push Messages to Browser Clients
 
 ```java
-@McpServer(name = "my-server", path = "/atmosphere/mcp")
-public class MyMcpServer {
-
-    @McpTool(name = "broadcast", description = "Send a message to a chat topic")
-    public String broadcast(
-            @McpParam(name = "message") String message,
-            @McpParam(name = "topic") String topic,
-            Broadcaster broadcaster) {
-        broadcaster.broadcast(message);
-        return "sent to " + topic;
-    }
+@McpTool(name = "broadcast", description = "Send a message to a chat topic")
+public String broadcast(
+        @McpParam(name = "message") String message,
+        @McpParam(name = "topic") String topic,
+        Broadcaster broadcaster) {
+    broadcaster.broadcast(message);
+    return "sent to " + topic;
 }
 ```
 
-When an AI agent calls this tool with `{"message": "hello", "topic": "/chat"}`, the message is broadcast to all WebSocket/SSE/gRPC clients subscribed to `/chat`.
-
-### Example: Stream LLM Tokens to Browsers
+### Stream LLM Tokens to Browsers
 
 With `atmosphere-ai` on the classpath, inject a `StreamingSession` that wraps the topic's Broadcaster:
 
@@ -119,7 +109,6 @@ public String askAi(
         @McpParam(name = "question") String question,
         @McpParam(name = "topic") String topic,
         StreamingSession session) {
-    // session.send() broadcasts to all clients on the topic
     Thread.startVirtualThread(() -> {
         var request = ChatCompletionRequest.builder(model).user(question).build();
         client.streamChatCompletion(request, session);
@@ -128,45 +117,27 @@ public String askAi(
 }
 ```
 
-See [atmosphere-ai README](../ai/README.md) for more on `StreamingSession` and wire protocol.
-
 ## Observability
 
 ### OpenTelemetry Tracing
 
-`McpTracing` wraps every `tools/call`, `resources/read`, and `prompts/get` invocation in an OTel trace span. Add `opentelemetry-api` to your classpath:
-
-```xml
-<dependency>
-    <groupId>io.opentelemetry</groupId>
-    <artifactId>opentelemetry-api</artifactId>
-    <optional>true</optional>
-</dependency>
-```
-
-Wire it programmatically:
-
-```java
-var tracing = new McpTracing(openTelemetry);
-protocolHandler.setTracing(tracing);
-```
-
-With the Spring Boot starter, `McpTracing` is auto-configured when an `OpenTelemetry` bean is present.
-
-**Span attributes:**
+`McpTracing` wraps every `tools/call`, `resources/read`, and `prompts/get` invocation in an OTel trace span:
 
 | Attribute | Description |
-|---|---|
+|-----------|-------------|
 | `mcp.tool.name` | Tool/resource/prompt name |
 | `mcp.tool.type` | `"tool"`, `"resource"`, or `"prompt"` |
 | `mcp.tool.arg_count` | Number of arguments provided |
 | `mcp.tool.error` | `true` if invocation failed |
 
-## Full Documentation
+With the Spring Boot starter, `McpTracing` is auto-configured when an `OpenTelemetry` bean is present.
 
-See [docs/mcp.md](../../docs/mcp.md) for complete documentation.
+## Samples
 
-## Requirements
+- [Spring Boot MCP Server](../samples/spring-boot-mcp-server/) -- tools, resources, and prompts with a React frontend
 
-- Java 21+
-- `atmosphere-runtime` (transitive)
+## See Also
+
+- [AI Integration](ai.md) -- AI-MCP bridge for tool-driven streaming
+- [Core Runtime](core.md)
+- [Module README](../modules/mcp/README.md)

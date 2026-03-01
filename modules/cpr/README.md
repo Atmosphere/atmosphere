@@ -108,6 +108,10 @@ Registers `atmosphere.connections`, `atmosphere.messages`, and `atmosphere.broad
 - Java 21+
 - Servlet 6.0+ container (Jetty 12, Tomcat 11, Undertow, etc.)
 
+## Full Documentation
+
+See [docs/core.md](../../docs/core.md) for complete documentation.
+
 ## Building
 
 ```bash

@@ -402,6 +402,10 @@ public class ChatClient {
 ./mvnw test -pl modules/wasync -Dtest=ChatIntegrationTest
 ```
 
+## Full Documentation
+
+See [docs/client-java.md](../../docs/client-java.md) for complete documentation.
+
 ## Migration from wAsync 3.x
 
 If migrating from the standalone [wAsync](https://github.com/Atmosphere/wasync) library:

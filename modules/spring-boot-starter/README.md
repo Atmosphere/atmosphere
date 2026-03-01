@@ -109,6 +109,10 @@ The starter includes `AtmosphereRuntimeHints` for native image support. Build wi
 
 - [Spring Boot Chat](../../samples/spring-boot-chat/) -- rooms, presence, REST API, Micrometer metrics, Actuator health
 
+## Full Documentation
+
+See [docs/spring-boot.md](../../docs/spring-boot.md) for complete documentation.
+
 ## Requirements
 
 - Java 21+

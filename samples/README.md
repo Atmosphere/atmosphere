@@ -57,7 +57,7 @@ Only packaging and configuration differ — your business logic is portable acro
 
 ## Documentation
 
-- [Wiki](https://github.com/Atmosphere/atmosphere/wiki)
-- [Getting Started with Spring Boot](https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-Spring-Boot)
-- [Getting Started with Quarkus](https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-Quarkus)
-- [WAR Deployment](https://github.com/Atmosphere/atmosphere/wiki/WAR-Deployment)
+- [Full Documentation](../docs/README.md)
+- [Getting Started with Spring Boot](../docs/spring-boot.md)
+- [Getting Started with Quarkus](../docs/quarkus.md)
+- [Core Runtime](../docs/core.md)

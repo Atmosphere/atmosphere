@@ -716,7 +716,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## Links
 
 - [Atmosphere Framework](https://github.com/Atmosphere/atmosphere)
-- [Documentation](https://github.com/Atmosphere/atmosphere/wiki)
+- [Documentation](../docs/client-javascript.md)
 - [Issues](https://github.com/Atmosphere/atmosphere/issues)
 
 ---

@@ -1,22 +1,20 @@
-# Atmosphere Quarkus Extension
+# Quarkus Integration
 
 A Quarkus extension that integrates Atmosphere with Quarkus 3.21+. Provides build-time annotation scanning via Jandex, Arc CDI integration, and GraalVM native image support.
 
 ## Maven Coordinates
 
-Add the runtime artifact to your application:
-
 ```xml
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-quarkus-extension</artifactId>
-    <version>4.0.2</version>
+    <version>4.0.8-SNAPSHOT</version>
 </dependency>
 ```
 
 The deployment artifact (`atmosphere-quarkus-extension-deployment`) is resolved automatically by Quarkus.
 
-## Minimal Example
+## Quick Start
 
 ### application.properties
 
@@ -49,7 +47,7 @@ public class Chat {
 }
 ```
 
-The extension auto-registers the Atmosphere servlet -- no `web.xml` or manual servlet registration needed.
+The extension auto-registers the Atmosphere servlet -- no `web.xml` or manual servlet registration needed. The same `@ManagedService` handler works across WAR, Spring Boot, and Quarkus -- only packaging and configuration differ.
 
 ## Configuration Properties
 
@@ -62,9 +60,11 @@ All properties are under the `quarkus.atmosphere.*` prefix:
 | `quarkus.atmosphere.session-support` | `false` | Enable HTTP session support |
 | `quarkus.atmosphere.broadcaster-class` | (default) | Custom `Broadcaster` implementation |
 | `quarkus.atmosphere.broadcaster-cache-class` | (default) | Custom `BroadcasterCache` implementation |
-| `quarkus.atmosphere.load-on-startup` | `1` | Servlet load-on-startup order — **must be > 0** or the servlet will not initialize |
-| `quarkus.atmosphere.heartbeat-interval-in-seconds` | (default) | Heartbeat interval for long-polling fallback |
-| `quarkus.atmosphere.init-params` | (none) | Map of raw `ApplicationConfig` init params passed directly to the servlet |
+| `quarkus.atmosphere.load-on-startup` | `1` | Servlet load-on-startup order -- **must be > 0** |
+| `quarkus.atmosphere.heartbeat-interval-in-seconds` | (default) | Heartbeat interval |
+| `quarkus.atmosphere.init-params` | (none) | Map of raw `ApplicationConfig` init params |
+
+> **Note:** `load-on-startup` must be > 0. Quarkus skips servlet initialization when this value is <= 0, unlike the standard Servlet spec where >= 0 means "load on startup."
 
 ## Running
 
@@ -74,17 +74,21 @@ mvn clean package && java -jar target/quarkus-app/quarkus-run.jar  # JVM
 mvn clean package -Pnative               # native image
 ```
 
-The same `@ManagedService` handler works across WAR, Spring Boot, and Quarkus -- only packaging and configuration differ.
+## GraalVM Native Image
 
-## Sample
+```bash
+./mvnw -Pnative package -pl samples/quarkus-chat
+./samples/quarkus-chat/target/atmosphere-quarkus-chat-*-runner
+```
 
-- [Quarkus Chat](../../samples/quarkus-chat/) -- real-time chat with WebSocket and long-polling fallback
+Requires GraalVM JDK 21+ or Mandrel. Use `-Dquarkus.native.container-build=true` to build without a local GraalVM installation.
 
-## Full Documentation
+## Samples
 
-See [docs/quarkus.md](../../docs/quarkus.md) for complete documentation.
+- [Quarkus Chat](../samples/quarkus-chat/) -- real-time chat with WebSocket and long-polling fallback
 
-## Requirements
+## See Also
 
-- Java 21+
-- Quarkus 3.21+
+- [Core Runtime](core.md)
+- [Spring Boot Integration](spring-boot.md)
+- [Module README](../modules/quarkus-extension/README.md)

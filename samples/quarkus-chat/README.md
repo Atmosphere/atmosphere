@@ -61,7 +61,7 @@ subscription = await atmosphere.atmosphere.subscribe(
 quarkus.atmosphere.packages=org.atmosphere.samples.quarkus.chat
 ```
 
-The extension also supports `quarkus.atmosphere.servlet-path`, `quarkus.atmosphere.session-support`, `quarkus.atmosphere.broadcaster-class`, and other properties — see [Quarkus Getting Started](https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-Quarkus) on the wiki.
+The extension also supports `quarkus.atmosphere.servlet-path`, `quarkus.atmosphere.session-support`, `quarkus.atmosphere.broadcaster-class`, and other properties — see [Quarkus Integration](../../docs/quarkus.md) for details.
 
 ## Build & Run
 

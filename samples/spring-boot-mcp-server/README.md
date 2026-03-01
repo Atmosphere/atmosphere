@@ -158,7 +158,7 @@ const { data, state, push } = useAtmosphere<ChatMessage>({
 });
 ```
 
-See the [React, Vue, Svelte Hooks](https://github.com/Atmosphere/atmosphere/wiki/Framework-Hooks-React-Vue-Svelte) wiki page for the full hooks API.
+See the [React, Vue, Svelte Hooks](../../docs/client-javascript.md) documentation for the full hooks API.
 
 ## Key Concepts
 
