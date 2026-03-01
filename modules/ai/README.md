@@ -60,6 +60,42 @@ public class RagInterceptor implements AiInterceptor {
 }
 ```
 
+## Conversation Memory
+
+Enable multi-turn conversations with one annotation attribute:
+
+```java
+@AiEndpoint(path = "/ai/chat",
+            systemPrompt = "You are a helpful assistant",
+            conversationMemory = true,
+            maxHistoryMessages = 20)
+public class MyChat {
+
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        session.stream(message);  // AiRequest now carries conversation history
+    }
+}
+```
+
+When `conversationMemory = true`, the framework:
+
+1. Captures each user message and the streamed assistant response (via `MemoryCapturingSession`)
+2. Stores them as conversation turns per `AtmosphereResource`
+3. Injects the full history into every subsequent `AiRequest`
+4. Clears the history when the resource disconnects
+
+The default implementation is `InMemoryConversationMemory`, which caps history at `maxHistoryMessages` (default 20). For external storage — Redis, a database, etc. — implement the `AiConversationMemory` SPI:
+
+```java
+public interface AiConversationMemory {
+    List<ChatMessage> getHistory(String conversationId);
+    void addMessage(String conversationId, ChatMessage message);
+    void clear(String conversationId);
+    int maxMessages();
+}
+```
+
 ## Key Components
 
 | Class | Description |
@@ -69,6 +105,9 @@ public class RagInterceptor implements AiInterceptor {
 | `AiSupport` | SPI for AI framework backends (ServiceLoader-discovered) |
 | `AiRequest` | Framework-agnostic request record (message, systemPrompt, model, hints) |
 | `AiInterceptor` | Pre/post processing hooks for RAG, guardrails, logging |
+| `AiConversationMemory` | SPI for conversation history storage |
+| `InMemoryConversationMemory` | Default in-process memory (capped at `maxHistoryMessages`) |
+| `MemoryCapturingSession` | `StreamingSession` decorator that records assistant responses into memory |
 | `AiStreamingSession` | `StreamingSession` wrapper that adds `stream(String)` with interceptor chain |
 | `StreamingSession` | Streams tokens, progress updates, and metadata to the client |
 | `StreamingSessions` | Factory for creating `StreamingSession` instances |

@@ -42,44 +42,6 @@ public class Chat {
 }
 ```
 
-## Installation
-
-**Maven:**
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-runtime</artifactId>
-    <version>4.0.6</version>
-</dependency>
-```
-
-**Spring Boot:**
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-spring-boot-starter</artifactId>
-    <version>4.0.6</version>
-</dependency>
-```
-
-**Quarkus:**
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-quarkus-extension</artifactId>
-    <version>4.0.6</version>
-</dependency>
-```
-
-**Gradle:**
-```groovy
-implementation 'org.atmosphere:atmosphere-runtime:4.0.6'
-```
-
-**Browser client:**
-```bash
-npm install atmosphere.js
-```
 
 ## Core Concepts
 
@@ -99,10 +61,11 @@ The core runtime handles transport-agnostic real-time messaging. Everything belo
 | **gRPC** | `atmosphere-grpc` | Bidirectional streaming transport (grpc-java 1.71) |
 | **Spring Boot** | `atmosphere-spring-boot-starter` | Auto-configuration for Spring Boot 4.0+ |
 | **Quarkus** | `atmosphere-quarkus-extension` | Build-time processing for Quarkus 3.21+ |
-| **AI streaming** | `atmosphere-ai` | Real-time LLM response streaming with session stats and cost/latency routing |
-| **Spring AI adapter** | `atmosphere-spring-ai` | Spring AI `ChatClient` integration |
-| **LangChain4j adapter** | `atmosphere-langchain4j` | LangChain4j streaming integration |
-| **Google ADK adapter** | `atmosphere-adk` | Google Agent Development Kit streaming integration |
+| **AI core** | `atmosphere-ai` | `AiSupport` SPI, `@AiEndpoint`, filters, routing, conversation memory |
+| **Spring AI adapter** | `atmosphere-spring-ai` | `AiSupport` backed by Spring AI `ChatClient` |
+| **LangChain4j adapter** | `atmosphere-langchain4j` | `AiSupport` backed by LangChain4j `StreamingChatLanguageModel` |
+| **Google ADK adapter** | `atmosphere-adk` | `AiSupport` backed by Google ADK `Runner` |
+| **Embabel adapter** | `atmosphere-embabel` | `AiSupport` backed by Embabel `AgentPlatform` |
 | **MCP server** | `atmosphere-mcp` | Model Context Protocol server over WebSocket |
 | **Rooms** | built into core | Room management with join/leave and presence |
 | **Redis clustering** | `atmosphere-redis` | Cross-node broadcasting via Redis pub/sub |
@@ -112,14 +75,26 @@ The core runtime handles transport-agnostic real-time messaging. Everything belo
 | **TypeScript client** | `atmosphere.js` (npm) | Browser client with React, Vue, and Svelte hooks |
 | **Java client** | `atmosphere-wasync` | Async Java client — WebSocket, SSE, streaming, long-polling, gRPC (JDK 21+) |
 
-## AI/LLM Streaming
+## AI / LLM Integration
 
-Atmosphere doesn't replace your AI framework — it gives it a transport. Spring AI, LangChain4j, Google ADK, and Embabel handle LLM communication; Atmosphere streams responses to the browser in real time over any supported transport, with built-in session stats and cost/latency routing.
+Atmosphere has two pluggable SPI layers. `AsyncSupport` adapts web containers — Jetty, Tomcat, Undertow. `AiSupport` adapts AI frameworks — Spring AI, LangChain4j, Google ADK, Embabel. Same design pattern, same discovery mechanism:
 
-### Server — 3 lines, any AI framework
+| Concern | Transport layer | AI layer |
+|---------|----------------|----------|
+| SPI interface | `AsyncSupport` | `AiSupport` |
+| What it adapts | Web containers (Jetty, Tomcat, Undertow) | AI frameworks (Spring AI, LangChain4j, ADK, Embabel) |
+| Discovery | Classpath scanning | `ServiceLoader` |
+| Resolution | Best available container | Highest `priority()` among `isAvailable()` |
+| Initialization | `init(ServletConfig)` | `configure(LlmSettings)` |
+| Core method | `service(req, res)` | `stream(AiRequest, StreamingSession)` |
+| Fallback | `BlockingIOCometSupport` | `BuiltInAiSupport` (OpenAI-compatible) |
+
+### @AiEndpoint
 
 ```java
-@AiEndpoint(path = "/ai/chat", systemPrompt = "You are a helpful assistant")
+@AiEndpoint(path = "/ai/chat",
+            systemPrompt = "You are a helpful assistant",
+            conversationMemory = true)
 public class MyChatBot {
 
     @Prompt
@@ -129,7 +104,7 @@ public class MyChatBot {
 }
 ```
 
-Drop an adapter JAR on the classpath and the framework auto-detects it via `ServiceLoader` — same pattern as `AsyncSupport` for transports. No code changes needed to switch AI providers:
+Drop an adapter JAR on the classpath and the framework auto-detects it — no code changes needed to switch AI providers:
 
 | Classpath JAR | Auto-detected `AiSupport` |
 |---------------|--------------------------|
@@ -139,16 +114,13 @@ Drop an adapter JAR on the classpath and the framework auto-detects it via `Serv
 | `atmosphere-adk` | Google ADK `Runner` |
 | `atmosphere-embabel` | Embabel `AgentPlatform` |
 
-Configure the built-in client with environment variables:
+### Conversation memory
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `LLM_MODE` | `remote` (cloud) or `local` (Ollama) | `remote` |
-| `LLM_MODEL` | `gemini-2.5-flash`, `gpt-5`, `o3-mini`, `llama3.2`, … | `gemini-2.5-flash` |
-| `LLM_API_KEY` | API key (or `GEMINI_API_KEY` for Gemini) | — |
-| `LLM_BASE_URL` | Override endpoint (auto-detected from model name) | auto |
+Set `conversationMemory = true` on `@AiEndpoint` and the framework accumulates user/assistant turns per `AtmosphereResource`. Each subsequent `AiRequest` carries the full conversation history. Memory is cleared on disconnect.
 
-### Customization — AiInterceptor
+The default implementation is `InMemoryConversationMemory` (capped at `maxHistoryMessages`, default 20). To plug in Redis, a database, or anything else, implement the `AiConversationMemory` SPI.
+
+### AiInterceptor
 
 Cross-cutting concerns (RAG, guardrails, logging) go through `AiInterceptor`, not subclassing:
 
@@ -164,6 +136,34 @@ public class RagInterceptor implements AiInterceptor {
     }
 }
 ```
+
+### Filters, routing, and middleware
+
+The AI module includes a set of filters and middleware that sit between the `@Prompt` method and the LLM:
+
+| Class | What it does |
+|-------|-------------|
+| `PiiRedactionFilter` | Buffers tokens to sentence boundaries, redacts email/phone/SSN/CC |
+| `ContentSafetyFilter` | Pluggable `SafetyChecker` SPI — block, redact, or pass |
+| `CostMeteringFilter` | Per-session/broadcaster token counting with budget enforcement |
+| `RoutingLlmClient` | Route by content, model, cost, or latency rules |
+| `FanOutStreamingSession` | Concurrent N-model streaming: AllResponses, FirstComplete, FastestTokens |
+| `TokenBudgetManager` | Per-user/org budgets with graceful degradation |
+| `AiResponseCacheInspector` | Cache control for AI messages in `BroadcasterCache` |
+| `AiResponseCacheListener` | Aggregate per-session events instead of per-token noise |
+
+See [modules/ai/README.md](modules/ai/README.md) for details.
+
+### Configuration
+
+Configure the built-in client with environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LLM_MODE` | `remote` (cloud) or `local` (Ollama) | `remote` |
+| `LLM_MODEL` | `gemini-2.5-flash`, `gpt-5`, `o3-mini`, `llama3.2`, ... | `gemini-2.5-flash` |
+| `LLM_API_KEY` | API key (or `GEMINI_API_KEY` for Gemini) | — |
+| `LLM_BASE_URL` | Override endpoint (auto-detected from model name) | auto |
 
 ### Direct adapter usage
 
