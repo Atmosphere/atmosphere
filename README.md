@@ -143,14 +143,14 @@ The AI module includes a set of filters and middleware that sit between the `@Pr
 
 | Class | What it does |
 |-------|-------------|
-| `PiiRedactionFilter` | Buffers tokens to sentence boundaries, redacts email/phone/SSN/CC |
+| `PiiRedactionFilter` | Buffers messages to sentence boundaries, redacts email/phone/SSN/CC |
 | `ContentSafetyFilter` | Pluggable `SafetyChecker` SPI — block, redact, or pass |
-| `CostMeteringFilter` | Per-session/broadcaster token counting with budget enforcement |
+| `CostMeteringFilter` | Per-session/broadcaster message counting with budget enforcement |
 | `RoutingLlmClient` | Route by content, model, cost, or latency rules |
 | `FanOutStreamingSession` | Concurrent N-model streaming: AllResponses, FirstComplete, FastestTokens |
 | `TokenBudgetManager` | Per-user/org budgets with graceful degradation |
 | `AiResponseCacheInspector` | Cache control for AI messages in `BroadcasterCache` |
-| `AiResponseCacheListener` | Aggregate per-session events instead of per-token noise |
+| `AiResponseCacheListener` | Aggregate per-session events instead of per-message noise |
 
 See [modules/ai/README.md](modules/ai/README.md) for details.
 
