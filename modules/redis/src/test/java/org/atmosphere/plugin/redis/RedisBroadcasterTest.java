@@ -163,7 +163,7 @@ public class RedisBroadcasterTest {
         // When broadcaster1 publishes, the bus delivers to all subscribers including broadcaster2's handler
         var subscribers = IN_MEMORY_BUS.get("redis-test");
         assertNotNull(subscribers, "Should have subscribers for 'redis-test'");
-        assertTrue(subscribers.size() >= 1);
+        assertFalse(subscribers.isEmpty());
 
         broadcaster2.destroy();
     }

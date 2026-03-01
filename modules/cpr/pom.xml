@@ -9,7 +9,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-runtime</artifactId>
-    <packaging>bundle</packaging>
+    <packaging>jar</packaging>
     <name>atmosphere-runtime</name>
     <description>Atmosphere runtime for asynchronous web applications</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
@@ -35,50 +35,24 @@
 
         <plugins>
             <plugin>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>${felix-version}</version>
-                <extensions>true</extensions>
+                <groupId>biz.aQute.bnd</groupId>
+                <artifactId>bnd-maven-plugin</artifactId>
+                <version>${bnd-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>bnd-process</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
-                    <instructions>
-                        <Import-Package>
-                            org.atmosphere.inject*;resolution:=optional,
-                            jakarta.servlet*;version="${servlet-version-range}",
-                            jakarta.websocket*;resolution:=optional,
-                            jakarta.enterprise*;resolution:=optional,
-                            jakarta.inject*;resolution:=optional,
-                            io.quarkus.runtime*;resolution:=optional,
-                            org.atmosphere.jersey.util*;resolution:=optional,
-                            *,
-                        </Import-Package>
-                        <Export-Package>
-                            org.atmosphere.annotation*,
-                            org.atmosphere.cache*,
-                            org.atmosphere.client*,
-                            org.atmosphere.config*,
-                            org.atmosphere.container*,
-                            org.atmosphere.cpr*,
-                            org.atmosphere.inject*,
-                            org.atmosphere.handler*,
-                            org.atmosphere.interceptor*,
-                            org.atmosphere.lifecycle*,
-                            org.atmosphere.pool*,
-                            org.atmosphere.util*,
-                            org.atmosphere.websocket*,
-                        </Export-Package>
-                        <Require-Capability>
-                            osgi.extender;filter:="(osgi.extender=osgi.serviceloader.processor)",
-                            osgi.extender;filter:="(osgi.extender=osgi.serviceloader.registrar)",
-                            osgi.serviceloader;filter:="(osgi.serviceloader=org.atmosphere.inject.Injectable)";cardinality:=multiple
-                        </Require-Capability>
-                        <Provide-Capability>
-                            osgi.serviceloader;osgi.serviceloader=jakarta.servlet.ServletContainerInitializer,
-                            osgi.serviceloader;osgi.serviceloader=org.atmosphere.inject.CDIProducer,
-                            osgi.serviceloader;osgi.serviceloader=org.atmosphere.inject.Injectable
-                        </Provide-Capability>
-						<Eclipse-BuddyPolicy>registered</Eclipse-BuddyPolicy>
-                        <Automatic-Module-Name>org.atmosphere.runtime</Automatic-Module-Name>
-                    </instructions>
+                    <archive>
+                        <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+                    </archive>
                 </configuration>
             </plugin>
         </plugins>

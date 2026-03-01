@@ -1,0 +1,38 @@
+Bundle-SymbolicName: ${project.artifactId}
+Automatic-Module-Name: org.atmosphere.runtime
+Eclipse-BuddyPolicy: registered
+
+Export-Package: \
+    org.atmosphere.annotation*,\
+    org.atmosphere.cache*,\
+    org.atmosphere.client*,\
+    org.atmosphere.config*,\
+    org.atmosphere.container*,\
+    org.atmosphere.cpr*,\
+    org.atmosphere.inject*,\
+    org.atmosphere.handler*,\
+    org.atmosphere.interceptor*,\
+    org.atmosphere.lifecycle*,\
+    org.atmosphere.pool*,\
+    org.atmosphere.util*,\
+    org.atmosphere.websocket*
+
+Import-Package: \
+    org.atmosphere.inject*;resolution:=optional,\
+    jakarta.servlet*;version="${range;[==,+)}",\
+    jakarta.websocket*;resolution:=optional,\
+    jakarta.enterprise*;resolution:=optional,\
+    jakarta.inject*;resolution:=optional,\
+    io.quarkus.runtime*;resolution:=optional,\
+    org.atmosphere.jersey.util*;resolution:=optional,\
+    *
+
+Require-Capability: \
+    osgi.extender;filter:="(osgi.extender=osgi.serviceloader.processor)",\
+    osgi.extender;filter:="(osgi.extender=osgi.serviceloader.registrar)",\
+    osgi.serviceloader;filter:="(osgi.serviceloader=org.atmosphere.inject.Injectable)";cardinality:=multiple
+
+Provide-Capability: \
+    osgi.serviceloader;osgi.serviceloader=jakarta.servlet.ServletContainerInitializer,\
+    osgi.serviceloader;osgi.serviceloader=org.atmosphere.inject.CDIProducer,\
+    osgi.serviceloader;osgi.serviceloader=org.atmosphere.inject.Injectable

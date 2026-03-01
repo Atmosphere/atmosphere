@@ -185,17 +185,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>3.1.2</version>
+                <version>3.6.0</version>
                 <dependencies>
-                    <dependency>
-                        <groupId>org.atmosphere</groupId>
-                        <artifactId>atmosphere-buildtools</artifactId>
-                        <version>${project.version}</version>
-                    </dependency>
                     <dependency>
                         <groupId>com.puppycrawl.tools</groupId>
                         <artifactId>checkstyle</artifactId>
-                        <version>9.3</version>
+                        <version>10.21.4</version>
                     </dependency>
                 </dependencies>
                 <configuration>
@@ -207,11 +202,11 @@
                         <id>validate</id>
                         <phase>validate</phase>
                         <configuration>
-                            <configLocation>atmosphere-checkstyle.xml</configLocation>
+                            <configLocation>${maven.multiModuleProjectDirectory}/config/atmosphere-checkstyle.xml</configLocation>
                             <consoleOutput>true</consoleOutput>
                             <failsOnError>true</failsOnError>
                             <linkXRef>false</linkXRef>
-                            <suppressionsLocation>atmosphere-checkstyle-suppressions.xml</suppressionsLocation>
+                            <suppressionsLocation>${maven.multiModuleProjectDirectory}/config/atmosphere-checkstyle-suppressions.xml</suppressionsLocation>
                             <sourceDirectories>${basedir}/src</sourceDirectories>
                         </configuration>
                         <goals>
@@ -224,16 +219,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-pmd-plugin</artifactId>
                 <version>3.28.0</version>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.atmosphere</groupId>
-                        <artifactId>atmosphere-buildtools</artifactId>
-                        <version>${project.version}</version>
-                    </dependency>
-                </dependencies>
                 <configuration>
                     <rulesets>
-                        <ruleset>atmosphere-pmd-ruleset.xml</ruleset>
+                        <ruleset>${maven.multiModuleProjectDirectory}/config/atmosphere-pmd-ruleset.xml</ruleset>
                     </rulesets>
                     <targetJdk>21</targetJdk>
                     <linkXRef>false</linkXRef>
@@ -508,7 +496,6 @@
         </repository>
     </repositories>
     <modules>
-        <module>buildtools</module>
         <module>modules</module>
         <module>assembly</module>
         <module>samples/chat</module>
@@ -575,11 +562,6 @@
                 <groupId>org.apache.maven</groupId>
                 <artifactId>maven-plugin-tools-api</artifactId>
                 <version>3.6.4</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>${felix-version}</version>
             </dependency>
             <dependency>
                 <groupId>jakarta.websocket</groupId>
@@ -738,7 +720,7 @@
         <jetty-version>12.0.16</jetty-version>
         <tomcat-version>11.0.18</tomcat-version>
         <shade-version>1.2.1</shade-version>
-        <felix-version>5.1.9</felix-version>
+        <bnd-maven-plugin.version>7.2.1</bnd-maven-plugin.version>
         <ahc.version>1.9.40</ahc.version>
         <jakarta-servlet-api.version>5.0.0</jakarta-servlet-api.version>
         <jakarta-websocket-api.version>2.0.0</jakarta-websocket-api.version>

@@ -73,7 +73,7 @@ Rules enforced by hooks:
 
 ```
 atmosphere/
-├── buildtools/                    (checkstyle, PMD rulesets)
+├── config/                        (checkstyle, PMD rulesets)
 ├── modules/
 │   ├── cpr/                       (atmosphere-runtime - core framework)
 │   ├── spring-boot-starter/       (Spring Boot 4.0 integration)
@@ -148,8 +148,8 @@ All Java source files must start with:
 
 ### Build Enforcement
 - **Compiler**: `javac -Xlint:all,-processing,-serial` is enabled — the compiler flags unused imports, unchecked casts, deprecation usage, raw types, and other issues as warnings. **Zero compiler warnings are required.**
-- **Checkstyle**: runs in `validate` phase (failsOnError=true). Enforces `UnusedImports` and `RedundantImport` rules — the build fails if unused or duplicate imports are present.
-- **PMD**: runs in `validate` phase (failsOnError=true)
+- **Checkstyle**: runs in `validate` phase (failsOnError=true). Enforces `UnusedImports` and `RedundantImport` rules — the build fails if unused or duplicate imports are present. Config in `config/atmosphere-checkstyle.xml`.
+- **PMD**: runs in `validate` phase (failsOnError=true). Config in `config/atmosphere-pmd-ruleset.xml`.
 - **Pre-commit hook**: blocks commits containing unused or duplicate imports in staged Java files
 - All checks can be skipped with `-Pfastinstall` for local iteration, but **you MUST run a full `./mvnw compile` (without `-Pfastinstall`) before committing** to verify zero warnings.
 - **Do NOT introduce new `@SuppressWarnings` annotations** without justification. If a suppression is necessary (e.g., unavoidable raw type from a third-party API), add a comment explaining why.
@@ -227,13 +227,11 @@ The script stamps a marker valid for 30 minutes. The pre-push hook checks the ma
 - Set object factory BEFORE init()
 - Expose AtmosphereFramework bean but NOT BroadcasterFactory
 - Override parent POM's SLF4J/Logback versions for Spring Boot 4 compatibility
-- Skip checkstyle and PMD in this module
 
 ## Quarkus Extension Notes
 - Target: Quarkus 3.21+
 - Config prefix: `quarkus.atmosphere.*`
 - `loadOnStartup` must be > 0 (Quarkus skips if <=0)
-- Skip checkstyle and PMD in this module
 - Use `BUILD_AND_RUN_TIME_FIXED` for config used in `@BuildStep`
 - `Recorder` cannot pass `Class<?>` objects; use class name strings
 

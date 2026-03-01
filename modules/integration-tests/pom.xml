@@ -17,9 +17,6 @@
 
     <properties>
         <kafka.version>3.9.0</kafka.version>
-        <checkstyle.skip>true</checkstyle.skip>
-        <pmd.skip>true</pmd.skip>
-        <cpd.skip>true</cpd.skip>
     </properties>
 
     <dependencies>
