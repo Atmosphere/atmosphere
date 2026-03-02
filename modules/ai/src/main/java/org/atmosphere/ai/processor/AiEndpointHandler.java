@@ -22,6 +22,7 @@ import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -205,7 +206,19 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
         // the AsyncIOWriter chain (TrackMessageSizeInterceptor adds length-prefix).
         if (message instanceof RawMessage raw) {
             event.setMessage(raw.message());
+
+            boolean resumeOnBroadcast = resource.resumeOnBroadcast();
+            if (resumeOnBroadcast) {
+                resource.resumeOnBroadcast(false);
+                resource.getRequest().setAttribute(
+                        ApplicationConfig.RESUME_ON_BROADCAST, false);
+            }
+
             super.onStateChange(event);
+
+            if (resumeOnBroadcast && resource.isSuspended()) {
+                resource.resume();
+            }
             return;
         }
 
