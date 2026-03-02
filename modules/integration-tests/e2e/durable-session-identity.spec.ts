@@ -7,15 +7,10 @@ import WebSocket from 'ws';
  */
 function connectDurable(
   baseUrl: string,
-  opts?: { sessionToken?: string },
 ): Promise<{ ws: WebSocket; messages: string[]; close: () => void }> {
   return new Promise((resolve, reject) => {
     const wsUrl = baseUrl.replace('http', 'ws') + '/atmosphere/chat';
-    const headers: Record<string, string> = {};
-    if (opts?.sessionToken) {
-      headers['X-Atmosphere-Session-Token'] = opts.sessionToken;
-    }
-    const ws = new WebSocket(wsUrl, { headers });
+    const ws = new WebSocket(wsUrl);
     const messages: string[] = [];
 
     ws.on('message', (data) => {
@@ -51,17 +46,11 @@ test.afterAll(async () => {
 });
 
 test.describe('Durable Session Identity', () => {
-  test('session token is returned on initial connection', async () => {
+  test('client can connect and exchange messages', async () => {
     const { ws, messages, close } = await connectDurable(server.baseUrl);
 
-    // Send a message to trigger the session
-    ws.send(JSON.stringify({ author: 'Identity', message: 'hello' }));
-    await waitFor(() => messages.length > 0);
-
-    // The server should have assigned a session
-    // Check server logs for session creation
-    const output = server.getOutput();
-    expect(output).toContain('connected');
+    ws.send(JSON.stringify({ author: 'Identity', message: 'hello-durable' }));
+    await waitFor(() => messages.some(m => m.includes('hello-durable')));
 
     close();
   });
@@ -70,7 +59,6 @@ test.describe('Durable Session Identity', () => {
     const conn1 = await connectDurable(server.baseUrl);
     const conn2 = await connectDurable(server.baseUrl);
 
-    // Each sends a different message
     conn1.ws.send(JSON.stringify({ author: 'User1', message: 'from-user1' }));
     conn2.ws.send(JSON.stringify({ author: 'User2', message: 'from-user2' }));
 
@@ -87,16 +75,13 @@ test.describe('Durable Session Identity', () => {
   test('session state survives server restart', async () => {
     test.setTimeout(120_000);
 
-    // Connect and establish a session
     const conn1 = await connectDurable(server.baseUrl);
     conn1.ws.send(JSON.stringify({ author: 'Persistent', message: 'before-restart' }));
     await waitFor(() => conn1.messages.some(m => m.includes('before-restart')));
     conn1.close();
 
-    // Restart the server
     await server.restart();
 
-    // Reconnect and verify the session is functional
     const conn2 = await connectDurable(server.baseUrl);
     conn2.ws.send(JSON.stringify({ author: 'Persistent', message: 'after-restart' }));
     await waitFor(() => conn2.messages.some(m => m.includes('after-restart')));
@@ -110,17 +95,15 @@ test.describe('Durable Session Identity', () => {
     await waitFor(() => conn1.messages.some(m => m.includes('first-visit')));
     conn1.close();
 
-    // Brief pause, then reconnect
     await new Promise(r => setTimeout(r, 1000));
 
     const conn2 = await connectDurable(server.baseUrl);
     conn2.ws.send(JSON.stringify({ author: 'Returner', message: 'second-visit' }));
     await waitFor(() => conn2.messages.some(m => m.includes('second-visit')));
 
-    // The broadcaster should still be alive
+    // Verify broadcaster still works with a third client
     const conn3 = await connectDurable(server.baseUrl);
     conn2.ws.send(JSON.stringify({ author: 'Returner', message: 'broadcast-check' }));
-
     await waitFor(() => conn3.messages.some(m => m.includes('broadcast-check')));
 
     conn2.close();

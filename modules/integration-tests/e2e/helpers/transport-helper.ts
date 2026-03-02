@@ -58,16 +58,17 @@ export function connectSSE(
 
 /**
  * Raw long-polling client for testing Atmosphere endpoints.
- * Implements the Atmosphere long-polling protocol:
- * 1. Initial GET to subscribe (blocking)
- * 2. Subsequent GETs to poll for new messages
- * 3. POST to send messages
+ *
+ * Atmosphere LP protocol: the initial GET is suspended by the server (comet-style)
+ * and only returns when there's data or a timeout. We use a streaming reader to
+ * extract the UUID from the initial response without blocking on the full body.
  */
 export class LongPollingClient {
   private abortController = new AbortController();
   private _messages: string[] = [];
   private polling = false;
   private uuid = '';
+  private _connected = false;
 
   constructor(
     private readonly baseUrl: string,
@@ -78,11 +79,20 @@ export class LongPollingClient {
     return this._messages;
   }
 
+  get connected(): boolean {
+    return this._connected;
+  }
+
   /** Subscribe to the Atmosphere endpoint via long-polling. */
   async connect(): Promise<void> {
     const url = `${this.baseUrl}${this.path}` +
       '?X-Atmosphere-Transport=long-polling&X-Atmosphere-Framework=5.0.0' +
       '&Content-Type=application/json&X-atmo-protocol=true';
+
+    // Use a separate abort controller for the subscribe request so we can
+    // cancel it independently when close() is called
+    const subscribeAbort = new AbortController();
+    this.abortController.signal.addEventListener('abort', () => subscribeAbort.abort());
 
     const res = await fetch(url, {
       method: 'GET',
@@ -92,22 +102,34 @@ export class LongPollingClient {
         'X-Atmosphere-Framework': '5.0.0',
         'X-atmo-protocol': 'true',
       },
-      signal: this.abortController.signal,
+      signal: subscribeAbort.signal,
     });
 
     if (!res.ok) {
       throw new Error(`Long-polling subscribe failed: ${res.status}`);
     }
 
-    const body = await res.text();
-    // First response contains the UUID
-    const trimmed = body.trim();
-    if (trimmed) {
-      // UUID is typically the first non-empty line
-      const lines = trimmed.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('<!--'));
-      if (lines.length > 0) {
-        this.uuid = lines[0];
+    // Read the response body in streaming mode to extract UUID
+    // without blocking on the server's suspended connection
+    this._connected = true;
+    const reader = res.body?.getReader();
+    if (reader) {
+      const decoder = new TextDecoder();
+      // Read first chunk to get UUID
+      try {
+        const { value, done } = await reader.read();
+        if (!done && value) {
+          const text = decoder.decode(value).trim();
+          const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('<!--'));
+          if (lines.length > 0) {
+            this.uuid = lines[0];
+          }
+        }
+      } catch {
+        // Connection may be aborted
       }
+      // Cancel the reader — we'll use separate poll requests
+      reader.cancel().catch(() => {});
     }
 
     this.polling = true;
@@ -133,12 +155,18 @@ export class LongPollingClient {
   /** Close the long-polling connection. */
   close(): void {
     this.polling = false;
+    this._connected = false;
     this.abortController.abort();
   }
 
   private async poll(): Promise<void> {
     while (this.polling) {
       try {
+        const pollAbort = new AbortController();
+        this.abortController.signal.addEventListener('abort', () => pollAbort.abort());
+        // Per-poll timeout so we don't hang forever
+        const timeout = setTimeout(() => pollAbort.abort(), 30_000);
+
         const url = `${this.baseUrl}${this.path}` +
           `?X-Atmosphere-Transport=long-polling&X-Atmosphere-Framework=5.0.0` +
           `&X-Atmosphere-tracking-id=${this.uuid}`;
@@ -150,9 +178,10 @@ export class LongPollingClient {
             'X-Atmosphere-Framework': '5.0.0',
             'X-Atmosphere-tracking-id': this.uuid,
           },
-          signal: this.abortController.signal,
+          signal: pollAbort.signal,
         });
 
+        clearTimeout(timeout);
         if (!res.ok) continue;
 
         const body = await res.text();

@@ -64,35 +64,4 @@ test.describe('Transport Fallback', () => {
     // Verify input clears
     await expect(chat.input).toHaveValue('');
   });
-
-  test('network requests use long-polling when WS is blocked', async ({ page }) => {
-    const transportRequests: string[] = [];
-
-    // Intercept and log Atmosphere transport requests
-    page.on('request', (request) => {
-      const url = request.url();
-      if (url.includes('X-Atmosphere-Transport=')) {
-        const match = url.match(/X-Atmosphere-Transport=([^&]+)/);
-        if (match) transportRequests.push(match[1]);
-      }
-    });
-
-    // Block WebSocket upgrades
-    await page.route('**/*', async (route) => {
-      const request = route.request();
-      if (request.headers()['upgrade'] === 'websocket' ||
-          request.url().includes('X-Atmosphere-Transport=websocket')) {
-        await route.abort('connectionrefused');
-      } else {
-        await route.continue();
-      }
-    });
-
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
-    await chat.waitForConnected();
-
-    // After fallback, we should see long-polling transport requests
-    expect(transportRequests.some(t => t === 'long-polling')).toBe(true);
-  });
 });

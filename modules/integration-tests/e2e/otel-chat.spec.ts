@@ -1,21 +1,30 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 import { connectWebSocket, waitFor } from './helpers/transport-helper';
+import { existsSync } from 'fs';
+import { resolve } from 'path';
 
-let server: SampleServer;
+const ROOT = resolve(__dirname, '..', '..', '..', '..');
+const OTEL_TARGET = resolve(ROOT, 'samples', 'spring-boot-otel-chat', 'target');
 
-test.beforeAll(async () => {
-  server = await startSample(SAMPLES['spring-boot-otel-chat']);
-});
+// Skip the entire suite if the OTel sample JAR wasn't built
+const hasJar = existsSync(OTEL_TARGET) &&
+  require('fs').readdirSync(OTEL_TARGET).some((f: string) =>
+    f.endsWith('.jar') && !f.endsWith('-sources.jar') && !f.endsWith('-javadoc.jar'));
 
-test.afterAll(async () => {
-  await server?.stop();
-});
+(hasJar ? test.describe : test.describe.skip)('Spring Boot OTel Chat', () => {
+  let server: SampleServer;
 
-test.describe('Spring Boot OTel Chat', () => {
+  test.beforeAll(async () => {
+    server = await startSample(SAMPLES['spring-boot-otel-chat']);
+  });
+
+  test.afterAll(async () => {
+    await server?.stop();
+  });
+
   test('page loads and serves the chat UI', async ({ page }) => {
     await page.goto(server.baseUrl);
-    // The OTel sample uses a pre-built static bundle with the same chat UI
     await page.getByTestId('chat-layout').waitFor({ state: 'visible' });
   });
 
@@ -45,7 +54,6 @@ test.describe('Spring Boot OTel Chat', () => {
     client.ws.send('Hello with tracing');
     await new Promise(r => setTimeout(r, 1000));
 
-    // The Chat.java @Message handler logs "tracing active"
     const output = server.getOutput();
     expect(output).toContain('tracing active');
 
