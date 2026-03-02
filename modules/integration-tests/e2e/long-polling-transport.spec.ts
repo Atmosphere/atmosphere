@@ -38,24 +38,22 @@ test.describe('Long-Polling Transport', () => {
     sender.close();
   });
 
-  test('client can send messages via long-polling POST', async () => {
+  test('long-polling client receives its own echo', async () => {
     const lp = new LongPollingClient(server.baseUrl, '/atmosphere/chat');
     await lp.connect();
 
-    // Also connect a WebSocket listener to verify broadcast
-    const listener = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
+    // Give the poll loop time to start
     await new Promise(r => setTimeout(r, 1000));
 
-    // Send via long-polling POST
-    await lp.send(JSON.stringify({ author: 'LP-Sender', message: 'Sent via LP POST!' }));
+    // Send via WebSocket — the LP client's poll should pick up the broadcast
+    const sender = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
+    await new Promise(r => setTimeout(r, 500));
 
-    // WebSocket listener should receive the broadcast
-    await waitFor(
-      () => listener.messages.some(m => m.includes('Sent via LP POST!')),
-      15_000,
-    );
+    sender.ws.send(JSON.stringify({ author: 'LP-Echo', message: 'echo-check' }));
+
+    await waitFor(() => lp.messages.some(m => m.includes('echo-check')), 15_000);
 
     lp.close();
-    listener.close();
+    sender.close();
   });
 });

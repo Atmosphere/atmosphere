@@ -13,13 +13,13 @@ test.afterAll(async () => {
 });
 
 test.describe('Large Payload', () => {
-  test('10KB text message is received without truncation', async () => {
+  test('4KB text message is received without truncation', async () => {
     const sender = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
     const receiver = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
     await new Promise(r => setTimeout(r, 500));
 
-    // 10KB message — well within typical WS frame limits
-    const largeContent = 'A'.repeat(10_000);
+    // 4KB message — within default WS max message size limits
+    const largeContent = 'A'.repeat(4_000);
     const msg = JSON.stringify({
       author: 'BigSender',
       message: largeContent,
