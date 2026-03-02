@@ -58,7 +58,7 @@ jobs:
       uses: jbangdev/setup-jbang@main
 
     - name: Install Atmosphere Modules
-      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl modules/cpr,modules/ai,modules/adk,modules/langchain4j,modules/embabel,modules/mcp,modules/spring-boot-starter -am
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl modules/cpr,modules/ai,modules/spring-ai,modules/adk,modules/langchain4j,modules/embabel,modules/mcp,modules/spring-boot-starter -am
 
     - name: Run Integration Test - ${{ matrix.variant }}
       run: bash generator/test-generator.sh ${{ matrix.variant }}
