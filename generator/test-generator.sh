@@ -63,7 +63,7 @@ run_variant() {
     echo "  Generating project..."
     if ! jbang "${gen_args[@]}" > /dev/null 2>&1; then
         red "  FAIL: jbang generation failed for $label"
-        ((FAIL++))
+        FAIL=$((FAIL + 1))
         return
     fi
 
@@ -73,7 +73,7 @@ run_variant() {
     for f in "${files[@]}"; do
         if ! find "$project_dir" -name "$f" -print -quit | grep -q .; then
             red "  FAIL: expected file '$f' not found in $project_dir"
-            ((FAIL++))
+            FAIL=$((FAIL + 1))
             return
         fi
     done
@@ -82,7 +82,7 @@ run_variant() {
     echo "  Checking pom.xml for $expected_dep..."
     if ! grep -q "$expected_dep" "$project_dir/pom.xml"; then
         red "  FAIL: pom.xml missing expected dependency $expected_dep"
-        ((FAIL++))
+        FAIL=$((FAIL + 1))
         return
     fi
 
@@ -94,7 +94,7 @@ run_variant() {
     for jf in $java_files; do
         if ! grep -q "package $expected_pkg;" "$jf"; then
             red "  FAIL: $jf does not declare package $expected_pkg"
-            ((FAIL++))
+            FAIL=$((FAIL + 1))
             return
         fi
     done
@@ -103,12 +103,12 @@ run_variant() {
     echo "  Compiling generated project..."
     if ! (cd "$project_dir" && ./mvnw -B compile -q 2>&1); then
         red "  FAIL: mvnw compile failed for $label"
-        ((FAIL++))
+        FAIL=$((FAIL + 1))
         return
     fi
 
     green "  PASS: $label"
-    ((PASS++))
+    PASS=$((PASS + 1))
 }
 
 # ---- Main ----
@@ -137,7 +137,7 @@ else
         done
         if [[ "$found" == "false" ]]; then
             red "Unknown variant: $req"
-            ((FAIL++))
+            FAIL=$((FAIL + 1))
         fi
     done
 fi
