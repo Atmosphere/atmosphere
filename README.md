@@ -22,6 +22,15 @@ Atmosphere was built on one idea: **your application code shouldn't care how the
 
 The two core abstractions are **Broadcaster** (a named pub/sub channel) and **AtmosphereResource** (a single connection). Additional modules — rooms, AI/LLM streaming, clustering, observability — build on top of these.
 
+## Generate a Project
+
+```bash
+jbang generator/AtmosphereInit.java --name my-app --handler ai-chat --ai builtin
+cd my-app && ./mvnw spring-boot:run
+```
+
+Generates a ready-to-run Spring Boot project with your choice of handler (chat, ai-chat, mcp-server) and AI framework. See [generator/README.md](generator/README.md) for all options.
+
 ## Quick Start
 
 ```java
@@ -122,15 +131,6 @@ public class MyTools {
 | 21+  | 4.0.2+      | 3.21+   |
 
 JDK 21 virtual threads are used by default.
-
-## Generate a Project
-
-```bash
-jbang generator/AtmosphereInit.java --name my-app --handler ai-chat --ai builtin
-cd my-app && ./mvnw spring-boot:run
-```
-
-Generates a ready-to-run Spring Boot project with your choice of handler (chat, ai-chat, mcp-server) and AI framework. See [generator/README.md](generator/README.md) for all options.
 
 ## Documentation
 
