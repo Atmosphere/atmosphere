@@ -16,11 +16,6 @@ on:
         required: true
         type: boolean
         default: true
-      js_version:
-        description: 'atmosphere.js version (e.g., 5.0.0) — only if publishing JS'
-        required: false
-        type: string
-        default: '5.0.2'
       dry_run:
         description: 'Dry run — build and verify without publishing'
         required: true
@@ -252,11 +247,32 @@ jobs:
     - uses: actions/checkout@v4
       with:
         ref: main
+        fetch-depth: 0
 
     - name: Pull latest (after Maven release commit)
       run: git pull origin main
 
+    - name: Check for atmosphere.js changes
+      id: detect
+      run: |
+        # Find the latest JS release tag (check both formats for backwards compat)
+        LAST_TAG=$(git tag --list 'js-v*' --sort=-v:refname | head -1)
+        if [ -z "$LAST_TAG" ]; then
+          LAST_TAG=$(git tag --list 'atmosphere.js-v*' --sort=-v:refname | head -1)
+        fi
+        if [ -z "$LAST_TAG" ]; then
+          echo "No previous JS release tag found — treating as first release"
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+        elif git diff --quiet "$LAST_TAG" -- atmosphere.js/; then
+          echo "No changes in atmosphere.js/ since $LAST_TAG — skipping publish"
+          echo "has_changes=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "Changes detected in atmosphere.js/ since $LAST_TAG"
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Setup Node.js 24
+      if: steps.detect.outputs.has_changes == 'true'
       uses: actions/setup-node@v4
       with:
         node-version: '24'
@@ -265,44 +281,49 @@ jobs:
         cache-dependency-path: atmosphere.js/package-lock.json
 
     - name: Configure Git
+      if: steps.detect.outputs.has_changes == 'true'
       run: |
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
 
     - name: Download JS dist
+      if: steps.detect.outputs.has_changes == 'true'
       uses: actions/download-artifact@v4
       with:
         name: atmosphere-js-dist
         path: atmosphere.js/dist/
 
-    - name: Set version and publish
+    - name: Publish to NPM
+      if: steps.detect.outputs.has_changes == 'true'
       working-directory: atmosphere.js
       run: |
         npm ci
-        npm version ${{ inputs.js_version }} --no-git-tag-version --allow-same-version
         npm publish --access public
 
     - name: Commit and tag JS release
+      if: steps.detect.outputs.has_changes == 'true'
       run: |
+        JS_VERSION=$(node -p "require('./atmosphere.js/package.json').version")
         cd atmosphere.js
         git add package.json package-lock.json
         cd ..
-        git commit -m "chore: release atmosphere.js v${{ inputs.js_version }}"
-        git tag "atmosphere.js-v${{ inputs.js_version }}"
+        git diff --cached --quiet || git commit -m "release(js): atmosphere.js ${JS_VERSION}"
+        git tag "js-v${JS_VERSION}"
 
     - name: Bump to next patch version
+      if: steps.detect.outputs.has_changes == 'true'
       working-directory: atmosphere.js
       run: npm version patch --no-git-tag-version
 
     - name: Commit next dev version
+      if: steps.detect.outputs.has_changes == 'true'
       run: |
         NEXT_VERSION=$(node -p "require('./atmosphere.js/package.json').version")
         cd atmosphere.js
         git add package.json package-lock.json
         cd ..
         git commit -m "chore(js): prepare next development version ${NEXT_VERSION}"
-        git push origin main
-        git push origin "atmosphere.js-v${{ inputs.js_version }}"
+        git push origin main --tags
 
   # ─────────────────────────────────────────────
   # Phase 5: Create GitHub Release with notes
