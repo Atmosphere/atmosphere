@@ -82,8 +82,7 @@ public final class DemoEventProducer {
                     + "reconnect after a disconnect. Progress messages (like 'Thinking...') "
                     + "are ephemeral and not cached. This reduces API calls and improves UX.";
         }
-        return "I received: \"" + userMessage + "\". "
-                + "This is a demo ADK agent with tool calling, token budgets, and response caching. "
+        return "This is a demo ADK agent with tool calling, token budgets, and response caching. "
                 + "Try asking about the time or weather in a city, or ask about 'budget' or 'cache'.";
     }
 

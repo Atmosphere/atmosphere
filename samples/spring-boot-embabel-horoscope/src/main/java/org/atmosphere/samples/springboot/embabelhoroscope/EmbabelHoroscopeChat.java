@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.springboot.embabelhoroscope;
 
+import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
@@ -67,16 +68,6 @@ public class EmbabelHoroscopeChat {
 
     private static final Logger logger = LoggerFactory.getLogger(EmbabelHoroscopeChat.class);
 
-    private static final boolean DEMO_MODE;
-
-    static {
-        var key = System.getenv("OPENAI_API_KEY");
-        if (key == null || key.isBlank()) {
-            key = System.getenv("LLM_API_KEY");
-        }
-        DEMO_MODE = (key == null || key.isBlank());
-    }
-
     @Ready
     public void onReady(AtmosphereResource resource) {
         var broadcaster = resource.getBroadcaster();
@@ -103,11 +94,12 @@ public class EmbabelHoroscopeChat {
     @Prompt
     public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
         var broadcaster = resource.getBroadcaster();
-        logger.info("Prompt from {} (broadcaster: {}, peers: {}, demo={}): {}",
+        logger.info("Prompt from {} (broadcaster: {}, peers: {}): {}",
                 resource.uuid(), broadcaster.getID(),
-                broadcaster.getAtmosphereResources().size(), DEMO_MODE, message);
+                broadcaster.getAtmosphereResources().size(), message);
 
-        if (DEMO_MODE) {
+        var settings = AiConfig.get();
+        if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
             DemoResponseProducer.stream(message, session, resource.uuid());
             return;
         }

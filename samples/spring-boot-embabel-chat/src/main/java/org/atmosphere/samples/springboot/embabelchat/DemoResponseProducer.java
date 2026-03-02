@@ -34,7 +34,7 @@ public final class DemoResponseProducer {
         var words = response.split("(?<=\\s)");
 
         try {
-            session.progress("Demo mode — set OPENAI_API_KEY to enable real agents");
+            session.progress("Demo mode — set LLM_API_KEY to enable real agents");
             for (var word : words) {
                 session.send(word);
                 Thread.sleep(50);
@@ -64,8 +64,8 @@ public final class DemoResponseProducer {
                     + "This sample demonstrates how Embabel agents integrate with Atmosphere's "
                     + "Broadcaster to push AI agent responses to all connected browser clients.";
         }
-        return "I received your message: \"" + userMessage + "\". "
-                + "This is a demo response — each word arrives as a separate streaming token. "
-                + "Set OPENAI_API_KEY to connect to a real Embabel agent.";
+        return "This is a demo response — each word arrives as a separate streaming token. "
+                + "Try asking about 'atmosphere' or 'embabel'. "
+                + "Set LLM_API_KEY to connect to a real Embabel agent.";
     }
 }

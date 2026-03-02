@@ -19,22 +19,42 @@ import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.config.service.Disconnect;
+import org.atmosphere.config.service.Ready;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * AI chat endpoint powered by LangChain4j (auto-detected via classpath).
  *
- * <p>The {@code @AiEndpoint} annotation + {@code session.stream(message)} pattern
- * means this code is transport-agnostic AND AI-framework-agnostic. LangChain4j is
- * auto-detected because {@code atmosphere-langchain4j} is on the classpath, which
- * registers {@link org.atmosphere.ai.langchain4j.LangChain4jAiSupport} via ServiceLoader.</p>
+ * <p>Demonstrates core Atmosphere annotations with {@code @AiEndpoint}:</p>
+ * <ul>
+ *   <li>{@link Ready @Ready} — invoked when a client connects and is suspended</li>
+ *   <li>{@link Disconnect @Disconnect} — invoked when a client disconnects</li>
+ *   <li>{@link Prompt @Prompt} — handles incoming user messages</li>
+ * </ul>
+ *
+ * <p>LangChain4j is auto-detected because {@code atmosphere-langchain4j} is on the
+ * classpath, which registers {@code LangChain4jAiSupport} via ServiceLoader.</p>
  */
 @AiEndpoint(path = "/atmosphere/langchain4j-chat",
         systemPromptResource = "prompts/system-prompt.md")
 public class LangChain4jChat {
 
     private static final Logger logger = LoggerFactory.getLogger(LangChain4jChat.class);
+
+    @Ready
+    public void onReady(AtmosphereResource resource) {
+        logger.info("Client {} connected (broadcaster: {})",
+                resource.uuid(), resource.getBroadcaster().getID());
+    }
+
+    @Disconnect
+    public void onDisconnect(AtmosphereResourceEvent event) {
+        logger.info("Client {} disconnected", event.getResource().uuid());
+    }
 
     @Prompt
     public void onPrompt(String message, StreamingSession session) {

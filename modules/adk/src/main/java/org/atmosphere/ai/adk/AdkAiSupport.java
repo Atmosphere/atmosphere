@@ -28,6 +28,10 @@ import org.atmosphere.ai.StreamingSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * {@link AiSupport} implementation backed by Google ADK's {@link Runner}.
  *
@@ -42,6 +46,7 @@ public class AdkAiSupport implements AiSupport {
     private static volatile Runner runner;
     private static volatile String defaultUserId = "atmosphere-user";
     private static volatile String defaultSessionId = "atmosphere-session";
+    private static final Set<String> knownSessions = ConcurrentHashMap.newKeySet();
 
     @Override
     public String name() {
@@ -129,11 +134,31 @@ public class AdkAiSupport implements AiSupport {
         var sessionId = request.hints().containsKey("sessionId")
                 ? request.hints().get("sessionId").toString() : defaultSessionId;
 
+        ensureSession(adkRunner, userId, sessionId);
+
         var events = adkRunner.runAsync(
                 userId,
                 sessionId,
                 Content.fromParts(Part.fromText(request.message()))
         );
         AdkEventAdapter.bridge(events, session);
+    }
+
+    private static void ensureSession(Runner adkRunner, String userId, String sessionId) {
+        var key = userId + ":" + sessionId;
+        if (knownSessions.contains(key)) {
+            return;
+        }
+
+        var existing = adkRunner.sessionService()
+                .getSession(adkRunner.appName(), userId, sessionId, Optional.empty())
+                .blockingGet();
+        if (existing == null) {
+            adkRunner.sessionService()
+                    .createSession(adkRunner.appName(), userId, new ConcurrentHashMap<>(), sessionId)
+                    .blockingGet();
+            logger.debug("Created ADK session: userId={}, sessionId={}", userId, sessionId);
+        }
+        knownSessions.add(key);
     }
 }

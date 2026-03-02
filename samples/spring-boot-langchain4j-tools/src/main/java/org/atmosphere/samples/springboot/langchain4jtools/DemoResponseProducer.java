@@ -89,8 +89,7 @@ public final class DemoResponseProducer {
                     + "My SSN is 123-45-6789 and my email is alice@company.org — "
                     + "you should see these redacted in the response.";
         }
-        return "I received: \"" + userMessage + "\". "
-                + "This is a demo response with PII redaction and cost metering active. "
+        return "This is a demo response with PII redaction and cost metering active. "
                 + "Try asking about the time or weather, or send a message containing "
                 + "an email address to see PII redaction in action.";
     }

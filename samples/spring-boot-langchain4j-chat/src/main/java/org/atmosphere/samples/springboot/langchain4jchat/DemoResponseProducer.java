@@ -65,8 +65,8 @@ public final class DemoResponseProducer {
                     + "integrates with Atmosphere's Broadcaster to push AI tokens to all "
                     + "connected browser clients in real-time.";
         }
-        return "I received your message: \"" + userMessage + "\". "
-                + "This is a demo response — each word arrives as a separate streaming token. "
+        return "This is a demo response — each word arrives as a separate streaming token. "
+                + "Try asking about 'atmosphere' or 'langchain4j'. "
                 + "Set LLM_API_KEY to connect to a real LLM provider.";
     }
 }

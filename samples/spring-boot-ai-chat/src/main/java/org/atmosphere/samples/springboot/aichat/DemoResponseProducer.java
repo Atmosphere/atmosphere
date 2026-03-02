@@ -59,8 +59,8 @@ public final class DemoResponseProducer {
                     + "This sample uses the built-in OpenAiCompatibleClient to stream "
                     + "LLM responses token-by-token through the Broadcaster.";
         }
-        return "I received your message: \"" + userMessage + "\". "
-                + "This is a demo response — each word arrives as a separate streaming token. "
+        return "This is a demo response — each word arrives as a separate streaming token. "
+                + "Try asking about 'atmosphere' or say 'hello'. "
                 + "Set LLM_API_KEY to connect to a real LLM provider.";
     }
 }

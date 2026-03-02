@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.springboot.springairouting;
 
+import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
@@ -65,13 +66,6 @@ public class SpringAiRoutingChat {
 
     private static final Logger logger = LoggerFactory.getLogger(SpringAiRoutingChat.class);
 
-    private static final boolean DEMO_MODE;
-
-    static {
-        var apiKey = System.getenv("OPENAI_API_KEY");
-        DEMO_MODE = apiKey == null || apiKey.isBlank() || "demo".equals(apiKey);
-    }
-
     @PathParam("topic")
     private String topic;
 
@@ -100,7 +94,8 @@ public class SpringAiRoutingChat {
         logger.info("[topic={}] Prompt from {} (broadcaster: {}): {}",
                 topic, resource.uuid(), broadcaster.getID(), message);
 
-        if (DEMO_MODE) {
+        var settings = AiConfig.get();
+        if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
             DemoResponseProducer.stream(message, session, topic, resource.uuid());
             return;
         }

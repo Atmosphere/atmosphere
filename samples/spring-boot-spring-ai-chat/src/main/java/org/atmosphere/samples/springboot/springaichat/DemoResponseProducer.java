@@ -34,7 +34,7 @@ public final class DemoResponseProducer {
         var words = response.split("(?<=\\s)");
 
         try {
-            session.progress("Demo mode — set OPENAI_API_KEY to enable Spring AI responses");
+            session.progress("Demo mode — set LLM_API_KEY to enable Spring AI responses");
             for (var word : words) {
                 session.send(word);
                 Thread.sleep(50);
@@ -65,8 +65,8 @@ public final class DemoResponseProducer {
                     + "Spring AI's rich LLM abstraction (ChatClient, Advisors, RAG) "
                     + "plus Atmosphere's transport-agnostic real-time delivery.";
         }
-        return "I received your message: \"" + userMessage + "\". "
-                + "This is a demo response streamed word-by-word via SpringAiStreamingAdapter. "
-                + "Set OPENAI_API_KEY to connect to a real LLM provider through Spring AI's ChatClient.";
+        return "This is a demo response streamed word-by-word via SpringAiStreamingAdapter. "
+                + "Try asking about 'atmosphere' or 'spring ai'. "
+                + "Set LLM_API_KEY to connect to a real LLM provider through Spring AI's ChatClient.";
     }
 }

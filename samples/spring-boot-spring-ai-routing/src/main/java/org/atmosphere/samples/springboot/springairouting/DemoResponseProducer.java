@@ -35,7 +35,7 @@ public final class DemoResponseProducer {
     public static void stream(String userMessage, StreamingSession session,
                               String topic, String clientId) {
         var category = classifyPrompt(userMessage);
-        var response = generateResponse(userMessage, category, topic);
+        var response = generateResponse(category, topic);
         var words = response.split("(?<=\\s)");
 
         try {
@@ -69,7 +69,7 @@ public final class DemoResponseProducer {
         return PromptCategory.GENERAL;
     }
 
-    private static String generateResponse(String userMessage, PromptCategory category, String topic) {
+    private static String generateResponse(PromptCategory category, String topic) {
         return switch (category) {
             case CODE -> "[Topic: " + topic + " | Routed to: " + category.model + "] "
                     + "Your code question was routed to a specialized code model. "
@@ -77,28 +77,24 @@ public final class DemoResponseProducer {
                     + "programming keywords and route to a model optimized for code generation "
                     + "(like GPT-4 or Claude Sonnet). "
                     + "The content safety filter is also active, ensuring no harmful code "
-                    + "patterns are generated. "
-                    + "Original question: \"" + userMessage + "\"";
+                    + "patterns are generated.";
             case CREATIVE -> "[Topic: " + topic + " | Routed to: " + category.model + "] "
                     + "Your creative writing request was routed to a model optimized for creativity. "
                     + "The RoutingLlmClient detects creative writing keywords (story, poem, imagine) "
                     + "and routes to a model with higher temperature settings for more "
-                    + "imaginative responses. "
-                    + "Original request: \"" + userMessage + "\"";
+                    + "imaginative responses.";
             case MATH -> "[Topic: " + topic + " | Routed to: " + category.model + "] "
                     + "Your math question was routed to a reasoning-focused model. "
                     + "Complex reasoning tasks benefit from models with chain-of-thought "
                     + "capabilities. The RoutingLlmClient sends these to models like o1 or "
-                    + "Gemini 2.5 Pro that excel at step-by-step reasoning. "
-                    + "Original question: \"" + userMessage + "\"";
+                    + "Gemini 2.5 Pro that excel at step-by-step reasoning.";
             case GENERAL -> "[Topic: " + topic + " | Routed to: " + category.model + "] "
                     + "Your general question uses the default model — fast and cost-effective. "
                     + "The RoutingLlmClient only routes to specialized models when it detects "
                     + "specific content patterns. For general chat, the default model provides "
                     + "the best balance of speed and cost. "
                     + "Try asking a code question, a math problem, or requesting a creative story "
-                    + "to see different routing in action. "
-                    + "Original question: \"" + userMessage + "\"";
+                    + "to see different routing in action.";
         };
     }
 

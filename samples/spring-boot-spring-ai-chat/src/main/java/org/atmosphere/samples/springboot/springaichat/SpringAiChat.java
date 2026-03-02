@@ -15,21 +15,31 @@
  */
 package org.atmosphere.samples.springboot.springaichat;
 
+import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.config.service.Disconnect;
+import org.atmosphere.config.service.Ready;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * AI chat endpoint powered by Spring AI (auto-detected via classpath).
  *
- * <p>The {@code @AiEndpoint} annotation + {@code session.stream(message)} pattern
- * means this code is transport-agnostic AND AI-framework-agnostic. Spring AI is
- * auto-detected because {@code atmosphere-spring-ai} is on the classpath, which
- * registers {@link org.atmosphere.ai.spring.SpringAiSupport} via ServiceLoader.</p>
+ * <p>Demonstrates core Atmosphere annotations with {@code @AiEndpoint}:</p>
+ * <ul>
+ *   <li>{@link Ready @Ready} — invoked when a client connects and is suspended</li>
+ *   <li>{@link Disconnect @Disconnect} — invoked when a client disconnects</li>
+ *   <li>{@link Prompt @Prompt} — handles incoming user messages</li>
+ * </ul>
  *
- * <p>In demo mode (no {@code OPENAI_API_KEY}), falls back to simulated streaming.</p>
+ * <p>Spring AI is auto-detected because {@code atmosphere-spring-ai} is on the
+ * classpath, which registers {@code SpringAiSupport} via ServiceLoader.</p>
+ *
+ * <p>In demo mode (no API key configured), falls back to simulated streaming.</p>
  */
 @AiEndpoint(path = "/atmosphere/spring-ai-chat",
         systemPrompt = "You are a helpful assistant.")
@@ -37,18 +47,23 @@ public class SpringAiChat {
 
     private static final Logger logger = LoggerFactory.getLogger(SpringAiChat.class);
 
-    private static final boolean DEMO_MODE;
+    @Ready
+    public void onReady(AtmosphereResource resource) {
+        logger.info("Client {} connected (broadcaster: {})",
+                resource.uuid(), resource.getBroadcaster().getID());
+    }
 
-    static {
-        var apiKey = System.getenv("OPENAI_API_KEY");
-        DEMO_MODE = apiKey == null || apiKey.isBlank() || "demo".equals(apiKey);
+    @Disconnect
+    public void onDisconnect(AtmosphereResourceEvent event) {
+        logger.info("Client {} disconnected", event.getResource().uuid());
     }
 
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
         logger.info("Received prompt: {}", message);
 
-        if (DEMO_MODE) {
+        var settings = AiConfig.get();
+        if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
             DemoResponseProducer.stream(message, session);
             return;
         }

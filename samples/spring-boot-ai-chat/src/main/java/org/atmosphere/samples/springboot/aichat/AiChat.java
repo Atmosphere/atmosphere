@@ -19,24 +19,41 @@ import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.config.service.Disconnect;
+import org.atmosphere.config.service.Ready;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * AI chat endpoint using the built-in OpenAI-compatible client.
- * When no API key is configured, falls back to demo mode with
- * simulated streaming responses.
  *
- * <p>The {@link AiEndpoint} annotation replaces the boilerplate of
- * {@code @ManagedService} + {@code @Ready} + {@code @Disconnect} + {@code @Message}.
- * The resolved {@link org.atmosphere.ai.AiSupport} (auto-detected from the classpath)
- * handles the actual LLM communication.</p>
+ * <p>Demonstrates core Atmosphere annotations with {@code @AiEndpoint}:</p>
+ * <ul>
+ *   <li>{@link Ready @Ready} — invoked when a client connects and is suspended</li>
+ *   <li>{@link Disconnect @Disconnect} — invoked when a client disconnects</li>
+ *   <li>{@link Prompt @Prompt} — handles incoming user messages</li>
+ * </ul>
+ *
+ * <p>In demo mode (no API key configured), falls back to simulated streaming.</p>
  */
 @AiEndpoint(path = "/atmosphere/ai-chat",
         systemPromptResource = "prompts/system-prompt.md")
 public class AiChat {
 
     private static final Logger logger = LoggerFactory.getLogger(AiChat.class);
+
+    @Ready
+    public void onReady(AtmosphereResource resource) {
+        logger.info("Client {} connected (broadcaster: {})",
+                resource.uuid(), resource.getBroadcaster().getID());
+    }
+
+    @Disconnect
+    public void onDisconnect(AtmosphereResourceEvent event) {
+        logger.info("Client {} disconnected", event.getResource().uuid());
+    }
 
     @Prompt
     public void onPrompt(String message, StreamingSession session) {

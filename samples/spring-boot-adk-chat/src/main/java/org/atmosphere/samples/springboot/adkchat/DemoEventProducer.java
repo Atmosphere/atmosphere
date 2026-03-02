@@ -66,8 +66,7 @@ public final class DemoEventProducer {
                     + "for streaming. The atmosphere-adk module bridges these event streams to "
                     + "Atmosphere's Broadcaster, so tokens reach browsers in real-time.";
         }
-        return "I received your message: \"" + userMessage + "\". "
-                + "This is a demo ADK agent streaming tokens through Atmosphere's "
+        return "This is a demo ADK agent streaming tokens through Atmosphere's "
                 + "real-time infrastructure. Each word you see arrives as a separate "
                 + "streaming token via WebSocket. Try asking about 'atmosphere' or 'adk'!";
     }

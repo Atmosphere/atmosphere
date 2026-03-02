@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.springboot.adktools;
 
+import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.adk.AdkEventAdapter;
 import org.atmosphere.ai.annotation.AiEndpoint;
@@ -93,8 +94,13 @@ public class AdkToolsChat {
                 resource.uuid(), broadcaster.getID(),
                 broadcaster.getAtmosphereResources().size(), message);
 
-        // In demo mode, stream simulated ADK events with tool calls
-        var events = DemoEventProducer.stream(message, resource.uuid());
-        AdkEventAdapter.bridge(events, session);
+        var settings = AiConfig.get();
+        if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
+            var events = DemoEventProducer.stream(message, resource.uuid());
+            AdkEventAdapter.bridge(events, session);
+            return;
+        }
+
+        session.stream(message);
     }
 }

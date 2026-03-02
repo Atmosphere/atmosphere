@@ -33,3 +33,4 @@ website-astro/
 .copilot/
 claude_docs/
 .copilot/
+.envrc

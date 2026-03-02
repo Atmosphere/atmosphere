@@ -15,20 +15,27 @@
  */
 package org.atmosphere.samples.springboot.adkchat;
 
+import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.adk.AdkEventAdapter;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.config.service.Disconnect;
+import org.atmosphere.config.service.Ready;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * AI chat endpoint powered by Google ADK (auto-detected via classpath).
  *
- * <p>The {@code @AiEndpoint} annotation + {@code session.stream(message)} pattern
- * means this code is transport-agnostic AND AI-framework-agnostic. Google ADK is
- * auto-detected because {@code atmosphere-adk} is on the classpath, which
- * registers {@link org.atmosphere.ai.adk.AdkAiSupport} via ServiceLoader.</p>
+ * <p>Demonstrates core Atmosphere annotations with {@code @AiEndpoint}:</p>
+ * <ul>
+ *   <li>{@link Ready @Ready} — invoked when a client connects and is suspended</li>
+ *   <li>{@link Disconnect @Disconnect} — invoked when a client disconnects</li>
+ *   <li>{@link Prompt @Prompt} — handles incoming user messages</li>
+ * </ul>
  *
  * <p>In demo mode (no ADK Runner configured), falls back to simulated ADK events
  * via {@link DemoEventProducer}.</p>
@@ -39,12 +46,28 @@ public class AdkChat {
 
     private static final Logger logger = LoggerFactory.getLogger(AdkChat.class);
 
+    @Ready
+    public void onReady(AtmosphereResource resource) {
+        logger.info("Client {} connected (broadcaster: {})",
+                resource.uuid(), resource.getBroadcaster().getID());
+    }
+
+    @Disconnect
+    public void onDisconnect(AtmosphereResourceEvent event) {
+        logger.info("Client {} disconnected", event.getResource().uuid());
+    }
+
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
         logger.info("Received prompt: {}", message);
 
-        // In demo mode, stream simulated ADK events
-        var events = DemoEventProducer.stream(message);
-        AdkEventAdapter.bridge(events, session);
+        var settings = AiConfig.get();
+        if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
+            var events = DemoEventProducer.stream(message);
+            AdkEventAdapter.bridge(events, session);
+            return;
+        }
+
+        session.stream(message);
     }
 }
