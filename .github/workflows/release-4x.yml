@@ -299,6 +299,8 @@ jobs:
       run: |
         npm ci
         npm publish --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     - name: Commit and tag JS release
       if: steps.detect.outputs.has_changes == 'true'
