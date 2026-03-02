@@ -17,7 +17,9 @@
     "@grpc/grpc-js": "^1.14.3",
     "@grpc/proto-loader": "^0.8.0",
     "@playwright/test": "^1.50.0",
+    "@types/eventsource": "^1.1.15",
     "@types/ws": "^8.18.1",
+    "eventsource": "^4.1.0",
     "ws": "^8.19.0"
   }
 }

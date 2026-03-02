@@ -119,6 +119,12 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8084,
     type: 'spring-boot',
   },
+  'spring-boot-otel-chat': {
+    name: 'spring-boot-otel-chat',
+    dir: 'spring-boot-otel-chat',
+    port: 8090,
+    type: 'spring-boot',
+  },
 };
 
 /**
