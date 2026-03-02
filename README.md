@@ -123,9 +123,19 @@ public class MyTools {
 
 JDK 21 virtual threads are used by default.
 
+## Generate a Project
+
+```bash
+jbang generator/AtmosphereInit.java --name my-app --handler ai-chat --ai builtin
+cd my-app && ./mvnw spring-boot:run
+```
+
+Generates a ready-to-run Spring Boot project with your choice of handler (chat, ai-chat, mcp-server) and AI framework. See [generator/README.md](generator/README.md) for all options.
+
 ## Documentation
 
 - [**Full documentation**](docs/README.md) — architecture, configuration, and API reference for every module
+- [**Project generator**](generator/README.md) — generate a ready-to-run project with one command
 - [**Samples**](samples/) — runnable apps covering every transport and integration
 - [**Javadoc**](http://atmosphere.github.io/atmosphere/apidocs/)
 
