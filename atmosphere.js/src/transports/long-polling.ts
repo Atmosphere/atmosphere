@@ -21,12 +21,12 @@ import { logger } from '../utils/logger';
 /**
  * HTTP Long-Polling transport implementation.
  *
- * Opens an XHR request that the server holds open until data is available.
+ * Opens a fetch request that the server holds open until data is available.
  * When a response arrives, the client processes it and immediately opens
  * a new request — creating a near-real-time server push channel.
  */
 export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
-  private xhr: XMLHttpRequest | null = null;
+  private abortController: AbortController | null = null;
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private _polling = false;
@@ -56,9 +56,9 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
     }
     this.protocol.stopHeartbeat();
 
-    if (this.xhr) {
-      this.xhr.abort();
-      this.xhr = null;
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
     }
 
     this._state = 'disconnected';
@@ -67,17 +67,15 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
   send(message: string | ArrayBuffer): void {
     const url = this.protocol.buildUrl(this.request);
     const outgoing = this.applyOutgoing(message);
-    const data = outgoing instanceof ArrayBuffer
-      ? new Blob([outgoing])
-      : outgoing;
 
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', url, true);
-    xhr.setRequestHeader('Content-Type', this.request.contentType ?? 'text/plain');
-    if (this.request.withCredentials) {
-      xhr.withCredentials = true;
-    }
-    xhr.send(data);
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': this.request.contentType ?? 'text/plain' },
+      credentials: this.request.withCredentials ? 'include' : 'same-origin',
+      body: outgoing instanceof ArrayBuffer ? new Blob([outgoing]) : outgoing,
+    }).catch((error) => {
+      logger.warn('Long-polling POST send failed:', error);
+    });
   }
 
   private async poll(isFirst: boolean): Promise<void> {
@@ -87,82 +85,63 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
       return;
     }
 
-    return new Promise<void>((resolve, reject) => {
-      const url = this.protocol.buildUrl(this.request);
-      logger.debug(`Long-polling request: ${url}`);
+    const url = this.protocol.buildUrl(this.request);
+    logger.debug(`Long-polling request: ${url}`);
 
-      const xhr = new XMLHttpRequest();
-      this.xhr = xhr;
+    this.abortController = new AbortController();
+    this._requestCount++;
 
-      xhr.open('GET', url, true);
-      xhr.setRequestHeader('Content-Type', this.request.contentType ?? 'text/plain');
+    try {
+      const response = await fetch(url, {
+        headers: { 'Content-Type': this.request.contentType ?? 'text/plain' },
+        credentials: this.request.withCredentials ? 'include' : 'same-origin',
+        signal: this.abortController.signal,
+      });
 
-      if (this.request.withCredentials) {
-        xhr.withCredentials = true;
+      if (!response.ok) {
+        this.handleDisconnect(isFirst);
+        if (isFirst) throw new Error('Long-polling connection failed');
+        return;
       }
 
-      xhr.onreadystatechange = () => {
-        if (this.aborted) return;
+      if (isFirst) {
+        this.reconnectAttempts = 0;
 
-        if (xhr.readyState === 4) {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            if (isFirst) {
-              this.reconnectAttempts = 0;
+        const openResponse: AtmosphereResponse<T> = {
+          status: 200,
+          reasonPhrase: 'OK',
+          responseBody: '' as T,
+          messages: [],
+          headers: {},
+          state: 'open',
+          transport: 'long-polling',
+          error: null,
+          request: this.request,
+        };
+        this.notifyOpen(openResponse);
+        this.protocol.startHeartbeat();
+      }
 
-              const openResponse: AtmosphereResponse<T> = {
-                status: 200,
-                reasonPhrase: 'OK',
-                responseBody: '' as T,
-                messages: [],
-                headers: {},
-                state: 'open',
-                transport: 'long-polling',
-                error: null,
-                request: this.request,
-              };
-              this.notifyOpen(openResponse);
-              this.protocol.startHeartbeat();
-            }
+      const responseText = await response.text();
+      if (responseText.trim().length > 0) {
+        this.handleResponse(responseText);
+      }
 
-            const responseText = xhr.responseText;
-            if (responseText.trim().length > 0) {
-              this.handleResponse(responseText);
-            }
+      // Extract session token from response headers (for durable sessions)
+      this.protocol.extractSessionToken((name) => response.headers.get(name));
 
-            // Extract session token from response headers (for durable sessions)
-            if (typeof xhr.getResponseHeader === 'function') {
-              this.protocol.extractSessionToken((name) => xhr.getResponseHeader(name));
-            }
-
-            resolve();
-
-            // Immediately re-poll
-            if (this._polling && !this.aborted) {
-              this.poll(false).catch((error) => {
-                logger.error('Long-polling re-poll failed:', error);
-              });
-            }
-          } else if (xhr.status === 0 && this.aborted) {
-            // Aborted intentionally
-            resolve();
-          } else {
-            // Server error or disconnect
-            this.handleDisconnect(isFirst, resolve, reject);
-          }
-        }
-      };
-
-      xhr.onerror = () => {
-        if (this.aborted) {
-          resolve();
-          return;
-        }
-        this.handleDisconnect(isFirst, resolve, reject);
-      };
-
-      xhr.send(null);
-      this._requestCount++;
-    });
+      // Immediately re-poll
+      if (this._polling && !this.aborted) {
+        this.poll(false).catch((error) => {
+          logger.error('Long-polling re-poll failed:', error);
+        });
+      }
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') return;
+      if (this.aborted) return;
+      this.handleDisconnect(isFirst);
+      if (isFirst) throw error;
+    }
   }
 
   private handleResponse(responseText: string): void {
@@ -192,17 +171,12 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
     }
   }
 
-  private handleDisconnect(
-    isFirst: boolean,
-    resolve: () => void,
-    reject: (error: Error) => void,
-  ): void {
+  private handleDisconnect(isFirst: boolean): void {
     this.protocol.stopHeartbeat();
 
     if (isFirst) {
       const error = new Error('Long-polling connection failed');
       this.notifyError(error);
-      reject(error);
       return;
     }
 
@@ -218,8 +192,6 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
       request: this.request,
     };
     this.notifyClose(response);
-
-    resolve();
 
     if (
       this._polling &&

@@ -21,13 +21,12 @@ import { logger } from '../utils/logger';
 /**
  * HTTP Streaming transport implementation.
  *
- * Opens a long-lived XHR connection and reads incremental responseText
- * as it arrives (readyState 3). Unlike long-polling, the connection stays
- * open and data is read progressively.
+ * Opens a long-lived fetch connection and reads the response body
+ * incrementally via ReadableStream. Unlike long-polling, the connection
+ * stays open and data is read progressively.
  */
 export class StreamingTransport<T = unknown> extends BaseTransport<T> {
-  private xhr: XMLHttpRequest | null = null;
-  private lastIndex = 0;
+  private abortController: AbortController | null = null;
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private aborted = false;
@@ -40,95 +39,61 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
   async connect(): Promise<void> {
     this._state = 'connecting';
     this.aborted = false;
-    this.lastIndex = 0;
     this.opened = false;
 
     this.protocol.setPushFunction((msg) => this.send(msg));
 
-    return new Promise<void>((resolve, reject) => {
-      const url = this.protocol.buildUrl(this.request);
-      logger.debug(`Streaming connect: ${url}`);
+    const url = this.protocol.buildUrl(this.request);
+    logger.debug(`Streaming connect: ${url}`);
 
-      const xhr = new XMLHttpRequest();
-      this.xhr = xhr;
+    this.abortController = new AbortController();
 
-      xhr.open('GET', url, true);
-      xhr.setRequestHeader('Content-Type', this.request.contentType ?? 'text/plain');
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: { 'Content-Type': this.request.contentType ?? 'text/plain' },
+        credentials: this.request.withCredentials ? 'include' : 'same-origin',
+        signal: this.abortController.signal,
+      });
+    } catch (error) {
+      if (this.aborted || (error as Error).name === 'AbortError') return;
+      const connectError = new Error('Streaming connection error');
+      this.handleError(connectError);
+      throw connectError;
+    }
 
-      if (this.request.withCredentials) {
-        xhr.withCredentials = true;
-      }
+    if (!response.ok || !response.body) {
+      const error = new Error(`Streaming connection failed: ${response.status}`);
+      this.handleError(error);
+      throw error;
+    }
 
-      xhr.onreadystatechange = () => {
-        if (this.aborted) return;
+    // Connection established
+    this.opened = true;
+    this.reconnectAttempts = 0;
+    this.protocol.extractSessionToken((name) => response.headers.get(name));
 
-        if (xhr.readyState >= 3) {
-          // Check HTTP status on first response
-          if (!this.opened && xhr.status >= 200 && xhr.status < 300) {
-            this.opened = true;
-            this.reconnectAttempts = 0;
+    const openResponse: AtmosphereResponse<T> = {
+      status: 200,
+      reasonPhrase: 'OK',
+      responseBody: '' as T,
+      messages: [],
+      headers: {},
+      state: 'open',
+      transport: 'streaming',
+      error: null,
+      request: this.request,
+    };
 
-            // Extract session token from response headers (for durable sessions)
-            if (typeof xhr.getResponseHeader === 'function') {
-              this.protocol.extractSessionToken((name) => xhr.getResponseHeader(name));
-            }
+    if (!this.request.enableProtocol) {
+      this.notifyOpen(openResponse);
+      this.protocol.startHeartbeat();
+    }
 
-            const openResponse: AtmosphereResponse<T> = {
-              status: 200,
-              reasonPhrase: 'OK',
-              responseBody: '' as T,
-              messages: [],
-              headers: {},
-              state: 'open',
-              transport: 'streaming',
-              error: null,
-              request: this.request,
-            };
-
-            if (!this.request.enableProtocol) {
-              this.notifyOpen(openResponse);
-              this.protocol.startHeartbeat();
-            }
-
-            resolve();
-          }
-
-          // Read incremental data
-          if (xhr.readyState >= 3 && xhr.responseText.length > this.lastIndex) {
-            const chunk = xhr.responseText.substring(this.lastIndex);
-            this.lastIndex = xhr.responseText.length;
-            this.handleChunk(chunk);
-          }
-        }
-
-        // Connection closed (readyState 4)
-        if (xhr.readyState === 4) {
-          if (!this.opened) {
-            const error = new Error(`Streaming connection failed: ${xhr.status}`);
-            this.handleError(error);
-            reject(error);
-          } else {
-            this.handleClose();
-          }
-        }
-      };
-
-      xhr.onerror = () => {
-        if (this.aborted) {
-          resolve();
-          return;
-        }
-        if (!this.opened) {
-          const error = new Error('Streaming connection error');
-          this.handleError(error);
-          reject(error);
-        } else {
-          this.handleClose();
-        }
-      };
-
-      xhr.send(null);
-    });
+    // Read stream incrementally in the background
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    this.readStream(reader, decoder);
   }
 
   async disconnect(): Promise<void> {
@@ -140,9 +105,9 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
     }
     this.protocol.stopHeartbeat();
 
-    if (this.xhr) {
-      this.xhr.abort();
-      this.xhr = null;
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
     }
 
     this._state = 'disconnected';
@@ -151,17 +116,41 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
   send(message: string | ArrayBuffer): void {
     const url = this.protocol.buildUrl(this.request);
     const outgoing = this.applyOutgoing(message);
-    const data = outgoing instanceof ArrayBuffer
-      ? new Blob([outgoing])
-      : outgoing;
 
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', url, true);
-    xhr.setRequestHeader('Content-Type', this.request.contentType ?? 'text/plain');
-    if (this.request.withCredentials) {
-      xhr.withCredentials = true;
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': this.request.contentType ?? 'text/plain' },
+      credentials: this.request.withCredentials ? 'include' : 'same-origin',
+      body: outgoing instanceof ArrayBuffer ? new Blob([outgoing]) : outgoing,
+    }).catch((error) => {
+      logger.warn('Streaming POST send failed:', error);
+    });
+  }
+
+  private async readStream(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    decoder: TextDecoder,
+  ): Promise<void> {
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done || this.aborted) break;
+        const chunk = decoder.decode(value, { stream: true });
+        this.handleChunk(chunk);
+      }
+    } catch (error) {
+      if (this.aborted || (error as Error).name === 'AbortError') return;
+      if (this.opened) {
+        this.handleClose();
+      } else {
+        this.handleError(error as Error);
+      }
+      return;
     }
-    xhr.send(data);
+    // Stream ended normally
+    if (this.opened && !this.aborted) {
+      this.handleClose();
+    }
   }
 
   private handleChunk(chunk: string): void {
@@ -261,7 +250,6 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
 
     this.reconnectTimer = setTimeout(() => {
       this.protocol.reset();
-      this.lastIndex = 0;
       this.opened = false;
       this.connect().catch((error) => {
         logger.error('Streaming reconnection failed:', error);

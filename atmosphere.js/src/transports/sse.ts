@@ -22,7 +22,7 @@ import { logger } from '../utils/logger';
  * Server-Sent Events (SSE) transport implementation.
  *
  * Uses the browser EventSource API for server-to-client streaming.
- * Messages are sent via HTTP POST (XHR).
+ * Messages are sent via HTTP POST (fetch).
  */
 export class SSETransport<T = unknown> extends BaseTransport<T> {
   private eventSource: EventSource | null = null;
@@ -97,27 +97,19 @@ export class SSETransport<T = unknown> extends BaseTransport<T> {
     // SSE is server-to-client only; send via HTTP POST
     const url = this.protocol.buildUrl(this.request);
     const outgoing = this.applyOutgoing(message);
-    const data = outgoing instanceof ArrayBuffer
-      ? new Blob([outgoing])
-      : outgoing;
 
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', url, true);
-    xhr.setRequestHeader('Content-Type', this.request.contentType ?? 'text/plain');
-    if (this.request.withCredentials) {
-      xhr.withCredentials = true;
-    }
-
-    // Extract session token from POST response headers (for durable sessions)
-    xhr.onreadystatechange = () => {
-      if (xhr.readyState === 4 && xhr.status >= 200 && xhr.status < 300) {
-        if (typeof xhr.getResponseHeader === 'function') {
-          this.protocol.extractSessionToken((name) => xhr.getResponseHeader(name));
-        }
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': this.request.contentType ?? 'text/plain' },
+      credentials: this.request.withCredentials ? 'include' : 'same-origin',
+      body: outgoing instanceof ArrayBuffer ? new Blob([outgoing]) : outgoing,
+    }).then((response) => {
+      if (response.ok) {
+        this.protocol.extractSessionToken((name) => response.headers.get(name));
       }
-    };
-
-    xhr.send(data);
+    }).catch((error) => {
+      logger.warn('SSE POST send failed:', error);
+    });
   }
 
   private handleOpen(): void {
