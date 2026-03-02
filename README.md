@@ -33,6 +33,14 @@ Generates a ready-to-run Spring Boot project with your choice of handler (chat, 
 
 ## Quick Start
 
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-runtime</artifactId>
+    <version>4.0.8</version>
+</dependency>
+```
+
 ```java
 @ManagedService(path = "/chat")
 public class Chat {
