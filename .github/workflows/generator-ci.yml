@@ -1,0 +1,71 @@
+name: Generator CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'generator/**'
+      - 'pom.xml'
+      - '.github/workflows/generator-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'generator/**'
+      - 'pom.xml'
+      - '.github/workflows/generator-ci.yml'
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: 21
+        distribution: 'temurin'
+
+    - name: Setup JBang
+      uses: jbangdev/setup-jbang@main
+
+    - name: Run Unit Tests
+      run: jbang generator/AtmosphereInitTest.java
+
+  integration-tests:
+    name: Integration - ${{ matrix.variant }}
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    strategy:
+      matrix:
+        variant: [ chat, ai-builtin, ai-spring-ai, ai-adk, mcp-server ]
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: 21
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Setup JBang
+      uses: jbangdev/setup-jbang@main
+
+    - name: Install Atmosphere Modules
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl modules/cpr,modules/ai,modules/adk,modules/langchain4j,modules/embabel,modules/mcp,modules/spring-boot-starter -am
+
+    - name: Run Integration Test - ${{ matrix.variant }}
+      run: bash generator/test-generator.sh ${{ matrix.variant }}
+
+    - name: Upload Artifacts on Failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: generator-${{ matrix.variant }}-artifacts
+        path: /tmp/tmp.*
