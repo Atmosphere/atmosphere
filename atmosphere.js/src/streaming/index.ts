@@ -86,6 +86,8 @@ export async function subscribeStreaming(
     },
     send(message: string | object, options?: SendOptions) {
       // Reset tracking state for new session
+      sessionId = null;
+      lastSeq = -1;
       tokenCount = 0;
       startTime = null;
       routing = {};
