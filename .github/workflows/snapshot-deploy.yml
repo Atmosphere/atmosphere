@@ -1,0 +1,96 @@
+name: Deploy SNAPSHOT
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pom.xml'
+      - 'modules/**/pom.xml'
+      - 'modules/**/src/main/java/**'
+      - 'modules/**/src/main/resources/**'
+
+env:
+  MAVEN_OPTS: '-Xmx2g'
+
+jobs:
+  deploy-snapshot:
+    name: Deploy SNAPSHOT artifacts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Verify SNAPSHOT version
+      run: |
+        VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+        if [[ ! "$VERSION" =~ -SNAPSHOT$ ]]; then
+          echo "::notice::Version $VERSION is not a SNAPSHOT — skipping deploy"
+          echo "SKIP_DEPLOY=true" >> "$GITHUB_ENV"
+        fi
+
+    - name: Set up JDK 21
+      if: env.SKIP_DEPLOY != 'true'
+      uses: actions/setup-java@v4
+      with:
+        java-version: 21
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Build and install
+      if: env.SKIP_DEPLOY != 'true'
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -DskipCentralPublishing=true -Pfastinstall
+
+    # ── GitHub Packages ──────────────────────────
+    - name: Configure Maven for GitHub Packages
+      if: env.SKIP_DEPLOY != 'true'
+      run: |
+        mkdir -p ~/.m2
+        cat > ~/.m2/settings.xml << 'EOF'
+        <settings>
+          <servers>
+            <server>
+              <id>github</id>
+              <username>${env.GITHUB_ACTOR}</username>
+              <password>${env.GITHUB_TOKEN}</password>
+            </server>
+            <server>
+              <id>ossrh</id>
+              <username>${env.OSSRH_USERNAME}</username>
+              <password>${env.OSSRH_PASSWORD}</password>
+            </server>
+            <server>
+              <id>central</id>
+              <username>unused</username>
+              <password>unused</password>
+            </server>
+          </servers>
+        </settings>
+        EOF
+
+    - name: Deploy to GitHub Packages
+      if: env.SKIP_DEPLOY != 'true'
+      run: |
+        ./mvnw -B deploy -DskipTests -Dgpg.skip=true \
+          -DskipCentralPublishing=true \
+          -Dmaven.deploy.skip=false \
+          -Pfastinstall \
+          -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!samples/spring-boot-embabel-horoscope,!samples/spring-boot-ai-chat,!samples/spring-boot-ai-classroom,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-adk-chat,!samples/spring-boot-adk-tools,!samples/spring-boot-spring-ai-chat,!samples/spring-boot-spring-ai-routing,!samples/spring-boot-langchain4j-tools,!samples/spring-boot-otel-chat,!samples/grpc-chat,!modules/embabel,!modules/integration-tests' \
+          -DaltDeploymentRepository=github::https://maven.pkg.github.com/Atmosphere/atmosphere
+      env:
+        GITHUB_ACTOR: ${{ github.actor }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # ── OSSRH Snapshots ──────────────────────────
+    - name: Deploy to OSSRH Snapshots
+      if: env.SKIP_DEPLOY != 'true' && env.OSSRH_USERNAME != ''
+      run: |
+        ./mvnw -B deploy -DskipTests -Dgpg.skip=true \
+          -DskipCentralPublishing=true \
+          -Dmaven.deploy.skip=false \
+          -Pdeploy-snapshot \
+          -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!samples/spring-boot-embabel-horoscope,!samples/spring-boot-ai-chat,!samples/spring-boot-ai-classroom,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-adk-chat,!samples/spring-boot-adk-tools,!samples/spring-boot-spring-ai-chat,!samples/spring-boot-spring-ai-routing,!samples/spring-boot-langchain4j-tools,!samples/spring-boot-otel-chat,!samples/grpc-chat,!modules/embabel,!modules/integration-tests'
+      env:
+        OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+        OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
