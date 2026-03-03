@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2021 Async-IO.org
+ * Copyright 2008-2026 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -84,7 +84,7 @@ public class Chat {
      *
      */
     @Disconnect
-    public void onDisconnect(/** If you don't want to use injection AtmosphereResourceEvent event*/) {
+    public void onDisconnect(/* If you don't want to use injection AtmosphereResourceEvent event */) {
         if (event.isCancelled()) {
             logger.info("Browser {} unexpectedly disconnected", event.getResource().uuid());
         } else if (event.isClosedByClient()) {
