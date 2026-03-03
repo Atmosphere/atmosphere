@@ -78,6 +78,10 @@ public class AiChat {
 
 See [spring-boot-ai-classroom](samples/spring-boot-ai-classroom) for a full working example with multiple AI endpoints, conversation memory, and a React frontend.
 
+### CLI-powered LLM backend
+
+Already have a Claude Code, Copilot, Cursor, or Gemini CLI license? [Embacle](https://github.com/dravr-ai/dravr-embacle) turns any CLI tool into an OpenAI-compatible LLM provider. Point Atmosphere's built-in `OpenAiCompatibleClient` at an Embacle server and stream responses from your existing CLI subscription — no separate API key required.
+
 ### MCP — expose tools to AI agents
 
 ```java
