@@ -24,7 +24,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -48,10 +50,11 @@ import java.util.concurrent.atomic.AtomicLong;
  * {"type":"error","data":"Connection failed","sessionId":"abc-123","seq":6}
  * </pre>
  */
-final class DefaultStreamingSession implements StreamingSession {
+public final class DefaultStreamingSession implements StreamingSession {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultStreamingSession.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ConcurrentHashMap<String, AtmosphereResource> SESSION_RESOURCES = new ConcurrentHashMap<>();
 
     private final String sessionId;
     private final AtmosphereResource resource;
@@ -61,6 +64,18 @@ final class DefaultStreamingSession implements StreamingSession {
     DefaultStreamingSession(String sessionId, AtmosphereResource resource) {
         this.sessionId = sessionId;
         this.resource = resource;
+        SESSION_RESOURCES.put(sessionId, resource);
+    }
+
+    /**
+     * Look up the {@link AtmosphereResource} for a given session ID.
+     * Used by broadcast filters to deliver deferred messages via unicast.
+     *
+     * @param sessionId the streaming session identifier
+     * @return the resource, or empty if no active session with that ID
+     */
+    public static Optional<AtmosphereResource> resourceForSession(String sessionId) {
+        return Optional.ofNullable(SESSION_RESOURCES.get(sessionId));
     }
 
     @Override
@@ -102,6 +117,7 @@ final class DefaultStreamingSession implements StreamingSession {
     @Override
     public void complete() {
         if (closed.compareAndSet(false, true)) {
+            SESSION_RESOURCES.remove(sessionId);
             broadcast(buildMessage("complete", null));
         }
     }
@@ -109,6 +125,7 @@ final class DefaultStreamingSession implements StreamingSession {
     @Override
     public void complete(String summary) {
         if (closed.compareAndSet(false, true)) {
+            SESSION_RESOURCES.remove(sessionId);
             broadcast(buildMessage("complete", summary));
         }
     }
@@ -116,6 +133,7 @@ final class DefaultStreamingSession implements StreamingSession {
     @Override
     public void error(Throwable t) {
         if (closed.compareAndSet(false, true)) {
+            SESSION_RESOURCES.remove(sessionId);
             var message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
             broadcast(buildMessage("error", message));
         }

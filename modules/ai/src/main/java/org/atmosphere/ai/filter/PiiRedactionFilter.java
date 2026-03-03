@@ -15,12 +15,14 @@
  */
 package org.atmosphere.ai.filter;
 
+import org.atmosphere.ai.DefaultStreamingSession;
 import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
@@ -161,22 +163,30 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
 
             // Emit the flushed token as a proper "token" message to maintain protocol
             // invariant: all text arrives as "token" type, "complete" is always bare.
-            // The complete/error is broadcast asynchronously after the flushed token.
-            deferBroadcast(broadcasterId, rawMessage);
+            // Bump the terminal message's seq to seq+1 so it doesn't collide with the
+            // synthetic flush token and the monotonic sequence invariant is preserved.
+            var bumpedTerminal = msg.withSeq(msg.seq() + 1);
+            deferBroadcast(broadcasterId, msg.sessionId(), new RawMessage(bumpedTerminal.toJson()));
             return new BroadcastAction(new RawMessage(tokenMsg.toJson()));
         }
         return new BroadcastAction(rawMessage);
     }
 
-    private void deferBroadcast(String broadcasterId, RawMessage message) {
+    private void deferBroadcast(String broadcasterId, String sessionId, RawMessage message) {
         var factory = broadcasterFactory();
         Thread.ofVirtual().name("pii-flush").start(() -> {
             try {
                 // Wait for the current filter chain to complete and deliver the flushed token
                 Thread.sleep(50);
                 if (factory != null) {
-                    factory.findBroadcaster(broadcasterId)
-                            .ifPresent(b -> b.broadcast(message));
+                    factory.findBroadcaster(broadcasterId).ifPresent(b -> {
+                        var target = DefaultStreamingSession.resourceForSession(sessionId);
+                        if (target.isPresent()) {
+                            b.broadcast(message, Set.of(target.get()));
+                        } else {
+                            b.broadcast(message);
+                        }
+                    });
                 }
             } catch (Exception e) {
                 logger.warn("Failed to emit deferred stream-end message: {}", e.getMessage());
