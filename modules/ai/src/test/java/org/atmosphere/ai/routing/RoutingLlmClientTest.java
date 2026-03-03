@@ -16,6 +16,8 @@
 package org.atmosphere.ai.routing;
 
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.budget.BudgetExceededException;
+import org.atmosphere.ai.budget.TokenBudgetManager;
 import org.atmosphere.ai.llm.ChatCompletionRequest;
 import org.atmosphere.ai.llm.LlmClient;
 import org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule;
@@ -175,5 +177,62 @@ public class RoutingLlmClientTest {
         assertNull(capturedCost.get());
         assertEquals("fast", capturedLatency.get());
         assertNull(capturedDefault.get());
+    }
+
+    @Test
+    public void testBudgetDegradationOverridesRouting() {
+        var capturedModel = new AtomicReference<String>();
+        var budgetMgr = new TokenBudgetManager();
+        budgetMgr.setBudget(new TokenBudgetManager.Budget("user-1", 100, "cheap-model", 0.8));
+
+        // Record 85% usage — past the 80% threshold
+        budgetMgr.recordUsage("user-1", 85);
+
+        var router = RoutingLlmClient.builder(capturingClient(capturedModel), "default-model")
+                .route(RoutingRule.contentBased(
+                        prompt -> prompt.contains("code"),
+                        capturingClient(new AtomicReference<>()), "code-model"))
+                .budgetManager(budgetMgr, req -> "user-1")
+                .build();
+
+        var session = mock(StreamingSession.class);
+        router.streamChatCompletion(ChatCompletionRequest.of("any", "write code"), session);
+
+        // Should use the fallback model, not the content-based route
+        assertEquals("cheap-model", capturedModel.get());
+        verify(session).sendMetadata("routing.budget-degraded", true);
+    }
+
+    @Test
+    public void testBudgetExceededSendsError() {
+        var budgetMgr = new TokenBudgetManager();
+        budgetMgr.setBudget(new TokenBudgetManager.Budget("user-1", 100, null, 0.8));
+
+        // Exhaust the budget completely
+        budgetMgr.recordUsage("user-1", 100);
+
+        var router = RoutingLlmClient.builder(capturingClient(new AtomicReference<>()), "default")
+                .budgetManager(budgetMgr, req -> "user-1")
+                .build();
+
+        var session = mock(StreamingSession.class);
+        router.streamChatCompletion(ChatCompletionRequest.of("any", "hello"), session);
+
+        verify(session).error(any(BudgetExceededException.class));
+        verify(session, never()).send(anyString());
+    }
+
+    @Test
+    public void testNoBudgetManagerSkipsBudgetCheck() {
+        var capturedModel = new AtomicReference<String>();
+
+        var router = RoutingLlmClient.builder(capturingClient(capturedModel), "default-model")
+                .build();
+
+        var session = mock(StreamingSession.class);
+        router.streamChatCompletion(ChatCompletionRequest.of("any", "hello"), session);
+
+        assertEquals("default-model", capturedModel.get());
+        verify(session, never()).sendMetadata(eq("routing.budget-degraded"), any());
     }
 }

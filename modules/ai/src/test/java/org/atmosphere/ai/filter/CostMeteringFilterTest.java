@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.filter;
 
+import org.atmosphere.ai.budget.TokenBudgetManager;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.cpr.RawMessage;
 import org.junit.jupiter.api.Test;
@@ -153,5 +154,44 @@ public class CostMeteringFilterTest {
     public void testZeroCountForUnknownSession() {
         assertEquals(0, filter.getSessionTokenCount("unknown"));
         assertEquals(0, filter.getBroadcasterTokenCount("unknown"));
+    }
+
+    @Test
+    public void testRecordsUsageViaBudgetManagerOnComplete() {
+        var budgetMgr = new TokenBudgetManager();
+        budgetMgr.setBudget(new TokenBudgetManager.Budget("user-1", 100_000, null, 0.8));
+
+        filter.setBudgetManager(budgetMgr, sessionId -> "user-1");
+
+        sendToken("b1", "s1", 1);
+        sendToken("b1", "s1", 2);
+        sendToken("b1", "s1", 3);
+        sendComplete("b1", "s1", 4);
+
+        assertEquals(3, budgetMgr.currentUsage("user-1"));
+    }
+
+    @Test
+    public void testNoBudgetManagerSkipsRecording() {
+        // No setBudgetManager called — should not throw
+        sendToken("b1", "s1", 1);
+        sendToken("b1", "s1", 2);
+        sendComplete("b1", "s1", 3);
+        // If we get here without NPE, the test passes
+        assertEquals(0, filter.getSessionTokenCount("s1"));
+    }
+
+    @Test
+    public void testBudgetManagerWithNullOwnerSkipsRecording() {
+        var budgetMgr = new TokenBudgetManager();
+        budgetMgr.setBudget(new TokenBudgetManager.Budget("user-1", 100_000, null, 0.8));
+
+        // Resolver returns null for this session
+        filter.setBudgetManager(budgetMgr, sessionId -> null);
+
+        sendToken("b1", "s1", 1);
+        sendComplete("b1", "s1", 2);
+
+        assertEquals(0, budgetMgr.currentUsage("user-1"));
     }
 }

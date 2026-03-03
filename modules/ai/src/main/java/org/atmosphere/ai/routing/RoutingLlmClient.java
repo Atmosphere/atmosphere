@@ -16,6 +16,8 @@
 package org.atmosphere.ai.routing;
 
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.budget.BudgetExceededException;
+import org.atmosphere.ai.budget.TokenBudgetManager;
 import org.atmosphere.ai.llm.ChatCompletionRequest;
 import org.atmosphere.ai.llm.LlmClient;
 import org.slf4j.Logger;
@@ -24,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -61,11 +64,17 @@ public final class RoutingLlmClient implements LlmClient {
     private final LlmClient defaultClient;
     private final String defaultModel;
     private final List<RoutingRule> rules;
+    private final TokenBudgetManager budgetManager;
+    private final Function<ChatCompletionRequest, String> ownerResolver;
 
-    private RoutingLlmClient(LlmClient defaultClient, String defaultModel, List<RoutingRule> rules) {
+    private RoutingLlmClient(LlmClient defaultClient, String defaultModel, List<RoutingRule> rules,
+                             TokenBudgetManager budgetManager,
+                             Function<ChatCompletionRequest, String> ownerResolver) {
         this.defaultClient = defaultClient;
         this.defaultModel = defaultModel;
         this.rules = List.copyOf(rules);
+        this.budgetManager = budgetManager;
+        this.ownerResolver = ownerResolver;
     }
 
     /**
@@ -158,6 +167,29 @@ public final class RoutingLlmClient implements LlmClient {
 
     @Override
     public void streamChatCompletion(ChatCompletionRequest request, StreamingSession session) {
+        // Budget check — before rule evaluation
+        if (budgetManager != null && ownerResolver != null) {
+            var ownerId = ownerResolver.apply(request);
+            if (ownerId != null) {
+                try {
+                    var recommended = budgetManager.recommendedModel(ownerId);
+                    if (recommended.isPresent()) {
+                        logger.debug("Budget degradation for {}: switching to {}", ownerId, recommended.get());
+                        session.sendMetadata("routing.budget-degraded", true);
+                        session.sendMetadata("routing.model", recommended.get());
+                        var fallback = new ChatCompletionRequest(
+                                recommended.get(), request.messages(),
+                                request.temperature(), request.maxTokens());
+                        defaultClient.streamChatCompletion(fallback, session);
+                        return;
+                    }
+                } catch (BudgetExceededException e) {
+                    session.error(e);
+                    return;
+                }
+            }
+        }
+
         // Extract user message for content-based routing
         var userMessage = request.messages().stream()
                 .filter(m -> "user".equals(m.role()))
@@ -243,6 +275,8 @@ public final class RoutingLlmClient implements LlmClient {
         private final LlmClient defaultClient;
         private final String defaultModel;
         private final List<RoutingRule> rules = new ArrayList<>();
+        private TokenBudgetManager budgetManager;
+        private Function<ChatCompletionRequest, String> ownerResolver;
 
         private Builder(LlmClient defaultClient, String defaultModel) {
             this.defaultClient = defaultClient;
@@ -257,8 +291,24 @@ public final class RoutingLlmClient implements LlmClient {
             return this;
         }
 
+        /**
+         * Enable budget-aware routing. When an owner's usage exceeds the degradation
+         * threshold, the router switches to the fallback model before evaluating rules.
+         *
+         * @param mgr           the budget manager
+         * @param ownerResolver resolves a request to an owner ID (e.g., user or org)
+         * @return this builder
+         */
+        public Builder budgetManager(TokenBudgetManager mgr,
+                                     Function<ChatCompletionRequest, String> ownerResolver) {
+            this.budgetManager = mgr;
+            this.ownerResolver = ownerResolver;
+            return this;
+        }
+
         public RoutingLlmClient build() {
-            return new RoutingLlmClient(defaultClient, defaultModel, rules);
+            return new RoutingLlmClient(defaultClient, defaultModel, rules,
+                    budgetManager, ownerResolver);
         }
     }
 }

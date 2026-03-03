@@ -15,12 +15,14 @@
  */
 package org.atmosphere.ai.filter;
 
+import org.atmosphere.ai.budget.TokenBudgetManager;
 import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 /**
  * A {@link AiStreamBroadcastFilter} that tracks token counts per session and per
@@ -56,6 +58,8 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
     private final ConcurrentHashMap<String, AtomicLong> broadcasterTokenCounts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> budgets = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Boolean> exceededSessions = new ConcurrentHashMap<>();
+    private volatile TokenBudgetManager budgetManager;
+    private volatile Function<String, String> sessionOwnerResolver;
 
     @Override
     protected BroadcastAction filterAiMessage(
@@ -117,6 +121,13 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
         logger.debug("Session {} completed: {} tokens (broadcaster {} total: {})",
                 msg.sessionId(), sessionCount, broadcasterId, broadcasterCount);
 
+        if (budgetManager != null && sessionOwnerResolver != null) {
+            var ownerId = sessionOwnerResolver.apply(msg.sessionId());
+            if (ownerId != null) {
+                budgetManager.recordUsage(ownerId, sessionCount);
+            }
+        }
+
         cleanup(msg.sessionId());
         return new BroadcastAction(rawMessage);
     }
@@ -174,5 +185,16 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
      */
     public void resetBroadcasterCount(String broadcasterId) {
         broadcasterTokenCounts.remove(broadcasterId);
+    }
+
+    /**
+     * Wire a {@link TokenBudgetManager} to record usage on stream completion.
+     *
+     * @param mgr      the budget manager to record usage against
+     * @param resolver maps session IDs to owner IDs (user or organization)
+     */
+    public void setBudgetManager(TokenBudgetManager mgr, Function<String, String> resolver) {
+        this.budgetManager = mgr;
+        this.sessionOwnerResolver = resolver;
     }
 }
