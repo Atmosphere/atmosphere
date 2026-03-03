@@ -175,4 +175,30 @@ public class AiStreamMessageTest {
         assertEquals("abc-123", modified.sessionId());
         assertEquals(1L, modified.seq());
     }
+
+    @Test
+    public void testWithSeq() {
+        var msg = new AiStreamMessage("complete", null, "sess-1", 5, null, null);
+        var modified = msg.withSeq(99);
+
+        assertEquals(99L, modified.seq());
+        assertEquals("complete", modified.type());
+        assertNull(modified.data());
+        assertEquals("sess-1", modified.sessionId());
+        assertNull(modified.key());
+        assertNull(modified.value());
+    }
+
+    @Test
+    public void testWithSeqPreservesAllFields() {
+        var msg = new AiStreamMessage("metadata", "data-val", "sess-1", 5, "key-1", "value-1");
+        var modified = msg.withSeq(42);
+
+        assertEquals(42L, modified.seq());
+        assertEquals("metadata", modified.type());
+        assertEquals("data-val", modified.data());
+        assertEquals("sess-1", modified.sessionId());
+        assertEquals("key-1", modified.key());
+        assertEquals("value-1", modified.value());
+    }
 }

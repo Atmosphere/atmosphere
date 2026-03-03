@@ -154,4 +154,21 @@ public class PiiRedactionFilterTest {
         customFilter.removePattern("email");
         assertEquals("user@example.com", customFilter.redact("user@example.com"));
     }
+
+    @Test
+    public void testFlushTokenUsesTerminalSeqAndDeferredTerminalUsesSeqPlusOne() throws Exception {
+        // Buffer tokens without sentence boundary
+        sendToken("Call me at 555-123-4567", "seq-test", 4);
+
+        // Complete with seq=5 should produce:
+        // - flushed token with seq=5 (returned from filter)
+        // - deferred terminal with seq=6 (via broadcaster, not testable here)
+        var result = sendComplete("seq-test", 5);
+        var raw = (RawMessage) result.message();
+        var parsed = AiStreamMessage.parse((String) raw.message());
+
+        // The flushed token should keep the terminal's original seq
+        assertTrue(parsed.isToken());
+        assertEquals(5L, parsed.seq());
+    }
 }

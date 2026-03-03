@@ -141,6 +141,16 @@ public record AiStreamMessage(
         return new AiStreamMessage(type, newData, sessionId, seq, key, value);
     }
 
+    /**
+     * Create a new message with the sequence number replaced.
+     *
+     * @param newSeq the new sequence number
+     * @return a copy of this message with updated seq
+     */
+    public AiStreamMessage withSeq(long newSeq) {
+        return new AiStreamMessage(type, data, sessionId, newSeq, key, value);
+    }
+
     private static Object extractValue(JsonNode valueNode) {
         if (valueNode.isNull()) {
             return null;

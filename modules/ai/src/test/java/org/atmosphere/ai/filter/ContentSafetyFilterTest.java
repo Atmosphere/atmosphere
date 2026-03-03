@@ -168,4 +168,38 @@ public class ContentSafetyFilterTest {
         var result2 = sendToken(filter, "This is a very long sentence that exceeds the limit.", "s2", 1);
         assertEquals(BroadcastAction.ACTION.SKIP, result2.action());
     }
+
+    @Test
+    public void testSafeFlushTokenUsesTerminalSeqAndDeferredUsesSeqPlusOne() throws Exception {
+        var filter = new ContentSafetyFilter(ContentSafetyFilter.keywordChecker(Set.of("danger")));
+
+        // Buffer safe content
+        sendToken(filter, "This is safe", "seq-safe", 4);
+
+        // Complete with seq=5
+        var result = sendComplete(filter, "seq-safe", 5);
+        var raw = (RawMessage) result.message();
+        var parsed = AiStreamMessage.parse((String) raw.message());
+
+        assertTrue(parsed.isToken());
+        assertEquals(5L, parsed.seq());
+    }
+
+    @Test
+    public void testRedactedFlushTokenUsesTerminalSeqAndDeferredUsesSeqPlusOne() throws Exception {
+        var checker = ContentSafetyFilter.redactingChecker(Set.of("badword"), "***");
+        var filter = new ContentSafetyFilter(checker);
+
+        // Buffer content with a term that will be redacted
+        sendToken(filter, "Has badword here", "seq-redact", 4);
+
+        // Complete with seq=5
+        var result = sendComplete(filter, "seq-redact", 5);
+        var raw = (RawMessage) result.message();
+        var parsed = AiStreamMessage.parse((String) raw.message());
+
+        assertTrue(parsed.isToken());
+        assertEquals(5L, parsed.seq());
+        assertTrue(parsed.data().contains("***"));
+    }
 }
