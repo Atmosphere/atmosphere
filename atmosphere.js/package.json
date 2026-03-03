@@ -109,5 +109,8 @@
     "typescript": "^5.9.3",
     "vitest": "^2.1.9",
     "vue": "^3.5.28"
+  },
+  "dependencies": {
+    "react-markdown": "^10.1.0"
   }
 }

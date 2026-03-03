@@ -28,3 +28,4 @@ export { ChatInput } from './ChatInput';
 export type { ChatInputProps } from './ChatInput';
 export { StreamingMessage, StreamingProgress, StreamingError } from './StreamingMessage';
 export type { StreamingMessageProps, StreamingProgressProps, StreamingErrorProps } from './StreamingMessage';
+export { normalizeBlockElements } from './markdown';
