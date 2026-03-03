@@ -39,6 +39,7 @@ public class FakeHttpSession implements HttpSession {
         this.maxInactiveInterval = maxInactiveInterval;
     }
 
+    @SuppressWarnings("this-escape")
     public FakeHttpSession(HttpSession session) {
         this(session.getId(), session.getServletContext(), session.getLastAccessedTime(), session.getMaxInactiveInterval());
         copyAttributes(session);
@@ -94,6 +95,7 @@ public class FakeHttpSession implements HttpSession {
         return attributes.get(name);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public Object getValue(String name) {
         if (!valid.get()) throw new IllegalStateException();
@@ -106,6 +108,7 @@ public class FakeHttpSession implements HttpSession {
         return attributes.keys();
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public String[] getValueNames() {
         if (!valid.get()) throw new IllegalStateException();
@@ -118,6 +121,7 @@ public class FakeHttpSession implements HttpSession {
         attributes.put(name, value);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void putValue(String name, Object value) {
         if (!valid.get()) throw new IllegalStateException();
@@ -130,6 +134,7 @@ public class FakeHttpSession implements HttpSession {
         attributes.remove(name);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void removeValue(String name) {
         if (!valid.get()) throw new IllegalStateException();

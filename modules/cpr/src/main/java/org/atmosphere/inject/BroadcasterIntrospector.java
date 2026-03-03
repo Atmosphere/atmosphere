@@ -40,6 +40,7 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
         return t instanceof Class<?> c && Broadcaster.class.isAssignableFrom(c);
     }
 
+    @SuppressWarnings("rawtypes")
     @Override
     public Broadcaster injectable(AtmosphereResource r) {
         String named = nameLocal.get();

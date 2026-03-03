@@ -37,6 +37,7 @@ public class AtmosphereResourceEventIntrospector extends InjectIntrospectorAdapt
         return t instanceof Class<?> c && AtmosphereResourceEvent.class.isAssignableFrom(c);
     }
 
+    @SuppressWarnings("rawtypes")
     @Override
     public AtmosphereResourceEvent injectable(AtmosphereResource r) {
         final AtmosphereResourceEvent e = r.getAtmosphereResourceEvent();

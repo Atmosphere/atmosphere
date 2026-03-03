@@ -140,6 +140,7 @@ public final class TypeResolver {
      * {@code targetType}. Returns {@code null} if {@code genericType} is not parameterized or if
      * arguments cannot be resolved.
      */
+    @SuppressWarnings("rawtypes")
     public static Class<?>[] resolveArguments(Type genericType, Class<?> targetType) {
         Class<?>[] result = null;
 

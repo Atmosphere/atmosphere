@@ -179,6 +179,7 @@ public class AtmosphereFramework {
     /**
      * Create an AtmosphereFramework and initialize it via {@link AtmosphereFramework#init(jakarta.servlet.ServletConfig)}.
      */
+    @SuppressWarnings("this-escape")
     public AtmosphereFramework(ServletConfig sc) throws ServletException {
         this(false, true);
         init(sc);
@@ -189,6 +190,7 @@ public class AtmosphereFramework {
      *
      * @param isFilter true if this instance is used as an {@link AtmosphereFilter}
      */
+    @SuppressWarnings("this-escape")
     public AtmosphereFramework(boolean isFilter, boolean autoDetectHandlers) {
         this.isFilter = isFilter;
         this.autoDetectHandlers = autoDetectHandlers;
@@ -921,7 +923,7 @@ public class AtmosphereFramework {
      * @param stream The input stream we read from.
      * @param c      The classloader
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     protected void loadAtmosphereDotXml(InputStream stream, ClassLoader c)
             throws IOException, ServletException {
 

@@ -54,9 +54,11 @@ public interface AtmosphereResponse extends HttpServletResponse {
     @Override
     String encodeRedirectURL(String url);
 
+    @SuppressWarnings("deprecation")
     @Override
     String encodeUrl(String url);
 
+    @SuppressWarnings("deprecation")
     @Override
     String encodeRedirectUrl(String url);
 
@@ -92,6 +94,7 @@ public interface AtmosphereResponse extends HttpServletResponse {
     @Override
     void setStatus(int status);
 
+    @SuppressWarnings("deprecation")
     @Override
     void setStatus(int status, String statusMessage);
 

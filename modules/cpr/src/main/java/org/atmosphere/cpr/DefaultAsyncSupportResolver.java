@@ -110,6 +110,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      * @param targetClass
      * @return an instance of the specified class or null if the class cannot be instantiated
      */
+    @SuppressWarnings("rawtypes")
     public AsyncSupport<?> newCometSupport(final Class<? extends AsyncSupport<?>> targetClass) {
         try {
             return targetClass.getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
@@ -125,6 +126,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         }
     }
 
+    @SuppressWarnings("rawtypes")
     public AsyncSupport<?> newCometSupport(final String targetClassFQN) {
         try {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();

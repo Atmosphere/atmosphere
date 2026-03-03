@@ -91,6 +91,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public AtmosphereResourceImpl() {
     }
 
+    @SuppressWarnings("this-escape")
     @Deprecated
     public AtmosphereResourceImpl(AtmosphereConfig config, Broadcaster broadcaster,
                                   AtmosphereRequest req, AtmosphereResponse response,

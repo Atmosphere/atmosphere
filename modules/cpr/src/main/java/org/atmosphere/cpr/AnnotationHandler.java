@@ -71,7 +71,7 @@ public class AnnotationHandler {
         return null;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public Class<? extends Annotation>[] handledClass() {
         Collection<Class<? extends Annotation>> c = annotations.keySet();
         return c.toArray(new Class[0]);

@@ -147,7 +147,7 @@ public class InterceptorRegistry {
     /**
      * Return the default interceptor classes.
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public Class<? extends AtmosphereInterceptor>[] defaultInterceptors() {
         return DEFAULT_ATMOSPHERE_INTERCEPTORS.toArray(new Class[DEFAULT_ATMOSPHERE_INTERCEPTORS.size()]);
     }

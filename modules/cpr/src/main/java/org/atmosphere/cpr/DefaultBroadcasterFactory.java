@@ -186,7 +186,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
         return lookup(c, id, false);
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "deprecation"})
     @Override
     public <T extends Broadcaster> T lookup(Object id) {
         return (T) lookup(clazz, id, false);

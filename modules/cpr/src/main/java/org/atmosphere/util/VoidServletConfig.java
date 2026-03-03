@@ -40,6 +40,7 @@ public class VoidServletConfig implements ServletConfig {
         return ATMOSPHERE_SERVLET;
     }
 
+    @SuppressWarnings("rawtypes")
     @Override
     public ServletContext getServletContext() {
         return (ServletContext) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{ServletContext.class},

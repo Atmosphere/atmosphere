@@ -61,6 +61,7 @@ public final class IntrospectionUtils {
     /**
      * Call execute() - any ant-like task should work
      */
+    @SuppressWarnings("rawtypes")
     public static void execute(Object proxy, String method) throws Exception {
         Method executeM = null;
         Class<?> c = proxy.getClass();
@@ -76,6 +77,7 @@ public final class IntrospectionUtils {
     /**
      * Call void setAttribute( String ,Object )
      */
+    @SuppressWarnings("rawtypes")
     public static void setAttribute(Object proxy, String name, Object value)
             throws Exception {
         if (proxy instanceof AttributeHolder ah) {
@@ -102,6 +104,7 @@ public final class IntrospectionUtils {
     /**
      * Call void getAttribute( String )
      */
+    @SuppressWarnings("rawtypes")
     public static Object getAttribute(Object proxy, String name) throws Exception {
         Class<?> c = proxy.getClass();
         Class<?> params[] = new Class[1];
@@ -614,7 +617,7 @@ public final class IntrospectionUtils {
         }
         String s[] = new String[v.size()];
         for (int i = 0; i < s.length; i++) {
-            s[i] = (String) v.get(i);
+            s[i] = v.get(i);
         }
         return s;
     }
@@ -644,7 +647,7 @@ public final class IntrospectionUtils {
             new ConcurrentHashMap<>();
 
     public static Method[] findMethods(Class<?> c) {
-        Method methods[] = (Method[]) objectMethods.get(c);
+        Method methods[] = objectMethods.get(c);
         if (methods != null)
             return methods;
 
@@ -712,6 +715,7 @@ public final class IntrospectionUtils {
         return false;
     }
 
+    @SuppressWarnings("rawtypes")
     public static void callMain(Class<?> c, String args[]) throws Exception {
         Class<?> p[] = new Class[1];
         p[0] = args.getClass();
@@ -719,6 +723,7 @@ public final class IntrospectionUtils {
         m.invoke(c, new Object[]{args});
     }
 
+    @SuppressWarnings("rawtypes")
     public static Object callMethod1(Object target, String methodN,
                                      Object param1, String typeParam1, ClassLoader cl) throws Exception {
         if (target == null || param1 == null) {

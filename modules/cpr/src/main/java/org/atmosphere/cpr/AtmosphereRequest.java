@@ -240,6 +240,7 @@ public interface AtmosphereRequest extends HttpServletRequest {
     /**
      * {@inheritDoc}
      */
+    @SuppressWarnings("deprecation")
     @Override
     String getRealPath(String path);
 
@@ -367,6 +368,7 @@ public interface AtmosphereRequest extends HttpServletRequest {
     /**
      * {@inheritDoc}
      */
+    @SuppressWarnings("deprecation")
     @Override
     boolean isRequestedSessionIdFromUrl();
 

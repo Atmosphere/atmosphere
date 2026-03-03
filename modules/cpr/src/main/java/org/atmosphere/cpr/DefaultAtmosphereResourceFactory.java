@@ -37,12 +37,14 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFactory {
 
     private final static Logger logger = LoggerFactory.getLogger(DefaultAtmosphereResourceFactory.class);
+    @SuppressWarnings("rawtypes")
     private final static Broadcaster noOps = (Broadcaster)
             Proxy.newProxyInstance(Broadcaster.class.getClassLoader(), new Class[]{Broadcaster.class},
                     (proxy, method, args) -> {
                         if (method.getName().equals("isDestroyed")) return false;
                         return null;
                     });
+    @SuppressWarnings("rawtypes")
     private final static AtmosphereHandler noOpsHandler = (AtmosphereHandler)
             Proxy.newProxyInstance(AtmosphereHandler.class.getClassLoader(), new Class[]{AtmosphereHandler.class},
                     (proxy, method, args) -> null);

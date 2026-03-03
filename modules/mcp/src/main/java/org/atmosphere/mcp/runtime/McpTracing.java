@@ -75,6 +75,7 @@ public final class McpTracing {
      * @return the result of the action
      * @throws Exception if the action throws
      */
+    @SuppressWarnings("try")
     public <T> T traced(String type, String name, int argCount,
                          ThrowingSupplier<T> action) throws Exception {
         var span = tracer.spanBuilder("mcp." + type + "/" + name)

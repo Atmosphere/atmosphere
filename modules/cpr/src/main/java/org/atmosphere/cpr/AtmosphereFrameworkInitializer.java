@@ -81,6 +81,7 @@ public class AtmosphereFrameworkInitializer {
         return AtmosphereFrameworkInitializer.newAtmosphereFramework(frameworkClass, isFilter, autoDetectHandlers);
     }
 
+    @SuppressWarnings("rawtypes")
     protected static AtmosphereFramework newAtmosphereFramework(Class<? extends AtmosphereFramework> frameworkClass, boolean isFilter, boolean autoDetectHandlers, final ServletContext c) {
         AtmosphereFramework framework;
         try {

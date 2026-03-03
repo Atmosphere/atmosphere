@@ -28,6 +28,7 @@ public class AiFeatureTestServer {
 
     private static final Logger logger = LoggerFactory.getLogger(AiFeatureTestServer.class);
 
+    @SuppressWarnings("try")
     public static void main(String[] args) throws Exception {
         int port = Integer.getInteger("server.port", 8090);
 

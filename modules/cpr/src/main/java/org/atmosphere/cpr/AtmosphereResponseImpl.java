@@ -84,6 +84,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     private Locale locale;
     private boolean headerHandled;
     private AtmosphereRequest atmosphereRequest;
+    @SuppressWarnings("rawtypes")
     private static final HttpServletResponse dsr = (HttpServletResponse)
             Proxy.newProxyInstance(AtmosphereResponseImpl.class.getClassLoader(), new Class[]{HttpServletResponse.class},
                     (proxy, method, args) -> ServletProxyFactory.getDefault().proxy(proxy, method, args));
@@ -250,11 +251,13 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         return response.encodeRedirectURL(url);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public String encodeUrl(String url) {
         return response.encodeURL(url);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public String encodeRedirectUrl(String url) {
         return response.encodeRedirectURL(url);

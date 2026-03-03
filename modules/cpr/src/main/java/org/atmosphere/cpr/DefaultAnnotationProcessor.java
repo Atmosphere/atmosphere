@@ -106,7 +106,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
     private final AtomicBoolean coreAnnotationsFound = new AtomicBoolean();
 
     private final AnnotationDetector.TypeReporter atmosphereReporter = new AnnotationDetector.TypeReporter() {
-        @SuppressWarnings("unchecked")
+        @SuppressWarnings({"unchecked", "rawtypes"})
         @Override
         public Class<? extends Annotation>[] annotations() {
             return new Class[]{
