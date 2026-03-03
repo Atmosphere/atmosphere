@@ -76,6 +76,8 @@ public class AiChat {
 }
 ```
 
+See [spring-boot-ai-classroom](samples/spring-boot-ai-classroom) for a full working example with multiple AI endpoints, conversation memory, and a React frontend.
+
 ### MCP — expose tools to AI agents
 
 ```java
