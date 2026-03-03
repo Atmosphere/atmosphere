@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo, createElement } from 'react';
 import { useStreaming } from 'atmosphere.js/react';
-import { ChatLayout, ChatInput, StreamingProgress, StreamingError } from 'atmosphere.js/chat';
-import { marked } from 'marked';
+import { ChatLayout, ChatInput, StreamingMessage, StreamingProgress, StreamingError } from 'atmosphere.js/chat';
 
 interface UserMessage {
   role: 'user';
@@ -21,36 +20,6 @@ const ROOMS = [
   { id: 'code', label: 'Code', icon: '<>', color: '#43b883' },
   { id: 'science', label: 'Science', icon: '\u269B', color: '#f093fb' },
 ] as const;
-
-// Configure marked for safe rendering — escape raw HTML to prevent XSS
-marked.setOptions({ breaks: true, gfm: true });
-marked.use({
-  renderer: {
-    html({ text }: { text: string }) {
-      return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    },
-  },
-});
-
-/** Renders markdown text as HTML inside a styled bubble. */
-function MarkdownBubble({ text, isStreaming }: { text: string; isStreaming: boolean }) {
-  const html = marked.parse(text) as string;
-  return createElement('div', {
-    style: {
-      alignSelf: 'flex-start',
-      background: '#1a1a3e',
-      border: '1px solid #2a2a4a',
-      color: '#e0e0e0',
-      padding: '10px 14px',
-      borderRadius: '16px 16px 16px 4px',
-      maxWidth: '85%',
-      wordBreak: 'break-word' as const,
-      lineHeight: 1.6,
-    },
-    className: 'markdown-body',
-    dangerouslySetInnerHTML: { __html: html + (isStreaming ? '<span class="cursor"></span>' : '') },
-  });
-}
 
 function RoomSelector({ onJoin }: { onJoin: (room: string) => void }) {
   return (
@@ -208,18 +177,6 @@ function Classroom({ room, onLeave }: { room: string; onLeave: () => void }) {
           }, displayModel)
         : null}
     >
-      <style>{`
-        .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin: 8px 0 4px; }
-        .markdown-body p { margin: 4px 0; }
-        .markdown-body ul, .markdown-body ol { margin: 4px 0; padding-left: 20px; }
-        .markdown-body code { background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
-        .markdown-body pre { background: #0d1117; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 8px 0; }
-        .markdown-body pre code { background: none; padding: 0; }
-        .markdown-body strong { color: #fff; }
-        .markdown-body blockquote { border-left: 3px solid #444; padding-left: 12px; color: #aaa; margin: 8px 0; }
-        .cursor { display: inline-block; width: 6px; height: 1em; background: #667eea; margin-left: 2px; vertical-align: text-bottom; animation: blink 1s step-end infinite; }
-        @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
-      `}</style>
       <div style={{
         flex: 1,
         overflowY: 'auto',
@@ -243,10 +200,11 @@ function Classroom({ room, onLeave }: { room: string; onLeave: () => void }) {
                   wordBreak: 'break-word',
                 },
               }, msg.text)
-            : createElement(MarkdownBubble, {
+            : createElement(StreamingMessage, {
                 key: i,
                 text: msg.text,
                 isStreaming: !msg.complete,
+                dark: true,
               }),
         )}
         {progress && createElement(StreamingProgress, { message: progress })}

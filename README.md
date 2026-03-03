@@ -80,7 +80,12 @@ See [spring-boot-ai-classroom](samples/spring-boot-ai-classroom) for a full work
 
 ### CLI-powered LLM backend
 
-Already have a Claude Code, Copilot, Cursor, or Gemini CLI license? [Embacle](https://github.com/dravr-ai/dravr-embacle) turns any CLI tool into an OpenAI-compatible LLM provider. Point Atmosphere's built-in `OpenAiCompatibleClient` at an Embacle server and stream responses from your existing CLI subscription — no separate API key required.
+Already have a Claude Code, Copilot, Cursor, or Gemini CLI license? [Embacle](https://github.com/dravr-ai/dravr-embacle) turns any CLI tool into an OpenAI-compatible LLM provider — no separate API key required.
+
+```bash
+LLM_BASE_URL=http://localhost:3000/v1 LLM_MODEL=copilot:claude-sonnet-4.6 LLM_API_KEY=not-needed \
+  ./mvnw spring-boot:run -pl samples/spring-boot-ai-classroom
+```
 
 ### MCP — expose tools to AI agents
 

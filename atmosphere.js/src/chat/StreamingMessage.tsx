@@ -54,7 +54,60 @@ export function StreamingMessage({ text, isStreaming, dark, markdown = true }: S
       { style: containerStyle },
       createElement(Markdown, {
         components: {
-          // Style code blocks for dark theme
+          p: ({ children }) => createElement('p', {
+            style: { margin: '4px 0' },
+          }, children),
+          h1: ({ children }) => createElement('h1', {
+            style: { fontSize: '1.4em', margin: '12px 0 6px', fontWeight: 700 },
+          }, children),
+          h2: ({ children }) => createElement('h2', {
+            style: { fontSize: '1.2em', margin: '10px 0 4px', fontWeight: 600 },
+          }, children),
+          h3: ({ children }) => createElement('h3', {
+            style: { fontSize: '1.05em', margin: '8px 0 4px', fontWeight: 600 },
+          }, children),
+          ul: ({ children }) => createElement('ul', {
+            style: { margin: '4px 0', paddingLeft: 20 },
+          }, children),
+          ol: ({ children }) => createElement('ol', {
+            style: { margin: '4px 0', paddingLeft: 20 },
+          }, children),
+          strong: ({ children }) => createElement('strong', {
+            style: { color: dark ? '#fff' : 'inherit', fontWeight: 700 },
+          }, children),
+          blockquote: ({ children }) => createElement('blockquote', {
+            style: {
+              borderLeft: '3px solid #444',
+              paddingLeft: 12,
+              color: dark ? '#aaa' : '#666',
+              margin: '8px 0',
+            },
+          }, children),
+          table: ({ children }) => createElement('table', {
+            style: {
+              borderCollapse: 'collapse' as const,
+              margin: '8px 0',
+              fontSize: '0.95em',
+              width: '100%',
+            },
+          }, children),
+          thead: ({ children }) => createElement('thead', {
+            style: { borderBottom: '2px solid ' + (dark ? '#444' : '#ddd') },
+          }, children),
+          th: ({ children }) => createElement('th', {
+            style: {
+              padding: '6px 10px',
+              textAlign: 'left' as const,
+              fontWeight: 600,
+            },
+          }, children),
+          td: ({ children }) => createElement('td', {
+            style: {
+              padding: '6px 10px',
+              borderTop: '1px solid ' + (dark ? '#333' : '#eee'),
+            },
+          }, children),
+          // Style code blocks
           pre: ({ children }) => createElement('pre', {
             style: {
               background: '#0d1117',
