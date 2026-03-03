@@ -35,6 +35,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class OpenAiCompatibleClientTest {
 
     private AtmosphereResource resource;

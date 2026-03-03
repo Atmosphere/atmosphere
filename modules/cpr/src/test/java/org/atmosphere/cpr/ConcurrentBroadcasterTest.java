@@ -180,7 +180,7 @@ public class ConcurrentBroadcasterTest {
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
         factory.configure(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
-        broadcaster = (DefaultBroadcaster) factory.get(DefaultBroadcaster.class, "test");
+        broadcaster = factory.get(DefaultBroadcaster.class, "test");
 
         AR2 a = new AR2();
         int count = 50;
@@ -353,7 +353,7 @@ public class ConcurrentBroadcasterTest {
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
         factory.configure(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
-        broadcaster = (DefaultBroadcaster) factory.get(DefaultBroadcaster.class, "test");
+        broadcaster = factory.get(DefaultBroadcaster.class, "test");
 
         AR2 a = new AR2();
         AtmosphereResource ar1 = newAR(a);
@@ -400,7 +400,7 @@ public class ConcurrentBroadcasterTest {
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
         factory.configure(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
-        broadcaster = (DefaultBroadcaster) factory.get(DefaultBroadcaster.class, "test");
+        broadcaster = factory.get(DefaultBroadcaster.class, "test");
 
         AR2 target = new AR2();
         AR2 other = new AR2();

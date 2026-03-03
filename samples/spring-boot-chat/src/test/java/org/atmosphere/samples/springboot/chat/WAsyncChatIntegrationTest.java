@@ -19,7 +19,6 @@ import org.atmosphere.wasync.Event;
 import org.atmosphere.wasync.Function;
 import org.atmosphere.wasync.Request;
 import org.atmosphere.wasync.impl.AtmosphereClient;
-import org.atmosphere.wasync.impl.AtmosphereRequestBuilder;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -54,7 +53,7 @@ class WAsyncChatIntegrationTest {
                 .reconnect(false)
                 .build();
 
-        var request = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+        var request = client.newRequestBuilder()
                 .uri("ws://localhost:" + port + "/atmosphere/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
@@ -98,7 +97,7 @@ class WAsyncChatIntegrationTest {
                 .build();
 
         // SSE receiver
-        var sseRequest = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+        var sseRequest = client.newRequestBuilder()
                 .uri("http://localhost:" + port + "/atmosphere/chat")
                 .transport(Request.TRANSPORT.SSE)
                 .enableProtocol(false)
@@ -121,7 +120,7 @@ class WAsyncChatIntegrationTest {
         // Send via WebSocket sender
         var sender = AtmosphereClient.newClient();
         var senderOpen = new CountDownLatch(1);
-        var senderRequest = ((AtmosphereRequestBuilder) sender.newRequestBuilder())
+        var senderRequest = sender.newRequestBuilder()
                 .uri("ws://localhost:" + port + "/atmosphere/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
@@ -159,7 +158,7 @@ class WAsyncChatIntegrationTest {
                 .build();
 
         // Long-polling receiver
-        var lpRequest = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+        var lpRequest = client.newRequestBuilder()
                 .uri("http://localhost:" + port + "/atmosphere/chat")
                 .transport(Request.TRANSPORT.LONG_POLLING)
                 .enableProtocol(false)
@@ -182,7 +181,7 @@ class WAsyncChatIntegrationTest {
         // Send via WebSocket sender
         var sender = AtmosphereClient.newClient();
         var senderOpen = new CountDownLatch(1);
-        var senderRequest = ((AtmosphereRequestBuilder) sender.newRequestBuilder())
+        var senderRequest = sender.newRequestBuilder()
                 .uri("ws://localhost:" + port + "/atmosphere/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
@@ -223,7 +222,7 @@ class WAsyncChatIntegrationTest {
 
         // Client 1: WebSocket
         var c1 = AtmosphereClient.newClient();
-        var r1 = ((AtmosphereRequestBuilder) c1.newRequestBuilder())
+        var r1 = c1.newRequestBuilder()
                 .uri("ws://localhost:" + port + "/atmosphere/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
@@ -242,7 +241,7 @@ class WAsyncChatIntegrationTest {
 
         // Client 2: SSE
         var c2 = AtmosphereClient.newClient();
-        var r2 = ((AtmosphereRequestBuilder) c2.newRequestBuilder())
+        var r2 = c2.newRequestBuilder()
                 .uri("http://localhost:" + port + "/atmosphere/chat")
                 .transport(Request.TRANSPORT.SSE)
                 .enableProtocol(false)

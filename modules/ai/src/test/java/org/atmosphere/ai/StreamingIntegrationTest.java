@@ -41,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Integration tests for the AI streaming SPI — concurrency, multi-session,
  * and error recovery scenarios.
  */
+@SuppressWarnings("unchecked")
 public class StreamingIntegrationTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

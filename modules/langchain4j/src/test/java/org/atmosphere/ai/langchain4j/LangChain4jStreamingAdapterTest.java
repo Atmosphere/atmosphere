@@ -35,7 +35,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
-@SuppressWarnings("null")
+@SuppressWarnings({"null", "unchecked"})
 public class LangChain4jStreamingAdapterTest {
 
     private AtmosphereResource resource;

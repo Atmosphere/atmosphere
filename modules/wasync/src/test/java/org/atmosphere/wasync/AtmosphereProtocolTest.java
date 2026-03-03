@@ -41,7 +41,7 @@ class AtmosphereProtocolTest {
     @Test
     void atmosphereRequestBuilderAddsProtocolParams() {
         var client = AtmosphereClient.newClient();
-        var builder = (AtmosphereRequestBuilder) client.newRequestBuilder();
+        var builder = client.newRequestBuilder();
         var request = builder
                 .uri("ws://localhost:8080/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)

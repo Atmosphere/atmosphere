@@ -17,7 +17,6 @@ package org.atmosphere.wasync;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.wasync.impl.AtmosphereClient;
-import org.atmosphere.wasync.impl.AtmosphereRequestBuilder;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer;
@@ -99,7 +98,7 @@ class ChatIntegrationTest {
                 .reconnect(false)
                 .build();
 
-        var request = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+        var request = client.newRequestBuilder()
                 .uri("ws://localhost:" + port + "/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
@@ -124,7 +123,7 @@ class ChatIntegrationTest {
                 .reconnect(false)
                 .build();
 
-        var request = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+        var request = client.newRequestBuilder()
                 .uri("ws://localhost:" + port + "/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
@@ -173,13 +172,13 @@ class ChatIntegrationTest {
 
         var options = client1.newOptionsBuilder().reconnect(false).build();
 
-        var request1 = ((AtmosphereRequestBuilder) client1.newRequestBuilder())
+        var request1 = client1.newRequestBuilder()
                 .uri("ws://localhost:" + port + "/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
                 .build();
 
-        var request2 = ((AtmosphereRequestBuilder) client2.newRequestBuilder())
+        var request2 = client2.newRequestBuilder()
                 .uri("ws://localhost:" + port + "/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
@@ -261,7 +260,7 @@ class ChatIntegrationTest {
                 .reconnect(false)
                 .build();
 
-        var request = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+        var request = client.newRequestBuilder()
                 .uri("ws://localhost:" + port + "/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
@@ -306,7 +305,7 @@ class ChatIntegrationTest {
                 .reconnect(false)
                 .build();
 
-        var request = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+        var request = client.newRequestBuilder()
                 .uri("ws://localhost:" + port + "/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
@@ -345,7 +344,7 @@ class ChatIntegrationTest {
                 .reconnect(false)
                 .build();
 
-        var request = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+        var request = client.newRequestBuilder()
                 .uri("ws://localhost:" + port + "/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
@@ -388,7 +387,7 @@ class ChatIntegrationTest {
                 .reconnect(false)
                 .build();
 
-        var request = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+        var request = client.newRequestBuilder()
                 .uri("http://localhost:" + port + "/chat")
                 .transport(Request.TRANSPORT.SSE)
                 .enableProtocol(false)
@@ -411,7 +410,7 @@ class ChatIntegrationTest {
         var sender = AtmosphereClient.newClient();
         var senderOpen = new CountDownLatch(1);
 
-        var senderRequest = ((AtmosphereRequestBuilder) sender.newRequestBuilder())
+        var senderRequest = sender.newRequestBuilder()
                 .uri("ws://localhost:" + port + "/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
@@ -447,7 +446,7 @@ class ChatIntegrationTest {
                 .reconnect(false)
                 .build();
 
-        var request = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+        var request = client.newRequestBuilder()
                 .uri("http://localhost:" + port + "/chat")
                 .transport(Request.TRANSPORT.LONG_POLLING)
                 .enableProtocol(false)
@@ -470,7 +469,7 @@ class ChatIntegrationTest {
         var sender = AtmosphereClient.newClient();
         var senderOpen = new CountDownLatch(1);
 
-        var senderRequest = ((AtmosphereRequestBuilder) sender.newRequestBuilder())
+        var senderRequest = sender.newRequestBuilder()
                 .uri("ws://localhost:" + port + "/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
@@ -506,7 +505,7 @@ class ChatIntegrationTest {
                 .reconnect(false)
                 .build();
 
-        var request = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+        var request = client.newRequestBuilder()
                 .uri("http://localhost:" + port + "/chat")
                 .transport(Request.TRANSPORT.STREAMING)
                 .enableProtocol(false)
@@ -529,7 +528,7 @@ class ChatIntegrationTest {
         var sender = AtmosphereClient.newClient();
         var senderOpen = new CountDownLatch(1);
 
-        var senderRequest = ((AtmosphereRequestBuilder) sender.newRequestBuilder())
+        var senderRequest = sender.newRequestBuilder()
                 .uri("ws://localhost:" + port + "/chat")
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)

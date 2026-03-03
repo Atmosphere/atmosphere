@@ -155,7 +155,7 @@ public class KafkaResourceLifecycleTest {
         MockableKafkaBroadcaster.mockProducer = mockProducer;
         MockableKafkaBroadcaster.mockConsumer = mockConsumer;
 
-        var broadcaster = (MockableKafkaBroadcaster) factory.get(MockableKafkaBroadcaster.class, "publish-test");
+        var broadcaster = factory.get(MockableKafkaBroadcaster.class, "publish-test");
 
         broadcaster.publishToKafka("test-message");
 
@@ -189,7 +189,7 @@ public class KafkaResourceLifecycleTest {
         MockableKafkaBroadcaster.mockProducer = mockProducer;
         MockableKafkaBroadcaster.mockConsumer = mockConsumer;
 
-        var broadcaster = (MockableKafkaBroadcaster) factory.get(MockableKafkaBroadcaster.class, "send-err-test");
+        var broadcaster = factory.get(MockableKafkaBroadcaster.class, "send-err-test");
 
         // Should not throw - errors are logged and swallowed
         broadcaster.publishToKafka("will-fail");
@@ -213,7 +213,7 @@ public class KafkaResourceLifecycleTest {
         MockableKafkaBroadcaster.mockProducer = mockProducer;
         MockableKafkaBroadcaster.mockConsumer = mockConsumer;
 
-        var broadcaster = (MockableKafkaBroadcaster) factory.get(MockableKafkaBroadcaster.class, "key-test");
+        var broadcaster = factory.get(MockableKafkaBroadcaster.class, "key-test");
 
         broadcaster.publishToKafka("key-check");
 
@@ -267,7 +267,7 @@ public class KafkaResourceLifecycleTest {
         MockableKafkaBroadcaster.mockProducer = mockProducer;
         MockableKafkaBroadcaster.mockConsumer = mockConsumer;
 
-        var broadcaster = (MockableKafkaBroadcaster) factory.get(MockableKafkaBroadcaster.class, "header-test");
+        var broadcaster = factory.get(MockableKafkaBroadcaster.class, "header-test");
 
         broadcaster.publishToKafka("check-header");
 
