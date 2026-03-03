@@ -93,6 +93,47 @@ check_unused_imports() {
     return 0
 }
 
+# Compile changed modules to catch javac warnings (-Werror)
+check_compile_warnings() {
+    local java_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.java$' | grep -v '/target/' || true)
+
+    if [ -z "$java_files" ]; then
+        return 0
+    fi
+
+    # Extract unique Maven module paths from staged Java files
+    local modules=""
+    for file in $java_files; do
+        local module=""
+        if [[ "$file" == modules/* ]]; then
+            # e.g. modules/cpr/src/... -> modules/cpr
+            module=$(echo "$file" | cut -d/ -f1-2)
+        elif [[ "$file" == samples/* ]]; then
+            # e.g. samples/spring-boot-chat/src/... -> samples/spring-boot-chat
+            module=$(echo "$file" | cut -d/ -f1-2)
+        fi
+        if [ -n "$module" ] && [ -f "$module/pom.xml" ]; then
+            modules="$modules $module"
+        fi
+    done
+
+    # Deduplicate and join with commas (strip leading/trailing whitespace first)
+    modules=$(echo "$modules" | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')
+
+    if [ -z "$modules" ]; then
+        return 0
+    fi
+
+    echo "Compiling changed modules: $modules"
+    if ! ./mvnw clean compile test-compile -pl "$modules" -DskipTests -q 2>&1; then
+        echo ""
+        echo "ERROR: Commit blocked — compilation failed (warnings or errors)."
+        echo "Run './mvnw compile -pl $modules' to see details."
+        return 1
+    fi
+    return 0
+}
+
 # Main execution
 main() {
     local checks_passed=true
@@ -106,6 +147,10 @@ main() {
     fi
 
     if ! check_unused_imports; then
+        checks_passed=false
+    fi
+
+    if ! check_compile_warnings; then
         checks_passed=false
     fi
 
