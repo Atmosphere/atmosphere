@@ -48,10 +48,32 @@ public final class DemoResponseProducer {
 
     private static String generateResponse(String userMessage) {
         var lower = userMessage.toLowerCase();
+        {{#hasTools}}
+        if (lower.contains("time") && containsCity(lower)) {
+            return "[Tool: get_city_time] Simulated time lookup for " + extractCity(lower)
+                    + ". Set LLM_API_KEY for real tool execution.";
+        }
+        if (lower.contains("time")) {
+            return "[Tool: get_current_time] Simulated time lookup. "
+                    + "Set LLM_API_KEY for real tool execution.";
+        }
+        if (lower.contains("weather")) {
+            var city = containsCity(lower) ? extractCity(lower) : "your city";
+            return "[Tool: get_weather] Simulated weather for " + city
+                    + ". Set LLM_API_KEY for real tool execution.";
+        }
+        {{/hasTools}}
         if (lower.contains("hello") || lower.contains("hi")) {
+            {{#hasTools}}
+            return "Hello! I have @AiTool methods available: get_current_time, "
+                    + "get_city_time, and get_weather. Try asking about the time or weather! "
+                    + "(Demo mode — set LLM_API_KEY for real tool calls)";
+            {{/hasTools}}
+            {{^hasTools}}
             return "Hello! I'm running in demo mode because no LLM_API_KEY is configured. "
                     + "Set LLM_API_KEY to connect to Gemini, OpenAI, or any compatible provider. "
                     + "For local models, set LLM_MODE=local and run Ollama.";
+            {{/hasTools}}
         }
         if (lower.contains("atmosphere")) {
             return "Atmosphere is a Java framework for building real-time web applications. "
@@ -60,7 +82,27 @@ public final class DemoResponseProducer {
                     + "LLM responses token-by-token through the Broadcaster.";
         }
         return "This is a demo response — each word arrives as a separate streaming token. "
+                {{#hasTools}}
+                + "Try asking about the time, weather, or say 'hello'. "
+                {{/hasTools}}
+                {{^hasTools}}
                 + "Try asking about 'atmosphere' or say 'hello'. "
+                {{/hasTools}}
                 + "Set LLM_API_KEY to connect to a real LLM provider.";
     }
+    {{#hasTools}}
+
+    private static boolean containsCity(String text) {
+        return text.contains("tokyo") || text.contains("london")
+                || text.contains("paris") || text.contains("sydney");
+    }
+
+    private static String extractCity(String text) {
+        if (text.contains("tokyo")) return "tokyo";
+        if (text.contains("london")) return "london";
+        if (text.contains("paris")) return "paris";
+        if (text.contains("sydney")) return "sydney";
+        return "unknown";
+    }
+    {{/hasTools}}
 }

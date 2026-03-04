@@ -47,6 +47,14 @@ jbang generator/AtmosphereInit.java \
   --ai langchain4j \
   --output ./my-langchain4j-app
 
+# AI chat with @AiTool methods (framework-agnostic tools)
+jbang generator/AtmosphereInit.java \
+  --name my-tools-app \
+  --handler ai-chat \
+  --ai langchain4j \
+  --tools \
+  --output ./my-tools-app
+
 # AI chat with Google ADK
 jbang generator/AtmosphereInit.java \
   --name my-adk-app \
@@ -69,6 +77,7 @@ jbang generator/AtmosphereInit.java \
 | `-g, --group` | Maven group ID | `com.example` |
 | `--handler` | Handler type: `chat`, `ai-chat`, `mcp-server` | _(prompted)_ |
 | `--ai` | AI framework: `builtin`, `spring-ai`, `langchain4j`, `adk`, `embabel` | _(prompted if ai-chat)_ |
+| `--tools` | Include example `@AiTool` methods (ai-chat only) | _(prompted if ai-chat)_ |
 | `-o, --output` | Output directory | `./{name}` |
 
 ## Handler types
@@ -80,6 +89,8 @@ A real-time chat application using `@ManagedService` with Jackson-based message 
 ### ai-chat
 
 An AI streaming endpoint using `@AiEndpoint` with `@Prompt` handling. Streams LLM responses token-by-token to connected browsers. Ships with a demo fallback that works without an API key.
+
+With `--tools`, the generated project includes an `AssistantTools.java` file with example `@AiTool`-annotated methods (time, weather). These are framework-agnostic — they work with any AI backend.
 
 Available AI frameworks:
 - **builtin** — OpenAI-compatible HTTP client (works with Gemini, Ollama, OpenAI)

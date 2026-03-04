@@ -36,7 +36,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AiEndpoint(path = "/atmosphere/ai-chat",
-        systemPromptResource = "prompts/system-prompt.md")
+        systemPromptResource = "prompts/system-prompt.md"{{#hasTools}},
+        conversationMemory = true,
+        tools = AssistantTools.class{{/hasTools}})
 public class AiChat {
 
     private static final Logger logger = LoggerFactory.getLogger(AiChat.class);

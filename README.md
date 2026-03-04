@@ -25,11 +25,11 @@ The two core abstractions are **Broadcaster** (a named pub/sub channel) and **At
 ## Generate a Project
 
 ```bash
-jbang generator/AtmosphereInit.java --name my-app --handler ai-chat --ai builtin
+jbang generator/AtmosphereInit.java --name my-app --handler ai-chat --ai builtin --tools
 cd my-app && ./mvnw spring-boot:run
 ```
 
-Generates a ready-to-run Spring Boot project with your choice of handler (chat, ai-chat, mcp-server) and AI framework. See [generator/README.md](generator/README.md) for all options.
+Generates a ready-to-run Spring Boot project with your choice of handler (chat, ai-chat, mcp-server), AI framework, and optional `@AiTool` methods. See [generator/README.md](generator/README.md) for all options.
 
 ## Quick Start
 

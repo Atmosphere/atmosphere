@@ -62,10 +62,15 @@ public class AtmosphereInitTest {
     // ---- Helper to build a configured generator instance ----
 
     private AtmosphereInit generator(String name, String handler, String aiFramework) {
+        return generator(name, handler, aiFramework, false);
+    }
+
+    private AtmosphereInit generator(String name, String handler, String aiFramework, boolean tools) {
         var gen = new AtmosphereInit();
         gen.name = name;
         gen.handler = handler;
         gen.aiFramework = aiFramework;
+        gen.tools = tools;
         gen.groupId = "com.example";
         gen.scriptDir = Path.of("generator").toAbsolutePath();
         return gen;
@@ -298,6 +303,26 @@ public class AtmosphereInitTest {
             assertDoesNotThrow(() -> generator("myapp", "ai-chat", fw).validate(),
                     "Expected ai-chat/" + fw + " to pass validation");
         }
+    }
+
+    // ========== buildModel() — tools flag ==========
+
+    @Test
+    void buildModel_aiChat_withTools_setsHasToolsTrue() {
+        var model = generator("myapp", "ai-chat", "builtin", true).buildModel();
+        assertEquals(true, model.get("hasTools"));
+    }
+
+    @Test
+    void buildModel_aiChat_withoutTools_setsHasToolsFalse() {
+        var model = generator("myapp", "ai-chat", "builtin", false).buildModel();
+        assertEquals(false, model.get("hasTools"));
+    }
+
+    @Test
+    void buildModel_chat_withTools_setsHasToolsFalse() {
+        var model = generator("myapp", "chat", null, true).buildModel();
+        assertEquals(false, model.get("hasTools"));
     }
 
     // ========== readAtmosphereVersion() ==========

@@ -60,6 +60,9 @@ public class AtmosphereInit implements Runnable {
     @Option(names = {"--ai"}, description = "AI framework: builtin, spring-ai, langchain4j, adk, embabel")
     String aiFramework;
 
+    @Option(names = {"--tools"}, description = "Include example @AiTool methods (ai-chat only)")
+    Boolean tools;
+
     @Option(names = {"-o", "--output"}, description = "Output directory")
     Path output;
 
@@ -128,6 +131,10 @@ public class AtmosphereInit implements Runnable {
                 default -> "builtin";
             };
         }
+        if ("ai-chat".equals(handler) && tools == null) {
+            var choice = prompt("Include example @AiTool methods? [y/N]", "n");
+            tools = "y".equalsIgnoreCase(choice) || "yes".equalsIgnoreCase(choice);
+        }
     }
 
     void validate() {
@@ -182,6 +189,10 @@ public class AtmosphereInit implements Runnable {
         m.put("needsDemoProducer", "ai-chat".equals(handler) && !isAdk);
         m.put("needsAdkProducer", isAdk);
 
+        // Tool support
+        boolean hasTools = Boolean.TRUE.equals(tools) && "ai-chat".equals(handler);
+        m.put("hasTools", hasTools);
+
         return m;
     }
 
@@ -216,6 +227,9 @@ public class AtmosphereInit implements Runnable {
             }
             case "ai-chat" -> {
                 renderTemplate("templates/handler/ai-chat/AiChat.java.mustache", model, javaDir.resolve("AiChat.java"));
+                if ((boolean) model.get("hasTools")) {
+                    renderTemplate("templates/handler/ai-chat/AssistantTools.java.mustache", model, javaDir.resolve("AssistantTools.java"));
+                }
                 if ((boolean) model.get("needsDemoProducer")) {
                     renderTemplate("templates/handler/ai-chat/DemoResponseProducer.java.mustache", model, javaDir.resolve("DemoResponseProducer.java"));
                 }
@@ -228,7 +242,10 @@ public class AtmosphereInit implements Runnable {
                 // System prompt
                 var promptsDir = resDir.resolve("prompts");
                 Files.createDirectories(promptsDir);
-                Files.copy(scriptDir.resolve("templates/handler/ai-chat/system-prompt.md"),
+                var promptFile = (boolean) model.get("hasTools")
+                        ? "templates/handler/ai-chat/system-prompt-tools.md"
+                        : "templates/handler/ai-chat/system-prompt.md";
+                Files.copy(scriptDir.resolve(promptFile),
                         promptsDir.resolve("system-prompt.md"), StandardCopyOption.REPLACE_EXISTING);
                 copyFrontend("ai-chat", staticDir);
             }
