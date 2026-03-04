@@ -134,6 +134,7 @@ public final class DefaultStreamingSession implements StreamingSession {
     public void error(Throwable t) {
         if (closed.compareAndSet(false, true)) {
             SESSION_RESOURCES.remove(sessionId);
+            logger.error("Streaming session {} error", sessionId, t);
             var message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
             broadcast(buildMessage("error", message));
         }

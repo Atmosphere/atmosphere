@@ -18,8 +18,8 @@ package org.atmosphere.samples.springboot.aitools;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;
 
-import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -40,8 +40,8 @@ public class AssistantTools {
     @AiTool(name = "get_current_time",
             description = "Returns the current date and time in the server's timezone")
     public String getCurrentTime() {
-        return LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        return ZonedDateTime.now()
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z"));
     }
 
     @AiTool(name = "get_city_time",
@@ -61,7 +61,7 @@ public class AssistantTools {
             case "beijing" -> "Asia/Shanghai";
             default -> "UTC";
         };
-        return city + ": " + LocalDateTime.now(ZoneId.of(zone))
+        return city + ": " + ZonedDateTime.now(ZoneId.of(zone))
                 .format(DateTimeFormatter.ofPattern("HH:mm:ss (z)"));
     }
 
