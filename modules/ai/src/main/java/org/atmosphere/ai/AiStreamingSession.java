@@ -48,6 +48,12 @@ public class AiStreamingSession implements StreamingSession {
 
     private static final Logger logger = LoggerFactory.getLogger(AiStreamingSession.class);
 
+    /**
+     * Request attribute key under which the active {@link StreamingSession} is stored,
+     * allowing {@link AiInterceptor#postProcess} to send metadata to the client.
+     */
+    public static final String STREAMING_SESSION_ATTR = "ai.streaming.session";
+
     private final StreamingSession delegate;
     private final AiSupport aiSupport;
     private final String systemPrompt;
@@ -189,6 +195,9 @@ public class AiStreamingSession implements StreamingSession {
         if (memory != null) {
             target = new MemoryCapturingSession(delegate, memory, resource.uuid(), message);
         }
+
+        // Expose the session to interceptors via request attribute
+        resource.getRequest().setAttribute(STREAMING_SESSION_ATTR, target);
 
         // Delegate to the AI support
         var finalRequest = request;

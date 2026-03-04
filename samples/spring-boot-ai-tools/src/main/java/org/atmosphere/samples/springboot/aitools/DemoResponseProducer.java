@@ -20,6 +20,7 @@ import org.atmosphere.ai.StreamingSession;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 
 /**
  * Simulates tool-calling LLM responses for demo/testing purposes.
@@ -30,16 +31,25 @@ public final class DemoResponseProducer {
     private DemoResponseProducer() {
     }
 
-    public static void stream(String userMessage, StreamingSession session, String room) {
+    public static void stream(String userMessage, StreamingSession session, String room, String model) {
         var response = generateResponse(userMessage);
         var words = response.split("(?<=\\s)");
 
         try {
+            long startNanos = System.nanoTime();
             session.progress("Demo mode (no API key) — room: " + room);
             for (var word : words) {
                 session.send(word);
                 Thread.sleep(50);
             }
+            // Send demo routing metadata so the cost badge is visible out-of-the-box
+            long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+            int estimatedTokens = response.length() / 4;
+            double estimatedCost = estimatedTokens * estimatePricePerMillion(model) / 1_000_000.0;
+            session.sendMetadata("routing.model", model + " (demo)");
+            session.sendMetadata("routing.tokens", estimatedTokens);
+            session.sendMetadata("routing.cost", estimatedCost);
+            session.sendMetadata("routing.latency", elapsedMs);
             session.complete(response);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -120,6 +130,30 @@ public final class DemoResponseProducer {
                         + "This tool was registered with @AiTool and runs on any backend.";
             default -> "Unknown tool: " + toolName;
         };
+    }
+
+    // Same pricing as CostMeteringInterceptor — per 1M input tokens (USD)
+    private static final Map<String, Double> INPUT_PRICE_PER_MILLION = Map.ofEntries(
+            Map.entry("claude-haiku", 0.80),
+            Map.entry("claude-sonnet", 3.0),
+            Map.entry("claude-opus", 15.0),
+            Map.entry("gpt-5.1-codex-max", 10.0),
+            Map.entry("gpt-5", 2.5),
+            Map.entry("gpt-4.1", 2.0),
+            Map.entry("gpt-4o", 2.5),
+            Map.entry("gpt-4", 30.0),
+            Map.entry("gemini-2.5-flash", 0.15),
+            Map.entry("gemini-2.5-pro", 1.25),
+            Map.entry("gemini-3", 1.25)
+    );
+
+    private static double estimatePricePerMillion(String model) {
+        var lower = model.toLowerCase();
+        return INPUT_PRICE_PER_MILLION.entrySet().stream()
+                .filter(e -> lower.contains(e.getKey()))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(3.0);
     }
 
     private static boolean containsCity(String text) {

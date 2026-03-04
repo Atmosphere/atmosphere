@@ -51,7 +51,8 @@ import org.slf4j.LoggerFactory;
         systemPromptResource = "prompts/system-prompt.md",
         conversationMemory = true,
         maxHistoryMessages = 30,
-        tools = AssistantTools.class)
+        tools = AssistantTools.class,
+        interceptors = CostMeteringInterceptor.class)
 public class AiToolsChat {
 
     private static final Logger logger = LoggerFactory.getLogger(AiToolsChat.class);
@@ -78,7 +79,8 @@ public class AiToolsChat {
 
         var settings = AiConfig.get();
         if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
-            DemoResponseProducer.stream(message, session, room);
+            var model = settings != null ? settings.model() : "unknown";
+            DemoResponseProducer.stream(message, session, room, model);
             return;
         }
 
