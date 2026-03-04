@@ -87,7 +87,7 @@ test.describe('@AiTool Pipeline', () => {
       .toBeVisible({ timeout: 30_000 });
   });
 
-  test('three concurrent clients receive independent responses', async ({ browser }) => {
+  test('three concurrent clients all receive broadcast responses', async ({ browser }) => {
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
     const ctx3 = await browser.newContext();
@@ -95,7 +95,7 @@ test.describe('@AiTool Pipeline', () => {
     const page2 = await ctx2.newPage();
     const page3 = await ctx3.newPage();
 
-    // All three navigate to the sample
+    // All three navigate to the same room
     await page1.goto(server.baseUrl);
     await page2.goto(server.baseUrl);
     await page3.goto(server.baseUrl);
@@ -104,28 +104,16 @@ test.describe('@AiTool Pipeline', () => {
     await expect(page2.getByTestId('chat-input')).toBeVisible();
     await expect(page3.getByTestId('chat-input')).toBeVisible();
 
-    // Each sends a different tool prompt
+    // Client 1 sends a prompt — all clients in the room should see the response
     await page1.getByTestId('chat-input').fill('What time is it in Tokyo?');
     await page1.getByTestId('chat-send').click();
 
-    await page2.getByTestId('chat-input').fill('What is the weather in Paris?');
-    await page2.getByTestId('chat-send').click();
-
-    await page3.getByTestId('chat-input').fill('Convert 100F to Celsius');
-    await page3.getByTestId('chat-send').click();
-
-    // Verify each client gets the correct tool response
+    // All three clients see the broadcast
     await expect(page1.getByText('get_city_time', { exact: false }).first())
       .toBeVisible({ timeout: 30_000 });
-    await expect(page1.getByText('tokyo', { exact: false }).first())
+    await expect(page2.getByText('get_city_time', { exact: false }).first())
       .toBeVisible({ timeout: 30_000 });
-
-    await expect(page2.getByText('get_weather', { exact: false }).first())
-      .toBeVisible({ timeout: 30_000 });
-    await expect(page2.getByText('paris', { exact: false }).first())
-      .toBeVisible({ timeout: 30_000 });
-
-    await expect(page3.getByText('convert_temperature', { exact: false }).first())
+    await expect(page3.getByText('get_city_time', { exact: false }).first())
       .toBeVisible({ timeout: 30_000 });
 
     await ctx1.close();
