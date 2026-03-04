@@ -41,7 +41,7 @@ jobs:
 
     strategy:
       matrix:
-        variant: [ chat, ai-builtin, ai-spring-ai, ai-adk, mcp-server ]
+        variant: [ chat, ai-builtin, ai-spring-ai, ai-adk, ai-tools, mcp-server ]
       fail-fast: false
 
     steps:

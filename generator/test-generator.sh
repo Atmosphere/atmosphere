@@ -30,18 +30,19 @@ red()    { printf '\033[31m%s\033[0m\n' "$*"; }
 yellow() { printf '\033[33m%s\033[0m\n' "$*"; }
 
 # ---- Variant definitions ----
-# Each variant: label | --handler | --ai (or "none") | expected artifact | expected files (comma-separated)
+# Each variant: label | --handler | --ai (or "none") | expected artifact | expected files (comma-separated) | extra flags
 declare -a VARIANTS=(
-    "chat|chat|none|atmosphere-spring-boot-starter|Chat.java,Message.java,JacksonEncoder.java,JacksonDecoder.java,index.html"
-    "ai-builtin|ai-chat|builtin|atmosphere-ai|AiChat.java,DemoResponseProducer.java,LlmConfig.java,system-prompt.md,index.html"
-    "ai-spring-ai|ai-chat|spring-ai|atmosphere-spring-ai|AiChat.java,DemoResponseProducer.java,index.html"
-    "ai-adk|ai-chat|adk|atmosphere-adk|AiChat.java,DemoEventProducer.java,index.html"
-    "mcp-server|mcp-server|none|atmosphere-mcp|Chat.java,DemoMcpServer.java,Message.java,index.html"
+    "chat|chat|none|atmosphere-spring-boot-starter|Chat.java,Message.java,JacksonEncoder.java,JacksonDecoder.java,index.html|"
+    "ai-builtin|ai-chat|builtin|atmosphere-ai|AiChat.java,DemoResponseProducer.java,LlmConfig.java,system-prompt.md,index.html|"
+    "ai-spring-ai|ai-chat|spring-ai|atmosphere-spring-ai|AiChat.java,DemoResponseProducer.java,index.html|"
+    "ai-adk|ai-chat|adk|atmosphere-adk|AiChat.java,DemoEventProducer.java,index.html|"
+    "ai-tools|ai-chat|builtin|atmosphere-ai|AiChat.java,AssistantTools.java,DemoResponseProducer.java,LlmConfig.java,system-prompt.md,index.html|--tools"
+    "mcp-server|mcp-server|none|atmosphere-mcp|Chat.java,DemoMcpServer.java,Message.java,index.html|"
 )
 
 run_variant() {
     local spec="$1"
-    IFS='|' read -r label handler_type ai_fw expected_dep expected_files <<< "$spec"
+    IFS='|' read -r label handler_type ai_fw expected_dep expected_files extra_flags <<< "$spec"
 
     local project_name="test-${label}"
     local project_dir="$WORK_DIR/$project_name"
@@ -58,6 +59,9 @@ run_variant() {
     )
     if [[ "$ai_fw" != "none" ]]; then
         gen_args+=(--ai "$ai_fw")
+    fi
+    if [[ -n "$extra_flags" ]]; then
+        gen_args+=($extra_flags)
     fi
 
     echo "  Generating project..."
