@@ -1,0 +1,141 @@
+/*
+ * Copyright 2008-2026 Async-IO.org
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package org.atmosphere.ai;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
+
+/**
+ * A {@link StreamingSession} wrapper that runs {@link AiGuardrail#inspectResponse}
+ * on the accumulated response text. Checks are performed every {@code checkInterval}
+ * characters and on {@code complete()} to catch policy violations during streaming.
+ *
+ * <p>If a guardrail blocks the response, the stream is terminated with an error.</p>
+ */
+class GuardrailCapturingSession implements StreamingSession {
+
+    private static final Logger logger = LoggerFactory.getLogger(GuardrailCapturingSession.class);
+
+    private static final int DEFAULT_CHECK_INTERVAL = 200;
+
+    private final StreamingSession delegate;
+    private final List<AiGuardrail> guardrails;
+    private final int checkInterval;
+    private final StringBuilder accumulated = new StringBuilder();
+    private int lastCheckedLength;
+    private volatile boolean blocked;
+
+    GuardrailCapturingSession(StreamingSession delegate, List<AiGuardrail> guardrails) {
+        this(delegate, guardrails, DEFAULT_CHECK_INTERVAL);
+    }
+
+    GuardrailCapturingSession(StreamingSession delegate, List<AiGuardrail> guardrails,
+                              int checkInterval) {
+        this.delegate = delegate;
+        this.guardrails = guardrails;
+        this.checkInterval = checkInterval;
+    }
+
+    @Override
+    public String sessionId() {
+        return delegate.sessionId();
+    }
+
+    @Override
+    public void send(String token) {
+        if (blocked) {
+            return;
+        }
+        accumulated.append(token);
+        delegate.send(token);
+
+        // Periodically check guardrails on accumulated response
+        if (accumulated.length() - lastCheckedLength >= checkInterval) {
+            lastCheckedLength = accumulated.length();
+            if (checkGuardrails()) {
+                return; // blocked — error already sent
+            }
+        }
+    }
+
+    @Override
+    public void sendMetadata(String key, Object value) {
+        delegate.sendMetadata(key, value);
+    }
+
+    @Override
+    public void progress(String message) {
+        delegate.progress(message);
+    }
+
+    @Override
+    public void complete() {
+        if (!blocked) {
+            checkGuardrails(); // Final check on complete response
+        }
+        if (!blocked) {
+            delegate.complete();
+        }
+    }
+
+    @Override
+    public void complete(String summary) {
+        if (!blocked) {
+            // Check the summary (which is the full response)
+            accumulated.setLength(0);
+            accumulated.append(summary);
+            checkGuardrails();
+        }
+        if (!blocked) {
+            delegate.complete(summary);
+        }
+    }
+
+    @Override
+    public void error(Throwable t) {
+        delegate.error(t);
+    }
+
+    @Override
+    public boolean isClosed() {
+        return blocked || delegate.isClosed();
+    }
+
+    /**
+     * @return {@code true} if a guardrail blocked the response
+     */
+    private boolean checkGuardrails() {
+        var response = accumulated.toString();
+        for (var guardrail : guardrails) {
+            try {
+                var result = guardrail.inspectResponse(response);
+                if (result instanceof AiGuardrail.GuardrailResult.Block block) {
+                    logger.warn("Response blocked by guardrail {}: {}",
+                            guardrail.getClass().getSimpleName(), block.reason());
+                    blocked = true;
+                    delegate.error(new SecurityException("Response blocked: " + block.reason()));
+                    return true;
+                }
+            } catch (Exception e) {
+                logger.error("AiGuardrail.inspectResponse failed: {}",
+                        guardrail.getClass().getName(), e);
+            }
+        }
+        return false;
+    }
+}

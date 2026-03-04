@@ -23,6 +23,7 @@ import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.DefaultAiSupportResolver;
 import org.atmosphere.ai.InMemoryConversationMemory;
+import org.atmosphere.ai.ModelRouter;
 import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
@@ -41,6 +42,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Annotation processor for {@link AiEndpoint}. Discovered by Atmosphere's annotation
@@ -89,6 +91,7 @@ public class AiEndpointProcessor implements Processor<Object> {
             AnnotatedLifecycle.injectFields(framework, instance);
 
             var systemPrompt = resolveSystemPrompt(annotation);
+            var fallbackStrategy = parseFallbackStrategy(annotation.fallbackStrategy());
             var aiSupport = resolveAiSupport();
             var interceptors = instantiateInterceptors(annotation.interceptors());
             AiConversationMemory memory = null;
@@ -115,14 +118,24 @@ public class AiEndpointProcessor implements Processor<Object> {
             AnnotationUtil.defaultManagedServiceInterceptors(framework, frameworkInterceptors);
             framework.addAtmosphereHandler(annotation.path(), handler, frameworkInterceptors);
 
+            if (fallbackStrategy != ModelRouter.FallbackStrategy.NONE) {
+                var allBackends = DefaultAiSupportResolver.resolveAll();
+                if (allBackends.size() <= 1) {
+                    logger.warn("fallbackStrategy={} configured but only {} AiSupport backend(s) available. "
+                            + "Add more AiSupport JARs to enable routing.",
+                            fallbackStrategy, allBackends.size());
+                }
+            }
+
             logger.info("AI endpoint registered at {} (class: {}, aiSupport: {}, interceptors: {}, "
                             + "memory: {}, tools: {}, guardrails: {}, contextProviders: {}, "
-                            + "timeout: {}ms, @Ready: {}, @Disconnect: {}, @PathParam: {})",
+                            + "fallback: {}, timeout: {}ms, @Ready: {}, @Disconnect: {}, @PathParam: {})",
                     annotation.path(), annotatedClass.getSimpleName(),
                     aiSupport.name(), interceptors.size(),
                     memory != null ? "on(max=" + memory.maxMessages() + ")" : "off",
                     toolRegistry.allTools().size(),
                     guardrails.size(), contextProviders.size(),
+                    fallbackStrategy,
                     annotation.timeout(),
                     lifecycle.readyMethod() != null ? lifecycle.readyMethod().getName() : "none",
                     lifecycle.disconnectMethod() != null ? lifecycle.disconnectMethod().getName() : "none",
@@ -205,7 +218,12 @@ public class AiEndpointProcessor implements Processor<Object> {
 
     private ToolRegistry registerTools(AiEndpoint annotation, AtmosphereFramework framework) {
         var registry = new DefaultToolRegistry();
+        var excludeSet = Set.of(annotation.excludeTools());
         for (var toolClass : annotation.tools()) {
+            if (excludeSet.contains(toolClass)) {
+                logger.info("Tool provider {} excluded via excludeTools", toolClass.getName());
+                continue;
+            }
             try {
                 var toolInstance = framework.newClassInstance(Object.class, toolClass);
                 registry.register(toolInstance);
@@ -238,5 +256,14 @@ public class AiEndpointProcessor implements Processor<Object> {
             }
         }
         return List.copyOf(providers);
+    }
+
+    private ModelRouter.FallbackStrategy parseFallbackStrategy(String value) {
+        try {
+            return ModelRouter.FallbackStrategy.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Unknown fallbackStrategy '{}', defaulting to NONE", value);
+            return ModelRouter.FallbackStrategy.NONE;
+        }
     }
 }

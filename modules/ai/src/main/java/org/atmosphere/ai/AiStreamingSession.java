@@ -196,6 +196,11 @@ public class AiStreamingSession implements StreamingSession {
             target = new MemoryCapturingSession(delegate, memory, resource.uuid(), message);
         }
 
+        // Wrap in GuardrailCapturingSession for post-LLM response inspection
+        if (!guardrails.isEmpty()) {
+            target = new GuardrailCapturingSession(target, guardrails);
+        }
+
         // Expose the session to interceptors via request attribute
         resource.getRequest().setAttribute(STREAMING_SESSION_ATTR, target);
 

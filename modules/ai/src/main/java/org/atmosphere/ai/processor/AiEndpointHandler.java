@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.processor;
 
+import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiInterceptor;
@@ -256,8 +257,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
         logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
 
         var delegate = StreamingSessions.start(resource);
+        var settings = AiConfig.get();
+        var model = settings != null ? settings.model() : null;
         var session = new AiStreamingSession(delegate, aiSupport,
-                systemPrompt, null, interceptors, resource, memory,
+                systemPrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders);
 
         Thread.startVirtualThread(() -> {

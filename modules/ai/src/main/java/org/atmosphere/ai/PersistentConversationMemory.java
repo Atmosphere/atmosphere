@@ -93,11 +93,16 @@ public class PersistentConversationMemory implements AiConversationMemory {
         synchronized (messages) {
             messages.add(message);
             while (messages.size() > maxMessages) {
+                boolean removed = false;
                 for (int i = 0; i < messages.size(); i++) {
                     if (!"system".equals(messages.get(i).role())) {
                         messages.remove(i);
+                        removed = true;
                         break;
                     }
+                }
+                if (!removed) {
+                    break; // All remaining messages are system — cannot evict further
                 }
             }
             persist(conversationId, messages);

@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Comparator;
+import java.util.List;
 import java.util.ServiceLoader;
 
 /**
@@ -63,5 +64,24 @@ public final class DefaultAiSupportResolver {
 
         logger.info("No AiSupport found on classpath, falling back to built-in");
         return new BuiltInAiSupport();
+    }
+
+    /**
+     * Resolve all available {@link AiSupport} implementations, sorted by priority descending.
+     * Used by {@link ModelRouter} for multi-backend failover and routing.
+     *
+     * @return all available AiSupport implementations, or a singleton list with {@link BuiltInAiSupport}
+     */
+    public static List<AiSupport> resolveAll() {
+        var loader = ServiceLoader.load(AiSupport.class);
+        var all = loader.stream()
+                .map(ServiceLoader.Provider::get)
+                .filter(AiSupport::isAvailable)
+                .sorted(Comparator.comparingInt(AiSupport::priority).reversed())
+                .toList();
+        if (all.isEmpty()) {
+            return List.of(new BuiltInAiSupport());
+        }
+        return all;
     }
 }
