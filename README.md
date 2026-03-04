@@ -61,12 +61,13 @@ public class Chat {
 
 ## What's New in 4.0 ([full list](docs/whats-new-4.0.md))
 
-Plug your favorite AI framework and stream to any client — Atmosphere handles the transport. Two annotations, zero boilerplate:
+Atmosphere applies the same philosophy to AI: **your code shouldn't care which AI framework is on the classpath.** Tools, conversation memory, guardrails, routing, and observability are declared once with Atmosphere annotations and automatically bridged to Spring AI, LangChain4j, Google ADK, or Embabel at runtime.
 
 ```java
 @AiEndpoint(path = "/ai/chat",
             systemPrompt = "You are a helpful assistant",
-            conversationMemory = true)
+            conversationMemory = true,
+            tools = AssistantTools.class)
 public class AiChat {
 
     @Prompt
@@ -76,7 +77,29 @@ public class AiChat {
 }
 ```
 
-See [spring-boot-ai-classroom](samples/spring-boot-ai-classroom) for a full working example with multiple AI endpoints, conversation memory, and a React frontend.
+Tools are declared with `@AiTool` — framework-agnostic, portable across all backends:
+
+```java
+public class AssistantTools {
+
+    @AiTool(name = "get_weather", description = "Get weather for a city")
+    public String getWeather(@Param("city") String city) {
+        return weatherService.lookup(city);
+    }
+}
+```
+
+Swap the AI backend by changing one Maven dependency — no tool code changes:
+
+| Backend | Dependency | Bridged via |
+|---------|-----------|-------------|
+| Built-in (Gemini/OpenAI/Ollama) | `atmosphere-ai` | direct |
+| Spring AI | `atmosphere-spring-ai` | `SpringAiToolBridge` |
+| LangChain4j | `atmosphere-langchain4j` | `LangChain4jToolBridge` |
+| Google ADK | `atmosphere-adk` | `AdkToolBridge` |
+| Embabel | `atmosphere-embabel` | `EmbabelAiSupport` |
+
+See [spring-boot-ai-tools](samples/spring-boot-ai-tools) for the full tool-calling sample and [spring-boot-ai-classroom](samples/spring-boot-ai-classroom) for multi-persona conversation memory.
 
 ### CLI-powered LLM backend
 
