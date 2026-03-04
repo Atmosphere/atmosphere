@@ -20,6 +20,7 @@ import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
+import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.AiSupport;
@@ -130,11 +131,33 @@ public class LangChain4jAiSupport implements AiSupport {
         }
         messages.add(UserMessage.from(request.message()));
 
-        var chatRequest = ChatRequest.builder()
-                .messages(messages)
-                .build();
+        // Add tool specifications if tools are present
+        var tools = request.tools();
+        var toolSpecs = tools.isEmpty()
+                ? java.util.List.<dev.langchain4j.agent.tool.ToolSpecification>of()
+                : LangChain4jToolBridge.toToolSpecifications(tools);
 
-        var handler = new AtmosphereStreamingResponseHandler(session);
-        streamingModel.chat(chatRequest, handler);
+        var chatRequestBuilder = ChatRequest.builder().messages(messages);
+        if (!toolSpecs.isEmpty()) {
+            chatRequestBuilder.toolSpecifications(toolSpecs);
+            logger.debug("Registered {} tool specifications with LangChain4j", toolSpecs.size());
+        }
+
+        var toolMap = tools.isEmpty()
+                ? java.util.Map.<String, org.atmosphere.ai.tool.ToolDefinition>of()
+                : LangChain4jToolBridge.toToolMap(tools);
+
+        var handler = new ToolAwareStreamingResponseHandler(
+                session, streamingModel, messages, toolSpecs, toolMap);
+        streamingModel.chat(chatRequestBuilder.build(), handler);
+    }
+
+    @Override
+    public java.util.Set<AiCapability> capabilities() {
+        return java.util.Set.of(
+                AiCapability.TEXT_STREAMING,
+                AiCapability.TOOL_CALLING,
+                AiCapability.SYSTEM_PROMPT
+        );
     }
 }

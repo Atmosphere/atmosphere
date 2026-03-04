@@ -16,7 +16,9 @@
 package org.atmosphere.ai;
 
 import org.atmosphere.ai.llm.ChatMessage;
+import org.atmosphere.ai.tool.ToolDefinition;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -92,5 +94,29 @@ public record AiRequest(
      */
     public AiRequest withHistory(List<ChatMessage> newHistory) {
         return new AiRequest(message, systemPrompt, model, hints, newHistory);
+    }
+
+    /**
+     * Return a copy with available tool definitions stored in hints.
+     * Adapters can read these via {@link #tools()} to register tools
+     * with their native framework.
+     */
+    @SuppressWarnings("unchecked")
+    public AiRequest withTools(Collection<ToolDefinition> tools) {
+        var merged = new java.util.HashMap<>(this.hints);
+        merged.put("ai.tools", List.copyOf(tools));
+        return new AiRequest(message, systemPrompt, model, Map.copyOf(merged), history);
+    }
+
+    /**
+     * Get the tool definitions available for this request, if any.
+     */
+    @SuppressWarnings("unchecked")
+    public List<ToolDefinition> tools() {
+        var tools = hints.get("ai.tools");
+        if (tools instanceof List<?> list) {
+            return (List<ToolDefinition>) list;
+        }
+        return List.of();
     }
 }

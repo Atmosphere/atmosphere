@@ -17,13 +17,17 @@ package org.atmosphere.ai.processor;
 
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiConversationMemory;
+import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiSupport;
+import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.DefaultAiSupportResolver;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.tool.DefaultToolRegistry;
+import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.annotation.AnnotationUtil;
 import org.atmosphere.annotation.Processor;
 import org.atmosphere.config.AtmosphereAnnotation;
@@ -92,22 +96,33 @@ public class AiEndpointProcessor implements Processor<Object> {
                 memory = new InMemoryConversationMemory(annotation.maxHistoryMessages());
             }
 
+            // Register tools from @AiEndpoint(tools = {...})
+            var toolRegistry = registerTools(annotation, framework);
+
+            // Instantiate guardrails and context providers
+            var guardrails = instantiateGuardrails(annotation.guardrails());
+            var contextProviders = instantiateContextProviders(annotation.contextProviders());
+
             // Shared lifecycle scanning — same infrastructure as @ManagedService
             var lifecycle = AnnotatedLifecycle.scan(annotatedClass);
 
             var handler = new AiEndpointHandler(instance, promptMethod,
                     annotation.timeout(), systemPrompt, annotation.path(),
-                    aiSupport, interceptors, memory, lifecycle);
+                    aiSupport, interceptors, memory, lifecycle,
+                    toolRegistry, guardrails, contextProviders);
 
             List<AtmosphereInterceptor> frameworkInterceptors = new LinkedList<>();
             AnnotationUtil.defaultManagedServiceInterceptors(framework, frameworkInterceptors);
             framework.addAtmosphereHandler(annotation.path(), handler, frameworkInterceptors);
 
             logger.info("AI endpoint registered at {} (class: {}, aiSupport: {}, interceptors: {}, "
-                            + "memory: {}, timeout: {}ms, @Ready: {}, @Disconnect: {}, @PathParam: {})",
+                            + "memory: {}, tools: {}, guardrails: {}, contextProviders: {}, "
+                            + "timeout: {}ms, @Ready: {}, @Disconnect: {}, @PathParam: {})",
                     annotation.path(), annotatedClass.getSimpleName(),
                     aiSupport.name(), interceptors.size(),
                     memory != null ? "on(max=" + memory.maxMessages() + ")" : "off",
+                    toolRegistry.allTools().size(),
+                    guardrails.size(), contextProviders.size(),
                     annotation.timeout(),
                     lifecycle.readyMethod() != null ? lifecycle.readyMethod().getName() : "none",
                     lifecycle.disconnectMethod() != null ? lifecycle.disconnectMethod().getName() : "none",
@@ -186,5 +201,42 @@ public class AiEndpointProcessor implements Processor<Object> {
             }
         }
         return List.copyOf(interceptors);
+    }
+
+    private ToolRegistry registerTools(AiEndpoint annotation, AtmosphereFramework framework) {
+        var registry = new DefaultToolRegistry();
+        for (var toolClass : annotation.tools()) {
+            try {
+                var toolInstance = framework.newClassInstance(Object.class, toolClass);
+                registry.register(toolInstance);
+            } catch (Exception e) {
+                logger.error("Failed to register tool provider: {}", toolClass.getName(), e);
+            }
+        }
+        return registry;
+    }
+
+    private List<AiGuardrail> instantiateGuardrails(Class<? extends AiGuardrail>[] classes) {
+        var guardrails = new ArrayList<AiGuardrail>();
+        for (var clazz : classes) {
+            try {
+                guardrails.add(clazz.getDeclaredConstructor().newInstance());
+            } catch (Exception e) {
+                logger.error("Failed to instantiate AiGuardrail: {}", clazz.getName(), e);
+            }
+        }
+        return List.copyOf(guardrails);
+    }
+
+    private List<ContextProvider> instantiateContextProviders(Class<? extends ContextProvider>[] classes) {
+        var providers = new ArrayList<ContextProvider>();
+        for (var clazz : classes) {
+            try {
+                providers.add(clazz.getDeclaredConstructor().newInstance());
+            } catch (Exception e) {
+                logger.error("Failed to instantiate ContextProvider: {}", clazz.getName(), e);
+            }
+        }
+        return List.copyOf(providers);
     }
 }

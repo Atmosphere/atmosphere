@@ -19,15 +19,19 @@ import com.google.adk.agents.LlmAgent;
 import com.google.adk.models.Gemini;
 import com.google.adk.runner.InMemoryRunner;
 import com.google.adk.runner.Runner;
+import com.google.adk.tools.BaseTool;
 import com.google.genai.types.Content;
 import com.google.genai.types.Part;
+import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.tool.ToolDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -110,6 +114,33 @@ public class AdkAiSupport implements AiSupport {
         defaultSessionId = sessionId;
     }
 
+    /**
+     * Create and set a Runner with Atmosphere tool definitions bridged to ADK tools.
+     * ADK requires tools to be registered at agent construction time, so this must
+     * be called before streaming begins.
+     *
+     * @param settings the LLM settings (model, API key, etc.)
+     * @param tools    Atmosphere tool definitions to bridge to ADK
+     */
+    public static void configureWithTools(AiConfig.LlmSettings settings,
+                                          List<ToolDefinition> tools) {
+        var apiKey = settings.client().apiKey();
+        var gemini = new Gemini(settings.model(), apiKey);
+
+        var adkTools = AdkToolBridge.toAdkTools(tools);
+        var agentBuilder = LlmAgent.builder()
+                .name("atmosphere-agent")
+                .model(gemini)
+                .instruction("You are a helpful assistant.");
+
+        if (!adkTools.isEmpty()) {
+            agentBuilder.tools(adkTools.toArray(new BaseTool[0]));
+        }
+
+        setRunner(new InMemoryRunner(agentBuilder.build(), "atmosphere"));
+        logger.info("ADK configured with {} tools: model={}", adkTools.size(), settings.model());
+    }
+
     @Override
     public void stream(AiRequest request, StreamingSession session) {
         var adkRunner = runner;
@@ -128,6 +159,14 @@ public class AdkAiSupport implements AiSupport {
         }
 
         session.progress("Starting ADK agent...");
+
+        // ADK tools must be registered at agent construction time
+        var tools = request.tools();
+        if (!tools.isEmpty()) {
+            logger.debug("AiRequest contains {} tools — ADK requires tools at agent build time. "
+                    + "Use AdkAiSupport.configureWithTools() to register tools before streaming.",
+                    tools.size());
+        }
 
         var userId = request.hints().containsKey("userId")
                 ? request.hints().get("userId").toString() : defaultUserId;
@@ -160,5 +199,16 @@ public class AdkAiSupport implements AiSupport {
             logger.debug("Created ADK session: userId={}, sessionId={}", userId, sessionId);
         }
         knownSessions.add(key);
+    }
+
+    @Override
+    public java.util.Set<AiCapability> capabilities() {
+        return java.util.Set.of(
+                AiCapability.TEXT_STREAMING,
+                AiCapability.TOOL_CALLING,
+                AiCapability.AGENT_ORCHESTRATION,
+                AiCapability.CONVERSATION_MEMORY,
+                AiCapability.SYSTEM_PROMPT
+        );
     }
 }

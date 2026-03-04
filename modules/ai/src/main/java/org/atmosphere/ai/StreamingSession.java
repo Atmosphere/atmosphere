@@ -88,6 +88,29 @@ public interface StreamingSession extends AutoCloseable {
      * @throws UnsupportedOperationException if this session does not support
      *         auto-resolved AI streaming
      */
+    /**
+     * Send multi-modal content to the client. Default implementation handles
+     * text content via {@link #send(String)} and throws for binary content.
+     *
+     * <p>Wire protocol for content:</p>
+     * <pre>{@code
+     * {"type":"content","contentType":"text","data":"...","sessionId":"...","seq":N}
+     * {"type":"content","contentType":"image","mimeType":"image/png","data":"<base64>","sessionId":"...","seq":N}
+     * {"type":"content","contentType":"file","mimeType":"text/csv","fileName":"results.csv","data":"<base64>","sessionId":"...","seq":N}
+     * }</pre>
+     *
+     * @param content the content to send
+     */
+    default void sendContent(Content content) {
+        if (content instanceof Content.Text text) {
+            send(text.text());
+        } else {
+            throw new UnsupportedOperationException(
+                    "This session does not support binary content. "
+                            + "Override sendContent() to handle multi-modal content.");
+        }
+    }
+
     default void stream(String message) {
         throw new UnsupportedOperationException(
                 "stream(String) is only supported on AiStreamingSession. "

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai;
 
+import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +55,9 @@ public class AiStreamingSession implements StreamingSession {
     private final List<AiInterceptor> interceptors;
     private final AtmosphereResource resource;
     private final AiConversationMemory memory;
+    private final ToolRegistry toolRegistry;
+    private final List<AiGuardrail> guardrails;
+    private final List<ContextProvider> contextProviders;
 
     /**
      * @param delegate     the underlying streaming session
@@ -67,7 +71,8 @@ public class AiStreamingSession implements StreamingSession {
                               String systemPrompt, String model,
                               List<AiInterceptor> interceptors,
                               AtmosphereResource resource) {
-        this(delegate, aiSupport, systemPrompt, model, interceptors, resource, null);
+        this(delegate, aiSupport, systemPrompt, model, interceptors, resource, null,
+                null, List.of(), List.of());
     }
 
     /**
@@ -84,6 +89,21 @@ public class AiStreamingSession implements StreamingSession {
                               List<AiInterceptor> interceptors,
                               AtmosphereResource resource,
                               AiConversationMemory memory) {
+        this(delegate, aiSupport, systemPrompt, model, interceptors, resource, memory,
+                null, List.of(), List.of());
+    }
+
+    /**
+     * Full constructor with tools, guardrails, and context providers.
+     */
+    public AiStreamingSession(StreamingSession delegate, AiSupport aiSupport,
+                              String systemPrompt, String model,
+                              List<AiInterceptor> interceptors,
+                              AtmosphereResource resource,
+                              AiConversationMemory memory,
+                              ToolRegistry toolRegistry,
+                              List<AiGuardrail> guardrails,
+                              List<ContextProvider> contextProviders) {
         this.delegate = delegate;
         this.aiSupport = aiSupport;
         this.systemPrompt = systemPrompt != null ? systemPrompt : "";
@@ -91,6 +111,9 @@ public class AiStreamingSession implements StreamingSession {
         this.interceptors = interceptors != null ? interceptors : List.of();
         this.resource = resource;
         this.memory = memory;
+        this.toolRegistry = toolRegistry;
+        this.guardrails = guardrails != null ? guardrails : List.of();
+        this.contextProviders = contextProviders != null ? contextProviders : List.of();
     }
 
     @Override
@@ -101,6 +124,54 @@ public class AiStreamingSession implements StreamingSession {
                 : List.<org.atmosphere.ai.llm.ChatMessage>of();
 
         var request = new AiRequest(message, systemPrompt, model, Map.of(), history);
+
+        // Attach available tools to the request
+        if (toolRegistry != null && !toolRegistry.allTools().isEmpty()) {
+            request = request.withTools(toolRegistry.allTools());
+        }
+
+        // Guardrails: inspect request (pre)
+        for (var guardrail : guardrails) {
+            try {
+                var result = guardrail.inspectRequest(request);
+                switch (result) {
+                    case AiGuardrail.GuardrailResult.Block block -> {
+                        logger.warn("Request blocked by guardrail {}: {}",
+                                guardrail.getClass().getSimpleName(), block.reason());
+                        delegate.error(new SecurityException("Request blocked: " + block.reason()));
+                        return;
+                    }
+                    case AiGuardrail.GuardrailResult.Modify modify ->
+                            request = modify.modifiedRequest();
+                    case AiGuardrail.GuardrailResult.Pass ignored -> { }
+                }
+            } catch (Exception e) {
+                logger.error("AiGuardrail.inspectRequest failed: {}",
+                        guardrail.getClass().getName(), e);
+            }
+        }
+
+        // Context providers: RAG augmentation
+        if (!contextProviders.isEmpty()) {
+            var contextBuilder = new StringBuilder();
+            for (var provider : contextProviders) {
+                try {
+                    var docs = provider.retrieve(request.message(), 5);
+                    for (var doc : docs) {
+                        contextBuilder.append("\n---\nSource: ").append(doc.source())
+                                .append("\n").append(doc.content());
+                    }
+                } catch (Exception e) {
+                    logger.error("ContextProvider.retrieve failed: {}",
+                            provider.getClass().getName(), e);
+                }
+            }
+            if (!contextBuilder.isEmpty()) {
+                var augmented = request.message()
+                        + "\n\nRelevant context:" + contextBuilder;
+                request = request.withMessage(augmented);
+            }
+        }
 
         // Pre-process: FIFO order
         for (var interceptor : interceptors) {

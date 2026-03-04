@@ -108,12 +108,16 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
             if (!cancelled) setProgress(msg);
           },
           onComplete: () => {
-            if (!cancelled) setIsStreaming(false);
+            if (!cancelled) {
+              setIsStreaming(false);
+              setProgress(null);
+            }
           },
           onError: (err) => {
             if (!cancelled) {
               setError(err);
               setIsStreaming(false);
+              setProgress(null);
             }
           },
           onMetadata: (key, value) => {

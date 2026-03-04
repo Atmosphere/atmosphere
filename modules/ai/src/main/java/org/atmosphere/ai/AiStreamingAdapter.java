@@ -56,4 +56,16 @@ public interface AiStreamingAdapter<T> {
      * @param session the streaming session to push tokens through
      */
     void stream(T request, StreamingSession session);
+
+    /**
+     * Capabilities supported by this adapter. Used for smart model routing,
+     * tool calling negotiation, and feature discovery.
+     *
+     * <p>The default returns only {@link AiCapability#TEXT_STREAMING}.</p>
+     *
+     * @return the set of capabilities this adapter supports
+     */
+    default java.util.Set<AiCapability> capabilities() {
+        return java.util.Set.of(AiCapability.TEXT_STREAMING);
+    }
 }

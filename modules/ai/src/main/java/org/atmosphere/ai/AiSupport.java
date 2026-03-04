@@ -63,4 +63,16 @@ public interface AiSupport {
      * @param session the streaming session to push tokens through
      */
     void stream(AiRequest request, StreamingSession session);
+
+    /**
+     * Capabilities supported by this AI backend. Used for smart model routing,
+     * tool calling negotiation, and feature discovery.
+     *
+     * <p>The default returns only {@link AiCapability#TEXT_STREAMING}.</p>
+     *
+     * @return the set of capabilities this backend supports
+     */
+    default java.util.Set<AiCapability> capabilities() {
+        return java.util.Set.of(AiCapability.TEXT_STREAMING);
+    }
 }

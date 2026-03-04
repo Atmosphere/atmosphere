@@ -139,6 +139,10 @@ export default defineConfig({
       name: 'embabel-horoscope',
       testMatch: /embabel-horoscope\.spec\.ts/,
     },
+    {
+      name: 'ai-tools',
+      testMatch: /ai-tools\.spec\.ts/,
+    },
     // ── Transport tests ──
     {
       name: 'sse-transport',

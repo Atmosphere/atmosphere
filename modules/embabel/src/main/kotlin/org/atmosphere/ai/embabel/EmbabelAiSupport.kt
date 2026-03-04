@@ -17,6 +17,7 @@ package org.atmosphere.ai.embabel
 
 import com.embabel.agent.core.AgentPlatform
 import com.embabel.agent.core.ProcessOptions
+import org.atmosphere.ai.AiCapability
 import org.atmosphere.ai.AiConfig
 import org.atmosphere.ai.AiRequest
 import org.atmosphere.ai.AiSupport
@@ -103,4 +104,10 @@ class EmbabelAiSupport : AiSupport {
         }
         session.complete()
     }
+
+    override fun capabilities(): Set<AiCapability> = setOf(
+        AiCapability.TEXT_STREAMING,
+        AiCapability.AGENT_ORCHESTRATION,
+        AiCapability.SYSTEM_PROMPT
+    )
 }

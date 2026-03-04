@@ -125,6 +125,12 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8090,
     type: 'spring-boot',
   },
+  'spring-boot-ai-tools': {
+    name: 'spring-boot-ai-tools',
+    dir: 'spring-boot-ai-tools',
+    port: 8091,
+    type: 'spring-boot',
+  },
 };
 
 /**

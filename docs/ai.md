@@ -91,6 +91,98 @@ public interface AiConversationMemory {
 }
 ```
 
+## @AiTool -- Framework-Agnostic Tool Calling
+
+Declare tools with `@AiTool` and they work with any AI backend -- Spring AI, LangChain4j, Google ADK. No framework-specific annotations needed.
+
+### Defining Tools
+
+```java
+public class AssistantTools {
+
+    @AiTool(name = "get_weather",
+            description = "Returns a weather report for a city")
+    public String getWeather(
+            @Param(value = "city", description = "City name to get weather for")
+            String city) {
+        return weatherService.lookup(city);
+    }
+
+    @AiTool(name = "convert_temperature",
+            description = "Converts between Celsius and Fahrenheit")
+    public String convertTemperature(
+            @Param(value = "value", description = "Temperature value") double value,
+            @Param(value = "from_unit", description = "'C' or 'F'") String fromUnit) {
+        return "C".equalsIgnoreCase(fromUnit)
+                ? String.format("%.1f°C = %.1f°F", value, value * 9.0 / 5.0 + 32)
+                : String.format("%.1f°F = %.1f°C", value, (value - 32) * 5.0 / 9.0);
+    }
+}
+```
+
+### Wiring Tools to an Endpoint
+
+```java
+@AiEndpoint(path = "/ai/chat",
+            systemPrompt = "You are a helpful assistant",
+            conversationMemory = true,
+            tools = AssistantTools.class)
+public class MyChat {
+
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        session.stream(message);  // tools are automatically available to the LLM
+    }
+}
+```
+
+### How It Works
+
+```
+@AiTool methods
+    ↓ scan at startup
+DefaultToolRegistry (global)
+    ↓ selected per-endpoint via tools = {...}
+AiRequest.withTools(tools)
+    ↓ bridged to backend-native format
+LangChain4jToolBridge / SpringAiToolBridge / AdkToolBridge
+    ↓ LLM decides to call a tool
+ToolExecutor.execute(args) → result fed back to LLM
+    ↓
+StreamingSession → WebSocket → browser
+```
+
+The tool bridge layer converts `@AiTool` to the native format at runtime:
+
+| Backend | Bridge Class | Native Format |
+|---------|-------------|---------------|
+| LangChain4j | `LangChain4jToolBridge` | `ToolSpecification` |
+| Spring AI | `SpringAiToolBridge` | `ToolCallback` |
+| Google ADK | `AdkToolBridge` | `BaseTool` |
+
+### @AiTool vs Native Annotations
+
+| | `@AiTool` (Atmosphere) | `@Tool` (LangChain4j) | `FunctionCallback` (Spring AI) |
+|--|------------------------|----------------------|-------------------------------|
+| Portable | Any backend | LangChain4j only | Spring AI only |
+| Parameter metadata | `@Param` annotation | `@P` annotation | JSON Schema |
+| Registration | `ToolRegistry` (global) | Per-service | Per-ChatClient |
+
+To swap the AI backend, change only the Maven dependency -- no tool code changes:
+
+```xml
+<!-- Use LangChain4j -->
+<artifactId>atmosphere-langchain4j</artifactId>
+
+<!-- Or Spring AI -->
+<artifactId>atmosphere-spring-ai</artifactId>
+
+<!-- Or Google ADK -->
+<artifactId>atmosphere-adk</artifactId>
+```
+
+See the [spring-boot-ai-tools](../samples/spring-boot-ai-tools/) sample.
+
 ## AiInterceptor
 
 Cross-cutting concerns (RAG, guardrails, logging) go through `AiInterceptor`, not subclassing:
@@ -230,6 +322,8 @@ Configure the built-in client with environment variables:
 |-------|-------------|
 | `@AiEndpoint` | Marks a class as an AI chat endpoint with a path, system prompt, and interceptors |
 | `@Prompt` | Marks the method that handles user messages |
+| `@AiTool` | Marks a method as an AI-callable tool (framework-agnostic) |
+| `@Param` | Describes a tool parameter's name, description, and required flag |
 | `AiSupport` | SPI for AI framework backends (ServiceLoader-discovered) |
 | `AiRequest` | Framework-agnostic request record (message, systemPrompt, model, hints) |
 | `AiInterceptor` | Pre/post processing hooks for RAG, guardrails, logging |
@@ -238,6 +332,12 @@ Configure the built-in client with environment variables:
 | `StreamingSessions` | Factory for creating `StreamingSession` instances |
 | `OpenAiCompatibleClient` | Built-in HTTP client for OpenAI-compatible APIs |
 | `RoutingLlmClient` | Routes prompts to different LLM backends based on rules |
+| `ToolRegistry` | Global registry for `@AiTool` definitions |
+| `ModelRouter` | SPI for intelligent model routing and failover |
+| `AiGuardrail` | SPI for pre/post-LLM safety inspection |
+| `AiMetrics` | SPI for AI observability (tokens, latency, cost) |
+| `ConversationPersistence` | SPI for durable conversation storage (Redis, SQLite) |
+| `RetryPolicy` | Exponential backoff with circuit-breaker semantics |
 
 ## Samples
 
@@ -246,6 +346,10 @@ Configure the built-in client with environment variables:
 - [Spring Boot LangChain4j Chat](../samples/spring-boot-langchain4j-chat/) -- LangChain4j adapter
 - [Spring Boot ADK Chat](../samples/spring-boot-adk-chat/) -- Google ADK adapter
 - [Spring Boot Embabel Chat](../samples/spring-boot-embabel-chat/) -- Embabel agent adapter
+- [Spring Boot AI Tools](../samples/spring-boot-ai-tools/) -- framework-agnostic `@AiTool` pipeline
+- [Spring Boot LangChain4j Tools](../samples/spring-boot-langchain4j-tools/) -- LangChain4j-native `@Tool` with PII/cost filters
+- [Spring Boot ADK Tools](../samples/spring-boot-adk-tools/) -- Google ADK with `@AiTool` bridge
+- [Spring Boot Spring AI Routing](../samples/spring-boot-spring-ai-routing/) -- cost/latency model routing
 
 ## See Also
 

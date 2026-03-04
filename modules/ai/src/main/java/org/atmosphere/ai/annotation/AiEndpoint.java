@@ -125,4 +125,51 @@ public @interface AiEndpoint {
      * Defaults to 20 messages (10 turns).
      */
     int maxHistoryMessages() default 20;
+
+    /**
+     * Tool provider classes to expose at this endpoint. Each class should
+     * contain methods annotated with {@link AiTool}. Tools from these classes
+     * are registered globally and made available to the AI model at this endpoint.
+     *
+     * <p>Default: empty (all globally registered tools are available).</p>
+     *
+     * <p>Example:</p>
+     * <pre>{@code
+     * @AiEndpoint(path = "/chat", tools = {WeatherTools.class, CalendarTools.class})
+     * }</pre>
+     */
+    Class<?>[] tools() default {};
+
+    /**
+     * Tool provider classes to exclude from this endpoint. Only relevant when
+     * {@link #tools()} is empty (i.e., all tools are available by default).
+     *
+     * <p>Example:</p>
+     * <pre>{@code
+     * @AiEndpoint(path = "/public-chat", excludeTools = {AdminTools.class})
+     * }</pre>
+     */
+    Class<?>[] excludeTools() default {};
+
+    /**
+     * Fallback strategy for model routing. When set to anything other than
+     * {@link org.atmosphere.ai.ModelRouter.FallbackStrategy#NONE}, the framework
+     * will try alternative AI backends if the primary one fails.
+     */
+    String fallbackStrategy() default "NONE";
+
+    /**
+     * {@link AiGuardrail} classes to apply to this endpoint. Guardrails run
+     * before the LLM call (inspecting the request) and after (inspecting
+     * the response).
+     *
+     * <p>Execution order: guardrails → rate limit → RAG → [LLM] → guardrails → metrics</p>
+     */
+    Class<? extends org.atmosphere.ai.AiGuardrail>[] guardrails() default {};
+
+    /**
+     * {@link ContextProvider} classes to use for RAG context augmentation
+     * at this endpoint.
+     */
+    Class<? extends org.atmosphere.ai.ContextProvider>[] contextProviders() default {};
 }

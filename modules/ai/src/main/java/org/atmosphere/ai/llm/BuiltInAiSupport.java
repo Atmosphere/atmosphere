@@ -15,10 +15,13 @@
  */
 package org.atmosphere.ai.llm;
 
+import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.StreamingSession;
+
+import java.util.Set;
 
 /**
  * Default {@link AiSupport} implementation that uses the built-in
@@ -83,5 +86,10 @@ public class BuiltInAiSupport implements AiSupport {
         }
 
         llmSettings.client().streamChatCompletion(builder.build(), session);
+    }
+
+    @Override
+    public Set<AiCapability> capabilities() {
+        return Set.of(AiCapability.TEXT_STREAMING, AiCapability.SYSTEM_PROMPT);
     }
 }

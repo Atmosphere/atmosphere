@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.spring;
 
+import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.AiSupport;
@@ -139,6 +140,14 @@ public class SpringAiSupport implements AiSupport {
         }
         promptSpec.user(request.message());
 
+        // Register tool callbacks if tools are present
+        var tools = request.tools();
+        if (!tools.isEmpty()) {
+            var callbacks = SpringAiToolBridge.toToolCallbacks(tools);
+            promptSpec.toolCallbacks(callbacks);
+            logger.debug("Registered {} tool callbacks with Spring AI", callbacks.size());
+        }
+
         Flux<ChatResponse> flux = promptSpec.stream().chatResponse();
         flux.doOnNext(response -> {
                     if (response.getResult() != null
@@ -150,6 +159,16 @@ public class SpringAiSupport implements AiSupport {
                 .doOnComplete(session::complete)
                 .doOnError(session::error)
                 .subscribe();
+    }
+
+    @Override
+    public java.util.Set<AiCapability> capabilities() {
+        return java.util.Set.of(
+                AiCapability.TEXT_STREAMING,
+                AiCapability.TOOL_CALLING,
+                AiCapability.STRUCTURED_OUTPUT,
+                AiCapability.SYSTEM_PROMPT
+        );
     }
 
     private static Message toSpringMessage(ChatMessage msg) {

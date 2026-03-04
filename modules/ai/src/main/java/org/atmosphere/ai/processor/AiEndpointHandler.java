@@ -16,11 +16,15 @@
 package org.atmosphere.ai.processor;
 
 import org.atmosphere.ai.AiConversationMemory;
+import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiStreamingSession;
 import org.atmosphere.ai.AiSupport;
+import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
+import org.atmosphere.ai.tool.DefaultToolRegistry;
+import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
@@ -92,6 +96,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
     private final List<AiInterceptor> interceptors;
     private final AiConversationMemory memory;
     private final AnnotatedLifecycle lifecycle;
+    private final ToolRegistry toolRegistry;
+    private final List<AiGuardrail> guardrails;
+    private final List<ContextProvider> contextProviders;
 
     /**
      * @param target       the user's @AiEndpoint instance
@@ -105,7 +112,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                              String systemPrompt, AiSupport aiSupport,
                              List<AiInterceptor> interceptors) {
         this(target, promptMethod, timeout, systemPrompt, null, aiSupport, interceptors,
-                null, AnnotatedLifecycle.scan(target.getClass()));
+                null, AnnotatedLifecycle.scan(target.getClass()),
+                new DefaultToolRegistry(), List.of(), List.of());
     }
 
     /**
@@ -125,6 +133,23 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                              List<AiInterceptor> interceptors,
                              AiConversationMemory memory,
                              AnnotatedLifecycle lifecycle) {
+        this(target, promptMethod, timeout, systemPrompt, pathTemplate, aiSupport,
+                interceptors, memory, lifecycle,
+                new DefaultToolRegistry(), List.of(), List.of());
+    }
+
+    /**
+     * Full constructor with tools, guardrails, and context providers.
+     */
+    public AiEndpointHandler(Object target, Method promptMethod, long timeout,
+                             String systemPrompt, String pathTemplate,
+                             AiSupport aiSupport,
+                             List<AiInterceptor> interceptors,
+                             AiConversationMemory memory,
+                             AnnotatedLifecycle lifecycle,
+                             ToolRegistry toolRegistry,
+                             List<AiGuardrail> guardrails,
+                             List<ContextProvider> contextProviders) {
         this.target = target;
         this.promptMethod = promptMethod;
         this.paramCount = promptMethod.getParameterCount();
@@ -135,6 +160,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
         this.interceptors = interceptors != null ? interceptors : List.of();
         this.memory = memory;
         this.lifecycle = lifecycle;
+        this.toolRegistry = toolRegistry;
+        this.guardrails = guardrails != null ? guardrails : List.of();
+        this.contextProviders = contextProviders != null ? contextProviders : List.of();
         this.promptMethod.setAccessible(true);
     }
 
@@ -229,7 +257,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
 
         var delegate = StreamingSessions.start(resource);
         var session = new AiStreamingSession(delegate, aiSupport,
-                systemPrompt, null, interceptors, resource, memory);
+                systemPrompt, null, interceptors, resource, memory,
+                toolRegistry, guardrails, contextProviders);
 
         Thread.startVirtualThread(() -> {
             try {
@@ -281,6 +310,18 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
 
     AnnotatedLifecycle lifecycle() {
         return lifecycle;
+    }
+
+    ToolRegistry toolRegistry() {
+        return toolRegistry;
+    }
+
+    List<AiGuardrail> guardrails() {
+        return guardrails;
+    }
+
+    List<ContextProvider> contextProviders() {
+        return contextProviders;
     }
 
     /**
