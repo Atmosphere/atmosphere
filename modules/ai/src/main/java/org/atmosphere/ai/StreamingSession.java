@@ -80,15 +80,6 @@ public interface StreamingSession extends AutoCloseable {
     boolean isClosed();
 
     /**
-     * Send a user message to the resolved {@link AiSupport} and stream the
-     * response back through this session. Only supported on sessions created
-     * by the {@code @AiEndpoint} infrastructure (i.e., {@link AiStreamingSession}).
-     *
-     * @param message the user message to send to the AI model
-     * @throws UnsupportedOperationException if this session does not support
-     *         auto-resolved AI streaming
-     */
-    /**
      * Send multi-modal content to the client. Default implementation handles
      * text content via {@link #send(String)} and throws for binary content.
      *
@@ -111,6 +102,15 @@ public interface StreamingSession extends AutoCloseable {
         }
     }
 
+    /**
+     * Send a user message to the resolved {@link AiSupport} and stream the
+     * response back through this session. Only supported on sessions created
+     * by the {@code @AiEndpoint} infrastructure (i.e., {@link AiStreamingSession}).
+     *
+     * @param message the user message to send to the AI model
+     * @throws UnsupportedOperationException if this session does not support
+     *         auto-resolved AI streaming
+     */
     default void stream(String message) {
         throw new UnsupportedOperationException(
                 "stream(String) is only supported on AiStreamingSession. "
