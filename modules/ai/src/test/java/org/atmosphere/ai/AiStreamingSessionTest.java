@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai;
 
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,8 @@ public class AiStreamingSessionTest {
     public void setUp() {
         delegate = mock(StreamingSession.class);
         resource = mock(AtmosphereResource.class);
+        var request = mock(AtmosphereRequest.class);
+        when(resource.getRequest()).thenReturn(request);
     }
 
     @Test
