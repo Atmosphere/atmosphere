@@ -37,8 +37,19 @@
 ## Client Libraries
 
 - **atmosphere.js 5.0** — TypeScript client with React, Vue, and Svelte hooks for chat, rooms, presence, and AI streaming.
-- **React Native / Expo** — `useAtmosphere` hook with EventSource polyfill, NetInfo injection, and markdown rendering for mobile AI chat.
+- **[React Native / Expo](docs/react-native.md)** — `useAtmosphere` React Native hook with EventSource polyfill, NetInfo injection, and markdown rendering for mobile AI chat. See the [expo-classroom](../samples/expo-classroom) sample.
 - **wAsync 4.0** — Java client rewritten on `java.net.http` with gRPC support.
+
+## Samples — Forked & Augmented
+
+Four official AI framework samples have been forked and augmented with Atmosphere's real-time streaming, tool calling, cost metering, and content safety:
+
+| Sample | Forked from | Atmosphere features added |
+|--------|-------------|---------------------------|
+| [spring-boot-langchain4j-tools](../samples/spring-boot-langchain4j-tools) | [langchain4j-examples/spring-boot-example](https://github.com/langchain4j/langchain4j-examples/tree/main/spring-boot-example) | Tool calling, PII redaction, cost metering |
+| [spring-boot-spring-ai-routing](../samples/spring-boot-spring-ai-routing) | [spring-ai-examples/routing-workflow](https://github.com/spring-projects/spring-ai-examples/tree/main/agentic-patterns/routing-workflow) | Prompt routing, content safety, cost metering |
+| [spring-boot-embabel-horoscope](../samples/spring-boot-embabel-horoscope) | [embabel-agent-examples/horoscope](https://github.com/embabel/embabel-agent-examples/tree/main/examples-java/horoscope) | Step progress streaming, content safety |
+| [spring-boot-adk-tools](../samples/spring-boot-adk-tools) | [adk-java/city-time-weather](https://github.com/google/adk-java/tree/main/tutorials/city-time-weather) | Tool calling, token budgets, response caching |
 
 ## Developer Experience
 

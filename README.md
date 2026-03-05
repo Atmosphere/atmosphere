@@ -99,7 +99,7 @@ Swap the AI backend by changing one Maven dependency — no tool code changes:
 | Google ADK | `atmosphere-adk` | `AdkToolBridge` |
 | Embabel | `atmosphere-embabel` | `EmbabelAiSupport` |
 
-See [spring-boot-ai-tools](samples/spring-boot-ai-tools) for the full tool-calling sample and [spring-boot-ai-classroom](samples/spring-boot-ai-classroom) for multi-persona conversation memory.
+See [spring-boot-ai-tools](samples/spring-boot-ai-tools) for the full tool-calling sample, [spring-boot-ai-classroom](samples/spring-boot-ai-classroom) for multi-persona conversation memory, and [expo-classroom](samples/expo-classroom) for React Native/Expo mobile chat. Four official framework samples have been [forked and augmented](docs/whats-new-4.0.md#samples--forked--augmented) with Atmosphere streaming: [LangChain4j tools](samples/spring-boot-langchain4j-tools), [Spring AI routing](samples/spring-boot-spring-ai-routing), [Embabel horoscope](samples/spring-boot-embabel-horoscope), and [ADK tools](samples/spring-boot-adk-tools).
 
 ### CLI-powered LLM backend
 
