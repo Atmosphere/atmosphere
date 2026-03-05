@@ -1,0 +1,34 @@
+---
+title: Atmosphere Documentation
+description: The Java framework for WebSocket, SSE, and AI streaming
+template: splash
+hero:
+  title: Atmosphere
+  tagline: Real-time for the JVM — WebSocket, SSE, rooms, presence, AI streaming, and MCP. One dependency for Spring Boot or Quarkus.
+  actions:
+    - text: Start the Tutorial
+      link: /docs/tutorial/01-introduction/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/Atmosphere/atmosphere
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <Card title="20-Chapter Tutorial" icon="open-book">
+    Build a complete real-time application from scratch. Covers `@ManagedService`, transports, rooms, AI streaming, MCP, clustering, and production deployment.
+  </Card>
+  <Card title="AI / LLM Platform" icon="rocket">
+    `@AiEndpoint` with pluggable adapters for Spring AI, LangChain4j, Google ADK, and Embabel. Tool calling, conversation memory, filters, and routing built in.
+  </Card>
+  <Card title="MCP Server" icon="puzzle">
+    Expose tools, resources, and prompts to AI agents with `@McpServer` annotations. Works with Claude Desktop, VS Code Copilot, and Cursor.
+  </Card>
+  <Card title="Spring Boot & Quarkus" icon="setting">
+    First-class starters with auto-configuration, native image support, Micrometer metrics, and OpenTelemetry tracing.
+  </Card>
+</CardGrid>
