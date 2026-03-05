@@ -7,31 +7,47 @@ on:
     branches: [ main ]
 
 jobs:
+  architectural-validation:
+    name: Architectural Validation
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Run Architectural Validation
+      run: ./scripts/architectural-validation.sh
+
   build-and-test:
     name: Build & Test (JDK ${{ matrix.java-version }})
     runs-on: ubuntu-latest
-    
+    needs: architectural-validation
+
     strategy:
       matrix:
         java-version: [21, 23, 25]
       fail-fast: false
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up JDK ${{ matrix.java-version }}
       uses: actions/setup-java@v4
       with:
         java-version: ${{ matrix.java-version }}
         distribution: 'temurin'
         cache: 'maven'
-    
+
     - name: Build Core Modules
       run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true
-    
+
     - name: Run Core Tests
       run: ./mvnw -B test -Dgpg.skip=true -pl modules/cpr,modules/ai,modules/mcp,modules/kotlin,modules/spring-ai,modules/langchain4j,modules/embabel,modules/redis,modules/kafka,modules/durable-sessions,modules/durable-sessions-sqlite,modules/durable-sessions-redis,modules/integration-tests,modules/quarkus-extension,modules/spring-boot-starter
-    
+
     - name: Upload Test Results
       if: failure()
       uses: actions/upload-artifact@v4
