@@ -1,6 +1,6 @@
 # Expo AI Classroom
 
-React Native / Expo client for the [AI Classroom](../spring-boot-ai-classroom/README.md) sample. Demonstrates `atmosphere.js/react-native` connecting to a real Atmosphere backend with AI streaming.
+React Native / Expo client for the [AI Classroom](../README.md) backend. Demonstrates `atmosphere.js/react-native` connecting to a real Atmosphere backend with AI streaming.
 
 ## What it does
 

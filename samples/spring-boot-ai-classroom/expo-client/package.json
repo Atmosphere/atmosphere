@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@react-native-community/netinfo": "^11.0.0",
-    "atmosphere.js": "file:../../atmosphere.js",
+    "atmosphere.js": "file:../../../atmosphere.js",
     "expo": "^55.0.4",
     "expo-status-bar": "~55.0.4",
     "react": "19.2.0",

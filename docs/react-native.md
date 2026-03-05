@@ -142,4 +142,4 @@ These work as-is in React Native and are re-exported for convenience:
 
 ## Sample App
 
-See `samples/expo-classroom/` for a complete Expo app that connects to the AI Classroom backend with 4 rooms (Math, Code, Science, General), streaming AI responses, and network status display.
+See `samples/spring-boot-ai-classroom/expo-client/` for a complete Expo app that connects to the AI Classroom backend with 4 rooms (Math, Code, Science, General), streaming AI responses, and network status display.

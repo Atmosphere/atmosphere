@@ -3,7 +3,7 @@ const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
-const atmosphereRoot = path.resolve(__dirname, '../../atmosphere.js');
+const atmosphereRoot = path.resolve(__dirname, '../../../atmosphere.js');
 const projectNodeModules = path.resolve(__dirname, 'node_modules');
 
 // Watch the atmosphere.js source directory (linked via file:)

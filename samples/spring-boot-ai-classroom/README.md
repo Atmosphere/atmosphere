@@ -122,4 +122,4 @@ The `session.stream(message)` call is **framework-agnostic**. To switch AI backe
 
 ## Mobile Client
 
-A React Native / Expo client is available at [expo-classroom](../expo-classroom/). It connects to this backend via WebSocket, streams AI responses token-by-token with markdown rendering, and includes AppState/NetInfo lifecycle integration. See [React Native docs](../../docs/react-native.md) for details.
+A React Native / Expo client is available at [expo-client](expo-client/). It connects to this backend via WebSocket, streams AI responses token-by-token with markdown rendering, and includes AppState/NetInfo lifecycle integration. See [React Native docs](../../docs/react-native.md) for details.
