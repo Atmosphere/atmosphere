@@ -392,3 +392,19 @@ Tools are registered globally and selected per-endpoint:
 **Embabel** is the best fit for Kotlin-based agent applications that need Embabel's planning and orchestration capabilities. The `AtmosphereOutputChannel` translates agent lifecycle events into streaming tokens automatically.
 
 All four adapters produce the same wire protocol on the Atmosphere side: token-by-token JSON messages delivered over WebSocket, SSE, or long-polling to any connected client.
+
+## Samples
+
+Each adapter has a corresponding sample application:
+
+| Sample | Adapter | Run command |
+|--------|---------|-------------|
+| `samples/spring-boot-spring-ai-chat/` | Spring AI | `./mvnw spring-boot:run -pl samples/spring-boot-spring-ai-chat` |
+| `samples/spring-boot-spring-ai-routing/` | Spring AI (multi-model routing) | `./mvnw spring-boot:run -pl samples/spring-boot-spring-ai-routing` |
+| `samples/spring-boot-langchain4j-chat/` | LangChain4j | `./mvnw spring-boot:run -pl samples/spring-boot-langchain4j-chat` |
+| `samples/spring-boot-adk-chat/` | Google ADK | `./mvnw spring-boot:run -pl samples/spring-boot-adk-chat` |
+| `samples/spring-boot-adk-tools/` | Google ADK (with tools) | `./mvnw spring-boot:run -pl samples/spring-boot-adk-tools` |
+| `samples/spring-boot-embabel-chat/` | Embabel | `./mvnw spring-boot:run -pl samples/spring-boot-embabel-chat` |
+| `samples/spring-boot-embabel-horoscope/` | Embabel (agent planning) | `./mvnw spring-boot:run -pl samples/spring-boot-embabel-horoscope` |
+
+All samples share the same browser client and produce the same AI streaming wire protocol.

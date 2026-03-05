@@ -357,6 +357,182 @@ Client Request
 
 Any interceptor returning `Action.CANCELLED` stops the chain. The handler is never invoked, and `postInspect()` is called for the interceptors that already ran.
 
+## CorsInterceptor
+
+When your Atmosphere endpoint is served from a different origin than your client application, you need to enable Cross-Origin Resource Sharing (CORS). Atmosphere ships with `CorsInterceptor`, which handles the `Access-Control-*` headers automatically.
+
+### Using CorsInterceptor (Recommended)
+
+Add `CorsInterceptor` to your endpoint:
+
+```java
+@ManagedService(path = "/chat",
+    interceptors = {CorsInterceptor.class})
+public class Chat { /* ... */ }
+```
+
+Or register it globally:
+
+```java
+framework.interceptor(new CorsInterceptor());
+```
+
+The interceptor:
+- Sets `Access-Control-Allow-Origin` to the request's `Origin` header (not `*`)
+- Sets `Access-Control-Allow-Credentials: true`
+- Exposes `X-Atmosphere-tracking-id` and heartbeat headers
+- Handles `OPTIONS` preflight requests automatically
+- Runs at `FIRST_BEFORE_DEFAULT` priority so CORS headers are set before any other processing
+
+### Disabling CORS Headers
+
+If your reverse proxy already handles CORS, disable the interceptor's header injection with:
+
+```xml
+<init-param>
+    <param-name>org.atmosphere.cpr.dropAccessControlAllowOriginHeader</param-name>
+    <param-value>true</param-value>
+</init-param>
+```
+
+### Custom CORS Filter (Alternative)
+
+If you need more control (e.g., restricting allowed origins), you can write a standard servlet filter instead:
+
+```java
+public class CorsFilter implements Filter {
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        var req = (HttpServletRequest) request;
+        var res = (HttpServletResponse) response;
+
+        if (req.getHeader("Origin") != null) {
+            res.addHeader("Access-Control-Allow-Origin", "https://my-app.example.com");
+            res.addHeader("Access-Control-Expose-Headers",
+                "X-Cache-Date, X-Atmosphere-tracking-id");
+        }
+
+        if ("OPTIONS".equals(req.getMethod())) {
+            res.addHeader("Access-Control-Allow-Methods", "OPTIONS, GET, POST");
+            res.addHeader("Access-Control-Allow-Headers",
+                "Origin, Content-Type, X-Atmosphere-Framework, "
+                + "X-Cache-Date, X-Atmosphere-tracking-id, X-Atmosphere-Transport");
+            res.addHeader("Access-Control-Max-Age", "-1");
+        }
+        chain.doFilter(req, res);
+    }
+
+    @Override
+    public void init(FilterConfig filterConfig) { }
+
+    @Override
+    public void destroy() { }
+}
+```
+
+Map it to the `AtmosphereServlet` in `web.xml`:
+
+```xml
+<filter>
+    <filter-name>CORS Filter</filter-name>
+    <filter-class>com.example.CorsFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>CORS Filter</filter-name>
+    <servlet-name>AtmosphereServlet</servlet-name>
+</filter-mapping>
+```
+
+## TrackMessageSizeInterceptor
+
+`TrackMessageSizeInterceptor` prepends the byte length of each message to every write operation. This is essential for HTTP streaming and SSE transports where multiple messages can arrive in a single TCP frame. Without it, the client has no reliable way to split concatenated messages.
+
+### How It Works
+
+Given a broadcast message `{"author":"Alice"}`, the interceptor writes `18{"author":"Alice"}` on the wire. The `atmosphere.js` client reads the length prefix, extracts exactly that many bytes, and delivers a clean message to your callback.
+
+### Configuration
+
+Enable it via annotation:
+
+```java
+@ManagedService(path = "/chat",
+    interceptors = {TrackMessageSizeInterceptor.class})
+```
+
+Or via `web.xml`:
+
+```xml
+<init-param>
+    <param-name>org.atmosphere.cpr.AtmosphereInterceptor</param-name>
+    <param-value>org.atmosphere.client.TrackMessageSizeInterceptor</param-value>
+</init-param>
+```
+
+On the client side, set `trackMessageLength: true` in the `atmosphere.js` subscription options.
+
+### Excluding Content Types
+
+Static resources (HTML, images) served through the same servlet should not have their length prepended. Exclude them with:
+
+```xml
+<init-param>
+    <param-name>org.atmosphere.client.TrackMessageSizeInterceptor.excludedContentType</param-name>
+    <param-value>html, xml, jpeg</param-value>
+</init-param>
+```
+
+See [Chapter 4: Transports -- Atmosphere Protocol](/docs/tutorial/04-transports/#message-framing-with-trackmessagesizeinterceptor) for how this fits into the overall protocol.
+
+## Startup and Shutdown Hooks
+
+Atmosphere provides hooks for executing code when the framework starts up or shuts down. These are useful for initializing external connections, starting background tasks, or cleaning up resources.
+
+### Startup Hook
+
+Register a `StartupHook` via `AtmosphereConfig.startupHook()`. The hook receives the `AtmosphereFramework` instance once initialization is complete:
+
+```java
+framework.getAtmosphereConfig().startupHook(f -> {
+    logger.info("Atmosphere started -- initializing background services");
+    // Start scheduled tasks, open connections, etc.
+});
+```
+
+If the framework is already initialized when you register the hook, it executes immediately.
+
+### Shutdown Hook
+
+Register a `ShutdownHook` via `AtmosphereConfig.shutdownHook()`. It runs when the framework is destroyed (e.g., during application undeploy):
+
+```java
+framework.getAtmosphereConfig().shutdownHook(() -> {
+    logger.info("Atmosphere shutting down -- releasing resources");
+    // Close connections, stop schedulers, flush caches, etc.
+});
+```
+
+Multiple hooks can be registered; they execute in registration order.
+
+### Hook Interfaces
+
+Both hooks are defined as inner interfaces of `AtmosphereConfig`:
+
+```java
+// AtmosphereConfig.StartupHook
+public interface StartupHook {
+    void started(AtmosphereFramework framework);
+}
+
+// AtmosphereConfig.ShutdownHook
+public interface ShutdownHook {
+    void shutdown();
+}
+```
+
+Since both are functional interfaces, lambda expressions work as shown above.
+
 ## Summary
 
 | Concept | Purpose |

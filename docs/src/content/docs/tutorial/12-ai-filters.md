@@ -416,3 +416,8 @@ broadcaster.getBroadcasterConfig().addFilter(metering);
 ```
 
 The filter chain processes every token in order: PII redaction first, then content safety, then cost metering. If PII redaction buffers a token (waiting for a sentence boundary), it is not visible to downstream filters until the sentence is complete.
+
+## Samples
+
+- **`samples/spring-boot-ai-tools/`** -- demonstrates the `CostMeteringInterceptor` that tracks token usage and sends routing metadata to the client.
+- **`samples/spring-boot-spring-ai-routing/`** -- demonstrates multi-model routing with `RoutingAiSupport` and `DefaultModelRouter` using Spring AI backends.

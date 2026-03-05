@@ -191,6 +191,80 @@ Use **`@WebSocketHandlerService`** when you need:
 - A WebSocket-only endpoint where long-polling/SSE fallback is not needed
 - Fine-grained control over how messages are parsed and broadcast
 
+## Atmosphere Protocol
+
+Atmosphere uses a lightweight protocol between the client (`atmosphere.js`) and the server to manage connection identity, transport negotiation, and message framing. If you are writing a custom client or debugging wire-level behavior, understanding this protocol is essential.
+
+### Protocol Headers
+
+The client attaches the following headers (or query parameters) to every request:
+
+| Header / Query Param | Description |
+|----------------------|-------------|
+| `X-Atmosphere-Framework` | The Atmosphere client version (e.g., `5.0.0`) |
+| `X-Atmosphere-Transport` | The transport in use: `websocket`, `sse`, `long-polling`, `streaming`, or `close` |
+| `X-Atmosphere-tracking-id` | A UUID that uniquely identifies this client. Initially `0`; the server assigns the real value on first response |
+| `X-Cache-Date` | Timestamp for cache coordination |
+| `X-atmo-protocol` | When `true`, the server sends back the tracking ID and cache date on the first request so subsequent requests carry the correct values |
+
+### Handshake Flow
+
+1. The client sends its first request with `X-Atmosphere-tracking-id=0` and `X-atmo-protocol=true`.
+2. The server assigns a UUID, creates an `AtmosphereResource`, and returns the tracking ID in the response header `X-Atmosphere-tracking-id`.
+3. All subsequent requests from this client include the assigned tracking ID, allowing the server to correlate requests to the same logical connection.
+4. When the client disconnects, it sends a final request with `X-Atmosphere-Transport=close` and the tracking ID.
+
+A typical first request on the wire looks like:
+
+```
+GET /chat?X-Atmosphere-tracking-id=0&X-Atmosphere-Framework=5.0.0
+    &X-Atmosphere-Transport=websocket&X-atmo-protocol=true HTTP/1.1
+Host: localhost:8080
+```
+
+And the close request:
+
+```
+GET /chat?X-Atmosphere-Transport=close
+    &X-Atmosphere-tracking-id=e24de98c-6624-c552-5572-6edbffd270e3 HTTP/1.1
+Host: localhost:8080
+```
+
+### Message Framing with TrackMessageSizeInterceptor
+
+When multiple messages arrive in a single TCP frame (common with HTTP streaming and SSE), the client needs a way to delimit them. The `TrackMessageSizeInterceptor` solves this by prepending the byte length of each message before it is written to the wire.
+
+For example, without the interceptor, the client might receive `{"author":"Alice"}{"author":"Bob"}` as a single chunk. With the interceptor, it receives `18{"author":"Alice"}16{"author":"Bob"}`, allowing `atmosphere.js` to split the messages correctly.
+
+Enable it via annotation:
+
+```java
+@ManagedService(path = "/chat",
+    interceptors = {TrackMessageSizeInterceptor.class})
+```
+
+Or via `web.xml`:
+
+```xml
+<init-param>
+    <param-name>org.atmosphere.cpr.AtmosphereInterceptor</param-name>
+    <param-value>org.atmosphere.client.TrackMessageSizeInterceptor</param-value>
+</init-param>
+```
+
+On the client side, set `trackMessageLength: true` in the subscription options to enable the corresponding parsing logic in `atmosphere.js`.
+
+Content types that should not be framed (e.g., HTML pages served through the same servlet) can be excluded:
+
+```xml
+<init-param>
+    <param-name>org.atmosphere.client.TrackMessageSizeInterceptor.excludedContentType</param-name>
+    <param-value>html, xml, jpeg</param-value>
+</init-param>
+```
+
+See [Chapter 8: Interceptors](/docs/tutorial/08-interceptors/) for more on `TrackMessageSizeInterceptor` and other built-in interceptors.
+
 ## Next Steps
 
 The next chapter covers the `Broadcaster` in depth -- how pub/sub routing works, the difference between `DefaultBroadcaster` and `SimpleBroadcaster`, `BroadcasterCache` for missed messages, and `BroadcastFilter` for message transformation.

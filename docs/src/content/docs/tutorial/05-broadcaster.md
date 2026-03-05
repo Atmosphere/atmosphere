@@ -416,6 +416,84 @@ The `Broadcaster` is a low-level pub/sub primitive. If your application needs pr
 
 For most chat and collaboration apps, prefer Rooms. Use Broadcaster directly when you need fine-grained control over message delivery, custom filters, or lifecycle policies.
 
+## Server-Side Broadcasts
+
+You are not limited to broadcasting from within a `@ManagedService` or `@WebSocketHandlerService` handler. Any server-side code -- a scheduled task, a JMS listener, a background thread, a REST controller -- can look up a `Broadcaster` and push messages to connected clients.
+
+### Broadcasting from a Scheduled Task
+
+Use `BroadcasterFactory.lookup()` to find a `Broadcaster` by its path, then call `broadcast()`:
+
+```java
+@Inject
+private BroadcasterFactory factory;
+
+public void startPeriodicUpdates(ScheduledExecutorService scheduler) {
+    scheduler.scheduleAtFixedRate(() -> {
+        factory.findBroadcaster("/dashboard").ifPresent(b ->
+            b.broadcast("{\"type\":\"heartbeat\",\"time\":" + System.currentTimeMillis() + "}")
+        );
+    }, 0, 10, TimeUnit.SECONDS);
+}
+```
+
+### Using scheduleFixedBroadcast
+
+The `Broadcaster` itself has a built-in `scheduleFixedBroadcast` method that simplifies periodic broadcasting without an external scheduler:
+
+```java
+factory.findBroadcaster("/dashboard").ifPresent(b ->
+    b.scheduleFixedBroadcast(() -> "Server Push " + Instant.now(), 10, TimeUnit.SECONDS)
+);
+```
+
+### Broadcasting from External Events
+
+A common pattern is reacting to an external event source (database change, message queue, file watcher) and pushing the update to connected clients:
+
+```java
+// Called by a JMS listener, Kafka consumer, or any background thread
+public void onExternalEvent(String topic, String payload) {
+    factory.findBroadcaster("/events/" + topic).ifPresent(b -> b.broadcast(payload));
+}
+```
+
+The key point: `BroadcasterFactory` is thread-safe and can be called from any thread. Inject it or obtain it from the `AtmosphereConfig`.
+
+## Performance Tuning
+
+By default, each `Broadcaster` uses an unbounded thread pool for message delivery, and messages are delivered in order. Two parameters let you tune this:
+
+### Thread Pool Size
+
+Limit the threads used for message delivery and async writes:
+
+```xml
+<init-param>
+    <param-name>org.atmosphere.cpr.broadcaster.maxProcessingThreads</param-name>
+    <param-value>10</param-value>
+</init-param>
+<init-param>
+    <param-name>org.atmosphere.cpr.broadcaster.maxAsyncWriteThreads</param-name>
+    <param-value>10</param-value>
+</init-param>
+```
+
+Setting these prevents unbounded thread creation under high broadcast volume.
+
+### Out-of-Order Broadcasts
+
+By default, message ordering is guaranteed: `broadcast("A")` followed by `broadcast("B")` delivers A before B to every client. If your application does not require strict ordering, disabling this constraint can significantly improve throughput:
+
+```xml
+<init-param>
+    <param-name>org.atmosphere.cpr.Broadcaster.supportOutOfOrderBroadcast</param-name>
+    <param-value>true</param-value>
+</init-param>
+```
+
+When out-of-order broadcasting is enabled, always set `maxProcessingThreads` and `maxAsyncWriteThreads` to bounded values to avoid unbounded thread pool growth.
+
 ## Summary
 
 | Concept | Purpose |

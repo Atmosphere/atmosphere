@@ -407,6 +407,15 @@ User: "And the weather there?"
 
 All of these messages are retained in the conversation memory, giving the model full context for follow-up questions.
 
+## Samples
+
+Two sample applications demonstrate tool calling:
+
+- **`samples/spring-boot-ai-tools/`** -- uses the built-in LLM client with `@AiTool` methods (`AssistantTools`), conversation memory, and the `CostMeteringInterceptor`. Run with: `./mvnw spring-boot:run -pl samples/spring-boot-ai-tools`
+- **`samples/spring-boot-langchain4j-tools/`** -- same tools, but powered by the LangChain4j adapter with `ToolAwareStreamingResponseHandler`. Run with: `./mvnw spring-boot:run -pl samples/spring-boot-langchain4j-tools`
+
+Both samples share the same `AssistantTools` class, demonstrating that `@AiTool` definitions are adapter-independent.
+
 ## Summary
 
 | Concept | Purpose |

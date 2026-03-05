@@ -22,10 +22,10 @@ import { Atmosphere } from 'atmosphere.js';
 Framework-specific imports use subpath exports:
 
 ```typescript
-import { useAtmosphere, useRoom, usePresence } from 'atmosphere.js/react';
-import { useAtmosphere, useRoom } from 'atmosphere.js/vue';
-import { createAtmosphereStore, createRoomStore } from 'atmosphere.js/svelte';
-import { useAtmosphereRN, setupReactNative } from 'atmosphere.js/react-native';
+import { useAtmosphere, useStreaming, useRoom, usePresence } from 'atmosphere.js/react';
+import { useAtmosphere, useStreaming, useRoom } from 'atmosphere.js/vue';
+import { createAtmosphereStore, createStreamingStore, createRoomStore } from 'atmosphere.js/svelte';
+import { useAtmosphereRN, useStreamingRN, setupReactNative } from 'atmosphere.js/react-native';
 ```
 
 ## Core API
@@ -220,6 +220,7 @@ atmosphere.js ships first-class hooks for React, Vue, and Svelte that manage the
 | Hook / Store | React | Vue | Svelte |
 |-------------|-------|-----|--------|
 | Raw subscription | `useAtmosphere` | `useAtmosphere` | `createAtmosphereStore` |
+| AI streaming | `useStreaming` | `useStreaming` | `createStreamingStore` |
 | Room (messages + presence) | `useRoom` | `useRoom` | `createRoomStore` |
 | Presence only | `usePresence` | `usePresence` | `createPresenceStore` |
 | Provider / context | `AtmosphereProvider` | *(none needed)* | *(none needed)* |
@@ -530,22 +531,328 @@ Svelte hooks use the Svelte store contract (`subscribe` method). Use `$store` au
 | `members` | `RoomMember[]` | Current online members |
 | `count` | `number` | Number of members online |
 
+## AI Streaming Hooks
+
+atmosphere.js ships framework-specific hooks for connecting to `@AiEndpoint` servers (see [Chapter 9](/docs/tutorial/09-ai-endpoint/)). These hooks manage the streaming wire protocol, accumulate tokens, and expose reactive state for token-by-token rendering.
+
+### React -- useStreaming
+
+Import from `atmosphere.js/react`. Requires an `AtmosphereProvider` ancestor.
+
+```tsx
+import { useStreaming } from 'atmosphere.js/react';
+
+function AiChat() {
+  const { fullText, isStreaming, progress, send, reset } = useStreaming({
+    request: { url: '/ai-chat', transport: 'websocket' },
+  });
+
+  return (
+    <div>
+      <button onClick={() => send('What is Atmosphere?')} disabled={isStreaming}>Ask</button>
+      {isStreaming && <span>{progress ?? 'Generating...'}</span>}
+      <p>{fullText}</p>
+      <button onClick={reset}>Clear</button>
+    </div>
+  );
+}
+```
+
+**Return type:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `fullText` | `string` | All tokens concatenated |
+| `tokens` | `string[]` | Individual tokens in order |
+| `isStreaming` | `boolean` | `true` between `send()` and `complete`/`error` |
+| `progress` | `string \| null` | Last progress message from the server |
+| `metadata` | `Record<string, unknown>` | Metadata received from the server (model name, usage stats) |
+| `stats` | `SessionStats \| null` | Aggregated session statistics (available after completion) |
+| `routing` | `RoutingInfo` | Routing information extracted from server metadata |
+| `error` | `string \| null` | Error message, if any |
+| `send` | `(message, options?) => void` | Send a prompt to start streaming |
+| `reset` | `() => void` | Clear accumulated state for a new turn |
+| `close` | `() => void` | Close the streaming connection |
+
+**Options:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `request` | `AtmosphereRequest` | *(required)* | Connection config (url, transport, etc.) |
+| `enabled` | `boolean` | `true` | Set to `false` to defer connection |
+
+### Vue -- useStreaming
+
+Import from `atmosphere.js/vue`. No provider needed -- pass an optional `Atmosphere` instance or let the composable create one.
+
+```vue
+<script setup lang="ts">
+import { useStreaming } from 'atmosphere.js/vue';
+
+const { fullText, isStreaming, progress, send, reset } = useStreaming(
+  { url: '/ai-chat', transport: 'websocket' },
+);
+</script>
+
+<template>
+  <button @click="send('What is Atmosphere?')" :disabled="isStreaming">Ask</button>
+  <span v-if="isStreaming">{{ progress ?? 'Generating...' }}</span>
+  <p>{{ fullText }}</p>
+  <button @click="reset">Clear</button>
+</template>
+```
+
+**Signature:** `useStreaming(request, instance?)`
+
+All returned values (`fullText`, `tokens`, `isStreaming`, `progress`, `metadata`, `stats`, `routing`, `error`) are Vue `Ref` or `ComputedRef` objects. `fullText` is a `computed` ref that joins `tokens` automatically. Cleanup is automatic via `onUnmounted`.
+
+**Return type:** Same fields as the React `useStreaming` hook, but as Vue reactive refs.
+
+### Svelte -- createStreamingStore
+
+Import from `atmosphere.js/svelte`. The store auto-connects when the first subscriber appears and disconnects when all are gone.
+
+```svelte
+<script>
+  import { createStreamingStore } from 'atmosphere.js/svelte';
+
+  const { store, send, reset } = createStreamingStore(
+    { url: '/ai-chat', transport: 'websocket' },
+  );
+  // $store.fullText, $store.isStreaming, $store.progress
+</script>
+
+<button on:click={() => send('What is Atmosphere?')} disabled={$store.isStreaming}>Ask</button>
+{#if $store.isStreaming}
+  <span>{$store.progress ?? 'Generating...'}</span>
+{/if}
+<p>{$store.fullText}</p>
+<button on:click={reset}>Clear</button>
+```
+
+**Signature:** `createStreamingStore(request, instance?)`
+
+**Store state:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `tokens` | `string[]` | Individual tokens in order |
+| `fullText` | `string` | All tokens concatenated |
+| `isStreaming` | `boolean` | Whether the stream is active |
+| `progress` | `string \| null` | Last progress message |
+| `metadata` | `Record<string, unknown>` | Server metadata |
+| `stats` | `SessionStats \| null` | Session statistics |
+| `routing` | `RoutingInfo` | Routing information |
+| `error` | `string \| null` | Error message |
+
+**Returned actions:** `send(message, options?)` and `reset()`.
+
 ## React Native Support
 
-Import from `atmosphere.js/react-native`:
+React Native / Expo applications import from `atmosphere.js/react-native`, which re-exports the core hooks (`useRoom`, `usePresence`, `AtmosphereProvider`) and adds platform-specific hooks and setup.
 
 ```typescript
-import { setupReactNative, useAtmosphereRN, useStreamingRN } from 'atmosphere.js/react-native';
+import {
+  setupReactNative,
+  useAtmosphereRN,
+  useStreamingRN,
+  AtmosphereProvider,
+  useRoom,
+  usePresence,
+} from 'atmosphere.js/react-native';
+```
 
-// Call once at app startup
-setupReactNative();
+### setupReactNative(options?)
 
-// Or with optional NetInfo for network-aware reconnection
+Call once at app startup (e.g., in your root `App.tsx`) **before** any Atmosphere subscriptions are created. It returns an `RNCapabilities` report.
+
+```typescript
+import { setupReactNative } from 'atmosphere.js/react-native';
+
+const caps = setupReactNative();
+console.log('Recommended transports:', caps.recommendedTransports);
+```
+
+**What it does:**
+
+1. Installs a **fetch-based EventSource polyfill** (`FetchEventSource`) into `globalThis.EventSource` if the native `EventSource` is not available. The polyfill supports two read strategies: streaming via `ReadableStream` (RN 0.73+ / Expo SDK 50+) and a text-accumulation fallback for older Hermes runtimes.
+2. Detects runtime capabilities (`WebSocket`, `ReadableStream`, `fetch`, `AbortController`) and logs warnings for missing APIs.
+3. Returns recommended transports based on detected capabilities.
+4. Optionally registers a **NetInfo** module for network-aware reconnection (see below).
+
+**Options:**
+
+```typescript
+interface SetupReactNativeOptions {
+  netInfo?: {
+    addEventListener(listener: (state: {
+      isConnected: boolean | null;
+      isInternetReachable: boolean | null;
+    }) => void): () => void;
+  };
+}
+```
+
+**Return type:**
+
+```typescript
+interface RNCapabilities {
+  hasReadableStream: boolean;
+  hasWebSocket: boolean;
+  recommendedTransports: TransportType[];  // e.g., ['websocket', 'streaming', 'long-polling']
+}
+```
+
+### NetInfo integration
+
+For network-aware reconnection, pass the `@react-native-community/netinfo` module to `setupReactNative`. Import it in your app code where Metro can statically resolve the native module:
+
+```typescript
 import NetInfo from '@react-native-community/netinfo';
+import { setupReactNative } from 'atmosphere.js/react-native';
+
 setupReactNative({ netInfo: NetInfo });
 ```
 
-React Native hooks (`useAtmosphereRN`, `useStreamingRN`) handle app lifecycle events (background/foreground) and optional NetInfo integration for network-aware reconnection. The core hooks (`useRoom`, `usePresence`) are re-exported and work as-is in React Native.
+When NetInfo is registered:
+
+- `useAtmosphereRN` **suspends** the transport when the device goes offline and **resumes** when connectivity returns.
+- `useStreamingRN` **suppresses sends** when `isConnected` is `false`.
+- Both hooks expose `isConnected` and/or `isInternetReachable` in their return values.
+
+If NetInfo is not installed, the hooks degrade gracefully -- network state defaults to `true` and no listener is registered.
+
+### useAtmosphereRN
+
+A React Native-aware version of `useAtmosphere` that integrates with `AppState` (background/foreground) and optional NetInfo.
+
+```tsx
+import { useAtmosphereRN } from 'atmosphere.js/react-native';
+
+function Chat() {
+  const { data, state, push, isConnected, isInternetReachable } = useAtmosphereRN<ChatMessage>({
+    request: { url: 'https://example.com/atmosphere/chat', transport: 'websocket' },
+    backgroundBehavior: 'suspend',
+  });
+
+  return (
+    <View>
+      <Text>State: {state} | Online: {String(isConnected)}</Text>
+      {data && <Text>{JSON.stringify(data)}</Text>}
+    </View>
+  );
+}
+```
+
+**Options:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `request` | `AtmosphereRequest` | *(required)* | Connection config |
+| `enabled` | `boolean` | `true` | Set to `false` to defer connection |
+| `backgroundBehavior` | `BackgroundBehavior` | `'suspend'` | What to do when the app moves to background |
+
+**`BackgroundBehavior`** controls the connection when the app is not in the foreground:
+
+| Value | Behavior |
+|-------|----------|
+| `'suspend'` | Pause the transport; resume on foreground (default) |
+| `'disconnect'` | Fully close the connection; reconnect on foreground |
+| `'keep-alive'` | Do nothing; connection stays open in background |
+
+**Return type:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `subscription` | `Subscription \| null` | Active subscription (null before connected) |
+| `state` | `ConnectionState` | Connection state |
+| `data` | `T \| null` | Last received message |
+| `error` | `Error \| null` | Last error |
+| `push` | `(msg) => void` | Send a message |
+| `isConnected` | `boolean` | Network connectivity (from NetInfo, defaults to `true`) |
+| `isInternetReachable` | `boolean` | Internet reachability (from NetInfo, defaults to `true`) |
+
+### useStreamingRN
+
+A React Native-aware version of `useStreaming` for AI/LLM streaming endpoints. Adds AppState tracking and NetInfo integration.
+
+```tsx
+import { useStreamingRN } from 'atmosphere.js/react-native';
+
+function AiChat() {
+  const { fullText, isStreaming, progress, send, reset, isConnected } = useStreamingRN({
+    request: { url: 'https://example.com/ai-chat', transport: 'websocket' },
+  });
+
+  return (
+    <View>
+      <Button title="Ask" onPress={() => send('What is Atmosphere?')} disabled={isStreaming || !isConnected} />
+      {isStreaming && <Text>{progress ?? 'Generating...'}</Text>}
+      <Text>{fullText}</Text>
+      <Button title="Clear" onPress={reset} />
+    </View>
+  );
+}
+```
+
+Same return type as the web `useStreaming` hook (see [above](#react----usestreaming)), plus:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `isConnected` | `boolean` | Network connectivity (from NetInfo, defaults to `true`) |
+
+Sends are suppressed when `isConnected` is `false`.
+
+### Metro bundler configuration
+
+When using `atmosphere.js` as a symlinked dependency (e.g., `file:../../atmosphere.js` in `package.json`), Metro requires extra configuration to resolve modules across the symlink boundary. Create or update `metro.config.js`:
+
+```javascript
+const { getDefaultConfig } = require('expo/metro-config');
+const path = require('path');
+
+const config = getDefaultConfig(__dirname);
+
+// Tell Metro to watch the linked atmosphere.js directory
+config.watchFolders = [
+  path.resolve(__dirname, '../../atmosphere.js'),
+];
+
+// Resolve modules from the app's node_modules first
+config.resolver.extraNodeModules = new Proxy({}, {
+  get: (target, name) => path.join(__dirname, 'node_modules', String(name)),
+});
+
+// Enable package.json "exports" field (needed for subpath imports)
+config.resolver.unstable_enablePackageExports = true;
+
+module.exports = config;
+```
+
+Key settings:
+
+- **`watchFolders`** -- allows Metro to see files outside the project root.
+- **`extraNodeModules` Proxy** -- ensures all `require()` calls resolve from the app's `node_modules`, preventing duplicate React copies.
+- **`unstable_enablePackageExports`** -- enables subpath imports like `atmosphere.js/react-native`.
+
+### Expo setup
+
+For Expo applications, use `registerRootComponent` in your entry point:
+
+```tsx
+import { registerRootComponent } from 'expo';
+import App from './App';
+
+registerRootComponent(App);
+```
+
+Call `setupReactNative()` early in your `App.tsx` before rendering any Atmosphere-connected components.
+
+**Expo SDK compatibility:** atmosphere.js requires Expo SDK 50+ (React Native 0.73+) for full streaming support. Older SDKs work but the EventSource polyfill falls back to text accumulation (effectively long-polling for SSE).
+
+### Sample
+
+See `samples/spring-boot-ai-classroom/expo-client/` for a complete Expo application that connects to a Spring Boot AI backend. It demonstrates four classroom rooms (Math, Code, Science, General) with real-time AI streaming using `useStreamingRN`.
 
 ## Durable Session Tokens
 
@@ -908,7 +1215,7 @@ socket.fire("Hello via gRPC!");
 - Transport negotiation and fallback are automatic
 - The `AtmosphereRooms` API provides join/leave/broadcast/direct messaging with presence tracking
 - Client-side interceptors transform messages in a middleware stack pattern
-- Framework-specific hooks are available for React (`useAtmosphere`, `useRoom`, `usePresence`), Vue (`useAtmosphere`, `useRoom`, `usePresence`), Svelte (`createAtmosphereStore`, `createRoomStore`, `createPresenceStore`), and React Native (`useAtmosphereRN`)
+- Framework-specific hooks are available for React (`useAtmosphere`, `useStreaming`, `useRoom`, `usePresence`), Vue (`useAtmosphere`, `useStreaming`, `useRoom`, `usePresence`), Svelte (`createAtmosphereStore`, `createStreamingStore`, `createRoomStore`, `createPresenceStore`), and React Native (`useAtmosphereRN`, `useStreamingRN`)
 - Durable session tokens are supported via the `sessionToken` request property
 - The Java client (wAsync) supports WebSocket, SSE, streaming, long-polling, and gRPC transports with encoders/decoders
 - The client pairs with `@ManagedService` on the server with no special configuration

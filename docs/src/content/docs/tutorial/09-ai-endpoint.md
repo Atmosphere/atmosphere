@@ -470,6 +470,60 @@ function AiChat() {
 
 `fullText` accumulates all `token` messages into a single string. `isStreaming` is `true` between `send()` and `complete`/`error`. `reset` clears the accumulated text for a new prompt.
 
+### Vue -- `useStreaming`
+
+The Vue composable provides the same API surface as the React hook, with all values returned as Vue `Ref` or `ComputedRef` objects:
+
+```vue
+<script setup lang="ts">
+import { useStreaming } from 'atmosphere.js/vue';
+
+const { fullText, isStreaming, progress, send, reset } = useStreaming(
+  { url: '/ai-chat', transport: 'websocket' },
+);
+</script>
+
+<template>
+  <button @click="send('What is Atmosphere?')" :disabled="isStreaming">Ask</button>
+  <span v-if="isStreaming">{{ progress ?? 'Generating...' }}</span>
+  <p>{{ fullText }}</p>
+  <button @click="reset">Clear</button>
+</template>
+```
+
+`fullText` is a `computed` ref that joins tokens automatically. Cleanup is handled via `onUnmounted`.
+
+### Svelte -- `createStreamingStore`
+
+The Svelte store follows the same store contract as `createAtmosphereStore`. Use `$store` auto-subscription syntax:
+
+```svelte
+<script>
+  import { createStreamingStore } from 'atmosphere.js/svelte';
+
+  const { store, send, reset } = createStreamingStore(
+    { url: '/ai-chat', transport: 'websocket' },
+  );
+</script>
+
+<button on:click={() => send('What is Atmosphere?')} disabled={$store.isStreaming}>Ask</button>
+{#if $store.isStreaming}
+  <span>{$store.progress ?? 'Generating...'}</span>
+{/if}
+<p>{$store.fullText}</p>
+<button on:click={reset}>Clear</button>
+```
+
+`$store.fullText`, `$store.isStreaming`, `$store.progress`, and `$store.error` update reactively. The store connects when the first subscriber appears and disconnects when all unsubscribe.
+
+## Sample
+
+The `samples/spring-boot-ai-chat/` sample contains the complete `AiChat` endpoint shown above, along with a browser client. Run it with:
+
+```bash
+./mvnw spring-boot:run -pl samples/spring-boot-ai-chat
+```
+
 ## Summary
 
 | Concept | Purpose |

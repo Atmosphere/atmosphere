@@ -392,3 +392,13 @@ The real power of Atmosphere's MCP module is that your MCP tools have full acces
 - **Inspect server state**: check framework version, async support type, broadcaster count.
 
 This means an AI agent can act as a **real-time chat moderator**, **notification system**, or **admin console** -- all through the standard MCP protocol that works with Claude Desktop, Cursor, and VS Code out of the box.
+
+## Sample
+
+The `samples/spring-boot-mcp-server/` sample contains the complete `DemoMcpServer` shown above, including a chat application that the MCP tools can interact with. Run it with:
+
+```bash
+./mvnw spring-boot:run -pl samples/spring-boot-mcp-server
+```
+
+Then connect from Claude Desktop, VS Code, or Cursor using the configuration examples in [Connecting AI clients](#connecting-ai-clients).

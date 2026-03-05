@@ -197,3 +197,41 @@ subscription.push(JSON.stringify({ author: 'Alice', message: 'Hello!' }));
 ```
 
 See [Chapter 19: atmosphere.js Client](/docs/tutorial/19-client/) for the full client API.
+
+## Reverse Proxy (Nginx)
+
+When deploying Atmosphere behind Nginx, the reverse proxy must be configured to pass WebSocket upgrade headers. Without this, WebSocket connections will fail and clients will fall back to long-polling.
+
+Add the following to your Nginx configuration:
+
+```nginx
+map $http_upgrade $connection_upgrade {
+    default Upgrade;
+    ''      close;
+}
+
+server {
+    listen 80;
+
+    location /chat {
+        proxy_pass http://127.0.0.1:8080/chat;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_buffering off;
+        proxy_ignore_client_abort off;
+    }
+}
+```
+
+Key settings:
+
+| Directive | Purpose |
+|-----------|---------|
+| `proxy_http_version 1.1` | Required for WebSocket; HTTP/1.0 does not support connection upgrades |
+| `proxy_set_header Upgrade` | Forwards the client's `Upgrade: websocket` header to the backend |
+| `proxy_set_header Connection` | Sets `Connection: Upgrade` when upgrading, `close` otherwise |
+| `proxy_buffering off` | Disables response buffering so long-polling and SSE responses are delivered immediately |
+| `proxy_ignore_client_abort off` | Ensures the backend is notified when the client disconnects |
+
+For TLS termination at Nginx, change `proxy_pass` to `http://` (not `https://`) if the backend is plain HTTP, and add your `ssl_certificate` / `ssl_certificate_key` directives to the `server` block.

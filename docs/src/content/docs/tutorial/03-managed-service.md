@@ -424,6 +424,77 @@ public class Chat {
 }
 ```
 
+## HttpSession Support
+
+By default, Atmosphere does not create or track HTTP sessions. If your application uses `HttpSession` (e.g., for authentication or user state), you must tell Atmosphere to participate in session management. This is especially important for WebSocket connections, where session handling varies across servlet containers.
+
+### Enabling Session Support
+
+Add the `SessionSupport` listener and the `sessionSupport` parameter to `web.xml`:
+
+```xml
+<listener>
+    <listener-class>org.atmosphere.cpr.SessionSupport</listener-class>
+</listener>
+
+<context-param>
+    <param-name>org.atmosphere.cpr.sessionSupport</param-name>
+    <param-value>true</param-value>
+</context-param>
+```
+
+### Accessing the Session
+
+Once enabled, you can access the `HttpSession` from any `AtmosphereResource`:
+
+```java
+@Ready
+public void onReady(AtmosphereResource r) {
+    var session = r.session();
+    var username = (String) session.getAttribute("username");
+    logger.info("User {} connected", username);
+}
+```
+
+The `r.session()` method returns the `jakarta.servlet.http.HttpSession`. Use `r.session(false)` to get `null` instead of creating a new session if one does not exist.
+
+## AtmosphereResourceSession
+
+While `HttpSession` is shared across all connections from the same browser, an `AtmosphereResourceSession` provides per-connection server-side storage. Each `AtmosphereResource` can have its own session that lives from creation until the client disconnects.
+
+### Getting the Factory
+
+Inject the `AtmosphereResourceSessionFactory`:
+
+```java
+@Inject
+private AtmosphereResourceSessionFactory sessionFactory;
+```
+
+### Storing and Retrieving Attributes
+
+```java
+@Ready
+public void onReady(AtmosphereResource r) {
+    var session = sessionFactory.getSession(r);
+    session.setAttribute("connectedAt", Instant.now());
+}
+
+@Disconnect
+public void onDisconnect(AtmosphereResource r) {
+    var session = sessionFactory.getSession(r, false);
+    if (session != null) {
+        var connectedAt = session.getAttribute("connectedAt", Instant.class);
+        logger.info("Client was connected for {}",
+            Duration.between(connectedAt, Instant.now()));
+    }
+}
+```
+
+The two-argument `getSession(resource, false)` returns `null` if no session exists yet, avoiding unnecessary session creation. The one-argument `getSession(resource)` always creates a session if one does not exist.
+
+This is useful for attaching per-connection metadata (user identity, preferences, state) without coupling to the servlet `HttpSession`.
+
 ## Next Steps
 
 The next chapter covers how Atmosphere handles multiple transports transparently and how to use `@WebSocketHandlerService` for lower-level WebSocket access.
