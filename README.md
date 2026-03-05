@@ -61,7 +61,7 @@ public class Chat {
 
 ## What's New in 4.0 ([full list](docs/whats-new-4.0.md))
 
-Atmosphere applies the same philosophy to AI: **your code shouldn't care which AI framework is on the classpath.** Tools, conversation memory, guardrails, routing, and observability are declared once with Atmosphere annotations and automatically bridged to Spring AI, LangChain4j, Google ADK, or Embabel at runtime.
+Atmosphere applies the same philosophy to AI: **your code shouldn't care which AI framework is on the classpath.** Tools (`@AiTool`), conversation memory, guardrails, multi-backend routing, metrics, and observability are declared once with Atmosphere annotations and automatically bridged to Spring AI, LangChain4j, Google ADK, or Embabel at runtime. Per-endpoint model selection, auto-detected persistence (Redis/SQLite), and broadcast filter auto-registration round out the platform.
 
 ```java
 @AiEndpoint(path = "/ai/chat",
