@@ -1,6 +1,8 @@
 ---
 title: "Chapter 6: Rooms & Presence"
 description: "Higher-level room abstraction with presence tracking, member metadata, message history, and AI virtual members"
+sidebar:
+  order: 6
 ---
 
 The [previous chapter](/docs/tutorial/05-broadcaster/) covered Broadcasters -- the low-level pub/sub primitive in Atmosphere. Broadcasters are powerful but sometimes too low-level: they deal in `AtmosphereResource` UUIDs (connection-scoped, unstable across reconnects) and have no built-in concept of "who is in the channel" or "what did I miss."
@@ -12,6 +14,7 @@ The **Room** API, introduced in Atmosphere 4.0, sits on top of Broadcasters and 
 - **Message history** -- new joiners automatically receive the last N messages
 - **Virtual members** -- AI agents that participate like human members
 - **Direct messaging** -- send to a specific member by UUID
+- **Authorization** -- control who can join, broadcast, or send direct messages
 
 ## RoomManager
 
@@ -46,7 +49,7 @@ int count = rooms.count();
 
 ```java
 // Destroy a single room (removes all members, releases Broadcaster)
-rooms.destroy("lobby");
+boolean wasDestroyed = rooms.destroy("lobby");
 
 // Destroy all rooms
 rooms.destroyAll();
@@ -69,6 +72,12 @@ The simplest join -- just an `AtmosphereResource`:
 ```java
 Room lobby = rooms.room("lobby");
 lobby.join(resource);
+```
+
+Both `join` and `leave` return the `Room` itself, so calls can be chained:
+
+```java
+rooms.room("lobby").join(resource).enableHistory(50);
 ```
 
 ### Joining with Member Metadata
@@ -94,7 +103,7 @@ public record RoomMember(String id, Map<String, Object> metadata) {
 }
 ```
 
-The `id` is distinct from the `AtmosphereResource.uuid()`. The resource UUID changes every time the client reconnects; the `RoomMember.id` stays the same. This distinction is important for presence tracking and for clients that need to display consistent identities.
+The `id` is distinct from `AtmosphereResource.uuid()`. The resource UUID changes every time the client reconnects; the `RoomMember.id` stays the same. This distinction is important for presence tracking and for clients that need to display consistent identities.
 
 A convenience constructor is available when you don't need metadata:
 
@@ -142,7 +151,7 @@ alice.ifPresent(m -> log.info("Member: {} ({})", m.id(), m.metadata()));
 lobby.broadcast("Hello, everyone!");
 ```
 
-This delivers the message to all members of the room, including virtual members.
+Both `broadcast` methods return a `Future<Object>` that completes when the broadcast is delivered. This message is delivered to all members of the room, including virtual members.
 
 ### Broadcast to Everyone Except the Sender
 
@@ -196,23 +205,11 @@ public record PresenceEvent(Type type, Room room, AtmosphereResource member, Roo
 | `member()` | The `AtmosphereResource` (null for virtual members) |
 | `memberInfo()` | The `RoomMember` with id and metadata (null if not provided at join) |
 
-### Broadcasting Presence to Clients
+`PresenceEvent` has three constructors:
 
-A common pattern is to broadcast the presence event itself so all clients update their member lists:
-
-```java
-lobby.onPresence(event -> {
-    var notification = Map.of(
-        "type", "presence",
-        "event", event.type().name(),
-        "memberId", event.memberInfo() != null ? event.memberInfo().id() : "unknown",
-        "metadata", event.memberInfo() != null ? event.memberInfo().metadata() : Map.of(),
-        "roomSize", event.room().size(),
-        "isVirtual", event.isVirtual()
-    );
-    lobby.broadcast(new ObjectMapper().writeValueAsString(notification));
-});
-```
+- `(Type, Room, AtmosphereResource, RoomMember)` -- full form
+- `(Type, Room, AtmosphereResource)` -- convenience without member info
+- `(Type, Room, RoomMember)` -- for virtual member events (no `AtmosphereResource`)
 
 ### Multiple Presence Listeners
 
@@ -222,10 +219,7 @@ You can register multiple listeners. They are all invoked on every presence even
 // Listener 1: logging
 lobby.onPresence(event -> log.info("Presence: {} {}", event.type(), event.memberInfo()));
 
-// Listener 2: analytics
-lobby.onPresence(event -> analytics.track("room_presence", event));
-
-// Listener 3: auto-cleanup
+// Listener 2: auto-cleanup
 lobby.onPresence(event -> {
     if (event.type() == PresenceEvent.Type.LEAVE && lobby.isEmpty()) {
         log.info("Room '{}' is empty, considering cleanup", lobby.name());
@@ -248,43 +242,6 @@ When a new member joins, they automatically receive up to 100 recent messages, l
 
 Call `enableHistory` once when you set up the room. The history size is the maximum number of messages retained -- older messages are evicted as new ones arrive.
 
-### Complete Setup Example
-
-```java
-@ManagedService(path = "/room-manager")
-public class RoomManagerEndpoint {
-
-    @Inject
-    private AtmosphereFramework framework;
-
-    private RoomManager rooms;
-
-    @Ready
-    public void onReady() {
-        if (rooms == null) {
-            rooms = RoomManager.getOrCreate(framework);
-            setupRooms();
-        }
-    }
-
-    private void setupRooms() {
-        // Create rooms with history
-        Room general = rooms.room("general");
-        general.enableHistory(200);
-
-        Room support = rooms.room("support");
-        support.enableHistory(50);
-
-        // Set up presence logging for all rooms
-        rooms.all().forEach(room ->
-            room.onPresence(event ->
-                log.info("[{}] {} {}", room.name(), event.type(),
-                    event.memberInfo() != null ? event.memberInfo().id() : "anonymous"))
-        );
-    }
-}
-```
-
 ## AI Virtual Members
 
 A `VirtualRoomMember` is a non-connection participant -- an AI agent, bot, or server-side service that receives room messages and can respond. Unlike human members backed by WebSocket or SSE connections, virtual members have no underlying transport. They participate purely through the `onMessage` callback.
@@ -304,30 +261,11 @@ public interface VirtualRoomMember {
 }
 ```
 
-### LlmRoomMember: AI-Powered Virtual Member
-
-The `atmosphere-ai` module provides `LlmRoomMember`, which connects an LLM to a room. When any human member sends a message, the LLM processes it and broadcasts a response back to the room.
-
-```java
-import org.atmosphere.ai.LlmRoomMember;
-
-var client = AiConfig.get().client();  // OpenAI-compatible client
-var assistant = new LlmRoomMember("assistant", client, "gpt-4o",
-    "You are a helpful coding assistant. Keep responses concise.");
-
-Room devChat = rooms.room("dev-chat");
-devChat.joinVirtual(assistant);
-```
-
-Now when any human member broadcasts a message in `dev-chat`, the `assistant` receives it via `onMessage`, sends it to the LLM, and broadcasts the response back to all human members.
-
-Key behaviors of `LlmRoomMember`:
-
-- **Self-loop prevention** -- it ignores messages from its own `id`, preventing infinite response loops
-- **Blank message filtering** -- empty or whitespace-only messages are ignored
-- **Virtual thread execution** -- LLM calls run on virtual threads to avoid blocking the Broadcaster
-- **Presence participation** -- virtual members appear in presence events with `isVirtual() == true`
-- **Metadata** -- includes `"type": "llm"` and `"model": "<model-name>"` in its metadata
+| Method | Description |
+|--------|-------------|
+| `id()` | Stable identifier for this virtual member (e.g., "assistant", "bot-1") |
+| `onMessage(room, senderId, message)` | Called when a message is broadcast in the room. Must be thread-safe. |
+| `metadata()` | Optional metadata for presence events (e.g., display name, avatar) |
 
 ### Custom Virtual Members
 
@@ -362,6 +300,20 @@ Register it:
 room.joinVirtual(new WelcomeBot());
 ```
 
+### LlmRoomMember: AI-Powered Virtual Member
+
+The `atmosphere-ai` module provides `LlmRoomMember`, which connects an LLM to a room. When any human member sends a message, the LLM processes it and broadcasts a response back to the room:
+
+```java
+import org.atmosphere.ai.LlmRoomMember;
+
+var assistant = new LlmRoomMember("assistant", client, "gemini-2.5-flash",
+    "You are a helpful coding assistant. Keep responses concise.");
+
+Room devChat = rooms.room("dev-chat");
+devChat.joinVirtual(assistant);
+```
+
 ### Managing Virtual Members
 
 ```java
@@ -374,142 +326,290 @@ room.leaveVirtual(assistant);
 
 Removing a virtual member fires a `LEAVE` presence event with `isVirtual() == true`.
 
-## Multiple Rooms Per User
+## RoomProtocolInterceptor
 
-A single client can be a member of multiple rooms simultaneously. This is common in applications with channels, topics, or workspaces.
+The `RoomProtocolInterceptor` bridges the atmosphere.js client room protocol to the server-side Room API. It intercepts JSON messages from clients, decodes them via `RoomProtocolCodec`, and routes them to the appropriate `Room` operations.
+
+It handles four message types:
+
+| Message | Action |
+|---------|--------|
+| `Join` | Calls `room.join()`, sends join ack with member list, broadcasts presence, replays cached messages |
+| `Leave` | Calls `room.leave()`, broadcasts leave presence |
+| `Broadcast` | Calls `room.broadcast()` with sender exclusion |
+| `Direct` | Resolves member ID to resource UUID, calls `room.sendTo()` |
+
+The interceptor uses JDK 21 pattern matching to dispatch messages:
 
 ```java
-@ManagedService(path = "/chat")
-public class MultiRoomChat {
+switch (message) {
+    case RoomProtocolMessage.Join join -> handleJoin(r, join);
+    case RoomProtocolMessage.Leave leave -> handleLeave(r, leave);
+    case RoomProtocolMessage.Broadcast broadcast -> handleBroadcast(r, broadcast);
+    case RoomProtocolMessage.Direct direct -> handleDirect(r, direct);
+}
+```
 
-    @Inject
-    private AtmosphereFramework framework;
+It runs with `BEFORE_DEFAULT` priority so it processes messages before `BroadcastOnPostAtmosphereInterceptor`, and it returns `Action.CANCELLED` after handling a room protocol message to prevent downstream interceptors from re-broadcasting.
 
-    @Inject
-    private AtmosphereResource resource;
+## RoomInterceptor: URL-Based Auto-Join
 
-    private RoomManager rooms;
+The `RoomInterceptor` provides automatic room joining based on URL path. When a client connects to a URL matching the base path, they are automatically joined to the room whose name is extracted from the remaining path segment:
+
+```java
+RoomManager rooms = RoomManager.create(framework);
+framework.interceptor(new RoomInterceptor(rooms));
+// Requests to /room/lobby auto-join the "lobby" room
+// Requests to /room/general auto-join the "general" room
+```
+
+You can customize the base path:
+
+```java
+framework.interceptor(new RoomInterceptor(rooms, "/chat/"));
+// Now /chat/lobby -> room "lobby"
+// /chat/support -> room "support"
+```
+
+This is useful when you want simple URL-driven room assignment without requiring clients to send an explicit join message via the room protocol.
+
+### Authorization
+
+The `RoomProtocolInterceptor` supports authorization via `@RoomAuth` and `RoomAuthorizer`. Annotate your `AtmosphereHandler` class:
+
+```java
+@RoomAuth(authorizer = MyAuthorizer.class)
+public class ChatHandler extends OnMessage<String> { ... }
+```
+
+The authorizer is a functional interface:
+
+```java
+@FunctionalInterface
+public interface RoomAuthorizer {
+    boolean authorize(AtmosphereResource resource, String roomName, RoomAction action);
+}
+```
+
+Where `RoomAction` is an enum: `JOIN`, `LEAVE`, `BROADCAST`, `SEND_TO`.
+
+## @RoomService Annotation
+
+For a simplified annotation-driven approach, `@RoomService` marks a class as a room handler. It works like `@ManagedService` but is scoped to a `Room`:
+
+```java
+@RoomService(path = "/chat/{roomId}", maxHistory = 100)
+public class ChatRoom {
 
     @Ready
-    public void onReady() {
-        rooms = RoomManager.getOrCreate(framework);
+    public void onJoin(AtmosphereResource r) {
+        // invoked when a client joins the room
     }
 
     @Message
-    public void onMessage(String rawMessage) {
-        var msg = parseCommand(rawMessage);
+    public String onMessage(String message) {
+        return message; // broadcast to all room members
+    }
 
-        switch (msg.command()) {
-            case "join" -> {
-                var member = new RoomMember(msg.userId(), Map.of("name", msg.displayName()));
-                rooms.room(msg.roomName()).join(resource, member);
-            }
-            case "leave" -> {
-                rooms.room(msg.roomName()).leave(resource);
-            }
-            case "send" -> {
-                rooms.room(msg.roomName()).broadcast(msg.text(), resource);
-            }
-            case "list" -> {
-                var roomList = rooms.all().stream()
-                    .map(r -> r.name() + " (" + r.size() + " members)")
-                    .toList();
-                // Send the list back to just this client
-                resource.write(new ObjectMapper().writeValueAsString(roomList));
-            }
-        }
+    @Disconnect
+    public void onLeave(AtmosphereResourceEvent event) {
+        // invoked when a client disconnects
     }
 }
 ```
 
-## Client Integration
+| Attribute | Description | Default |
+|-----------|-------------|---------|
+| `path` | Mapping path; supports path parameters like `{roomId}` | `"/"` |
+| `maxHistory` | Maximum messages to keep in room history (0 = disabled) | `0` |
 
-The `atmosphere.js` library provides React hooks for rooms and presence.
+## Complete Example: Spring Boot Room Setup
 
-### useRoom Hook
+The following code is from the `spring-boot-chat` sample (`RoomsConfig.java`):
+
+```java
+@Configuration
+public class RoomsConfig {
+
+    private static final Logger logger = LoggerFactory.getLogger(RoomsConfig.class);
+
+    private final AtmosphereFramework framework;
+
+    public RoomsConfig(AtmosphereFramework framework) {
+        this.framework = framework;
+    }
+
+    @Bean
+    public RoomManager roomManager() {
+        return RoomManager.getOrCreate(framework);
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void setupRooms() {
+        var interceptor = new RoomProtocolInterceptor();
+        interceptor.configure(framework.getAtmosphereConfig());
+        framework.interceptor(interceptor);
+
+        RoomManager manager = roomManager();
+        Room lobby = manager.room("lobby");
+        lobby.enableHistory(50);
+
+        lobby.onPresence(event -> {
+            var memberInfo = event.memberInfo();
+            var memberId = memberInfo != null ? memberInfo.id() : event.member().uuid();
+            logger.info("Room '{}': {} {} (members: {})",
+                    event.room().name(),
+                    memberId,
+                    event.type(),
+                    event.room().size());
+        });
+    }
+}
+```
+
+Key points:
+
+1. `RoomManager.getOrCreate(framework)` is exposed as a Spring `@Bean` so other components can inject it
+2. `RoomProtocolInterceptor` is registered at application startup
+3. The lobby room is pre-provisioned with 50-message history
+4. Presence events are logged with member identity
+
+## Exposing Rooms via REST
+
+The `ChatRoomsController` from the same sample exposes room data as a REST API:
+
+```java
+@RestController
+@RequestMapping("/api/rooms")
+public class ChatRoomsController {
+
+    private final RoomManager roomManager;
+
+    public ChatRoomsController(RoomManager roomManager) {
+        this.roomManager = roomManager;
+    }
+
+    @GetMapping
+    public List<Map<String, Object>> listRooms() {
+        return roomManager.all().stream()
+                .map(room -> {
+                    var map = new HashMap<String, Object>();
+                    map.put("name", room.name());
+                    map.put("members", room.size());
+                    map.put("destroyed", room.isDestroyed());
+                    var memberList = room.memberInfo().values().stream()
+                            .map(m -> {
+                                var mMap = new HashMap<String, Object>();
+                                mMap.put("id", m.id());
+                                mMap.put("metadata", m.metadata());
+                                return (Map<String, Object>) mMap;
+                            })
+                            .toList();
+                    map.put("memberDetails", memberList);
+                    return (Map<String, Object>) map;
+                })
+                .toList();
+    }
+}
+```
+
+This returns JSON like:
+
+```json
+[
+  {
+    "name": "lobby",
+    "members": 3,
+    "destroyed": false,
+    "memberDetails": [
+      { "id": "alice", "metadata": { "displayName": "Alice Chen" } },
+      { "id": "bob", "metadata": { "displayName": "Bob Smith" } }
+    ]
+  }
+]
+```
+
+## Client Framework Hooks
+
+atmosphere.js 5.0 includes room hooks for React, Vue, and Svelte. These hooks manage the full lifecycle -- connection, room join/leave, presence tracking, and reactive state updates. Import from the framework-specific sub-path:
+
+### React
 
 ```tsx
 import { useRoom } from 'atmosphere.js/react';
 
-interface ChatMessage {
-  text: string;
-  sender: string;
-}
+function ChatRoom() {
+    const { members, messages, broadcast } = useRoom<ChatMessage>({
+        request: { url: '/atmosphere/chat', transport: 'websocket' },
+        room: 'lobby',
+        member: { id: 'alice' },
+    });
 
-function ChatRoom({ roomName, userId }: { roomName: string; userId: string }) {
-  const { joined, members, messages, broadcast } = useRoom<ChatMessage>({
-    request: {
-      url: '/atmosphere/room',
-      transport: 'websocket',
-    },
-    room: roomName,
-    member: { id: userId },
-  });
-
-  const [input, setInput] = useState('');
-
-  const send = () => {
-    broadcast({ text: input, sender: userId });
-    setInput('');
-  };
-
-  if (!joined) return <p>Connecting...</p>;
-
-  return (
-    <div>
-      <h2>{roomName} ({members.length} online)</h2>
-      <div>
-        {messages.map((msg, i) => (
-          <div key={i}>
-            <strong>{msg.data.sender}:</strong> {msg.data.text}
-          </div>
-        ))}
-      </div>
-      <input value={input} onChange={e => setInput(e.target.value)} />
-      <button onClick={send}>Send</button>
-    </div>
-  );
+    return (
+        <div>
+            <p>Members: {members.map(m => m.id).join(', ')}</p>
+            {messages.map((msg, i) => <p key={i}>{msg.member.id}: {msg.data}</p>)}
+            <button onClick={() => broadcast({ text: 'Hello!' })}>Send</button>
+        </div>
+    );
 }
 ```
 
-### usePresence Hook
+React hooks require an `AtmosphereProvider` ancestor that holds the shared `Atmosphere` client instance.
 
-For components that only need presence data without full room messaging:
+### Vue
 
-```tsx
-import { usePresence } from 'atmosphere.js/react';
+```vue
+<script setup lang="ts">
+import { useRoom } from 'atmosphere.js/vue';
 
-function OnlineIndicator({ roomName, userId }: { roomName: string; userId: string }) {
-  const { count, isOnline, members } = usePresence({
-    request: {
-      url: '/atmosphere/room',
-      transport: 'websocket',
-    },
-    room: roomName,
-    member: { id: userId },
-  });
+const { members, messages, broadcast } = useRoom<ChatMessage>(
+    { url: '/atmosphere/chat', transport: 'websocket' },
+    'lobby',
+    { id: 'alice' },
+);
+</script>
 
-  return (
-    <div>
-      <span className={isOnline ? 'green' : 'gray'}>
-        {count} online
-      </span>
-      <ul>
-        {members.map(m => (
-          <li key={m.id}>
-            {m.metadata?.displayName || m.id}
-            {m.metadata?.type === 'llm' && ' (AI)'}
-          </li>
-        ))}
-      </ul>
+<template>
+  <div v-if="members">
+    <p>{{ members.length }} members online</p>
+    <div v-for="msg in messages" :key="msg.data.text">
+      <b>{{ msg.member.id }}</b>: {{ msg.data.text }}
     </div>
-  );
-}
+    <button @click="broadcast({ text: 'Hello!' })">Send</button>
+  </div>
+</template>
 ```
 
-### Vue and Svelte
+All returned values are Vue `Ref` objects -- they update reactively in templates and watchers. No provider is needed.
 
-Equivalent composables and stores are available for Vue (`useRoom`, `usePresence`) and Svelte (`roomStore`, `presenceStore`). See the [atmosphere.js client reference](/docs/clients/javascript/) for details.
+### Svelte
+
+```svelte
+<script>
+import { createRoomStore } from 'atmosphere.js/svelte';
+
+const { store: lobby, broadcast } = createRoomStore(
+    { url: '/atmosphere/chat', transport: 'websocket' },
+    'lobby',
+    { id: 'alice' },
+);
+</script>
+
+{#if $lobby.joined}
+  <p>{$lobby.members.length} members online</p>
+  {#each $lobby.messages as msg}
+    <p><b>{msg.member.id}</b>: {msg.data}</p>
+  {/each}
+  <button on:click={() => broadcast('Hello!')}>Send</button>
+{:else}
+  <p>Joining room...</p>
+{/if}
+```
+
+Svelte hooks use the Svelte store contract. Use `$store` auto-subscription syntax for reactive access.
+
+All framework hooks handle automatic connection on mount, cleanup on unmount, reconnection, and full TypeScript generics for message types.
 
 ## Room vs. Broadcaster: When to Use Which
 
@@ -521,7 +621,6 @@ Equivalent composables and stores are available for Vue (`useRoom`, `usePresence
 | Application-level member identity (survives reconnect) | `Room` with `RoomMember` |
 | AI agents participating in a conversation | `Room` with `VirtualRoomMember` |
 | Fine-grained message filtering per subscriber | `Broadcaster` with `PerRequestBroadcastFilter` |
-| Cross-channel message routing | `BroadcasterFactory.lookup()` |
 | Custom lifecycle management | `Broadcaster` with `BroadcasterLifeCyclePolicy` |
 
 The Room API does not replace Broadcasters -- it wraps them. Every Room is backed by a Broadcaster at `/atmosphere/room/<name>`. If you need both Room features and Broadcaster features (like custom filters or lifecycle policies), you can access the underlying Broadcaster through the `BroadcasterFactory`:
@@ -530,86 +629,6 @@ The Room API does not replace Broadcasters -- it wraps them. Every Room is backe
 Room lobby = rooms.room("lobby");
 Broadcaster underlying = factory.lookup("/atmosphere/room/lobby");
 underlying.getBroadcasterConfig().addFilter(new ProfanityFilter());
-```
-
-## Complete Example: Team Chat Application
-
-```java
-@ManagedService(path = "/team-chat")
-public class TeamChat {
-
-    @Inject
-    private AtmosphereFramework framework;
-
-    @Inject
-    private AtmosphereResource resource;
-
-    private RoomManager rooms;
-    private final ObjectMapper mapper = new ObjectMapper();
-
-    @Ready
-    public void onReady() {
-        rooms = RoomManager.getOrCreate(framework);
-    }
-
-    @Message
-    public void onMessage(String raw) throws Exception {
-        var cmd = mapper.readValue(raw, ChatCommand.class);
-
-        switch (cmd.action()) {
-            case "join" -> joinRoom(cmd);
-            case "leave" -> leaveRoom(cmd);
-            case "message" -> sendMessage(cmd);
-        }
-    }
-
-    private void joinRoom(ChatCommand cmd) {
-        Room room = rooms.room(cmd.room());
-        room.enableHistory(100);
-
-        room.onPresence(event -> {
-            try {
-                var json = mapper.writeValueAsString(Map.of(
-                    "type", "presence",
-                    "action", event.type().name().toLowerCase(),
-                    "member", event.memberInfo() != null
-                        ? event.memberInfo().id() : "unknown",
-                    "room", event.room().name(),
-                    "online", event.room().size()
-                ));
-                room.broadcast(json);
-            } catch (Exception e) {
-                // log and continue
-            }
-        });
-
-        var member = new RoomMember(cmd.userId(), Map.of(
-            "displayName", cmd.displayName(),
-            "avatar", cmd.avatar()
-        ));
-        room.join(resource, member);
-    }
-
-    private void leaveRoom(ChatCommand cmd) {
-        if (rooms.exists(cmd.room())) {
-            rooms.room(cmd.room()).leave(resource);
-        }
-    }
-
-    private void sendMessage(ChatCommand cmd) throws Exception {
-        var json = mapper.writeValueAsString(Map.of(
-            "type", "message",
-            "room", cmd.room(),
-            "sender", cmd.userId(),
-            "text", cmd.text(),
-            "timestamp", Instant.now().toString()
-        ));
-        rooms.room(cmd.room()).broadcast(json, resource);
-    }
-
-    record ChatCommand(String action, String room, String userId,
-                        String displayName, String avatar, String text) {}
-}
 ```
 
 ## Summary
@@ -621,7 +640,9 @@ public class TeamChat {
 | `RoomMember` | Application-level identity (id + metadata), stable across reconnects |
 | `PresenceEvent` | Notification of JOIN/LEAVE with member info |
 | `VirtualRoomMember` | Non-connection participant (bot, AI agent, service) |
-| `LlmRoomMember` | LLM-powered virtual member that responds to room messages |
+| `RoomProtocolInterceptor` | Bridges atmosphere.js room protocol to server-side Room API |
+| `@RoomService` | Annotation-driven room handler (like `@ManagedService` for rooms) |
+| `RoomAuthorizer` | Functional interface for authorizing room operations |
 | `enableHistory(n)` | Replay last N messages to new joiners |
 
 In the [next chapter](/docs/tutorial/07-websocket/), you will dive deeper into the WebSocket transport layer with `@WebSocketHandlerService` for cases where you need direct control over WebSocket frames, binary messages, and protocol-level details.

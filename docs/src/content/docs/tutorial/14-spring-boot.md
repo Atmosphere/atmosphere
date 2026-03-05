@@ -1,188 +1,52 @@
 ---
-title: "Chapter 14: Spring Boot Integration"
-description: "Integrate Atmosphere with Spring Boot 4.0 using the auto-configured starter, including gRPC, actuator health, Micrometer metrics, OpenTelemetry tracing, and GraalVM native images."
+title: "Spring Boot Integration"
+description: "Integrate Atmosphere with Spring Boot 4.0 using the auto-configured starter"
+sidebar:
+  order: 14
 ---
 
-Spring Boot is the most popular way to run Atmosphere in production. The `atmosphere-spring-boot-starter` gives you a single dependency that auto-configures the servlet, wires Spring DI into your `@ManagedService` classes, and lights up observability features the moment their libraries appear on the classpath.
+The `atmosphere-spring-boot-starter` module provides auto-configuration for Spring Boot 4.0.2 (Spring Framework 7.0). Add it as a dependency and your `@ManagedService` classes work out of the box.
 
-This chapter covers everything from a minimal `application.yml` to GraalVM native image compilation.
-
-## Prerequisites
-
-- JDK 21+
-- Spring Boot **4.0.2** (Spring Framework 7.0)
-- An existing Spring Boot web application (or we will create one from scratch)
-
-## Adding the Dependency
-
-Add the starter to your `pom.xml`:
+## Dependency
 
 ```xml
-<dependencyManagement>
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-dependencies</artifactId>
-            <version>4.0.2</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-    </dependencies>
-</dependencyManagement>
-
-<dependencies>
-    <dependency>
-        <groupId>org.atmosphere</groupId>
-        <artifactId>atmosphere-spring-boot-starter</artifactId>
-        <version>4.0.10</version>
-    </dependency>
-
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-web</artifactId>
-    </dependency>
-
-    <dependency>
-        <groupId>jakarta.inject</groupId>
-        <artifactId>jakarta.inject-api</artifactId>
-    </dependency>
-</dependencies>
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-spring-boot-starter</artifactId>
+    <version>4.0.11-SNAPSHOT</version>
+</dependency>
 ```
 
-The starter transitively brings in `atmosphere-runtime`. You do not need to add it separately.
+## What the starter auto-configures
 
-## application.yml Configuration
+The `AtmosphereAutoConfiguration` class activates when:
 
-The starter reads properties under the `atmosphere` prefix. Here is a complete reference with defaults:
+- The application is a servlet-based web application.
+- `AtmosphereServlet` is on the classpath.
+- The property `atmosphere.enabled` is not set to `false` (defaults to `true`).
 
-```yaml
-atmosphere:
-  # Comma-separated packages to scan for @ManagedService, @AtmosphereHandlerService, etc.
-  packages: com.example.realtime
+It registers the following beans:
 
-  # URL pattern for the Atmosphere servlet
-  servlet-path: /atmosphere/*
-
-  # Servlet load-on-startup order (default: 0)
-  order: 0
-
-  # Enable HTTP session tracking
-  session-support: false
-
-  # Override the default broadcaster implementation (fully qualified class name)
-  broadcaster-class: null
-
-  # Override the default broadcaster cache (fully qualified class name)
-  broadcaster-cache-class: null
-
-  # Enable/disable WebSocket transport (null = auto-detect)
-  websocket-support: null
-
-  # Heartbeat interval in seconds (null = framework default)
-  heartbeat-interval-in-seconds: null
-
-  # Durable session support (requires atmosphere-durable-sessions on classpath)
-  durable-sessions:
-    enabled: false
-    session-ttl-minutes: 1440
-    cleanup-interval-seconds: 60
-
-  # gRPC transport (requires atmosphere-grpc on classpath)
-  grpc:
-    enabled: false
-    port: 9090
-    enable-reflection: true
-
-  # Additional init parameters passed directly to the servlet
-  init-params:
-    org.atmosphere.cpr.maxInactiveActivity: "120000"
-```
-
-The only property you almost always need is `atmosphere.packages` -- without it, the annotation scanner will not find your `@ManagedService` classes.
-
-## What Gets Auto-Configured
-
-When the starter is on the classpath and `atmosphere.enabled` is not set to `false`, the `AtmosphereAutoConfiguration` class registers these beans:
-
-| Bean | Type | Purpose |
-|------|------|---------|
-| `atmosphereServlet` | `AtmosphereServlet` | The framework servlet, pre-configured with annotation scanning results |
-| `atmosphereFramework` | `AtmosphereFramework` | The core framework instance (extracted from the servlet) |
-| `springAtmosphereObjectFactory` | `SpringAtmosphereObjectFactory` | Bridges Spring DI and Atmosphere's object factory |
-| `roomManager` | `RoomManager` | Room management, created via `RoomManager.getOrCreate(framework)` |
-| `atmosphereLifecycle` | `AtmosphereLifecycle` | Graceful shutdown integration with Spring Boot |
+| Bean | Type | Description |
+|------|------|-------------|
+| `atmosphereServlet` | `AtmosphereServlet` | The core Atmosphere servlet, with annotation scanning pre-configured |
+| `atmosphereFramework` | `AtmosphereFramework` | The framework instance, extracted from the servlet |
+| `springAtmosphereObjectFactory` | `SpringAtmosphereObjectFactory` | Bridges Spring's `ApplicationContext` to Atmosphere's object factory, enabling `@Inject` in `@ManagedService` classes |
+| `roomManager` | `RoomManager` | The Rooms API manager |
+| `atmosphereLifecycle` | `AtmosphereLifecycle` | Handles framework lifecycle (startup/shutdown) |
 | `atmosphereServletRegistration` | `ServletRegistrationBean` | Registers the servlet with the embedded container |
 
-The `AtmosphereActuatorAutoConfiguration` adds:
+The starter exposes `AtmosphereFramework` as a bean, but does **not** expose `BroadcasterFactory` as a bean. To access it, inject `AtmosphereFramework` and call `framework.getAtmosphereConfig().getBroadcasterFactory()`, or use `@Inject BroadcasterFactory` inside `@ManagedService` classes (which goes through Atmosphere's own injection).
 
-| Bean | Condition | Purpose |
-|------|-----------|---------|
-| `atmosphereHealthIndicator` | `HealthIndicator` on classpath | Reports framework health to `/actuator/health` |
+### Annotation scanning
 
-Each bean is `@ConditionalOnMissingBean`, so you can override any of them by declaring your own.
+Spring Boot's embedded containers do not process `@HandlesTypes` from `ServletContainerInitializer`, so Atmosphere's built-in annotation scanning receives no classes. The starter bridges this gap by using Spring's `ClassPathScanningCandidateComponentProvider` to scan for all Atmosphere annotations (including `@ManagedService`, `@AtmosphereHandlerService`, `@BroadcasterFilterService`, `@RoomService`, and many more) and injecting the results into the servlet context before `framework.init()` reads them.
 
-## Spring DI Integration
+The starter also performs a second pass to discover custom annotation types registered via `@AtmosphereAnnotation` processors (e.g., the AI module's `@AiEndpoint` processor), and re-scans user packages for classes annotated with those custom annotations.
 
-The `SpringAtmosphereObjectFactory` bridges Spring's `ApplicationContext` with Atmosphere's object lifecycle. Your `@ManagedService` classes can use either `@Inject` (Jakarta CDI) or `@Autowired` (Spring) to inject beans:
+## Application class
 
-```java
-@ManagedService(path = "/chat")
-public class ChatService {
-
-    // Atmosphere-managed objects -- injected by the framework
-    @Inject
-    private AtmosphereResource resource;
-
-    @Inject
-    private BroadcasterFactory broadcasterFactory;
-
-    // Spring-managed beans -- injected by SpringAtmosphereObjectFactory
-    @Autowired
-    private UserRepository userRepository;
-
-    @Inject  // @Inject works for Spring beans too
-    private NotificationService notificationService;
-
-    @Ready
-    public void onReady() {
-        var user = userRepository.findBySessionId(resource.uuid());
-        notificationService.notifyJoined(user);
-    }
-
-    @Message(encoders = JacksonEncoder.class, decoders = JacksonDecoder.class)
-    public ChatMessage onMessage(ChatMessage msg) {
-        return msg;
-    }
-}
-```
-
-**How it works:** When Atmosphere creates an instance of your class, the `SpringAtmosphereObjectFactory` first tries to look it up in the Spring `ApplicationContext`. If no Spring bean exists, it creates the object via Spring's `AutowireCapableBeanFactory.createBean()` (which handles `@Autowired`). As a fallback, it delegates to Atmosphere's `InjectableObjectFactory` for framework-managed objects (`AtmosphereResource`, `BroadcasterFactory`, etc.) and then does a second pass to inject any remaining Spring beans into `@Inject` or `@Autowired` fields.
-
-When multiple Spring beans of the same type exist, use `@Qualifier` to disambiguate:
-
-```java
-@Inject
-@Qualifier("primaryNotifier")
-private NotificationService notificationService;
-```
-
-## Annotation Scanning in Embedded Containers
-
-Spring Boot's embedded Tomcat/Jetty does not process `@HandlesTypes` from `ServletContainerInitializer`. This means Atmosphere's built-in annotation scanner receives no classes.
-
-The starter works around this by performing classpath scanning at bean creation time using Spring's `ClassPathScanningCandidateComponentProvider`. It scans:
-
-1. The `org.atmosphere` package (to find all framework annotation processors)
-2. Every package listed in `atmosphere.packages`
-3. Any custom annotation types discovered from `@AtmosphereAnnotation` processors
-
-The discovered classes are injected into the `ServletContext` before `framework.init()` runs, so the framework processes them as if the container had provided them.
-
-**Key takeaway:** Always set `atmosphere.packages` to include your application's base package.
-
-## A Complete Chat Application
-
-Here is the `ChatApplication` main class:
+The application class is a standard Spring Boot entry point:
 
 ```java
 @SpringBootApplication
@@ -194,24 +58,18 @@ public class ChatApplication {
 }
 ```
 
-The `application.yml`:
+## @ManagedService
 
-```yaml
-atmosphere:
-  packages: com.example.chat
-```
-
-The `@ManagedService`:
+`@ManagedService` works exactly as documented in earlier chapters. Spring's `ApplicationContext` is wired via `SpringAtmosphereObjectFactory`, so `@Inject` resolves both Atmosphere-managed objects (like `AtmosphereResource`, `Broadcaster`) and Spring beans.
 
 ```java
 @ManagedService(path = "/atmosphere/chat",
-                atmosphereConfig = "org.atmosphere.cpr.maxInactiveActivity=120000")
+                atmosphereConfig = MAX_INACTIVE + "=120000")
 public class Chat {
 
-    private final Logger logger = LoggerFactory.getLogger(Chat.class);
-
     @Inject
-    private BroadcasterFactory factory;
+    @Named("/atmosphere/chat")
+    private Broadcaster broadcaster;
 
     @Inject
     private AtmosphereResource r;
@@ -220,7 +78,7 @@ public class Chat {
     private AtmosphereResourceEvent event;
 
     @Heartbeat
-    public void onHeartbeat(AtmosphereResourceEvent event) {
+    public void onHeartbeat(final AtmosphereResourceEvent event) {
         logger.trace("Heartbeat from {}", event.getResource());
     }
 
@@ -232,13 +90,16 @@ public class Chat {
     @Disconnect
     public void onDisconnect() {
         if (event.isCancelled()) {
-            logger.info("Browser {} unexpectedly disconnected", event.getResource().uuid());
+            logger.info("Browser {} unexpectedly disconnected",
+                event.getResource().uuid());
         } else if (event.isClosedByClient()) {
-            logger.info("Browser {} closed the connection", event.getResource().uuid());
+            logger.info("Browser {} closed the connection",
+                event.getResource().uuid());
         }
     }
 
-    @Message(encoders = JacksonEncoder.class, decoders = JacksonDecoder.class)
+    @Message(encoders = {JacksonEncoder.class},
+             decoders = {JacksonDecoder.class})
     public Message onMessage(Message message) {
         logger.info("{} just sent {}", message.getAuthor(), message.getMessage());
         return message;
@@ -246,314 +107,164 @@ public class Chat {
 }
 ```
 
-Run it with `mvn spring-boot:run` and connect to `ws://localhost:8080/atmosphere/chat`.
+## Configuration properties
 
-## gRPC Transport
+Configure Atmosphere via `application.properties` or `application.yml` under the `atmosphere` prefix:
 
-Atmosphere can expose a gRPC transport alongside the servlet-based transports. This requires the `atmosphere-grpc` module:
+| Property | Default | Description |
+|----------|---------|-------------|
+| `atmosphere.servlet-path` | `/atmosphere/*` | URL pattern for the Atmosphere servlet |
+| `atmosphere.packages` | (none) | Comma-separated packages to scan for Atmosphere annotations |
+| `atmosphere.order` | `0` | `loadOnStartup` order for the servlet |
+| `atmosphere.session-support` | `false` | Enable HTTP session support |
+| `atmosphere.broadcaster-class` | (none) | Custom `Broadcaster` implementation class name |
+| `atmosphere.broadcaster-cache-class` | (none) | Custom `BroadcasterCache` implementation class name |
+| `atmosphere.websocket-support` | (auto) | Explicitly enable/disable WebSocket support |
+| `atmosphere.heartbeat-interval-in-seconds` | (auto) | Heartbeat interval |
+| `atmosphere.init-params.*` | (none) | Additional Atmosphere init parameters |
+| `atmosphere.enabled` | `true` | Enable/disable the auto-configuration |
+| `atmosphere.durable-sessions.enabled` | `false` | Enable durable sessions |
+| `atmosphere.durable-sessions.session-ttl-minutes` | `1440` | Durable session TTL |
+| `atmosphere.durable-sessions.cleanup-interval-seconds` | `60` | Cleanup interval |
+| `atmosphere.grpc.enabled` | `false` | Enable gRPC transport |
+| `atmosphere.grpc.port` | `9090` | gRPC server port |
+| `atmosphere.grpc.enable-reflection` | `true` | Enable gRPC reflection |
 
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-grpc</artifactId>
-    <version>4.0.10</version>
-</dependency>
-```
+### Example application.yml
 
-Enable it in `application.yml`:
+From the `spring-boot-chat` sample:
 
 ```yaml
 atmosphere:
-  grpc:
-    enabled: true
-    port: 9090
-    enable-reflection: true
-```
+  packages: org.atmosphere.samples.springboot.chat
 
-The `AtmosphereGrpcAutoConfiguration` creates:
-
-- A `GrpcHandler` bean (default: `GrpcHandlerAdapter`)
-- An `AtmosphereGrpcServer` bean configured with the port and reflection settings
-- A `SmartLifecycle` bean that starts the gRPC server after the servlet container is ready and stops it on shutdown
-
-The gRPC server runs on a separate port (default 9090) and bridges messages into the same `AtmosphereFramework` instance. gRPC reflection is enabled by default so tools like `grpcurl` can discover services:
-
-```bash
-grpcurl -plaintext localhost:9090 list
-```
-
-## Actuator Health Indicator
-
-When `spring-boot-starter-actuator` is on the classpath, the starter automatically registers an `AtmosphereHealthIndicator`. No additional configuration is required.
-
-The health endpoint at `/actuator/health` includes:
-
-```json
-{
-  "status": "UP",
-  "components": {
-    "atmosphere": {
-      "status": "UP",
-      "details": {
-        "version": "4.0.10",
-        "handlers": 2,
-        "broadcasters": 3,
-        "connections": 15,
-        "asyncSupport": "JSR356AsyncSupport"
-      }
-    }
-  }
-}
-```
-
-The indicator reports `DOWN` only when the framework has been destroyed. Zero registered handlers is reported as `UP` with a warning detail (this is expected in GraalVM native images where annotation scanning may be limited).
-
-To include the Atmosphere health check in a Kubernetes readiness group:
-
-```yaml
 management:
-  endpoint:
-    health:
-      show-details: always
-      group:
-        readiness:
-          include: readinessState,atmosphere
   endpoints:
     web:
       exposure:
         include: health,metrics
+  endpoint:
+    health:
+      show-details: always
 ```
 
-## Micrometer Metrics
+## Rooms configuration
 
-When `micrometer-core` and `spring-boot-starter-actuator` are both on the classpath, the `AtmosphereMetricsAutoConfiguration` automatically installs `AtmosphereMetrics`. No code is required.
-
-Add the dependency:
-
-```xml
-<dependency>
-    <groupId>io.micrometer</groupId>
-    <artifactId>micrometer-core</artifactId>
-</dependency>
-```
-
-Metrics are published under the `atmosphere.*` namespace:
-
-| Metric | Type | Description |
-|--------|------|-------------|
-| `atmosphere.connections` | Gauge | Current number of connected resources |
-| `atmosphere.broadcasters` | Gauge | Number of active broadcasters |
-| `atmosphere.messages.sent` | Counter | Total messages broadcast |
-| `atmosphere.messages.received` | Counter | Total messages received |
-
-Query them via the Actuator metrics endpoint:
-
-```bash
-curl http://localhost:8080/actuator/metrics/atmosphere.connections
-```
-
-Or integrate with Prometheus, Datadog, or any Micrometer-supported backend by adding the appropriate registry dependency.
-
-## OpenTelemetry Tracing
-
-When `opentelemetry-api` is on the classpath and an `OpenTelemetry` bean is available, the `AtmosphereTracingAutoConfiguration` registers an `AtmosphereTracing` interceptor.
-
-Add the dependencies:
-
-```xml
-<dependency>
-    <groupId>io.opentelemetry</groupId>
-    <artifactId>opentelemetry-api</artifactId>
-</dependency>
-<dependency>
-    <groupId>io.opentelemetry</groupId>
-    <artifactId>opentelemetry-exporter-otlp</artifactId>
-</dependency>
-```
-
-Enable the Spring Boot OTel auto-configuration:
-
-```yaml
-spring:
-  application:
-    name: my-chat-app
-
-management:
-  tracing:
-    sampling:
-      probability: 1.0
-
-otel:
-  exporter:
-    otlp:
-      endpoint: http://localhost:4318
-```
-
-The tracing interceptor creates spans that cover the full Atmosphere request lifecycle: inspect, suspend, broadcast, and disconnect. Each span includes attributes for:
-
-- Transport type (WebSocket, SSE, long-polling)
-- Resource UUID
-- Broadcaster ID
-- Disconnect reason
-
-Tracing can be disabled without removing dependencies:
-
-```yaml
-atmosphere:
-  tracing:
-    enabled: false
-```
-
-When the `atmosphere-mcp` module is also on the classpath, an `McpTracing` bean is automatically created that wraps MCP tool, resource, and prompt calls in trace spans.
-
-## Graceful Shutdown
-
-The `AtmosphereLifecycle` bean participates in Spring Boot's shutdown lifecycle. During shutdown:
-
-1. It publishes `ReadinessState.REFUSING_TRAFFIC` so Kubernetes readiness probes start failing
-2. It calls `AtmosphereFramework.destroy()`, which disconnects all resources and cleans up thread pools
-3. Then the servlet container shuts down
-
-This runs at `SmartLifecycle.DEFAULT_PHASE - 1`, ensuring Atmosphere stops before the web server.
-
-No configuration is needed -- this is automatic.
-
-## GraalVM Native Image
-
-The starter includes `AtmosphereRuntimeHints` which registers reflection hints for all Atmosphere classes that are instantiated reflectively at runtime:
-
-- Core framework classes (`AtmosphereFramework`, `DefaultBroadcaster`, `DefaultBroadcasterFactory`, etc.)
-- Injectable SPI implementations
-- Default interceptors (`CorsInterceptor`, `HeartbeatInterceptor`, `SSEAtmosphereInterceptor`, etc.)
-- Annotation processors
-- WebSocket internals (`JSR356Endpoint`, `DefaultWebSocketProcessor`, etc.)
-- ServiceLoader resource files
-
-To build a native image, add the Spring Boot AOT and GraalVM plugins:
-
-```xml
-<profiles>
-    <profile>
-        <id>native</id>
-        <build>
-            <plugins>
-                <plugin>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-maven-plugin</artifactId>
-                    <configuration>
-                        <classifier>exec</classifier>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <id>process-aot</id>
-                            <goals>
-                                <goal>process-aot</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-                <plugin>
-                    <groupId>org.graalvm.buildtools</groupId>
-                    <artifactId>native-maven-plugin</artifactId>
-                    <configuration>
-                        <mainClass>com.example.ChatApplication</mainClass>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <id>build-native</id>
-                            <goals>
-                                <goal>compile-no-fork</goal>
-                            </goals>
-                            <phase>package</phase>
-                        </execution>
-                    </executions>
-                </plugin>
-            </plugins>
-        </build>
-    </profile>
-</profiles>
-```
-
-Build with:
-
-```bash
-./mvnw -Pnative package
-```
-
-Run the native executable:
-
-```bash
-./target/my-app
-```
-
-Startup time is typically under 100ms.
-
-## Overriding Auto-Configuration
-
-Every auto-configured bean uses `@ConditionalOnMissingBean`. To override any of them, declare your own bean of the same type:
+The `RoomsConfig` pattern from the `spring-boot-chat` sample shows how to set up Atmosphere Rooms with Spring Boot:
 
 ```java
 @Configuration
-public class CustomAtmosphereConfig {
+public class RoomsConfig {
+
+    private final AtmosphereFramework framework;
+
+    public RoomsConfig(AtmosphereFramework framework) {
+        this.framework = framework;
+    }
 
     @Bean
-    public AtmosphereServlet atmosphereServlet(SpringAtmosphereObjectFactory objectFactory) {
-        var servlet = new AtmosphereServlet();
-        servlet.framework().objectFactory(objectFactory);
-        // Custom framework configuration
-        servlet.framework().addInitParameter(
-            ApplicationConfig.BROADCASTER_CACHE, "com.example.MyBroadcasterCache");
-        return servlet;
+    public RoomManager roomManager() {
+        return RoomManager.getOrCreate(framework);
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void setupRooms() {
+        var interceptor = new RoomProtocolInterceptor();
+        interceptor.configure(framework.getAtmosphereConfig());
+        framework.interceptor(interceptor);
+
+        RoomManager manager = roomManager();
+        Room lobby = manager.room("lobby");
+        lobby.enableHistory(50);
+
+        lobby.onPresence(event -> {
+            var memberInfo = event.memberInfo();
+            var memberId = memberInfo != null
+                    ? memberInfo.id() : event.member().uuid();
+            logger.info("Room '{}': {} {} (members: {})",
+                    event.room().name(), memberId,
+                    event.type(), event.room().size());
+        });
     }
 }
 ```
 
-To disable the entire Atmosphere auto-configuration:
+Key patterns:
 
-```yaml
-atmosphere:
-  enabled: false
+- Inject `AtmosphereFramework` directly (it is a Spring bean).
+- Use `@EventListener(ApplicationReadyEvent.class)` to configure after the framework is initialized.
+- Register interceptors via `framework.interceptor()`.
+
+## Observability configuration
+
+The `ObservabilityConfig` pattern installs Micrometer metrics:
+
+```java
+@Configuration
+public class ObservabilityConfig {
+
+    private final AtmosphereFramework framework;
+    private final MeterRegistry meterRegistry;
+
+    public ObservabilityConfig(AtmosphereFramework framework,
+                               MeterRegistry meterRegistry) {
+        this.framework = framework;
+        this.meterRegistry = meterRegistry;
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void installMetrics() {
+        AtmosphereMetrics.install(framework, meterRegistry);
+    }
+}
 ```
 
-## Passing Arbitrary Init Parameters
+After installation, metrics are available at `/actuator/metrics/atmosphere.*` and health at `/actuator/health`.
 
-For any Atmosphere configuration property that does not have a dedicated YAML key, use the `init-params` map:
+## REST + Atmosphere
 
-```yaml
-atmosphere:
-  init-params:
-    org.atmosphere.cpr.maxInactiveActivity: "120000"
-    org.atmosphere.cpr.broadcasterLifeCyclePolicy: IDLE_DESTROY
-    org.atmosphere.websocket.maxTextMessageSize: "65536"
+Spring `@RestController` classes can interact with Atmosphere's `RoomManager`:
+
+```java
+@RestController
+@RequestMapping("/api/rooms")
+public class ChatRoomsController {
+
+    private final RoomManager roomManager;
+
+    public ChatRoomsController(RoomManager roomManager) {
+        this.roomManager = roomManager;
+    }
+
+    @GetMapping
+    public List<Map<String, Object>> listRooms() {
+        return roomManager.all().stream()
+                .map(room -> {
+                    var map = new HashMap<String, Object>();
+                    map.put("name", room.name());
+                    map.put("members", room.size());
+                    map.put("destroyed", room.isDestroyed());
+                    var memberList = room.memberInfo().values().stream()
+                            .map(m -> Map.of(
+                                    "id", (Object) m.id(),
+                                    "metadata", (Object) m.metadata()))
+                            .toList();
+                    map.put("memberDetails", memberList);
+                    return map;
+                })
+                .toList();
+    }
+}
 ```
 
-These are passed directly to the `ServletRegistrationBean` as servlet init parameters.
+This pattern works because `RoomManager` is exposed as a Spring bean by the auto-configuration.
 
-## Sample Application
+## Important notes
 
-The `samples/spring-boot-chat` directory contains a complete working chat application. To run it:
+**Object factory order**: The starter sets the `SpringAtmosphereObjectFactory` on the `AtmosphereFramework` **before** calling `init()`. This is critical -- if the object factory is set after init, Atmosphere's annotation processors will not be able to inject Spring beans into `@ManagedService` instances.
 
-```bash
-cd samples/spring-boot-chat
-../../mvnw spring-boot:run
-```
+**Spring Boot 4.0 target**: The starter is built for Spring Boot 4.0.2 and Spring Framework 7.0. It overrides the parent POM's SLF4J/Logback versions for compatibility.
 
-Open `http://localhost:8080` in a browser and start chatting. The sample includes:
+**BroadcasterFactory is not a Spring bean**: The starter deliberately does not expose `BroadcasterFactory` as a Spring bean. It is available via Atmosphere's `@Inject` inside `@ManagedService` classes, or programmatically via `framework.getAtmosphereConfig().getBroadcasterFactory()`.
 
-- A `@ManagedService`-based chat with Jackson encoding/decoding
-- Spring Boot Actuator with health and metrics endpoints
-- Micrometer metrics installation via `ObservabilityConfig`
-- Room management with the REST endpoint (`ChatRoomsController`)
-- A React frontend in `frontend/`
-
-## Summary
-
-The `atmosphere-spring-boot-starter` gives you:
-
-- **Zero-config setup** -- add the dependency, set `atmosphere.packages`, done
-- **Full Spring DI** -- `@Inject` and `@Autowired` work in `@ManagedService` classes
-- **Observability out of the box** -- health, metrics, and tracing auto-register when their libraries are present
-- **Graceful shutdown** -- Kubernetes-ready lifecycle management
-- **Native image support** -- reflection hints pre-registered for GraalVM
-
-Next up: [Chapter 15: Quarkus Integration](/docs/tutorial/15-quarkus/) covers the same concepts for Quarkus 3.21.
+**`atmosphere.packages` is required** for annotation scanning to find your `@ManagedService` classes. Set it to the package(s) containing your Atmosphere-annotated classes.

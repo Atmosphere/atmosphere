@@ -1,701 +1,431 @@
 ---
 title: "Chapter 5: Broadcaster & Pub/Sub"
-description: "Named channels for broadcasting messages to subscribers with filtering, caching, and lifecycle management"
+description: "The Broadcaster as the pub/sub hub: DefaultBroadcaster, SimpleBroadcaster, BroadcasterFactory, BroadcasterCache, BroadcastFilter, and delivery semantics."
+sidebar:
+  order: 5
 ---
 
-In [Chapter 3](/docs/tutorial/03-managed-service/) you saw `@ManagedService` handle the plumbing of connecting clients and delivering messages. Under the hood, every `@ManagedService` endpoint is backed by a **Broadcaster** -- the central pub/sub primitive in Atmosphere. This chapter takes you inside that abstraction so you can create channels explicitly, route messages between them, filter content, cache messages for offline clients, and control a Broadcaster's lifecycle.
+# Broadcaster & Pub/Sub
 
-## What Is a Broadcaster?
+The `Broadcaster` is the pub/sub engine at the heart of Atmosphere. Every real-time interaction flows through it: clients subscribe by connecting to a path, and messages are delivered to all subscribers when you call `broadcast()`. This chapter covers the `Broadcaster` API, the built-in implementations, `BroadcasterFactory` for managing multiple broadcasters, `BroadcasterCache` for missed messages, `BroadcastFilter` for message transformation, and `@DeliverTo` for controlling delivery scope.
 
-A Broadcaster is a named channel. You call `broadcaster.broadcast(message)` and every subscribed `AtmosphereResource` (connection) receives it. The Broadcaster handles the fan-out asynchronously, using virtual threads by default on JDK 21+.
+## How Broadcasting Works
 
-```
-          broadcast("hello")
-                │
-                ▼
-         ┌─────────────┐
-         │  Broadcaster │
-         │  "/chat"     │
-         └──────┬───────┘
-           ┌────┼────┐
-           ▼    ▼    ▼
-        Client Client Client
-          A      B      C
-```
+When you annotate a class with `@ManagedService(path = "/chat")`, Atmosphere creates a `Broadcaster` for the `/chat` path. Every client that connects to `/chat` is subscribed to that `Broadcaster` as an `AtmosphereResource`. When your `@Message` method returns a value, that value is broadcast to every subscribed resource.
 
-Key properties of a Broadcaster:
+The flow:
 
-- **Named** -- identified by a string (typically the URL path, e.g. `"/chat"` or `"/stock/AAPL"`)
-- **Asynchronous** -- `broadcast()` returns a `Future<Object>` immediately; delivery happens on a separate thread
-- **Filtered** -- messages pass through a chain of `BroadcastFilter`s before reaching subscribers
-- **Cached** -- a `BroadcasterCache` stores messages for disconnected clients so they can catch up on reconnect
-- **Managed** -- a `BroadcasterLifeCyclePolicy` controls when idle or empty Broadcasters are destroyed
+1. Client connects to `/chat` -- Atmosphere creates an `AtmosphereResource` and adds it to the `/chat` `Broadcaster`.
+2. Client sends a message -- Atmosphere invokes your `@Message` method.
+3. Your method returns a value -- Atmosphere calls `broadcaster.broadcast(returnValue)`.
+4. The `Broadcaster` delivers the message to every subscribed `AtmosphereResource`, using the appropriate transport for each client.
 
-## BroadcasterFactory: Creating and Looking Up Channels
+## The Broadcaster Interface
 
-You never `new` a Broadcaster directly. The `BroadcasterFactory` manages all Broadcaster instances for the framework.
+The `Broadcaster` interface (`org.atmosphere.cpr.Broadcaster`) defines the core operations:
 
-### Getting the Factory
-
-Inside a `@ManagedService` class, inject it:
+### Broadcasting Messages
 
 ```java
-@ManagedService(path = "/chat")
-public class Chat {
+// Broadcast to ALL subscribers
+Future<Object> broadcast(Object message);
 
-    @Inject
-    private BroadcasterFactory factory;
-}
+// Broadcast to a SPECIFIC subscriber
+Future<Object> broadcast(Object message, AtmosphereResource resource);
+
+// Broadcast to a SUBSET of subscribers
+Future<Object> broadcast(Object message, Set<AtmosphereResource> subset);
 ```
 
-Outside of managed code, obtain it from the framework:
+All broadcast methods return a `Future<Object>`. Broadcasting is asynchronous by default -- the `Broadcaster` uses an `ExecutorService` to deliver messages. Use `future.get()` if you need to wait for delivery to complete.
+
+### Managing Subscribers
 
 ```java
-BroadcasterFactory factory = framework.getBroadcasterFactory();
+// Get all subscribed resources
+Collection<AtmosphereResource> getAtmosphereResources();
+
+// Add a resource (subscribe)
+Broadcaster addAtmosphereResource(AtmosphereResource resource);
+
+// Remove a resource (unsubscribe)
+Broadcaster removeAtmosphereResource(AtmosphereResource resource);
 ```
 
-### Looking Up a Broadcaster
+### Identification
 
 ```java
-// Look up an existing Broadcaster -- returns null if not found
-Broadcaster chat = factory.lookup("/chat");
+// Get the broadcaster's ID (typically the path)
+String getID();
 
-// Look up or create if it doesn't exist
-Broadcaster chat = factory.lookup("/chat", true);
-
-// Prefer Optional-based API (Atmosphere 4.0+)
-Optional<Broadcaster> maybeTopic = factory.findBroadcaster("/topic/news");
-maybeTopic.ifPresent(b -> b.broadcast("Breaking news"));
+// Set the broadcaster's ID
+void setID(String name);
 ```
 
-The `lookup(id, true)` overload is the most common pattern -- it atomically creates the Broadcaster if it doesn't already exist, guaranteeing a single instance per ID.
+### Scheduled Broadcasting
+
+```java
+// Broadcast after a delay
+Future<Object> delayBroadcast(Object message);
+Future<Object> delayBroadcast(Object message, long delay, TimeUnit unit);
+
+// Broadcast periodically
+Future<Object> scheduleFixedBroadcast(Object message, long period, TimeUnit unit);
+Future<Object> scheduleFixedBroadcast(Object message, long waitFor, long period, TimeUnit unit);
+```
+
+## DefaultBroadcaster
+
+`DefaultBroadcaster` is the default implementation used by `@ManagedService`. It:
+
+- Supports all transports (WebSocket, SSE, long-polling, streaming)
+- Uses an `ExecutorService` for asynchronous message delivery
+- Uses `ReentrantLock` (not `synchronized`) to avoid virtual thread pinning on JDK 21+
+- Supports `BroadcasterCache` and `BroadcastFilter`
+- Handles subscriber lifecycle (automatic removal on disconnect)
+
+You rarely need to interact with `DefaultBroadcaster` directly. The `@ManagedService` annotation uses it automatically:
+
+```java
+@ManagedService(path = "/chat")  // uses DefaultBroadcaster by default
+public class Chat { ... }
+```
+
+## SimpleBroadcaster
+
+`SimpleBroadcaster` extends `DefaultBroadcaster` and is a lighter-weight implementation designed for WebSocket-only scenarios. It is typically used with `@WebSocketHandlerService`:
+
+```java
+@WebSocketHandlerService(path = "/chat", broadcaster = SimpleBroadcaster.class)
+public class WebSocketChat extends WebSocketStreamingHandlerAdapter { ... }
+```
+
+You can also use it with `@ManagedService` if you know all clients will use WebSocket:
+
+```java
+@ManagedService(path = "/chat", broadcaster = SimpleBroadcaster.class)
+public class Chat { ... }
+```
+
+## BroadcasterFactory
+
+`BroadcasterFactory` is the registry that manages all active `Broadcaster` instances. You inject it and use it to look up, create, or iterate over broadcasters.
+
+### Injection
+
+```java
+@Inject
+private BroadcasterFactory factory;
+```
+
+### Looking Up Broadcasters
+
+```java
+// Look up by ID (returns null if not found)
+Broadcaster b = factory.lookup("/chat");
+
+// Look up by ID, creating if it does not exist
+Broadcaster b = factory.lookup("/chat", true);
+
+// Look up with Optional (preferred over lookup which returns null)
+Optional<Broadcaster> b = factory.findBroadcaster("/chat");
+```
+
+The `findBroadcaster` method (added in 4.0) returns an `Optional` instead of null, making the absent-broadcaster case explicit at the call site.
+
+### Looking Up with Type
+
+```java
+// Look up with a specific Broadcaster type
+SimpleBroadcaster b = factory.lookup(SimpleBroadcaster.class, "/chat");
+
+// Look up with type, creating if it does not exist
+SimpleBroadcaster b = factory.lookup(SimpleBroadcaster.class, "/chat", true);
+```
 
 ### Listing All Broadcasters
 
 ```java
+// Get all active broadcasters
 Collection<Broadcaster> all = factory.lookupAll();
-all.forEach(b -> log.info("Active broadcaster: {} ({} subscribers)",
-    b.getID(), b.getAtmosphereResources().size()));
 ```
 
-### Creating a Typed Broadcaster
-
-If you have a custom `Broadcaster` subclass:
+### Creating New Broadcasters
 
 ```java
-MyBroadcaster b = factory.get(MyBroadcaster.class, "/custom-channel");
+// Create a broadcaster with a generated ID
+Broadcaster b = factory.get();
+
+// Create a broadcaster with a specific ID
+Broadcaster b = factory.get("/my-channel");
+
+// Create a broadcaster with a specific type and ID
+SimpleBroadcaster b = factory.get(SimpleBroadcaster.class, "/my-channel");
 ```
 
-### Removing a Broadcaster
+### Practical Example: Cross-Broadcaster Messaging
+
+Using `BroadcasterFactory`, you can send messages from one endpoint to subscribers of another:
 
 ```java
-factory.remove("/old-channel");
-```
-
-## Subscribing and Unsubscribing
-
-An `AtmosphereResource` (a connected client) subscribes to a Broadcaster by being added to it:
-
-```java
-broadcaster.addAtmosphereResource(resource);
-```
-
-And unsubscribes by being removed:
-
-```java
-broadcaster.removeAtmosphereResource(resource);
-```
-
-With `@ManagedService`, subscription happens automatically when a client connects to the endpoint's path. But you can manually manage subscriptions to implement more complex topologies -- for example, subscribing a single client to multiple topic-based Broadcasters.
-
-### Multi-Broadcaster Subscription
-
-```java
-@ManagedService(path = "/chat/{room}")
-public class MultiRoomChat {
+@ManagedService(path = "/notifications")
+public class Notifications {
 
     @Inject
     private BroadcasterFactory factory;
 
-    @Inject
-    private AtmosphereResource resource;
-
-    @PathParam("room")
-    private String room;
-
-    @Ready
-    public void onReady() {
-        // The client is auto-subscribed to "/chat/{room}"
-        // Also subscribe to the global announcements channel
-        Broadcaster global = factory.lookup("/announcements", true);
-        global.addAtmosphereResource(resource);
-    }
-
-    @Disconnect
-    public void onDisconnect() {
-        // Atmosphere auto-removes from all Broadcasters on disconnect
+    @org.atmosphere.config.service.Message
+    public void onMessage(String message) {
+        // Forward the message to the /chat broadcaster as well
+        factory.findBroadcaster("/chat").ifPresent(b -> b.broadcast(message));
     }
 }
 ```
 
-## Broadcasting Messages
+## BroadcasterCache
 
-### Broadcast to All Subscribers
+When a client temporarily disconnects (network glitch, page navigation, etc.), messages broadcast during the disconnection are lost unless a `BroadcasterCache` is configured. The cache stores messages and replays them when the client reconnects.
 
-The simplest operation -- send a message to everyone subscribed to this Broadcaster:
+### UUIDBroadcasterCache
 
-```java
-Future<Object> future = broadcaster.broadcast("Hello, everyone!");
-```
-
-The `Future` completes once the message has been delivered to all subscribers (or delivery has been attempted). You can block on it if you need synchronous confirmation:
+`UUIDBroadcasterCache` is the default cache used by `@ManagedService`. It tracks which messages each `AtmosphereResource` has received using the resource's UUID. When a client reconnects with the same UUID, any missed messages are delivered.
 
 ```java
-broadcaster.broadcast("critical update").get(); // blocks until delivered
+@ManagedService(path = "/chat", broadcasterCache = UUIDBroadcasterCache.class)  // this is the default
+public class Chat { ... }
 ```
 
-### Targeted Broadcast (Single Subscriber)
+The `UUIDBroadcasterCache` is configured automatically when you use `@ManagedService`. You do not need to set it explicitly unless you want to use a different implementation.
 
-Send a message to a specific `AtmosphereResource` within the Broadcaster:
+### How It Works
 
-```java
-broadcaster.broadcast("Private message for you", targetResource);
-```
+1. When a message is broadcast, the cache stores it along with the set of resource UUIDs that received it.
+2. When a client reconnects, the cache checks which messages that client's UUID has not received.
+3. Those missed messages are delivered to the reconnecting client.
+4. Cached messages expire after a configurable time period.
 
-This is useful for direct messages or user-specific notifications.
+## BroadcastFilter
 
-### Broadcast to a Subset
-
-Send to a specific set of subscribers:
-
-```java
-Set<AtmosphereResource> admins = broadcaster.getAtmosphereResources().stream()
-    .filter(r -> "admin".equals(r.getRequest().getAttribute("role")))
-    .collect(Collectors.toSet());
-
-broadcaster.broadcast("Admin-only alert", admins);
-```
-
-### Delayed and Scheduled Broadcasts
-
-```java
-// Delay: message is held until the next regular broadcast() call
-broadcaster.delayBroadcast("will be sent with next message");
-
-// Delay with timeout: sent after 5 seconds OR at next broadcast(), whichever comes first
-broadcaster.delayBroadcast("delayed", 5, TimeUnit.SECONDS);
-
-// Periodic: broadcast this object every 30 seconds
-broadcaster.scheduleFixedBroadcast(statusUpdate, 30, TimeUnit.SECONDS);
-
-// Periodic with initial delay: wait 10s, then every 30s
-broadcaster.scheduleFixedBroadcast(statusUpdate, 10, 30, TimeUnit.SECONDS);
-```
-
-### Broadcast on Resume
-
-For long-polling transports, you can queue a message to be delivered when the connection resumes:
-
-```java
-broadcaster.broadcastOnResume("Welcome back");
-```
-
-## BroadcastFilter: Transforming Messages
-
-A `BroadcastFilter` intercepts messages after `broadcast()` is called but before they are delivered to subscribers. Use filters to transform, enrich, validate, or suppress messages.
+A `BroadcastFilter` intercepts messages before they are delivered to subscribers. Filters can transform the message, pass it through unchanged, or abort delivery entirely.
 
 ### The BroadcastFilter Interface
 
 ```java
 public interface BroadcastFilter {
 
-    BroadcastAction filter(String broadcasterId, Object originalMessage, Object message);
-
     record BroadcastAction(ACTION action, Object message, Object originalMessage) {
-        public enum ACTION { CONTINUE, ABORT, SKIP }
-    }
-}
-```
 
-The return value controls what happens next:
-
-| Action | Behavior |
-|--------|----------|
-| `CONTINUE` | Pass the (possibly transformed) message to the next filter |
-| `ABORT` | Discard the message entirely -- no subscriber receives it |
-| `SKIP` | Stop the filter chain but deliver the last transformed message |
-
-### Example: Profanity Filter
-
-```java
-public class ProfanityFilter implements BroadcastFilter {
-
-    private static final Set<String> BLOCKED = Set.of("badword1", "badword2");
-
-    @Override
-    public BroadcastAction filter(String broadcasterId, Object original, Object message) {
-        if (message instanceof String text) {
-            for (String word : BLOCKED) {
-                text = text.replaceAll("(?i)" + word, "***");
-            }
-            return new BroadcastAction(text);
-        }
-        return new BroadcastAction(message);
-    }
-}
-```
-
-### Example: JSON Envelope Filter
-
-Wrap every message in a standard JSON envelope:
-
-```java
-public class JsonEnvelopeFilter implements BroadcastFilter {
-
-    private final ObjectMapper mapper = new ObjectMapper();
-
-    @Override
-    public BroadcastAction filter(String broadcasterId, Object original, Object message) {
-        try {
-            var envelope = Map.of(
-                "timestamp", Instant.now().toString(),
-                "channel", broadcasterId,
-                "data", message
-            );
-            return new BroadcastAction(mapper.writeValueAsString(envelope));
-        } catch (Exception e) {
-            return new BroadcastAction(ACTION.ABORT, message);
+        public enum ACTION {
+            CONTINUE,  // pass to next filter
+            ABORT,     // discard the message
+            SKIP       // stop filtering, deliver the current message
         }
     }
+
+    BroadcastAction filter(String broadcasterId, Object originalMessage, Object message);
 }
 ```
 
-### Registering Filters
+The `filter` method receives the broadcaster ID, the original message, and the (possibly already transformed) message. It returns a `BroadcastAction` that tells the framework what to do:
 
-With `@ManagedService`:
+- **`CONTINUE`** -- pass the (possibly transformed) message to the next filter in the chain.
+- **`ABORT`** -- discard the message entirely; it will not be delivered.
+- **`SKIP`** -- stop the filter chain and deliver the message as-is.
+
+### Configuring Filters
+
+Filters are added via the `broadcastFilters` attribute of `@ManagedService`:
 
 ```java
-@ManagedService(path = "/chat", broadcastFilters = {ProfanityFilter.class, JsonEnvelopeFilter.class})
-public class Chat { /* ... */ }
+@ManagedService(path = "/chat", broadcastFilters = {XSSHtmlFilter.class})
+public class Chat { ... }
 ```
 
-With `@WebSocketHandlerService`:
+Multiple filters are applied in the order they are listed.
+
+Alternatively, annotate the filter class itself with `@BroadcasterFilterService` and Atmosphere will discover and register it at startup:
 
 ```java
-@WebSocketHandlerService(path = "/ws", broadcastFilters = {ProfanityFilter.class})
-public class WsHandler extends WebSocketHandlerAdapter { /* ... */ }
+@BroadcasterFilterService
+public class ProfanityFilter implements BroadcastFilter { /* ... */ }
 ```
 
-Programmatically via `BroadcasterConfig`:
+### PerRequestBroadcastFilter
+
+The standard `BroadcastFilter` sees the message but not the target client. When you need to transform or filter differently per subscriber (e.g., based on role or session data), implement `PerRequestBroadcastFilter`. It adds a four-argument `filter` method that receives the `AtmosphereResource` being delivered to:
 
 ```java
-Broadcaster b = factory.lookup("/chat", true);
-b.getBroadcasterConfig().addFilter(new ProfanityFilter());
-b.getBroadcasterConfig().addFilter(new JsonEnvelopeFilter());
-```
-
-Filters execute in the order they are added. The output of one filter becomes the input to the next.
-
-### PerRequestBroadcastFilter: Per-Client Transformation
-
-A regular `BroadcastFilter` runs once per broadcast. A `PerRequestBroadcastFilter` runs once per subscriber, giving you access to the individual `AtmosphereResource`. This is useful when different clients need different representations of the same message.
-
-```java
-public interface PerRequestBroadcastFilter extends BroadcastFilter {
-
-    BroadcastAction filter(String broadcasterId, AtmosphereResource r,
-                           Object originalMessage, Object message);
-}
-```
-
-#### Example: Locale-Aware Filter
-
-```java
-public class LocaleFilter implements PerRequestBroadcastFilter {
-
+public class RoleFilter implements PerRequestBroadcastFilter {
     @Override
-    public BroadcastAction filter(String id, AtmosphereResource r,
-                                   Object original, Object message) {
-        var locale = r.getRequest().getLocale();
-        if (message instanceof Translatable t) {
-            return new BroadcastAction(t.translate(locale));
+    public BroadcastAction filter(String broadcasterId,
+                                   AtmosphereResource r,
+                                   Object originalMessage,
+                                   Object message) {
+        // Access r.getRequest() for session/auth info
+        if (isAdmin(r)) {
+            return new BroadcastAction(ACTION.CONTINUE, message);
         }
-        return new BroadcastAction(message);
+        return new BroadcastAction(ACTION.CONTINUE, redact(message));
     }
 
     @Override
-    public BroadcastAction filter(String id, Object original, Object message) {
-        // Global filter -- no per-request context, just pass through
-        return new BroadcastAction(message);
+    public BroadcastAction filter(String broadcasterId,
+                                   Object originalMessage,
+                                   Object message) {
+        return new BroadcastAction(ACTION.CONTINUE, message);
     }
 }
 ```
 
-#### Example: Role-Based Redaction
+The four-argument method is called once per subscriber, per message. The three-argument method (from `BroadcastFilter`) is called once per broadcast, before the per-resource pass. Return `CONTINUE` from the three-argument method to let the per-resource filter run.
+
+## BroadcasterListener
+
+A `BroadcasterListener` receives lifecycle events from a `Broadcaster` -- creation, destruction, resource add/remove, and message queuing. Annotate the class with `@BroadcasterListenerService` for automatic discovery:
 
 ```java
-public class RedactFilter implements PerRequestBroadcastFilter {
-
-    @Override
-    public BroadcastAction filter(String id, AtmosphereResource r,
-                                   Object original, Object message) {
-        String role = (String) r.getRequest().getAttribute("role");
-        if (!"admin".equals(role) && message instanceof SensitiveData data) {
-            return new BroadcastAction(data.redacted());
-        }
-        return new BroadcastAction(message);
-    }
-
-    @Override
-    public BroadcastAction filter(String id, Object original, Object message) {
-        return new BroadcastAction(message);
-    }
+@BroadcasterListenerService
+public class MyListener implements BroadcasterListener {
+    public void onPostCreate(Broadcaster b) { /* new broadcaster */ }
+    public void onComplete(Broadcaster b) { /* broadcast delivered */ }
+    public void onPreDestroy(Broadcaster b) { /* broadcaster shutting down */ }
+    public void onAddAtmosphereResource(Broadcaster b, AtmosphereResource r) { /* client joined */ }
+    public void onRemoveAtmosphereResource(Broadcaster b, AtmosphereResource r) { /* client left */ }
+    public void onMessage(Broadcaster b, Deliver deliver) { /* message queued */ }
 }
 ```
 
-## BroadcasterCache: Offline Message Delivery
+This is useful for monitoring, auditing, or triggering side effects when broadcasters are created/destroyed or when clients subscribe/unsubscribe.
 
-When a client disconnects (network glitch, tab switch, reconnect cycle), messages broadcast during the disconnection are lost unless you enable caching. A `BroadcasterCache` stores messages so they can be replayed when the client reconnects.
+## @DeliverTo
 
-### UUIDBroadcasterCache
+By default, the return value of a `@Message` method is broadcast to all subscribers on the endpoint's `Broadcaster`. The `@DeliverTo` annotation changes the delivery scope.
 
-The default cache for `@ManagedService` is `UUIDBroadcasterCache`. It tracks messages per client UUID and delivers them on reconnect.
+### DELIVER_TO.BROADCASTER
 
-```java
-@ManagedService(path = "/chat", broadcasterCache = UUIDBroadcasterCache.class)
-public class Chat { /* ... */ }
-```
-
-`@ManagedService` enables `UUIDBroadcasterCache` by default, so you typically don't need to declare it explicitly. If you are using `@WebSocketHandlerService` (which defaults to no cache), you should set it:
+The default behavior -- deliver to all subscribers on this `Broadcaster`:
 
 ```java
-@WebSocketHandlerService(path = "/ws", broadcasterCache = UUIDBroadcasterCache.class)
-public class WsHandler extends WebSocketHandlerAdapter { /* ... */ }
-```
-
-### How It Works
-
-1. When a message is broadcast, the cache stores it keyed by each subscriber's UUID
-2. When the write to a subscriber succeeds, the cached copy for that subscriber is removed
-3. If the write fails (client disconnected), the message stays in the cache
-4. When the client reconnects, `retrieveFromCache()` returns all pending messages
-5. A background task periodically evicts expired entries
-
-### Cache Configuration
-
-Configure via servlet init-params or `ApplicationConfig` properties:
-
-```xml
-<init-param>
-    <param-name>org.atmosphere.cpr.broadcaster.cache.maxPerClient</param-name>
-    <param-value>500</param-value>
-</init-param>
-<init-param>
-    <param-name>org.atmosphere.cpr.broadcaster.cache.messageTTL</param-name>
-    <param-value>120</param-value> <!-- seconds -->
-</init-param>
-<init-param>
-    <param-name>org.atmosphere.cpr.broadcaster.cache.maxTotal</param-name>
-    <param-value>50000</param-value>
-</init-param>
-```
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `maxPerClient` | 1000 | Max cached messages per client. Oldest messages are evicted when exceeded. |
-| `messageTTL` | 300 (seconds) | Messages older than this are evicted regardless of delivery status. |
-| `maxTotal` | 100,000 | Global cap across all clients. The oldest messages globally are evicted first. |
-| `clientIdleTime` | 60 (seconds) | Time after which an inactive client's cache is purged. |
-| `invalidateCacheInterval` | 30 (seconds) | How often the background eviction task runs. |
-
-### Programmatic Configuration
-
-```java
-Broadcaster b = factory.lookup("/chat", true);
-BroadcasterCache cache = b.getBroadcasterConfig().getBroadcasterCache();
-if (cache instanceof UUIDBroadcasterCache uuidCache) {
-    uuidCache.setMaxPerClient(500);
-    uuidCache.setMessageTTL(TimeUnit.MINUTES.toMillis(2));
-    uuidCache.setMaxTotal(50_000);
+@org.atmosphere.config.service.Message(encoders = {JacksonEncoder.class}, decoders = {JacksonDecoder.class})
+@DeliverTo(DELIVER_TO.BROADCASTER)
+public Message onMessage(Message message) {
+    return message;  // sent to all subscribers on this broadcaster
 }
 ```
 
-### Cache Metrics
+### DELIVER_TO.RESOURCE
 
-`UUIDBroadcasterCache` exposes metrics you can use for monitoring:
+Deliver only to the resource that sent the message. Useful for acknowledgments or request/response patterns:
 
 ```java
-if (cache instanceof UUIDBroadcasterCache uuidCache) {
-    log.info("Cache size: {}, hits: {}, misses: {}, evictions: {}",
-        uuidCache.totalSize(),
-        uuidCache.hitCount(),
-        uuidCache.missCount(),
-        uuidCache.evictionCount());
+@org.atmosphere.config.service.Message(decoders = {JacksonDecoder.class})
+@DeliverTo(DELIVER_TO.RESOURCE)
+public String onMessage(Message message) {
+    return "Received: " + message.getMessage();  // sent only to the sender
 }
 ```
 
-### BroadcasterCacheInspector
+### DELIVER_TO.ALL
 
-You can inspect (and optionally reject) messages before they enter the cache:
-
-```java
-cache.inspector(message -> {
-    // Return false to prevent this message from being cached
-    if (message.message() instanceof EphemeralNotification) {
-        return false;
-    }
-    return true;
-});
-```
-
-This is useful for messages that are only meaningful in real-time (typing indicators, cursor positions) and should not be replayed.
-
-## BroadcasterLifeCyclePolicy
-
-When a Broadcaster has no subscribers, should it stay alive, release resources, or be destroyed? The `BroadcasterLifeCyclePolicy` controls this behavior.
-
-### Available Policies
-
-| Policy | Behavior |
-|--------|----------|
-| `NEVER` | The Broadcaster lives forever. Never destroyed or cleaned up. |
-| `IDLE_DESTROY` | Destroy the Broadcaster (remove from factory) after an idle timeout with no activity. |
-| `IDLE_RESUME` | Resume all suspended resources and destroy the Broadcaster after idle timeout. |
-| `EMPTY_DESTROY` | Destroy the Broadcaster immediately when the last subscriber leaves. |
-| `IDLE_EMPTY_DESTROY` | Destroy only if the Broadcaster is both idle AND has no subscribers. |
-| `EMPTY` | Release external resources (but keep the Broadcaster) when last subscriber leaves. |
-| `IDLE` | Release external resources after idle timeout (Broadcaster stays). |
-
-### Setting the Policy
+Deliver to all resources across **all** `Broadcaster` instances. This is a global broadcast:
 
 ```java
-Broadcaster b = factory.lookup("/temp-channel", true);
-b.setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy.EMPTY_DESTROY);
-```
-
-### Custom Idle Timeout
-
-Use the `Builder` for policies with timeouts:
-
-```java
-var policy = new BroadcasterLifeCyclePolicy.Builder()
-    .policy(ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY)
-    .idleTime(5, TimeUnit.MINUTES)
-    .build();
-
-broadcaster.setBroadcasterLifeCyclePolicy(policy);
-```
-
-### Framework-Wide Default
-
-Set the default policy for all Broadcasters via init-param:
-
-```xml
-<init-param>
-    <param-name>org.atmosphere.cpr.broadcasterLifeCyclePolicy</param-name>
-    <param-value>EMPTY_DESTROY</param-value>
-</init-param>
-```
-
-### Lifecycle Listeners
-
-React to lifecycle events:
-
-```java
-broadcaster.addBroadcasterLifeCyclePolicyListener(
-    new BroadcasterLifeCyclePolicyListenerAdapter() {
-        @Override
-        public void onIdle() {
-            log.info("Broadcaster {} is idle", broadcaster.getID());
-        }
-
-        @Override
-        public void onDestroy() {
-            log.info("Broadcaster {} destroyed", broadcaster.getID());
-        }
-
-        @Override
-        public void onEmpty() {
-            log.info("Broadcaster {} has no subscribers", broadcaster.getID());
-        }
-    }
-);
-```
-
-### Choosing the Right Policy
-
-| Scenario | Recommended Policy |
-|----------|--------------------|
-| Permanent channels (`/chat`, `/notifications`) | `NEVER` |
-| Per-user or per-session channels | `EMPTY_DESTROY` |
-| Time-limited rooms (meetings, game lobbies) | `IDLE_DESTROY` with timeout |
-| Resource-intensive channels (DB connections, JMS) | `IDLE` or `EMPTY` to release resources without destroying |
-
-## Multi-Broadcaster Patterns
-
-### One Broadcaster Per Topic
-
-```java
-@ManagedService(path = "/topic/{name}")
-public class TopicEndpoint {
-
-    @PathParam("name")
-    private String topicName;
-
-    @Message
-    public String onMessage(String msg) {
-        // Automatically broadcast to all subscribers of /topic/{name}
-        return msg;
-    }
+@org.atmosphere.config.service.Message(encoders = {JacksonEncoder.class}, decoders = {JacksonDecoder.class})
+@DeliverTo(DELIVER_TO.ALL)
+public Message onMessage(Message message) {
+    return message;  // sent to every connected client, on every broadcaster
 }
 ```
 
-Each unique path gets its own Broadcaster. A client connecting to `/topic/sports` subscribes to a different channel than `/topic/tech`.
+### Import
 
-### Cross-Broadcaster Publishing
-
-Sometimes a message on one channel should also appear on another:
+The enum and annotation are in `org.atmosphere.config.service`:
 
 ```java
-@ManagedService(path = "/chat/{room}")
-public class ChatRoom {
-
-    @Inject
-    private BroadcasterFactory factory;
-
-    @PathParam("room")
-    private String room;
-
-    @Message
-    public String onMessage(String msg) {
-        // Also publish to the "all-rooms" feed
-        factory.findBroadcaster("/feed/all-rooms")
-               .ifPresent(b -> b.broadcast("[" + room + "] " + msg));
-
-        return msg; // broadcast to current room
-    }
-}
-```
-
-### BroadcasterListener: Global Broadcast Events
-
-Listen to events across all Broadcasters:
-
-```java
-factory.addBroadcasterListener(new BroadcasterListenerAdapter() {
-    @Override
-    public void onPostCreate(Broadcaster b) {
-        log.info("New broadcaster created: {}", b.getID());
-    }
-
-    @Override
-    public void onComplete(Broadcaster b) {
-        log.info("Broadcast complete on {}", b.getID());
-    }
-
-    @Override
-    public void onPreDestroy(Broadcaster b) {
-        log.info("Broadcaster being destroyed: {}", b.getID());
-    }
-});
+import org.atmosphere.config.service.DeliverTo;
+import org.atmosphere.config.service.DeliverTo.DELIVER_TO;
 ```
 
 ## Broadcaster Scope
 
-By default, a Broadcaster delivers to all its subscribers. You can change this with `setScope()`:
-
-| Scope | Behavior |
-|-------|----------|
-| `APPLICATION` (default) | Broadcast to all subscribers in this web application |
-| `REQUEST` | Broadcast only to the resource associated with the current request |
-| `VM` | Broadcast across all web applications in the JVM |
+In addition to `@DeliverTo` (which controls delivery at the method level), the `Broadcaster` itself has a scope that controls which resources it can reach:
 
 ```java
-broadcaster.setScope(Broadcaster.SCOPE.REQUEST);
-```
-
-The `REQUEST` scope is useful for request-response patterns where you want to use the Broadcaster machinery (filters, cache) but send a reply only to the originating client.
-
-## Complete Example: Stock Ticker
-
-Putting it all together -- a stock ticker with per-symbol channels, price formatting, and offline caching:
-
-```java
-@ManagedService(path = "/stock/{symbol}",
-    broadcasterCache = UUIDBroadcasterCache.class,
-    broadcastFilters = {PriceFormatFilter.class})
-public class StockTicker {
-
-    @Inject
-    private BroadcasterFactory factory;
-
-    @Inject
-    private AtmosphereResource resource;
-
-    @PathParam("symbol")
-    private String symbol;
-
-    @Ready
-    public void onReady() {
-        log.info("Client subscribed to {}", symbol);
-    }
-
-    @Disconnect
-    public void onDisconnect() {
-        log.info("Client unsubscribed from {}", symbol);
-    }
+public enum SCOPE {
+    REQUEST,      // only the current request's AtmosphereResource
+    APPLICATION,  // all resources in the current web application (default)
+    VM            // all resources in the current JVM
 }
 ```
 
-A separate service publishes prices:
+Most applications use the default `APPLICATION` scope.
+
+## Patterns and Best Practices
+
+### One Broadcaster Per Topic
+
+The natural pattern is one `Broadcaster` per topic or channel. With `@ManagedService`, this happens automatically based on the path:
 
 ```java
-@Singleton
-public class PricePublisher {
-
-    @Inject
-    private BroadcasterFactory factory;
-
-    public void publishPrice(String symbol, BigDecimal price) {
-        factory.findBroadcaster("/stock/" + symbol)
-               .ifPresent(b -> b.broadcast(
-                   Map.of("symbol", symbol,
-                          "price", price,
-                          "time", Instant.now())));
-    }
+@ManagedService(path = "/chat/{room}")
+public class ChatRoom {
+    @PathParam("room")
+    private String room;
+    // Each room value (/chat/general, /chat/support) gets its own Broadcaster
 }
 ```
 
-The filter formats the price:
+### Programmatic Broadcasting
+
+When you need to broadcast from outside a `@ManagedService` class (e.g., from a REST controller or a scheduled task), use `BroadcasterFactory`:
 
 ```java
-public class PriceFormatFilter implements BroadcastFilter {
+@Inject
+private BroadcasterFactory factory;
 
-    private final ObjectMapper mapper = new ObjectMapper()
-        .registerModule(new JavaTimeModule());
-
-    @Override
-    public BroadcastAction filter(String id, Object original, Object message) {
-        try {
-            return new BroadcastAction(mapper.writeValueAsString(message));
-        } catch (Exception e) {
-            return new BroadcastAction(ACTION.ABORT, message);
-        }
-    }
+public void notifyAll(String message) {
+    factory.findBroadcaster("/notifications").ifPresent(b -> b.broadcast(message));
 }
 ```
+
+### Targeted Delivery
+
+To send a message to a specific client, use the two-argument `broadcast`:
+
+```java
+@Inject
+private BroadcasterFactory factory;
+
+public void notifyUser(AtmosphereResource target, String message) {
+    factory.findBroadcaster("/notifications").ifPresent(b -> b.broadcast(message, target));
+}
+```
+
+## Broadcaster vs. Room
+
+The `Broadcaster` is a low-level pub/sub primitive. If your application needs presence tracking, stable member identity, or message history, consider the [Room API](/docs/tutorial/06-rooms/) instead. Rooms wrap Broadcasters and add higher-level features:
+
+| Feature | Broadcaster | Room |
+|---------|-------------|------|
+| Level | Low-level | High-level |
+| Identity | Path-based ID | Named group |
+| Presence | Manual tracking | Built-in events |
+| Direct messaging | Manual UUID lookup | `room.sendTo(memberId, msg)` |
+| Message history | Via BroadcasterCache | `room.enableHistory(n)` |
+| Client protocol | Manual | Built into atmosphere.js |
+
+For most chat and collaboration apps, prefer Rooms. Use Broadcaster directly when you need fine-grained control over message delivery, custom filters, or lifecycle policies.
 
 ## Summary
 
 | Concept | Purpose |
 |---------|---------|
-| `Broadcaster` | Named pub/sub channel; delivers messages to all subscribers |
-| `BroadcasterFactory` | Creates, looks up, and manages all Broadcasters |
-| `BroadcastFilter` | Transforms or suppresses messages before delivery |
-| `PerRequestBroadcastFilter` | Per-subscriber message transformation |
-| `BroadcasterCache` | Stores messages for disconnected clients |
-| `UUIDBroadcasterCache` | Default cache with per-client limits, TTL, and global cap |
-| `BroadcasterLifeCyclePolicy` | Controls when idle/empty Broadcasters are destroyed |
-| `BroadcasterListener` | Global hooks for Broadcaster creation, completion, and destruction |
-
-In the [next chapter](/docs/tutorial/06-rooms/), you will see how the **Room** API builds on Broadcasters to provide a higher-level abstraction with presence tracking, member metadata, message history, and AI virtual members.
+| `Broadcaster` | Pub/sub hub; delivers messages to subscribed `AtmosphereResource` instances |
+| `DefaultBroadcaster` | Default implementation; supports all transports, async delivery |
+| `SimpleBroadcaster` | Lighter implementation; typically used with WebSocket-only endpoints |
+| `BroadcasterFactory` | Registry for looking up, creating, and iterating over `Broadcaster` instances |
+| `UUIDBroadcasterCache` | Default cache; replays missed messages on reconnection |
+| `BroadcastFilter` | Intercepts and transforms messages before delivery |
+| `PerRequestBroadcastFilter` | Per-subscriber message filtering (e.g., role-based redaction) |
+| `BroadcasterListener` | Lifecycle events: creation, destruction, subscribe, unsubscribe |
+| `@DeliverTo` | Controls delivery scope: `RESOURCE`, `BROADCASTER`, or `ALL` |

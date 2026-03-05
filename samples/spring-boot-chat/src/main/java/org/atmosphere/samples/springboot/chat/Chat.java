@@ -18,6 +18,7 @@ package org.atmosphere.samples.springboot.chat;
 import java.io.IOException;
 
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Heartbeat;
@@ -25,7 +26,7 @@ import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.Broadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +38,8 @@ public class Chat {
     private final Logger logger = LoggerFactory.getLogger(Chat.class);
 
     @Inject
-    private BroadcasterFactory factory;
+    @Named("/atmosphere/chat")
+    private Broadcaster broadcaster;
 
     @Inject
     private AtmosphereResource r;
@@ -52,8 +54,7 @@ public class Chat {
 
     @Ready
     public void onReady() {
-        logger.info("Browser {} connected", r.uuid());
-        logger.info("BroadcasterFactory used {}", factory.getClass().getName());
+        logger.info("Browser {} connected (broadcaster: {})", r.uuid(), broadcaster.getID());
     }
 
     @Disconnect

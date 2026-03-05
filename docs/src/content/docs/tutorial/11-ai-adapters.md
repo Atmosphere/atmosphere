@@ -1,589 +1,394 @@
 ---
 title: "AI Framework Adapters"
-description: "How AiSupport auto-detects Spring AI, LangChain4j, Google ADK, Embabel, or the built-in client"
+description: "Plugging Spring AI, LangChain4j, Google ADK, and Embabel into Atmosphere's streaming infrastructure"
+sidebar:
+  order: 11
 ---
 
-In [Chapter 9](/docs/tutorial/09-ai-endpoint/) and [Chapter 10](/docs/tutorial/10-ai-tools/) you used `session.stream(message)` and the framework "auto-detected" the AI backend. This chapter pulls back the curtain on that mechanism: the `AiSupport` SPI, the five built-in adapters, and how you switch between them -- or bypass them entirely for direct control.
+Atmosphere's AI layer follows the same adapter pattern as its transport layer. Just as Atmosphere auto-detects WebSocket, SSE, or long-polling support at runtime, it auto-detects which AI framework is on the classpath and bridges it to the `StreamingSession` API.
 
-## The AiSupport SPI
+## Built-in LLM Client (zero extra dependencies)
 
-`AiSupport` is a service-provider interface discovered via `java.util.ServiceLoader`. It is the AI equivalent of `AsyncSupport` (which adapts web containers). Each implementation wraps a specific AI framework.
-
-```java
-public interface AiSupport {
-
-    /** Can this adapter be used? Typically checks classpath and config. */
-    boolean isAvailable();
-
-    /** Higher priority wins. Built-in is 0; framework adapters are 100. */
-    int priority();
-
-    /** One-time configuration with LLM settings. */
-    void configure(LlmSettings settings);
-
-    /** Stream a response for the given request to the given session. */
-    void stream(AiRequest request, StreamingSession session);
-}
-```
-
-### Resolution Algorithm
-
-At startup, `AtmosphereFramework` loads all `AiSupport` implementations via `ServiceLoader`, filters to those where `isAvailable()` returns `true`, and selects the one with the highest `priority()`. If two have the same priority, the first discovered wins (classpath order).
-
-In practice, you will have at most one framework adapter on the classpath alongside the built-in client. If you have none, the built-in client (priority 0) is the fallback.
-
-### The Parallel to AsyncSupport
-
-The `AiSupport` SPI mirrors `AsyncSupport`, the transport layer SPI:
-
-| Concern | Transport Layer | AI Layer |
-|---------|----------------|----------|
-| SPI interface | `AsyncSupport` | `AiSupport` |
-| What it adapts | Web containers (Jetty, Tomcat, Undertow) | AI frameworks (Spring AI, LangChain4j, ADK, Embabel) |
-| Discovery | Classpath scanning | `ServiceLoader` |
-| Resolution | Best available container | Highest `priority()` among `isAvailable()` |
-| Initialization | `init(ServletConfig)` | `configure(LlmSettings)` |
-| Core method | `service(req, res)` | `stream(AiRequest, StreamingSession)` |
-| Fallback | `BlockingIOCometSupport` | `BuiltInAiSupport` (OpenAI-compatible) |
-
-Same design pattern, same pluggability, same zero-config experience.
-
-## Adapter Overview
-
-| Classpath JAR | `AiSupport` Implementation | Priority | Backend |
-|---------------|---------------------------|----------|---------|
-| `atmosphere-ai` (default) | `BuiltInAiSupport` | 0 | `OpenAiCompatibleClient` |
-| `atmosphere-spring-ai` | `SpringAiSupport` | 100 | Spring AI `ChatClient` |
-| `atmosphere-langchain4j` | `LangChain4jAiSupport` | 100 | `StreamingChatLanguageModel` |
-| `atmosphere-adk` | `AdkAiSupport` | 100 | Google ADK `Runner` |
-| `atmosphere-embabel` | `EmbabelAiSupport` | 100 | Embabel `AgentPlatform` |
-
-## Built-in: OpenAiCompatibleClient (Priority 0)
-
-The default adapter. Always available because it ships with `atmosphere-ai`. It uses a lightweight HTTP client that speaks the OpenAI chat completions API, which is supported by many providers.
-
-**Maven:**
+Before reaching for an adapter module, know that `atmosphere-ai` itself includes a built-in `OpenAiCompatibleClient`. This client works with **OpenAI**, **Google Gemini**, **Ollama**, **Azure OpenAI**, and any OpenAI-compatible endpoint -- with zero additional dependencies beyond `atmosphere-ai`.
 
 ```xml
-<!-- Included automatically with atmosphere-ai -->
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-ai</artifactId>
-    <version>${atmosphere.version}</version>
+    <version>4.0.11-SNAPSHOT</version>
 </dependency>
 ```
 
-**Supported providers:**
-
-| Provider | Model examples | API key variable |
-|----------|---------------|-----------------|
-| Google Gemini | `gemini-2.5-flash`, `gemini-2.5-pro` | `GEMINI_API_KEY` or `LLM_API_KEY` |
-| OpenAI | `gpt-4o`, `gpt-4o-mini`, `o3-mini` | `LLM_API_KEY` |
-| Ollama (local) | `llama3.2`, `mistral`, `codellama` | None (local) |
-| Any OpenAI-compatible | Any | `LLM_API_KEY` + `LLM_BASE_URL` |
-
-**Configuration:**
-
-```bash
-export LLM_MODE=remote       # or "local" for Ollama
-export LLM_MODEL=gemini-2.5-flash
-export LLM_API_KEY=AIza...
-```
-
-**How it streams internally:**
+Use it directly via `AiConfig`:
 
 ```java
-// Internally, BuiltInAiSupport does roughly this:
-var client = OpenAiCompatibleClient.create(settings);
+var settings = AiConfig.get();
 var request = ChatCompletionRequest.builder(settings.model())
-    .system(aiRequest.systemPrompt())
-    .messages(aiRequest.history())
-    .user(aiRequest.message())
-    .tools(aiRequest.tools())  // @AiTool definitions as OpenAI function specs
-    .stream(true)
-    .build();
+        .system("You are a helpful assistant.")
+        .user(prompt)
+        .build();
 
-client.streamChatCompletion(request, new StreamingCallback() {
-    public void onToken(String token) { session.send(token); }
-    public void onToolCall(String name, Map<String, Object> args) {
-        var result = toolExecutor.execute(name, args);
-        // Feed result back and continue streaming
-    }
-    public void onComplete() { session.complete(); }
-});
+settings.client().streamChatCompletion(request, session);
 ```
 
-**When to use:** Quick prototyping, small projects, or when you want zero extra dependencies. It handles tool calling, streaming, and conversation memory out of the box.
+The built-in client is what powers `session.stream(message)` inside `@AiEndpoint`. If you need framework-specific features (Spring AI advisors, LangChain4j tool loops, ADK agent orchestration, Embabel agent planning), use one of the adapter modules below.
 
-## Spring AI Adapter (Priority 100)
+## Adapter Modules
 
-Wraps Spring AI's `ChatClient` for streaming. Use this if your project already uses Spring AI advisors, vector stores, or the broader Spring AI ecosystem.
+Four adapter modules ship with Atmosphere 4.0:
 
-**Maven:**
+| Module | Artifact | AI Framework |
+|--------|----------|-------------|
+| Spring AI | `atmosphere-spring-ai` | Spring AI (`ChatClient`) |
+| LangChain4j | `atmosphere-langchain4j` | LangChain4j (`StreamingChatLanguageModel`) |
+| Google ADK | `atmosphere-adk` | Google Agent Development Kit (`Runner`) |
+| Embabel | `atmosphere-embabel` | Embabel Agent Framework (`AgentPlatform`) |
+
+All four depend on `atmosphere-ai`, which provides the framework-agnostic interfaces: `AiSupport`, `AiStreamingAdapter<T>`, `StreamingSession`, `AiRequest`, and the `@AiTool`/`@AiEndpoint` annotations.
+
+## The adapter architecture
+
+Two SPIs form the backbone:
+
+**`AiStreamingAdapter<T>`** is the low-level bridge. Each adapter converts one framework-specific request type into `StreamingSession` calls:
+
+```java
+public interface AiStreamingAdapter<T> {
+    String name();
+    void stream(T request, StreamingSession session);
+}
+```
+
+**`AiSupport`** is the high-level SPI detected by `ServiceLoader`. It accepts a framework-agnostic `AiRequest` and handles model configuration, conversation history, and tool calling internally:
+
+```java
+public interface AiSupport {
+    String name();
+    boolean isAvailable();
+    int priority();
+    void configure(AiConfig.LlmSettings settings);
+    void stream(AiRequest request, StreamingSession session);
+    Set<AiCapability> capabilities();
+}
+```
+
+When multiple `AiSupport` implementations are on the classpath, the one with the highest `priority()` that reports `isAvailable() == true` wins. All four shipped adapters use priority `100`.
+
+## Spring AI adapter
+
+**Module:** `atmosphere-spring-ai`
+**Package:** `org.atmosphere.ai.spring`
+
+### Classes
+
+| Class | Role |
+|-------|------|
+| `SpringAiStreamingAdapter` | Bridges `ChatClient` Flux-based streaming to `StreamingSession`. Supports advisors (RAG, logging, memory) via a customizer callback. |
+| `SpringAiSupport` | `AiSupport` implementation backed by `ChatClient`. Capabilities: `TEXT_STREAMING`, `TOOL_CALLING`, `STRUCTURED_OUTPUT`, `SYSTEM_PROMPT`. |
+| `SpringAiToolBridge` | Converts Atmosphere `ToolDefinition` to Spring AI `ToolCallback`. Spring AI handles the tool call loop automatically. |
+| `AtmosphereSpringAiAutoConfiguration` | Spring Boot `@AutoConfiguration`. Activates when `ChatClient` is on the classpath. |
+
+### Dependency
 
 ```xml
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-ai</artifactId>
-    <version>${atmosphere.version}</version>
+    <version>4.0.11-SNAPSHOT</version>
 </dependency>
 ```
 
-**How it works:**
+### Auto-configuration
 
-`SpringAiSupport` checks for a `ChatClient` bean in the Spring application context. If found, it delegates streaming to `SpringAiStreamingAdapter`, which uses `ChatClient.prompt().stream()` and maps each `ChatResponse` chunk to `session.send(token)`.
-
-**Spring Boot configuration:**
-
-```yaml
-# application.yml
-spring:
-  ai:
-    openai:
-      api-key: ${OPENAI_API_KEY}
-      chat:
-        options:
-          model: gpt-4o
-```
-
-**Auto-configuration:**
-
-`AtmosphereSpringAiAutoConfiguration` creates:
-
-- A `SpringAiStreamingAdapter` bean.
-- A `SpringAiSupport` bridge bean that connects the Spring-managed `ChatClient` to the `AiSupport` SPI.
-
-**Your code does not change:**
+The auto-configuration creates a `SpringAiStreamingAdapter` bean and, if a `ChatClient` bean exists, wires it into `SpringAiSupport`:
 
 ```java
-@AiEndpoint(path = "/ai/chat", systemPrompt = "You are a helpful assistant")
-public class MyChat {
+@AutoConfiguration
+@ConditionalOnClass(name = "org.springframework.ai.chat.client.ChatClient")
+public class AtmosphereSpringAiAutoConfiguration {
 
-    @Prompt
-    public void onPrompt(String message, StreamingSession session) {
-        session.stream(message);  // uses Spring AI ChatClient automatically
+    @Bean
+    @ConditionalOnMissingBean
+    public SpringAiStreamingAdapter springAiStreamingAdapter() {
+        return new SpringAiStreamingAdapter();
+    }
+
+    @Bean
+    @ConditionalOnBean(ChatClient.class)
+    SpringAiSupport springAiSupportBridge(ChatClient chatClient) {
+        SpringAiSupport.setChatClient(chatClient);
+        return new SpringAiSupport();
     }
 }
 ```
 
-**Direct usage (bypassing @AiEndpoint):**
+### Direct adapter usage
+
+For fine-grained control, use `SpringAiStreamingAdapter` directly:
 
 ```java
 var session = StreamingSessions.start(resource);
-springAiAdapter.stream(chatClient, prompt, session);
+adapter.stream(chatClient, "Tell me about Atmosphere", session);
 ```
 
 With advisors:
 
 ```java
-springAiAdapter.stream(chatClient, prompt, session, myRagAdvisor);
+adapter.stream(chatClient, "Tell me about Atmosphere", session,
+    spec -> spec.advisors(myRagAdvisor, myLoggingAdvisor)
+                .system("You are a helpful assistant"));
 ```
 
-With a customizer:
+### How SpringAiSupport works
 
-```java
-springAiAdapter.stream(chatClient, prompt, session, spec -> {
-    spec.system("Custom system prompt for this call");
-});
-```
+When an `@AiEndpoint` receives a message, `SpringAiSupport.stream()` runs the following sequence:
 
-**Tool integration:** `@AiTool` methods are converted to `ToolCallback` objects via `SpringAiToolBridge`. They are registered with the `ChatClient` prompt automatically.
+1. Build a prompt spec from the `AiRequest` (system prompt, conversation history, user message).
+2. If the request includes `@AiTool` definitions, convert them to Spring AI `ToolCallback` instances via `SpringAiToolBridge.toToolCallbacks()` and attach them with `promptSpec.toolCallbacks(callbacks)`.
+3. Subscribe to the `Flux<ChatResponse>` from `promptSpec.stream().chatResponse()`.
+4. For each response chunk, extract the text via `response.getResult().getOutput().getText()` and forward it to `session.send()`.
+5. On Flux completion, call `session.complete()`. On error, call `session.error()`.
 
-## LangChain4j Adapter (Priority 100)
+## LangChain4j adapter
 
-Wraps LangChain4j's `StreamingChatLanguageModel`.
+**Module:** `atmosphere-langchain4j`
+**Package:** `org.atmosphere.ai.langchain4j`
 
-**Maven:**
+### Classes
+
+| Class | Role |
+|-------|------|
+| `LangChain4jStreamingAdapter` | Bridges `StreamingChatLanguageModel` to `StreamingSession`. |
+| `AtmosphereStreamingResponseHandler` | Simple `StreamingChatResponseHandler`: forwards tokens via `session.send()`, completion via `session.complete()`. |
+| `ToolAwareStreamingResponseHandler` | Extends the basic handler with tool calling support. Executes tools via `LangChain4jToolBridge` and re-submits conversations. Max 5 tool rounds. |
+| `LangChain4jAiSupport` | `AiSupport` implementation. Capabilities: `TEXT_STREAMING`, `TOOL_CALLING`, `SYSTEM_PROMPT`. |
+| `LangChain4jToolBridge` | Converts `ToolDefinition` to `ToolSpecification` and handles tool execution. |
+| `AtmosphereLangChain4jAutoConfiguration` | Activates when `StreamingChatLanguageModel` is on the classpath. |
+
+### Dependency
 
 ```xml
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-langchain4j</artifactId>
-    <version>${atmosphere.version}</version>
+    <version>4.0.11-SNAPSHOT</version>
 </dependency>
 ```
 
-**Configuration:**
+### Configuration example
 
-```yaml
-# application.yml
-langchain4j:
-  open-ai:
-    streaming-chat-model:
-      api-key: ${OPENAI_API_KEY}
-      model-name: gpt-4o
-```
-
-**How it works:**
-
-`LangChain4jAiSupport` checks if `StreamingChatLanguageModel` is on the classpath. It delegates streaming to `LangChain4jStreamingAdapter`, which uses `model.chat()` with an `AtmosphereStreamingResponseHandler`.
-
-**Callback mapping:**
-
-| LangChain4j Callback | StreamingSession Action |
-|----------------------|------------------------|
-| `onPartialResponse(text)` | `session.send(text)` |
-| `onCompleteResponse(response)` | `session.complete()` |
-| `onError(throwable)` | `session.error(message)` |
-
-**Direct usage:**
+From the `spring-boot-langchain4j-chat` sample:
 
 ```java
-var session = StreamingSessions.start(resource);
-model.chat(ChatMessage.userMessage(prompt),
-    new AtmosphereStreamingResponseHandler(session));
+@Configuration
+public class LlmConfig {
+    @Bean
+    public AiConfig.LlmSettings llmSettings(
+            @Value("${llm.mode:remote}") String mode,
+            @Value("${llm.base-url:}") String baseUrl,
+            @Value("${llm.api-key:}") String apiKey,
+            @Value("${llm.model:gemini-2.5-flash}") String model) {
+        return AiConfig.configure(mode, model, apiKey, baseUrl.isBlank() ? null : baseUrl);
+    }
+
+    @Bean
+    public StreamingChatLanguageModel streamingChatModel(AiConfig.LlmSettings settings) {
+        return OpenAiStreamingChatModel.builder()
+                .baseUrl(settings.baseUrl())
+                .apiKey(settings.client().apiKey())
+                .modelName(settings.model())
+                .build();
+    }
+}
 ```
 
-**Tool integration:** `@AiTool` methods are converted to `ToolSpecification` objects via `LangChain4jToolBridge`.
+The auto-configuration picks up the `StreamingChatLanguageModel` bean:
 
-## Google ADK Adapter (Priority 100)
+```java
+@AutoConfiguration
+@ConditionalOnClass(name = "dev.langchain4j.model.chat.StreamingChatLanguageModel")
+public class AtmosphereLangChain4jAutoConfiguration {
 
-Bridges Google Agent Development Kit (ADK) agent streams to Atmosphere.
+    @Bean
+    @ConditionalOnBean(StreamingChatLanguageModel.class)
+    LangChain4jAiSupport langChain4jAiSupportBridge(StreamingChatLanguageModel model) {
+        LangChain4jAiSupport.setModel(model);
+        return new LangChain4jAiSupport();
+    }
+}
+```
 
-**Maven:**
+### Tool calling with LangChain4j
+
+Unlike Spring AI, LangChain4j does not execute tool callbacks automatically. When the model responds with `ToolExecutionRequest` objects instead of text, `ToolAwareStreamingResponseHandler` handles the loop:
+
+1. Receive the `AiMessage` with tool execution requests in `onCompleteResponse()`.
+2. Call `LangChain4jToolBridge.executeToolCalls()` to run each tool and collect `ToolExecutionResultMessage` objects.
+3. Append the AI message and tool results to the conversation history.
+4. Re-submit the updated conversation to the model with a new `ToolAwareStreamingResponseHandler`.
+5. Repeat until the model produces a text response or `MAX_TOOL_ROUNDS` (5) is reached.
+
+## Google ADK adapter
+
+**Module:** `atmosphere-adk`
+**Package:** `org.atmosphere.ai.adk`
+
+### Classes
+
+| Class | Role |
+|-------|------|
+| `AdkStreamingAdapter` | Bridges ADK `Runner.runAsync()` RxJava `Flowable<Event>` to `StreamingSession` via `AdkEventAdapter`. |
+| `AdkAiSupport` | `AiSupport` implementation. Capabilities: `TEXT_STREAMING`, `TOOL_CALLING`, `AGENT_ORCHESTRATION`, `CONVERSATION_MEMORY`, `SYSTEM_PROMPT`. |
+| `AdkToolBridge` | Converts `ToolDefinition` to ADK `BaseTool`. Each tool extends `BaseTool` with `runAsync()` that delegates to the Atmosphere `ToolExecutor`. |
+| `AdkBroadcastTool` | Ready-made `BaseTool` that lets an ADK agent broadcast messages to Atmosphere clients. |
+| `AdkEventAdapter` | Subscribes to a `Flowable<Event>` and forwards partial tokens, turn completions, and errors to a `StreamingSession`. |
+| `AtmosphereAdkAutoConfiguration` | Activates when `com.google.adk.runner.Runner` is on the classpath. |
+
+### Dependency
 
 ```xml
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-adk</artifactId>
-    <version>${atmosphere.version}</version>
+    <version>4.0.11-SNAPSHOT</version>
 </dependency>
 ```
 
-**Configuration:**
+### ADK-specific details
 
-```yaml
-google:
-  adk:
-    model: gemini-2.0-flash
-    api-key: ${GEMINI_API_KEY}
-```
-
-**Architecture:**
-
-```
-Browser  <-- WS/SSE -->  Broadcaster  <-- AdkEventAdapter  <-- Flowable<Event>  <-- Runner  <-- LlmAgent
-```
-
-**How it works:**
-
-`AdkAiSupport` checks for the ADK `Runner` class on the classpath. It delegates to `AdkStreamingAdapter`, which:
-
-1. Creates a session with the ADK `Runner`.
-2. Subscribes to the `Flowable<Event>` stream from the runner.
-3. `AdkEventAdapter` maps each ADK `Event` to `session.send(token)` or `session.sendProgress(message)`.
-4. Calls `session.complete()` when the event stream completes.
-
-**Direct usage:**
+ADK requires tools to be registered at agent construction time. You cannot add tools dynamically per-request. Use `AdkAiSupport.configureWithTools()`:
 
 ```java
+var tools = List.of(weatherTool, calendarTool);
+AdkAiSupport.configureWithTools(settings, tools);
+```
+
+ADK only supports Gemini models natively. If you configure a non-Gemini model, `AdkAiSupport` logs a warning suggesting `atmosphere-spring-ai` or `atmosphere-langchain4j` instead.
+
+### AdkBroadcastTool
+
+The `AdkBroadcastTool` lets an ADK agent push messages directly to browser clients:
+
+```java
+// Fixed topic -- agent broadcasts to one specific broadcaster
+var broadcastTool = new AdkBroadcastTool(broadcaster);
+
+// Or dynamic topic -- agent specifies the topic at call time
+var broadcastTool = new AdkBroadcastTool(broadcasterFactory);
+
 LlmAgent agent = LlmAgent.builder()
     .name("assistant")
     .model("gemini-2.0-flash")
-    .instruction("You are a helpful assistant.")
-    .build();
-
-Runner runner = Runner.builder()
-    .agent(agent)
-    .appName("my-app")
-    .build();
-
-var session = StreamingSessions.start(resource);
-adkAdapter.stream(new AdkRequest(runner, userId, sessionId, prompt), session);
-```
-
-**Low-level event bridge:**
-
-```java
-Flowable<Event> events = runner.runAsync(userId, sessionId,
-    Content.fromParts(Part.fromText(prompt)));
-AdkEventAdapter.bridge(events, broadcaster);
-```
-
-**ADK broadcast tool -- give an ADK agent a tool that pushes to browsers:**
-
-```java
-AdkBroadcastTool broadcastTool = new AdkBroadcastTool(broadcaster);
-
-LlmAgent agent = LlmAgent.builder()
-    .name("notifier")
-    .model("gemini-2.0-flash")
-    .instruction("Use the broadcast tool to send updates to users.")
+    .instruction("Use the broadcast tool to push updates to users")
     .tools(broadcastTool)
     .build();
 ```
 
-**Tool integration:** `@AiTool` methods are converted to `BaseTool` instances via `AdkToolBridge`.
+When called by the agent, `AdkBroadcastTool.runAsync()` broadcasts the message and returns a map containing `status`, `topic`, and `recipients` count.
 
-## Embabel Adapter (Priority 100)
+### AdkEventAdapter
 
-Wraps Embabel's `AgentPlatform` for running multi-step agents with streaming output.
+`AdkEventAdapter` bridges ADK's RxJava `Flowable<Event>` to Atmosphere:
 
-**Maven:**
+```java
+Flowable<Event> events = runner.runAsync(userId, sessionId, userMessage);
+AdkEventAdapter adapter = AdkEventAdapter.bridge(events, broadcaster);
+```
+
+The adapter handles three event types:
+- **Partial events** (`event.partial() == true`): text content forwarded via `session.send()`.
+- **Turn completion** (`event.turnComplete() == true`): triggers `session.complete()`.
+- **Error events** (`event.errorMessage().isPresent()`): triggers `session.error()`.
+
+## Embabel adapter
+
+**Module:** `atmosphere-embabel`
+**Package:** `org.atmosphere.ai.embabel`
+
+Embabel is a Kotlin-based agent framework with built-in planning, tool calling, and orchestration. The `atmosphere-embabel` adapter bridges Embabel's `OutputChannel` pattern to `StreamingSession`, streaming agent events (thinking, tool calls, results) to the browser.
+
+### Dependency
 
 ```xml
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-embabel</artifactId>
-    <version>${atmosphere.version}</version>
+    <version>4.0.11-SNAPSHOT</version>
 </dependency>
-```
-
-**How it works:**
-
-`EmbabelAiSupport` checks for the Embabel `AgentPlatform` class. It delegates to `EmbabelStreamingAdapter`, which routes Embabel `OutputChannelEvent` objects to the `StreamingSession`.
-
-**Event mapping:**
-
-| Embabel Event | StreamingSession Action |
-|---------------|------------------------|
-| `MessageOutputChannelEvent` | `session.send(content)` |
-| `ContentOutputChannelEvent` | `session.send(content)` |
-| `ProgressOutputChannelEvent` | `session.sendProgress(message)` |
-| `LoggingOutputChannelEvent` (INFO+) | `session.sendProgress(message)` |
-
-**Direct usage (Kotlin):**
-
-```kotlin
-val session = StreamingSessions.start(resource)
-embabelAdapter.stream(AgentRequest("assistant") { channel ->
-    agentPlatform.run(prompt, channel)
-}, session)
-```
-
-**Agent name from hints:**
-
-The agent name can be specified in `AiRequest.hints()["agentName"]`, allowing different `@AiEndpoint` paths to run different Embabel agents.
-
-## How to Swap Adapters
-
-Swapping is a matter of changing the Maven dependency. Your `@AiEndpoint`, `@Prompt`, and `@AiTool` code remains unchanged.
-
-### From built-in to Spring AI
-
-```xml
-<!-- Add this dependency -->
 <dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-spring-ai</artifactId>
-    <version>${atmosphere.version}</version>
-</dependency>
-
-<!-- Plus a Spring AI model provider -->
-<dependency>
-    <groupId>org.springframework.ai</groupId>
-    <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
+    <groupId>com.embabel.agent</groupId>
+    <artifactId>embabel-agent-platform-autoconfigure</artifactId>
+    <version>0.3.4</version>
 </dependency>
 ```
 
-Configure the model in `application.properties`:
+### Usage
 
-```properties
-spring.ai.openai.api-key=${OPENAI_API_KEY}
-spring.ai.openai.chat.options.model=gpt-4o
-```
-
-Your endpoint code stays exactly the same. The `SpringAiSupport` (priority 100) takes over from `BuiltInAiSupport` (priority 0).
-
-### From Spring AI to LangChain4j
-
-```xml
-<!-- Remove atmosphere-spring-ai, add: -->
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-langchain4j</artifactId>
-    <version>${atmosphere.version}</version>
-</dependency>
-
-<!-- Plus a LangChain4j model provider -->
-<dependency>
-    <groupId>dev.langchain4j</groupId>
-    <artifactId>langchain4j-open-ai-spring-boot-starter</artifactId>
-</dependency>
-```
-
-### From LangChain4j to Google ADK
-
-```xml
-<!-- Remove atmosphere-langchain4j, add: -->
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-adk</artifactId>
-    <version>${atmosphere.version}</version>
-</dependency>
-```
-
-### Decision Matrix
-
-| Criteria | Recommended Adapter |
-|----------|-------------------|
-| Quick start, minimal dependencies | Built-in (`atmosphere-ai`) |
-| Already using Spring AI advisors / vector stores | Spring AI (`atmosphere-spring-ai`) |
-| Need LangChain4j RAG pipelines or memory | LangChain4j (`atmosphere-langchain4j`) |
-| Building multi-agent systems with Google tools | ADK (`atmosphere-adk`) |
-| Running Embabel agents with step tracking | Embabel (`atmosphere-embabel`) |
-| Need multiple backends simultaneously | Use `RoutingLlmClient` ([Chapter 12](/docs/tutorial/12-ai-filters/)) |
-
-## Direct Adapter Usage -- Bypassing @AiEndpoint
-
-Sometimes you need more control than `@AiEndpoint` provides. You can use adapters directly in a `@ManagedService` or a REST controller.
-
-### In a @ManagedService
+Define an Embabel agent:
 
 ```java
-@ManagedService(path = "/custom-chat")
-public class CustomChat {
-
-    @Inject
-    private AtmosphereResource resource;
-
-    @Message
-    public void onMessage(String message) {
-        var session = StreamingSessions.start(resource);
-
-        // Add custom headers, metadata, or preprocessing
-        session.sendMetadata(Map.of("timestamp", Instant.now().toString()));
-        session.sendProgress("Preparing response...");
-
-        // Use the AiSupport SPI directly
-        var ai = AiSupportResolver.resolve(resource.getAtmosphereConfig());
-        var request = AiRequest.builder()
-            .message(message)
-            .systemPrompt("You are a coding assistant")
-            .model("gpt-4o")
-            .build();
-
-        ai.stream(request, session);
+@Agent(name = "chat-assistant", description = "Answers user questions")
+public class ChatAssistantAgent {
+    @Action(description = "Answer the user's question")
+    public String answer(String userMessage) {
+        return "Answer clearly and concisely: " + userMessage;
     }
 }
 ```
 
-### In a Spring REST Controller
+Run it through Atmosphere:
 
 ```java
-@RestController
-public class AiController {
+var session = StreamingSessions.start(resource);
+var agent = agentPlatform.agents().stream()
+        .filter(a -> "chat-assistant".equals(a.getName()))
+        .findFirst().orElseThrow();
 
-    @Autowired
-    private SpringAiStreamingAdapter springAiAdapter;
+var agentRequest = new AgentRequest("chat-assistant", channel -> {
+    var options = ProcessOptions.DEFAULT.withOutputChannel(channel);
+    agentPlatform.runAgentFrom(agent, options, Map.of("userMessage", prompt));
+    return Unit.INSTANCE;
+});
+Thread.startVirtualThread(() -> adapter.stream(agentRequest, session));
+```
 
-    @Autowired
-    private ChatClient chatClient;
+`AtmosphereOutputChannel` translates agent events (thinking, tool calls, results) into `StreamingSession` calls with appropriate `progress` / `token` / `complete` messages.
 
-    @Autowired
-    private AtmosphereFramework framework;
+## The @AiTool annotation
 
-    @PostMapping("/api/ask")
-    public void ask(@RequestBody String question, HttpServletResponse response) {
-        var resource = AtmosphereResourceFactory.getDefault()
-            .find(framework, response);
+All four adapters share the same framework-agnostic tool definition via `@AiTool` (in `org.atmosphere.ai.annotation`):
 
-        var session = StreamingSessions.start(resource);
-        springAiAdapter.stream(chatClient, question, session, spec -> {
-            spec.system("You are a helpful assistant");
-            spec.advisors(myRagAdvisor);
-        });
-    }
+```java
+@AiTool(name = "get_weather", description = "Get current weather for a city")
+public WeatherResult getWeather(@Param("city") String city,
+                                @Param(value = "unit", required = false) String unit) {
+    return weatherService.lookup(city, unit);
 }
 ```
 
-## Writing a Custom AiSupport
+The `ToolRegistry` discovers `@AiTool` methods at startup and creates `ToolDefinition` objects. Each adapter's tool bridge then converts these into the native format:
 
-If you use an AI framework that Atmosphere does not have a built-in adapter for, you can write your own `AiSupport`:
+| Adapter | Bridge class | Native tool type |
+|---------|-------------|-----------------|
+| Spring AI | `SpringAiToolBridge` | `ToolCallback` |
+| LangChain4j | `LangChain4jToolBridge` | `ToolSpecification` |
+| Google ADK | `AdkToolBridge` | `BaseTool` |
+| Embabel | _(handled by Embabel platform)_ | Embabel `@Action` |
+
+Tools are registered globally and selected per-endpoint:
 
 ```java
-public class MyCustomAiSupport implements AiSupport {
-
-    private MyLlmClient client;
-
-    @Override
-    public boolean isAvailable() {
-        try {
-            Class.forName("com.example.mylm.MyLlmClient");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-    }
-
-    @Override
-    public int priority() {
-        return 100;  // higher than built-in (0)
-    }
-
-    @Override
-    public void configure(LlmSettings settings) {
-        client = new MyLlmClient(settings.apiKey(), settings.model());
-    }
-
-    @Override
-    public void stream(AiRequest request, StreamingSession session) {
-        client.streamChat(request.message(), new MyLlmCallback() {
-            @Override
-            public void onToken(String token) {
-                session.send(token);
-            }
-
-            @Override
-            public void onDone() {
-                session.complete();
-            }
-
-            @Override
-            public void onError(Throwable t) {
-                session.error(t.getMessage());
-            }
-        });
-    }
-}
+@AiEndpoint(path = "/chat", tools = {WeatherTools.class, CalendarTools.class})
 ```
 
-Register it via `ServiceLoader`:
+## Choosing an adapter
 
-```
-# META-INF/services/org.atmosphere.ai.spi.AiSupport
-com.example.MyCustomAiSupport
-```
+**Spring AI** is the best fit for Spring Boot applications already using the Spring AI ecosystem. It supports advisors for RAG, logging, and memory, and has the broadest model provider support via Spring AI's model starters. Spring AI handles the tool call loop automatically.
 
-## Multiple Adapters on the Classpath
+**LangChain4j** is the best fit for applications that need the LangChain4j tool ecosystem or need to work with multiple model providers without Spring. The explicit tool execution loop (via `ToolAwareStreamingResponseHandler`) gives you full control over each tool round.
 
-Having multiple adapter JARs on the classpath is valid. The highest-priority adapter that reports `isAvailable() == true` wins. This can be useful for:
+**Google ADK** is the best fit for multi-agent orchestration with Gemini models. It has built-in conversation memory and agent chaining. The `AdkBroadcastTool` makes it straightforward for agents to push real-time updates to browser clients. Note that ADK requires tools at agent construction time, not per-request.
 
-- **Gradual migration:** Add the new adapter first, verify it works, then remove the old one.
-- **Testing:** Use the built-in adapter in tests (no API key needed with Ollama) and Spring AI in production.
+**Embabel** is the best fit for Kotlin-based agent applications that need Embabel's planning and orchestration capabilities. The `AtmosphereOutputChannel` translates agent lifecycle events into streaming tokens automatically.
 
-If you need to **use multiple backends simultaneously** (e.g., route simple queries to a fast model and complex queries to a powerful one), use `RoutingLlmClient` covered in [Chapter 12](/docs/tutorial/12-ai-filters/).
-
-## Sample Applications
-
-Each adapter has a corresponding sample:
-
-| Sample | Adapter | Description |
-|--------|---------|-------------|
-| `spring-boot-ai-chat` | Built-in | Gemini/OpenAI/Ollama with no extra dependencies |
-| `spring-boot-spring-ai-chat` | Spring AI | `ChatClient` with Spring AI advisors |
-| `spring-boot-langchain4j-chat` | LangChain4j | `StreamingChatLanguageModel` with LangChain4j |
-| `spring-boot-adk-chat` | Google ADK | ADK `Runner` with multi-agent support |
-| `spring-boot-embabel-chat` | Embabel | `AgentPlatform` with step progress tracking |
-
-Run any sample:
-
-```bash
-cd samples/spring-boot-ai-chat
-export LLM_API_KEY=your-api-key
-../../mvnw spring-boot:run
-```
-
-## What is Next
-
-Now that you understand how adapters work, [Chapter 12](/docs/tutorial/12-ai-filters/) covers the middleware layer that sits between your `@Prompt` method and the LLM: filters for PII redaction, content safety, cost metering, multi-model routing, and fan-out streaming.
-
-## Key Takeaways
-
-- `AiSupport` is a `ServiceLoader`-discovered SPI. The highest-priority available adapter wins.
-- The built-in `OpenAiCompatibleClient` (priority 0) is always available and works with Gemini, OpenAI, and Ollama.
-- Framework adapters (Spring AI, LangChain4j, ADK, Embabel) have priority 100 and auto-detect via classpath scanning.
-- Swap backends by changing a Maven dependency -- no code changes to `@AiEndpoint`, `@Prompt`, or `@AiTool`.
-- You can bypass `@AiEndpoint` and use adapters directly for full control.
-- Writing a custom `AiSupport` requires four methods: `isAvailable()`, `priority()`, `configure()`, and `stream()`.
-- The `AiSupport` SPI mirrors `AsyncSupport` -- same design pattern applied to the AI layer.
+All four adapters produce the same wire protocol on the Atmosphere side: token-by-token JSON messages delivered over WebSocket, SSE, or long-polling to any connected client.

@@ -1,219 +1,418 @@
 ---
 title: "AI Filters, Routing & Guardrails"
-description: "PII redaction, content safety, cost metering, model routing, and fan-out streaming"
+description: "PII redaction, content safety, cost metering, multi-model routing, fan-out streaming, and token budgets"
+sidebar:
+  order: 12
 ---
 
-The AI module includes a rich middleware layer between your `@Prompt` method and the LLM. Filters and routers handle PII, safety, cost, and multi-model orchestration without touching your endpoint code.
+Atmosphere's AI layer provides three categories of infrastructure that sit between LLM responses and browser clients: **filters** that process the token stream, **routing** that directs requests to the right model, and **guardrails** that enforce safety policies before and after LLM calls.
 
-## Filter Registration
+## AI stream filters
 
-Register filters via annotation:
+AI filters extend the same `BroadcastFilter` mechanism used by Atmosphere's core, specialized for the AI streaming wire protocol. The base class `AiStreamBroadcastFilter` (in `org.atmosphere.ai.filter`) handles `RawMessage` unwrapping, JSON parsing via `AiStreamMessage`, and re-wrapping automatically. Subclasses only implement `filterAiMessage()`.
+
+### AiStreamBroadcastFilter
+
+This abstract class implements `BroadcastFilterLifecycle`. Its `filter()` method:
+
+1. Checks if the message is a `RawMessage` wrapping a JSON string.
+2. Parses it into an `AiStreamMessage` (which has fields: `type`, `data`, `sessionId`, `seq`, etc.).
+3. Delegates to the abstract `filterAiMessage()` method.
+4. Non-AI messages pass through unchanged.
 
 ```java
-@AiEndpoint(path = "/ai/chat",
-    filters = {PiiRedactionFilter.class, CostMeteringFilter.class})
-public class SecureChat {
-    @Prompt
-    public void onPrompt(String message, StreamingSession session) {
-        session.stream(message);
+public abstract class AiStreamBroadcastFilter implements BroadcastFilterLifecycle {
+
+    protected abstract BroadcastAction filterAiMessage(
+            String broadcasterId, AiStreamMessage msg,
+            String originalJson, RawMessage rawMessage);
+}
+```
+
+Subclasses return one of:
+
+- `new BroadcastAction(rawMessage)` -- pass through unchanged.
+- `new BroadcastAction(new RawMessage(modified.toJson()))` -- pass through modified.
+- `new BroadcastAction(ACTION.ABORT, rawMessage)` -- drop the message.
+- `new BroadcastAction(ACTION.SKIP, rawMessage)` -- stop filter chain, deliver as-is.
+
+### PiiRedactionFilter
+
+Detects and redacts personally identifiable information from AI-generated token streams. Since tokens arrive one or a few words at a time, the filter buffers tokens per session until a sentence boundary (`.`, `!`, `?`, or newline) is detected. At that point it scans the buffered sentence, redacts matches, and emits the cleaned text.
+
+Default patterns:
+
+| Pattern | What it matches |
+|---------|----------------|
+| `email` | Standard email addresses |
+| `us-phone` | US phone numbers (10+ digits, various formats) |
+| `ssn` | US Social Security Numbers (NNN-NN-NNNN) |
+| `credit-card` | Credit card numbers (13-19 digits with optional separators) |
+
+Usage:
+
+```java
+broadcaster.getBroadcasterConfig().addFilter(new PiiRedactionFilter());
+```
+
+With a custom replacement string:
+
+```java
+broadcaster.getBroadcasterConfig().addFilter(new PiiRedactionFilter("***"));
+```
+
+Adding custom patterns:
+
+```java
+var filter = new PiiRedactionFilter();
+filter.addPattern("uk-nino", Pattern.compile("[A-Z]{2}\\d{6}[A-Z]"));
+broadcaster.getBroadcasterConfig().addFilter(filter);
+```
+
+Removing a default pattern:
+
+```java
+filter.removePattern("credit-card");
+```
+
+On stream completion, any remaining buffered text is flushed with redaction applied. The filter uses a deferred broadcast on a virtual thread to emit the flushed token before the terminal `complete` message.
+
+### ContentSafetyFilter
+
+Scans AI-generated content for harmful patterns and blocks or replaces unsafe content mid-stream. Like `PiiRedactionFilter`, it buffers tokens into sentence-sized chunks for context-aware scanning. A pluggable `SafetyChecker` interface allows custom safety logic.
+
+Safety outcomes are modeled as a sealed interface:
+
+```java
+public sealed interface SafetyResult
+        permits SafetyResult.Safe, SafetyResult.Unsafe, SafetyResult.Redacted {
+    record Safe() implements SafetyResult {}
+    record Unsafe(String reason) implements SafetyResult {}
+    record Redacted(String cleanText) implements SafetyResult {}
+}
+```
+
+- **Safe**: pass through unchanged.
+- **Unsafe**: abort the entire stream and send an error message to the client.
+- **Redacted**: replace the text with a cleaned version and continue streaming.
+
+Built-in checker factories:
+
+```java
+// Block the stream entirely when a keyword is found
+var checker = ContentSafetyFilter.keywordChecker(Set.of("harmful-term"));
+broadcaster.getBroadcasterConfig().addFilter(new ContentSafetyFilter(checker));
+
+// Redact keywords instead of blocking
+var checker = ContentSafetyFilter.redactingChecker(
+    Set.of("sensitive-term"), "[FILTERED]");
+broadcaster.getBroadcasterConfig().addFilter(new ContentSafetyFilter(checker));
+```
+
+For external moderation APIs, implement `SafetyChecker` directly:
+
+```java
+SafetyChecker apiChecker = text -> {
+    var result = moderationApi.check(text);
+    if (result.isBlocked()) {
+        return new SafetyResult.Unsafe(result.reason());
     }
-}
+    return new SafetyResult.Safe();
+};
 ```
 
-## PiiRedactionFilter
+### CostMeteringFilter
 
-Buffers streamed tokens to sentence boundaries and redacts personally identifiable information before delivery to the client.
-
-**Detected patterns:**
-- Email addresses
-- Phone numbers
-- Social Security Numbers (SSN)
-- Credit card numbers
+Tracks token counts per session and per broadcaster, and optionally enforces token budgets by aborting streams that exceed their allocation. This filter does not modify token content.
 
 ```java
-@AiEndpoint(path = "/ai/chat",
-    filters = {PiiRedactionFilter.class})
-public class SafeChat { ... }
+var metering = new CostMeteringFilter();
+metering.setBudget("user-123-broadcaster", 10000); // max 10K tokens
+broadcaster.getBroadcasterConfig().addFilter(metering);
 ```
 
-The LLM output `"Contact john@example.com for details"` becomes `"Contact [REDACTED] for details"`.
+When a budget is exceeded, the filter marks the session as exceeded, drops subsequent tokens with `ACTION.ABORT`, and injects a single error message to notify the client.
 
-## ContentSafetyFilter
-
-Pluggable content safety via the `SafetyChecker` SPI:
+Querying usage:
 
 ```java
-public interface SafetyChecker {
-    SafetyResult check(String content);
-}
+long sessionTokens = metering.getSessionTokenCount("session-id");
+long broadcasterTokens = metering.getBroadcasterTokenCount("broadcaster-id");
+metering.resetBroadcasterCount("broadcaster-id"); // rolling window reset
 ```
 
-`SafetyResult` can be:
-- **PASS** — content is safe, deliver as-is
-- **REDACT** — replace unsafe content with a placeholder
-- **BLOCK** — drop the entire message
-
-Register a custom checker:
+Wiring a `TokenBudgetManager` for persistent budget tracking:
 
 ```java
-public class CustomSafetyChecker implements SafetyChecker {
-    @Override
-    public SafetyResult check(String content) {
-        if (containsHarmfulContent(content)) {
-            return SafetyResult.block("Content policy violation");
-        }
-        return SafetyResult.pass();
-    }
-}
+metering.setBudgetManager(budgetManager, sessionId -> lookupUserId(sessionId));
 ```
 
-## CostMeteringFilter
+When `setBudgetManager` is configured, the filter calls `budgetManager.recordUsage(ownerId, tokenCount)` on every stream completion.
 
-Tracks per-session and per-broadcaster message counts with budget enforcement:
+## Token budget management
 
-```java
-@AiEndpoint(path = "/ai/chat",
-    filters = {CostMeteringFilter.class})
-public class BudgetedChat { ... }
-```
-
-When the budget is exceeded, the filter blocks further requests and sends an error to the client.
-
-## TokenBudgetManager
-
-Fine-grained per-user and per-organization token budgets with graceful degradation:
+The `TokenBudgetManager` (in `org.atmosphere.ai.budget`) manages per-user or per-organization token budgets with graceful degradation.
 
 ```java
 var budgetManager = new TokenBudgetManager();
-budgetManager.setUserBudget("user-123", 10000);  // 10K tokens
-budgetManager.setOrgBudget("acme-corp", 1000000); // 1M tokens
+budgetManager.setBudget(new TokenBudgetManager.Budget(
+    "user-123", 100_000, "gemini-2.5-flash", 0.8));
 ```
 
-When a user's budget runs low, the manager can:
-- Switch to a cheaper model
-- Reduce max response tokens
-- Block further requests
+The `Budget` record:
 
-## RoutingLlmClient
+```java
+public record Budget(
+    String ownerId,
+    long maxTokens,
+    String fallbackModel,
+    double degradationThreshold
+) {}
+```
 
-Routes prompts to different LLM backends based on rules:
+When usage approaches the `degradationThreshold` fraction (e.g., 80%), `recommendedModel()` returns the cheaper fallback model name. When the budget is fully exhausted, it throws `BudgetExceededException`:
+
+```java
+try {
+    Optional<String> fallback = budgetManager.recommendedModel("user-123");
+    // fallback.isPresent() means "switch to the cheaper model"
+} catch (BudgetExceededException e) {
+    // Budget fully exhausted: e.ownerId(), e.budget(), e.used()
+}
+```
+
+Other operations:
+
+```java
+long remaining = budgetManager.remaining("user-123");
+long used = budgetManager.currentUsage("user-123");
+budgetManager.resetUsage("user-123"); // new billing period
+budgetManager.removeBudget("user-123");
+```
+
+## AiGuardrail
+
+The `AiGuardrail` interface (in `org.atmosphere.ai`) provides pre-LLM and post-LLM inspection. Guardrails run in the interceptor chain:
+
+```
+Guardrails (pre) -> Rate Limit -> RAG -> [LLM call] -> Guardrails (post) -> Observability
+```
+
+```java
+public interface AiGuardrail {
+
+    default GuardrailResult inspectRequest(AiRequest request) {
+        return GuardrailResult.pass();
+    }
+
+    default GuardrailResult inspectResponse(String accumulatedResponse) {
+        return GuardrailResult.pass();
+    }
+}
+```
+
+`GuardrailResult` is a sealed interface with three variants:
+
+```java
+sealed interface GuardrailResult {
+    record Pass() implements GuardrailResult {}
+    record Modify(AiRequest modifiedRequest) implements GuardrailResult {}
+    record Block(String reason) implements GuardrailResult {}
+
+    static GuardrailResult pass() { return new Pass(); }
+    static GuardrailResult modify(AiRequest req) { return new Modify(req); }
+    static GuardrailResult block(String reason) { return new Block(reason); }
+}
+```
+
+Example guardrail:
+
+```java
+public class PiiGuardrail implements AiGuardrail {
+    @Override
+    public GuardrailResult inspectRequest(AiRequest request) {
+        if (containsPii(request.message())) {
+            return GuardrailResult.block("PII detected in request");
+        }
+        return GuardrailResult.pass();
+    }
+}
+```
+
+Register guardrails on an endpoint:
+
+```java
+@AiEndpoint(path = "/chat", guardrails = {PiiGuardrail.class})
+```
+
+## Model routing
+
+The `ModelRouter` interface (in `org.atmosphere.ai`) mirrors Atmosphere's transport failover pattern (WebSocket -> SSE -> long-polling) applied to the AI layer (GPT-4 -> Claude -> Gemini).
+
+```java
+public interface ModelRouter {
+    Optional<AiSupport> route(
+        AiRequest request,
+        List<AiSupport> availableBackends,
+        Set<AiCapability> requiredCapabilities);
+
+    void reportFailure(AiSupport backend, Throwable error);
+    void reportSuccess(AiSupport backend);
+}
+```
+
+### FallbackStrategy
+
+The `ModelRouter.FallbackStrategy` enum defines four strategies:
+
+| Strategy | Behavior |
+|----------|----------|
+| `NONE` | Use the primary model only |
+| `FAILOVER` | On failure, try the next backend in priority order |
+| `ROUND_ROBIN` | Distribute requests across backends |
+| `CONTENT_BASED` | Route based on request characteristics (model hint, tool requirements) |
+
+### DefaultModelRouter
+
+The default implementation uses a circuit breaker pattern for health tracking:
+
+- Consecutive failures increment a failure counter.
+- After `maxConsecutiveFailures` (default 3), the backend is marked unhealthy.
+- After a cooldown period (default 1 minute), the backend is eligible again.
+- A success resets the failure counter.
+
+```java
+var router = new DefaultModelRouter(FallbackStrategy.FAILOVER);
+// or with custom thresholds:
+var router = new DefaultModelRouter(FallbackStrategy.ROUND_ROBIN, 5, Duration.ofMinutes(2));
+```
+
+For `CONTENT_BASED` routing, the router checks `request.model()` for a model hint and `request.tools()` for tool requirements, preferring backends with `AiCapability.TOOL_CALLING`.
+
+### RoutingAiSupport
+
+Wraps a `ModelRouter` and a list of backends into a single `AiSupport` instance. On failure, it attempts one retry with the next backend:
+
+```java
+var routing = new RoutingAiSupport(router, List.of(
+    springAiSupport,
+    langChain4jSupport,
+    adkSupport
+));
+```
+
+The `name()` returns a descriptive string like `routing(spring-ai,langchain4j,google-adk)`. Its `capabilities()` is the union of all backends' capabilities.
+
+### RoutingLlmClient
+
+For lower-level control, `RoutingLlmClient` (in `org.atmosphere.ai.routing`) routes at the `LlmClient` level with configurable rules:
 
 ```java
 var router = RoutingLlmClient.builder(defaultClient, "gemini-2.5-flash")
-    .route(RoutingRule.costBased(5.0, List.of(
-        new ModelOption(openaiClient, "gpt-4o", 0.01, 200, 10),
-        new ModelOption(geminiClient, "gemini-flash", 0.001, 50, 5))))
-    .route(RoutingRule.latencyBased(100, List.of(
-        new ModelOption(ollamaClient, "llama3.2", 0.0, 30, 3),
-        new ModelOption(openaiClient, "gpt-4o-mini", 0.005, 80, 7))))
+    .route(RoutingRule.contentBased(
+        prompt -> prompt.contains("code"),
+        openaiClient, "gpt-4o"))
+    .route(RoutingRule.contentBased(
+        prompt -> prompt.contains("translate"),
+        claudeClient, "claude-3-haiku"))
     .build();
+
+router.streamChatCompletion(request, session);
 ```
 
-### Cost-Based Routing
+Rules are evaluated in order. The first matching rule determines the target client and model. If no rule matches, the default client is used.
 
-`RoutingRule.costBased(maxCostPerRequest, models)` selects the cheapest model that fits within the budget.
+## Fan-out streaming
 
-### Latency-Based Routing
+Fan-out sends the same prompt to multiple models simultaneously, with each model streaming tokens through its own child session. The `FanOutStreamingSession` (in `org.atmosphere.ai.fanout`) orchestrates this.
 
-`RoutingRule.latencyBased(maxLatencyMs, models)` selects the fastest model that meets the latency target.
+### FanOutStrategy
 
-### Content-Based Routing
-
-Route different types of prompts to specialized models:
+A sealed interface with three variants:
 
 ```java
-.route(RoutingRule.contentBased(
-    prompt -> prompt.contains("code") ? "codellama" : "gpt-4o",
-    models))
-```
-
-## FanOutStreamingSession
-
-Send the same prompt to multiple models simultaneously and merge the results:
-
-```java
-var fanOut = FanOutStreamingSession.builder()
-    .add(openaiSession, "gpt-4o")
-    .add(geminiSession, "gemini-pro")
-    .strategy(FanOutStrategy.FIRST_COMPLETE)
-    .build();
-```
-
-**Strategies:**
-- `ALL_RESPONSES` — deliver all model responses to the client
-- `FIRST_COMPLETE` — deliver only the first model to finish
-- `FASTEST_TOKENS` — stream tokens from whichever model is currently fastest
-
-## AiInterceptor
-
-Pre/post-process AI requests for RAG, guardrails, and logging:
-
-```java
-public class RagInterceptor implements AiInterceptor {
-    @Override
-    public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
-        String context = vectorStore.search(request.message());
-        return request.withMessage(context + "\n\n" + request.message());
-    }
-}
-
-@AiEndpoint(path = "/ai/chat",
-    interceptors = {RagInterceptor.class})
-public class RagChat { ... }
-```
-
-## AiMetrics SPI
-
-`MetricsCapturingSession` records AI-specific metrics:
-
-- First-token latency
-- Total token usage (input + output)
-- Errors and retries
-- Cost per request
-
-Implement the `AiMetrics` interface and register via ServiceLoader:
-
-```java
-public interface AiMetrics {
-    void recordFirstTokenLatency(Duration latency);
-    void recordTokenUsage(int inputTokens, int outputTokens);
-    void recordError(String errorType);
-    void recordCost(double cost);
+public sealed interface FanOutStrategy {
+    record AllResponses() implements FanOutStrategy {}
+    record FirstComplete() implements FanOutStrategy {}
+    record FastestTokens(int tokenThreshold) implements FanOutStrategy {}
 }
 ```
 
-## AiResponseCacheInspector
+| Strategy | Behavior |
+|----------|----------|
+| `AllResponses` | All models stream to completion. The client receives interleaved token streams distinguishable by session ID. |
+| `FirstComplete` | First model to finish wins. All other in-flight calls are cancelled. |
+| `FastestTokens(n)` | Observe token production speed for `n` initial tokens, then keep the fastest model and cancel the rest. |
 
-Controls how AI responses interact with `BroadcasterCache`:
+### ModelEndpoint
 
-- Cache complete responses for replay to reconnecting clients
-- Coalesce missed tokens into a single batch on reconnection
-- Configure per-message TTL and max cache size
-
-## Combining Filters
-
-Stack multiple filters for defense in depth:
+Describes one model to fan out to:
 
 ```java
-@AiEndpoint(path = "/ai/secure-chat",
-    filters = {PiiRedactionFilter.class, ContentSafetyFilter.class, CostMeteringFilter.class},
-    interceptors = {RagInterceptor.class})
-public class SecureRagChat {
-    @Prompt
-    public void onPrompt(String message, StreamingSession session) {
-        session.stream(message);
-    }
+public record ModelEndpoint(String id, LlmClient client, String model) {}
+```
+
+### FanOutResult
+
+Available after fan-out completes:
+
+```java
+public record FanOutResult(
+    String modelId,
+    String fullResponse,
+    long timeToFirstTokenMs,
+    long totalTimeMs,
+    int tokenCount
+) {}
+```
+
+### Usage
+
+```java
+var endpoints = List.of(
+    new ModelEndpoint("gemini", geminiClient, "gemini-2.5-flash"),
+    new ModelEndpoint("gpt4", openaiClient, "gpt-4o")
+);
+
+try (var fanOut = new FanOutStreamingSession(session, endpoints,
+        new FanOutStrategy.AllResponses(), resource)) {
+    fanOut.fanOut(ChatCompletionRequest.of("ignored", userPrompt));
+
+    // After completion, inspect results
+    Map<String, FanOutResult> results = fanOut.getResults();
+    var geminiResult = results.get("gemini");
+    logger.info("Gemini TTFT: {}ms, total: {}ms, tokens: {}",
+        geminiResult.timeToFirstTokenMs(),
+        geminiResult.totalTimeMs(),
+        geminiResult.tokenCount());
 }
 ```
 
-Execution order: interceptors run first (RAG injection), then the LLM generates, then filters process the output (PII redaction → safety check → cost metering).
+Child sessions use IDs of the form `parentSessionId + "-" + endpointId`, so the client can distinguish which model produced each token. The parent session receives metadata events: `fanout.models` (list of model IDs at start) and `fanout.complete` (boolean at end).
 
-## Samples
+## Putting it all together
 
-- [spring-boot-langchain4j-tools](https://github.com/Atmosphere/atmosphere/tree/main/samples/spring-boot-langchain4j-tools/) — PII redaction, cost metering
-- [spring-boot-spring-ai-routing](https://github.com/Atmosphere/atmosphere/tree/main/samples/spring-boot-spring-ai-routing/) — cost/latency routing, content safety
+A typical production setup combines filters, routing, and budget management:
 
-## Next Steps
+```java
+// 1. Set up budget management
+var budgetManager = new TokenBudgetManager();
+budgetManager.setBudget(new TokenBudgetManager.Budget(
+    "org-acme", 500_000, "gemini-2.5-flash", 0.8));
 
-- [Chapter 13: MCP Server](/docs/tutorial/13-mcp/) — expose tools to AI agents
-- [Chapter 18: Observability](/docs/tutorial/18-observability/) — AI metrics and tracing
+// 2. Set up routing with failover
+var router = new DefaultModelRouter(FallbackStrategy.FAILOVER);
+var routing = new RoutingAiSupport(router, List.of(
+    springAiSupport, langChain4jSupport));
+
+// 3. Add filters to the broadcaster
+var metering = new CostMeteringFilter();
+metering.setBudgetManager(budgetManager, sid -> lookupOrgId(sid));
+
+broadcaster.getBroadcasterConfig().addFilter(new PiiRedactionFilter());
+broadcaster.getBroadcasterConfig().addFilter(
+    new ContentSafetyFilter(ContentSafetyFilter.keywordChecker(blockedTerms)));
+broadcaster.getBroadcasterConfig().addFilter(metering);
+```
+
+The filter chain processes every token in order: PII redaction first, then content safety, then cost metering. If PII redaction buffers a token (waiting for a sentence boundary), it is not visible to downstream filters until the sentence is complete.

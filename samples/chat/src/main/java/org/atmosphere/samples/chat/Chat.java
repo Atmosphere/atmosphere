@@ -22,7 +22,6 @@ import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.samples.chat.custom.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,11 +47,6 @@ public class Chat {
 //        r.getResponse().setCharacterEncoding("UTF-8");
 //    }
 
-    // For demonstrating injection.
-    @Inject
-    private BroadcasterFactory factory;
-
-    // For demonstrating javax.inject.Named
     @Inject
     @Named("/chat")
     private Broadcaster broadcaster;
@@ -74,9 +68,7 @@ public class Chat {
      */
     @Ready
     public void onReady(/* In you don't want injection AtmosphereResource r */) {
-        logger.info("Browser {} connected", r.uuid());
-        logger.info("BroadcasterFactory used {}", factory.getClass().getName());
-        logger.info("Broadcaster injected {}", broadcaster.getID());
+        logger.info("Browser {} connected (broadcaster: {})", r.uuid(), broadcaster.getID());
     }
 
     /**

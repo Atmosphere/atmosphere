@@ -1,6 +1,8 @@
 ---
-title: "@AiTool — Framework-Agnostic Tool Calling"
+title: "Chapter 10: @AiTool -- Framework-Agnostic Tool Calling"
 description: "Declare tools once with @AiTool and @Param, and they work with Spring AI, LangChain4j, Google ADK, or the built-in client"
+sidebar:
+  order: 10
 ---
 
 In [Chapter 9](/docs/tutorial/09-ai-endpoint/) you built an AI endpoint that streams LLM responses to the browser. But LLMs can do more than generate text -- they can decide to **call tools**: functions you define that the model can invoke when it needs external data or wants to take an action. This chapter covers `@AiTool`, Atmosphere's framework-agnostic annotation for tool calling.
@@ -9,519 +11,417 @@ In [Chapter 9](/docs/tutorial/09-ai-endpoint/) you built an AI endpoint that str
 
 Every AI framework has its own way of defining tools:
 
-- **LangChain4j** uses `@Tool` and `@P` annotations with `ToolSpecification`.
-- **Spring AI** uses `FunctionCallback` and JSON Schema.
-- **Google ADK** uses `BaseTool` subclasses.
+- **LangChain4j** uses `@Tool` on methods with `@P` for parameters
+- **Spring AI** uses `ToolCallback` and `ToolDefinition` interfaces
+- **Google ADK** uses `BaseTool` classes
 
-If you define your tools with one framework's API and later switch to another, you rewrite all your tool code. Atmosphere solves this with `@AiTool` -- a single annotation that is **bridged automatically** to whatever backend is on the classpath.
+If you define tools with one framework's annotations, switching to another requires rewriting every tool. Atmosphere solves this with `@AiTool` -- you define tools once, and the framework bridges them to whatever backend you are using.
 
-## Defining Tools with @AiTool
+## @AiTool Annotation
 
-A tool is a plain Java method annotated with `@AiTool`. Parameters are annotated with `@Param` to provide metadata that the LLM uses to understand when and how to call the tool.
+`@AiTool` marks a method as an AI-callable tool. It has two required attributes:
+
+```java
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface AiTool {
+
+    /** Tool name as exposed to the AI model. Convention: snake_case. */
+    String name();
+
+    /** Human-readable description of what the tool does. */
+    String description();
+}
+```
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `name` | `String` | Unique tool name (snake_case convention, e.g., `"get_weather"`) |
+| `description` | `String` | Human-readable description sent to the model to help it decide when to call the tool |
+
+## @Param Annotation
+
+`@Param` annotates parameters of an `@AiTool`-annotated method to provide metadata for the AI model's tool schema:
+
+```java
+@Target(ElementType.PARAMETER)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Param {
+
+    /** Parameter name as exposed to the AI model. */
+    String value();
+
+    /** Human-readable description of this parameter. */
+    String description() default "";
+
+    /** Whether this parameter is required. Defaults to true. */
+    boolean required() default true;
+}
+```
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `value` | `String` | (required) | Parameter name as exposed to the model |
+| `description` | `String` | `""` | Human-readable description |
+| `required` | `boolean` | `true` | Whether the model must provide this parameter |
+
+## Complete Example: AssistantTools
+
+This is the `AssistantTools` class from the `spring-boot-ai-tools` sample:
 
 ```java
 public class AssistantTools {
 
-    @AiTool(name = "get_weather",
-            description = "Returns current weather conditions for a city")
-    public String getWeather(
-            @Param(value = "city", description = "City name, e.g. 'San Francisco'")
+    @AiTool(name = "get_current_time",
+            description = "Returns the current date and time in the server's timezone")
+    public String getCurrentTime() {
+        return ZonedDateTime.now()
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z"));
+    }
+
+    @AiTool(name = "get_city_time",
+            description = "Returns the current time in a specific city")
+    public String getCityTime(
+            @Param(value = "city",
+                   description = "City name (e.g., Tokyo, London, Paris, New York, Sydney)")
             String city) {
-        return weatherApi.getCurrent(city).toString();
+        var zone = switch (city.toLowerCase()) {
+            case "tokyo" -> "Asia/Tokyo";
+            case "london" -> "Europe/London";
+            case "paris" -> "Europe/Paris";
+            case "sydney" -> "Australia/Sydney";
+            case "new york", "nyc" -> "America/New_York";
+            case "los angeles", "la" -> "America/Los_Angeles";
+            default -> "UTC";
+        };
+        return city + ": " + ZonedDateTime.now(ZoneId.of(zone))
+                .format(DateTimeFormatter.ofPattern("HH:mm:ss (z)"));
     }
 
-    @AiTool(name = "search_docs",
-            description = "Searches the documentation for a query and returns matching excerpts")
-    public String searchDocs(
-            @Param(value = "query", description = "Search query")
-            String query,
-            @Param(value = "max_results", description = "Maximum results to return (1-10)")
-            int maxResults) {
-        return docSearch.search(query, maxResults)
-                .stream()
-                .map(doc -> "## " + doc.title() + "\n" + doc.excerpt())
-                .collect(Collectors.joining("\n\n"));
+    @AiTool(name = "get_weather",
+            description = "Returns a weather report for a city with temperature and conditions")
+    public String getWeather(
+            @Param(value = "city", description = "City name to get weather for")
+            String city) {
+        return switch (city.toLowerCase()) {
+            case "london" -> "London: Cloudy, 15C / 59F, 80% humidity";
+            case "paris" -> "Paris: Partly cloudy, 20C / 68F, 65% humidity";
+            case "tokyo" -> "Tokyo: Rainy, 22C / 72F, 90% humidity";
+            default -> city + ": Clear, 22C / 72F, 50% humidity";
+        };
     }
-}
-```
 
-### @AiTool Attributes
-
-| Attribute | Type | Description |
-|-----------|------|-------------|
-| `name` | `String` | The tool name the LLM sees. Use `snake_case` by convention. |
-| `description` | `String` | Plain English description of what the tool does. The LLM uses this to decide when to call it. |
-
-### @Param Attributes
-
-| Attribute | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `value` | `String` | (required) | Parameter name the LLM sees. |
-| `description` | `String` | `""` | Description of the parameter, helping the LLM provide correct values. |
-| `required` | `boolean` | `true` | Whether the parameter is required. |
-
-### Supported Parameter Types
-
-`@AiTool` methods support these parameter types:
-
-| Type | JSON Schema Type | Notes |
-|------|-----------------|-------|
-| `String` | `string` | Most common. |
-| `int` / `Integer` | `integer` | |
-| `long` / `Long` | `integer` | |
-| `double` / `Double` | `number` | |
-| `boolean` / `Boolean` | `boolean` | |
-| `List<String>` | `array` of `string` | |
-| `Map<String, Object>` | `object` | For complex structured input. |
-| `enum` types | `string` with `enum` values | Enum constants become the allowed values. |
-
-### Return Type
-
-The return type should be `String`. The framework converts it to text that is fed back to the LLM as the tool result. If you return a non-String type, `toString()` is called.
-
-## Wiring Tools to an Endpoint
-
-Connect tools to your endpoint with the `tools` attribute:
-
-```java
-@AiEndpoint(
-    path = "/ai/chat",
-    systemPrompt = "You are a helpful assistant. Use tools when you need external data.",
-    conversationMemory = true,
-    tools = AssistantTools.class
-)
-public class ChatBot {
-
-    @Prompt
-    public void onPrompt(String message, StreamingSession session) {
-        session.stream(message);  // tools are automatically available to the LLM
-    }
-}
-```
-
-You can wire multiple tool classes:
-
-```java
-@AiEndpoint(
-    path = "/ai/chat",
-    systemPrompt = "You are a helpful assistant",
-    tools = {WeatherTools.class, CalendarTools.class, SearchTools.class}
-)
-public class ChatBot {
-
-    @Prompt
-    public void onPrompt(String message, StreamingSession session) {
-        session.stream(message);
-    }
-}
-```
-
-### No Code Changes to @Prompt
-
-Notice that the `@Prompt` method does not change -- it still calls `session.stream(message)`. The tool calling loop is handled internally:
-
-1. The LLM receives the prompt plus the tool definitions.
-2. If the LLM decides to call a tool, the framework intercepts the tool call request.
-3. The framework executes the `@AiTool` method with the arguments the LLM provided.
-4. The tool result is sent back to the LLM.
-5. The LLM may call more tools or produce a final text response.
-6. The final response is streamed to the client via `StreamingSession`.
-
-The user sees the final answer -- tool calls happen transparently.
-
-## DefaultToolRegistry -- How Tools Are Discovered
-
-At startup, the framework scans classes listed in `@AiEndpoint(tools = ...)` and builds a global `DefaultToolRegistry`.
-
-The registry is a map from tool name to a `ToolDefinition` record containing:
-
-- The method reference.
-- The tool name and description.
-- The parameter schema (names, types, descriptions, required flags).
-- The declaring class instance (created once, reused).
-
-### Startup Scan
-
-```java
-// Conceptually, what the framework does at startup:
-for (var toolClass : endpoint.tools()) {
-    for (var method : toolClass.getDeclaredMethods()) {
-        var annotation = method.getAnnotation(AiTool.class);
-        if (annotation != null) {
-            registry.register(new ToolDefinition(
-                annotation.name(),
-                annotation.description(),
-                extractParams(method),
-                method,
-                toolClass
-            ));
+    @AiTool(name = "convert_temperature",
+            description = "Converts a temperature between Celsius and Fahrenheit")
+    public String convertTemperature(
+            @Param(value = "value", description = "The temperature value to convert")
+            double value,
+            @Param(value = "from_unit",
+                   description = "Source unit: 'C' for Celsius or 'F' for Fahrenheit")
+            String fromUnit) {
+        if ("C".equalsIgnoreCase(fromUnit) || "celsius".equalsIgnoreCase(fromUnit)) {
+            double fahrenheit = value * 9.0 / 5.0 + 32;
+            return String.format("%.1fC = %.1fF", value, fahrenheit);
+        } else {
+            double celsius = (value - 32) * 5.0 / 9.0;
+            return String.format("%.1fF = %.1fC", value, celsius);
         }
     }
 }
 ```
 
-### Manual Registration
+Key observations:
 
-You can also register tools programmatically:
+- **No framework imports** -- the class uses only `org.atmosphere.ai.annotation.*` and standard JDK types.
+- **Return types are plain Java** -- `String`, not framework-specific result objects.
+- **Parameters use `@Param`** -- providing name, description, and optionally `required = false`.
+- **Type inference** -- the `double` parameter for `convert_temperature` is automatically mapped to JSON Schema type `"number"` by the `ToolParameter.jsonSchemaType()` method.
 
-```java
-var registry = ToolRegistry.get(framework);
-registry.register("custom_tool", "Does something custom",
-    Map.of("input", new ParamSchema("string", "The input", true)),
-    args -> myService.process((String) args.get("input")));
-```
+## Connecting Tools to an @AiEndpoint
 
-## The Bridge Layer -- How @AiTool Becomes Native
-
-The key innovation is the **tool bridge**. When `session.stream()` prepares the `AiRequest`, it includes the registered tools. The active `AiSupport` implementation uses a bridge to convert `@AiTool` definitions to its native format.
-
-### The Flow
-
-1. `@AiTool` annotations are parsed at startup and stored in `DefaultToolRegistry`.
-2. When `session.stream()` is called, tools are included in the `AiRequest`.
-3. The active `AiSupport` backend calls its bridge to convert `ToolDefinition` to native format.
-4. The LLM receives the prompt with tool definitions and may decide to call one.
-5. `ToolExecutor.execute()` invokes the original `@AiTool` method.
-6. The result string is fed back to the LLM.
-7. The LLM produces a final response, streamed to the client.
-
-### Bridge Details
-
-| Backend | Bridge Class | Native Format |
-|---------|-------------|---------------|
-| LangChain4j | `LangChain4jToolBridge` | `ToolSpecification` |
-| Spring AI | `SpringAiToolBridge` | `ToolCallback` |
-| Google ADK | `AdkToolBridge` | `BaseTool` |
-| Built-in | `BuiltInToolBridge` | OpenAI function spec |
-
-### What "Bridge" Means in Practice
-
-When you use LangChain4j as your backend, the bridge does something equivalent to:
+Use the `tools` attribute on `@AiEndpoint`:
 
 ```java
-// What @AiTool(name = "get_weather", description = "...")
-// with @Param(value = "city", description = "...") becomes:
+@AiEndpoint(path = "/atmosphere/langchain4j-tools/{room}",
+        systemPromptResource = "prompts/system-prompt.md",
+        conversationMemory = true,
+        maxHistoryMessages = 30,
+        tools = AssistantTools.class,
+        interceptors = CostMeteringInterceptor.class)
+public class AiToolsChat {
 
-ToolSpecification.builder()
-    .name("get_weather")
-    .description("Returns current weather conditions for a city")
-    .addParameter("city", JsonSchemaProperty.STRING,
-        JsonSchemaProperty.description("City name, e.g. 'San Francisco'"))
-    .build();
-```
+    @PathParam("room")
+    private String room;
 
-When you switch to Spring AI, the same `@AiTool` becomes:
-
-```java
-FunctionCallback.builder()
-    .name("get_weather")
-    .description("Returns current weather conditions for a city")
-    .inputType(GetWeatherRequest.class)  // generated from @Param metadata
-    .function(args -> toolExecutor.execute("get_weather", args))
-    .build();
-```
-
-You never write this bridging code -- it happens automatically.
-
-## Practical Example: A Multi-Tool Assistant
-
-Here is a complete example with multiple tool classes wired to a single endpoint.
-
-### Tool Classes
-
-```java
-public class WeatherTools {
-
-    private final WeatherService weatherService;
-
-    public WeatherTools(WeatherService weatherService) {
-        this.weatherService = weatherService;
+    @Ready
+    public void onReady(AtmosphereResource resource) {
+        logger.info("[room={}] Client {} connected (peers: {})",
+                room, resource.uuid(),
+                resource.getBroadcaster().getAtmosphereResources().size());
     }
 
-    @AiTool(name = "get_current_weather",
-            description = "Get current weather conditions for a location")
-    public String getCurrentWeather(
-            @Param(value = "city", description = "City name") String city,
-            @Param(value = "unit", description = "'celsius' or 'fahrenheit'")
-            String unit) {
-        var weather = weatherService.getCurrent(city);
-        double temp = "fahrenheit".equalsIgnoreCase(unit)
-                ? weather.tempCelsius() * 9.0 / 5.0 + 32
-                : weather.tempCelsius();
-        return "%s: %.1f%s, %s".formatted(
-                city, temp,
-                "fahrenheit".equalsIgnoreCase(unit) ? "F" : "C",
-                weather.condition());
+    @Disconnect
+    public void onDisconnect(AtmosphereResourceEvent event) {
+        logger.info("[room={}] Client {} disconnected",
+                room, event.getResource().uuid());
     }
-
-    @AiTool(name = "get_forecast",
-            description = "Get weather forecast for the next N days")
-    public String getForecast(
-            @Param(value = "city", description = "City name") String city,
-            @Param(value = "days", description = "Number of days (1-7)") int days) {
-        return weatherService.getForecast(city, days).stream()
-                .map(f -> "%s: %.1fC, %s".formatted(f.date(), f.tempCelsius(), f.condition()))
-                .collect(Collectors.joining("\n"));
-    }
-}
-```
-
-```java
-public class CalculatorTools {
-
-    @AiTool(name = "calculate",
-            description = "Evaluate a mathematical expression")
-    public String calculate(
-            @Param(value = "expression", description = "Math expression, e.g. '2 + 3 * 4'")
-            String expression) {
-        return String.valueOf(MathEvaluator.evaluate(expression));
-    }
-
-    @AiTool(name = "convert_units",
-            description = "Convert between units of measurement")
-    public String convertUnits(
-            @Param(value = "value", description = "Numeric value to convert") double value,
-            @Param(value = "from", description = "Source unit, e.g. 'km'") String from,
-            @Param(value = "to", description = "Target unit, e.g. 'miles'") String to) {
-        double result = UnitConverter.convert(value, from, to);
-        return "%.4f %s = %.4f %s".formatted(value, from, result, to);
-    }
-}
-```
-
-### The Endpoint
-
-```java
-@AiEndpoint(
-    path = "/ai/assistant",
-    systemPrompt = """
-        You are a helpful assistant with access to weather and calculator tools.
-        Always use the tools when the user asks about weather or needs calculations.
-        Present results in a clear, human-friendly format.
-        """,
-    conversationMemory = true,
-    tools = {WeatherTools.class, CalculatorTools.class}
-)
-public class AssistantEndpoint {
 
     @Prompt
-    public void onPrompt(String message, StreamingSession session) {
+    public void onPrompt(String message, StreamingSession session,
+                          AtmosphereResource resource) {
+        logger.info("[room={}] Prompt from {}: {}", room, resource.uuid(), message);
+
+        var settings = AiConfig.get();
+        if (settings == null || settings.client().apiKey() == null
+                || settings.client().apiKey().isBlank()) {
+            DemoResponseProducer.stream(message, session, room, "unknown");
+            return;
+        }
+
         session.stream(message);
     }
 }
 ```
 
-### Example Conversation
+This endpoint demonstrates the full AI tool pipeline:
 
-Here is what happens when a user interacts with this endpoint:
+1. **`tools = AssistantTools.class`** -- tells the framework to scan `AssistantTools` for `@AiTool`-annotated methods and register them.
+2. **`conversationMemory = true`** -- enables multi-turn context so the model can reference previous tool results.
+3. **`maxHistoryMessages = 30`** -- retains up to 30 messages (15 turns) of conversation history.
+4. **`interceptors = CostMeteringInterceptor.class`** -- adds cost estimation and routing metadata.
+5. **`@PathParam("room")`** -- URI template variable for per-room AI sessions.
 
-**Turn 1:**
+When `session.stream(message)` is called:
 
-> **User:** What is the weather in Tokyo?
->
-> *Framework: LLM calls `get_current_weather(city="Tokyo", unit="celsius")`*
-> *Framework: Tool returns "Tokyo: 22.5C, Partly Cloudy"*
->
-> **Assistant:** It is currently 22.5 degrees Celsius and partly cloudy in Tokyo.
+1. Tools from `AssistantTools` are attached to the `AiRequest`
+2. The framework bridges them to the active backend's native tool format
+3. The backend handles the tool call loop automatically
+4. Tool results are fed back to the model for the final response
 
-**Turn 2:**
+## Multiple Tool Classes
 
-> **User:** Convert that to Fahrenheit.
->
-> *Framework: LLM calls `convert_units(value=22.5, from="celsius", to="fahrenheit")`*
-> *Framework: Tool returns "22.5000 celsius = 72.5000 fahrenheit"*
->
-> **Assistant:** That is 72.5 degrees Fahrenheit.
-
-**Turn 3:**
-
-> **User:** What about the forecast for the next 3 days?
->
-> *Framework: LLM calls `get_forecast(city="Tokyo", days=3)`, remembering the city from conversation memory*
-> *Framework: Tool returns forecast data*
->
-> **Assistant:** Here is the 3-day forecast for Tokyo...
-
-Notice how conversation memory (Chapter 9) and tool calling work together -- the LLM remembers "Tokyo" from the first turn when the user says "the next 3 days" without repeating the city.
-
-## Enum Parameters
-
-Enums are useful when a tool parameter has a fixed set of valid values. The framework automatically includes the enum constants in the JSON Schema:
+You can specify multiple tool provider classes:
 
 ```java
-public enum TemperatureUnit {
-    CELSIUS, FAHRENHEIT, KELVIN
-}
-
-public class TemperatureTools {
-
-    @AiTool(name = "convert_temperature",
-            description = "Convert a temperature between units")
-    public String convert(
-            @Param(value = "value", description = "Temperature value") double value,
-            @Param(value = "from", description = "Source unit") TemperatureUnit from,
-            @Param(value = "to", description = "Target unit") TemperatureUnit to) {
-        double celsius = switch (from) {
-            case CELSIUS -> value;
-            case FAHRENHEIT -> (value - 32) * 5.0 / 9.0;
-            case KELVIN -> value - 273.15;
-        };
-        double result = switch (to) {
-            case CELSIUS -> celsius;
-            case FAHRENHEIT -> celsius * 9.0 / 5.0 + 32;
-            case KELVIN -> celsius + 273.15;
-        };
-        return "%.2f %s = %.2f %s".formatted(value, from, result, to);
-    }
-}
+@AiEndpoint(path = "/chat",
+    tools = {WeatherTools.class, CalendarTools.class, MathTools.class})
 ```
 
-The JSON Schema sent to the LLM includes:
+### Excluding Tools
 
-```json
-{
-  "name": "convert_temperature",
-  "parameters": {
-    "properties": {
-      "from": {
-        "type": "string",
-        "enum": ["CELSIUS", "FAHRENHEIT", "KELVIN"],
-        "description": "Source unit"
-      }
-    }
-  }
-}
-```
-
-## Tool Error Handling
-
-If a tool throws an exception, the framework catches it and feeds the error message back to the LLM as the tool result. The LLM can then decide how to respond:
+When `tools` is empty (the default), all globally registered tools are available. Use `excludeTools` to selectively remove some:
 
 ```java
-@AiTool(name = "query_database",
-        description = "Run a read-only SQL query against the database")
-public String queryDatabase(
-        @Param(value = "sql", description = "SQL SELECT query") String sql) {
-    if (!sql.trim().toUpperCase().startsWith("SELECT")) {
-        throw new IllegalArgumentException("Only SELECT queries are allowed");
-    }
-    return jdbcTemplate.queryForList(sql).toString();
-}
+@AiEndpoint(path = "/public-chat",
+    excludeTools = {AdminTools.class})
 ```
 
-If the LLM sends a `DELETE` query, the tool throws, and the framework returns to the LLM:
+## ToolRegistry
 
-```
-Tool error: Only SELECT queries are allowed
-```
-
-The LLM typically responds with something like: "I can only run SELECT queries. Let me rephrase..."
-
-## @AiTool vs Native Annotations
-
-If you already have tools written with a framework-specific annotation, you do not need to rewrite them. Native annotations still work when you use that specific backend. `@AiTool` is for when you want **portability**.
-
-| Feature | `@AiTool` (Atmosphere) | `@Tool` (LangChain4j) | `FunctionCallback` (Spring AI) |
-|---------|------------------------|----------------------|-------------------------------|
-| Portable across backends | Yes | No | No |
-| Parameter metadata | `@Param` annotation | `@P` annotation | JSON Schema |
-| Registration | `ToolRegistry` (global) | Per-service | Per-ChatClient |
-| Requires specific backend | No | LangChain4j | Spring AI |
-| Works with built-in client | Yes | No | No |
-
-## Swapping the Backend
-
-To swap the AI backend, change only the Maven dependency -- no tool code changes:
-
-```xml
-<!-- Built-in (default, no extra dependency) -->
-<artifactId>atmosphere-ai</artifactId>
-
-<!-- Spring AI backend -->
-<artifactId>atmosphere-spring-ai</artifactId>
-
-<!-- LangChain4j backend -->
-<artifactId>atmosphere-langchain4j</artifactId>
-
-<!-- Google ADK backend -->
-<artifactId>atmosphere-adk</artifactId>
-
-<!-- Embabel backend -->
-<artifactId>atmosphere-embabel</artifactId>
-```
-
-Your `@AiTool` methods, your `@AiEndpoint`, your `@Prompt` handler -- none of them change. The bridge layer handles the conversion at runtime.
-
-## Dependency Injection in Tool Classes
-
-When using Spring Boot or Quarkus, tool classes are created as beans, so you can inject dependencies:
-
-### Spring Boot
+The `ToolRegistry` is the global registry where tool definitions are stored. Tools are registered at startup (via `@AiTool` scanning or manual registration) and selected per-endpoint.
 
 ```java
-@Component
-public class DatabaseTools {
+public interface ToolRegistry {
 
-    private final JdbcTemplate jdbc;
+    void register(ToolDefinition tool);
 
-    public DatabaseTools(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
-    }
+    void register(Object toolProvider);
 
-    @AiTool(name = "count_orders",
-            description = "Count orders by status")
-    public String countOrders(
-            @Param(value = "status", description = "Order status: pending, shipped, delivered")
-            String status) {
-        int count = jdbc.queryForObject(
-            "SELECT COUNT(*) FROM orders WHERE status = ?",
-            Integer.class, status);
-        return "There are %d %s orders.".formatted(count, status);
-    }
+    Optional<ToolDefinition> getTool(String name);
+
+    Collection<ToolDefinition> getTools(Collection<String> names);
+
+    Collection<ToolDefinition> allTools();
+
+    boolean unregister(String name);
+
+    ToolResult execute(String toolName, Map<String, Object> arguments);
 }
 ```
 
-### Quarkus
+| Method | Description |
+|--------|-------------|
+| `register(ToolDefinition)` | Register a single tool definition |
+| `register(Object)` | Scan an object for `@AiTool`-annotated methods and register all of them |
+| `getTool(name)` | Look up a tool by name |
+| `getTools(names)` | Get tools matching the given names (silently skips unknown names) |
+| `allTools()` | Get all registered tools |
+| `unregister(name)` | Remove a tool by name |
+| `execute(toolName, arguments)` | Execute a tool with the given arguments |
+
+## ToolDefinition Record
+
+Each registered tool is represented as a `ToolDefinition` record:
 
 ```java
-@ApplicationScoped
-public class InventoryTools {
+public record ToolDefinition(
+        String name,
+        String description,
+        List<ToolParameter> parameters,
+        String returnType,
+        ToolExecutor executor
+) { }
+```
 
-    @Inject
-    InventoryService inventory;
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `String` | Unique tool name (must not be blank) |
+| `description` | `String` | Description for the model (must not be blank) |
+| `parameters` | `List<ToolParameter>` | Ordered parameter definitions |
+| `returnType` | `String` | JSON Schema type of the return value (default: `"string"`) |
+| `executor` | `ToolExecutor` | The function that executes the tool |
 
-    @AiTool(name = "check_stock",
-            description = "Check stock level for a product")
-    public String checkStock(
-            @Param(value = "sku", description = "Product SKU") String sku) {
-        var stock = inventory.getStock(sku);
-        return "%s: %d units in stock".formatted(sku, stock.quantity());
-    }
+### ToolParameter Record
+
+```java
+public record ToolParameter(
+        String name,
+        String description,
+        String type,       // JSON Schema type: string, integer, number, boolean, object, array
+        boolean required
+) { }
+```
+
+The `ToolParameter.jsonSchemaType(Class<?>)` static method maps Java types to JSON Schema types:
+
+| Java Type | JSON Schema Type |
+|-----------|-----------------|
+| `String`, `CharSequence` | `"string"` |
+| `int`, `Integer`, `long`, `Long` | `"integer"` |
+| `float`, `Float`, `double`, `Double` | `"number"` |
+| `boolean`, `Boolean` | `"boolean"` |
+| Everything else | `"object"` |
+
+### ToolExecutor Interface
+
+```java
+@FunctionalInterface
+public interface ToolExecutor {
+    Object execute(Map<String, Object> arguments) throws Exception;
 }
 ```
 
-## Sample Application
+The executor receives arguments as a `Map<String, Object>` keyed by parameter name and returns a result that will be serialized to JSON and sent back to the model.
 
-The `spring-boot-ai-tools` sample demonstrates everything in this chapter:
+### ToolResult Record
 
-```bash
-cd samples/spring-boot-ai-tools
-export LLM_API_KEY=your-api-key
-../../mvnw spring-boot:run
+```java
+public record ToolResult(String toolName, String result, boolean success, String error) {
+    public static ToolResult success(String toolName, String result) { ... }
+    public static ToolResult failure(String toolName, String error) { ... }
+}
 ```
 
-The sample includes weather and calculator tools wired to an `@AiEndpoint`, with a React frontend that shows the streaming response as the LLM reasons through tool calls.
+## Manual Tool Registration
 
-## What is Next
+You can register tools programmatically without annotations using the builder:
 
-You have seen how `@AiTool` provides portable tool calling. But what happens inside `session.stream()` when it "auto-detects" the AI backend? How does the framework choose between Spring AI, LangChain4j, ADK, and the built-in client? [Chapter 11](/docs/tutorial/11-ai-adapters/) explains the `AiSupport` SPI and how each adapter works.
+```java
+var tool = ToolDefinition.builder("calculate_area", "Calculate the area of a rectangle")
+        .parameter("width", "Width in meters", "number")
+        .parameter("height", "Height in meters", "number")
+        .returnType("number")
+        .executor(args -> {
+            double w = ((Number) args.get("width")).doubleValue();
+            double h = ((Number) args.get("height")).doubleValue();
+            return w * h;
+        })
+        .build();
 
-## Key Takeaways
+toolRegistry.register(tool);
+```
 
-- `@AiTool` and `@Param` define tools in a framework-agnostic way.
-- Tools are scanned at startup and stored in the `DefaultToolRegistry`.
-- The bridge layer converts `@AiTool` to native format (`ToolSpecification`, `ToolCallback`, `BaseTool`, or OpenAI function spec) automatically.
-- Your `@Prompt` method does not change -- `session.stream()` handles the tool calling loop.
-- Swap the AI backend by changing a single Maven dependency -- no tool code changes.
-- Tool exceptions are caught and fed back to the LLM as error messages.
-- Enum parameters automatically generate `enum` constraints in the JSON Schema.
+The builder API:
+
+| Builder Method | Description |
+|---------------|-------------|
+| `builder(name, description)` | Create a new builder |
+| `parameter(name, description, type)` | Add a required parameter |
+| `parameter(name, description, type, required)` | Add a parameter with explicit required flag |
+| `returnType(type)` | Set the return type (default: `"string"`) |
+| `executor(ToolExecutor)` | Set the execution function (required) |
+| `build()` | Build the `ToolDefinition` |
+
+## How Tool Bridging Works
+
+When `session.stream(message)` is called on an endpoint with tools, the framework:
+
+1. Collects all `ToolDefinition` instances from the `ToolRegistry` that match the endpoint's `tools` attribute
+2. Bridges them to the active backend's native format using a **ToolBridge**
+3. The backend handles the tool call loop
+
+Each AI backend has its own bridge:
+
+### Spring AI (SpringAiToolBridge)
+
+Converts Atmosphere `ToolDefinition` to Spring AI `ToolCallback`:
+
+- Builds a JSON Schema from `ToolParameter` definitions
+- Wraps the `ToolExecutor` in a `ToolCallback.call(String)` implementation
+- Spring AI handles the tool call loop automatically -- it invokes the callback and feeds results back to the model
+
+### LangChain4j (LangChain4jToolBridge)
+
+Converts Atmosphere `ToolDefinition` to LangChain4j `ToolSpecification`:
+
+- Maps `ToolParameter` types to LangChain4j JSON schema elements (`JsonStringSchema`, `JsonIntegerSchema`, `JsonNumberSchema`, `JsonBooleanSchema`)
+- Unlike Spring AI, LangChain4j does not automatically execute tool callbacks -- when the model responds with `ToolExecutionRequest`s, the `LangChain4jToolBridge.executeToolCalls()` method runs the tools and returns `ToolExecutionResultMessage`s to feed back to the model
+- This loop is handled by `ToolAwareStreamingResponseHandler`
+
+### Google ADK (AdkToolBridge)
+
+Converts Atmosphere `ToolDefinition` to ADK `BaseTool`:
+
+- Wraps each tool as an ADK-compatible tool object
+- ADK handles the tool call loop through its agent event system
+
+## Conversation Memory with Tools
+
+When tools are combined with `conversationMemory = true`, the conversation history includes tool calls and results. This lets the model:
+
+1. Reference previous tool results ("What was the weather in London earlier?")
+2. Build on previous answers ("Convert that temperature to Fahrenheit")
+3. Use context from earlier turns to decide whether to call a tool again
+
+The `AiConversationMemory` stores `ChatMessage` objects, and the sliding window at `maxHistoryMessages` ensures memory usage stays bounded.
+
+```java
+@AiEndpoint(path = "/chat",
+    tools = AssistantTools.class,
+    conversationMemory = true,
+    maxHistoryMessages = 30)
+```
+
+With 30 messages and 4 tools, a typical conversation might look like:
+
+```
+User: "What time is it in Tokyo?"
+→ Tool call: get_city_time(city="Tokyo")
+→ Tool result: "Tokyo: 14:23:45 (JST)"
+→ Assistant: "It's currently 2:23 PM in Tokyo (JST)."
+User: "And the weather there?"
+→ Tool call: get_weather(city="Tokyo")
+→ Tool result: "Tokyo: Rainy, 22C / 72F, 90% humidity"
+→ Assistant: "Tokyo is currently rainy at 22C..."
+```
+
+All of these messages are retained in the conversation memory, giving the model full context for follow-up questions.
+
+## Summary
+
+| Concept | Purpose |
+|---------|---------|
+| `@AiTool(name, description)` | Marks a method as an AI-callable tool |
+| `@Param(value, description, required)` | Provides parameter metadata for the tool schema |
+| `ToolRegistry` | Global registry for tool definitions |
+| `ToolDefinition` | Record: name, description, parameters, returnType, executor |
+| `ToolParameter` | Record: name, description, JSON Schema type, required |
+| `ToolExecutor` | Functional interface that executes the tool |
+| `ToolResult` | Record: toolName, result, success, error |
+| `SpringAiToolBridge` | Bridges to Spring AI `ToolCallback` |
+| `LangChain4jToolBridge` | Bridges to LangChain4j `ToolSpecification` |
+| `AdkToolBridge` | Bridges to Google ADK `BaseTool` |
+| `@AiEndpoint(tools={...})` | Selects which tool classes are available at this endpoint |
+| `conversationMemory = true` | Enables multi-turn history including tool calls and results |
+
+In the [next chapter](/docs/tutorial/11-ai-adapters/), you will learn how Atmosphere's AI adapters connect to Spring AI, LangChain4j, Google ADK, and the built-in OpenAI-compatible client.

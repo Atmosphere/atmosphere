@@ -1,21 +1,11 @@
 ---
 title: "Chapter 19: atmosphere.js Client"
-description: "TypeScript client library with React, Vue, and Svelte integrations for Atmosphere"
+description: "TypeScript client library with WebSocket/SSE/long-polling transport negotiation, room protocol, reconnection, and React/Vue/Svelte/React Native integrations."
+sidebar:
+  order: 19
 ---
 
-# Chapter 19: atmosphere.js Client
-
-Every server needs a client. In this chapter we explore `atmosphere.js` -- the official TypeScript client for the Atmosphere Framework. It provides a transport-agnostic API that works in the browser and Node.js, with first-class hooks for React, Vue, and Svelte. We will start with the core API, build up to framework-specific integrations, and finish with the AI streaming protocol.
-
-## What You Will Learn
-
-- The core `atmosphere.subscribe()` API and its request options.
-- All callback events and how to handle them.
-- Sending data with `subscription.push()`.
-- React hooks: `AtmosphereProvider`, `useAtmosphere`, `useRoom`, `usePresence`, `useStreaming`.
-- Vue composables: `useAtmosphere`, `useRoom`, `usePresence`, `useStreaming`.
-- Svelte stores: `createAtmosphereStore`, `createRoomStore`, `createPresenceStore`, `createStreamingStore`.
-- The AI streaming wire protocol.
+Every Atmosphere server needs a client. The official TypeScript client library, `atmosphere.js`, provides a transport-agnostic API that works in the browser, Node.js, and React Native. It ships with first-class hooks for React, Vue, Svelte, and React Native.
 
 ## Installation
 
@@ -23,259 +13,284 @@ Every server needs a client. In this chapter we explore `atmosphere.js` -- the o
 npm install atmosphere.js
 ```
 
-The package ships ESM, CommonJS, and TypeScript declarations. Tree-shaking ensures that if you only import the core API, none of the React/Vue/Svelte code is included in your bundle.
+The package provides ESM, CommonJS, and TypeScript declarations:
 
----
+```typescript
+import { Atmosphere } from 'atmosphere.js';
+```
+
+Framework-specific imports use subpath exports:
+
+```typescript
+import { useAtmosphere, useRoom, usePresence } from 'atmosphere.js/react';
+import { useAtmosphere, useRoom } from 'atmosphere.js/vue';
+import { createAtmosphereStore, createRoomStore } from 'atmosphere.js/svelte';
+import { useAtmosphereRN, setupReactNative } from 'atmosphere.js/react-native';
+```
 
 ## Core API
 
-The core API is framework-agnostic. It works in any JavaScript environment that supports `WebSocket`, `EventSource`, or `XMLHttpRequest`.
+### The Atmosphere Class
 
-### Subscribing to an Endpoint
+The `Atmosphere` class manages subscriptions with automatic transport selection and fallback:
 
 ```typescript
-import { atmosphere } from 'atmosphere.js';
+const atmosphere = new Atmosphere({
+  logLevel: 'info',
+  defaultTransport: 'websocket',
+  fallbackTransport: 'sse',
+});
+```
 
-const subscription = await atmosphere.subscribe(
+### Subscribing
+
+Call `subscribe()` with a request configuration and event handlers:
+
+```typescript
+const subscription = await atmosphere.subscribe<ChatMessage>(
   {
-    url: 'http://localhost:8080/chat',
+    url: 'http://localhost:8080/atmosphere/chat',
     transport: 'websocket',
-    fallbackTransport: 'long-polling',
+    fallbackTransport: 'sse',
+    reconnect: true,
+    maxReconnectOnClose: 5,
+    reconnectInterval: 2000,
+    contentType: 'application/json',
   },
   {
     open: (response) => {
       console.log('Connected via', response.transport);
     },
     message: (response) => {
-      const body = response.responseBody;
-      console.log('Received:', body);
+      console.log('Received:', response.responseBody);
     },
     close: (response) => {
-      console.log('Connection closed');
+      console.log('Disconnected');
     },
-    error: (response) => {
-      console.error('Error:', response);
+    error: (error) => {
+      console.error('Error:', error);
+    },
+    transportFailure: (reason, request) => {
+      console.warn(`${request.transport} failed: ${reason}, trying fallback`);
     },
     reconnect: (request, response) => {
       console.log('Reconnecting...');
     },
-    transportFailure: (errorMsg, request) => {
-      console.warn('Transport failed:', errorMsg);
-      console.log('Falling back to:', request.fallbackTransport);
+    failureToReconnect: (request, response) => {
+      console.error('All reconnection attempts exhausted');
     },
   }
 );
 ```
 
-The `subscribe()` call returns a `Subscription` object. The first argument is the **request** configuration. The second argument is a **callbacks** object.
+### Sending Messages
 
-### Sending Data
-
-Use `subscription.push()` to send data to the server:
+Use the subscription's `push()` method:
 
 ```typescript
-// Send a string
-subscription.push('Hello, World!');
-
-// Send a JSON object (automatically serialized)
-subscription.push({ user: 'Alice', text: 'Hello everyone!' });
-
-// Send with specific content type
-subscription.push(JSON.stringify({ user: 'Alice', text: 'Hello' }));
+subscription.push('Hello, world!');
+subscription.push({ author: 'Alice', text: 'Hello' });
+subscription.push(new ArrayBuffer(16));
 ```
 
-### Unsubscribing
+### Closing
 
 ```typescript
-// Close the connection gracefully
-subscription.unsubscribe();
+await subscription.close();
 ```
 
----
+## Transport Types
 
-## Request Options
+atmosphere.js supports four transport types:
 
-The request object configures how the client connects, reconnects, and communicates with the server.
+| Transport | Type | Description |
+|-----------|------|-------------|
+| `websocket` | `WebSocketTransport` | Full-duplex, lowest latency. Default. |
+| `sse` | `SSETransport` | Server-Sent Events. Server-to-client streaming. |
+| `long-polling` | `LongPollingTransport` | HTTP long-polling. Widest compatibility. |
+| `streaming` | `StreamingTransport` | HTTP streaming via chunked transfer. |
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `url` | `string` | -- | The server endpoint URL. Required. |
-| `transport` | `string` | `'websocket'` | Primary transport: `'websocket'`, `'sse'`, `'long-polling'`, `'streaming'`. |
-| `fallbackTransport` | `string` | `'long-polling'` | Transport to use if the primary fails. Set to `''` to disable fallback. |
-| `reconnect` | `boolean` | `true` | Whether to automatically reconnect after a disconnect. |
-| `reconnectInterval` | `number` | `0` | Milliseconds to wait between reconnection attempts. `0` means reconnect immediately. |
-| `maxReconnectOnClose` | `number` | `5` | Maximum number of reconnection attempts before giving up. |
-| `trackMessageLength` | `boolean` | `false` | Enable message-length tracking for transports that aggregate multiple messages (streaming, long-polling). |
-| `headers` | `object` | `{}` | Custom HTTP headers to send with the request. Not all transports support all headers. |
-| `withCredentials` | `boolean` | `false` | Whether to include cookies and auth headers in cross-origin requests. |
+Transport negotiation is automatic: if the primary transport fails, the client falls back to the `fallbackTransport` and notifies via the `transportFailure` handler.
 
-### Request Examples
+## Request Configuration
 
-**WebSocket with aggressive reconnection:**
+The `AtmosphereRequest` interface defines all connection options:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `url` | string | (required) | Server endpoint URL |
+| `transport` | TransportType | `'websocket'` | Primary transport |
+| `fallbackTransport` | TransportType | -- | Fallback if primary fails |
+| `reconnect` | boolean | `true` | Auto-reconnect on disconnect |
+| `reconnectInterval` | number | -- | Delay between reconnect attempts (ms) |
+| `maxReconnectOnClose` | number | -- | Max reconnection attempts |
+| `contentType` | string | -- | Content type for messages |
+| `timeout` | number | -- | Request timeout (ms) |
+| `connectTimeout` | number | -- | Connection timeout (ms) |
+| `trackMessageLength` | boolean | -- | Enable message length tracking |
+| `enableProtocol` | boolean | -- | Enable Atmosphere protocol |
+| `headers` | Record | -- | Custom HTTP headers |
+| `sessionToken` | string | -- | Durable session token (sent as `X-Atmosphere-Session-Token`) |
+| `heartbeat` | object | -- | Client/server heartbeat intervals |
+
+## Connection States
+
+The subscription state reflects the connection lifecycle:
+
+| State | Description |
+|-------|-------------|
+| `disconnected` | Not connected |
+| `connecting` | Connection in progress |
+| `connected` | Connection established |
+| `reconnecting` | Attempting to reconnect |
+| `suspended` | Connection suspended |
+| `closed` | Connection closed |
+| `error` | Connection error |
+
+## AtmosphereRooms API
+
+The `AtmosphereRooms` class provides a high-level room API with presence tracking. It works with the server-side `RoomManager` and `RoomInterceptor`.
 
 ```typescript
-{
-  url: '/chat',
-  transport: 'websocket',
-  reconnect: true,
-  reconnectInterval: 1000,
-  maxReconnectOnClose: 20,
+import { Atmosphere, AtmosphereRooms } from 'atmosphere.js';
+
+const atmosphere = new Atmosphere();
+const rooms = new AtmosphereRooms(atmosphere, {
+    url: '/atmosphere/chat',
+    transport: 'websocket',
+});
+
+const lobby = await rooms.join('lobby', { id: 'alice' }, {
+    message: (data, member) => console.log(`${member.id}: ${data}`),
+    join: (event) => console.log(`${event.member.id} joined`),
+    leave: (event) => console.log(`${event.member.id} left`),
+});
+
+lobby.broadcast('Hello!');
+lobby.sendTo('bob', 'Direct message');
+lobby.members;  // Map of member ID → RoomMember
+lobby.leave();
+
+// Leave all rooms and close the connection
+await rooms.leaveAll();
+```
+
+### AtmosphereRooms Methods
+
+| Method | Description |
+|--------|-------------|
+| `join(roomName, member, handlers)` | Join a room and return a `Promise<RoomHandle>` |
+| `leave(roomName)` | Leave a specific room |
+| `leaveAll()` | Leave all rooms and close the connection |
+| `room(name)` | Get a `RoomHandle` by name (or `undefined`) |
+| `joinedRooms()` | List all joined room names |
+
+### Room Handle
+
+The `RoomHandle` returned by `rooms.join()` provides:
+
+| Property/Method | Description |
+|----------------|-------------|
+| `name` | The room name |
+| `members` | Current members (`ReadonlyMap<string, RoomMember>`) |
+| `broadcast(data)` | Broadcast to all members |
+| `sendTo(memberId, data)` | Send a direct message |
+| `leave()` | Leave the room |
+
+### Room Message Protocol
+
+Messages exchanged between client and server follow the `RoomMessage` envelope format:
+
+```typescript
+interface RoomMessage {
+  type: 'join' | 'leave' | 'broadcast' | 'direct' | 'presence';
+  room: string;
+  data?: unknown;
+  target?: string;        // for direct messages
+  member?: RoomMember;
 }
 ```
 
-**SSE with no fallback (server push only):**
+## Framework Hooks
 
-```typescript
-{
-  url: '/events',
-  transport: 'sse',
-  fallbackTransport: '',
-  reconnect: true,
-}
-```
+atmosphere.js ships first-class hooks for React, Vue, and Svelte that manage the full Atmosphere lifecycle -- connection, reconnection, cleanup on unmount, and reactive state. The hooks are tree-shakeable sub-path imports; only the framework you import gets bundled.
 
-**Long-polling with authentication:**
+### API Summary
 
-```typescript
-{
-  url: '/secure/chat',
-  transport: 'long-polling',
-  headers: { Authorization: 'Bearer eyJhbGc...' },
-  withCredentials: true,
-}
-```
+| Hook / Store | React | Vue | Svelte |
+|-------------|-------|-----|--------|
+| Raw subscription | `useAtmosphere` | `useAtmosphere` | `createAtmosphereStore` |
+| Room (messages + presence) | `useRoom` | `useRoom` | `createRoomStore` |
+| Presence only | `usePresence` | `usePresence` | `createPresenceStore` |
+| Provider / context | `AtmosphereProvider` | *(none needed)* | *(none needed)* |
 
----
+All hooks handle automatic connection on mount/first subscriber, automatic cleanup on unmount/last unsubscribe, reconnection via Atmosphere's built-in reconnect, and full TypeScript generics for message types.
 
-## Callback Events
+### React
 
-Callbacks are the primary way to react to lifecycle events and incoming data.
+Import from `atmosphere.js/react`. All React hooks require an `AtmosphereProvider` ancestor.
 
-| Callback | Signature | When It Fires |
-|---|---|---|
-| `open` | `(response) => void` | Connection established. `response.transport` contains the negotiated transport. |
-| `message` | `(response) => void` | A message arrives from the server. `response.responseBody` contains the payload. |
-| `close` | `(response) => void` | Connection closed (cleanly or due to error). |
-| `error` | `(response) => void` | An error occurred on the connection. |
-| `reconnect` | `(request, response) => void` | A reconnection attempt is about to start. You can modify `request` to change behavior. |
-| `transportFailure` | `(errorMsg, request) => void` | The primary transport failed and the client is about to try the fallback. |
+#### AtmosphereProvider
 
-### Handling Messages
-
-The `message` callback receives a `response` object. The most important field is `responseBody`:
-
-```typescript
-message: (response) => {
-  // Raw string
-  const raw = response.responseBody;
-
-  // Parse JSON if your server sends JSON
-  try {
-    const data = JSON.parse(raw);
-    console.log(`${data.user}: ${data.text}`);
-  } catch {
-    console.log('Raw message:', raw);
-  }
-}
-```
-
-### Reconnection Flow
-
-When the connection drops, `atmosphere.js` follows this sequence:
-
-1. **`close`** fires immediately.
-2. After `reconnectInterval` milliseconds, **`reconnect`** fires.
-3. The client attempts to re-establish the connection.
-4. If successful, **`open`** fires again with the new transport.
-5. If the attempt fails and `maxReconnectOnClose` has not been reached, go back to step 2.
-6. If all attempts are exhausted, **`error`** fires with a final status.
-
-```typescript
-{
-  reconnect: (request, response) => {
-    console.log(`Reconnect attempt (transport: ${request.transport})`);
-    // You can modify the request here, e.g., switch transport
-  },
-  open: (response) => {
-    if (response.request.reconnectInterval > 0) {
-      console.log('Reconnected successfully!');
-    }
-  },
-}
-```
-
----
-
-## React Hooks
-
-React hooks provide a declarative, idiomatic way to use Atmosphere in React applications. All hooks require an `<AtmosphereProvider>` ancestor in the component tree.
-
-### Setting Up the Provider
+Wrap your app with the provider to share an `Atmosphere` instance:
 
 ```tsx
 import { AtmosphereProvider } from 'atmosphere.js/react';
 
 function App() {
   return (
-    <AtmosphereProvider>
-      <Chat />
-      <Sidebar />
+    <AtmosphereProvider config={{ logLevel: 'info' }}>
+      <ChatRoom />
     </AtmosphereProvider>
   );
 }
 ```
 
-The provider manages the Atmosphere client instance and shares it across all hooks in the subtree. It handles cleanup on unmount.
+You can also pass a pre-built instance:
 
-### useAtmosphere
+```tsx
+<AtmosphereProvider instance={myAtmosphere}>
+```
 
-The foundational hook. Subscribe to any Atmosphere endpoint:
+#### useAtmosphere
+
+Low-level hook for a raw Atmosphere subscription. Connects on mount, disconnects on unmount, re-connects when URL or transport changes.
 
 ```tsx
 import { useAtmosphere } from 'atmosphere.js/react';
 
-interface ChatMessage {
-  user: string;
-  text: string;
-  timestamp: number;
-}
-
-function Chat() {
-  const { data, state, push } = useAtmosphere<ChatMessage>({
-    request: {
-      url: '/chat',
-      transport: 'websocket',
-      fallbackTransport: 'long-polling',
-    },
+function Notifications() {
+  const { data, state, push, error } = useAtmosphere<Notification>({
+    request: { url: '/atmosphere/notifications', transport: 'websocket' },
   });
 
-  const [input, setInput] = useState('');
-
-  const send = () => {
-    if (input.trim()) {
-      push({ user: 'Me', text: input, timestamp: Date.now() });
-      setInput('');
-    }
-  };
-
-  return (
-    <div>
-      <p>Status: {state}</p>
-      {data && <p>Last message: {data.user}: {data.text}</p>}
-      <input value={input} onChange={(e) => setInput(e.target.value)} />
-      <button onClick={send} disabled={state !== 'connected'}>
-        Send
-      </button>
-    </div>
-  );
+  if (state === 'connected' && data) {
+    return <div>{data.text}</div>;
+  }
+  return <div>Connecting...</div>;
 }
 ```
 
-The `state` field is one of: `'connecting'`, `'connected'`, `'disconnected'`, `'error'`.
+**Return type:**
 
-### useRoom
+| Field | Type | Description |
+|-------|------|-------------|
+| `subscription` | `Subscription \| null` | The active subscription (null before connected) |
+| `state` | `ConnectionState` | `'disconnected'` / `'connected'` / `'reconnecting'` / `'closed'` / `'error'` |
+| `data` | `T \| null` | Last received message (generic) |
+| `error` | `Error \| null` | Last error |
+| `push` | `(msg) => void` | Send a message (string, object, or ArrayBuffer) |
 
-Join a named room with presence tracking and message broadcasting:
+**Options:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `request` | `AtmosphereRequest` | *(required)* | Connection config (url, transport, etc.) |
+| `enabled` | `boolean` | `true` | Set to `false` to defer connection |
+
+#### useRoom
+
+Joins a room and tracks members, messages, and presence:
 
 ```tsx
 import { useRoom } from 'atmosphere.js/react';
@@ -284,191 +299,125 @@ interface ChatMessage {
   text: string;
 }
 
-function ChatRoom({ roomName, userId }: { roomName: string; userId: string }) {
-  const { joined, members, messages, broadcast } = useRoom<ChatMessage>({
+function Chat() {
+  const { joined, members, messages, broadcast, sendTo, error } = useRoom<ChatMessage>({
     request: { url: '/atmosphere/room', transport: 'websocket' },
-    room: roomName,
-    member: { id: userId },
+    room: 'lobby',
+    member: { id: 'alice', metadata: { name: 'Alice' } },
   });
 
   return (
     <div>
-      <h2>Room: {roomName}</h2>
-      {!joined && <p>Joining room...</p>}
-
-      <div>
-        <h3>Members ({members.length})</h3>
-        <ul>
-          {members.map((m) => (
-            <li key={m.id}>{m.id}</li>
-          ))}
-        </ul>
-      </div>
-
-      <div>
-        <h3>Messages</h3>
-        {messages.map((msg, i) => (
-          <div key={i}>
-            <strong>{msg.member.id}:</strong> {msg.data.text}
-          </div>
+      <p>{joined ? `Online: ${members.length}` : 'Joining...'}</p>
+      <ul>
+        {messages.map((m, i) => (
+          <li key={i}><b>{m.member.id}</b>: {m.data.text}</li>
         ))}
-      </div>
-
-      <button onClick={() => broadcast({ text: 'Hello room!' })}>
-        Send to Room
-      </button>
+      </ul>
+      <button onClick={() => broadcast({ text: 'Hello!' })}>Send</button>
     </div>
   );
 }
 ```
 
-### usePresence
+**Return type:**
 
-A lightweight hook focused on who is online, without message history:
+| Field | Type | Description |
+|-------|------|-------------|
+| `joined` | `boolean` | Whether the room has been joined |
+| `members` | `RoomMember[]` | Current room members |
+| `messages` | `Array<{ data: T; member: RoomMember }>` | Messages received (append-only) |
+| `broadcast` | `(data: T) => void` | Broadcast to all room members |
+| `sendTo` | `(memberId: string, data: T) => void` | Direct message to one member |
+| `error` | `Error \| null` | Last error |
+
+#### usePresence
+
+Convenience wrapper around `useRoom` that exposes only presence state, no messages:
 
 ```tsx
 import { usePresence } from 'atmosphere.js/react';
 
-function OnlineIndicator({ userId }: { userId: string }) {
+function OnlineIndicator() {
   const { members, count, isOnline } = usePresence({
     request: { url: '/atmosphere/room', transport: 'websocket' },
     room: 'lobby',
-    member: { id: userId },
+    member: { id: currentUser.id },
   });
 
   return (
     <div>
-      <p>{count} users online</p>
-      <ul>
-        {members.map((m) => (
-          <li key={m.id}>
-            {m.id} {isOnline(m.id) ? '(online)' : '(away)'}
-          </li>
-        ))}
-      </ul>
+      <span>{count} online</span>
+      {isOnline('bob') && <span>Bob is here!</span>}
     </div>
   );
 }
 ```
 
-### useStreaming
-
-Purpose-built for AI/LLM token streaming. Handles the Atmosphere AI wire protocol automatically:
-
-```tsx
-import { useStreaming } from 'atmosphere.js/react';
-
-function AiAssistant() {
-  const { fullText, isStreaming, stats, routing, send, reset } = useStreaming({
-    request: { url: '/ai/chat', transport: 'websocket' },
-  });
-
-  const [prompt, setPrompt] = useState('');
-
-  return (
-    <div>
-      <div>
-        <input
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Ask a question..."
-        />
-        <button
-          onClick={() => { send(prompt); setPrompt(''); }}
-          disabled={isStreaming}
-        >
-          {isStreaming ? 'Generating...' : 'Send'}
-        </button>
-        <button onClick={reset} disabled={isStreaming}>
-          Clear
-        </button>
-      </div>
-
-      {/* The response streams in token by token */}
-      <div style={{ whiteSpace: 'pre-wrap' }}>{fullText}</div>
-
-      {/* Metadata from the server */}
-      {routing && <small>Model: {routing.model}</small>}
-      {stats && <small> | Tokens: {stats.totalTokens}</small>}
-    </div>
-  );
-}
-```
-
-The `useStreaming` hook returns:
+**Return type:**
 
 | Field | Type | Description |
-|---|---|---|
-| `fullText` | `string` | The accumulated response text, updated as tokens arrive. |
-| `isStreaming` | `boolean` | `true` while the server is actively sending tokens. |
-| `stats` | `{ totalTokens: number } \| null` | Token count and other stats, populated when the stream completes. |
-| `routing` | `{ model: string } \| null` | Model routing info from metadata messages. |
-| `send` | `(prompt: string) => void` | Send a prompt to the server. |
-| `reset` | `() => void` | Clear the accumulated text and stats. |
+|-------|------|-------------|
+| `joined` | `boolean` | Whether we have joined the room |
+| `members` | `RoomMember[]` | Current online members |
+| `count` | `number` | Number of members online |
+| `isOnline` | `(memberId: string) => boolean` | Check if a specific member is online |
 
----
+### Vue
 
-## Vue Composables
+Vue composables work without a provider -- pass an `Atmosphere` instance or let each composable create one. All return values are Vue `Ref` objects and update reactively in templates and watchers.
 
-Vue composables work without a provider component. Each composable creates or accepts an Atmosphere connection directly.
-
-### useAtmosphere
+#### useAtmosphere
 
 ```vue
 <script setup lang="ts">
 import { useAtmosphere } from 'atmosphere.js/vue';
 
-interface ChatMessage {
-  user: string;
-  text: string;
-}
-
 const { data, state, push } = useAtmosphere<ChatMessage>({
-  url: '/chat',
+  url: '/atmosphere/chat',
   transport: 'websocket',
 });
-
-const input = ref('');
-
-function send() {
-  if (input.value.trim()) {
-    push({ user: 'Me', text: input.value });
-    input.value = '';
-  }
-}
 </script>
 
 <template>
-  <p>Status: {{ state }}</p>
-  <div v-if="data">{{ data.user }}: {{ data.text }}</div>
-  <input v-model="input" @keyup.enter="send" />
-  <button @click="send" :disabled="state !== 'connected'">Send</button>
+  <div>State: {{ state }}</div>
+  <div v-if="data">{{ data }}</div>
+  <button @click="push(JSON.stringify({ text: 'Hello' }))">Send</button>
 </template>
 ```
 
-### useRoom
+Returns the same fields as the React `useAtmosphere` hook, but as Vue `Ref` values (reactive).
+
+#### useRoom
 
 ```vue
 <script setup lang="ts">
 import { useRoom } from 'atmosphere.js/vue';
 
-const { members, messages, broadcast } = useRoom<{ text: string }>(
+const { joined, members, messages, broadcast, sendTo } = useRoom<ChatMessage>(
   { url: '/atmosphere/room', transport: 'websocket' },
   'lobby',
-  { id: 'user-1' },
+  { id: 'alice' },
 );
 </script>
 
 <template>
-  <p>{{ members.length }} members online</p>
-  <div v-for="(msg, i) in messages" :key="i">
-    {{ msg.member.id }}: {{ msg.data.text }}
+  <div v-if="joined">
+    <p>{{ members.length }} members online</p>
+    <div v-for="msg in messages" :key="msg.data.text">
+      <b>{{ msg.member.id }}</b>: {{ msg.data.text }}
+    </div>
+    <button @click="broadcast({ text: 'Hello!' })">Send</button>
   </div>
-  <button @click="broadcast({ text: 'Hello!' })">Send</button>
+  <div v-else>Joining room...</div>
 </template>
 ```
 
-### usePresence
+**Signature:** `useRoom<T>(request, roomName, member, instance?)`
+
+All returned values (`joined`, `members`, `messages`, `error`) are Vue `Ref` objects. Cleanup is automatic via `onUnmounted`.
+
+#### usePresence
 
 ```vue
 <script setup lang="ts">
@@ -477,100 +426,84 @@ import { usePresence } from 'atmosphere.js/vue';
 const { members, count, isOnline } = usePresence(
   { url: '/atmosphere/room', transport: 'websocket' },
   'lobby',
-  { id: 'user-1' },
+  { id: currentUser.id },
 );
 </script>
 
 <template>
-  <p>{{ count }} users online</p>
-  <span v-for="m in members" :key="m.id">
-    {{ m.id }}: {{ isOnline(m.id) ? 'online' : 'away' }}
-  </span>
+  <span>{{ count }} online</span>
 </template>
 ```
 
-### useStreaming
+`count` is a Vue `computed` ref -- automatically recalculated when members change.
 
-```vue
-<script setup lang="ts">
-import { useStreaming } from 'atmosphere.js/vue';
+### Svelte
 
-const { fullText, isStreaming, stats, routing, send, reset } = useStreaming({
-  url: '/ai/chat',
-  transport: 'websocket',
-});
+Svelte hooks use the Svelte store contract (`subscribe` method). Use `$store` auto-subscription syntax. The store auto-connects when the first subscriber appears and disconnects when all subscribers are gone.
 
-const prompt = ref('');
-</script>
-
-<template>
-  <input v-model="prompt" placeholder="Ask a question..." />
-  <button @click="send(prompt); prompt = ''" :disabled="isStreaming">
-    {{ isStreaming ? 'Generating...' : 'Send' }}
-  </button>
-  <button @click="reset" :disabled="isStreaming">Clear</button>
-  <div style="white-space: pre-wrap">{{ fullText }}</div>
-  <small v-if="routing">Model: {{ routing.model }}</small>
-  <small v-if="stats"> | Tokens: {{ stats.totalTokens }}</small>
-</template>
-```
-
----
-
-## Svelte Stores
-
-Svelte integrations use the store pattern. Each factory returns a readable Svelte store plus action functions.
-
-### createAtmosphereStore
+#### createAtmosphereStore
 
 ```svelte
 <script>
   import { createAtmosphereStore } from 'atmosphere.js/svelte';
 
   const { store: chat, push } = createAtmosphereStore({
-    url: '/chat',
+    url: '/atmosphere/chat',
     transport: 'websocket',
   });
-
-  let input = '';
-
-  function send() {
-    if (input.trim()) {
-      push({ user: 'Me', text: input });
-      input = '';
-    }
-  }
+  // $chat.state, $chat.data, $chat.error
 </script>
 
-<p>Status: {$chat.state}</p>
+<p>State: {$chat.state}</p>
 {#if $chat.data}
-  <p>{$chat.data.user}: {$chat.data.text}</p>
+  <p>{JSON.stringify($chat.data)}</p>
 {/if}
-<input bind:value={input} on:keypress={(e) => e.key === 'Enter' && send()} />
-<button on:click={send} disabled={$chat.state !== 'connected'}>Send</button>
+<button on:click={() => push(JSON.stringify({ text: 'Hello' }))}>Send</button>
 ```
 
-### createRoomStore
+**Store state:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `state` | `ConnectionState` | Connection state |
+| `data` | `T \| null` | Last received message |
+| `error` | `Error \| null` | Last error |
+| `subscription` | `Subscription \| null` | Active subscription |
+
+#### createRoomStore
 
 ```svelte
 <script>
   import { createRoomStore } from 'atmosphere.js/svelte';
 
-  const { store: lobby, broadcast } = createRoomStore(
+  const { store: lobby, broadcast, sendTo } = createRoomStore(
     { url: '/atmosphere/room', transport: 'websocket' },
     'lobby',
-    { id: 'user-1' },
+    { id: 'alice' },
   );
 </script>
 
-<p>{$lobby.members.length} members online</p>
-{#each $lobby.messages as msg, i}
-  <div>{msg.member.id}: {msg.data.text}</div>
-{/each}
-<button on:click={() => broadcast({ text: 'Hello!' })}>Broadcast</button>
+{#if $lobby.joined}
+  <p>{$lobby.members.length} members online</p>
+  {#each $lobby.messages as msg}
+    <p><b>{msg.member.id}</b>: {msg.data}</p>
+  {/each}
+  <button on:click={() => broadcast('Hello!')}>Send</button>
+{:else}
+  <p>Joining room...</p>
+{/if}
 ```
 
-### createPresenceStore
+**Store state:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `joined` | `boolean` | Whether the room has been joined |
+| `members` | `RoomMember[]` | Current room members |
+| `messages` | `Array<{ data: T; member: RoomMember }>` | Received messages |
+| `error` | `Error \| null` | Last error |
+
+#### createPresenceStore
 
 ```svelte
 <script>
@@ -579,229 +512,405 @@ Svelte integrations use the store pattern. Each factory returns a readable Svelt
   const presence = createPresenceStore(
     { url: '/atmosphere/room', transport: 'websocket' },
     'lobby',
-    { id: 'user-1' },
+    { id: currentUser.id },
   );
 </script>
 
-<p>{$presence.count} users online</p>
+<span>{$presence.count} online</span>
 {#each $presence.members as m}
-  <span>{m.id}: {$presence.isOnline(m.id) ? 'online' : 'away'}</span>
+  <span>{m.id}</span>
 {/each}
 ```
 
-### createStreamingStore
+**Store state:**
 
-```svelte
-<script>
-  import { createStreamingStore } from 'atmosphere.js/svelte';
+| Field | Type | Description |
+|-------|------|-------------|
+| `joined` | `boolean` | Whether we have joined the room |
+| `members` | `RoomMember[]` | Current online members |
+| `count` | `number` | Number of members online |
 
-  const { store, send, reset } = createStreamingStore({
-    url: '/ai/chat',
-    transport: 'websocket',
-  });
+## React Native Support
 
-  let prompt = '';
-</script>
+Import from `atmosphere.js/react-native`:
 
-<input bind:value={prompt} placeholder="Ask a question..." />
-<button on:click={() => { send(prompt); prompt = ''; }} disabled={$store.isStreaming}>
-  {$store.isStreaming ? 'Generating...' : 'Send'}
-</button>
-<button on:click={reset} disabled={$store.isStreaming}>Clear</button>
-<div style="white-space: pre-wrap">{$store.fullText}</div>
-{#if $store.routing}<small>Model: {$store.routing.model}</small>{/if}
-{#if $store.stats}<small> | Tokens: {$store.stats.totalTokens}</small>{/if}
+```typescript
+import { setupReactNative, useAtmosphereRN, useStreamingRN } from 'atmosphere.js/react-native';
+
+// Call once at app startup
+setupReactNative();
+
+// Or with optional NetInfo for network-aware reconnection
+import NetInfo from '@react-native-community/netinfo';
+setupReactNative({ netInfo: NetInfo });
 ```
 
----
+React Native hooks (`useAtmosphereRN`, `useStreamingRN`) handle app lifecycle events (background/foreground) and optional NetInfo integration for network-aware reconnection. The core hooks (`useRoom`, `usePresence`) are re-exported and work as-is in React Native.
 
-## AI Streaming Wire Protocol
+## Durable Session Tokens
 
-The `useStreaming` hook (and its Vue/Svelte equivalents) consume a JSON-based wire protocol. Understanding this protocol is important if you are building a custom server handler or debugging streaming behavior.
+atmosphere.js supports durable sessions (see [Chapter 17](/docs/tutorial/17-durable-sessions/)) via the `sessionToken` request property:
 
-### Message Types
-
-Each message from the server is a JSON object with a `type` field:
-
-| Type | Fields | Description |
-|---|---|---|
-| `token` | `data`, `sessionId`, `seq` | A single token of the generated response. The client appends `data` to `fullText`. |
-| `progress` | `data`, `sessionId`, `seq` | A progress indicator (e.g., "Thinking..."). Optional. |
-| `metadata` | `key`, `value`, `sessionId`, `seq` | Key-value metadata. When `key` is `"model"`, the client populates `routing.model`. |
-| `complete` | `data`, `sessionId`, `seq` | The stream is finished. The client sets `isStreaming = false` and populates `stats`. |
-| `error` | `data`, `sessionId`, `seq` | An error occurred. The client sets `isStreaming = false` and reports the error. |
-
-### Example Stream
-
-Here is a complete token stream for the prompt "What is WebSocket?":
-
-```json
-{"type":"token","data":"Web","sessionId":"sess-001","seq":1}
-{"type":"token","data":"Socket","sessionId":"sess-001","seq":2}
-{"type":"token","data":" is","sessionId":"sess-001","seq":3}
-{"type":"token","data":" a","sessionId":"sess-001","seq":4}
-{"type":"token","data":" protocol","sessionId":"sess-001","seq":5}
-{"type":"token","data":" for","sessionId":"sess-001","seq":6}
-{"type":"token","data":" full","sessionId":"sess-001","seq":7}
-{"type":"token","data":"-duplex","sessionId":"sess-001","seq":8}
-{"type":"token","data":" communication.","sessionId":"sess-001","seq":9}
-{"type":"metadata","key":"model","value":"gpt-4","sessionId":"sess-001","seq":10}
-{"type":"complete","data":"","sessionId":"sess-001","seq":11}
+```typescript
+const sub = await atmosphere.subscribe({
+  url: '/atmosphere/chat',
+  transport: 'websocket',
+  sessionToken: localStorage.getItem('atmosphere-session'),
+}, {
+  open: (response) => {
+    // Store the server-assigned token for reconnection
+    const token = response.headers['X-Atmosphere-Session-Token'];
+    if (token) localStorage.setItem('atmosphere-session', token);
+  },
+});
 ```
 
-At the end of this stream:
+## Client-side Interceptors
 
-- `fullText` = `"WebSocket is a protocol for full-duplex communication."`
-- `isStreaming` = `false`
-- `routing` = `{ model: "gpt-4" }`
-- `stats` = `{ totalTokens: 9 }`
+Interceptors transform messages before sending or after receiving. They are applied in order for outgoing messages and in reverse order for incoming messages, like a middleware stack.
 
-### Sequence Numbers
+```typescript
+const atmosphere = new Atmosphere({
+    interceptors: [{
+        name: 'json-wrapper',
+        onOutgoing: (data) => JSON.stringify({ payload: data }),
+        onIncoming: (body) => JSON.parse(body).payload,
+    }],
+});
+```
 
-The `seq` field is a monotonically increasing integer per session. It allows the client to detect out-of-order delivery (rare but possible with certain transports) and request retransmission. The `useStreaming` hook buffers out-of-order tokens and replays them in order.
+You can chain multiple interceptors. Each one receives the output of the previous:
 
-### Session IDs
+```typescript
+const atmosphere = new Atmosphere({
+  interceptors: [
+    {
+      name: 'json',
+      onOutgoing: (data) => typeof data === 'string' ? data : JSON.stringify(data),
+      onIncoming: (body) => JSON.parse(body),
+    },
+  ],
+});
+```
 
-The `sessionId` ties all messages in a single generation to one logical session. If you send multiple prompts over the same connection, each prompt gets a new `sessionId`. The hook uses this to separate interleaved streams.
+## Pairing with @ManagedService
 
----
+The client connects to server endpoints defined with `@ManagedService`. A minimal server-client pair:
 
-## Building a Complete Chat Application
-
-Let us tie the core API and React hooks together with a server-side handler to build a working chat application.
-
-### Server (Spring Boot)
+**Server (Java):**
 
 ```java
-@ManagedService(path = "/chat")
-public class ChatService extends ManagedAtmosphereHandler {
+@ManagedService(path = "/atmosphere/chat")
+public class Chat {
 
+    @Inject private AtmosphereResource r;
+
+    @Ready
+    public void onReady() {
+        // Client connected
+    }
+
+    @Message
+    public String onMessage(String message) {
+        return message; // Echo to all subscribers
+    }
+}
+```
+
+**Client (TypeScript):**
+
+```typescript
+const sub = await atmosphere.subscribe(
+  { url: '/atmosphere/chat', transport: 'websocket' },
+  { message: (res) => console.log(res.responseBody) }
+);
+
+sub.push('Hello from atmosphere.js');
+```
+
+## API Reference
+
+Complete type reference for the atmosphere.js client library.
+
+### Atmosphere
+
+Main client class. Manages subscriptions with automatic transport fallback.
+
+```typescript
+const atm = new Atmosphere({
+    logLevel: 'info',                  // 'debug' | 'info' | 'warn' | 'error' | 'silent'
+    defaultTransport: 'websocket',     // Default transport for all subscriptions
+    fallbackTransport: 'long-polling', // Default fallback
+    interceptors: [],                  // Client-side interceptors
+});
+
+atm.version;           // '5.0.0'
+```
+
+| Method | Description |
+|--------|-------------|
+| `subscribe(request, handlers)` | Connect to an Atmosphere endpoint. Returns `Promise<Subscription>`. |
+| `closeAll()` | Close all active subscriptions |
+| `getSubscriptions()` | Get all active subscriptions (`Map<string, Subscription>`) |
+
+### AtmosphereRequest
+
+```typescript
+{
+    url: string;                           // Endpoint URL (required)
+    transport: TransportType;              // 'websocket' | 'sse' | 'long-polling' | 'streaming'
+    fallbackTransport?: TransportType;     // Fallback if primary fails
+    contentType?: string;                  // Default: 'text/plain'
+    trackMessageLength?: boolean;          // Length-prefix messages (recommended: true)
+    messageDelimiter?: string;             // Default: '|'
+    enableProtocol?: boolean;              // Atmosphere protocol handshake
+    timeout?: number;                      // Inactivity timeout (ms)
+    connectTimeout?: number;               // Connection timeout (ms)
+    reconnect?: boolean;                   // Auto-reconnect (default: true)
+    reconnectInterval?: number;            // Base reconnect delay (ms)
+    maxReconnectOnClose?: number;          // Max reconnect attempts (default: 5)
+    maxRequest?: number;                   // Max long-polling request cycles
+    headers?: Record<string, string>;      // Custom HTTP headers
+    withCredentials?: boolean;             // Include cookies (CORS)
+    heartbeat?: {
+        client?: number;                   // Client heartbeat interval (ms)
+        server?: number;                   // Expected server heartbeat (ms)
+    };
+}
+```
+
+### SubscriptionHandlers
+
+```typescript
+{
+    open?: (response: AtmosphereResponse) => void;
+    message?: (response: AtmosphereResponse) => void;
+    close?: (response: AtmosphereResponse) => void;
+    error?: (error: Error) => void;
+    reopen?: (response: AtmosphereResponse) => void;
+    reconnect?: (request: AtmosphereRequest, response: AtmosphereResponse) => void;
+    transportFailure?: (reason: string, request: AtmosphereRequest) => void;
+    clientTimeout?: (request: AtmosphereRequest) => void;
+    failureToReconnect?: (request: AtmosphereRequest, response: AtmosphereResponse) => void;
+}
+```
+
+### Subscription
+
+Returned by `subscribe()`.
+
+```typescript
+sub.id;                    // string — unique subscription ID
+sub.state;                 // ConnectionState
+
+sub.push(message);         // Send string | object | ArrayBuffer
+await sub.close();         // Disconnect
+sub.suspend();             // Pause receiving
+await sub.resume();        // Resume receiving
+
+sub.on(event, handler);    // Add event listener
+sub.off(event, handler);   // Remove event listener
+```
+
+### ConnectionState
+
+```typescript
+'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'suspended' | 'closed' | 'error'
+```
+
+### RoomHandle
+
+```typescript
+handle.name;                         // Room name
+handle.members;                      // ReadonlyMap<string, RoomMember>
+handle.broadcast(data);              // Send to all members
+handle.sendTo(memberId, data);       // Direct message
+handle.leave();                      // Leave the room
+```
+
+### RoomMember
+
+```typescript
+{ id: string; metadata?: Record<string, unknown>; }
+```
+
+### PresenceEvent
+
+```typescript
+{ type: 'join' | 'leave'; room: string; member: RoomMember; timestamp: number; }
+```
+
+### RoomMessage (Wire Format)
+
+```typescript
+{ type: 'join' | 'leave' | 'broadcast' | 'direct' | 'presence';
+  room: string;
+  data?: unknown;
+  member?: RoomMember;
+  target?: string; }
+```
+
+### AtmosphereInterceptor (Client-Side)
+
+```typescript
+{
+    name?: string;
+    onOutgoing?: (data: string | ArrayBuffer) => string | ArrayBuffer;
+    onIncoming?: (body: string) => string;
+}
+```
+
+Applied in order for outgoing; reverse order for incoming (middleware stack pattern).
+
+## Java Client (wAsync)
+
+`atmosphere-wasync` is an async Java client for connecting to Atmosphere endpoints. It supports WebSocket, SSE, streaming, long-polling, and gRPC transports, powered by `java.net.http` (JDK 21+).
+
+### Dependency
+
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-wasync</artifactId>
+    <version>4.0.4</version>
+</dependency>
+```
+
+### Quick Start
+
+```java
+Client client = Client.newClient();
+
+Request request = client.newRequestBuilder()
+    .uri("ws://localhost:8080/atmosphere/chat")
+    .transport(Request.TRANSPORT.WEBSOCKET)
+    .build();
+
+Socket socket = client.create();
+socket.on(Event.OPEN, r -> System.out.println("Connected"))
+      .on(Event.MESSAGE, msg -> System.out.println("Received: " + msg))
+      .on(Event.ERROR, e -> ((Throwable) e).printStackTrace())
+      .on(Event.CLOSE, r -> System.out.println("Disconnected"));
+
+socket.open(request);
+socket.fire("Hello from Java!");
+```
+
+### Socket API
+
+The `Socket` is the connection handle -- register event handlers, connect, and send messages:
+
+```java
+// Event handlers (chainable)
+socket.on(Event.OPEN, handler)
+      .on(Event.MESSAGE, handler)
+      .on(Event.ERROR, handler)
+      .on(Event.CLOSE, handler);
+
+// Connect
+socket.open(request);
+
+// Send data (returns CompletableFuture<Void>)
+socket.fire("text message");
+socket.fire(byteArray);
+
+// State
+socket.status();   // Socket.STATUS — OPEN, CLOSE, ERROR, REOPENED
+
+// Disconnect
+socket.close();
+```
+
+### Events
+
+| Event | When Fired |
+|-------|-----------|
+| `Event.OPEN` | Connection established |
+| `Event.MESSAGE` | Data received |
+| `Event.ERROR` | Error occurred |
+| `Event.CLOSE` | Connection closed |
+| `Event.REOPENED` | Reconnected after disconnect |
+| `Event.HEADERS` | Response headers received |
+| `Event.STATUS` | HTTP status received |
+| `Event.TRANSPORT` | Transport negotiated |
+
+### Transports
+
+| Transport | URI Scheme | Description |
+|-----------|-----------|-------------|
+| `WEBSOCKET` | `ws://` / `wss://` | Full-duplex WebSocket |
+| `SSE` | `http://` / `https://` | Server-Sent Events |
+| `STREAMING` | `http://` / `https://` | HTTP streaming |
+| `LONG_POLLING` | `http://` / `https://` | Long-polling |
+| `GRPC` | `grpc://` | gRPC bidirectional streaming |
+
+### Transport Fallback
+
+```java
+Request request = client.newRequestBuilder()
+    .uri("http://localhost:8080/atmosphere/chat")
+    .transport(Request.TRANSPORT.WEBSOCKET)
+    .fallbackTransport(Request.TRANSPORT.LONG_POLLING)
+    .build();
+```
+
+### Encoders and Decoders
+
+Transform objects before sending and after receiving:
+
+```java
+// Encoder: Java object → wire format
+public class JacksonEncoder implements Encoder<Message, String> {
     @Override
-    public void onMessage(AtmosphereResource resource, String message) {
-        resource.getBroadcaster().broadcast(message);
+    public String encode(Message m) {
+        return objectMapper.writeValueAsString(m);
     }
 }
-```
 
-### Client (React)
-
-```tsx
-import { AtmosphereProvider, useAtmosphere } from 'atmosphere.js/react';
-import { useState } from 'react';
-
-interface ChatMessage {
-  user: string;
-  text: string;
-}
-
-function ChatApp() {
-  const { data, state, push } = useAtmosphere<ChatMessage>({
-    request: {
-      url: '/chat',
-      transport: 'websocket',
-      fallbackTransport: 'long-polling',
-      reconnect: true,
-      maxReconnectOnClose: 10,
-    },
-  });
-
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [username] = useState(() => `User-${Math.random().toString(36).slice(2, 6)}`);
-
-  // Accumulate messages
-  if (data && (messages.length === 0 || messages[messages.length - 1] !== data)) {
-    setMessages((prev) => [...prev, data]);
-  }
-
-  const send = () => {
-    if (input.trim() && state === 'connected') {
-      push({ user: username, text: input });
-      setInput('');
+// Decoder: wire format → Java object
+public class JacksonDecoder implements Decoder<String, Message> {
+    @Override
+    public Message decode(String s) {
+        return objectMapper.readValue(s, Message.class);
     }
-  };
-
-  return (
-    <div>
-      <h1>Atmosphere Chat</h1>
-      <p>Status: {state} | You are: {username}</p>
-
-      <div style={{ height: 400, overflow: 'auto', border: '1px solid #ccc' }}>
-        {messages.map((msg, i) => (
-          <div key={i}>
-            <strong>{msg.user}:</strong> {msg.text}
-          </div>
-        ))}
-      </div>
-
-      <input
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && send()}
-        placeholder="Type a message..."
-      />
-      <button onClick={send} disabled={state !== 'connected'}>
-        Send
-      </button>
-    </div>
-  );
 }
 
-export default function App() {
-  return (
-    <AtmosphereProvider>
-      <ChatApp />
-    </AtmosphereProvider>
-  );
-}
+// Register on request
+Request request = client.newRequestBuilder()
+    .uri("ws://localhost:8080/chat")
+    .transport(Request.TRANSPORT.WEBSOCKET)
+    .encoder(new JacksonEncoder())
+    .decoder(new JacksonDecoder())
+    .build();
 ```
 
----
+### gRPC Transport
 
-## Transport Selection Guide
+Connect to an Atmosphere gRPC server:
 
-Choosing the right transport depends on your deployment environment and requirements:
+```java
+Client client = Client.newClient();
+Request request = client.newRequestBuilder()
+    .uri("grpc://localhost:9090/chat")
+    .transport(Request.TRANSPORT.GRPC)
+    .build();
 
-| Transport | Direction | Proxy-Safe | Latency | Use When |
-|---|---|---|---|---|
-| `websocket` | Full-duplex | No (some proxies strip Upgrade) | Lowest | Default choice for modern deployments |
-| `sse` | Server-to-client only | Yes | Low | Server push only, or when WebSocket is blocked |
-| `long-polling` | Simulated full-duplex | Yes | Medium | Universal fallback, corporate proxies |
-| `streaming` | Server-to-client | Varies | Low | Continuous data push without reconnection overhead |
+Socket socket = client.create();
+socket.on(Event.MESSAGE, msg -> System.out.println("Received: " + msg))
+      .open(request);
 
-The recommended pattern is `transport: 'websocket'` with `fallbackTransport: 'long-polling'`. This gives you optimal performance when WebSocket is available and universal compatibility when it is not.
-
----
-
-## Browser Compatibility
-
-- Chrome/Edge: last 2 versions
-- Firefox: last 2 versions + ESR
-- Safari: last 2 versions
-- Mobile Safari (iOS): last 2 versions
-- Chrome Android: last 2 versions
-
-For React Native support, see the [React Native Client](/docs/clients/react-native/) reference.
-
----
+socket.fire("Hello via gRPC!");
+```
 
 ## Summary
 
-In this chapter you learned:
+- atmosphere.js is a TypeScript client library supporting WebSocket, SSE, long-polling, and streaming transports
+- Transport negotiation and fallback are automatic
+- The `AtmosphereRooms` API provides join/leave/broadcast/direct messaging with presence tracking
+- Client-side interceptors transform messages in a middleware stack pattern
+- Framework-specific hooks are available for React (`useAtmosphere`, `useRoom`, `usePresence`), Vue (`useAtmosphere`, `useRoom`, `usePresence`), Svelte (`createAtmosphereStore`, `createRoomStore`, `createPresenceStore`), and React Native (`useAtmosphereRN`)
+- Durable session tokens are supported via the `sessionToken` request property
+- The Java client (wAsync) supports WebSocket, SSE, streaming, long-polling, and gRPC transports with encoders/decoders
+- The client pairs with `@ManagedService` on the server with no special configuration
 
-- The **core API** (`atmosphere.subscribe` / `subscription.push`) provides transport-agnostic real-time communication.
-- **Request options** control transport selection, reconnection behavior, and authentication.
-- **Callback events** (`open`, `message`, `close`, `error`, `reconnect`, `transportFailure`) give you full lifecycle control.
-- **React hooks** (`useAtmosphere`, `useRoom`, `usePresence`, `useStreaming`) offer a declarative API behind an `AtmosphereProvider`.
-- **Vue composables** provide the same API without needing a provider component.
-- **Svelte stores** follow the Svelte store contract, returning readable stores plus action functions.
-- The **AI streaming wire protocol** uses typed JSON messages (`token`, `metadata`, `complete`, `error`) with session IDs and sequence numbers.
-
-In the [next chapter](/docs/tutorial/20-grpc-kotlin/), we explore advanced transports and language support -- gRPC, the Kotlin DSL, virtual threads, and where to go from here.
-
-## See Also
-
-- [atmosphere.js Reference](/docs/clients/javascript/) -- compact API reference
-- [React Native Client](/docs/clients/react-native/) -- mobile support
-- [wAsync Java Client](/docs/clients/java/) -- Java client for server-to-server communication
-- [AI Integration](/docs/reference/ai/) -- server-side `@AiEndpoint` and `StreamingSession`
+Next up: [Chapter 20: gRPC & Kotlin](/docs/tutorial/20-grpc-kotlin/) covers the gRPC transport and virtual threads.

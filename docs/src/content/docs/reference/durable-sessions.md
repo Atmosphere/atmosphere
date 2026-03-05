@@ -13,7 +13,7 @@ Sessions survive server restarts. On reconnection, the client sends its session 
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-durable-sessions</artifactId>
-    <version>4.0.8-SNAPSHOT</version>
+    <version>4.0.11-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -50,7 +50,7 @@ Sessions are stored in a `ConcurrentHashMap`. Lost on restart -- suitable for de
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-durable-sessions-sqlite</artifactId>
-    <version>4.0.8-SNAPSHOT</version>
+    <version>4.0.11-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -62,7 +62,7 @@ Sessions are persisted to a local SQLite database. Suitable for single-node depl
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-durable-sessions-redis</artifactId>
-    <version>4.0.8-SNAPSHOT</version>
+    <version>4.0.11-SNAPSHOT</version>
 </dependency>
 ```
 
