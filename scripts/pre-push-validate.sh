@@ -41,8 +41,18 @@ else
     BUILD_CMD="./mvnw install -q"
 fi
 
-# Run the build
+# Run architectural validation first (fast fail before long build)
 cd "$PROJECT_ROOT"
+echo "Running architectural validation..."
+echo ""
+if ! ./scripts/architectural-validation.sh --fast; then
+    echo ""
+    echo "Architectural validation failed — fix issues before pushing."
+    echo ""
+    exit 1
+fi
+
+echo ""
 echo "Running: $BUILD_CMD"
 echo ""
 

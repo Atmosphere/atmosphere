@@ -1,0 +1,182 @@
+# Atmosphere Framework - Architectural Validation Patterns
+# This file defines patterns that indicate code quality anti-patterns.
+# Used by scripts/architectural-validation.sh
+
+# ============================================================================
+# PLACEHOLDER PATTERNS — code that pretends to work but doesn't
+# ============================================================================
+
+[placeholder_patterns]
+# Critical: code left by AI assistants or incomplete implementations
+critical = [
+    "Implementation would",
+    "Would implement",
+    "Should implement",
+    "Will implement",
+    "TODO: Implementation",
+    "stub implementation",
+    "stub for now",
+    "mock implementation",
+    "placeholder implementation",
+    "placeholder structure",
+    "simplified placeholder",
+    "this is a placeholder",
+    "will be implemented",
+    "to be implemented",
+    "not yet.*implemented",
+    "return mock data",
+    "fake implementation",
+    "in a real app",
+    "for demo purposes",
+    "temporary solution",
+    "temp fix",
+    "quick fix"
+]
+
+# Hedge language — avoiding commitment (warning only)
+hedge = [
+    "might implement",
+    "could implement",
+    "should handle",
+    "if needed",
+    "when required"
+]
+
+# ============================================================================
+# MOCK / STUB EXCLUSIONS — legitimate uses of mock/stub/fake words
+# ============================================================================
+
+[mock_exclusions]
+# File-level exclusions (these files legitimately use mock/stub/fake words)
+files = [
+    "FakeHttpSession.java",
+    "FakeLlmClient.java"
+]
+
+# Word-level false positives (words containing mock/stub/fake but not meaning it)
+false_positive_words = [
+    "socket",
+    "dock",
+    "block",
+    "knock",
+    "unstub",
+    "clock",
+    "newStub",
+    "blockingStub",
+    "Grpc",
+    "noOpsRequest",
+    "AtmosphereRequestImpl"
+]
+
+# ============================================================================
+# @SuppressWarnings ALLOWLIST
+# ============================================================================
+
+[suppress_warnings_allowlist]
+# These suppression categories are permitted in production code
+allowed = [
+    "unchecked",      # unavoidable generic erasure
+    "rawtypes",       # third-party API compatibility
+    "serial",         # Atmosphere doesn't serialize
+    "deprecation",    # migration path
+    "try",            # try-with-resources on non-AutoCloseable (JDK 21 structured concurrency)
+    "this-escape",    # JDK 21+ warning for constructors calling overridable methods
+    "fallthrough",    # intentional switch fallthrough
+    "unused",         # callback parameters required by interface but not used
+    "removal"         # deprecated-for-removal API usage during migration
+]
+
+# ============================================================================
+# NOOP CONSTANT ALLOWLIST — NOOP constants that are intentionally internal-only
+# ============================================================================
+
+[noop_allowlist]
+# These NOOP constants are defined as default/sentinel values and used internally
+# via constructor defaults or ServiceLoader fallbacks. They don't need external references.
+internal_use = [
+    "AiMetrics.NOOP"  # used as ServiceLoader fallback default
+]
+
+# ============================================================================
+# SPI INTERFACE ALLOWLIST — interfaces meant for user implementation
+# ============================================================================
+
+[spi_interfaces]
+# These interfaces have zero implementations in production code ON PURPOSE.
+# They are extension points for users/adapters to implement.
+user_extensible = [
+    "AiSupport",
+    "AiInterceptor",
+    "AiGuardrail",
+    "ContextProvider",
+    "ConversationPersistence",
+    "AiMetrics",
+    "StreamingSession",
+    "ToolProvider",
+    "AtmosphereHandler",
+    "AtmosphereInterceptor",
+    "BroadcastFilter",
+    "WebSocketHandler",
+    "AtmosphereResourceEventListener",
+    "Broadcaster",
+    "BroadcasterCache",
+    "CoalescedCacheEventListener",
+    "ToolExecutor"
+]
+
+# ============================================================================
+# DISABLED TESTS ALLOWLIST
+# ============================================================================
+
+[disabled_tests_allowlist]
+# These test files are allowed to have @Disabled annotations with justification
+files = [
+    "AtmosphereResourceStateRecoveryTest.java"
+]
+
+# ============================================================================
+# CI WORKFLOW ALLOWLIST
+# ============================================================================
+
+[ci_allowlist]
+# CI workflow files where continue-on-error: true is acceptable
+continue_on_error = [
+    "atmosphere-js-ci.yml"   # JS CI may fail on optional browser tests
+]
+
+# CI commands where -DskipTests is acceptable
+skip_tests = [
+    "snapshot-deploy.yml",   # deploy workflows only need compile
+    "native-image-ci.yml",   # native image build tests separately
+    "release-4x.yml"         # release deploys after CI passes
+]
+
+# ============================================================================
+# FLUENT BUILDER PATTERNS — methods that return a new object (must not discard)
+# ============================================================================
+
+[fluent_builder_methods]
+# Method name suffixes that indicate fluent/immutable builder patterns.
+# Calling these without assigning the return value is a bug.
+ai_module = [
+    "system",
+    "user",
+    "messages",
+    "advisors",
+    "toolCallbacks",
+    "temperature",
+    "topP",
+    "maxTokens"
+]
+
+# ============================================================================
+# THRESHOLD CONFIGURATION
+# ============================================================================
+
+[thresholds]
+# Maximum allowed counts before failing (0 = any occurrence fails)
+mock_in_production = 5
+placeholder_markers = 0         # critical placeholders are always failures
+system_out_calls = 0            # advisory warning threshold (not enforced)
+print_stack_trace = 0           # advisory warning threshold (not enforced)
+todo_markers = 50               # high threshold for legacy code (warn only)
