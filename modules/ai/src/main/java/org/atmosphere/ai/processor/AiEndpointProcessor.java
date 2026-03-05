@@ -93,7 +93,7 @@ public class AiEndpointProcessor implements Processor<Object> {
             var systemPrompt = resolveSystemPrompt(annotation);
             var fallbackStrategy = parseFallbackStrategy(annotation.fallbackStrategy());
             var aiSupport = resolveAiSupport();
-            var interceptors = instantiateInterceptors(annotation.interceptors());
+            var interceptors = instantiateInterceptors(annotation.interceptors(), framework);
             AiConversationMemory memory = null;
             if (annotation.conversationMemory()) {
                 memory = new InMemoryConversationMemory(annotation.maxHistoryMessages());
@@ -103,8 +103,8 @@ public class AiEndpointProcessor implements Processor<Object> {
             var toolRegistry = registerTools(annotation, framework);
 
             // Instantiate guardrails and context providers
-            var guardrails = instantiateGuardrails(annotation.guardrails());
-            var contextProviders = instantiateContextProviders(annotation.contextProviders());
+            var guardrails = instantiateGuardrails(annotation.guardrails(), framework);
+            var contextProviders = instantiateContextProviders(annotation.contextProviders(), framework);
 
             // Shared lifecycle scanning — same infrastructure as @ManagedService
             var lifecycle = AnnotatedLifecycle.scan(annotatedClass);
@@ -204,11 +204,12 @@ public class AiEndpointProcessor implements Processor<Object> {
         return support;
     }
 
-    private List<AiInterceptor> instantiateInterceptors(Class<? extends AiInterceptor>[] classes) {
+    private List<AiInterceptor> instantiateInterceptors(Class<? extends AiInterceptor>[] classes,
+                                                         AtmosphereFramework framework) {
         var interceptors = new ArrayList<AiInterceptor>();
         for (var clazz : classes) {
             try {
-                interceptors.add(clazz.getDeclaredConstructor().newInstance());
+                interceptors.add(framework.newClassInstance(AiInterceptor.class, clazz));
             } catch (Exception e) {
                 logger.error("Failed to instantiate AiInterceptor: {}", clazz.getName(), e);
             }
@@ -234,11 +235,12 @@ public class AiEndpointProcessor implements Processor<Object> {
         return registry;
     }
 
-    private List<AiGuardrail> instantiateGuardrails(Class<? extends AiGuardrail>[] classes) {
+    private List<AiGuardrail> instantiateGuardrails(Class<? extends AiGuardrail>[] classes,
+                                                    AtmosphereFramework framework) {
         var guardrails = new ArrayList<AiGuardrail>();
         for (var clazz : classes) {
             try {
-                guardrails.add(clazz.getDeclaredConstructor().newInstance());
+                guardrails.add(framework.newClassInstance(AiGuardrail.class, clazz));
             } catch (Exception e) {
                 logger.error("Failed to instantiate AiGuardrail: {}", clazz.getName(), e);
             }
@@ -246,11 +248,12 @@ public class AiEndpointProcessor implements Processor<Object> {
         return List.copyOf(guardrails);
     }
 
-    private List<ContextProvider> instantiateContextProviders(Class<? extends ContextProvider>[] classes) {
+    private List<ContextProvider> instantiateContextProviders(Class<? extends ContextProvider>[] classes,
+                                                              AtmosphereFramework framework) {
         var providers = new ArrayList<ContextProvider>();
         for (var clazz : classes) {
             try {
-                providers.add(clazz.getDeclaredConstructor().newInstance());
+                providers.add(framework.newClassInstance(ContextProvider.class, clazz));
             } catch (Exception e) {
                 logger.error("Failed to instantiate ContextProvider: {}", clazz.getName(), e);
             }

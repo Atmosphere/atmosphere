@@ -231,8 +231,13 @@ public class AiEndpointProcessorTest {
     public void testHandlerHasInterceptors() throws Exception {
         when(framework.newClassInstance(eq(Object.class), any()))
                 .thenReturn(new InterceptorEndpoint());
+        when(framework.newClassInstance(eq(AiInterceptor.class), eq(TestInterceptor.class)))
+                .thenReturn(new TestInterceptor());
 
         processor.handle(framework, (Class) InterceptorEndpoint.class);
+
+        // Verify DI was used instead of raw reflection
+        verify(framework).newClassInstance(AiInterceptor.class, TestInterceptor.class);
 
         var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
         verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
