@@ -1,13 +1,13 @@
 ---
 title: "Chapter 4: Transports"
-description: "How Atmosphere handles WebSocket, SSE, long-polling, and streaming transparently, with auto-negotiation and the @WebSocketHandlerService API."
+description: "How Atmosphere handles WebSocket, SSE, long-polling, streaming, and gRPC transparently, with auto-negotiation and the @WebSocketHandlerService API."
 sidebar:
   order: 4
 ---
 
 # Transports
 
-Atmosphere is transport-agnostic. The same server-side code handles WebSocket, SSE, long-polling, and streaming clients simultaneously. This chapter explains how each transport works, how auto-negotiation selects the best one, and how to drop down to the lower-level `@WebSocketHandlerService` when you need direct WebSocket control.
+Atmosphere is transport-agnostic. The same server-side code handles WebSocket, SSE, long-polling, streaming, and gRPC clients simultaneously. This chapter explains how each transport works, how auto-negotiation selects the best one, and how to drop down to the lower-level `@WebSocketHandlerService` when you need direct WebSocket control.
 
 ## Supported Transports
 
@@ -17,8 +17,9 @@ Atmosphere is transport-agnostic. The same server-side code handles WebSocket, S
 | **SSE** (Server-Sent Events) | Server-to-client streaming over a long-lived HTTP response | Persistent (server-to-client only) |
 | **Long-Polling** | Client sends a request, server holds it until data is available, then responds | Repeated request/response cycles |
 | **Streaming** | Server writes to an open HTTP response without closing it | Persistent (server-to-client only) |
+| **gRPC** | Bidirectional streaming over HTTP/2 using Protocol Buffers (`atmosphere-grpc` module) | Persistent |
 
-All four transports deliver the same messages. The transport choice affects performance characteristics (latency, overhead, compatibility), not your application logic.
+All five transports deliver the same messages. The transport choice affects performance characteristics (latency, overhead, compatibility), not your application logic. gRPC is covered in detail in [Chapter 20](/docs/tutorial/20-grpc-kotlin/).
 
 ## Transport-Agnostic Design
 
@@ -28,6 +29,7 @@ The central principle is that your `@ManagedService` class never needs to know w
 - An **SSE** client receives a `data:` event on the event stream.
 - A **long-polling** client receives an HTTP response body, then immediately reconnects.
 - A **streaming** client receives the data appended to the open HTTP response.
+- A **gRPC** client receives an `AtmosphereMessage` on its bidirectional stream.
 
 This means a single `Broadcaster` can have subscribers using different transports, and all of them receive the same message simultaneously:
 
