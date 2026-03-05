@@ -16,7 +16,7 @@ The extension is split into two artifacts following Quarkus conventions:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-quarkus-extension</artifactId>
-    <version>4.0.11-SNAPSHOT</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 ```
 

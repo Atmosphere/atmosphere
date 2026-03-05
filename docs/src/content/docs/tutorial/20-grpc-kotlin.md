@@ -17,7 +17,7 @@ The `atmosphere-grpc` module provides a standalone gRPC server integrated with `
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-grpc</artifactId>
-    <version>4.0.11-SNAPSHOT</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 ```
 
@@ -213,7 +213,7 @@ The `atmosphere-kotlin` module provides a type-safe DSL for building `Atmosphere
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-kotlin</artifactId>
-    <version>4.0.11-SNAPSHOT</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 ```
 

@@ -13,7 +13,7 @@ description: "AiSupport backed by Spring AI ChatClient"
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-ai</artifactId>
-    <version>4.0.11-SNAPSHOT</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 ```
 

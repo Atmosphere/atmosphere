@@ -25,7 +25,7 @@ Deploy Atmosphere as a standard WAR to any Servlet 6.0+ container with WebSocket
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-runtime</artifactId>
-            <version>4.0.4</version>
+            <version>LATEST</version> <!-- check Maven Central for latest -->
         </dependency>
 
         <dependency>

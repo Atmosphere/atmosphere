@@ -22,7 +22,7 @@ Add the Atmosphere runtime to your project:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-runtime</artifactId>
-    <version>4.0.11-SNAPSHOT</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 ```
 
@@ -266,7 +266,7 @@ If you prefer Spring Boot, add the starter dependency instead:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-boot-starter</artifactId>
-    <version>4.0.11-SNAPSHOT</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 ```
 

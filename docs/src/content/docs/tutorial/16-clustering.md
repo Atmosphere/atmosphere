@@ -53,7 +53,7 @@ Add `atmosphere-redis` to your project:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-redis</artifactId>
-    <version>4.0.11-SNAPSHOT</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 ```
 
@@ -151,7 +151,7 @@ Add `atmosphere-kafka` to your project:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-kafka</artifactId>
-    <version>4.0.11-SNAPSHOT</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 ```
 

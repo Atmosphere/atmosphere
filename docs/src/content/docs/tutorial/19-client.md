@@ -772,7 +772,7 @@ Applied in order for outgoing; reverse order for incoming (middleware stack patt
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-wasync</artifactId>
-    <version>4.0.4</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 ```
 

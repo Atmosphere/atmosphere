@@ -15,7 +15,7 @@ Before reaching for an adapter module, know that `atmosphere-ai` itself includes
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-ai</artifactId>
-    <version>4.0.11-SNAPSHOT</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 ```
 
@@ -94,7 +94,7 @@ When multiple `AiSupport` implementations are on the classpath, the one with the
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-ai</artifactId>
-    <version>4.0.11-SNAPSHOT</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 ```
 
@@ -171,7 +171,7 @@ When an `@AiEndpoint` receives a message, `SpringAiSupport.stream()` runs the fo
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-langchain4j</artifactId>
-    <version>4.0.11-SNAPSHOT</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 ```
 
@@ -250,7 +250,7 @@ Unlike Spring AI, LangChain4j does not execute tool callbacks automatically. Whe
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-adk</artifactId>
-    <version>4.0.11-SNAPSHOT</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 ```
 
@@ -313,7 +313,7 @@ Embabel is a Kotlin-based agent framework with built-in planning, tool calling, 
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-embabel</artifactId>
-    <version>4.0.11-SNAPSHOT</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 <dependency>
     <groupId>com.embabel.agent</groupId>

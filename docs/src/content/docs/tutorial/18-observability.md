@@ -274,7 +274,7 @@ The `atmosphere-spring-boot-starter` includes an `AtmosphereHealthIndicator` tha
     "atmosphere": {
       "status": "UP",
       "details": {
-        "version": "4.0.11-SNAPSHOT",
+        "version": "LATEST",
         "connections": 42,
         "broadcasters": 3,
         "handlers": 2,

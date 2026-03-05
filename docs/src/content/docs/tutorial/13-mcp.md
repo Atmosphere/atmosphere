@@ -14,7 +14,7 @@ The Model Context Protocol (MCP) is an open standard that lets AI agents (Claude
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-mcp</artifactId>
-    <version>4.0.11-SNAPSHOT</version>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
 </dependency>
 ```
 
