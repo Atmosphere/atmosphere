@@ -33,6 +33,7 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
+import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
@@ -102,6 +103,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
     private final List<AiGuardrail> guardrails;
     private final List<ContextProvider> contextProviders;
     private final AiMetrics metrics;
+    private final List<BroadcastFilter> broadcastFilters;
 
     /**
      * @param target       the user's @AiEndpoint instance
@@ -116,7 +118,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                              List<AiInterceptor> interceptors) {
         this(target, promptMethod, timeout, systemPrompt, null, aiSupport, interceptors,
                 null, AnnotatedLifecycle.scan(target.getClass()),
-                new DefaultToolRegistry(), List.of(), List.of(), AiMetrics.NOOP);
+                new DefaultToolRegistry(), List.of(), List.of(), AiMetrics.NOOP, List.of());
     }
 
     /**
@@ -138,7 +140,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                              AnnotatedLifecycle lifecycle) {
         this(target, promptMethod, timeout, systemPrompt, pathTemplate, aiSupport,
                 interceptors, memory, lifecycle,
-                new DefaultToolRegistry(), List.of(), List.of(), AiMetrics.NOOP);
+                new DefaultToolRegistry(), List.of(), List.of(), AiMetrics.NOOP, List.of());
     }
 
     /**
@@ -154,6 +156,25 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                              List<AiGuardrail> guardrails,
                              List<ContextProvider> contextProviders,
                              AiMetrics metrics) {
+        this(target, promptMethod, timeout, systemPrompt, pathTemplate, aiSupport,
+                interceptors, memory, lifecycle, toolRegistry, guardrails,
+                contextProviders, metrics, List.of());
+    }
+
+    /**
+     * Full constructor with broadcast filters.
+     */
+    public AiEndpointHandler(Object target, Method promptMethod, long timeout,
+                             String systemPrompt, String pathTemplate,
+                             AiSupport aiSupport,
+                             List<AiInterceptor> interceptors,
+                             AiConversationMemory memory,
+                             AnnotatedLifecycle lifecycle,
+                             ToolRegistry toolRegistry,
+                             List<AiGuardrail> guardrails,
+                             List<ContextProvider> contextProviders,
+                             AiMetrics metrics,
+                             List<BroadcastFilter> broadcastFilters) {
         this.target = target;
         this.promptMethod = promptMethod;
         this.paramCount = promptMethod.getParameterCount();
@@ -168,6 +189,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
         this.guardrails = guardrails != null ? guardrails : List.of();
         this.contextProviders = contextProviders != null ? contextProviders : List.of();
         this.metrics = metrics != null ? metrics : AiMetrics.NOOP;
+        this.broadcastFilters = broadcastFilters != null ? broadcastFilters : List.of();
         this.promptMethod.setAccessible(true);
     }
 
@@ -194,6 +216,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                 || resource.transport() == AtmosphereResource.TRANSPORT.SSE
                 || resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING) {
             assignPerPathBroadcaster(resource);
+            registerBroadcastFilters(resource.getBroadcaster());
             resource.suspend(suspendTimeout);
             if (!systemPrompt.isEmpty()) {
                 resource.getRequest().setAttribute(SYSTEM_PROMPT_ATTRIBUTE, systemPrompt);
@@ -333,6 +356,34 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
 
     AiMetrics metrics() {
         return metrics;
+    }
+
+    List<BroadcastFilter> broadcastFilters() {
+        return broadcastFilters;
+    }
+
+    /**
+     * Registers configured broadcast filters on the broadcaster, guarding
+     * against double-registration.
+     */
+    private void registerBroadcastFilters(Broadcaster broadcaster) {
+        if (broadcastFilters.isEmpty()) {
+            return;
+        }
+        var config = broadcaster.getBroadcasterConfig();
+        var existing = config.filters();
+        for (var filter : broadcastFilters) {
+            var alreadyRegistered = false;
+            for (var ef : existing) {
+                if (ef.getClass().equals(filter.getClass())) {
+                    alreadyRegistered = true;
+                    break;
+                }
+            }
+            if (!alreadyRegistered) {
+                config.addFilter(filter);
+            }
+        }
     }
 
     /**

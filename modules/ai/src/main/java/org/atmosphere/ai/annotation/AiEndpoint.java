@@ -172,4 +172,17 @@ public @interface AiEndpoint {
      * at this endpoint.
      */
     Class<? extends org.atmosphere.ai.ContextProvider>[] contextProviders() default {};
+
+    /**
+     * {@link org.atmosphere.cpr.BroadcastFilter} classes to auto-register on the
+     * broadcaster for this endpoint. Filters are instantiated via the framework's
+     * {@link org.atmosphere.cpr.AtmosphereFramework#newClassInstance} for DI support.
+     *
+     * <p>Example:</p>
+     * <pre>{@code
+     * @AiEndpoint(path = "/chat",
+     *             filters = {CostMeteringFilter.class, PiiRedactionFilter.class})
+     * }</pre>
+     */
+    Class<? extends org.atmosphere.cpr.BroadcastFilter>[] filters() default {};
 }

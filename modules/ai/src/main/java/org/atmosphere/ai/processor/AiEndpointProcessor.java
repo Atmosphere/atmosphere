@@ -40,6 +40,7 @@ import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.BroadcastFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,6 +115,7 @@ public class AiEndpointProcessor implements Processor<Object> {
             var contextProviders = instantiateContextProviders(annotation.contextProviders(), framework);
 
             var metrics = resolveMetrics();
+            var broadcastFilters = instantiateBroadcastFilters(annotation.filters(), framework);
 
             // Shared lifecycle scanning — same infrastructure as @ManagedService
             var lifecycle = AnnotatedLifecycle.scan(annotatedClass);
@@ -121,7 +123,8 @@ public class AiEndpointProcessor implements Processor<Object> {
             var handler = new AiEndpointHandler(instance, promptMethod,
                     annotation.timeout(), systemPrompt, annotation.path(),
                     aiSupport, interceptors, memory, lifecycle,
-                    toolRegistry, guardrails, contextProviders, metrics);
+                    toolRegistry, guardrails, contextProviders, metrics,
+                    broadcastFilters);
 
             List<AtmosphereInterceptor> frameworkInterceptors = new LinkedList<>();
             AnnotationUtil.defaultManagedServiceInterceptors(framework, frameworkInterceptors);
@@ -129,13 +132,14 @@ public class AiEndpointProcessor implements Processor<Object> {
 
             logger.info("AI endpoint registered at {} (class: {}, aiSupport: {}, interceptors: {}, "
                             + "memory: {}, tools: {}, guardrails: {}, contextProviders: {}, "
-                            + "fallback: {}, timeout: {}ms, @Ready: {}, @Disconnect: {}, @PathParam: {})",
+                            + "filters: {}, fallback: {}, timeout: {}ms, "
+                            + "@Ready: {}, @Disconnect: {}, @PathParam: {})",
                     annotation.path(), annotatedClass.getSimpleName(),
                     aiSupport.name(), interceptors.size(),
                     memory != null ? "on(max=" + memory.maxMessages() + ")" : "off",
                     toolRegistry.allTools().size(),
                     guardrails.size(), contextProviders.size(),
-                    fallbackStrategy,
+                    broadcastFilters.size(), fallbackStrategy,
                     annotation.timeout(),
                     lifecycle.readyMethod() != null ? lifecycle.readyMethod().getName() : "none",
                     lifecycle.disconnectMethod() != null ? lifecycle.disconnectMethod().getName() : "none",
@@ -279,6 +283,19 @@ public class AiEndpointProcessor implements Processor<Object> {
             }
         }
         return List.copyOf(providers);
+    }
+
+    private List<BroadcastFilter> instantiateBroadcastFilters(
+            Class<? extends BroadcastFilter>[] classes, AtmosphereFramework framework) {
+        var filters = new ArrayList<BroadcastFilter>();
+        for (var clazz : classes) {
+            try {
+                filters.add(framework.newClassInstance(BroadcastFilter.class, clazz));
+            } catch (Exception e) {
+                logger.error("Failed to instantiate BroadcastFilter: {}", clazz.getName(), e);
+            }
+        }
+        return List.copyOf(filters);
     }
 
     private AiConversationMemory resolveMemory(int maxHistory) {
