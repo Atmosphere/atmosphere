@@ -462,28 +462,26 @@ The key point: `BroadcasterFactory` is thread-safe and can be called from any th
 
 ## Performance Tuning
 
-By default, each `Broadcaster` uses an unbounded thread pool for message delivery, and messages are delivered in order. Two parameters let you tune this:
+### Virtual Threads (Default)
 
-### Thread Pool Size
+Atmosphere 4.0 uses virtual threads (`Executors.newVirtualThreadPerTaskExecutor()`) by default for message delivery and async writes. Virtual threads are cheap to create and do not require pool sizing — the JVM schedules them onto a small number of carrier threads automatically. This means:
 
-Limit the threads used for message delivery and async writes:
+- **No thread pool exhaustion** — each broadcast gets its own virtual thread at near-zero cost
+- **No `maxProcessingThreads` tuning needed** — the old 2.x advice about bounding thread pools does not apply
+- **`ReentrantLock` instead of `synchronized`** — `DefaultBroadcaster` uses `ReentrantLock` to avoid virtual thread pinning
+
+To opt out and use platform threads instead (e.g., for compatibility with libraries that don't work well with virtual threads):
 
 ```xml
 <init-param>
-    <param-name>org.atmosphere.cpr.broadcaster.maxProcessingThreads</param-name>
-    <param-value>10</param-value>
-</init-param>
-<init-param>
-    <param-name>org.atmosphere.cpr.broadcaster.maxAsyncWriteThreads</param-name>
-    <param-value>10</param-value>
+    <param-name>org.atmosphere.cpr.useVirtualThreads</param-name>
+    <param-value>false</param-value>
 </init-param>
 ```
 
-Setting these prevents unbounded thread creation under high broadcast volume.
-
 ### Out-of-Order Broadcasts
 
-By default, message ordering is guaranteed: `broadcast("A")` followed by `broadcast("B")` delivers A before B to every client. If your application does not require strict ordering, disabling this constraint can significantly improve throughput:
+By default, message ordering is guaranteed: `broadcast("A")` followed by `broadcast("B")` delivers A before B to every client. If your application does not require strict ordering, disabling this constraint can improve throughput:
 
 ```xml
 <init-param>
@@ -491,8 +489,6 @@ By default, message ordering is guaranteed: `broadcast("A")` followed by `broadc
     <param-value>true</param-value>
 </init-param>
 ```
-
-When out-of-order broadcasting is enabled, always set `maxProcessingThreads` and `maxAsyncWriteThreads` to bounded values to avoid unbounded thread pool growth.
 
 ## Summary
 
