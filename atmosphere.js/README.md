@@ -513,6 +513,67 @@ factory returns a Svelte-compatible readable store plus action functions.
 {#if $store.isStreaming}<span>Generating...</span>{/if}
 ```
 
+### React Native / Expo
+
+Import from `atmosphere.js/react-native`. Call `setupReactNative()` once at app startup.
+All hooks require an `<AtmosphereProvider>` ancestor.
+
+> **Full guide:** [docs/react-native.md](../docs/react-native.md)
+
+#### Setup
+
+```tsx
+import { setupReactNative, AtmosphereProvider } from 'atmosphere.js/react-native';
+
+setupReactNative(); // installs polyfills, detects capabilities
+
+export default function App() {
+  return (
+    <AtmosphereProvider config={{ logLevel: 'info' }}>
+      <Chat />
+    </AtmosphereProvider>
+  );
+}
+```
+
+#### `useAtmosphereRN<T>` -- subscribe with AppState + NetInfo
+
+```tsx
+import { useAtmosphereRN } from 'atmosphere.js/react-native';
+
+function Chat() {
+  const { data, state, push, isConnected } = useAtmosphereRN<ChatMessage>({
+    request: { url: 'https://example.com/chat', transport: 'websocket' },
+    backgroundBehavior: 'suspend', // 'suspend' | 'disconnect' | 'keep-alive'
+  });
+  // ...
+}
+```
+
+Returns `{ subscription, state, data, error, push, isConnected, isInternetReachable }`.
+
+#### `useStreamingRN` -- AI streaming with AppState + NetInfo
+
+```tsx
+import { useStreamingRN } from 'atmosphere.js/react-native';
+
+function AiChat() {
+  const { fullText, isStreaming, isConnected, send, reset } = useStreamingRN({
+    request: { url: 'https://example.com/ai/chat', transport: 'websocket' },
+  });
+  // ...
+}
+```
+
+Returns the same fields as `useStreaming` plus `isConnected`.
+
+#### Installation
+
+```bash
+bun add atmosphere.js
+bun add @react-native-community/netinfo  # optional, for network-aware reconnection
+```
+
 ---
 
 ## Rooms and Presence

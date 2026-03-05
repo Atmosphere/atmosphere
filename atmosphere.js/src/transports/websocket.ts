@@ -92,7 +92,23 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
   }
 
   private buildWebSocketUrl(_url: string): string {
-    const fullUrl = new URL(this.protocol.buildUrl(this.request), window.location.href);
+    const builtUrl = this.protocol.buildUrl(this.request);
+    let base: string | undefined;
+    if (typeof window !== 'undefined' && window.location?.href) {
+      base = window.location.href;
+    }
+    if (!base) {
+      // React Native or non-browser environment — URL must be absolute
+      try {
+        new URL(builtUrl);
+      } catch {
+        throw new Error(
+          'In React Native or non-browser environments, request.url must be an absolute URL ' +
+          `(e.g. "https://example.com/chat"). Got: "${this.request.url}"`,
+        );
+      }
+    }
+    const fullUrl = new URL(builtUrl, base);
     fullUrl.protocol = fullUrl.protocol.replace('http', 'ws');
     return fullUrl.toString();
   }

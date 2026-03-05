@@ -63,15 +63,23 @@ public class RoomContextInterceptor implements AiInterceptor {
 
 ## Running
 
+The easiest way to run with a real AI model is via [Embacle](https://github.com/dravr-ai/dravr-embacle), which turns your existing Claude Code, Copilot, Cursor, or Gemini CLI license into an OpenAI-compatible LLM provider — no separate API key required.
+
+### With Embacle (recommended)
+
 ```bash
-# From the project root:
-./mvnw spring-boot:run -pl samples/spring-boot-ai-classroom
+# 1. Start Embacle (see https://github.com/dravr-ai/dravr-embacle)
+#    It runs on http://localhost:3000/v1
+
+# 2. Start the classroom with Embacle as the backend
+LLM_BASE_URL=http://localhost:3000/v1 LLM_API_KEY=embacle LLM_MODEL=copilot:claude-sonnet-4.6 \
+  ./mvnw spring-boot:run -pl samples/spring-boot-ai-classroom
 
 # Open http://localhost:8080 in MULTIPLE browser tabs
 # Join the same room, send a question — all tabs stream simultaneously
 ```
 
-### With a real AI model
+### With other providers
 
 ```bash
 # Gemini
@@ -88,7 +96,7 @@ export LLM_MODE=local
 export LLM_MODEL=llama3.2
 ```
 
-Without any API key, the sample runs in **demo mode** with simulated streaming responses.
+Without any API key or Embacle, the sample runs in **demo mode** with simulated streaming responses.
 
 ## Rooms
 

@@ -22,6 +22,22 @@ export default defineConfig([
     external: ['react', 'vue', 'svelte'],
   },
   {
+    entry: {
+      'react-native': 'src/hooks/react-native/index.ts',
+    },
+    format: ['esm', 'cjs'],
+    dts: true,
+    splitting: false,
+    sourcemap: true,
+    clean: false,
+    minify: true,
+    outDir: 'dist',
+    target: 'es2020',
+    platform: 'neutral',
+    treeshake: true,
+    external: ['react', 'react-native', '@react-native-community/netinfo'],
+  },
+  {
     entry: { atmosphere: 'src/index.ts' },
     format: ['iife'],
     globalName: 'AtmosphereJS',

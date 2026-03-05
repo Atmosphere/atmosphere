@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Atmosphere AI Classroom",
+    "slug": "expo-classroom",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "expo-classroom",
+    "platforms": ["ios", "android"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.atmosphere.samples.expoclassroom"
+    },
+    "android": {
+      "package": "org.atmosphere.samples.expoclassroom",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f0c29"
+      }
+    }
+  }
+}

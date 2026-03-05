@@ -31,15 +31,28 @@
       "types": "./dist/chat.d.ts",
       "import": "./dist/chat.js",
       "require": "./dist/chat.cjs"
+    },
+    "./react-native": {
+      "types": "./dist/react-native.d.ts",
+      "import": "./dist/react-native.js",
+      "require": "./dist/react-native.cjs"
     }
   },
   "peerDependencies": {
     "react": ">=18.0.0",
+    "react-native": ">=0.70.0",
+    "@react-native-community/netinfo": ">=9.0.0",
     "svelte": ">=4.0.0",
     "vue": ">=3.3.0"
   },
   "peerDependenciesMeta": {
     "react": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    },
+    "@react-native-community/netinfo": {
       "optional": true
     },
     "vue": {
@@ -78,7 +91,9 @@
     "push",
     "streaming",
     "async",
-    "typescript"
+    "typescript",
+    "react-native",
+    "expo"
   ],
   "author": "Jeanfrancois Arcand <jfarcand@apache.org>",
   "license": "Apache-2.0",
