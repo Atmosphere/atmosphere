@@ -148,7 +148,11 @@ continue_on_error = [
 skip_tests = [
     "snapshot-deploy.yml",   # deploy workflows only need compile
     "native-image-ci.yml",   # native image build tests separately
-    "release-4x.yml"         # release deploys after CI passes
+    "release-4x.yml",        # release deploys after CI passes
+    "atmosphere-4x-ci.yml",  # compile step before separate test step
+    "samples-ci.yml",        # compile deps before sample build
+    "generator-ci.yml",      # compile deps before generator test
+    "codeql-analysis.yml"    # CodeQL only needs compilation
 ]
 
 # ============================================================================

@@ -105,6 +105,10 @@ print(f'CI_COE_ALLOWLIST="{"|".join(coe)}"')
 # CI skip-tests allowlist
 st = config.get("ci_allowlist", {}).get("skip_tests", [])
 print(f'CI_SKIP_TESTS_ALLOWLIST="{"|".join(st)}"')
+
+# NOOP allowlist -> pipe-separated for grep -E
+na = config.get("noop_allowlist", {}).get("internal_use", [])
+print(f'NOOP_ALLOWLIST="{"|".join(na)}"')
 PYTHON_PARSER
 )"
 
@@ -119,20 +123,24 @@ echo ""
 
 echo -e "${BLUE}--- NOOP / Dead Code Detection ---${NC}"
 
-# 1a. Constants ending in NOOP/NO_OP that are defined but never referenced
-#     outside their declaring file. The exact pattern that let AiMetrics.NOOP
-#     ship without being wired.
-NOOP_CONSTANTS=$(rg "\bNOOP\b|\bNO_OP\b" $SRC_DIRS --type java -l 2>/dev/null || true)
+# 1a. Constants ending in NOOP/NO_OP that are DECLARED but never referenced
+#     outside their declaring file. Only match field declarations (static final),
+#     not usages. The exact pattern that let AiMetrics.NOOP ship without being wired.
+NOOP_DECLS=$(rg "static\s+final\s+.*\b(NOOP|NO_OP)\b" $SRC_DIRS --type java -l 2>/dev/null || true)
 NOOP_ISSUES=""
 NOOP_COUNT=0
-if [ -n "$NOOP_CONSTANTS" ]; then
-    for file in $NOOP_CONSTANTS; do
+if [ -n "$NOOP_DECLS" ]; then
+    for file in $NOOP_DECLS; do
         class_name=$(basename "$file" .java)
         while IFS= read -r const_line; do
             const_name=$(echo "$const_line" | grep -oE '\b[A-Z_]*NOOP[A-Z_]*\b|\b[A-Z_]*NO_OP[A-Z_]*\b' | head -1)
             [ -z "$const_name" ] && continue
-            # Deduplicate: only count unique ClassName.CONSTANT pairs
             tag="${class_name}.${const_name}"
+            # Skip NOOP allowlist entries
+            if [ -n "$NOOP_ALLOWLIST" ] && echo "$tag" | grep -qE "^($NOOP_ALLOWLIST)$"; then
+                continue
+            fi
+            # Deduplicate: only count unique ClassName.CONSTANT pairs
             if echo -e "$NOOP_ISSUES" | grep -qF "$tag"; then
                 continue
             fi
@@ -141,12 +149,12 @@ if [ -n "$NOOP_CONSTANTS" ]; then
                 NOOP_ISSUES="${NOOP_ISSUES}  ${tag} (${file})\n"
                 NOOP_COUNT=$((NOOP_COUNT + 1))
             fi
-        done < <(rg "\bNOOP\b|\bNO_OP\b" "$file" 2>/dev/null)
+        done < <(rg "static\s+final\s+.*\b(NOOP|NO_OP)\b" "$file" 2>/dev/null)
     done
 fi
 
 if [ "$NOOP_COUNT" -gt 0 ]; then
-    warn_validation "NOOP constants defined but never referenced in production code ($NOOP_COUNT):"
+    fail_validation "NOOP constants declared but never referenced in production code ($NOOP_COUNT):"
     echo -e "$NOOP_ISSUES"
 else
     pass_validation "No unwired NOOP constants"
@@ -315,7 +323,7 @@ echo ""
 echo -e "${BLUE}--- Dead Code Patterns ---${NC}"
 
 # Backup / temporary files
-BACKUP_FILES=$(find modules/ samples/ -name "*.bak" -o -name "*.backup" -o -name "*~" -o -name "*.orig" -o -name "*.tmp" 2>/dev/null | grep -v target | head -20)
+BACKUP_FILES=$(find modules/ samples/ \( -name "*.bak" -o -name "*.backup" -o -name "*~" -o -name "*.orig" -o -name "*.tmp" \) -not -path "*/node_modules/*" -not -path "*/target/*" 2>/dev/null | head -20)
 
 if [ -n "$BACKUP_FILES" ]; then
     fail_validation "Found backup/temporary files (must be removed):"
