@@ -17,6 +17,7 @@ package org.atmosphere.ai.llm;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.atmosphere.ai.RetryPolicy;
 import org.atmosphere.ai.StreamingSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,17 +58,15 @@ public class OpenAiCompatibleClient implements LlmClient {
     private final String apiKey;
     private final HttpClient httpClient;
     private final Duration timeout;
-    private final int maxRetries;
-    private final Duration retryBaseDelay;
+    private final RetryPolicy retryPolicy;
 
     private OpenAiCompatibleClient(String baseUrl, String apiKey, HttpClient httpClient,
-                                   Duration timeout, int maxRetries, Duration retryBaseDelay) {
+                                   Duration timeout, RetryPolicy retryPolicy) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.apiKey = apiKey;
         this.httpClient = httpClient;
         this.timeout = timeout;
-        this.maxRetries = maxRetries;
-        this.retryBaseDelay = retryBaseDelay;
+        this.retryPolicy = retryPolicy;
     }
 
     /**
@@ -125,6 +124,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             HttpResponse<java.io.InputStream> response = null;
             Exception lastException = null;
 
+            var maxRetries = retryPolicy.maxRetries();
             for (int attempt = 0; attempt <= maxRetries; attempt++) {
                 try {
                     var httpRequest = buildHttpRequest(requestBody);
@@ -223,11 +223,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                 }
             }
         }
-        // Exponential backoff with jitter: base * 2^attempt + random jitter
-        long baseMs = retryBaseDelay.toMillis();
-        long delayMs = baseMs * (1L << attempt);
-        long jitter = (long) (delayMs * 0.2 * Math.random());
-        return Duration.ofMillis(Math.min(delayMs + jitter, 30_000));
+        return retryPolicy.delayForAttempt(attempt);
     }
 
     private void processSSELine(String line, StreamingSession session) {
@@ -360,6 +356,7 @@ public class OpenAiCompatibleClient implements LlmClient {
         private String apiKey;
         private HttpClient httpClient;
         private Duration timeout = Duration.ofSeconds(120);
+        private RetryPolicy retryPolicy;
         private int maxRetries = 3;
         private Duration retryBaseDelay = Duration.ofMillis(500);
 
@@ -387,6 +384,14 @@ public class OpenAiCompatibleClient implements LlmClient {
         }
 
         /**
+         * Set a custom retry policy. Overrides {@link #maxRetries} and {@link #retryBaseDelay}.
+         */
+        public Builder retryPolicy(RetryPolicy retryPolicy) {
+            this.retryPolicy = retryPolicy;
+            return this;
+        }
+
+        /**
          * Maximum number of retries on transient errors (429, 500, 502, 503)
          * and connection/timeout failures. Default is 3.
          */
@@ -409,7 +414,10 @@ public class OpenAiCompatibleClient implements LlmClient {
             var client = this.httpClient != null ? this.httpClient : HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(30))
                     .build();
-            return new OpenAiCompatibleClient(baseUrl, apiKey, client, timeout, maxRetries, retryBaseDelay);
+            var policy = this.retryPolicy != null ? this.retryPolicy
+                    : new RetryPolicy(maxRetries, retryBaseDelay, Duration.ofSeconds(30),
+                            2.0, RetryPolicy.DEFAULT.retryableErrors());
+            return new OpenAiCompatibleClient(baseUrl, apiKey, client, timeout, policy);
         }
     }
 }
