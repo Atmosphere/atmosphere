@@ -55,6 +55,32 @@ public class RedisConversationPersistence implements ConversationPersistence {
     private final Duration ttl;
 
     /**
+     * No-arg constructor for {@link java.util.ServiceLoader} auto-detection.
+     * Reads the Redis URL from the {@code REDIS_URL} environment variable.
+     * If not set, this instance is not available ({@link #isAvailable()} returns false).
+     */
+    public RedisConversationPersistence() {
+        var redisUrl = System.getenv("REDIS_URL");
+        if (redisUrl != null && !redisUrl.isBlank()) {
+            this.client = RedisClient.create(redisUrl);
+            this.connection = client.connect();
+            this.commands = connection.sync();
+            this.ttl = Duration.ofHours(24);
+            logger.info("Redis conversation persistence auto-configured from REDIS_URL");
+        } else {
+            this.client = null;
+            this.connection = null;
+            this.commands = null;
+            this.ttl = Duration.ofHours(24);
+        }
+    }
+
+    @Override
+    public boolean isAvailable() {
+        return commands != null;
+    }
+
+    /**
      * Create a persistence layer connected to the given Redis URI.
      */
     public RedisConversationPersistence(String redisUri) {

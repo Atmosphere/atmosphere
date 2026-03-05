@@ -22,9 +22,11 @@ import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiMetrics;
 import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.ContextProvider;
+import org.atmosphere.ai.ConversationPersistence;
 import org.atmosphere.ai.DefaultAiSupportResolver;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.ModelRouter;
+import org.atmosphere.ai.PersistentConversationMemory;
 import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
@@ -98,7 +100,7 @@ public class AiEndpointProcessor implements Processor<Object> {
             var interceptors = instantiateInterceptors(annotation.interceptors(), framework);
             AiConversationMemory memory = null;
             if (annotation.conversationMemory()) {
-                memory = new InMemoryConversationMemory(annotation.maxHistoryMessages());
+                memory = resolveMemory(annotation.maxHistoryMessages());
             }
 
             // Register tools from @AiEndpoint(tools = {...})
@@ -263,6 +265,19 @@ public class AiEndpointProcessor implements Processor<Object> {
             }
         }
         return List.copyOf(providers);
+    }
+
+    private AiConversationMemory resolveMemory(int maxHistory) {
+        var persistence = ServiceLoader.load(ConversationPersistence.class).stream()
+                .map(ServiceLoader.Provider::get)
+                .filter(ConversationPersistence::isAvailable)
+                .findFirst();
+        if (persistence.isPresent()) {
+            logger.info("Auto-detected ConversationPersistence: {}",
+                    persistence.get().getClass().getName());
+            return new PersistentConversationMemory(persistence.get(), maxHistory);
+        }
+        return new InMemoryConversationMemory(maxHistory);
     }
 
     private AiMetrics resolveMetrics() {

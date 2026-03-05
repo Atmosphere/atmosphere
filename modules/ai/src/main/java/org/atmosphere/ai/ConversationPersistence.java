@@ -57,4 +57,15 @@ public interface ConversationPersistence {
      * @param conversationId the conversation identifier
      */
     void remove(String conversationId);
+
+    /**
+     * Whether this persistence implementation is available for use.
+     * Used by {@link java.util.ServiceLoader} auto-detection to skip
+     * implementations whose backend is not configured (e.g., no Redis URL).
+     *
+     * @return {@code true} if this implementation is ready to use
+     */
+    default boolean isAvailable() {
+        return true;
+    }
 }
