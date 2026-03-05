@@ -24,10 +24,12 @@ import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.ConversationPersistence;
 import org.atmosphere.ai.DefaultAiSupportResolver;
+import org.atmosphere.ai.DefaultModelRouter;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.ModelRouter;
 import org.atmosphere.ai.PersistentConversationMemory;
 import org.atmosphere.ai.PromptLoader;
+import org.atmosphere.ai.RoutingAiSupport;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
@@ -96,7 +98,8 @@ public class AiEndpointProcessor implements Processor<Object> {
 
             var systemPrompt = resolveSystemPrompt(annotation);
             var fallbackStrategy = parseFallbackStrategy(annotation.fallbackStrategy());
-            var aiSupport = resolveAiSupport();
+            var settings = resolveSettings();
+            var aiSupport = resolveAiSupportWithRouting(fallbackStrategy, settings);
             var interceptors = instantiateInterceptors(annotation.interceptors(), framework);
             AiConversationMemory memory = null;
             if (annotation.conversationMemory()) {
@@ -123,15 +126,6 @@ public class AiEndpointProcessor implements Processor<Object> {
             List<AtmosphereInterceptor> frameworkInterceptors = new LinkedList<>();
             AnnotationUtil.defaultManagedServiceInterceptors(framework, frameworkInterceptors);
             framework.addAtmosphereHandler(annotation.path(), handler, frameworkInterceptors);
-
-            if (fallbackStrategy != ModelRouter.FallbackStrategy.NONE) {
-                var allBackends = DefaultAiSupportResolver.resolveAll();
-                if (allBackends.size() <= 1) {
-                    logger.warn("fallbackStrategy={} configured but only {} AiSupport backend(s) available. "
-                            + "Add more AiSupport JARs to enable routing.",
-                            fallbackStrategy, allBackends.size());
-                }
-            }
 
             logger.info("AI endpoint registered at {} (class: {}, aiSupport: {}, interceptors: {}, "
                             + "memory: {}, tools: {}, guardrails: {}, contextProviders: {}, "
@@ -200,14 +194,34 @@ public class AiEndpointProcessor implements Processor<Object> {
         }
     }
 
-    private AiSupport resolveAiSupport() {
-        var support = DefaultAiSupportResolver.resolve();
+    private AiConfig.LlmSettings resolveSettings() {
         var settings = AiConfig.get();
         if (settings == null) {
             settings = AiConfig.fromEnvironment();
         }
-        support.configure(settings);
-        return support;
+        return settings;
+    }
+
+    private AiSupport resolveAiSupportWithRouting(ModelRouter.FallbackStrategy strategy,
+                                                  AiConfig.LlmSettings settings) {
+        var allBackends = DefaultAiSupportResolver.resolveAll();
+        for (var backend : allBackends) {
+            backend.configure(settings);
+        }
+
+        if (strategy != ModelRouter.FallbackStrategy.NONE && allBackends.size() > 1) {
+            var router = new DefaultModelRouter(strategy);
+            logger.info("Routing enabled: strategy={}, backends={}", strategy,
+                    allBackends.stream().map(AiSupport::name).toList());
+            return new RoutingAiSupport(router, allBackends);
+        }
+
+        if (strategy != ModelRouter.FallbackStrategy.NONE && allBackends.size() <= 1) {
+            logger.warn("fallbackStrategy={} configured but only {} AiSupport backend(s) available. "
+                    + "Add more AiSupport JARs to enable routing.",
+                    strategy, allBackends.size());
+        }
+        return allBackends.getFirst();
     }
 
     private List<AiInterceptor> instantiateInterceptors(Class<? extends AiInterceptor>[] classes,
