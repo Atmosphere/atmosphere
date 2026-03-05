@@ -37,7 +37,7 @@
 ## Client Libraries
 
 - **atmosphere.js 5.0** — TypeScript client with React, Vue, and Svelte hooks for chat, rooms, presence, and AI streaming.
-- **[React Native / Expo](docs/react-native.md)** — `useAtmosphere` React Native hook with EventSource polyfill, NetInfo injection, and markdown rendering for mobile AI chat. See the [expo-classroom](../samples/expo-classroom) sample.
+- **[React Native / Expo](react-native.md)** — `useAtmosphere` React Native hook with EventSource polyfill, NetInfo injection, and markdown rendering for mobile AI chat. See the [expo-client](../samples/spring-boot-ai-classroom/expo-client) sample.
 - **wAsync 4.0** — Java client rewritten on `java.net.http` with gRPC support.
 
 ## Samples — Forked & Augmented
