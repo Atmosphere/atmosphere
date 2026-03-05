@@ -19,6 +19,7 @@ import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiInterceptor;
+import org.atmosphere.ai.AiMetrics;
 import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.DefaultAiSupportResolver;
@@ -42,6 +43,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ServiceLoader;
 import java.util.Set;
 
 /**
@@ -106,13 +108,15 @@ public class AiEndpointProcessor implements Processor<Object> {
             var guardrails = instantiateGuardrails(annotation.guardrails(), framework);
             var contextProviders = instantiateContextProviders(annotation.contextProviders(), framework);
 
+            var metrics = resolveMetrics();
+
             // Shared lifecycle scanning — same infrastructure as @ManagedService
             var lifecycle = AnnotatedLifecycle.scan(annotatedClass);
 
             var handler = new AiEndpointHandler(instance, promptMethod,
                     annotation.timeout(), systemPrompt, annotation.path(),
                     aiSupport, interceptors, memory, lifecycle,
-                    toolRegistry, guardrails, contextProviders);
+                    toolRegistry, guardrails, contextProviders, metrics);
 
             List<AtmosphereInterceptor> frameworkInterceptors = new LinkedList<>();
             AnnotationUtil.defaultManagedServiceInterceptors(framework, frameworkInterceptors);
@@ -259,6 +263,10 @@ public class AiEndpointProcessor implements Processor<Object> {
             }
         }
         return List.copyOf(providers);
+    }
+
+    private AiMetrics resolveMetrics() {
+        return ServiceLoader.load(AiMetrics.class).findFirst().orElse(AiMetrics.NOOP);
     }
 
     private ModelRouter.FallbackStrategy parseFallbackStrategy(String value) {

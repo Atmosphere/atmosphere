@@ -19,6 +19,7 @@ import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiInterceptor;
+import org.atmosphere.ai.AiMetrics;
 import org.atmosphere.ai.AiStreamingSession;
 import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.ContextProvider;
@@ -100,6 +101,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
     private final ToolRegistry toolRegistry;
     private final List<AiGuardrail> guardrails;
     private final List<ContextProvider> contextProviders;
+    private final AiMetrics metrics;
 
     /**
      * @param target       the user's @AiEndpoint instance
@@ -114,7 +116,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                              List<AiInterceptor> interceptors) {
         this(target, promptMethod, timeout, systemPrompt, null, aiSupport, interceptors,
                 null, AnnotatedLifecycle.scan(target.getClass()),
-                new DefaultToolRegistry(), List.of(), List.of());
+                new DefaultToolRegistry(), List.of(), List.of(), AiMetrics.NOOP);
     }
 
     /**
@@ -136,11 +138,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                              AnnotatedLifecycle lifecycle) {
         this(target, promptMethod, timeout, systemPrompt, pathTemplate, aiSupport,
                 interceptors, memory, lifecycle,
-                new DefaultToolRegistry(), List.of(), List.of());
+                new DefaultToolRegistry(), List.of(), List.of(), AiMetrics.NOOP);
     }
 
     /**
-     * Full constructor with tools, guardrails, and context providers.
+     * Full constructor with tools, guardrails, context providers, and metrics.
      */
     public AiEndpointHandler(Object target, Method promptMethod, long timeout,
                              String systemPrompt, String pathTemplate,
@@ -150,7 +152,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                              AnnotatedLifecycle lifecycle,
                              ToolRegistry toolRegistry,
                              List<AiGuardrail> guardrails,
-                             List<ContextProvider> contextProviders) {
+                             List<ContextProvider> contextProviders,
+                             AiMetrics metrics) {
         this.target = target;
         this.promptMethod = promptMethod;
         this.paramCount = promptMethod.getParameterCount();
@@ -164,6 +167,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
         this.toolRegistry = toolRegistry;
         this.guardrails = guardrails != null ? guardrails : List.of();
         this.contextProviders = contextProviders != null ? contextProviders : List.of();
+        this.metrics = metrics != null ? metrics : AiMetrics.NOOP;
         this.promptMethod.setAccessible(true);
     }
 
@@ -261,7 +265,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
         var model = settings != null ? settings.model() : null;
         var session = new AiStreamingSession(delegate, aiSupport,
                 systemPrompt, model, interceptors, resource, memory,
-                toolRegistry, guardrails, contextProviders);
+                toolRegistry, guardrails, contextProviders, metrics);
 
         Thread.startVirtualThread(() -> {
             try {
@@ -325,6 +329,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
 
     List<ContextProvider> contextProviders() {
         return contextProviders;
+    }
+
+    AiMetrics metrics() {
+        return metrics;
     }
 
     /**

@@ -64,6 +64,7 @@ public class AiStreamingSession implements StreamingSession {
     private final ToolRegistry toolRegistry;
     private final List<AiGuardrail> guardrails;
     private final List<ContextProvider> contextProviders;
+    private final AiMetrics metrics;
 
     /**
      * @param delegate     the underlying streaming session
@@ -78,7 +79,7 @@ public class AiStreamingSession implements StreamingSession {
                               List<AiInterceptor> interceptors,
                               AtmosphereResource resource) {
         this(delegate, aiSupport, systemPrompt, model, interceptors, resource, null,
-                null, List.of(), List.of());
+                null, List.of(), List.of(), AiMetrics.NOOP);
     }
 
     /**
@@ -96,11 +97,11 @@ public class AiStreamingSession implements StreamingSession {
                               AtmosphereResource resource,
                               AiConversationMemory memory) {
         this(delegate, aiSupport, systemPrompt, model, interceptors, resource, memory,
-                null, List.of(), List.of());
+                null, List.of(), List.of(), AiMetrics.NOOP);
     }
 
     /**
-     * Full constructor with tools, guardrails, and context providers.
+     * Full constructor with tools, guardrails, context providers, and metrics.
      */
     public AiStreamingSession(StreamingSession delegate, AiSupport aiSupport,
                               String systemPrompt, String model,
@@ -110,6 +111,22 @@ public class AiStreamingSession implements StreamingSession {
                               ToolRegistry toolRegistry,
                               List<AiGuardrail> guardrails,
                               List<ContextProvider> contextProviders) {
+        this(delegate, aiSupport, systemPrompt, model, interceptors, resource, memory,
+                toolRegistry, guardrails, contextProviders, AiMetrics.NOOP);
+    }
+
+    /**
+     * Full constructor with metrics.
+     */
+    public AiStreamingSession(StreamingSession delegate, AiSupport aiSupport,
+                              String systemPrompt, String model,
+                              List<AiInterceptor> interceptors,
+                              AtmosphereResource resource,
+                              AiConversationMemory memory,
+                              ToolRegistry toolRegistry,
+                              List<AiGuardrail> guardrails,
+                              List<ContextProvider> contextProviders,
+                              AiMetrics metrics) {
         this.delegate = delegate;
         this.aiSupport = aiSupport;
         this.systemPrompt = systemPrompt != null ? systemPrompt : "";
@@ -120,6 +137,7 @@ public class AiStreamingSession implements StreamingSession {
         this.toolRegistry = toolRegistry;
         this.guardrails = guardrails != null ? guardrails : List.of();
         this.contextProviders = contextProviders != null ? contextProviders : List.of();
+        this.metrics = metrics != null ? metrics : AiMetrics.NOOP;
     }
 
     @Override
@@ -196,6 +214,11 @@ public class AiStreamingSession implements StreamingSession {
             target = new MemoryCapturingSession(delegate, memory, resource.uuid(), message);
         }
 
+        // Wrap in MetricsCapturingSession for latency/token tracking
+        if (metrics != AiMetrics.NOOP) {
+            target = new MetricsCapturingSession(target, metrics, model);
+        }
+
         // Wrap in GuardrailCapturingSession for post-LLM response inspection
         if (!guardrails.isEmpty()) {
             target = new GuardrailCapturingSession(target, guardrails);
@@ -208,6 +231,9 @@ public class AiStreamingSession implements StreamingSession {
         var finalRequest = request;
         try {
             aiSupport.stream(finalRequest, target);
+        } catch (Exception e) {
+            metrics.recordError(model != null ? model : "unknown", "stream_error");
+            throw e;
         } finally {
             // Post-process: LIFO order (matching AtmosphereInterceptor convention)
             for (int i = interceptors.size() - 1; i >= 0; i--) {

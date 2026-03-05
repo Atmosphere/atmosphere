@@ -22,6 +22,8 @@ import org.junit.jupiter.api.Test;
 
 import org.atmosphere.ai.llm.ChatMessage;
 
+import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -340,6 +342,118 @@ public class AiStreamingSessionTest {
         assertEquals(2, history.size());
         assertEquals(ChatMessage.user("Hi"), history.get(0));
         assertEquals(ChatMessage.assistant("Hello world"), history.get(1));
+    }
+
+    @Test
+    public void testMetricsRecordLatencyOnComplete() {
+        var metricsRecorder = new RecordingMetrics();
+        var aiSupport = new AiSupport() {
+            @Override public String name() { return "test"; }
+            @Override public boolean isAvailable() { return true; }
+            @Override public int priority() { return 0; }
+            @Override public void configure(AiConfig.LlmSettings settings) { }
+            @Override
+            public void stream(AiRequest request, StreamingSession session) {
+                session.send("Hello");
+                session.complete();
+            }
+        };
+
+        var session = new AiStreamingSession(delegate, aiSupport,
+                "", "test-model", List.of(), resource, null,
+                null, List.of(), List.of(), metricsRecorder);
+
+        session.stream("Hi");
+
+        assertTrue(metricsRecorder.latencyRecorded);
+        assertEquals("test-model", metricsRecorder.latencyModel);
+    }
+
+    @Test
+    public void testMetricsRecordTokenUsage() {
+        var metricsRecorder = new RecordingMetrics();
+        var aiSupport = new AiSupport() {
+            @Override public String name() { return "test"; }
+            @Override public boolean isAvailable() { return true; }
+            @Override public int priority() { return 0; }
+            @Override public void configure(AiConfig.LlmSettings settings) { }
+            @Override
+            public void stream(AiRequest request, StreamingSession session) {
+                session.send("Hello");
+                session.sendMetadata("usage.promptTokens", 10);
+                session.sendMetadata("usage.completionTokens", 5);
+                session.complete();
+            }
+        };
+
+        var session = new AiStreamingSession(delegate, aiSupport,
+                "", "test-model", List.of(), resource, null,
+                null, List.of(), List.of(), metricsRecorder);
+
+        session.stream("Hi");
+
+        assertTrue(metricsRecorder.tokenUsageRecorded);
+        assertEquals(10, metricsRecorder.promptTokens);
+        assertEquals(5, metricsRecorder.completionTokens);
+    }
+
+    @Test
+    public void testMetricsRecordErrorOnFailure() {
+        var metricsRecorder = new RecordingMetrics();
+        var aiSupport = new AiSupport() {
+            @Override public String name() { return "test"; }
+            @Override public boolean isAvailable() { return true; }
+            @Override public int priority() { return 0; }
+            @Override public void configure(AiConfig.LlmSettings settings) { }
+            @Override
+            public void stream(AiRequest request, StreamingSession session) {
+                session.error(new RuntimeException("timeout exceeded"));
+            }
+        };
+
+        var session = new AiStreamingSession(delegate, aiSupport,
+                "", "test-model", List.of(), resource, null,
+                null, List.of(), List.of(), metricsRecorder);
+
+        session.stream("Hi");
+
+        assertTrue(metricsRecorder.errorRecorded);
+        assertEquals("test-model", metricsRecorder.errorModel);
+    }
+
+    static class RecordingMetrics implements AiMetrics {
+        boolean tokenUsageRecorded;
+        boolean latencyRecorded;
+        boolean errorRecorded;
+        String latencyModel;
+        String errorModel;
+        int promptTokens;
+        int completionTokens;
+
+        @Override
+        public void recordTokenUsage(String model, int promptTokens, int completionTokens) {
+            this.tokenUsageRecorded = true;
+            this.promptTokens = promptTokens;
+            this.completionTokens = completionTokens;
+        }
+
+        @Override
+        public void recordLatency(String model, Duration timeToFirstToken, Duration totalDuration) {
+            this.latencyRecorded = true;
+            this.latencyModel = model;
+        }
+
+        @Override
+        public void recordCost(String model, BigDecimal cost) { }
+
+        @Override
+        public void recordToolCall(String model, String toolName, Duration duration, boolean success) { }
+
+        @Override
+        public void recordError(String model, String errorType) {
+            this.errorRecorded = true;
+            this.errorModel = model;
+        }
     }
 
     /**
