@@ -134,6 +134,19 @@ check_compile_warnings() {
     return 0
 }
 
+# Run architectural validation (fast mode — critical checks only)
+check_architectural_validation() {
+    local script="$(git rev-parse --show-toplevel)/scripts/architectural-validation.sh"
+    if [ -x "$script" ]; then
+        if ! "$script" --fast; then
+            echo ""
+            echo "ERROR: Commit blocked — architectural validation failed."
+            return 1
+        fi
+    fi
+    return 0
+}
+
 # Main execution
 main() {
     local checks_passed=true
@@ -147,6 +160,10 @@ main() {
     fi
 
     if ! check_unused_imports; then
+        checks_passed=false
+    fi
+
+    if ! check_architectural_validation; then
         checks_passed=false
     fi
 
