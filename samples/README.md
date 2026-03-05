@@ -26,6 +26,7 @@ Example applications demonstrating Atmosphere 4.0 across different deployment ta
 | [spring-boot-adk-tools](spring-boot-adk-tools/) | Google ADK | `@AiTool` (portable) | ADK with Atmosphere tool bridge |
 | [spring-boot-spring-ai-routing](spring-boot-spring-ai-routing/) | Spring AI | — | Cost/latency-based model routing |
 | [spring-boot-ai-classroom](spring-boot-ai-classroom/) | Built-in | — | Multi-persona AI classroom |
+| [expo-classroom](expo-classroom/) | — | — | React Native / Expo client for AI Classroom |
 | [spring-boot-embabel-horoscope](spring-boot-embabel-horoscope/) | Embabel | — | Embabel agent orchestration |
 
 ### Infrastructure & Integration

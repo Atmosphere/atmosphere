@@ -163,7 +163,7 @@ public class MyTools {
 | [**Spring Boot**](docs/spring-boot.md) | `atmosphere-spring-boot-starter` | Auto-configuration for Spring Boot 4.0+ |
 | [**Quarkus**](docs/quarkus.md) | `atmosphere-quarkus-extension` | Build-time processing for Quarkus 3.21+ |
 | [**Kotlin DSL**](docs/kotlin.md) | `atmosphere-kotlin` | Builder API and coroutine extensions |
-| [**atmosphere.js**](docs/client-javascript.md) | `atmosphere.js` (npm) | Browser client with React, Vue, and Svelte hooks |
+| [**atmosphere.js**](docs/client-javascript.md) | `atmosphere.js` (npm) | Browser & React Native client with React, Vue, Svelte, and [RN hooks](docs/react-native.md) |
 | [**wAsync**](docs/client-java.md) | `atmosphere-wasync` | Async Java client — WebSocket, SSE, long-polling, gRPC |
 
 ## Requirements
