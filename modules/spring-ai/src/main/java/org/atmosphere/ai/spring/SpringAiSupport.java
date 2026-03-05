@@ -128,7 +128,7 @@ public class SpringAiSupport implements AiSupport {
 
         var promptSpec = client.prompt();
         if (request.systemPrompt() != null && !request.systemPrompt().isEmpty()) {
-            promptSpec.system(request.systemPrompt());
+            promptSpec = promptSpec.system(request.systemPrompt());
         }
         // Insert conversation history between system prompt and current user message
         if (!request.history().isEmpty()) {
@@ -136,15 +136,15 @@ public class SpringAiSupport implements AiSupport {
             for (var historyMsg : request.history()) {
                 historyMessages.add(toSpringMessage(historyMsg));
             }
-            promptSpec.messages(historyMessages);
+            promptSpec = promptSpec.messages(historyMessages);
         }
-        promptSpec.user(request.message());
+        promptSpec = promptSpec.user(request.message());
 
         // Register tool callbacks if tools are present
         var tools = request.tools();
         if (!tools.isEmpty()) {
             var callbacks = SpringAiToolBridge.toToolCallbacks(tools);
-            promptSpec.toolCallbacks(callbacks);
+            promptSpec = promptSpec.toolCallbacks(callbacks);
             logger.debug("Registered {} tool callbacks with Spring AI", callbacks.size());
         }
 
