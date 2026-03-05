@@ -44,7 +44,10 @@ public class RoutingAiSupportTest {
         var primary = new StubAiSupport("primary");
         primary.shouldFail = true;
         var secondary = new StubAiSupport("secondary");
-        var router = new DefaultModelRouter(ModelRouter.FallbackStrategy.FAILOVER);
+        // maxConsecutiveFailures=1 so the first failure marks primary unhealthy,
+        // and the router picks secondary on the retry route() call
+        var router = new DefaultModelRouter(ModelRouter.FallbackStrategy.FAILOVER, 1,
+                java.time.Duration.ofMinutes(1));
         var routing = new RoutingAiSupport(router, List.of(primary, secondary));
 
         var session = mock(StreamingSession.class);
