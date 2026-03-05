@@ -259,6 +259,32 @@ public class AiEndpointProcessorTest {
         assertTrue(handler.interceptors().isEmpty());
     }
 
+    @Test
+    public void testModelOverridePassedToHandler() throws Exception {
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new ModelOverrideEndpoint());
+
+        processor.handle(framework, (Class) ModelOverrideEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        assertEquals("gpt-4o", handler.endpointModel());
+    }
+
+    @Test
+    public void testDefaultModelIsNull() throws Exception {
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new ValidEndpoint());
+
+        processor.handle(framework, (Class) ValidEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        assertNull(handler.endpointModel());
+    }
+
     // ---- Test fixture classes ----
 
     /**
@@ -337,6 +363,13 @@ public class AiEndpointProcessorTest {
                 systemPrompt = "This should be ignored.",
                 systemPromptResource = "prompts/test-system-prompt.md")
     public static class BothPromptsEndpoint {
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/model-override", model = "gpt-4o")
+    public static class ModelOverrideEndpoint {
         @Prompt
         public void onPrompt(String message, StreamingSession session) {
         }

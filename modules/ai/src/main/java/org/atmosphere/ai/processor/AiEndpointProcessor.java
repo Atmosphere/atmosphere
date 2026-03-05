@@ -117,6 +117,9 @@ public class AiEndpointProcessor implements Processor<Object> {
             var metrics = resolveMetrics();
             var broadcastFilters = instantiateBroadcastFilters(annotation.filters(), framework);
 
+            // Per-endpoint model override
+            var endpointModel = annotation.model().isEmpty() ? null : annotation.model();
+
             // Shared lifecycle scanning — same infrastructure as @ManagedService
             var lifecycle = AnnotatedLifecycle.scan(annotatedClass);
 
@@ -124,7 +127,7 @@ public class AiEndpointProcessor implements Processor<Object> {
                     annotation.timeout(), systemPrompt, annotation.path(),
                     aiSupport, interceptors, memory, lifecycle,
                     toolRegistry, guardrails, contextProviders, metrics,
-                    broadcastFilters);
+                    broadcastFilters, endpointModel);
 
             List<AtmosphereInterceptor> frameworkInterceptors = new LinkedList<>();
             AnnotationUtil.defaultManagedServiceInterceptors(framework, frameworkInterceptors);

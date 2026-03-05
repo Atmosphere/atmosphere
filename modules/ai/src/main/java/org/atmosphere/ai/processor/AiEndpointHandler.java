@@ -104,6 +104,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
     private final List<ContextProvider> contextProviders;
     private final AiMetrics metrics;
     private final List<BroadcastFilter> broadcastFilters;
+    private final String endpointModel;
 
     /**
      * @param target       the user's @AiEndpoint instance
@@ -118,7 +119,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                              List<AiInterceptor> interceptors) {
         this(target, promptMethod, timeout, systemPrompt, null, aiSupport, interceptors,
                 null, AnnotatedLifecycle.scan(target.getClass()),
-                new DefaultToolRegistry(), List.of(), List.of(), AiMetrics.NOOP, List.of());
+                new DefaultToolRegistry(), List.of(), List.of(), AiMetrics.NOOP, List.of(), null);
     }
 
     /**
@@ -140,7 +141,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                              AnnotatedLifecycle lifecycle) {
         this(target, promptMethod, timeout, systemPrompt, pathTemplate, aiSupport,
                 interceptors, memory, lifecycle,
-                new DefaultToolRegistry(), List.of(), List.of(), AiMetrics.NOOP, List.of());
+                new DefaultToolRegistry(), List.of(), List.of(), AiMetrics.NOOP, List.of(), null);
     }
 
     /**
@@ -158,7 +159,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                              AiMetrics metrics) {
         this(target, promptMethod, timeout, systemPrompt, pathTemplate, aiSupport,
                 interceptors, memory, lifecycle, toolRegistry, guardrails,
-                contextProviders, metrics, List.of());
+                contextProviders, metrics, List.of(), null);
     }
 
     /**
@@ -175,6 +176,26 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                              List<ContextProvider> contextProviders,
                              AiMetrics metrics,
                              List<BroadcastFilter> broadcastFilters) {
+        this(target, promptMethod, timeout, systemPrompt, pathTemplate, aiSupport,
+                interceptors, memory, lifecycle, toolRegistry, guardrails,
+                contextProviders, metrics, broadcastFilters, null);
+    }
+
+    /**
+     * Full constructor with per-endpoint model override.
+     */
+    public AiEndpointHandler(Object target, Method promptMethod, long timeout,
+                             String systemPrompt, String pathTemplate,
+                             AiSupport aiSupport,
+                             List<AiInterceptor> interceptors,
+                             AiConversationMemory memory,
+                             AnnotatedLifecycle lifecycle,
+                             ToolRegistry toolRegistry,
+                             List<AiGuardrail> guardrails,
+                             List<ContextProvider> contextProviders,
+                             AiMetrics metrics,
+                             List<BroadcastFilter> broadcastFilters,
+                             String endpointModel) {
         this.target = target;
         this.promptMethod = promptMethod;
         this.paramCount = promptMethod.getParameterCount();
@@ -190,6 +211,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
         this.contextProviders = contextProviders != null ? contextProviders : List.of();
         this.metrics = metrics != null ? metrics : AiMetrics.NOOP;
         this.broadcastFilters = broadcastFilters != null ? broadcastFilters : List.of();
+        this.endpointModel = endpointModel;
         this.promptMethod.setAccessible(true);
     }
 
@@ -285,7 +307,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
 
         var delegate = StreamingSessions.start(resource);
         var settings = AiConfig.get();
-        var model = settings != null ? settings.model() : null;
+        var model = endpointModel != null ? endpointModel
+                : (settings != null ? settings.model() : null);
         var session = new AiStreamingSession(delegate, aiSupport,
                 systemPrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, metrics);
@@ -360,6 +383,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
 
     List<BroadcastFilter> broadcastFilters() {
         return broadcastFilters;
+    }
+
+    String endpointModel() {
+        return endpointModel;
     }
 
     /**
