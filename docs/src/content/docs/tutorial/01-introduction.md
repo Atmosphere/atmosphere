@@ -1,5 +1,5 @@
 ---
-title: "Chapter 1: Introduction"
+title: "Introduction"
 description: "What Atmosphere is, its transport-agnostic design, key concepts, and what version 4.0 brings to the table."
 sidebar:
   order: 1
@@ -118,4 +118,4 @@ Atmosphere 4.0 is the most significant release since the original 1.0. Key addit
 
 ## Next Steps
 
-In the next chapter, you will build a working chat application from scratch using `@ManagedService`, starting with the Maven dependency and ending with a running server that accepts WebSocket and SSE connections.
+In the [next section](/docs/tutorial/02-getting-started/), you will build a working chat application from scratch. From there, you can either jump straight to [AI & LLM Streaming](/docs/tutorial/09-ai-endpoint/) or continue with the [Core Concepts](/docs/tutorial/03-managed-service/) to learn about Broadcasters, Rooms, and the transport layer.

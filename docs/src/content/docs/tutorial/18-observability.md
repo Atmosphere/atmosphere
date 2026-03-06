@@ -1,5 +1,5 @@
 ---
-title: "Chapter 18: Observability"
+title: "Observability"
 description: "Micrometer metrics, OpenTelemetry tracing, and health checks for Atmosphere applications with Spring Boot Actuator integration."
 sidebar:
   order: 18

@@ -1,5 +1,5 @@
 ---
-title: "Chapter 16: Clustering with Redis and Kafka"
+title: "Clustering with Redis and Kafka"
 description: "Scale Atmosphere across multiple JVM instances using Redis pub/sub or Apache Kafka for cross-node message delivery, with echo prevention and topic management."
 sidebar:
   order: 16

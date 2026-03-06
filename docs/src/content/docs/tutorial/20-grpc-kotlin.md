@@ -1,5 +1,5 @@
 ---
-title: "Chapter 20: gRPC, Kotlin DSL & Virtual Threads"
+title: "gRPC, Kotlin DSL & Virtual Threads"
 description: "gRPC transport with AtmosphereGrpcServer, Kotlin DSL with coroutine extensions, and virtual thread support for scalable concurrency."
 sidebar:
   order: 20

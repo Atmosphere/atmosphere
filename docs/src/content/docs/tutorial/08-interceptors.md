@@ -1,5 +1,5 @@
 ---
-title: "Chapter 8: Interceptors"
+title: "Interceptors"
 description: "Built-in and custom interceptors for heartbeats, message tracking, backpressure, and room protocol handling"
 sidebar:
   order: 8
@@ -547,4 +547,4 @@ Since both are functional interfaces, lambda expressions work as shown above.
 | `@ManagedService(interceptors={...})` | Per-endpoint interceptor registration |
 | `framework.interceptor(...)` | Programmatic global registration |
 
-In the [next chapter](/docs/tutorial/09-ai-endpoint/), you will learn about `@AiEndpoint` -- Atmosphere's annotation for building AI chat endpoints with streaming token delivery.
+**See also:** [@AiEndpoint & Streaming](/docs/tutorial/09-ai-endpoint/) for building AI chat endpoints with streaming token delivery, or [Spring Boot](/docs/tutorial/14-spring-boot/) and [Quarkus](/docs/tutorial/15-quarkus/) for deployment guides.

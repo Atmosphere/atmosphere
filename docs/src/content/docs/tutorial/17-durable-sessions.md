@@ -1,5 +1,5 @@
 ---
-title: "Chapter 17: Durable Sessions"
+title: "Durable Sessions"
 description: "Persist session state across server restarts with the SessionStore SPI, SQLite, Redis, and automatic reconnection via DurableSessionInterceptor."
 sidebar:
   order: 17

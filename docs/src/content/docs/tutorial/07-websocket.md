@@ -1,5 +1,5 @@
 ---
-title: "Chapter 7: WebSocket Deep Dive"
+title: "WebSocket Deep Dive"
 description: "Low-level WebSocket handling with @WebSocketHandlerService, binary messages, and protocol customization"
 sidebar:
   order: 7

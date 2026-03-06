@@ -1,5 +1,5 @@
 ---
-title: "Chapter 6: Rooms & Presence"
+title: "Rooms & Presence"
 description: "Higher-level room abstraction with presence tracking, member metadata, message history, and AI virtual members"
 sidebar:
   order: 6
@@ -645,4 +645,4 @@ underlying.getBroadcasterConfig().addFilter(new ProfanityFilter());
 | `RoomAuthorizer` | Functional interface for authorizing room operations |
 | `enableHistory(n)` | Replay last N messages to new joiners |
 
-In the [next chapter](/docs/tutorial/07-websocket/), you will dive deeper into the WebSocket transport layer with `@WebSocketHandlerService` for cases where you need direct control over WebSocket frames, binary messages, and protocol-level details.
+**See also:** [WebSocket Deep Dive](/docs/tutorial/07-websocket/) for direct control over WebSocket frames, binary messages, and protocol-level details. Or jump to [AI & LLM Streaming](/docs/tutorial/09-ai-endpoint/) if you want to build AI endpoints on top of the pub/sub layer.

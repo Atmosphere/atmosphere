@@ -1,5 +1,5 @@
 ---
-title: "Chapter 4: Transports"
+title: "Transports"
 description: "How Atmosphere handles WebSocket, SSE, long-polling, streaming, and gRPC transparently, with auto-negotiation and the @WebSocketHandlerService API."
 sidebar:
   order: 4
@@ -267,4 +267,4 @@ See [Chapter 8: Interceptors](/docs/tutorial/08-interceptors/) for more on `Trac
 
 ## Next Steps
 
-The next chapter covers the `Broadcaster` in depth -- how pub/sub routing works, the difference between `DefaultBroadcaster` and `SimpleBroadcaster`, `BroadcasterCache` for missed messages, and `BroadcastFilter` for message transformation.
+**Next:** [Broadcaster & Pub/Sub](/docs/tutorial/05-broadcaster/) covers pub/sub routing in depth -- `DefaultBroadcaster` vs `SimpleBroadcaster`, `BroadcasterCache` for missed messages, and `BroadcastFilter` for message transformation.

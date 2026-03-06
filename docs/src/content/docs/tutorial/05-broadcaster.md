@@ -1,5 +1,5 @@
 ---
-title: "Chapter 5: Broadcaster & Pub/Sub"
+title: "Broadcaster & Pub/Sub"
 description: "The Broadcaster as the pub/sub hub: DefaultBroadcaster, SimpleBroadcaster, BroadcasterFactory, BroadcasterCache, BroadcastFilter, and delivery semantics."
 sidebar:
   order: 5

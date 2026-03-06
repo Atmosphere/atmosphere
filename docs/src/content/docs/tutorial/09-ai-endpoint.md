@@ -1,11 +1,13 @@
 ---
-title: "Chapter 9: @AiEndpoint & StreamingSession"
+title: "@AiEndpoint & StreamingSession"
 description: "Build an AI chat endpoint that streams LLM tokens to the browser over WebSocket or SSE"
 sidebar:
   order: 9
 ---
 
-Chapters 1--8 covered the transport layer: Broadcasters, rooms, interceptors, and transports. Starting here, we shift to the **AI platform** built on top of that transport layer. This chapter introduces `@AiEndpoint`, the annotation that turns a plain Java class into a streaming AI chat endpoint, and `StreamingSession`, the interface that delivers tokens from an LLM to the browser in real time.
+This chapter introduces Atmosphere's **AI platform**. If you completed the [Getting Started](/docs/tutorial/02-getting-started/) guide, you already have a running Atmosphere application -- that is all you need to start streaming LLM tokens. The core concepts ([Broadcaster](/docs/tutorial/05-broadcaster/), [Rooms](/docs/tutorial/06-rooms/), [Interceptors](/docs/tutorial/08-interceptors/)) are useful background but not prerequisites for `@AiEndpoint`.
+
+`@AiEndpoint` turns a plain Java class into a streaming AI chat endpoint, and `StreamingSession` delivers tokens from an LLM to the browser in real time.
 
 ## What You Will Build
 

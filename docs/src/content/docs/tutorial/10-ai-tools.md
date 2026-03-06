@@ -1,5 +1,5 @@
 ---
-title: "Chapter 10: @AiTool -- Framework-Agnostic Tool Calling"
+title: "@AiTool -- Framework-Agnostic Tool Calling"
 description: "Declare tools once with @AiTool and @Param, and they work with Spring AI, LangChain4j, Google ADK, or the built-in client"
 sidebar:
   order: 10

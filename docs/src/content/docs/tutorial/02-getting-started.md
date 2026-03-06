@@ -1,5 +1,5 @@
 ---
-title: "Chapter 2: Getting Started"
+title: "Getting Started"
 description: "Build your first Atmosphere application: Maven dependency, a minimal @ManagedService endpoint, and an embedded Jetty server."
 sidebar:
   order: 2
@@ -323,4 +323,7 @@ With the code above, you now have a server that:
 
 ## Next Steps
 
-The next chapter takes a deeper look at every attribute and lifecycle annotation of `@ManagedService`.
+**Where to go next:**
+
+- **AI streaming?** Jump to [@AiEndpoint & Streaming](/docs/tutorial/09-ai-endpoint/) to start streaming LLM tokens in minutes.
+- **Real-time pub/sub?** Continue to [@ManagedService Deep Dive](/docs/tutorial/03-managed-service/) to learn every attribute and lifecycle annotation.

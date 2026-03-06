@@ -1,5 +1,5 @@
 ---
-title: "Chapter 3: @ManagedService Deep Dive"
+title: "@ManagedService Deep Dive"
 description: "Complete reference for @ManagedService: all 7 attributes, lifecycle annotations, injection, HTTP method handlers, delivery semantics, and path parameters."
 sidebar:
   order: 3

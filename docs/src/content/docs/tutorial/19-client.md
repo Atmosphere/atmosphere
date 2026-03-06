@@ -1,5 +1,5 @@
 ---
-title: "Chapter 19: atmosphere.js Client"
+title: "atmosphere.js Client"
 description: "TypeScript client library with WebSocket/SSE/long-polling transport negotiation, room protocol, reconnection, and React/Vue/Svelte/React Native integrations."
 sidebar:
   order: 19
