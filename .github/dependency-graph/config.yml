@@ -1,9 +1,8 @@
-# Configuration for GitHub's automatic dependency submission (Maven).
+# Disable GitHub's automatic Maven dependency submission.
 # The default 'mvn validate' fails because inter-module SNAPSHOT
 # dependencies (e.g. atmosphere-ai → atmosphere-runtime) are not
 # resolvable without a full reactor build.
-#
-# Use 'install -DskipTests' so the reactor installs each module into
-# the local repo before downstream modules resolve their dependencies.
+# A custom workflow (.github/workflows/dependency-submission.yml)
+# handles this correctly by building first.
 maven:
-  command: ./mvnw install -DskipTests -Pfastinstall -q
+  disabled: true

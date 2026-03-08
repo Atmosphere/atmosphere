@@ -1,0 +1,31 @@
+name: Dependency Submission (Maven)
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-submission:
+    name: Submit Dependencies
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build reactor (install SNAPSHOTs locally)
+        run: ./mvnw install -DskipTests -Pfastinstall -q
+
+      - name: Submit dependency graph
+        uses: advanced-security/maven-dependency-submission-action@v4
