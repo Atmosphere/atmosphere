@@ -22,6 +22,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
 import org.atmosphere.util.CookieUtil;
+import org.atmosphere.util.HtmlEncoder;
 import org.atmosphere.util.ServletProxyFactory;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
@@ -229,6 +230,9 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     @Override
     public void addCookie(Cookie cookie) {
+        if (atmosphereRequest != null && atmosphereRequest.isSecure()) {
+            cookie.setSecure(true);
+        }
         if (delegateToNativeResponse) {
             _r().addCookie(cookie);
         } else {
@@ -738,17 +742,18 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
             writeUsingOriginalResponse = false;
         }
 
+        String sanitized = sanitizeForOutput(data);
         try {
             if (isUsingStream()) {
                 try {
                     OutputStream o = writeUsingOriginalResponse ? _r().getOutputStream() : getOutputStream();
-                    o.write(data.getBytes(getCharacterEncoding()));
+                    o.write(sanitized.getBytes(getCharacterEncoding()));
                 } catch (java.lang.IllegalStateException ex) {
                     logger.trace("", ex);
                 }
             } else {
                 PrintWriter w = writeUsingOriginalResponse ? _r().getWriter() : getWriter();
-                w.write(data);
+                w.write(sanitized);
             }
         } catch (Exception ex) {
             handleException(ex);
@@ -773,6 +778,21 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
             }
         }
         return usingStream.get();
+    }
+
+    /**
+     * Sanitize string output to prevent XSS when the response content type is HTML.
+     * For non-HTML content types (JSON, plain text, etc.), data passes through unchanged.
+     */
+    private String sanitizeForOutput(String data) {
+        if (data == null) {
+            return null;
+        }
+        String ct = contentType;
+        if (ct != null && ct.contains("html")) {
+            return HtmlEncoder.encode(data);
+        }
+        return data;
     }
 
     @Override
@@ -802,7 +822,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
                 }
             } else {
                 PrintWriter w = writeUsingOriginalResponse ? _r().getWriter() : getWriter();
-                w.write(new String(data, getCharacterEncoding()));
+                w.write(sanitizeForOutput(new String(data, getCharacterEncoding())));
             }
         } catch (Exception ex) {
             handleException(ex);
@@ -838,7 +858,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
                 }
             } else {
                 PrintWriter w = writeUsingOriginalResponse ? _r().getWriter() : getWriter();
-                w.write(new String(data, offset, length, getCharacterEncoding()));
+                w.write(sanitizeForOutput(new String(data, offset, length, getCharacterEncoding())));
             }
         } catch (Exception ex) {
             handleException(ex);
