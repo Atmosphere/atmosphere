@@ -176,6 +176,7 @@ JDK 21 virtual threads are used by default.
 
 ## Documentation
 
+- [**Tutorial**](docs/src/content/docs/tutorial/) — step-by-step guide from first app to AI streaming, MCP, gRPC, and production deployment
 - [**Full documentation**](docs/README.md) — architecture, configuration, and API reference for every module
 - [**Project generator**](generator/README.md) — generate a ready-to-run project with one command
 - [**Samples**](samples/) — runnable apps covering every transport and integration

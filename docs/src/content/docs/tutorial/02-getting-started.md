@@ -1,6 +1,6 @@
 ---
 title: "Getting Started"
-description: "Build your first Atmosphere application: Maven dependency, a minimal @ManagedService endpoint, and an embedded Jetty server."
+description: "Build your first Atmosphere application: Maven dependency, a minimal @ManagedService endpoint, an embedded Jetty server, and an AI Quick Start with @AiEndpoint."
 sidebar:
   order: 2
 ---
@@ -321,9 +321,75 @@ With the code above, you now have a server that:
 5. Heartbeats keep the connection alive. The `@Heartbeat` method is called on each ping.
 6. When a client disconnects, the `@Disconnect` method fires and the resource is automatically removed from the `Broadcaster`.
 
+## AI Quick Start
+
+If your goal is to stream LLM tokens to a browser, you can get there in under 20 lines. Add the AI module alongside the Spring Boot starter:
+
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-spring-boot-starter</artifactId>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
+</dependency>
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-ai</artifactId>
+    <version>LATEST</version> <!-- check Maven Central for latest -->
+</dependency>
+```
+
+Set your LLM credentials in `application.properties`:
+
+```properties
+atmosphere.ai.llm.provider=openai
+atmosphere.ai.llm.api-key=${OPENAI_API_KEY}
+atmosphere.ai.llm.model=gpt-4o
+```
+
+Then write the endpoint:
+
+```java
+@AiEndpoint(path = "/atmosphere/ai-chat",
+        systemPrompt = "You are a helpful assistant",
+        conversationMemory = true)
+public class AiChat {
+
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        session.stream(message);  // sends to the LLM, streams tokens back to the client
+    }
+}
+```
+
+That's it. `@AiEndpoint` handles connection lifecycle, transport negotiation, and virtual thread dispatch automatically. `session.stream(message)` auto-detects the AI framework on the classpath — swap `atmosphere-ai` for `atmosphere-spring-ai` or `atmosphere-langchain4j` and the same code works with a different backend.
+
+On the client side, connect with `atmosphere.js`:
+
+```javascript
+import { Atmosphere } from 'atmosphere.js';
+
+const client = Atmosphere.newClient();
+const request = client.subscribe({
+    url: '/atmosphere/ai-chat',
+    transport: 'websocket',
+    fallbackTransport: 'sse',
+    trackMessageLength: true,
+    onMessage(response) {
+        const message = response.responseBody;
+        // Each message is a token from the LLM — append to the UI
+        document.getElementById('output').textContent += message;
+    }
+});
+
+// Send a prompt
+request.push('What is the Atmosphere Framework?');
+```
+
+For the full `@AiEndpoint` API — system prompts from files, `@AiTool` methods, guardrails, conversation memory, multi-model routing, and framework adapters — see [@AiEndpoint & Streaming](/docs/tutorial/09-ai-endpoint/).
+
 ## Next Steps
 
 **Where to go next:**
 
-- **AI streaming?** Jump to [@AiEndpoint & Streaming](/docs/tutorial/09-ai-endpoint/) to start streaming LLM tokens in minutes.
+- **AI streaming?** Jump to [@AiEndpoint & Streaming](/docs/tutorial/09-ai-endpoint/) for the full AI platform API.
 - **Real-time pub/sub?** Continue to [@ManagedService Deep Dive](/docs/tutorial/03-managed-service/) to learn every attribute and lifecycle annotation.
