@@ -783,10 +783,16 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     /**
      * Sanitize string output to prevent XSS when the response content type is HTML.
      * For non-HTML content types (JSON, plain text, etc.), data passes through unchanged.
+     * WebSocket frames are consumed by JavaScript, not rendered as HTML, so they are
+     * never sanitized regardless of the content type.
      */
     private String sanitizeForOutput(String data) {
         if (data == null) {
             return null;
+        }
+        // WebSocket frames are not rendered as HTML by the browser
+        if (asyncIOWriter instanceof WebSocket) {
+            return data;
         }
         String ct = contentType;
         if (ct != null && ct.contains("html")) {
