@@ -344,12 +344,74 @@ jobs:
     - name: Pull latest
       run: git pull origin main
 
+    - name: Extract release notes from CHANGELOG
+      id: notes
+      run: |
+        VERSION="${{ inputs.release_version }}"
+        # Extract the section for this version from CHANGELOG.md
+        # Matches from "## [VERSION]" until the next "## [" or end of file
+        NOTES=$(awk -v ver="$VERSION" '
+          /^## \[/ {
+            if (found) exit
+            if (index($0, "[" ver "]")) { found=1; next }
+          }
+          found { print }
+        ' CHANGELOG.md)
+
+        if [ -z "$NOTES" ]; then
+          echo "No CHANGELOG entry found for $VERSION — using commit-based notes"
+          echo "has_changelog=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "has_changelog=true" >> "$GITHUB_OUTPUT"
+          echo "$NOTES" > /tmp/release-notes.md
+        fi
+
+    - name: Generate release notes from commits
+      if: steps.notes.outputs.has_changelog == 'false'
+      run: |
+        VERSION="${{ inputs.release_version }}"
+        TAG="atmosphere-${VERSION}"
+
+        # Find the previous tag
+        PREV_TAG=$(git tag --list 'atmosphere-4.*' --sort=-v:refname | grep -A1 "^${TAG}$" | tail -1)
+        if [ "$PREV_TAG" = "$TAG" ] || [ -z "$PREV_TAG" ]; then
+          PREV_TAG=$(git rev-list --max-parents=0 HEAD | tail -1)
+        fi
+
+        # Build categorized notes from conventional commit prefixes
+        {
+          echo ""
+          FEATS=$(git log --oneline "$PREV_TAG".."$TAG" --grep='^feat' --format='- %s' | sed 's/^- feat[^:]*: /- **/' | sed 's/$/**/' | head -20)
+          if [ -n "$FEATS" ]; then
+            echo "## ✨ Added"
+            echo "$FEATS"
+            echo ""
+          fi
+
+          FIXES=$(git log --oneline "$PREV_TAG".."$TAG" --grep='^fix' --format='- %s' | sed 's/^- fix[^:]*: /- /' | head -20)
+          if [ -n "$FIXES" ]; then
+            echo "## 🐛 Fixed"
+            echo "$FIXES"
+            echo ""
+          fi
+
+          CHORES=$(git log --oneline "$PREV_TAG".."$TAG" --grep='^refactor\|^chore\|^docs\|^ci\|^test' --format='- %s' | sed 's/^- [a-z]*[^:]*: /- /' | head -15)
+          if [ -n "$CHORES" ]; then
+            echo "## 🔧 Changed"
+            echo "$CHORES"
+            echo ""
+          fi
+
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG}"
+        } > /tmp/release-notes.md
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: atmosphere-${{ inputs.release_version }}
         name: Atmosphere ${{ inputs.release_version }}
-        generate_release_notes: true
+        body_path: /tmp/release-notes.md
+        generate_release_notes: false
         draft: false
         prerelease: ${{ contains(inputs.release_version, '-') }}
       env:
