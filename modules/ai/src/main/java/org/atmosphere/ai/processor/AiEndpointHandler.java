@@ -51,7 +51,7 @@ import java.util.List;
  * events — delegating prompt handling to the user's {@code @Prompt} method on a virtual thread.
  *
  * <p>Extends {@link AbstractReflectorAtmosphereHandler} so that broadcast responses
- * (tokens, progress, completion) are written through the standard output path, which
+ * (streaming texts, progress, completion) are written through the standard output path, which
  * honours the {@code AsyncIOWriter} interceptor chain (including
  * {@code TrackMessageSizeInterceptor}).</p>
  *
@@ -279,7 +279,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
             return;
         }
 
-        // RawMessage = broadcast from StreamingSession (tokens, progress, complete, error).
+        // RawMessage = broadcast from StreamingSession (streaming texts, progress, complete, error).
         // Unwrap and delegate to AbstractReflectorAtmosphereHandler which writes through
         // the AsyncIOWriter chain (TrackMessageSizeInterceptor adds length-prefix).
         if (message instanceof RawMessage raw) {

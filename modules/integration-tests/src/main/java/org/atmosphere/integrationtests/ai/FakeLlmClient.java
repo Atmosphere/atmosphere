@@ -21,38 +21,38 @@ import org.atmosphere.ai.llm.LlmClient;
 
 /**
  * Configurable fake LLM client for E2E testing.
- * Emits pre-configured tokens with optional delays and errors.
+ * Emits pre-configured streaming texts with optional delays and errors.
  */
 public class FakeLlmClient implements LlmClient {
 
     private final String modelName;
-    private final String[] tokens;
-    private final long delayPerTokenMs;
-    private final int errorAfterToken;
+    private final String[] texts;
+    private final long delayPerTextMs;
+    private final int errorAfterText;
 
-    private FakeLlmClient(String modelName, String[] tokens, long delayPerTokenMs, int errorAfterToken) {
+    private FakeLlmClient(String modelName, String[] texts, long delayPerTextMs, int errorAfterText) {
         this.modelName = modelName;
-        this.tokens = tokens;
-        this.delayPerTokenMs = delayPerTokenMs;
-        this.errorAfterToken = errorAfterToken;
+        this.texts = texts;
+        this.delayPerTextMs = delayPerTextMs;
+        this.errorAfterText = errorAfterText;
     }
 
-    /** Create a fake client that emits the given tokens instantly. */
-    public static FakeLlmClient withTokens(String modelName, String... tokens) {
-        return new FakeLlmClient(modelName, tokens, 0, -1);
+    /** Create a fake client that emits the given streaming texts instantly. */
+    public static FakeLlmClient withTexts(String modelName, String... texts) {
+        return new FakeLlmClient(modelName, texts, 0, -1);
     }
 
-    /** Create a fake client that emits tokens with a delay between each. */
-    public static FakeLlmClient slow(String modelName, long delayMs, String... tokens) {
-        return new FakeLlmClient(modelName, tokens, delayMs, -1);
+    /** Create a fake client that emits streaming texts with a delay between each. */
+    public static FakeLlmClient slow(String modelName, long delayMs, String... texts) {
+        return new FakeLlmClient(modelName, texts, delayMs, -1);
     }
 
-    /** Create a fake client that errors after emitting a certain number of tokens. */
-    public static FakeLlmClient erroring(String modelName, int errorAfterToken, String... tokens) {
-        return new FakeLlmClient(modelName, tokens, 0, errorAfterToken);
+    /** Create a fake client that errors after emitting a certain number of streaming texts. */
+    public static FakeLlmClient erroring(String modelName, int errorAfterText, String... texts) {
+        return new FakeLlmClient(modelName, texts, 0, errorAfterText);
     }
 
-    /** Create a fake client that emits tokens containing PII data. */
+    /** Create a fake client that emits streaming texts containing PII data. */
     public static FakeLlmClient withPii(String modelName) {
         return new FakeLlmClient(modelName, new String[]{
                 "Contact us at ", "john.doe@example.com", " or call ",
@@ -75,15 +75,15 @@ public class FakeLlmClient implements LlmClient {
     public void streamChatCompletion(ChatCompletionRequest request, StreamingSession session) {
         try {
             session.sendMetadata("model", modelName);
-            for (int i = 0; i < tokens.length; i++) {
-                if (errorAfterToken >= 0 && i >= errorAfterToken) {
-                    session.error(new RuntimeException("Simulated error after token " + i));
+            for (int i = 0; i < texts.length; i++) {
+                if (errorAfterText >= 0 && i >= errorAfterText) {
+                    session.error(new RuntimeException("Simulated error after text " + i));
                     return;
                 }
-                if (delayPerTokenMs > 0) {
-                    Thread.sleep(delayPerTokenMs);
+                if (delayPerTextMs > 0) {
+                    Thread.sleep(delayPerTextMs);
                 }
-                session.send(tokens[i]);
+                session.send(texts[i]);
             }
             session.complete();
         } catch (InterruptedException e) {

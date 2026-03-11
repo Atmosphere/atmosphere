@@ -16,7 +16,7 @@
 package org.atmosphere.ai.budget;
 
 /**
- * Thrown when a token budget has been exhausted.
+ * Thrown when a streaming text budget has been exhausted.
  */
 public class BudgetExceededException extends RuntimeException {
 

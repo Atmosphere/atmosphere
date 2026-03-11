@@ -34,7 +34,7 @@ import java.util.LinkedHashMap;
  * </pre>
  *
  * @param type      message type: "streaming-text", "progress", "metadata", "complete", or "error"
- * @param data      the token text, progress message, or error description (null for bare "complete")
+ * @param data      the streaming text data, progress message, or error description (null for bare "complete")
  * @param sessionId the streaming session identifier
  * @param seq       monotonically increasing sequence number within a session
  * @param key       metadata key (only for "metadata" messages, null otherwise)

@@ -56,7 +56,7 @@ public class AiCoalescingBroadcasterCacheTest {
     }
 
     @Test
-    public void testCoalescesMultipleTokensIntoOne() throws Exception {
+    public void testCoalescesMultipleTextsIntoOne() throws Exception {
         var messages = new ArrayList<Object>(List.of(
                 streamingTextMsg("s1", "Hello ", 1),
                 streamingTextMsg("s1", "world", 2),
@@ -97,7 +97,7 @@ public class AiCoalescingBroadcasterCacheTest {
     }
 
     @Test
-    public void testCoalescedTokenConcatenatesData() throws Exception {
+    public void testCoalescedTextConcatenatesData() throws Exception {
         var messages = new ArrayList<Object>(List.of(
                 streamingTextMsg("s1", "A", 1),
                 streamingTextMsg("s1", "B", 2),
@@ -134,7 +134,7 @@ public class AiCoalescingBroadcasterCacheTest {
     }
 
     @Test
-    public void testEmptyTokenListPassesThrough() {
+    public void testEmptyTextListPassesThrough() {
         var messages = new ArrayList<Object>(List.of(
                 completeMsg("s1", 1)
         ));
@@ -142,7 +142,7 @@ public class AiCoalescingBroadcasterCacheTest {
         var cache = createCache(messages);
         var result = cache.retrieveFromCache("b1", "uuid-1");
 
-        // Only the complete message, no synthetic streaming text
+        // Only the complete message, no synthetic streaming text chunk
         assertEquals(1, result.size());
     }
 

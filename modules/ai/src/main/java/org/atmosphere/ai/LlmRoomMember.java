@@ -98,8 +98,8 @@ public class LlmRoomMember implements VirtualRoomMember {
                     }
 
                     @Override
-                    public void send(String token) {
-                        sb.append(token);
+                    public void send(String text) {
+                        sb.append(text);
                     }
 
                     @Override

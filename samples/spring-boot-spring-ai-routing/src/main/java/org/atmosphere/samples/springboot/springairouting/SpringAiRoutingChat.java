@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
  *   <li><b>conversationMemory</b> — enabled so multi-turn routing context is preserved</li>
  *   <li>{@link RoutingLlmClient} — routes prompts to different models based on content</li>
  *   <li>{@link ContentSafetyFilter} — blocks harmful content before it reaches users</li>
- *   <li>{@link CostMeteringFilter} — tracks token usage per session</li>
+ *   <li>{@link CostMeteringFilter} — tracks streaming text usage per session</li>
  * </ul>
  *
  * <p>Ported from the official

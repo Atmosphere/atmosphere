@@ -25,7 +25,7 @@ public class AiStreamMessageTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test
-    public void testParseTokenMessage() throws Exception {
+    public void testParseStreamingTextMessage() throws Exception {
         var json = """
                 {"type":"streaming-text","data":"Hello","sessionId":"abc-123","seq":1}""";
         var msg = AiStreamMessage.parse(json);

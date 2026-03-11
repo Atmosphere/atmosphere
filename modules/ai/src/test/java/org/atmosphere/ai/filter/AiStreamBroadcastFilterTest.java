@@ -78,7 +78,7 @@ public class AiStreamBroadcastFilterTest {
     }
 
     @Test
-    public void testParsesAiTokenMessage() {
+    public void testParsesAiStreamingTextMessage() {
         var filter = new PassThroughFilter();
         var json = "{\"type\":\"streaming-text\",\"data\":\"Hello\",\"sessionId\":\"s1\",\"seq\":1}";
         var raw = new RawMessage(json);
@@ -103,7 +103,7 @@ public class AiStreamBroadcastFilterTest {
     }
 
     @Test
-    public void testUpperCaseFilterTransformsTokenData() throws Exception {
+    public void testUpperCaseFilterTransformsStreamingTextData() throws Exception {
         var filter = new UpperCaseFilter();
         var json = "{\"type\":\"streaming-text\",\"data\":\"hello world\",\"sessionId\":\"s1\",\"seq\":1}";
         var raw = new RawMessage(json);
@@ -116,7 +116,7 @@ public class AiStreamBroadcastFilterTest {
     }
 
     @Test
-    public void testUpperCaseFilterPassesThroughNonTokenMessages() {
+    public void testUpperCaseFilterPassesThroughNonStreamingTextMessages() {
         var filter = new UpperCaseFilter();
         var json = "{\"type\":\"complete\",\"sessionId\":\"s1\",\"seq\":5}";
         var raw = new RawMessage(json);

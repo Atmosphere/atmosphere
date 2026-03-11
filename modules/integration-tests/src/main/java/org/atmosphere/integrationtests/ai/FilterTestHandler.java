@@ -96,7 +96,7 @@ public class FilterTestHandler implements AtmosphereHandler {
             }
             return FakeLlmClient.withHarmfulContent("safety-model", harmfulWord);
         } else {
-            return FakeLlmClient.withTokens("default-model",
+            return FakeLlmClient.withTexts("default-model",
                     "Hello", " from", " the", " AI", ".");
         }
     }

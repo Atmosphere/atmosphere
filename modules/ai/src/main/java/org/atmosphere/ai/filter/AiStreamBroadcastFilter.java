@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
  *             String broadcasterId, AiStreamMessage msg,
  *             String originalJson, RawMessage rawMessage) {
  *         if (msg.isStreamingText()) {
- *             // transform the token
+ *             // transform the streaming text
  *             var modified = msg.withData(transform(msg.data()));
  *             return new BroadcastAction(new RawMessage(modified.toJson()));
  *         }
@@ -77,7 +77,7 @@ public abstract class AiStreamBroadcastFilter implements BroadcastFilterLifecycl
 
     /**
      * Get the broadcaster factory for deferred broadcasts.
-     * Subclasses use this to emit additional messages (e.g., flushing buffered tokens
+     * Subclasses use this to emit additional messages (e.g., flushing buffered streaming texts
      * before a stream-end signal) when a single {@link BroadcastAction} is insufficient.
      *
      * @return the broadcaster factory, or {@code null} if not yet initialized

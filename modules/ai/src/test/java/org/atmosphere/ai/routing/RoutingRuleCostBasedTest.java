@@ -98,7 +98,7 @@ public class RoutingRuleCostBasedTest {
     }
 
     @Test
-    public void testMaxTokensCalculation() {
+    public void testMaxStreamingTextsCalculation() {
         var captured = new AtomicReference<String>();
 
         var router = RoutingLlmClient.builder(capturingClient(new AtomicReference<>()), "default")

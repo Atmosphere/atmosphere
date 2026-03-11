@@ -22,17 +22,17 @@ package org.atmosphere.ai.fanout;
  *   <li>{@link AllResponses} — stream all model responses to the client in parallel;
  *       the client (or application) selects the preferred one.</li>
  *   <li>{@link FirstComplete} — use the first model to finish; cancel the others.</li>
- *   <li>{@link FastestTokens} — use the model producing tokens fastest after
+ *   <li>{@link FastestStreamingTexts} — use the model producing streaming texts fastest after
  *       an initial observation window; cancel the others.</li>
  * </ul>
  */
 public sealed interface FanOutStrategy
         permits FanOutStrategy.AllResponses,
                 FanOutStrategy.FirstComplete,
-                FanOutStrategy.FastestTokens {
+                FanOutStrategy.FastestStreamingTexts {
 
     /**
-     * Stream all model responses to the client in parallel. Each model's tokens
+     * Stream all model responses to the client in parallel. Each model's streaming texts
      * arrive on a separate child session ID so the client can distinguish them.
      */
     record AllResponses() implements FanOutStrategy {}
@@ -44,10 +44,10 @@ public sealed interface FanOutStrategy
     record FirstComplete() implements FanOutStrategy {}
 
     /**
-     * Observe token production speed for a configurable number of initial tokens,
+     * Observe streaming text production speed for a configurable number of initial streaming texts,
      * then keep the fastest model and cancel the rest.
      *
-     * @param tokenThreshold number of streaming texts to observe before choosing a winner
+     * @param streamingTextThreshold number of streaming texts to observe before choosing a winner
      */
-    record FastestTokens(int tokenThreshold) implements FanOutStrategy {}
+    record FastestStreamingTexts(int streamingTextThreshold) implements FanOutStrategy {}
 }

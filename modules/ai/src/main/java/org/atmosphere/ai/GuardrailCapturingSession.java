@@ -57,12 +57,12 @@ class GuardrailCapturingSession implements StreamingSession {
     }
 
     @Override
-    public void send(String token) {
+    public void send(String text) {
         if (blocked) {
             return;
         }
-        accumulated.append(token);
-        delegate.send(token);
+        accumulated.append(text);
+        delegate.send(text);
 
         // Periodically check guardrails on accumulated response
         if (accumulated.length() - lastCheckedLength >= checkInterval) {

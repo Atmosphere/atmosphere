@@ -31,18 +31,18 @@ import java.io.IOException;
  * - "code" keyword -> code-model
  * - "translate" keyword -> translate-model
  * - default -> default-model
- * Each model emits distinct tokens so tests can verify routing.
+ * Each model emits distinct streaming texts so tests can verify routing.
  */
 public class RoutingTestHandler implements AtmosphereHandler {
 
     private final RoutingLlmClient router;
 
     public RoutingTestHandler() {
-        var codeClient = FakeLlmClient.withTokens("code-model",
+        var codeClient = FakeLlmClient.withTexts("code-model",
                 "CODE:", " function", " hello", "().", " Done.");
-        var translateClient = FakeLlmClient.withTokens("translate-model",
+        var translateClient = FakeLlmClient.withTexts("translate-model",
                 "TRANSLATE:", " Bonjour", " le", " monde.", " Fin.");
-        var defaultClient = FakeLlmClient.withTokens("default-model",
+        var defaultClient = FakeLlmClient.withTexts("default-model",
                 "DEFAULT:", " general", " response.", " Complete.");
 
         router = RoutingLlmClient.builder(defaultClient, "default-model")

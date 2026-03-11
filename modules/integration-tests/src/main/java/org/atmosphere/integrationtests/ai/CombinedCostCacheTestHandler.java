@@ -44,7 +44,7 @@ public class CombinedCostCacheTestHandler implements AtmosphereHandler {
     public CombinedCostCacheTestHandler() {
         cacheListener.addCoalescedListener(event ->
                 System.out.println("COMBINED_COALESCED:" + event.sessionId()
-                        + ":tokens=" + event.totalTokens()
+                        + ":streamingTexts=" + event.totalStreamingTexts()
                         + ":status=" + event.status()
                         + ":elapsed=" + event.elapsedMs()
                         + ":broadcaster=" + event.broadcasterId()));
@@ -94,7 +94,7 @@ public class CombinedCostCacheTestHandler implements AtmosphereHandler {
             buildLatencyRouter(maxLatency).streamChatCompletion(request, session);
 
         } else {
-            var client = FakeLlmClient.withTokens("default-model",
+            var client = FakeLlmClient.withTexts("default-model",
                     "DEFAULT:", " fallback", " response.");
             var request = ChatCompletionRequest.of("default-model", prompt);
             client.streamChatCompletion(request, session);
@@ -102,20 +102,20 @@ public class CombinedCostCacheTestHandler implements AtmosphereHandler {
     }
 
     private RoutingLlmClient buildCostRouter(double budget) {
-        var defaultClient = FakeLlmClient.withTokens("default-model",
+        var defaultClient = FakeLlmClient.withTexts("default-model",
                 "DEFAULT:", " fallback", " response.");
         return RoutingLlmClient.builder(defaultClient, "default-model")
                 .route(RoutingRule.costBased(budget, List.of(
                         new ModelOption(
-                                FakeLlmClient.withTokens("premium-model",
+                                FakeLlmClient.withTexts("premium-model",
                                         "PREMIUM:", " high", " quality", " output."),
                                 "premium-model", 0.01, 200, 10),
                         new ModelOption(
-                                FakeLlmClient.withTokens("mid-model",
+                                FakeLlmClient.withTexts("mid-model",
                                         "MID:", " balanced", " output."),
                                 "mid-model", 0.005, 100, 7),
                         new ModelOption(
-                                FakeLlmClient.withTokens("cheap-model",
+                                FakeLlmClient.withTexts("cheap-model",
                                         "CHEAP:", " budget", " output."),
                                 "cheap-model", 0.001, 50, 3)
                 )))
@@ -123,20 +123,20 @@ public class CombinedCostCacheTestHandler implements AtmosphereHandler {
     }
 
     private RoutingLlmClient buildLatencyRouter(long maxLatency) {
-        var defaultClient = FakeLlmClient.withTokens("default-model",
+        var defaultClient = FakeLlmClient.withTexts("default-model",
                 "DEFAULT:", " fallback", " response.");
         return RoutingLlmClient.builder(defaultClient, "default-model")
                 .route(RoutingRule.latencyBased(maxLatency, List.of(
                         new ModelOption(
-                                FakeLlmClient.withTokens("slow-model",
+                                FakeLlmClient.withTexts("slow-model",
                                         "SLOW:", " thorough", " deep", " output."),
                                 "slow-model", 0.001, 500, 10),
                         new ModelOption(
-                                FakeLlmClient.withTokens("medium-model",
+                                FakeLlmClient.withTexts("medium-model",
                                         "MEDIUM:", " moderate", " output."),
                                 "medium-model", 0.005, 150, 7),
                         new ModelOption(
-                                FakeLlmClient.withTokens("fast-model",
+                                FakeLlmClient.withTexts("fast-model",
                                         "FAST:", " quick", " output."),
                                 "fast-model", 0.01, 30, 3)
                 )))

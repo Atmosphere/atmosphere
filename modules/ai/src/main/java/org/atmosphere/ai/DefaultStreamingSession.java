@@ -84,12 +84,12 @@ public final class DefaultStreamingSession implements StreamingSession {
     }
 
     @Override
-    public void send(String token) {
+    public void send(String text) {
         if (closed.get()) {
-            logger.warn("Attempted to send token on closed session {}", sessionId);
+            logger.warn("Attempted to send streaming text on closed session {}", sessionId);
             return;
         }
-        broadcast(buildMessage("streaming-text", token));
+        broadcast(buildMessage("streaming-text", text));
     }
 
     @Override

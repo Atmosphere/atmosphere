@@ -25,7 +25,7 @@ import com.embabel.agent.api.annotation.Agent;
  * platform. The {@code @Action} method defines the agent's behavior —
  * Embabel handles planning, tool calling, and orchestration.</p>
  *
- * <p>Agent events (tokens, progress, tool calls) are streamed to the
+ * <p>Agent events (streaming texts, progress, tool calls) are streamed to the
  * browser in real time via Atmosphere's {@code AtmosphereOutputChannel}.</p>
  */
 @Agent(name = "chat-assistant",

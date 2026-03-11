@@ -44,10 +44,10 @@ public final class DemoResponseProducer {
             }
             // Send demo routing metadata so the cost badge is visible out-of-the-box
             long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
-            int estimatedTokens = response.length() / 4;
-            double estimatedCost = estimatedTokens * estimatePricePerMillion(model) / 1_000_000.0;
+            int estimatedStreamingTexts = response.length() / 4;
+            double estimatedCost = estimatedStreamingTexts * estimatePricePerMillion(model) / 1_000_000.0;
             session.sendMetadata("routing.model", model + " (demo)");
-            session.sendMetadata("routing.tokens", estimatedTokens);
+            session.sendMetadata("routing.streamingTexts", estimatedStreamingTexts);
             session.sendMetadata("routing.cost", estimatedCost);
             session.sendMetadata("routing.latency", elapsedMs);
             session.complete(response);
@@ -132,7 +132,7 @@ public final class DemoResponseProducer {
         };
     }
 
-    // Same pricing as CostMeteringInterceptor — per 1M input tokens (USD)
+    // Same pricing as CostMeteringInterceptor — per 1M input streaming texts (USD)
     private static final Map<String, Double> INPUT_PRICE_PER_MILLION = Map.ofEntries(
             Map.entry("claude-haiku", 0.80),
             Map.entry("claude-sonnet", 3.0),

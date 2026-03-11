@@ -46,7 +46,7 @@ class AdkEventAdapterTest {
     }
 
     @Test
-    void partialEventsAreSentAsTokens() throws Exception {
+    void partialEventsAreSentAsStreamingTexts() throws Exception {
         var event = createPartialEvent("Hello");
         var latch = new CountDownLatch(1);
 
@@ -60,7 +60,7 @@ class AdkEventAdapterTest {
     }
 
     @Test
-    void multiplePartialEventsStreamTokens() throws Exception {
+    void multiplePartialEventsStreamTexts() throws Exception {
         var e1 = createPartialEvent("Hello");
         var e2 = createPartialEvent(" world");
         var latch = new CountDownLatch(1);
@@ -146,18 +146,18 @@ class AdkEventAdapterTest {
         var adapter = AdkEventAdapter.bridge(subject.toFlowable(io.reactivex.rxjava3.core.BackpressureStrategy.BUFFER), mockSession);
 
         // Send one event
-        subject.onNext(createPartialEvent("token1"));
+        subject.onNext(createPartialEvent("text1"));
         Thread.sleep(100);
-        verify(mockSession).send("token1");
+        verify(mockSession).send("text1");
 
         // Cancel
         adapter.cancel();
         verify(mockSession).complete();
 
         // Further events should not reach session
-        subject.onNext(createPartialEvent("token2"));
+        subject.onNext(createPartialEvent("text2"));
         Thread.sleep(100);
-        verify(mockSession, never()).send("token2");
+        verify(mockSession, never()).send("text2");
     }
 
     @Test

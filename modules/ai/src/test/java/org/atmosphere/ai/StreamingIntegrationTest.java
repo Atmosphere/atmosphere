@@ -51,7 +51,7 @@ public class StreamingIntegrationTest {
     }
 
     @Test
-    public void testConcurrentTokenSending() throws Exception {
+    public void testConcurrentStreamingTextSending() throws Exception {
         var resource = mock(AtmosphereResource.class);
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
@@ -60,15 +60,15 @@ public class StreamingIntegrationTest {
         var session = StreamingSessions.start("concurrent-session", resource);
 
         int threadCount = 10;
-        int tokensPerThread = 100;
+        int textsPerThread = 100;
         var latch = new CountDownLatch(threadCount);
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             for (int t = 0; t < threadCount; t++) {
                 executor.submit(() -> {
                     try {
-                        for (int i = 0; i < tokensPerThread; i++) {
-                            session.send("token-" + i);
+                        for (int i = 0; i < textsPerThread; i++) {
+                            session.send("text-" + i);
                         }
                     } finally {
                         latch.countDown();
@@ -80,7 +80,7 @@ public class StreamingIntegrationTest {
         assertTrue(latch.await(10, TimeUnit.SECONDS), "All threads should complete");
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
-        verify(broadcaster, times(threadCount * tokensPerThread)).broadcast(captor.capture(), any(Set.class));
+        verify(broadcaster, times(threadCount * textsPerThread)).broadcast(captor.capture(), any(Set.class));
 
         // Verify all sequence numbers are unique
         Set<Long> seqs = ConcurrentHashMap.newKeySet();
@@ -90,7 +90,7 @@ public class StreamingIntegrationTest {
                     "Sequence number should be unique: " + json.get("seq"));
         }
 
-        assertEquals(threadCount * tokensPerThread, seqs.size());
+        assertEquals(threadCount * textsPerThread, seqs.size());
     }
 
     @Test
@@ -132,8 +132,8 @@ public class StreamingIntegrationTest {
                 .filter(j -> "session-2".equals(j.get("sessionId").asText()))
                 .count();
 
-        assertEquals(2, session1Count, "Session 1 should have 2 messages (token + complete)");
-        assertEquals(3, session2Count, "Session 2 should have 3 messages (2 tokens + complete)");
+        assertEquals(2, session1Count, "Session 1 should have 2 messages (streaming text + complete)");
+        assertEquals(3, session2Count, "Session 2 should have 3 messages (2 streaming texts + complete)");
     }
 
     @Test
@@ -189,7 +189,7 @@ public class StreamingIntegrationTest {
                     try {
                         startLatch.await();
                         if (idx % 2 == 0) {
-                            session.send("token-" + idx);
+                            session.send("text-" + idx);
                         } else {
                             session.complete();
                         }
@@ -226,12 +226,12 @@ public class StreamingIntegrationTest {
         }).when(broadcaster).broadcast(any(RawMessage.class), any(Set.class));
 
         try (var session = StreamingSessions.start("auto-close", resource)) {
-            session.send("token1");
-            session.send("token2");
+            session.send("text1");
+            session.send("text2");
             session.progress("Working...");
         }
 
-        // Should have: token, token, progress, complete (auto-close)
+        // Should have: streaming text, streaming text, progress, complete (auto-close)
         assertEquals(4, capturedTypes.size());
         assertEquals("streaming-text", capturedTypes.get(0));
         assertEquals("streaming-text", capturedTypes.get(1));
@@ -240,7 +240,7 @@ public class StreamingIntegrationTest {
     }
 
     @Test
-    public void testMetadataInterspersedWithTokens() throws Exception {
+    public void testMetadataInterspersedWithStreamingTexts() throws Exception {
         var resource = mock(AtmosphereResource.class);
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
@@ -251,7 +251,7 @@ public class StreamingIntegrationTest {
         session.sendMetadata("model", "gpt-4o");
         session.sendMetadata("temperature", 0.7);
         session.send("Hello");
-        session.sendMetadata("tokens_used", 42);
+        session.sendMetadata("texts_used", 42);
         session.send(" world");
         session.complete("Hello world");
 
@@ -277,7 +277,7 @@ public class StreamingIntegrationTest {
         assertEquals("gpt-4o", metaMsgs.get(0).get("value").asText());
         assertEquals("temperature", metaMsgs.get(1).get("key").asText());
         assertEquals(0.7, metaMsgs.get(1).get("value").asDouble());
-        assertEquals("tokens_used", metaMsgs.get(2).get("key").asText());
+        assertEquals("texts_used", metaMsgs.get(2).get("key").asText());
         assertEquals(42, metaMsgs.get(2).get("value").asInt());
     }
 
@@ -298,7 +298,7 @@ public class StreamingIntegrationTest {
         // Subsequent sends should be ignored
         session.send("ignored");
 
-        verify(broadcaster, times(2)).broadcast(any(RawMessage.class), any(Set.class)); // token + error only
+        verify(broadcaster, times(2)).broadcast(any(RawMessage.class), any(Set.class)); // streaming text + error only
     }
 
     @Test
@@ -335,7 +335,7 @@ public class StreamingIntegrationTest {
 
         // Verify all required wire protocol fields are present
         assertTrue(json.has("type"), "Must have 'type' field");
-        assertTrue(json.has("data"), "Token must have 'data' field");
+        assertTrue(json.has("data"), "Streaming text must have 'data' field");
         assertTrue(json.has("sessionId"), "Must have 'sessionId' field");
         assertTrue(json.has("seq"), "Must have 'seq' field");
 
@@ -349,7 +349,7 @@ public class StreamingIntegrationTest {
     }
 
     @Test
-    public void testLargeTokenPayload() throws Exception {
+    public void testLargeStreamingTextPayload() throws Exception {
         var resource = mock(AtmosphereResource.class);
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
@@ -357,9 +357,9 @@ public class StreamingIntegrationTest {
         when(broadcaster.broadcast(any(RawMessage.class), any(Set.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("large-session", resource);
 
-        // Simulate a large token (e.g. a code block)
-        String largeToken = "x".repeat(10_000);
-        session.send(largeToken);
+        // Simulate a large streaming text (e.g. a code block)
+        String largeText = "x".repeat(10_000);
+        session.send(largeText);
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster).broadcast(captor.capture(), any(Set.class));
@@ -369,7 +369,7 @@ public class StreamingIntegrationTest {
     }
 
     @Test
-    public void testSpecialCharactersInTokens() throws Exception {
+    public void testSpecialCharactersInStreamingTexts() throws Exception {
         var resource = mock(AtmosphereResource.class);
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);

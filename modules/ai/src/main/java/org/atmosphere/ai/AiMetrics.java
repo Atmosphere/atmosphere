@@ -33,9 +33,9 @@ import java.time.Duration;
  *     private final Meter meter = GlobalOpenTelemetry.getMeter("atmosphere-ai");
  *
  *     @Override
- *     public void recordTokenUsage(String model, int promptTokens, int completionTokens) {
+ *     public void recordStreamingTextUsage(String model, int promptStreamingTexts, int completionStreamingTexts) {
  *         meter.counterBuilder("gen_ai.client.token.usage")
- *              .build().add(promptTokens, Attributes.of(stringKey("gen_ai.response.model"), model));
+ *              .build().add(promptStreamingTexts, Attributes.of(stringKey("gen_ai.response.model"), model));
  *     }
  * }
  * }</pre>
@@ -43,22 +43,22 @@ import java.time.Duration;
 public interface AiMetrics {
 
     /**
-     * Record token usage for a request/response pair.
+     * Record streaming text usage for a request/response pair.
      *
      * @param model            the model name
-     * @param promptTokens     number of streaming texts in the prompt
-     * @param completionTokens number of streaming texts in the response
+     * @param promptStreamingTexts     number of streaming texts in the prompt
+     * @param completionStreamingTexts number of streaming texts in the response
      */
-    void recordTokenUsage(String model, int promptTokens, int completionTokens);
+    void recordStreamingTextUsage(String model, int promptStreamingTexts, int completionStreamingTexts);
 
     /**
      * Record latency metrics.
      *
      * @param model         the model name
-     * @param timeToFirstToken time from request to first token
+     * @param timeToFirstStreamingText time from request to first streaming text
      * @param totalDuration  total request duration
      */
-    void recordLatency(String model, Duration timeToFirstToken, Duration totalDuration);
+    void recordLatency(String model, Duration timeToFirstStreamingText, Duration totalDuration);
 
     /**
      * Record estimated cost.
@@ -89,10 +89,10 @@ public interface AiMetrics {
     /** No-op implementation for when metrics are disabled. */
     AiMetrics NOOP = new AiMetrics() {
         @Override
-        public void recordTokenUsage(String model, int promptTokens, int completionTokens) { }
+        public void recordStreamingTextUsage(String model, int promptStreamingTexts, int completionStreamingTexts) { }
 
         @Override
-        public void recordLatency(String model, Duration timeToFirstToken, Duration totalDuration) { }
+        public void recordLatency(String model, Duration timeToFirstStreamingText, Duration totalDuration) { }
 
         @Override
         public void recordCost(String model, BigDecimal cost) { }

@@ -21,7 +21,7 @@ import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import org.atmosphere.ai.StreamingSession;
 
 /**
- * LangChain4j streaming response handler that forwards tokens to an
+ * LangChain4j streaming response handler that forwards streaming texts to an
  * Atmosphere {@link StreamingSession}.
  *
  * <p>Usage:</p>

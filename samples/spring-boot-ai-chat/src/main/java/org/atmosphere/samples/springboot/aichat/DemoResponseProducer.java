@@ -57,9 +57,9 @@ public final class DemoResponseProducer {
             return "Atmosphere is a Java framework for building real-time web applications. "
                     + "It supports WebSocket, SSE, long-polling, and gRPC transports. "
                     + "This sample uses the built-in OpenAiCompatibleClient to stream "
-                    + "LLM responses token-by-token through the Broadcaster.";
+                    + "LLM responses text-by-text through the Broadcaster.";
         }
-        return "This is a demo response — each word arrives as a separate streaming token. "
+        return "This is a demo response — each word arrives as a separate streaming text. "
                 + "Try asking about 'atmosphere' or say 'hello'. "
                 + "Set LLM_API_KEY to connect to a real LLM provider.";
     }

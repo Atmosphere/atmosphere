@@ -30,7 +30,7 @@ import java.lang.annotation.Target;
  *
  * <p>The annotated class must have exactly one method annotated with {@link Prompt}.
  * That method receives the user's message and a
- * {@link org.atmosphere.ai.StreamingSession} for streaming tokens back.</p>
+ * {@link org.atmosphere.ai.StreamingSession} for streaming texts back.</p>
  *
  * <p>Example:</p>
  * <pre>{@code

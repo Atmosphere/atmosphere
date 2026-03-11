@@ -35,11 +35,11 @@ import org.atmosphere.ai.StreamingSession;
 public interface LlmClient {
 
     /**
-     * Stream a chat completion response, sending each token to the session.
+     * Stream a chat completion response, sending each streaming text to the session.
      * This method blocks until the response is fully streamed or an error occurs.
      *
      * @param request the chat completion request
-     * @param session the streaming session to push tokens through
+     * @param session the streaming session to push streaming texts through
      */
     void streamChatCompletion(ChatCompletionRequest request, StreamingSession session);
 }

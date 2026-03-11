@@ -68,10 +68,10 @@ public final class DemoEventProducer {
             return "Hello! I'm a Google ADK agent running on Atmosphere Framework. "
                     + "I have tools for checking city times and weather reports. "
                     + "Try: \"What time is it in Tokyo?\" or \"What's the weather in London?\" "
-                    + "(Demo mode with token budget tracking active)";
+                    + "(Demo mode with streaming text budget tracking active)";
         }
-        if (lower.contains("budget") || lower.contains("token")) {
-            return "Token budget management is active! Each user gets 10,000 tokens. "
+        if (lower.contains("budget") || lower.contains("streaming text")) {
+            return "Streaming text budget management is active! Each user gets 10,000 streaming texts. "
                     + "When usage reaches 80%, the system gracefully degrades to a cheaper model "
                     + "(gemini-2.0-flash-lite). When the budget is exhausted, new requests are blocked "
                     + "until the budget resets. This prevents runaway costs in production.";
@@ -82,7 +82,7 @@ public final class DemoEventProducer {
                     + "reconnect after a disconnect. Progress messages (like 'Thinking...') "
                     + "are ephemeral and not cached. This reduces API calls and improves UX.";
         }
-        return "This is a demo ADK agent with tool calling, token budgets, and response caching. "
+        return "This is a demo ADK agent with tool calling, streaming text budgets, and response caching. "
                 + "Try asking about the time or weather in a city, or ask about 'budget' or 'cache'.";
     }
 

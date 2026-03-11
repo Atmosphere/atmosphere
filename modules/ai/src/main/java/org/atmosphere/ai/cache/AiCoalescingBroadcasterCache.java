@@ -33,12 +33,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
- * A decorator around {@link BroadcasterCache} that coalesces cached AI token
+ * A decorator around {@link BroadcasterCache} that coalesces cached AI streaming text
  * messages into a single replay message per session on {@link #retrieveFromCache}.
  *
  * <p>When a client reconnects and the cache returns N individual streaming text messages
- * for a session, this cache merges them into one synthetic token message whose
- * {@code data} is the concatenation of all individual token values. Non-AI
+ * for a session, this cache merges them into one synthetic streaming text message whose
+ * {@code data} is the concatenation of all individual streaming text values. Non-AI
  * messages and terminal messages (complete, error) are preserved as-is.</p>
  *
  * <h3>Usage</h3>
@@ -61,19 +61,19 @@ public class AiCoalescingBroadcasterCache implements BroadcasterCache {
     @Override
     public List<Object> retrieveFromCache(String id, String uuid) {
         var messages = delegate.retrieveFromCache(id, uuid);
-        return coalesceAiTokens(messages);
+        return coalesceAiStreamingTexts(messages);
     }
 
     /**
      * Coalesce consecutive AI streaming text messages per session into single messages.
      * Non-AI messages are passed through unchanged.
      */
-    List<Object> coalesceAiTokens(List<Object> messages) {
+    List<Object> coalesceAiStreamingTexts(List<Object> messages) {
         if (messages == null || messages.isEmpty()) {
             return messages;
         }
 
-        // Group by sessionId: accumulate token data, pass others through
+        // Group by sessionId: accumulate streaming text data, pass others through
         var sessionBuffers = new LinkedHashMap<String, StringBuilder>();
         var result = new ArrayList<>();
         var seqCounter = new LinkedHashMap<String, Long>();
@@ -98,10 +98,10 @@ public class AiCoalescingBroadcasterCache implements BroadcasterCache {
                 // Track that we need to assign a seq later
                 seqCounter.putIfAbsent(sessionId, 0L);
             } else {
-                // Non-token AI message (complete, error, metadata, progress)
-                // First, flush any accumulated tokens for this session
+                // Non-streaming-text AI message (complete, error, metadata, progress)
+                // First, flush any accumulated streaming texts for this session
                 flushBuffer(sessionId, sessionBuffers, seqCounter, result);
-                // Renumber this message's seq to follow the coalesced token
+                // Renumber this message's seq to follow the coalesced streaming text
                 var nextSeq = seqCounter.getOrDefault(sessionId, 0L) + 1;
                 seqCounter.put(sessionId, nextSeq);
                 var renumbered = parsed.withSeq(nextSeq);
@@ -109,7 +109,7 @@ public class AiCoalescingBroadcasterCache implements BroadcasterCache {
             }
         }
 
-        // Flush any remaining buffers (sessions that had tokens but no terminal)
+        // Flush any remaining buffers (sessions that had streaming texts but no terminal)
         for (var sessionId : new ArrayList<>(sessionBuffers.keySet())) {
             flushBuffer(sessionId, sessionBuffers, seqCounter, result);
         }

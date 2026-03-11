@@ -57,15 +57,15 @@ public final class DemoResponseProducer {
             return "LangChain4j is a Java framework for building LLM-powered applications. "
                     + "Atmosphere's LangChain4jStreamingAdapter bridges LangChain4j's callback-based "
                     + "streaming into Atmosphere's real-time transport layer, delivering "
-                    + "tokens to browsers via WebSocket, SSE, or gRPC.";
+                    + "streaming texts to browsers via WebSocket, SSE, or gRPC.";
         }
         if (lower.contains("atmosphere")) {
             return "Atmosphere is a Java framework for building real-time web applications. "
                     + "This sample demonstrates how LangChain4j's StreamingChatLanguageModel "
-                    + "integrates with Atmosphere's Broadcaster to push AI tokens to all "
+                    + "integrates with Atmosphere's Broadcaster to push AI streaming texts to all "
                     + "connected browser clients in real-time.";
         }
-        return "This is a demo response — each word arrives as a separate streaming token. "
+        return "This is a demo response — each word arrives as a separate streaming text. "
                 + "Try asking about 'atmosphere' or 'langchain4j'. "
                 + "Set LLM_API_KEY to connect to a real LLM provider.";
     }

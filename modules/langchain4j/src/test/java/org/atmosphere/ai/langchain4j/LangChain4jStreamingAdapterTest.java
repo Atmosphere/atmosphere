@@ -140,10 +140,10 @@ public class LangChain4jStreamingAdapterTest {
 
         var messages = captor.getAllValues().stream().map(Object::toString).toList();
 
-        // First 4 are tokens
+        // First 4 are streaming texts
         for (int i = 0; i < 4; i++) {
-            assertTrue(messages.get(i).contains("\"type\":\"token\""),
-                    "Message " + i + " should be token");
+            assertTrue(messages.get(i).contains("\"type\":\"streaming-text\""),
+                    "Message " + i + " should be streaming-text");
         }
         // Last is complete with summary
         assertTrue(messages.get(4).contains("\"type\":\"complete\""));
@@ -170,7 +170,7 @@ public class LangChain4jStreamingAdapterTest {
         adapter.stream(model, chatRequest, session);
 
         var captor = ArgumentCaptor.forClass(Object.class);
-        // progress + 2 tokens + complete = 4
+        // progress + 2 streaming texts + complete = 4
         verify(broadcaster, times(4)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream().map(Object::toString).toList();
@@ -196,7 +196,7 @@ public class LangChain4jStreamingAdapterTest {
         adapter.stream(model, chatRequest, session);
 
         var captor = ArgumentCaptor.forClass(Object.class);
-        // progress + 1 token + error = 3
+        // progress + 1 streaming text + error = 3
         verify(broadcaster, times(3)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream().map(Object::toString).toList();
@@ -239,7 +239,7 @@ public class LangChain4jStreamingAdapterTest {
         verify(broadcaster, times(1)).broadcast(captor.capture(), any(Set.class));
 
         var msg = captor.getValue().toString();
-        assertTrue(msg.contains("\"type\":\"token\""));
+        assertTrue(msg.contains("\"type\":\"streaming-text\""));
         assertTrue(msg.contains("\"data\":\"\""));
     }
 
@@ -253,7 +253,7 @@ public class LangChain4jStreamingAdapterTest {
         verify(broadcaster, times(1)).broadcast(captor.capture(), any(Set.class));
 
         var msg = captor.getValue().toString();
-        assertTrue(msg.contains("\"type\":\"token\""));
+        assertTrue(msg.contains("\"type\":\"streaming-text\""));
         // JSON should properly escape the quotes
         assertTrue(msg.contains("hello"));
     }
@@ -419,7 +419,7 @@ public class LangChain4jStreamingAdapterTest {
     public void testSessionIdIncludedInMessages() {
         var handler = new AtmosphereStreamingResponseHandler(session);
 
-        handler.onPartialResponse("token");
+        handler.onPartialResponse("text");
 
         var captor = ArgumentCaptor.forClass(Object.class);
         verify(broadcaster).broadcast(captor.capture(), any(Set.class));

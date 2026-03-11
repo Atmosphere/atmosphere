@@ -37,13 +37,13 @@ public class FanOutTestHandler implements AtmosphereHandler {
 
     private static final List<ModelEndpoint> ENDPOINTS = List.of(
             new ModelEndpoint("fast",
-                    FakeLlmClient.slow("fast-model", 30, "Fast", "-token", "-1.", " Fast", "-token", "-2."),
+                    FakeLlmClient.slow("fast-model", 30, "Fast", "-text", "-1.", " Fast", "-text", "-2."),
                     "fast-model"),
             new ModelEndpoint("medium",
-                    FakeLlmClient.slow("medium-model", 80, "Med", "-token", "-1.", " Med", "-token", "-2."),
+                    FakeLlmClient.slow("medium-model", 80, "Med", "-text", "-1.", " Med", "-text", "-2."),
                     "medium-model"),
             new ModelEndpoint("slow",
-                    FakeLlmClient.slow("slow-model", 200, "Slow", "-token", "-1.", " Slow", "-token", "-2."),
+                    FakeLlmClient.slow("slow-model", 200, "Slow", "-text", "-1.", " Slow", "-text", "-2."),
                     "slow-model")
     );
 
@@ -95,7 +95,7 @@ public class FanOutTestHandler implements AtmosphereHandler {
         } else if (prompt.startsWith("fastest:")) {
             var parts = prompt.split(":", 3);
             var threshold = parts.length > 1 ? Integer.parseInt(parts[1]) : 3;
-            return new FanOutStrategy.FastestTokens(threshold);
+            return new FanOutStrategy.FastestStreamingTexts(threshold);
         }
         return new FanOutStrategy.AllResponses();
     }

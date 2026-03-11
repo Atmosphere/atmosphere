@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class AiResponseCacheTest {
 
     @Test
-    public void testInspectorAllowsTokenMessages() {
+    public void testInspectorAllowsStreamingTextMessages() {
         var inspector = new AiResponseCacheInspector();
         var json = "{\"type\":\"streaming-text\",\"data\":\"Hello\",\"sessionId\":\"s1\",\"seq\":1}";
         var msg = new BroadcastMessage(new RawMessage(json));
@@ -69,7 +69,7 @@ public class AiResponseCacheTest {
     }
 
     @Test
-    public void testListenerCountsTokens() {
+    public void testListenerCountsStreamingTexts() {
         var listener = new AiResponseCacheListener();
 
         var chunk1 = cacheMessage("{\"type\":\"streaming-text\",\"data\":\"a\",\"sessionId\":\"s1\",\"seq\":1}");
@@ -78,7 +78,7 @@ public class AiResponseCacheTest {
         listener.onAddCache("b1", chunk1);
         listener.onAddCache("b1", chunk2);
 
-        assertEquals(2, listener.getCachedTokenCount("s1"));
+        assertEquals(2, listener.getCachedStreamingTextCount("s1"));
     }
 
     @Test
@@ -87,10 +87,10 @@ public class AiResponseCacheTest {
 
         listener.onAddCache("b1", cacheMessage("{\"type\":\"streaming-text\",\"data\":\"a\",\"sessionId\":\"s1\",\"seq\":1}"));
         listener.onAddCache("b1", cacheMessage("{\"type\":\"streaming-text\",\"data\":\"b\",\"sessionId\":\"s1\",\"seq\":2}"));
-        assertEquals(2, listener.getCachedTokenCount("s1"));
+        assertEquals(2, listener.getCachedStreamingTextCount("s1"));
 
         listener.onAddCache("b1", cacheMessage("{\"type\":\"complete\",\"sessionId\":\"s1\",\"seq\":3}"));
-        assertEquals(0, listener.getCachedTokenCount("s1"));
+        assertEquals(0, listener.getCachedStreamingTextCount("s1"));
     }
 
     @Test
@@ -101,15 +101,15 @@ public class AiResponseCacheTest {
         listener.onAddCache("b1", cacheMessage("{\"type\":\"streaming-text\",\"data\":\"b\",\"sessionId\":\"s2\",\"seq\":1}"));
         listener.onAddCache("b1", cacheMessage("{\"type\":\"streaming-text\",\"data\":\"c\",\"sessionId\":\"s2\",\"seq\":2}"));
 
-        assertEquals(1, listener.getCachedTokenCount("s1"));
-        assertEquals(2, listener.getCachedTokenCount("s2"));
+        assertEquals(1, listener.getCachedStreamingTextCount("s1"));
+        assertEquals(2, listener.getCachedStreamingTextCount("s2"));
     }
 
     @Test
     public void testListenerIgnoresNonRawMessages() {
         var listener = new AiResponseCacheListener();
         listener.onAddCache("b1", new CacheMessage("id1", "plain string", "uuid-1"));
-        assertEquals(0, listener.getCachedTokenCount("unknown"));
+        assertEquals(0, listener.getCachedStreamingTextCount("unknown"));
     }
 
     @Test

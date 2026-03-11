@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Collaborative AI classroom endpoint. All clients connected to the same
  * room share a broadcaster — when one student asks a question, every
- * student in that room sees the AI response stream token-by-token.
+ * student in that room sees the AI response stream text-by-text.
  *
  * <p>Demonstrates standard Atmosphere annotations with {@code @AiEndpoint}:</p>
  * <ul>

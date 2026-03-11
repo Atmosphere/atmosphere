@@ -30,7 +30,7 @@ import java.io.IOException;
 /**
  * Test handler for /ai/cache endpoint.
  * Configures UUIDBroadcasterCache with AI-aware inspector and listener.
- * FakeLlmClient emits: progress("Thinking...") + tokens + complete.
+ * FakeLlmClient emits: progress("Thinking...") + streaming texts + complete.
  */
 public class CacheTestHandler implements AtmosphereHandler {
 
@@ -91,9 +91,9 @@ public class CacheTestHandler implements AtmosphereHandler {
     private FakeLlmClient selectClient(String prompt) {
         if (prompt.startsWith("error:")) {
             return FakeLlmClient.erroring("error-model", 3,
-                    "Token1.", " Token2.", " Token3.", " Token4.");
+                    "Text1.", " Text2.", " Text3.", " Text4.");
         }
-        return FakeLlmClient.withTokens("cache-model",
-                "Cached", " response", " token", " one.", " And", " token", " two.");
+        return FakeLlmClient.withTexts("cache-model",
+                "Cached", " response", " text", " one.", " And", " text", " two.");
     }
 }

@@ -22,7 +22,7 @@ import type { SubscriptionHandlers, Subscription } from '../../src/types';
 
 /**
  * E2E-style integration tests that exercise the full streaming lifecycle:
- * connect → send → tokens → metadata → complete → stats → reset → send again.
+ * connect → send → streaming texts → metadata → complete → stats → reset → send again.
  *
  * These differ from the unit tests in streaming.test.ts by simulating full
  * multi-turn conversations with interleaved metadata, routing info, and
@@ -42,8 +42,8 @@ function makeResponse(json: string) {
   };
 }
 
-function token(data: string, seq: number, sessionId = 's1') {
-  return makeResponse(JSON.stringify({ type: 'token', data, sessionId, seq }));
+function streamingText(data: string, seq: number, sessionId = 's1') {
+  return makeResponse(JSON.stringify({ type: 'streaming-text', data, sessionId, seq }));
 }
 
 function metadata(key: string, value: unknown, seq: number, sessionId = 's1') {
@@ -83,8 +83,8 @@ describe('streaming session lifecycle', () => {
     } as unknown as Atmosphere;
   });
 
-  it('should handle a full conversation turn with tokens, routing, and stats', async () => {
-    const onToken = vi.fn();
+  it('should handle a full conversation turn with streaming texts, routing, and stats', async () => {
+    const onStreamingText = vi.fn();
     const onComplete = vi.fn();
     const onMetadata = vi.fn();
     const onSessionComplete = vi.fn();
@@ -92,15 +92,15 @@ describe('streaming session lifecycle', () => {
     await subscribeStreaming(
       mockAtmosphere,
       { url: '/ai/chat', transport: 'websocket' },
-      { onToken, onComplete, onMetadata, onSessionComplete },
+      { onStreamingText, onComplete, onMetadata, onSessionComplete },
     );
 
-    // Simulate 5 tokens arriving
-    capturedHandlers.message!(token('Hello', 1));
-    capturedHandlers.message!(token(' ', 2));
-    capturedHandlers.message!(token('world', 3));
-    capturedHandlers.message!(token('!', 4));
-    capturedHandlers.message!(token(' How', 5));
+    // Simulate 5 streaming texts arriving
+    capturedHandlers.message!(streamingText('Hello', 1));
+    capturedHandlers.message!(streamingText(' ', 2));
+    capturedHandlers.message!(streamingText('world', 3));
+    capturedHandlers.message!(streamingText('!', 4));
+    capturedHandlers.message!(streamingText(' How', 5));
 
     // Routing metadata arrives mid-stream
     capturedHandlers.message!(metadata('routing.model', 'gpt-4o', 6));
@@ -109,13 +109,13 @@ describe('streaming session lifecycle', () => {
     // Stream completes
     capturedHandlers.message!(complete(8));
 
-    expect(onToken).toHaveBeenCalledTimes(5);
+    expect(onStreamingText).toHaveBeenCalledTimes(5);
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onMetadata).toHaveBeenCalledTimes(2);
     expect(onSessionComplete).toHaveBeenCalledTimes(1);
 
     const stats: SessionStats = onSessionComplete.mock.calls[0][0];
-    expect(stats.totalTokens).toBe(5);
+    expect(stats.totalStreamingTexts).toBe(5);
     expect(stats.status).toBe('complete');
 
     const routing: RoutingInfo = onSessionComplete.mock.calls[0][1];
@@ -132,60 +132,60 @@ describe('streaming session lifecycle', () => {
       { onSessionComplete },
     );
 
-    // First turn: 3 tokens
-    capturedHandlers.message!(token('aaa', 1));
-    capturedHandlers.message!(token('bbb', 2));
-    capturedHandlers.message!(token('ccc', 3));
+    // First turn: 3 streaming texts
+    capturedHandlers.message!(streamingText('aaa', 1));
+    capturedHandlers.message!(streamingText('bbb', 2));
+    capturedHandlers.message!(streamingText('ccc', 3));
     capturedHandlers.message!(metadata('routing.model', 'gpt-4o', 4));
     capturedHandlers.message!(complete(5));
 
     expect(onSessionComplete).toHaveBeenCalledTimes(1);
     const firstStats: SessionStats = onSessionComplete.mock.calls[0][0];
-    expect(firstStats.totalTokens).toBe(3);
+    expect(firstStats.totalStreamingTexts).toBe(3);
     expect(firstStats.status).toBe('complete');
     expect(onSessionComplete.mock.calls[0][1].model).toBe('gpt-4o');
 
     // Send second prompt (stats reset)
     handle.send('next question');
 
-    // Second turn: 2 tokens, different routing
-    capturedHandlers.message!(token('ddd', 6));
-    capturedHandlers.message!(token('eee', 7));
+    // Second turn: 2 streaming texts, different routing
+    capturedHandlers.message!(streamingText('ddd', 6));
+    capturedHandlers.message!(streamingText('eee', 7));
     capturedHandlers.message!(metadata('routing.model', 'claude-3', 8));
     capturedHandlers.message!(complete(9));
 
     expect(onSessionComplete).toHaveBeenCalledTimes(2);
     const secondStats: SessionStats = onSessionComplete.mock.calls[1][0];
-    expect(secondStats.totalTokens).toBe(2);
+    expect(secondStats.totalStreamingTexts).toBe(2);
     expect(secondStats.status).toBe('complete');
     expect(onSessionComplete.mock.calls[1][1].model).toBe('claude-3');
   });
 
-  it('should handle routing metadata arriving before tokens', async () => {
-    const onToken = vi.fn();
+  it('should handle routing metadata arriving before streaming texts', async () => {
+    const onStreamingText = vi.fn();
     const onSessionComplete = vi.fn();
 
     await subscribeStreaming(
       mockAtmosphere,
       { url: '/ai/chat', transport: 'websocket' },
-      { onToken, onSessionComplete },
+      { onStreamingText, onSessionComplete },
     );
 
     // Routing arrives first
     capturedHandlers.message!(metadata('routing.model', 'gpt-4o-mini', 1));
     capturedHandlers.message!(metadata('routing.latency', 95, 2));
 
-    // Then a single token
-    capturedHandlers.message!(token('Hi', 3));
+    // Then a single streaming text
+    capturedHandlers.message!(streamingText('Hi', 3));
 
     // Complete
     capturedHandlers.message!(complete(4));
 
-    expect(onToken).toHaveBeenCalledTimes(1);
+    expect(onStreamingText).toHaveBeenCalledTimes(1);
     expect(onSessionComplete).toHaveBeenCalledTimes(1);
 
     const stats: SessionStats = onSessionComplete.mock.calls[0][0];
-    expect(stats.totalTokens).toBe(1);
+    expect(stats.totalStreamingTexts).toBe(1);
 
     const routing: RoutingInfo = onSessionComplete.mock.calls[0][1];
     expect(routing.model).toBe('gpt-4o-mini');
@@ -202,10 +202,10 @@ describe('streaming session lifecycle', () => {
       { onError, onSessionComplete },
     );
 
-    // 3 tokens arrive
-    capturedHandlers.message!(token('One', 1));
-    capturedHandlers.message!(token(' two', 2));
-    capturedHandlers.message!(token(' three', 3));
+    // 3 streaming texts arrive
+    capturedHandlers.message!(streamingText('One', 1));
+    capturedHandlers.message!(streamingText(' two', 2));
+    capturedHandlers.message!(streamingText(' three', 3));
 
     // Routing cost arrives
     capturedHandlers.message!(metadata('routing.cost', 0.02, 4));
@@ -218,7 +218,7 @@ describe('streaming session lifecycle', () => {
 
     const stats: SessionStats = onSessionComplete.mock.calls[0][0];
     expect(stats.status).toBe('error');
-    expect(stats.totalTokens).toBe(3);
+    expect(stats.totalStreamingTexts).toBe(3);
 
     const routing: RoutingInfo = onSessionComplete.mock.calls[0][1];
     expect(routing.cost).toBe(0.02);
@@ -342,7 +342,7 @@ describe('metadata and routing coexistence', () => {
     capturedHandlers.message!(metadata('routing.model', 'gpt-4o', 1));
     capturedHandlers.message!(metadata('routing.cost', 0.05, 2));
     capturedHandlers.message!(metadata('routing.latency', 120, 3));
-    capturedHandlers.message!(token('Hi', 4));
+    capturedHandlers.message!(streamingText('Hi', 4));
     capturedHandlers.message!(complete(5));
 
     // All three fired onMetadata

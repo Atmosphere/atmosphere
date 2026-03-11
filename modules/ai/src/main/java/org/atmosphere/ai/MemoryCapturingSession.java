@@ -18,13 +18,13 @@ package org.atmosphere.ai;
 import org.atmosphere.ai.llm.ChatMessage;
 
 /**
- * A {@link StreamingSession} wrapper that captures streamed tokens and saves
+ * A {@link StreamingSession} wrapper that captures streamed streaming texts and saves
  * the full conversation turn (user message + assistant response) to an
  * {@link AiConversationMemory} when streaming completes.
  *
  * <p>This solves the core challenge of async streaming: the LLM response arrives
- * token-by-token via callbacks, so we need to accumulate the full response before
- * we can store it in memory.</p>
+ * streaming-text-by-streaming-text via callbacks, so we need to accumulate the full
+ * response before we can store it in memory.</p>
  */
 class MemoryCapturingSession implements StreamingSession {
 
@@ -48,9 +48,9 @@ class MemoryCapturingSession implements StreamingSession {
     }
 
     @Override
-    public void send(String token) {
-        accumulated.append(token);
-        delegate.send(token);
+    public void send(String text) {
+        accumulated.append(text);
+        delegate.send(text);
     }
 
     @Override

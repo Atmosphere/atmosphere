@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
  *   <li><b>conversationMemory</b> — enabled with 30-message sliding window so the
  *       LLM remembers previous turns within a session</li>
  *   <li>{@link PiiRedactionFilter} — auto-redacts emails, phone numbers, SSNs</li>
- *   <li>{@link CostMeteringFilter} — tracks token usage per session</li>
+ *   <li>{@link CostMeteringFilter} — tracks streaming text usage per session</li>
  * </ul>
  *
  * <p>Ported from the official

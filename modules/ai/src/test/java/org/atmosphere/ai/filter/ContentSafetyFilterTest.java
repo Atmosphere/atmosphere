@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class ContentSafetyFilterTest {
 
-    private BroadcastAction sendToken(ContentSafetyFilter filter, String data, String sessionId, long seq) {
+    private BroadcastAction sendStreamingText(ContentSafetyFilter filter, String data, String sessionId, long seq) {
         var msg = new AiStreamMessage("streaming-text", data, sessionId, seq, null, null);
         var raw = new RawMessage(msg.toJson());
         return filter.filter("b1", raw, raw);
@@ -41,8 +41,8 @@ public class ContentSafetyFilterTest {
     public void testSafeContentPassesThrough() throws Exception {
         var filter = new ContentSafetyFilter(ContentSafetyFilter.keywordChecker(Set.of("danger")));
 
-        // Token with sentence boundary
-        var result = sendToken(filter, "This is safe content.", "s1", 1);
+        // Streaming text with sentence boundary
+        var result = sendStreamingText(filter, "This is safe content.", "s1", 1);
         assertEquals(BroadcastAction.ACTION.CONTINUE, result.action());
 
         var raw = (RawMessage) result.message();
@@ -54,7 +54,7 @@ public class ContentSafetyFilterTest {
     public void testUnsafeContentAbortsStream() throws Exception {
         var filter = new ContentSafetyFilter(ContentSafetyFilter.keywordChecker(Set.of("danger")));
 
-        var result = sendToken(filter, "This is danger zone.", "s1", 1);
+        var result = sendStreamingText(filter, "This is danger zone.", "s1", 1);
         assertEquals(BroadcastAction.ACTION.SKIP, result.action());
 
         var raw = (RawMessage) result.message();
@@ -68,7 +68,7 @@ public class ContentSafetyFilterTest {
         var checker = ContentSafetyFilter.redactingChecker(Set.of("badword"), "***");
         var filter = new ContentSafetyFilter(checker);
 
-        var result = sendToken(filter, "This has a badword in it.", "s1", 1);
+        var result = sendStreamingText(filter, "This has a badword in it.", "s1", 1);
         assertEquals(BroadcastAction.ACTION.CONTINUE, result.action());
 
         var raw = (RawMessage) result.message();
@@ -82,7 +82,7 @@ public class ContentSafetyFilterTest {
         var filter = new ContentSafetyFilter(ContentSafetyFilter.keywordChecker(Set.of("danger")));
 
         // No sentence boundary — buffered
-        var result = sendToken(filter, "This is ", "s1", 1);
+        var result = sendStreamingText(filter, "This is ", "s1", 1);
         assertEquals(BroadcastAction.ACTION.ABORT, result.action());
     }
 
@@ -90,10 +90,10 @@ public class ContentSafetyFilterTest {
     public void testBufferFlushedOnComplete() throws Exception {
         var filter = new ContentSafetyFilter(ContentSafetyFilter.keywordChecker(Set.of("danger")));
 
-        // Buffer a safe token
-        sendToken(filter, "This is safe", "s1", 1);
+        // Buffer a safe streaming text
+        sendStreamingText(filter, "This is safe", "s1", 1);
 
-        // Complete should flush the buffer as a proper "streaming-text" message (not embed in complete.data)
+        // Complete should flush the buffer as a proper streaming text message (not embed in complete.data)
         // The actual complete is deferred via broadcaster (not available in unit tests)
         var result = sendComplete(filter, "s1", 2);
         var raw = (RawMessage) result.message();
@@ -107,7 +107,7 @@ public class ContentSafetyFilterTest {
         var filter = new ContentSafetyFilter(ContentSafetyFilter.keywordChecker(Set.of("danger")));
 
         // Buffer unsafe content
-        sendToken(filter, "This is danger", "s1", 1);
+        sendStreamingText(filter, "This is danger", "s1", 1);
 
         // Complete should detect the unsafe content
         var result = sendComplete(filter, "s1", 2);
@@ -123,7 +123,7 @@ public class ContentSafetyFilterTest {
     public void testKeywordCheckerIsCaseInsensitive() throws Exception {
         var filter = new ContentSafetyFilter(ContentSafetyFilter.keywordChecker(Set.of("danger")));
 
-        var result = sendToken(filter, "This has DANGER here.", "s1", 1);
+        var result = sendStreamingText(filter, "This has DANGER here.", "s1", 1);
         assertEquals(BroadcastAction.ACTION.SKIP, result.action());
     }
 
@@ -132,7 +132,7 @@ public class ContentSafetyFilterTest {
         var checker = ContentSafetyFilter.redactingChecker(Set.of("badword"), "***");
         var filter = new ContentSafetyFilter(checker);
 
-        var result = sendToken(filter, "Has BADWORD here.", "s1", 1);
+        var result = sendStreamingText(filter, "Has BADWORD here.", "s1", 1);
         var raw = (RawMessage) result.message();
         var parsed = AiStreamMessage.parse((String) raw.message());
         assertFalse(parsed.data().contains("BADWORD"));
@@ -161,20 +161,20 @@ public class ContentSafetyFilterTest {
         var filter = new ContentSafetyFilter(lengthChecker);
 
         // Short text — safe
-        var result1 = sendToken(filter, "Short.", "s1", 1);
+        var result1 = sendStreamingText(filter, "Short.", "s1", 1);
         assertEquals(BroadcastAction.ACTION.CONTINUE, result1.action());
 
         // Long text — unsafe
-        var result2 = sendToken(filter, "This is a very long sentence that exceeds the limit.", "s2", 1);
+        var result2 = sendStreamingText(filter, "This is a very long sentence that exceeds the limit.", "s2", 1);
         assertEquals(BroadcastAction.ACTION.SKIP, result2.action());
     }
 
     @Test
-    public void testSafeFlushTokenUsesTerminalSeqAndDeferredUsesSeqPlusOne() throws Exception {
+    public void testSafeFlushTextUsesTerminalSeqAndDeferredUsesSeqPlusOne() throws Exception {
         var filter = new ContentSafetyFilter(ContentSafetyFilter.keywordChecker(Set.of("danger")));
 
         // Buffer safe content
-        sendToken(filter, "This is safe", "seq-safe", 4);
+        sendStreamingText(filter, "This is safe", "seq-safe", 4);
 
         // Complete with seq=5
         var result = sendComplete(filter, "seq-safe", 5);
@@ -186,12 +186,12 @@ public class ContentSafetyFilterTest {
     }
 
     @Test
-    public void testRedactedFlushTokenUsesTerminalSeqAndDeferredUsesSeqPlusOne() throws Exception {
+    public void testRedactedFlushTextUsesTerminalSeqAndDeferredUsesSeqPlusOne() throws Exception {
         var checker = ContentSafetyFilter.redactingChecker(Set.of("badword"), "***");
         var filter = new ContentSafetyFilter(checker);
 
         // Buffer content with a term that will be redacted
-        sendToken(filter, "Has badword here", "seq-redact", 4);
+        sendStreamingText(filter, "Has badword here", "seq-redact", 4);
 
         // Complete with seq=5
         var result = sendComplete(filter, "seq-redact", 5);

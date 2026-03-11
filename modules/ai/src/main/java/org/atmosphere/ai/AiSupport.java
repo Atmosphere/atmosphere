@@ -56,11 +56,11 @@ public interface AiSupport {
     void configure(AiConfig.LlmSettings settings);
 
     /**
-     * Stream an AI response for the given request, pushing tokens through
+     * Stream an AI response for the given request, pushing streaming texts through
      * the session.
      *
      * @param request the framework-agnostic AI request
-     * @param session the streaming session to push tokens through
+     * @param session the streaming session to push streaming texts through
      */
     void stream(AiRequest request, StreamingSession session);
 

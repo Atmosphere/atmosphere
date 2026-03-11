@@ -370,7 +370,7 @@ public class AiStreamingSessionTest {
     }
 
     @Test
-    public void testMetricsRecordTokenUsage() {
+    public void testMetricsRecordStreamingTextUsage() {
         var metricsRecorder = new RecordingMetrics();
         var aiSupport = new AiSupport() {
             @Override public String name() { return "test"; }
@@ -392,9 +392,9 @@ public class AiStreamingSessionTest {
 
         session.stream("Hi");
 
-        assertTrue(metricsRecorder.tokenUsageRecorded);
-        assertEquals(10, metricsRecorder.promptTokens);
-        assertEquals(5, metricsRecorder.completionTokens);
+        assertTrue(metricsRecorder.streamingTextUsageRecorded);
+        assertEquals(10, metricsRecorder.promptStreamingTexts);
+        assertEquals(5, metricsRecorder.completionStreamingTexts);
     }
 
     @Test
@@ -422,23 +422,23 @@ public class AiStreamingSessionTest {
     }
 
     static class RecordingMetrics implements AiMetrics {
-        boolean tokenUsageRecorded;
+        boolean streamingTextUsageRecorded;
         boolean latencyRecorded;
         boolean errorRecorded;
         String latencyModel;
         String errorModel;
-        int promptTokens;
-        int completionTokens;
+        int promptStreamingTexts;
+        int completionStreamingTexts;
 
         @Override
-        public void recordTokenUsage(String model, int promptTokens, int completionTokens) {
-            this.tokenUsageRecorded = true;
-            this.promptTokens = promptTokens;
-            this.completionTokens = completionTokens;
+        public void recordStreamingTextUsage(String model, int promptStreamingTexts, int completionStreamingTexts) {
+            this.streamingTextUsageRecorded = true;
+            this.promptStreamingTexts = promptStreamingTexts;
+            this.completionStreamingTexts = completionStreamingTexts;
         }
 
         @Override
-        public void recordLatency(String model, Duration timeToFirstToken, Duration totalDuration) {
+        public void recordLatency(String model, Duration timeToFirstStreamingText, Duration totalDuration) {
             this.latencyRecorded = true;
             this.latencyModel = model;
         }

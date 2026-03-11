@@ -44,7 +44,7 @@ export function useStreaming(
 ) {
   const atmosphere = instance ?? new Atmosphere();
 
-  const tokens: Ref<string[]> = ref([]);
+  const streamingTexts: Ref<string[]> = ref([]);
   const isStreaming: Ref<boolean> = ref(false);
   const progress: Ref<string | null> = ref(null);
   const metadata: Ref<Record<string, unknown>> = ref({});
@@ -52,16 +52,16 @@ export function useStreaming(
   const routing: Ref<RoutingInfo> = ref({});
   const error: Ref<string | null> = ref(null);
 
-  const fullText: ComputedRef<string> = computed(() => tokens.value.join(''));
+  const fullText: ComputedRef<string> = computed(() => streamingTexts.value.join(''));
 
   let handle: StreamingHandle | null = null;
 
   const connect = async () => {
     try {
       handle = await subscribeStreaming(atmosphere, request, {
-        onToken: (token) => {
+        onStreamingText: (text) => {
           isStreaming.value = true;
-          tokens.value = [...tokens.value, token];
+          streamingTexts.value = [...streamingTexts.value, text];
         },
         onProgress: (msg) => {
           progress.value = msg;
@@ -97,7 +97,7 @@ export function useStreaming(
   };
 
   const reset = () => {
-    tokens.value = [];
+    streamingTexts.value = [];
     isStreaming.value = false;
     progress.value = null;
     metadata.value = {};
@@ -112,5 +112,5 @@ export function useStreaming(
     handle?.close();
   });
 
-  return { fullText, tokens, isStreaming, progress, metadata, stats, routing, error, send, reset };
+  return { fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, error, send, reset };
 }

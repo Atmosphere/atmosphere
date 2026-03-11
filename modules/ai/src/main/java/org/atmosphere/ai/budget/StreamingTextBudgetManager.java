@@ -23,9 +23,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Manages per-user or per-organization token budgets with graceful degradation.
+ * Manages per-user or per-organization streaming text budgets with graceful degradation.
  *
- * <p>When an owner's token usage approaches their budget limit (at the configured
+ * <p>When an owner's streaming text usage approaches their budget limit (at the configured
  * {@code degradationThreshold}), the manager recommends switching to a cheaper
  * fallback model. When the budget is fully exhausted, {@link #recordUsage} returns
  * {@code false} and {@link #recommendedModel} throws {@link BudgetExceededException}.</p>
@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * var model = budgetManager.recommendedModel("user-123");
  * // model.isPresent() if degradation is recommended
  *
- * // After each token:
+ * // After each streaming text:
  * boolean withinBudget = budgetManager.recordUsage("user-123", 1);
  * }</pre>
  *
@@ -95,15 +95,15 @@ public final class StreamingTextBudgetManager {
     }
 
     /**
-     * Record token usage for an owner.
+     * Record streaming text usage for an owner.
      *
-     * @param ownerId the owner identifier
-     * @param tokens  the number of streaming texts to record
+     * @param ownerId        the owner identifier
+     * @param streamingTexts the number of streaming texts to record
      * @return {@code true} if the usage is within budget, {@code false} if budget exceeded
      */
-    public boolean recordUsage(String ownerId, long tokens) {
+    public boolean recordUsage(String ownerId, long streamingTexts) {
         var counter = usage.computeIfAbsent(ownerId, k -> new AtomicLong());
-        var newTotal = counter.addAndGet(tokens);
+        var newTotal = counter.addAndGet(streamingTexts);
 
         var budget = budgets.get(ownerId);
         if (budget != null && newTotal > budget.maxStreamingTexts()) {
@@ -114,10 +114,10 @@ public final class StreamingTextBudgetManager {
     }
 
     /**
-     * Get the remaining token count for an owner.
+     * Get the remaining streaming text count for an owner.
      *
      * @param ownerId the owner identifier
-     * @return remaining tokens, or {@code Long.MAX_VALUE} if no budget is set
+     * @return remaining streaming texts, or {@code Long.MAX_VALUE} if no budget is set
      */
     public long remaining(String ownerId) {
         var budget = budgets.get(ownerId);

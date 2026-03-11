@@ -30,10 +30,10 @@ import java.io.IOException;
  * Test handler for /ai/budget endpoint.
  * Users identified by X-Atmosphere-User-Id header.
  * Pre-configured budgets:
- * - user-1: 20 tokens, 50% threshold, fallback "cheap-model"
- * - user-2: 10 tokens, 80% threshold, fallback "cheap-model"
- * - user-3: 100 tokens, 90% threshold, fallback "cheap-model"
- * Each prompt generates 5 tokens.
+ * - user-1: 20 streaming texts, 50% threshold, fallback "cheap-model"
+ * - user-2: 10 streaming texts, 80% threshold, fallback "cheap-model"
+ * - user-3: 100 streaming texts, 90% threshold, fallback "cheap-model"
+ * Each prompt generates 5 streaming texts.
  */
 public class BudgetTestHandler implements AtmosphereHandler {
 
@@ -77,16 +77,16 @@ public class BudgetTestHandler implements AtmosphereHandler {
                 session.sendMetadata("budget.model", model);
                 session.sendMetadata("budget.remaining", budgetManager.remaining(finalUserId));
 
-                // Generate 5 tokens per request with budget tracking
-                var client = FakeLlmClient.withTokens(model,
-                        "Token1.", " Token2.", " Token3.", " Token4.", " Token5.");
+                // Generate 5 streaming texts per request with budget tracking
+                var client = FakeLlmClient.withTexts(model,
+                        "Text1.", " Text2.", " Text3.", " Text4.", " Text5.");
                 var request = ChatCompletionRequest.of(model, trimmed);
 
                 var trackingSession = new org.atmosphere.ai.StreamingSession() {
                     @Override public String sessionId() { return session.sessionId(); }
-                    @Override public void send(String token) {
+                    @Override public void send(String text) {
                         budgetManager.recordUsage(finalUserId, 1);
-                        session.send(token);
+                        session.send(text);
                     }
                     @Override public void sendMetadata(String key, Object value) {
                         session.sendMetadata(key, value);

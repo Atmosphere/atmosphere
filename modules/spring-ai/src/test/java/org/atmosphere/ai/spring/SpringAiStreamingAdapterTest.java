@@ -64,7 +64,7 @@ public class SpringAiStreamingAdapterTest {
     }
 
     @Test
-    public void testStreamTokens() throws Exception {
+    public void testStreamTexts() throws Exception {
         var latch = new CountDownLatch(1);
 
         var responses = List.of(
@@ -83,7 +83,7 @@ public class SpringAiStreamingAdapterTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS), "Stream should complete");
 
         var captor = ArgumentCaptor.forClass(Object.class);
-        // 1 progress + 3 tokens + 1 complete = 5
+        // 1 progress + 3 streaming texts + 1 complete = 5
         verify(broadcaster, timeout(2000).atLeast(5)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream()
@@ -93,11 +93,11 @@ public class SpringAiStreamingAdapterTest {
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"progress\"")),
                 "Should send progress message");
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\"Hello\"")),
-                "Should send 'Hello' token");
+                "Should send 'Hello' streaming text");
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\" world\"")),
-                "Should send ' world' token");
+                "Should send ' world' streaming text");
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\"!\"")),
-                "Should send '!' token");
+                "Should send '!' streaming text");
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"complete\"")),
                 "Should send complete message");
     }
@@ -116,16 +116,16 @@ public class SpringAiStreamingAdapterTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         var captor = ArgumentCaptor.forClass(Object.class);
-        // progress + complete = 2 (no tokens because getResult() is null)
+        // progress + complete = 2 (no streaming texts because getResult() is null)
         verify(broadcaster, timeout(2000).atLeast(2)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream()
                 .map(Object::toString)
                 .toList();
-        // Should NOT have any token messages
+        // Should NOT have any streaming text messages
         assertFalse(messages.stream().anyMatch(m ->
-                        m.contains("\"type\":\"token\"") && m.contains("\"data\"")),
-                "Should not send token for null output");
+                        m.contains("\"type\":\"streaming-text\"") && m.contains("\"data\"")),
+                "Should not send streaming text for null output");
     }
 
     @Test
@@ -177,7 +177,7 @@ public class SpringAiStreamingAdapterTest {
     }
 
     @Test
-    public void testStreamMultipleTokensThenComplete() throws Exception {
+    public void testStreamMultipleTextsThenComplete() throws Exception {
         var latch = new CountDownLatch(1);
 
         Flux<ChatResponse> flux = Flux.just(
@@ -223,7 +223,7 @@ public class SpringAiStreamingAdapterTest {
     public void testStreamEmptyFlux() throws Exception {
         var latch = new CountDownLatch(1);
 
-        // Empty flux - no tokens at all
+        // Empty flux - no streaming texts at all
         Flux<ChatResponse> flux = Flux.<ChatResponse>empty()
                 .doOnComplete(latch::countDown);
 
@@ -267,17 +267,17 @@ public class SpringAiStreamingAdapterTest {
                 .map(Object::toString)
                 .toList();
 
-        // Should not have sent any token with null text (filtered by the null check)
+        // Should not have sent any streaming text with null text (filtered by the null check)
         assertFalse(messages.stream().anyMatch(m ->
-                        m.contains("\"type\":\"token\"") && m.contains("\"data\":null")),
-                "Should not send token with null data");
+                        m.contains("\"type\":\"streaming-text\"") && m.contains("\"data\":null")),
+                "Should not send streaming text with null data");
     }
 
     @Test
     public void testStreamProgressMessage() throws Exception {
         var latch = new CountDownLatch(1);
 
-        Flux<ChatResponse> flux = Flux.just(chatResponse("token"))
+        Flux<ChatResponse> flux = Flux.just(chatResponse("text"))
                 .doOnComplete(latch::countDown);
 
         ChatClient client = mockChatClient("progress-test", flux);
@@ -350,7 +350,7 @@ public class SpringAiStreamingAdapterTest {
                 .map(Object::toString)
                 .toList();
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\"advised\"")),
-                "Should stream tokens with advisor");
+                "Should stream streaming texts with advisor");
     }
 
     @Test
@@ -440,7 +440,7 @@ public class SpringAiStreamingAdapterTest {
     }
 
     @Test
-    public void testStreamErrorAfterTokens() throws Exception {
+    public void testStreamErrorAfterTexts() throws Exception {
         var latch = new CountDownLatch(1);
 
         Flux<ChatResponse> flux = Flux.concat(
@@ -448,22 +448,22 @@ public class SpringAiStreamingAdapterTest {
                 Flux.<ChatResponse>error(new RuntimeException("Connection lost"))
         ).doOnError(t -> latch.countDown());
 
-        ChatClient client = mockChatClient("err-after-tokens", flux);
-        adapter.stream(client, "err-after-tokens", session);
+        ChatClient client = mockChatClient("err-after-texts", flux);
+        adapter.stream(client, "err-after-texts", session);
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         var captor = ArgumentCaptor.forClass(Object.class);
-        // progress + 1 token + error = 3
+        // progress + 1 streaming text + error = 3
         verify(broadcaster, timeout(2000).atLeast(3)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream()
                 .map(Object::toString)
                 .toList();
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\"partial\"")),
-                "Should have sent the partial token before error");
+                "Should have sent the partial streaming text before error");
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"error\"")),
-                "Should send error after partial tokens");
+                "Should send error after partial streaming texts");
         assertTrue(messages.stream().anyMatch(m -> m.contains("Connection lost")),
                 "Error message should contain cause");
     }

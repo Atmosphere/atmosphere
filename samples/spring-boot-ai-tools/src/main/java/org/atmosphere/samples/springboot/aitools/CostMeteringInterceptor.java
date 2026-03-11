@@ -29,12 +29,13 @@ import java.util.Map;
 /**
  * Demonstrates cost metering as an {@link AiInterceptor}.
  *
- * <p>{@code preProcess} estimates input tokens from text length (roughly 1 token per 4 characters)
- * and calculates an estimated input cost using per-model pricing. {@code postProcess} logs the
- * request dispatch latency and sends routing metadata to the client via the streaming session.</p>
+ * <p>{@code preProcess} estimates input streaming texts from text length (roughly 1 streaming text
+ * per 4 characters) and calculates an estimated input cost using per-model pricing.
+ * {@code postProcess} logs the request dispatch latency and sends routing metadata to the client
+ * via the streaming session.</p>
  *
  * <p><b>Important:</b> {@code postProcess} runs right after the streaming call is dispatched,
- * not after the full LLM response is received. For actual output-token costs, production
+ * not after the full LLM response is received. For actual output streaming text costs, production
  * applications should integrate with provider usage APIs or parse streaming metadata.</p>
  */
 public class CostMeteringInterceptor implements AiInterceptor {
@@ -42,11 +43,11 @@ public class CostMeteringInterceptor implements AiInterceptor {
     private static final Logger logger = LoggerFactory.getLogger(CostMeteringInterceptor.class);
 
     private static final String START_TIME_ATTR = "cost.startNanos";
-    private static final String EST_TOKENS_ATTR = "cost.estTokens";
+    private static final String EST_STREAMING_TEXTS_ATTR = "cost.estStreamingTexts";
     private static final String EST_COST_ATTR = "cost.estCost";
     private static final String MODEL_ATTR = "cost.model";
 
-    // Estimated price per 1M input tokens (USD) by model pattern (matched via contains())
+    // Estimated price per 1M input streaming texts (USD) by model pattern (matched via contains())
     private static final Map<String, Double> INPUT_PRICE_PER_MILLION = Map.ofEntries(
             Map.entry("claude-haiku", 0.80),
             Map.entry("claude-sonnet", 3.0),
@@ -69,7 +70,7 @@ public class CostMeteringInterceptor implements AiInterceptor {
         for (ChatMessage msg : request.history()) {
             totalChars += msg.content().length();
         }
-        long estimatedTokens = totalChars / 4;
+        long estimatedStreamingTexts = totalChars / 4;
 
         var model = request.model() != null ? request.model() : "default";
         var modelLower = model.toLowerCase();
@@ -81,15 +82,15 @@ public class CostMeteringInterceptor implements AiInterceptor {
                 .findFirst()
                 .orElse(DEFAULT_PRICE_PER_MILLION);
 
-        double estimatedCost = estimatedTokens * pricePerMillion / 1_000_000.0;
+        double estimatedCost = estimatedStreamingTexts * pricePerMillion / 1_000_000.0;
 
-        logger.info("[Cost] model={}, est_input_tokens=~{}, est_input_cost=${}", model, estimatedTokens,
+        logger.info("[Cost] model={}, est_input_streaming_texts=~{}, est_input_cost=${}", model, estimatedStreamingTexts,
                 String.format("%.6f", estimatedCost));
 
         // Store for postProcess to send as metadata
         var req = resource.getRequest();
         req.setAttribute(START_TIME_ATTR, System.nanoTime());
-        req.setAttribute(EST_TOKENS_ATTR, estimatedTokens);
+        req.setAttribute(EST_STREAMING_TEXTS_ATTR, estimatedStreamingTexts);
         req.setAttribute(EST_COST_ATTR, estimatedCost);
         req.setAttribute(MODEL_ATTR, model);
 
@@ -112,7 +113,7 @@ public class CostMeteringInterceptor implements AiInterceptor {
         if (sessionObj instanceof StreamingSession session && !session.isClosed()) {
             var model = req.getAttribute(MODEL_ATTR);
             var cost = req.getAttribute(EST_COST_ATTR);
-            var tokens = req.getAttribute(EST_TOKENS_ATTR);
+            var streamingTexts = req.getAttribute(EST_STREAMING_TEXTS_ATTR);
 
             if (model != null) {
                 session.sendMetadata("routing.model", model);
@@ -120,8 +121,8 @@ public class CostMeteringInterceptor implements AiInterceptor {
             if (cost != null) {
                 session.sendMetadata("routing.cost", cost);
             }
-            if (tokens != null) {
-                session.sendMetadata("routing.tokens", tokens);
+            if (streamingTexts != null) {
+                session.sendMetadata("routing.streamingTexts", streamingTexts);
             }
             if (elapsedMs > 0) {
                 session.sendMetadata("routing.latency", elapsedMs);

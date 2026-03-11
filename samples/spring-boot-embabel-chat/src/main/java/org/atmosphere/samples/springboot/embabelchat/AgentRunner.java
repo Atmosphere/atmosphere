@@ -30,7 +30,7 @@ import java.util.Map;
  *
  * <p>Receives user prompts from the {@link EmbabelChat} endpoint, looks up
  * the deployed {@code chat-assistant} agent, and executes it through the
- * Embabel {@link AgentPlatform}. Agent events (tokens, progress, logs) flow
+ * Embabel {@link AgentPlatform}. Agent events (streaming texts, progress, logs) flow
  * through the {@link org.atmosphere.ai.embabel.AtmosphereOutputChannel}
  * to the connected browser in real time.</p>
  */

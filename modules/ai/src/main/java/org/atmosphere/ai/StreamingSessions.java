@@ -61,9 +61,9 @@ public final class StreamingSessions {
     /**
      * Start a new streaming session that broadcasts to a topic.
      * Use this when no specific {@link AtmosphereResource} is available
-     * (e.g., from an MCP tool call that needs to stream tokens to browser clients).
+     * (e.g., from an MCP tool call that needs to stream text to browser clients).
      *
-     * @param broadcaster the broadcaster to stream tokens through
+     * @param broadcaster the broadcaster to stream text through
      * @return a new streaming session
      */
     public static StreamingSession start(Broadcaster broadcaster) {
@@ -74,7 +74,7 @@ public final class StreamingSessions {
      * Start a new streaming session with a specific session ID that broadcasts to a topic.
      *
      * @param sessionId   a caller-provided session ID (for correlation)
-     * @param broadcaster the broadcaster to stream tokens through
+     * @param broadcaster the broadcaster to stream text through
      * @return a new streaming session
      */
     public static StreamingSession start(String sessionId, Broadcaster broadcaster) {

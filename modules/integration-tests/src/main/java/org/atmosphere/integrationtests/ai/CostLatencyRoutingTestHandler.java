@@ -39,13 +39,13 @@ public class CostLatencyRoutingTestHandler implements AtmosphereHandler {
     private final RoutingLlmClient latencyRouter;
 
     public CostLatencyRoutingTestHandler() {
-        var cheapClient = FakeLlmClient.withTokens("cheap-model",
+        var cheapClient = FakeLlmClient.withTexts("cheap-model",
                 "CHEAP:", " budget", " response.");
-        var midClient = FakeLlmClient.withTokens("mid-model",
+        var midClient = FakeLlmClient.withTexts("mid-model",
                 "MID:", " balanced", " response.");
-        var premiumClient = FakeLlmClient.withTokens("premium-model",
+        var premiumClient = FakeLlmClient.withTexts("premium-model",
                 "PREMIUM:", " high-quality", " response.");
-        var defaultClient = FakeLlmClient.withTokens("default-model",
+        var defaultClient = FakeLlmClient.withTexts("default-model",
                 "DEFAULT:", " fallback", " response.");
 
         // Cost-based routing: models with different cost profiles
@@ -61,11 +61,11 @@ public class CostLatencyRoutingTestHandler implements AtmosphereHandler {
                 .build();
 
         // Latency-based routing: models with different latency profiles
-        var fastClient = FakeLlmClient.withTokens("fast-model",
+        var fastClient = FakeLlmClient.withTexts("fast-model",
                 "FAST:", " quick", " response.");
-        var mediumClient = FakeLlmClient.withTokens("medium-model",
+        var mediumClient = FakeLlmClient.withTexts("medium-model",
                 "MEDIUM:", " moderate", " response.");
-        var slowClient = FakeLlmClient.withTokens("slow-model",
+        var slowClient = FakeLlmClient.withTexts("slow-model",
                 "SLOW:", " thorough", " response.");
 
         latencyRouter = RoutingLlmClient.builder(defaultClient, "default-model")
@@ -101,7 +101,7 @@ public class CostLatencyRoutingTestHandler implements AtmosphereHandler {
             var spaceIdx = rest.indexOf(' ');
             var budget = Double.parseDouble(rest.substring(0, spaceIdx));
             var text = rest.substring(spaceIdx + 1);
-            var maxStreamingTexts = (int) (budget / 0.001); // Normalize to token count
+            var maxStreamingTexts = (int) (budget / 0.001); // Normalize to streaming text count
 
             var request = ChatCompletionRequest.builder("auto")
                     .user(text)
@@ -109,13 +109,13 @@ public class CostLatencyRoutingTestHandler implements AtmosphereHandler {
                     .build();
 
             // Build a cost router with the specific budget
-            var cheapClient = FakeLlmClient.withTokens("cheap-model",
+            var cheapClient = FakeLlmClient.withTexts("cheap-model",
                     "CHEAP:", " budget", " response.");
-            var midClient = FakeLlmClient.withTokens("mid-model",
+            var midClient = FakeLlmClient.withTexts("mid-model",
                     "MID:", " balanced", " response.");
-            var premiumClient = FakeLlmClient.withTokens("premium-model",
+            var premiumClient = FakeLlmClient.withTexts("premium-model",
                     "PREMIUM:", " high-quality", " response.");
-            var defaultClient = FakeLlmClient.withTokens("default-model",
+            var defaultClient = FakeLlmClient.withTexts("default-model",
                     "DEFAULT:", " fallback", " response.");
 
             var router = RoutingLlmClient.builder(defaultClient, "default-model")
@@ -137,13 +137,13 @@ public class CostLatencyRoutingTestHandler implements AtmosphereHandler {
 
             var request = ChatCompletionRequest.of("auto", text);
 
-            var fastClient = FakeLlmClient.withTokens("fast-model",
+            var fastClient = FakeLlmClient.withTexts("fast-model",
                     "FAST:", " quick", " response.");
-            var mediumClient = FakeLlmClient.withTokens("medium-model",
+            var mediumClient = FakeLlmClient.withTexts("medium-model",
                     "MEDIUM:", " moderate", " response.");
-            var slowClient = FakeLlmClient.withTokens("slow-model",
+            var slowClient = FakeLlmClient.withTexts("slow-model",
                     "SLOW:", " thorough", " response.");
-            var defaultClient = FakeLlmClient.withTokens("default-model",
+            var defaultClient = FakeLlmClient.withTexts("default-model",
                     "DEFAULT:", " fallback", " response.");
 
             var router = RoutingLlmClient.builder(defaultClient, "default-model")
@@ -158,7 +158,7 @@ public class CostLatencyRoutingTestHandler implements AtmosphereHandler {
 
         } else {
             // Unknown format — use default
-            var defaultClient = FakeLlmClient.withTokens("default-model",
+            var defaultClient = FakeLlmClient.withTexts("default-model",
                     "DEFAULT:", " fallback", " response.");
             var request = ChatCompletionRequest.of("default-model", prompt);
             defaultClient.streamChatCompletion(request, session);

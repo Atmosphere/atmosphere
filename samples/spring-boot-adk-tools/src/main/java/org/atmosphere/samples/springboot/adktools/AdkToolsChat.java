@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * AI chat endpoint demonstrating Google ADK tool calling with Atmosphere's
- * token budget management and response caching.
+ * streaming text budget management and response caching.
  *
  * <h3>Atmosphere features showcased</h3>
  * <ul>
@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  *       ADK agent remembers context across turns</li>
  *   <li><b>Broadcaster access</b> — {@code resource.getBroadcaster()} is used to
  *       log connected peers and broadcast metadata</li>
- *   <li>{@link StreamingTextBudgetManager} — per-user token budget with graceful degradation</li>
+ *   <li>{@link StreamingTextBudgetManager} — per-user streaming text budget with graceful degradation</li>
  *   <li>{@link AiResponseCacheInspector} — caches completed responses for replay</li>
  * </ul>
  *

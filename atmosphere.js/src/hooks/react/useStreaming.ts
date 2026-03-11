@@ -34,15 +34,15 @@ export interface UseStreamingOptions {
  * Return type of {@link useStreaming}.
  */
 export interface UseStreamingResult {
-  /** All tokens received so far, concatenated. */
+  /** All streaming text fragments received so far, concatenated. */
   fullText: string;
-  /** Array of individual tokens in order. */
-  tokens: string[];
-  /** Whether the stream is currently active (tokens arriving). */
+  /** Array of individual streaming text fragments in order. */
+  streamingTexts: string[];
+  /** Whether the stream is currently active (streaming texts arriving). */
   isStreaming: boolean;
   /** Last progress message from the server. */
   progress: string | null;
-  /** Metadata received from the server (model name, token counts, etc.). */
+  /** Metadata received from the server (model name, streaming text counts, etc.). */
   metadata: Record<string, unknown>;
   /** Aggregated session statistics (available after session completes). */
   stats: SessionStats | null;
@@ -63,7 +63,7 @@ export interface UseStreamingResult {
  *
  * Connects to an Atmosphere endpoint that uses the AI streaming wire protocol
  * ({@code atmosphere-ai} on the server side) and provides reactive state for
- * token-by-token rendering.
+ * incremental streaming text rendering.
  *
  * ```tsx
  * const { fullText, isStreaming, send, progress } = useStreaming({
@@ -81,7 +81,7 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   const atmosphere = useAtmosphereContext();
   const { request, enabled = true } = options;
 
-  const [tokens, setTokens] = useState<string[]>([]);
+  const [streamingTexts, setStreamingTexts] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<Record<string, unknown>>({});
@@ -99,10 +99,10 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
     (async () => {
       try {
         const handle = await subscribeStreaming(atmosphere, request, {
-          onToken: (token) => {
+          onStreamingText: (text) => {
             if (cancelled) return;
             setIsStreaming(true);
-            setTokens((prev) => [...prev, token]);
+            setStreamingTexts((prev) => [...prev, text]);
           },
           onProgress: (msg) => {
             if (!cancelled) setProgress(msg);
@@ -164,7 +164,7 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   }, []);
 
   const reset = useCallback(() => {
-    setTokens([]);
+    setStreamingTexts([]);
     setIsStreaming(false);
     setProgress(null);
     setMetadata({});
@@ -178,10 +178,10 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
     setIsStreaming(false);
   }, []);
 
-  const fullText = useMemo(() => tokens.join(''), [tokens]);
+  const fullText = useMemo(() => streamingTexts.join(''), [streamingTexts]);
 
   return useMemo(
-    () => ({ fullText, tokens, isStreaming, progress, metadata, stats, routing, error, send, reset, close }),
-    [fullText, tokens, isStreaming, progress, metadata, stats, routing, error, send, reset, close],
+    () => ({ fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, error, send, reset, close }),
+    [fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, error, send, reset, close],
   );
 }

@@ -27,7 +27,7 @@ public class PiiRedactionFilterTest {
 
     private final PiiRedactionFilter filter = new PiiRedactionFilter();
 
-    private BroadcastAction sendToken(String data, String sessionId, long seq) {
+    private BroadcastAction sendStreamingText(String data, String sessionId, long seq) {
         var msg = new AiStreamMessage("streaming-text", data, sessionId, seq, null, null);
         var raw = new RawMessage(msg.toJson());
         return filter.filter("b1", raw, raw);
@@ -76,13 +76,13 @@ public class PiiRedactionFilterTest {
     }
 
     @Test
-    public void testTokenBufferingUntilSentenceBoundary() throws Exception {
-        // First token: no sentence boundary — should be ABORT (buffered)
-        var result1 = sendToken("My email is ", "s1", 1);
+    public void testStreamingTextBufferingUntilSentenceBoundary() throws Exception {
+        // First streaming text: no sentence boundary — should be ABORT (buffered)
+        var result1 = sendStreamingText("My email is ", "s1", 1);
         assertEquals(BroadcastAction.ACTION.ABORT, result1.action());
 
-        // Second token with sentence boundary — should flush with redaction
-        var result2 = sendToken("user@example.com.", "s1", 2);
+        // Second streaming text with sentence boundary — should flush with redaction
+        var result2 = sendStreamingText("user@example.com.", "s1", 2);
         assertEquals(BroadcastAction.ACTION.CONTINUE, result2.action());
 
         var raw = (RawMessage) result2.message();
@@ -93,19 +93,19 @@ public class PiiRedactionFilterTest {
 
     @Test
     public void testFlushOnComplete() throws Exception {
-        // Buffer tokens without sentence boundary (no . ! ? or newline)
+        // Buffer streaming texts without sentence boundary (no . ! ? or newline)
         // Note: email contains dots which count as sentence boundaries,
         // so use a phone number instead for this buffering test
-        var tokenResult = sendToken("Call me at 555-123-4567", "s1", 1);
-        assertEquals(BroadcastAction.ACTION.ABORT, tokenResult.action(), "Token should be buffered (ABORT)");
+        var textResult = sendStreamingText("Call me at 555-123-4567", "s1", 1);
+        assertEquals(BroadcastAction.ACTION.ABORT, textResult.action(), "Streaming text should be buffered (ABORT)");
 
-        // Complete should flush the buffer as a proper "streaming-text" message (not embed in complete.data)
+        // Complete should flush the buffer as a proper streaming text message (not embed in complete.data)
         // The actual complete is deferred via broadcaster (not available in unit tests)
         var result = sendComplete("s1", 2);
         var raw = (RawMessage) result.message();
         var parsed = AiStreamMessage.parse((String) raw.message());
 
-        // Flushed text arrives as "streaming-text" type to maintain protocol invariant
+        // Flushed text arrives as streaming text type to maintain protocol invariant
         assertTrue(parsed.isStreamingText());
         assertNotNull(parsed.data());
         assertFalse(parsed.data().contains("555-123-4567"));
@@ -156,18 +156,18 @@ public class PiiRedactionFilterTest {
     }
 
     @Test
-    public void testFlushTokenUsesTerminalSeqAndDeferredTerminalUsesSeqPlusOne() throws Exception {
-        // Buffer tokens without sentence boundary
-        sendToken("Call me at 555-123-4567", "seq-test", 4);
+    public void testFlushTextUsesTerminalSeqAndDeferredTerminalUsesSeqPlusOne() throws Exception {
+        // Buffer streaming texts without sentence boundary
+        sendStreamingText("Call me at 555-123-4567", "seq-test", 4);
 
         // Complete with seq=5 should produce:
-        // - flushed token with seq=5 (returned from filter)
+        // - flushed streaming text with seq=5 (returned from filter)
         // - deferred terminal with seq=6 (via broadcaster, not testable here)
         var result = sendComplete("seq-test", 5);
         var raw = (RawMessage) result.message();
         var parsed = AiStreamMessage.parse((String) raw.message());
 
-        // The flushed token should keep the terminal's original seq
+        // The flushed streaming text should keep the terminal's original seq
         assertTrue(parsed.isStreamingText());
         assertEquals(5L, parsed.seq());
     }

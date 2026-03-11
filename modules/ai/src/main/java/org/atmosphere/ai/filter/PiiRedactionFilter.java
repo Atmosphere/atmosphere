@@ -28,13 +28,13 @@ import java.util.regex.Pattern;
 
 /**
  * A {@link AiStreamBroadcastFilter} that detects and redacts personally identifiable
- * information (PII) from AI-generated token streams.
+ * information (PII) from AI-generated streaming text streams.
  *
- * <p>Since AI tokens arrive one or a few words at a time, the filter buffers tokens
- * per session until a sentence boundary ({@code .}, {@code !}, {@code ?}, or newline)
- * is detected. At that point it scans the buffered sentence for PII patterns, redacts
- * any matches, and emits the cleaned text as a single token message. On stream
- * completion, any remaining buffered text is flushed with redaction applied.</p>
+ * <p>Since AI streaming texts arrive one or a few words at a time, the filter buffers
+ * streaming texts per session until a sentence boundary ({@code .}, {@code !}, {@code ?},
+ * or newline) is detected. At that point it scans the buffered sentence for PII patterns,
+ * redacts any matches, and emits the cleaned text as a single streaming text message. On
+ * stream completion, any remaining buffered text is flushed with redaction applied.</p>
  *
  * <h3>Default patterns</h3>
  * <ul>
@@ -122,7 +122,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
             String broadcasterId, AiStreamMessage msg, String originalJson, RawMessage rawMessage) {
 
         if (msg.isStreamingText() && msg.data() != null) {
-            return handleToken(msg);
+            return handleStreamingText(msg);
         }
 
         if (msg.isComplete() || msg.isError()) {
@@ -133,7 +133,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
         return new BroadcastAction(rawMessage);
     }
 
-    private BroadcastAction handleToken(AiStreamMessage msg) {
+    private BroadcastAction handleStreamingText(AiStreamMessage msg) {
         var buffer = buffers.computeIfAbsent(msg.sessionId(), k -> new StringBuilder());
         buffer.append(msg.data());
 
@@ -151,7 +151,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
             return new BroadcastAction(new RawMessage(modified.toJson()));
         }
 
-        // Buffer the token — ABORT so it doesn't reach the client yet
+        // Buffer the streaming text — ABORT so it doesn't reach the client yet
         return new BroadcastAction(BroadcastAction.ACTION.ABORT, rawMessageFor(msg));
     }
 
@@ -164,7 +164,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
             // Emit the flushed streaming text as a proper "streaming-text" message to maintain protocol
             // invariant: all text arrives as "streaming-text" type, "complete" is always bare.
             // Bump the terminal message's seq to seq+1 so it doesn't collide with the
-            // synthetic flush token and the monotonic sequence invariant is preserved.
+            // synthetic flush streaming text and the monotonic sequence invariant is preserved.
             var bumpedTerminal = msg.withSeq(msg.seq() + 1);
             deferBroadcast(broadcasterId, msg.sessionId(), new RawMessage(bumpedTerminal.toJson()));
             return new BroadcastAction(new RawMessage(streamingTextMsg.toJson()));

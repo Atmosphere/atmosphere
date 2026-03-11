@@ -40,7 +40,7 @@ public class AiResponseCacheCoalescingTest {
         var event = received.get(0);
         assertEquals("s1", event.sessionId());
         assertEquals("b1", event.broadcasterId());
-        assertEquals(3, event.totalTokens());
+        assertEquals(3, event.totalStreamingTexts());
         assertEquals("complete", event.status());
     }
 
@@ -57,7 +57,7 @@ public class AiResponseCacheCoalescingTest {
         assertEquals(1, received.size());
         var event = received.get(0);
         assertEquals("error", event.status());
-        assertEquals(2, event.totalTokens());
+        assertEquals(2, event.totalStreamingTexts());
     }
 
     @Test
@@ -128,8 +128,8 @@ public class AiResponseCacheCoalescingTest {
                 .filter(e -> "s1".equals(e.sessionId())).findFirst().orElseThrow();
         var s2Event = received.stream()
                 .filter(e -> "s2".equals(e.sessionId())).findFirst().orElseThrow();
-        assertEquals(1, s1Event.totalTokens());
-        assertEquals(3, s2Event.totalTokens());
+        assertEquals(1, s1Event.totalStreamingTexts());
+        assertEquals(3, s2Event.totalStreamingTexts());
     }
 
     @Test

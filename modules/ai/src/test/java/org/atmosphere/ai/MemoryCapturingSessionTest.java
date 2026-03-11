@@ -37,7 +37,7 @@ public class MemoryCapturingSessionTest {
     }
 
     @Test
-    public void testSendAccumulatesTokensAndDelegates() {
+    public void testSendAccumulatesTextsAndDelegates() {
         var session = new MemoryCapturingSession(delegate, memory, "conv-1", "Hello");
 
         session.send("Hi");
@@ -96,7 +96,7 @@ public class MemoryCapturingSessionTest {
     @Test
     public void testCompleteWithEmptyResponseSavesOnlyUserMessage() {
         var session = new MemoryCapturingSession(delegate, memory, "conv-1", "Hello");
-        // No tokens sent, then complete
+        // No streaming texts sent, then complete
         session.complete();
 
         var history = memory.getHistory("conv-1");

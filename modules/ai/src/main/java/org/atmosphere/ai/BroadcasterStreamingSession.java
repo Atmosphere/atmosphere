@@ -28,11 +28,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * A {@link StreamingSession} that broadcasts tokens to all subscribers of a
+ * A {@link StreamingSession} that broadcasts streaming texts to all subscribers of a
  * {@link Broadcaster} topic, without requiring a specific {@link org.atmosphere.cpr.AtmosphereResource}.
  *
  * <p>This is the bridge between MCP tool calls and real-time browser clients:
- * an AI agent calls an MCP tool, the tool streams LLM tokens through this session,
+ * an AI agent calls an MCP tool, the tool streams LLM streaming texts through this session,
  * and all WebSocket/SSE/gRPC clients subscribed to the broadcaster receive them.</p>
  *
  * <p>Uses the same wire protocol as {@link DefaultStreamingSession}.</p>
@@ -58,12 +58,12 @@ final class BroadcasterStreamingSession implements StreamingSession {
     }
 
     @Override
-    public void send(String token) {
+    public void send(String text) {
         if (closed.get()) {
-            logger.warn("Attempted to send token on closed session {}", sessionId);
+            logger.warn("Attempted to send streaming text on closed session {}", sessionId);
             return;
         }
-        broadcast(buildMessage("streaming-text", token));
+        broadcast(buildMessage("streaming-text", text));
     }
 
     @Override

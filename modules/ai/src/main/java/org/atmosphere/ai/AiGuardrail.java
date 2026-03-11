@@ -58,8 +58,8 @@ public interface AiGuardrail {
     }
 
     /**
-     * Inspect a response token before it reaches the client. Called for
-     * each accumulated response (not per-token for efficiency).
+     * Inspect a response streaming text before it reaches the client. Called for
+     * each accumulated response (not per-streaming-text for efficiency).
      *
      * @param accumulatedResponse the response text accumulated so far
      * @return the guardrail result (pass or block)

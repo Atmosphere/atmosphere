@@ -55,12 +55,12 @@ public class FanOutStreamingSessionTest {
         parentSession.close();
     }
 
-    /** A mock LlmClient that sends a fixed number of tokens. */
-    private static LlmClient fixedTokenClient(String... tokens) {
+    /** A mock LlmClient that sends a fixed number of streaming texts. */
+    private static LlmClient fixedTextClient(String... texts) {
         return (request, session) -> {
-            for (var token : tokens) {
+            for (var text : texts) {
                 if (session.isClosed()) return;
-                session.send(token);
+                session.send(text);
                 try { Thread.sleep(5); } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     return;
@@ -70,12 +70,12 @@ public class FanOutStreamingSessionTest {
         };
     }
 
-    /** A slow LlmClient that sleeps between tokens. */
-    private static LlmClient slowClient(int delayMs, String... tokens) {
+    /** A slow LlmClient that sleeps between streaming texts. */
+    private static LlmClient slowClient(int delayMs, String... texts) {
         return (request, session) -> {
-            for (var token : tokens) {
+            for (var text : texts) {
                 if (session.isClosed()) return;
-                session.send(token);
+                session.send(text);
                 try { Thread.sleep(delayMs); } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     return;
@@ -88,8 +88,8 @@ public class FanOutStreamingSessionTest {
     @Test
     public void testAllResponsesStrategy() {
         var endpoints = List.of(
-                new ModelEndpoint("fast", fixedTokenClient("Hello", " world"), "fast-model"),
-                new ModelEndpoint("slow", fixedTokenClient("Hi", " there"), "slow-model")
+                new ModelEndpoint("fast", fixedTextClient("Hello", " world"), "fast-model"),
+                new ModelEndpoint("slow", fixedTextClient("Hi", " there"), "slow-model")
         );
 
         try (var fanOut = new FanOutStreamingSession(parentSession, endpoints,
@@ -110,7 +110,7 @@ public class FanOutStreamingSessionTest {
     @Test
     public void testFirstCompleteStrategy() throws Exception {
         var endpoints = List.of(
-                new ModelEndpoint("fast", fixedTokenClient("Quick"), "fast-model"),
+                new ModelEndpoint("fast", fixedTextClient("Quick"), "fast-model"),
                 new ModelEndpoint("slow", slowClient(500, "Slow", " response", " here"), "slow-model")
         );
 
@@ -137,7 +137,7 @@ public class FanOutStreamingSessionTest {
     @Test
     public void testFanOutResultMetrics() {
         var endpoints = List.of(
-                new ModelEndpoint("model1", fixedTokenClient("a", "b", "c"), "model1")
+                new ModelEndpoint("model1", fixedTextClient("a", "b", "c"), "model1")
         );
 
         try (var fanOut = new FanOutStreamingSession(parentSession, endpoints,
@@ -157,7 +157,7 @@ public class FanOutStreamingSessionTest {
     @Test
     public void testFanOutWithBroadcaster() {
         var endpoints = List.of(
-                new ModelEndpoint("model1", fixedTokenClient("Hello"), "model1")
+                new ModelEndpoint("model1", fixedTextClient("Hello"), "model1")
         );
 
         var parentFromBroadcaster = StreamingSessions.start("parent-bc", broadcaster);
@@ -176,7 +176,7 @@ public class FanOutStreamingSessionTest {
 
     @Test
     public void testModelEndpointRecord() {
-        var client = fixedTokenClient("test");
+        var client = fixedTextClient("test");
         var endpoint = new ModelEndpoint("gemini", client, "gemini-2.5-flash");
 
         assertEquals("gemini", endpoint.id());
@@ -188,12 +188,12 @@ public class FanOutStreamingSessionTest {
     public void testFanOutStrategySealed() {
         FanOutStrategy strategy1 = new FanOutStrategy.AllResponses();
         FanOutStrategy strategy2 = new FanOutStrategy.FirstComplete();
-        FanOutStrategy strategy3 = new FanOutStrategy.FastestTokens(5);
+        FanOutStrategy strategy3 = new FanOutStrategy.FastestStreamingTexts(5);
 
         assertInstanceOf(FanOutStrategy.AllResponses.class, strategy1);
         assertInstanceOf(FanOutStrategy.FirstComplete.class, strategy2);
-        assertInstanceOf(FanOutStrategy.FastestTokens.class, strategy3);
-        assertEquals(5, ((FanOutStrategy.FastestTokens) strategy3).tokenThreshold());
+        assertInstanceOf(FanOutStrategy.FastestStreamingTexts.class, strategy3);
+        assertEquals(5, ((FanOutStrategy.FastestStreamingTexts) strategy3).streamingTextThreshold());
     }
 
     @Test
@@ -214,7 +214,7 @@ public class FanOutStreamingSessionTest {
         };
 
         var endpoints = List.of(
-                new ModelEndpoint("good", fixedTokenClient("Hello"), "good-model"),
+                new ModelEndpoint("good", fixedTextClient("Hello"), "good-model"),
                 new ModelEndpoint("bad", failingClient, "bad-model")
         );
 

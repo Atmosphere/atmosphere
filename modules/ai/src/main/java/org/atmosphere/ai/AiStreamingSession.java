@@ -214,7 +214,7 @@ public class AiStreamingSession implements StreamingSession {
             target = new MemoryCapturingSession(delegate, memory, resource.uuid(), message);
         }
 
-        // Wrap in MetricsCapturingSession for latency/token tracking
+        // Wrap in MetricsCapturingSession for latency/streaming text tracking
         if (metrics != AiMetrics.NOOP) {
             target = new MetricsCapturingSession(target, metrics, model);
         }
@@ -255,8 +255,8 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     @Override
-    public void send(String token) {
-        delegate.send(token);
+    public void send(String text) {
+        delegate.send(text);
     }
 
     @Override

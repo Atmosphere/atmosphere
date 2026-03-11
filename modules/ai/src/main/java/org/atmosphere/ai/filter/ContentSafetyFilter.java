@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  * A {@link AiStreamBroadcastFilter} that scans AI-generated content for harmful
  * patterns and blocks or replaces unsafe content mid-stream.
  *
- * <p>Like {@link PiiRedactionFilter}, this filter buffers tokens into sentence-sized
+ * <p>Like {@link PiiRedactionFilter}, this filter buffers streaming texts into sentence-sized
  * chunks for context-aware scanning. A pluggable {@link SafetyChecker} interface
  * allows custom safety logic — from simple keyword lists to external moderation APIs.</p>
  *
@@ -140,7 +140,7 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
             String broadcasterId, AiStreamMessage msg, String originalJson, RawMessage rawMessage) {
 
         if (msg.isStreamingText() && msg.data() != null) {
-            return handleToken(msg);
+            return handleStreamingText(msg);
         }
 
         if (msg.isComplete() || msg.isError()) {
@@ -150,7 +150,7 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
         return new BroadcastAction(rawMessage);
     }
 
-    private BroadcastAction handleToken(AiStreamMessage msg) {
+    private BroadcastAction handleStreamingText(AiStreamMessage msg) {
         var buffer = buffers.computeIfAbsent(msg.sessionId(), k -> new StringBuilder());
         buffer.append(msg.data());
 
@@ -160,7 +160,7 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
             return evaluateAndEmit(msg, sentence);
         }
 
-        // Buffer — hold the token
+        // Buffer — hold the streaming text
         return new BroadcastAction(BroadcastAction.ACTION.ABORT, new RawMessage(msg.toJson()));
     }
 

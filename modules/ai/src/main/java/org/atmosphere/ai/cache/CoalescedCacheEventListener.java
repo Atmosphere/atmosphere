@@ -18,7 +18,7 @@ package org.atmosphere.ai.cache;
 /**
  * Listener for coalesced cache events.
  *
- * <p>Unlike the per-token {@link org.atmosphere.cpr.BroadcasterCacheListener},
+ * <p>Unlike the per-streaming-text {@link org.atmosphere.cpr.BroadcasterCacheListener},
  * this listener fires once per session when it completes or errors, providing
  * aggregate metrics.</p>
  *

@@ -56,7 +56,7 @@ public final class DemoResponseProducer {
         if (lower.contains("spring ai") || lower.contains("spring")) {
             return "Spring AI provides a unified ChatClient API for interacting with LLMs. "
                     + "This sample uses atmosphere-spring-ai to bridge Spring AI's Flux-based streaming "
-                    + "into Atmosphere's StreamingSession — giving you real-time token-by-token push "
+                    + "into Atmosphere's StreamingSession — giving you real-time text-by-text push "
                     + "over WebSocket, SSE, or any Atmosphere transport.";
         }
         if (lower.contains("atmosphere")) {

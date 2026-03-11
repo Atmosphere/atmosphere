@@ -64,11 +64,11 @@ public final class DemoEventProducer {
             return "Google ADK (Agent Development Kit) is an open-source toolkit for building "
                     + "AI agents with fine-grained control. It uses LlmAgent, Runner, and Flowable<Event> "
                     + "for streaming. The atmosphere-adk module bridges these event streams to "
-                    + "Atmosphere's Broadcaster, so tokens reach browsers in real-time.";
+                    + "Atmosphere's Broadcaster, so streaming texts reach browsers in real-time.";
         }
-        return "This is a demo ADK agent streaming tokens through Atmosphere's "
+        return "This is a demo ADK agent streaming texts through Atmosphere's "
                 + "real-time infrastructure. Each word you see arrives as a separate "
-                + "streaming token via WebSocket. Try asking about 'atmosphere' or 'adk'!";
+                + "streaming text via WebSocket. Try asking about 'atmosphere' or 'adk'!";
     }
 
     private static Event partialEvent(String text) {

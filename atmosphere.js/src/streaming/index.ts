@@ -33,7 +33,7 @@ import { Atmosphere } from '../core/atmosphere';
  *   url: '/ai/chat',
  *   transport: 'websocket',
  * }, {
- *   onToken: (token) => process.stdout.write(token),
+ *   onStreamingText: (text) => process.stdout.write(text),
  *   onComplete: () => console.log('\nDone!'),
  *   onError: (err) => console.error(err),
  * });
@@ -50,7 +50,7 @@ export async function subscribeStreaming(
   let lastSeq = -1;
 
   // Session stats tracking (reset between sends)
-  let tokenCount = 0;
+  let streamingTextCount = 0;
   let startTime: number | null = null;
   let routing: RoutingInfo = {};
 
@@ -69,8 +69,8 @@ export async function subscribeStreaming(
       if (msg.seq <= lastSeq) return;
       lastSeq = msg.seq;
 
-      dispatch(msg, handlers, { tokenCount, startTime, routing }, (tc, st, rt) => {
-        tokenCount = tc;
+      dispatch(msg, handlers, { streamingTextCount, startTime, routing }, (tc, st, rt) => {
+        streamingTextCount = tc;
         startTime = st;
         routing = rt;
       });
@@ -88,7 +88,7 @@ export async function subscribeStreaming(
       // Reset tracking state for new session
       sessionId = null;
       lastSeq = -1;
-      tokenCount = 0;
+      streamingTextCount = 0;
       startTime = null;
       routing = {};
 
@@ -104,7 +104,7 @@ export async function subscribeStreaming(
 }
 
 interface TrackingState {
-  tokenCount: number;
+  streamingTextCount: number;
   startTime: number | null;
   routing: RoutingInfo;
 }
@@ -131,15 +131,15 @@ function dispatch(
   msg: StreamingMessage,
   handlers: StreamingHandlers,
   state: TrackingState,
-  updateState: (tokenCount: number, startTime: number | null, routing: RoutingInfo) => void,
+  updateState: (streamingTextCount: number, startTime: number | null, routing: RoutingInfo) => void,
 ): void {
   switch (msg.type) {
-    case 'token':
+    case 'streaming-text':
       if (msg.data !== undefined) {
-        handlers.onToken?.(msg.data, msg.seq);
-        state.tokenCount++;
+        handlers.onStreamingText?.(msg.data, msg.seq);
+        state.streamingTextCount++;
         if (!state.startTime) state.startTime = Date.now();
-        updateState(state.tokenCount, state.startTime, state.routing);
+        updateState(state.streamingTextCount, state.startTime, state.routing);
       }
       break;
     case 'progress':
@@ -149,10 +149,10 @@ function dispatch(
       handlers.onComplete?.(msg.data);
       const elapsed = state.startTime ? Date.now() - state.startTime : 0;
       const stats: SessionStats = {
-        totalTokens: state.tokenCount,
+        totalStreamingTexts: state.streamingTextCount,
         elapsedMs: elapsed,
         status: 'complete',
-        tokensPerSecond: elapsed > 0 ? (state.tokenCount / elapsed) * 1000 : 0,
+        streamingTextsPerSecond: elapsed > 0 ? (state.streamingTextCount / elapsed) * 1000 : 0,
       };
       handlers.onSessionComplete?.(stats, { ...state.routing });
       break;
@@ -161,10 +161,10 @@ function dispatch(
       handlers.onError?.(msg.data ?? 'Unknown error');
       const elapsed = state.startTime ? Date.now() - state.startTime : 0;
       const stats: SessionStats = {
-        totalTokens: state.tokenCount,
+        totalStreamingTexts: state.streamingTextCount,
         elapsedMs: elapsed,
         status: 'error',
-        tokensPerSecond: elapsed > 0 ? (state.tokenCount / elapsed) * 1000 : 0,
+        streamingTextsPerSecond: elapsed > 0 ? (state.streamingTextCount / elapsed) * 1000 : 0,
       };
       handlers.onSessionComplete?.(stats, { ...state.routing });
       break;
@@ -172,7 +172,7 @@ function dispatch(
     case 'metadata':
       if (msg.key !== undefined) {
         extractRouting(msg.key, msg.value, state.routing);
-        updateState(state.tokenCount, state.startTime, state.routing);
+        updateState(state.streamingTextCount, state.startTime, state.routing);
         handlers.onMetadata?.(msg.key, msg.value);
       }
       break;

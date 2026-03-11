@@ -18,17 +18,17 @@
  * Wire protocol message types sent by the server-side
  * {@code DefaultStreamingSession}.
  */
-export type StreamingMessageType = 'token' | 'complete' | 'error' | 'progress' | 'metadata';
+export type StreamingMessageType = 'streaming-text' | 'complete' | 'error' | 'progress' | 'metadata';
 
 /**
  * Aggregated statistics for a streaming session, computed client-side
  * from coalesced cache events.
  */
 export interface SessionStats {
-  totalTokens: number;
+  totalStreamingTexts: number;
   elapsedMs: number;
   status: 'streaming' | 'complete' | 'error';
-  tokensPerSecond: number;
+  streamingTextsPerSecond: number;
 }
 
 /**
@@ -56,7 +56,7 @@ export interface SendOptions {
  *
  * Example:
  * ```json
- * {"type":"token","data":"Hello","sessionId":"abc-123","seq":1}
+ * {"type":"streaming-text","data":"Hello","sessionId":"abc-123","seq":1}
  * ```
  */
 export interface StreamingMessage {
@@ -72,15 +72,15 @@ export interface StreamingMessage {
  * Event handlers for a streaming session.
  */
 export interface StreamingHandlers {
-  /** Called for each token received from the LLM. */
-  onToken?: (token: string, seq: number) => void;
+  /** Called for each streaming text fragment received from the LLM. */
+  onStreamingText?: (text: string, seq: number) => void;
   /** Called when the server signals progress (e.g. "Thinking…"). */
   onProgress?: (message: string, seq: number) => void;
   /** Called when the stream completes, with an optional summary. */
   onComplete?: (summary?: string) => void;
   /** Called on error. */
   onError?: (error: string) => void;
-  /** Called on metadata events (model name, token count, etc.). */
+  /** Called on metadata events (model name, streaming text count, etc.). */
   onMetadata?: (key: string, value: unknown) => void;
   /** Called when the session completes or errors, with aggregated stats and routing info. */
   onSessionComplete?: (stats: SessionStats, routing: RoutingInfo) => void;

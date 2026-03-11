@@ -26,7 +26,7 @@ import java.io.IOException;
 
 /**
  * Test handler for classroom broadcast scenarios.
- * Each instance represents one room with a distinct persona and token prefix.
+ * Each instance represents one room with a distinct persona and streaming text prefix.
  * Registered at explicit paths (/ai/classroom/math, /ai/classroom/code) so
  * each room gets its own broadcaster — proving room isolation.
  */

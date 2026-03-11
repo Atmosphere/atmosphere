@@ -26,7 +26,7 @@ public class CostMeteringFilterTest {
 
     private final CostMeteringFilter filter = new CostMeteringFilter();
 
-    private BroadcastAction sendToken(String broadcasterId, String sessionId, long seq) {
+    private BroadcastAction sendStreamingText(String broadcasterId, String sessionId, long seq) {
         var msg = new AiStreamMessage("streaming-text", "word", sessionId, seq, null, null);
         var raw = new RawMessage(msg.toJson());
         return filter.filter(broadcasterId, raw, raw);
@@ -39,54 +39,54 @@ public class CostMeteringFilterTest {
     }
 
     @Test
-    public void testCountsTokensPerSession() {
-        sendToken("b1", "s1", 1);
-        sendToken("b1", "s1", 2);
-        sendToken("b1", "s1", 3);
+    public void testCountsStreamingTextsPerSession() {
+        sendStreamingText("b1", "s1", 1);
+        sendStreamingText("b1", "s1", 2);
+        sendStreamingText("b1", "s1", 3);
 
-        assertEquals(3, filter.getSessionTokenCount("s1"));
+        assertEquals(3, filter.getSessionStreamingTextCount("s1"));
     }
 
     @Test
-    public void testCountsTokensPerBroadcaster() {
-        sendToken("b1", "s1", 1);
-        sendToken("b1", "s1", 2);
-        sendToken("b1", "s2", 1);
+    public void testCountsStreamingTextsPerBroadcaster() {
+        sendStreamingText("b1", "s1", 1);
+        sendStreamingText("b1", "s1", 2);
+        sendStreamingText("b1", "s2", 1);
 
-        assertEquals(3, filter.getBroadcasterTokenCount("b1"));
+        assertEquals(3, filter.getBroadcasterStreamingTextCount("b1"));
     }
 
     @Test
     public void testSessionCountCleansUpOnComplete() {
-        sendToken("b1", "s1", 1);
-        sendToken("b1", "s1", 2);
-        assertEquals(2, filter.getSessionTokenCount("s1"));
+        sendStreamingText("b1", "s1", 1);
+        sendStreamingText("b1", "s1", 2);
+        assertEquals(2, filter.getSessionStreamingTextCount("s1"));
 
         sendComplete("b1", "s1", 3);
-        assertEquals(0, filter.getSessionTokenCount("s1"));
+        assertEquals(0, filter.getSessionStreamingTextCount("s1"));
     }
 
     @Test
     public void testBroadcasterCountPersistsAcrossSessions() {
-        sendToken("b1", "s1", 1);
-        sendToken("b1", "s1", 2);
+        sendStreamingText("b1", "s1", 1);
+        sendStreamingText("b1", "s1", 2);
         sendComplete("b1", "s1", 3);
 
-        sendToken("b1", "s2", 1);
-        assertEquals(3, filter.getBroadcasterTokenCount("b1"));
+        sendStreamingText("b1", "s2", 1);
+        assertEquals(3, filter.getBroadcasterStreamingTextCount("b1"));
     }
 
     @Test
     public void testBudgetEnforcement() throws Exception {
         filter.setBudget("b1", 3);
 
-        // First 3 tokens pass through
-        assertEquals(BroadcastAction.ACTION.CONTINUE, sendToken("b1", "s1", 1).action());
-        assertEquals(BroadcastAction.ACTION.CONTINUE, sendToken("b1", "s1", 2).action());
-        assertEquals(BroadcastAction.ACTION.CONTINUE, sendToken("b1", "s1", 3).action());
+        // First 3 streaming texts pass through
+        assertEquals(BroadcastAction.ACTION.CONTINUE, sendStreamingText("b1", "s1", 1).action());
+        assertEquals(BroadcastAction.ACTION.CONTINUE, sendStreamingText("b1", "s1", 2).action());
+        assertEquals(BroadcastAction.ACTION.CONTINUE, sendStreamingText("b1", "s1", 3).action());
 
-        // 4th token exceeds budget — should SKIP with error
-        var result = sendToken("b1", "s1", 4);
+        // 4th streaming text exceeds budget — should SKIP with error
+        var result = sendStreamingText("b1", "s1", 4);
         assertEquals(BroadcastAction.ACTION.SKIP, result.action());
 
         var raw = (RawMessage) result.message();
@@ -98,45 +98,45 @@ public class CostMeteringFilterTest {
     @Test
     public void testNoBudgetMeansNoLimit() {
         for (int i = 1; i <= 1000; i++) {
-            assertEquals(BroadcastAction.ACTION.CONTINUE, sendToken("b1", "s1", i).action());
+            assertEquals(BroadcastAction.ACTION.CONTINUE, sendStreamingText("b1", "s1", i).action());
         }
-        assertEquals(1000, filter.getBroadcasterTokenCount("b1"));
+        assertEquals(1000, filter.getBroadcasterStreamingTextCount("b1"));
     }
 
     @Test
     public void testResetBroadcasterCount() {
-        sendToken("b1", "s1", 1);
-        sendToken("b1", "s1", 2);
-        assertEquals(2, filter.getBroadcasterTokenCount("b1"));
+        sendStreamingText("b1", "s1", 1);
+        sendStreamingText("b1", "s1", 2);
+        assertEquals(2, filter.getBroadcasterStreamingTextCount("b1"));
 
         filter.resetBroadcasterCount("b1");
-        assertEquals(0, filter.getBroadcasterTokenCount("b1"));
+        assertEquals(0, filter.getBroadcasterStreamingTextCount("b1"));
     }
 
     @Test
     public void testRemoveBudget() {
         filter.setBudget("b1", 2);
-        sendToken("b1", "s1", 1);
-        sendToken("b1", "s1", 2);
+        sendStreamingText("b1", "s1", 1);
+        sendStreamingText("b1", "s1", 2);
 
         // Remove budget — should no longer enforce
         filter.removeBudget("b1");
-        assertEquals(BroadcastAction.ACTION.CONTINUE, sendToken("b1", "s1", 3).action());
+        assertEquals(BroadcastAction.ACTION.CONTINUE, sendStreamingText("b1", "s1", 3).action());
     }
 
     @Test
     public void testBudgetAppliesAcrossSessions() throws Exception {
         filter.setBudget("b1", 3);
 
-        sendToken("b1", "s1", 1);
-        sendToken("b1", "s1", 2);
+        sendStreamingText("b1", "s1", 1);
+        sendStreamingText("b1", "s1", 2);
         sendComplete("b1", "s1", 3);
 
-        // Session s1 used 2 tokens. s2 can use 1 more before budget.
-        assertEquals(BroadcastAction.ACTION.CONTINUE, sendToken("b1", "s2", 1).action());
+        // Session s1 used 2 streaming texts. s2 can use 1 more before budget.
+        assertEquals(BroadcastAction.ACTION.CONTINUE, sendStreamingText("b1", "s2", 1).action());
 
-        // 4th total token — exceeds budget
-        var result = sendToken("b1", "s2", 2);
+        // 4th total streaming text — exceeds budget
+        var result = sendStreamingText("b1", "s2", 2);
         assertEquals(BroadcastAction.ACTION.SKIP, result.action());
     }
 
@@ -152,8 +152,8 @@ public class CostMeteringFilterTest {
 
     @Test
     public void testZeroCountForUnknownSession() {
-        assertEquals(0, filter.getSessionTokenCount("unknown"));
-        assertEquals(0, filter.getBroadcasterTokenCount("unknown"));
+        assertEquals(0, filter.getSessionStreamingTextCount("unknown"));
+        assertEquals(0, filter.getBroadcasterStreamingTextCount("unknown"));
     }
 
     @Test
@@ -163,9 +163,9 @@ public class CostMeteringFilterTest {
 
         filter.setBudgetManager(budgetMgr, sessionId -> "user-1");
 
-        sendToken("b1", "s1", 1);
-        sendToken("b1", "s1", 2);
-        sendToken("b1", "s1", 3);
+        sendStreamingText("b1", "s1", 1);
+        sendStreamingText("b1", "s1", 2);
+        sendStreamingText("b1", "s1", 3);
         sendComplete("b1", "s1", 4);
 
         assertEquals(3, budgetMgr.currentUsage("user-1"));
@@ -174,11 +174,11 @@ public class CostMeteringFilterTest {
     @Test
     public void testNoBudgetManagerSkipsRecording() {
         // No setBudgetManager called — should not throw
-        sendToken("b1", "s1", 1);
-        sendToken("b1", "s1", 2);
+        sendStreamingText("b1", "s1", 1);
+        sendStreamingText("b1", "s1", 2);
         sendComplete("b1", "s1", 3);
         // If we get here without NPE, the test passes
-        assertEquals(0, filter.getSessionTokenCount("s1"));
+        assertEquals(0, filter.getSessionStreamingTextCount("s1"));
     }
 
     @Test
@@ -189,7 +189,7 @@ public class CostMeteringFilterTest {
         // Resolver returns null for this session
         filter.setBudgetManager(budgetMgr, sessionId -> null);
 
-        sendToken("b1", "s1", 1);
+        sendStreamingText("b1", "s1", 1);
         sendComplete("b1", "s1", 2);
 
         assertEquals(0, budgetMgr.currentUsage("user-1"));

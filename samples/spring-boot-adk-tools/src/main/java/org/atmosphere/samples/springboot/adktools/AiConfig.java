@@ -28,7 +28,7 @@ import org.springframework.context.annotation.Configuration;
 /**
  * Spring Boot configuration for the ADK Tools sample.
  *
- * <p>Configures token budget management and response caching to demonstrate
+ * <p>Configures streaming text budget management and response caching to demonstrate
  * Atmosphere's AI infrastructure features alongside Google ADK tool calling.</p>
  */
 @Configuration
@@ -37,10 +37,10 @@ public class AiConfig {
     private static final Logger logger = LoggerFactory.getLogger(AiConfig.class);
 
     @Bean
-    public StreamingTextBudgetManager tokenBudgetManager() {
+    public StreamingTextBudgetManager streamingTextBudgetManager() {
         logger.info("Creating StreamingTextBudgetManager with demo budget");
         var manager = new StreamingTextBudgetManager();
-        // Demo budget: 10,000 tokens per user, degrade to cheaper model at 80%
+        // Demo budget: 10,000 streaming texts per user, degrade to cheaper model at 80%
         manager.setBudget(new StreamingTextBudgetManager.Budget(
                 "demo-user", 10_000, "gemini-2.0-flash-lite", 0.8));
         return manager;

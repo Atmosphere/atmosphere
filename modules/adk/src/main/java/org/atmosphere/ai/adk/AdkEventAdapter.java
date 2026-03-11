@@ -35,14 +35,14 @@ import java.util.concurrent.atomic.AtomicReference;
  * Atmosphere {@link StreamingSession}.
  *
  * <p>Subscribes to the event stream from an ADK {@link com.google.adk.runner.Runner}
- * and forwards streaming tokens to connected browser clients via Atmosphere's
+ * and forwards streaming texts to connected browser clients via Atmosphere's
  * Broadcaster infrastructure.</p>
  *
  * <p>Usage:</p>
  * <pre>{@code
  * Flowable<Event> events = runner.runAsync(userId, sessionId, userMessage);
  * AdkEventAdapter adapter = AdkEventAdapter.bridge(events, broadcaster);
- * // tokens are now pushed to all WebSocket/SSE/gRPC clients on the broadcaster
+ * // streaming texts are now pushed to all WebSocket/SSE/gRPC clients on the broadcaster
  * }</pre>
  *
  * @see StreamingSession
@@ -65,7 +65,7 @@ public final class AdkEventAdapter {
      * {@link StreamingSession} automatically.
      *
      * @param events      the ADK event stream from {@code Runner.runAsync()}
-     * @param broadcaster the Atmosphere broadcaster to push tokens to
+     * @param broadcaster the Atmosphere broadcaster to push streaming texts to
      * @return the adapter (for lifecycle management)
      */
     public static AdkEventAdapter bridge(Flowable<Event> events, Broadcaster broadcaster) {
@@ -78,7 +78,7 @@ public final class AdkEventAdapter {
      *
      * @param events      the ADK event stream from {@code Runner.runAsync()}
      * @param sessionId   session ID for correlation
-     * @param broadcaster the Atmosphere broadcaster to push tokens to
+     * @param broadcaster the Atmosphere broadcaster to push streaming texts to
      * @return the adapter (for lifecycle management)
      */
     public static AdkEventAdapter bridge(Flowable<Event> events, String sessionId, Broadcaster broadcaster) {
@@ -90,7 +90,7 @@ public final class AdkEventAdapter {
      * Bridge an ADK event stream to an existing {@link StreamingSession}.
      *
      * @param events  the ADK event stream from {@code Runner.runAsync()}
-     * @param session the streaming session to push tokens to
+     * @param session the streaming session to push streaming texts to
      * @return the adapter (for lifecycle management)
      */
     public static AdkEventAdapter bridge(Flowable<Event> events, StreamingSession session) {
@@ -157,7 +157,7 @@ public final class AdkEventAdapter {
             return;
         }
 
-        // For non-partial, non-turnComplete events with content, send as token
+        // For non-partial, non-turnComplete events with content, send as streaming text
         extractText(event).ifPresent(session::send);
     }
 

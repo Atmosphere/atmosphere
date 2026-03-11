@@ -221,7 +221,7 @@ public class BroadcasterStreamingSessionTest {
 
     @Test
     public void testSameWireFormatAsDefaultSession() throws Exception {
-        session.send("test-token");
+        session.send("test-text");
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster).broadcast(captor.capture());

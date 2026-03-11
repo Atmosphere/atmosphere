@@ -31,7 +31,7 @@ package org.atmosphere.ai;
  *
  *     @Override
  *     public void stream(MyPrompt request, StreamingSession session) {
- *         myModel.streamTokens(request, token -> session.send(token),
+ *         myModel.streamTexts(request, text -> session.send(text),
  *             () -> session.complete(),
  *             err -> session.error(err));
  *     }
@@ -49,11 +49,11 @@ public interface AiStreamingAdapter<T> {
 
     /**
      * Start streaming a response for the given request. Implementations should
-     * call {@link StreamingSession#send(String)} for each token and
+     * call {@link StreamingSession#send(String)} for each streaming text and
      * {@link StreamingSession#complete()} when done.
      *
      * @param request the AI framework-specific request
-     * @param session the streaming session to push tokens through
+     * @param session the streaming session to push streaming texts through
      */
     void stream(T request, StreamingSession session);
 

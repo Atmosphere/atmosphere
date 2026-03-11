@@ -16,11 +16,11 @@
 package org.atmosphere.ai;
 
 /**
- * A streaming session that delivers tokens/chunks from an AI model to connected
+ * A streaming session that delivers streaming text chunks from an AI model to connected
  * clients via Atmosphere's broadcast infrastructure.
  *
  * <p>This is the core SPI interface — all AI framework adapters (Spring AI,
- * LangChain4j, Embabel, etc.) push tokens through this interface. The wire
+ * LangChain4j, Embabel, etc.) push streaming texts through this interface. The wire
  * protocol, caching, reconnect handling, and client-side hooks are handled
  * automatically.</p>
  *
@@ -34,11 +34,11 @@ public interface StreamingSession extends AutoCloseable {
     String sessionId();
 
     /**
-     * Send a token/chunk to the client.
+     * Send a streaming text chunk to the client.
      *
-     * @param token the text chunk (typically a single token from an LLM)
+     * @param text the text chunk (typically a single streaming text from an LLM)
      */
-    void send(String token);
+    void send(String text);
 
     /**
      * Send structured metadata alongside the stream (e.g., model name, usage stats).

@@ -89,7 +89,7 @@ public final class RoutingLlmClient implements LlmClient {
          *
          * @param client           the LLM client for this model
          * @param model            model name
-         * @param costPerStreamingText     cost per token (in arbitrary units)
+         * @param costPerStreamingText     cost per streaming text (in arbitrary units)
          * @param averageLatencyMs average response latency in milliseconds
          * @param capability       capability score (higher = more capable); used for tie-breaking
          */

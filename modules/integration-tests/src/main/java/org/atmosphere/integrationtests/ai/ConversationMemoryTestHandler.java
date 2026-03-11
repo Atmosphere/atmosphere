@@ -128,7 +128,7 @@ public class ConversationMemoryTestHandler implements AtmosphereHandler {
                 session.sendMetadata("history_" + i + "_content", msg.content());
             }
 
-            // Send response tokens that include the history count and prompt
+            // Send response streaming texts that include the history count and prompt
             try {
                 Thread.sleep(10);
             } catch (InterruptedException e) {

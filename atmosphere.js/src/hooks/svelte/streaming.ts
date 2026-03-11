@@ -24,7 +24,7 @@ import type { Readable } from './atmosphere';
  * State exposed by {@link createStreamingStore}.
  */
 export interface StreamingStoreState {
-  tokens: string[];
+  streamingTexts: string[];
   fullText: string;
   isStreaming: boolean;
   progress: string | null;
@@ -59,7 +59,7 @@ export function createStreamingStore(
   const subscribers = new Set<(value: StreamingStoreState) => void>();
 
   let current: StreamingStoreState = {
-    tokens: [],
+    streamingTexts: [],
     fullText: '',
     isStreaming: false,
     progress: null,
@@ -78,8 +78,8 @@ export function createStreamingStore(
 
   function update(partial: Partial<StreamingStoreState>) {
     current = { ...current, ...partial };
-    if ('tokens' in partial) {
-      current.fullText = current.tokens.join('');
+    if ('streamingTexts' in partial) {
+      current.fullText = current.streamingTexts.join('');
     }
     notify();
   }
@@ -89,8 +89,8 @@ export function createStreamingStore(
     connected = true;
     try {
       handle = await subscribeStreaming(atmosphere, request, {
-        onToken: (token) => {
-          update({ tokens: [...current.tokens, token], isStreaming: true });
+        onStreamingText: (text) => {
+          update({ streamingTexts: [...current.streamingTexts, text], isStreaming: true });
         },
         onProgress: (msg) => {
           update({ progress: msg });
@@ -144,7 +144,7 @@ export function createStreamingStore(
 
   function reset() {
     update({
-      tokens: [],
+      streamingTexts: [],
       fullText: '',
       isStreaming: false,
       progress: null,

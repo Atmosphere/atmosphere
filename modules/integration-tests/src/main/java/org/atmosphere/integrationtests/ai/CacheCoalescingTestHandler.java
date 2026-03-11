@@ -42,7 +42,7 @@ public class CacheCoalescingTestHandler implements AtmosphereHandler {
             // send metadata on the same session. Instead, log it for verification.
             // In a real scenario, this would push to a metrics system.
             System.out.println("COALESCED:" + event.sessionId()
-                    + ":tokens=" + event.totalTokens()
+                    + ":streamingTexts=" + event.totalStreamingTexts()
                     + ":status=" + event.status()
                     + ":elapsed=" + event.elapsedMs());
         });
@@ -65,7 +65,7 @@ public class CacheCoalescingTestHandler implements AtmosphereHandler {
                 // Send metadata about the coalesced listener being active
                 session.sendMetadata("coalescing.enabled", true);
                 var client = FakeLlmClient.slow("coalescing-model", 10,
-                        "Token1.", " Token2.", " Token3.", " Token4.", " Token5.");
+                        "Text1.", " Text2.", " Text3.", " Text4.", " Text5.");
                 var request = ChatCompletionRequest.of(client.modelName(), trimmed);
                 client.streamChatCompletion(request, session);
             });

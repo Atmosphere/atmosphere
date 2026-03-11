@@ -22,11 +22,11 @@ import type { StreamingHandlers, SessionStats, RoutingInfo } from '../../src/str
 import type { SubscriptionHandlers, Subscription } from '../../src/types';
 
 describe('parseStreamingMessage', () => {
-  it('should parse a valid token message', () => {
-    const raw = '{"type":"token","data":"Hello","sessionId":"abc-123","seq":1}';
+  it('should parse a valid streaming-text message', () => {
+    const raw = '{"type":"streaming-text","data":"Hello","sessionId":"abc-123","seq":1}';
     const msg = parseStreamingMessage(raw);
     expect(msg).toEqual({
-      type: 'token',
+      type: 'streaming-text',
       data: 'Hello',
       sessionId: 'abc-123',
       seq: 1,
@@ -85,7 +85,7 @@ describe('parseStreamingMessage', () => {
   });
 
   it('should return null for JSON without sessionId', () => {
-    expect(parseStreamingMessage('{"type":"token","data":"x"}')).toBeNull();
+    expect(parseStreamingMessage('{"type":"streaming-text","data":"x"}')).toBeNull();
   });
 
   it('should return null for unknown type', () => {
@@ -118,16 +118,16 @@ describe('subscribeStreaming', () => {
     } as unknown as Atmosphere;
   });
 
-  it('should dispatch token events', async () => {
-    const onToken = vi.fn();
+  it('should dispatch streaming-text events', async () => {
+    const onStreamingText = vi.fn();
     await subscribeStreaming(
       mockAtmosphere,
       { url: '/ai/chat', transport: 'websocket' },
-      { onToken },
+      { onStreamingText },
     );
 
     capturedHandlers.message!({
-      responseBody: '{"type":"token","data":"Hello","sessionId":"s1","seq":1}',
+      responseBody: '{"type":"streaming-text","data":"Hello","sessionId":"s1","seq":1}',
       status: 200,
       reasonPhrase: 'OK',
       messages: [],
@@ -137,7 +137,7 @@ describe('subscribeStreaming', () => {
       error: null,
     });
 
-    expect(onToken).toHaveBeenCalledWith('Hello', 1);
+    expect(onStreamingText).toHaveBeenCalledWith('Hello', 1);
   });
 
   it('should dispatch progress events', async () => {
@@ -229,14 +229,14 @@ describe('subscribeStreaming', () => {
   });
 
   it('should deduplicate messages by sequence number', async () => {
-    const onToken = vi.fn();
+    const onStreamingText = vi.fn();
     await subscribeStreaming(
       mockAtmosphere,
       { url: '/ai/chat', transport: 'websocket' },
-      { onToken },
+      { onStreamingText },
     );
 
-    const msg = '{"type":"token","data":"Hi","sessionId":"s1","seq":1}';
+    const msg = '{"type":"streaming-text","data":"Hi","sessionId":"s1","seq":1}';
     const response = {
       responseBody: msg,
       status: 200,
@@ -251,7 +251,7 @@ describe('subscribeStreaming', () => {
     capturedHandlers.message!(response);
     capturedHandlers.message!(response); // duplicate
 
-    expect(onToken).toHaveBeenCalledTimes(1);
+    expect(onStreamingText).toHaveBeenCalledTimes(1);
   });
 
   it('should track sessionId from first message', async () => {
@@ -264,7 +264,7 @@ describe('subscribeStreaming', () => {
     expect(handle.sessionId).toBeNull();
 
     capturedHandlers.message!({
-      responseBody: '{"type":"token","data":"x","sessionId":"sess-42","seq":1}',
+      responseBody: '{"type":"streaming-text","data":"x","sessionId":"sess-42","seq":1}',
       status: 200,
       reasonPhrase: 'OK',
       messages: [],
@@ -300,11 +300,11 @@ describe('subscribeStreaming', () => {
   });
 
   it('should ignore non-string messages', async () => {
-    const onToken = vi.fn();
+    const onStreamingText = vi.fn();
     await subscribeStreaming(
       mockAtmosphere,
       { url: '/ai/chat', transport: 'websocket' },
-      { onToken },
+      { onStreamingText },
     );
 
     capturedHandlers.message!({
@@ -318,15 +318,15 @@ describe('subscribeStreaming', () => {
       error: null,
     });
 
-    expect(onToken).not.toHaveBeenCalled();
+    expect(onStreamingText).not.toHaveBeenCalled();
   });
 
   it('should ignore non-streaming JSON messages', async () => {
-    const onToken = vi.fn();
+    const onStreamingText = vi.fn();
     await subscribeStreaming(
       mockAtmosphere,
       { url: '/ai/chat', transport: 'websocket' },
-      { onToken },
+      { onStreamingText },
     );
 
     capturedHandlers.message!({
@@ -340,7 +340,7 @@ describe('subscribeStreaming', () => {
       error: null,
     });
 
-    expect(onToken).not.toHaveBeenCalled();
+    expect(onStreamingText).not.toHaveBeenCalled();
   });
 
   it('should forward transport errors', async () => {
@@ -394,7 +394,7 @@ describe('session stats and routing', () => {
     } as unknown as Atmosphere;
   });
 
-  it('should track token count', async () => {
+  it('should track streaming text count', async () => {
     const onSessionComplete = vi.fn();
     await subscribeStreaming(
       mockAtmosphere,
@@ -402,14 +402,14 @@ describe('session stats and routing', () => {
       { onSessionComplete },
     );
 
-    capturedHandlers.message!(makeResponse('{"type":"token","data":"a","sessionId":"s1","seq":1}'));
-    capturedHandlers.message!(makeResponse('{"type":"token","data":"b","sessionId":"s1","seq":2}'));
-    capturedHandlers.message!(makeResponse('{"type":"token","data":"c","sessionId":"s1","seq":3}'));
+    capturedHandlers.message!(makeResponse('{"type":"streaming-text","data":"a","sessionId":"s1","seq":1}'));
+    capturedHandlers.message!(makeResponse('{"type":"streaming-text","data":"b","sessionId":"s1","seq":2}'));
+    capturedHandlers.message!(makeResponse('{"type":"streaming-text","data":"c","sessionId":"s1","seq":3}'));
     capturedHandlers.message!(makeResponse('{"type":"complete","sessionId":"s1","seq":4}'));
 
     expect(onSessionComplete).toHaveBeenCalledTimes(1);
     const stats: SessionStats = onSessionComplete.mock.calls[0][0];
-    expect(stats.totalTokens).toBe(3);
+    expect(stats.totalStreamingTexts).toBe(3);
     expect(stats.status).toBe('complete');
   });
 
@@ -421,14 +421,14 @@ describe('session stats and routing', () => {
       { onSessionComplete },
     );
 
-    capturedHandlers.message!(makeResponse('{"type":"token","data":"a","sessionId":"s1","seq":1}'));
+    capturedHandlers.message!(makeResponse('{"type":"streaming-text","data":"a","sessionId":"s1","seq":1}'));
     capturedHandlers.message!(makeResponse('{"type":"complete","sessionId":"s1","seq":2}'));
 
     const stats: SessionStats = onSessionComplete.mock.calls[0][0];
     expect(stats.elapsedMs).toBeGreaterThanOrEqual(0);
   });
 
-  it('should compute tokensPerSecond', async () => {
+  it('should compute streaming texts per second', async () => {
     const onSessionComplete = vi.fn();
     await subscribeStreaming(
       mockAtmosphere,
@@ -436,15 +436,15 @@ describe('session stats and routing', () => {
       { onSessionComplete },
     );
 
-    capturedHandlers.message!(makeResponse('{"type":"token","data":"a","sessionId":"s1","seq":1}'));
-    capturedHandlers.message!(makeResponse('{"type":"token","data":"b","sessionId":"s1","seq":2}'));
+    capturedHandlers.message!(makeResponse('{"type":"streaming-text","data":"a","sessionId":"s1","seq":1}'));
+    capturedHandlers.message!(makeResponse('{"type":"streaming-text","data":"b","sessionId":"s1","seq":2}'));
     capturedHandlers.message!(makeResponse('{"type":"complete","sessionId":"s1","seq":3}'));
 
     const stats: SessionStats = onSessionComplete.mock.calls[0][0];
     if (stats.elapsedMs > 0) {
-      expect(stats.tokensPerSecond).toBeCloseTo((stats.totalTokens / stats.elapsedMs) * 1000, 0);
+      expect(stats.streamingTextsPerSecond).toBeCloseTo((stats.totalStreamingTexts / stats.elapsedMs) * 1000, 0);
     } else {
-      expect(stats.tokensPerSecond).toBe(0);
+      expect(stats.streamingTextsPerSecond).toBe(0);
     }
   });
 
@@ -456,13 +456,13 @@ describe('session stats and routing', () => {
       { onSessionComplete },
     );
 
-    capturedHandlers.message!(makeResponse('{"type":"token","data":"a","sessionId":"s1","seq":1}'));
+    capturedHandlers.message!(makeResponse('{"type":"streaming-text","data":"a","sessionId":"s1","seq":1}'));
     capturedHandlers.message!(makeResponse('{"type":"error","data":"Oops","sessionId":"s1","seq":2}'));
 
     expect(onSessionComplete).toHaveBeenCalledTimes(1);
     const stats: SessionStats = onSessionComplete.mock.calls[0][0];
     expect(stats.status).toBe('error');
-    expect(stats.totalTokens).toBe(1);
+    expect(stats.totalStreamingTexts).toBe(1);
   });
 
   it('should extract routing.model from metadata', async () => {
@@ -535,21 +535,21 @@ describe('session stats and routing', () => {
     );
 
     // First session
-    capturedHandlers.message!(makeResponse('{"type":"token","data":"a","sessionId":"s1","seq":1}'));
-    capturedHandlers.message!(makeResponse('{"type":"token","data":"b","sessionId":"s1","seq":2}'));
+    capturedHandlers.message!(makeResponse('{"type":"streaming-text","data":"a","sessionId":"s1","seq":1}'));
+    capturedHandlers.message!(makeResponse('{"type":"streaming-text","data":"b","sessionId":"s1","seq":2}'));
     capturedHandlers.message!(makeResponse('{"type":"complete","sessionId":"s1","seq":3}'));
 
     expect(onSessionComplete).toHaveBeenCalledTimes(1);
-    expect(onSessionComplete.mock.calls[0][0].totalTokens).toBe(2);
+    expect(onSessionComplete.mock.calls[0][0].totalStreamingTexts).toBe(2);
 
     // Send again (resets tracking)
     handle.send('next question');
 
-    capturedHandlers.message!(makeResponse('{"type":"token","data":"c","sessionId":"s1","seq":4}'));
+    capturedHandlers.message!(makeResponse('{"type":"streaming-text","data":"c","sessionId":"s1","seq":4}'));
     capturedHandlers.message!(makeResponse('{"type":"complete","sessionId":"s1","seq":5}'));
 
     expect(onSessionComplete).toHaveBeenCalledTimes(2);
-    expect(onSessionComplete.mock.calls[1][0].totalTokens).toBe(1);
+    expect(onSessionComplete.mock.calls[1][0].totalStreamingTexts).toBe(1);
   });
 
   it('should wrap message with hints when send options provided', async () => {

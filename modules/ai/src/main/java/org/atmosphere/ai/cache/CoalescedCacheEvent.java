@@ -18,19 +18,19 @@ package org.atmosphere.ai.cache;
 /**
  * A coalesced cache event summarizing an entire AI streaming session.
  *
- * <p>Instead of firing per-token, this event fires once when the session
+ * <p>Instead of firing per-streaming-text, this event fires once when the session
  * completes or errors, carrying aggregate information about the session.</p>
  *
  * @param sessionId     the unique session identifier
  * @param broadcasterId the broadcaster that cached the messages
- * @param totalTokens   total number of streaming text messages cached for this session
+ * @param totalStreamingTexts   total number of streaming text messages cached for this session
  * @param status        terminal status: "complete" or "error"
- * @param elapsedMs     elapsed time from first token to terminal event, in milliseconds
+ * @param elapsedMs     elapsed time from first streaming text to terminal event, in milliseconds
  */
 public record CoalescedCacheEvent(
         String sessionId,
         String broadcasterId,
-        int totalTokens,
+        int totalStreamingTexts,
         String status,
         long elapsedMs
 ) {

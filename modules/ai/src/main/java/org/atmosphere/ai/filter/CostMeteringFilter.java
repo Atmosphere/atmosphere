@@ -25,28 +25,28 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 /**
- * A {@link AiStreamBroadcastFilter} that tracks token counts per session and per
- * broadcaster (user/topic), and can enforce token budgets by aborting streams
+ * A {@link AiStreamBroadcastFilter} that tracks streaming text counts per session and per
+ * broadcaster (user/topic), and can enforce streaming text budgets by aborting streams
  * that exceed their allocation.
  *
- * <p>This filter does <b>not</b> modify token content — it only counts tokens,
+ * <p>This filter does <b>not</b> modify streaming text content — it only counts streaming texts,
  * injects cost metadata on stream completion, and optionally enforces limits.</p>
  *
- * <h3>Token counting</h3>
+ * <h3>Streaming text counting</h3>
  * <p>Each "streaming-text" message increments a per-session counter and a per-broadcaster
- * counter. The token count here is the number of streaming chunks, not LLM tokens.
- * For precise LLM token counts, use the {@code usage.totalStreamingTexts} metadata emitted
+ * counter. The streaming text count here is the number of streaming chunks, not LLM tokens.
+ * For precise LLM streaming text counts, use the {@code usage.totalStreamingTexts} metadata emitted
  * by the LLM client.</p>
  *
  * <h3>Budget enforcement</h3>
  * <p>When a per-broadcaster budget is set via {@link #setBudget(String, long)},
- * the filter will {@code ABORT} any token message that would exceed the limit.
+ * the filter will {@code ABORT} any streaming text message that would exceed the limit.
  * An error message is injected to notify the client.</p>
  *
  * <h3>Usage</h3>
  * <pre>{@code
  * var metering = new CostMeteringFilter();
- * metering.setBudget("user-123-broadcaster", 10000); // max 10K tokens
+ * metering.setBudget("user-123-broadcaster", 10000); // max 10K streaming texts
  * broadcaster.getBroadcasterConfig().addFilter(metering);
  * }</pre>
  */
@@ -54,8 +54,8 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(CostMeteringFilter.class);
 
-    private final ConcurrentHashMap<String, AtomicLong> sessionTokenCounts = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, AtomicLong> broadcasterTokenCounts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, AtomicLong> sessionStreamingTextCounts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, AtomicLong> broadcasterStreamingTextCounts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> budgets = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Boolean> exceededSessions = new ConcurrentHashMap<>();
     private volatile StreamingTextBudgetManager budgetManager;
@@ -66,7 +66,7 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
             String broadcasterId, AiStreamMessage msg, String originalJson, RawMessage rawMessage) {
 
         if (msg.isStreamingText()) {
-            return handleToken(broadcasterId, msg, rawMessage);
+            return handleStreamingText(broadcasterId, msg, rawMessage);
         }
 
         if (msg.isComplete()) {
@@ -81,17 +81,17 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
         return new BroadcastAction(rawMessage);
     }
 
-    private BroadcastAction handleToken(String broadcasterId, AiStreamMessage msg, RawMessage rawMessage) {
-        // If this session already exceeded its budget, silently drop subsequent tokens
+    private BroadcastAction handleStreamingText(String broadcasterId, AiStreamMessage msg, RawMessage rawMessage) {
+        // If this session already exceeded its budget, silently drop subsequent streaming texts
         if (exceededSessions.containsKey(msg.sessionId())) {
             return new BroadcastAction(BroadcastAction.ACTION.ABORT, rawMessage);
         }
 
-        var sessionCount = sessionTokenCounts
+        var sessionCount = sessionStreamingTextCounts
                 .computeIfAbsent(msg.sessionId(), k -> new AtomicLong())
                 .incrementAndGet();
 
-        var broadcasterCount = broadcasterTokenCounts
+        var broadcasterCount = broadcasterStreamingTextCounts
                 .computeIfAbsent(broadcasterId, k -> new AtomicLong())
                 .incrementAndGet();
 
@@ -101,12 +101,12 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
             logger.warn("Streaming text budget exceeded for broadcaster {}: {} > {}",
                     broadcasterId, broadcasterCount, budget);
 
-            // Mark session as exceeded so subsequent tokens are silently dropped
+            // Mark session as exceeded so subsequent streaming texts are silently dropped
             exceededSessions.put(msg.sessionId(), Boolean.TRUE);
 
             // Inject a single error message to notify the client
             var errorMsg = new AiStreamMessage("error",
-                    "Streaming text budget exceeded (" + budget + " tokens)",
+                    "Streaming text budget exceeded (" + budget + " streaming texts)",
                     msg.sessionId(), msg.seq(), null, null);
             return new BroadcastAction(BroadcastAction.ACTION.SKIP, new RawMessage(errorMsg.toJson()));
         }
@@ -115,10 +115,10 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
     }
 
     private BroadcastAction handleComplete(String broadcasterId, AiStreamMessage msg, RawMessage rawMessage) {
-        var sessionCount = sessionTokenCounts.getOrDefault(msg.sessionId(), new AtomicLong(0)).get();
-        var broadcasterCount = broadcasterTokenCounts.getOrDefault(broadcasterId, new AtomicLong(0)).get();
+        var sessionCount = sessionStreamingTextCounts.getOrDefault(msg.sessionId(), new AtomicLong(0)).get();
+        var broadcasterCount = broadcasterStreamingTextCounts.getOrDefault(broadcasterId, new AtomicLong(0)).get();
 
-        logger.debug("Session {} completed: {} tokens (broadcaster {} total: {})",
+        logger.debug("Session {} completed: {} streaming texts (broadcaster {} total: {})",
                 msg.sessionId(), sessionCount, broadcasterId, broadcasterCount);
 
         if (budgetManager != null && sessionOwnerResolver != null) {
@@ -133,12 +133,12 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
     }
 
     private void cleanup(String sessionId) {
-        sessionTokenCounts.remove(sessionId);
+        sessionStreamingTextCounts.remove(sessionId);
         exceededSessions.remove(sessionId);
     }
 
     /**
-     * Set a token budget for a broadcaster.
+     * Set a streaming text budget for a broadcaster.
      *
      * @param broadcasterId the broadcaster ID
      * @param maxStreamingTexts     maximum number of streaming text messages allowed
@@ -148,7 +148,7 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
     }
 
     /**
-     * Remove a token budget for a broadcaster.
+     * Remove a streaming text budget for a broadcaster.
      *
      * @param broadcasterId the broadcaster ID
      */
@@ -157,34 +157,34 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
     }
 
     /**
-     * Get the current token count for a session.
+     * Get the current streaming text count for a session.
      *
      * @param sessionId the session ID
      * @return the number of streaming text messages seen for this session
      */
-    public long getSessionTokenCount(String sessionId) {
-        var counter = sessionTokenCounts.get(sessionId);
+    public long getSessionStreamingTextCount(String sessionId) {
+        var counter = sessionStreamingTextCounts.get(sessionId);
         return counter != null ? counter.get() : 0;
     }
 
     /**
-     * Get the current token count for a broadcaster.
+     * Get the current streaming text count for a broadcaster.
      *
      * @param broadcasterId the broadcaster ID
      * @return the cumulative number of streaming text messages across all sessions
      */
-    public long getBroadcasterTokenCount(String broadcasterId) {
-        var counter = broadcasterTokenCounts.get(broadcasterId);
+    public long getBroadcasterStreamingTextCount(String broadcasterId) {
+        var counter = broadcasterStreamingTextCounts.get(broadcasterId);
         return counter != null ? counter.get() : 0;
     }
 
     /**
-     * Reset the token counter for a broadcaster. Useful for rolling windows.
+     * Reset the streaming text counter for a broadcaster. Useful for rolling windows.
      *
      * @param broadcasterId the broadcaster ID
      */
     public void resetBroadcasterCount(String broadcasterId) {
-        broadcasterTokenCounts.remove(broadcasterId);
+        broadcasterStreamingTextCounts.remove(broadcasterId);
     }
 
     /**

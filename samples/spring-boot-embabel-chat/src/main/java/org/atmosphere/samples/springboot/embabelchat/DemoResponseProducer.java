@@ -57,14 +57,14 @@ public final class DemoResponseProducer {
             return "Embabel is a Spring-based agent framework that provides AgentPlatform, "
                     + "typed agents, and tool calling. Atmosphere's EmbabelStreamingAdapter "
                     + "bridges agent output events into real-time WebSocket streams, "
-                    + "delivering tokens to connected browsers as they're generated.";
+                    + "delivering streaming texts to connected browsers as they're generated.";
         }
         if (lower.contains("atmosphere")) {
             return "Atmosphere is a Java framework for building real-time web applications. "
                     + "This sample demonstrates how Embabel agents integrate with Atmosphere's "
                     + "Broadcaster to push AI agent responses to all connected browser clients.";
         }
-        return "This is a demo response — each word arrives as a separate streaming token. "
+        return "This is a demo response — each word arrives as a separate streaming text. "
                 + "Try asking about 'atmosphere' or 'embabel'. "
                 + "Set LLM_API_KEY to connect to a real Embabel agent.";
     }

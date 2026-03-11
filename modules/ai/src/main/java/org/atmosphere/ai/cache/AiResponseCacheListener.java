@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * A {@link BroadcasterCacheListener} that tracks AI streaming sessions in the cache.
  *
  * <p>When streaming text messages are cached, this listener counts them per session.
- * When a "complete" message is cached, it logs the total token count for that
+ * When a "complete" message is cached, it logs the total streaming text count for that
  * session — useful for monitoring cache size and replay cost.</p>
  *
  * <p>This is an observational hook (not a gate). It does not modify cached messages.
@@ -45,15 +45,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  *     .getBroadcasterCache()
  *     .addBroadcasterCacheListener(listener);
  *
- * // Later: check how many tokens were cached for a session
- * int count = listener.getCachedTokenCount("session-123");
+ * // Later: check how many streaming texts were cached for a session
+ * int count = listener.getCachedStreamingTextCount("session-123");
  * }</pre>
  */
 public class AiResponseCacheListener implements BroadcasterCacheListener {
 
     private static final Logger logger = LoggerFactory.getLogger(AiResponseCacheListener.class);
 
-    private final ConcurrentHashMap<String, AtomicInteger> tokenCounts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, AtomicInteger> streamingTextCounts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> sessionStartTimes = new ConcurrentHashMap<>();
     private final List<CoalescedCacheEventListener> coalescedListeners = new CopyOnWriteArrayList<>();
 
@@ -79,22 +79,22 @@ public class AiResponseCacheListener implements BroadcasterCacheListener {
         }
 
         if ("streaming-text".equals(type)) {
-            tokenCounts.computeIfAbsent(sessionId, k -> new AtomicInteger()).incrementAndGet();
+            streamingTextCounts.computeIfAbsent(sessionId, k -> new AtomicInteger()).incrementAndGet();
             sessionStartTimes.computeIfAbsent(sessionId, k -> System.nanoTime());
         } else if ("complete".equals(type) || "error".equals(type)) {
-            var count = tokenCounts.remove(sessionId);
+            var count = streamingTextCounts.remove(sessionId);
             var startNanos = sessionStartTimes.remove(sessionId);
-            var totalTokens = count != null ? count.get() : 0;
+            var totalStreamingTexts = count != null ? count.get() : 0;
             var elapsedMs = startNanos != null
                     ? TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos)
                     : 0L;
 
-            logger.debug("AI session {} cached: {} tokens (broadcaster: {})",
-                    sessionId, totalTokens, broadcasterId);
+            logger.debug("AI session {} cached: {} streaming texts (broadcaster: {})",
+                    sessionId, totalStreamingTexts, broadcasterId);
 
             if (!coalescedListeners.isEmpty()) {
                 var event = new CoalescedCacheEvent(
-                        sessionId, broadcasterId, totalTokens, type, elapsedMs);
+                        sessionId, broadcasterId, totalStreamingTexts, type, elapsedMs);
                 fireCoalescedEvent(event);
             }
         }
@@ -109,10 +109,10 @@ public class AiResponseCacheListener implements BroadcasterCacheListener {
      * Get the number of streaming text messages currently cached for a session.
      *
      * @param sessionId the session ID
-     * @return the cached token count, or 0 if no tokens are cached
+     * @return the cached streaming text count, or 0 if no streaming texts are cached
      */
-    public int getCachedTokenCount(String sessionId) {
-        var count = tokenCounts.get(sessionId);
+    public int getCachedStreamingTextCount(String sessionId) {
+        var count = streamingTextCounts.get(sessionId);
         return count != null ? count.get() : 0;
     }
 

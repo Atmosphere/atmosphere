@@ -34,19 +34,19 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Orchestrates multi-model fan-out streaming: sends the same prompt to N models
- * simultaneously, with each model streaming tokens through its own child session.
+ * simultaneously, with each model streaming texts through its own child session.
  *
  * <p>This is the Broadcaster pattern applied to model routing. Each model endpoint
  * gets a child {@link StreamingSession} with a sessionId of
  * {@code parentSessionId + "-" + modelEndpoint.id()}. All child sessions broadcast
- * through the same {@link Broadcaster}, so the client receives interleaved token
- * streams that are distinguishable by sessionId.</p>
+ * through the same {@link Broadcaster}, so the client receives interleaved streaming
+ * text streams that are distinguishable by sessionId.</p>
  *
  * <h3>Strategies</h3>
  * <ul>
  *   <li>{@link FanOutStrategy.AllResponses} — all models stream to completion</li>
  *   <li>{@link FanOutStrategy.FirstComplete} — first to finish wins, others are cancelled</li>
- *   <li>{@link FanOutStrategy.FastestTokens} — fastest token producer wins after N tokens</li>
+ *   <li>{@link FanOutStrategy.FastestStreamingTexts} — fastest streaming text producer wins after N streaming texts</li>
  * </ul>
  *
  * <h3>Usage</h3>
@@ -165,7 +165,7 @@ public final class FanOutStreamingSession implements AutoCloseable {
                     }
                     cancelAllExcept(firstComplete.get());
                 }
-                case FanOutStrategy.FastestTokens(var threshold) -> {
+                case FanOutStrategy.FastestStreamingTexts(var threshold) -> {
                     // Wait until any model hits the threshold
                     while (!closed.get()) {
                         var winner = streamingTextCounts.entrySet().stream()
@@ -233,7 +233,7 @@ public final class FanOutStreamingSession implements AutoCloseable {
     }
 
     /**
-     * Wrapper session that tracks timing, token count, and aggregated response.
+     * Wrapper session that tracks timing, streaming text count, and aggregated response.
      */
     private final class TrackingSession implements StreamingSession {
         private final StreamingSession delegate;
@@ -265,7 +265,7 @@ public final class FanOutStreamingSession implements AutoCloseable {
         }
 
         @Override
-        public void send(String token) {
+        public void send(String text) {
             if (closed.get() && !modelId.equals(firstComplete.get())) {
                 return; // cancelled
             }
@@ -274,8 +274,8 @@ public final class FanOutStreamingSession implements AutoCloseable {
             }
             localStreamingTextCount.incrementAndGet();
             streamingTextCounts.get(modelId).incrementAndGet();
-            responseBuilder.append(token);
-            delegate.send(token);
+            responseBuilder.append(text);
+            delegate.send(text);
         }
 
         @Override

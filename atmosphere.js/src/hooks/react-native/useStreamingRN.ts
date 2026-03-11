@@ -35,7 +35,7 @@ export interface UseStreamingRNOptions {
  */
 export interface UseStreamingRNResult {
   fullText: string;
-  tokens: string[];
+  streamingTexts: string[];
   isStreaming: boolean;
   progress: string | null;
   metadata: Record<string, unknown>;
@@ -65,7 +65,7 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
   const atmosphere = useAtmosphereContext();
   const { request, enabled = true } = options;
 
-  const [tokens, setTokens] = useState<string[]>([]);
+  const [streamingTexts, setStreamingTexts] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<Record<string, unknown>>({});
@@ -86,10 +86,10 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
     (async () => {
       try {
         const handle = await subscribeStreaming(atmosphere, request, {
-          onToken: (token) => {
+          onStreamingText: (text) => {
             if (cancelled) return;
             setIsStreaming(true);
-            setTokens((prev) => [...prev, token]);
+            setStreamingTexts((prev) => [...prev, text]);
           },
           onProgress: (msg) => {
             if (!cancelled) setProgress(msg);
@@ -182,7 +182,7 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
   }, [isConnected]);
 
   const reset = useCallback(() => {
-    setTokens([]);
+    setStreamingTexts([]);
     setIsStreaming(false);
     setProgress(null);
     setMetadata({});
@@ -196,10 +196,10 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
     setIsStreaming(false);
   }, []);
 
-  const fullText = useMemo(() => tokens.join(''), [tokens]);
+  const fullText = useMemo(() => streamingTexts.join(''), [streamingTexts]);
 
   return useMemo(
-    () => ({ fullText, tokens, isStreaming, progress, metadata, stats, routing, error, isConnected, send, reset, close }),
-    [fullText, tokens, isStreaming, progress, metadata, stats, routing, error, isConnected, send, reset, close],
+    () => ({ fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, error, isConnected, send, reset, close }),
+    [fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, error, isConnected, send, reset, close],
   );
 }

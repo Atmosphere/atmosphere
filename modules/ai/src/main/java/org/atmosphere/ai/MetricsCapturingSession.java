@@ -19,7 +19,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 /**
- * A {@link StreamingSession} decorator that captures timing and token usage
+ * A {@link StreamingSession} decorator that captures timing and streaming text usage
  * metadata and reports them to an {@link AiMetrics} implementation.
  *
  * <p>Follows the same wrapping pattern as {@link MemoryCapturingSession}.</p>
@@ -30,9 +30,9 @@ class MetricsCapturingSession implements StreamingSession {
     private final AiMetrics metrics;
     private final String model;
     private final Instant startTime;
-    private volatile Instant firstTokenTime;
-    private int promptTokens;
-    private int completionTokens;
+    private volatile Instant firstStreamingTextTime;
+    private int promptStreamingTexts;
+    private int completionStreamingTexts;
 
     MetricsCapturingSession(StreamingSession delegate, AiMetrics metrics, String model) {
         this.delegate = delegate;
@@ -47,19 +47,19 @@ class MetricsCapturingSession implements StreamingSession {
     }
 
     @Override
-    public void send(String token) {
-        if (firstTokenTime == null) {
-            firstTokenTime = Instant.now();
+    public void send(String text) {
+        if (firstStreamingTextTime == null) {
+            firstStreamingTextTime = Instant.now();
         }
-        delegate.send(token);
+        delegate.send(text);
     }
 
     @Override
     public void sendMetadata(String key, Object value) {
         if ("usage.promptStreamingTexts".equals(key) && value instanceof Number n) {
-            promptTokens = n.intValue();
+            promptStreamingTexts = n.intValue();
         } else if ("usage.completionStreamingTexts".equals(key) && value instanceof Number n) {
-            completionTokens = n.intValue();
+            completionStreamingTexts = n.intValue();
         }
         delegate.sendMetadata(key, value);
     }
@@ -99,14 +99,14 @@ class MetricsCapturingSession implements StreamingSession {
 
     private void recordMetrics() {
         var now = Instant.now();
-        var ttft = firstTokenTime != null
-                ? Duration.between(startTime, firstTokenTime)
+        var ttft = firstStreamingTextTime != null
+                ? Duration.between(startTime, firstStreamingTextTime)
                 : Duration.between(startTime, now);
         var total = Duration.between(startTime, now);
         metrics.recordLatency(model, ttft, total);
 
-        if (promptTokens > 0 || completionTokens > 0) {
-            metrics.recordTokenUsage(model, promptTokens, completionTokens);
+        if (promptStreamingTexts > 0 || completionStreamingTexts > 0) {
+            metrics.recordStreamingTextUsage(model, promptStreamingTexts, completionStreamingTexts);
         }
     }
 
