@@ -20,7 +20,7 @@ import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.adk.AdkEventAdapter;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
-import org.atmosphere.ai.budget.TokenBudgetManager;
+import org.atmosphere.ai.budget.StreamingTextBudgetManager;
 import org.atmosphere.ai.cache.AiResponseCacheInspector;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Ready;
@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  *       ADK agent remembers context across turns</li>
  *   <li><b>Broadcaster access</b> — {@code resource.getBroadcaster()} is used to
  *       log connected peers and broadcast metadata</li>
- *   <li>{@link TokenBudgetManager} — per-user token budget with graceful degradation</li>
+ *   <li>{@link StreamingTextBudgetManager} — per-user token budget with graceful degradation</li>
  *   <li>{@link AiResponseCacheInspector} — caches completed responses for replay</li>
  * </ul>
  *

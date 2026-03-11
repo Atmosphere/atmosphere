@@ -15,7 +15,7 @@
  */
 package org.atmosphere.samples.springboot.adktools;
 
-import org.atmosphere.ai.budget.TokenBudgetManager;
+import org.atmosphere.ai.budget.StreamingTextBudgetManager;
 import org.atmosphere.ai.cache.AiResponseCacheInspector;
 import org.atmosphere.ai.filter.CostMeteringFilter;
 import org.atmosphere.cache.BroadcasterCacheInspector;
@@ -37,11 +37,11 @@ public class AiConfig {
     private static final Logger logger = LoggerFactory.getLogger(AiConfig.class);
 
     @Bean
-    public TokenBudgetManager tokenBudgetManager() {
-        logger.info("Creating TokenBudgetManager with demo budget");
-        var manager = new TokenBudgetManager();
+    public StreamingTextBudgetManager tokenBudgetManager() {
+        logger.info("Creating StreamingTextBudgetManager with demo budget");
+        var manager = new StreamingTextBudgetManager();
         // Demo budget: 10,000 tokens per user, degrade to cheaper model at 80%
-        manager.setBudget(new TokenBudgetManager.Budget(
+        manager.setBudget(new StreamingTextBudgetManager.Budget(
                 "demo-user", 10_000, "gemini-2.0-flash-lite", 0.8));
         return manager;
     }

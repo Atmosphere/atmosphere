@@ -75,7 +75,7 @@ public class OpenAiCompatibleClientTest {
                 .system("You are a helpful assistant")
                 .user("What is Atmosphere?")
                 .temperature(0.5)
-                .maxTokens(1024)
+                .maxStreamingTexts(1024)
                 .build();
 
         assertEquals("gpt-4", request.model());
@@ -83,7 +83,7 @@ public class OpenAiCompatibleClientTest {
         assertEquals("system", request.messages().get(0).role());
         assertEquals("user", request.messages().get(1).role());
         assertEquals(0.5, request.temperature());
-        assertEquals(1024, request.maxTokens());
+        assertEquals(1024, request.maxStreamingTexts());
     }
 
     @Test
@@ -186,7 +186,7 @@ public class OpenAiCompatibleClientTest {
         verify(broadcaster, atLeast(3)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
-        assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"metadata\"") && m.contains("usage.totalTokens")));
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"metadata\"") && m.contains("usage.totalStreamingTexts")));
     }
 
     @Test
@@ -215,9 +215,9 @@ public class OpenAiCompatibleClientTest {
         verify(broadcaster, atLeast(2)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
-        // Only "OK" should be sent as a token, not empty string
-        long tokenCount = messages.stream().filter(m -> m.contains("\"type\":\"token\"")).count();
-        assertEquals(1, tokenCount);
+        // Only "OK" should be sent as a streaming text, not empty string
+        long streamingTextCount = messages.stream().filter(m -> m.contains("\"type\":\"streaming-text\"")).count();
+        assertEquals(1, streamingTextCount);
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\"OK\"")));
     }
 

@@ -121,7 +121,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
     protected BroadcastAction filterAiMessage(
             String broadcasterId, AiStreamMessage msg, String originalJson, RawMessage rawMessage) {
 
-        if (msg.isToken() && msg.data() != null) {
+        if (msg.isStreamingText() && msg.data() != null) {
             return handleToken(msg);
         }
 
@@ -159,15 +159,15 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
         var buffer = buffers.remove(msg.sessionId());
         if (buffer != null && !buffer.isEmpty()) {
             var redacted = redact(buffer.toString());
-            var tokenMsg = new AiStreamMessage("token", redacted, msg.sessionId(), msg.seq(), null, null);
+            var streamingTextMsg = new AiStreamMessage("streaming-text", redacted, msg.sessionId(), msg.seq(), null, null);
 
-            // Emit the flushed token as a proper "token" message to maintain protocol
-            // invariant: all text arrives as "token" type, "complete" is always bare.
+            // Emit the flushed streaming text as a proper "streaming-text" message to maintain protocol
+            // invariant: all text arrives as "streaming-text" type, "complete" is always bare.
             // Bump the terminal message's seq to seq+1 so it doesn't collide with the
             // synthetic flush token and the monotonic sequence invariant is preserved.
             var bumpedTerminal = msg.withSeq(msg.seq() + 1);
             deferBroadcast(broadcasterId, msg.sessionId(), new RawMessage(bumpedTerminal.toJson()));
-            return new BroadcastAction(new RawMessage(tokenMsg.toJson()));
+            return new BroadcastAction(new RawMessage(streamingTextMsg.toJson()));
         }
         return new BroadcastAction(rawMessage);
     }
@@ -176,7 +176,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
         var factory = broadcasterFactory();
         Thread.ofVirtual().name("pii-flush").start(() -> {
             try {
-                // Wait for the current filter chain to complete and deliver the flushed token
+                // Wait for the current filter chain to complete and deliver the flushed streaming text
                 Thread.sleep(50);
                 if (factory != null) {
                     factory.findBroadcaster(broadcasterId).ifPresent(b -> {

@@ -26,7 +26,7 @@ public record ChatCompletionRequest(
         String model,
         List<ChatMessage> messages,
         double temperature,
-        int maxTokens
+        int maxStreamingTexts
 ) {
     /**
      * Create a simple single-prompt request.
@@ -46,7 +46,7 @@ public record ChatCompletionRequest(
         private final String model;
         private final List<ChatMessage> messages = new ArrayList<>();
         private double temperature = 0.7;
-        private int maxTokens = 2048;
+        private int maxStreamingTexts = 2048;
 
         private Builder(String model) {
             this.model = model;
@@ -77,13 +77,13 @@ public record ChatCompletionRequest(
             return this;
         }
 
-        public Builder maxTokens(int maxTokens) {
-            this.maxTokens = maxTokens;
+        public Builder maxStreamingTexts(int maxStreamingTexts) {
+            this.maxStreamingTexts = maxStreamingTexts;
             return this;
         }
 
         public ChatCompletionRequest build() {
-            return new ChatCompletionRequest(model, List.copyOf(messages), temperature, maxTokens);
+            return new ChatCompletionRequest(model, List.copyOf(messages), temperature, maxStreamingTexts);
         }
     }
 }

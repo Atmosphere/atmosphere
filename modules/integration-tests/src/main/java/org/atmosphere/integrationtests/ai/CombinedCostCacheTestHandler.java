@@ -75,11 +75,11 @@ public class CombinedCostCacheTestHandler implements AtmosphereHandler {
             var spaceIdx = rest.indexOf(' ');
             var budget = Double.parseDouble(rest.substring(0, spaceIdx));
             var text = rest.substring(spaceIdx + 1);
-            var maxTokens = (int) (budget / 0.001);
+            var maxStreamingTexts = (int) (budget / 0.001);
 
             var request = ChatCompletionRequest.builder("auto")
                     .user(text)
-                    .maxTokens(maxTokens)
+                    .maxStreamingTexts(maxStreamingTexts)
                     .build();
 
             buildCostRouter(budget).streamChatCompletion(request, session);

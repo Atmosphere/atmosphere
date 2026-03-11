@@ -15,7 +15,7 @@
  */
 package org.atmosphere.ai.filter;
 
-import org.atmosphere.ai.budget.TokenBudgetManager;
+import org.atmosphere.ai.budget.StreamingTextBudgetManager;
 import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,9 +33,9 @@ import java.util.function.Function;
  * injects cost metadata on stream completion, and optionally enforces limits.</p>
  *
  * <h3>Token counting</h3>
- * <p>Each "token" message increments a per-session counter and a per-broadcaster
+ * <p>Each "streaming-text" message increments a per-session counter and a per-broadcaster
  * counter. The token count here is the number of streaming chunks, not LLM tokens.
- * For precise LLM token counts, use the {@code usage.totalTokens} metadata emitted
+ * For precise LLM token counts, use the {@code usage.totalStreamingTexts} metadata emitted
  * by the LLM client.</p>
  *
  * <h3>Budget enforcement</h3>
@@ -58,14 +58,14 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
     private final ConcurrentHashMap<String, AtomicLong> broadcasterTokenCounts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> budgets = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Boolean> exceededSessions = new ConcurrentHashMap<>();
-    private volatile TokenBudgetManager budgetManager;
+    private volatile StreamingTextBudgetManager budgetManager;
     private volatile Function<String, String> sessionOwnerResolver;
 
     @Override
     protected BroadcastAction filterAiMessage(
             String broadcasterId, AiStreamMessage msg, String originalJson, RawMessage rawMessage) {
 
-        if (msg.isToken()) {
+        if (msg.isStreamingText()) {
             return handleToken(broadcasterId, msg, rawMessage);
         }
 
@@ -98,7 +98,7 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
         // Check budget
         var budget = budgets.get(broadcasterId);
         if (budget != null && broadcasterCount > budget) {
-            logger.warn("Token budget exceeded for broadcaster {}: {} > {}",
+            logger.warn("Streaming text budget exceeded for broadcaster {}: {} > {}",
                     broadcasterId, broadcasterCount, budget);
 
             // Mark session as exceeded so subsequent tokens are silently dropped
@@ -106,7 +106,7 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
 
             // Inject a single error message to notify the client
             var errorMsg = new AiStreamMessage("error",
-                    "Token budget exceeded (" + budget + " tokens)",
+                    "Streaming text budget exceeded (" + budget + " tokens)",
                     msg.sessionId(), msg.seq(), null, null);
             return new BroadcastAction(BroadcastAction.ACTION.SKIP, new RawMessage(errorMsg.toJson()));
         }
@@ -141,10 +141,10 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
      * Set a token budget for a broadcaster.
      *
      * @param broadcasterId the broadcaster ID
-     * @param maxTokens     maximum number of token messages allowed
+     * @param maxStreamingTexts     maximum number of streaming text messages allowed
      */
-    public void setBudget(String broadcasterId, long maxTokens) {
-        budgets.put(broadcasterId, maxTokens);
+    public void setBudget(String broadcasterId, long maxStreamingTexts) {
+        budgets.put(broadcasterId, maxStreamingTexts);
     }
 
     /**
@@ -160,7 +160,7 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
      * Get the current token count for a session.
      *
      * @param sessionId the session ID
-     * @return the number of token messages seen for this session
+     * @return the number of streaming text messages seen for this session
      */
     public long getSessionTokenCount(String sessionId) {
         var counter = sessionTokenCounts.get(sessionId);
@@ -171,7 +171,7 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
      * Get the current token count for a broadcaster.
      *
      * @param broadcasterId the broadcaster ID
-     * @return the cumulative number of token messages across all sessions
+     * @return the cumulative number of streaming text messages across all sessions
      */
     public long getBroadcasterTokenCount(String broadcasterId) {
         var counter = broadcasterTokenCounts.get(broadcasterId);
@@ -188,12 +188,12 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
     }
 
     /**
-     * Wire a {@link TokenBudgetManager} to record usage on stream completion.
+     * Wire a {@link StreamingTextBudgetManager} to record usage on stream completion.
      *
      * @param mgr      the budget manager to record usage against
      * @param resolver maps session IDs to owner IDs (user or organization)
      */
-    public void setBudgetManager(TokenBudgetManager mgr, Function<String, String> resolver) {
+    public void setBudgetManager(StreamingTextBudgetManager mgr, Function<String, String> resolver) {
         this.budgetManager = mgr;
         this.sessionOwnerResolver = resolver;
     }

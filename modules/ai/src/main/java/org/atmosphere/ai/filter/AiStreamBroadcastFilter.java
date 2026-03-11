@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  *     protected BroadcastAction filterAiMessage(
  *             String broadcasterId, AiStreamMessage msg,
  *             String originalJson, RawMessage rawMessage) {
- *         if (msg.isToken()) {
+ *         if (msg.isStreamingText()) {
  *             // transform the token
  *             var modified = msg.withData(transform(msg.data()));
  *             return new BroadcastAction(new RawMessage(modified.toJson()));

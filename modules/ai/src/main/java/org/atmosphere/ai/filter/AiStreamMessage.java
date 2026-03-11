@@ -27,13 +27,13 @@ import java.util.LinkedHashMap;
  * <p>The wire protocol produced by {@code DefaultStreamingSession} and
  * {@code BroadcasterStreamingSession} uses JSON messages with these fields:</p>
  * <pre>
- * {"type":"token","data":"Hello","sessionId":"abc-123","seq":1}
+ * {"type":"streaming-text","data":"Hello","sessionId":"abc-123","seq":1}
  * {"type":"metadata","key":"model","value":"gpt-4","sessionId":"abc-123","seq":3}
  * {"type":"complete","sessionId":"abc-123","seq":4}
  * {"type":"error","data":"Connection failed","sessionId":"abc-123","seq":6}
  * </pre>
  *
- * @param type      message type: "token", "progress", "metadata", "complete", or "error"
+ * @param type      message type: "streaming-text", "progress", "metadata", "complete", or "error"
  * @param data      the token text, progress message, or error description (null for bare "complete")
  * @param sessionId the streaming session identifier
  * @param seq       monotonically increasing sequence number within a session
@@ -111,8 +111,8 @@ public record AiStreamMessage(
         }
     }
 
-    public boolean isToken() {
-        return "token".equals(type);
+    public boolean isStreamingText() {
+        return "streaming-text".equals(type);
     }
 
     public boolean isComplete() {

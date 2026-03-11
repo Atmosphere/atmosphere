@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ContentSafetyFilterTest {
 
     private BroadcastAction sendToken(ContentSafetyFilter filter, String data, String sessionId, long seq) {
-        var msg = new AiStreamMessage("token", data, sessionId, seq, null, null);
+        var msg = new AiStreamMessage("streaming-text", data, sessionId, seq, null, null);
         var raw = new RawMessage(msg.toJson());
         return filter.filter("b1", raw, raw);
     }
@@ -93,12 +93,12 @@ public class ContentSafetyFilterTest {
         // Buffer a safe token
         sendToken(filter, "This is safe", "s1", 1);
 
-        // Complete should flush the buffer as a proper "token" message (not embed in complete.data)
+        // Complete should flush the buffer as a proper "streaming-text" message (not embed in complete.data)
         // The actual complete is deferred via broadcaster (not available in unit tests)
         var result = sendComplete(filter, "s1", 2);
         var raw = (RawMessage) result.message();
         var parsed = AiStreamMessage.parse((String) raw.message());
-        assertTrue(parsed.isToken());
+        assertTrue(parsed.isStreamingText());
         assertEquals("This is safe", parsed.data());
     }
 
@@ -181,7 +181,7 @@ public class ContentSafetyFilterTest {
         var raw = (RawMessage) result.message();
         var parsed = AiStreamMessage.parse((String) raw.message());
 
-        assertTrue(parsed.isToken());
+        assertTrue(parsed.isStreamingText());
         assertEquals(5L, parsed.seq());
     }
 
@@ -198,7 +198,7 @@ public class ContentSafetyFilterTest {
         var raw = (RawMessage) result.message();
         var parsed = AiStreamMessage.parse((String) raw.message());
 
-        assertTrue(parsed.isToken());
+        assertTrue(parsed.isStreamingText());
         assertEquals(5L, parsed.seq());
         assertTrue(parsed.data().contains("***"));
     }

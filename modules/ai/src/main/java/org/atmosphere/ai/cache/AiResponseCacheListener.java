@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * A {@link BroadcasterCacheListener} that tracks AI streaming sessions in the cache.
  *
- * <p>When token messages are cached, this listener counts them per session.
+ * <p>When streaming text messages are cached, this listener counts them per session.
  * When a "complete" message is cached, it logs the total token count for that
  * session — useful for monitoring cache size and replay cost.</p>
  *
@@ -78,7 +78,7 @@ public class AiResponseCacheListener implements BroadcasterCacheListener {
             return;
         }
 
-        if ("token".equals(type)) {
+        if ("streaming-text".equals(type)) {
             tokenCounts.computeIfAbsent(sessionId, k -> new AtomicInteger()).incrementAndGet();
             sessionStartTimes.computeIfAbsent(sessionId, k -> System.nanoTime());
         } else if ("complete".equals(type) || "error".equals(type)) {
@@ -106,7 +106,7 @@ public class AiResponseCacheListener implements BroadcasterCacheListener {
     }
 
     /**
-     * Get the number of token messages currently cached for a session.
+     * Get the number of streaming text messages currently cached for a session.
      *
      * @param sessionId the session ID
      * @return the cached token count, or 0 if no tokens are cached

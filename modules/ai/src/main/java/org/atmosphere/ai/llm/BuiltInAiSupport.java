@@ -81,8 +81,8 @@ public class BuiltInAiSupport implements AiSupport {
         if (hints.containsKey("temperature")) {
             builder.temperature(((Number) hints.get("temperature")).doubleValue());
         }
-        if (hints.containsKey("maxTokens")) {
-            builder.maxTokens(((Number) hints.get("maxTokens")).intValue());
+        if (hints.containsKey("maxStreamingTexts")) {
+            builder.maxStreamingTexts(((Number) hints.get("maxStreamingTexts")).intValue());
         }
 
         llmSettings.client().streamChatCompletion(builder.build(), session);

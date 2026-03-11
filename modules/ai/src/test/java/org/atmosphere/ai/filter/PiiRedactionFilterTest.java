@@ -28,7 +28,7 @@ public class PiiRedactionFilterTest {
     private final PiiRedactionFilter filter = new PiiRedactionFilter();
 
     private BroadcastAction sendToken(String data, String sessionId, long seq) {
-        var msg = new AiStreamMessage("token", data, sessionId, seq, null, null);
+        var msg = new AiStreamMessage("streaming-text", data, sessionId, seq, null, null);
         var raw = new RawMessage(msg.toJson());
         return filter.filter("b1", raw, raw);
     }
@@ -99,14 +99,14 @@ public class PiiRedactionFilterTest {
         var tokenResult = sendToken("Call me at 555-123-4567", "s1", 1);
         assertEquals(BroadcastAction.ACTION.ABORT, tokenResult.action(), "Token should be buffered (ABORT)");
 
-        // Complete should flush the buffer as a proper "token" message (not embed in complete.data)
+        // Complete should flush the buffer as a proper "streaming-text" message (not embed in complete.data)
         // The actual complete is deferred via broadcaster (not available in unit tests)
         var result = sendComplete("s1", 2);
         var raw = (RawMessage) result.message();
         var parsed = AiStreamMessage.parse((String) raw.message());
 
-        // Flushed text arrives as "token" type to maintain protocol invariant
-        assertTrue(parsed.isToken());
+        // Flushed text arrives as "streaming-text" type to maintain protocol invariant
+        assertTrue(parsed.isStreamingText());
         assertNotNull(parsed.data());
         assertFalse(parsed.data().contains("555-123-4567"));
         assertTrue(parsed.data().contains("[REDACTED]"));
@@ -168,7 +168,7 @@ public class PiiRedactionFilterTest {
         var parsed = AiStreamMessage.parse((String) raw.message());
 
         // The flushed token should keep the terminal's original seq
-        assertTrue(parsed.isToken());
+        assertTrue(parsed.isStreamingText());
         assertEquals(5L, parsed.seq());
     }
 }

@@ -102,8 +102,8 @@ public class FanOutStreamingSessionTest {
             assertTrue(results.containsKey("slow"));
             assertEquals("Hello world", results.get("fast").fullResponse());
             assertEquals("Hi there", results.get("slow").fullResponse());
-            assertEquals(2, results.get("fast").tokenCount());
-            assertEquals(2, results.get("slow").tokenCount());
+            assertEquals(2, results.get("fast").streamingTextCount());
+            assertEquals(2, results.get("slow").streamingTextCount());
         }
     }
 
@@ -148,9 +148,9 @@ public class FanOutStreamingSessionTest {
             assertNotNull(result);
             assertEquals("model1", result.modelId());
             assertEquals("abc", result.fullResponse());
-            assertEquals(3, result.tokenCount());
-            assertTrue(result.timeToFirstTokenMs() >= 0);
-            assertTrue(result.totalTimeMs() >= result.timeToFirstTokenMs());
+            assertEquals(3, result.streamingTextCount());
+            assertTrue(result.timeToFirstStreamingTextMs() >= 0);
+            assertTrue(result.totalTimeMs() >= result.timeToFirstStreamingTextMs());
         }
     }
 
@@ -202,9 +202,9 @@ public class FanOutStreamingSessionTest {
 
         assertEquals("model1", result.modelId());
         assertEquals("Hello world", result.fullResponse());
-        assertEquals(50, result.timeToFirstTokenMs());
+        assertEquals(50, result.timeToFirstStreamingTextMs());
         assertEquals(200, result.totalTimeMs());
-        assertEquals(5, result.tokenCount());
+        assertEquals(5, result.streamingTextCount());
     }
 
     @Test

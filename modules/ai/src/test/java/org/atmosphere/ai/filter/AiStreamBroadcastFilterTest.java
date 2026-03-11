@@ -35,12 +35,12 @@ public class AiStreamBroadcastFilterTest {
         }
     }
 
-    /** A filter that uppercases token data. */
+    /** A filter that uppercases streaming text data. */
     private static class UpperCaseFilter extends AiStreamBroadcastFilter {
         @Override
         protected BroadcastAction filterAiMessage(
                 String broadcasterId, AiStreamMessage msg, String originalJson, RawMessage rawMessage) {
-            if (msg.isToken() && msg.data() != null) {
+            if (msg.isStreamingText() && msg.data() != null) {
                 var modified = msg.withData(msg.data().toUpperCase());
                 return new BroadcastAction(new RawMessage(modified.toJson()));
             }
@@ -80,12 +80,12 @@ public class AiStreamBroadcastFilterTest {
     @Test
     public void testParsesAiTokenMessage() {
         var filter = new PassThroughFilter();
-        var json = "{\"type\":\"token\",\"data\":\"Hello\",\"sessionId\":\"s1\",\"seq\":1}";
+        var json = "{\"type\":\"streaming-text\",\"data\":\"Hello\",\"sessionId\":\"s1\",\"seq\":1}";
         var raw = new RawMessage(json);
         var result = filter.filter("b1", raw, raw);
 
         assertNotNull(filter.lastMessage);
-        assertTrue(filter.lastMessage.isToken());
+        assertTrue(filter.lastMessage.isStreamingText());
         assertEquals("Hello", filter.lastMessage.data());
         assertEquals("s1", filter.lastMessage.sessionId());
     }
@@ -105,7 +105,7 @@ public class AiStreamBroadcastFilterTest {
     @Test
     public void testUpperCaseFilterTransformsTokenData() throws Exception {
         var filter = new UpperCaseFilter();
-        var json = "{\"type\":\"token\",\"data\":\"hello world\",\"sessionId\":\"s1\",\"seq\":1}";
+        var json = "{\"type\":\"streaming-text\",\"data\":\"hello world\",\"sessionId\":\"s1\",\"seq\":1}";
         var raw = new RawMessage(json);
         var result = filter.filter("b1", raw, raw);
 
@@ -138,7 +138,7 @@ public class AiStreamBroadcastFilterTest {
     @Test
     public void testBroadcastActionContinueByDefault() {
         var filter = new PassThroughFilter();
-        var json = "{\"type\":\"token\",\"data\":\"test\",\"sessionId\":\"s1\",\"seq\":1}";
+        var json = "{\"type\":\"streaming-text\",\"data\":\"test\",\"sessionId\":\"s1\",\"seq\":1}";
         var raw = new RawMessage(json);
         var result = filter.filter("b1", raw, raw);
 

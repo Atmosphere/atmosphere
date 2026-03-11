@@ -47,7 +47,7 @@ public sealed interface FanOutStrategy
      * Observe token production speed for a configurable number of initial tokens,
      * then keep the fastest model and cancel the rest.
      *
-     * @param tokenThreshold number of tokens to observe before choosing a winner
+     * @param tokenThreshold number of streaming texts to observe before choosing a winner
      */
     record FastestTokens(int tokenThreshold) implements FanOutStrategy {}
 }

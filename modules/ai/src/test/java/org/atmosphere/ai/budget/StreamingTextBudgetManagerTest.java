@@ -19,12 +19,12 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class TokenBudgetManagerTest {
+public class StreamingTextBudgetManagerTest {
 
     @Test
     public void testRecordUsageWithinBudget() {
-        var manager = new TokenBudgetManager();
-        manager.setBudget(new TokenBudgetManager.Budget("user1", 100, null, 0.8));
+        var manager = new StreamingTextBudgetManager();
+        manager.setBudget(new StreamingTextBudgetManager.Budget("user1", 100, null, 0.8));
 
         assertTrue(manager.recordUsage("user1", 50));
         assertEquals(50, manager.currentUsage("user1"));
@@ -33,8 +33,8 @@ public class TokenBudgetManagerTest {
 
     @Test
     public void testRecordUsageExceedsBudget() {
-        var manager = new TokenBudgetManager();
-        manager.setBudget(new TokenBudgetManager.Budget("user1", 100, null, 0.8));
+        var manager = new StreamingTextBudgetManager();
+        manager.setBudget(new StreamingTextBudgetManager.Budget("user1", 100, null, 0.8));
 
         assertTrue(manager.recordUsage("user1", 80));
         assertFalse(manager.recordUsage("user1", 30)); // 110 > 100
@@ -42,15 +42,15 @@ public class TokenBudgetManagerTest {
 
     @Test
     public void testNoBudgetMeansNoLimit() {
-        var manager = new TokenBudgetManager();
+        var manager = new StreamingTextBudgetManager();
         assertTrue(manager.recordUsage("user1", 1_000_000));
         assertEquals(Long.MAX_VALUE, manager.remaining("user1"));
     }
 
     @Test
     public void testRecommendedModelBelowThreshold() {
-        var manager = new TokenBudgetManager();
-        manager.setBudget(new TokenBudgetManager.Budget("user1", 1000, "cheap-model", 0.8));
+        var manager = new StreamingTextBudgetManager();
+        manager.setBudget(new StreamingTextBudgetManager.Budget("user1", 1000, "cheap-model", 0.8));
 
         manager.recordUsage("user1", 500); // 50% — below threshold
         assertTrue(manager.recommendedModel("user1").isEmpty());
@@ -58,8 +58,8 @@ public class TokenBudgetManagerTest {
 
     @Test
     public void testRecommendedModelAboveThreshold() {
-        var manager = new TokenBudgetManager();
-        manager.setBudget(new TokenBudgetManager.Budget("user1", 1000, "cheap-model", 0.8));
+        var manager = new StreamingTextBudgetManager();
+        manager.setBudget(new StreamingTextBudgetManager.Budget("user1", 1000, "cheap-model", 0.8));
 
         manager.recordUsage("user1", 850); // 85% — above threshold
         var model = manager.recommendedModel("user1");
@@ -69,8 +69,8 @@ public class TokenBudgetManagerTest {
 
     @Test
     public void testRecommendedModelThrowsWhenExhausted() {
-        var manager = new TokenBudgetManager();
-        manager.setBudget(new TokenBudgetManager.Budget("user1", 100, "cheap-model", 0.8));
+        var manager = new StreamingTextBudgetManager();
+        manager.setBudget(new StreamingTextBudgetManager.Budget("user1", 100, "cheap-model", 0.8));
 
         manager.recordUsage("user1", 100);
         assertThrows(BudgetExceededException.class, () -> manager.recommendedModel("user1"));
@@ -87,8 +87,8 @@ public class TokenBudgetManagerTest {
 
     @Test
     public void testResetUsage() {
-        var manager = new TokenBudgetManager();
-        manager.setBudget(new TokenBudgetManager.Budget("user1", 100, null, 0.8));
+        var manager = new StreamingTextBudgetManager();
+        manager.setBudget(new StreamingTextBudgetManager.Budget("user1", 100, null, 0.8));
 
         manager.recordUsage("user1", 80);
         assertEquals(80, manager.currentUsage("user1"));
@@ -100,8 +100,8 @@ public class TokenBudgetManagerTest {
 
     @Test
     public void testRemoveBudget() {
-        var manager = new TokenBudgetManager();
-        manager.setBudget(new TokenBudgetManager.Budget("user1", 100, null, 0.8));
+        var manager = new StreamingTextBudgetManager();
+        manager.setBudget(new StreamingTextBudgetManager.Budget("user1", 100, null, 0.8));
         manager.recordUsage("user1", 50);
 
         manager.removeBudget("user1");
@@ -111,8 +111,8 @@ public class TokenBudgetManagerTest {
 
     @Test
     public void testNoFallbackModel() {
-        var manager = new TokenBudgetManager();
-        manager.setBudget(new TokenBudgetManager.Budget("user1", 100, null, 0.8));
+        var manager = new StreamingTextBudgetManager();
+        manager.setBudget(new StreamingTextBudgetManager.Budget("user1", 100, null, 0.8));
 
         manager.recordUsage("user1", 90); // above threshold but no fallback
         assertTrue(manager.recommendedModel("user1").isEmpty());
@@ -121,16 +121,16 @@ public class TokenBudgetManagerTest {
     @Test
     public void testBudgetValidation() {
         assertThrows(IllegalArgumentException.class, () ->
-                new TokenBudgetManager.Budget("user1", -1, null, 0.8));
+                new StreamingTextBudgetManager.Budget("user1", -1, null, 0.8));
         assertThrows(IllegalArgumentException.class, () ->
-                new TokenBudgetManager.Budget("user1", 100, null, 1.5));
+                new StreamingTextBudgetManager.Budget("user1", 100, null, 1.5));
     }
 
     @Test
     public void testMultipleOwners() {
-        var manager = new TokenBudgetManager();
-        manager.setBudget(new TokenBudgetManager.Budget("user1", 100, null, 0.8));
-        manager.setBudget(new TokenBudgetManager.Budget("user2", 200, null, 0.8));
+        var manager = new StreamingTextBudgetManager();
+        manager.setBudget(new StreamingTextBudgetManager.Budget("user1", 100, null, 0.8));
+        manager.setBudget(new StreamingTextBudgetManager.Budget("user2", 200, null, 0.8));
 
         manager.recordUsage("user1", 50);
         manager.recordUsage("user2", 150);

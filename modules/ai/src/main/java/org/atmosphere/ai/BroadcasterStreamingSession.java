@@ -63,7 +63,7 @@ final class BroadcasterStreamingSession implements StreamingSession {
             logger.warn("Attempted to send token on closed session {}", sessionId);
             return;
         }
-        broadcast(buildMessage("token", token));
+        broadcast(buildMessage("streaming-text", token));
     }
 
     @Override

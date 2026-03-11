@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * <p>Wire protocol:</p>
  * <pre>
- * {"type":"token","data":"Hello","sessionId":"abc-123","seq":1}
+ * {"type":"streaming-text","data":"Hello","sessionId":"abc-123","seq":1}
  * {"type":"progress","data":"Thinking...","sessionId":"abc-123","seq":2}
  * {"type":"metadata","key":"model","value":"gpt-4","sessionId":"abc-123","seq":3}
  * {"type":"complete","sessionId":"abc-123","seq":4}
@@ -89,7 +89,7 @@ public final class DefaultStreamingSession implements StreamingSession {
             logger.warn("Attempted to send token on closed session {}", sessionId);
             return;
         }
-        broadcast(buildMessage("token", token));
+        broadcast(buildMessage("streaming-text", token));
     }
 
     @Override

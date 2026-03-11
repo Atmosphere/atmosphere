@@ -31,9 +31,9 @@ public class AiResponseCacheCoalescingTest {
         var received = new ArrayList<CoalescedCacheEvent>();
         listener.addCoalescedListener(received::add);
 
-        listener.onAddCache("b1", token("s1", 1));
-        listener.onAddCache("b1", token("s1", 2));
-        listener.onAddCache("b1", token("s1", 3));
+        listener.onAddCache("b1", streamingTextMsg("s1", 1));
+        listener.onAddCache("b1", streamingTextMsg("s1", 2));
+        listener.onAddCache("b1", streamingTextMsg("s1", 3));
         listener.onAddCache("b1", complete("s1", 4));
 
         assertEquals(1, received.size());
@@ -50,8 +50,8 @@ public class AiResponseCacheCoalescingTest {
         var received = new ArrayList<CoalescedCacheEvent>();
         listener.addCoalescedListener(received::add);
 
-        listener.onAddCache("b1", token("s1", 1));
-        listener.onAddCache("b1", token("s1", 2));
+        listener.onAddCache("b1", streamingTextMsg("s1", 1));
+        listener.onAddCache("b1", streamingTextMsg("s1", 2));
         listener.onAddCache("b1", error("s1", 3));
 
         assertEquals(1, received.size());
@@ -65,7 +65,7 @@ public class AiResponseCacheCoalescingTest {
         var listener = new AiResponseCacheListener();
 
         // Should not throw
-        listener.onAddCache("b1", token("s1", 1));
+        listener.onAddCache("b1", streamingTextMsg("s1", 1));
         listener.onAddCache("b1", complete("s1", 2));
     }
 
@@ -77,7 +77,7 @@ public class AiResponseCacheCoalescingTest {
         listener.addCoalescedListener(received1::add);
         listener.addCoalescedListener(received2::add);
 
-        listener.onAddCache("b1", token("s1", 1));
+        listener.onAddCache("b1", streamingTextMsg("s1", 1));
         listener.onAddCache("b1", complete("s1", 2));
 
         assertEquals(1, received1.size());
@@ -92,7 +92,7 @@ public class AiResponseCacheCoalescingTest {
         listener.addCoalescedListener(l);
         listener.removeCoalescedListener(l);
 
-        listener.onAddCache("b1", token("s1", 1));
+        listener.onAddCache("b1", streamingTextMsg("s1", 1));
         listener.onAddCache("b1", complete("s1", 2));
 
         assertTrue(received.isEmpty());
@@ -104,7 +104,7 @@ public class AiResponseCacheCoalescingTest {
         var received = new ArrayList<CoalescedCacheEvent>();
         listener.addCoalescedListener(received::add);
 
-        listener.onAddCache("b1", token("s1", 1));
+        listener.onAddCache("b1", streamingTextMsg("s1", 1));
         listener.onAddCache("b1", complete("s1", 2));
 
         assertTrue(received.get(0).elapsedMs() >= 0);
@@ -116,10 +116,10 @@ public class AiResponseCacheCoalescingTest {
         var received = new ArrayList<CoalescedCacheEvent>();
         listener.addCoalescedListener(received::add);
 
-        listener.onAddCache("b1", token("s1", 1));
-        listener.onAddCache("b1", token("s2", 1));
-        listener.onAddCache("b1", token("s2", 2));
-        listener.onAddCache("b1", token("s2", 3));
+        listener.onAddCache("b1", streamingTextMsg("s1", 1));
+        listener.onAddCache("b1", streamingTextMsg("s2", 1));
+        listener.onAddCache("b1", streamingTextMsg("s2", 2));
+        listener.onAddCache("b1", streamingTextMsg("s2", 3));
         listener.onAddCache("b1", complete("s1", 2));
         listener.onAddCache("b1", complete("s2", 4));
 
@@ -144,14 +144,14 @@ public class AiResponseCacheCoalescingTest {
         // Second listener should still fire
         listener.addCoalescedListener(received::add);
 
-        listener.onAddCache("b1", token("s1", 1));
+        listener.onAddCache("b1", streamingTextMsg("s1", 1));
         listener.onAddCache("b1", complete("s1", 2));
 
         assertEquals(1, received.size());
     }
 
-    private static CacheMessage token(String sessionId, int seq) {
-        var json = "{\"type\":\"token\",\"data\":\"t\",\"sessionId\":\""
+    private static CacheMessage streamingTextMsg(String sessionId, int seq) {
+        var json = "{\"type\":\"streaming-text\",\"data\":\"t\",\"sessionId\":\""
                 + sessionId + "\",\"seq\":" + seq + "}";
         return new CacheMessage("id-" + System.nanoTime(), new RawMessage(json), "uuid-1");
     }

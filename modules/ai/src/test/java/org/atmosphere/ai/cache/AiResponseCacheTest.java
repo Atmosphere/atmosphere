@@ -27,7 +27,7 @@ public class AiResponseCacheTest {
     @Test
     public void testInspectorAllowsTokenMessages() {
         var inspector = new AiResponseCacheInspector();
-        var json = "{\"type\":\"token\",\"data\":\"Hello\",\"sessionId\":\"s1\",\"seq\":1}";
+        var json = "{\"type\":\"streaming-text\",\"data\":\"Hello\",\"sessionId\":\"s1\",\"seq\":1}";
         var msg = new BroadcastMessage(new RawMessage(json));
 
         assertTrue(inspector.inspect(msg));
@@ -72,11 +72,11 @@ public class AiResponseCacheTest {
     public void testListenerCountsTokens() {
         var listener = new AiResponseCacheListener();
 
-        var token1 = cacheMessage("{\"type\":\"token\",\"data\":\"a\",\"sessionId\":\"s1\",\"seq\":1}");
-        var token2 = cacheMessage("{\"type\":\"token\",\"data\":\"b\",\"sessionId\":\"s1\",\"seq\":2}");
+        var chunk1 = cacheMessage("{\"type\":\"streaming-text\",\"data\":\"a\",\"sessionId\":\"s1\",\"seq\":1}");
+        var chunk2 = cacheMessage("{\"type\":\"streaming-text\",\"data\":\"b\",\"sessionId\":\"s1\",\"seq\":2}");
 
-        listener.onAddCache("b1", token1);
-        listener.onAddCache("b1", token2);
+        listener.onAddCache("b1", chunk1);
+        listener.onAddCache("b1", chunk2);
 
         assertEquals(2, listener.getCachedTokenCount("s1"));
     }
@@ -85,8 +85,8 @@ public class AiResponseCacheTest {
     public void testListenerCleansUpOnComplete() {
         var listener = new AiResponseCacheListener();
 
-        listener.onAddCache("b1", cacheMessage("{\"type\":\"token\",\"data\":\"a\",\"sessionId\":\"s1\",\"seq\":1}"));
-        listener.onAddCache("b1", cacheMessage("{\"type\":\"token\",\"data\":\"b\",\"sessionId\":\"s1\",\"seq\":2}"));
+        listener.onAddCache("b1", cacheMessage("{\"type\":\"streaming-text\",\"data\":\"a\",\"sessionId\":\"s1\",\"seq\":1}"));
+        listener.onAddCache("b1", cacheMessage("{\"type\":\"streaming-text\",\"data\":\"b\",\"sessionId\":\"s1\",\"seq\":2}"));
         assertEquals(2, listener.getCachedTokenCount("s1"));
 
         listener.onAddCache("b1", cacheMessage("{\"type\":\"complete\",\"sessionId\":\"s1\",\"seq\":3}"));
@@ -97,9 +97,9 @@ public class AiResponseCacheTest {
     public void testListenerTracksMultipleSessions() {
         var listener = new AiResponseCacheListener();
 
-        listener.onAddCache("b1", cacheMessage("{\"type\":\"token\",\"data\":\"a\",\"sessionId\":\"s1\",\"seq\":1}"));
-        listener.onAddCache("b1", cacheMessage("{\"type\":\"token\",\"data\":\"b\",\"sessionId\":\"s2\",\"seq\":1}"));
-        listener.onAddCache("b1", cacheMessage("{\"type\":\"token\",\"data\":\"c\",\"sessionId\":\"s2\",\"seq\":2}"));
+        listener.onAddCache("b1", cacheMessage("{\"type\":\"streaming-text\",\"data\":\"a\",\"sessionId\":\"s1\",\"seq\":1}"));
+        listener.onAddCache("b1", cacheMessage("{\"type\":\"streaming-text\",\"data\":\"b\",\"sessionId\":\"s2\",\"seq\":1}"));
+        listener.onAddCache("b1", cacheMessage("{\"type\":\"streaming-text\",\"data\":\"c\",\"sessionId\":\"s2\",\"seq\":2}"));
 
         assertEquals(1, listener.getCachedTokenCount("s1"));
         assertEquals(2, listener.getCachedTokenCount("s2"));
@@ -114,12 +114,12 @@ public class AiResponseCacheTest {
 
     @Test
     public void testExtractJsonField() {
-        assertEquals("token", AiResponseCacheListener.extractJsonField(
-                "{\"type\":\"token\",\"data\":\"Hello\"}", "type"));
+        assertEquals("streaming-text", AiResponseCacheListener.extractJsonField(
+                "{\"type\":\"streaming-text\",\"data\":\"Hello\"}", "type"));
         assertEquals("Hello", AiResponseCacheListener.extractJsonField(
-                "{\"type\":\"token\",\"data\":\"Hello\"}", "data"));
+                "{\"type\":\"streaming-text\",\"data\":\"Hello\"}", "data"));
         assertNull(AiResponseCacheListener.extractJsonField(
-                "{\"type\":\"token\"}", "sessionId"));
+                "{\"type\":\"streaming-text\"}", "sessionId"));
     }
 
     private static CacheMessage cacheMessage(String json) {

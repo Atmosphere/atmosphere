@@ -24,7 +24,7 @@ import java.util.Map;
 
 /**
  * Framework-agnostic AI request. Carries the user message, system prompt,
- * model name, optional hints (temperature, maxTokens, etc.), and conversation
+ * model name, optional hints (temperature, maxStreamingTexts, etc.), and conversation
  * history for multi-turn support.
  *
  * <p>This record is what flows through the {@link AiInterceptor} chain
@@ -35,7 +35,7 @@ import java.util.Map;
  * @param message      the user's message
  * @param systemPrompt the system prompt (may be empty)
  * @param model        the model name (may be null for provider default)
- * @param hints        optional hints (temperature, maxTokens, etc.)
+ * @param hints        optional hints (temperature, maxStreamingTexts, etc.)
  * @param history      conversation history (prior user/assistant turns)
  */
 public record AiRequest(

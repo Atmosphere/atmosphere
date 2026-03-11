@@ -17,7 +17,7 @@ package org.atmosphere.integrationtests.ai;
 
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.ai.budget.BudgetExceededException;
-import org.atmosphere.ai.budget.TokenBudgetManager;
+import org.atmosphere.ai.budget.StreamingTextBudgetManager;
 import org.atmosphere.ai.llm.ChatCompletionRequest;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -37,12 +37,12 @@ import java.io.IOException;
  */
 public class BudgetTestHandler implements AtmosphereHandler {
 
-    private final TokenBudgetManager budgetManager = new TokenBudgetManager();
+    private final StreamingTextBudgetManager budgetManager = new StreamingTextBudgetManager();
 
     public BudgetTestHandler() {
-        budgetManager.setBudget(new TokenBudgetManager.Budget("user-1", 20, "cheap-model", 0.5));
-        budgetManager.setBudget(new TokenBudgetManager.Budget("user-2", 10, "cheap-model", 0.8));
-        budgetManager.setBudget(new TokenBudgetManager.Budget("user-3", 100, "cheap-model", 0.9));
+        budgetManager.setBudget(new StreamingTextBudgetManager.Budget("user-1", 20, "cheap-model", 0.5));
+        budgetManager.setBudget(new StreamingTextBudgetManager.Budget("user-2", 10, "cheap-model", 0.8));
+        budgetManager.setBudget(new StreamingTextBudgetManager.Budget("user-3", 100, "cheap-model", 0.9));
     }
 
     @Override

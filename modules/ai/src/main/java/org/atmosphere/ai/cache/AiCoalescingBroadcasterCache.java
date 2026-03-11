@@ -36,7 +36,7 @@ import java.util.List;
  * A decorator around {@link BroadcasterCache} that coalesces cached AI token
  * messages into a single replay message per session on {@link #retrieveFromCache}.
  *
- * <p>When a client reconnects and the cache returns N individual token messages
+ * <p>When a client reconnects and the cache returns N individual streaming text messages
  * for a session, this cache merges them into one synthetic token message whose
  * {@code data} is the concatenation of all individual token values. Non-AI
  * messages and terminal messages (complete, error) are preserved as-is.</p>
@@ -65,7 +65,7 @@ public class AiCoalescingBroadcasterCache implements BroadcasterCache {
     }
 
     /**
-     * Coalesce consecutive AI token messages per session into single messages.
+     * Coalesce consecutive AI streaming text messages per session into single messages.
      * Non-AI messages are passed through unchanged.
      */
     List<Object> coalesceAiTokens(List<Object> messages) {
@@ -92,7 +92,7 @@ public class AiCoalescingBroadcasterCache implements BroadcasterCache {
                 continue;
             }
 
-            if (parsed.isToken() && parsed.data() != null) {
+            if (parsed.isStreamingText() && parsed.data() != null) {
                 sessionBuffers.computeIfAbsent(sessionId, k -> new StringBuilder())
                         .append(parsed.data());
                 // Track that we need to assign a seq later
@@ -125,7 +125,7 @@ public class AiCoalescingBroadcasterCache implements BroadcasterCache {
         if (buffer != null && !buffer.isEmpty()) {
             var nextSeq = seqCounter.getOrDefault(sessionId, 0L) + 1;
             seqCounter.put(sessionId, nextSeq);
-            var coalesced = new AiStreamMessage("token", buffer.toString(), sessionId, nextSeq, null, null);
+            var coalesced = new AiStreamMessage("streaming-text", buffer.toString(), sessionId, nextSeq, null, null);
             result.add(new RawMessage(coalesced.toJson()));
         }
     }

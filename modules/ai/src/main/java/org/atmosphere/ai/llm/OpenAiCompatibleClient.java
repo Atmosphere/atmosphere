@@ -271,13 +271,13 @@ public class OpenAiCompatibleClient implements LlmClient {
             var usageNode = node.get("usage");
             if (usageNode != null && !usageNode.isNull()) {
                 if (usageNode.has("total_tokens")) {
-                    session.sendMetadata("usage.totalTokens", usageNode.get("total_tokens").asInt());
+                    session.sendMetadata("usage.totalStreamingTexts", usageNode.get("total_tokens").asInt());
                 }
                 if (usageNode.has("prompt_tokens")) {
-                    session.sendMetadata("usage.promptTokens", usageNode.get("prompt_tokens").asInt());
+                    session.sendMetadata("usage.promptStreamingTexts", usageNode.get("prompt_tokens").asInt());
                 }
                 if (usageNode.has("completion_tokens")) {
-                    session.sendMetadata("usage.completionTokens", usageNode.get("completion_tokens").asInt());
+                    session.sendMetadata("usage.completionStreamingTexts", usageNode.get("completion_tokens").asInt());
                 }
             }
 
@@ -304,8 +304,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                 .toList());
         body.put("stream", true);
         body.put("temperature", request.temperature());
-        if (request.maxTokens() > 0) {
-            body.put("max_tokens", request.maxTokens());
+        if (request.maxStreamingTexts() > 0) {
+            body.put("max_tokens", request.maxStreamingTexts());
         }
         return MAPPER.writeValueAsString(body);
     }

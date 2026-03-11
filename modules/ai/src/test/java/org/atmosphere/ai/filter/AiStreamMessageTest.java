@@ -27,13 +27,13 @@ public class AiStreamMessageTest {
     @Test
     public void testParseTokenMessage() throws Exception {
         var json = """
-                {"type":"token","data":"Hello","sessionId":"abc-123","seq":1}""";
+                {"type":"streaming-text","data":"Hello","sessionId":"abc-123","seq":1}""";
         var msg = AiStreamMessage.parse(json);
 
         assertNotNull(msg);
-        assertTrue(msg.isToken());
+        assertTrue(msg.isStreamingText());
         assertFalse(msg.isComplete());
-        assertEquals("token", msg.type());
+        assertEquals("streaming-text", msg.type());
         assertEquals("Hello", msg.data());
         assertEquals("abc-123", msg.sessionId());
         assertEquals(1L, msg.seq());
@@ -108,7 +108,7 @@ public class AiStreamMessageTest {
     @Test
     public void testParseMetadataWithNumericValue() throws Exception {
         var json = """
-                {"type":"metadata","key":"usage.totalTokens","value":42,"sessionId":"abc-123","seq":3}""";
+                {"type":"metadata","key":"usage.totalStreamingTexts","value":42,"sessionId":"abc-123","seq":3}""";
         var msg = AiStreamMessage.parse(json);
 
         assertNotNull(msg);
@@ -127,11 +127,11 @@ public class AiStreamMessageTest {
 
     @Test
     public void testToJson() throws Exception {
-        var msg = new AiStreamMessage("token", "Hello", "abc-123", 1, null, null);
+        var msg = new AiStreamMessage("streaming-text", "Hello", "abc-123", 1, null, null);
         var json = msg.toJson();
         var node = MAPPER.readTree(json);
 
-        assertEquals("token", node.get("type").asText());
+        assertEquals("streaming-text", node.get("type").asText());
         assertEquals("Hello", node.get("data").asText());
         assertEquals("abc-123", node.get("sessionId").asText());
         assertEquals(1L, node.get("seq").asLong());
@@ -154,7 +154,7 @@ public class AiStreamMessageTest {
     @Test
     public void testRoundTrip() throws Exception {
         var original = """
-                {"type":"token","data":"Hello world","sessionId":"sess-1","seq":5}""";
+                {"type":"streaming-text","data":"Hello world","sessionId":"sess-1","seq":5}""";
         var msg = AiStreamMessage.parse(original);
         var rebuilt = msg.toJson();
         var reparsed = AiStreamMessage.parse(rebuilt);
@@ -167,11 +167,11 @@ public class AiStreamMessageTest {
 
     @Test
     public void testWithData() {
-        var msg = new AiStreamMessage("token", "Hello", "abc-123", 1, null, null);
+        var msg = new AiStreamMessage("streaming-text", "Hello", "abc-123", 1, null, null);
         var modified = msg.withData("REDACTED");
 
         assertEquals("REDACTED", modified.data());
-        assertEquals("token", modified.type());
+        assertEquals("streaming-text", modified.type());
         assertEquals("abc-123", modified.sessionId());
         assertEquals(1L, modified.seq());
     }

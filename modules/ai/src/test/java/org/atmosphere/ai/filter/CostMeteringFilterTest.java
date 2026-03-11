@@ -15,7 +15,7 @@
  */
 package org.atmosphere.ai.filter;
 
-import org.atmosphere.ai.budget.TokenBudgetManager;
+import org.atmosphere.ai.budget.StreamingTextBudgetManager;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.cpr.RawMessage;
 import org.junit.jupiter.api.Test;
@@ -27,7 +27,7 @@ public class CostMeteringFilterTest {
     private final CostMeteringFilter filter = new CostMeteringFilter();
 
     private BroadcastAction sendToken(String broadcasterId, String sessionId, long seq) {
-        var msg = new AiStreamMessage("token", "word", sessionId, seq, null, null);
+        var msg = new AiStreamMessage("streaming-text", "word", sessionId, seq, null, null);
         var raw = new RawMessage(msg.toJson());
         return filter.filter(broadcasterId, raw, raw);
     }
@@ -158,8 +158,8 @@ public class CostMeteringFilterTest {
 
     @Test
     public void testRecordsUsageViaBudgetManagerOnComplete() {
-        var budgetMgr = new TokenBudgetManager();
-        budgetMgr.setBudget(new TokenBudgetManager.Budget("user-1", 100_000, null, 0.8));
+        var budgetMgr = new StreamingTextBudgetManager();
+        budgetMgr.setBudget(new StreamingTextBudgetManager.Budget("user-1", 100_000, null, 0.8));
 
         filter.setBudgetManager(budgetMgr, sessionId -> "user-1");
 
@@ -183,8 +183,8 @@ public class CostMeteringFilterTest {
 
     @Test
     public void testBudgetManagerWithNullOwnerSkipsRecording() {
-        var budgetMgr = new TokenBudgetManager();
-        budgetMgr.setBudget(new TokenBudgetManager.Budget("user-1", 100_000, null, 0.8));
+        var budgetMgr = new StreamingTextBudgetManager();
+        budgetMgr.setBudget(new StreamingTextBudgetManager.Budget("user-1", 100_000, null, 0.8));
 
         // Resolver returns null for this session
         filter.setBudgetManager(budgetMgr, sessionId -> null);

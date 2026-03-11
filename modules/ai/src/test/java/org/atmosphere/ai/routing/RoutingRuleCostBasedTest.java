@@ -50,7 +50,7 @@ public class RoutingRuleCostBasedTest {
                 )))
                 .build();
 
-        // maxTokens=2048 (default from ChatCompletionRequest.of)
+        // maxStreamingTexts=2048 (default from ChatCompletionRequest.of)
         // expensive: 0.01 * 2048 = 20.48 > 5.0 -- too expensive
         // cheap: 0.001 * 2048 = 2.048 <= 5.0 -- fits
         var session = mock(StreamingSession.class);
@@ -86,10 +86,10 @@ public class RoutingRuleCostBasedTest {
                 .build();
 
         var session = mock(StreamingSession.class);
-        // maxTokens = 100 via builder
+        // maxStreamingTexts = 100 via builder
         var request = ChatCompletionRequest.builder("any")
                 .user("hello")
-                .maxTokens(100)
+                .maxStreamingTexts(100)
                 .build();
         router.streamChatCompletion(request, session);
 
@@ -107,20 +107,20 @@ public class RoutingRuleCostBasedTest {
                 )))
                 .build();
 
-        // maxTokens=50: 0.01 * 50 = 0.5 <= 1.0 -- fits
+        // maxStreamingTexts=50: 0.01 * 50 = 0.5 <= 1.0 -- fits
         var request = ChatCompletionRequest.builder("any")
                 .user("hello")
-                .maxTokens(50)
+                .maxStreamingTexts(50)
                 .build();
         var session = mock(StreamingSession.class);
         router.streamChatCompletion(request, session);
         assertEquals("model-a", captured.get());
 
-        // maxTokens=200: 0.01 * 200 = 2.0 > 1.0 -- doesn't fit
+        // maxStreamingTexts=200: 0.01 * 200 = 2.0 > 1.0 -- doesn't fit
         captured.set(null);
         var request2 = ChatCompletionRequest.builder("any")
                 .user("hello")
-                .maxTokens(200)
+                .maxStreamingTexts(200)
                 .build();
         var session2 = mock(StreamingSession.class);
         var defaultCaptured = new AtomicReference<String>();

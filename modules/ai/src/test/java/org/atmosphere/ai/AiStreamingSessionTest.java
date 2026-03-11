@@ -177,8 +177,8 @@ public class AiStreamingSessionTest {
         assertEquals("test-id", session.sessionId());
         assertFalse(session.isClosed());
 
-        session.send("token");
-        verify(delegate).send("token");
+        session.send("streaming-text");
+        verify(delegate).send("streaming-text");
 
         session.sendMetadata("key", "value");
         verify(delegate).sendMetadata("key", "value");
@@ -233,9 +233,9 @@ public class AiStreamingSessionTest {
         var withModel = request.withModel("claude-3");
         assertEquals("claude-3", withModel.model());
 
-        var withHints = request.withHints(Map.of("maxTokens", 100));
+        var withHints = request.withHints(Map.of("maxStreamingTexts", 100));
         assertEquals(0.5, withHints.hints().get("temp"));
-        assertEquals(100, withHints.hints().get("maxTokens"));
+        assertEquals(100, withHints.hints().get("maxStreamingTexts"));
     }
 
     @Test
@@ -380,8 +380,8 @@ public class AiStreamingSessionTest {
             @Override
             public void stream(AiRequest request, StreamingSession session) {
                 session.send("Hello");
-                session.sendMetadata("usage.promptTokens", 10);
-                session.sendMetadata("usage.completionTokens", 5);
+                session.sendMetadata("usage.promptStreamingTexts", 10);
+                session.sendMetadata("usage.completionStreamingTexts", 5);
                 session.complete();
             }
         };

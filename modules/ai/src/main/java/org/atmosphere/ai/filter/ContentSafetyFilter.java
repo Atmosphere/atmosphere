@@ -139,7 +139,7 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
     protected BroadcastAction filterAiMessage(
             String broadcasterId, AiStreamMessage msg, String originalJson, RawMessage rawMessage) {
 
-        if (msg.isToken() && msg.data() != null) {
+        if (msg.isStreamingText() && msg.data() != null) {
             return handleToken(msg);
         }
 
@@ -196,12 +196,12 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
 
             return switch (result) {
                 case SafetyResult.Safe() -> {
-                    // Emit buffered text as a proper "token" message, defer the complete
-                    var tokenMsg = new AiStreamMessage("token", text, msg.sessionId(), msg.seq(), null, null);
+                    // Emit buffered text as a proper "streaming-text" message, defer the complete
+                    var streamingTextMsg = new AiStreamMessage("streaming-text", text, msg.sessionId(), msg.seq(), null, null);
                     // Bump terminal seq to seq+1 to preserve monotonic sequence invariant
                     var bumpedTerminal = msg.withSeq(msg.seq() + 1);
                     deferBroadcast(broadcasterId, msg.sessionId(), new RawMessage(bumpedTerminal.toJson()));
-                    yield new BroadcastAction(new RawMessage(tokenMsg.toJson()));
+                    yield new BroadcastAction(new RawMessage(streamingTextMsg.toJson()));
                 }
                 case SafetyResult.Unsafe(var reason) -> {
                     logger.warn("Content safety violation in buffered text for session {}: {}", msg.sessionId(), reason);
@@ -211,12 +211,12 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
                     yield new BroadcastAction(BroadcastAction.ACTION.SKIP, new RawMessage(errorMsg.toJson()));
                 }
                 case SafetyResult.Redacted(var cleanText) -> {
-                    // Emit redacted text as a proper "token" message, defer the complete
-                    var tokenMsg = new AiStreamMessage("token", cleanText, msg.sessionId(), msg.seq(), null, null);
+                    // Emit redacted text as a proper "streaming-text" message, defer the complete
+                    var streamingTextMsg = new AiStreamMessage("streaming-text", cleanText, msg.sessionId(), msg.seq(), null, null);
                     // Bump terminal seq to seq+1 to preserve monotonic sequence invariant
                     var bumpedTerminal = msg.withSeq(msg.seq() + 1);
                     deferBroadcast(broadcasterId, msg.sessionId(), new RawMessage(bumpedTerminal.toJson()));
-                    yield new BroadcastAction(new RawMessage(tokenMsg.toJson()));
+                    yield new BroadcastAction(new RawMessage(streamingTextMsg.toJson()));
                 }
             };
         }

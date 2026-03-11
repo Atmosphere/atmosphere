@@ -17,7 +17,7 @@ package org.atmosphere.ai.routing;
 
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.budget.BudgetExceededException;
-import org.atmosphere.ai.budget.TokenBudgetManager;
+import org.atmosphere.ai.budget.StreamingTextBudgetManager;
 import org.atmosphere.ai.llm.ChatCompletionRequest;
 import org.atmosphere.ai.llm.LlmClient;
 import org.slf4j.Logger;
@@ -64,11 +64,11 @@ public final class RoutingLlmClient implements LlmClient {
     private final LlmClient defaultClient;
     private final String defaultModel;
     private final List<RoutingRule> rules;
-    private final TokenBudgetManager budgetManager;
+    private final StreamingTextBudgetManager budgetManager;
     private final Function<ChatCompletionRequest, String> ownerResolver;
 
     private RoutingLlmClient(LlmClient defaultClient, String defaultModel, List<RoutingRule> rules,
-                             TokenBudgetManager budgetManager,
+                             StreamingTextBudgetManager budgetManager,
                              Function<ChatCompletionRequest, String> ownerResolver) {
         this.defaultClient = defaultClient;
         this.defaultModel = defaultModel;
@@ -89,14 +89,14 @@ public final class RoutingLlmClient implements LlmClient {
          *
          * @param client           the LLM client for this model
          * @param model            model name
-         * @param costPerToken     cost per token (in arbitrary units)
+         * @param costPerStreamingText     cost per token (in arbitrary units)
          * @param averageLatencyMs average response latency in milliseconds
          * @param capability       capability score (higher = more capable); used for tie-breaking
          */
         record ModelOption(
                 LlmClient client,
                 String model,
-                double costPerToken,
+                double costPerStreamingText,
                 long averageLatencyMs,
                 int capability
         ) {}
@@ -120,7 +120,7 @@ public final class RoutingLlmClient implements LlmClient {
 
         /**
          * Route based on cost constraints. Selects the highest-capability model
-         * whose total cost (costPerToken * maxTokens) fits within the budget.
+         * whose total cost (costPerStreamingText * maxStreamingTexts) fits within the budget.
          *
          * @param maxCost the maximum allowed total cost
          * @param models  available model options with cost metadata
@@ -179,7 +179,7 @@ public final class RoutingLlmClient implements LlmClient {
                         session.sendMetadata("routing.model", recommended.get());
                         var fallback = new ChatCompletionRequest(
                                 recommended.get(), request.messages(),
-                                request.temperature(), request.maxTokens());
+                                request.temperature(), request.maxStreamingTexts());
                         defaultClient.streamChatCompletion(fallback, session);
                         return;
                     }
@@ -203,7 +203,7 @@ public final class RoutingLlmClient implements LlmClient {
                     if (matcher.test(userMessage)) {
                         logger.debug("Routing to model {} based on content", model);
                         var routed = new ChatCompletionRequest(model, request.messages(),
-                                request.temperature(), request.maxTokens());
+                                request.temperature(), request.maxStreamingTexts());
                         session.sendMetadata("routing.model", model);
                         target.streamChatCompletion(routed, session);
                         return;
@@ -219,16 +219,16 @@ public final class RoutingLlmClient implements LlmClient {
                 }
                 case RoutingRule.CostBased(var maxCost, var models) -> {
                     var selected = models.stream()
-                            .filter(m -> m.costPerToken() * request.maxTokens() <= maxCost)
+                            .filter(m -> m.costPerStreamingText() * request.maxStreamingTexts() <= maxCost)
                             .max(Comparator.comparingInt(RoutingRule.ModelOption::capability));
                     if (selected.isPresent()) {
                         var opt = selected.get();
                         logger.debug("Routing to model {} based on cost (budget: {})", opt.model(), maxCost);
                         var routed = new ChatCompletionRequest(opt.model(), request.messages(),
-                                request.temperature(), request.maxTokens());
+                                request.temperature(), request.maxStreamingTexts());
                         session.sendMetadata("routing.model", opt.model());
                         session.sendMetadata("routing.cost",
-                                opt.costPerToken() * request.maxTokens());
+                                opt.costPerStreamingText() * request.maxStreamingTexts());
                         opt.client().streamChatCompletion(routed, session);
                         return;
                     }
@@ -242,7 +242,7 @@ public final class RoutingLlmClient implements LlmClient {
                         logger.debug("Routing to model {} based on latency (max: {}ms)",
                                 opt.model(), maxLatencyMs);
                         var routed = new ChatCompletionRequest(opt.model(), request.messages(),
-                                request.temperature(), request.maxTokens());
+                                request.temperature(), request.maxStreamingTexts());
                         session.sendMetadata("routing.model", opt.model());
                         session.sendMetadata("routing.latency", opt.averageLatencyMs());
                         opt.client().streamChatCompletion(routed, session);
@@ -255,7 +255,7 @@ public final class RoutingLlmClient implements LlmClient {
         // No rule matched — use default
         logger.debug("No routing rule matched, using default model {}", defaultModel);
         var defaultRequest = new ChatCompletionRequest(defaultModel, request.messages(),
-                request.temperature(), request.maxTokens());
+                request.temperature(), request.maxStreamingTexts());
         session.sendMetadata("routing.model", defaultModel);
         defaultClient.streamChatCompletion(defaultRequest, session);
     }
@@ -275,7 +275,7 @@ public final class RoutingLlmClient implements LlmClient {
         private final LlmClient defaultClient;
         private final String defaultModel;
         private final List<RoutingRule> rules = new ArrayList<>();
-        private TokenBudgetManager budgetManager;
+        private StreamingTextBudgetManager budgetManager;
         private Function<ChatCompletionRequest, String> ownerResolver;
 
         private Builder(LlmClient defaultClient, String defaultModel) {
@@ -299,7 +299,7 @@ public final class RoutingLlmClient implements LlmClient {
          * @param ownerResolver resolves a request to an owner ID (e.g., user or org)
          * @return this builder
          */
-        public Builder budgetManager(TokenBudgetManager mgr,
+        public Builder budgetManager(StreamingTextBudgetManager mgr,
                                      Function<ChatCompletionRequest, String> ownerResolver) {
             this.budgetManager = mgr;
             this.ownerResolver = ownerResolver;

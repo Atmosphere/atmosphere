@@ -233,8 +233,8 @@ public class StreamingIntegrationTest {
 
         // Should have: token, token, progress, complete (auto-close)
         assertEquals(4, capturedTypes.size());
-        assertEquals("token", capturedTypes.get(0));
-        assertEquals("token", capturedTypes.get(1));
+        assertEquals("streaming-text", capturedTypes.get(0));
+        assertEquals("streaming-text", capturedTypes.get(1));
         assertEquals("progress", capturedTypes.get(2));
         assertEquals("complete", capturedTypes.get(3));
     }
@@ -339,7 +339,7 @@ public class StreamingIntegrationTest {
         assertTrue(json.has("sessionId"), "Must have 'sessionId' field");
         assertTrue(json.has("seq"), "Must have 'seq' field");
 
-        assertEquals("token", json.get("type").asText());
+        assertEquals("streaming-text", json.get("type").asText());
         assertEquals("Hello", json.get("data").asText());
         assertEquals("wire-test", json.get("sessionId").asText());
         assertTrue(json.get("seq").asLong() > 0, "Seq should be positive");

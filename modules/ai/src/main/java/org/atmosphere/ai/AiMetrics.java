@@ -46,8 +46,8 @@ public interface AiMetrics {
      * Record token usage for a request/response pair.
      *
      * @param model            the model name
-     * @param promptTokens     number of tokens in the prompt
-     * @param completionTokens number of tokens in the response
+     * @param promptTokens     number of streaming texts in the prompt
+     * @param completionTokens number of streaming texts in the response
      */
     void recordTokenUsage(String model, int promptTokens, int completionTokens);
 

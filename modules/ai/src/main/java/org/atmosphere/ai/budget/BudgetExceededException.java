@@ -25,7 +25,7 @@ public class BudgetExceededException extends RuntimeException {
     private final long used;
 
     public BudgetExceededException(String ownerId, long budget, long used) {
-        super("Token budget exceeded for " + ownerId + ": used " + used + " of " + budget);
+        super("Streaming text budget exceeded for " + ownerId + ": used " + used + " of " + budget);
         this.ownerId = ownerId;
         this.budget = budget;
         this.used = used;

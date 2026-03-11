@@ -56,9 +56,9 @@ class MetricsCapturingSession implements StreamingSession {
 
     @Override
     public void sendMetadata(String key, Object value) {
-        if ("usage.promptTokens".equals(key) && value instanceof Number n) {
+        if ("usage.promptStreamingTexts".equals(key) && value instanceof Number n) {
             promptTokens = n.intValue();
-        } else if ("usage.completionTokens".equals(key) && value instanceof Number n) {
+        } else if ("usage.completionStreamingTexts".equals(key) && value instanceof Number n) {
             completionTokens = n.intValue();
         }
         delegate.sendMetadata(key, value);

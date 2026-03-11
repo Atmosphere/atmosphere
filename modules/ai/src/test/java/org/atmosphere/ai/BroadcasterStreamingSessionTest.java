@@ -53,21 +53,21 @@ public class BroadcasterStreamingSessionTest {
     }
 
     @Test
-    public void testSendToken() throws Exception {
+    public void testSendStreamingText() throws Exception {
         session.send("Hello");
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster).broadcast(captor.capture());
 
         var json = MAPPER.readTree(raw(captor.getValue()));
-        assertEquals("token", json.get("type").asText());
+        assertEquals("streaming-text", json.get("type").asText());
         assertEquals("Hello", json.get("data").asText());
         assertEquals("bcast-session", json.get("sessionId").asText());
         assertEquals(1L, json.get("seq").asLong());
     }
 
     @Test
-    public void testSendMultipleTokensWithSequence() throws Exception {
+    public void testSendMultipleStreamingTextsWithSequence() throws Exception {
         session.send("Hello");
         session.send(" world");
 
@@ -169,7 +169,7 @@ public class BroadcasterStreamingSessionTest {
     @Test
     public void testAutoCloseCallsComplete() throws Exception {
         try (var s = session) {
-            s.send("token");
+            s.send("streaming-text");
         }
 
         var captor = ArgumentCaptor.forClass(RawMessage.class);
@@ -215,7 +215,7 @@ public class BroadcasterStreamingSessionTest {
                 })
                 .toList();
 
-        assertEquals(List.of("progress", "metadata", "token", "token", "token", "complete"), types);
+        assertEquals(List.of("progress", "metadata", "streaming-text", "streaming-text", "streaming-text", "complete"), types);
         assertTrue(session.isClosed());
     }
 

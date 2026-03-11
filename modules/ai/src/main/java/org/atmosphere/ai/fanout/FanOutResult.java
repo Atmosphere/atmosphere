@@ -21,15 +21,15 @@ package org.atmosphere.ai.fanout;
  *
  * @param modelId           the model endpoint ID
  * @param fullResponse      the complete aggregated response text
- * @param timeToFirstTokenMs milliseconds from request start to first token received
+ * @param timeToFirstStreamingTextMs milliseconds from request start to first streaming text received
  * @param totalTimeMs       total milliseconds for the complete response
- * @param tokenCount        number of streaming token chunks received
+ * @param streamingTextCount        number of streaming text chunks received
  */
 public record FanOutResult(
         String modelId,
         String fullResponse,
-        long timeToFirstTokenMs,
+        long timeToFirstStreamingTextMs,
         long totalTimeMs,
-        int tokenCount
+        int streamingTextCount
 ) {
 }

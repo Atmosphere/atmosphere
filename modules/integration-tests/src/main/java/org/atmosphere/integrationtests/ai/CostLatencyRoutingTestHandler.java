@@ -51,11 +51,11 @@ public class CostLatencyRoutingTestHandler implements AtmosphereHandler {
         // Cost-based routing: models with different cost profiles
         costRouter = RoutingLlmClient.builder(defaultClient, "default-model")
                 .route(RoutingRule.costBased(Double.MAX_VALUE, List.of(
-                        // costPerToken=0.01, capability=10 (best)
+                        // costPerStreamingText=0.01, capability=10 (best)
                         new ModelOption(premiumClient, "premium-model", 0.01, 200, 10),
-                        // costPerToken=0.005, capability=7
+                        // costPerStreamingText=0.005, capability=7
                         new ModelOption(midClient, "mid-model", 0.005, 100, 7),
-                        // costPerToken=0.001, capability=3 (cheapest)
+                        // costPerStreamingText=0.001, capability=3 (cheapest)
                         new ModelOption(cheapClient, "cheap-model", 0.001, 50, 3)
                 )))
                 .build();
@@ -101,11 +101,11 @@ public class CostLatencyRoutingTestHandler implements AtmosphereHandler {
             var spaceIdx = rest.indexOf(' ');
             var budget = Double.parseDouble(rest.substring(0, spaceIdx));
             var text = rest.substring(spaceIdx + 1);
-            var maxTokens = (int) (budget / 0.001); // Normalize to token count
+            var maxStreamingTexts = (int) (budget / 0.001); // Normalize to token count
 
             var request = ChatCompletionRequest.builder("auto")
                     .user(text)
-                    .maxTokens(maxTokens)
+                    .maxStreamingTexts(maxStreamingTexts)
                     .build();
 
             // Build a cost router with the specific budget

@@ -17,7 +17,7 @@ package org.atmosphere.ai.routing;
 
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.budget.BudgetExceededException;
-import org.atmosphere.ai.budget.TokenBudgetManager;
+import org.atmosphere.ai.budget.StreamingTextBudgetManager;
 import org.atmosphere.ai.llm.ChatCompletionRequest;
 import org.atmosphere.ai.llm.LlmClient;
 import org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule;
@@ -182,8 +182,8 @@ public class RoutingLlmClientTest {
     @Test
     public void testBudgetDegradationOverridesRouting() {
         var capturedModel = new AtomicReference<String>();
-        var budgetMgr = new TokenBudgetManager();
-        budgetMgr.setBudget(new TokenBudgetManager.Budget("user-1", 100, "cheap-model", 0.8));
+        var budgetMgr = new StreamingTextBudgetManager();
+        budgetMgr.setBudget(new StreamingTextBudgetManager.Budget("user-1", 100, "cheap-model", 0.8));
 
         // Record 85% usage — past the 80% threshold
         budgetMgr.recordUsage("user-1", 85);
@@ -205,8 +205,8 @@ public class RoutingLlmClientTest {
 
     @Test
     public void testBudgetExceededSendsError() {
-        var budgetMgr = new TokenBudgetManager();
-        budgetMgr.setBudget(new TokenBudgetManager.Budget("user-1", 100, null, 0.8));
+        var budgetMgr = new StreamingTextBudgetManager();
+        budgetMgr.setBudget(new StreamingTextBudgetManager.Budget("user-1", 100, null, 0.8));
 
         // Exhaust the budget completely
         budgetMgr.recordUsage("user-1", 100);

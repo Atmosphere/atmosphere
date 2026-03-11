@@ -34,8 +34,8 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * <h3>Usage</h3>
  * <pre>{@code
- * var budgetManager = new TokenBudgetManager();
- * budgetManager.setBudget(new TokenBudgetManager.Budget(
+ * var budgetManager = new StreamingTextBudgetManager();
+ * budgetManager.setBudget(new StreamingTextBudgetManager.Budget(
  *     "user-123", 100_000, "gemini-2.5-flash", 0.8));
  *
  * // In a BroadcastFilter or before starting a stream:
@@ -48,23 +48,23 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * @see org.atmosphere.ai.filter.CostMeteringFilter
  */
-public final class TokenBudgetManager {
+public final class StreamingTextBudgetManager {
 
-    private static final Logger logger = LoggerFactory.getLogger(TokenBudgetManager.class);
+    private static final Logger logger = LoggerFactory.getLogger(StreamingTextBudgetManager.class);
 
     /**
      * Budget configuration for an owner (user or organization).
      *
      * @param ownerId                the owner identifier
-     * @param maxTokens              the maximum number of tokens allowed
+     * @param maxStreamingTexts              the maximum number of streaming texts allowed
      * @param fallbackModel          a cheaper model to switch to when approaching the limit (may be null)
      * @param degradationThreshold   fraction of budget used (0.0-1.0) at which to switch to fallback
      */
-    public record Budget(String ownerId, long maxTokens, String fallbackModel, double degradationThreshold) {
+    public record Budget(String ownerId, long maxStreamingTexts, String fallbackModel, double degradationThreshold) {
 
         public Budget {
-            if (maxTokens <= 0) {
-                throw new IllegalArgumentException("maxTokens must be positive");
+            if (maxStreamingTexts <= 0) {
+                throw new IllegalArgumentException("maxStreamingTexts must be positive");
             }
             if (degradationThreshold < 0 || degradationThreshold > 1.0) {
                 throw new IllegalArgumentException("degradationThreshold must be between 0.0 and 1.0");
@@ -98,7 +98,7 @@ public final class TokenBudgetManager {
      * Record token usage for an owner.
      *
      * @param ownerId the owner identifier
-     * @param tokens  the number of tokens to record
+     * @param tokens  the number of streaming texts to record
      * @return {@code true} if the usage is within budget, {@code false} if budget exceeded
      */
     public boolean recordUsage(String ownerId, long tokens) {
@@ -106,8 +106,8 @@ public final class TokenBudgetManager {
         var newTotal = counter.addAndGet(tokens);
 
         var budget = budgets.get(ownerId);
-        if (budget != null && newTotal > budget.maxTokens()) {
-            logger.warn("Token budget exceeded for {}: {} > {}", ownerId, newTotal, budget.maxTokens());
+        if (budget != null && newTotal > budget.maxStreamingTexts()) {
+            logger.warn("Streaming text budget exceeded for {}: {} > {}", ownerId, newTotal, budget.maxStreamingTexts());
             return false;
         }
         return true;
@@ -125,14 +125,14 @@ public final class TokenBudgetManager {
             return Long.MAX_VALUE;
         }
         var used = currentUsage(ownerId);
-        return Math.max(0, budget.maxTokens() - used);
+        return Math.max(0, budget.maxStreamingTexts() - used);
     }
 
     /**
      * Get the current usage for an owner.
      *
      * @param ownerId the owner identifier
-     * @return the number of tokens used
+     * @return the number of streaming texts used
      */
     public long currentUsage(String ownerId) {
         var counter = usage.get(ownerId);
@@ -160,11 +160,11 @@ public final class TokenBudgetManager {
         }
 
         var used = currentUsage(ownerId);
-        if (used >= budget.maxTokens()) {
-            throw new BudgetExceededException(ownerId, budget.maxTokens(), used);
+        if (used >= budget.maxStreamingTexts()) {
+            throw new BudgetExceededException(ownerId, budget.maxStreamingTexts(), used);
         }
 
-        var usageRatio = (double) used / budget.maxTokens();
+        var usageRatio = (double) used / budget.maxStreamingTexts();
         if (usageRatio >= budget.degradationThreshold() && budget.fallbackModel() != null) {
             logger.debug("Recommending fallback model {} for {} (usage: {}%)",
                     budget.fallbackModel(), ownerId, (int) (usageRatio * 100));

@@ -129,7 +129,7 @@ public final class FanOutStreamingSession implements AutoCloseable {
 
         var latch = new CountDownLatch(endpoints.size());
         var firstComplete = new AtomicReference<String>();
-        var tokenCounts = new ConcurrentHashMap<String, AtomicInteger>();
+        var streamingTextCounts = new ConcurrentHashMap<String, AtomicInteger>();
 
         for (var endpoint : endpoints) {
             var childSessionId = parentSession.sessionId() + "-" + endpoint.id();
@@ -137,10 +137,10 @@ public final class FanOutStreamingSession implements AutoCloseable {
 
             // Wrap child session to track results and apply strategy
             var tracker = new TrackingSession(childSession, endpoint.id(),
-                    latch, firstComplete, tokenCounts);
+                    latch, firstComplete, streamingTextCounts);
 
             var finalRequest = new ChatCompletionRequest(endpoint.model(), baseRequest.messages(),
-                    baseRequest.temperature(), baseRequest.maxTokens());
+                    baseRequest.temperature(), baseRequest.maxStreamingTexts());
             var thread = Thread.ofVirtual().name("fanout-" + endpoint.id()).start(() -> {
                 try {
                     endpoint.client().streamChatCompletion(finalRequest, tracker);
@@ -168,7 +168,7 @@ public final class FanOutStreamingSession implements AutoCloseable {
                 case FanOutStrategy.FastestTokens(var threshold) -> {
                     // Wait until any model hits the threshold
                     while (!closed.get()) {
-                        var winner = tokenCounts.entrySet().stream()
+                        var winner = streamingTextCounts.entrySet().stream()
                                 .filter(e -> e.getValue().get() >= threshold)
                                 .map(java.util.Map.Entry::getKey)
                                 .findFirst()
@@ -240,23 +240,23 @@ public final class FanOutStreamingSession implements AutoCloseable {
         private final String modelId;
         private final CountDownLatch latch;
         private final AtomicReference<String> firstComplete;
-        private final ConcurrentHashMap<String, AtomicInteger> tokenCounts;
+        private final ConcurrentHashMap<String, AtomicInteger> streamingTextCounts;
 
         private final long startTime = System.currentTimeMillis();
-        private volatile long firstTokenTime = -1;
+        private volatile long firstStreamingTextTime = -1;
         private final StringBuilder responseBuilder = new StringBuilder();
-        private final AtomicInteger localTokenCount = new AtomicInteger(0);
+        private final AtomicInteger localStreamingTextCount = new AtomicInteger(0);
         private final AtomicBoolean done = new AtomicBoolean(false);
 
         TrackingSession(StreamingSession delegate, String modelId,
                         CountDownLatch latch, AtomicReference<String> firstComplete,
-                        ConcurrentHashMap<String, AtomicInteger> tokenCounts) {
+                        ConcurrentHashMap<String, AtomicInteger> streamingTextCounts) {
             this.delegate = delegate;
             this.modelId = modelId;
             this.latch = latch;
             this.firstComplete = firstComplete;
-            this.tokenCounts = tokenCounts;
-            tokenCounts.put(modelId, new AtomicInteger(0));
+            this.streamingTextCounts = streamingTextCounts;
+            streamingTextCounts.put(modelId, new AtomicInteger(0));
         }
 
         @Override
@@ -269,11 +269,11 @@ public final class FanOutStreamingSession implements AutoCloseable {
             if (closed.get() && !modelId.equals(firstComplete.get())) {
                 return; // cancelled
             }
-            if (firstTokenTime < 0) {
-                firstTokenTime = System.currentTimeMillis();
+            if (firstStreamingTextTime < 0) {
+                firstStreamingTextTime = System.currentTimeMillis();
             }
-            localTokenCount.incrementAndGet();
-            tokenCounts.get(modelId).incrementAndGet();
+            localStreamingTextCount.incrementAndGet();
+            streamingTextCounts.get(modelId).incrementAndGet();
             responseBuilder.append(token);
             delegate.send(token);
         }
@@ -323,9 +323,9 @@ public final class FanOutStreamingSession implements AutoCloseable {
 
         private void recordResult(String summary) {
             var elapsed = System.currentTimeMillis() - startTime;
-            var ttft = firstTokenTime > 0 ? firstTokenTime - startTime : elapsed;
+            var ttft = firstStreamingTextTime > 0 ? firstStreamingTextTime - startTime : elapsed;
             var response = summary != null ? summary : responseBuilder.toString();
-            results.put(modelId, new FanOutResult(modelId, response, ttft, elapsed, localTokenCount.get()));
+            results.put(modelId, new FanOutResult(modelId, response, ttft, elapsed, localStreamingTextCount.get()));
         }
     }
 }

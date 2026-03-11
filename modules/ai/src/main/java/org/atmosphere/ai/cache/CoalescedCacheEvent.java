@@ -23,7 +23,7 @@ package org.atmosphere.ai.cache;
  *
  * @param sessionId     the unique session identifier
  * @param broadcasterId the broadcaster that cached the messages
- * @param totalTokens   total number of token messages cached for this session
+ * @param totalTokens   total number of streaming text messages cached for this session
  * @param status        terminal status: "complete" or "error"
  * @param elapsedMs     elapsed time from first token to terminal event, in milliseconds
  */
