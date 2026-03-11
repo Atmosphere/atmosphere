@@ -12,7 +12,7 @@ wAsync supports **WebSocket**, **Server-Sent Events (SSE)**, **HTTP Streaming**,
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-wasync</artifactId>
-    <version>4.0.4</version>
+    <version>4.0.11</version>
 </dependency>
 ```
 
@@ -102,7 +102,7 @@ Connect to an Atmosphere gRPC server using bidirectional streaming. Requires `at
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-grpc</artifactId>
-    <version>4.0.4</version>
+    <version>4.0.11</version>
 </dependency>
 <dependency>
     <groupId>io.grpc</groupId>

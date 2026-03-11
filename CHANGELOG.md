@@ -5,6 +5,31 @@ All notable changes to the Atmosphere Framework are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.11] - 2026-03-11
+
+### Fixed
+
+- **WebSocket XSS sanitization bypass.** Disabled HTML sanitization for
+  WebSocket transport — HTML-encoding JSON in WebSocket frames broke the
+  AI streaming wire protocol.
+- **XSS and insecure cookie hardening.** Sanitize HTML output in write
+  methods and set the `Secure` flag on cookies over HTTPS.
+
+### Changed
+
+- **Token → Streaming Text rename.** All AI module APIs, javadoc,
+  and the atmosphere.js client now use "streaming text" instead of "token"
+  to describe LLM output chunks. This affects method names
+  (`onToken` → `onStreamingText`, `totalTokens` → `totalStreamingTexts`),
+  field names, and the wire protocol message type
+  (`"token"` → `"streaming-text"`). This is a **breaking change** for
+  atmosphere.js consumers and custom `AiStreamBroadcastFilter`
+  implementations.
+- **Javadoc published to GitHub Pages.** API docs for `atmosphere-runtime`
+  are now deployed automatically to `async-io.org/apidocs`.
+- **Starlight tutorial site.** A 20-chapter tutorial book is now available
+  at the project documentation site.
+
 ## [4.0.3] - 2026-02-22
 
 ### Fixed

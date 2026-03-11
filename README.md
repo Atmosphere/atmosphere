@@ -37,7 +37,7 @@ Generates a ready-to-run Spring Boot project with your choice of handler (chat, 
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-runtime</artifactId>
-    <version>4.0.10</version>
+    <version>4.0.11</version>
 </dependency>
 ```
 

@@ -6,7 +6,7 @@ React Native / Expo client for the [AI Classroom](../README.md) backend. Demonst
 
 - Connects to the `spring-boot-ai-classroom` backend via WebSocket
 - 4 classroom rooms: **Math**, **Code**, **Science**, **General**
-- AI responses stream token-by-token using `useStreamingRN`
+- AI responses stream text-by-text using `useStreamingRN`
 - AppState-aware: suspends connection when app goes to background
 - NetInfo-aware: shows offline banner, suppresses sends when offline
 

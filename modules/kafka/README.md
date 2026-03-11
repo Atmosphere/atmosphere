@@ -8,7 +8,7 @@ Cross-node broadcasting via Kafka. Messages broadcast on one node are delivered 
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-kafka</artifactId>
-    <version>4.0.8-SNAPSHOT</version>
+    <version>4.0.11</version>
 </dependency>
 ```
 

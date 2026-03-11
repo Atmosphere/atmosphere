@@ -19,7 +19,7 @@ The assistant has three tools registered via LangChain4j's `@Tool` annotation:
 All responses pass through Atmosphere's broadcast filter pipeline:
 
 - **PII Redaction** — emails, phone numbers, and SSNs are automatically replaced with `[REDACTED]`
-- **Cost Metering** — token counts per session are tracked and logged
+- **Cost Metering** — streaming text counts per session are tracked and logged
 
 ## Running
 
@@ -65,5 +65,5 @@ Browser ──WebSocket──▶ Atmosphere ──▶ LangChain4j AI Service
                     │ Cost Filter │
                     └──────┬──────┘
                            │
-                     ◀─────┘ streamed tokens
+                     ◀─────┘ streamed texts
 ```
