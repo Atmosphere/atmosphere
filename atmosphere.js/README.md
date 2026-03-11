@@ -346,7 +346,7 @@ function OnlineUsers() {
 
 Returns `{ joined, members, count, isOnline }`.
 
-#### `useStreaming` -- AI/LLM token streaming
+#### `useStreaming` -- AI/LLM text streaming
 
 ```tsx
 import { useStreaming } from 'atmosphere.js/react';
@@ -367,7 +367,7 @@ function AiChat() {
 }
 ```
 
-Returns `{ fullText, tokens, isStreaming, progress, metadata, error, send, reset, close }`.
+Returns `{ fullText, streamingTexts, isStreaming, progress, metadata, error, send, reset, close }`.
 
 ### Vue
 
@@ -505,7 +505,7 @@ factory returns a Svelte-compatible readable store plus action functions.
     url: '/ai/chat',
     transport: 'websocket',
   });
-  // $store.fullText, $store.isStreaming, $store.tokens, $store.progress
+  // $store.fullText, $store.isStreaming, $store.streamingTexts, $store.progress
 </script>
 
 <button on:click={() => send('What is Atmosphere?')}>Ask</button>
@@ -668,14 +668,14 @@ that use the Atmosphere AI streaming wire protocol (server-side `@AiEndpoint` an
 Each message from the server is a JSON object with `type`, `sessionId`, and `seq` fields:
 
 ```json
-{"type": "token",    "data": "Hello",        "sessionId": "abc-123", "seq": 1}
+{"type": "streaming-text",    "data": "Hello",        "sessionId": "abc-123", "seq": 1}
 {"type": "progress", "data": "Thinking...",   "sessionId": "abc-123", "seq": 2}
 {"type": "metadata", "key": "model",  "value": "gpt-4", "sessionId": "abc-123", "seq": 3}
 {"type": "complete", "data": "Done",          "sessionId": "abc-123", "seq": 10}
 {"type": "error",    "data": "Rate limited",  "sessionId": "abc-123", "seq": 11}
 ```
 
-Message types: `token`, `progress`, `complete`, `error`, `metadata`.
+Message types: `streaming-text`, `progress`, `complete`, `error`, `metadata`.
 
 ### `parseStreamingMessage(raw)`
 
@@ -684,9 +684,9 @@ Low-level decoder that parses a raw string into a `StreamingMessage`, or returns
 ```typescript
 import { parseStreamingMessage } from 'atmosphere.js/streaming/decoder';
 
-const msg = parseStreamingMessage('{"type":"token","data":"Hi","sessionId":"s1","seq":1}');
+const msg = parseStreamingMessage('{"type":"streaming-text","data":"Hi","sessionId":"s1","seq":1}');
 if (msg) {
-  console.log(msg.type, msg.data); // "token" "Hi"
+  console.log(msg.type, msg.data); // "streaming-text" "Hi"
 }
 ```
 
@@ -706,7 +706,7 @@ const handle = await subscribeStreaming(atmosphere, {
   url: '/ai/chat',
   transport: 'websocket',
 }, {
-  onToken: (token, seq) => process.stdout.write(token),
+  onStreamingText: (streamingText, seq) => process.stdout.write(streamingText),
   onProgress: (message) => console.log('Progress:', message),
   onComplete: (summary) => console.log('\nDone!', summary),
   onError: (error) => console.error('Error:', error),

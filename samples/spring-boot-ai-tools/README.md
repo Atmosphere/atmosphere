@@ -57,7 +57,7 @@ Browser ──WebSocket──> Atmosphere ──> LangChain4jToolBridge
                            |         | methods |
                            |         +---------+
                            |
-                     <-----+ streamed tokens
+                     <-----+ streamed texts
 ```
 
 ## Key Difference vs LangChain4j Tools Sample

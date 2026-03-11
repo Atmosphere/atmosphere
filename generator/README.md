@@ -88,7 +88,7 @@ A real-time chat application using `@ManagedService` with Jackson-based message 
 
 ### ai-chat
 
-An AI streaming endpoint using `@AiEndpoint` with `@Prompt` handling. Streams LLM responses token-by-token to connected browsers. Ships with a demo fallback that works without an API key.
+An AI streaming endpoint using `@AiEndpoint` with `@Prompt` handling. Streams LLM responses text-by-text to connected browsers. Ships with a demo fallback that works without an API key.
 
 With `--tools`, the generated project includes an `AssistantTools.java` file with example `@AiTool`-annotated methods (time, weather). These are framework-agnostic — they work with any AI backend.
 

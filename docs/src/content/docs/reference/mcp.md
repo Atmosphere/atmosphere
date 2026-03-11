@@ -104,7 +104,7 @@ public String broadcast(
 }
 ```
 
-### Stream LLM Tokens to Browsers
+### Stream LLM Texts to Browsers
 
 With `atmosphere-ai` on the classpath, inject a `StreamingSession` that wraps the topic's Broadcaster:
 

@@ -38,7 +38,7 @@ model.chat(ChatMessage.userMessage(prompt),
 | Class | Purpose |
 |-------|---------|
 | `LangChain4jStreamingAdapter` | Bridges LangChain4j models to `StreamingSession` |
-| `AtmosphereStreamingResponseHandler` | `StreamingChatResponseHandler` that forwards tokens to `StreamingSession` |
+| `AtmosphereStreamingResponseHandler` | `StreamingChatResponseHandler` that forwards streaming texts to `StreamingSession` |
 | `LangChain4jAiSupport` | `AiSupport` SPI implementation (priority 100) |
 | `AtmosphereLangChain4jAutoConfiguration` | Spring Boot auto-configuration |
 

@@ -1,6 +1,6 @@
 # Spring Boot ADK Chat Sample
 
-A real-time AI chat application that streams [Google ADK](https://github.com/google/adk-java) agent responses token-by-token to the browser using Atmosphere's WebSocket transport. **No API key required** — includes a built-in demo agent with simulated responses.
+A real-time AI chat application that streams [Google ADK](https://github.com/google/adk-java) agent responses text-by-text to the browser using Atmosphere's WebSocket transport. **No API key required** — includes a built-in demo agent with simulated responses.
 
 ## How It Works
 
@@ -11,7 +11,7 @@ A `@ManagedService` endpoint at `/atmosphere/adk-chat`:
 1. Client sends a prompt via WebSocket
 2. `@Message` handler creates a `StreamingSession` from the connected resource
 3. `DemoEventProducer` generates a `Flowable<Event>` stream (simulating an ADK agent)
-4. `AdkEventAdapter.bridge()` subscribes to the event stream and broadcasts tokens to all connected clients
+4. `AdkEventAdapter.bridge()` subscribes to the event stream and broadcasts streaming texts to all connected clients
 
 ```java
 @Message
@@ -38,8 +38,8 @@ To swap in a real ADK agent backed by Gemini, replace `DemoEventProducer.stream(
 A React 19 frontend using shared Atmosphere chat components:
 
 - Connects to `/atmosphere/adk-chat` over WebSocket
-- Parses streaming JSON messages (`token`, `progress`, `complete`, `error`)
-- Renders tokens as they arrive with a typing indicator
+- Parses streaming JSON messages (`streaming-text`, `progress`, `complete`, `error`)
+- Renders streaming texts as they arrive with a typing indicator
 - Uses the `ChatLayout`, `StreamingMessage`, and `ChatInput` components from `atmosphere.js`
 
 ## Build & Run

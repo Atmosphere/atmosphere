@@ -5,7 +5,7 @@ description: "AiSupport backed by Google ADK Runner"
 
 # Google ADK Adapter
 
-Bridges [Google Agent Development Kit (ADK)](https://github.com/google/adk-java) agent streams to Atmosphere's real-time broadcast infrastructure. ADK agents can push streaming tokens to WebSocket, SSE, and gRPC browser clients.
+Bridges [Google Agent Development Kit (ADK)](https://github.com/google/adk-java) agent streams to Atmosphere's real-time broadcast infrastructure. ADK agents can push streaming texts to WebSocket, SSE, and gRPC browser clients.
 
 ## Maven Coordinates
 
@@ -87,7 +87,7 @@ LlmAgent agent = LlmAgent.builder()
 
 | Class | Purpose |
 |-------|---------|
-| `AdkEventAdapter` | Subscribes to `Flowable<Event>` and forwards tokens to `StreamingSession` |
+| `AdkEventAdapter` | Subscribes to `Flowable<Event>` and forwards streaming texts to `StreamingSession` |
 | `AdkBroadcastTool` | ADK `BaseTool` that broadcasts messages via Atmosphere `Broadcaster` |
 | `AdkStreamingAdapter` | `AiStreamingAdapter` SPI impl bridging ADK Runner to StreamingSession |
 | `AdkAiSupport` | `AiSupport` SPI implementation (priority 100) |

@@ -547,4 +547,4 @@ Since both are functional interfaces, lambda expressions work as shown above.
 | `@ManagedService(interceptors={...})` | Per-endpoint interceptor registration |
 | `framework.interceptor(...)` | Programmatic global registration |
 
-**See also:** [@AiEndpoint & Streaming](/docs/tutorial/09-ai-endpoint/) for building AI chat endpoints with streaming token delivery, or [Spring Boot](/docs/tutorial/14-spring-boot/) and [Quarkus](/docs/tutorial/15-quarkus/) for deployment guides.
+**See also:** [@AiEndpoint & Streaming](/docs/tutorial/09-ai-endpoint/) for building AI chat endpoints with streaming text delivery, or [Spring Boot](/docs/tutorial/14-spring-boot/) and [Quarkus](/docs/tutorial/15-quarkus/) for deployment guides.

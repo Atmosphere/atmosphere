@@ -1,11 +1,11 @@
 ---
 title: "AI Filters, Routing & Guardrails"
-description: "PII redaction, content safety, cost metering, multi-model routing, fan-out streaming, and token budgets"
+description: "PII redaction, content safety, cost metering, multi-model routing, fan-out streaming, and streaming text budgets"
 sidebar:
   order: 12
 ---
 
-Atmosphere's AI layer provides three categories of infrastructure that sit between LLM responses and browser clients: **filters** that process the token stream, **routing** that directs requests to the right model, and **guardrails** that enforce safety policies before and after LLM calls.
+Atmosphere's AI layer provides three categories of infrastructure that sit between LLM responses and browser clients: **filters** that process the text stream, **routing** that directs requests to the right model, and **guardrails** that enforce safety policies before and after LLM calls.
 
 ## AI stream filters
 
@@ -38,7 +38,7 @@ Subclasses return one of:
 
 ### PiiRedactionFilter
 
-Detects and redacts personally identifiable information from AI-generated token streams. Since tokens arrive one or a few words at a time, the filter buffers tokens per session until a sentence boundary (`.`, `!`, `?`, or newline) is detected. At that point it scans the buffered sentence, redacts matches, and emits the cleaned text.
+Detects and redacts personally identifiable information from AI-generated text streams. Since streaming texts arrive one or a few words at a time, the filter buffers streaming texts per session until a sentence boundary (`.`, `!`, `?`, or newline) is detected. At that point it scans the buffered sentence, redacts matches, and emits the cleaned text.
 
 Default patterns:
 
@@ -75,11 +75,11 @@ Removing a default pattern:
 filter.removePattern("credit-card");
 ```
 
-On stream completion, any remaining buffered text is flushed with redaction applied. The filter uses a deferred broadcast on a virtual thread to emit the flushed token before the terminal `complete` message.
+On stream completion, any remaining buffered text is flushed with redaction applied. The filter uses a deferred broadcast on a virtual thread to emit the flushed streaming text before the terminal `complete` message.
 
 ### ContentSafetyFilter
 
-Scans AI-generated content for harmful patterns and blocks or replaces unsafe content mid-stream. Like `PiiRedactionFilter`, it buffers tokens into sentence-sized chunks for context-aware scanning. A pluggable `SafetyChecker` interface allows custom safety logic.
+Scans AI-generated content for harmful patterns and blocks or replaces unsafe content mid-stream. Like `PiiRedactionFilter`, it buffers streaming texts into sentence-sized chunks for context-aware scanning. A pluggable `SafetyChecker` interface allows custom safety logic.
 
 Safety outcomes are modeled as a sealed interface:
 
@@ -123,39 +123,39 @@ SafetyChecker apiChecker = text -> {
 
 ### CostMeteringFilter
 
-Tracks token counts per session and per broadcaster, and optionally enforces token budgets by aborting streams that exceed their allocation. This filter does not modify token content.
+Tracks streaming text counts per session and per broadcaster, and optionally enforces streaming text budgets by aborting streams that exceed their allocation. This filter does not modify streaming text content.
 
 ```java
 var metering = new CostMeteringFilter();
-metering.setBudget("user-123-broadcaster", 10000); // max 10K tokens
+metering.setBudget("user-123-broadcaster", 10000); // max 10K streaming texts
 broadcaster.getBroadcasterConfig().addFilter(metering);
 ```
 
-When a budget is exceeded, the filter marks the session as exceeded, drops subsequent tokens with `ACTION.ABORT`, and injects a single error message to notify the client.
+When a budget is exceeded, the filter marks the session as exceeded, drops subsequent streaming texts with `ACTION.ABORT`, and injects a single error message to notify the client.
 
 Querying usage:
 
 ```java
-long sessionTokens = metering.getSessionTokenCount("session-id");
-long broadcasterTokens = metering.getBroadcasterTokenCount("broadcaster-id");
+long sessionStreamingTexts = metering.getSessionStreamingTextCount("session-id");
+long broadcasterStreamingTexts = metering.getBroadcasterStreamingTextCount("broadcaster-id");
 metering.resetBroadcasterCount("broadcaster-id"); // rolling window reset
 ```
 
-Wiring a `TokenBudgetManager` for persistent budget tracking:
+Wiring a `StreamingTextBudgetManager` for persistent budget tracking:
 
 ```java
 metering.setBudgetManager(budgetManager, sessionId -> lookupUserId(sessionId));
 ```
 
-When `setBudgetManager` is configured, the filter calls `budgetManager.recordUsage(ownerId, tokenCount)` on every stream completion.
+When `setBudgetManager` is configured, the filter calls `budgetManager.recordUsage(ownerId, streamingTextCount)` on every stream completion.
 
-## Token budget management
+## Streaming text budget management
 
-The `TokenBudgetManager` (in `org.atmosphere.ai.budget`) manages per-user or per-organization token budgets with graceful degradation.
+The `StreamingTextBudgetManager` (in `org.atmosphere.ai.budget`) manages per-user or per-organization streaming text budgets with graceful degradation.
 
 ```java
-var budgetManager = new TokenBudgetManager();
-budgetManager.setBudget(new TokenBudgetManager.Budget(
+var budgetManager = new StreamingTextBudgetManager();
+budgetManager.setBudget(new StreamingTextBudgetManager.Budget(
     "user-123", 100_000, "gemini-2.5-flash", 0.8));
 ```
 
@@ -164,7 +164,7 @@ The `Budget` record:
 ```java
 public record Budget(
     String ownerId,
-    long maxTokens,
+    long maxStreamingTexts,
     String fallbackModel,
     double degradationThreshold
 ) {}
@@ -324,7 +324,7 @@ Rules are evaluated in order. The first matching rule determines the target clie
 
 ## Fan-out streaming
 
-Fan-out sends the same prompt to multiple models simultaneously, with each model streaming tokens through its own child session. The `FanOutStreamingSession` (in `org.atmosphere.ai.fanout`) orchestrates this.
+Fan-out sends the same prompt to multiple models simultaneously, with each model streaming texts through its own child session. The `FanOutStreamingSession` (in `org.atmosphere.ai.fanout`) orchestrates this.
 
 ### FanOutStrategy
 
@@ -334,15 +334,15 @@ A sealed interface with three variants:
 public sealed interface FanOutStrategy {
     record AllResponses() implements FanOutStrategy {}
     record FirstComplete() implements FanOutStrategy {}
-    record FastestTokens(int tokenThreshold) implements FanOutStrategy {}
+    record FastestStreamingTexts(int streamingTextThreshold) implements FanOutStrategy {}
 }
 ```
 
 | Strategy | Behavior |
 |----------|----------|
-| `AllResponses` | All models stream to completion. The client receives interleaved token streams distinguishable by session ID. |
+| `AllResponses` | All models stream to completion. The client receives interleaved text streams distinguishable by session ID. |
 | `FirstComplete` | First model to finish wins. All other in-flight calls are cancelled. |
-| `FastestTokens(n)` | Observe token production speed for `n` initial tokens, then keep the fastest model and cancel the rest. |
+| `FastestStreamingTexts(n)` | Observe streaming text production speed for `n` initial streaming texts, then keep the fastest model and cancel the rest. |
 
 ### ModelEndpoint
 
@@ -360,9 +360,9 @@ Available after fan-out completes:
 public record FanOutResult(
     String modelId,
     String fullResponse,
-    long timeToFirstTokenMs,
+    long timeToFirstStreamingTextMs,
     long totalTimeMs,
-    int tokenCount
+    int streamingTextCount
 ) {}
 ```
 
@@ -381,14 +381,14 @@ try (var fanOut = new FanOutStreamingSession(session, endpoints,
     // After completion, inspect results
     Map<String, FanOutResult> results = fanOut.getResults();
     var geminiResult = results.get("gemini");
-    logger.info("Gemini TTFT: {}ms, total: {}ms, tokens: {}",
-        geminiResult.timeToFirstTokenMs(),
+    logger.info("Gemini TTFT: {}ms, total: {}ms, streaming texts: {}",
+        geminiResult.timeToFirstStreamingTextMs(),
         geminiResult.totalTimeMs(),
-        geminiResult.tokenCount());
+        geminiResult.streamingTextCount());
 }
 ```
 
-Child sessions use IDs of the form `parentSessionId + "-" + endpointId`, so the client can distinguish which model produced each token. The parent session receives metadata events: `fanout.models` (list of model IDs at start) and `fanout.complete` (boolean at end).
+Child sessions use IDs of the form `parentSessionId + "-" + endpointId`, so the client can distinguish which model produced each streaming text. The parent session receives metadata events: `fanout.models` (list of model IDs at start) and `fanout.complete` (boolean at end).
 
 ## Putting it all together
 
@@ -396,8 +396,8 @@ A typical production setup combines filters, routing, and budget management:
 
 ```java
 // 1. Set up budget management
-var budgetManager = new TokenBudgetManager();
-budgetManager.setBudget(new TokenBudgetManager.Budget(
+var budgetManager = new StreamingTextBudgetManager();
+budgetManager.setBudget(new StreamingTextBudgetManager.Budget(
     "org-acme", 500_000, "gemini-2.5-flash", 0.8));
 
 // 2. Set up routing with failover
@@ -415,9 +415,9 @@ broadcaster.getBroadcasterConfig().addFilter(
 broadcaster.getBroadcasterConfig().addFilter(metering);
 ```
 
-The filter chain processes every token in order: PII redaction first, then content safety, then cost metering. If PII redaction buffers a token (waiting for a sentence boundary), it is not visible to downstream filters until the sentence is complete.
+The filter chain processes every streaming text in order: PII redaction first, then content safety, then cost metering. If PII redaction buffers a streaming text (waiting for a sentence boundary), it is not visible to downstream filters until the sentence is complete.
 
 ## Samples
 
-- **`samples/spring-boot-ai-tools/`** -- demonstrates the `CostMeteringInterceptor` that tracks token usage and sends routing metadata to the client.
+- **`samples/spring-boot-ai-tools/`** -- demonstrates the `CostMeteringInterceptor` that tracks streaming text usage and sends routing metadata to the client.
 - **`samples/spring-boot-spring-ai-routing/`** -- demonstrates multi-model routing with `RoutingAiSupport` and `DefaultModelRouter` using Spring AI backends.

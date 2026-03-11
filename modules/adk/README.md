@@ -2,7 +2,7 @@
 
 Bridges [Google Agent Development Kit (ADK)](https://github.com/google/adk-java) agent
 streams to Atmosphere's real-time broadcast infrastructure. ADK agents can now push
-streaming tokens to WebSocket, SSE, and gRPC browser clients.
+streaming texts to WebSocket, SSE, and gRPC browser clients.
 
 ## Architecture
 
@@ -45,7 +45,7 @@ Runner runner = Runner.builder()
 // Run the agent and bridge events to an Atmosphere Broadcaster
 Flowable<Event> events = runner.runAsync(userId, sessionId, Content.fromParts(Part.fromText(prompt)));
 AdkEventAdapter.bridge(events, broadcaster);
-// All connected WebSocket/SSE/gRPC clients on the broadcaster now receive streaming tokens
+// All connected WebSocket/SSE/gRPC clients on the broadcaster now receive streaming texts
 ```
 
 ### 3. Let ADK Agents Broadcast to Browsers
@@ -81,7 +81,7 @@ adapter.stream(new AdkRequest(runner, userId, sessionId, "Tell me about Java 25"
 
 | Class | Purpose |
 |-------|---------|
-| `AdkEventAdapter` | Subscribes to `Flowable<Event>` and forwards tokens to `StreamingSession` |
+| `AdkEventAdapter` | Subscribes to `Flowable<Event>` and forwards streaming texts to `StreamingSession` |
 | `AdkBroadcastTool` | ADK `BaseTool` that broadcasts messages via Atmosphere `Broadcaster` |
 | `AdkStreamingAdapter` | `AiStreamingAdapter` SPI impl bridging ADK Runner to StreamingSession |
 
@@ -89,7 +89,7 @@ adapter.stream(new AdkRequest(runner, userId, sessionId, "Tell me about Java 25"
 
 This module depends on `atmosphere-ai` and reuses its streaming infrastructure:
 
-- **`StreamingSession`** — the SPI interface for token delivery
+- **`StreamingSession`** — the SPI interface for streaming text delivery
 - **`BroadcasterStreamingSession`** — topic-based streaming (no `AtmosphereResource` needed)
 - **`StreamingSessions`** — factory for creating sessions
 
@@ -97,10 +97,10 @@ No streaming code is duplicated. The ADK module adds only the ADK-specific bridg
 
 ## Wire Protocol
 
-Tokens delivered to browsers use the same JSON format as all atmosphere-ai adapters:
+Streaming texts delivered to browsers use the same JSON format as all atmosphere-ai adapters:
 
 ```json
-{"type":"token","data":"Hello","sessionId":"abc-123","seq":1}
-{"type":"token","data":" world","sessionId":"abc-123","seq":2}
+{"type":"streaming-text","data":"Hello","sessionId":"abc-123","seq":1}
+{"type":"streaming-text","data":" world","sessionId":"abc-123","seq":2}
 {"type":"complete","sessionId":"abc-123","seq":3}
 ```

@@ -1,6 +1,6 @@
 # Spring Boot AI Chat Sample
 
-A real-time AI chat application that streams LLM responses token-by-token to the browser using Atmosphere's built-in `OpenAiCompatibleClient`. Works with **Gemini**, **OpenAI**, **Ollama**, and any OpenAI-compatible endpoint.
+A real-time AI chat application that streams LLM responses text-by-text to the browser using Atmosphere's built-in `OpenAiCompatibleClient`. Works with **Gemini**, **OpenAI**, **Ollama**, and any OpenAI-compatible endpoint.
 
 ## How It Works
 
@@ -10,8 +10,8 @@ A `@ManagedService` endpoint at `/atmosphere/ai-chat`:
 
 1. Client sends a prompt via WebSocket
 2. `@Message` handler creates a `StreamingSession` and a `ChatCompletionRequest`
-3. A virtual thread streams the LLM response, pushing tokens through the session
-4. Each token is written directly to the WebSocket as JSON
+3. A virtual thread streams the LLM response, pushing streaming texts through the session
+4. Each streaming text is written directly to the WebSocket as JSON
 
 ```java
 @Message
@@ -31,8 +31,8 @@ public void onMessage(String prompt) {
 A single-page HTML/JS app using `atmosphere.js`:
 
 - Connects to `/atmosphere/ai-chat` over WebSocket
-- Parses streaming JSON messages (`token`, `progress`, `complete`, `error`)
-- Renders tokens as they arrive with a typing indicator
+- Parses streaming JSON messages (`streaming-text`, `progress`, `complete`, `error`)
+- Renders streaming texts as they arrive with a typing indicator
 - Supports markdown rendering of AI responses
 
 ## Configuration

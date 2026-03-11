@@ -533,7 +533,7 @@ Svelte hooks use the Svelte store contract (`subscribe` method). Use `$store` au
 
 ## AI Streaming Hooks
 
-atmosphere.js ships framework-specific hooks for connecting to `@AiEndpoint` servers (see [Chapter 9](/docs/tutorial/09-ai-endpoint/)). These hooks manage the streaming wire protocol, accumulate tokens, and expose reactive state for token-by-token rendering.
+atmosphere.js ships framework-specific hooks for connecting to `@AiEndpoint` servers (see [Chapter 9](/docs/tutorial/09-ai-endpoint/)). These hooks manage the streaming wire protocol, accumulate streaming texts, and expose reactive state for text-by-text rendering.
 
 ### React -- useStreaming
 
@@ -562,8 +562,8 @@ function AiChat() {
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `fullText` | `string` | All tokens concatenated |
-| `tokens` | `string[]` | Individual tokens in order |
+| `fullText` | `string` | All streaming texts concatenated |
+| `streamingTexts` | `string[]` | Individual streaming texts in order |
 | `isStreaming` | `boolean` | `true` between `send()` and `complete`/`error` |
 | `progress` | `string \| null` | Last progress message from the server |
 | `metadata` | `Record<string, unknown>` | Metadata received from the server (model name, usage stats) |
@@ -604,7 +604,7 @@ const { fullText, isStreaming, progress, send, reset } = useStreaming(
 
 **Signature:** `useStreaming(request, instance?)`
 
-All returned values (`fullText`, `tokens`, `isStreaming`, `progress`, `metadata`, `stats`, `routing`, `error`) are Vue `Ref` or `ComputedRef` objects. `fullText` is a `computed` ref that joins `tokens` automatically. Cleanup is automatic via `onUnmounted`.
+All returned values (`fullText`, `streamingTexts`, `isStreaming`, `progress`, `metadata`, `stats`, `routing`, `error`) are Vue `Ref` or `ComputedRef` objects. `fullText` is a `computed` ref that joins `streamingTexts` automatically. Cleanup is automatic via `onUnmounted`.
 
 **Return type:** Same fields as the React `useStreaming` hook, but as Vue reactive refs.
 
@@ -636,8 +636,8 @@ Import from `atmosphere.js/svelte`. The store auto-connects when the first subsc
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `tokens` | `string[]` | Individual tokens in order |
-| `fullText` | `string` | All tokens concatenated |
+| `streamingTexts` | `string[]` | Individual streaming texts in order |
+| `fullText` | `string` | All streaming texts concatenated |
 | `isStreaming` | `boolean` | Whether the stream is active |
 | `progress` | `string \| null` | Last progress message |
 | `metadata` | `Record<string, unknown>` | Server metadata |

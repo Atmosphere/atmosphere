@@ -69,5 +69,5 @@ Browser ──WebSocket──▶ Atmosphere ──▶ Embabel AgentPlatform
                     │ Step Progress   │
                     └──────┬──────────┘
                            │
-                     ◀─────┘ progress + streamed tokens
+                     ◀─────┘ progress + streamed texts
 ```

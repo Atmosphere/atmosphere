@@ -26,7 +26,7 @@ public void onMessage(String prompt) {
 
 ### Client — `index.html`
 
-Same streaming UI as the AI chat sample — connects over WebSocket, renders tokens as they arrive.
+Same streaming UI as the AI chat sample — connects over WebSocket, renders streaming texts as they arrive.
 
 ## Configuration
 

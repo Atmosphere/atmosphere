@@ -109,7 +109,7 @@ public class MyMcpServer {
 
 When an AI agent calls this tool with `{"message": "hello", "topic": "/chat"}`, the message is broadcast to all WebSocket/SSE/gRPC clients subscribed to `/chat`.
 
-### Example: Stream LLM Tokens to Browsers
+### Example: Stream LLM Texts to Browsers
 
 With `atmosphere-ai` on the classpath, inject a `StreamingSession` that wraps the topic's Broadcaster:
 

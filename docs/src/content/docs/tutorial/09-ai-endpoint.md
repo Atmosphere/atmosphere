@@ -1,13 +1,13 @@
 ---
 title: "@AiEndpoint & StreamingSession"
-description: "Build an AI chat endpoint that streams LLM tokens to the browser over WebSocket or SSE"
+description: "Build an AI chat endpoint that streams LLM texts to the browser over WebSocket or SSE"
 sidebar:
   order: 9
 ---
 
-This chapter introduces Atmosphere's **AI platform**. If you completed the [Getting Started](/docs/tutorial/02-getting-started/) guide, you already have a running Atmosphere application -- that is all you need to start streaming LLM tokens. The core concepts ([Broadcaster](/docs/tutorial/05-broadcaster/), [Rooms](/docs/tutorial/06-rooms/), [Interceptors](/docs/tutorial/08-interceptors/)) are useful background but not prerequisites for `@AiEndpoint`.
+This chapter introduces Atmosphere's **AI platform**. If you completed the [Getting Started](/docs/tutorial/02-getting-started/) guide, you already have a running Atmosphere application -- that is all you need to start streaming LLM texts. The core concepts ([Broadcaster](/docs/tutorial/05-broadcaster/), [Rooms](/docs/tutorial/06-rooms/), [Interceptors](/docs/tutorial/08-interceptors/)) are useful background but not prerequisites for `@AiEndpoint`.
 
-`@AiEndpoint` turns a plain Java class into a streaming AI chat endpoint, and `StreamingSession` delivers tokens from an LLM to the browser in real time.
+`@AiEndpoint` turns a plain Java class into a streaming AI chat endpoint, and `StreamingSession` delivers streaming texts from an LLM to the browser in real time.
 
 ## What You Will Build
 
@@ -15,7 +15,7 @@ A chat endpoint that:
 
 1. Accepts user messages over WebSocket or SSE
 2. Sends them to an LLM (Gemini, GPT, Claude, or a local Ollama model)
-3. Streams the response back token-by-token
+3. Streams the response back text-by-text
 4. Handles connect/disconnect lifecycle automatically
 5. Runs the LLM call on a virtual thread so it never blocks the transport
 
@@ -113,14 +113,14 @@ Key observations:
 
 ## StreamingSession API
 
-`StreamingSession` is the core SPI interface that all AI framework adapters push tokens through. It extends `AutoCloseable` and is thread-safe.
+`StreamingSession` is the core SPI interface that all AI framework adapters push streaming texts through. It extends `AutoCloseable` and is thread-safe.
 
 ```java
 public interface StreamingSession extends AutoCloseable {
 
     String sessionId();
 
-    void send(String token);
+    void send(String streamingText);
 
     void sendMetadata(String key, Object value);
 
@@ -145,7 +145,7 @@ public interface StreamingSession extends AutoCloseable {
 | Method | Description |
 |--------|-------------|
 | `sessionId()` | Unique identifier for this streaming session |
-| `send(token)` | Send a text chunk to the client (typically a single token from the LLM) |
+| `send(streamingText)` | Send a text chunk to the client (typically a single streaming text from the LLM) |
 | `sendMetadata(key, value)` | Send structured metadata alongside the stream (e.g., model name, usage stats) |
 | `progress(message)` | Send a human-readable progress update (e.g., "Thinking...", "Searching documents...") |
 | `complete()` | Signal that the stream has completed successfully |
@@ -159,10 +159,10 @@ public interface StreamingSession extends AutoCloseable {
 
 These two methods serve fundamentally different purposes:
 
-- **`send(token)`** -- pushes a single token/chunk to the client. You call this yourself when you are manually generating or forwarding tokens. All AI adapter implementations call `send()` internally.
+- **`send(streamingText)`** -- pushes a single streaming text/chunk to the client. You call this yourself when you are manually generating or forwarding streaming texts. All AI adapter implementations call `send()` internally.
 - **`stream(message)`** -- sends the user's message to the AI backend resolved by the `@AiEndpoint` infrastructure and streams the response automatically. This is a one-call shortcut that handles the entire LLM round-trip.
 
-In the `AiChat` example, `session.stream(message)` is used because the framework knows how to route to the correct AI backend. If you wanted to handle the LLM call yourself, you would call `session.send()` for each token.
+In the `AiChat` example, `session.stream(message)` is used because the framework knows how to route to the correct AI backend. If you wanted to handle the LLM call yourself, you would call `session.send()` for each streaming text.
 
 ### Multi-modal Content
 
@@ -187,8 +187,8 @@ The wire protocol for content uses structured JSON:
 Every message from `StreamingSession` is a JSON object written directly to the WebSocket (or SSE) connection:
 
 ```json
-{"type":"token","data":"Hello","sessionId":"abc-123","seq":1}
-{"type":"token","data":" world","sessionId":"abc-123","seq":2}
+{"type":"streaming-text","data":"Hello","sessionId":"abc-123","seq":1}
+{"type":"streaming-text","data":" world","sessionId":"abc-123","seq":2}
 {"type":"progress","data":"Thinking...","sessionId":"abc-123","seq":3}
 {"type":"metadata","data":"{\"model\":\"gemini-2.5-flash\"}","sessionId":"abc-123","seq":4}
 {"type":"complete","data":"","sessionId":"abc-123","seq":5}
@@ -198,7 +198,7 @@ Every message from `StreamingSession` is a JSON object written directly to the W
 
 | Type | Description |
 |------|-------------|
-| `token` | A single token/chunk from the LLM |
+| `streaming-text` | A single streaming text/chunk from the LLM |
 | `progress` | A human-readable status update (e.g., "Searching documents...") |
 | `metadata` | Structured metadata (model name, usage stats) |
 | `complete` | Stream finished successfully |
@@ -336,10 +336,10 @@ public class CostMeteringInterceptor implements AiInterceptor {
         for (ChatMessage msg : request.history()) {
             totalChars += msg.content().length();
         }
-        long estimatedTokens = totalChars / 4;
+        long estimatedStreamingTexts = totalChars / 4;
 
         // Store for postProcess
-        resource.getRequest().setAttribute("cost.estTokens", estimatedTokens);
+        resource.getRequest().setAttribute("cost.estStreamingTexts", estimatedStreamingTexts);
         resource.getRequest().setAttribute("cost.startNanos", System.nanoTime());
 
         return request;
@@ -434,7 +434,7 @@ const handle = await subscribeStreaming(atmosphere, {
   url: '/ai-chat',
   transport: 'websocket',
 }, {
-  onToken:    (token) => output.textContent += token,
+  onStreamingText:    (streamingText) => output.textContent += streamingText,
   onProgress: (msg)   => status.textContent = msg,
   onMetadata: (meta)  => { /* model info, usage */ },
   onComplete: ()      => console.log('Done'),
@@ -445,11 +445,11 @@ handle.send('Explain virtual threads in Java 21');
 handle.close(); // disconnect when done
 ```
 
-The callbacks map directly to the [wire protocol](#wire-protocol) message types: `token`, `progress`, `metadata`, `complete`, and `error`.
+The callbacks map directly to the [wire protocol](#wire-protocol) message types: `streaming-text`, `progress`, `metadata`, `complete`, and `error`.
 
 ### React -- `useStreaming`
 
-The `useStreaming` hook manages connection lifecycle, token accumulation, and streaming state:
+The `useStreaming` hook manages connection lifecycle, streaming text accumulation, and streaming state:
 
 ```tsx
 import { useStreaming } from 'atmosphere.js/react';
@@ -470,7 +470,7 @@ function AiChat() {
 }
 ```
 
-`fullText` accumulates all `token` messages into a single string. `isStreaming` is `true` between `send()` and `complete`/`error`. `reset` clears the accumulated text for a new prompt.
+`fullText` accumulates all `streaming-text` messages into a single string. `isStreaming` is `true` between `send()` and `complete`/`error`. `reset` clears the accumulated text for a new prompt.
 
 ### Vue -- `useStreaming`
 
@@ -493,7 +493,7 @@ const { fullText, isStreaming, progress, send, reset } = useStreaming(
 </template>
 ```
 
-`fullText` is a `computed` ref that joins tokens automatically. Cleanup is handled via `onUnmounted`.
+`fullText` is a `computed` ref that joins streaming texts automatically. Cleanup is handled via `onUnmounted`.
 
 ### Svelte -- `createStreamingStore`
 
@@ -532,7 +532,7 @@ The `samples/spring-boot-ai-chat/` sample contains the complete `AiChat` endpoin
 |---------|---------|
 | `@AiEndpoint` | Annotation that wires up an AI chat endpoint with streaming, lifecycle, and configuration |
 | `@Prompt` | Marks the method that handles user messages (invoked on a virtual thread) |
-| `StreamingSession` | SPI for pushing tokens to clients: `send()`, `stream()`, `complete()`, `error()` |
+| `StreamingSession` | SPI for pushing streaming texts to clients: `send()`, `stream()`, `complete()`, `error()` |
 | `AiConfig` | Global LLM configuration (model, API key, base URL) |
 | `AiInterceptor` | Pre/post processing around the prompt (cost metering, RAG, logging) |
 | `AiConversationMemory` | Multi-turn conversation history per client |

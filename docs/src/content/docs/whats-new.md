@@ -11,11 +11,11 @@ description: "New features in Atmosphere 4.0"
 - **`@AiTool` framework-agnostic tool calling** — declare tools once with `@AiTool`/`@Param`, portable across all AI backends via automatic bridge adapters (`SpringAiToolBridge`, `LangChain4jToolBridge`, `AdkToolBridge`).
 - **Per-endpoint model override** — `@AiEndpoint(model = "gpt-4o")` selects a model per endpoint without changing global config.
 - **Multi-backend routing** — `@AiEndpoint(fallbackStrategy = FAILOVER)` wires `DefaultModelRouter` for failover, round-robin, or content-based routing across multiple AI backends.
-- **AiMetrics SPI** — `MetricsCapturingSession` records first-token latency, token usage, and errors via a pluggable `AiMetrics` interface (ServiceLoader-discovered).
+- **AiMetrics SPI** — `MetricsCapturingSession` records first-streaming-text latency, streaming text usage, and errors via a pluggable `AiMetrics` interface (ServiceLoader-discovered).
 - **Auto-detect ConversationPersistence** — `conversationMemory = true` discovers Redis or SQLite backends via ServiceLoader; falls back to in-memory.
 - **Broadcast filter auto-registration** — `@AiEndpoint(filters = {CostMeteringFilter.class})` wires filters without manual Broadcaster config.
-- **Cache replay coalescing** — reconnecting clients receive coalesced missed tokens in a single batch.
-- **Token budget management** — `TokenBudgetManager` enforces per-session and per-endpoint token limits.
+- **Cache replay coalescing** — reconnecting clients receive coalesced missed streaming texts in a single batch.
+- **Streaming text budget management** — `StreamingTextBudgetManager` enforces per-session and per-endpoint streaming text limits.
 - **Cost metering UI** — per-message cost badges in the chat frontend via `StreamingSession` request attribute.
 
 ## MCP (Model Context Protocol)
@@ -54,7 +54,7 @@ Four official AI framework samples have been forked and augmented with Atmospher
 | [spring-boot-langchain4j-tools](../samples/spring-boot-langchain4j-tools) | [langchain4j-examples/spring-boot-example](https://github.com/langchain4j/langchain4j-examples/tree/main/spring-boot-example) | Tool calling, PII redaction, cost metering |
 | [spring-boot-spring-ai-routing](../samples/spring-boot-spring-ai-routing) | [spring-ai-examples/routing-workflow](https://github.com/spring-projects/spring-ai-examples/tree/main/agentic-patterns/routing-workflow) | Prompt routing, content safety, cost metering |
 | [spring-boot-embabel-horoscope](../samples/spring-boot-embabel-horoscope) | [embabel-agent-examples/horoscope](https://github.com/embabel/embabel-agent-examples/tree/main/examples-java/horoscope) | Step progress streaming, content safety |
-| [spring-boot-adk-tools](../samples/spring-boot-adk-tools) | [adk-java/city-time-weather](https://github.com/google/adk-java/tree/main/tutorials/city-time-weather) | Tool calling, token budgets, response caching |
+| [spring-boot-adk-tools](../samples/spring-boot-adk-tools) | [adk-java/city-time-weather](https://github.com/google/adk-java/tree/main/tutorials/city-time-weather) | Tool calling, streaming text budgets, response caching |
 
 ## Developer Experience
 

@@ -11,9 +11,9 @@ User → WebSocket → @ManagedService → SpringAiStreamingAdapter
                                         ↓
                                     ChatClient.prompt(msg).stream()
                                         ↓
-                                    Flux<ChatResponse> → StreamingSession.send(token)
+                                    Flux<ChatResponse> → StreamingSession.send(streamingText)
                                         ↓
-                                    WebSocket ← token-by-token to browser
+                                    WebSocket ← text-by-text to browser
 ```
 
 **Key point:** You keep your Spring AI code (`ChatClient`, Advisors, tools) and get real-time WebSocket push for free via `atmosphere-spring-ai`.
@@ -82,7 +82,7 @@ Three lines to bridge Spring AI to real-time WebSocket streaming:
 | `atmosphere-spring-ai` | Bridges `Flux<ChatResponse>` → `StreamingSession` |
 | `SpringAiStreamingAdapter` | Auto-configured bean that does the bridging |
 | `ChatClient` | Spring AI's fluent API for LLM interactions |
-| `StreamingSession` | Atmosphere's token-by-token push to browsers |
+| `StreamingSession` | Atmosphere's text-by-text push to browsers |
 
 ## Environment Variables
 

@@ -159,7 +159,7 @@ When an `@AiEndpoint` receives a message, `SpringAiSupport.stream()` runs the fo
 | Class | Role |
 |-------|------|
 | `LangChain4jStreamingAdapter` | Bridges `StreamingChatLanguageModel` to `StreamingSession`. |
-| `AtmosphereStreamingResponseHandler` | Simple `StreamingChatResponseHandler`: forwards tokens via `session.send()`, completion via `session.complete()`. |
+| `AtmosphereStreamingResponseHandler` | Simple `StreamingChatResponseHandler`: forwards streaming texts via `session.send()`, completion via `session.complete()`. |
 | `ToolAwareStreamingResponseHandler` | Extends the basic handler with tool calling support. Executes tools via `LangChain4jToolBridge` and re-submits conversations. Max 5 tool rounds. |
 | `LangChain4jAiSupport` | `AiSupport` implementation. Capabilities: `TEXT_STREAMING`, `TOOL_CALLING`, `SYSTEM_PROMPT`. |
 | `LangChain4jToolBridge` | Converts `ToolDefinition` to `ToolSpecification` and handles tool execution. |
@@ -241,7 +241,7 @@ Unlike Spring AI, LangChain4j does not execute tool callbacks automatically. Whe
 | `AdkAiSupport` | `AiSupport` implementation. Capabilities: `TEXT_STREAMING`, `TOOL_CALLING`, `AGENT_ORCHESTRATION`, `CONVERSATION_MEMORY`, `SYSTEM_PROMPT`. |
 | `AdkToolBridge` | Converts `ToolDefinition` to ADK `BaseTool`. Each tool extends `BaseTool` with `runAsync()` that delegates to the Atmosphere `ToolExecutor`. |
 | `AdkBroadcastTool` | Ready-made `BaseTool` that lets an ADK agent broadcast messages to Atmosphere clients. |
-| `AdkEventAdapter` | Subscribes to a `Flowable<Event>` and forwards partial tokens, turn completions, and errors to a `StreamingSession`. |
+| `AdkEventAdapter` | Subscribes to a `Flowable<Event>` and forwards partial streaming texts, turn completions, and errors to a `StreamingSession`. |
 | `AtmosphereAdkAutoConfiguration` | Activates when `com.google.adk.runner.Runner` is on the classpath. |
 
 ### Dependency
@@ -352,7 +352,7 @@ var agentRequest = new AgentRequest("chat-assistant", channel -> {
 Thread.startVirtualThread(() -> adapter.stream(agentRequest, session));
 ```
 
-`AtmosphereOutputChannel` translates agent events (thinking, tool calls, results) into `StreamingSession` calls with appropriate `progress` / `token` / `complete` messages.
+`AtmosphereOutputChannel` translates agent events (thinking, tool calls, results) into `StreamingSession` calls with appropriate `progress` / `streaming-text` / `complete` messages.
 
 ## The @AiTool annotation
 
@@ -389,9 +389,9 @@ Tools are registered globally and selected per-endpoint:
 
 **Google ADK** is the best fit for multi-agent orchestration with Gemini models. It has built-in conversation memory and agent chaining. The `AdkBroadcastTool` makes it straightforward for agents to push real-time updates to browser clients. Note that ADK requires tools at agent construction time, not per-request.
 
-**Embabel** is the best fit for Kotlin-based agent applications that need Embabel's planning and orchestration capabilities. The `AtmosphereOutputChannel` translates agent lifecycle events into streaming tokens automatically.
+**Embabel** is the best fit for Kotlin-based agent applications that need Embabel's planning and orchestration capabilities. The `AtmosphereOutputChannel` translates agent lifecycle events into streaming texts automatically.
 
-All four adapters produce the same wire protocol on the Atmosphere side: token-by-token JSON messages delivered over WebSocket, SSE, or long-polling to any connected client.
+All four adapters produce the same wire protocol on the Atmosphere side: text-by-text JSON messages delivered over WebSocket, SSE, or long-polling to any connected client.
 
 ## Samples
 

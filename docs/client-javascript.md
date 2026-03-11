@@ -104,7 +104,7 @@ function OnlineUsers() {
 
 ### useStreaming
 
-AI/LLM token streaming:
+AI/LLM text streaming:
 
 ```tsx
 import { useStreaming } from 'atmosphere.js/react';
@@ -118,7 +118,7 @@ function AiChat() {
     <div>
       <button onClick={() => send('Explain WebSockets')} disabled={isStreaming}>Ask</button>
       <p>{fullText}</p>
-      {stats && <small>{stats.totalTokens} tokens</small>}
+      {stats && <small>{stats.totalStreamingTexts} streaming texts</small>}
     </div>
   );
 }
@@ -265,7 +265,7 @@ Svelte integrations use the store pattern -- each factory returns a Svelte-compa
 The server sends JSON messages using the Atmosphere AI streaming protocol:
 
 ```json
-{"type": "token",    "data": "Hello",      "sessionId": "abc-123", "seq": 1}
+{"type": "streaming-text",    "data": "Hello",      "sessionId": "abc-123", "seq": 1}
 {"type": "progress", "data": "Thinking...", "sessionId": "abc-123", "seq": 2}
 {"type": "metadata", "key": "model",  "value": "gpt-4", "sessionId": "abc-123", "seq": 3}
 {"type": "complete", "data": "Done",        "sessionId": "abc-123", "seq": 10}

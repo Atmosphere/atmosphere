@@ -215,8 +215,8 @@ The AI module includes filters and middleware that sit between the `@Prompt` met
 | `ContentSafetyFilter` | Pluggable `SafetyChecker` SPI -- block, redact, or pass |
 | `CostMeteringFilter` | Per-session/broadcaster message counting with budget enforcement |
 | `RoutingLlmClient` | Route by content, model, cost, or latency rules |
-| `FanOutStreamingSession` | Concurrent N-model streaming: AllResponses, FirstComplete, FastestTokens |
-| `TokenBudgetManager` | Per-user/org budgets with graceful degradation |
+| `FanOutStreamingSession` | Concurrent N-model streaming: AllResponses, FirstComplete, FastestStreamingTexts |
+| `StreamingTextBudgetManager` | Per-user/org budgets with graceful degradation |
 | `AiResponseCacheInspector` | Cache control for AI messages in `BroadcasterCache` |
 | `AiResponseCacheListener` | Aggregate per-session events instead of per-message noise |
 
@@ -282,7 +282,7 @@ function AiChat() {
         Ask
       </button>
       <p>{fullText}</p>
-      {stats && <small>{stats.totalTokens} tokens</small>}
+      {stats && <small>{stats.totalStreamingTexts} streaming texts</small>}
       {routing.model && <small>Model: {routing.model}</small>}
     </div>
   );
@@ -305,7 +305,7 @@ room.joinVirtual(assistant);
 
 The client receives JSON messages over WebSocket/SSE:
 
-- `{"type":"token","content":"Hello"}` -- a single token
+- `{"type":"streaming-text","content":"Hello"}` -- a single streaming text
 - `{"type":"progress","message":"Thinking..."}` -- status update
 - `{"type":"complete"}` -- stream finished
 - `{"type":"error","message":"..."}` -- stream failed
@@ -333,14 +333,14 @@ Configure the built-in client with environment variables:
 | `AiRequest` | Framework-agnostic request record (message, systemPrompt, model, hints) |
 | `AiInterceptor` | Pre/post processing hooks for RAG, guardrails, logging |
 | `AiConversationMemory` | SPI for conversation history storage |
-| `StreamingSession` | Streams tokens, progress updates, and metadata to the client |
+| `StreamingSession` | Delivers streaming texts, progress updates, and metadata to the client |
 | `StreamingSessions` | Factory for creating `StreamingSession` instances |
 | `OpenAiCompatibleClient` | Built-in HTTP client for OpenAI-compatible APIs |
 | `RoutingLlmClient` | Routes prompts to different LLM backends based on rules |
 | `ToolRegistry` | Global registry for `@AiTool` definitions |
 | `ModelRouter` | SPI for intelligent model routing and failover |
 | `AiGuardrail` | SPI for pre/post-LLM safety inspection |
-| `AiMetrics` | SPI for AI observability (tokens, latency, cost) |
+| `AiMetrics` | SPI for AI observability (streaming texts, latency, cost) |
 | `ConversationPersistence` | SPI for durable conversation storage (Redis, SQLite) |
 | `RetryPolicy` | Exponential backoff with circuit-breaker semantics |
 

@@ -1,6 +1,6 @@
 # Spring Boot Embabel Agent Chat Sample
 
-A real-time AI agent chat using the **Embabel Agent Framework** and Atmosphere. Embabel agents handle planning, tool calling, and orchestration — Atmosphere streams the agent events (progress, tool calls, tokens) to the browser over WebSocket in real time.
+A real-time AI agent chat using the **Embabel Agent Framework** and Atmosphere. Embabel agents handle planning, tool calling, and orchestration — Atmosphere streams the agent events (progress, tool calls, streaming texts) to the browser over WebSocket in real time.
 
 ## How It Works
 
@@ -45,7 +45,7 @@ Thread.startVirtualThread(() -> ADAPTER.stream(agentRequest, session));
 
 ### Client — `index.html`
 
-Same streaming UI as the other AI samples — connects over WebSocket, renders tokens and progress events.
+Same streaming UI as the other AI samples — connects over WebSocket, renders streaming texts and progress events.
 
 ## Configuration
 

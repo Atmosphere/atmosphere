@@ -92,7 +92,7 @@ Atmosphere 4.0 is the most significant release since the original 1.0. Key addit
 
 - **JDK 21 required** -- virtual threads are enabled by default for all async operations
 - **Rooms and Presence** (`@RoomService`) -- first-class support for named rooms with join/leave lifecycle and optional message history
-- **AI Endpoint Streaming** -- `@AiEndpoint` for streaming LLM responses token-by-token to connected clients
+- **AI Endpoint Streaming** -- `@AiEndpoint` for streaming LLM responses text-by-text to connected clients
 - **MCP Server Support** (`atmosphere-mcp`) -- expose Atmosphere endpoints as Model Context Protocol servers
 - **gRPC Transport** (`atmosphere-grpc`) -- bidirectional streaming over gRPC alongside WebSocket and SSE
 - **Durable Sessions** (`atmosphere-durable-sessions`) -- persist session state to SQLite or Redis for recovery after reconnection

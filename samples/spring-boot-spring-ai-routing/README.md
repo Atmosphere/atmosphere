@@ -20,7 +20,7 @@ The routing system classifies incoming prompts and routes them to specialized mo
 Atmosphere AI features active:
 
 - **Content Safety Filter** — blocks harmful content before it reaches users
-- **Cost Metering Filter** — tracks token usage per session and per model
+- **Cost Metering Filter** — tracks streaming text usage per session and per model
 
 ## Running
 
@@ -69,5 +69,5 @@ Browser ──WebSocket──▶ Atmosphere ──▶ Spring AI ChatClient
                     │ Cost Metering   │
                     └──────┬──────────┘
                            │
-                     ◀─────┘ streamed tokens
+                     ◀─────┘ streamed texts
 ```

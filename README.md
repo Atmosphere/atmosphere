@@ -121,7 +121,7 @@ public class MyTools {
             @McpParam(name = "question") String question,
             @McpParam(name = "topic") String topic,
             StreamingSession session) {
-        session.stream(question);  // tokens broadcast to all clients on the topic
+        session.stream(question);  // streaming texts broadcast to all clients on the topic
         return "streaming to " + topic;
     }
 }

@@ -478,9 +478,9 @@ public class MyAiChat {
 
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
-        // Stream tokens back to the client
-        session.token("Hello ");
-        session.token("World!");
+        // Stream streaming texts back to the client
+        session.send("Hello ");
+        session.send("World!");
         session.complete();
     }
 }
@@ -780,7 +780,7 @@ const handle = await subscribeStreaming(atmosphere, {
   url: '/atmosphere/ai-chat',
   transport: 'websocket',
 }, {
-  onToken: (token) => process.stdout.write(token),
+  onStreamingText: (streamingText) => process.stdout.write(streamingText),
   onProgress: (msg) => console.log('Progress:', msg),
   onComplete: (summary) => console.log('\nDone!', summary),
   onError: (err) => console.error(err),
@@ -936,7 +936,7 @@ atmosphere:
 ### AI/LLM Streaming
 
 The `atmosphere-ai` module provides `@AiEndpoint`, `@Prompt`, and
-`StreamingSession` for building real-time AI chat applications with token-by-token
+`StreamingSession` for building real-time AI chat applications with text-by-text
 streaming.
 
 ### Observability

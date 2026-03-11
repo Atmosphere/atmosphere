@@ -323,7 +323,7 @@ With the code above, you now have a server that:
 
 ## AI Quick Start
 
-If your goal is to stream LLM tokens to a browser, you can get there in under 20 lines. Add the AI module alongside the Spring Boot starter:
+If your goal is to stream LLM texts to a browser, you can get there in under 20 lines. Add the AI module alongside the Spring Boot starter:
 
 ```xml
 <dependency>
@@ -356,7 +356,7 @@ public class AiChat {
 
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
-        session.stream(message);  // sends to the LLM, streams tokens back to the client
+        session.stream(message);  // sends to the LLM, streams streaming texts back to the client
     }
 }
 ```
@@ -376,7 +376,7 @@ const request = client.subscribe({
     trackMessageLength: true,
     onMessage(response) {
         const message = response.responseBody;
-        // Each message is a token from the LLM — append to the UI
+        // Each message is a streaming text from the LLM — append to the UI
         document.getElementById('output').textContent += message;
     }
 });

@@ -1,8 +1,8 @@
 # AI Classroom
 
-**Real-time collaborative AI streaming** — multiple clients in the same room see the AI response stream token-by-token, simultaneously.
+**Real-time collaborative AI streaming** — multiple clients in the same room see the AI response stream text-by-text, simultaneously.
 
-This sample demonstrates what makes Atmosphere unique: **broadcasting streamed LLM tokens to multiple connected clients** using a single `@AiEndpoint` annotation.
+This sample demonstrates what makes Atmosphere unique: **broadcasting streamed LLM texts to multiple connected clients** using a single `@AiEndpoint` annotation.
 
 ## Architecture
 
@@ -122,4 +122,4 @@ The `session.stream(message)` call is **framework-agnostic**. To switch AI backe
 
 ## Mobile Client
 
-A React Native / Expo client is available at [expo-client](expo-client/). It connects to this backend via WebSocket, streams AI responses token-by-token with markdown rendering, and includes AppState/NetInfo lifecycle integration. See [React Native docs](../../docs/react-native.md) for details.
+A React Native / Expo client is available at [expo-client](expo-client/). It connects to this backend via WebSocket, streams AI responses text-by-text with markdown rendering, and includes AppState/NetInfo lifecycle integration. See [React Native docs](../../docs/react-native.md) for details.

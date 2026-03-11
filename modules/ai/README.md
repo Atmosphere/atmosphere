@@ -109,13 +109,13 @@ public interface AiConversationMemory {
 | `InMemoryConversationMemory` | Default in-process memory (capped at `maxHistoryMessages`) |
 | `MemoryCapturingSession` | `StreamingSession` decorator that records assistant responses into memory |
 | `AiStreamingSession` | `StreamingSession` wrapper that adds `stream(String)` with interceptor chain |
-| `StreamingSession` | Streams tokens, progress updates, and metadata to the client |
+| `StreamingSession` | Delivers streaming texts, progress updates, and metadata to the client |
 | `StreamingSessions` | Factory for creating `StreamingSession` instances |
 | `OpenAiCompatibleClient` | Built-in HTTP client for OpenAI-compatible APIs (JDK HttpClient, no extra deps) |
 | `AiConfig` | Configuration via environment variables or init-params |
 | `ChatCompletionRequest` | Builder for chat completion requests |
 | `RoutingLlmClient` | Routes prompts to different LLM backends based on content, model, cost, or latency rules |
-| `AiResponseCacheListener` | Tracks cached tokens per session; supports coalesced aggregate events |
+| `AiResponseCacheListener` | Tracks cached streaming texts per session; supports coalesced aggregate events |
 
 ## Configuration
 
@@ -141,20 +141,20 @@ export LLM_MODEL=llama3.2
 
 The client receives JSON messages over WebSocket/SSE:
 
-- `{"type":"token","content":"Hello"}` -- a single token
+- `{"type":"streaming-text","content":"Hello"}` -- a single streaming text
 - `{"type":"progress","message":"Thinking..."}` -- status update
 - `{"type":"complete"}` -- stream finished
 - `{"type":"error","message":"..."}` -- stream failed
 
 ## Cache Listener Coalescing
 
-The `AiResponseCacheListener` fires per-token by default, which can be noisy under load. Coalesced listeners fire **once per session** when it completes or errors, providing aggregate metrics.
+The `AiResponseCacheListener` fires per-streaming-text by default, which can be noisy under load. Coalesced listeners fire **once per session** when it completes or errors, providing aggregate metrics.
 
 ```java
 var listener = new AiResponseCacheListener();
 listener.addCoalescedListener(event -> {
-    log.info("Session {} finished: {} tokens in {}ms (status: {})",
-            event.sessionId(), event.totalTokens(),
+    log.info("Session {} finished: {} streaming texts in {}ms (status: {})",
+            event.sessionId(), event.totalStreamingTexts(),
             event.elapsedMs(), event.status());
 });
 broadcaster.getBroadcasterConfig()
@@ -164,10 +164,10 @@ broadcaster.getBroadcasterConfig()
 
 | Class | Description |
 |-------|-------------|
-| `CoalescedCacheEvent` | Record: `sessionId`, `broadcasterId`, `totalTokens`, `status`, `elapsedMs` |
+| `CoalescedCacheEvent` | Record: `sessionId`, `broadcasterId`, `totalStreamingTexts`, `status`, `elapsedMs` |
 | `CoalescedCacheEventListener` | `@FunctionalInterface` — receives one event per completed session |
 
-Per-token tracking is unchanged; coalesced events are purely additive. Listener exceptions are isolated — a failing listener does not prevent others from firing.
+Per-streaming-text tracking is unchanged; coalesced events are purely additive. Listener exceptions are isolated — a failing listener does not prevent others from firing.
 
 ## Cost and Latency Routing
 
@@ -186,7 +186,7 @@ var router = RoutingLlmClient.builder(defaultClient, "gemini-2.5-flash")
         .build();
 ```
 
-**CostBased** filters models where `costPerToken * request.maxTokens() <= maxCost`, then picks the highest-capability model. Sends `routing.model` and `routing.cost` metadata.
+**CostBased** filters models where `costPerStreamingText * request.maxStreamingTexts() <= maxCost`, then picks the highest-capability model. Sends `routing.model` and `routing.cost` metadata.
 
 **LatencyBased** filters models where `averageLatencyMs <= maxLatencyMs`, then picks the highest-capability model. Sends `routing.model` and `routing.latency` metadata.
 
@@ -202,7 +202,7 @@ Rules are evaluated in order; first match wins. If no model fits the constraint,
 
 ## AI-MCP Bridge
 
-When used together with `atmosphere-mcp`, MCP tool methods can receive a `StreamingSession` backed by a `Broadcaster` — enabling AI agents to stream tokens to browser clients without needing a direct WebSocket connection.
+When used together with `atmosphere-mcp`, MCP tool methods can receive a `StreamingSession` backed by a `Broadcaster` — enabling AI agents to stream texts to browser clients without needing a direct WebSocket connection.
 
 ```java
 @McpTool(name = "ask_ai", description = "Ask the AI and stream to a topic")
@@ -217,7 +217,7 @@ public String askAi(
 }
 ```
 
-The `BroadcasterStreamingSession` class wraps a `Broadcaster` and emits the same wire format as `DefaultStreamingSession` — the browser client sees identical JSON messages regardless of whether tokens originate from a direct WebSocket connection or an MCP tool call.
+The `BroadcasterStreamingSession` class wraps a `Broadcaster` and emits the same wire format as `DefaultStreamingSession` — the browser client sees identical JSON messages regardless of whether streaming texts originate from a direct WebSocket connection or an MCP tool call.
 
 See [atmosphere-mcp README](../mcp/README.md) for injectable parameter details.
 

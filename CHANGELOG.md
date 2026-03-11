@@ -80,7 +80,7 @@ consult the [Migration Guide](docs/core.md).
   registration. Configuration via `quarkus.atmosphere.*` properties.
 - **`atmosphere-ai`** -- AI/LLM streaming SPI. Defines `StreamingSession`,
   `StreamingSessions`, `AiStreamingAdapter`, and `AiConfig` for streaming
-  tokens from any LLM provider to connected clients. Includes the
+  streaming texts from any LLM provider to connected clients. Includes the
   `@AiEndpoint` annotation for zero-boilerplate AI handlers and the `@Prompt`
   annotation for marking prompt-handling methods that run on virtual threads
   automatically.
@@ -177,9 +177,9 @@ consult the [Migration Guide](docs/core.md).
   `useStreaming` via `atmosphere.js/vue`.
 - **Svelte stores** -- `createAtmosphereStore`, `createRoomStore`,
   `createPresenceStore`, `createStreamingStore` via `atmosphere.js/svelte`.
-- **AI streaming client** -- `subscribeStreaming` with `onToken`,
+- **AI streaming client** -- `subscribeStreaming` with `onStreamingText`,
   `onProgress`, `onComplete`, and `onError` callbacks for real-time LLM
-  token display.
+  streaming text display.
 - **Room and presence client API** -- join/leave rooms, broadcast within
   rooms, track online members, and display presence counts.
 - **Chat UI components** -- shared React chat components for sample
