@@ -60,7 +60,7 @@ class EmbabelAdapterTest {
     }
 
     @Test
-    fun `message events are forwarded as tokens`() {
+    fun `message events are forwarded as streaming texts`() {
         val event = MessageOutputChannelEvent("proc-1", mockMessage("Hello from agent"))
         channel.send(event)
 
@@ -68,12 +68,12 @@ class EmbabelAdapterTest {
         verify(broadcaster).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val msg = captor.value.toString()
-        assertTrue(msg.contains("\"type\":\"token\""))
+        assertTrue(msg.contains("\"type\":\"streaming-text\""))
         assertTrue(msg.contains("\"data\":\"Hello from agent\""))
     }
 
     @Test
-    fun `content events are forwarded as tokens`() {
+    fun `content events are forwarded as streaming texts`() {
         val event = ContentOutputChannelEvent("proc-1", mockHasContent("Structured content here"))
         channel.send(event)
 
@@ -81,7 +81,7 @@ class EmbabelAdapterTest {
         verify(broadcaster).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val msg = captor.value.toString()
-        assertTrue(msg.contains("\"type\":\"token\""))
+        assertTrue(msg.contains("\"type\":\"streaming-text\""))
         assertTrue(msg.contains("\"data\":\"Structured content here\""))
     }
 
@@ -154,9 +154,9 @@ class EmbabelAdapterTest {
 
         val messages = captor.allValues.map { it.toString() }
         assertTrue(messages[0].contains("\"type\":\"progress\""))
-        assertTrue(messages[1].contains("\"type\":\"token\""))
+        assertTrue(messages[1].contains("\"type\":\"streaming-text\""))
         assertTrue(messages[2].contains("\"type\":\"progress\""))
-        assertTrue(messages[3].contains("\"type\":\"token\""))
+        assertTrue(messages[3].contains("\"type\":\"streaming-text\""))
         assertTrue(messages[4].contains("\"type\":\"complete\""))
     }
 
@@ -178,7 +178,7 @@ class EmbabelAdapterTest {
         assertTrue(channelReceived != null, "Runner should receive a channel")
 
         val captor = ArgumentCaptor.forClass(Any::class.java)
-        // progress ("Starting agent: test-agent...") + token + complete
+        // progress ("Starting agent: test-agent...") + streaming text + complete
         verify(broadcaster, times(3)).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val messages = captor.allValues.map { it.toString() }

@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory
  * to connected browsers via an Atmosphere [StreamingSession].
  *
  * Bridges Embabel's event types to Atmosphere's streaming wire protocol:
- * - [MessageOutputChannelEvent] → `session.send()` (token/content)
+ * - [MessageOutputChannelEvent] → `session.send()` (streaming text/content)
  * - [ProgressOutputChannelEvent] → `session.progress()` (status updates)
  * - [ContentOutputChannelEvent] → `session.send()` (structured content)
  * - [LoggingOutputChannelEvent] → `session.progress()` (at INFO+ level)
