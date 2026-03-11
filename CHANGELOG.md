@@ -42,7 +42,7 @@ It keeps the annotation-driven programming model and transport abstraction from
 prior versions, and adds support for virtual threads, AI/LLM streaming, rooms
 and presence, native image compilation, and frontend framework bindings.
 
-This release succeeds the 2.x/3.x line (last release: 3.1.0 / 2.6.5). The
+This release succeeds the 2.x/3.x line (last release: 3.1.0 / 2.7.16). The
 `javax.servlet` namespace, Java 8 runtime, and legacy application server
 integrations have been removed. Applications migrating from 2.x or 3.x should
 consult the [Migration Guide](docs/core.md).
