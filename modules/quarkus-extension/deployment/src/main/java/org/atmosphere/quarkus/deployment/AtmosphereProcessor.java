@@ -38,6 +38,7 @@ import io.quarkus.undertow.deployment.IgnoredServletContainerInitializerBuildIte
 import io.quarkus.undertow.deployment.ServletBuildItem;
 import io.quarkus.websockets.client.deployment.ServerWebSocketContainerBuildItem;
 import org.atmosphere.cpr.AtmosphereAnnotations;
+import org.atmosphere.cpr.AtmosphereReflectiveTypes;
 import org.atmosphere.quarkus.runtime.AtmosphereConfig;
 import org.atmosphere.quarkus.runtime.AtmosphereRecorder;
 import org.atmosphere.quarkus.runtime.QuarkusAtmosphereServlet;
@@ -148,68 +149,23 @@ class AtmosphereProcessor {
                             .build());
         }
 
+        // Quarkus runtime classes (not in the shared registry — Quarkus-specific)
         reflectiveClasses.produce(
                 ReflectiveClassBuildItem.builder(
-                                // Quarkus runtime classes
                                 "org.atmosphere.quarkus.runtime.QuarkusAtmosphereObjectFactory",
                                 "org.atmosphere.quarkus.runtime.QuarkusAtmosphereServlet",
                                 "org.atmosphere.quarkus.runtime.QuarkusJSR356AsyncSupport",
-                                "org.atmosphere.quarkus.runtime.LazyAtmosphereConfigurator",
-                                // JSR-356 WebSocket endpoint
-                                "org.atmosphere.container.JSR356Endpoint",
-                                // Core framework classes
-                                "org.atmosphere.cpr.AtmosphereFramework",
-                                "org.atmosphere.cpr.DefaultBroadcaster",
-                                "org.atmosphere.cpr.DefaultBroadcasterFactory",
-                                "org.atmosphere.cpr.DefaultAtmosphereResourceFactory",
-                                "org.atmosphere.cpr.DefaultMetaBroadcaster",
-                                "org.atmosphere.cpr.DefaultAtmosphereResourceSessionFactory",
-                                "org.atmosphere.inject.InjectableObjectFactory",
-                                "org.atmosphere.inject.AtmosphereProducers",
-                                // Injectable SPI implementations (loaded via ServiceLoader)
-                                "org.atmosphere.inject.AtmosphereConfigInjectable",
-                                "org.atmosphere.inject.AtmosphereFrameworkInjectable",
-                                "org.atmosphere.inject.AtmosphereResourceFactoryInjectable",
-                                "org.atmosphere.inject.AtmosphereResourceSessionFactoryInjectable",
-                                "org.atmosphere.inject.BroadcasterFactoryInjectable",
-                                "org.atmosphere.inject.MetaBroadcasterInjectable",
-                                "org.atmosphere.inject.WebSocketFactoryInjectable",
-                                "org.atmosphere.inject.PostConstructIntrospector",
-                                "org.atmosphere.inject.BroadcasterIntrospector",
-                                "org.atmosphere.inject.AtmosphereResourceIntrospector",
-                                "org.atmosphere.inject.AtmosphereRequestIntrospector",
-                                "org.atmosphere.inject.AtmosphereResponseIntrospector",
-                                "org.atmosphere.inject.AtmosphereResourceEventIntrospector",
-                                "org.atmosphere.inject.PathParamIntrospector",
-                                // Core classes instantiated via newClassInstance / getDeclaredConstructor
-                                "org.atmosphere.cpr.AtmosphereResourceImpl",
-                                "org.atmosphere.cpr.AtmosphereRequestImpl",
-                                "org.atmosphere.cpr.AtmosphereResponseImpl",
-                                "org.atmosphere.config.managed.ManagedAtmosphereHandler",
-                                "org.atmosphere.config.managed.AtmosphereHandlerServiceInterceptor",
-                                "org.atmosphere.cpr.DefaultAtmosphereObjectFactory",
-                                // AsyncSupport implementations (resolved by DefaultAsyncSupportResolver)
-                                "org.atmosphere.container.JSR356AsyncSupport",
-                                "org.atmosphere.container.Servlet30CometSupport",
-                                // WebSocket internals
-                                "org.atmosphere.websocket.DefaultWebSocketProcessor",
-                                "org.atmosphere.websocket.DefaultWebSocketFactory",
-                                // Protocol
-                                "org.atmosphere.websocket.protocol.SimpleHttpProtocol",
-                                // Default interceptors (loaded by name via IOUtils.loadClass)
-                                "org.atmosphere.interceptor.CorsInterceptor",
-                                "org.atmosphere.interceptor.CacheHeadersInterceptor",
-                                "org.atmosphere.interceptor.PaddingAtmosphereInterceptor",
-                                "org.atmosphere.interceptor.AndroidAtmosphereInterceptor",
-                                "org.atmosphere.interceptor.HeartbeatInterceptor",
-                                "org.atmosphere.interceptor.SSEAtmosphereInterceptor",
-                                "org.atmosphere.interceptor.JavaScriptProtocol",
-                                "org.atmosphere.interceptor.WebSocketMessageSuspendInterceptor",
-                                "org.atmosphere.interceptor.OnDisconnectInterceptor",
-                                "org.atmosphere.interceptor.IdleResourceInterceptor",
-                                "org.atmosphere.interceptor.SuspendTrackerInterceptor",
-                                // Annotation processor
-                                "org.atmosphere.cpr.DefaultAnnotationProcessor")
+                                "org.atmosphere.quarkus.runtime.LazyAtmosphereConfigurator")
+                        .constructors()
+                        .methods()
+                        .fields()
+                        .reason("Quarkus Atmosphere runtime classes require reflection")
+                        .build());
+
+        // Core Atmosphere types (source of truth: AtmosphereReflectiveTypes)
+        reflectiveClasses.produce(
+                ReflectiveClassBuildItem.builder(
+                                AtmosphereReflectiveTypes.coreTypes().toArray(new String[0]))
                         .constructors()
                         .methods()
                         .fields()
@@ -225,8 +181,7 @@ class AtmosphereProcessor {
                     Thread.currentThread().getContextClassLoader());
             reflectiveClasses.produce(
                     ReflectiveClassBuildItem.builder(
-                                    "org.atmosphere.pool.UnboundedApachePoolableProvider",
-                                    "org.atmosphere.pool.BoundedApachePoolableProvider")
+                                    AtmosphereReflectiveTypes.poolTypes().toArray(new String[0]))
                             .constructors()
                             .methods()
                             .fields()
