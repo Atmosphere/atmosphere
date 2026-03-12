@@ -31,13 +31,13 @@ Deploy Atmosphere as a standard WAR to any Servlet 6.0+ container with WebSocket
         <dependency>
             <groupId>jakarta.inject</groupId>
             <artifactId>jakarta.inject-api</artifactId>
-            <version>4.0.11</version>
+            <version>4.0.13</version>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>4.0.11</version>
+            <version>4.0.13</version>
         </dependency>
     </dependencies>
 </project>

@@ -10,7 +10,7 @@ Supports **WebSocket**, **Server-Sent Events (SSE)**, **HTTP Streaming**, **Long
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-wasync</artifactId>
-    <version>4.0.11</version>
+    <version>4.0.13</version>
 </dependency>
 ```
 

@@ -8,7 +8,7 @@ A Quarkus extension that integrates Atmosphere with Quarkus 3.21+. Provides buil
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-quarkus-extension</artifactId>
-    <version>4.0.11</version>
+    <version>4.0.13</version>
 </dependency>
 ```
 

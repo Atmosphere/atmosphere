@@ -318,7 +318,7 @@ Embabel is a Kotlin-based agent framework with built-in planning, tool calling, 
 <dependency>
     <groupId>com.embabel.agent</groupId>
     <artifactId>embabel-agent-platform-autoconfigure</artifactId>
-    <version>4.0.11</version>
+    <version>4.0.13</version>
 </dependency>
 ```
 
