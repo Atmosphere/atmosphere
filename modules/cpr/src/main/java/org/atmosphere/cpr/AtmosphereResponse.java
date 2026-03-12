@@ -15,15 +15,10 @@
  */
 package org.atmosphere.cpr;
 
-import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.Collection;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -42,64 +37,7 @@ public interface AtmosphereResponse extends HttpServletResponse {
 
     boolean destroyed();
 
-    @Override
-    void addCookie(Cookie cookie);
-
-    @Override
-    boolean containsHeader(String name);
-
-    @Override
-    String encodeURL(String url);
-
-    @Override
-    String encodeRedirectURL(String url);
-
-    @SuppressWarnings("deprecation")
-    @Override
-    String encodeUrl(String url);
-
-    @SuppressWarnings("deprecation")
-    @Override
-    String encodeRedirectUrl(String url);
-
     AtmosphereResponse delegateToNativeResponse(boolean delegateToNativeResponse);
-
-    @Override
-    void sendError(int sc, String msg) throws IOException;
-
-    @Override
-    void sendError(int sc) throws IOException;
-
-    @Override
-    void sendRedirect(String location) throws IOException;
-
-    @Override
-    void setDateHeader(String name, long date);
-
-    @Override
-    void addDateHeader(String name, long date);
-
-    @Override
-    void setHeader(String name, String value);
-
-    @Override
-    void addHeader(String name, String value);
-
-    @Override
-    void setIntHeader(String name, int value);
-
-    @Override
-    void addIntHeader(String name, int value);
-
-    @Override
-    void setStatus(int status);
-
-    @SuppressWarnings("deprecation")
-    @Override
-    void setStatus(int status, String statusMessage);
-
-    @Override
-    int getStatus();
 
     ServletResponse getResponse();
 
@@ -107,66 +45,12 @@ public interface AtmosphereResponse extends HttpServletResponse {
 
     Map<String, String> headers();
 
-    @Override
-    String getHeader(String name);
-
-    @Override
-    Collection<String> getHeaders(String name);
-
-    @Override
-    Collection<String> getHeaderNames();
-
-    @Override
-    void setCharacterEncoding(String charSet);
-
-    @Override
-    void flushBuffer() throws IOException;
-
-    @Override
-    int getBufferSize();
-
-    @Override
-    String getCharacterEncoding();
-
     /**
      * Check if this object can be destroyed. Default is true.
      */
     boolean isDestroyable();
 
     AtmosphereResponse destroyable(boolean destroyable);
-
-    @Override
-    ServletOutputStream getOutputStream() throws IOException;
-
-    @Override
-    PrintWriter getWriter() throws IOException;
-
-    @Override
-    void setContentLength(int len);
-
-    @Override
-    void setContentType(String contentType);
-
-    @Override
-    String getContentType();
-
-    @Override
-    boolean isCommitted();
-
-    @Override
-    void reset();
-
-    @Override
-    void resetBuffer();
-
-    @Override
-    void setBufferSize(int size);
-
-    @Override
-    void setLocale(Locale locale);
-
-    @Override
-    Locale getLocale();
 
     /**
      * Return the underlying {@link AsyncIOWriter}.
@@ -281,9 +165,6 @@ public interface AtmosphereResponse extends HttpServletResponse {
      * @return the {@link AtmosphereResource#uuid()} used by this object.
      */
     String uuid();
-
-    @Override
-    String toString();
 
     interface Builder {
         Builder destroyable(boolean isRecyclable);
