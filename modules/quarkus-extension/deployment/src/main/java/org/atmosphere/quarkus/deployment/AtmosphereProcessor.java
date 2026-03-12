@@ -37,6 +37,7 @@ import io.quarkus.deployment.builditem.nativeimage.RuntimeInitializedClassBuildI
 import io.quarkus.undertow.deployment.IgnoredServletContainerInitializerBuildItem;
 import io.quarkus.undertow.deployment.ServletBuildItem;
 import io.quarkus.websockets.client.deployment.ServerWebSocketContainerBuildItem;
+import org.atmosphere.cpr.AtmosphereAnnotations;
 import org.atmosphere.quarkus.runtime.AtmosphereConfig;
 import org.atmosphere.quarkus.runtime.AtmosphereRecorder;
 import org.atmosphere.quarkus.runtime.QuarkusAtmosphereServlet;
@@ -52,32 +53,11 @@ class AtmosphereProcessor {
 
     private static final String FEATURE = "atmosphere";
 
-    private static final DotName[] ATMOSPHERE_ANNOTATIONS = {
-            DotName.createSimple("org.atmosphere.config.service.AtmosphereHandlerService"),
-            DotName.createSimple("org.atmosphere.config.service.BroadcasterCacheService"),
-            DotName.createSimple("org.atmosphere.config.service.BroadcasterFilterService"),
-            DotName.createSimple("org.atmosphere.config.service.BroadcasterFactoryService"),
-            DotName.createSimple("org.atmosphere.config.service.BroadcasterService"),
-            DotName.createSimple("org.atmosphere.config.service.WebSocketFactoryService"),
-            DotName.createSimple("org.atmosphere.config.service.WebSocketHandlerService"),
-            DotName.createSimple("org.atmosphere.config.service.WebSocketProtocolService"),
-            DotName.createSimple("org.atmosphere.config.service.AtmosphereInterceptorService"),
-            DotName.createSimple("org.atmosphere.config.service.BroadcasterListenerService"),
-            DotName.createSimple("org.atmosphere.config.service.AsyncSupportService"),
-            DotName.createSimple("org.atmosphere.config.service.AsyncSupportListenerService"),
-            DotName.createSimple("org.atmosphere.config.service.WebSocketProcessorService"),
-            DotName.createSimple("org.atmosphere.config.service.BroadcasterCacheInspectorService"),
-            DotName.createSimple("org.atmosphere.config.service.ManagedService"),
-            DotName.createSimple("org.atmosphere.config.service.AtmosphereService"),
-            DotName.createSimple("org.atmosphere.config.service.EndpointMapperService"),
-            DotName.createSimple("org.atmosphere.config.service.BroadcasterCacheListenerService"),
-            DotName.createSimple("org.atmosphere.config.AtmosphereAnnotation"),
-            DotName.createSimple("org.atmosphere.config.service.AtmosphereResourceFactoryService"),
-            DotName.createSimple("org.atmosphere.config.service.AtmosphereFrameworkListenerService"),
-            DotName.createSimple("org.atmosphere.config.service.AtmosphereResourceListenerService"),
-            DotName.createSimple("org.atmosphere.config.service.UUIDProviderService"),
-            DotName.createSimple("org.atmosphere.config.service.RoomService"),
-    };
+    // Source of truth: AtmosphereAnnotations.coreAnnotationNames()
+    private static final DotName[] ATMOSPHERE_ANNOTATIONS =
+            AtmosphereAnnotations.coreAnnotationNames().stream()
+                    .map(DotName::createSimple)
+                    .toArray(DotName[]::new);
 
     @BuildStep
     FeatureBuildItem feature() {
