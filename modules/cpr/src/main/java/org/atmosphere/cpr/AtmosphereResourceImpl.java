@@ -170,24 +170,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             return TRANSPORT.WEBSOCKET;
         }
 
-        s = s.replace("-", "_").toUpperCase();
-        if (TRANSPORT.POLLING.name().equals(s)) {
-            return TRANSPORT.POLLING;
-        } else if (TRANSPORT.LONG_POLLING.name().equals(s)) {
-            return TRANSPORT.LONG_POLLING;
-        } else if (TRANSPORT.STREAMING.name().equals(s)) {
-            return TRANSPORT.STREAMING;
-        } else if (TRANSPORT.WEBSOCKET.name().equals(s)) {
-            return TRANSPORT.WEBSOCKET;
-        } else if (TRANSPORT.SSE.name().equals(s)) {
-            return TRANSPORT.SSE;
-        } else if (TRANSPORT.AJAX.name().equals(s)) {
-            return TRANSPORT.AJAX;
-        } else if (TRANSPORT.CLOSE.name().equals(s)) {
-            return TRANSPORT.CLOSE;
-        } else {
-            return UNDEFINED;
-        }
+        return switch (s.replace("-", "_").toUpperCase()) {
+            case "POLLING" -> TRANSPORT.POLLING;
+            case "LONG_POLLING" -> TRANSPORT.LONG_POLLING;
+            case "STREAMING" -> TRANSPORT.STREAMING;
+            case "WEBSOCKET" -> TRANSPORT.WEBSOCKET;
+            case "SSE" -> TRANSPORT.SSE;
+            case "AJAX" -> TRANSPORT.AJAX;
+            case "CLOSE" -> TRANSPORT.CLOSE;
+            default -> UNDEFINED;
+        };
     }
 
     @Override
