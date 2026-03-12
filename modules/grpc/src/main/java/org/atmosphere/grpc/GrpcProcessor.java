@@ -80,8 +80,7 @@ public class GrpcProcessor {
             if (resource instanceof AtmosphereResourceImpl impl) {
                 impl.transport(TRANSPORT.GRPC);
                 impl.atmosphereHandler(new AbstractReflectorAtmosphereHandler.Default());
-                impl.action().type(Action.TYPE.SUSPEND);
-                impl.action().timeout(-1);
+                impl.setAction(new Action(Action.TYPE.SUSPEND));
             }
             channel.resource(resource);
         } catch (Exception e) {
