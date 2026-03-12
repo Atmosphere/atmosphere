@@ -23,7 +23,7 @@ Browser ← WS/SSE/gRPC → Broadcaster ← AdkEventAdapter ← Flowable<Event> 
 <dependency>
     <groupId>com.google.adk</groupId>
     <artifactId>google-adk</artifactId>
-    <version>0.2.0</version>
+    <version>4.0.11</version>
 </dependency>
 ```
 

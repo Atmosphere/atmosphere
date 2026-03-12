@@ -22,6 +22,44 @@ jobs:
     - name: Run Architectural Validation
       run: ./scripts/architectural-validation.sh
 
+  doc-version-check:
+    name: Documentation Version Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Verify doc versions are consistent
+      run: |
+        # Extract POM version
+        POM_VERSION=$(grep -m1 '<version>' pom.xml | sed 's/.*<version>\(.*\)<\/version>.*/\1/')
+        echo "POM version: $POM_VERSION"
+
+        if [[ "$POM_VERSION" == *-SNAPSHOT ]]; then
+          # During dev, docs should reference the last release
+          BASE="${POM_VERSION%-SNAPSHOT}"
+          IFS='.' read -r MAJ MIN PATCH <<< "$BASE"
+          EXPECTED="$MAJ.$MIN.$((PATCH - 1))"
+        else
+          EXPECTED="$POM_VERSION"
+        fi
+
+        echo "Expected doc version: $EXPECTED"
+
+        # Check all doc/README version references
+        STALE=$(grep -rn '<version>[0-9]' docs/ modules/*/README.md README.md generator/AtmosphereInit.java 2>/dev/null \
+          | grep -v "$EXPECTED" \
+          | grep -v 'CHANGELOG\|target/\|node_modules' || true)
+
+        if [ -n "$STALE" ]; then
+          echo "::warning::Documentation version drift detected (expected $EXPECTED):"
+          echo "$STALE"
+          echo ""
+          echo "Fix with: ./scripts/update-doc-versions.sh $EXPECTED"
+        else
+          echo "All documentation references match $EXPECTED"
+        fi
+
   build-and-test:
     name: Build & Test (JDK ${{ matrix.java-version }})
     runs-on: ubuntu-latest

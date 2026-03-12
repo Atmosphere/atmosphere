@@ -25,26 +25,31 @@ echo " Release Preflight: Java ${JAVA_VERSION}"
 echo "═══════════════════════════════════════════"
 echo ""
 
-# ── 1. Check Java version in all READMEs ──
+# ── 1. Check Java version in all READMEs and docs ──
 echo "── Java version references ──"
-READMES=(
-  README.md
-  modules/ai/README.md
-  modules/mcp/README.md
-  modules/cpr/README.md
-  modules/spring-boot-starter/README.md
-  modules/quarkus-extension/README.md
-)
 
-for f in "${READMES[@]}"; do
-  if grep -q "<version>${JAVA_VERSION}</version>" "$f" 2>/dev/null || \
-     grep -q ":${JAVA_VERSION}'" "$f" 2>/dev/null; then
+# Find all READMEs and docs with version tags
+for f in README.md $(find modules -name 'README.md' 2>/dev/null) $(find docs -name '*.md' 2>/dev/null); do
+  if [ ! -f "$f" ]; then continue; fi
+  if ! grep -q '<version>[0-9]' "$f" 2>/dev/null; then continue; fi
+
+  if grep -q "<version>${JAVA_VERSION}</version>" "$f" 2>/dev/null; then
     pass "$f"
   else
     fail "$f — does not reference version ${JAVA_VERSION}"
     grep -n '<version>[0-9]' "$f" 2>/dev/null | head -3 || true
   fi
 done
+
+# Check generator fallback
+if [ -f generator/AtmosphereInit.java ]; then
+  if grep -q "return \"${JAVA_VERSION}\";" generator/AtmosphereInit.java 2>/dev/null; then
+    pass "generator/AtmosphereInit.java"
+  else
+    fail "generator/AtmosphereInit.java — fallback version is not ${JAVA_VERSION}"
+    grep -n 'return "' generator/AtmosphereInit.java | head -1 || true
+  fi
+fi
 
 echo ""
 

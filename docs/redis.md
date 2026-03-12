@@ -8,7 +8,7 @@ Cross-node broadcasting via Redis pub/sub. Messages broadcast on one node are de
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-redis</artifactId>
-    <version>4.0.8-SNAPSHOT</version>
+    <version>4.0.11</version>
 </dependency>
 ```
 
