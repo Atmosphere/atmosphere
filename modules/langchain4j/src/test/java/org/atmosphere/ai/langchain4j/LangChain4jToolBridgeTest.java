@@ -17,6 +17,7 @@ package org.atmosphere.ai.langchain4j;
 
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.AiMessage;
+import org.atmosphere.ai.tool.ToolBridgeUtils;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.junit.jupiter.api.Test;
 
@@ -121,19 +122,19 @@ public class LangChain4jToolBridgeTest {
 
     @Test
     public void testParseJsonArgsStringValues() {
-        var result = LangChain4jToolBridge.parseJsonArgs("{\"name\":\"Alice\"}");
+        var result = ToolBridgeUtils.parseJsonArgs("{\"name\":\"Alice\"}");
         assertEquals("Alice", result.get("name"));
     }
 
     @Test
     public void testParseJsonArgsNumericValues() {
-        var result = LangChain4jToolBridge.parseJsonArgs("{\"count\":42}");
+        var result = ToolBridgeUtils.parseJsonArgs("{\"count\":42}");
         assertEquals(42L, result.get("count"));
     }
 
     @Test
     public void testParseJsonArgsEmpty() {
-        assertEquals(Map.of(), LangChain4jToolBridge.parseJsonArgs(null));
-        assertEquals(Map.of(), LangChain4jToolBridge.parseJsonArgs("{}"));
+        assertEquals(Map.of(), ToolBridgeUtils.parseJsonArgs(null));
+        assertEquals(Map.of(), ToolBridgeUtils.parseJsonArgs("{}"));
     }
 }

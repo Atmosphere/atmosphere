@@ -25,12 +25,13 @@ import dev.langchain4j.model.chat.request.json.JsonNumberSchema;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.request.json.JsonSchemaElement;
 import dev.langchain4j.model.chat.request.json.JsonStringSchema;
+import org.atmosphere.ai.tool.ToolBridgeUtils;
 import org.atmosphere.ai.tool.ToolDefinition;
+import org.atmosphere.ai.tool.ToolExecutionHelper;
 import org.atmosphere.ai.tool.ToolParameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -134,115 +135,18 @@ public final class LangChain4jToolBridge {
                     request, "{\"error\":\"Tool not found: " + request.name() + "\"}");
         }
 
-        try {
-            Map<String, Object> args = parseJsonArgs(request.arguments());
-            var result = tool.executor().execute(args);
-            var resultStr = result != null ? result.toString() : "null";
-            logger.debug("Tool {} executed: {}", request.name(), resultStr);
-            return ToolExecutionResultMessage.from(request, resultStr);
-        } catch (Exception e) {
-            logger.error("Tool {} execution failed", request.name(), e);
-            return ToolExecutionResultMessage.from(
-                    request, "{\"error\":\"" + e.getMessage() + "\"}");
-        }
+        Map<String, Object> args = ToolBridgeUtils.parseJsonArgs(request.arguments());
+        var resultStr = ToolExecutionHelper.executeAndFormat(
+                request.name(), tool.executor(), args);
+        return ToolExecutionResultMessage.from(request, resultStr);
     }
 
     /**
      * Build a tool map from a list of definitions for quick lookup.
+     *
+     * <p>Delegates to {@link ToolExecutionHelper#toToolMap(List)}.</p>
      */
     public static Map<String, ToolDefinition> toToolMap(List<ToolDefinition> tools) {
-        var map = new HashMap<String, ToolDefinition>();
-        for (var tool : tools) {
-            map.put(tool.name(), tool);
-        }
-        return map;
-    }
-
-    /**
-     * Minimal JSON object parser for tool arguments.
-     */
-    static Map<String, Object> parseJsonArgs(String json) {
-        if (json == null || json.isBlank() || "{}".equals(json.trim())) {
-            return Map.of();
-        }
-        var result = new HashMap<String, Object>();
-        var trimmed = json.trim();
-        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-            trimmed = trimmed.substring(1, trimmed.length() - 1).trim();
-        }
-        if (trimmed.isEmpty()) {
-            return result;
-        }
-
-        int i = 0;
-        while (i < trimmed.length()) {
-            while (i < trimmed.length() && (trimmed.charAt(i) == ',' || trimmed.charAt(i) == ' ')) {
-                i++;
-            }
-            if (i >= trimmed.length()) {
-                break;
-            }
-            if (trimmed.charAt(i) != '"') {
-                break;
-            }
-            int keyStart = i + 1;
-            int keyEnd = trimmed.indexOf('"', keyStart);
-            if (keyEnd < 0) {
-                break;
-            }
-            var key = trimmed.substring(keyStart, keyEnd);
-            i = keyEnd + 1;
-
-            while (i < trimmed.length() && (trimmed.charAt(i) == ':' || trimmed.charAt(i) == ' ')) {
-                i++;
-            }
-            if (i >= trimmed.length()) {
-                break;
-            }
-
-            if (trimmed.charAt(i) == '"') {
-                int valStart = i + 1;
-                int valEnd = findUnescapedQuote(trimmed, valStart);
-                result.put(key, trimmed.substring(valStart, valEnd));
-                i = valEnd + 1;
-            } else if (trimmed.charAt(i) == 't' || trimmed.charAt(i) == 'f') {
-                if (trimmed.startsWith("true", i)) {
-                    result.put(key, true);
-                    i += 4;
-                } else {
-                    result.put(key, false);
-                    i += 5;
-                }
-            } else if (trimmed.charAt(i) == 'n') {
-                result.put(key, null);
-                i += 4;
-            } else {
-                int numStart = i;
-                while (i < trimmed.length() && trimmed.charAt(i) != ',' && trimmed.charAt(i) != '}') {
-                    i++;
-                }
-                var numStr = trimmed.substring(numStart, i).trim();
-                if (numStr.contains(".")) {
-                    result.put(key, Double.parseDouble(numStr));
-                } else {
-                    result.put(key, Long.parseLong(numStr));
-                }
-            }
-        }
-        return result;
-    }
-
-    private static int findUnescapedQuote(String s, int from) {
-        int i = from;
-        while (i < s.length()) {
-            if (s.charAt(i) == '\\') {
-                i += 2;
-            } else if (s.charAt(i) == '"') {
-                return i;
-            } else {
-                i++;
-            }
-        }
-        return s.length();
+        return ToolExecutionHelper.toToolMap(tools);
     }
 }

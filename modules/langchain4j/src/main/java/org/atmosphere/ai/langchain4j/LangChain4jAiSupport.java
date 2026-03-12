@@ -20,29 +20,30 @@ import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
+import org.atmosphere.ai.AbstractAiSupport;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiRequest;
-import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.tool.ToolExecutionHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 /**
- * {@link AiSupport} implementation backed by LangChain4j's
+ * {@link org.atmosphere.ai.AiSupport} implementation backed by LangChain4j's
  * {@link StreamingChatLanguageModel}.
  *
  * <p>Auto-detected when {@code langchain4j-core} is on the classpath.
  * The model must be configured via {@link #setModel} — typically done
  * by application configuration or Spring auto-configuration.</p>
  */
-public class LangChain4jAiSupport implements AiSupport {
+public class LangChain4jAiSupport extends AbstractAiSupport<StreamingChatLanguageModel> {
 
     private static final Logger logger = LoggerFactory.getLogger(LangChain4jAiSupport.class);
-
-    private static volatile StreamingChatLanguageModel model;
 
     @Override
     public String name() {
@@ -50,70 +51,65 @@ public class LangChain4jAiSupport implements AiSupport {
     }
 
     @Override
-    public boolean isAvailable() {
-        try {
-            Class.forName("dev.langchain4j.model.chat.StreamingChatLanguageModel");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
+    protected String nativeClientClassName() {
+        return "dev.langchain4j.model.chat.StreamingChatLanguageModel";
     }
 
     @Override
-    public int priority() {
-        return 100;
+    protected String clientDescription() {
+        return "StreamingChatLanguageModel";
     }
 
     @Override
-    public void configure(AiConfig.LlmSettings settings) {
-        if (model != null) {
-            return;
-        }
+    protected String configurationHint() {
+        return "Call LangChain4jAiSupport.setModel() or use Spring auto-configuration.";
+    }
 
+    @Override
+    protected StreamingChatLanguageModel createNativeClient(AiConfig.LlmSettings settings) {
         var apiKey = settings.client().apiKey();
         if (apiKey == null || apiKey.isBlank()) {
-            return;
+            return null;
         }
 
         try {
             Class.forName("dev.langchain4j.model.openai.OpenAiStreamingChatModel");
         } catch (ClassNotFoundException e) {
             logger.info("langchain4j-open-ai not on classpath; add it or call setModel() manually");
-            return;
+            return null;
         }
 
-        setModel(dev.langchain4j.model.openai.OpenAiStreamingChatModel.builder()
+        var model = dev.langchain4j.model.openai.OpenAiStreamingChatModel.builder()
                 .baseUrl(settings.baseUrl())
                 .apiKey(apiKey)
                 .modelName(settings.model())
-                .build());
+                .build();
         logger.info("LangChain4j auto-configured: model={}, endpoint={}", settings.model(), settings.baseUrl());
+        return model;
     }
 
     /**
      * Set the {@link StreamingChatLanguageModel} to use for streaming.
      */
     public static void setModel(StreamingChatLanguageModel streamingModel) {
-        model = streamingModel;
+        staticModel = streamingModel;
+    }
+
+    // Held for static setter compatibility with Spring auto-configuration
+    private static volatile StreamingChatLanguageModel staticModel;
+
+    @Override
+    public void configure(AiConfig.LlmSettings settings) {
+        // If a static model was set via Spring auto-configuration, use it
+        if (getNativeClient() == null && staticModel != null) {
+            setNativeClient(staticModel);
+        }
+        super.configure(settings);
     }
 
     @Override
-    public void stream(AiRequest request, StreamingSession session) {
-        var streamingModel = model;
-        if (streamingModel == null) {
-            var settings = AiConfig.get();
-            if (settings == null) {
-                settings = AiConfig.fromEnvironment();
-            }
-            configure(settings);
-            streamingModel = model;
-        }
-        if (streamingModel == null) {
-            throw new IllegalStateException(
-                    "LangChain4jAiSupport: StreamingChatLanguageModel not configured. "
-                            + "Call LangChain4jAiSupport.setModel() or use Spring auto-configuration.");
-        }
-
+    protected void doStream(StreamingChatLanguageModel streamingModel,
+                            AiRequest request, StreamingSession session) {
         session.progress("Connecting to AI model...");
 
         var messages = new ArrayList<dev.langchain4j.data.message.ChatMessage>();
@@ -134,7 +130,7 @@ public class LangChain4jAiSupport implements AiSupport {
         // Add tool specifications if tools are present
         var tools = request.tools();
         var toolSpecs = tools.isEmpty()
-                ? java.util.List.<dev.langchain4j.agent.tool.ToolSpecification>of()
+                ? List.<dev.langchain4j.agent.tool.ToolSpecification>of()
                 : LangChain4jToolBridge.toToolSpecifications(tools);
 
         var chatRequestBuilder = ChatRequest.builder().messages(messages);
@@ -145,7 +141,7 @@ public class LangChain4jAiSupport implements AiSupport {
 
         var toolMap = tools.isEmpty()
                 ? java.util.Map.<String, org.atmosphere.ai.tool.ToolDefinition>of()
-                : LangChain4jToolBridge.toToolMap(tools);
+                : ToolExecutionHelper.toToolMap(tools);
 
         var handler = new ToolAwareStreamingResponseHandler(
                 session, streamingModel, messages, toolSpecs, toolMap);
@@ -153,8 +149,8 @@ public class LangChain4jAiSupport implements AiSupport {
     }
 
     @Override
-    public java.util.Set<AiCapability> capabilities() {
-        return java.util.Set.of(
+    public Set<AiCapability> capabilities() {
+        return Set.of(
                 AiCapability.TEXT_STREAMING,
                 AiCapability.TOOL_CALLING,
                 AiCapability.SYSTEM_PROMPT

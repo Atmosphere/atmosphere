@@ -22,10 +22,10 @@ import com.google.adk.runner.Runner;
 import com.google.adk.tools.BaseTool;
 import com.google.genai.types.Content;
 import com.google.genai.types.Part;
+import org.atmosphere.ai.AbstractAiSupport;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiRequest;
-import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.slf4j.Logger;
@@ -37,17 +37,16 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * {@link AiSupport} implementation backed by Google ADK's {@link Runner}.
+ * {@link org.atmosphere.ai.AiSupport} implementation backed by Google ADK's {@link Runner}.
  *
  * <p>Auto-detected when {@code google-adk} is on the classpath.
  * The runner must be configured via {@link #setRunner} — typically done
  * by application configuration or Spring auto-configuration.</p>
  */
-public class AdkAiSupport implements AiSupport {
+public class AdkAiSupport extends AbstractAiSupport<Runner> {
 
     private static final Logger logger = LoggerFactory.getLogger(AdkAiSupport.class);
 
-    private static volatile Runner runner;
     private static volatile String defaultUserId = "atmosphere-user";
     private static volatile String defaultSessionId = "atmosphere-session";
     private static final Set<String> knownSessions = ConcurrentHashMap.newKeySet();
@@ -58,29 +57,25 @@ public class AdkAiSupport implements AiSupport {
     }
 
     @Override
-    public boolean isAvailable() {
-        try {
-            Class.forName("com.google.adk.runner.Runner");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
+    protected String nativeClientClassName() {
+        return "com.google.adk.runner.Runner";
     }
 
     @Override
-    public int priority() {
-        return 100;
+    protected String clientDescription() {
+        return "Runner";
     }
 
     @Override
-    public void configure(AiConfig.LlmSettings settings) {
-        if (runner != null) {
-            return;
-        }
+    protected String configurationHint() {
+        return "Call AdkAiSupport.setRunner() or use Spring auto-configuration.";
+    }
 
+    @Override
+    protected Runner createNativeClient(AiConfig.LlmSettings settings) {
         var apiKey = settings.client().apiKey();
         if (apiKey == null || apiKey.isBlank()) {
-            return;
+            return null;
         }
 
         if (settings.model() != null && !settings.model().startsWith("gemini")) {
@@ -95,15 +90,28 @@ public class AdkAiSupport implements AiSupport {
                 .model(gemini)
                 .instruction("You are a helpful assistant.")
                 .build();
-        setRunner(new InMemoryRunner(agent, "atmosphere"));
+        var runner = new InMemoryRunner(agent, "atmosphere");
         logger.info("ADK auto-configured: model={}", settings.model());
+        return runner;
     }
 
     /**
      * Set the {@link Runner} to use for streaming.
      */
     public static void setRunner(Runner adkRunner) {
-        runner = adkRunner;
+        staticRunner = adkRunner;
+    }
+
+    // Held for static setter compatibility with Spring auto-configuration
+    private static volatile Runner staticRunner;
+
+    @Override
+    public void configure(AiConfig.LlmSettings settings) {
+        // If a static runner was set via Spring auto-configuration, use it
+        if (getNativeClient() == null && staticRunner != null) {
+            setNativeClient(staticRunner);
+        }
+        super.configure(settings);
     }
 
     /**
@@ -137,27 +145,12 @@ public class AdkAiSupport implements AiSupport {
             agentBuilder.tools(adkTools.toArray(new BaseTool[0]));
         }
 
-        setRunner(new InMemoryRunner(agentBuilder.build(), "atmosphere"));
+        staticRunner = new InMemoryRunner(agentBuilder.build(), "atmosphere");
         logger.info("ADK configured with {} tools: model={}", adkTools.size(), settings.model());
     }
 
     @Override
-    public void stream(AiRequest request, StreamingSession session) {
-        var adkRunner = runner;
-        if (adkRunner == null) {
-            var settings = AiConfig.get();
-            if (settings == null) {
-                settings = AiConfig.fromEnvironment();
-            }
-            configure(settings);
-            adkRunner = runner;
-        }
-        if (adkRunner == null) {
-            throw new IllegalStateException(
-                    "AdkAiSupport: Runner not configured. "
-                            + "Call AdkAiSupport.setRunner() or use Spring auto-configuration.");
-        }
-
+    protected void doStream(Runner adkRunner, AiRequest request, StreamingSession session) {
         session.progress("Starting ADK agent...");
 
         // ADK tools must be registered at agent construction time
@@ -202,8 +195,8 @@ public class AdkAiSupport implements AiSupport {
     }
 
     @Override
-    public java.util.Set<AiCapability> capabilities() {
-        return java.util.Set.of(
+    public Set<AiCapability> capabilities() {
+        return Set.of(
                 AiCapability.TEXT_STREAMING,
                 AiCapability.TOOL_CALLING,
                 AiCapability.AGENT_ORCHESTRATION,

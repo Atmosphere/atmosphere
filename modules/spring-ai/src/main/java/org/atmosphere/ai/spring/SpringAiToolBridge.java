@@ -15,17 +15,15 @@
  */
 package org.atmosphere.ai.spring;
 
+import org.atmosphere.ai.tool.ToolBridgeUtils;
 import org.atmosphere.ai.tool.ToolDefinition;
+import org.atmosphere.ai.tool.ToolExecutionHelper;
 import org.atmosphere.ai.tool.ToolParameter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.DefaultToolDefinition;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.StringJoiner;
 
 /**
  * Bridges Atmosphere {@link ToolDefinition} to Spring AI {@link ToolCallback}.
@@ -36,8 +34,6 @@ import java.util.StringJoiner;
  * in Spring AI's callback contract.</p>
  */
 public final class SpringAiToolBridge {
-
-    private static final Logger logger = LoggerFactory.getLogger(SpringAiToolBridge.class);
 
     private SpringAiToolBridge() {
     }
@@ -67,43 +63,21 @@ public final class SpringAiToolBridge {
     /**
      * Build a JSON Schema string from the parameter list.
      * Spring AI expects the inputSchema as a JSON string.
+     *
+     * <p>Delegates to {@link ToolBridgeUtils#buildJsonSchemaString(List)}.</p>
      */
     static String buildInputSchema(List<ToolParameter> parameters) {
-        if (parameters.isEmpty()) {
-            return """
-                    {"type":"object","properties":{},"required":[]}""";
-        }
-
-        var props = new StringJoiner(",");
-        var required = new StringJoiner(",");
-
-        for (var param : parameters) {
-            props.add(String.format(
-                    "\"%s\":{\"type\":\"%s\",\"description\":\"%s\"}",
-                    param.name(),
-                    param.type(),
-                    escapeJson(param.description())
-            ));
-            if (param.required()) {
-                required.add("\"" + param.name() + "\"");
-            }
-        }
-
-        return String.format(
-                "{\"type\":\"object\",\"properties\":{%s},\"required\":[%s]}",
-                props, required
-        );
+        return ToolBridgeUtils.buildJsonSchemaString(parameters);
     }
 
-    private static String escapeJson(String s) {
-        if (s == null) {
-            return "";
-        }
-        return s.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
+    /**
+     * Minimal JSON object parser for tool arguments.
+     * Spring AI passes a JSON string like {"key":"value","num":42}.
+     *
+     * <p>Delegates to {@link ToolBridgeUtils#parseJsonArgs(String)}.</p>
+     */
+    static Map<String, Object> parseJsonArgs(String json) {
+        return ToolBridgeUtils.parseJsonArgs(json);
     }
 
     /**
@@ -128,116 +102,9 @@ public final class SpringAiToolBridge {
 
         @Override
         public String call(String toolInput) {
-            try {
-                Map<String, Object> args = parseJsonArgs(toolInput);
-                var result = atmosphereTool.executor().execute(args);
-                logger.debug("Tool {} executed: {}", atmosphereTool.name(), result);
-                return result != null ? result.toString() : "null";
-            } catch (Exception e) {
-                logger.error("Tool {} execution failed", atmosphereTool.name(), e);
-                return "{\"error\":\"" + escapeJson(e.getMessage()) + "\"}";
-            }
+            Map<String, Object> args = ToolBridgeUtils.parseJsonArgs(toolInput);
+            return ToolExecutionHelper.executeAndFormat(
+                    atmosphereTool.name(), atmosphereTool.executor(), args);
         }
-    }
-
-    /**
-     * Minimal JSON object parser for tool arguments.
-     * Spring AI passes a JSON string like {"key":"value","num":42}.
-     */
-    @SuppressWarnings("unchecked")
-    static Map<String, Object> parseJsonArgs(String json) {
-        if (json == null || json.isBlank() || "{}".equals(json.trim())) {
-            return Map.of();
-        }
-        // Use a simple approach: the arguments are flat key-value pairs
-        // For production, this could use Jackson if available
-        var result = new HashMap<String, Object>();
-        var trimmed = json.trim();
-        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-            trimmed = trimmed.substring(1, trimmed.length() - 1).trim();
-        }
-        if (trimmed.isEmpty()) {
-            return result;
-        }
-
-        // Simple tokenizer for flat JSON objects
-        int i = 0;
-        while (i < trimmed.length()) {
-            // Skip whitespace and commas
-            while (i < trimmed.length() && (trimmed.charAt(i) == ',' || trimmed.charAt(i) == ' ')) {
-                i++;
-            }
-            if (i >= trimmed.length()) {
-                break;
-            }
-
-            // Parse key
-            if (trimmed.charAt(i) != '"') {
-                break;
-            }
-            int keyStart = i + 1;
-            int keyEnd = trimmed.indexOf('"', keyStart);
-            if (keyEnd < 0) {
-                break;
-            }
-            var key = trimmed.substring(keyStart, keyEnd);
-            i = keyEnd + 1;
-
-            // Skip colon and whitespace
-            while (i < trimmed.length() && (trimmed.charAt(i) == ':' || trimmed.charAt(i) == ' ')) {
-                i++;
-            }
-
-            // Parse value
-            if (i >= trimmed.length()) {
-                break;
-            }
-            if (trimmed.charAt(i) == '"') {
-                // String value
-                int valStart = i + 1;
-                int valEnd = findUnescapedQuote(trimmed, valStart);
-                result.put(key, trimmed.substring(valStart, valEnd));
-                i = valEnd + 1;
-            } else if (trimmed.charAt(i) == 't' || trimmed.charAt(i) == 'f') {
-                // Boolean
-                if (trimmed.startsWith("true", i)) {
-                    result.put(key, true);
-                    i += 4;
-                } else {
-                    result.put(key, false);
-                    i += 5;
-                }
-            } else if (trimmed.charAt(i) == 'n') {
-                result.put(key, null);
-                i += 4;
-            } else {
-                // Number
-                int numStart = i;
-                while (i < trimmed.length() && trimmed.charAt(i) != ',' && trimmed.charAt(i) != '}') {
-                    i++;
-                }
-                var numStr = trimmed.substring(numStart, i).trim();
-                if (numStr.contains(".")) {
-                    result.put(key, Double.parseDouble(numStr));
-                } else {
-                    result.put(key, Long.parseLong(numStr));
-                }
-            }
-        }
-        return result;
-    }
-
-    private static int findUnescapedQuote(String s, int from) {
-        int i = from;
-        while (i < s.length()) {
-            if (s.charAt(i) == '\\') {
-                i += 2;
-            } else if (s.charAt(i) == '"') {
-                return i;
-            } else {
-                i++;
-            }
-        }
-        return s.length();
     }
 }
