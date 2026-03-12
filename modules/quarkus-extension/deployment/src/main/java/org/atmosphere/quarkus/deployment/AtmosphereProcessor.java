@@ -351,9 +351,9 @@ class AtmosphereProcessor {
         config.broadcasterCacheClass().ifPresent(b ->
                 builder.addInitParam("org.atmosphere.cpr.broadcasterCacheClass", b));
 
-        config.heartbeatIntervalInSeconds().ifPresent(h ->
+        config.heartbeatInterval().ifPresent(h ->
                 builder.addInitParam("org.atmosphere.cpr.AtmosphereResource.heartbeatFrequencyInSeconds",
-                        String.valueOf(h)));
+                        String.valueOf(h.toSeconds())));
 
         for (Map.Entry<String, String> entry : config.initParams().entrySet()) {
             builder.addInitParam(entry.getKey(), entry.getValue());
