@@ -78,7 +78,7 @@ public class AtmosphereFrameworkTest {
         final AtomicReference<Object> value = new AtomicReference<Object>();
 
         // Intercepts interceptor call
-        final AtmosphereRequest r = new AtmosphereRequestImpl.Builder().request(new HttpServletRequestWrapper(new AtmosphereRequestImpl.NoOpsRequest()) {
+        final AtmosphereRequest r = new AtmosphereRequestImpl.Builder().request(new HttpServletRequestWrapper(new NoOpsRequest()) {
             @Override
             public void setAttribute(String name, Object o) {
                 if (MyInterceptor.class.getName().equals(name)) {

@@ -18,7 +18,6 @@ package org.atmosphere.cpr;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.AsyncListener;
 import jakarta.servlet.DispatcherType;
-import jakarta.servlet.ReadListener;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
@@ -30,7 +29,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
 import org.atmosphere.util.FakeHttpSession;
 import org.atmosphere.util.QueryStringDecoder;
@@ -87,15 +85,15 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     private boolean queryComputed;
     private boolean cookieComputed;
     private volatile BufferedReader voidReader;
-    private final ServletInputStream voidStream = new IS(new ByteArrayInputStream(new byte[0]));
+    private final ServletInputStream voidStream = new InputStreamServletAdapter(new ByteArrayInputStream(new byte[0]));
     private AtomicBoolean streamSet = new AtomicBoolean();
     private AtomicBoolean readerSet = new AtomicBoolean();
     private String uuid;
     private boolean noopsAsyncContextStarted;
 
     private AtmosphereRequestImpl(Builder b) {
-        super(b.request == null ? new NoOpsRequest() : b.request);
-        if (b.request == null) b.request(new NoOpsRequest());
+        super(b.request == null ? new org.atmosphere.cpr.NoOpsRequest() : b.request);
+        if (b.request == null) b.request(new org.atmosphere.cpr.NoOpsRequest());
 
         this.b = b;
         this.uuid = resource() != null ? resource().uuid() : "0";
@@ -111,16 +109,16 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     private void configureStream() {
         if (bis == null && !streamSet.getAndSet(true)) {
             if (b.inputStream != null) {
-                bis = new IS(b.inputStream);
+                bis = new InputStreamServletAdapter(b.inputStream);
             } else if (b.reader == null) {
                 if (b.body.hasBytes()) {
-                    bis = new ByteInputStream(b.body.asBytes(), b.body.byteOffset(), b.body.byteLength());
+                    bis = new ByteArrayServletInputStream(b.body.asBytes(), b.body.byteOffset(), b.body.byteLength());
                 } else if (b.body.hasString()) {
                     byte[] bytes = b.body.asString().getBytes(StandardCharsets.UTF_8);
-                    bis = new ByteInputStream(bytes, 0, bytes.length);
+                    bis = new ByteArrayServletInputStream(bytes, 0, bytes.length);
                 }
             } else {
-                bis = new IS(new ReaderInputStream(b.reader));
+                bis = new InputStreamServletAdapter(new ReaderInputStream(b.reader));
             }
         }
     }
@@ -452,9 +450,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             configureStream();
             return bis == null ? (isNotNoOps() ? b.request.getInputStream() : voidStream) : bis;
         } else if (b.body.hasString()) {
-            bis = new IS(new ByteArrayInputStream(b.body.asString().getBytes()));
+            bis = new InputStreamServletAdapter(new ByteArrayInputStream(b.body.asString().getBytes()));
         } else if (b.body.hasBytes()) {
-            bis = new IS(new ByteArrayInputStream(b.body.asBytes(), b.body.byteOffset(), b.body.byteLength()));
+            bis = new InputStreamServletAdapter(new ByteArrayInputStream(b.body.asBytes(), b.body.byteOffset(), b.body.byteLength()));
         }
         return bis;
     }
@@ -544,14 +542,14 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public AtmosphereRequest body(InputStream body) {
-        bis = new IS(body);
+        bis = new InputStreamServletAdapter(body);
         br = new BufferedReader(new InputStreamReader(body));
         return this;
     }
 
     @Override
     public AtmosphereRequest body(Reader body) {
-        bis = new IS(new ReaderInputStream(body));
+        bis = new InputStreamServletAdapter(new ReaderInputStream(body));
         br = new BufferedReader(body);
         return this;
     }
@@ -577,34 +575,6 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     public AtmosphereRequest requestURI(String requestURI) {
         b.requestURI = requestURI;
         return this;
-    }
-
-    private final static class ByteInputStream extends ServletInputStream {
-
-        private final ByteArrayInputStream bis;
-
-        public ByteInputStream(byte[] data, int offset, int length) {
-            this.bis = new ByteArrayInputStream(data, offset, length);
-        }
-
-        @Override
-        public int read() throws IOException {
-            return bis.read();
-        }
-
-        @Override
-        public boolean isFinished() {
-            return false;
-        }
-
-        @Override
-        public boolean isReady() {
-            return false;
-        }
-
-        @Override
-        public void setReadListener(ReadListener readListener) {
-        }
     }
 
     @Override
@@ -869,7 +839,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     }
 
     private boolean isNotNoOps() {
-        return !(b.request instanceof NoOpsRequest);
+        return !(b.request instanceof org.atmosphere.cpr.NoOpsRequest);
     }
 
     @Override
@@ -1252,10 +1222,10 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         @Override
         public Builder session(HttpSession session) {
             if (request == null) {
-                request = new NoOpsRequest();
+                request = new org.atmosphere.cpr.NoOpsRequest();
             }
 
-            if (request instanceof NoOpsRequest noOpsRequest) {
+            if (request instanceof org.atmosphere.cpr.NoOpsRequest noOpsRequest) {
                 noOpsRequest.fake = session;
             } else {
                 webSocketFakeSession = session;
@@ -1383,78 +1353,6 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
     }
 
-    private final static class IS extends ServletInputStream {
-
-        private final InputStream innerStream;
-        private final ReentrantLock markLock = new ReentrantLock();
-
-        public IS(InputStream innerStream) {
-            super();
-            this.innerStream = innerStream;
-        }
-
-        public int read() throws java.io.IOException {
-            return innerStream.read();
-        }
-
-        public int read(byte[] bytes) throws java.io.IOException {
-            return innerStream.read(bytes);
-        }
-
-        public int read(byte[] bytes, int i, int i1) throws java.io.IOException {
-            return innerStream.read(bytes, i, i1);
-        }
-
-
-        public long skip(long l) throws java.io.IOException {
-            return innerStream.skip(l);
-        }
-
-        public int available() throws java.io.IOException {
-            return innerStream.available();
-        }
-
-        public void close() throws java.io.IOException {
-            innerStream.close();
-        }
-
-        public void mark(int i) {
-            markLock.lock();
-            try {
-                innerStream.mark(i);
-            } finally {
-                markLock.unlock();
-            }
-        }
-
-        public void reset() throws java.io.IOException {
-            markLock.lock();
-            try {
-                innerStream.reset();
-            } finally {
-                markLock.unlock();
-            }
-        }
-
-        public boolean markSupported() {
-            return innerStream.markSupported();
-        }
-
-        @Override
-        public boolean isFinished() {
-            return false;
-        }
-
-        @Override
-        public boolean isReady() {
-            return false;
-        }
-
-        @Override
-        public void setReadListener(ReadListener readListener) {
-        }
-    }
-
     /**
      * Create an instance of this class without an associated {@link HttpServletRequest}.
      *
@@ -1549,7 +1447,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         if (loadInMemory) {
             String s = (String) attributeWithoutException(request, FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST);
             boolean throwException = Boolean.parseBoolean(s);
-            r = new NoOpsRequest(throwException);
+            r = new org.atmosphere.cpr.NoOpsRequest(throwException);
             if (isWrapped) {
                 load(b.request, b);
             } else {
@@ -1561,395 +1459,17 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         return isWrapped ? (AtmosphereRequestImpl) request : b.build();
     }
 
-    public final static class NoOpsRequest implements HttpServletRequest {
-
-        private final boolean throwExceptionOnCloned;
-        public HttpSession fake;
-        private final static Enumeration<String> EMPTY_ENUM_STRING = Collections.enumeration(List.of());
-        private final static Enumeration<Locale> EMPTY_ENUM_LOCALE = Collections.enumeration(List.of());
-        private final static List<Part> EMPTY_ENUM_PART = List.of();
-        private final static Map<String, String[]> EMPTY_MAP_STRING = Map.of();
-        private final static String[] EMPTY_ARRAY = new String[0];
-        private final StringBuffer EMPTY_STRING_BUFFER = new StringBuffer();
-        private final static Cookie[] EMPTY_COOKIE = new Cookie[0];
-        private volatile BufferedReader voidReader;
-        private final ServletInputStream voidStream = new AtmosphereRequestImpl.IS(new ByteArrayInputStream(new byte[0]));
-
+    /**
+     * @deprecated Use {@link org.atmosphere.cpr.NoOpsRequest} directly instead.
+     */
+    @Deprecated
+    public static class NoOpsRequest extends org.atmosphere.cpr.NoOpsRequest {
         public NoOpsRequest() {
-            this.throwExceptionOnCloned = false;
+            super();
         }
 
         public NoOpsRequest(boolean throwExceptionOnCloned) {
-            this.throwExceptionOnCloned = throwExceptionOnCloned;
-        }
-
-        private BufferedReader getVoidReader() {
-            if (voidReader == null) {
-                voidReader = new BufferedReader(new StringReader(""));
-            }
-            return voidReader;
-        }
-
-        @Override
-        public boolean authenticate(HttpServletResponse response) {
-            return false;
-        }
-
-        @Override
-        public String getAuthType() {
-            return null;
-        }
-
-        @Override
-        public String getContextPath() {
-            return "";
-        }
-
-        @Override
-        public Cookie[] getCookies() {
-            return EMPTY_COOKIE;
-        }
-
-        @Override
-        public long getDateHeader(String name) {
-            return 0;
-        }
-
-        @Override
-        public String getHeader(String name) {
-            return null;
-        }
-
-        @Override
-        public Enumeration<String> getHeaderNames() {
-            return EMPTY_ENUM_STRING;
-        }
-
-        @Override
-        public Enumeration<String> getHeaders(String name) {
-            return EMPTY_ENUM_STRING;
-        }
-
-        @Override
-        public int getIntHeader(String name) {
-            return 0;
-        }
-
-        @Override
-        public String getMethod() {
-            return "GET";
-        }
-
-        @Override
-        public Part getPart(String name) throws IOException, ServletException {
-            return null;
-        }
-
-        @Override
-        public <T extends HttpUpgradeHandler> T upgrade(Class<T> handlerClass) throws IOException, ServletException {
-            return null;
-        }
-
-        @Override
-        public Collection<Part> getParts() throws IOException, ServletException {
-            return EMPTY_ENUM_PART;
-        }
-
-        @Override
-        public String getPathInfo() {
-            return "";
-        }
-
-        @Override
-        public String getPathTranslated() {
-            return "";
-        }
-
-        @Override
-        public String getQueryString() {
-            return "";
-        }
-
-        @Override
-        public String getRemoteUser() {
-            return "";
-        }
-
-        @Override
-        public String getRequestedSessionId() {
-            return "";
-        }
-
-        @Override
-        public String getRequestURI() {
-            return "/";
-        }
-
-        @Override
-        public StringBuffer getRequestURL() {
-            return EMPTY_STRING_BUFFER;
-        }
-
-        @Override
-        public String getServletPath() {
-            return "";
-        }
-
-        @Override
-        public HttpSession getSession() {
-            return fake;
-        }
-
-        @Override
-        public String changeSessionId() {
-            return getSession(false).getId();
-        }
-
-        @Override
-        public HttpSession getSession(boolean create) {
-            if (create && fake == null) {
-                fake = new FakeHttpSession("", null, System.currentTimeMillis(), -1) {
-                    @Override
-                    public void invalidate() {
-                        fake = null;
-                        super.invalidate();
-                    }
-                };
-            }
-            return fake;
-        }
-
-        @Override
-        public Principal getUserPrincipal() {
-            return null;
-        }
-
-        @Override
-        public boolean isRequestedSessionIdFromCookie() {
-            return false;
-        }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        public boolean isRequestedSessionIdFromUrl() {
-            return false;
-        }
-
-        @Override
-        public boolean isRequestedSessionIdFromURL() {
-            return false;
-        }
-
-        @Override
-        public boolean isRequestedSessionIdValid() {
-            return false;
-        }
-
-        @Override
-        public boolean isUserInRole(String role) {
-            if (this.throwExceptionOnCloned) {
-                throw new UnsupportedOperationException();
-            }
-            return false;
-        }
-
-        @Override
-        public void login(String username, String password) throws ServletException {
-            if (this.throwExceptionOnCloned) {
-                throw new ServletException();
-            }
-        }
-
-        @Override
-        public void logout() throws ServletException {
-            if (this.throwExceptionOnCloned) {
-                throw new ServletException();
-            }
-        }
-
-        @Override
-        public AsyncContext getAsyncContext() {
-            return null;
-        }
-
-        @Override
-        public Object getAttribute(String name) {
-            return null;
-        }
-
-        @Override
-        public Enumeration<String> getAttributeNames() {
-            return EMPTY_ENUM_STRING;
-        }
-
-        @Override
-        public String getCharacterEncoding() {
-            return null;
-        }
-
-        @Override
-        public int getContentLength() {
-            return 0;
-        }
-
-        @Override
-        public long getContentLengthLong() {
-            return 0;
-        }
-
-        @Override
-        public String getContentType() {
-            return "text/plain";
-        }
-
-        @Override
-        public DispatcherType getDispatcherType() {
-            return DispatcherType.REQUEST;
-        }
-
-        @Override
-        public ServletInputStream getInputStream() throws IOException {
-            return voidStream;
-        }
-
-        @Override
-        public Locale getLocale() {
-            return null;
-        }
-
-        @Override
-        public Enumeration<Locale> getLocales() {
-            return EMPTY_ENUM_LOCALE;
-        }
-
-        @Override
-        public String getLocalName() {
-            return null;
-        }
-
-        @Override
-        public int getLocalPort() {
-            return 0;
-        }
-
-        @Override
-        public String getLocalAddr() {
-            return "";
-        }
-
-        @Override
-        public String getParameter(String name) {
-            return "";
-        }
-
-        @Override
-        public Map<String, String[]> getParameterMap() {
-            return EMPTY_MAP_STRING;
-        }
-
-        @Override
-        public Enumeration<String> getParameterNames() {
-            return EMPTY_ENUM_STRING;
-        }
-
-        @Override
-        public String[] getParameterValues(String name) {
-            return EMPTY_ARRAY;
-        }
-
-        @Override
-        public String getProtocol() {
-            return "HTTP/1.1";
-        }
-
-        @Override
-        public BufferedReader getReader() throws IOException {
-            return getVoidReader();
-        }
-
-        @SuppressWarnings("deprecation")
-        @Override
-        public String getRealPath(String path) {
-            return path;
-        }
-
-        @Override
-        public String getRemoteAddr() {
-            return "";
-        }
-
-        @Override
-        public String getRemoteHost() {
-            return "";
-        }
-
-        @Override
-        public int getRemotePort() {
-            return 0;
-        }
-
-        @Override
-        public RequestDispatcher getRequestDispatcher(String path) {
-            return null;
-        }
-
-        @Override
-        public String getScheme() {
-            return "ws";
-        }
-
-        @Override
-        public String getServerName() {
-            return "";
-        }
-
-        @Override
-        public int getServerPort() {
-            return 0;
-        }
-
-        @Override
-        public ServletContext getServletContext() {
-            return null;
-        }
-
-        @Override
-        public boolean isAsyncStarted() {
-            return false;
-        }
-
-        @Override
-        public boolean isAsyncSupported() {
-            return true;
-        }
-
-        @Override
-        public boolean isSecure() {
-            return false;
-        }
-
-        @Override
-        public void removeAttribute(String name) {
-
-        }
-
-        @Override
-        public void setAttribute(String name, Object o) {
-
-        }
-
-        @Override
-        public void setCharacterEncoding(String env) throws UnsupportedEncodingException {
-        }
-
-        @Override
-        public AsyncContext startAsync() {
-            return null;
-        }
-
-        @Override
-        public AsyncContext startAsync(ServletRequest request, ServletResponse response) {
-            return null;
+            super(throwExceptionOnCloned);
         }
     }
 
