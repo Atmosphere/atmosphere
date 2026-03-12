@@ -168,6 +168,10 @@ jobs:
     - name: Push commits and tag
       if: inputs.dry_run == false
       run: |
+        # Show any leftover changes for debugging
+        git status --short
+        # Stash any unstaged changes (e.g. from Maven plugin side-effects)
+        git stash --include-untracked || true
         # Rebase on latest main in case commits were pushed during the build
         git fetch origin main
         git rebase origin/main
