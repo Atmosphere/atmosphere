@@ -1,0 +1,14 @@
+{
+  "name": "atmosphere-e2e-tests",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "@types/node": "^25.5.0",
+    "typescript": "^5.9.3"
+  }
+}
