@@ -146,7 +146,8 @@ public class MyTools {
 | [**LangChain4j**](docs/langchain4j.md) | `atmosphere-langchain4j` | Adapter for LangChain4j `StreamingChatLanguageModel` |
 | [**Google ADK**](docs/adk.md) | `atmosphere-adk` | Adapter for Google ADK `Runner` |
 | [**Embabel**](docs/embabel.md) | `atmosphere-embabel` | Adapter for Embabel `AgentPlatform` |
-| [**MCP server**](docs/mcp.md) | `atmosphere-mcp` | Model Context Protocol server over WebSocket |
+| [**RAG**](modules/rag/README.md) | `atmosphere-rag` | `ContextProvider` SPI with Spring AI and LangChain4j bridges |
+| [**MCP server**](docs/mcp.md) | `atmosphere-mcp` | MCP server + bidirectional tool invocation (server-to-client) |
 
 ### Cloud
 

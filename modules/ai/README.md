@@ -116,6 +116,8 @@ public interface AiConversationMemory {
 | `ChatCompletionRequest` | Builder for chat completion requests |
 | `RoutingLlmClient` | Routes prompts to different LLM backends based on content, model, cost, or latency rules |
 | `AiResponseCacheListener` | Tracks cached streaming texts per session; supports coalesced aggregate events |
+| `MicrometerAiMetrics` | `AiMetrics` implementation backed by Micrometer (counters, timers, gauges) |
+| `TracingCapturingSession` | `StreamingSession` decorator that captures timing and reports to `AiMetrics` |
 
 ## Configuration
 
@@ -168,6 +170,55 @@ broadcaster.getBroadcasterConfig()
 | `CoalescedCacheEventListener` | `@FunctionalInterface` — receives one event per completed session |
 
 Per-streaming-text tracking is unchanged; coalesced events are purely additive. Listener exceptions are isolated — a failing listener does not prevent others from firing.
+
+## Observability with Micrometer
+
+`MicrometerAiMetrics` provides production-grade observability by implementing the `AiMetrics` SPI with [Micrometer](https://micrometer.io). Add `micrometer-core` to your classpath (it's an optional/provided dependency):
+
+```xml
+<dependency>
+    <groupId>io.micrometer</groupId>
+    <artifactId>micrometer-core</artifactId>
+</dependency>
+```
+
+Wire it up:
+
+```java
+var metrics = new MicrometerAiMetrics(meterRegistry, "spring-ai");
+```
+
+### Metrics Recorded
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `atmosphere.ai.prompts.total` | Counter | Total prompt requests |
+| `atmosphere.ai.streaming_texts.total` | Counter | Total streaming text chunks |
+| `atmosphere.ai.errors.total` | Counter | Errors by type (`timeout`, `rate_limit`, `server_error`, `unknown`) |
+| `atmosphere.ai.prompt.duration` | Timer | Time from prompt to first streaming text (TTFT) |
+| `atmosphere.ai.response.duration` | Timer | Full response wall-clock time |
+| `atmosphere.ai.tool.duration` | Timer | Tool call execution time |
+| `atmosphere.ai.active_sessions` | Gauge | Currently active streaming sessions |
+| `atmosphere.ai.cost` | Summary | Cost per request |
+
+All metrics are tagged with `model` and `provider`.
+
+### TracingCapturingSession
+
+`TracingCapturingSession` is a `StreamingSession` decorator that automatically captures timing and reports to any `AiMetrics` implementation:
+
+- **Time to first streaming text (TTFT)** — latency from session start to first `send()` call
+- **Total duration** — wall-clock time from start to `complete()` or `error()`
+- **Streaming text count** — number of `send()` calls
+- **Error classification** — categorizes errors as `timeout`, `rate_limit`, `server_error`, or `unknown`
+- **Active session tracking** — calls `sessionStarted()`/`sessionEnded()` for gauge updates
+
+```java
+var session = new TracingCapturingSession(delegate, metrics, "gpt-4");
+session.send("Hello");    // captures first-token time, increments count
+session.send(" world");   // increments count
+session.complete();        // reports TTFT, total duration, token usage, ends session
+```
 
 ## Cost and Latency Routing
 

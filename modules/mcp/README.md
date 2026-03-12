@@ -130,6 +130,68 @@ public String askAi(
 
 See [atmosphere-ai README](../ai/README.md) for more on `StreamingSession` and wire protocol.
 
+## Bidirectional Tool Invocation
+
+`BiDirectionalToolBridge` enables the **server to call tools on connected clients** (e.g., browser-side JavaScript functions) and receive results asynchronously. This complements the standard MCP flow (client calls server tools) with a reverse channel.
+
+```java
+var bridge = new BiDirectionalToolBridge();
+
+// Call a client-side tool — returns a CompletableFuture
+CompletableFuture<String> result = bridge.callClientTool(
+        resource, "getLocation", Map.of("highAccuracy", true));
+
+result.thenAccept(location -> log.info("Client location: {}", location));
+```
+
+### How It Works
+
+1. `callClientTool()` generates a UUID, writes a JSON request to the client via `AtmosphereResource`, and returns a `CompletableFuture`
+2. The client executes the tool and sends back a JSON response with the same ID
+3. `ToolResponseHandler` (registered at `/_mcp/tool-response`) receives the response and completes the matching future
+
+### Wire Protocol
+
+**Server → Client** (tool call request):
+```json
+{"type":"tool_call","id":"uuid","name":"getLocation","args":{"highAccuracy":true}}
+```
+
+**Client → Server** (tool call response):
+```json
+{"id":"uuid","result":"40.7128,-74.0060"}
+```
+
+Or on error:
+```json
+{"id":"uuid","error":"Permission denied"}
+```
+
+### Configuration
+
+| Constructor | Timeout |
+|-------------|---------|
+| `new BiDirectionalToolBridge()` | 30 seconds (default) |
+| `new BiDirectionalToolBridge(Duration.ofSeconds(10))` | Custom timeout |
+
+Timed-out calls complete exceptionally with `TimeoutException`. Error responses complete with `ToolCallException`.
+
+### Registering the Handler
+
+```java
+framework.addAtmosphereHandler("/_mcp/tool-response",
+    new ToolResponseHandler(bridge));
+```
+
+### Key Classes
+
+| Class | Description |
+|-------|-------------|
+| `BiDirectionalToolBridge` | Core bridge — sends requests, tracks pending futures, completes on response |
+| `ToolCallRequest` | Record: `id`, `name`, `args` with `toJson()` serialization |
+| `ToolCallResponse` | Record: `id`, `result`, `error` with `fromJson()` parsing |
+| `ToolResponseHandler` | `AtmosphereHandler` that routes client responses to the bridge |
+
 ## Observability
 
 ### OpenTelemetry Tracing
