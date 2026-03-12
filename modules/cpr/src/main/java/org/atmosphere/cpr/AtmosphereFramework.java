@@ -30,7 +30,6 @@ import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.IntrospectionUtils;
-import org.atmosphere.util.ServletContextFactory;
 import org.atmosphere.util.UUIDProvider;
 import org.atmosphere.util.VoidServletConfig;
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
@@ -145,7 +144,7 @@ public class AtmosphereFramework {
     protected final ClasspathScanner classpathScanner;
     public static final List<Class<? extends AtmosphereInterceptor>> DEFAULT_ATMOSPHERE_INTERCEPTORS =
             InterceptorRegistry.DEFAULT_ATMOSPHERE_INTERCEPTORS;
-    private IllegalStateException initializationError;
+    IllegalStateException initializationError;
 
     /**
      * An implementation of {@link AbstractReflectorAtmosphereHandler}.
@@ -215,7 +214,7 @@ public class AtmosphereFramework {
     /**
      * The order of addition is quite important here.
      */
-    private void populateBroadcasterType() {
+    void populateBroadcasterType() {
         broadcasterSetup.populateBroadcasterType();
     }
 
@@ -230,7 +229,7 @@ public class AtmosphereFramework {
     /**
      * The order of addition is quite important here.
      */
-    private void populateObjectFactoryType() {
+    void populateObjectFactoryType() {
         objectFactoryType.add(CDI_INJECTOR);
         objectFactoryType.add(SPRING_INJECTOR);
         objectFactoryType.add(GUICE_INJECTOR);
@@ -425,95 +424,7 @@ public class AtmosphereFramework {
     public AtmosphereFramework init(final ServletConfig sc, boolean wrap) throws ServletException {
         if (isInit) return this;
 
-        // Phase 0: Bootstrap
-        servletConfig(sc, wrap);
-        readSystemProperties();
-        populateBroadcasterType();
-        populateObjectFactoryType();
-        loadMetaService();
-        onPreInit();
-
-        try {
-            ServletContextFactory.getDefault().init(sc.getServletContext());
-
-            // Phase 1: Parse configuration
-            preventOOM();
-            doInitParams(servletConfig);
-            doInitParamsForWebSocket(servletConfig);
-            lookupDefaultObjectFactoryType();
-
-            if (logger.isTraceEnabled()) {
-                asyncSupportListener(newClassInstance(AsyncSupportListener.class, AsyncSupportListenerAdapter.class));
-            }
-            configureObjectFactory();
-
-            // Phase 2: Broadcaster infrastructure
-            configureAnnotationPackages();
-            configureBroadcasterFactory();
-            configureMetaBroadcaster();
-            configureAtmosphereResourceFactory();
-            if (isSessionSupportSpecified) {
-                sessionFactory();
-            }
-
-            // Phase 3: Classpath scanning
-            configureScanningPackage(servletConfig, ApplicationConfig.ANNOTATION_PACKAGE);
-            configureScanningPackage(servletConfig, FrameworkConfig.JERSEY2_SCANNING_PACKAGE);
-            configureScanningPackage(servletConfig, FrameworkConfig.JERSEY_SCANNING_PACKAGE);
-            defaultPackagesToScan();
-            installAnnotationProcessor(servletConfig);
-            autoConfigureService(servletConfig.getServletContext());
-
-            // Phase 4: Re-configure after annotations
-            configureBroadcasterFactory();
-            patchContainer();
-            configureBroadcaster();
-            loadConfiguration(servletConfig);
-
-            // Phase 5: Handler/interceptor initialization
-            initWebSocket();
-            initEndpointMapper();
-            initDefaultSerializer();
-            autoDetectContainer();
-            configureWebDotXmlAtmosphereHandler(servletConfig);
-            asyncSupport.init(servletConfig);
-            initAtmosphereHandler(servletConfig);
-            configureAtmosphereInterceptor(servletConfig);
-
-            // Phase 6: Finalization
-            analytics();
-            if (sc.getServletContext() != null) {
-                sc.getServletContext().setAttribute(BroadcasterFactory.class.getName(), broadcasterSetup.broadcasterFactory());
-            }
-
-            String s = config.getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
-            if (s != null) {
-                sharedThreadPools = Boolean.parseBoolean(s);
-            }
-
-            this.shutdownHook = new Thread(AtmosphereFramework.this::destroy);
-            Runtime.getRuntime().addShutdownHook(this.shutdownHook);
-
-            if (logger.isInfoEnabled()) {
-                info();
-            }
-            if (initializationError != null) {
-                logger.trace("ContainerInitalizer exception. May not be an issue if Atmosphere started properly ", initializationError);
-            }
-            universe();
-        } catch (Throwable t) {
-            logger.error("Failed to initialize Atmosphere Framework", t);
-
-            if (t instanceof ServletException se) {
-                throw se;
-            }
-
-            throw new ServletException(t);
-        }
-        isInit = true;
-        config.initComplete();
-
-        onPostInit();
+        new FrameworkBootstrap(this).bootstrap(sc, wrap);
 
         return this;
     }
@@ -575,7 +486,7 @@ public class AtmosphereFramework {
         }
     }
 
-    private void info() {
+    void info() {
         FrameworkDiagnostics.info(this);
     }
 
@@ -586,7 +497,7 @@ public class AtmosphereFramework {
         Universe.framework(this);
     }
 
-    private void configureAnnotationPackages() {
+    void configureAnnotationPackages() {
         classpathScanner.configureAnnotationPackages();
     }
 
@@ -2023,7 +1934,7 @@ public class AtmosphereFramework {
         return broadcasterSetup.getOrCreateAtmosphereFactory();
     }
 
-    private AtmosphereFramework configureAtmosphereResourceFactory() {
+    AtmosphereFramework configureAtmosphereResourceFactory() {
         broadcasterSetup.configureAtmosphereResourceFactory();
         return this;
     }
@@ -2032,7 +1943,7 @@ public class AtmosphereFramework {
         return broadcasterSetup.metaBroadcaster();
     }
 
-    private AtmosphereFramework configureMetaBroadcaster() {
+    AtmosphereFramework configureMetaBroadcaster() {
         broadcasterSetup.configureMetaBroadcaster();
         return this;
     }
@@ -2067,7 +1978,7 @@ public class AtmosphereFramework {
         return this;
     }
 
-    private void initDefaultSerializer() {
+    void initDefaultSerializer() {
         broadcasterSetup.initDefaultSerializer();
     }
 
