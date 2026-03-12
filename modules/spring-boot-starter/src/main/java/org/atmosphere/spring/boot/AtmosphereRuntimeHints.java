@@ -15,49 +15,7 @@
  */
 package org.atmosphere.spring.boot;
 
-import org.atmosphere.cpr.AtmosphereFramework;
-import org.atmosphere.cpr.AtmosphereRequestImpl;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereResponseImpl;
-import org.atmosphere.cpr.DefaultAtmosphereResourceFactory;
-import org.atmosphere.cpr.DefaultAtmosphereResourceSessionFactory;
-import org.atmosphere.cpr.DefaultBroadcaster;
-import org.atmosphere.cpr.DefaultBroadcasterFactory;
-import org.atmosphere.cpr.DefaultMetaBroadcaster;
-import org.atmosphere.config.managed.ManagedAtmosphereHandler;
-import org.atmosphere.inject.AtmosphereConfigInjectable;
-import org.atmosphere.inject.AtmosphereFrameworkInjectable;
-import org.atmosphere.inject.AtmosphereProducers;
-import org.atmosphere.inject.AtmosphereRequestIntrospector;
-import org.atmosphere.inject.AtmosphereResourceEventIntrospector;
-import org.atmosphere.inject.AtmosphereResourceFactoryInjectable;
-import org.atmosphere.inject.AtmosphereResourceIntrospector;
-import org.atmosphere.inject.AtmosphereResourceSessionFactoryInjectable;
-import org.atmosphere.inject.AtmosphereResponseIntrospector;
-import org.atmosphere.inject.BroadcasterFactoryInjectable;
-import org.atmosphere.inject.BroadcasterIntrospector;
-import org.atmosphere.inject.InjectableObjectFactory;
-import org.atmosphere.inject.MetaBroadcasterInjectable;
-import org.atmosphere.inject.PathParamIntrospector;
-import org.atmosphere.inject.PostConstructIntrospector;
-import org.atmosphere.inject.WebSocketFactoryInjectable;
-import org.atmosphere.config.managed.AtmosphereHandlerServiceInterceptor;
-import org.atmosphere.pool.BoundedApachePoolableProvider;
-import org.atmosphere.pool.UnboundedApachePoolableProvider;
-import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
-import org.atmosphere.interceptor.CacheHeadersInterceptor;
-import org.atmosphere.interceptor.CorsInterceptor;
-import org.atmosphere.interceptor.HeartbeatInterceptor;
-import org.atmosphere.interceptor.IdleResourceInterceptor;
-import org.atmosphere.interceptor.JavaScriptProtocol;
-import org.atmosphere.interceptor.OnDisconnectInterceptor;
-import org.atmosphere.interceptor.PaddingAtmosphereInterceptor;
-import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
-import org.atmosphere.interceptor.SuspendTrackerInterceptor;
-import org.atmosphere.interceptor.WebSocketMessageSuspendInterceptor;
-import org.atmosphere.websocket.DefaultWebSocketFactory;
-import org.atmosphere.websocket.DefaultWebSocketProcessor;
-import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
+import org.atmosphere.cpr.AtmosphereReflectiveTypes;
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.ReflectionHints;
 import org.springframework.aot.hint.RuntimeHints;
@@ -78,33 +36,6 @@ public class AtmosphereRuntimeHints implements RuntimeHintsRegistrar {
             MemberCategory.ACCESS_DECLARED_FIELDS
     };
 
-    private static final String ANNOTATION_PKG = "org.atmosphere.annotation.";
-
-    private static final String[] ANNOTATION_PROCESSORS = {
-            "AsyncSupportListenerServiceProcessor",
-            "AsyncSupportServiceProcessor",
-            "AtmosphereFrameworkServiceProcessor",
-            "AtmosphereHandlerServiceProcessor",
-            "AtmosphereInterceptorServiceProcessor",
-            "AtmosphereResourceFactoryServiceProcessor",
-            "AtmosphereResourceListenerServiceProcessor",
-            "AtmosphereServiceProcessor",
-            "BroadcastFilterServiceProcessor",
-            "BroadcasterCacheInspectorServiceProcessor",
-            "BroadcasterCacheListenererviceProcessor",
-            "BroadcasterCacheServiceProcessor",
-            "BroadcasterFactoryServiceProcessor",
-            "BroadcasterListenerServiceProcessor",
-            "BroadcasterServiceProcessor",
-            "EndpointMapperServiceProcessor",
-            "ManagedServiceProcessor",
-            "UUIDProviderServiceProcessor",
-            "WebSocketFactoryServiceProcessor",
-            "WebSocketHandlerServiceProcessor",
-            "WebSocketProcessorServiceProcessor",
-            "WebSocketProtocolServiceProcessor"
-    };
-
     @Override
     public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
         ReflectionHints reflection = hints.reflection();
@@ -112,81 +43,26 @@ public class AtmosphereRuntimeHints implements RuntimeHintsRegistrar {
         // Spring-specific
         registerType(reflection, SpringAtmosphereObjectFactory.class);
 
-        // Injectable SPI implementations
-        registerType(reflection, AtmosphereConfigInjectable.class);
-        registerType(reflection, AtmosphereFrameworkInjectable.class);
-        registerType(reflection, AtmosphereResourceFactoryInjectable.class);
-        registerType(reflection, AtmosphereResourceSessionFactoryInjectable.class);
-        registerType(reflection, BroadcasterFactoryInjectable.class);
-        registerType(reflection, MetaBroadcasterInjectable.class);
-        registerType(reflection, WebSocketFactoryInjectable.class);
-        registerType(reflection, PostConstructIntrospector.class);
-        registerType(reflection, BroadcasterIntrospector.class);
-        registerType(reflection, AtmosphereResourceIntrospector.class);
-        registerType(reflection, AtmosphereRequestIntrospector.class);
-        registerType(reflection, AtmosphereResponseIntrospector.class);
-        registerType(reflection, AtmosphereResourceEventIntrospector.class);
-        registerType(reflection, PathParamIntrospector.class);
-
-        // Core reflective
-        registerType(reflection, AtmosphereResourceImpl.class);
-        registerType(reflection, AtmosphereRequestImpl.class);
-        registerType(reflection, AtmosphereResponseImpl.class);
-        registerType(reflection, ManagedAtmosphereHandler.class);
-        registerType(reflection, AtmosphereHandlerServiceInterceptor.class);
-        registerTypeByName(reflection,
-                "org.atmosphere.cpr.DefaultAtmosphereObjectFactory");
-        registerType(reflection, InjectableObjectFactory.class);
-        registerType(reflection, AtmosphereProducers.class);
-
-        // Framework infrastructure
-        registerType(reflection, AtmosphereFramework.class);
-        registerType(reflection, DefaultBroadcaster.class);
-        registerType(reflection, DefaultBroadcasterFactory.class);
-        registerType(reflection, DefaultAtmosphereResourceFactory.class);
-        registerType(reflection, DefaultMetaBroadcaster.class);
-        registerType(reflection, DefaultAtmosphereResourceSessionFactory.class);
-        registerType(reflection, SimpleHttpProtocol.class);
-
-        // AsyncSupport
-        registerTypeByName(reflection, "org.atmosphere.container.JSR356AsyncSupport");
-        registerTypeByName(reflection, "org.atmosphere.container.Servlet30CometSupport");
+        // Core Atmosphere types (source of truth: AtmosphereReflectiveTypes)
+        for (String typeName : AtmosphereReflectiveTypes.coreTypes()) {
+            registerTypeByName(reflection, typeName);
+        }
 
         // Pool implementations (only if commons-pool2 is on the classpath)
         if (classLoader != null) {
             try {
                 classLoader.loadClass("org.apache.commons.pool2.PooledObjectFactory");
-                registerType(reflection, UnboundedApachePoolableProvider.class);
-                registerType(reflection, BoundedApachePoolableProvider.class);
+                for (String typeName : AtmosphereReflectiveTypes.poolTypes()) {
+                    registerTypeByName(reflection, typeName);
+                }
             } catch (ClassNotFoundException ignored) {
                 // commons-pool2 not available; skip pool class registration
             }
         }
 
-        // Default interceptors (loaded by name via IOUtils.loadClass)
-        registerType(reflection, CorsInterceptor.class);
-        registerType(reflection, CacheHeadersInterceptor.class);
-        registerType(reflection, PaddingAtmosphereInterceptor.class);
-        registerType(reflection, AndroidAtmosphereInterceptor.class);
-        registerType(reflection, HeartbeatInterceptor.class);
-        registerType(reflection, SSEAtmosphereInterceptor.class);
-        registerType(reflection, JavaScriptProtocol.class);
-        registerType(reflection, WebSocketMessageSuspendInterceptor.class);
-        registerType(reflection, OnDisconnectInterceptor.class);
-        registerType(reflection, IdleResourceInterceptor.class);
-        registerType(reflection, SuspendTrackerInterceptor.class);
-
-        // Annotation processor
-        registerTypeByName(reflection, "org.atmosphere.cpr.DefaultAnnotationProcessor");
-
-        // WebSocket
-        registerType(reflection, DefaultWebSocketProcessor.class);
-        registerType(reflection, DefaultWebSocketFactory.class);
-        registerTypeByName(reflection, "org.atmosphere.container.JSR356Endpoint");
-
         // Annotation processors (instantiated reflectively by AnnotationHandler)
-        for (String processor : ANNOTATION_PROCESSORS) {
-            registerTypeByName(reflection, ANNOTATION_PKG + processor);
+        for (String processor : AtmosphereReflectiveTypes.annotationProcessors()) {
+            registerTypeByName(reflection, processor);
         }
 
         // ServiceLoader resource files

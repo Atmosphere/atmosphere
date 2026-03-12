@@ -15,10 +15,13 @@
  */
 package org.atmosphere.spring.boot;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.convert.DurationUnit;
 
 @ConfigurationProperties(prefix = "atmosphere")
 public class AtmosphereProperties {
@@ -37,7 +40,8 @@ public class AtmosphereProperties {
 
     private Boolean websocketSupport;
 
-    private Integer heartbeatIntervalInSeconds;
+    @DurationUnit(ChronoUnit.SECONDS)
+    private Duration heartbeatInterval;
 
     private DurableSessionsProperties durableSessions = new DurableSessionsProperties();
 
@@ -101,12 +105,12 @@ public class AtmosphereProperties {
         this.websocketSupport = websocketSupport;
     }
 
-    public Integer getHeartbeatIntervalInSeconds() {
-        return heartbeatIntervalInSeconds;
+    public Duration getHeartbeatInterval() {
+        return heartbeatInterval;
     }
 
-    public void setHeartbeatIntervalInSeconds(Integer heartbeatIntervalInSeconds) {
-        this.heartbeatIntervalInSeconds = heartbeatIntervalInSeconds;
+    public void setHeartbeatInterval(Duration heartbeatInterval) {
+        this.heartbeatInterval = heartbeatInterval;
     }
 
     public Map<String, String> getInitParams() {
@@ -170,9 +174,11 @@ public class AtmosphereProperties {
 
         private boolean enabled = false;
 
-        private long sessionTtlMinutes = 1440;
+        @DurationUnit(ChronoUnit.MINUTES)
+        private Duration sessionTtl = Duration.ofMinutes(1440);
 
-        private long cleanupIntervalSeconds = 60;
+        @DurationUnit(ChronoUnit.SECONDS)
+        private Duration cleanupInterval = Duration.ofSeconds(60);
 
         public boolean isEnabled() {
             return enabled;
@@ -182,20 +188,20 @@ public class AtmosphereProperties {
             this.enabled = enabled;
         }
 
-        public long getSessionTtlMinutes() {
-            return sessionTtlMinutes;
+        public Duration getSessionTtl() {
+            return sessionTtl;
         }
 
-        public void setSessionTtlMinutes(long sessionTtlMinutes) {
-            this.sessionTtlMinutes = sessionTtlMinutes;
+        public void setSessionTtl(Duration sessionTtl) {
+            this.sessionTtl = sessionTtl;
         }
 
-        public long getCleanupIntervalSeconds() {
-            return cleanupIntervalSeconds;
+        public Duration getCleanupInterval() {
+            return cleanupInterval;
         }
 
-        public void setCleanupIntervalSeconds(long cleanupIntervalSeconds) {
-            this.cleanupIntervalSeconds = cleanupIntervalSeconds;
+        public void setCleanupInterval(Duration cleanupInterval) {
+            this.cleanupInterval = cleanupInterval;
         }
     }
 }

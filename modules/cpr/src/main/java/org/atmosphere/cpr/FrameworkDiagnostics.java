@@ -161,7 +161,7 @@ final class FrameworkDiagnostics {
                     var tag = body.substring(start, end);
                     var latestVersion = tag.startsWith("atmosphere-") ? tag.substring(11) : tag;
 
-                    if (latestVersion.compareTo(currentVersion) > 0
+                    if (isNewerVersion(latestVersion, currentVersion)
                             && !latestVersion.toLowerCase().contains("rc")
                             && !latestVersion.toLowerCase().contains("beta")) {
                         logger.info("\n\n\tAtmosphere {} is available (you are running {})"
@@ -177,5 +177,23 @@ final class FrameworkDiagnostics {
         });
         t.setDaemon(true);
         t.start();
+    }
+
+    /**
+     * Compares two version strings numerically by splitting on ".".
+     * Returns true if {@code latest} is newer than {@code current}.
+     */
+    static boolean isNewerVersion(String latest, String current) {
+        String[] lParts = latest.split("\\.");
+        String[] cParts = current.split("\\.");
+        int len = Math.max(lParts.length, cParts.length);
+        for (int i = 0; i < len; i++) {
+            int l = i < lParts.length ? Integer.parseInt(lParts[i]) : 0;
+            int c = i < cParts.length ? Integer.parseInt(cParts[i]) : 0;
+            if (l != c) {
+                return l > c;
+            }
+        }
+        return false;
     }
 }

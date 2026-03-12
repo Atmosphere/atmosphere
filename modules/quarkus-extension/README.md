@@ -63,7 +63,7 @@ All properties are under the `quarkus.atmosphere.*` prefix:
 | `quarkus.atmosphere.broadcaster-class` | (default) | Custom `Broadcaster` implementation |
 | `quarkus.atmosphere.broadcaster-cache-class` | (default) | Custom `BroadcasterCache` implementation |
 | `quarkus.atmosphere.load-on-startup` | `1` | Servlet load-on-startup order — **must be > 0** or the servlet will not initialize |
-| `quarkus.atmosphere.heartbeat-interval-in-seconds` | (default) | Heartbeat interval for long-polling fallback |
+| `quarkus.atmosphere.heartbeat-interval` | (default) | Heartbeat interval (e.g. `30s`, `5m`). Converted to seconds internally |
 | `quarkus.atmosphere.init-params` | (none) | Map of raw `ApplicationConfig` init params passed directly to the servlet |
 
 ## Running

@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
@@ -54,18 +55,35 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public static final String PRE_SUSPEND = AtmosphereResourceImpl.class.getName() + ".preSuspend";
     public static final String SKIP_BROADCASTER_CREATION = AtmosphereResourceImpl.class.getName() + ".skipBroadcasterCreation";
 
+    /**
+     * Explicit lifecycle states for an {@link AtmosphereResource}, replacing the previous
+     * collection of independent {@link AtomicBoolean} fields that tracked lifecycle implicitly.
+     */
+    public enum LifecycleState {
+        /** Initial state after construction or {@link #reset()}. */
+        CREATED,
+        /** {@link #suspend()} called successfully. */
+        SUSPENDED,
+        /** {@link #resume()} called successfully. */
+        RESUMED,
+        /** Resource is in the closing phase (entered {@code completeLifecycle}). */
+        CLOSING,
+        /** {@link #cancel()} called successfully. */
+        CANCELLED,
+        /** Resource marked out of scope due to IO error or external invalidation. */
+        DISCONNECTED
+    }
+
     private AtmosphereRequest req;
     private AtmosphereResponse response;
-    private final Action action = new Action();
+    private Action action = new Action();
     protected final List<Broadcaster> broadcasters = new CopyOnWriteArrayList<>();
     protected Broadcaster broadcaster;
     private AtmosphereConfig config;
     protected AsyncSupport<AtmosphereResourceImpl> asyncSupport;
     private Serializer serializer;
-    private final AtomicBoolean isInScope = new AtomicBoolean(true);
+    private final AtomicReference<LifecycleState> state = new AtomicReference<>(LifecycleState.CREATED);
     private AtmosphereResourceEventImpl event;
-    private final AtomicBoolean isResumed = new AtomicBoolean();
-    private final AtomicBoolean isCancelled = new AtomicBoolean();
     private final AtomicBoolean resumeOnBroadcast = new AtomicBoolean();
     private Object writeOnTimeout;
     private boolean disableSuspend;
@@ -81,9 +99,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private boolean disableSuspendEvent;
     private TRANSPORT transport;
     private boolean forceBinaryWrite;
-    private final AtomicBoolean suspended = new AtomicBoolean();
     private WebSocket webSocket;
-    private final AtomicBoolean inClosingPhase = new AtomicBoolean();
     private boolean closeOnCancel;
     private final AtomicBoolean isPendingClose = new AtomicBoolean();
     private final ReentrantLock broadcasterRecoveryLock = new ReentrantLock();
@@ -170,24 +186,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             return TRANSPORT.WEBSOCKET;
         }
 
-        s = s.replace("-", "_").toUpperCase();
-        if (TRANSPORT.POLLING.name().equals(s)) {
-            return TRANSPORT.POLLING;
-        } else if (TRANSPORT.LONG_POLLING.name().equals(s)) {
-            return TRANSPORT.LONG_POLLING;
-        } else if (TRANSPORT.STREAMING.name().equals(s)) {
-            return TRANSPORT.STREAMING;
-        } else if (TRANSPORT.WEBSOCKET.name().equals(s)) {
-            return TRANSPORT.WEBSOCKET;
-        } else if (TRANSPORT.SSE.name().equals(s)) {
-            return TRANSPORT.SSE;
-        } else if (TRANSPORT.AJAX.name().equals(s)) {
-            return TRANSPORT.AJAX;
-        } else if (TRANSPORT.CLOSE.name().equals(s)) {
-            return TRANSPORT.CLOSE;
-        } else {
-            return UNDEFINED;
-        }
+        return switch (s.replace("-", "_").toUpperCase()) {
+            case "POLLING" -> TRANSPORT.POLLING;
+            case "LONG_POLLING" -> TRANSPORT.LONG_POLLING;
+            case "STREAMING" -> TRANSPORT.STREAMING;
+            case "WEBSOCKET" -> TRANSPORT.WEBSOCKET;
+            case "SSE" -> TRANSPORT.SSE;
+            case "AJAX" -> TRANSPORT.AJAX;
+            case "CLOSE" -> TRANSPORT.CLOSE;
+            default -> UNDEFINED;
+        };
     }
 
     @Override
@@ -241,7 +249,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     @Override
     public boolean isSuspended() {
-        return suspended.get();
+        return state.get() == LifecycleState.SUSPENDED;
     }
 
     @Override
@@ -268,11 +276,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         }
 
         try {
-            if (!isResumed.getAndSet(true) && isInScope.get()) {
-                suspended.set(false);
+            if (state.compareAndSet(LifecycleState.SUSPENDED, LifecycleState.RESUMED)) {
                 logger.trace("AtmosphereResource {} is resuming", uuid());
 
-                action.type(Action.TYPE.RESUME);
+                action = new Action(Action.TYPE.RESUME, action.timeout());
 
                 boolean notify = true;
                 for (Broadcaster b : broadcasters) {
@@ -353,7 +360,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         if (event.isSuspended() || disableSuspend) return this;
 
         if (!event.isResumedOnTimeout()) {
-            suspended.set(true);
+            state.set(LifecycleState.SUSPENDED);
 
             Enumeration<String> connection = req.getHeaders("Connection");
             if (connection == null) {
@@ -378,8 +385,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
 
             req.setAttribute(PRE_SUSPEND, "true");
-            action.type(Action.TYPE.SUSPEND);
-            action.timeout(timeout);
+            action = new Action(Action.TYPE.SUSPEND, timeout);
 
             // Optimization opportunity: avoid creating a Broadcaster when the Broadcaster is unique
             boolean isJersey = req.getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null;
@@ -401,7 +407,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
             Objects.requireNonNull(broadcaster).addAtmosphereResource(this);
             if (req.getAttribute(DefaultBroadcaster.CACHED) != null && transport() != null && Utils.resumableTransport(transport())) {
-                action.type(Action.TYPE.CONTINUE);
+                action = new Action(Action.TYPE.CONTINUE, action.timeout());
                 // Do nothing because we have found cached message which was written already, and the handler resumed.
                 logger.debug("Cached message found, not suspending {}", uuid());
                 return this;
@@ -414,14 +420,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     public AtmosphereRequest getRequest(boolean enforceScope) {
-        if (enforceScope && !isInScope.get()) {
+        if (enforceScope && !isInScope()) {
             throw new IllegalStateException("Request object no longer" + " valid. This object has been cancelled");
         }
         return req;
     }
 
     public AtmosphereResponse getResponse(boolean enforceScope) {
-        if (enforceScope && !isInScope.get()) {
+        if (enforceScope && !isInScope()) {
             throw new IllegalStateException("Response object no longer valid. This object has been cancelled");
         }
         return response;
@@ -525,25 +531,34 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return action;
     }
 
+    public void setAction(Action action) {
+        this.action = action;
+    }
+
     /**
      * Completely reset the instance to its initial state.
      */
     public void reset() {
-        isResumed.set(false);
-        isCancelled.set(false);
+        state.set(LifecycleState.CREATED);
         isPendingClose.set(false);
-        isInScope.set(true);
         isSuspendEvent.set(false);
+        disconnected.set(false);
         listeners.clear();
-        action.type(Action.TYPE.CREATED);
+        action = new Action(Action.TYPE.CREATED, action.timeout());
     }
 
     /**
      * Protect the object from being used after it got cancelled.
      *
-     * */
-    public void setIsInScope(boolean isInScope) {
-        this.isInScope.set(isInScope);
+     * @param inScope when false, transitions the resource to {@link LifecycleState#DISCONNECTED}
+     */
+    public void setIsInScope(boolean inScope) {
+        if (!inScope) {
+            state.set(LifecycleState.DISCONNECTED);
+        } else {
+            // Only valid during reset — transition back to CREATED
+            state.set(LifecycleState.CREATED);
+        }
     }
 
     /**
@@ -552,7 +567,18 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * @return true if the {@link AtmosphereRequest} still is valid
      */
     public boolean isInScope() {
-        return isInScope.get();
+        var s = state.get();
+        return s == LifecycleState.CREATED || s == LifecycleState.SUSPENDED
+                || s == LifecycleState.RESUMED || s == LifecycleState.CLOSING;
+    }
+
+    /**
+     * Return the current {@link LifecycleState} of this resource.
+     *
+     * @return the current lifecycle state
+     */
+    public LifecycleState lifecycleState() {
+        return state.get();
     }
 
     /**
@@ -567,12 +593,12 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     @Override
     public boolean isResumed() {
-        return isResumed.get();
+        return state.get() == LifecycleState.RESUMED;
     }
 
     @Override
     public boolean isCancelled() {
-        return isCancelled.get();
+        return state.get() == LifecycleState.CANCELLED;
     }
 
     @Override
@@ -659,7 +685,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
 
             if (previousType != action.type()) {
-                action().type(Action.TYPE.CREATED);
+                action = new Action(Action.TYPE.CREATED, action.timeout());
             }
         } catch (Throwable t) {
             ((AtmosphereResourceEventImpl) event).setThrowable(t);
@@ -789,8 +815,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     public void cancel() throws IOException {
         try {
-            if (!isCancelled.getAndSet(true)) {
-                suspended.set(false);
+            var prev = state.getAndSet(LifecycleState.CANCELLED);
+            if (prev != LifecycleState.CANCELLED) {
                 logger.trace("Cancelling {}", uuid());
 
                 if (config.getBroadcasterFactory() != null) {
@@ -805,7 +831,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 asyncSupport.complete(this);
 
                 SessionTimeoutSupport.restoreTimeout(req);
-                action.type(Action.TYPE.CANCELLED);
+                action = new Action(Action.TYPE.CANCELLED, action.timeout());
                 if (asyncSupport != null) asyncSupport.action(this);
                 // We must close the underlying WebSocket as well.
                 if (response instanceof AtmosphereResponseImpl) {
@@ -833,7 +859,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     public void _destroy() {
         try {
-            if (!isCancelled.get()) {
+            if (state.get() != LifecycleState.CANCELLED) {
                 removeFromAllBroadcasters();
             }
             broadcasters.clear();
@@ -854,7 +880,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             return "AtmosphereResource{" +
                     "\n\t uuid=" + uuid() +
                     ",\n\t transport=" + transport() +
-                    ",\n\t isInScope=" + isInScope +
+                    ",\n\t state=" + state.get() +
+                    ",\n\t isInScope=" + isInScope() +
                     ",\n\t isResumed=" + isResumed() +
                     ",\n\t isCancelled=" + isCancelled() +
                     ",\n\t isSuspended=" + isSuspended() +
@@ -999,17 +1026,30 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return uuid() != null ? uuid().hashCode() : 0;
     }
 
+    /**
+     * Atomically transitions to {@link LifecycleState#CLOSING} if not already in that state.
+     *
+     * @return true if the resource was already in the closing phase, false if this call initiated it
+     */
     public boolean getAndSetInClosingPhase() {
-        return inClosingPhase.getAndSet(true);
+        while (true) {
+            var current = state.get();
+            if (current == LifecycleState.CLOSING || current == LifecycleState.CANCELLED) {
+                return true;
+            }
+            if (state.compareAndSet(current, LifecycleState.CLOSING)) {
+                return false;
+            }
+        }
     }
 
     /**
-     * @return
+     * @return true if this resource has a pending delayed close
      */
     public boolean isPendingClose () {
         return isPendingClose.get();
     }
-    
+
     public boolean getAndSetPendingClose() {
         return isPendingClose.getAndSet(true);
     }

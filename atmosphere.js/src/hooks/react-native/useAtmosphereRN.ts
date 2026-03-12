@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { AppState } from 'react-native';
 import type {
   AtmosphereRequest,
@@ -23,6 +23,7 @@ import type {
 } from '../../types';
 import { useAtmosphereContext } from '../react/provider';
 import { getRegisteredNetInfo } from '../../react-native/platform';
+import { useAtmosphereCore } from '../shared/useAtmosphereCore';
 
 /**
  * Background behavior when the React Native app is not in the foreground.
@@ -50,6 +51,9 @@ export interface UseAtmosphereRNResult<T> {
   data: T | null;
   error: Error | null;
   push: (message: string | object | ArrayBuffer) => void;
+  disconnect: () => Promise<void>;
+  suspend: () => void;
+  resume: () => Promise<void>;
   isConnected: boolean;
   isInternetReachable: boolean;
 }
@@ -67,7 +71,7 @@ export interface UseAtmosphereRNResult<T> {
  * Requires an {@link AtmosphereProvider} ancestor.
  *
  * ```tsx
- * const { data, state, push, isConnected } = useAtmosphereRN<ChatMessage>({
+ * const { data, state, push, disconnect, isConnected } = useAtmosphereRN<ChatMessage>({
  *   request: { url: 'https://example.com/chat', transport: 'websocket' },
  *   backgroundBehavior: 'suspend',
  * });
@@ -79,78 +83,24 @@ export function useAtmosphereRN<T = unknown>(
   const atmosphere = useAtmosphereContext();
   const { request, enabled = true, backgroundBehavior = 'suspend' } = options;
 
-  const [state, setState] = useState<ConnectionState>('disconnected');
-  const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState<Error | null>(null);
   const [isConnected, setIsConnected] = useState(true);
   const [isInternetReachable, setIsInternetReachable] = useState(true);
 
-  const subRef = useRef<Subscription | null>(null);
   const backgroundBehaviorRef = useRef(backgroundBehavior);
   backgroundBehaviorRef.current = backgroundBehavior;
 
   // Track whether we need to reconnect on foreground
   const wasBackgroundedRef = useRef(false);
 
-  // --- Core subscription lifecycle ---
-  useEffect(() => {
-    if (!enabled) return;
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const sub = await atmosphere.subscribe<T>(request, {
-          open: () => {
-            if (!cancelled) setState('connected');
-          },
-          message: (response) => {
-            if (!cancelled) {
-              setState('connected');
-              setData(response.responseBody);
-            }
-          },
-          close: () => {
-            if (!cancelled) setState('closed');
-          },
-          error: (err) => {
-            if (!cancelled) {
-              setState('error');
-              setError(err);
-            }
-          },
-          reconnect: () => {
-            if (!cancelled) setState('reconnecting');
-          },
-        });
-        if (!cancelled) {
-          subRef.current = sub;
-          setState(sub.state);
-        } else {
-          await sub.close();
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setState('error');
-          setError(err instanceof Error ? err : new Error(String(err)));
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      subRef.current?.close();
-      subRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [atmosphere, request.url, request.transport, enabled]);
+  // --- Core subscription lifecycle (shared with useAtmosphere) ---
+  const core = useAtmosphereCore<T>(atmosphere, request, undefined, enabled);
 
   // --- AppState integration ---
   useEffect(() => {
     if (!AppState) return;
 
     const handleAppState = (nextState: string) => {
-      const sub = subRef.current;
+      const sub = core.subRef.current;
       if (!sub) return;
 
       if (nextState === 'background' || nextState === 'inactive') {
@@ -173,7 +123,7 @@ export function useAtmosphereRN<T = unknown>(
 
     const subscription = AppState.addEventListener('change', handleAppState);
     return () => subscription.remove();
-  }, []);
+  }, [core.subRef]);
 
   // --- NetInfo integration (optional, requires setupReactNative({ netInfo })) ---
   useEffect(() => {
@@ -187,7 +137,7 @@ export function useAtmosphereRN<T = unknown>(
       setIsConnected(connected);
       setIsInternetReachable(reachable);
 
-      const sub = subRef.current;
+      const sub = core.subRef.current;
       if (!sub) return;
 
       if (!connected) {
@@ -200,25 +150,22 @@ export function useAtmosphereRN<T = unknown>(
     });
 
     return () => unsubscribe();
-  }, []);
-
-  const push = useCallback(
-    (message: string | object | ArrayBuffer) => {
-      subRef.current?.push(message);
-    },
-    [],
-  );
+  }, [core.subRef]);
 
   return useMemo(
     () => ({
-      subscription: subRef.current,
-      state,
-      data,
-      error,
-      push,
+      subscription: core.subscription,
+      state: core.state,
+      data: core.data,
+      error: core.error,
+      push: core.push,
+      disconnect: core.disconnect,
+      suspend: core.suspend,
+      resume: core.resume,
       isConnected,
       isInternetReachable,
     }),
-    [state, data, error, push, isConnected, isInternetReachable],
+    [core.subscription, core.state, core.data, core.error, core.push,
+     core.disconnect, core.suspend, core.resume, isConnected, isInternetReachable],
   );
 }

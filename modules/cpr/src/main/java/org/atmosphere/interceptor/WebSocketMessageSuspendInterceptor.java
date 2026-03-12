@@ -32,7 +32,7 @@ public class WebSocketMessageSuspendInterceptor extends AtmosphereInterceptorAda
     public Action inspect(AtmosphereResource r) {
 
         if (Utils.webSocketMessage(r)){
-            ((AtmosphereResourceImpl) r).action().type(Action.TYPE.SUSPEND_MESSAGE);
+            ((AtmosphereResourceImpl) r).setAction(new Action(Action.TYPE.SUSPEND_MESSAGE));
         }
         return Action.CONTINUE;
     }

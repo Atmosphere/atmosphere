@@ -144,7 +144,7 @@ public interface FrameworkConfig {
     /**
      * Throw Exception from cloned request.
      */
-    String THROW_EXCEPTION_ON_CLONED_REQUEST = AtmosphereRequestImpl.NoOpsRequest.class.getName() + ".throwExceptionOnClonedRequest";
+    String THROW_EXCEPTION_ON_CLONED_REQUEST = NoOpsRequest.class.getName() + ".throwExceptionOnClonedRequest";
     /**
      * The subject for the current request.
      */

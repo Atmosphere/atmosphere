@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Atmosphere } from '../../src/core/atmosphere';
+import { VERSION } from '../../src/version';
 
 describe('Atmosphere', () => {
   let atmosphere: Atmosphere;
@@ -9,7 +10,7 @@ describe('Atmosphere', () => {
   });
 
   it('should have correct version', () => {
-    expect(atmosphere.version).toBe('5.0.0');
+    expect(atmosphere.version).toBe(VERSION);
   });
 
   it('should create subscription with generated ID', async () => {

@@ -129,7 +129,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
     public AtmosphereResourceEventImpl setCancelled(boolean isCancelled) {
         if (check()) {
-            resource.action().type(Action.TYPE.CANCELLED);
+            resource.setAction(new Action(Action.TYPE.CANCELLED, resource.action().timeout()));
             this.isCancelled.set(isCancelled);
         }
         return this;
@@ -137,7 +137,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
     protected AtmosphereResourceEventImpl setIsResumedOnTimeout(boolean isResumedOnTimeout) {
         if (check()) {
-            resource.action().type(Action.TYPE.TIMEOUT);
+            resource.setAction(new Action(Action.TYPE.TIMEOUT, resource.action().timeout()));
             this.isResumedOnTimeout.set(isResumedOnTimeout);
         }
         return this;

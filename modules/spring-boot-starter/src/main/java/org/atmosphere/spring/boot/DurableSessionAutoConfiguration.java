@@ -15,8 +15,6 @@
  */
 package org.atmosphere.spring.boot;
 
-import java.time.Duration;
-
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.session.DurableSessionInterceptor;
 import org.atmosphere.session.InMemorySessionStore;
@@ -62,8 +60,8 @@ public class DurableSessionAutoConfiguration {
             AtmosphereFramework framework,
             AtmosphereProperties properties) {
         var dsProps = properties.getDurableSessions();
-        var ttl = Duration.ofMinutes(dsProps.getSessionTtlMinutes());
-        var cleanup = Duration.ofSeconds(dsProps.getCleanupIntervalSeconds());
+        var ttl = dsProps.getSessionTtl();
+        var cleanup = dsProps.getCleanupInterval();
 
         var interceptor = new DurableSessionInterceptor(store, ttl, cleanup);
         framework.interceptor(interceptor);

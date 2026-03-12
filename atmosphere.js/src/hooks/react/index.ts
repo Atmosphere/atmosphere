@@ -16,6 +16,9 @@
 
 export { AtmosphereProvider, useAtmosphereContext } from './provider';
 export { useAtmosphere } from './useAtmosphere';
+export type { UseAtmosphereOptions, UseAtmosphereResult } from './useAtmosphere';
+export { useAtmosphereCore } from '../shared/useAtmosphereCore';
+export type { UseAtmosphereCoreResult, CoreSubscriptionHandlers } from '../shared/useAtmosphereCore';
 export { useRoom } from './useRoom';
 export { usePresence } from './usePresence';
 export { useStreaming } from './useStreaming';

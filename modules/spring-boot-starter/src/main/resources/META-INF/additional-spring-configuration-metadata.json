@@ -45,9 +45,9 @@
       "description": "Whether to enable WebSocket transport support."
     },
     {
-      "name": "atmosphere.heartbeat-interval-in-seconds",
-      "type": "java.lang.Integer",
-      "description": "Heartbeat interval in seconds for keeping connections alive."
+      "name": "atmosphere.heartbeat-interval",
+      "type": "java.time.Duration",
+      "description": "Heartbeat interval for keeping connections alive. Defaults to seconds if no unit suffix is specified (e.g. '30' means 30s)."
     },
     {
       "name": "atmosphere.init-params",
@@ -61,16 +61,16 @@
       "defaultValue": false
     },
     {
-      "name": "atmosphere.durable-sessions.session-ttl-minutes",
-      "type": "java.lang.Long",
-      "description": "Time-to-live for durable sessions in minutes.",
-      "defaultValue": 1440
+      "name": "atmosphere.durable-sessions.session-ttl",
+      "type": "java.time.Duration",
+      "description": "Time-to-live for durable sessions. Defaults to minutes if no unit suffix is specified (e.g. '1440' means 1440 minutes).",
+      "defaultValue": "1440m"
     },
     {
-      "name": "atmosphere.durable-sessions.cleanup-interval-seconds",
-      "type": "java.lang.Long",
-      "description": "Interval in seconds between expired session cleanup runs.",
-      "defaultValue": 60
+      "name": "atmosphere.durable-sessions.cleanup-interval",
+      "type": "java.time.Duration",
+      "description": "Interval between expired session cleanup runs. Defaults to seconds if no unit suffix is specified (e.g. '60' means 60s).",
+      "defaultValue": "60s"
     },
     {
       "name": "atmosphere.grpc.enabled",

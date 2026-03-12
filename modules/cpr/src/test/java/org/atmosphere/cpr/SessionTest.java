@@ -15,7 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.cpr.AtmosphereRequestImpl.NoOpsRequest;
 import org.atmosphere.util.FakeHttpSession;
 
 import jakarta.servlet.ServletException;

@@ -52,6 +52,7 @@ import java.util.Set;
  * servlet context.
  *
  * NOTE: Any new Atmosphere's annotation must be hardcoded here.
+ * Source of truth: {@link AtmosphereAnnotations#coreAnnotations()}
  *
  * @author Stuart Douglas
  */

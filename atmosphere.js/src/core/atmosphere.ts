@@ -30,6 +30,7 @@ import { LongPollingTransport } from '../transports/long-polling';
 import { StreamingTransport } from '../transports/streaming';
 import { BaseTransport } from '../transports/base';
 import { logger } from '../utils/logger';
+import { VERSION } from '../version';
 
 /**
  * Main Atmosphere client class.
@@ -39,7 +40,7 @@ import { logger } from '../utils/logger';
  * retry with a different transport on failure.
  */
 export class Atmosphere {
-  readonly version = '5.0.0';
+  readonly version = VERSION;
   private subscriptions = new Map<string, Subscription>();
   private subscriptionId = 0;
   private config: AtmosphereConfig;

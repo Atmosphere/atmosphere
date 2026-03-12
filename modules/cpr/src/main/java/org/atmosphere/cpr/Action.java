@@ -21,7 +21,7 @@ package org.atmosphere.cpr;
  *
  * @author Jeanfrancois Arcand
  */
-public final class Action {
+public record Action(TYPE type, long timeout) {
     /**
      * The action's type.
      */
@@ -67,84 +67,19 @@ public final class Action {
         SKIP_ATMOSPHEREHANDLER
     }
 
-    public final static Action CANCELLED = new Action(TYPE.CANCELLED, true);
-    public final static Action CONTINUE = new Action(TYPE.CONTINUE, true);
-    public final static Action CREATED = new Action(TYPE.CREATED, true);
-    public final static Action RESUME = new Action(TYPE.RESUME, true);
-    public final static Action SUSPEND = new Action(TYPE.SUSPEND, true);
-    public final static Action DESTROYED = new Action(TYPE.DESTROYED, true);
-    public final static Action SKIP_ATMOSPHEREHANDLER = new Action(TYPE.SKIP_ATMOSPHEREHANDLER);
-
-    private long timeout;
-    private TYPE type;
-    private boolean immutable;
-
-    public Action() {
-        this(TYPE.CREATED);
-    }
+    public static final Action CANCELLED = new Action(TYPE.CANCELLED);
+    public static final Action CONTINUE = new Action(TYPE.CONTINUE);
+    public static final Action CREATED = new Action(TYPE.CREATED);
+    public static final Action RESUME = new Action(TYPE.RESUME);
+    public static final Action SUSPEND = new Action(TYPE.SUSPEND);
+    public static final Action DESTROYED = new Action(TYPE.DESTROYED);
+    public static final Action SKIP_ATMOSPHEREHANDLER = new Action(TYPE.SKIP_ATMOSPHEREHANDLER);
 
     public Action(TYPE type) {
         this(type, -1L);
     }
 
-    public Action(TYPE type, boolean immutable) {
-        this(type, -1L);
-        this.immutable = immutable;
-    }
-
-    public Action(TYPE type, long timeout) {
-        this.timeout = timeout;
-        this.type = type;
-    }
-
-    public Action.TYPE type() {
-        return type;
-    }
-
-    public Action type(Action.TYPE type) {
-        if (immutable) {
-            throw new IllegalStateException("immutable");
-        }
-        this.type = type;
-        return this;
-    }
-
-    public long timeout() {
-        return timeout;
-    }
-
-    public Action timeout(long timeout) {
-        if (immutable) {
-            throw new IllegalStateException("immutable");
-        }
-
-        this.timeout = timeout;
-        return this;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        Action action = (Action) o;
-
-        if (timeout != action.timeout()) return false;
-        return type == action.type();
-    }
-
-    @Override
-    public int hashCode() {
-        int result = (int) (timeout ^ (timeout >>> 32));
-        result = 31 * result + (type != null ? type.hashCode() : 0);
-        return result;
-    }
-
-    @Override
-    public String toString() {
-        return "Action{" +
-                "timeout=" + timeout +
-                ", type=" + type +
-                '}';
+    public Action() {
+        this(TYPE.CREATED);
     }
 }

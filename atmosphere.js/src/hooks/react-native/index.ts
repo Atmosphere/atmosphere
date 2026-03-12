@@ -18,6 +18,10 @@
 export { setupReactNative, isReactNativeSetup } from '../../react-native/platform';
 export type { RNCapabilities, SetupReactNativeOptions } from '../../react-native/platform';
 
+// Shared core hook for building custom hooks
+export { useAtmosphereCore } from '../shared/useAtmosphereCore';
+export type { UseAtmosphereCoreResult, CoreSubscriptionHandlers } from '../shared/useAtmosphereCore';
+
 // RN-aware hooks
 export { useAtmosphereRN } from './useAtmosphereRN';
 export type { UseAtmosphereRNOptions, UseAtmosphereRNResult, BackgroundBehavior } from './useAtmosphereRN';

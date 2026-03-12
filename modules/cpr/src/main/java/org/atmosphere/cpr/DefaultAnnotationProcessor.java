@@ -16,29 +16,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.config.AtmosphereAnnotation;
-import org.atmosphere.config.service.AsyncSupportListenerService;
-import org.atmosphere.config.service.AsyncSupportService;
-import org.atmosphere.config.service.AtmosphereFrameworkListenerService;
-import org.atmosphere.config.service.AtmosphereHandlerService;
-import org.atmosphere.config.service.AtmosphereInterceptorService;
-import org.atmosphere.config.service.AtmosphereResourceFactoryService;
-import org.atmosphere.config.service.AtmosphereResourceListenerService;
-import org.atmosphere.config.service.AtmosphereService;
-import org.atmosphere.config.service.BroadcasterCacheInspectorService;
-import org.atmosphere.config.service.BroadcasterCacheListenerService;
-import org.atmosphere.config.service.BroadcasterCacheService;
-import org.atmosphere.config.service.BroadcasterFactoryService;
-import org.atmosphere.config.service.BroadcasterFilterService;
-import org.atmosphere.config.service.BroadcasterListenerService;
-import org.atmosphere.config.service.BroadcasterService;
-import org.atmosphere.config.service.EndpointMapperService;
-import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.RoomService;
-import org.atmosphere.config.service.UUIDProviderService;
-import org.atmosphere.config.service.WebSocketFactoryService;
-import org.atmosphere.config.service.WebSocketHandlerService;
-import org.atmosphere.config.service.WebSocketProcessorService;
-import org.atmosphere.config.service.WebSocketProtocolService;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.annotation.AnnotationDetector;
 import org.slf4j.Logger;
@@ -73,33 +50,9 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
      */
     public static final String ANNOTATION_ATTRIBUTE = "org.atmosphere.cpr.ANNOTATION_MAP";
 
-    // Annotation in java is broken.
-    private static final Class<?>[] coreAnnotations = {
-            AtmosphereHandlerService.class,
-            BroadcasterCacheService.class,
-            BroadcasterFilterService.class,
-            BroadcasterFactoryService.class,
-            BroadcasterService.class,
-            WebSocketFactoryService.class,
-            WebSocketHandlerService.class,
-            WebSocketProtocolService.class,
-            AtmosphereInterceptorService.class,
-            BroadcasterListenerService.class,
-            AsyncSupportService.class,
-            AsyncSupportListenerService.class,
-            WebSocketProcessorService.class,
-            BroadcasterCacheInspectorService.class,
-            ManagedService.class,
-            AtmosphereService.class,
-            EndpointMapperService.class,
-            BroadcasterCacheListenerService.class,
-            AtmosphereAnnotation.class,
-            AtmosphereResourceFactoryService.class,
-            AtmosphereFrameworkListenerService.class,
-            AtmosphereResourceListenerService.class,
-            UUIDProviderService.class,
-            RoomService.class
-    };
+    // Source of truth: AtmosphereAnnotations.coreAnnotations()
+    private static final List<Class<? extends Annotation>> coreAnnotations =
+            AtmosphereAnnotations.coreAnnotations();
 
     private AnnotationProcessor delegate;
     private final AnnotationHandler handler;

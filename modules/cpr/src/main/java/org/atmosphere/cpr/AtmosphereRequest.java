@@ -15,30 +15,15 @@
  */
 package org.atmosphere.cpr;
 
-import jakarta.servlet.AsyncContext;
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletInputStream;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import jakarta.servlet.http.Part;
 
-import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
-import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.security.Principal;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -59,190 +44,9 @@ public interface AtmosphereRequest extends HttpServletRequest {
 
     AtmosphereRequest destroyable(boolean destroyable);
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getPathInfo();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getPathTranslated();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getQueryString();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getRemoteUser();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getRequestedSessionId();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getMethod();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    Part getPart(String name) throws IOException, ServletException;
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    Collection<Part> getParts() throws IOException, ServletException;
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getContentType();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    DispatcherType getDispatcherType();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getServletPath();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getRequestURI();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    StringBuffer getRequestURL();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    Enumeration<String> getHeaders(String name);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    int getIntHeader(String name);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    Enumeration<String> getHeaderNames();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    boolean authenticate(HttpServletResponse response) throws IOException, ServletException;
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getAuthType();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getContextPath();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    Cookie[] getCookies();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    long getDateHeader(String name);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getHeader(String s);
-
     HttpServletRequest wrappedRequest();
 
     String getHeader(String s, boolean checkCase);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getParameter(String s);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    Map<String, String[]> getParameterMap();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    Enumeration<String> getParameterNames();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String[] getParameterValues(String s);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getProtocol();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    ServletInputStream getInputStream() throws IOException;
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    BufferedReader getReader() throws IOException;
-
-    /**
-     * {@inheritDoc}
-     */
-    @SuppressWarnings("deprecation")
-    @Override
-    String getRealPath(String path);
 
     /**
      * Add all headers contained within the Map.
@@ -300,210 +104,11 @@ public interface AtmosphereRequest extends HttpServletRequest {
     AtmosphereRequest requestURI(String requestURI);
 
     /**
-     * {@inheritDoc}
-     */
-    @Override
-    void setAttribute(String s, Object o);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    void setCharacterEncoding(String env) throws UnsupportedEncodingException;
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    AsyncContext startAsync();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    AsyncContext startAsync(ServletRequest request, ServletResponse response);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    AsyncContext getAsyncContext();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    Object getAttribute(String s);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    void removeAttribute(String name);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    HttpSession getSession();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    HttpSession getSession(boolean create);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    Principal getUserPrincipal();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    boolean isRequestedSessionIdFromCookie();
-
-    /**
-     * {@inheritDoc}
-     */
-    @SuppressWarnings("deprecation")
-    @Override
-    boolean isRequestedSessionIdFromUrl();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    boolean isRequestedSessionIdFromURL();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    boolean isRequestedSessionIdValid();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    boolean isUserInRole(String role);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    void login(String username, String password) throws ServletException;
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    void logout() throws ServletException;
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getRemoteAddr();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getRemoteHost();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    int getRemotePort();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    RequestDispatcher getRequestDispatcher(String path);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getScheme();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getServerName();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    int getServerPort();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    ServletContext getServletContext();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    boolean isAsyncStarted();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    boolean isAsyncSupported();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    boolean isSecure();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getLocalName();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    int getLocalPort();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getLocalAddr();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    Locale getLocale();
-
-    /**
      * The {@link AtmosphereResource} associated with this request.
      *
      * @return an {@link AtmosphereResource}
      */
     AtmosphereResource resource();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    Enumeration<Locale> getLocales();
 
     /**
      * Dispatch the request asynchronously to container. The default is false.
@@ -513,17 +118,11 @@ public interface AtmosphereRequest extends HttpServletRequest {
     boolean dispatchRequestAsynchronously();
 
     /**
-     * Cjeck if this object can be destroyed. Default is true.
+     * Check if this object can be destroyed. Default is true.
      */
     boolean isDestroyable();
 
     AtmosphereRequest pathInfo(String pathInfo);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    Enumeration<String> getAttributeNames();
 
     /**
      * Return a subset of the attributes set on this AtmosphereRequest, set locally by the framework or by an application. Attributes added using this method
@@ -532,18 +131,6 @@ public interface AtmosphereRequest extends HttpServletRequest {
      * @return a {@linkLocalAttributes>}
      */
     LocalAttributes localAttributes();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    String getCharacterEncoding();
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    int getContentLength();
 
     /**
      * Return the underlying {@link AtmosphereResource#uuid()}. May return "0" if no {@link AtmosphereResource}
@@ -556,14 +143,6 @@ public interface AtmosphereRequest extends HttpServletRequest {
     void destroy();
 
     void destroy(boolean force);
-
-    /**
-     * {@inheritDoc}
-     */
-    void setRequest(ServletRequest request);
-
-    @Override
-    String toString();
 
     String requestURL();
 
@@ -605,7 +184,7 @@ public interface AtmosphereRequest extends HttpServletRequest {
             return localAttributes.containsKey(key);
         }
     }
-    
+
     interface Builder {
         Builder destroyable(boolean destroyable);
 
@@ -679,7 +258,10 @@ public interface AtmosphereRequest extends HttpServletRequest {
 
         Builder authType(String authType);
 
+        @Deprecated
         Builder isSSecure(boolean isSecure);
+
+        Builder isSecure(boolean isSecure);
 
         Builder locale(Locale locale);
 

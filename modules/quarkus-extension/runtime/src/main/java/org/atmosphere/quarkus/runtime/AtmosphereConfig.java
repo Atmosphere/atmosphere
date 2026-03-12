@@ -15,6 +15,7 @@
  */
 package org.atmosphere.quarkus.runtime;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 
@@ -71,9 +72,10 @@ public interface AtmosphereConfig {
     Optional<Boolean> websocketSupport();
 
     /**
-     * The heartbeat interval in seconds.
+     * The heartbeat interval. Accepts ISO-8601 duration or Quarkus shorthand
+     * ({@code 30s}, {@code 5m}, {@code 1h}). Converted to seconds internally.
      */
-    Optional<Integer> heartbeatIntervalInSeconds();
+    Optional<Duration> heartbeatInterval();
 
     /**
      * Additional Atmosphere init parameters passed to the servlet.
