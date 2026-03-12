@@ -29,6 +29,7 @@
         <module>durable-sessions</module>
         <module>durable-sessions-sqlite</module>
         <module>durable-sessions-redis</module>
+        <module>rag</module>
         <module>spring-boot-starter</module>
         <module>quarkus-extension</module>
         <module>wasync</module>

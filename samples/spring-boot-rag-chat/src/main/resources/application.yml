@@ -1,0 +1,43 @@
+# Atmosphere RAG Chat - Configuration
+# Supports any OpenAI-compatible API: Gemini, Ollama, OpenAI, Azure, etc.
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.ragchat
+
+# LLM Configuration
+# Set via .envrc, environment variables, or override here.
+#
+# LLM_MODE: "remote" (cloud API, default) or "local" (Ollama)
+# LLM_MODEL: model name (e.g. gemini-2.5-flash, gpt-4o, llama3.2)
+# LLM_API_KEY or GEMINI_API_KEY: API key for remote providers
+# LLM_BASE_URL: override the API endpoint (auto-detected from mode if omitted)
+#
+# Example .envrc for Gemini:
+#   export LLM_MODE=remote
+#   export LLM_MODEL=gemini-2.5-flash
+#   export LLM_API_KEY=AIza...
+#
+# Example .envrc for OpenAI:
+#   export LLM_MODE=remote
+#   export LLM_MODEL=gpt-4o-mini
+#   export LLM_BASE_URL=https://api.openai.com/v1
+#   export LLM_API_KEY=sk-...
+llm:
+  mode: ${LLM_MODE:remote}
+  model: ${LLM_MODEL:gemini-2.5-flash}
+  base-url: ${LLM_BASE_URL:}
+  api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
+
+# Spring AI OpenAI configuration (used for embeddings)
+# The API key is shared with the LLM config above
+spring:
+  ai:
+    openai:
+      api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
+      base-url: ${LLM_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+      embedding:
+        options:
+          model: text-embedding-004
+
+server:
+  port: 8080
