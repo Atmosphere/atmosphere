@@ -86,6 +86,22 @@ public interface AiMetrics {
      */
     void recordError(String model, String errorType);
 
+    /**
+     * Signal that a new streaming session has started.
+     * Used for tracking active session counts.
+     *
+     * @param model the model name
+     */
+    default void sessionStarted(String model) { }
+
+    /**
+     * Signal that a streaming session has ended (completed or errored).
+     * Used for tracking active session counts.
+     *
+     * @param model the model name
+     */
+    default void sessionEnded(String model) { }
+
     /** No-op implementation for when metrics are disabled. */
     AiMetrics NOOP = new AiMetrics() {
         @Override
