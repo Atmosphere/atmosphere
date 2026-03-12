@@ -113,10 +113,10 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             if (b.inputStream != null) {
                 bis = new IS(b.inputStream);
             } else if (b.reader == null) {
-                if (b.body.dataBytes != null) {
-                    bis = new ByteInputStream(b.body.dataBytes, b.body.offset, b.body.length);
-                } else if (b.body.data != null) {
-                    byte[] bytes = b.body.data.getBytes(StandardCharsets.UTF_8);
+                if (b.body.hasBytes()) {
+                    bis = new ByteInputStream(b.body.asBytes(), b.body.byteOffset(), b.body.byteLength());
+                } else if (b.body.hasString()) {
+                    byte[] bytes = b.body.asString().getBytes(StandardCharsets.UTF_8);
                     bis = new ByteInputStream(bytes, 0, bytes.length);
                 }
             } else {
@@ -131,10 +131,10 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
                 br = new BufferedReader(b.reader);
             } else if (b.inputStream == null) {
                 try {
-                    if (b.body.dataBytes != null) {
-                        br = new BufferedReader(new StringReader(new String(b.body.dataBytes, b.body.offset, b.body.length, b.encoding)));
-                    } else if (b.body.data != null) {
-                        br = new BufferedReader(new StringReader(b.body.data));
+                    if (b.body.hasBytes()) {
+                        br = new BufferedReader(new StringReader(new String(b.body.asBytes(), b.body.byteOffset(), b.body.byteLength(), b.encoding)));
+                    } else if (b.body.hasString()) {
+                        br = new BufferedReader(new StringReader(b.body.asString()));
                     }
                 } catch (UnsupportedEncodingException e) {
                     throw new RuntimeException(e);
@@ -454,7 +454,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         } else if (b.body.hasString()) {
             bis = new IS(new ByteArrayInputStream(b.body.asString().getBytes()));
         } else if (b.body.hasBytes()) {
-            bis = new IS(new ByteArrayInputStream(b.body.asBytes(), b.body.offset, b.body.byteLength()));
+            bis = new IS(new ByteArrayInputStream(b.body.asBytes(), b.body.byteOffset(), b.body.byteLength()));
         }
         return bis;
     }
@@ -467,7 +467,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         } else if (b.body.hasString()) {
             br = new BufferedReader(new StringReader(body().asString()));
         } else if (b.body.hasBytes()) {
-            br = new BufferedReader(new StringReader(new String(body().asBytes(), body().byteOffset(), body().length)));
+            br = new BufferedReader(new StringReader(new String(body().asBytes(), body().byteOffset(), body().byteLength())));
         }
         return br;
     }
@@ -532,13 +532,13 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public AtmosphereRequest body(String body) {
-        b.body = new Body(body, null, 0, 0);
+        b.body = new Body.StringBody(body);
         return this;
     }
 
     @Override
     public AtmosphereRequest body(byte[] bytes) {
-        b.body = new Body(null, bytes, 0, bytes.length);
+        b.body = new Body.BytesBody(bytes, 0, bytes.length);
         return this;
     }
 
@@ -1004,7 +1004,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     }
 
     public final static class Builder implements AtmosphereRequest.Builder {
-        private final static Body NULL_BODY = new Body(null, null, 0, 0);
+        private static final Body NULL_BODY = new Body.EmptyBody();
         private final ReentrantLock requestLock = new ReentrantLock();
         private HttpServletRequest request;
         private String pathInfo = "";
@@ -1168,7 +1168,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         @Override
         public Builder body(byte[] dataBytes, int offset, int length) {
-            this.body = new Body(null, dataBytes, offset, length);
+            this.body = new Body.BytesBody(dataBytes, offset, length);
             return this;
         }
 
@@ -1201,7 +1201,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         @Override
         public Builder body(String data) {
-            this.body = new Body(data, null, 0, 0);
+            this.body = new Body.StringBody(data);
             return this;
         }
 
@@ -1301,82 +1301,85 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
     }
 
-    public final static class Body {
-        private final String data;
-        private final byte[] dataBytes;
-        private final int offset;
-        private final int length;
-        private final boolean isEmpty;
-
-        public Body(String data, byte[] dataBytes, int offset, int length) {
-            this.data = data;
-            this.dataBytes = dataBytes;
-            this.offset = offset;
-            this.length = length;
-            isEmpty = data == null && dataBytes == null;
-        }
+    public sealed interface Body permits Body.StringBody, Body.BytesBody, Body.EmptyBody {
 
         /**
          * True is the body is a String
          *
          * @return True is the body is a String
          */
-        public boolean hasString() {
-            return data != null;
-        }
+        boolean hasString();
 
         /**
          * True is the body is a byte array
          *
          * @return True is the body is a byte array
          */
-        public boolean hasBytes() {
-            return dataBytes != null;
-        }
+        boolean hasBytes();
 
         /**
          * Return the request body as a String. If the body was a byte array, this method will return null.
          *
          * @return the request body as a String. If the body was a byte array, this method will return null.
          */
-        public String asString() {
-            return data;
-        }
+        String asString();
 
         /**
          * Return the request body as a byte array. If the body was String, this method will return null.
          *
          * @return the request body as a byte array. If the body was String, this method will return null.
          */
-        public byte[] asBytes() {
-            return dataBytes;
-        }
+        byte[] asBytes();
 
         /**
          * The {@link #asBytes()} offset
          *
          * @return The {@link #asBytes()} offset
          */
-        public int byteOffset() {
-            return offset;
-        }
+        int byteOffset();
 
         /**
          * The {@link #asBytes()} length
          *
          * @return The {@link #asBytes()} length
          */
-        public int byteLength() {
-            return length;
-        }
+        int byteLength();
 
         /**
          * True if this object is empty
          *
          * @return True if this object is empty
          */
-        public boolean isEmpty() {
-            return isEmpty;
+        boolean isEmpty();
+
+        record StringBody(String data) implements Body {
+            @Override public boolean hasString() { return true; }
+            @Override public boolean hasBytes() { return false; }
+            @Override public String asString() { return data; }
+            @Override public byte[] asBytes() { return null; }
+            @Override public int byteOffset() { return 0; }
+            @Override public int byteLength() { return 0; }
+            @Override public boolean isEmpty() { return false; }
+        }
+
+        record BytesBody(byte[] data, int offset, int length) implements Body {
+            @Override public boolean hasString() { return false; }
+            @Override public boolean hasBytes() { return true; }
+            @Override public String asString() { return null; }
+            @Override public byte[] asBytes() { return data; }
+            @Override public int byteOffset() { return offset; }
+            @Override public int byteLength() { return length; }
+            @Override public boolean isEmpty() { return false; }
+        }
+
+        record EmptyBody() implements Body {
+            @Override public boolean hasString() { return false; }
+            @Override public boolean hasBytes() { return false; }
+            @Override public String asString() { return null; }
+            @Override public byte[] asBytes() { return null; }
+            @Override public int byteOffset() { return 0; }
+            @Override public int byteLength() { return 0; }
+            @Override public boolean isEmpty() { return true; }
         }
     }
 
