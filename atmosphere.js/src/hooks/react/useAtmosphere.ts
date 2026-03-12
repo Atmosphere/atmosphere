@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
 import type {
   AtmosphereRequest,
   ConnectionState,
   Subscription,
 } from '../../types';
 import { useAtmosphereContext } from './provider';
+import { useAtmosphereCore } from '../shared/useAtmosphereCore';
 
 /**
  * Options for {@link useAtmosphere}.
@@ -46,6 +46,12 @@ export interface UseAtmosphereResult<T> {
   error: Error | null;
   /** Send a message on the subscription. */
   push: (message: string | object | ArrayBuffer) => void;
+  /** Close the subscription. */
+  disconnect: () => Promise<void>;
+  /** Suspend the underlying transport (pause without closing). */
+  suspend: () => void;
+  /** Resume a previously suspended transport. */
+  resume: () => Promise<void>;
 }
 
 /**
@@ -55,7 +61,7 @@ export interface UseAtmosphereResult<T> {
  * request URL or transport changes.
  *
  * ```tsx
- * const { data, state, push } = useAtmosphere<ChatMessage>({
+ * const { data, state, push, disconnect, suspend, resume } = useAtmosphere<ChatMessage>({
  *   request: { url: '/chat', transport: 'websocket' },
  * });
  * ```
@@ -68,76 +74,17 @@ export function useAtmosphere<T = unknown>(
   const atmosphere = useAtmosphereContext();
   const { request, enabled = true } = options;
 
-  const [state, setState] = useState<ConnectionState>('disconnected');
-  const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const subRef = useRef<Subscription | null>(null);
-
-  useEffect(() => {
-    if (!enabled) return;
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const sub = await atmosphere.subscribe<T>(request, {
-          open: () => {
-            if (!cancelled) setState('connected');
-          },
-          message: (response) => {
-            if (!cancelled) {
-              setState('connected');
-              setData(response.responseBody);
-            }
-          },
-          close: () => {
-            if (!cancelled) setState('closed');
-          },
-          error: (err) => {
-            if (!cancelled) {
-              setState('error');
-              setError(err);
-            }
-          },
-          reconnect: () => {
-            if (!cancelled) setState('reconnecting');
-          },
-        });
-        if (!cancelled) {
-          subRef.current = sub;
-          setState(sub.state);
-        } else {
-          await sub.close();
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setState('error');
-          setError(err instanceof Error ? err : new Error(String(err)));
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      subRef.current?.close();
-      subRef.current = null;
-    };
-    // Reconnect when URL or transport changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [atmosphere, request.url, request.transport, enabled]);
-
-  const push = useCallback(
-    (message: string | object | ArrayBuffer) => {
-      subRef.current?.push(message);
-    },
-    [],
-  );
+  const { subscription, state, data, error, push, disconnect, suspend, resume } =
+    useAtmosphereCore<T>(atmosphere, request, undefined, enabled);
 
   return {
-    subscription: subRef.current,
+    subscription,
     state,
     data,
     error,
     push,
+    disconnect,
+    suspend,
+    resume,
   };
 }
