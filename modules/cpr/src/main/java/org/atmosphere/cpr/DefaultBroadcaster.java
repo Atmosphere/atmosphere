@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -60,8 +59,8 @@ import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.ApplicationConfig.OUT_OF_ORDER_BROADCAST;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.ApplicationConfig.WRITE_TIMEOUT;
-import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.NEVER;
 import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
+
 
 /**
  * The default {@link Broadcaster} implementation.
@@ -81,8 +80,14 @@ public class DefaultBroadcaster implements Broadcaster {
     private static final String DESTROYED = "This Broadcaster has been destroyed and cannot be used {} by invoking {}";
     private static final List<AtmosphereResourceEventListener> EMPTY_LISTENERS = new ArrayList<>();
 
-    protected final ConcurrentLinkedQueue<AtmosphereResource> resources =
-            new ConcurrentLinkedQueue<>();
+    private final BroadcasterMembership membership = new BroadcasterMembership();
+    private final BroadcasterLifecycle lifecycle = new BroadcasterLifecycle();
+
+    /**
+     * Backward-compatible reference to the underlying resource queue.
+     * Subclasses (e.g. {@link org.atmosphere.util.ExcludeSessionBroadcaster}) may access this directly.
+     */
+    protected final ConcurrentLinkedQueue<AtmosphereResource> resources = membership.queue();
     protected BroadcasterConfig bc;
     protected final BlockingQueue<Deliver> messages = new LinkedBlockingQueue<>();
     protected Collection<BroadcasterListener> broadcasterListeners;
@@ -95,11 +100,10 @@ public class DefaultBroadcaster implements Broadcaster {
     protected String name = DefaultBroadcaster.class.getSimpleName();
     protected final ConcurrentLinkedQueue<Deliver> delayedBroadcast = new ConcurrentLinkedQueue<>();
     protected final ConcurrentLinkedQueue<Deliver> broadcastOnResume = new ConcurrentLinkedQueue<>();
-    protected final ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener> lifeCycleListeners = new ConcurrentLinkedQueue<>();
     protected final ConcurrentHashMap<String, WriteQueue> writeQueues = new ConcurrentHashMap<>();
     protected final WriteQueue uniqueWriteQueue = new WriteQueue("-1");
     protected final AtomicInteger dispatchThread = new AtomicInteger();
-    
+
     private final ReentrantLock awaitLock = new ReentrantLock();
     private final Condition awaitCondition = awaitLock.newCondition();
     private final ReentrantLock lock = new ReentrantLock();
@@ -112,17 +116,12 @@ public class DefaultBroadcaster implements Broadcaster {
     private POLICY policy = POLICY.FIFO;
     private final AtomicLong maxSuspendResource = new AtomicLong(-1);
     private final AtomicBoolean requestScoped = new AtomicBoolean(false);
-    private final AtomicBoolean recentActivity = new AtomicBoolean(false);
-    private BroadcasterLifeCyclePolicy lifeCyclePolicy = new BroadcasterLifeCyclePolicy.Builder()
-            .policy(NEVER).build();
     protected URI uri;
     protected AtmosphereConfig config;
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
     protected int writeTimeoutInSecond = -1;
     protected int waitTime = POLLING_DEFAULT;
     private boolean backwardCompatible;
-    private LifecycleHandler lifecycleHandler;
-    private Future<?> currentLifecycleTask;
     private boolean cacheOnIOFlushException = true;
     protected boolean sharedListeners;
     protected boolean candidateForPoolable;
@@ -209,7 +208,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 if (bc != null) {
                     bc.destroy();
                 }
-                lifeCycleListeners.clear();
+                lifecycle.clearListeners();
                 delayedBroadcast.clear();
                 if (!sharedListeners) {
                     broadcasterListeners.clear();
@@ -234,7 +233,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public Collection<AtmosphereResource> getAtmosphereResources() {
-        return Collections.unmodifiableCollection(resources);
+        return membership.getResources();
     }
 
     @Override
@@ -364,23 +363,22 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public void setBroadcasterLifeCyclePolicy(final BroadcasterLifeCyclePolicy lifeCyclePolicy) {
-        this.lifeCyclePolicy = lifeCyclePolicy;
-        if (lifecycleHandler != null) lifecycleHandler.on(this);
+        lifecycle.setPolicy(lifeCyclePolicy, this);
     }
 
     @Override
     public BroadcasterLifeCyclePolicy getBroadcasterLifeCyclePolicy() {
-        return lifeCyclePolicy;
+        return lifecycle.policy();
     }
 
     @Override
     public void addBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b) {
-        lifeCycleListeners.add(b);
+        lifecycle.addLifeCycleListener(b);
     }
 
     @Override
     public void removeBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b) {
-        lifeCycleListeners.remove(b);
+        lifecycle.removeLifeCycleListener(b);
     }
 
     @Override
@@ -595,7 +593,7 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void deliverPush(Deliver deliver, boolean rec) {
-        recentActivity.set(true);
+        lifecycle.recentActivity().set(true);
 
         Object prevMessage = deliver.message;
         if (rec && !delayedBroadcast.isEmpty()) {
@@ -1730,11 +1728,11 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     public BroadcasterLifeCyclePolicy lifeCyclePolicy() {
-        return lifeCyclePolicy;
+        return lifecycle.policy();
     }
 
     public ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener> lifeCycleListeners() {
-        return lifeCycleListeners;
+        return lifecycle.lifeCycleListeners();
     }
 
     public BlockingQueue<Deliver> messages() {
@@ -1754,24 +1752,42 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     public AtomicBoolean recentActivity() {
-        return recentActivity;
+        return lifecycle.recentActivity();
     }
 
     public LifecycleHandler lifecycleHandler() {
-        return lifecycleHandler;
+        return lifecycle.lifecycleHandler();
     }
 
     public DefaultBroadcaster lifecycleHandler(LifecycleHandler lifecycleHandler) {
-        this.lifecycleHandler = lifecycleHandler;
+        lifecycle.lifecycleHandler(lifecycleHandler);
         return this;
     }
 
     public Future<?> currentLifecycleTask() {
-        return currentLifecycleTask;
+        return lifecycle.currentLifecycleTask();
     }
 
     public DefaultBroadcaster currentLifecycleTask(Future<?> currentLifecycleTask) {
-        this.currentLifecycleTask = currentLifecycleTask;
+        lifecycle.currentLifecycleTask(currentLifecycleTask);
         return this;
+    }
+
+    /**
+     * Return the {@link BroadcasterMembership} managing resource subscriptions.
+     *
+     * @return the membership instance
+     */
+    public BroadcasterMembership membership() {
+        return membership;
+    }
+
+    /**
+     * Return the {@link BroadcasterLifecycle} managing lifecycle policy.
+     *
+     * @return the lifecycle instance
+     */
+    public BroadcasterLifecycle lifecycle() {
+        return lifecycle;
     }
 }
