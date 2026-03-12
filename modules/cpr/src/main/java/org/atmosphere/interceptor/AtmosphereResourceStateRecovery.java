@@ -164,7 +164,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
                         // Force doNotSuspend.
                         if (doNotSuspend.get()) {
-                            ((AtmosphereResourceImpl) r).action().type(Action.TYPE.CONTINUE);
+                            ((AtmosphereResourceImpl) r).setAction(new Action(Action.TYPE.CONTINUE));
                         }
                         if (logger.isTraceEnabled()) {
                             logger.trace("doNotSuspend {}", doNotSuspend.get());

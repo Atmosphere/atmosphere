@@ -84,7 +84,7 @@ public class AtmosphereInterceptorTest {
             @Override
             public Action inspect(AtmosphereResource r) {
                 // Default is CREATED
-                AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CONTINUE);
+                AtmosphereResourceImpl.class.cast(r).setAction(new Action(Action.TYPE.CONTINUE));
                 return Action.CONTINUE;
             }
             @Override
@@ -111,7 +111,7 @@ public class AtmosphereInterceptorTest {
             @Override
             public Action inspect(AtmosphereResource r) {
                 // Default is CREATED
-                AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CONTINUE);
+                AtmosphereResourceImpl.class.cast(r).setAction(new Action(Action.TYPE.CONTINUE));
                 return Action.CONTINUE;
             }
 
@@ -131,7 +131,7 @@ public class AtmosphereInterceptorTest {
             @Override
             public Action inspect(AtmosphereResource r) {
                 // Default is CREATED
-                AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CREATED);
+                AtmosphereResourceImpl.class.cast(r).setAction(new Action(Action.TYPE.CREATED));
                 return Action.CONTINUE;
             }
 

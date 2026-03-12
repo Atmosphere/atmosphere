@@ -56,7 +56,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     private AtmosphereRequest req;
     private AtmosphereResponse response;
-    private final Action action = new Action();
+    private Action action = new Action();
     protected final List<Broadcaster> broadcasters = new CopyOnWriteArrayList<>();
     protected Broadcaster broadcaster;
     private AtmosphereConfig config;
@@ -272,7 +272,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 suspended.set(false);
                 logger.trace("AtmosphereResource {} is resuming", uuid());
 
-                action.type(Action.TYPE.RESUME);
+                action = new Action(Action.TYPE.RESUME, action.timeout());
 
                 boolean notify = true;
                 for (Broadcaster b : broadcasters) {
@@ -378,8 +378,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
 
             req.setAttribute(PRE_SUSPEND, "true");
-            action.type(Action.TYPE.SUSPEND);
-            action.timeout(timeout);
+            action = new Action(Action.TYPE.SUSPEND, timeout);
 
             // Optimization opportunity: avoid creating a Broadcaster when the Broadcaster is unique
             boolean isJersey = req.getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null;
@@ -401,7 +400,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
             Objects.requireNonNull(broadcaster).addAtmosphereResource(this);
             if (req.getAttribute(DefaultBroadcaster.CACHED) != null && transport() != null && Utils.resumableTransport(transport())) {
-                action.type(Action.TYPE.CONTINUE);
+                action = new Action(Action.TYPE.CONTINUE, action.timeout());
                 // Do nothing because we have found cached message which was written already, and the handler resumed.
                 logger.debug("Cached message found, not suspending {}", uuid());
                 return this;
@@ -525,6 +524,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return action;
     }
 
+    public void setAction(Action action) {
+        this.action = action;
+    }
+
     /**
      * Completely reset the instance to its initial state.
      */
@@ -535,7 +538,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         isInScope.set(true);
         isSuspendEvent.set(false);
         listeners.clear();
-        action.type(Action.TYPE.CREATED);
+        action = new Action(Action.TYPE.CREATED, action.timeout());
     }
 
     /**
@@ -659,7 +662,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
 
             if (previousType != action.type()) {
-                action().type(Action.TYPE.CREATED);
+                action = new Action(Action.TYPE.CREATED, action.timeout());
             }
         } catch (Throwable t) {
             ((AtmosphereResourceEventImpl) event).setThrowable(t);
@@ -805,7 +808,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 asyncSupport.complete(this);
 
                 SessionTimeoutSupport.restoreTimeout(req);
-                action.type(Action.TYPE.CANCELLED);
+                action = new Action(Action.TYPE.CANCELLED, action.timeout());
                 if (asyncSupport != null) asyncSupport.action(this);
                 // We must close the underlying WebSocket as well.
                 if (response instanceof AtmosphereResponseImpl) {
