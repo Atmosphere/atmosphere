@@ -1081,4 +1081,16 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.kafka.group.id
      */
     String KAFKA_GROUP_ID = "org.atmosphere.kafka.group.id";
+    /**
+     * When set to {@code true}, Atmosphere will skip JVM-global system property
+     * modifications that are normally applied during initialization to work around
+     * container-specific issues (e.g., Tomcat strict servlet compliance).
+     * <p/>
+     * This is useful in multi-application environments or testing scenarios where
+     * mutating JVM-wide state is undesirable.
+     * <p/>
+     * Default: false (container patching is enabled)<br>
+     * Value: org.atmosphere.cpr.disableContainerPatching
+     */
+    String DISABLE_CONTAINER_PATCHING = "org.atmosphere.cpr.disableContainerPatching";
 }

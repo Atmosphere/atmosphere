@@ -382,10 +382,12 @@ public class AtmosphereFramework {
     }
 
     /**
-     * Path specific container using their own property.
+     * Patch container-specific system properties to work around strict compliance modes.
+     * Delegates to {@link ContainerPatcher} which logs modifications and respects the
+     * {@link ApplicationConfig#DISABLE_CONTAINER_PATCHING} opt-out.
      */
     public void patchContainer() {
-        System.setProperty("org.apache.catalina.STRICT_SERVLET_COMPLIANCE", "false");
+        ContainerPatcher.patch(this);
     }
 
     /**
