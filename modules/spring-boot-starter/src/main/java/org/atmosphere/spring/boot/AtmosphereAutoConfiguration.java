@@ -270,9 +270,9 @@ public class AtmosphereAutoConfiguration {
                     String.valueOf(properties.getWebsocketSupport()));
         }
 
-        if (properties.getHeartbeatIntervalInSeconds() != null) {
+        if (properties.getHeartbeatInterval() != null) {
             initParams.put(ApplicationConfig.HEARTBEAT_INTERVAL_IN_SECONDS,
-                    String.valueOf(properties.getHeartbeatIntervalInSeconds()));
+                    String.valueOf(properties.getHeartbeatInterval().toSeconds()));
         }
 
         initParams.putAll(properties.getInitParams());
