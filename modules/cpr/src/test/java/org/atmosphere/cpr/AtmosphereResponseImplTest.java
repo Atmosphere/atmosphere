@@ -89,6 +89,6 @@ public class AtmosphereResponseImplTest {
                 .header("header 2", null)
                 .build();
 
-        assertEquals(null, response.getHeaders("header 3"));
+        assertEquals(Collections.emptyList(), response.getHeaders("header 3"));
     }
 }

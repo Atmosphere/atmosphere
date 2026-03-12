@@ -126,7 +126,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     }
 
     private void configureReader() {
-        if (br == null && !readerSet.getAndSet(false)) {
+        if (br == null && !readerSet.getAndSet(true)) {
             if (b.reader != null) {
                 br = new BufferedReader(b.reader);
             } else if (b.inputStream == null) {
@@ -1275,8 +1275,15 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             return this;
         }
 
+        @Deprecated
         @Override
         public Builder isSSecure(boolean isSecure) {
+            this.isSecure = isSecure;
+            return this;
+        }
+
+        @Override
+        public Builder isSecure(boolean isSecure) {
             this.isSecure = isSecure;
             return this;
         }
@@ -1534,7 +1541,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
                 .session(session)
                 .principal(request.getUserPrincipal())
                 .authType(request.getAuthType())
-                .isSSecure(request.isSecure());
+                .isSecure(request.isSecure());
 
         if (loadInMemory) {
             String s = (String) attributeWithoutException(request, FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST);

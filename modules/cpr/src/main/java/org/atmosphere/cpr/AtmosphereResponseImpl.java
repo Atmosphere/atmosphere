@@ -378,9 +378,8 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     @Override
     public void setStatus(int status) {
-        if (!delegateToNativeResponse) {
-            this.status = status;
-        } else {
+        this.status = status;
+        if (delegateToNativeResponse) {
             _r().setStatus(status);
         }
     }
@@ -460,7 +459,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         if (!s.isEmpty()) {
             return Collections.unmodifiableList(s);
         }
-        return null;
+        return Collections.emptyList();
     }
 
     @Override

@@ -513,7 +513,7 @@ public interface AtmosphereRequest extends HttpServletRequest {
     boolean dispatchRequestAsynchronously();
 
     /**
-     * Cjeck if this object can be destroyed. Default is true.
+     * Check if this object can be destroyed. Default is true.
      */
     boolean isDestroyable();
 
@@ -679,7 +679,10 @@ public interface AtmosphereRequest extends HttpServletRequest {
 
         Builder authType(String authType);
 
+        @Deprecated
         Builder isSSecure(boolean isSecure);
+
+        Builder isSecure(boolean isSecure);
 
         Builder locale(Locale locale);
 
