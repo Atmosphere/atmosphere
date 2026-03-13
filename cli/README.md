@@ -16,6 +16,20 @@ brew install Atmosphere/tap/atmosphere
 
 ## Usage
 
+### Interactive Install (recommended)
+
+```bash
+atmosphere install              # Browse all samples, pick one
+atmosphere install --tag ai     # Filter to AI samples
+atmosphere install --category tools
+```
+
+The interactive picker shows samples grouped by category with descriptions. Pick a number, then choose to:
+1. **Run it now** — downloads the pre-built JAR and starts it
+2. **Install source code** — clones the sample source into your current directory
+
+If [fzf](https://github.com/junegunn/fzf) is installed, you get a fuzzy-search picker instead of the numbered menu.
+
 ### List Samples
 
 ```bash

@@ -120,6 +120,7 @@ ${BOLD}Usage:${RESET}
   atmosphere <command> [options]
 
 ${BOLD}Commands:${RESET}
+  ${GREEN}install${RESET}           Interactive sample picker — browse, choose, run
   ${GREEN}list${RESET}              List all available samples
   ${GREEN}run${RESET}  <sample>     Download and run a sample application
   ${GREEN}new${RESET}  <name>       Scaffold a new Atmosphere project
@@ -128,8 +129,9 @@ ${BOLD}Commands:${RESET}
   ${GREEN}help${RESET}              Show this help
 
 ${BOLD}Examples:${RESET}
+  atmosphere install
+  atmosphere install --tag ai
   atmosphere list
-  atmosphere list --tag ai
   atmosphere run spring-boot-chat
   atmosphere run spring-boot-ai-chat --env LLM_API_KEY=sk-xxx
   atmosphere new my-chat-app
@@ -236,6 +238,224 @@ cmd_info() {
         printf "\n  %s\n" "$sample"
         printf "  ${DIM}Install jq for detailed info: brew install jq${RESET}\n\n"
     fi
+}
+
+# ── Install (interactive picker) ────────────────────────────────────────────
+
+cmd_install() {
+    filter_tag=""
+    filter_category=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --tag)      filter_tag="$2"; shift 2 ;;
+            --category) filter_category="$2"; shift 2 ;;
+            -*)         die "Unknown option: $1" ;;
+            *)          die "Unknown argument: $1" ;;
+        esac
+    done
+
+    json=$(get_samples_json)
+
+    if ! has_jq; then
+        die "The install command requires jq. Install it: brew install jq"
+    fi
+
+    # Build jq filter
+    jq_filter='.samples[] | select(.runnable == true)'
+    if [ -n "$filter_tag" ]; then
+        jq_filter="$jq_filter | select(.tags | index(\"$filter_tag\"))"
+    fi
+    if [ -n "$filter_category" ]; then
+        jq_filter="$jq_filter | select(.category == \"$filter_category\")"
+    fi
+
+    # Build the display lines: "name | category | description"
+    lines=$(printf '%s' "$json" | jq -r "$jq_filter | \"\(.name)|\(.category)|\(.port)|\(.description)\"")
+
+    if [ -z "$lines" ]; then
+        die "No samples match your filter"
+    fi
+
+    # Try fzf first, then fall back to numbered menu
+    if command -v fzf >/dev/null 2>&1; then
+        selected=$(install_with_fzf "$lines" "$json")
+    else
+        selected=$(install_with_menu "$lines")
+    fi
+
+    if [ -z "$selected" ]; then
+        printf "\n${DIM}No sample selected${RESET}\n"
+        exit 0
+    fi
+
+    # Show info and confirm
+    printf "\n"
+    cmd_info "$selected"
+
+    printf "  ${BOLD}What would you like to do?${RESET}\n\n"
+    printf "    ${GREEN}1${RESET}) Run it now          ${DIM}(downloads JAR, starts on configured port)${RESET}\n"
+    printf "    ${GREEN}2${RESET}) Install source code  ${DIM}(clones sample into ./$selected/)${RESET}\n"
+    printf "    ${GREEN}3${RESET}) Cancel\n\n"
+    printf "  Choice [1]: "
+    read -r choice
+
+    case "${choice:-1}" in
+        1)  cmd_run "$selected" ;;
+        2)  install_source "$selected" "$json" ;;
+        *)  printf "\n${DIM}Cancelled${RESET}\n" ;;
+    esac
+}
+
+install_with_fzf() {
+    lines="$1"
+    json="$2"
+
+    # Format for fzf display
+    display=$(printf '%s' "$lines" | while IFS='|' read -r name category port desc; do
+        printf "%-36s %-14s %-6s %s\n" "$name" "$category" ":$port" "$desc"
+    done)
+
+    header=$(printf "%-36s %-14s %-6s %s" "SAMPLE" "CATEGORY" "PORT" "DESCRIPTION")
+
+    chosen=$(printf '%s' "$display" | fzf \
+        --header "$header" \
+        --header-first \
+        --height 40% \
+        --layout reverse \
+        --border rounded \
+        --prompt "Choose a sample > " \
+        --pointer "▸" \
+        --marker "●" \
+        --preview-window hidden \
+        --ansi \
+        --no-multi \
+        2>/dev/tty) || true
+
+    if [ -n "$chosen" ]; then
+        # Extract the sample name (first column)
+        printf '%s' "$chosen" | awk '{print $1}'
+    fi
+}
+
+install_with_menu() {
+    lines="$1"
+    tmp_names="/tmp/atmo_install_names.$$"
+    trap 'rm -f "$tmp_names"' EXIT
+
+    printf "\n${BOLD}  Choose a sample to install:${RESET}\n\n" >&2
+
+    # Group by category, build flat ordered list, display with global numbering
+    categories=$(printf '%s\n' "$lines" | while IFS='|' read -r name category port desc; do
+        printf '%s\n' "$category"
+    done | sort -u)
+
+    # Build the flat list first (category-grouped)
+    : > "$tmp_names"
+    for cat in $categories; do
+        printf '%s\n' "$lines" | while IFS='|' read -r name category port desc; do
+            if [ "$category" = "$cat" ]; then
+                printf '%s|%s|%s\n' "$name" "$cat" "$desc"
+            fi
+        done
+    done > "$tmp_names"
+
+    total=$(wc -l < "$tmp_names")
+    total=$(printf '%s' "$total" | tr -d ' ')
+
+    # Display grouped with global numbering
+    idx=0
+    prev_cat=""
+    while IFS='|' read -r name cat desc; do
+        if [ "$cat" != "$prev_cat" ]; then
+            [ -n "$prev_cat" ] && printf "\n" >&2
+            printf "  ${BOLD}${CYAN}%s${RESET}\n" "$(printf '%s' "$cat" | tr '[:lower:]' '[:upper:]')" >&2
+            prev_cat="$cat"
+        fi
+        idx=$((idx + 1))
+        printf "    ${GREEN}%2d${RESET}) %-34s %s\n" "$idx" "$name" "${DIM}$desc${RESET}" >&2
+    done < "$tmp_names"
+
+    printf "\n  ${BOLD}Enter number [1-%s]:${RESET} " "$total" >&2
+    read -r num
+
+    if [ -z "$num" ] || ! printf '%s' "$num" | grep -qE '^[0-9]+$'; then
+        rm -f "$tmp_names"
+        printf '' # empty = cancelled
+        return
+    fi
+
+    if [ "$num" -lt 1 ] || [ "$num" -gt "$total" ]; then
+        rm -f "$tmp_names"
+        printf "Invalid selection: %s\n" "$num" >&2
+        printf '' # empty = cancelled
+        return
+    fi
+
+    selected=$(sed -n "${num}p" "$tmp_names" | cut -d'|' -f1)
+    rm -f "$tmp_names"
+
+    printf '%s' "$selected"
+}
+
+install_source() {
+    sample="$1"
+    json="$2"
+    target_dir="./$sample"
+
+    if [ -d "$target_dir" ]; then
+        die "Directory '$target_dir' already exists"
+    fi
+
+    info "Installing $sample source code..."
+
+    # Clone just the sample directory using sparse checkout
+    tmp_dir=$(mktemp -d)
+    trap 'rm -rf "$tmp_dir"' EXIT
+
+    if command -v git >/dev/null 2>&1; then
+        git clone --depth 1 --filter=blob:none --sparse \
+            https://github.com/Atmosphere/atmosphere.git "$tmp_dir/repo" 2>/dev/null
+
+        cd "$tmp_dir/repo"
+        git sparse-checkout set "samples/$sample" 2>/dev/null
+
+        if [ -d "samples/$sample" ]; then
+            cp -r "samples/$sample" "$OLDPWD/$sample"
+            cd "$OLDPWD"
+            ok "Installed source to $target_dir/"
+        else
+            cd "$OLDPWD"
+            die "Sample '$sample' not found in repository"
+        fi
+    else
+        # Fallback: download tarball and extract
+        info "Downloading source archive..."
+        download "https://github.com/Atmosphere/atmosphere/archive/refs/heads/main.tar.gz" "$tmp_dir/archive.tar.gz"
+        tar xzf "$tmp_dir/archive.tar.gz" -C "$tmp_dir"
+        src_dir=$(find "$tmp_dir" -maxdepth 2 -type d -name "$sample" | head -1)
+
+        if [ -n "$src_dir" ] && [ -d "$src_dir" ]; then
+            cp -r "$src_dir" "$target_dir"
+            ok "Installed source to $target_dir/"
+        else
+            die "Sample '$sample' not found in archive"
+        fi
+    fi
+
+    has_frontend=$(get_sample_field "$sample" "hasFrontend" "$json")
+    port=$(get_sample_field "$sample" "port" "$json")
+
+    printf "\n${BOLD}Next steps:${RESET}\n\n"
+    printf "  cd %s\n" "$sample"
+
+    if [ "$has_frontend" = "true" ]; then
+        printf "\n  ${DIM}# Build the frontend${RESET}\n"
+        printf "  cd frontend && npm install && npm run build && cd ..\n"
+    fi
+
+    printf "\n  ${DIM}# Build and run${RESET}\n"
+    printf "  ../mvnw spring-boot:run\n"
+    printf "\n  Then open ${CYAN}http://localhost:%s${RESET}\n\n" "$port"
 }
 
 cmd_run() {
@@ -444,6 +664,7 @@ YMLEOF
 case "${1:-help}" in
     version|--version|-v) cmd_version ;;
     help|--help|-h)       cmd_help ;;
+    install)              shift; cmd_install "$@" ;;
     list|ls)              shift; cmd_list "$@" ;;
     run)                  shift; cmd_run "$@" ;;
     new|init|create)      shift; cmd_new "$@" ;;
