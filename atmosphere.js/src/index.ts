@@ -35,6 +35,9 @@ export { AtmosphereProtocol } from './utils/protocol';
 // Export room support
 export { AtmosphereRooms } from './room/rooms';
 
+// Export offline queue and message tracking
+export { OfflineQueue } from './queue/offline-queue';
+
 // Export AI streaming support
 export { subscribeStreaming } from './streaming';
 export type { StreamingMessage, StreamingHandlers, StreamingHandle, SessionStats, RoutingInfo, SendOptions } from './streaming/types';

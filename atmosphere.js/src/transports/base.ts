@@ -185,6 +185,26 @@ export abstract class BaseTransport<T = unknown> {
     this.handlers.failureToReconnect?.(this.request, response);
   }
 
+  protected notifyAuthTokenRefresh(newToken: string): void {
+    this.protocol.authToken = newToken;
+    this.request = { ...this.request, authToken: newToken };
+    this.handlers.authTokenRefresh?.(newToken);
+  }
+
+  protected notifyAuthExpired(reason: string): void {
+    this.handlers.authExpired?.(reason);
+  }
+
+  protected handleAuthHeaders(getHeader: (name: string) => string | null): void {
+    const result = this.protocol.extractAuthHeaders(getHeader);
+    if (result.refreshToken) {
+      this.notifyAuthTokenRefresh(result.refreshToken);
+    }
+    if (result.expired) {
+      this.notifyAuthExpired(result.expired);
+    }
+  }
+
   /** Returns true if maxRequest has been reached. */
   protected isMaxRequestReached(): boolean {
     const max = this.request.maxRequest;

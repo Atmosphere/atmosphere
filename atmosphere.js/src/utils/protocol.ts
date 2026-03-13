@@ -42,6 +42,9 @@ export class AtmosphereProtocol {
   /** Durable session token for reconnection across server restarts. */
   sessionToken: string | null = null;
 
+  /** Authentication token for the current connection. */
+  authToken: string | null = null;
+
   /** Whether we have received the first (handshake) message. */
   private firstMessage = true;
 
@@ -102,6 +105,12 @@ export class AtmosphereProtocol {
     const token = request.sessionToken ?? this.sessionToken;
     if (token) {
       params.push(`X-Atmosphere-Session-Token=${encodeURIComponent(token)}`);
+    }
+
+    // Send authentication token if available
+    const authToken = request.authToken ?? this.authToken;
+    if (authToken) {
+      params.push(`X-Atmosphere-Auth=${encodeURIComponent(authToken)}`);
     }
 
     if (request.headers) {
@@ -220,6 +229,31 @@ export class AtmosphereProtocol {
       this.sessionToken = token;
       logger.debug(`Session token captured: ${token.substring(0, 8)}...`);
     }
+  }
+
+  /**
+   * Extract authentication-related headers from an HTTP response.
+   * If a refresh token is found, updates `this.authToken` automatically.
+   */
+  extractAuthHeaders(
+    getHeader: (name: string) => string | null,
+  ): { refreshToken?: string; expired?: string } {
+    const result: { refreshToken?: string; expired?: string } = {};
+
+    const refreshToken = getHeader('X-Atmosphere-Auth-Refresh');
+    if (refreshToken) {
+      result.refreshToken = refreshToken;
+      this.authToken = refreshToken;
+      logger.debug(`Auth token refreshed: ${refreshToken.substring(0, 8)}...`);
+    }
+
+    const expired = getHeader('X-Atmosphere-Auth-Expired');
+    if (expired) {
+      result.expired = expired;
+      logger.debug(`Auth expired: ${expired}`);
+    }
+
+    return result;
   }
 
   /**

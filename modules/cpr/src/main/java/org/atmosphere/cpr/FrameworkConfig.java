@@ -190,4 +190,19 @@ public interface FrameworkConfig {
      * Need runtime injection
      */
     String NEED_RUNTIME_INJECTION = InjectIntrospector.WHEN.DEPLOY.getClass().getName();
+    /**
+     * Request attribute holding the authenticated {@link java.security.Principal}
+     * set by the {@link org.atmosphere.interceptor.AuthInterceptor}.
+     */
+    String AUTH_PRINCIPAL = "org.atmosphere.auth.principal";
+    /**
+     * Request attribute holding the token claims {@code Map<String, Object>}
+     * set by the {@link org.atmosphere.interceptor.AuthInterceptor}.
+     */
+    String AUTH_CLAIMS = "org.atmosphere.auth.claims";
+    /**
+     * Request attribute holding the message ID assigned by the
+     * {@link org.atmosphere.interceptor.MessageAckInterceptor}.
+     */
+    String MESSAGE_ID = "org.atmosphere.message.id";
 }

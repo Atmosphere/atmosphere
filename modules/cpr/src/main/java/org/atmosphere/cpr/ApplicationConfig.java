@@ -1041,6 +1041,58 @@ public interface ApplicationConfig {
      */
     String RATE_LIMIT_POLICY = "org.atmosphere.rateLimit.policy";
 
+    // ---- Authentication ----
+
+    /**
+     * Fully qualified class name of a {@link org.atmosphere.auth.TokenValidator} implementation.
+     * Used by {@link org.atmosphere.interceptor.AuthInterceptor} when no validator is provided
+     * programmatically.
+     * <p/>
+     * Value: org.atmosphere.auth.tokenValidator
+     */
+    String AUTH_TOKEN_VALIDATOR = "org.atmosphere.auth.tokenValidator";
+    /**
+     * Fully qualified class name of a {@link org.atmosphere.auth.TokenRefresher} implementation.
+     * Used by {@link org.atmosphere.interceptor.AuthInterceptor} for server-side token refresh
+     * when a token has expired.
+     * <p/>
+     * Value: org.atmosphere.auth.tokenRefresher
+     */
+    String AUTH_TOKEN_REFRESHER = "org.atmosphere.auth.tokenRefresher";
+    /**
+     * Name of the query parameter that carries the authentication token.
+     * Used by all transports (WebSocket, SSE, long-polling) since WebSocket upgrade
+     * requests and SSE EventSource do not support custom headers.
+     * <p/>
+     * Default: X-Atmosphere-Auth<br>
+     * Value: org.atmosphere.auth.queryParam
+     */
+    String AUTH_TOKEN_QUERY_PARAM = "org.atmosphere.auth.queryParam";
+    /**
+     * Whether to disconnect the client on authentication failure or just skip the handler.
+     * <p/>
+     * Default: true (disconnect)<br>
+     * Value: org.atmosphere.auth.disconnectOnFailure
+     */
+    String AUTH_DISCONNECT_ON_FAILURE = "org.atmosphere.auth.disconnectOnFailure";
+
+    // ---- BoundedMemoryCache ----
+
+    /**
+     * Maximum number of messages to keep per broadcaster in the {@code BoundedMemoryCache}.
+     * <p/>
+     * Default: 1000<br>
+     * Value: org.atmosphere.cache.maxSize
+     */
+    String CACHE_MAX_SIZE = "org.atmosphere.cache.maxSize";
+    /**
+     * Time-to-live in seconds for cached messages in the {@code BoundedMemoryCache}.
+     * <p/>
+     * Default: 3600 (1 hour)<br>
+     * Value: org.atmosphere.cache.ttlSeconds
+     */
+    String CACHE_TTL_SECONDS = "org.atmosphere.cache.ttlSeconds";
+
     // ---- Redis clustering ----
 
     /**

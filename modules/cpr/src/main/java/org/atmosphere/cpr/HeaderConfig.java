@@ -96,4 +96,30 @@ public interface HeaderConfig {
 
     String FORCE_BINARY = "application/octet-stream";
 
+    /**
+     * Header carrying the authentication token. Used by long-polling (fetch) requests
+     * which can set custom headers. WebSocket and SSE use the query parameter instead.
+     */
+    String X_ATMOSPHERE_AUTH = "X-Atmosphere-Auth";
+    /**
+     * Header sent by the server when a refreshed token is available.
+     * The client should store this and use it for subsequent requests.
+     */
+    String X_ATMOSPHERE_AUTH_REFRESH = "X-Atmosphere-Auth-Refresh";
+    /**
+     * Header sent by the server to indicate the token has expired and no refresh
+     * was possible. The client should re-authenticate.
+     */
+    String X_ATMOSPHERE_AUTH_EXPIRED = "X-Atmosphere-Auth-Expired";
+
+    /**
+     * Client-assigned message ID for acknowledgment tracking.
+     * Sent by the client; echoed back in {@link #X_ATMOSPHERE_ACK}.
+     */
+    String X_ATMOSPHERE_MESSAGE_ID = "X-Atmosphere-Message-Id";
+    /**
+     * Server acknowledgment of a received message. Contains the message ID.
+     */
+    String X_ATMOSPHERE_ACK = "X-Atmosphere-Ack";
+
 }

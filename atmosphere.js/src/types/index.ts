@@ -71,6 +71,11 @@ export interface AtmosphereRequest {
    * automatically after the first handshake.
    */
   sessionToken?: string;
+  /**
+   * Authentication token sent as {@code X-Atmosphere-Auth} query parameter
+   * on every request. Works with all transports (WebSocket, SSE, long-polling).
+   */
+  authToken?: string;
   withCredentials?: boolean;
   maxWebsocketErrorRetries?: number;
   pollingInterval?: number;
@@ -97,6 +102,10 @@ export interface SubscriptionHandlers<T = unknown> {
   failureToReconnect?: (request: AtmosphereRequest, response: AtmosphereResponse<T>) => void;
   /** Called when a connection is re-established after a disconnect (not on first open). */
   reopen?: (response: AtmosphereResponse<T>) => void;
+  /** Called when the server sends a refreshed auth token via X-Atmosphere-Auth-Refresh header. */
+  authTokenRefresh?: (newToken: string) => void;
+  /** Called when the server signals auth expired via X-Atmosphere-Auth-Expired header. */
+  authExpired?: (reason: string) => void;
 }
 
 /**
@@ -180,7 +189,7 @@ export interface PresenceEvent {
  * The server-side RoomInterceptor parses these.
  */
 export interface RoomMessage {
-  readonly type: 'join' | 'leave' | 'broadcast' | 'direct' | 'presence';
+  readonly type: 'join' | 'leave' | 'broadcast' | 'direct' | 'presence' | 'typing';
   readonly room: string;
   readonly data?: unknown;
   readonly target?: string;
@@ -199,6 +208,8 @@ export interface RoomHandlers<T = unknown> {
   leave?: (event: PresenceEvent) => void;
   /** Called when the local client has successfully joined the room */
   joined?: (room: string, members: RoomMember[]) => void;
+  /** Called when a member starts or stops typing */
+  typing?: (event: TypingEvent) => void;
   /** Called on error */
   error?: (error: Error) => void;
 }
@@ -215,6 +226,65 @@ export interface RoomHandle {
   broadcast(data: unknown): void;
   /** Send a direct message to a specific member by ID */
   sendTo(memberId: string, data: unknown): void;
+  /** Signal typing state to other room members */
+  setTyping(typing: boolean): void;
   /** Leave this room */
   leave(): void;
+}
+
+/**
+ * Typing indicator event fired when a member starts or stops typing
+ */
+export interface TypingEvent {
+  readonly room: string;
+  readonly memberId: string | null;
+  readonly typing: boolean;
+  readonly timestamp: number;
+}
+
+// --- Offline Queue types ---
+
+/**
+ * State of a queued message
+ */
+export type MessageState = 'pending' | 'sent' | 'confirmed' | 'failed';
+
+/**
+ * A message tracked by the offline queue with optimistic state
+ */
+export interface TrackedMessage<T = unknown> {
+  /** Client-generated unique ID */
+  readonly id: string;
+  /** The original message data */
+  readonly data: T;
+  /** Current delivery state */
+  readonly state: MessageState;
+  /** Timestamp when the message was created */
+  readonly createdAt: number;
+  /** Error reason if state is 'failed' */
+  readonly error?: string;
+}
+
+/**
+ * Configuration for the offline queue
+ */
+export interface OfflineQueueConfig {
+  /** Maximum number of messages to queue while offline (default: 100) */
+  maxSize?: number;
+  /** Whether to automatically drain the queue on reconnect (default: true) */
+  drainOnReconnect?: boolean;
+}
+
+/**
+ * Handlers for offline queue and optimistic message tracking
+ */
+export interface MessageTrackingHandlers<T = unknown> {
+  /** Called when a queued message is sent after reconnection */
+  onDrain?: (message: TrackedMessage<T>) => void;
+  /** Called when a message is acknowledged by the server */
+  onAck?: (messageId: string) => void;
+  /** Called when a message delivery fails */
+  onFailed?: (message: TrackedMessage<T>, error: string) => void;
+  /** Called when the queue is full and a message is dropped */
+  onDrop?: (message: TrackedMessage<T>) => void;
 }

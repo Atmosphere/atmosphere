@@ -106,6 +106,7 @@ export class SSETransport<T = unknown> extends BaseTransport<T> {
     }).then((response) => {
       if (response.ok) {
         this.protocol.extractSessionToken((name) => response.headers.get(name));
+        this.handleAuthHeaders((name) => response.headers.get(name));
       }
     }).catch((error) => {
       logger.warn('SSE POST send failed:', error);

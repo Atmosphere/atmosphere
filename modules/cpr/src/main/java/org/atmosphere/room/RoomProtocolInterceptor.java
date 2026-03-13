@@ -97,6 +97,7 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
             case RoomProtocolMessage.Leave leave -> handleLeave(r, leave);
             case RoomProtocolMessage.Broadcast broadcast -> handleBroadcast(r, broadcast);
             case RoomProtocolMessage.Direct direct -> handleDirect(r, direct);
+            case RoomProtocolMessage.Typing typing -> handleTyping(r, typing);
         }
 
         // Consume the message — don't let downstream interceptors re-broadcast
@@ -193,6 +194,16 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
 
         logger.debug("Handled DIRECT from {} to {} in room '{}'",
                 r.uuid(), direct.targetId(), direct.room());
+    }
+
+    private void handleTyping(AtmosphereResource r, RoomProtocolMessage.Typing typing) {
+        var room = roomManager.room(typing.room());
+        var memberId = room.memberOf(r).map(RoomMember::id).orElse(null);
+        var encoded = RoomProtocolCodec.encodeTyping(typing.room(), memberId, typing.typing());
+        room.broadcast(encoded, r);
+
+        logger.debug("Handled TYPING ({}) from {} in room '{}'",
+                typing.typing(), r.uuid(), typing.room());
     }
 
     private boolean authorize(AtmosphereResource r, String roomName, RoomAction action) {

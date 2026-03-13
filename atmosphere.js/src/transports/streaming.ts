@@ -72,6 +72,7 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
     this.opened = true;
     this.reconnectAttempts = 0;
     this.protocol.extractSessionToken((name) => response.headers.get(name));
+    this.handleAuthHeaders((name) => response.headers.get(name));
 
     const openResponse: AtmosphereResponse<T> = {
       status: 200,

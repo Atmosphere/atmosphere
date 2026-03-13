@@ -70,4 +70,13 @@ public sealed interface RoomProtocolMessage {
      */
     record Direct(String room, String targetId, Object data) implements RoomProtocolMessage {
     }
+
+    /**
+     * Signal that a member has started or stopped typing.
+     *
+     * @param room   the room context
+     * @param typing true if the member is typing, false if they stopped
+     */
+    record Typing(String room, boolean typing) implements RoomProtocolMessage {
+    }
 }

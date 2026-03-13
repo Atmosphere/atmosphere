@@ -75,6 +75,7 @@ public final class RoomProtocolCodec {
                     obj.getString("targetId"),
                     obj.get("data")
             );
+            case "typing" -> new RoomProtocolMessage.Typing(room, obj.optBoolean("typing", true));
             default -> throw new IllegalArgumentException("Unknown room protocol type: " + type);
         };
     }
@@ -134,6 +135,20 @@ public final class RoomProtocolCodec {
         obj.put("type", "error");
         obj.put("room", room);
         obj.put("data", message);
+        return obj.toString();
+    }
+
+    /**
+     * Encode a typing indicator for broadcast to other room members.
+     */
+    public static String encodeTyping(String room, String memberId, boolean typing) {
+        var obj = new JSONObject();
+        obj.put("type", "typing");
+        obj.put("room", room);
+        if (memberId != null) {
+            obj.put("memberId", memberId);
+        }
+        obj.put("typing", typing);
         return obj.toString();
     }
 

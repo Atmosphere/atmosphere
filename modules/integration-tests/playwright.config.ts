@@ -178,8 +178,20 @@ export default defineConfig({
       testMatch: /auth-rejection\.spec\.ts/,
     },
     {
+      name: 'auth-token',
+      testMatch: /auth-token\.spec\.ts/,
+    },
+    {
       name: 'ai-streaming-dom',
       testMatch: /ai-streaming-dom\.spec\.ts/,
+    },
+    {
+      name: 'offline-queue',
+      testMatch: /offline-queue\.spec\.ts/,
+    },
+    {
+      name: 'history-cache',
+      testMatch: /history-cache\.spec\.ts/,
     },
     // ── P2: Deeper coverage ──
     {

@@ -3,6 +3,10 @@
 
 atmosphere:
   packages: org.atmosphere.samples.springboot.aichat
+  auth:
+    demo-token: ${ATMOSPHERE_AUTH_TOKEN:demo-token}
+  cache:
+    enabled: true
 
 # LLM Configuration
 # Set via .envrc, environment variables, or override here.

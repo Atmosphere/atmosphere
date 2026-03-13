@@ -22,6 +22,7 @@ import type {
   RoomHandlers,
   RoomHandle,
   PresenceEvent,
+  TypingEvent,
 } from '../types';
 import { Atmosphere } from '../core/atmosphere';
 import { logger } from '../utils/logger';
@@ -215,6 +216,15 @@ class ManagedRoom implements RoomHandle {
     this.subscription.push(JSON.stringify(msg));
   }
 
+  setTyping(typing: boolean): void {
+    if (this._left) throw new Error(`Already left room '${this.name}'`);
+    this.subscription.push(JSON.stringify({
+      type: 'typing',
+      room: this.name,
+      typing,
+    }));
+  }
+
   leave(): void {
     if (this._left) return;
     this._left = true;
@@ -254,6 +264,16 @@ class ManagedRoom implements RoomHandle {
       case 'direct': {
         const sender: RoomMember = msg.member ?? { id: 'unknown' };
         this.handlers.message?.(msg.data, sender);
+        break;
+      }
+      case 'typing': {
+        const typingEvent: TypingEvent = {
+          room: this.name,
+          memberId: (msg as unknown as { memberId?: string }).memberId ?? null,
+          typing: (msg as unknown as { typing?: boolean }).typing ?? true,
+          timestamp: Date.now(),
+        };
+        this.handlers.typing?.(typingEvent);
         break;
       }
       case 'join': {

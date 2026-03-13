@@ -129,6 +129,7 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
 
       // Extract session token from response headers (for durable sessions)
       this.protocol.extractSessionToken((name) => response.headers.get(name));
+      this.handleAuthHeaders((name) => response.headers.get(name));
 
       // Immediately re-poll
       if (this._polling && !this.aborted) {
