@@ -14,11 +14,13 @@ RAG (Retrieval-Augmented Generation) module for Atmosphere. Provides the `Contex
 
 ## How It Works
 
-The `ContextProvider` SPI (defined in `atmosphere-ai`) retrieves relevant documents and injects them into the LLM prompt via the `AiInterceptor` chain:
+The `ContextProvider` SPI (defined in `atmosphere-ai`) retrieves relevant documents and injects them into the LLM prompt automatically during `AiStreamingSession.stream()`:
 
 ```
-User message → AiInterceptor.preProcess → ContextProvider.retrieve() → augmented prompt → LLM
+User message → Guardrails → ContextProvider.retrieve() → Interceptors → LLM → Response
 ```
+
+Each registered provider retrieves up to 5 documents. Results are appended to the user message as `Relevant context:` blocks with source attribution before the LLM call.
 
 This module provides three `ContextProvider` implementations:
 
@@ -90,30 +92,31 @@ Add LangChain4j to your dependencies:
 
 ## Using with @AiEndpoint
 
-Wire a `ContextProvider` into the interceptor chain to augment prompts with retrieved context:
+Context providers are auto-discovered when registered as Spring beans (via `AtmosphereRagAutoConfiguration`) or can be declared explicitly on the endpoint:
 
 ```java
 @AiEndpoint(path = "/ai/rag-chat",
             systemPrompt = "Answer using the provided context.",
-            interceptors = RagInterceptor.class)
+            contextProviders = SpringAiVectorStoreContextProvider.class)
+public class RagChat {
+
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        session.stream(message);  // RAG context is injected automatically
+    }
+}
+```
+
+With Spring Boot auto-configuration, you don't even need `contextProviders` — just have a `VectorStore` bean and `atmosphere-rag` on the classpath:
+
+```java
+@AiEndpoint(path = "/ai/rag-chat",
+            systemPromptResource = "prompts/system-prompt.md")
 public class RagChat {
 
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
         session.stream(message);
-    }
-}
-
-public class RagInterceptor implements AiInterceptor {
-    private final ContextProvider provider = InMemoryContextProvider.fromClasspath("docs/kb.md");
-
-    @Override
-    public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
-        var docs = provider.retrieve(request.message(), 3);
-        var context = docs.stream()
-                .map(ContextProvider.Document::content)
-                .collect(Collectors.joining("\n\n"));
-        return request.withMessage(context + "\n\nQuestion: " + request.message());
     }
 }
 ```
