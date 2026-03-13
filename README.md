@@ -22,7 +22,33 @@ Atmosphere was built on one idea: **your application code shouldn't care how the
 
 The two core abstractions are **Broadcaster** (a named pub/sub channel) and **AtmosphereResource** (a single connection). Additional modules — rooms, AI/LLM streaming, clustering, observability — build on top of these.
 
-## Generate a Project
+## Try It Now
+
+```bash
+# Install the Atmosphere CLI
+curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
+
+# Browse all 18 samples and pick one to run
+atmosphere install
+
+# Or run a sample directly
+atmosphere run spring-boot-chat
+atmosphere run spring-boot-ai-chat --env LLM_API_KEY=your-key
+
+# Scaffold a new project
+atmosphere new my-app --template ai-chat
+```
+
+Or with npx (zero install):
+
+```bash
+npx create-atmosphere-app my-chat-app
+npx create-atmosphere-app my-ai-app --template ai-chat
+```
+
+See [cli/README.md](cli/README.md) for all commands and options.
+
+## Generate a Project with JBang
 
 ```bash
 jbang generator/AtmosphereInit.java --name my-app --handler ai-chat --ai builtin --tools
@@ -179,7 +205,8 @@ JDK 21 virtual threads are used by default.
 
 - [**Tutorial**](docs/src/content/docs/tutorial/) — step-by-step guide from first app to AI streaming, MCP, gRPC, and production deployment
 - [**Full documentation**](docs/README.md) — architecture, configuration, and API reference for every module
-- [**Project generator**](generator/README.md) — generate a ready-to-run project with one command
+- [**CLI**](cli/README.md) — install, run samples, scaffold projects from your terminal
+- [**Project generator**](generator/README.md) — generate a ready-to-run project with JBang
 - [**Samples**](samples/) — runnable apps covering every transport and integration
 - [**Javadoc**](http://atmosphere.github.io/atmosphere/apidocs/)
 
