@@ -309,6 +309,39 @@ else
     fail "creates ChatApplication.java"
 fi
 
+if [ -f "$tmp_dir/test-chat-app/src/main/java/com/example/Chat.java" ]; then
+    pass "creates Chat.java handler"
+else
+    fail "creates Chat.java handler"
+fi
+
+if [ -f "$tmp_dir/test-chat-app/src/main/java/com/example/Message.java" ]; then
+    pass "creates Message.java"
+else
+    fail "creates Message.java"
+fi
+
+if [ -f "$tmp_dir/test-chat-app/src/main/java/com/example/JacksonEncoder.java" ]; then
+    pass "creates JacksonEncoder.java"
+else
+    fail "creates JacksonEncoder.java"
+fi
+
+if [ -f "$tmp_dir/test-chat-app/src/main/java/com/example/JacksonDecoder.java" ]; then
+    pass "creates JacksonDecoder.java"
+else
+    fail "creates JacksonDecoder.java"
+fi
+
+if [ -f "$tmp_dir/test-chat-app/src/main/resources/static/index.html" ]; then
+    pass "creates index.html"
+    html=$(cat "$tmp_dir/test-chat-app/src/main/resources/static/index.html")
+    assert_contains "$html" "/atmosphere/chat" "index.html connects to /atmosphere/chat"
+    assert_contains "$html" "WebSocket" "index.html uses WebSocket"
+else
+    fail "creates index.html"
+fi
+
 if [ -f "$tmp_dir/test-chat-app/src/main/resources/application.yml" ]; then
     pass "creates application.yml"
 else
@@ -371,6 +404,21 @@ require('$NPX');
         pass "npx creates Java source in correct package"
     else
         fail "npx creates Java source in correct package"
+    fi
+
+    if [ -f "$npx_tmp/my-ai-app/src/main/java/org/myco/AiChat.java" ]; then
+        pass "npx ai-chat template creates AiChat.java handler"
+        ai_handler=$(cat "$npx_tmp/my-ai-app/src/main/java/org/myco/AiChat.java")
+        assert_contains "$ai_handler" "@AiEndpoint" "AiChat.java has @AiEndpoint"
+        assert_contains "$ai_handler" "@Prompt" "AiChat.java has @Prompt"
+    else
+        fail "npx ai-chat template creates AiChat.java handler"
+    fi
+
+    if [ -f "$npx_tmp/my-ai-app/src/main/resources/static/index.html" ]; then
+        pass "npx creates index.html"
+    else
+        fail "npx creates index.html"
     fi
 
     # Unknown template

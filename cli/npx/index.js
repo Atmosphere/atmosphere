@@ -202,9 +202,138 @@ atmosphere:
   packages: ${groupId}
 `;
 
+  const staticDir = path.join(resDir, 'static');
+  fs.mkdirSync(staticDir, { recursive: true });
+
   fs.writeFileSync(path.join(projectName, 'pom.xml'), pom);
   fs.writeFileSync(path.join(srcDir, 'ChatApplication.java'), appJava);
   fs.writeFileSync(path.join(resDir, 'application.yml'), appYml);
+
+  // Generate handler files based on template
+  if (template === 'ai-chat') {
+    fs.writeFileSync(path.join(srcDir, 'AiChat.java'), `package ${groupId};
+
+import org.atmosphere.ai.annotation.AiEndpoint;
+import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.StreamingSession;
+
+@AiEndpoint(path = "/ai/chat",
+            systemPrompt = "You are a helpful assistant.",
+            conversationMemory = true)
+public class AiChat {
+
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        session.stream(message);
+    }
+}
+`);
+  } else {
+    // Default chat handler + Message + encoders
+    fs.writeFileSync(path.join(srcDir, 'Message.java'), `package ${groupId};
+
+public class Message {
+    private String message;
+    private String author;
+    private long time;
+
+    public Message() { this("", ""); }
+
+    public Message(String author, String message) {
+        this.author = author;
+        this.message = message;
+        this.time = System.currentTimeMillis();
+    }
+
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
+    public String getAuthor() { return author; }
+    public void setAuthor(String author) { this.author = author; }
+    public long getTime() { return time; }
+    public void setTime(long time) { this.time = time; }
+}
+`);
+
+    fs.writeFileSync(path.join(srcDir, 'JacksonEncoder.java'), `package ${groupId};
+
+import tools.jackson.databind.ObjectMapper;
+import org.atmosphere.config.managed.Encoder;
+
+public class JacksonEncoder implements Encoder<Message, String> {
+
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    @Override
+    public String encode(Message m) {
+        return mapper.writeValueAsString(m);
+    }
+}
+`);
+
+    fs.writeFileSync(path.join(srcDir, 'JacksonDecoder.java'), `package ${groupId};
+
+import tools.jackson.databind.ObjectMapper;
+import org.atmosphere.config.managed.Decoder;
+
+public class JacksonDecoder implements Decoder<String, Message> {
+
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    @Override
+    public Message decode(String s) {
+        return mapper.readValue(s, Message.class);
+    }
+}
+`);
+
+    fs.writeFileSync(path.join(srcDir, 'Chat.java'), `package ${groupId};
+
+import org.atmosphere.config.service.Disconnect;
+import org.atmosphere.config.service.ManagedService;
+import org.atmosphere.config.service.Ready;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import jakarta.inject.Inject;
+
+@ManagedService(path = "/atmosphere/chat")
+public class Chat {
+
+    private final Logger logger = LoggerFactory.getLogger(Chat.class);
+
+    @Inject
+    private AtmosphereResource r;
+
+    @Inject
+    private AtmosphereResourceEvent event;
+
+    @Ready
+    public void onReady() {
+        logger.info("Client {} connected via {}", r.uuid(), r.transport());
+    }
+
+    @Disconnect
+    public void onDisconnect() {
+        logger.info("Client {} disconnected", event.getResource().uuid());
+    }
+
+    @org.atmosphere.config.service.Message(
+            encoders = {JacksonEncoder.class},
+            decoders = {JacksonDecoder.class})
+    public Message onMessage(Message message) {
+        logger.info("{}: {}", message.getAuthor(), message.getMessage());
+        return message;
+    }
+}
+`);
+  }
+
+  // index.html — minimal but functional chat UI
+  const wsPath = template === 'ai-chat' ? '/ai/chat' : '/atmosphere/chat';
+  const title = template === 'ai-chat' ? 'AI Chat' : 'Chat';
+  fs.writeFileSync(path.join(staticDir, 'index.html'), generateIndexHtml(title, wsPath));
 
   // Copy Maven wrapper if we can find one
   if (hasCommand('mvn')) {
@@ -214,6 +343,87 @@ atmosphere:
   }
 
   return true;
+}
+
+function generateIndexHtml(title, wsPath) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title} — Atmosphere</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; }
+  header { padding: 1rem 1.5rem; border-bottom: 1px solid #1e293b; display: flex; align-items: center; gap: 0.75rem; }
+  header h1 { font-size: 1.25rem; font-weight: 600; }
+  header span { font-size: 0.75rem; color: #64748b; background: #1e293b; padding: 0.25rem 0.5rem; border-radius: 9999px; }
+  #messages { flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; }
+  .msg { max-width: 70%; padding: 0.75rem 1rem; border-radius: 1rem; line-height: 1.5; }
+  .msg.mine { background: #3b82f6; align-self: flex-end; border-bottom-right-radius: 0.25rem; }
+  .msg.theirs { background: #1e293b; align-self: flex-start; border-bottom-left-radius: 0.25rem; }
+  .msg .author { font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.25rem; }
+  .msg.mine .author { color: #bfdbfe; }
+  #input-bar { padding: 1rem 1.5rem; border-top: 1px solid #1e293b; display: flex; gap: 0.75rem; }
+  #author { width: 120px; padding: 0.625rem 0.75rem; background: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; color: #e2e8f0; font-size: 0.875rem; }
+  #msg { flex: 1; padding: 0.625rem 0.75rem; background: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; color: #e2e8f0; font-size: 0.875rem; }
+  #send { padding: 0.625rem 1.25rem; background: #3b82f6; color: white; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; }
+  #send:hover { background: #2563eb; }
+  #send:disabled { background: #334155; cursor: not-allowed; }
+  #status { font-size: 0.75rem; padding: 0.25rem 1.5rem; color: #64748b; }
+</style>
+</head>
+<body>
+  <header><h1>${title}</h1><span>Atmosphere</span></header>
+  <div id="status">Connecting...</div>
+  <div id="messages"></div>
+  <div id="input-bar">
+    <input id="author" placeholder="Your name" />
+    <input id="msg" placeholder="Type a message..." />
+    <button id="send" disabled>Send</button>
+  </div>
+<script>
+(function() {
+  var messages = document.getElementById('messages');
+  var msgInput = document.getElementById('msg');
+  var authorInput = document.getElementById('author');
+  var sendBtn = document.getElementById('send');
+  var status = document.getElementById('status');
+  var ws;
+  function connect() {
+    var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(proto + '//' + location.host + '${wsPath}');
+    ws.onopen = function() { status.textContent = 'Connected'; sendBtn.disabled = false; };
+    ws.onmessage = function(e) {
+      try { var d = JSON.parse(e.data); if (d.author || d.message) addMsg(d); } catch(err) {}
+    };
+    ws.onclose = function() { status.textContent = 'Disconnected — reconnecting...'; sendBtn.disabled = true; setTimeout(connect, 2000); };
+  }
+  function addMsg(d) {
+    var mine = d.author === authorInput.value;
+    var div = document.createElement('div');
+    div.className = 'msg ' + (mine ? 'mine' : 'theirs');
+    div.innerHTML = '<div class="author">' + esc(d.author) + '</div>' + esc(d.message);
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+  function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function send() {
+    var a = authorInput.value.trim() || 'Anonymous';
+    var m = msgInput.value.trim();
+    if (!m || !ws || ws.readyState !== 1) return;
+    ws.send(JSON.stringify({ author: a, message: m }));
+    msgInput.value = '';
+    msgInput.focus();
+  }
+  sendBtn.onclick = send;
+  msgInput.onkeydown = function(e) { if (e.key === 'Enter') send(); };
+  authorInput.value = 'User-' + Math.floor(Math.random() * 1000);
+  connect();
+})();
+</script>
+</body>
+</html>`;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────
