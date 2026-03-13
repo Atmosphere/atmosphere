@@ -35,7 +35,7 @@ test.describe('AI Cache Coalescing E2E', () => {
       // Verify server output contains the COALESCED log line
       const output = server.getOutput();
       expect(output).toContain('COALESCED:');
-      expect(output).toContain(':tokens=5:');
+      expect(output).toContain(':streamingTexts=5:');
       expect(output).toContain(':status=complete:');
     } finally {
       client.close();

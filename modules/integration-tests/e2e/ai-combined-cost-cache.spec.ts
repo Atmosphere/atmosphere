@@ -39,7 +39,7 @@ test.describe('Combined Cost/Latency Routing + Cache Coalescing E2E', () => {
       // Coalesced event should have fired with correct token count
       const output = server.getOutput();
       expect(output).toContain('COMBINED_COALESCED:');
-      expect(output).toContain(':tokens=3:');
+      expect(output).toContain(':streamingTexts=3:');
       expect(output).toContain(':status=complete:');
     } finally {
       client.close();
