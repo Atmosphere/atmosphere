@@ -59,6 +59,28 @@ test.describe('Embabel Horoscope', () => {
       .toBeVisible({ timeout: 30_000 });
   });
 
+  test('send button is disabled when input is empty', async ({ page }) => {
+    await page.goto(server.baseUrl);
+    await expect(page.getByTestId('chat-send')).toBeDisabled();
+  });
+
+  test('input clears after sending', async ({ page }) => {
+    await page.goto(server.baseUrl);
+    await page.getByTestId('chat-input').fill('Horoscope for Gemini');
+    await page.getByTestId('chat-send').click();
+    await expect(page.getByTestId('chat-input')).toHaveValue('');
+  });
+
+  test('shows progress steps during horoscope generation', async ({ page }) => {
+    await page.goto(server.baseUrl);
+    await page.getByTestId('chat-input').fill('Horoscope for Aries');
+    await page.getByTestId('chat-send').click();
+
+    // Progress messages appear during multi-step generation
+    await expect(page.getByText('Extracting zodiac sign', { exact: false }))
+      .toBeVisible({ timeout: 15_000 });
+  });
+
   test('multi-turn: second horoscope request works', async ({ page }) => {
     await page.goto(server.baseUrl);
     await expect(page.getByTestId('chat-input')).toBeVisible();

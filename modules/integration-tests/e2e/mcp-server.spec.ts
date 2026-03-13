@@ -35,4 +35,24 @@ test.describe('MCP Server Chat', () => {
     await chat.waitForConnected();
     await chat.expectStatus('Connected');
   });
+
+  test('input clears after sending', async ({ page }) => {
+    const chat = new ChatPage(page);
+    await chat.goto(server.baseUrl);
+    await chat.waitForConnected();
+
+    await chat.joinAs('Dave');
+    await chat.sendMessage('test message');
+    await expect(chat.input).toHaveValue('');
+  });
+
+  test('message bubbles display author', async ({ page }) => {
+    const chat = new ChatPage(page);
+    await chat.goto(server.baseUrl);
+    await chat.waitForConnected();
+
+    await chat.joinAs('Eve');
+    await chat.sendMessage('MCP chat works!');
+    await chat.expectMessageFrom('Eve', 'MCP chat works!');
+  });
 });

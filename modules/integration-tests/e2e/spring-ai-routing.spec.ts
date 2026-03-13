@@ -68,4 +68,16 @@ test.describe('Spring AI Routing', () => {
     await expect(page.getByText('default', { exact: false }).first())
       .toBeVisible({ timeout: 30_000 });
   });
+
+  test('send button is disabled when input is empty', async ({ page }) => {
+    await page.goto(server.baseUrl);
+    await expect(page.getByTestId('chat-send')).toBeDisabled();
+  });
+
+  test('input clears after sending', async ({ page }) => {
+    await page.goto(server.baseUrl);
+    await page.getByTestId('chat-input').fill('Test message');
+    await page.getByTestId('chat-send').click();
+    await expect(page.getByTestId('chat-input')).toHaveValue('');
+  });
 });

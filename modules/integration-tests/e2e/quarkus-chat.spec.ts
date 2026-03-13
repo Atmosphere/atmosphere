@@ -45,4 +45,26 @@ test.describe('Quarkus Chat', () => {
     await chat.sendMessage('Who am I?');
     await chat.expectMessageFrom('Charlie', 'Who am I?');
   });
+
+  test('input clears after sending', async ({ page }) => {
+    const chat = new ChatPage(page);
+    await chat.goto(server.baseUrl);
+    await chat.waitForConnected();
+
+    await chat.joinAs('Dave');
+    await chat.sendMessage('test message');
+    await expect(chat.input).toHaveValue('');
+  });
+
+  test('multiple messages appear in order', async ({ page }) => {
+    const chat = new ChatPage(page);
+    await chat.goto(server.baseUrl);
+    await chat.waitForConnected();
+
+    await chat.joinAs('Eve');
+    await chat.sendMessage('First message');
+    await chat.expectMessage('First message');
+    await chat.sendMessage('Second message');
+    await chat.expectMessage('Second message');
+  });
 });
