@@ -72,7 +72,7 @@ test.describe('AI Fan-Out E2E', () => {
       expect(client.metadata.get('fanout.complete')).toBe(true);
 
       // Fast model (30ms/token) should produce tokens; slow model (200ms) may be cancelled
-      const tokenEvents = client.events.filter(e => e.type === 'token');
+      const tokenEvents = client.events.filter(e => e.type === 'streaming-text');
       expect(tokenEvents.length).toBeGreaterThan(0);
     } finally {
       client.close();

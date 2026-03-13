@@ -4,7 +4,7 @@ import WebSocket from 'ws';
  * Parsed AI streaming event from the wire protocol.
  */
 export interface StreamingEvent {
-  type: 'token' | 'progress' | 'metadata' | 'complete' | 'error';
+  type: 'streaming-text' | 'progress' | 'metadata' | 'complete' | 'error';
   data?: string;
   sessionId?: string;
   seq?: number;
@@ -120,7 +120,7 @@ export class AiWsClient {
   /** Get tokens for a specific session ID (useful for fan-out). */
   tokensForSession(sessionId: string): string[] {
     return this.events
-      .filter(e => e.type === 'token' && e.sessionId === sessionId)
+      .filter(e => e.type === 'streaming-text' && e.sessionId === sessionId)
       .map(e => e.data ?? '');
   }
 
@@ -147,7 +147,7 @@ export class AiWsClient {
     }
 
     switch (event.type) {
-      case 'token':
+      case 'streaming-text':
         if (event.data) this.tokens.push(event.data);
         break;
       case 'metadata':

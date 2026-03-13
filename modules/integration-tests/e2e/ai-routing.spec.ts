@@ -103,7 +103,7 @@ test.describe('AI Routing E2E', () => {
       const metaIdx = client.events.findIndex(
         e => e.type === 'metadata' && e.key === 'routing.model'
       );
-      const tokenIdx = client.events.findIndex(e => e.type === 'token');
+      const tokenIdx = client.events.findIndex(e => e.type === 'streaming-text');
 
       expect(metaIdx).toBeGreaterThanOrEqual(0);
       expect(tokenIdx).toBeGreaterThan(metaIdx);

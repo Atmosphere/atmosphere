@@ -100,15 +100,15 @@ test.describe('AI Filters E2E', () => {
     }
   });
 
-  test('Protocol invariant: all text arrives as token type, complete is bare', async () => {
+  test('Protocol invariant: all text arrives as streaming-text type, complete is bare', async () => {
     const client = new AiWsClient(server.wsUrl, '/ai/filters');
     try {
       await client.connect();
       client.send('normal:protocol-test');
       await client.waitForDone();
 
-      // Verify all text came in "token" events
-      const tokenEvents = client.events.filter(e => e.type === 'token');
+      // Verify all text came in "streaming-text" events
+      const tokenEvents = client.events.filter(e => e.type === 'streaming-text');
       expect(tokenEvents.length).toBeGreaterThan(0);
       for (const t of tokenEvents) {
         expect(t.data).toBeTruthy();

@@ -59,9 +59,9 @@ test.describe('AI Classroom E2E', () => {
       expect(mathClient.tokens.length).toBeGreaterThan(0);
       expect(mathClient.fullResponse).toContain('[MATH]');
 
-      // Code client should NOT have received any token/complete events
+      // Code client should NOT have received any streaming-text/complete events
       await new Promise(r => setTimeout(r, 500));
-      expect(codeClient.events.filter(e => e.type === 'token').length).toBe(0);
+      expect(codeClient.events.filter(e => e.type === 'streaming-text').length).toBe(0);
       expect(codeClient.events.filter(e => e.type === 'complete').length).toBe(0);
     } finally {
       mathClient.close();
