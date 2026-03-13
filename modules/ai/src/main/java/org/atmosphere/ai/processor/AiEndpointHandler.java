@@ -25,6 +25,7 @@ import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
+import org.atmosphere.ai.TracingCapturingSession;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
@@ -309,7 +310,15 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
         var settings = AiConfig.get();
         var model = endpointModel != null ? endpointModel
                 : (settings != null ? settings.model() : null);
-        var session = new AiStreamingSession(delegate, aiSupport,
+
+        // Wrap with TracingCapturingSession for top-level observability.
+        // This captures metrics for ALL session usage paths (stream(), send(), complete()).
+        StreamingSession traced = delegate;
+        if (metrics != AiMetrics.NOOP) {
+            traced = new TracingCapturingSession(delegate, metrics, model);
+        }
+
+        var session = new AiStreamingSession(traced, aiSupport,
                 systemPrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, metrics);
 

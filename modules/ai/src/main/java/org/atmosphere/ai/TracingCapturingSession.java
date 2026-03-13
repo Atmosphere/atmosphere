@@ -35,7 +35,7 @@ import java.time.Instant;
  * <p>Follows the same wrapping pattern as {@link MemoryCapturingSession} and
  * {@link MetricsCapturingSession}.</p>
  */
-class TracingCapturingSession implements StreamingSession {
+public class TracingCapturingSession implements StreamingSession {
 
     private final StreamingSession delegate;
     private final AiMetrics metrics;
@@ -44,7 +44,7 @@ class TracingCapturingSession implements StreamingSession {
     private volatile Instant firstStreamingTextTime;
     private int streamingTextCount;
 
-    TracingCapturingSession(StreamingSession delegate, AiMetrics metrics, String model) {
+    public TracingCapturingSession(StreamingSession delegate, AiMetrics metrics, String model) {
         this.delegate = delegate;
         this.metrics = metrics;
         this.model = model != null ? model : "unknown";

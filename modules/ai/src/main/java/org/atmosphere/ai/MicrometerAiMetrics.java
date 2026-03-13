@@ -17,6 +17,7 @@ package org.atmosphere.ai;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
 
@@ -46,6 +47,15 @@ public final class MicrometerAiMetrics implements AiMetrics {
     private final MeterRegistry registry;
     private final String provider;
     private final AtomicInteger activeSessions = new AtomicInteger(0);
+
+    /**
+     * Creates an instance using the Micrometer global registry with provider "atmosphere".
+     * This constructor is used by {@link java.util.ServiceLoader} for auto-discovery.
+     * Spring Boot auto-populates the global registry, so metrics appear in Actuator.
+     */
+    public MicrometerAiMetrics() {
+        this(Metrics.globalRegistry, "atmosphere");
+    }
 
     /**
      * Create a new instance bound to the given registry and provider name.
