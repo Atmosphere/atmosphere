@@ -18,7 +18,15 @@ package org.atmosphere.samples.springboot.ragchat;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
+@SpringBootApplication(excludeName = {
+        "org.springframework.ai.model.openai.autoconfigure.OpenAiAutoConfiguration",
+        "org.springframework.ai.model.openai.autoconfigure.OpenAiAudioSpeechAutoConfiguration",
+        "org.springframework.ai.model.openai.autoconfigure.OpenAiAudioTranscriptionAutoConfiguration",
+        "org.springframework.ai.model.openai.autoconfigure.OpenAiChatAutoConfiguration",
+        "org.springframework.ai.model.openai.autoconfigure.OpenAiEmbeddingAutoConfiguration",
+        "org.springframework.ai.model.openai.autoconfigure.OpenAiImageAutoConfiguration",
+        "org.springframework.ai.model.openai.autoconfigure.OpenAiModerationAutoConfiguration"
+})
 public class RagChatApplication {
 
     public static void main(String[] args) {

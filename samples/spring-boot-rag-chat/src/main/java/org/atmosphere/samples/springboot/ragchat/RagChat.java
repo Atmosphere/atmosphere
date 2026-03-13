@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  *   <li>Response streams back to the client</li>
  * </ol>
  */
-@AiEndpoint(path = "/atmosphere/rag-chat",
+@AiEndpoint(path = "/atmosphere/ai-chat",
         systemPromptResource = "prompts/rag-system-prompt.md")
 public class RagChat {
 

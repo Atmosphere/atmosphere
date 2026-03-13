@@ -39,5 +39,12 @@ spring:
         options:
           model: text-embedding-004
 
+# Actuator — expose all metric endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
 server:
   port: 8080
