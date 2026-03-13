@@ -1,0 +1,257 @@
+{
+  "version": "4.0.14",
+  "samples": [
+    {
+      "name": "spring-boot-chat",
+      "description": "Real-time WebSocket chat with Spring Boot",
+      "category": "chat",
+      "tags": ["spring-boot", "websocket", "chat"],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true
+    },
+    {
+      "name": "spring-boot-ai-chat",
+      "description": "AI-powered streaming chat with OpenAI-compatible APIs",
+      "category": "ai",
+      "tags": ["spring-boot", "ai", "streaming", "openai", "gemini", "ollama"],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "LLM_API_KEY": "API key for your LLM provider (Gemini, OpenAI, etc.)",
+        "LLM_MODEL": "Model name (default: gemini-2.0-flash)",
+        "LLM_BASE_URL": "API base URL (default: Gemini)"
+      }
+    },
+    {
+      "name": "spring-boot-ai-classroom",
+      "description": "AI classroom — multiple clients share streaming AI responses",
+      "category": "ai",
+      "tags": ["spring-boot", "ai", "classroom", "broadcasting", "collaborative"],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "LLM_API_KEY": "API key for your LLM provider",
+        "LLM_MODEL": "Model name (default: gemini-2.0-flash)"
+      }
+    },
+    {
+      "name": "spring-boot-ai-tools",
+      "description": "Framework-agnostic AI tool calling pipeline",
+      "category": "tools",
+      "tags": ["spring-boot", "ai", "tools", "langchain4j", "framework-agnostic"],
+      "port": 8090,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "LLM_API_KEY": "API key for your LLM provider",
+        "LLM_MODEL": "Model name"
+      }
+    },
+    {
+      "name": "spring-boot-adk-chat",
+      "description": "AI chat with Google ADK (Agent Development Kit)",
+      "category": "ai",
+      "tags": ["spring-boot", "ai", "adk", "google", "agent"],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "GEMINI_API_KEY": "Google Gemini API key"
+      }
+    },
+    {
+      "name": "spring-boot-adk-tools",
+      "description": "Google ADK tool calling with token budgets and caching",
+      "category": "tools",
+      "tags": ["spring-boot", "ai", "adk", "google", "tools", "caching"],
+      "port": 8087,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "GEMINI_API_KEY": "Google Gemini API key"
+      }
+    },
+    {
+      "name": "spring-boot-langchain4j-chat",
+      "description": "AI chat with LangChain4j streaming",
+      "category": "ai",
+      "tags": ["spring-boot", "ai", "langchain4j", "streaming"],
+      "port": 8081,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "LLM_API_KEY": "API key for your LLM provider",
+        "LLM_MODEL": "Model name"
+      }
+    },
+    {
+      "name": "spring-boot-langchain4j-tools",
+      "description": "LangChain4j tool calling with PII redaction and cost metering",
+      "category": "tools",
+      "tags": ["spring-boot", "ai", "langchain4j", "tools", "pii", "metering"],
+      "port": 8086,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "LLM_API_KEY": "API key for your LLM provider",
+        "LLM_MODEL": "Model name"
+      }
+    },
+    {
+      "name": "spring-boot-embabel-chat",
+      "description": "AI agent chat with Embabel Agent Framework",
+      "category": "ai",
+      "tags": ["spring-boot", "ai", "embabel", "agent"],
+      "port": 8082,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "OPENAI_API_KEY": "OpenAI API key (or compatible)",
+        "LLM_API_KEY": "Alternative LLM API key",
+        "LLM_BASE_URL": "Custom LLM API base URL"
+      }
+    },
+    {
+      "name": "spring-boot-embabel-horoscope",
+      "description": "Multi-step horoscope agent with content safety and progress tracking",
+      "category": "agent",
+      "tags": ["spring-boot", "ai", "embabel", "agent", "multi-step", "content-safety"],
+      "port": 8089,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "OPENAI_API_KEY": "OpenAI API key (or compatible)",
+        "LLM_API_KEY": "Alternative LLM API key"
+      }
+    },
+    {
+      "name": "spring-boot-spring-ai-chat",
+      "description": "AI chat with Spring AI ChatClient",
+      "category": "ai",
+      "tags": ["spring-boot", "ai", "spring-ai", "openai"],
+      "port": 8083,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "OPENAI_API_KEY": "OpenAI API key"
+      }
+    },
+    {
+      "name": "spring-boot-spring-ai-routing",
+      "description": "Spring AI routing workflow with content safety and cost metering",
+      "category": "agent",
+      "tags": ["spring-boot", "ai", "spring-ai", "routing", "workflow", "metering"],
+      "port": 8088,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "OPENAI_API_KEY": "OpenAI API key"
+      }
+    },
+    {
+      "name": "spring-boot-rag-chat",
+      "description": "RAG chat with Spring AI VectorStore and embeddings",
+      "category": "rag",
+      "tags": ["spring-boot", "ai", "rag", "spring-ai", "vectorstore", "embeddings"],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "LLM_API_KEY": "API key for your LLM provider",
+        "LLM_MODEL": "Model name"
+      }
+    },
+    {
+      "name": "spring-boot-mcp-server",
+      "description": "MCP server — expose tools, resources, and prompts to AI agents",
+      "category": "mcp",
+      "tags": ["spring-boot", "mcp", "model-context-protocol", "tools", "resources"],
+      "port": 8083,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true
+    },
+    {
+      "name": "spring-boot-otel-chat",
+      "description": "Chat with OpenTelemetry tracing (Jaeger)",
+      "category": "observability",
+      "tags": ["spring-boot", "otel", "tracing", "jaeger", "actuator"],
+      "port": 8084,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "OTLP endpoint (default: http://localhost:4317)"
+      }
+    },
+    {
+      "name": "spring-boot-durable-sessions",
+      "description": "Durable sessions — survive server restarts with SQLite",
+      "category": "infrastructure",
+      "tags": ["spring-boot", "sessions", "persistence", "sqlite"],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false
+    },
+    {
+      "name": "quarkus-chat",
+      "description": "Real-time WebSocket chat with Quarkus",
+      "category": "chat",
+      "tags": ["quarkus", "websocket", "chat"],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "quarkus",
+      "hasFrontend": true
+    },
+    {
+      "name": "embedded-jetty-websocket-chat",
+      "description": "Embedded Jetty WebSocket chat (no framework)",
+      "category": "chat",
+      "tags": ["jetty", "websocket", "embedded", "standalone"],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "executable-jar",
+      "mainClass": "org.atmosphere.samples.chat.EmbeddedJettyWebSocketChat",
+      "hasFrontend": true
+    },
+    {
+      "name": "chat",
+      "description": "Classic Atmosphere chat (WAR deployment)",
+      "category": "chat",
+      "tags": ["servlet", "websocket", "war"],
+      "port": 8080,
+      "runnable": false,
+      "packaging": "war",
+      "hasFrontend": true,
+      "note": "Requires a servlet container (Tomcat, Jetty). Use 'spring-boot-chat' for standalone."
+    },
+    {
+      "name": "grpc-chat",
+      "description": "Chat over gRPC transport",
+      "category": "chat",
+      "tags": ["grpc", "transport"],
+      "port": 8080,
+      "runnable": false,
+      "packaging": "jar",
+      "hasFrontend": false,
+      "note": "Requires gRPC client. See sample README for details."
+    }
+  ]
+}

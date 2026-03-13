@@ -1,0 +1,452 @@
+#!/bin/sh
+# Atmosphere CLI — run samples, scaffold projects, explore the framework.
+# https://github.com/Atmosphere/atmosphere
+#
+# Copyright 2008-2026 Async-IO.org — Apache License 2.0
+
+set -e
+
+VERSION="4.0.14"
+ATMOSPHERE_HOME="${ATMOSPHERE_HOME:-$HOME/.atmosphere}"
+CACHE_DIR="$ATMOSPHERE_HOME/cache"
+SAMPLES_JSON_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/samples.json"
+RELEASE_BASE_URL="https://github.com/Atmosphere/atmosphere/releases/download"
+
+# ── Colors ──────────────────────────────────────────────────────────────────
+if [ -t 1 ]; then
+    BOLD='\033[1m'
+    DIM='\033[2m'
+    CYAN='\033[36m'
+    GREEN='\033[32m'
+    YELLOW='\033[33m'
+    RED='\033[31m'
+    RESET='\033[0m'
+else
+    BOLD='' DIM='' CYAN='' GREEN='' YELLOW='' RED='' RESET=''
+fi
+
+# ── Helpers ─────────────────────────────────────────────────────────────────
+die()   { printf "${RED}error:${RESET} %s\n" "$1" >&2; exit 1; }
+info()  { printf "${CYAN}→${RESET} %s\n" "$1"; }
+ok()    { printf "${GREEN}✓${RESET} %s\n" "$1"; }
+warn()  { printf "${YELLOW}!${RESET} %s\n" "$1"; }
+
+need_cmd() {
+    command -v "$1" >/dev/null 2>&1 || die "'$1' is required but not found. Please install it first."
+}
+
+ensure_java() {
+    need_cmd java
+    java_version=$(java -version 2>&1 | head -1 | sed 's/.*"\([0-9]*\).*/\1/')
+    if [ "$java_version" -lt 21 ] 2>/dev/null; then
+        die "Java 21+ is required (found Java $java_version). Install with: brew install openjdk@21"
+    fi
+}
+
+ensure_cache_dir() {
+    mkdir -p "$CACHE_DIR"
+}
+
+# Download a file, preferring curl > wget
+download() {
+    url="$1"
+    dest="$2"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL --progress-bar -o "$dest" "$url"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q --show-progress -O "$dest" "$url"
+    else
+        die "curl or wget is required for downloads"
+    fi
+}
+
+# Get the local samples.json — bundled with CLI or download it
+get_samples_json() {
+    # Prefer bundled samples.json (installed via Homebrew or alongside the script)
+    script_dir="$(cd "$(dirname "$0")" && pwd)"
+    if [ -f "$script_dir/samples.json" ]; then
+        cat "$script_dir/samples.json"
+        return
+    fi
+    # Fall back to cached version
+    if [ -f "$CACHE_DIR/samples.json" ]; then
+        cat "$CACHE_DIR/samples.json"
+        return
+    fi
+    # Download
+    ensure_cache_dir
+    info "Downloading sample registry..."
+    download "$SAMPLES_JSON_URL" "$CACHE_DIR/samples.json"
+    cat "$CACHE_DIR/samples.json"
+}
+
+# Parse JSON without jq — extract field from a sample block
+# Usage: json_field "field_name" <<< "$json_block"
+# This is intentionally simple; we use jq when available.
+has_jq() { command -v jq >/dev/null 2>&1; }
+
+get_sample_field() {
+    sample_name="$1"
+    field="$2"
+    json="$3"
+    if has_jq; then
+        printf '%s' "$json" | jq -r ".samples[] | select(.name == \"$sample_name\") | .$field"
+    else
+        # Fallback: grep-based extraction (fragile but works for simple fields)
+        printf '%s' "$json" | grep -A 30 "\"name\": \"$sample_name\"" | grep "\"$field\"" | head -1 | sed 's/.*: *"\{0,1\}\([^",}]*\)"\{0,1\}.*/\1/'
+    fi
+}
+
+list_sample_names() {
+    json="$1"
+    if has_jq; then
+        printf '%s' "$json" | jq -r '.samples[].name'
+    else
+        printf '%s' "$json" | grep '"name"' | sed 's/.*: *"\([^"]*\)".*/\1/'
+    fi
+}
+
+# ── Commands ────────────────────────────────────────────────────────────────
+
+cmd_version() {
+    printf "${BOLD}Atmosphere${RESET} %s\n" "$VERSION"
+}
+
+cmd_help() {
+    cat <<EOF
+${BOLD}Atmosphere CLI${RESET} v${VERSION}
+
+${BOLD}Usage:${RESET}
+  atmosphere <command> [options]
+
+${BOLD}Commands:${RESET}
+  ${GREEN}list${RESET}              List all available samples
+  ${GREEN}run${RESET}  <sample>     Download and run a sample application
+  ${GREEN}new${RESET}  <name>       Scaffold a new Atmosphere project
+  ${GREEN}info${RESET} <sample>     Show details about a sample
+  ${GREEN}version${RESET}           Print version
+  ${GREEN}help${RESET}              Show this help
+
+${BOLD}Examples:${RESET}
+  atmosphere list
+  atmosphere list --tag ai
+  atmosphere run spring-boot-chat
+  atmosphere run spring-boot-ai-chat --env LLM_API_KEY=sk-xxx
+  atmosphere new my-chat-app
+  atmosphere new my-ai-app --template ai-chat
+
+${BOLD}Environment:${RESET}
+  ATMOSPHERE_HOME    Cache directory (default: ~/.atmosphere)
+  JAVA_OPTS          Extra JVM options passed to samples
+
+EOF
+}
+
+cmd_list() {
+    filter_tag=""
+    filter_category=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --tag)      filter_tag="$2"; shift 2 ;;
+            --category) filter_category="$2"; shift 2 ;;
+            -*)         die "Unknown option: $1" ;;
+            *)          die "Unknown argument: $1" ;;
+        esac
+    done
+
+    json=$(get_samples_json)
+
+    if has_jq; then
+        filter='.'
+        if [ -n "$filter_tag" ]; then
+            filter=". | select(.tags | index(\"$filter_tag\"))"
+        fi
+        if [ -n "$filter_category" ]; then
+            filter=". | select(.category == \"$filter_category\")"
+        fi
+
+        printf "\n${BOLD}%-36s %-8s %-14s %s${RESET}\n" "SAMPLE" "PORT" "CATEGORY" "DESCRIPTION"
+        printf "%-36s %-8s %-14s %s\n" "------" "----" "--------" "-----------"
+
+        printf '%s' "$json" | jq -r "
+            .samples[] | $filter |
+            \"\(.name)|\(.port)|\(.category)|\(.runnable)|\(.description)\"
+        " | while IFS='|' read -r name port category runnable desc; do
+            if [ "$runnable" = "true" ]; then
+                marker="${GREEN}●${RESET}"
+            else
+                marker="${DIM}○${RESET}"
+            fi
+            printf "${marker} %-35s %-8s %-14s %s\n" "$name" "$port" "$category" "$desc"
+        done
+
+        printf "\n${DIM}● = runnable with 'atmosphere run'  ○ = requires manual setup${RESET}\n\n"
+    else
+        printf "\n${BOLD}Available Samples:${RESET}\n\n"
+        list_sample_names "$json" | while read -r name; do
+            printf "  %s\n" "$name"
+        done
+        printf "\n${DIM}Install jq for richer output: brew install jq${RESET}\n\n"
+    fi
+}
+
+cmd_info() {
+    [ -z "$1" ] && die "Usage: atmosphere info <sample>"
+    sample="$1"
+    json=$(get_samples_json)
+
+    if has_jq; then
+        block=$(printf '%s' "$json" | jq ".samples[] | select(.name == \"$sample\")")
+        [ -z "$block" ] && die "Unknown sample: $sample"
+
+        name=$(printf '%s' "$block" | jq -r '.name')
+        desc=$(printf '%s' "$block" | jq -r '.description')
+        category=$(printf '%s' "$block" | jq -r '.category')
+        port=$(printf '%s' "$block" | jq -r '.port')
+        runnable=$(printf '%s' "$block" | jq -r '.runnable')
+        packaging=$(printf '%s' "$block" | jq -r '.packaging')
+        tags=$(printf '%s' "$block" | jq -r '.tags | join(", ")')
+        has_frontend=$(printf '%s' "$block" | jq -r '.hasFrontend')
+        note=$(printf '%s' "$block" | jq -r '.note // empty')
+        env_vars=$(printf '%s' "$block" | jq -r '.envVars // empty | to_entries[] | "  \(.key): \(.value)"' 2>/dev/null)
+
+        printf "\n${BOLD}%s${RESET}\n" "$name"
+        printf "  %s\n\n" "$desc"
+        printf "  ${DIM}Category:${RESET}    %s\n" "$category"
+        printf "  ${DIM}Tags:${RESET}        %s\n" "$tags"
+        printf "  ${DIM}Port:${RESET}        %s\n" "$port"
+        printf "  ${DIM}Packaging:${RESET}   %s\n" "$packaging"
+        printf "  ${DIM}Frontend:${RESET}    %s\n" "$has_frontend"
+        printf "  ${DIM}Runnable:${RESET}    %s\n" "$runnable"
+
+        if [ -n "$note" ]; then
+            printf "\n  ${YELLOW}Note:${RESET} %s\n" "$note"
+        fi
+
+        if [ -n "$env_vars" ]; then
+            printf "\n  ${BOLD}Environment Variables:${RESET}\n"
+            printf '%s\n' "$env_vars"
+        fi
+
+        if [ "$runnable" = "true" ]; then
+            printf "\n  ${GREEN}Run:${RESET} atmosphere run %s\n" "$name"
+        fi
+        printf "\n"
+    else
+        printf "\n  %s\n" "$sample"
+        printf "  ${DIM}Install jq for detailed info: brew install jq${RESET}\n\n"
+    fi
+}
+
+cmd_run() {
+    [ -z "$1" ] && die "Usage: atmosphere run <sample> [--env KEY=VALUE ...]"
+    sample="$1"; shift
+
+    # Parse --env flags
+    env_args=""
+    extra_args=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --env)
+                [ -z "$2" ] && die "--env requires KEY=VALUE"
+                env_args="$env_args -D$2"
+                shift 2
+                ;;
+            --port|-p)
+                [ -z "$2" ] && die "--port requires a port number"
+                env_args="$env_args -Dserver.port=$2"
+                shift 2
+                ;;
+            --)
+                shift; extra_args="$*"; break ;;
+            -*)
+                die "Unknown option: $1" ;;
+            *)
+                extra_args="$extra_args $1"; shift ;;
+        esac
+    done
+
+    ensure_java
+    json=$(get_samples_json)
+
+    runnable=$(get_sample_field "$sample" "runnable" "$json")
+    [ "$runnable" != "true" ] && die "'$sample' is not directly runnable. See: atmosphere info $sample"
+
+    packaging=$(get_sample_field "$sample" "packaging" "$json")
+    port=$(get_sample_field "$sample" "port" "$json")
+
+    ensure_cache_dir
+    jar_dir="$CACHE_DIR/v$VERSION"
+    mkdir -p "$jar_dir"
+
+    if [ "$packaging" = "quarkus" ]; then
+        jar_file="$jar_dir/$sample-runner.jar"
+        artifact_name="$sample-$VERSION-runner.jar"
+    else
+        jar_file="$jar_dir/$sample.jar"
+        artifact_name="$sample-$VERSION.jar"
+    fi
+
+    # Download if not cached
+    if [ ! -f "$jar_file" ]; then
+        download_url="$RELEASE_BASE_URL/v$VERSION/$artifact_name"
+        info "Downloading $sample v$VERSION..."
+        download "$download_url" "$jar_file" || {
+            rm -f "$jar_file"
+            printf "\n"
+            die "Download failed. The sample JAR may not be available yet for v$VERSION.
+
+To build locally instead:
+  git clone https://github.com/Atmosphere/atmosphere.git
+  cd atmosphere
+  ./mvnw install -DskipTests -Pfastinstall
+  ./mvnw package -pl samples/$sample -DskipTests
+  java -jar samples/$sample/target/*.jar"
+        }
+        ok "Downloaded $sample"
+    else
+        ok "Using cached $sample v$VERSION"
+    fi
+
+    # Run
+    printf "\n"
+    info "Starting $sample on port $port..."
+    info "Open ${BOLD}http://localhost:$port${RESET} in your browser"
+    printf "${DIM}Press Ctrl+C to stop${RESET}\n\n"
+
+    # shellcheck disable=SC2086
+    exec java $JAVA_OPTS $env_args -jar "$jar_file" $extra_args
+}
+
+cmd_new() {
+    [ -z "$1" ] && die "Usage: atmosphere new <project-name> [--template <template>]"
+    project_name="$1"; shift
+
+    template="chat"
+    group_id="com.example"
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --template|-t) template="$2"; shift 2 ;;
+            --group|-g)    group_id="$2"; shift 2 ;;
+            -*)            die "Unknown option: $1" ;;
+            *)             die "Unknown argument: $1" ;;
+        esac
+    done
+
+    # Check for JBang
+    if command -v jbang >/dev/null 2>&1; then
+        info "Scaffolding '$project_name' with template '$template'..."
+        jbang_url="https://raw.githubusercontent.com/Atmosphere/atmosphere/main/generator/AtmosphereInit.java"
+
+        jbang "$jbang_url" \
+            --name "$project_name" \
+            --group "$group_id" \
+            --template "$template"
+
+        ok "Project created: $project_name/"
+        printf "\n  cd %s\n  ./mvnw spring-boot:run\n\n" "$project_name"
+    else
+        # Fall back to a simple template
+        info "JBang not found — creating minimal project..."
+        warn "Install JBang for full template support: https://www.jbang.dev/download/"
+
+        mkdir -p "$project_name"
+        create_minimal_project "$project_name" "$group_id" "$template"
+
+        ok "Project created: $project_name/"
+        printf "\n  cd %s\n  ./mvnw spring-boot:run\n\n" "$project_name"
+    fi
+}
+
+create_minimal_project() {
+    dir="$1"
+    group="$2"
+    tmpl="$3"
+    artifact=$(basename "$dir")
+    package_path=$(printf '%s' "$group" | tr '.' '/')
+
+    mkdir -p "$dir/src/main/java/$package_path"
+    mkdir -p "$dir/src/main/resources"
+
+    cat > "$dir/pom.xml" <<POMEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.0.2</version>
+    </parent>
+
+    <groupId>${group}</groupId>
+    <artifactId>${artifact}</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+
+    <properties>
+        <java.version>21</java.version>
+        <atmosphere.version>${VERSION}</atmosphere.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-spring-boot-starter</artifactId>
+            <version>\${atmosphere.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+POMEOF
+
+    cat > "$dir/src/main/java/$package_path/ChatApplication.java" <<JAVAEOF
+package ${group};
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class ChatApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(ChatApplication.class, args);
+    }
+}
+JAVAEOF
+
+    cat > "$dir/src/main/resources/application.yml" <<YMLEOF
+server:
+  port: 8080
+
+atmosphere:
+  packages: ${group}
+YMLEOF
+
+    info "Created minimal Spring Boot + Atmosphere project"
+    info "For AI templates, install JBang: https://www.jbang.dev/download/"
+}
+
+# ── Dispatch ────────────────────────────────────────────────────────────────
+
+case "${1:-help}" in
+    version|--version|-v) cmd_version ;;
+    help|--help|-h)       cmd_help ;;
+    list|ls)              shift; cmd_list "$@" ;;
+    run)                  shift; cmd_run "$@" ;;
+    new|init|create)      shift; cmd_new "$@" ;;
+    info|show)            shift; cmd_info "$@" ;;
+    *)                    die "Unknown command: $1. Run 'atmosphere help' for usage." ;;
+esac
