@@ -25,7 +25,7 @@ jobs:
     
     strategy:
       matrix:
-        sample: 
+        sample:
           - chat
           - spring-boot-chat
           - quarkus-chat
@@ -33,6 +33,7 @@ jobs:
           - spring-boot-ai-chat
           - spring-boot-langchain4j-chat
           - spring-boot-embabel-chat
+          - spring-boot-rag-chat
       fail-fast: false
     
     steps:
@@ -46,7 +47,7 @@ jobs:
         cache: 'maven'
     
     - name: Install Atmosphere Modules
-      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl modules/cpr,modules/ai,modules/langchain4j,modules/embabel,modules/spring-boot-starter,modules/quarkus-extension/runtime,modules/quarkus-extension/deployment,modules/wasync -am
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl modules/cpr,modules/ai,modules/rag,modules/langchain4j,modules/embabel,modules/spring-boot-starter,modules/quarkus-extension/runtime,modules/quarkus-extension/deployment,modules/wasync -am
     
     - name: Build Sample - ${{ matrix.sample }}
       run: ./mvnw -B package -DskipTests -Dgpg.skip=true -pl samples/${{ matrix.sample }}
@@ -80,6 +81,7 @@ jobs:
           - spring-boot-langchain4j-chat
           - spring-boot-embabel-chat
           - spring-boot-mcp-server
+          - spring-boot-rag-chat
       fail-fast: false
     
     steps:

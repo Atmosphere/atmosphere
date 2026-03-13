@@ -131,6 +131,12 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8091,
     type: 'spring-boot',
   },
+  'spring-boot-rag-chat': {
+    name: 'spring-boot-rag-chat',
+    dir: 'spring-boot-rag-chat',
+    port: 8092,
+    type: 'spring-boot',
+  },
 };
 
 /**

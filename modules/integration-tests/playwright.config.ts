@@ -143,6 +143,10 @@ export default defineConfig({
       name: 'ai-tools',
       testMatch: /ai-tools\.spec\.ts/,
     },
+    {
+      name: 'rag-chat',
+      testMatch: /rag-chat\.spec\.ts/,
+    },
     // ── Transport tests ──
     {
       name: 'sse-transport',
