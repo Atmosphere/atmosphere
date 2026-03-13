@@ -315,7 +315,18 @@ public class AiEndpointProcessor implements Processor<Object> {
     }
 
     private AiMetrics resolveMetrics() {
-        return ServiceLoader.load(AiMetrics.class).findFirst().orElse(AiMetrics.NOOP);
+        try {
+            var metrics = ServiceLoader.load(AiMetrics.class).findFirst().orElse(AiMetrics.NOOP);
+            if (metrics != AiMetrics.NOOP) {
+                logger.info("Auto-detected AiMetrics: {}", metrics.getClass().getName());
+            }
+            return metrics;
+        } catch (Exception | NoClassDefFoundError | java.util.ServiceConfigurationError e) {
+            // MicrometerAiMetrics is listed in META-INF/services but micrometer-core
+            // is not on the classpath, or the provider declaration is broken — fall back to NOOP
+            logger.debug("AiMetrics provider not available: {}", e.getMessage());
+            return AiMetrics.NOOP;
+        }
     }
 
     private ModelRouter.FallbackStrategy parseFallbackStrategy(String value) {
