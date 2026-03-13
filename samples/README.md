@@ -39,6 +39,48 @@ Example applications demonstrating Atmosphere 4.0 across different deployment ta
 
 ## Quick Start
 
+### Atmosphere CLI (recommended)
+
+The fastest way to try any sample:
+
+```bash
+# Install the CLI
+curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
+
+# Interactive picker — browse samples, pick one, run it
+atmosphere install
+
+# Or run a specific sample directly
+atmosphere run spring-boot-chat
+atmosphere run spring-boot-ai-chat --env LLM_API_KEY=your-key
+
+# List all available samples
+atmosphere list
+atmosphere list --tag ai
+```
+
+Or with npx (zero install):
+
+```bash
+npx create-atmosphere-app my-chat-app
+npx create-atmosphere-app my-ai-app --template ai-chat
+```
+
+See [cli/README.md](../cli/README.md) for full CLI documentation.
+
+### JBang
+
+Scaffold a full project with the [JBang](https://www.jbang.dev) generator:
+
+```bash
+jbang https://raw.githubusercontent.com/Atmosphere/atmosphere/main/generator/AtmosphereInit.java \
+  --name my-app --template ai-chat
+```
+
+See [generator/README.md](../generator/README.md) for all templates and options.
+
+### Manual Build
+
 Each sample can be built independently:
 
 ```bash

@@ -7,6 +7,7 @@ on:
       - 'samples/**'
       - 'modules/**'
       - 'atmosphere.js/src/chat/**'
+      - 'cli/**'
       - 'pom.xml'
       - '.github/workflows/samples-ci.yml'
   pull_request:
@@ -15,6 +16,7 @@ on:
       - 'samples/**'
       - 'modules/**'
       - 'atmosphere.js/src/chat/**'
+      - 'cli/**'
       - 'pom.xml'
       - '.github/workflows/samples-ci.yml'
 
@@ -65,6 +67,24 @@ jobs:
       with:
         name: sample-${{ matrix.sample }}-artifacts
         path: samples/${{ matrix.sample }}/target/
+
+  test-cli:
+    name: Test Atmosphere CLI
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js 22
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Install jq
+      run: sudo apt-get install -y jq
+
+    - name: Run CLI Tests
+      run: ./cli/test-cli.sh
 
   build-frontends:
     name: Build Frontend - ${{ matrix.sample }}
