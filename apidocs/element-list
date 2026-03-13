@@ -1,4 +1,5 @@
 org.atmosphere.annotation
+org.atmosphere.auth
 org.atmosphere.cache
 org.atmosphere.client
 org.atmosphere.config
