@@ -29,7 +29,6 @@ export function App() {
       const msg: ChatMessage =
         typeof data === 'string' ? JSON.parse(data) : data;
       if (!msg.author) return;
-      if (!name) setName(msg.author);
       setMessages((prev) => [...prev, msg]);
     } catch {
       // ignore parse errors

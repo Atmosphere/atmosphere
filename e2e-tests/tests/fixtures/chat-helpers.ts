@@ -24,15 +24,28 @@ export async function waitForConnected(page: Page): Promise<void> {
   await expect(page.locator('[data-testid="chat-input"]')).toBeEnabled();
 }
 
-/** Join the chat by entering a username (the first message sets the name). */
-export async function joinChat(page: Page, name: string): Promise<void> {
+/**
+ * Join the chat by entering a username (the first message sets the name).
+ *
+ * @param joinConfirmation - text to wait for after joining.
+ *   Defaults to "${name} has joined!" for simple chat samples.
+ *   For Room Protocol samples use "Joined room" (the join_ack message).
+ *   Note: Room Protocol join confirmations are system messages rendered
+ *   without data-testid="message-bubble", so we look in message-list.
+ */
+export async function joinChat(
+  page: Page,
+  name: string,
+  joinConfirmation?: string,
+): Promise<void> {
   const input = page.locator('[data-testid="chat-input"]');
   await input.fill(name);
   await page.locator('[data-testid="chat-send"]').click();
-  // Wait for the "joined" message bubble to appear
+  const confirmText = joinConfirmation ?? `${name} has joined!`;
+  // Look in message-list which contains both system divs and message-bubbles
   await expect(
-    page.locator('[data-testid="message-bubble"]', { hasText: `${name} has joined!` }),
-  ).toBeVisible({ timeout: 10_000 });
+    page.locator('[data-testid="message-list"]'),
+  ).toContainText(confirmText, { timeout: 10_000 });
 }
 
 /** Send a chat message (user must already be joined). */

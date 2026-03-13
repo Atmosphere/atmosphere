@@ -45,8 +45,8 @@ test.describe('Spring Boot Chat — Room API', () => {
       const initialMembers = lobbyBefore?.members ?? 0;
 
       // Join two users
-      await joinChat(page1, 'Alice');
-      await joinChat(page2, 'Bob');
+      await joinChat(page1, 'Alice', 'Joined room');
+      await joinChat(page2, 'Bob', 'Joined room');
 
       // Allow time for room membership to update
       await pages[0].waitForTimeout(2_000);
@@ -68,7 +68,7 @@ test.describe('Spring Boot Chat — Room API', () => {
 
     try {
       await navigateAndConnect(pages);
-      await joinChat(page1, 'TestUser');
+      await joinChat(page1, 'TestUser', 'Joined room');
 
       // Allow time for room membership to update
       await page1.waitForTimeout(2_000);

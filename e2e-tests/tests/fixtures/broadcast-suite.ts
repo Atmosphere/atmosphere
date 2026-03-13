@@ -10,6 +10,18 @@ import {
 } from './chat-helpers';
 
 /**
+ * Options for configuring the broadcast test suite.
+ */
+export interface BroadcastSuiteOptions {
+  /**
+   * Returns the text the joining user sees in a message bubble after joining.
+   * Defaults to `(name) => "${name} has joined!"` for simple chat samples.
+   * For Room Protocol samples, use `() => "Joined room"` (the join_ack).
+   */
+  joinConfirmation?: (name: string) => string;
+}
+
+/**
  * Registers the standard broadcast test suite that validates core Atmosphere
  * chat functionality. Call this inside a test.describe() block.
  *
@@ -21,7 +33,9 @@ import {
  *   2. Message ordering is preserved across browsers
  *   3. Disconnect and reconnect
  */
-export function registerBroadcastTests(): void {
+export function registerBroadcastTests(options?: BroadcastSuiteOptions): void {
+  const joinConfirm = options?.joinConfirmation ?? ((name: string) => `${name} has joined!`);
+
   test('three browsers receive broadcast message', async ({ browser }) => {
     const { contexts, pages } = await openBrowsers(browser, 3);
     const [page1, page2, page3] = pages;
@@ -30,9 +44,9 @@ export function registerBroadcastTests(): void {
       await navigateAndConnect(pages);
 
       // Join all three users
-      await joinChat(page1, 'Alice');
-      await joinChat(page2, 'Bob');
-      await joinChat(page3, 'Charlie');
+      await joinChat(page1, 'Alice', joinConfirm('Alice'));
+      await joinChat(page2, 'Bob', joinConfirm('Bob'));
+      await joinChat(page3, 'Charlie', joinConfirm('Charlie'));
 
       // Send a message from browser 1
       await sendMessage(page1, 'Hello from Alice!');
@@ -62,9 +76,9 @@ export function registerBroadcastTests(): void {
       await navigateAndConnect(pages);
 
       // Join all three users
-      await joinChat(page1, 'Alice');
-      await joinChat(page2, 'Bob');
-      await joinChat(page3, 'Charlie');
+      await joinChat(page1, 'Alice', joinConfirm('Alice'));
+      await joinChat(page2, 'Bob', joinConfirm('Bob'));
+      await joinChat(page3, 'Charlie', joinConfirm('Charlie'));
 
       // Send 3 messages rapidly from browser 1
       await sendMessage(page1, 'First message');
@@ -111,8 +125,8 @@ export function registerBroadcastTests(): void {
       await navigateAndConnect(pages);
 
       // Join both users
-      await joinChat(page1, 'Alice');
-      await joinChat(page2, 'Bob');
+      await joinChat(page1, 'Alice', joinConfirm('Alice'));
+      await joinChat(page2, 'Bob', joinConfirm('Bob'));
 
       // Send a message from browser 1, verify browser 2 receives it
       await sendMessage(page1, 'Before disconnect');
@@ -127,7 +141,7 @@ export function registerBroadcastTests(): void {
       await waitForConnected(newPage1);
 
       // Re-join with the same name
-      await joinChat(newPage1, 'Alice');
+      await joinChat(newPage1, 'Alice', joinConfirm('Alice'));
 
       // Send a message from browser 2
       await sendMessage(page2, 'After reconnect');
