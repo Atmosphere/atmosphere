@@ -153,7 +153,13 @@ class WAsyncChatIntegrationTest {
         var openLatch = new CountDownLatch(1);
         var messageLatch = new CountDownLatch(1);
 
-        var options = client.newOptionsBuilder()
+        // Long-polling MUST re-poll: each response ends the HTTP cycle,
+        // so reconnect(true) is required to keep polling for new messages.
+        var lpOptions = client.newOptionsBuilder()
+                .reconnect(true)
+                .build();
+
+        var senderOptions = client.newOptionsBuilder()
                 .reconnect(false)
                 .build();
 
@@ -164,7 +170,7 @@ class WAsyncChatIntegrationTest {
                 .enableProtocol(false)
                 .build();
 
-        var lpSocket = client.create(options);
+        var lpSocket = client.create(lpOptions);
         lpSocket.on(Event.OPEN, (Function<Object>) o -> openLatch.countDown())
                 .on(Event.MESSAGE, (Function<Object>) m -> {
                     var msg = m.toString().strip();
@@ -187,7 +193,7 @@ class WAsyncChatIntegrationTest {
                 .enableProtocol(false)
                 .build();
 
-        var senderSocket = sender.create(options);
+        var senderSocket = sender.create(senderOptions);
         senderSocket.on(Event.OPEN, (Function<Object>) o -> senderOpen.countDown())
                     .open(senderRequest);
 
