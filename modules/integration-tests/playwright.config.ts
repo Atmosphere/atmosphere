@@ -147,6 +147,22 @@ export default defineConfig({
       name: 'rag-chat',
       testMatch: /rag-chat\.spec\.ts/,
     },
+    {
+      name: 'rooms-api',
+      testMatch: /rooms-api\.spec\.ts/,
+    },
+    {
+      name: 'ai-session-stats',
+      testMatch: /ai-session-stats\.spec\.ts/,
+    },
+    {
+      name: 'ai-error-recovery',
+      testMatch: /ai-error-recovery\.spec\.ts/,
+    },
+    {
+      name: 'mcp-tools',
+      testMatch: /mcp-tools\.spec\.ts/,
+    },
     // ── Transport tests ──
     {
       name: 'sse-transport',

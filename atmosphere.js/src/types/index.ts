@@ -102,9 +102,24 @@ export interface SubscriptionHandlers<T = unknown> {
   failureToReconnect?: (request: AtmosphereRequest, response: AtmosphereResponse<T>) => void;
   /** Called when a connection is re-established after a disconnect (not on first open). */
   reopen?: (response: AtmosphereResponse<T>) => void;
-  /** Called when the server sends a refreshed auth token via X-Atmosphere-Auth-Refresh header. */
+  /**
+   * Called when the server sends a refreshed auth token via X-Atmosphere-Auth-Refresh header.
+   *
+   * **Important:** This callback is header-based and only fires on HTTP-based transports
+   * (long-polling, SSE, streaming) or during WebSocket handshake/reconnection.
+   * Active WebSocket sessions do not receive HTTP headers on data frames, so this
+   * callback will NOT fire mid-session on a live WebSocket connection.
+   * To refresh tokens on WebSocket, rely on reconnection (which re-sends headers)
+   * or implement application-level token refresh via regular messages.
+   */
   authTokenRefresh?: (newToken: string) => void;
-  /** Called when the server signals auth expired via X-Atmosphere-Auth-Expired header. */
+  /**
+   * Called when the server signals auth expired via X-Atmosphere-Auth-Expired header.
+   *
+   * **Important:** Same limitation as {@link authTokenRefresh} — this is header-based
+   * and will not fire on active WebSocket data frames. It fires on HTTP-based transports
+   * or during WebSocket handshake/reconnection only.
+   */
   authExpired?: (reason: string) => void;
 }
 
