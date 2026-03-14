@@ -61,8 +61,8 @@ fi
 
 # ── 4. JAR artifact names in sample README.md ──
 echo "── Sample README.md JAR references"
-find "$ROOT/samples" -name 'README.md' -exec grep -lE 'atmosphere-[a-z]+-[0-9]+\.[0-9]+\.[0-9]+' {} + 2>/dev/null | while read -r f; do
-    sedi -E "s/(atmosphere-[a-z-]+)-[0-9]+\.[0-9]+\.[0-9]+[^. ]*/\1-$VERSION/g" "$f"
+find "$ROOT/samples" -name 'README.md' -exec grep -lE 'atmosphere-[a-z-]+-[0-9]+\.[0-9]+\.[0-9]+' {} + 2>/dev/null | while read -r f; do
+    sedi -E "s/(atmosphere-[a-z-]+)-[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT|-RC[0-9]+)?/\1-$VERSION/g" "$f"
     echo "   $f"
     UPDATED=$((UPDATED + 1))
 done
