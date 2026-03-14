@@ -30,6 +30,7 @@ export function App() {
       trackMessageLength: true,
       enableProtocol: false,
       contentType: 'application/json',
+      authToken: 'demo-token',
     }),
     [],
   );

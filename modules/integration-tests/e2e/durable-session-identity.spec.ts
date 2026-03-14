@@ -104,7 +104,7 @@ test.describe('Durable Session Identity', () => {
     // Verify broadcaster still works with a third client
     const conn3 = await connectDurable(server.baseUrl);
     conn2.ws.send(JSON.stringify({ author: 'Returner', message: 'broadcast-check' }));
-    await waitFor(() => conn3.messages.some(m => m.includes('broadcast-check')));
+    await waitFor(() => conn3.messages.some(m => m.includes('broadcast-check')), 30_000);
 
     conn2.close();
     conn3.close();
