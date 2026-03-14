@@ -240,6 +240,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                 || resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING) {
             assignPerPathBroadcaster(resource);
             registerBroadcastFilters(resource.getBroadcaster());
+            registerCacheInspector(resource.getBroadcaster());
             resource.suspend(suspendTimeout);
             if (!systemPrompt.isEmpty()) {
                 resource.getRequest().setAttribute(SYSTEM_PROMPT_ATTRIBUTE, systemPrompt);
@@ -396,6 +397,20 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
 
     String endpointModel() {
         return endpointModel;
+    }
+
+    /**
+     * Registers a {@link org.atmosphere.cache.BroadcasterCacheInspector} that
+     * only allows {@link RawMessage}-based broadcasts (AI streaming responses)
+     * to be cached. Plain String broadcasts (user prompts routed internally
+     * from WebSocket frames) are excluded to prevent stale prompt replay on
+     * new connections.
+     */
+    private void registerCacheInspector(Broadcaster broadcaster) {
+        var cache = broadcaster.getBroadcasterConfig().getBroadcasterCache();
+        if (cache != null) {
+            cache.inspector(message -> message.message() instanceof RawMessage);
+        }
     }
 
     /**

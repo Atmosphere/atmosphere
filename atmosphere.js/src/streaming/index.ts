@@ -65,6 +65,9 @@ export async function subscribeStreaming(
       // Track session ID from first message
       if (!sessionId) sessionId = msg.sessionId;
 
+      // Ignore messages from different sessions (e.g., stale cache replay)
+      if (msg.sessionId !== sessionId) return;
+
       // Dedup via sequence number
       if (msg.seq <= lastSeq) return;
       lastSeq = msg.seq;
