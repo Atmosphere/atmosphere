@@ -163,6 +163,14 @@ export default defineConfig({
       name: 'mcp-tools',
       testMatch: /mcp-tools\.spec\.ts/,
     },
+    {
+      name: 'chat-observability',
+      testMatch: /chat-observability\.spec\.ts/,
+    },
+    {
+      name: 'durable-session-token',
+      testMatch: /durable-session-token\.spec\.ts/,
+    },
     // ── Transport tests ──
     {
       name: 'sse-transport',
