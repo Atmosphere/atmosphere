@@ -171,6 +171,10 @@ export default defineConfig({
       name: 'durable-session-token',
       testMatch: /durable-session-token\.spec\.ts/,
     },
+    {
+      name: 'room-typing-direct',
+      testMatch: /room-typing-direct\.spec\.ts/,
+    },
     // ── Transport tests ──
     {
       name: 'sse-transport',
