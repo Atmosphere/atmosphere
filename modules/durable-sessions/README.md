@@ -8,7 +8,7 @@ Session persistence across server restarts. On reconnection, the client sends it
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-durable-sessions</artifactId>
-    <version>4.0.13</version>
+    <version>4.0.14</version>
 </dependency>
 ```
 

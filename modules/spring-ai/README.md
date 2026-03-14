@@ -8,7 +8,7 @@
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-ai</artifactId>
-    <version>4.0.13</version>
+    <version>4.0.14</version>
 </dependency>
 ```
 
