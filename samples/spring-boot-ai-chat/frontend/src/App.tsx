@@ -147,11 +147,11 @@ export function App() {
           display: 'flex',
           gap: 8,
         }}>
-          <span>{stats.totalTokens} tokens</span>
+          <span>{stats.totalStreamingTexts} streaming texts</span>
           <span>&middot;</span>
           <span>{stats.elapsedMs}ms</span>
           <span>&middot;</span>
-          <span>{stats.tokensPerSecond.toFixed(1)} tok/s</span>
+          <span>{stats.streamingTextsPerSecond.toFixed(1)} texts/s</span>
         </div>
       )}
       <ChatInput
