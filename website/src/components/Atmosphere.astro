@@ -7,7 +7,8 @@ const capabilities = [
     </svg>`,
     title: 'WebSocket + SSE',
     description: 'First-class WebSocket with automatic SSE and long-polling fallback. Heartbeats, reconnection, and message caching built in.',
-    link: '/docs/',
+    link: '/docs/tutorial/04-transports/',
+    linkLabel: 'Transport guide',
   },
   {
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -18,7 +19,8 @@ const capabilities = [
     </svg>`,
     title: 'Rooms & Presence',
     description: 'Named groups with real-time join/leave events, member lists, message history, and direct messaging. No external dependencies.',
-    link: '/docs/',
+    link: '/docs/tutorial/06-rooms/',
+    linkLabel: 'Rooms tutorial',
   },
   {
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -28,7 +30,8 @@ const capabilities = [
     </svg>`,
     title: 'AI/LLM Streaming',
     description: 'Stream tokens from any LLM to browsers. Adapters for Spring AI, LangChain4j, and Google ADK. Built-in MCP server for AI agents.',
-    link: '/docs/',
+    link: '/docs/tutorial/09-ai-endpoint/',
+    linkLabel: 'AI streaming guide',
   },
   {
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -39,7 +42,8 @@ const capabilities = [
     </svg>`,
     title: 'Spring Boot & Quarkus',
     description: 'Auto-configured starters for both frameworks. One dependency, zero rewiring. Also works on any Servlet 6.0+ container.',
-    link: '/docs/',
+    link: '/docs/tutorial/14-spring-boot/',
+    linkLabel: 'Spring Boot setup',
   },
 ];
 ---
@@ -63,7 +67,7 @@ const capabilities = [
           <h3 class="capability-title">{cap.title}</h3>
           <p class="capability-description">{cap.description}</p>
           <span class="capability-link">
-            Learn more
+            {cap.linkLabel ?? 'Learn more'}
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>

@@ -1,0 +1,199 @@
+---
+const credentials = [
+  { label: 'Java Champion', icon: '&#9830;' },
+  { label: 'Apache Committer', icon: '&#9670;' },
+  { label: 'Creator of Grizzly NIO', icon: '&#9670;' },
+  { label: 'Ex-Sun Microsystems', icon: '&#9670;' },
+];
+---
+
+<section class="about" id="about">
+  <div class="about-container">
+    <div class="about-content">
+      <span class="section-label">Who we are</span>
+      <h2 class="section-title">Built by the people who wrote the spec</h2>
+      <p class="about-description">
+        Async IO was founded by <strong>Jean-Fran&ccedil;ois Arcand</strong>,
+        who built the NIO layer inside GlassFish (Project Grizzly) at
+        Sun Microsystems and has been shipping real-time Java infrastructure
+        since before WebSocket was standardized.
+      </p>
+      <p class="about-description">
+        Atmosphere has been in continuous production since 2008 — powering
+        trading floors, healthcare systems, collaboration tools, and AI
+        applications at companies from startups to the Fortune 500.
+      </p>
+
+      <div class="credentials">
+        {credentials.map((cred) => (
+          <span class="credential">
+            <span class="credential-icon" set:html={cred.icon} />
+            {cred.label}
+          </span>
+        ))}
+      </div>
+    </div>
+
+    <div class="about-numbers">
+      <div class="number-card">
+        <span class="number-value">2008</span>
+        <span class="number-label">First release</span>
+      </div>
+      <div class="number-card">
+        <span class="number-value">4.0</span>
+        <span class="number-label">Current major</span>
+      </div>
+      <div class="number-card">
+        <span class="number-value">JDK 21</span>
+        <span class="number-label">Virtual threads</span>
+      </div>
+      <div class="number-card">
+        <span class="number-value">6</span>
+        <span class="number-label">AI adapters</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .about {
+    padding: var(--space-4xl) var(--space-xl);
+    background: var(--color-bg-secondary);
+    position: relative;
+  }
+
+  .about::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-border-accent), transparent);
+  }
+
+  .about-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: var(--space-4xl);
+    align-items: center;
+  }
+
+  .section-label {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-accent);
+    margin-bottom: var(--space-md);
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    font-weight: 400;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: var(--space-lg);
+  }
+
+  .about-description {
+    font-size: 1.0625rem;
+    color: var(--color-text-secondary);
+    line-height: 1.7;
+    margin-bottom: var(--space-md);
+  }
+
+  .about-description strong {
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+
+  .credentials {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin-top: var(--space-xl);
+  }
+
+  .credential {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-md);
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: 100px;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    transition: border-color 0.2s var(--ease-out-quad);
+  }
+
+  .credential:hover {
+    border-color: var(--color-accent-dim);
+  }
+
+  .credential-icon {
+    color: var(--color-accent);
+    font-size: 0.625rem;
+  }
+
+  .about-numbers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg);
+  }
+
+  .number-card {
+    padding: var(--space-xl);
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    text-align: center;
+    transition: all 0.3s var(--ease-out-quad);
+  }
+
+  .number-card:hover {
+    border-color: var(--color-border-accent);
+    transform: translateY(-2px);
+  }
+
+  .number-value {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 400;
+    color: var(--color-accent);
+    letter-spacing: -0.02em;
+    margin-bottom: var(--space-xs);
+  }
+
+  .number-label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+  }
+
+  @media (max-width: 900px) {
+    .about-container {
+      grid-template-columns: 1fr;
+      gap: var(--space-2xl);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .about {
+      padding: var(--space-3xl) var(--space-md);
+    }
+
+    .about-numbers {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>
