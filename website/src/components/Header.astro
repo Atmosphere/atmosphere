@@ -1,21 +1,21 @@
 ---
 const navLinks = [
-  { href: '#integrations', label: 'Integrations' },
-  { href: '#features', label: 'Features' },
-  { href: '#code', label: 'Quick Start' },
-  { href: 'https://github.com/Atmosphere/atmosphere/wiki', label: 'Docs', external: true },
+  { href: '#atmosphere', label: 'Atmosphere' },
+  { href: '/docs/', label: 'Docs' },
+  { href: '/apidocs/', label: 'API Reference' },
+  { href: '#support', label: 'Support' },
   { href: 'https://github.com/Atmosphere/atmosphere', label: 'GitHub', external: true },
 ];
 ---
 
-<header class="header">
+<header class="header" id="siteHeader">
   <div class="header-inner">
     <a href="/" class="logo">
-      <img src="/logo.svg" alt="Async-IO" class="logo-img" width="40" height="40" />
+      <img src="/logo.svg" alt="Async IO" class="logo-img" width="40" height="40" />
       <span class="logo-text">Async IO</span>
     </a>
 
-    <nav class="nav" aria-label="Main navigation">
+    <nav class="nav" id="mainNav" aria-label="Main navigation">
       <ul class="nav-list">
         {navLinks.map((link) => (
           <li>
@@ -36,12 +36,39 @@ const navLinks = [
       </ul>
     </nav>
 
-    <button class="mobile-menu-btn" aria-label="Toggle menu" aria-expanded="false">
-      <span></span>
-      <span></span>
+    <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mainNav">
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
     </button>
   </div>
 </header>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('mobileMenuBtn');
+    const nav = document.getElementById('mainNav');
+    const header = document.getElementById('siteHeader');
+    if (!btn || !nav || !header) return;
+
+    btn.addEventListener('click', () => {
+      const isOpen = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!isOpen));
+      nav.classList.toggle('nav-open');
+      header.classList.toggle('menu-open');
+      document.body.style.overflow = isOpen ? '' : 'hidden';
+    });
+
+    // Close menu when a nav link is clicked
+    nav.querySelectorAll('.nav-link').forEach(link => {
+      link.addEventListener('click', () => {
+        btn.setAttribute('aria-expanded', 'false');
+        nav.classList.remove('nav-open');
+        header.classList.remove('menu-open');
+        document.body.style.overflow = '';
+      });
+    });
+  });
+</script>
 
 <style>
   .header {
@@ -54,6 +81,11 @@ const navLinks = [
     background: linear-gradient(to bottom, var(--color-bg-primary) 0%, transparent 100%);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+    transition: background 0.3s ease;
+  }
+
+  .header.menu-open {
+    background: var(--color-bg-primary);
   }
 
   .header-inner {
@@ -70,6 +102,7 @@ const navLinks = [
     gap: var(--space-sm);
     color: var(--color-text-primary);
     transition: color 0.2s var(--ease-out-quad);
+    z-index: 2;
   }
 
   .logo:hover {
@@ -120,19 +153,30 @@ const navLinks = [
   .mobile-menu-btn {
     display: none;
     flex-direction: column;
-    gap: 6px;
+    gap: 7px;
     padding: var(--space-sm);
     background: none;
     border: none;
     cursor: pointer;
+    z-index: 2;
   }
 
-  .mobile-menu-btn span {
+  .hamburger-line {
     display: block;
     width: 24px;
     height: 2px;
     background: var(--color-text-primary);
     transition: all 0.3s var(--ease-out-expo);
+    transform-origin: center;
+  }
+
+  /* Hamburger → X animation */
+  .mobile-menu-btn[aria-expanded="true"] .hamburger-line:first-child {
+    transform: translateY(4.5px) rotate(45deg);
+  }
+
+  .mobile-menu-btn[aria-expanded="true"] .hamburger-line:last-child {
+    transform: translateY(-4.5px) rotate(-45deg);
   }
 
   @media (max-width: 768px) {
@@ -141,7 +185,33 @@ const navLinks = [
     }
 
     .nav {
-      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      background: var(--color-bg-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s var(--ease-out-expo);
+    }
+
+    .nav.nav-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .nav-list {
+      flex-direction: column;
+      gap: var(--space-2xl);
+    }
+
+    .nav-link {
+      font-size: 1.5rem;
+      font-family: var(--font-display);
+      font-weight: 400;
+      color: var(--color-text-primary);
     }
 
     .mobile-menu-btn {

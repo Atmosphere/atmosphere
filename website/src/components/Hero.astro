@@ -10,20 +10,19 @@
 
   <div class="hero-content">
     <h1 class="hero-title">
-      <span class="title-line title-accent">Atmosphere</span>
-      <span class="title-line title-subline">Real-time for the JVM.</span>
+      <span class="title-line title-accent">Async IO</span>
+      <span class="title-line title-subline">Real-time infrastructure for the JVM.</span>
     </h1>
 
     <p class="hero-description">
-      WebSocket with SSE fallback, rooms with presence tracking, and Kafka/Redis
-      clustering for your Spring Boot or Quarkus app. New in 4.0: stream LLM tokens
-      to browsers with adapters for Spring AI, LangChain4j, and Google ADK, plus a
-      built-in MCP server for AI agents. One dependency — no rewiring.
+      We build <strong>Atmosphere</strong> — the open-source framework for WebSocket,
+      SSE, rooms, presence, and AI streaming on Spring Boot and Quarkus.
+      In production since 2008.
     </p>
 
     <div class="hero-actions">
-      <a href="#code" class="btn btn-primary">
-        See it work
+      <a href="/docs/" class="btn btn-primary">
+        Get Started
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -39,7 +38,7 @@
     <div class="hero-stats">
       <div class="stat">
         <span class="stat-value">18 years</span>
-        <span class="stat-label">of WebSocket experience</span>
+        <span class="stat-label">in production</span>
       </div>
       <div class="stat-divider"></div>
       <div class="stat">
@@ -121,28 +120,6 @@
     text-align: center;
   }
 
-  .hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-sm);
-    padding: var(--space-sm) var(--space-md);
-    background: var(--color-bg-elevated);
-    border: 1px solid var(--color-border-accent);
-    border-radius: 100px;
-    font-size: 0.8125rem;
-    color: var(--color-text-secondary);
-    margin-bottom: var(--space-xl);
-    animation: fadeInUp 0.8s var(--ease-out-expo) both;
-  }
-
-  .badge-dot {
-    width: 8px;
-    height: 8px;
-    background: var(--color-accent);
-    border-radius: 50%;
-    animation: pulse 2s ease-in-out infinite;
-  }
-
   .hero-title {
     font-family: var(--font-display);
     font-size: clamp(3rem, 10vw, 5.5rem);
@@ -175,12 +152,17 @@
   }
 
   .hero-description {
-    max-width: 540px;
+    max-width: 560px;
     margin: 0 auto var(--space-2xl);
     font-size: 1.125rem;
     line-height: 1.7;
     color: var(--color-text-secondary);
     animation: fadeInUp 0.8s var(--ease-out-expo) 0.3s both;
+  }
+
+  .hero-description strong {
+    color: var(--color-text-primary);
+    font-weight: 600;
   }
 
   .hero-actions {

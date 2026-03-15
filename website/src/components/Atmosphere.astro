@@ -1,0 +1,230 @@
+---
+const capabilities = [
+  {
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+      <path d="m9 12 2 2 4-4"/>
+    </svg>`,
+    title: 'WebSocket + SSE',
+    description: 'First-class WebSocket with automatic SSE and long-polling fallback. Heartbeats, reconnection, and message caching built in.',
+    link: '/docs/',
+  },
+  {
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>`,
+    title: 'Rooms & Presence',
+    description: 'Named groups with real-time join/leave events, member lists, message history, and direct messaging. No external dependencies.',
+    link: '/docs/',
+  },
+  {
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/>
+      <circle cx="12" cy="15" r="2"/>
+      <path d="M12 17v2"/>
+    </svg>`,
+    title: 'AI/LLM Streaming',
+    description: 'Stream tokens from any LLM to browsers. Adapters for Spring AI, LangChain4j, and Google ADK. Built-in MCP server for AI agents.',
+    link: '/docs/',
+  },
+  {
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+      <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
+      <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+    </svg>`,
+    title: 'Spring Boot & Quarkus',
+    description: 'Auto-configured starters for both frameworks. One dependency, zero rewiring. Also works on any Servlet 6.0+ container.',
+    link: '/docs/',
+  },
+];
+---
+
+<section class="atmosphere" id="atmosphere">
+  <div class="atmosphere-container">
+    <div class="section-header">
+      <span class="section-label">Open Source</span>
+      <h2 class="section-title">What is Atmosphere?</h2>
+      <p class="section-description">
+        The real-time framework for the JVM. Transport fallback, reconnection,
+        rooms, presence, clustering — the plumbing every real-time app needs
+        but nobody wants to maintain.
+      </p>
+    </div>
+
+    <div class="capabilities-grid">
+      {capabilities.map((cap, index) => (
+        <a href={cap.link} class="capability-card" style={`--delay: ${(index * 0.1).toFixed(1)}s`}>
+          <div class="capability-icon" set:html={cap.icon} />
+          <h3 class="capability-title">{cap.title}</h3>
+          <p class="capability-description">{cap.description}</p>
+          <span class="capability-link">
+            Learn more
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </a>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .atmosphere {
+    padding: var(--space-4xl) var(--space-xl);
+    position: relative;
+  }
+
+  .atmosphere::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-border-accent), transparent);
+  }
+
+  .atmosphere-container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section-header {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto var(--space-3xl);
+  }
+
+  .section-label {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-accent);
+    margin-bottom: var(--space-md);
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    font-weight: 400;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: var(--space-md);
+  }
+
+  .section-description {
+    font-size: 1.0625rem;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+
+  .capabilities-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-lg);
+  }
+
+  .capability-card {
+    padding: var(--space-xl);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    transition: all 0.3s var(--ease-out-quad);
+    animation: fadeInUp 0.6s var(--ease-out-expo) var(--delay) both;
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .capability-card:hover {
+    border-color: var(--color-border-accent);
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5);
+  }
+
+  .capability-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: var(--color-accent-glow);
+    border-radius: 10px;
+    color: var(--color-accent);
+    margin-bottom: var(--space-lg);
+    transition: all 0.3s var(--ease-out-quad);
+  }
+
+  .capability-card:hover .capability-icon {
+    background: var(--color-accent);
+    color: var(--color-bg-primary);
+  }
+
+  .capability-title {
+    font-family: var(--font-body);
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+  }
+
+  .capability-description {
+    font-size: 0.9375rem;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--space-md);
+    flex-grow: 1;
+  }
+
+  .capability-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--color-accent);
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: all 0.3s var(--ease-out-quad);
+  }
+
+  .capability-card:hover .capability-link {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .atmosphere {
+      padding: var(--space-3xl) var(--space-md);
+    }
+
+    .capabilities-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .capability-link {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+</style>

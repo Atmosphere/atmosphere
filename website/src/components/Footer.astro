@@ -3,21 +3,21 @@ const currentYear = new Date().getFullYear();
 
 const footerLinks = [
   {
-    title: 'Resources',
+    title: 'Product',
     links: [
-      { label: 'Documentation', href: 'https://github.com/Atmosphere/atmosphere/wiki', external: true },
+      { label: 'Documentation', href: '/docs/' },
+      { label: 'API Reference', href: '/apidocs/' },
       { label: 'Spring Boot Sample', href: 'https://github.com/Atmosphere/atmosphere/tree/main/samples/spring-boot-chat', external: true },
       { label: 'Quarkus Sample', href: 'https://github.com/Atmosphere/atmosphere/tree/main/samples/quarkus-chat', external: true },
-      { label: 'GitHub', href: 'https://github.com/Atmosphere/atmosphere', external: true },
     ],
   },
   {
-    title: 'Enterprise',
+    title: 'Company',
     links: [
-      { label: 'Cloud (Clustering)', href: 'https://github.com/Atmosphere/atmosphere/wiki/Clustering-Kafka-and-Redis', external: true },
       { label: 'Support Plans', href: '#support' },
-      { label: 'Integrations', href: '#integrations' },
+      { label: 'GitHub', href: 'https://github.com/Atmosphere/atmosphere', external: true },
       { label: 'Sponsor', href: 'https://github.com/sponsors/Atmosphere', external: true },
+      { label: 'Contact', href: 'mailto:support@async-io.org' },
     ],
   },
 ];
@@ -28,12 +28,11 @@ const footerLinks = [
     <div class="footer-main">
       <div class="footer-brand">
         <a href="/" class="footer-logo">
-          <img src="/logo.svg" alt="Async-IO" width="32" height="32" style="border-radius: 4px;" />
+          <img src="/logo.svg" alt="Async IO" width="32" height="32" style="border-radius: 4px;" />
           <span>Async IO</span>
         </a>
         <p class="footer-tagline">
-          Real-time communication for the JVM since 2008.
-          Open source under Apache 2.0 license.
+          Building real-time infrastructure for the JVM since 2008.
         </p>
       </div>
 
@@ -66,7 +65,8 @@ const footerLinks = [
 
     <div class="footer-bottom">
       <p class="footer-copyright">
-        &copy; 2008&ndash;{currentYear} <a href="https://async-io.org" target="_blank" rel="noopener noreferrer">Async-IO.org</a>. All rights reserved.
+        &copy; 2008&ndash;{currentYear} <a href="https://async-io.org">Async-IO.org</a>.
+        Atmosphere is open source under the <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer">Apache 2.0 License</a>.
       </p>
     </div>
   </div>
@@ -116,7 +116,7 @@ const footerLinks = [
 
   .footer-nav {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: var(--space-xl);
   }
 
@@ -157,13 +157,14 @@ const footerLinks = [
   .footer-bottom {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     padding-top: var(--space-xl);
   }
 
   .footer-copyright {
     font-size: 0.875rem;
     color: var(--color-text-muted);
+    text-align: center;
   }
 
   .footer-copyright a {
@@ -180,10 +181,6 @@ const footerLinks = [
       grid-template-columns: 1fr;
       gap: var(--space-2xl);
     }
-
-    .footer-nav {
-      grid-template-columns: repeat(2, 1fr);
-    }
   }
 
   @media (max-width: 640px) {
@@ -196,8 +193,6 @@ const footerLinks = [
     }
 
     .footer-bottom {
-      flex-direction: column;
-      gap: var(--space-md);
       text-align: center;
     }
   }

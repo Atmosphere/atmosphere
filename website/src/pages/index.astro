@@ -2,22 +2,20 @@
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
 import Hero from '../components/Hero.astro';
-import Features from '../components/Features.astro';
-import Integrations from '../components/Integrations.astro';
+import Customers from '../components/Customers.astro';
+import Atmosphere from '../components/Atmosphere.astro';
 import CodeExample from '../components/CodeExample.astro';
-
 import Support from '../components/Support.astro';
 import Footer from '../components/Footer.astro';
 ---
 
-<Layout title="Atmosphere — Real-Time for the JVM">
+<Layout title="Async IO — Real-Time Infrastructure for the JVM">
   <Header />
   <main>
     <Hero />
-
+    <Customers />
+    <Atmosphere />
     <CodeExample />
-    <Integrations />
-    <Features />
     <Support />
   </main>
   <Footer />
