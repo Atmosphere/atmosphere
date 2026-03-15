@@ -1,78 +1,120 @@
-name: Deploy Website
+name: Deploy website
 
 on:
   push:
     branches: [main]
     paths:
       - 'website/**'
+      - 'docs/**'
+      - 'modules/cpr/src/main/java/**'
+      - 'pom.xml'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Build & Deploy Marketing Site
+  build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
+      # ── Marketing site (Astro) ──
+      - uses: withastro/action@v3
+        with:
+          path: ./website
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # withastro/action uploads to the default pages artifact.
+      # Download it, merge in docs + javadoc, then re-upload.
+      - name: Download Astro artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          path: _site_archive
+
+      - name: Extract Astro build
+        run: |
+          mkdir -p _merged
+          tar -xf _site_archive/artifact.tar -C _merged
+
+      # ── Starlight docs ──
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
-          cache-dependency-path: website/package-lock.json
+          cache-dependency-path: docs/package-lock.json
 
-      - name: Install dependencies
-        working-directory: website
-        run: npm ci
+      - name: Build Starlight docs
+        working-directory: docs
+        run: npm ci && npm run build
 
-      - name: Build Astro site
-        working-directory: website
-        run: npm run build
+      - name: Merge docs into site
+        run: cp -r docs/dist _merged/docs
 
-      - name: Checkout gh-pages
-        uses: actions/checkout@v4
+      # ── Javadoc ──
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
         with:
-          ref: gh-pages
-          path: gh-pages
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
 
-      - name: Deploy to gh-pages root
+      - name: Extract project version
+        id: version
         run: |
-          cd gh-pages
+          VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-          # Preserve directories managed by other workflows
-          # and the website source (will be removed in a follow-up cleanup)
-          mv docs    ../docs-backup    2>/dev/null || true
-          mv apidocs ../apidocs-backup 2>/dev/null || true
-          mv xref    ../xref-backup    2>/dev/null || true
+      - name: Compile sources
+        run: ./mvnw compile -pl modules/cpr -Pfastinstall -q
 
-          # Remove old site files (static HTML, old Astro output, etc.)
-          # but keep .git and CNAME
-          find . -maxdepth 1 \
-            ! -name '.' ! -name '.git' ! -name 'CNAME' ! -name '.nojekyll' \
-            -exec rm -rf {} +
+      - name: Generate Javadoc
+        run: |
+          DEPS_CP=$(./mvnw dependency:build-classpath -pl modules/cpr -Dmdep.outputFile=/dev/stdout -q)
+          javadoc -d target/apidocs \
+            -sourcepath modules/cpr/src/main/java \
+            -classpath "$DEPS_CP" \
+            -subpackages org.atmosphere \
+            -source 21 \
+            -Xdoclint:none \
+            -quiet \
+            -encoding UTF-8 \
+            -windowtitle "Atmosphere ${{ steps.version.outputs.version }} API" \
+            -doctitle "Atmosphere Framework ${{ steps.version.outputs.version }} API" \
+            -header "Atmosphere ${{ steps.version.outputs.version }}" \
+            -bottom "Copyright &copy; 2008-2026 Async-IO.org. All rights reserved." \
+            -link "https://docs.oracle.com/en/java/javase/21/docs/api/" \
+            -link "https://jakarta.ee/specifications/platform/9/apidocs/"
 
-          # Copy new Astro build output
-          cp -r ../website/dist/* .
+      - name: Merge Javadoc into site
+        run: cp -r target/apidocs _merged/apidocs
 
-          # Restore preserved directories
-          mv ../docs-backup    docs    2>/dev/null || true
-          mv ../apidocs-backup apidocs 2>/dev/null || true
-          mv ../xref-backup    xref    2>/dev/null || true
+      # ── Upload merged artifact ──
+      - name: Delete Astro-only artifact
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: github-pages
 
-          # Ensure .nojekyll exists
-          touch .nojekyll
+      - name: Upload merged Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _merged
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-
-          if git diff --cached --quiet; then
-            echo "No changes to deploy"
-          else
-            git commit -m "docs: deploy marketing site"
-            git push
-          fi
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
