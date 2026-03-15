@@ -40,25 +40,26 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
     <!-- Structured Data -->
     <script type="application/ld+json" set:html={JSON.stringify({
       "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Atmosphere",
-      "applicationCategory": "DeveloperApplication",
-      "operatingSystem": "JVM",
+      "@type": "Organization",
+      "name": "Async-IO.org",
       "url": "https://async-io.org",
       "description": description,
-      "license": "https://www.apache.org/licenses/LICENSE-2.0",
-      "codeRepository": "https://github.com/Atmosphere/atmosphere",
-      "programmingLanguage": "Java",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      },
-      "author": {
-        "@type": "Organization",
-        "name": "Async-IO.org",
-        "url": "https://async-io.org"
-      }
+      "foundingDate": "2008",
+      "makesOffer": [
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "SoftwareApplication",
+            "name": "Atmosphere",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "JVM",
+            "license": "https://www.apache.org/licenses/LICENSE-2.0",
+            "codeRepository": "https://github.com/Atmosphere/atmosphere",
+            "programmingLanguage": "Java",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+          }
+        }
+      ]
     })} />
   </head>
   <body>

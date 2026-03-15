@@ -3,17 +3,35 @@
 
 <section class="code-example" id="code">
   <div class="code-container">
-    <div class="section-header">
-      <span class="section-label">Quick Start</span>
-      <h2 class="section-title">Real-time chat in two files</h2>
-      <p class="section-description">
-        A <code>@ManagedService</code> on the server, a <code>useAtmosphere</code>
-        hook on the client. WebSocket with automatic fallback, reconnection,
-        and heartbeats — all handled for you.
-      </p>
-    </div>
+    <div class="code-layout">
+      <div class="code-text">
+        <span class="section-label">See it work</span>
+        <h2 class="section-title">One annotation. Real-time chat.</h2>
+        <p class="code-description">
+          Annotate a class with <code>@ManagedService</code>, handle
+          <code>@Message</code>, and Atmosphere gives you WebSocket with
+          automatic SSE fallback, reconnection, and heartbeats.
+        </p>
+        <p class="code-description">
+          On the client, <code>atmosphere.js</code> provides hooks for
+          React, Vue, and Svelte — or use the core API directly.
+        </p>
+        <div class="code-actions">
+          <a href="/docs/tutorial/02-getting-started/" class="btn btn-primary">
+            Getting Started
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
+          <a href="https://github.com/Atmosphere/atmosphere/tree/main/samples" class="btn btn-ghost" target="_blank" rel="noopener noreferrer">
+            Browse samples
+            <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
+              <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
+        </div>
+      </div>
 
-    <div class="code-panels">
       <div class="code-panel">
         <div class="code-header">
           <div class="code-dots">
@@ -21,15 +39,10 @@
             <span></span>
             <span></span>
           </div>
-          <span class="code-filename">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
-            </svg>
-            ChatEndpoint.java
-          </span>
+          <span class="code-filename">ChatEndpoint.java</span>
           <span class="code-lang">Server</span>
         </div>
-        <pre class="code-block"><code class="language-java"><span class="hl-annotation">@ManagedService</span>(path = <span class="hl-string">"/atmosphere/chat"</span>)
+        <pre class="code-block"><code class="language-java"><span class="hl-annotation">@ManagedService</span>(path = <span class="hl-string">"/chat"</span>)
 <span class="hl-keyword">public class</span> ChatEndpoint &#123;
 
     <span class="hl-annotation">@Ready</span>
@@ -38,65 +51,12 @@
             r.uuid() + <span class="hl-string">" joined"</span>);
     &#125;
 
-    <span class="hl-annotation">@Message</span>(decoders = &#123;JacksonDecoder.class&#125;)
-    <span class="hl-keyword">public</span> <span class="hl-type">ChatMessage</span> onMessage(<span class="hl-type">ChatMessage</span> msg) &#123;
-        <span class="hl-keyword">return</span> msg; <span class="hl-comment">// broadcast to all</span>
-    &#125;
-
-    <span class="hl-annotation">@Disconnect</span>
-    <span class="hl-keyword">public void</span> onDisconnect(<span class="hl-type">AtmosphereResourceEvent</span> e) &#123;
-        e.broadcaster().broadcast(
-            e.getResource().uuid() + <span class="hl-string">" left"</span>);
+    <span class="hl-annotation">@Message</span>
+    <span class="hl-keyword">public</span> <span class="hl-type">String</span> onMessage(<span class="hl-type">String</span> msg) &#123;
+        <span class="hl-keyword">return</span> msg;
     &#125;
 &#125;</code></pre>
       </div>
-
-      <div class="code-panel">
-        <div class="code-header">
-          <div class="code-dots">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-          <span class="code-filename">Chat.tsx</span>
-          <span class="code-lang">React</span>
-        </div>
-        <pre class="code-block"><code class="language-javascript"><span class="hl-keyword">import</span> &#123; useAtmosphere &#125; <span class="hl-keyword">from</span> <span class="hl-string">'atmosphere.js/react'</span>;
-
-<span class="hl-keyword">export default function</span> <span class="hl-function">Chat</span>() &#123;
-  <span class="hl-keyword">const</span> &#123; data, push, state &#125; = <span class="hl-function">useAtmosphere</span>(&#123;
-    <span class="hl-property">request</span>: &#123;
-      <span class="hl-property">url</span>: <span class="hl-string">'/atmosphere/chat'</span>,
-      <span class="hl-property">transport</span>: <span class="hl-string">'websocket'</span>,
-    &#125;,
-  &#125;);
-
-  <span class="hl-keyword">const</span> send = (<span class="hl-type">text</span>) =&gt;
-    push(&#123; <span class="hl-property">author</span>: <span class="hl-string">'me'</span>, <span class="hl-property">text</span> &#125;);
-
-  <span class="hl-keyword">return</span> (
-    &lt;<span class="hl-type">div</span>&gt;
-      &lt;<span class="hl-type">p</span>&gt;&#123;state&#125; &mdash; &#123;data?.text&#125;&lt;/<span class="hl-type">p</span>&gt;
-      &lt;<span class="hl-type">button</span> <span class="hl-property">onClick</span>=&#123;() =&gt; send(<span class="hl-string">'Hello!'</span>)&#125;&gt;Send&lt;/<span class="hl-type">button</span>&gt;
-    &lt;/<span class="hl-type">div</span>&gt;
-  );
-&#125;</code></pre>
-      </div>
-    </div>
-
-    <div class="code-cta">
-      <a href="/docs/" class="btn btn-outline">
-        Full Tutorial
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </a>
-      <a href="https://github.com/Atmosphere/atmosphere/tree/main/samples/spring-boot-chat" class="btn btn-ghost" target="_blank" rel="noopener noreferrer">
-        Spring Boot Sample
-        <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
-          <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </a>
     </div>
   </div>
 </section>
@@ -104,7 +64,6 @@
 <style>
   .code-example {
     padding: var(--space-4xl) var(--space-xl);
-    background: var(--color-bg-secondary);
     position: relative;
   }
 
@@ -123,10 +82,11 @@
     margin: 0 auto;
   }
 
-  .section-header {
-    text-align: center;
-    max-width: 600px;
-    margin: 0 auto var(--space-3xl);
+  .code-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4xl);
+    align-items: center;
   }
 
   .section-label {
@@ -146,16 +106,17 @@
     font-weight: 400;
     line-height: 1.2;
     letter-spacing: -0.02em;
+    margin-bottom: var(--space-lg);
+  }
+
+  .code-description {
+    font-size: 1.0625rem;
+    color: var(--color-text-secondary);
+    line-height: 1.7;
     margin-bottom: var(--space-md);
   }
 
-  .section-description {
-    font-size: 1.0625rem;
-    color: var(--color-text-secondary);
-    line-height: 1.6;
-  }
-
-  .section-description code {
+  .code-description code {
     font-family: var(--font-mono);
     font-size: 0.9em;
     color: var(--color-accent);
@@ -164,15 +125,49 @@
     border-radius: 4px;
   }
 
-  .code-panels {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-lg);
-    margin-bottom: var(--space-2xl);
+  .code-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-top: var(--space-xl);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-md) var(--space-xl);
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s var(--ease-out-quad);
+    cursor: pointer;
+    border: none;
+  }
+
+  .btn-primary {
+    background: var(--color-text-primary);
+    color: var(--color-bg-primary);
+  }
+
+  .btn-primary:hover {
+    background: var(--color-accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px var(--color-accent-glow);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-text-secondary);
+  }
+
+  .btn-ghost:hover {
+    color: var(--color-text-primary);
   }
 
   .code-panel {
-    background: var(--color-bg-tertiary);
+    background: var(--color-bg-secondary);
     border: 1px solid var(--color-border);
     border-radius: 12px;
     overflow: hidden;
@@ -189,7 +184,7 @@
     align-items: center;
     gap: var(--space-md);
     padding: var(--space-md) var(--space-lg);
-    background: var(--color-bg-elevated);
+    background: var(--color-bg-tertiary);
     border-bottom: 1px solid var(--color-border);
   }
 
@@ -210,9 +205,6 @@
   .code-dots span:nth-child(3) { background: #28c840; }
 
   .code-filename {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
     font-family: var(--font-mono);
     font-size: 0.8125rem;
     color: var(--color-text-secondary);
@@ -226,7 +218,7 @@
     letter-spacing: 0.05em;
     color: var(--color-text-muted);
     padding: var(--space-xs) var(--space-sm);
-    background: var(--color-bg-secondary);
+    background: var(--color-bg-elevated);
     border-radius: 4px;
   }
 
@@ -247,59 +239,16 @@
     display: block;
   }
 
-  /* Syntax highlighting */
   .code-block .hl-keyword { color: #ff79c6; }
   .code-block .hl-annotation { color: #50fa7b; }
   .code-block .hl-string { color: #f1fa8c; }
   .code-block .hl-comment { color: var(--color-text-muted); font-style: italic; }
   .code-block .hl-type { color: #8be9fd; }
-  .code-block .hl-function { color: #50fa7b; }
-  .code-block .hl-property { color: var(--color-accent); }
-
-  .code-cta {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-md);
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-sm);
-    padding: var(--space-md) var(--space-xl);
-    font-family: var(--font-body);
-    font-size: 0.9375rem;
-    font-weight: 500;
-    border-radius: 8px;
-    transition: all 0.2s var(--ease-out-quad);
-    cursor: pointer;
-    border: none;
-  }
-
-  .btn-outline {
-    background: transparent;
-    color: var(--color-accent);
-    border: 1px solid var(--color-accent);
-  }
-
-  .btn-outline:hover {
-    background: var(--color-accent);
-    color: var(--color-bg-primary);
-  }
-
-  .btn-ghost {
-    background: transparent;
-    color: var(--color-text-secondary);
-  }
-
-  .btn-ghost:hover {
-    color: var(--color-text-primary);
-  }
 
   @media (max-width: 900px) {
-    .code-panels {
+    .code-layout {
       grid-template-columns: 1fr;
+      gap: var(--space-2xl);
     }
   }
 
@@ -312,18 +261,9 @@
       font-size: 0.6875rem;
       line-height: 1.6;
       padding: var(--space-md);
-      -webkit-overflow-scrolling: touch;
     }
 
-    .code-filename {
-      font-size: 0.6875rem;
-    }
-
-    .code-header {
-      padding: var(--space-sm) var(--space-md);
-    }
-
-    .code-cta {
+    .code-actions {
       flex-direction: column;
     }
 
