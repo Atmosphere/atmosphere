@@ -1,73 +1,76 @@
 ---
+const reasons = [
+  {
+    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+    </svg>`,
+    title: 'Virtual threads, zero tuning',
+    description: 'Every connection runs on a JDK 21 virtual thread. Write blocking code — no reactive wrappers, no thread pool configuration.',
+  },
+  {
+    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="6" width="20" height="12" rx="2"/>
+      <path d="M12 12h.01"/>
+    </svg>`,
+    title: 'One dependency, no rewiring',
+    description: 'Add a starter to your existing Spring Boot or Quarkus app. Atmosphere handles transport, reconnection, and rooms alongside your code.',
+  },
+  {
+    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+      <path d="m9 12 2 2 4-4"/>
+    </svg>`,
+    title: 'Transport-agnostic',
+    description: 'WebSocket, SSE, long-polling — your code never changes. Atmosphere picks the best transport and falls back automatically.',
+  },
+  {
+    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/>
+      <circle cx="12" cy="15" r="2"/>
+    </svg>`,
+    title: 'AI-ready from day one',
+    description: 'Stream LLM tokens to browsers with the same framework you use for chat. Adapters for Spring AI, LangChain4j, Google ADK, and MCP.',
+  },
+];
 ---
 
-<section class="code-example" id="code">
-  <div class="code-container">
-    <div class="code-layout">
-      <div class="code-text">
-        <span class="section-label">See it work</span>
-        <h2 class="section-title">One annotation. Real-time chat.</h2>
-        <p class="code-description">
-          Annotate a class with <code>@ManagedService</code>, handle
-          <code>@Message</code>, and Atmosphere gives you WebSocket with
-          automatic SSE fallback, reconnection, and heartbeats.
-        </p>
-        <p class="code-description">
-          On the client, <code>atmosphere.js</code> provides hooks for
-          React, Vue, and Svelte — or use the core API directly.
-        </p>
-        <div class="code-actions">
-          <a href="/docs/tutorial/02-getting-started/" class="btn btn-primary">
-            Getting Started
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </a>
-          <a href="https://github.com/Atmosphere/atmosphere/tree/main/samples" class="btn btn-ghost" target="_blank" rel="noopener noreferrer">
-            Browse samples
-            <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
-              <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </a>
-        </div>
-      </div>
+<section class="why" id="why">
+  <div class="why-container">
+    <div class="section-header">
+      <span class="section-label">Why Atmosphere</span>
+      <h2 class="section-title">Why developers choose Atmosphere</h2>
+    </div>
 
-      <div class="code-panel">
-        <div class="code-header">
-          <div class="code-dots">
-            <span></span>
-            <span></span>
-            <span></span>
+    <div class="reasons-grid">
+      {reasons.map((reason, index) => (
+        <div class="reason" style={`--delay: ${(index * 0.08).toFixed(2)}s`}>
+          <div class="reason-icon" set:html={reason.icon} />
+          <div class="reason-content">
+            <h3 class="reason-title">{reason.title}</h3>
+            <p class="reason-description">{reason.description}</p>
           </div>
-          <span class="code-filename">ChatEndpoint.java</span>
-          <span class="code-lang">Server</span>
         </div>
-        <pre class="code-block"><code class="language-java"><span class="hl-annotation">@ManagedService</span>(path = <span class="hl-string">"/chat"</span>)
-<span class="hl-keyword">public class</span> ChatEndpoint &#123;
+      ))}
+    </div>
 
-    <span class="hl-annotation">@Ready</span>
-    <span class="hl-keyword">public void</span> onReady(<span class="hl-type">AtmosphereResource</span> r) &#123;
-        r.getBroadcaster().broadcast(
-            r.uuid() + <span class="hl-string">" joined"</span>);
-    &#125;
-
-    <span class="hl-annotation">@Message</span>
-    <span class="hl-keyword">public</span> <span class="hl-type">String</span> onMessage(<span class="hl-type">String</span> msg) &#123;
-        <span class="hl-keyword">return</span> msg;
-    &#125;
-&#125;</code></pre>
-      </div>
+    <div class="why-cta">
+      <a href="/docs/tutorial/02-getting-started/" class="btn btn-primary">
+        Start the tutorial
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
     </div>
   </div>
 </section>
 
 <style>
-  .code-example {
+  .why {
     padding: var(--space-4xl) var(--space-xl);
     position: relative;
   }
 
-  .code-example::before {
+  .why::before {
     content: '';
     position: absolute;
     top: 0;
@@ -77,16 +80,14 @@
     background: linear-gradient(90deg, transparent, var(--color-border-accent), transparent);
   }
 
-  .code-container {
-    max-width: 1200px;
+  .why-container {
+    max-width: 800px;
     margin: 0 auto;
   }
 
-  .code-layout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-4xl);
-    align-items: center;
+  .section-header {
+    text-align: center;
+    margin-bottom: var(--space-3xl);
   }
 
   .section-label {
@@ -106,30 +107,48 @@
     font-weight: 400;
     line-height: 1.2;
     letter-spacing: -0.02em;
-    margin-bottom: var(--space-lg);
   }
 
-  .code-description {
-    font-size: 1.0625rem;
-    color: var(--color-text-secondary);
-    line-height: 1.7;
-    margin-bottom: var(--space-md);
+  .reasons-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xl);
+    margin-bottom: var(--space-3xl);
   }
 
-  .code-description code {
-    font-family: var(--font-mono);
-    font-size: 0.9em;
-    color: var(--color-accent);
-    background: var(--color-accent-glow);
-    padding: 0.1em 0.4em;
-    border-radius: 4px;
+  .reason {
+    display: flex;
+    gap: var(--space-lg);
+    animation: fadeInUp 0.6s var(--ease-out-expo) var(--delay) both;
   }
 
-  .code-actions {
+  .reason-icon {
     display: flex;
     align-items: center;
-    gap: var(--space-md);
-    margin-top: var(--space-xl);
+    justify-content: center;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    background: var(--color-accent-glow);
+    border-radius: 10px;
+    color: var(--color-accent);
+  }
+
+  .reason-title {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: var(--space-xs);
+  }
+
+  .reason-description {
+    font-size: 0.9375rem;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+
+  .why-cta {
+    text-align: center;
   }
 
   .btn {
@@ -157,114 +176,14 @@
     box-shadow: 0 8px 30px var(--color-accent-glow);
   }
 
-  .btn-ghost {
-    background: transparent;
-    color: var(--color-text-secondary);
-  }
-
-  .btn-ghost:hover {
-    color: var(--color-text-primary);
-  }
-
-  .code-panel {
-    background: var(--color-bg-secondary);
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    overflow: hidden;
-    transition: all 0.3s var(--ease-out-quad);
-  }
-
-  .code-panel:hover {
-    border-color: var(--color-border-accent);
-    box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5);
-  }
-
-  .code-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-md);
-    padding: var(--space-md) var(--space-lg);
-    background: var(--color-bg-tertiary);
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .code-dots {
-    display: flex;
-    gap: 6px;
-  }
-
-  .code-dots span {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--color-border-accent);
-  }
-
-  .code-dots span:first-child { background: #ff5f57; }
-  .code-dots span:nth-child(2) { background: #febc2e; }
-  .code-dots span:nth-child(3) { background: #28c840; }
-
-  .code-filename {
-    font-family: var(--font-mono);
-    font-size: 0.8125rem;
-    color: var(--color-text-secondary);
-  }
-
-  .code-lang {
-    margin-left: auto;
-    font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-muted);
-    padding: var(--space-xs) var(--space-sm);
-    background: var(--color-bg-elevated);
-    border-radius: 4px;
-  }
-
-  .code-block {
-    padding: var(--space-lg);
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 0.8125rem;
-    line-height: 1.7;
-    overflow-x: auto;
-    background: transparent;
-    white-space: pre;
-  }
-
-  .code-block code {
-    color: var(--color-text-secondary);
-    white-space: pre;
-    display: block;
-  }
-
-  .code-block .hl-keyword { color: #ff79c6; }
-  .code-block .hl-annotation { color: #50fa7b; }
-  .code-block .hl-string { color: #f1fa8c; }
-  .code-block .hl-comment { color: var(--color-text-muted); font-style: italic; }
-  .code-block .hl-type { color: #8be9fd; }
-
-  @media (max-width: 900px) {
-    .code-layout {
-      grid-template-columns: 1fr;
-      gap: var(--space-2xl);
-    }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   @media (max-width: 640px) {
-    .code-example {
+    .why {
       padding: var(--space-3xl) var(--space-md);
-    }
-
-    .code-block {
-      font-size: 0.6875rem;
-      line-height: 1.6;
-      padding: var(--space-md);
-    }
-
-    .code-actions {
-      flex-direction: column;
     }
 
     .btn {
