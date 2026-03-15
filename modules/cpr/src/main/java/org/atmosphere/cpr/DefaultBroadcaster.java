@@ -1246,7 +1246,6 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public Future<Object> broadcast(Object msg) {
-        Objects.requireNonNull(msg, "Broadcast message must not be null");
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcast(T msg)");
@@ -1297,7 +1296,6 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public Future<Object> broadcast(Object msg, AtmosphereResource r) {
-        Objects.requireNonNull(msg, "Broadcast message must not be null");
         Objects.requireNonNull(r, "AtmosphereResource must not be null");
 
         if (destroyed.get()) {
@@ -1344,7 +1342,6 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public Future<Object> broadcast(Object msg, Set<AtmosphereResource> subset) {
-        Objects.requireNonNull(msg, "Broadcast message must not be null");
         Objects.requireNonNull(subset, "AtmosphereResource set must not be null");
 
         if (destroyed.get()) {
