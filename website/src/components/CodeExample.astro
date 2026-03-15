@@ -29,7 +29,7 @@ const reasons = [
       <circle cx="12" cy="15" r="2"/>
     </svg>`,
     title: 'AI-ready from day one',
-    description: 'Stream LLM tokens to browsers with the same framework you use for chat. Adapters for Spring AI, LangChain4j, Google ADK, and MCP.',
+    description: 'Stream LLM tokens to browsers with the same framework you use for chat. Adapters for <a href="https://spring.io/projects/spring-ai" target="_blank" rel="noopener noreferrer">Spring AI</a>, <a href="https://docs.langchain4j.dev" target="_blank" rel="noopener noreferrer">LangChain4j</a>, <a href="https://google.github.io/adk-docs" target="_blank" rel="noopener noreferrer">Google ADK</a>, <a href="https://embabel.com" target="_blank" rel="noopener noreferrer">Embabel</a>, and MCP.',
   },
 ];
 ---
@@ -47,7 +47,7 @@ const reasons = [
           <div class="reason-icon" set:html={reason.icon} />
           <div class="reason-content">
             <h3 class="reason-title">{reason.title}</h3>
-            <p class="reason-description">{reason.description}</p>
+            <p class="reason-description" set:html={reason.description} />
           </div>
         </div>
       ))}
@@ -145,6 +145,17 @@ const reasons = [
     font-size: 0.9375rem;
     color: var(--color-text-secondary);
     line-height: 1.6;
+  }
+
+  .reason-description a {
+    color: var(--color-accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s var(--ease-out-quad);
+  }
+
+  .reason-description a:hover {
+    border-bottom-color: var(--color-accent);
   }
 
   .why-cta {
