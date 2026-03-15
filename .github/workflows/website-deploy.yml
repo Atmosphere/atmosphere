@@ -1,0 +1,78 @@
+name: Deploy Website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    name: Build & Deploy Marketing Site
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies
+        working-directory: website
+        run: npm ci
+
+      - name: Build Astro site
+        working-directory: website
+        run: npm run build
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Deploy to gh-pages root
+        run: |
+          cd gh-pages
+
+          # Preserve directories managed by other workflows
+          # and the website source (will be removed in a follow-up cleanup)
+          mv docs    ../docs-backup    2>/dev/null || true
+          mv apidocs ../apidocs-backup 2>/dev/null || true
+          mv xref    ../xref-backup    2>/dev/null || true
+
+          # Remove old site files (static HTML, old Astro output, etc.)
+          # but keep .git and CNAME
+          find . -maxdepth 1 \
+            ! -name '.' ! -name '.git' ! -name 'CNAME' ! -name '.nojekyll' \
+            -exec rm -rf {} +
+
+          # Copy new Astro build output
+          cp -r ../website/dist/* .
+
+          # Restore preserved directories
+          mv ../docs-backup    docs    2>/dev/null || true
+          mv ../apidocs-backup apidocs 2>/dev/null || true
+          mv ../xref-backup    xref    2>/dev/null || true
+
+          # Ensure .nojekyll exists
+          touch .nojekyll
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to deploy"
+          else
+            git commit -m "docs: deploy marketing site"
+            git push
+          fi

@@ -1,0 +1,313 @@
+---
+const plans = [
+  {
+    name: 'Bronze',
+    coverage: 'Business Hours',
+    responseS1: '7 Business Days',
+    responseS2: '10 Business Days',
+    incidents: '2 / year',
+    phone: false,
+    email: true,
+    patches: false,
+    email_address: 'bronze@async-io.org',
+  },
+  {
+    name: 'Silver',
+    coverage: 'Business Hours',
+    responseS1: '1 Business Day',
+    responseS2: '2 Business Days',
+    incidents: '10 / year',
+    phone: false,
+    email: true,
+    patches: false,
+    email_address: 'silver@async-io.org',
+  },
+  {
+    name: 'Gold',
+    coverage: 'Business Hours',
+    responseS1: '4 hours',
+    responseS2: '1 Business Day',
+    incidents: '15 / year',
+    phone: true,
+    email: true,
+    patches: true,
+    highlight: true,
+    email_address: 'gold@async-io.org',
+  },
+  {
+    name: 'Platinum',
+    coverage: '24x7',
+    responseS1: '1 hour',
+    responseS2: '4 hours',
+    incidents: 'Unlimited',
+    phone: true,
+    email: true,
+    patches: true,
+    email_address: 'platinum@async-io.org',
+  },
+];
+---
+
+<section class="support" id="support">
+  <div class="support-container">
+    <div class="section-header">
+      <span class="section-label">Enterprise Support</span>
+      <h2 class="section-title">Support Subscriptions</h2>
+      <p class="section-description">
+        Get support from the core team with fast response times.
+        Meet your production schedule and compliance requirements.
+      </p>
+    </div>
+
+    <div class="plans-grid">
+      {plans.map((plan) => (
+        <div class={`plan-card ${plan.highlight ? 'plan-highlight' : ''}`}>
+          <h3 class="plan-name">{plan.name}</h3>
+
+          <ul class="plan-features">
+            <li>
+              <span class="feature-label">Coverage</span>
+              <span class="feature-value">{plan.coverage}</span>
+            </li>
+            <li>
+              <span class="feature-label">Response (S1)</span>
+              <span class="feature-value">{plan.responseS1}</span>
+            </li>
+            <li>
+              <span class="feature-label">Response (S2)</span>
+              <span class="feature-value">{plan.responseS2}</span>
+            </li>
+            <li>
+              <span class="feature-label">Incidents</span>
+              <span class="feature-value">{plan.incidents}</span>
+            </li>
+            <li>
+              <span class="feature-label">Phone Support</span>
+              <span class={`feature-value ${plan.phone ? 'yes' : 'no'}`}>
+                {plan.phone ? '✓' : '—'}
+              </span>
+            </li>
+            <li>
+              <span class="feature-label">Email Support</span>
+              <span class={`feature-value ${plan.email ? 'yes' : 'no'}`}>
+                {plan.email ? '✓' : '—'}
+              </span>
+            </li>
+            <li>
+              <span class="feature-label">Emergency Patches</span>
+              <span class={`feature-value ${plan.patches ? 'yes' : 'no'}`}>
+                {plan.patches ? '✓' : '—'}
+              </span>
+            </li>
+          </ul>
+
+          <a
+            href={`mailto:${plan.email_address}?subject=Quote%20for%20${plan.name}%20Subscription`}
+            class={`plan-cta ${plan.highlight ? 'plan-cta-highlight' : ''}`}
+          >
+            Get a Quote
+          </a>
+        </div>
+      ))}
+    </div>
+
+    <div class="support-footer">
+      <p>
+        Need professional services on a per-hour basis?
+        <a href="mailto:support@async-io.org?subject=Professional%20Services%20Inquiry">Contact us</a> for a custom quote.
+      </p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .support {
+    padding: var(--space-4xl) var(--space-xl);
+    position: relative;
+  }
+
+  .support::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-border-accent), transparent);
+  }
+
+  .support-container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section-header {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto var(--space-3xl);
+  }
+
+  .section-label {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-accent);
+    margin-bottom: var(--space-md);
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    font-weight: 400;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: var(--space-md);
+  }
+
+  .section-description {
+    font-size: 1.0625rem;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+
+  .plans-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-lg);
+  }
+
+  .plan-card {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: var(--space-xl);
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s var(--ease-out-quad);
+  }
+
+  .plan-card:hover {
+    border-color: var(--color-border-accent);
+    transform: translateY(-4px);
+  }
+
+  .plan-highlight {
+    border-color: var(--color-accent);
+    background: var(--color-accent-glow);
+  }
+
+  .plan-name {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 400;
+    margin-bottom: var(--space-lg);
+    text-align: center;
+  }
+
+  .plan-features {
+    list-style: none;
+    flex-grow: 1;
+    margin-bottom: var(--space-lg);
+  }
+
+  .plan-features li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.8125rem;
+  }
+
+  .plan-features li:last-child {
+    border-bottom: none;
+  }
+
+  .feature-label {
+    color: var(--color-text-muted);
+  }
+
+  .feature-value {
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+
+  .feature-value.yes {
+    color: var(--color-accent);
+  }
+
+  .feature-value.no {
+    color: var(--color-text-muted);
+  }
+
+  .plan-cta {
+    display: block;
+    text-align: center;
+    padding: var(--space-md);
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border-accent);
+    border-radius: 8px;
+    color: var(--color-text-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s var(--ease-out-quad);
+  }
+
+  .plan-cta:hover {
+    background: var(--color-bg-elevated);
+    border-color: var(--color-text-muted);
+  }
+
+  .plan-cta-highlight {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-bg-primary);
+  }
+
+  .plan-cta-highlight:hover {
+    background: var(--color-accent-dim);
+    border-color: var(--color-accent-dim);
+  }
+
+  .support-footer {
+    text-align: center;
+    margin-top: var(--space-2xl);
+    padding-top: var(--space-xl);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .support-footer p {
+    color: var(--color-text-secondary);
+    font-size: 0.9375rem;
+  }
+
+  .support-footer a {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+
+  .support-footer a:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 1024px) {
+    .plans-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .support {
+      padding: var(--space-3xl) var(--space-md);
+    }
+
+    .plans-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,0 +1,82 @@
+---
+const customers = [
+  'Dell',
+  'Broadcom',
+  'JetBrains',
+  'Kaiser Permanente',
+  'Dow Jones',
+  'Upwork',
+  'Infomedia',
+  'Savant',
+];
+---
+
+<section class="customers">
+  <div class="customers-container">
+    <p class="customers-label">Trusted by teams at</p>
+    <div class="customers-list">
+      {customers.map((customer) => (
+        <span class="customer-name">{customer}</span>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .customers {
+    padding: var(--space-3xl) var(--space-xl);
+    background: var(--color-bg-secondary);
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .customers-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .customers-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-xl);
+  }
+
+  .customers-list {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--space-lg) var(--space-2xl);
+  }
+
+  .customer-name {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 400;
+    color: var(--color-text-muted);
+    transition: color 0.2s var(--ease-out-quad);
+    white-space: nowrap;
+  }
+
+  .customer-name:hover {
+    color: var(--color-text-primary);
+  }
+
+  @media (max-width: 768px) {
+    .customers {
+      padding: var(--space-2xl) var(--space-md);
+    }
+
+    .customers-list {
+      gap: var(--space-md) var(--space-xl);
+    }
+
+    .customer-name {
+      font-size: 1.125rem;
+    }
+  }
+</style>
