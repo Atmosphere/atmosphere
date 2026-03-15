@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type {
   AtmosphereRequest,
   ConnectionState,
@@ -91,6 +91,12 @@ export function useAtmosphereCore<T = unknown>(
   const handlersRef = useRef(handlers);
   handlersRef.current = handlers;
 
+  // Stable key for headers so the effect re-runs when headers change
+  const headersKey = useMemo(
+    () => (request.headers ? JSON.stringify(request.headers) : ''),
+    [request.headers],
+  );
+
   useEffect(() => {
     if (!enabled) return;
 
@@ -153,9 +159,9 @@ export function useAtmosphereCore<T = unknown>(
       subRef.current?.close();
       subRef.current = null;
     };
-    // Reconnect when URL or transport changes
+    // Reconnect when URL, transport, auth, or headers change
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [atmosphere, request.url, request.transport, enabled]);
+  }, [atmosphere, request.url, request.transport, request.authToken, request.sessionToken, headersKey, enabled]);
 
   const push = useCallback(
     (message: string | object | ArrayBuffer) => {

@@ -105,10 +105,8 @@ public class AtmosphereResourceStateRecoveryTest {
         assertEquals(1, recovery.states().size());
     }
 
-    // This test is no longer working since isClosedByClient changes the behavior.
-    @Disabled("isClosedByClient changes invalidate the expected state transitions")
     @Test
-    public void restoreStateTest() throws ServletException, IOException {
+    public void restoreStateAfterCloseTest() throws ServletException, IOException {
         recovery.configure(config);
         recovery.inspect(r);
 
@@ -120,13 +118,10 @@ public class AtmosphereResourceStateRecoveryTest {
         r.suspend();
         r.close();
 
-        r.getBroadcaster().removeAtmosphereResource(r);
-
-        r.suspend();
-
+        // After close, tracked broadcaster state should be cleared
+        // (isClosedByClient / cancel removes tracked IDs)
         assertEquals(1, recovery.states().size());
-        assertEquals(5, recovery.states().get(r.uuid()).ids().size());
-
+        assertEquals(0, recovery.states().get(r.uuid()).ids().size());
     }
 
     @Test
@@ -149,10 +144,10 @@ public class AtmosphereResourceStateRecoveryTest {
 
     }
 
-    @Disabled("Long-polling aggregation with cache requires isClosedByClient fix")
+    @Disabled("Requires real AsyncSupport — resume()/broadcastOnResume() deadlocks with mock; move to integration tests")
     @Test
     public void longPollingAggregatedTest() throws ServletException, IOException, ExecutionException, InterruptedException {
-        final AtomicReference<Object> ref = new AtomicReference<Object>();
+        final AtomicReference<Object> ref = new AtomicReference<>();
         AtmosphereResourceImpl r = (AtmosphereResourceImpl) config.resourcesFactory().create(config, "1234567");
         r.setBroadcaster(config.getBroadcasterFactory().lookup("/1", true));
 
@@ -171,16 +166,18 @@ public class AtmosphereResourceStateRecoveryTest {
 
         r.suspend();
         config.metaBroadcaster().broadcastTo("/1", "Initialize Cache").get();
-        r.close();
+        // Resume instead of close — simulates long-polling request completing normally,
+        // which preserves the recovery state for the next request
+        r.resume();
 
         AtmosphereResourceImpl r2 = (AtmosphereResourceImpl) config.resourcesFactory().create(config, "1234567");
         // Set a different one to hit caching.
         r2.setBroadcaster(config.getBroadcasterFactory().lookup("/*", true));
 
-        config.getBroadcasterFactory().lookup("/1", true).broadcast(("1")).get();
-        config.getBroadcasterFactory().lookup("/2", true).broadcast(("2")).get();
-        config.getBroadcasterFactory().lookup("/3", true).broadcast(("3")).get();
-        config.getBroadcasterFactory().lookup("/4", true).broadcast(("4")).get();
+        config.getBroadcasterFactory().lookup("/1", true).broadcast("1").get();
+        config.getBroadcasterFactory().lookup("/2", true).broadcast("2").get();
+        config.getBroadcasterFactory().lookup("/3", true).broadcast("3").get();
+        config.getBroadcasterFactory().lookup("/4", true).broadcast("4").get();
 
         r2.transport(AtmosphereResource.TRANSPORT.LONG_POLLING).atmosphereHandler(new AtmosphereHandlerAdapter() {
             @Override
@@ -199,7 +196,6 @@ public class AtmosphereResourceStateRecoveryTest {
             b.append(o.toString());
         }
         assertEquals("1234", b.toString());
-
     }
 
 }

@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -78,6 +79,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private AtmosphereResponse response;
     private Action action = new Action();
     protected final List<Broadcaster> broadcasters = new CopyOnWriteArrayList<>();
+    private final Set<String> broadcasterIdIndex = ConcurrentHashMap.newKeySet();
     protected Broadcaster broadcaster;
     private AtmosphereConfig config;
     protected AsyncSupport<AtmosphereResourceImpl> asyncSupport;
@@ -360,7 +362,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         if (event.isSuspended() || disableSuspend) return this;
 
         if (!event.isResumedOnTimeout()) {
-            state.set(LifecycleState.SUSPENDED);
+            // CAS guard: only transition to SUSPENDED from CREATED or RESUMED
+            var current = state.get();
+            if (current != LifecycleState.CREATED && current != LifecycleState.RESUMED) {
+                return this;
+            }
+            if (!state.compareAndSet(current, LifecycleState.SUSPENDED)) {
+                return this;
+            }
 
             Enumeration<String> connection = req.getHeaders("Connection");
             if (connection == null) {
@@ -498,21 +507,21 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public AtmosphereResource removeBroadcaster(Broadcaster broadcaster) {
         broadcasters.remove(broadcaster);
+        if (broadcaster.getID() != null) {
+            broadcasterIdIndex.remove(broadcaster.getID().toLowerCase(Locale.ROOT));
+        }
         return this;
     }
 
     protected AtmosphereResource uniqueBroadcaster(Broadcaster newB) {
-        if (newB == null) {
+        if (newB == null || newB.getID() == null) {
             return this;
         }
-        // Linear scan — potential performance bottleneck for large broadcaster sets
-        for (Broadcaster b: broadcasters) {
-            if (b.getID() != null && b.getID().equalsIgnoreCase(newB.getID())) {
-                logger.trace("Duplicate Broadcaster {}", newB);
-                return this;
-            }
+        if (broadcasterIdIndex.add(newB.getID().toLowerCase(Locale.ROOT))) {
+            broadcasters.add(newB);
+        } else {
+            logger.trace("Duplicate Broadcaster {}", newB);
         }
-        broadcasters.add(newB);
         return this;
     }
 
@@ -544,6 +553,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         isSuspendEvent.set(false);
         disconnected.set(false);
         listeners.clear();
+        broadcasterIdIndex.clear();
         action = new Action(Action.TYPE.CREATED, action.timeout());
     }
 
@@ -554,7 +564,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     public void setIsInScope(boolean inScope) {
         if (!inScope) {
-            state.set(LifecycleState.DISCONNECTED);
+            // CAS guard: don't overwrite CANCELLED or DISCONNECTED
+            while (true) {
+                var current = state.get();
+                if (current == LifecycleState.DISCONNECTED || current == LifecycleState.CANCELLED) {
+                    return;
+                }
+                if (state.compareAndSet(current, LifecycleState.DISCONNECTED)) {
+                    return;
+                }
+            }
         } else {
             // Only valid during reset — transition back to CREATED
             state.set(LifecycleState.CREATED);
@@ -863,6 +882,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 removeFromAllBroadcasters();
             }
             broadcasters.clear();
+            broadcasterIdIndex.clear();
 
             unregister();
             removeEventListeners();

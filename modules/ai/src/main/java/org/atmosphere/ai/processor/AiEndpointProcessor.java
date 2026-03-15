@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ServiceLoader;
@@ -278,13 +279,28 @@ public class AiEndpointProcessor implements Processor<Object> {
     private List<ContextProvider> instantiateContextProviders(Class<? extends ContextProvider>[] classes,
                                                               AtmosphereFramework framework) {
         var providers = new ArrayList<ContextProvider>();
+        var declaredTypes = new HashSet<String>();
         for (var clazz : classes) {
             try {
                 providers.add(framework.newClassInstance(ContextProvider.class, clazz));
+                declaredTypes.add(clazz.getName());
             } catch (Exception e) {
                 logger.error("Failed to instantiate ContextProvider: {}", clazz.getName(), e);
             }
         }
+
+        // Auto-discover additional ContextProviders via ServiceLoader
+        try {
+            for (var discovered : ServiceLoader.load(ContextProvider.class)) {
+                if (!declaredTypes.contains(discovered.getClass().getName()) && discovered.isAvailable()) {
+                    providers.add(discovered);
+                    logger.info("Auto-discovered ContextProvider: {}", discovered.getClass().getName());
+                }
+            }
+        } catch (Exception | java.util.ServiceConfigurationError e) {
+            logger.debug("ContextProvider auto-discovery not available: {}", e.getMessage());
+        }
+
         return List.copyOf(providers);
     }
 

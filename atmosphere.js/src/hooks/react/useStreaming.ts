@@ -155,7 +155,7 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
       handleRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [atmosphere, request.url, request.transport, enabled]);
+  }, [atmosphere, request.url, request.transport, request.authToken, request.sessionToken, enabled]);
 
   const send = useCallback((message: string | object, options?: SendOptions) => {
     setIsStreaming(true);

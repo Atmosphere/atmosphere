@@ -134,7 +134,7 @@ export function useRoom<T = unknown>(
       handleRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [atmosphere, request.url, request.transport, room, member.id]);
+  }, [atmosphere, request.url, request.transport, request.authToken, request.sessionToken, room, member.id]);
 
   const broadcast = useCallback(
     (data: T) => handleRef.current?.broadcast(data),

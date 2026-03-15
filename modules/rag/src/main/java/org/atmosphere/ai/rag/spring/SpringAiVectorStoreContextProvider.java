@@ -58,6 +58,11 @@ public class SpringAiVectorStoreContextProvider implements ContextProvider {
     }
 
     @Override
+    public boolean isAvailable() {
+        return vectorStore != null;
+    }
+
+    @Override
     public List<Document> retrieve(String query, int maxResults) {
         var store = vectorStore;
         if (store == null) {

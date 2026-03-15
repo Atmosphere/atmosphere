@@ -21,6 +21,7 @@ import type {
   SubscriptionHandlers,
   ConnectionState,
 } from '../types';
+import type { OfflineQueue } from '../queue/offline-queue';
 import { logger } from '../utils/logger';
 import { AtmosphereProtocol } from '../utils/protocol';
 
@@ -40,6 +41,7 @@ export abstract class BaseTransport<T = unknown> {
   private _hasOpened = false;
   private _inactivityTimer: ReturnType<typeof setTimeout> | null = null;
   protected _requestCount = 0;
+  private _offlineQueue: OfflineQueue | null = null;
 
   constructor(
     request: AtmosphereRequest,
@@ -56,6 +58,11 @@ export abstract class BaseTransport<T = unknown> {
   abstract disconnect(): Promise<void>;
   abstract send(message: string | ArrayBuffer): void;
   abstract get name(): string;
+
+  /** Attach an offline queue; queued messages will auto-drain on reconnect. */
+  setOfflineQueue(queue: OfflineQueue): void {
+    this._offlineQueue = queue;
+  }
 
   get state(): ConnectionState {
     return this._state;
@@ -144,6 +151,7 @@ export abstract class BaseTransport<T = unknown> {
       this._state = 'connected';
       logger.debug(`${this.name} transport reopened`);
       this.handlers.reopen?.(response);
+      this.drainOfflineQueue();
     } else {
       this._hasOpened = true;
       this._state = 'connected';
@@ -209,6 +217,15 @@ export abstract class BaseTransport<T = unknown> {
   protected isMaxRequestReached(): boolean {
     const max = this.request.maxRequest;
     return max !== undefined && max > 0 && this._requestCount >= max;
+  }
+
+  private drainOfflineQueue(): void {
+    if (this._offlineQueue?.drainOnReconnect && this._offlineQueue.size > 0) {
+      logger.info(`Draining ${this._offlineQueue.size} offline messages after reconnect`);
+      this._offlineQueue.drain((data, _messageId) => {
+        this.send(typeof data === 'string' || data instanceof ArrayBuffer ? data : JSON.stringify(data));
+      });
+    }
   }
 
   private resetInactivityTimer(): void {

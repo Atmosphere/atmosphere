@@ -58,6 +58,17 @@ public interface ContextProvider {
     List<Document> retrieve(String query, int maxResults);
 
     /**
+     * Whether this provider is available and properly configured.
+     * Used by {@link java.util.ServiceLoader} auto-discovery to filter out
+     * providers whose backing store is not present.
+     *
+     * @return true if the provider can serve requests (default: true)
+     */
+    default boolean isAvailable() {
+        return true;
+    }
+
+    /**
      * A retrieved document with content and metadata.
      *
      * @param content  the document text
