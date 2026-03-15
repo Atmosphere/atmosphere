@@ -84,6 +84,12 @@ export interface AtmosphereRequest {
     client?: number;
     server?: number;
   };
+  /**
+   * Optional offline queue for buffering messages while disconnected.
+   * When set, messages sent via `push()` while disconnected are queued
+   * and automatically drained on reconnect (if `drainOnReconnect` is true).
+   */
+  offlineQueue?: import('../queue/offline-queue').OfflineQueue;
 }
 
 /**

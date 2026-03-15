@@ -74,6 +74,9 @@ export class Atmosphere {
 
     try {
       activeTransport = this.createTransport(mergedRequest, handlers);
+      if (mergedRequest.offlineQueue) {
+        activeTransport.setOfflineQueue(mergedRequest.offlineQueue);
+      }
       await activeTransport.connectWithTimeout();
     } catch (primaryError) {
       if (fallback && fallback !== transport) {
@@ -82,6 +85,9 @@ export class Atmosphere {
         handlers.transportFailure?.(reason, mergedRequest);
         const fallbackRequest = { ...mergedRequest, transport: fallback };
         activeTransport = this.createTransport(fallbackRequest, handlers);
+        if (mergedRequest.offlineQueue) {
+          activeTransport.setOfflineQueue(mergedRequest.offlineQueue);
+        }
         await activeTransport.connectWithTimeout();
       } else {
         throw primaryError;
@@ -144,6 +150,11 @@ export class Atmosphere {
         return currentTransport.state;
       },
       push: (message: string | object | ArrayBuffer) => {
+        const state = currentTransport.state;
+        if (state !== 'connected' && mergedRequest.offlineQueue) {
+          mergedRequest.offlineQueue.enqueue(message);
+          return;
+        }
         const data =
           typeof message === 'string'
             ? message

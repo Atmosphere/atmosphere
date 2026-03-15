@@ -285,6 +285,35 @@ public class AiEndpointProcessorTest {
         assertNull(handler.endpointModel());
     }
 
+    @Test
+    public void testDefaultEndpointDoesNotAutoDiscoverContextProviders() throws Exception {
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new ValidEndpoint());
+
+        processor.handle(framework, (Class) ValidEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        // autoDiscoverContextProviders defaults to false, so no ServiceLoader discovery
+        assertTrue(handler.contextProviders().isEmpty());
+    }
+
+    @Test
+    public void testAutoDiscoverContextProvidersOptIn() throws Exception {
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new AutoDiscoverEndpoint());
+
+        processor.handle(framework, (Class) AutoDiscoverEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        // ServiceLoader will run; whether providers are found depends on classpath,
+        // but the flag should not cause errors
+        assertNotNull(handler.contextProviders());
+    }
+
     // ---- Test fixture classes ----
 
     /**
@@ -370,6 +399,13 @@ public class AiEndpointProcessorTest {
 
     @AiEndpoint(path = "/atmosphere/model-override", model = "gpt-4o")
     public static class ModelOverrideEndpoint {
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/auto-discover", autoDiscoverContextProviders = true)
+    public static class AutoDiscoverEndpoint {
         @Prompt
         public void onPrompt(String message, StreamingSession session) {
         }

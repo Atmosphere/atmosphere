@@ -174,6 +174,16 @@ public @interface AiEndpoint {
     Class<? extends org.atmosphere.ai.ContextProvider>[] contextProviders() default {};
 
     /**
+     * Whether to auto-discover {@link org.atmosphere.ai.ContextProvider} implementations
+     * via {@link java.util.ServiceLoader}. When {@code true}, discovered providers are
+     * merged with those declared in {@link #contextProviders()}, avoiding duplicates.
+     *
+     * <p>Defaults to {@code false} so that endpoints without RAG are not accidentally
+     * augmented just because {@code atmosphere-rag} is on the classpath.</p>
+     */
+    boolean autoDiscoverContextProviders() default false;
+
+    /**
      * Override the model name for this specific endpoint. When non-empty,
      * this value is used instead of the global {@code AiConfig.get().model()}.
      *

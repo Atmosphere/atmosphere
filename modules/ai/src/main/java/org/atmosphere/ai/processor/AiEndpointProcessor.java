@@ -113,7 +113,8 @@ public class AiEndpointProcessor implements Processor<Object> {
 
             // Instantiate guardrails and context providers
             var guardrails = instantiateGuardrails(annotation.guardrails(), framework);
-            var contextProviders = instantiateContextProviders(annotation.contextProviders(), framework);
+            var contextProviders = instantiateContextProviders(
+                    annotation.contextProviders(), annotation.autoDiscoverContextProviders(), framework);
 
             var metrics = resolveMetrics();
             var broadcastFilters = instantiateBroadcastFilters(annotation.filters(), framework);
@@ -277,6 +278,7 @@ public class AiEndpointProcessor implements Processor<Object> {
     }
 
     private List<ContextProvider> instantiateContextProviders(Class<? extends ContextProvider>[] classes,
+                                                              boolean autoDiscover,
                                                               AtmosphereFramework framework) {
         var providers = new ArrayList<ContextProvider>();
         var declaredTypes = new HashSet<String>();
@@ -289,16 +291,18 @@ public class AiEndpointProcessor implements Processor<Object> {
             }
         }
 
-        // Auto-discover additional ContextProviders via ServiceLoader
-        try {
-            for (var discovered : ServiceLoader.load(ContextProvider.class)) {
-                if (!declaredTypes.contains(discovered.getClass().getName()) && discovered.isAvailable()) {
-                    providers.add(discovered);
-                    logger.info("Auto-discovered ContextProvider: {}", discovered.getClass().getName());
+        // Auto-discover additional ContextProviders via ServiceLoader only when opted in
+        if (autoDiscover) {
+            try {
+                for (var discovered : ServiceLoader.load(ContextProvider.class)) {
+                    if (!declaredTypes.contains(discovered.getClass().getName()) && discovered.isAvailable()) {
+                        providers.add(discovered);
+                        logger.info("Auto-discovered ContextProvider: {}", discovered.getClass().getName());
+                    }
                 }
+            } catch (Exception | java.util.ServiceConfigurationError e) {
+                logger.debug("ContextProvider auto-discovery not available: {}", e.getMessage());
             }
-        } catch (Exception | java.util.ServiceConfigurationError e) {
-            logger.debug("ContextProvider auto-discovery not available: {}", e.getMessage());
         }
 
         return List.copyOf(providers);
