@@ -52,6 +52,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
 
+/**
+ * JSR 356 (Jakarta WebSocket) {@link Endpoint} implementation that manages the WebSocket
+ * connection lifecycle — handshake, message dispatch, and close — within the Atmosphere framework.
+ */
 public class JSR356Endpoint extends Endpoint {
 
     private static final Logger logger = LoggerFactory.getLogger(JSR356Endpoint.class);

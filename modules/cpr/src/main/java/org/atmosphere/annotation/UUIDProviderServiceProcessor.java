@@ -22,6 +22,11 @@ import org.atmosphere.util.UUIDProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Processes {@link UUIDProviderService} annotations. Registers the annotated
+ * {@link UUIDProvider} with the {@link AtmosphereFramework} for generating unique
+ * {@link org.atmosphere.cpr.AtmosphereResource} identifiers.
+ */
 @AtmosphereAnnotation(UUIDProviderService.class)
 public class UUIDProviderServiceProcessor implements Processor<UUIDProvider> {
 

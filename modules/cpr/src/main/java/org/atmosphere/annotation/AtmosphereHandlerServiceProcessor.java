@@ -33,6 +33,11 @@ import static org.atmosphere.annotation.AnnotationUtil.broadcaster;
 import static org.atmosphere.annotation.AnnotationUtil.filters;
 import static org.atmosphere.annotation.AnnotationUtil.listeners;
 
+/**
+ * Processes {@link AtmosphereHandlerService} annotations. Registers an {@link AtmosphereHandler}
+ * with its path mapping and configures associated interceptors, broadcast filters, event listeners,
+ * broadcaster, and broadcaster cache from the annotation attributes.
+ */
 @AtmosphereAnnotation(AtmosphereHandlerService.class)
 public class AtmosphereHandlerServiceProcessor implements Processor<AtmosphereHandler> {
 

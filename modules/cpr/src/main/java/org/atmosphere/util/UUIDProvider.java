@@ -15,6 +15,10 @@
  */
 package org.atmosphere.util;
 
+/**
+ * Strategy interface for generating unique identifiers for
+ * {@link org.atmosphere.cpr.AtmosphereResource} instances.
+ */
 public interface UUIDProvider {
 
     String generateUuid();

@@ -22,6 +22,10 @@ import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Processes {@link AtmosphereInterceptorService} annotations. Registers the annotated
+ * {@link AtmosphereInterceptor} with the {@link AtmosphereFramework} via a deferred startup hook.
+ */
 @AtmosphereAnnotation(AtmosphereInterceptorService.class)
 public class AtmosphereInterceptorServiceProcessor implements Processor<AtmosphereInterceptor> {
 

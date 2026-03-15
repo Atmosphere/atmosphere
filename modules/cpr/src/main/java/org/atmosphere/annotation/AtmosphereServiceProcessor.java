@@ -39,6 +39,11 @@ import static org.atmosphere.annotation.AnnotationUtil.interceptors;
 import static org.atmosphere.annotation.AnnotationUtil.listeners;
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTOR_METHOD;
 
+/**
+ * Processes {@link AtmosphereService} annotations. Registers the annotated class as an
+ * {@link org.atmosphere.cpr.AtmosphereHandler} with path mapping, broadcaster configuration,
+ * broadcast filters, interceptors, event listeners, and optional servlet dispatch proxying.
+ */
 @AtmosphereAnnotation(AtmosphereService.class)
 public class AtmosphereServiceProcessor implements Processor<Object> {
 

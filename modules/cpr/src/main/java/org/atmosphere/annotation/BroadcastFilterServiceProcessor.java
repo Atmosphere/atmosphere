@@ -22,6 +22,10 @@ import org.atmosphere.cpr.BroadcastFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Processes {@link BroadcasterFilterService} annotations. Registers the annotated
+ * {@link BroadcastFilter} globally with the {@link AtmosphereFramework}.
+ */
 @AtmosphereAnnotation(BroadcasterFilterService.class)
 public class BroadcastFilterServiceProcessor implements Processor<BroadcastFilter> {
 

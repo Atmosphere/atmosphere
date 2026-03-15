@@ -22,6 +22,10 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpSessionEvent;
 import jakarta.servlet.http.HttpSessionListener;
 
+/**
+ * An {@link HttpSessionListener} that cleans up {@link org.atmosphere.cpr.AtmosphereResource}s
+ * associated with an HTTP session when that session is destroyed.
+ */
 public class SessionSupport implements HttpSessionListener {
 
     private final Logger logger = LoggerFactory.getLogger(SessionSupport.class);

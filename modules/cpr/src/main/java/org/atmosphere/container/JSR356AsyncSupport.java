@@ -38,6 +38,11 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * JSR 356 (Jakarta WebSocket) {@link org.atmosphere.cpr.AsyncSupport} implementation.
+ * Registers WebSocket endpoints with the container and bridges the JSR 356 lifecycle
+ * into the Atmosphere framework.
+ */
 public class JSR356AsyncSupport extends Servlet30CometSupport {
 
     private static final Logger logger = LoggerFactory.getLogger(JSR356AsyncSupport.class);

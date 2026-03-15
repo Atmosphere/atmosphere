@@ -22,6 +22,10 @@ import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Processes {@link AtmosphereResourceFactoryService} annotations. Sets and configures the
+ * framework's {@link AtmosphereResourceFactory} implementation.
+ */
 @AtmosphereAnnotation(AtmosphereResourceFactoryService.class)
 public class AtmosphereResourceFactoryServiceProcessor implements Processor<AtmosphereResourceFactory> {
 

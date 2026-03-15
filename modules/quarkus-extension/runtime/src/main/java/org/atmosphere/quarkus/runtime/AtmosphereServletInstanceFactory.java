@@ -27,6 +27,11 @@ import io.undertow.servlet.api.InstanceHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Factory that creates {@link QuarkusAtmosphereServlet} instances for the Quarkus Undertow
+ * container. Resolves pre-scanned annotation class names and injects the annotation map
+ * into the servlet.
+ */
 public class AtmosphereServletInstanceFactory implements InstanceFactory<QuarkusAtmosphereServlet> {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereServletInstanceFactory.class);

@@ -25,6 +25,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 
+/**
+ * Processes {@link BroadcasterListenerService} annotations. Registers the annotated
+ * {@link BroadcasterListener} with the {@link AtmosphereFramework} and notifies all
+ * existing {@link Broadcaster}s via {@link BroadcasterListener#onPostCreate(Broadcaster)}.
+ */
 @AtmosphereAnnotation(BroadcasterListenerService.class)
 public class BroadcasterListenerServiceProcessor implements Processor<BroadcasterListener> {
 

@@ -32,6 +32,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+/**
+ * Utility class providing common helper methods for annotation processing. Methods in this class
+ * handle registration of {@link AtmosphereInterceptor}s, {@link org.atmosphere.cpr.BroadcastFilter}s,
+ * {@link AtmosphereResourceEventListener}s, and other framework components extracted from annotation attributes.
+ */
 public class AnnotationUtil {
 
     public static final Logger logger = LoggerFactory.getLogger(AnnotationUtil.class);

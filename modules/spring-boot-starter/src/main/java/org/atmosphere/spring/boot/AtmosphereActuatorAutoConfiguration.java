@@ -23,6 +23,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.context.annotation.Bean;
 
+/**
+ * Spring Boot auto-configuration for Atmosphere actuator support. Provides an
+ * {@link org.atmosphere.metrics.AtmosphereHealth}-based {@link HealthIndicator}
+ * when both the actuator and {@link AtmosphereFramework} are available.
+ */
 @AutoConfiguration(after = AtmosphereAutoConfiguration.class)
 @ConditionalOnClass(HealthIndicator.class)
 @ConditionalOnBean(AtmosphereFramework.class)

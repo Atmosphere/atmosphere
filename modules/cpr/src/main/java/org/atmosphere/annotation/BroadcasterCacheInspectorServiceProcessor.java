@@ -22,6 +22,11 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Processes {@link BroadcasterCacheInspectorService} annotations. Registers the annotated
+ * {@link BroadcasterCacheInspector} with the {@link AtmosphereFramework} to inspect
+ * cached broadcast messages.
+ */
 @AtmosphereAnnotation(BroadcasterCacheInspectorService.class)
 public class BroadcasterCacheInspectorServiceProcessor implements Processor<BroadcasterCacheInspector> {
 

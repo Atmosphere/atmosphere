@@ -22,6 +22,10 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import jakarta.inject.Inject;
 import java.util.Optional;
 
+/**
+ * Default {@link WebSocketFactory} implementation that retrieves {@link org.atmosphere.websocket.WebSocket}
+ * instances by looking up the associated {@link org.atmosphere.cpr.AtmosphereResource} via its UUID.
+ */
 public class DefaultWebSocketFactory implements WebSocketFactory {
 
     @Inject

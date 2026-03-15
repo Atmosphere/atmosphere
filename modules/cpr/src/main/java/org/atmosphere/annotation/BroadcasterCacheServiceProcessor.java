@@ -20,6 +20,10 @@ import org.atmosphere.config.service.BroadcasterCacheService;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.BroadcasterCache;
 
+/**
+ * Processes {@link BroadcasterCacheService} annotations. Sets the default
+ * {@link BroadcasterCache} class name on the {@link org.atmosphere.cpr.AtmosphereFramework}.
+ */
 @AtmosphereAnnotation(BroadcasterCacheService.class)
 public class BroadcasterCacheServiceProcessor implements Processor<BroadcasterCache> {
 

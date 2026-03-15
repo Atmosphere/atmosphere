@@ -27,6 +27,11 @@ import org.atmosphere.cpr.DefaultAnnotationProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Quarkus-specific {@link AtmosphereServlet} subclass that defers framework initialization
+ * to support native image builds. Stores the pre-scanned annotation map and lazily signals
+ * readiness to WebSocket endpoints.
+ */
 public class QuarkusAtmosphereServlet extends AtmosphereServlet {
 
     private static final Logger logger = LoggerFactory.getLogger(QuarkusAtmosphereServlet.class);

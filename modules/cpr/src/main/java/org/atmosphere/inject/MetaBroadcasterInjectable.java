@@ -21,6 +21,10 @@ import org.atmosphere.inject.annotation.ApplicationScoped;
 
 import java.lang.reflect.Type;
 
+/**
+ * {@link Injectable} provider that resolves {@link MetaBroadcaster} instances
+ * for dependency injection into Atmosphere-managed components.
+ */
 @ApplicationScoped
 public class MetaBroadcasterInjectable implements Injectable<MetaBroadcaster> {
 

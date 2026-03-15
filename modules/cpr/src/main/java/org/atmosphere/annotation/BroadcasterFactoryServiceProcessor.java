@@ -22,6 +22,10 @@ import org.atmosphere.cpr.BroadcasterFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Processes {@link BroadcasterFactoryService} annotations. Sets and configures the
+ * {@link BroadcasterFactory} implementation on the {@link AtmosphereFramework}.
+ */
 @AtmosphereAnnotation(BroadcasterFactoryService.class)
 public class BroadcasterFactoryServiceProcessor implements Processor<BroadcasterFactory> {
 

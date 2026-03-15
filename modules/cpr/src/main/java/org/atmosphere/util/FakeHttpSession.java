@@ -23,6 +23,10 @@ import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * A lightweight {@link HttpSession} implementation backed by a {@link java.util.concurrent.ConcurrentHashMap}.
+ * Used when a real HTTP session is not available, such as during WebSocket-only communication.
+ */
 public class FakeHttpSession implements HttpSession {
 
     private final long creationTime;

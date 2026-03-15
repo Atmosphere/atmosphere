@@ -22,6 +22,10 @@ import org.atmosphere.util.EndpointMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Processes {@link EndpointMapperService} annotations. Registers the annotated
+ * {@link EndpointMapper} with the {@link AtmosphereFramework} for request-to-handler routing.
+ */
 @AtmosphereAnnotation(EndpointMapperService.class)
 public class EndpointMapperServiceProcessor implements Processor<EndpointMapper<?>> {
 

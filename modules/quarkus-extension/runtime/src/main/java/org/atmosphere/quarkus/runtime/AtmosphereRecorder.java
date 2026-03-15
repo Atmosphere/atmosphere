@@ -30,6 +30,10 @@ import org.atmosphere.container.JSR356Endpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Quarkus {@link Recorder} that captures runtime initialization logic for the Atmosphere
+ * framework, including servlet instance factory creation and WebSocket endpoint registration.
+ */
 @Recorder
 public class AtmosphereRecorder {
 

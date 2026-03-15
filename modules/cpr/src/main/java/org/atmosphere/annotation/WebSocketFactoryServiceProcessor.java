@@ -22,6 +22,10 @@ import org.atmosphere.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Processes {@link WebSocketFactoryService} annotations. Sets the
+ * {@link WebSocketFactory} implementation on the {@link AtmosphereFramework}.
+ */
 @AtmosphereAnnotation(WebSocketFactoryService.class)
 public class WebSocketFactoryServiceProcessor implements Processor<WebSocketFactory> {
 

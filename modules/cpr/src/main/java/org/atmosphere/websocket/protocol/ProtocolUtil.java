@@ -24,6 +24,11 @@ import org.atmosphere.websocket.WebSocket;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Utility class for WebSocket protocol handling. Constructs
+ * {@link org.atmosphere.cpr.AtmosphereRequest} objects from WebSocket frames
+ * with proper request attributes and headers.
+ */
 public class ProtocolUtil {
 
     protected static AtmosphereRequestImpl.Builder constructRequest(WebSocket webSocket,

@@ -22,6 +22,11 @@ import org.atmosphere.cpr.AtmosphereFrameworkListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Processes {@link AtmosphereFrameworkListenerService} annotations. Registers the annotated
+ * {@link AtmosphereFrameworkListener} with the {@link AtmosphereFramework} to receive
+ * framework lifecycle events.
+ */
 @AtmosphereAnnotation(AtmosphereFrameworkListenerService.class)
 public class AtmosphereFrameworkServiceProcessor implements Processor<AtmosphereFrameworkListener> {
 

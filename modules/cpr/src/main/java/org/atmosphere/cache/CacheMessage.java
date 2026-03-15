@@ -17,6 +17,10 @@ package org.atmosphere.cache;
 
 import java.io.Serializable;
 
+/**
+ * A cached broadcast message with metadata for tracking creation time, message identity, and
+ * the UUID of the {@link org.atmosphere.cpr.AtmosphereResource} that produced it.
+ */
 public record CacheMessage(String id, long createTime, Object message, String uuid) implements Serializable {
     private static final long serialVersionUID = -126253550299206646L;
 

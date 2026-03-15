@@ -20,6 +20,10 @@ import java.util.Map;
 
 import io.quarkus.builder.item.SimpleBuildItem;
 
+/**
+ * Quarkus {@link SimpleBuildItem} that carries the annotation-to-class-names mappings
+ * discovered during build-time annotation scanning for Atmosphere services.
+ */
 public final class AtmosphereAnnotationsBuildItem extends SimpleBuildItem {
 
     private final Map<String, List<String>> annotationClassNames;

@@ -21,6 +21,11 @@ import org.atmosphere.inject.InjectableObjectFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Quarkus-specific {@link org.atmosphere.cpr.AtmosphereObjectFactory} that creates component
+ * instances via the Quarkus CDI container, falling back to the parent
+ * {@link InjectableObjectFactory} when no CDI bean is available.
+ */
 public class QuarkusAtmosphereObjectFactory extends InjectableObjectFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(QuarkusAtmosphereObjectFactory.class);

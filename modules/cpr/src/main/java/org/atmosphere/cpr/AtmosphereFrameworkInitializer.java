@@ -29,6 +29,10 @@ import static org.atmosphere.cpr.ApplicationConfig.META_SERVICE_PATH;
 import static org.atmosphere.cpr.AtmosphereFramework.ASYNC_IO;
 import static org.atmosphere.cpr.AtmosphereFramework.META_SERVICE;
 
+/**
+ * Initializes and configures the {@link AtmosphereFramework}, managing its lifecycle
+ * from instantiation through servlet configuration and destruction.
+ */
 public class AtmosphereFrameworkInitializer {
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFrameworkInitializer.class);
 

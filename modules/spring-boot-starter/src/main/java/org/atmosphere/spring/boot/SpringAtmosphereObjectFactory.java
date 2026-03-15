@@ -29,6 +29,11 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.context.ApplicationContext;
 
+/**
+ * Spring-aware {@link org.atmosphere.cpr.AtmosphereObjectFactory} that resolves component
+ * instances from the Spring {@link org.springframework.context.ApplicationContext} when
+ * available, falling back to the parent {@link InjectableObjectFactory} otherwise.
+ */
 public class SpringAtmosphereObjectFactory extends InjectableObjectFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(SpringAtmosphereObjectFactory.class);

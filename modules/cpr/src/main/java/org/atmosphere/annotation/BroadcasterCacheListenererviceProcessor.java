@@ -22,6 +22,11 @@ import org.atmosphere.cpr.BroadcasterCacheListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Processes {@link BroadcasterCacheListenerService} annotations. Registers the annotated
+ * {@link BroadcasterCacheListener} with the {@link AtmosphereFramework} to receive
+ * broadcaster cache events.
+ */
 @AtmosphereAnnotation(BroadcasterCacheListenerService.class)
 public class BroadcasterCacheListenererviceProcessor implements Processor<BroadcasterCacheListener> {
 

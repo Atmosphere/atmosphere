@@ -37,6 +37,10 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_RESUME;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_EMPTY_DESTROY;
 
+/**
+ * Manages {@link org.atmosphere.cpr.Broadcaster} lifecycle policies including idle timeouts,
+ * empty broadcaster destruction, and scheduling of lifecycle-related cleanup tasks.
+ */
 public class LifecycleHandler {
     private static final Logger logger = LoggerFactory.getLogger(LifecycleHandler.class);
 

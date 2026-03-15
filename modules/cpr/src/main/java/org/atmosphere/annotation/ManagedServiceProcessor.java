@@ -34,6 +34,11 @@ import static org.atmosphere.annotation.AnnotationUtil.broadcaster;
 import static org.atmosphere.annotation.AnnotationUtil.filters;
 import static org.atmosphere.annotation.AnnotationUtil.listeners;
 
+/**
+ * Processes {@link ManagedService} annotations. Registers a {@link org.atmosphere.config.managed.ManagedAtmosphereHandler}
+ * for the annotated class with path mapping, default managed service interceptors,
+ * broadcaster cache configuration, broadcast filters, and event listeners.
+ */
 @AtmosphereAnnotation(ManagedService.class)
 public class ManagedServiceProcessor implements Processor<Object> {
 

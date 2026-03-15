@@ -22,6 +22,10 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Processes {@link AsyncSupportListenerService} annotations. Registers the annotated
+ * {@link AsyncSupportListener} implementation with the {@link AtmosphereFramework}.
+ */
 @AtmosphereAnnotation(AsyncSupportListenerService.class)
 public class AsyncSupportListenerServiceProcessor implements Processor<AsyncSupportListener> {
 

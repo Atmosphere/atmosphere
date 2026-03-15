@@ -20,6 +20,10 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterListenerAdapter;
 import org.atmosphere.cpr.DefaultBroadcaster;
 
+/**
+ * A {@link org.atmosphere.cpr.BroadcasterListener} that enforces {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}
+ * rules on {@link Broadcaster} creation, destruction, and resource removal events.
+ */
 public class BroadcasterLifecyclePolicyHandler extends BroadcasterListenerAdapter {
 
     private final LifecycleHandler liferCycleHandler = new LifecycleHandler();

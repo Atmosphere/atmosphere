@@ -48,6 +48,11 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
 
+/**
+ * Spring Boot auto-configuration for the Atmosphere framework. Scans for annotated handler
+ * classes, registers the {@link org.atmosphere.cpr.AtmosphereServlet}, configures the
+ * {@link org.atmosphere.cpr.AtmosphereObjectFactory}, and sets up JSR 356 WebSocket endpoints.
+ */
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(AtmosphereServlet.class)

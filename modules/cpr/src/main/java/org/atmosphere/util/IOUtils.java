@@ -52,6 +52,10 @@ import java.util.regex.Pattern;
 import static org.atmosphere.cpr.HeaderConfig.FORCE_BINARY;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMO_BINARY;
 
+/**
+ * Utility class providing I/O helper methods for message delivery, request body reading,
+ * servlet path resolution, class loading, and service file parsing.
+ */
 public class IOUtils {
     private final static Logger logger = LoggerFactory.getLogger(IOUtils.class);
     private final static List<String> knownClasses;

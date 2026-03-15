@@ -24,6 +24,10 @@ import org.atmosphere.cpr.DefaultAsyncSupportResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Processes {@link AsyncSupportService} annotations. Configures the framework's
+ * {@link AsyncSupport} implementation using the {@link org.atmosphere.cpr.DefaultAsyncSupportResolver}.
+ */
 @AtmosphereAnnotation(AsyncSupportService.class)
 public class AsyncSupportServiceProcessor implements Processor<AsyncSupport<AtmosphereResource>> {
 

@@ -21,6 +21,10 @@ import org.atmosphere.websocket.WebSocketFactory;
 
 import java.lang.reflect.Type;
 
+/**
+ * {@link Injectable} provider that resolves {@link WebSocketFactory} instances
+ * for dependency injection into Atmosphere-managed components.
+ */
 @ApplicationScoped
 public class WebSocketFactoryInjectable implements Injectable<WebSocketFactory> {
     @Override

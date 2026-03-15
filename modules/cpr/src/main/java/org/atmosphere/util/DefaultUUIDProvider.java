@@ -17,6 +17,10 @@ package org.atmosphere.util;
 
 import java.util.UUID;
 
+/**
+ * Default {@link UUIDProvider} implementation that generates random UUIDs
+ * using {@link java.util.UUID#randomUUID()}.
+ */
 public class DefaultUUIDProvider implements UUIDProvider {
     @Override
     public String generateUuid() {

@@ -30,6 +30,11 @@ import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Named;
 
+/**
+ * Abstract sealed base class for service interceptors that handle wildcard path routing
+ * and path parameter injection for annotated Atmosphere services. Subclasses inspect
+ * incoming requests and map them to the appropriate annotated handler.
+ */
 public abstract sealed class ServiceInterceptor extends AtmosphereInterceptorAdapter
         permits AtmosphereHandlerServiceInterceptor, ManagedServiceInterceptor {
     private final Logger logger = LoggerFactory.getLogger(ServiceInterceptor.class);

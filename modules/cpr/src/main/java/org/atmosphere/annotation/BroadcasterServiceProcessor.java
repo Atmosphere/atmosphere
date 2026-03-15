@@ -20,6 +20,10 @@ import org.atmosphere.config.service.BroadcasterService;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.Broadcaster;
 
+/**
+ * Processes {@link BroadcasterService} annotations. Sets the default
+ * {@link Broadcaster} class name on the {@link org.atmosphere.cpr.AtmosphereFramework}.
+ */
 @AtmosphereAnnotation(BroadcasterService.class)
 public class BroadcasterServiceProcessor implements Processor<Broadcaster> {
 

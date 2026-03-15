@@ -48,6 +48,11 @@ import org.jboss.jandex.IndexView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Quarkus build-time processor for the Atmosphere extension. Scans for Atmosphere annotations,
+ * registers discovered classes for reflection, configures the Atmosphere servlet, and sets up
+ * JSR 356 WebSocket endpoints.
+ */
 class AtmosphereProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereProcessor.class);

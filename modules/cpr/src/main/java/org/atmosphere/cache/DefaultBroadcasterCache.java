@@ -24,6 +24,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+/**
+ * Default no-op {@link BroadcasterCache} implementation. This cache does not store any messages
+ * and logs a warning when a message is added, indicating that messages may be lost for
+ * disconnected clients.
+ */
 public class DefaultBroadcasterCache implements BroadcasterCache {
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcasterCache.class);
 

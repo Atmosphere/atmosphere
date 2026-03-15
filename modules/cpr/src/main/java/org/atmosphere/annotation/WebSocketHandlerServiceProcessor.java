@@ -34,6 +34,11 @@ import static org.atmosphere.annotation.AnnotationUtil.filters;
 import static org.atmosphere.annotation.AnnotationUtil.listeners;
 import static org.atmosphere.cpr.AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER;
 
+/**
+ * Processes {@link WebSocketHandlerService} annotations. Registers a {@link WebSocketHandler}
+ * with its path mapping and configures the associated broadcaster, broadcast filters,
+ * interceptors, event listeners, and broadcaster cache from the annotation attributes.
+ */
 @AtmosphereAnnotation(WebSocketHandlerService.class)
 public class WebSocketHandlerServiceProcessor implements Processor<WebSocketHandler> {
 

@@ -20,6 +20,10 @@ import org.atmosphere.config.service.WebSocketProtocolService;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.websocket.WebSocketProtocol;
 
+/**
+ * Processes {@link WebSocketProtocolService} annotations. Sets the
+ * {@link WebSocketProtocol} class name on the {@link org.atmosphere.cpr.AtmosphereFramework}.
+ */
 @AtmosphereAnnotation(WebSocketProtocolService.class)
 public class WebSocketProtocolServiceProcessor implements Processor<WebSocketProtocol> {
 

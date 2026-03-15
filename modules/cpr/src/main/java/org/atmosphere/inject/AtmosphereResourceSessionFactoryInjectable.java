@@ -21,6 +21,10 @@ import org.atmosphere.inject.annotation.ApplicationScoped;
 
 import java.lang.reflect.Type;
 
+/**
+ * {@link Injectable} provider that resolves {@link AtmosphereResourceSessionFactory} instances
+ * for dependency injection into Atmosphere-managed components.
+ */
 @ApplicationScoped
 public class AtmosphereResourceSessionFactoryInjectable implements Injectable<AtmosphereResourceSessionFactory> {
 

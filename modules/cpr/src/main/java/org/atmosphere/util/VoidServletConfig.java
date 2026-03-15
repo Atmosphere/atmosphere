@@ -22,6 +22,11 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Map;
 
+/**
+ * A no-op {@link ServletConfig} implementation that provides empty configuration values.
+ * Used when a real {@link ServletConfig} is not available, such as in embedded or
+ * programmatic Atmosphere deployments.
+ */
 public class VoidServletConfig implements ServletConfig {
     public final static String ATMOSPHERE_SERVLET =  "AtmosphereServlet";
 

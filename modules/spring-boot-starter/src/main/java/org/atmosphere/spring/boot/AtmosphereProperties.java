@@ -23,6 +23,12 @@ import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.convert.DurationUnit;
 
+/**
+ * Spring Boot configuration properties for the Atmosphere framework, bound to the
+ * {@code atmosphere.*} namespace. Includes settings for servlet path, package scanning,
+ * session support, broadcaster configuration, heartbeat interval, and nested
+ * gRPC / durable sessions properties.
+ */
 @ConfigurationProperties(prefix = "atmosphere")
 public class AtmosphereProperties {
 
