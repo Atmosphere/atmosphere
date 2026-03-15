@@ -60,6 +60,12 @@ const reasons = [
           <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </a>
+      <a href="/docs/tutorial/09-ai-endpoint/" class="btn btn-secondary">
+        AI streaming guide
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
     </div>
   </div>
 </section>
@@ -185,6 +191,17 @@ const reasons = [
     background: var(--color-accent);
     transform: translateY(-2px);
     box-shadow: 0 8px 30px var(--color-accent-glow);
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border-accent);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--color-text-muted);
+    background: var(--color-bg-elevated);
   }
 
   @keyframes fadeInUp {
