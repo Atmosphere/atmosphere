@@ -364,8 +364,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 }
             }
             return a;
-        } catch (Throwable t) {
-            logger.error("", t);
+        } catch (Exception t) {
+            logger.error("Interceptor chain dispatch failed for {}", r.uuid(), t);
             return Action.CANCELLED;
         }
     }

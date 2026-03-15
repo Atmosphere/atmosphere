@@ -34,6 +34,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -70,6 +71,20 @@ import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
  * to broadcast messages, hence the broadcast operation is asynchronous. Make sure
  * you block on {@link #broadcast(Object)}.get()} if you need synchronous operations.
  *
+ * <h2>Lock Ordering</h2>
+ * This class uses multiple locks to minimize contention. To prevent deadlocks,
+ * locks <b>must</b> be acquired in the following order:
+ * <ol>
+ *   <li>{@code resourcesLock} — guards the {@code resources} collection and cache interactions</li>
+ *   <li>{@code lock} — general state/lifecycle guard (destroy, setID)</li>
+ *   <li>{@code awaitLock} — condition signaling only; used in finally-blocks for {@code awaitCondition.signalAll()}</li>
+ *   <li>Per-resource lock from {@code resourceLocks} — fine-grained write serialization per {@link AtmosphereResource}</li>
+ *   <li>{@code WriteQueue.lock} — per-queue monitoring flag</li>
+ * </ol>
+ * <p>
+ * Note: {@link #setScope(SCOPE)} acquires {@code resourcesLock} then calls {@link #destroy()},
+ * which acquires {@code lock}. No code path must acquire {@code lock} before {@code resourcesLock}.
+ *
  * @author Jeanfrancois Arcand
  */
 public class DefaultBroadcaster implements Broadcaster {
@@ -104,6 +119,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final WriteQueue uniqueWriteQueue = new WriteQueue("-1");
     protected final AtomicInteger dispatchThread = new AtomicInteger();
 
+    // Lock ordering: resourcesLock → lock → awaitLock → per-resource rLock → WriteQueue.lock
     private final ReentrantLock awaitLock = new ReentrantLock();
     private final Condition awaitCondition = awaitLock.newCondition();
     private final ReentrantLock lock = new ReentrantLock();
@@ -249,6 +265,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         logger.debug("Changing broadcaster scope for {}. This broadcaster will be destroyed.", getID());
+        // Acquires resourcesLock then calls destroy() which acquires lock (lock ordering: resourcesLock → lock)
         resourcesLock.lock();
         try {
             try {
@@ -346,7 +363,7 @@ public class DefaultBroadcaster implements Broadcaster {
             for (AtmosphereResource r : resources) {
                 try {
                     r.resume();
-                } catch (Throwable t) {
+                } catch (Exception t) {
                     logger.trace("resumeAll", t);
                 } finally {
                     removeAtmosphereResource(r);
@@ -393,8 +410,9 @@ public class DefaultBroadcaster implements Broadcaster {
             try {
                 logger.trace("Awaiting for AtmosphereResource for {} {}", time, timeUnit);
                 awaitCondition.await(translateTimeUnit(time, timeUnit), TimeUnit.MILLISECONDS);
-            } catch (Throwable e) {
+            } catch (InterruptedException e) {
                 logger.warn("awaitAndBroadcast", e);
+                Thread.currentThread().interrupt();
                 return null;
             } finally {
                 awaitLock.unlock();
@@ -633,7 +651,7 @@ public class DefaultBroadcaster implements Broadcaster {
                             if (Utils.resumableTransport(r.transport()))
                                 try {
                                     r.resume();
-                                } catch (Throwable t) {
+                                } catch (Exception t) {
                                     logger.trace("resumeAll", t);
                                 }
                         }
@@ -1165,7 +1183,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     logger.trace("Forcing connection close {}", ar.uuid());
                     r.resume();
                     r.close();
-                } catch (Throwable t1) {
+                } catch (Exception t1) {
                     logger.trace("Was unable to resume a corrupted AtmosphereResource {}", r);
                     logger.trace("Cause", t1);
                 }
@@ -1228,6 +1246,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public Future<Object> broadcast(Object msg) {
+        Objects.requireNonNull(msg, "Broadcast message must not be null");
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcast(T msg)");
@@ -1278,6 +1297,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public Future<Object> broadcast(Object msg, AtmosphereResource r) {
+        Objects.requireNonNull(msg, "Broadcast message must not be null");
+        Objects.requireNonNull(r, "AtmosphereResource must not be null");
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcast(T msg, AtmosphereResource r");
@@ -1323,6 +1344,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public Future<Object> broadcast(Object msg, Set<AtmosphereResource> subset) {
+        Objects.requireNonNull(msg, "Broadcast message must not be null");
+        Objects.requireNonNull(subset, "AtmosphereResource set must not be null");
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcast(T msg, Set<AtmosphereResource> subset)");
@@ -1340,6 +1363,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public Broadcaster addAtmosphereResource(AtmosphereResource r) {
+        Objects.requireNonNull(r, "AtmosphereResource must not be null");
         try {
             if (destroyed.get()) {
                 logger.debug(DESTROYED, getID(), "addAtmosphereResource(AtmosphereResource r");
@@ -1361,7 +1385,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         try {
                             logger.warn("Too many resource. Forcing resume of {} ", resource.uuid());
                             resource.resume();
-                        } catch (Throwable t) {
+                        } catch (Exception t) {
                             logger.warn("failed to resume resource {} ", resource, t);
                         }
                     }
@@ -1505,6 +1529,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public Broadcaster removeAtmosphereResource(AtmosphereResource r) {
+        Objects.requireNonNull(r, "AtmosphereResource must not be null");
         return removeAtmosphereResource(r, true);
     }
 
