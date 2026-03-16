@@ -35,7 +35,7 @@ import java.util.Date;
  * Chat handler for integration tests using {@link ManagedService}.
  * Supports all transports: WebSocket, SSE, streaming, and long-polling.
  */
-@ManagedService(path = "/chat")
+@ManagedService(path = "/chat/{room}")
 public class ChatHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(ChatHandler.class);

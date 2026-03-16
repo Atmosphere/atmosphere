@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -56,6 +57,14 @@ class ChatIntegrationTest {
 
     private static Server server;
     private static int port;
+    private static final AtomicInteger roomCounter = new AtomicInteger(0);
+
+    /** Each test gets a unique room path for broadcaster isolation. */
+    private static String chatUrl(String transport) {
+        var room = "room" + roomCounter.incrementAndGet();
+        var scheme = transport.equals("ws") ? "ws" : "http";
+        return scheme + "://localhost:" + port + "/chat/" + room;
+    }
 
     @BeforeAll
     static void startServer() throws Exception {
@@ -112,7 +121,7 @@ class ChatIntegrationTest {
                 .build();
 
         var request = client.newRequestBuilder()
-                .uri("ws://localhost:" + port + "/chat")
+                .uri(chatUrl("ws"))
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
                 .build();
@@ -137,7 +146,7 @@ class ChatIntegrationTest {
                 .build();
 
         var request = client.newRequestBuilder()
-                .uri("ws://localhost:" + port + "/chat")
+                .uri(chatUrl("ws"))
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
                 .build();
@@ -184,15 +193,16 @@ class ChatIntegrationTest {
         var client2 = AtmosphereClient.newClient();
 
         var options = client1.newOptionsBuilder().reconnect(false).build();
+        var sharedUrl = chatUrl("ws"); // Both clients share the same room
 
         var request1 = client1.newRequestBuilder()
-                .uri("ws://localhost:" + port + "/chat")
+                .uri(sharedUrl)
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
                 .build();
 
         var request2 = client2.newRequestBuilder()
-                .uri("ws://localhost:" + port + "/chat")
+                .uri(sharedUrl)
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
                 .build();
@@ -274,7 +284,7 @@ class ChatIntegrationTest {
                 .build();
 
         var request = client.newRequestBuilder()
-                .uri("ws://localhost:" + port + "/chat")
+                .uri(chatUrl("ws"))
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
                 .build();
@@ -319,7 +329,7 @@ class ChatIntegrationTest {
                 .build();
 
         var request = client.newRequestBuilder()
-                .uri("ws://localhost:" + port + "/chat")
+                .uri(chatUrl("ws"))
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
                 .build();
@@ -358,7 +368,7 @@ class ChatIntegrationTest {
                 .build();
 
         var request = client.newRequestBuilder()
-                .uri("ws://localhost:" + port + "/chat")
+                .uri(chatUrl("ws"))
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
                 .encoder(jsonEncoder)
@@ -391,6 +401,7 @@ class ChatIntegrationTest {
 
     @Test
     void sseTransportConnectsAndReceivesMessage() throws Exception {
+        var room = "room" + roomCounter.incrementAndGet();
         var client = AtmosphereClient.newClient();
         var messages = new CopyOnWriteArrayList<String>();
         var openLatch = new CountDownLatch(1);
@@ -401,7 +412,7 @@ class ChatIntegrationTest {
                 .build();
 
         var request = client.newRequestBuilder()
-                .uri("http://localhost:" + port + "/chat")
+                .uri("http://localhost:" + port + "/chat/" + room)
                 .transport(Request.TRANSPORT.SSE)
                 .enableProtocol(false)
                 .build();
@@ -419,12 +430,12 @@ class ChatIntegrationTest {
 
         assertTrue(openLatch.await(10, TimeUnit.SECONDS), "SSE should connect");
 
-        // Send a message via a separate WebSocket client (SSE is read-only for receive)
+        // Send a message via a separate WebSocket client in the SAME room
         var sender = AtmosphereClient.newClient();
         var senderOpen = new CountDownLatch(1);
 
         var senderRequest = sender.newRequestBuilder()
-                .uri("ws://localhost:" + port + "/chat")
+                .uri("ws://localhost:" + port + "/chat/" + room)
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
                 .build();
@@ -450,6 +461,7 @@ class ChatIntegrationTest {
 
     @Test
     void longPollingTransportConnectsAndReceivesMessage() throws Exception {
+        var room = "room" + roomCounter.incrementAndGet();
         var client = AtmosphereClient.newClient();
         var messages = new CopyOnWriteArrayList<String>();
         var openLatch = new CountDownLatch(1);
@@ -460,7 +472,7 @@ class ChatIntegrationTest {
                 .build();
 
         var request = client.newRequestBuilder()
-                .uri("http://localhost:" + port + "/chat")
+                .uri("http://localhost:" + port + "/chat/" + room)
                 .transport(Request.TRANSPORT.LONG_POLLING)
                 .enableProtocol(false)
                 .build();
@@ -478,12 +490,12 @@ class ChatIntegrationTest {
 
         assertTrue(openLatch.await(10, TimeUnit.SECONDS), "Long-polling should connect");
 
-        // Send a message via a separate WebSocket client
+        // Send a message via a separate WebSocket client in the SAME room
         var sender = AtmosphereClient.newClient();
         var senderOpen = new CountDownLatch(1);
 
         var senderRequest = sender.newRequestBuilder()
-                .uri("ws://localhost:" + port + "/chat")
+                .uri("ws://localhost:" + port + "/chat/" + room)
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
                 .build();
@@ -509,6 +521,7 @@ class ChatIntegrationTest {
 
     @Test
     void streamingTransportConnectsAndReceivesMessage() throws Exception {
+        var room = "room" + roomCounter.incrementAndGet();
         var client = AtmosphereClient.newClient();
         var messages = new CopyOnWriteArrayList<String>();
         var openLatch = new CountDownLatch(1);
@@ -519,7 +532,7 @@ class ChatIntegrationTest {
                 .build();
 
         var request = client.newRequestBuilder()
-                .uri("http://localhost:" + port + "/chat")
+                .uri("http://localhost:" + port + "/chat/" + room)
                 .transport(Request.TRANSPORT.STREAMING)
                 .enableProtocol(false)
                 .build();
@@ -537,12 +550,12 @@ class ChatIntegrationTest {
 
         assertTrue(openLatch.await(10, TimeUnit.SECONDS), "Streaming should connect");
 
-        // Send a message via a separate WebSocket client
+        // Send a message via a separate WebSocket client in the SAME room
         var sender = AtmosphereClient.newClient();
         var senderOpen = new CountDownLatch(1);
 
         var senderRequest = sender.newRequestBuilder()
-                .uri("ws://localhost:" + port + "/chat")
+                .uri("ws://localhost:" + port + "/chat/" + room)
                 .transport(Request.TRANSPORT.WEBSOCKET)
                 .enableProtocol(false)
                 .build();
