@@ -6,9 +6,7 @@ const capabilities = [
       <path d="m9 12 2 2 4-4"/>
     </svg>`,
     title: 'WebSocket + SSE',
-    description: 'First-class WebSocket with automatic SSE and long-polling fallback. Heartbeats, reconnection, and message caching built in.',
-    link: '/docs/tutorial/04-transports/',
-    linkLabel: 'Transport guide',
+    description: 'Automatic transport negotiation with seamless fallback. Your app stays connected regardless of what the network supports.',
   },
   {
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -18,9 +16,7 @@ const capabilities = [
       <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
     </svg>`,
     title: 'Rooms & Presence',
-    description: 'Named groups with real-time join/leave events, member lists, message history, and direct messaging. No external dependencies.',
-    link: '/docs/tutorial/06-rooms/',
-    linkLabel: 'Rooms tutorial',
+    description: 'Real-time collaboration out of the box. Named groups, presence tracking, message history, and direct messaging with no external dependencies.',
   },
   {
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -29,9 +25,7 @@ const capabilities = [
       <path d="M12 17v2"/>
     </svg>`,
     title: 'AI/LLM Streaming',
-    description: 'Stream tokens from any LLM to browsers. Adapters for Spring AI, LangChain4j, and Google ADK. Built-in MCP server for AI agents.',
-    link: '/docs/tutorial/09-ai-endpoint/',
-    linkLabel: 'AI streaming guide',
+    description: 'Ship AI features faster. Stream tokens from any LLM to the browser using the same infrastructure you already run for chat and notifications.',
   },
   {
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -41,9 +35,7 @@ const capabilities = [
       <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
     </svg>`,
     title: 'Spring Boot & Quarkus',
-    description: 'Auto-configured starters for both frameworks. One dependency, zero rewiring. Also works on any Servlet 6.0+ container.',
-    link: '/docs/tutorial/14-spring-boot/',
-    linkLabel: 'Spring Boot setup',
+    description: 'Drops into your existing stack. One dependency, auto-configured — no rewiring your application to get real-time capabilities.',
   },
 ];
 ---
@@ -62,17 +54,11 @@ const capabilities = [
 
     <div class="capabilities-grid">
       {capabilities.map((cap, index) => (
-        <a href={cap.link} class="capability-card" style={`--delay: ${(index * 0.1).toFixed(1)}s`}>
+        <div class="capability-card" style={`--delay: ${(index * 0.1).toFixed(1)}s`}>
           <div class="capability-icon" set:html={cap.icon} />
           <h3 class="capability-title">{cap.title}</h3>
           <p class="capability-description">{cap.description}</p>
-          <span class="capability-link">
-            {cap.linkLabel ?? 'Learn more'}
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </span>
-        </a>
+        </div>
       ))}
     </div>
   </div>
@@ -144,10 +130,6 @@ const capabilities = [
     border-radius: 12px;
     transition: all 0.3s var(--ease-out-quad);
     animation: fadeInUp 0.6s var(--ease-out-expo) var(--delay) both;
-    display: flex;
-    flex-direction: column;
-    text-decoration: none;
-    color: inherit;
   }
 
   .capability-card:hover {
@@ -185,25 +167,6 @@ const capabilities = [
     font-size: 0.9375rem;
     color: var(--color-text-secondary);
     line-height: 1.6;
-    margin-bottom: var(--space-md);
-    flex-grow: 1;
-  }
-
-  .capability-link {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-xs);
-    font-family: var(--font-mono);
-    font-size: 0.8125rem;
-    color: var(--color-accent);
-    opacity: 0;
-    transform: translateX(-4px);
-    transition: all 0.3s var(--ease-out-quad);
-  }
-
-  .capability-card:hover .capability-link {
-    opacity: 1;
-    transform: translateX(0);
   }
 
   @keyframes fadeInUp {
@@ -224,11 +187,6 @@ const capabilities = [
 
     .capabilities-grid {
       grid-template-columns: 1fr;
-    }
-
-    .capability-link {
-      opacity: 1;
-      transform: translateX(0);
     }
   }
 </style>
