@@ -58,6 +58,49 @@ public interface ContextProvider {
     List<Document> retrieve(String query, int maxResults);
 
     /**
+     * Transform the user's query before retrieval. Override to implement
+     * query rewriting strategies such as multi-query, HyDE (Hypothetical
+     * Document Embeddings), or step-back prompting.
+     *
+     * <p>The default returns the query unchanged.</p>
+     *
+     * @param originalQuery the user's original message
+     * @return the transformed query to use for retrieval
+     */
+    default String transformQuery(String originalQuery) {
+        return originalQuery;
+    }
+
+    /**
+     * Re-rank retrieved documents after initial retrieval. Override to
+     * implement cross-encoder reranking, LLM-based reranking, or
+     * reciprocal rank fusion across multiple retrievers.
+     *
+     * <p>The default returns documents unchanged.</p>
+     *
+     * @param query     the query used for retrieval
+     * @param documents the initially retrieved documents
+     * @return the re-ranked document list
+     */
+    default List<Document> rerank(String query, List<Document> documents) {
+        return documents;
+    }
+
+    /**
+     * Ingest documents into the backing store. Only supported by providers
+     * that manage their own document store (not read-only bridges).
+     *
+     * <p>The default throws {@link UnsupportedOperationException}.</p>
+     *
+     * @param documents the documents to ingest
+     * @throws UnsupportedOperationException if this provider is read-only
+     */
+    default void ingest(List<Document> documents) {
+        throw new UnsupportedOperationException(
+                getClass().getSimpleName() + " is read-only and does not support ingestion");
+    }
+
+    /**
      * Whether this provider is available and properly configured.
      * Used by {@link java.util.ServiceLoader} auto-discovery to filter out
      * providers whose backing store is not present.

@@ -20,6 +20,7 @@ import com.google.genai.types.Content;
 import com.google.genai.types.Part;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.disposables.Disposable;
+import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.cpr.Broadcaster;
@@ -133,14 +134,24 @@ public final class AdkEventAdapter {
         if (event.errorMessage().isPresent()) {
             logger.warn("ADK error event: {}", event.errorMessage().get());
             if (completed.compareAndSet(false, true)) {
-                session.error(new RuntimeException(event.errorMessage().get()));
+                session.emit(new AiEvent.Error(
+                        event.errorMessage().get(), "adk_error", false));
             }
             return;
         }
 
+        // Emit agent step events for non-partial, non-terminal events (orchestration visibility)
+        var author = event.author();
+        if (author != null && !author.isEmpty()
+                && !event.partial().orElse(false) && !event.turnComplete().orElse(false)) {
+            session.emit(new AiEvent.AgentStep(
+                    author, "ADK agent step from " + author, java.util.Map.of()));
+        }
+
         // Extract text from partial streaming chunks
         if (event.partial().orElse(false)) {
-            extractText(event).ifPresent(session::send);
+            extractText(event).ifPresent(text ->
+                    session.emit(new AiEvent.TextDelta(text)));
             return;
         }
 
@@ -148,29 +159,28 @@ public final class AdkEventAdapter {
         if (event.turnComplete().orElse(false)) {
             if (completed.compareAndSet(false, true)) {
                 var summary = extractText(event).orElse(null);
-                if (summary != null) {
-                    session.complete(summary);
-                } else {
-                    session.complete();
-                }
+                session.emit(new AiEvent.Complete(summary, java.util.Map.of()));
             }
             return;
         }
 
-        // For non-partial, non-turnComplete events with content, send as streaming text
-        extractText(event).ifPresent(session::send);
+        // For non-partial, non-turnComplete events with content, send as text delta
+        extractText(event).ifPresent(text ->
+                session.emit(new AiEvent.TextDelta(text)));
     }
 
     private void onError(Throwable t) {
         logger.error("ADK event stream error", t);
         if (completed.compareAndSet(false, true)) {
-            session.error(t);
+            session.emit(new AiEvent.Error(
+                    t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName(),
+                    "adk_stream_error", false));
         }
     }
 
     private void onComplete() {
         if (completed.compareAndSet(false, true)) {
-            session.complete();
+            session.emit(new AiEvent.Complete(null, java.util.Map.of()));
         }
     }
 

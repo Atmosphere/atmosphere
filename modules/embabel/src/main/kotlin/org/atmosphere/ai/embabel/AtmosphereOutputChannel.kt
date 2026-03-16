@@ -16,6 +16,7 @@
 package org.atmosphere.ai.embabel
 
 import com.embabel.agent.api.channel.*
+import org.atmosphere.ai.AiEvent
 import org.atmosphere.ai.StreamingSession
 import org.slf4j.LoggerFactory
 
@@ -49,20 +50,21 @@ class AtmosphereOutputChannel(
 
         when (event) {
             is MessageOutputChannelEvent -> {
-                session.send(event.message.content)
+                session.emit(AiEvent.TextDelta(event.message.content))
             }
 
             is ContentOutputChannelEvent -> {
-                session.send(event.content.content)
+                session.emit(AiEvent.TextDelta(event.content.content))
             }
 
             is ProgressOutputChannelEvent -> {
-                session.progress(event.message)
+                session.emit(AiEvent.AgentStep(
+                    "embabel-progress", event.message, emptyMap()))
             }
 
             is LoggingOutputChannelEvent -> {
                 if (event.level >= LoggingOutputChannelEvent.Level.INFO) {
-                    session.progress(event.message)
+                    session.emit(AiEvent.Progress(event.message, null))
                 }
             }
 

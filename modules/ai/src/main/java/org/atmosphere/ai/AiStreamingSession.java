@@ -176,12 +176,14 @@ public class AiStreamingSession implements StreamingSession {
             }
         }
 
-        // Context providers: RAG augmentation
+        // Context providers: RAG augmentation with query transform + reranking
         if (!contextProviders.isEmpty()) {
             var contextBuilder = new StringBuilder();
             for (var provider : contextProviders) {
                 try {
-                    var docs = provider.retrieve(request.message(), 5);
+                    var query = provider.transformQuery(request.message());
+                    var docs = provider.retrieve(query, 5);
+                    docs = provider.rerank(query, docs);
                     for (var doc : docs) {
                         contextBuilder.append("\n---\nSource: ").append(doc.source())
                                 .append("\n").append(doc.content());
