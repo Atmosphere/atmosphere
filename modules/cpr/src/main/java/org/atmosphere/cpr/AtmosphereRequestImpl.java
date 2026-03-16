@@ -478,13 +478,23 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public AtmosphereRequest headers(Map<String, String> headers) {
-        b.headers.putAll(headers);
+        headers.forEach((name, value) -> {
+            if (value == null) {
+                b.headers.remove(name);
+            } else {
+                b.headers.put(name, value);
+            }
+        });
         return this;
     }
 
     @Override
     public AtmosphereRequest header(String name, String value) {
-        b.headers.put(name, value);
+        if (value == null) {
+            b.headers.remove(name);
+        } else {
+            b.headers.put(name, value);
+        }
         return this;
     }
 
@@ -1663,7 +1673,10 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         String s;
         while (e.hasMoreElements()) {
             s = e.nextElement();
-            b.headers.put(s, request.getHeader(s));
+            var headerValue = request.getHeader(s);
+            if (headerValue != null) {
+                b.headers.put(s, headerValue);
+            }
         }
         b.requestLock.lock();
         try {
