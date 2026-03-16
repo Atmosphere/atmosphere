@@ -290,16 +290,18 @@ final class ResponseWriter {
         }
 
         try {
+            String encoding = response.getCharacterEncoding();
+            byte[] safe = sanitizeBytesForOutput(data, encoding);
             if (isUsingStream(response)) {
                 try {
                     OutputStream o = writeUsingOriginalResponse ? nativeResponse.getOutputStream() : response.getOutputStream();
-                    o.write(data);
+                    o.write(safe);
                 } catch (IllegalStateException ex) {
                     logger.trace("", ex);
                 }
             } else {
                 PrintWriter w = writeUsingOriginalResponse ? nativeResponse.getWriter() : response.getWriter();
-                w.write(sanitizeForOutput(new String(data, response.getCharacterEncoding())));
+                w.write(new String(safe, encoding));
             }
         } catch (Exception ex) {
             handleException(response, ex);
@@ -319,16 +321,20 @@ final class ResponseWriter {
         }
 
         try {
+            String encoding = response.getCharacterEncoding();
+            byte[] slice = new byte[length];
+            System.arraycopy(data, offset, slice, 0, length);
+            byte[] safe = sanitizeBytesForOutput(slice, encoding);
             if (isUsingStream(response)) {
                 try {
                     OutputStream o = writeUsingOriginalResponse ? nativeResponse.getOutputStream() : response.getOutputStream();
-                    o.write(data, offset, length);
+                    o.write(safe);
                 } catch (IllegalStateException ex) {
                     logger.trace("", ex);
                 }
             } else {
                 PrintWriter w = writeUsingOriginalResponse ? nativeResponse.getWriter() : response.getWriter();
-                w.write(sanitizeForOutput(new String(data, offset, length, response.getCharacterEncoding())));
+                w.write(new String(safe, encoding));
             }
         } catch (Exception ex) {
             handleException(response, ex);
@@ -376,6 +382,27 @@ final class ResponseWriter {
         String ct = getContentTypeForSanitization();
         if (ct != null && ct.contains("html")) {
             return HtmlEncoder.encode(data);
+        }
+        return data;
+    }
+
+    /**
+     * Sanitize byte data for output. Applies HTML encoding when the content
+     * type is HTML. WebSocket frames and non-HTML content pass through unchanged.
+     */
+    private byte[] sanitizeBytesForOutput(byte[] data, String encoding) {
+        if (asyncIOWriter instanceof WebSocket) {
+            return data;
+        }
+        String ct = getContentTypeForSanitization();
+        if (ct != null && ct.contains("html")) {
+            try {
+                String sanitized = HtmlEncoder.encode(new String(data, encoding));
+                return sanitized.getBytes(encoding);
+            } catch (java.io.UnsupportedEncodingException e) {
+                logger.warn("Unsupported encoding: {}", encoding);
+                return data;
+            }
         }
         return data;
     }
