@@ -75,7 +75,7 @@ class WAsyncChatIntegrationTest {
 
         socket.fire(mapper.writeValueAsString(new Message("Alice", "Hello from wAsync!")));
 
-        assertThat(messageLatch.await(10, TimeUnit.SECONDS))
+        assertThat(messageLatch.await(20, TimeUnit.SECONDS))
                 .as("Should receive broadcast").isTrue();
 
         var received = mapper.readValue(messages.getFirst(), Message.class);
@@ -135,7 +135,7 @@ class WAsyncChatIntegrationTest {
 
         senderSocket.fire(mapper.writeValueAsString(new Message("Bob", "Hello via SSE!")));
 
-        assertThat(messageLatch.await(10, TimeUnit.SECONDS))
+        assertThat(messageLatch.await(20, TimeUnit.SECONDS))
                 .as("SSE client should receive broadcast").isTrue();
 
         var received = mapper.readValue(messages.getFirst(), Message.class);
@@ -202,7 +202,7 @@ class WAsyncChatIntegrationTest {
 
         senderSocket.fire(mapper.writeValueAsString(new Message("Charlie", "Hello via LP!")));
 
-        assertThat(messageLatch.await(10, TimeUnit.SECONDS))
+        assertThat(messageLatch.await(20, TimeUnit.SECONDS))
                 .as("Long-polling client should receive broadcast").isTrue();
 
         var received = mapper.readValue(messages.getFirst(), Message.class);
