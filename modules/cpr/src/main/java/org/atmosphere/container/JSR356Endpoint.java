@@ -241,7 +241,10 @@ public class JSR356Endpoint extends Endpoint {
                 Enumeration<String> attributeNames = handshakeSession.getAttributeNames();
                 while (attributeNames.hasMoreElements()) {
                     String attributeName = attributeNames.nextElement();
-                    attributes.put(attributeName, handshakeSession.getAttribute(attributeName));
+                    Object attributeValue = handshakeSession.getAttribute(attributeName);
+                    if (attributeValue != null) {
+                        attributes.put(attributeName, attributeValue);
+                    }
                 }
             }
 

@@ -410,7 +410,10 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             queryComputed = true;
             Map<String, String[]> m = (isNotNoOps() ? b.request.getParameterMap() : Collections.emptyMap());
             for (String e : m.keySet()) {
-                b.queryStrings.put(e, getParameterValues(e));
+                var values = getParameterValues(e);
+                if (values != null) {
+                    b.queryStrings.put(e, values);
+                }
             }
         }
         return Collections.unmodifiableMap(b.queryStrings);
@@ -1035,7 +1038,12 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         @Override
         public Builder headers(Map<String, String> headers) {
-            this.headers = new ConcurrentHashMap<>(headers);
+            this.headers = new ConcurrentHashMap<>();
+            headers.forEach((k, v) -> {
+                if (k != null && v != null) {
+                    this.headers.put(k, v);
+                }
+            });
             return this;
         }
 
@@ -1207,7 +1215,12 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         @Override
         public Builder queryStrings(Map<String, String[]> queryStrings) {
-            this.queryStrings = new ConcurrentHashMap<>(queryStrings);
+            this.queryStrings = new ConcurrentHashMap<>();
+            queryStrings.forEach((k, v) -> {
+                if (k != null && v != null) {
+                    this.queryStrings.put(k, v);
+                }
+            });
             return this;
         }
 
@@ -1692,7 +1705,10 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         e = request.getParameterNames();
         while (e.hasMoreElements()) {
             s = e.nextElement();
-            b.queryStrings.put(s, request.getParameterValues(s));
+            var paramValues = request.getParameterValues(s);
+            if (paramValues != null) {
+                b.queryStrings.put(s, paramValues);
+            }
         }
         b.queryString = request.getQueryString();
 

@@ -160,7 +160,11 @@ public interface AtmosphereRequest extends HttpServletRequest {
         }
 
         public LocalAttributes put(String s, Object o) {
-            localAttributes.put(s, o);
+            if (o == null) {
+                localAttributes.remove(s);
+            } else {
+                localAttributes.put(s, o);
+            }
             return this;
         }
 

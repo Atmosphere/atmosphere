@@ -30,6 +30,9 @@ public class DefaultAtmosphereResourceSession implements AtmosphereResourceSessi
     @Override
     public Object setAttribute(String name, Object value) {
         checkValid();
+        if (value == null) {
+            return attributes.remove(name);
+        }
         return attributes.put(name, value);
     }
 

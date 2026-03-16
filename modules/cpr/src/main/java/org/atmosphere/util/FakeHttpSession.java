@@ -122,14 +122,22 @@ public class FakeHttpSession implements HttpSession {
     @Override
     public void setAttribute(String name, Object value) {
         if (!valid.get()) throw new IllegalStateException();
-        attributes.put(name, value);
+        if (value == null) {
+            attributes.remove(name);
+        } else {
+            attributes.put(name, value);
+        }
     }
 
     @SuppressWarnings("deprecation")
     @Override
     public void putValue(String name, Object value) {
         if (!valid.get()) throw new IllegalStateException();
-        attributes.put(name, value);
+        if (value == null) {
+            attributes.remove(name);
+        } else {
+            attributes.put(name, value);
+        }
     }
 
     @Override
