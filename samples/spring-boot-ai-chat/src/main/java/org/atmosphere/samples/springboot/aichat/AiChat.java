@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.springboot.aichat;
 
+import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
@@ -39,7 +40,9 @@ import org.slf4j.LoggerFactory;
  * <p>In demo mode (no API key configured), falls back to simulated streaming.</p>
  */
 @AiEndpoint(path = "/atmosphere/ai-chat",
-        systemPromptResource = "prompts/system-prompt.md")
+        systemPromptResource = "prompts/system-prompt.md",
+        requires = {AiCapability.TEXT_STREAMING, AiCapability.SYSTEM_PROMPT},
+        conversationMemory = true)
 public class AiChat {
 
     private static final Logger logger = LoggerFactory.getLogger(AiChat.class);

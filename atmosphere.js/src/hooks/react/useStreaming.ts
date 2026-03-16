@@ -31,6 +31,16 @@ export interface UseStreamingOptions {
 }
 
 /**
+ * A structured AI event received from the server.
+ */
+export interface AiEvent {
+  /** Event type (e.g., "tool-start", "tool-result", "agent-step", "entity-start"). */
+  event: string;
+  /** Structured event data. */
+  data: Record<string, unknown>;
+}
+
+/**
  * Return type of {@link useStreaming}.
  */
 export interface UseStreamingResult {
@@ -48,6 +58,8 @@ export interface UseStreamingResult {
   stats: SessionStats | null;
   /** Routing information extracted from server metadata. */
   routing: RoutingInfo;
+  /** Structured AI events (tool calls, agent steps, entities, etc.). */
+  aiEvents: AiEvent[];
   /** Error message, if any. */
   error: string | null;
   /** Send a prompt to the server to start streaming. */
@@ -87,6 +99,7 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   const [metadata, setMetadata] = useState<Record<string, unknown>>({});
   const [stats, setStats] = useState<SessionStats | null>(null);
   const [routing, setRouting] = useState<RoutingInfo>({});
+  const [aiEvents, setAiEvents] = useState<AiEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const handleRef = useRef<StreamingHandle | null>(null);
@@ -127,6 +140,11 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
                 const field = key.substring('routing.'.length);
                 setRouting((prev) => ({ ...prev, [field]: value }));
               }
+            }
+          },
+          onAiEvent: (event, data) => {
+            if (!cancelled) {
+              setAiEvents((prev) => [...prev, { event, data }]);
             }
           },
           onSessionComplete: (s, r) => {
@@ -170,6 +188,7 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
     setMetadata({});
     setStats(null);
     setRouting({});
+    setAiEvents([]);
     setError(null);
   }, []);
 
@@ -181,7 +200,7 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   const fullText = useMemo(() => streamingTexts.join(''), [streamingTexts]);
 
   return useMemo(
-    () => ({ fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, error, send, reset, close }),
-    [fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, error, send, reset, close],
+    () => ({ fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, aiEvents, error, send, reset, close }),
+    [fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, aiEvents, error, send, reset, close],
   );
 }

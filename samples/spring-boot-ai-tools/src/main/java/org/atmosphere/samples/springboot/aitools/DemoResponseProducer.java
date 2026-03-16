@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.springboot.aitools;
 
+import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 
 import java.time.LocalDateTime;
@@ -33,11 +34,21 @@ public final class DemoResponseProducer {
 
     public static void stream(String userMessage, StreamingSession session, String room, String model) {
         var response = generateResponse(userMessage);
+        var toolName = detectTool(userMessage);
         var words = response.split("(?<=\\s)");
 
         try {
             long startNanos = System.nanoTime();
             session.progress("Demo mode (no API key) — room: " + room);
+
+            // Emit AiEvent tool events so the frontend can show tool activity
+            if (toolName != null) {
+                var toolArgs = buildToolArgs(toolName, userMessage);
+                session.emit(new AiEvent.ToolStart(toolName, toolArgs));
+                Thread.sleep(100);
+                session.emit(new AiEvent.ToolResult(toolName, Map.of("status", "success")));
+            }
+
             for (var word : words) {
                 session.send(word);
                 Thread.sleep(50);
@@ -168,5 +179,31 @@ public final class DemoResponseProducer {
         if (text.contains("tokyo")) return "tokyo";
         if (text.contains("sydney")) return "sydney";
         return null;
+    }
+
+    private static String detectTool(String userMessage) {
+        var lower = userMessage.toLowerCase();
+        if (lower.contains("time") && containsCity(lower)) return "get_city_time";
+        if (lower.contains("time")) return "get_current_time";
+        if (lower.contains("weather")) return "get_weather";
+        if (lower.contains("convert") || lower.contains("celsius") || lower.contains("fahrenheit"))
+            return "convert_temperature";
+        return null;
+    }
+
+    private static Map<String, Object> buildToolArgs(String toolName, String userMessage) {
+        var lower = userMessage.toLowerCase();
+        return switch (toolName) {
+            case "get_city_time" -> {
+                var city = extractCity(lower);
+                yield city != null ? Map.of("city", city) : Map.of();
+            }
+            case "get_weather" -> {
+                var city = extractCity(lower);
+                yield Map.of("city", (Object) (city != null ? city : "New York"));
+            }
+            case "convert_temperature" -> Map.of("value", (Object) "100", "fromUnit", "C");
+            default -> Map.of();
+        };
     }
 }

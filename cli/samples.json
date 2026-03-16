@@ -13,7 +13,7 @@
     },
     {
       "name": "spring-boot-ai-chat",
-      "description": "AI-powered streaming chat with OpenAI-compatible APIs",
+      "description": "AI streaming chat with capability validation, conversation memory, and structured events",
       "category": "ai",
       "tags": ["spring-boot", "ai", "streaming", "openai", "gemini", "ollama"],
       "port": 8080,
@@ -42,7 +42,7 @@
     },
     {
       "name": "spring-boot-ai-tools",
-      "description": "Framework-agnostic AI tool calling pipeline",
+      "description": "Framework-agnostic AI tool calling with real-time tool events and cost metering",
       "category": "tools",
       "tags": ["spring-boot", "ai", "tools", "langchain4j", "framework-agnostic"],
       "port": 8090,

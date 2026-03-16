@@ -54,16 +54,37 @@ export interface SendOptions {
  * A single streaming wire-protocol message as sent by the Java
  * {@code DefaultStreamingSession}.
  *
- * Example:
+ * Example (legacy):
  * ```json
  * {"type":"streaming-text","data":"Hello","sessionId":"abc-123","seq":1}
+ * ```
+ *
+ * Example (AiEvent):
+ * ```json
+ * {"event":"tool-start","data":{"toolName":"weather","arguments":{"city":"Montreal"}},"sessionId":"abc-123","seq":1}
  * ```
  */
 export interface StreamingMessage {
   type: StreamingMessageType;
+  /** For legacy messages: string data. For AiEvent messages: structured data object. */
   data?: string;
   key?: string;
   value?: unknown;
+  sessionId: string;
+  seq: number;
+  /** AiEvent type name (e.g., "text-delta", "tool-start"). Present only in AiEvent format. */
+  event?: string;
+}
+
+/**
+ * A structured AI event from the AiEvent wire protocol.
+ * Emitted by {@code StreamingSession.emit(AiEvent)} on the server.
+ */
+export interface AiEventMessage {
+  /** Event type (e.g., "text-delta", "tool-start", "agent-step"). */
+  event: string;
+  /** Structured event payload. */
+  data: Record<string, unknown>;
   sessionId: string;
   seq: number;
 }
@@ -82,6 +103,8 @@ export interface StreamingHandlers {
   onError?: (error: string) => void;
   /** Called on metadata events (model name, streaming text count, etc.). */
   onMetadata?: (key: string, value: unknown) => void;
+  /** Called for structured AiEvent messages (tool calls, agent steps, entities, etc.). */
+  onAiEvent?: (event: string, data: Record<string, unknown>) => void;
   /** Called when the session completes or errors, with aggregated stats and routing info. */
   onSessionComplete?: (stats: SessionStats, routing: RoutingInfo) => void;
 }

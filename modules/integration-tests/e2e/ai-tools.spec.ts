@@ -87,6 +87,24 @@ test.describe('@AiTool Pipeline', () => {
       .toBeVisible({ timeout: 30_000 });
   });
 
+  test('tool activity panel shows tool-start and tool-result events', async ({ page }) => {
+    await page.goto(server.baseUrl);
+    await expect(page.getByTestId('chat-input')).toBeVisible();
+
+    await page.getByTestId('chat-input').fill('What is the weather in Tokyo?');
+    await page.getByTestId('chat-send').click();
+
+    // The ToolActivity component should appear with tool events
+    await expect(page.getByTestId('tool-activity'))
+      .toBeVisible({ timeout: 30_000 });
+    // Should show the tool name
+    await expect(page.getByText('get_weather', { exact: false }).first())
+      .toBeVisible({ timeout: 30_000 });
+    // Text response should also appear
+    await expect(page.getByText('tokyo', { exact: false }).first())
+      .toBeVisible({ timeout: 30_000 });
+  });
+
   test('three concurrent clients all receive broadcast responses', async ({ browser }) => {
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();

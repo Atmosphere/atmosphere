@@ -136,6 +136,54 @@ function dispatch(
   state: TrackingState,
   updateState: (streamingTextCount: number, startTime: number | null, routing: RoutingInfo) => void,
 ): void {
+  // Handle AiEvent format (event: "text-delta", "tool-start", etc.)
+  if (msg.event) {
+    const data = (typeof msg.data === 'object' && msg.data !== null ? msg.data : {}) as Record<string, unknown>;
+    switch (msg.event) {
+      case 'text-delta':
+        if (data.text) {
+          handlers.onStreamingText?.(data.text as string, msg.seq);
+          state.streamingTextCount++;
+          if (!state.startTime) state.startTime = Date.now();
+          updateState(state.streamingTextCount, state.startTime, state.routing);
+        }
+        break;
+      case 'progress':
+        handlers.onProgress?.(data.message as string ?? '', msg.seq);
+        break;
+      case 'complete': {
+        handlers.onComplete?.(data.summary as string | undefined);
+        const elapsed = state.startTime ? Date.now() - state.startTime : 0;
+        const stats: SessionStats = {
+          totalStreamingTexts: state.streamingTextCount,
+          elapsedMs: elapsed,
+          status: 'complete',
+          streamingTextsPerSecond: elapsed > 0 ? (state.streamingTextCount / elapsed) * 1000 : 0,
+        };
+        handlers.onSessionComplete?.(stats, { ...state.routing });
+        break;
+      }
+      case 'error': {
+        handlers.onError?.(data.message as string ?? 'Unknown error');
+        const elapsed = state.startTime ? Date.now() - state.startTime : 0;
+        const stats: SessionStats = {
+          totalStreamingTexts: state.streamingTextCount,
+          elapsedMs: elapsed,
+          status: 'error',
+          streamingTextsPerSecond: elapsed > 0 ? (state.streamingTextCount / elapsed) * 1000 : 0,
+        };
+        handlers.onSessionComplete?.(stats, { ...state.routing });
+        break;
+      }
+      default:
+        // All other event types (tool-start, tool-result, agent-step, etc.)
+        handlers.onAiEvent?.(msg.event, data);
+        break;
+    }
+    return;
+  }
+
+  // Legacy format (type: "streaming-text", etc.)
   switch (msg.type) {
     case 'streaming-text':
       if (msg.data !== undefined) {

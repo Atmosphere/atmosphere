@@ -21,17 +21,22 @@ import { logger } from '../utils/logger';
  * Parses a raw message string into a {@link StreamingMessage}, or returns
  * `null` if the message is not a valid streaming protocol message.
  *
- * The wire protocol is a JSON object with at least `type`, `sessionId`,
- * and `seq` fields.
+ * Supports both legacy format ({@code type: "streaming-text"}) and the
+ * new AiEvent format ({@code event: "text-delta"}).
  */
 export function parseStreamingMessage(raw: string): StreamingMessage | null {
   if (!raw || raw.charAt(0) !== '{') return null;
   try {
     const parsed = JSON.parse(raw);
-    if (!isStreamingType(parsed.type) || typeof parsed.sessionId !== 'string') {
-      return null;
+    // Legacy format: has "type" field
+    if (isStreamingType(parsed.type) && typeof parsed.sessionId === 'string') {
+      return parsed as StreamingMessage;
     }
-    return parsed as StreamingMessage;
+    // AiEvent format: has "event" field
+    if (typeof parsed.event === 'string' && typeof parsed.sessionId === 'string') {
+      return parsed as StreamingMessage;
+    }
+    return null;
   } catch {
     logger.debug('Failed to parse streaming message', raw);
     return null;
