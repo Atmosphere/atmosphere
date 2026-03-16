@@ -160,6 +160,18 @@ export default defineConfig({
       testMatch: /ai-error-recovery\.spec\.ts/,
     },
     {
+      name: 'ai-events',
+      testMatch: /ai-events\.spec\.ts/,
+    },
+    {
+      name: 'ai-identity',
+      testMatch: /ai-identity\.spec\.ts/,
+    },
+    {
+      name: 'ai-memory-strategies',
+      testMatch: /ai-memory-strategies\.spec\.ts/,
+    },
+    {
       name: 'mcp-tools',
       testMatch: /mcp-tools\.spec\.ts/,
     },

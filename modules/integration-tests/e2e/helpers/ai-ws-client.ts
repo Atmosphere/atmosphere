@@ -2,14 +2,18 @@ import WebSocket from 'ws';
 
 /**
  * Parsed AI streaming event from the wire protocol.
+ * Supports both legacy format (type: "streaming-text") and
+ * new AiEvent format (event: "text-delta").
  */
 export interface StreamingEvent {
   type: 'streaming-text' | 'progress' | 'metadata' | 'complete' | 'error';
-  data?: string;
+  data?: string | Record<string, unknown>;
   sessionId?: string;
   seq?: number;
   key?: string;
   value?: unknown;
+  /** New AiEvent wire protocol: event type name (e.g., "text-delta", "tool-start"). */
+  event?: string;
 }
 
 /**
@@ -140,21 +144,57 @@ export class AiWsClient {
     this.doneLatch = null;
   }
 
+  /** Get all AiEvent-format events of a given type. */
+  aiEvents(eventType: string): StreamingEvent[] {
+    return this.events.filter(e => e.event === eventType);
+  }
+
+  /** Get data payload of the first AiEvent of a given type. */
+  aiEventData(eventType: string): Record<string, unknown> | undefined {
+    const ev = this.events.find(e => e.event === eventType);
+    return ev?.data as Record<string, unknown> | undefined;
+  }
+
   private handleEvent(event: StreamingEvent): void {
     this.events.push(event);
     if (event.sessionId) {
       this.sessionIds.add(event.sessionId);
     }
 
+    // Handle new AiEvent wire format (event: "text-delta", "tool-start", etc.)
+    if (event.event) {
+      switch (event.event) {
+        case 'text-delta': {
+          const d = event.data as Record<string, unknown> | undefined;
+          if (d?.text) this.tokens.push(d.text as string);
+          break;
+        }
+        case 'error':
+          if (event.data) {
+            const d = event.data as Record<string, unknown>;
+            this.errors.push((d.message as string) ?? 'unknown error');
+          }
+          this.doneLatch?.();
+          this.doneLatch = null;
+          break;
+        case 'complete':
+          this.doneLatch?.();
+          this.doneLatch = null;
+          break;
+      }
+      return;
+    }
+
+    // Legacy wire format (type: "streaming-text", "progress", etc.)
     switch (event.type) {
       case 'streaming-text':
-        if (event.data) this.tokens.push(event.data);
+        if (event.data) this.tokens.push(event.data as string);
         break;
       case 'metadata':
         if (event.key != null) this.metadata.set(event.key, event.value);
         break;
       case 'error':
-        if (event.data) this.errors.push(event.data);
+        if (event.data) this.errors.push(event.data as string);
         this.doneLatch?.();
         this.doneLatch = null;
         break;

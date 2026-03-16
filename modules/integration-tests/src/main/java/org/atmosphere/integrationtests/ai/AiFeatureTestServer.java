@@ -15,6 +15,8 @@
  */
 package org.atmosphere.integrationtests.ai;
 
+import org.atmosphere.ai.SummarizingStrategy;
+import org.atmosphere.ai.TokenWindowStrategy;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.integrationtests.EmbeddedAtmosphereServer;
 import org.slf4j.Logger;
@@ -53,11 +55,18 @@ public class AiFeatureTestServer {
             framework.addAtmosphereHandler("/ai/classroom/code", new ClassroomTestHandler("code"));
             framework.addAtmosphereHandler("/ai/memory", new ConversationMemoryTestHandler(20));
             framework.addAtmosphereHandler("/ai/error-recovery", new ErrorRecoveryTestHandler());
+            framework.addAtmosphereHandler("/ai/events", new AiEventTestHandler());
+            framework.addAtmosphereHandler("/ai/identity", new IdentityTestHandler());
+            framework.addAtmosphereHandler("/ai/memory-token-window",
+                    new MemoryStrategyTestHandler(new TokenWindowStrategy(200)));
+            framework.addAtmosphereHandler("/ai/memory-summarizing",
+                    new MemoryStrategyTestHandler(new SummarizingStrategy(4)));
 
             logger.info("AI Feature Test Server started on port {}", server.getPort());
             logger.info("Endpoints: /ai/filters, /ai/fanout, /ai/cache, /ai/routing, /ai/budget, "
                     + "/ai/cache-coalescing, /ai/cost-routing, /ai/combined-cost-cache, "
-                    + "/ai/classroom/math, /ai/classroom/code, /ai/memory, /ai/error-recovery");
+                    + "/ai/classroom/math, /ai/classroom/code, /ai/memory, /ai/error-recovery, "
+                    + "/ai/events, /ai/identity, /ai/memory-token-window, /ai/memory-summarizing");
 
             Thread.currentThread().join();
         }
