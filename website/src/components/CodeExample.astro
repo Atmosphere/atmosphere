@@ -7,6 +7,15 @@ const reasons = [
     </svg>`,
     title: 'Ship AI features without building infrastructure',
     description: 'Atmosphere handles token streaming, tool execution, RAG context injection, and guardrails. You plug in your model — we deliver the output to the browser.',
+    detail: `<p>Atmosphere provides the <strong>server-to-browser transport layer</strong> for AI applications while your model framework handles inference.</p>
+<ul>
+<li><strong>Token streaming</strong> — real-time delivery with content/progress/metadata/complete frames</li>
+<li><strong>Tool calling</strong> — register tools with @AiTool, auto-executed during LLM inference</li>
+<li><strong>RAG</strong> — ContextProvider SPI injects relevant documents before the LLM call</li>
+<li><strong>Guardrails</strong> — pre-process prompts, post-process responses for safety</li>
+<li><strong>MCP Server</strong> — expose tools and resources to Claude, Copilot, and Cursor</li>
+<li><strong>Model routing</strong> — failover across multiple LLM backends automatically</li>
+</ul>`,
   },
   {
     icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -15,6 +24,15 @@ const reasons = [
     </svg>`,
     title: 'Never build a transport layer again',
     description: 'WebSocket negotiation, SSE fallback, reconnection with backoff, heartbeats, message caching — solved once, across every transport, on every container.',
+    detail: `<p>Transport negotiation is <strong>deceptively hard</strong>. Proxies strip WebSocket headers, mobile networks drop connections, and every container has different quirks.</p>
+<ul>
+<li><strong>Automatic negotiation</strong> — WebSocket, SSE, long-polling selected per-client</li>
+<li><strong>Reconnection</strong> — exponential backoff with jitter, transparent to your code</li>
+<li><strong>Message cache</strong> — replay missed messages after reconnection</li>
+<li><strong>Heartbeats</strong> — detect dead connections before TCP timeouts</li>
+<li><strong>Proxy-safe</strong> — works behind CDNs, load balancers, and corporate firewalls</li>
+<li><strong>Container-agnostic</strong> — Tomcat, Jetty, Undertow, GlassFish, Payara</li>
+</ul>`,
   },
   {
     icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -25,6 +43,15 @@ const reasons = [
     </svg>`,
     title: 'Rooms and presence that just work',
     description: 'Named groups, member tracking, join/leave events, message history, and direct messaging. Add collaborative features to your app in hours, not weeks.',
+    detail: `<p>Every collaborative app needs rooms. Atmosphere gives you <strong>everything built in</strong> — no Redis, no external presence service.</p>
+<ul>
+<li><strong>Named rooms</strong> — create, join, leave with a single API call</li>
+<li><strong>Presence tracking</strong> — real-time member lists, join/leave events</li>
+<li><strong>Message history</strong> — configurable cache, replayed on join</li>
+<li><strong>Direct messaging</strong> — send to a specific member by ID</li>
+<li><strong>Authorization</strong> — accept or reject join requests</li>
+<li><strong>Virtual members</strong> — AI agents and bots as room participants</li>
+</ul>`,
   },
   {
     icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -33,6 +60,15 @@ const reasons = [
     </svg>`,
     title: 'Client SDKs for every framework',
     description: 'React, Vue, Svelte, and React Native hooks with streaming, offline queues, and auth token refresh. One API across all platforms.',
+    detail: `<p><strong>atmosphere.js</strong> provides framework-native hooks so your UI code stays idiomatic.</p>
+<ul>
+<li><strong>useAtmosphere</strong> — subscribe, push, track connection state</li>
+<li><strong>useStreaming</strong> — stream LLM tokens with progress and metadata</li>
+<li><strong>useRoom</strong> — join rooms, track members, broadcast messages</li>
+<li><strong>Offline queue</strong> — buffer messages while disconnected, auto-drain on reconnect</li>
+<li><strong>Auth tokens</strong> — automatic refresh and session management</li>
+<li><strong>React Native</strong> — AppState/NetInfo-aware with EventSource polyfill</li>
+</ul>`,
   },
 ];
 ---
@@ -46,13 +82,13 @@ const reasons = [
 
     <div class="reasons-grid">
       {reasons.map((reason, index) => (
-        <a href="#support" class="reason-card" style={`--delay: ${(index * 0.08).toFixed(2)}s`}>
+        <article class="reason-card" data-reason={index} role="button" tabindex="0" style={`--delay: ${(index * 0.08).toFixed(2)}s`}>
           <div class="reason-icon" set:html={reason.icon} />
           <div class="reason-content">
             <h3 class="reason-title">{reason.title}</h3>
-            <p class="reason-description" set:html={reason.description} />
+            <p class="reason-description">{reason.description}</p>
           </div>
-        </a>
+        </article>
       ))}
     </div>
 
@@ -65,7 +101,64 @@ const reasons = [
       </a>
     </div>
   </div>
+
+  <!-- Why modal -->
+  <div class="modal-overlay" id="whyModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+      <button class="modal-close" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l10 10M14 4L4 14"/></svg>
+      </button>
+      <div class="modal-hero">
+        <div class="modal-hero-glow"></div>
+        <div class="modal-icon" id="whyModalIcon"></div>
+        <div class="modal-hero-text">
+          <span class="modal-label">Why Atmosphere</span>
+          <h3 class="modal-title" id="whyModalTitle"></h3>
+        </div>
+      </div>
+      <div class="modal-divider"></div>
+      <div class="modal-body" id="whyModalBody"></div>
+    </div>
+  </div>
 </section>
+
+<script define:vars={{ reasons }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const overlay = document.getElementById('whyModal');
+    const modalIcon = document.getElementById('whyModalIcon');
+    const modalTitle = document.getElementById('whyModalTitle');
+    const modalBody = document.getElementById('whyModalBody');
+    const closeBtn = overlay.querySelector('.modal-close');
+
+    function openModal(index) {
+      const r = reasons[index];
+      modalIcon.innerHTML = r.icon;
+      modalTitle.textContent = r.title;
+      modalBody.innerHTML = r.detail;
+      overlay.setAttribute('aria-hidden', 'false');
+      overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+      closeBtn.focus();
+    }
+
+    function closeModal() {
+      overlay.classList.remove('active');
+      overlay.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    document.querySelectorAll('.reason-card[data-reason]').forEach(card => {
+      card.addEventListener('click', () => openModal(Number(card.dataset.reason)));
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(Number(card.dataset.reason)); }
+      });
+    });
+
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+  });
+</script>
 
 <style>
   .why {
@@ -126,8 +219,6 @@ const reasons = [
     background: var(--color-bg-secondary);
     border: 1px solid var(--color-border);
     border-radius: 12px;
-    text-decoration: none;
-    color: inherit;
     cursor: pointer;
     transition: all 0.3s var(--ease-out-quad);
     animation: fadeInUp 0.6s var(--ease-out-expo) var(--delay) both;
@@ -137,6 +228,11 @@ const reasons = [
     border-color: var(--color-border-accent);
     transform: translateY(-4px);
     box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5);
+  }
+
+  .reason-card:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 
   .reason-icon {
@@ -170,17 +266,6 @@ const reasons = [
     line-height: 1.6;
   }
 
-  .reason-description a {
-    color: var(--color-accent);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.2s var(--ease-out-quad);
-  }
-
-  .reason-description a:hover {
-    border-bottom-color: var(--color-accent);
-  }
-
   .why-cta {
     text-align: center;
   }
@@ -210,30 +295,198 @@ const reasons = [
     box-shadow: 0 8px 30px var(--color-accent-glow);
   }
 
+  /* ── Modal (same style as Atmosphere section) ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-xl);
+    background: rgba(0, 0, 0, 0);
+    backdrop-filter: blur(0);
+    pointer-events: none;
+    transition: background 0.4s ease, backdrop-filter 0.4s ease;
+  }
+
+  .modal-overlay.active {
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(12px);
+    pointer-events: auto;
+  }
+
+  .modal {
+    position: relative;
+    width: min(680px, 100%);
+    max-height: calc(100vh - var(--space-3xl));
+    overflow-y: auto;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.08), 0 24px 64px -16px rgba(0, 0, 0, 0.7);
+    transform: translateY(32px) scale(0.95);
+    opacity: 0;
+    transition: transform 0.4s var(--ease-out-expo), opacity 0.35s ease;
+  }
+
+  .modal-overlay.active .modal {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+
+  .modal::-webkit-scrollbar { width: 6px; }
+  .modal::-webkit-scrollbar-track { background: transparent; }
+  .modal::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+
+  .modal-close {
+    position: absolute;
+    top: var(--space-lg);
+    right: var(--space-lg);
+    z-index: 2;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-secondary);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .modal-close:hover {
+    color: var(--color-text-primary);
+    border-color: var(--color-accent-dim);
+    background: rgba(0, 212, 255, 0.08);
+  }
+
+  .modal-hero {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+    padding: var(--space-2xl) var(--space-2xl) var(--space-xl);
+    overflow: hidden;
+  }
+
+  .modal-hero-glow {
+    position: absolute;
+    top: -60px;
+    left: -40px;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(0, 212, 255, 0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .modal-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, var(--color-accent), var(--color-accent-dim));
+    border-radius: 14px;
+    color: var(--color-bg-primary);
+    box-shadow: 0 8px 24px -8px rgba(0, 212, 255, 0.3);
+  }
+
+  .modal-hero-text {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-right: var(--space-3xl);
+  }
+
+  .modal-label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-accent);
+    opacity: 0.8;
+  }
+
+  .modal-title {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--color-text-primary);
+    line-height: 1.2;
+  }
+
+  .modal-divider {
+    height: 1px;
+    margin: 0 var(--space-2xl);
+    background: linear-gradient(90deg, var(--color-accent-dim), var(--color-border) 40%, transparent);
+    opacity: 0.5;
+  }
+
+  .modal-body {
+    padding: var(--space-xl) var(--space-2xl) var(--space-2xl);
+    font-size: 0.9375rem;
+    line-height: 1.8;
+    color: var(--color-text-secondary);
+  }
+
+  .modal-body :global(p) { margin-bottom: var(--space-lg); }
+  .modal-body :global(p:last-child) { margin-bottom: 0; }
+  .modal-body :global(strong) { color: var(--color-text-primary); font-weight: 600; }
+
+  .modal-body :global(ul) {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .modal-body :global(li) {
+    position: relative;
+    padding-left: 1.75em;
+    line-height: 1.7;
+  }
+
+  .modal-body :global(li::before) {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    opacity: 0.5;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+  }
+
   @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
   }
 
   @media (max-width: 768px) {
-    .reasons-grid {
-      grid-template-columns: 1fr;
-    }
+    .reasons-grid { grid-template-columns: 1fr; }
   }
 
   @media (max-width: 640px) {
-    .why {
-      padding: var(--space-3xl) var(--space-md);
-    }
-
-    .reason-card {
-      flex-direction: column;
-      gap: var(--space-md);
-    }
-
-    .btn {
-      width: 100%;
-      justify-content: center;
-    }
+    .why { padding: var(--space-3xl) var(--space-md); }
+    .reason-card { flex-direction: column; gap: var(--space-md); }
+    .btn { width: 100%; justify-content: center; }
+    .modal-overlay { padding: var(--space-sm); }
+    .modal { border-radius: 16px; }
+    .modal-hero { flex-direction: column; align-items: flex-start; padding: var(--space-xl) var(--space-lg) var(--space-lg); }
+    .modal-hero-text { padding-right: 0; }
+    .modal-divider { margin: 0 var(--space-lg); }
+    .modal-body { padding: var(--space-lg); }
   }
 </style>
