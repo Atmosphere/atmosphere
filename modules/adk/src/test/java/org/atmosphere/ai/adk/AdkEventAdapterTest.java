@@ -21,13 +21,13 @@ import com.google.genai.types.Content;
 import com.google.genai.types.Part;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.subjects.PublishSubject;
+import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.cpr.Broadcaster;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -46,17 +46,28 @@ class AdkEventAdapterTest {
     }
 
     @Test
-    void partialEventsAreSentAsStreamingTexts() throws Exception {
+    void partialEventsAreSentAsTextDelta() throws Exception {
         var event = createPartialEvent("Hello");
         var latch = new CountDownLatch(1);
 
-        doAnswer(inv -> { latch.countDown(); return null; })
-                .when(mockSession).send("Hello");
+        doAnswer(inv -> {
+            if (inv.getArgument(0) instanceof AiEvent.TextDelta) {
+                latch.countDown();
+            }
+            return null;
+        }).when(mockSession).emit(any(AiEvent.class));
 
         AdkEventAdapter.bridge(Flowable.just(event), mockSession);
         assertTrue(latch.await(2, TimeUnit.SECONDS));
 
-        verify(mockSession).send("Hello");
+        var captor = ArgumentCaptor.forClass(AiEvent.class);
+        verify(mockSession, atLeast(1)).emit(captor.capture());
+        var textDelta = captor.getAllValues().stream()
+                .filter(e -> e instanceof AiEvent.TextDelta)
+                .map(e -> (AiEvent.TextDelta) e)
+                .findFirst()
+                .orElseThrow();
+        assertEquals("Hello", textDelta.text());
     }
 
     @Test
@@ -65,69 +76,91 @@ class AdkEventAdapterTest {
         var e2 = createPartialEvent(" world");
         var latch = new CountDownLatch(1);
 
-        doAnswer(inv -> { latch.countDown(); return null; })
-                .when(mockSession).complete();
+        doAnswer(inv -> {
+            if (inv.getArgument(0) instanceof AiEvent.Complete) {
+                latch.countDown();
+            }
+            return null;
+        }).when(mockSession).emit(any(AiEvent.class));
 
         var events = Flowable.just(e1, e2, createTurnCompleteEvent(null));
         AdkEventAdapter.bridge(events, mockSession);
         assertTrue(latch.await(2, TimeUnit.SECONDS));
 
-        var captor = ArgumentCaptor.forClass(String.class);
-        verify(mockSession, times(2)).send(captor.capture());
-        assertEquals(List.of("Hello", " world"), captor.getAllValues());
-        verify(mockSession).complete();
+        var captor = ArgumentCaptor.forClass(AiEvent.class);
+        verify(mockSession, atLeast(3)).emit(captor.capture());
+
+        var emitted = captor.getAllValues();
+        var textDeltas = emitted.stream()
+                .filter(e -> e instanceof AiEvent.TextDelta)
+                .map(e -> ((AiEvent.TextDelta) e).text())
+                .toList();
+        assertEquals(java.util.List.of("Hello", " world"), textDeltas);
+        assertTrue(emitted.stream().anyMatch(e -> e instanceof AiEvent.Complete));
     }
 
     @Test
-    void turnCompleteWithSummaryCallsCompleteWithSummary() throws Exception {
+    void turnCompleteWithSummaryEmitsCompleteWithSummary() throws Exception {
         var event = createTurnCompleteEvent("Final answer");
         var latch = new CountDownLatch(1);
 
-        doAnswer(inv -> { latch.countDown(); return null; })
-                .when(mockSession).complete("Final answer");
+        doAnswer(inv -> {
+            if (inv.getArgument(0) instanceof AiEvent.Complete) {
+                latch.countDown();
+            }
+            return null;
+        }).when(mockSession).emit(any(AiEvent.class));
 
         AdkEventAdapter.bridge(Flowable.just(event), mockSession);
         assertTrue(latch.await(2, TimeUnit.SECONDS));
 
-        verify(mockSession).complete("Final answer");
+        var captor = ArgumentCaptor.forClass(AiEvent.class);
+        verify(mockSession).emit(captor.capture());
+        var complete = (AiEvent.Complete) captor.getValue();
+        assertEquals("Final answer", complete.summary());
     }
 
     @Test
-    void turnCompleteWithoutTextCallsComplete() throws Exception {
+    void turnCompleteWithoutTextEmitsComplete() throws Exception {
         var event = createTurnCompleteEvent(null);
         var latch = new CountDownLatch(1);
 
         doAnswer(inv -> { latch.countDown(); return null; })
-                .when(mockSession).complete();
+                .when(mockSession).emit(any(AiEvent.Complete.class));
 
         AdkEventAdapter.bridge(Flowable.just(event), mockSession);
         assertTrue(latch.await(2, TimeUnit.SECONDS));
 
-        verify(mockSession).complete();
+        var captor = ArgumentCaptor.forClass(AiEvent.class);
+        verify(mockSession).emit(captor.capture());
+        assertInstanceOf(AiEvent.Complete.class, captor.getValue());
+        assertNull(((AiEvent.Complete) captor.getValue()).summary());
     }
 
     @Test
-    void errorEventCallsSessionError() throws Exception {
+    void errorEventEmitsErrorEvent() throws Exception {
         var event = createErrorEvent("Something went wrong");
         var latch = new CountDownLatch(1);
 
         doAnswer(inv -> { latch.countDown(); return null; })
-                .when(mockSession).error(any(Throwable.class));
+                .when(mockSession).emit(any(AiEvent.Error.class));
 
         AdkEventAdapter.bridge(Flowable.just(event), mockSession);
         assertTrue(latch.await(2, TimeUnit.SECONDS));
 
-        var captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(mockSession).error(captor.capture());
-        assertEquals("Something went wrong", captor.getValue().getMessage());
+        var captor = ArgumentCaptor.forClass(AiEvent.class);
+        verify(mockSession).emit(captor.capture());
+        var error = (AiEvent.Error) captor.getValue();
+        assertEquals("Something went wrong", error.message());
+        assertEquals("adk_error", error.code());
     }
 
     @Test
-    void flowableErrorCallsSessionError() throws Exception {
+    void flowableErrorEmitsErrorEvent() throws Exception {
         var latch = new CountDownLatch(1);
 
         doAnswer(inv -> { latch.countDown(); return null; })
-                .when(mockSession).error(any(Throwable.class));
+                .when(mockSession).emit(any(AiEvent.Error.class));
 
         AdkEventAdapter.bridge(
                 Flowable.error(new RuntimeException("stream failed")),
@@ -135,29 +168,34 @@ class AdkEventAdapterTest {
         );
         assertTrue(latch.await(2, TimeUnit.SECONDS));
 
-        var captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(mockSession).error(captor.capture());
-        assertEquals("stream failed", captor.getValue().getMessage());
+        var captor = ArgumentCaptor.forClass(AiEvent.class);
+        verify(mockSession).emit(captor.capture());
+        var error = (AiEvent.Error) captor.getValue();
+        assertEquals("stream failed", error.message());
     }
 
     @Test
     void cancelStopsSubscription() throws Exception {
         var subject = PublishSubject.<Event>create();
-        var adapter = AdkEventAdapter.bridge(subject.toFlowable(io.reactivex.rxjava3.core.BackpressureStrategy.BUFFER), mockSession);
+        var adapter = AdkEventAdapter.bridge(
+                subject.toFlowable(io.reactivex.rxjava3.core.BackpressureStrategy.BUFFER),
+                mockSession);
 
         // Send one event
         subject.onNext(createPartialEvent("text1"));
         Thread.sleep(100);
-        verify(mockSession).send("text1");
+        verify(mockSession).emit(any(AiEvent.TextDelta.class));
 
         // Cancel
         adapter.cancel();
         verify(mockSession).complete();
 
         // Further events should not reach session
+        reset(mockSession);
+        when(mockSession.isClosed()).thenReturn(true);
         subject.onNext(createPartialEvent("text2"));
         Thread.sleep(100);
-        verify(mockSession, never()).send("text2");
+        verify(mockSession, never()).emit(any(AiEvent.class));
     }
 
     @Test
@@ -196,7 +234,6 @@ class AdkEventAdapterTest {
         var broadcaster = mock(Broadcaster.class);
         var event = createTurnCompleteEvent(null);
 
-        // This tests the Broadcaster-based factory path
         var adapter = AdkEventAdapter.bridge(Flowable.just(event), broadcaster);
         assertNotNull(adapter.session());
         assertFalse(adapter.session().sessionId().isEmpty());
