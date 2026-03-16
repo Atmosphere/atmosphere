@@ -36,6 +36,21 @@
       "types": "./dist/react-native.d.ts",
       "import": "./dist/react-native.js",
       "require": "./dist/react-native.cjs"
+    },
+    "./room": {
+      "types": "./dist/room.d.ts",
+      "import": "./dist/room.js",
+      "require": "./dist/room.cjs"
+    },
+    "./streaming": {
+      "types": "./dist/streaming.d.ts",
+      "import": "./dist/streaming.js",
+      "require": "./dist/streaming.cjs"
+    },
+    "./queue": {
+      "types": "./dist/queue.d.ts",
+      "import": "./dist/queue.js",
+      "require": "./dist/queue.cjs"
     }
   },
   "peerDependencies": {
