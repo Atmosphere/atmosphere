@@ -147,7 +147,8 @@ public class AiStreamingSession implements StreamingSession {
                 ? memory.getHistory(resource.uuid())
                 : List.<org.atmosphere.ai.llm.ChatMessage>of();
 
-        var request = new AiRequest(message, systemPrompt, model, Map.of(), history);
+        var request = new AiRequest(message, systemPrompt, model,
+                null, null, null, null, Map.of(), history);
 
         // Attach available tools to the request
         if (toolRegistry != null && !toolRegistry.allTools().isEmpty()) {
@@ -282,6 +283,11 @@ public class AiStreamingSession implements StreamingSession {
     @Override
     public void error(Throwable t) {
         delegate.error(t);
+    }
+
+    @Override
+    public void emit(AiEvent event) {
+        delegate.emit(event);
     }
 
     @Override

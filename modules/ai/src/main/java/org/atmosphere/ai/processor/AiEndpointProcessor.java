@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.processor;
 
+import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.ai.AiGuardrail;
@@ -46,11 +47,13 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Annotation processor for {@link AiEndpoint}. Discovered by Atmosphere's annotation
@@ -118,6 +121,9 @@ public class AiEndpointProcessor implements Processor<Object> {
 
             var metrics = resolveMetrics();
             var broadcastFilters = instantiateBroadcastFilters(annotation.filters(), framework);
+
+            // Validate required capabilities
+            validateCapabilities(annotation.requires(), aiSupport, annotation.path());
 
             // Per-endpoint model override
             var endpointModel = annotation.model().isEmpty() ? null : annotation.model();
@@ -356,5 +362,23 @@ public class AiEndpointProcessor implements Processor<Object> {
             logger.warn("Unknown fallbackStrategy '{}', defaulting to NONE", value);
             return ModelRouter.FallbackStrategy.NONE;
         }
+    }
+
+    private void validateCapabilities(AiCapability[] required, AiSupport aiSupport, String path) {
+        if (required.length == 0) {
+            return;
+        }
+        var supported = aiSupport.capabilities();
+        var missing = Arrays.stream(required)
+                .filter(cap -> !supported.contains(cap))
+                .collect(Collectors.toSet());
+        if (!missing.isEmpty()) {
+            throw new IllegalStateException(
+                    "@AiEndpoint at " + path + " requires capabilities " + missing
+                            + " but backend '" + aiSupport.name() + "' only provides " + supported
+                            + ". Use a different backend or remove the requires declaration.");
+        }
+        logger.info("Capability check passed for {}: required={}, backend={}",
+                path, Arrays.toString(required), aiSupport.name());
     }
 }

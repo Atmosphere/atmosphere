@@ -103,6 +103,43 @@ public interface StreamingSession extends AutoCloseable {
     }
 
     /**
+     * Emit a structured {@link AiEvent} to the client. Events are serialized
+     * as JSON frames on the wire, enabling rich real-time UIs that display
+     * tool calls, agent steps, structured output fields, and routing decisions.
+     *
+     * <p>The default implementation maps common events to legacy methods for
+     * backward compatibility:</p>
+     * <ul>
+     *   <li>{@link AiEvent.TextDelta} → {@link #send(String)}</li>
+     *   <li>{@link AiEvent.Progress} → {@link #progress(String)}</li>
+     *   <li>{@link AiEvent.Error} → {@link #error(Throwable)}</li>
+     *   <li>{@link AiEvent.Complete} → {@link #complete(String)}</li>
+     * </ul>
+     *
+     * <p>Implementations that support rich event streaming should override
+     * this method to serialize the full event as a JSON frame.</p>
+     *
+     * @param event the event to emit
+     * @see AiEvent
+     */
+    default void emit(AiEvent event) {
+        switch (event) {
+            case AiEvent.TextDelta delta -> send(delta.text());
+            case AiEvent.Progress p -> progress(p.message());
+            case AiEvent.Error err -> error(new RuntimeException(err.message()));
+            case AiEvent.Complete c -> {
+                if (c.summary() != null) {
+                    complete(c.summary());
+                } else {
+                    complete();
+                }
+            }
+            default -> sendMetadata("event." + event.eventType(),
+                    event.toString());
+        }
+    }
+
+    /**
      * Send a user message to the resolved {@link AiSupport} and stream the
      * response back through this session. Only supported on sessions created
      * by the {@code @AiEndpoint} infrastructure (i.e., {@link AiStreamingSession}).

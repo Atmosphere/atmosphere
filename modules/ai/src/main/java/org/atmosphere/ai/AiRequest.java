@@ -23,89 +23,140 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Framework-agnostic AI request. Carries the user message, system prompt,
- * model name, optional hints (temperature, maxStreamingTexts, etc.), and conversation
- * history for multi-turn support.
+ * Framework-agnostic AI request. Carries the user message, identity fields,
+ * system prompt, model name, optional metadata, and conversation history
+ * for multi-turn support.
  *
  * <p>This record is what flows through the {@link AiInterceptor} chain
  * before reaching the {@link AiSupport} implementation. Interceptors can
  * transform it (e.g., augment the message with RAG context, override the
  * model, add guardrails).</p>
  *
- * @param message      the user's message
- * @param systemPrompt the system prompt (may be empty)
- * @param model        the model name (may be null for provider default)
- * @param hints        optional hints (temperature, maxStreamingTexts, etc.)
- * @param history      conversation history (prior user/assistant turns)
+ * <p>Identity fields ({@code userId}, {@code sessionId}, {@code agentId},
+ * {@code conversationId}) are first-class so that adapters like Google ADK
+ * (which needs {@code userId}/{@code sessionId}) and Embabel (which needs
+ * {@code agentId}) can access them directly instead of digging through an
+ * untyped map.</p>
+ *
+ * @param message        the user's message
+ * @param systemPrompt   the system prompt (may be empty)
+ * @param model          the model name (may be null for provider default)
+ * @param userId         the end-user identifier (may be null)
+ * @param sessionId      the session identifier for stateful backends (may be null)
+ * @param agentId        the target agent identifier (may be null)
+ * @param conversationId the conversation thread identifier (may be null)
+ * @param metadata       optional provider-specific metadata (temperature, maxTokens, etc.)
+ * @param history        conversation history (prior user/assistant turns)
  */
 public record AiRequest(
         String message,
         String systemPrompt,
         String model,
-        Map<String, Object> hints,
+        String userId,
+        String sessionId,
+        String agentId,
+        String conversationId,
+        Map<String, Object> metadata,
         List<ChatMessage> history
 ) {
     /**
      * Create a request with just a message.
      */
     public AiRequest(String message) {
-        this(message, "", null, Map.of(), List.of());
+        this(message, "", null, null, null, null, null, Map.of(), List.of());
     }
 
     /**
      * Create a request with a message and system prompt.
      */
     public AiRequest(String message, String systemPrompt) {
-        this(message, systemPrompt, null, Map.of(), List.of());
+        this(message, systemPrompt, null, null, null, null, null, Map.of(), List.of());
     }
 
     /**
      * Return a copy with a different message.
      */
     public AiRequest withMessage(String newMessage) {
-        return new AiRequest(newMessage, systemPrompt, model, hints, history);
+        return new AiRequest(newMessage, systemPrompt, model, userId, sessionId,
+                agentId, conversationId, metadata, history);
     }
 
     /**
      * Return a copy with a different system prompt.
      */
     public AiRequest withSystemPrompt(String newSystemPrompt) {
-        return new AiRequest(message, newSystemPrompt, model, hints, history);
+        return new AiRequest(message, newSystemPrompt, model, userId, sessionId,
+                agentId, conversationId, metadata, history);
     }
 
     /**
      * Return a copy with a different model.
      */
     public AiRequest withModel(String newModel) {
-        return new AiRequest(message, systemPrompt, newModel, hints, history);
+        return new AiRequest(message, systemPrompt, newModel, userId, sessionId,
+                agentId, conversationId, metadata, history);
     }
 
     /**
-     * Return a copy with additional hints merged in.
+     * Return a copy with a different user ID.
      */
-    public AiRequest withHints(Map<String, Object> additionalHints) {
-        var merged = new java.util.HashMap<>(this.hints);
-        merged.putAll(additionalHints);
-        return new AiRequest(message, systemPrompt, model, Map.copyOf(merged), history);
+    public AiRequest withUserId(String newUserId) {
+        return new AiRequest(message, systemPrompt, model, newUserId, sessionId,
+                agentId, conversationId, metadata, history);
+    }
+
+    /**
+     * Return a copy with a different session ID.
+     */
+    public AiRequest withSessionId(String newSessionId) {
+        return new AiRequest(message, systemPrompt, model, userId, newSessionId,
+                agentId, conversationId, metadata, history);
+    }
+
+    /**
+     * Return a copy with a different agent ID.
+     */
+    public AiRequest withAgentId(String newAgentId) {
+        return new AiRequest(message, systemPrompt, model, userId, sessionId,
+                newAgentId, conversationId, metadata, history);
+    }
+
+    /**
+     * Return a copy with a different conversation ID.
+     */
+    public AiRequest withConversationId(String newConversationId) {
+        return new AiRequest(message, systemPrompt, model, userId, sessionId,
+                agentId, newConversationId, metadata, history);
+    }
+
+    /**
+     * Return a copy with additional metadata merged in.
+     */
+    public AiRequest withMetadata(Map<String, Object> additionalMetadata) {
+        var merged = new java.util.HashMap<>(this.metadata);
+        merged.putAll(additionalMetadata);
+        return new AiRequest(message, systemPrompt, model, userId, sessionId,
+                agentId, conversationId, Map.copyOf(merged), history);
     }
 
     /**
      * Return a copy with conversation history.
      */
     public AiRequest withHistory(List<ChatMessage> newHistory) {
-        return new AiRequest(message, systemPrompt, model, hints, newHistory);
+        return new AiRequest(message, systemPrompt, model, userId, sessionId,
+                agentId, conversationId, metadata, newHistory);
     }
 
     /**
-     * Return a copy with available tool definitions stored in hints.
+     * Return a copy with available tool definitions stored in metadata.
      * Adapters can read these via {@link #tools()} to register tools
      * with their native framework.
      */
-    @SuppressWarnings("unchecked")
     public AiRequest withTools(Collection<ToolDefinition> tools) {
-        var merged = new java.util.HashMap<>(this.hints);
+        var merged = new java.util.HashMap<>(this.metadata);
         merged.put("ai.tools", List.copyOf(tools));
-        return new AiRequest(message, systemPrompt, model, Map.copyOf(merged), history);
+        return new AiRequest(message, systemPrompt, model, userId, sessionId,
+                agentId, conversationId, Map.copyOf(merged), history);
     }
 
     /**
@@ -113,7 +164,7 @@ public record AiRequest(
      */
     @SuppressWarnings("unchecked")
     public List<ToolDefinition> tools() {
-        var tools = hints.get("ai.tools");
+        var tools = metadata.get("ai.tools");
         if (tools instanceof List<?> list) {
             return (List<ToolDefinition>) list;
         }

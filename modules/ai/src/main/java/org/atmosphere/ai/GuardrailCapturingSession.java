@@ -112,6 +112,23 @@ class GuardrailCapturingSession implements StreamingSession {
     }
 
     @Override
+    public void emit(AiEvent event) {
+        if (blocked) {
+            return;
+        }
+        if (event instanceof AiEvent.TextDelta delta) {
+            accumulated.append(delta.text());
+            if (accumulated.length() - lastCheckedLength >= checkInterval) {
+                lastCheckedLength = accumulated.length();
+                if (checkGuardrails()) {
+                    return;
+                }
+            }
+        }
+        delegate.emit(event);
+    }
+
+    @Override
     public boolean isClosed() {
         return blocked || delegate.isClosed();
     }

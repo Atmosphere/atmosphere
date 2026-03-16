@@ -115,6 +115,36 @@ final class BroadcasterStreamingSession implements StreamingSession {
         return closed.get();
     }
 
+    @Override
+    public void emit(AiEvent event) {
+        if (closed.get()) {
+            logger.warn("Attempted to emit event on closed session {}", sessionId);
+            return;
+        }
+        switch (event) {
+            case AiEvent.Complete c -> {
+                if (closed.compareAndSet(false, true)) {
+                    broadcast(buildEventMessage(event));
+                }
+            }
+            case AiEvent.Error err -> {
+                if (closed.compareAndSet(false, true)) {
+                    broadcast(buildEventMessage(event));
+                }
+            }
+            default -> broadcast(buildEventMessage(event));
+        }
+    }
+
+    private String buildEventMessage(AiEvent event) {
+        var msg = new LinkedHashMap<String, Object>();
+        msg.put("event", event.eventType());
+        msg.put("data", event);
+        msg.put("sessionId", sessionId);
+        msg.put("seq", sequence.incrementAndGet());
+        return toJson(msg);
+    }
+
     private String buildMessage(String type, String data) {
         var msg = new LinkedHashMap<String, Object>();
         msg.put("type", type);

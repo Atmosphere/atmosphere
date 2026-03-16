@@ -84,7 +84,7 @@ class EmbabelAiSupport : AiSupport {
                     "Call EmbabelAiSupport.setAgentPlatform() or use Spring auto-configuration."
             )
 
-        val targetAgent = request.hints()["agentName"]?.toString() ?: agentName
+        val targetAgent = request.agentId() ?: agentName
 
         session.progress("Starting agent: $targetAgent...")
 

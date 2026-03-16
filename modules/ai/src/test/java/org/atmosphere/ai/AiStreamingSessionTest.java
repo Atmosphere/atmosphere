@@ -214,12 +214,13 @@ public class AiStreamingSessionTest {
 
     @Test
     public void testAiRequestRecord() {
-        var request = new AiRequest("msg", "sys", "gpt-4", Map.of("temp", 0.5), List.of());
+        var request = new AiRequest("msg", "sys", "gpt-4",
+                null, null, null, null, Map.of("temp", 0.5), List.of());
 
         assertEquals("msg", request.message());
         assertEquals("sys", request.systemPrompt());
         assertEquals("gpt-4", request.model());
-        assertEquals(0.5, request.hints().get("temp"));
+        assertEquals(0.5, request.metadata().get("temp"));
         assertTrue(request.history().isEmpty());
 
         var withMsg = request.withMessage("new msg");
@@ -233,9 +234,9 @@ public class AiStreamingSessionTest {
         var withModel = request.withModel("claude-3");
         assertEquals("claude-3", withModel.model());
 
-        var withHints = request.withHints(Map.of("maxStreamingTexts", 100));
-        assertEquals(0.5, withHints.hints().get("temp"));
-        assertEquals(100, withHints.hints().get("maxStreamingTexts"));
+        var withMetadata = request.withMetadata(Map.of("maxStreamingTexts", 100));
+        assertEquals(0.5, withMetadata.metadata().get("temp"));
+        assertEquals(100, withMetadata.metadata().get("maxStreamingTexts"));
     }
 
     @Test
@@ -244,7 +245,7 @@ public class AiStreamingSessionTest {
         assertEquals("msg", simple.message());
         assertEquals("", simple.systemPrompt());
         assertNull(simple.model());
-        assertTrue(simple.hints().isEmpty());
+        assertTrue(simple.metadata().isEmpty());
         assertTrue(simple.history().isEmpty());
 
         var withSys = new AiRequest("msg", "sys");

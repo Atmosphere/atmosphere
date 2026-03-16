@@ -145,8 +145,43 @@ public final class DefaultStreamingSession implements StreamingSession {
         return closed.get();
     }
 
+    @Override
+    public void emit(AiEvent event) {
+        if (closed.get()) {
+            logger.warn("Attempted to emit event on closed session {}", sessionId);
+            return;
+        }
+        // Terminal events must transition the closed state
+        switch (event) {
+            case AiEvent.Complete c -> {
+                if (closed.compareAndSet(false, true)) {
+                    SESSION_RESOURCES.remove(sessionId);
+                    broadcast(buildEventMessage(event));
+                }
+                return;
+            }
+            case AiEvent.Error err -> {
+                if (closed.compareAndSet(false, true)) {
+                    SESSION_RESOURCES.remove(sessionId);
+                    broadcast(buildEventMessage(event));
+                }
+                return;
+            }
+            default -> broadcast(buildEventMessage(event));
+        }
+    }
+
     String resourceUuid() {
         return resource.uuid();
+    }
+
+    private String buildEventMessage(AiEvent event) {
+        var msg = new LinkedHashMap<String, Object>();
+        msg.put("event", event.eventType());
+        msg.put("data", event);
+        msg.put("sessionId", sessionId);
+        msg.put("seq", sequence.incrementAndGet());
+        return toJson(msg);
     }
 
     private String buildMessage(String type, String data) {

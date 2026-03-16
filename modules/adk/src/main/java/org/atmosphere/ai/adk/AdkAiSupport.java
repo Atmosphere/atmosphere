@@ -161,10 +161,8 @@ public class AdkAiSupport extends AbstractAiSupport<Runner> {
                     tools.size());
         }
 
-        var userId = request.hints().containsKey("userId")
-                ? request.hints().get("userId").toString() : defaultUserId;
-        var sessionId = request.hints().containsKey("sessionId")
-                ? request.hints().get("sessionId").toString() : defaultSessionId;
+        var userId = request.userId() != null ? request.userId() : defaultUserId;
+        var sessionId = request.sessionId() != null ? request.sessionId() : defaultSessionId;
 
         ensureSession(adkRunner, userId, sessionId);
 

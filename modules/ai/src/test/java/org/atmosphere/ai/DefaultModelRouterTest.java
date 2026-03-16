@@ -132,7 +132,8 @@ public class DefaultModelRouterTest {
         var gpt4 = backend("openai-gpt4", AiCapability.TEXT_STREAMING);
         var claude = backend("anthropic-claude", AiCapability.TEXT_STREAMING);
 
-        var request = new AiRequest("hello", null, "claude", Map.of(), List.of());
+        var request = new AiRequest("hello", null, "claude",
+                null, null, null, null, Map.of(), List.of());
         var result = router.route(request, List.of(gpt4, claude), Set.of(AiCapability.TEXT_STREAMING));
 
         assertTrue(result.isPresent());

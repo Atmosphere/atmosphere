@@ -106,6 +106,17 @@ public class TracingCapturingSession implements StreamingSession {
     }
 
     @Override
+    public void emit(AiEvent event) {
+        if (event instanceof AiEvent.TextDelta) {
+            if (firstStreamingTextTime == null) {
+                firstStreamingTextTime = Instant.now();
+            }
+            streamingTextCount++;
+        }
+        delegate.emit(event);
+    }
+
+    @Override
     public void stream(String message) {
         delegate.stream(message);
     }

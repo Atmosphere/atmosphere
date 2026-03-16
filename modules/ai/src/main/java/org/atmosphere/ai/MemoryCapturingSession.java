@@ -88,6 +88,14 @@ class MemoryCapturingSession implements StreamingSession {
     }
 
     @Override
+    public void emit(AiEvent event) {
+        if (event instanceof AiEvent.TextDelta delta) {
+            accumulated.append(delta.text());
+        }
+        delegate.emit(event);
+    }
+
+    @Override
     public void stream(String message) {
         delegate.stream(message);
     }

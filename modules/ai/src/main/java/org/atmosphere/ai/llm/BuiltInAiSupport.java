@@ -76,13 +76,13 @@ public class BuiltInAiSupport implements AiSupport {
         }
         builder.user(request.message());
 
-        // Apply hints
-        var hints = request.hints();
-        if (hints.containsKey("temperature")) {
-            builder.temperature(((Number) hints.get("temperature")).doubleValue());
+        // Apply metadata
+        var metadata = request.metadata();
+        if (metadata.containsKey("temperature")) {
+            builder.temperature(((Number) metadata.get("temperature")).doubleValue());
         }
-        if (hints.containsKey("maxStreamingTexts")) {
-            builder.maxStreamingTexts(((Number) hints.get("maxStreamingTexts")).intValue());
+        if (metadata.containsKey("maxStreamingTexts")) {
+            builder.maxStreamingTexts(((Number) metadata.get("maxStreamingTexts")).intValue());
         }
 
         llmSettings.client().streamChatCompletion(builder.build(), session);

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.annotation;
 
+import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiInterceptor;
 
 import java.lang.annotation.Documented;
@@ -190,6 +191,22 @@ public @interface AiEndpoint {
      * <p>Example: {@code @AiEndpoint(path = "/premium", model = "gpt-4o")}</p>
      */
     String model() default "";
+
+    /**
+     * Capabilities that the selected {@link org.atmosphere.ai.AiSupport} backend
+     * must satisfy for this endpoint. The framework validates at startup and
+     * fails fast with a clear error if the backend cannot provide all required
+     * capabilities.
+     *
+     * <p>Example:</p>
+     * <pre>{@code
+     * @AiEndpoint(path = "/tools-chat",
+     *             requires = {AiCapability.TOOL_CALLING, AiCapability.CONVERSATION_MEMORY})
+     * }</pre>
+     *
+     * <p>Default: empty (no capability requirements enforced).</p>
+     */
+    AiCapability[] requires() default {};
 
     /**
      * {@link org.atmosphere.cpr.BroadcastFilter} classes to auto-register on the
