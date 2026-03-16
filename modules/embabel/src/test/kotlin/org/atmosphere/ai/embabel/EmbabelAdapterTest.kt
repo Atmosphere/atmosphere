@@ -60,7 +60,7 @@ class EmbabelAdapterTest {
     }
 
     @Test
-    fun `message events are forwarded as streaming texts`() {
+    fun `message events are forwarded as text-delta AiEvents`() {
         val event = MessageOutputChannelEvent("proc-1", mockMessage("Hello from agent"))
         channel.send(event)
 
@@ -68,12 +68,12 @@ class EmbabelAdapterTest {
         verify(broadcaster).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val msg = captor.value.toString()
-        assertTrue(msg.contains("\"type\":\"streaming-text\""))
-        assertTrue(msg.contains("\"data\":\"Hello from agent\""))
+        assertTrue(msg.contains("\"event\":\"text-delta\""))
+        assertTrue(msg.contains("Hello from agent"))
     }
 
     @Test
-    fun `content events are forwarded as streaming texts`() {
+    fun `content events are forwarded as text-delta AiEvents`() {
         val event = ContentOutputChannelEvent("proc-1", mockHasContent("Structured content here"))
         channel.send(event)
 
@@ -81,12 +81,12 @@ class EmbabelAdapterTest {
         verify(broadcaster).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val msg = captor.value.toString()
-        assertTrue(msg.contains("\"type\":\"streaming-text\""))
-        assertTrue(msg.contains("\"data\":\"Structured content here\""))
+        assertTrue(msg.contains("\"event\":\"text-delta\""))
+        assertTrue(msg.contains("Structured content here"))
     }
 
     @Test
-    fun `progress events are forwarded as progress`() {
+    fun `progress events are forwarded as agent-step AiEvents`() {
         val event = ProgressOutputChannelEvent("proc-1", "Thinking...")
         channel.send(event)
 
@@ -94,12 +94,12 @@ class EmbabelAdapterTest {
         verify(broadcaster).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val msg = captor.value.toString()
-        assertTrue(msg.contains("\"type\":\"progress\""))
-        assertTrue(msg.contains("\"data\":\"Thinking...\""))
+        assertTrue(msg.contains("\"event\":\"agent-step\""))
+        assertTrue(msg.contains("Thinking..."))
     }
 
     @Test
-    fun `info logging events are forwarded as progress`() {
+    fun `info logging events are forwarded as progress AiEvents`() {
         val event = LoggingOutputChannelEvent(
             "proc-1", "Agent step 1 complete", LoggingOutputChannelEvent.Level.INFO, null
         )
@@ -109,8 +109,8 @@ class EmbabelAdapterTest {
         verify(broadcaster).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val msg = captor.value.toString()
-        assertTrue(msg.contains("\"type\":\"progress\""))
-        assertTrue(msg.contains("\"data\":\"Agent step 1 complete\""))
+        assertTrue(msg.contains("\"event\":\"progress\""))
+        assertTrue(msg.contains("Agent step 1 complete"))
     }
 
     @Test
@@ -153,10 +153,10 @@ class EmbabelAdapterTest {
         verify(broadcaster, times(5)).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val messages = captor.allValues.map { it.toString() }
-        assertTrue(messages[0].contains("\"type\":\"progress\""))
-        assertTrue(messages[1].contains("\"type\":\"streaming-text\""))
-        assertTrue(messages[2].contains("\"type\":\"progress\""))
-        assertTrue(messages[3].contains("\"type\":\"streaming-text\""))
+        assertTrue(messages[0].contains("\"event\":\"agent-step\""))
+        assertTrue(messages[1].contains("\"event\":\"text-delta\""))
+        assertTrue(messages[2].contains("\"event\":\"agent-step\""))
+        assertTrue(messages[3].contains("\"event\":\"text-delta\""))
         assertTrue(messages[4].contains("\"type\":\"complete\""))
     }
 
@@ -178,13 +178,13 @@ class EmbabelAdapterTest {
         assertTrue(channelReceived != null, "Runner should receive a channel")
 
         val captor = ArgumentCaptor.forClass(Any::class.java)
-        // progress ("Starting agent: test-agent...") + streaming text + complete
+        // progress ("Starting agent: test-agent...") + text-delta + complete
         verify(broadcaster, times(3)).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
 
         val messages = captor.allValues.map { it.toString() }
         assertTrue(messages[0].contains("\"type\":\"progress\""))
         assertTrue(messages[0].contains("Starting agent: test-agent"))
-        assertTrue(messages[1].contains("\"data\":\"Agent output\""))
+        assertTrue(messages[1].contains("Agent output"))
         assertTrue(messages[2].contains("\"type\":\"complete\""))
     }
 
