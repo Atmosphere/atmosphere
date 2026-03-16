@@ -103,7 +103,43 @@ run_variant() {
         fi
     done
 
-    # 5. Compile the generated project
+    # 5. Verify new AI features in generated code (Phase 0-1 contract tests)
+    if [[ "$handler_type" == "ai-chat" ]]; then
+        echo "  Checking AiCapability + requires in AiChat.java..."
+        local ai_chat
+        ai_chat=$(find "$project_dir/src" -name "AiChat.java" -print -quit)
+        if [[ -n "$ai_chat" ]]; then
+            if ! grep -q "AiCapability" "$ai_chat"; then
+                red "  FAIL: AiChat.java missing AiCapability import"
+                FAIL=$((FAIL + 1))
+                return
+            fi
+            if ! grep -q "requires" "$ai_chat"; then
+                red "  FAIL: AiChat.java missing requires attribute"
+                FAIL=$((FAIL + 1))
+                return
+            fi
+        fi
+        if [[ -n "$extra_flags" && "$extra_flags" == *"--tools"* ]]; then
+            echo "  Checking AiEvent tool events in DemoResponseProducer.java..."
+            local demo_prod
+            demo_prod=$(find "$project_dir/src" -name "DemoResponseProducer.java" -print -quit)
+            if [[ -n "$demo_prod" ]]; then
+                if ! grep -q "AiEvent" "$demo_prod"; then
+                    red "  FAIL: DemoResponseProducer.java missing AiEvent import (tools variant)"
+                    FAIL=$((FAIL + 1))
+                    return
+                fi
+                if ! grep -q "ToolStart" "$demo_prod"; then
+                    red "  FAIL: DemoResponseProducer.java missing ToolStart usage (tools variant)"
+                    FAIL=$((FAIL + 1))
+                    return
+                fi
+            fi
+        fi
+    fi
+
+    # 6. Compile the generated project
     echo "  Compiling generated project..."
     if ! (cd "$project_dir" && ./mvnw -B compile -q 2>&1); then
         red "  FAIL: mvnw compile failed for $label"

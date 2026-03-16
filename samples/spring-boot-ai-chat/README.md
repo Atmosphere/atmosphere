@@ -2,38 +2,47 @@
 
 A real-time AI chat application that streams LLM responses text-by-text to the browser using Atmosphere's built-in `OpenAiCompatibleClient`. Works with **Gemini**, **OpenAI**, **Ollama**, and any OpenAI-compatible endpoint.
 
+## Key Features
+
+- **`@AiEndpoint`** — declarative AI endpoint with system prompt, capability validation, and conversation memory
+- **Capability requirements** — `requires = {TEXT_STREAMING, SYSTEM_PROMPT}` fails fast if the backend can't deliver
+- **Conversation memory** — multi-turn context preserved automatically per client
+- **Structured events** — `AiEvent` wire protocol for tool calls, agent steps, and structured output
+- **Demo mode** — works out-of-the-box without an API key (simulated streaming)
+
 ## How It Works
 
 ### Server — `AiChat.java`
 
-A `@ManagedService` endpoint at `/atmosphere/ai-chat`:
+An `@AiEndpoint` at `/atmosphere/ai-chat`:
 
-1. Client sends a prompt via WebSocket
-2. `@Message` handler creates a `StreamingSession` and a `ChatCompletionRequest`
-3. A virtual thread streams the LLM response, pushing streaming texts through the session
-4. Each streaming text is written directly to the WebSocket as JSON
+1. Client connects via WebSocket and sends a prompt
+2. The `@Prompt` handler calls `session.stream(message)` which routes through the `AiSupport` SPI
+3. The framework handles conversation memory, interceptors, guardrails, and streaming automatically
+4. Each streaming text is pushed to the client as a JSON frame
 
 ```java
-@Message
-public void onMessage(String prompt) {
-    var settings = AiConfig.get();
-    var session = StreamingSessions.start(resource);
-    var request = ChatCompletionRequest.builder(settings.model())
-            .system("You are a helpful assistant.")
-            .user(prompt)
-            .build();
-    Thread.startVirtualThread(() -> settings.client().streamChatCompletion(request, session));
+@AiEndpoint(path = "/atmosphere/ai-chat",
+        systemPromptResource = "prompts/system-prompt.md",
+        requires = {AiCapability.TEXT_STREAMING, AiCapability.SYSTEM_PROMPT},
+        conversationMemory = true)
+public class AiChat {
+
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        session.stream(message);
+    }
 }
 ```
 
-### Client — `index.html`
+### Client — React + atmosphere.js
 
-A single-page HTML/JS app using `atmosphere.js`:
+Uses the `useStreaming` hook from `atmosphere.js/react`:
 
 - Connects to `/atmosphere/ai-chat` over WebSocket
-- Parses streaming JSON messages (`streaming-text`, `progress`, `complete`, `error`)
-- Renders streaming texts as they arrive with a typing indicator
-- Supports markdown rendering of AI responses
+- Parses streaming JSON messages and `AiEvent` frames
+- Renders streaming texts as they arrive with markdown support
+- Shows model name, cost, and latency badges
 
 ## Configuration
 
@@ -41,8 +50,6 @@ Set environment variables before running:
 
 ```bash
 # Gemini (default)
-export LLM_MODE=remote
-export LLM_MODEL=gemini-2.5-flash
 export LLM_API_KEY=AIza...
 
 # OpenAI
@@ -61,9 +68,8 @@ export LLM_MODEL=llama3.2
 # From the repository root
 ./mvnw spring-boot:run -pl samples/spring-boot-ai-chat
 
-# Or build a JAR
-./mvnw package -pl samples/spring-boot-ai-chat -DskipTests
-java -jar samples/spring-boot-ai-chat/target/*.jar
+# Or via the CLI
+atmosphere run spring-boot-ai-chat
 ```
 
 Open http://localhost:8080 in your browser.
@@ -73,20 +79,25 @@ Open http://localhost:8080 in your browser.
 ```
 spring-boot-ai-chat/
 ├── pom.xml
+├── frontend/                        # React + Vite frontend
+│   └── src/
+│       ├── App.tsx                  # Chat UI with useStreaming hook
+│       └── main.tsx                 # AtmosphereProvider wrapper
 └── src/main/
     ├── java/.../aichat/
-    │   ├── AiChatApplication.java    # Spring Boot entry point
-    │   ├── AiChat.java               # @ManagedService WebSocket endpoint
-    │   └── LlmConfig.java            # @Configuration bridging Spring properties to AiConfig
+    │   ├── AiChatApplication.java   # Spring Boot entry point
+    │   ├── AiChat.java             # @AiEndpoint with capability validation
+    │   ├── AuthConfig.java         # Token-based authentication
+    │   ├── DemoResponseProducer.java # Simulated streaming for demo mode
+    │   └── LlmConfig.java          # Spring properties → AiConfig bridge
     └── resources/
-        ├── application.yml           # Atmosphere + LLM config
-        └── static/
-            ├── index.html            # Chat UI
-            └── assets/               # Bundled atmosphere.js client
+        ├── application.yml          # LLM config (model, mode, API key)
+        ├── prompts/system-prompt.md # System prompt loaded at startup
+        └── static/                  # Built frontend assets
 ```
 
 ## See Also
 
-- [AI / LLM Streaming Guide](../../docs/ai.md)
+- [AI Tools sample](../spring-boot-ai-tools/) — framework-agnostic tool calling with real-time tool events
 - [LangChain4j sample](../spring-boot-langchain4j-chat/) — same app with LangChain4j adapter
 - [Embabel sample](../spring-boot-embabel-chat/) — agentic AI with Embabel
