@@ -6,10 +6,10 @@ const reasons = [
       <circle cx="12" cy="15" r="2"/>
     </svg>`,
     title: 'Ship AI features without building infrastructure',
-    description: 'Atmosphere handles token streaming, tool execution, RAG context injection, and guardrails. You plug in your model — we deliver the output to the browser.',
+    description: 'Atmosphere handles streaming text delivery, tool execution, RAG context injection, and guardrails. You plug in your model — we deliver the output to the browser.',
     detail: `<p>Atmosphere provides the <strong>server-to-browser transport layer</strong> for AI applications while your model framework handles inference.</p>
 <ul>
-<li><strong>Token streaming</strong> — real-time delivery with content/progress/metadata/complete frames</li>
+<li><strong>Streaming text</strong> — real-time delivery with content/progress/metadata/complete frames</li>
 <li><strong>Tool calling</strong> — register tools with @AiTool, auto-executed during LLM inference</li>
 <li><strong>RAG</strong> — ContextProvider SPI injects relevant documents before the LLM call</li>
 <li><strong>Guardrails</strong> — pre-process prompts, post-process responses for safety</li>
@@ -63,7 +63,7 @@ const reasons = [
     detail: `<p><strong>atmosphere.js</strong> provides framework-native hooks so your UI code stays idiomatic.</p>
 <ul>
 <li><strong>useAtmosphere</strong> — subscribe, push, track connection state</li>
-<li><strong>useStreaming</strong> — stream LLM tokens with progress and metadata</li>
+<li><strong>useStreaming</strong> — stream AI text with progress and metadata</li>
 <li><strong>useRoom</strong> — join rooms, track members, broadcast messages</li>
 <li><strong>Offline queue</strong> — buffer messages while disconnected, auto-drain on reconnect</li>
 <li><strong>Auth tokens</strong> — automatic refresh and session management</li>
