@@ -8,7 +8,7 @@
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-langchain4j</artifactId>
-    <version>4.0.14</version>
+    <version>4.0.15</version>
 </dependency>
 ```
 

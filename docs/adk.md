@@ -8,7 +8,7 @@ Bridges [Google Agent Development Kit (ADK)](https://github.com/google/adk-java)
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-adk</artifactId>
-    <version>4.0.14</version>
+    <version>4.0.15</version>
 </dependency>
 ```
 
