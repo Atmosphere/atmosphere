@@ -17,6 +17,7 @@
     <modules>
         <module>cpr</module>
         <module>ai</module>
+        <module>ai-test</module>
         <module>mcp</module>
         <module>kotlin</module>
         <module>spring-ai</module>
