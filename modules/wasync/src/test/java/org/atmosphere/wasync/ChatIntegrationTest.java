@@ -25,8 +25,11 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Java wAsync client directly over WebSocket.
  */
 @Timeout(30)
+@TestMethodOrder(MethodOrderer.MethodName.class)
 class ChatIntegrationTest {
 
     private static final Logger logger = LoggerFactory.getLogger(ChatIntegrationTest.class);
@@ -87,6 +91,15 @@ class ChatIntegrationTest {
         if (server != null) {
             server.stop();
         }
+    }
+
+    @AfterEach
+    void cleanupBetweenTests() throws Exception {
+        // Give the server time to fully close WebSocket connections and clean up
+        // broadcaster resources before the next test opens new connections.
+        // Jetty 12's WebSocket close is async; without this delay, the next test
+        // may hit ClosedChannelException on stale server-side endpoints.
+        Thread.sleep(1000);
     }
 
     @Test
@@ -221,8 +234,8 @@ class ChatIntegrationTest {
         assertTrue(aliceOpen.await(10, TimeUnit.SECONDS), "Alice should connect");
         assertTrue(bobOpen.await(10, TimeUnit.SECONDS), "Bob should connect");
 
-        // Allow time for both resources to be fully registered in the Broadcaster
-        Thread.sleep(500);
+        // Wait for both resources to be fully registered in the Broadcaster
+        Thread.sleep(1000);
 
         // Alice sends a message — Bob should receive it (broadcast to all)
         alice.fire(mapper.writeValueAsString(
@@ -279,8 +292,8 @@ class ChatIntegrationTest {
 
         assertTrue(openLatch.await(10, TimeUnit.SECONDS), "Should connect");
 
-        // Allow time for the resource to be fully registered in the Broadcaster
-        Thread.sleep(200);
+        // Wait for the resource to be fully registered in the Broadcaster
+        Thread.sleep(500);
 
         // Send multiple messages rapidly
         for (int i = 1; i <= messageCount; i++) {
