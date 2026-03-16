@@ -147,8 +147,17 @@ public class AiStreamingSession implements StreamingSession {
                 ? memory.getHistory(resource.uuid())
                 : List.<org.atmosphere.ai.llm.ChatMessage>of();
 
+        // Populate identity fields from the AtmosphereResource
+        var userId = extractAttribute(resource, "ai.userId");
+        var sessionId = resource.uuid();
+        var agentId = extractAttribute(resource, "ai.agentId");
+        var conversationId = extractAttribute(resource, "ai.conversationId");
+        if (conversationId == null) {
+            conversationId = sessionId;
+        }
+
         var request = new AiRequest(message, systemPrompt, model,
-                null, null, null, null, Map.of(), history);
+                userId, sessionId, agentId, conversationId, Map.of(), history);
 
         // Attach available tools to the request
         if (toolRegistry != null && !toolRegistry.allTools().isEmpty()) {
@@ -308,5 +317,10 @@ public class AiStreamingSession implements StreamingSession {
 
     String systemPrompt() {
         return systemPrompt;
+    }
+
+    private static String extractAttribute(org.atmosphere.cpr.AtmosphereResource resource, String key) {
+        var attr = resource.getRequest().getAttribute(key);
+        return attr != null ? attr.toString() : null;
     }
 }

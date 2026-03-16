@@ -171,6 +171,37 @@ public final class DefaultStreamingSession implements StreamingSession {
         }
     }
 
+    @Override
+    public void sendContent(Content content) {
+        if (closed.get()) {
+            return;
+        }
+        switch (content) {
+            case Content.Text text -> send(text.text());
+            case Content.Image image -> {
+                var msg = new LinkedHashMap<String, Object>();
+                msg.put("type", "content");
+                msg.put("contentType", "image");
+                msg.put("mimeType", image.mimeType());
+                msg.put("data", image.dataBase64());
+                msg.put("sessionId", sessionId);
+                msg.put("seq", sequence.incrementAndGet());
+                broadcast(toJson(msg));
+            }
+            case Content.File file -> {
+                var msg = new LinkedHashMap<String, Object>();
+                msg.put("type", "content");
+                msg.put("contentType", "file");
+                msg.put("mimeType", file.mimeType());
+                msg.put("fileName", file.fileName());
+                msg.put("data", file.dataBase64());
+                msg.put("sessionId", sessionId);
+                msg.put("seq", sequence.incrementAndGet());
+                broadcast(toJson(msg));
+            }
+        }
+    }
+
     String resourceUuid() {
         return resource.uuid();
     }
