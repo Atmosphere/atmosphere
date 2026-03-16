@@ -330,10 +330,14 @@ Configure the built-in client with environment variables:
 | `@AiTool` | Marks a method as an AI-callable tool (framework-agnostic) |
 | `@Param` | Describes a tool parameter's name, description, and required flag |
 | `AiSupport` | SPI for AI framework backends (ServiceLoader-discovered) |
-| `AiRequest` | Framework-agnostic request record (message, systemPrompt, model, hints) |
+| `AiRequest` | Framework-agnostic request record (message, systemPrompt, model, userId, sessionId, agentId, conversationId, metadata) |
+| `AiEvent` | Sealed interface: 13 structured event types (TextDelta, ToolStart, ToolResult, AgentStep, EntityStart, etc.) |
+| `AiCapability` | Enum for endpoint capability requirements (TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, etc.) |
 | `AiInterceptor` | Pre/post processing hooks for RAG, guardrails, logging |
 | `AiConversationMemory` | SPI for conversation history storage |
-| `StreamingSession` | Delivers streaming texts, progress updates, and metadata to the client |
+| `MemoryStrategy` | Pluggable memory selection: MessageWindowStrategy, TokenWindowStrategy, SummarizingStrategy |
+| `StructuredOutputParser` | SPI for JSON Schema generation and typed output parsing (built-in: JacksonStructuredOutputParser) |
+| `StreamingSession` | Delivers streaming texts, events, progress updates, and metadata to the client |
 | `StreamingSessions` | Factory for creating `StreamingSession` instances |
 | `OpenAiCompatibleClient` | Built-in HTTP client for OpenAI-compatible APIs |
 | `RoutingLlmClient` | Routes prompts to different LLM backends based on rules |
