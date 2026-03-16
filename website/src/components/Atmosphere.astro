@@ -2,30 +2,29 @@
 const capabilities = [
   {
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
-      <path d="m9 12 2 2 4-4"/>
-    </svg>`,
-    title: 'WebSocket + SSE',
-    description: 'Automatic transport negotiation with seamless fallback. Your app stays connected regardless of what the network supports.',
-  },
-  {
-    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>`,
-    title: 'Rooms & Presence',
-    description: 'Real-time collaboration out of the box. Named groups, presence tracking, message history, and direct messaging with no external dependencies.',
-  },
-  {
-    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/>
       <circle cx="12" cy="15" r="2"/>
       <path d="M12 17v2"/>
     </svg>`,
-    title: 'AI/LLM Streaming',
-    description: 'Ship AI features faster. Stream tokens from any LLM to the browser using the same infrastructure you already run for chat and notifications.',
+    title: 'AI Streaming & Agents',
+    description: 'Stream LLM tokens to browsers in real time. Built-in RAG, tool calling, guardrails, and an MCP server for AI agents. Adapters for Spring AI, LangChain4j, Google ADK, and Embabel.',
+    badge: 'New in 4.0',
+  },
+  {
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+      <path d="m9 12 2 2 4-4"/>
+    </svg>`,
+    title: 'Transport Layer',
+    description: 'WebSocket, SSE, long-polling — your code never changes. Atmosphere picks the best transport, handles fallback, reconnection, heartbeats, and message caching automatically.',
+  },
+  {
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="16 18 22 12 16 6"/>
+      <polyline points="8 6 2 12 8 18"/>
+    </svg>`,
+    title: 'Client SDKs',
+    description: 'atmosphere.js ships hooks for React, Vue, and Svelte with rooms, presence tracking, offline queues, and streaming out of the box. Also available for React Native.',
   },
   {
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -35,7 +34,7 @@ const capabilities = [
       <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
     </svg>`,
     title: 'Spring Boot & Quarkus',
-    description: 'Drops into your existing stack. One dependency, auto-configured — no rewiring your application to get real-time capabilities.',
+    description: 'Auto-configured starters for both frameworks. Add one dependency to your existing app — Atmosphere handles the real-time layer without rewiring anything.',
   },
 ];
 ---
@@ -43,19 +42,21 @@ const capabilities = [
 <section class="atmosphere" id="atmosphere">
   <div class="atmosphere-container">
     <div class="section-header">
-      <span class="section-label">Open Source</span>
-      <h2 class="section-title">What is Atmosphere?</h2>
+      <span class="section-label">Atmosphere 4.0</span>
+      <h2 class="section-title">Real-time and AI in one framework</h2>
       <p class="section-description">
-        The real-time framework for the JVM. Transport fallback, reconnection,
-        rooms, presence, clustering — the plumbing every real-time app needs
-        but nobody wants to maintain.
+        The transport layer, client SDKs, rooms, and AI streaming infrastructure
+        your application needs — so you can focus on what makes your product different.
       </p>
     </div>
 
     <div class="capabilities-grid">
       {capabilities.map((cap, index) => (
         <a href="#support" class="capability-card" style={`--delay: ${(index * 0.1).toFixed(1)}s`}>
-          <div class="capability-icon" set:html={cap.icon} />
+          <div class="capability-header">
+            <div class="capability-icon" set:html={cap.icon} />
+            {cap.badge && <span class="capability-badge">{cap.badge}</span>}
+          </div>
           <h3 class="capability-title">{cap.title}</h3>
           <p class="capability-description">{cap.description}</p>
         </a>
@@ -141,6 +142,13 @@ const capabilities = [
     box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5);
   }
 
+  .capability-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+  }
+
   .capability-icon {
     display: flex;
     align-items: center;
@@ -150,13 +158,25 @@ const capabilities = [
     background: var(--color-accent-glow);
     border-radius: 10px;
     color: var(--color-accent);
-    margin-bottom: var(--space-lg);
     transition: all 0.3s var(--ease-out-quad);
   }
 
   .capability-card:hover .capability-icon {
     background: var(--color-accent);
     color: var(--color-bg-primary);
+  }
+
+  .capability-badge {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-accent);
+    background: var(--color-accent-glow);
+    padding: 0.2em 0.6em;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 212, 255, 0.25);
   }
 
   .capability-title {

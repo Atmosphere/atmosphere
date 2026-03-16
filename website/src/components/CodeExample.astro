@@ -2,34 +2,37 @@
 const reasons = [
   {
     icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+      <path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/>
+      <circle cx="12" cy="15" r="2"/>
     </svg>`,
-    title: 'Virtual threads, zero tuning',
-    description: 'Every connection runs on a JDK 21 virtual thread. Write blocking code — no reactive wrappers, no thread pool configuration.',
-  },
-  {
-    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="6" width="20" height="12" rx="2"/>
-      <path d="M12 12h.01"/>
-    </svg>`,
-    title: 'One dependency, no rewiring',
-    description: 'Add a starter to your existing Spring Boot or Quarkus app. Atmosphere handles transport, reconnection, and rooms alongside your code.',
+    title: 'Ship AI features without building infrastructure',
+    description: 'Atmosphere handles token streaming, tool execution, RAG context injection, and guardrails. You plug in your model — we deliver the output to the browser.',
   },
   {
     icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
       <path d="m9 12 2 2 4-4"/>
     </svg>`,
-    title: 'Transport-agnostic',
-    description: 'WebSocket, SSE, long-polling — your code never changes. Atmosphere picks the best transport and falls back automatically.',
+    title: 'Never build a transport layer again',
+    description: 'WebSocket negotiation, SSE fallback, reconnection with backoff, heartbeats, message caching — solved once, across every transport, on every container.',
   },
   {
     icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/>
-      <circle cx="12" cy="15" r="2"/>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
     </svg>`,
-    title: 'AI-ready from day one',
-    description: 'Stream LLM tokens to browsers with the same framework you use for chat. Adapters for <a href="https://spring.io/projects/spring-ai" target="_blank" rel="noopener noreferrer">Spring AI</a>, <a href="https://docs.langchain4j.dev" target="_blank" rel="noopener noreferrer">LangChain4j</a>, <a href="https://google.github.io/adk-docs" target="_blank" rel="noopener noreferrer">Google ADK</a>, <a href="https://embabel.com" target="_blank" rel="noopener noreferrer">Embabel</a>, and MCP.',
+    title: 'Rooms and presence that just work',
+    description: 'Named groups, member tracking, join/leave events, message history, and direct messaging. Add collaborative features to your app in hours, not weeks.',
+  },
+  {
+    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="16 18 22 12 16 6"/>
+      <polyline points="8 6 2 12 8 18"/>
+    </svg>`,
+    title: 'Client SDKs for every framework',
+    description: 'React, Vue, Svelte, and React Native hooks with streaming, offline queues, and auth token refresh. One API across all platforms.',
   },
 ];
 ---
@@ -43,13 +46,13 @@ const reasons = [
 
     <div class="reasons-grid">
       {reasons.map((reason, index) => (
-        <div class="reason" style={`--delay: ${(index * 0.08).toFixed(2)}s`}>
+        <a href="#support" class="reason-card" style={`--delay: ${(index * 0.08).toFixed(2)}s`}>
           <div class="reason-icon" set:html={reason.icon} />
           <div class="reason-content">
             <h3 class="reason-title">{reason.title}</h3>
             <p class="reason-description" set:html={reason.description} />
           </div>
-        </div>
+        </a>
       ))}
     </div>
 
@@ -81,7 +84,7 @@ const reasons = [
   }
 
   .why-container {
-    max-width: 800px;
+    max-width: 900px;
     margin: 0 auto;
   }
 
@@ -110,16 +113,30 @@ const reasons = [
   }
 
   .reasons-grid {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xl);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg);
     margin-bottom: var(--space-3xl);
   }
 
-  .reason {
+  .reason-card {
     display: flex;
     gap: var(--space-lg);
+    padding: var(--space-xl);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: all 0.3s var(--ease-out-quad);
     animation: fadeInUp 0.6s var(--ease-out-expo) var(--delay) both;
+  }
+
+  .reason-card:hover {
+    border-color: var(--color-border-accent);
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5);
   }
 
   .reason-icon {
@@ -132,6 +149,12 @@ const reasons = [
     background: var(--color-accent-glow);
     border-radius: 10px;
     color: var(--color-accent);
+    transition: all 0.3s var(--ease-out-quad);
+  }
+
+  .reason-card:hover .reason-icon {
+    background: var(--color-accent);
+    color: var(--color-bg-primary);
   }
 
   .reason-title {
@@ -192,9 +215,20 @@ const reasons = [
     to { opacity: 1; transform: translateY(0); }
   }
 
+  @media (max-width: 768px) {
+    .reasons-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
   @media (max-width: 640px) {
     .why {
       padding: var(--space-3xl) var(--space-md);
+    }
+
+    .reason-card {
+      flex-direction: column;
+      gap: var(--space-md);
     }
 
     .btn {
