@@ -209,7 +209,7 @@ printf "\n"
 printf "${BOLD}atmosphere info${RESET}\n"
 
 out=$("$CLI" info spring-boot-ai-chat 2>&1)
-assert_contains "$out" "AI-powered" "info shows description"
+assert_contains "$out" "AI streaming" "info shows description"
 assert_contains "$out" "8080" "info shows port"
 assert_contains "$out" "LLM_API_KEY" "info shows env vars"
 assert_contains "$out" "spring-boot" "info shows packaging"
