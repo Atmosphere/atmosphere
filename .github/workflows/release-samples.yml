@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., atmosphere-4.0.15)'
+        required: true
+        type: string
 
 jobs:
   build-sample-jars:
@@ -51,7 +56,8 @@ jobs:
     - name: Prepare Release Asset
       id: prepare
       run: |
-        version="${GITHUB_REF_NAME#v}"
+        tag="${{ inputs.tag || github.ref_name }}"
+        version="${tag#v}"
         sample="${{ matrix.sample }}"
 
         # Find the fat JAR (Spring Boot repackaged or Quarkus runner)
@@ -80,6 +86,7 @@ jobs:
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v2
       with:
+        tag_name: ${{ inputs.tag || github.ref_name }}
         files: ${{ steps.prepare.outputs.asset_path }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -107,7 +114,8 @@ jobs:
     - name: Prepare Release Asset
       id: prepare
       run: |
-        version="${GITHUB_REF_NAME#v}"
+        tag="${{ inputs.tag || github.ref_name }}"
+        version="${tag#v}"
 
         # Quarkus produces a runner JAR and lib/ directory — zip them together
         cd samples/quarkus-chat/target
@@ -127,6 +135,7 @@ jobs:
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v2
       with:
+        tag_name: ${{ inputs.tag || github.ref_name }}
         files: ${{ steps.prepare.outputs.asset_path }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -141,7 +150,8 @@ jobs:
 
     - name: Update version in CLI files
       run: |
-        version="${GITHUB_REF_NAME#v}"
+        tag="${{ inputs.tag || github.ref_name }}"
+        version="${tag#v}"
 
         # Update samples.json version
         sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$version\"/" cli/samples.json
