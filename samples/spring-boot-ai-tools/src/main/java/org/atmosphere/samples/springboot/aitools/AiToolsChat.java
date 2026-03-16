@@ -15,7 +15,6 @@
  */
 package org.atmosphere.samples.springboot.aitools;
 
-import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
@@ -53,7 +52,6 @@ import org.slf4j.LoggerFactory;
         conversationMemory = true,
         maxHistoryMessages = 30,
         tools = AssistantTools.class,
-        requires = AiCapability.TOOL_CALLING,
         interceptors = CostMeteringInterceptor.class)
 public class AiToolsChat {
 
