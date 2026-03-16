@@ -52,7 +52,7 @@ const capabilities = [
 
     <div class="capabilities-grid">
       {capabilities.map((cap, index) => (
-        <a href="#support" class="capability-card" style={`--delay: ${(index * 0.1).toFixed(1)}s`}>
+        <a href="#why" class="capability-card" style={`--delay: ${(index * 0.1).toFixed(1)}s`}>
           <div class="capability-header">
             <div class="capability-icon" set:html={cap.icon} />
             {cap.badge && <span class="capability-badge">{cap.badge}</span>}
