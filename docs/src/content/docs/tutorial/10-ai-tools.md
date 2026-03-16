@@ -147,6 +147,7 @@ Use the `tools` attribute on `@AiEndpoint`:
         conversationMemory = true,
         maxHistoryMessages = 30,
         tools = AssistantTools.class,
+        requires = AiCapability.TOOL_CALLING,
         interceptors = CostMeteringInterceptor.class)
 public class AiToolsChat {
 
@@ -248,6 +249,7 @@ public interface ToolRegistry {
 | `allTools()` | Get all registered tools |
 | `unregister(name)` | Remove a tool by name |
 | `execute(toolName, arguments)` | Execute a tool with the given arguments |
+| `execute(toolName, arguments, session)` | Execute a tool and auto-emit `ToolStart`/`ToolResult` events through the session |
 
 ## ToolDefinition Record
 
@@ -341,6 +343,24 @@ The builder API:
 | `returnType(type)` | Set the return type (default: `"string"`) |
 | `executor(ToolExecutor)` | Set the execution function (required) |
 | `build()` | Build the `ToolDefinition` |
+
+## Tool Execution Events
+
+`ToolRegistry.execute(toolName, arguments, session)` automatically emits `AiEvent.ToolStart` and `AiEvent.ToolResult` (or `AiEvent.ToolError`) through the `StreamingSession`. This provides live tool activity visibility in the frontend without manual event emission:
+
+```java
+// Auto-emits ToolStart before invocation, ToolResult/ToolError after
+toolRegistry.execute("get_weather", Map.of("city", "Montreal"), session);
+```
+
+The frontend receives these as structured JSON event frames:
+
+```json
+{"event":"tool-start","data":{"toolName":"get_weather","arguments":{"city":"Montreal"}},...}
+{"event":"tool-result","data":{"toolName":"get_weather","result":"..."},...}
+```
+
+The `useStreaming` React hook exposes these via the `aiEvents` array.
 
 ## How Tool Bridging Works
 

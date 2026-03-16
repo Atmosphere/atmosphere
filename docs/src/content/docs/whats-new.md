@@ -17,6 +17,14 @@ description: "New features in Atmosphere 4.0"
 - **Cache replay coalescing** — reconnecting clients receive coalesced missed streaming texts in a single batch.
 - **Streaming text budget management** — `StreamingTextBudgetManager` enforces per-session and per-endpoint streaming text limits.
 - **Cost metering UI** — per-message cost badges in the chat frontend via `StreamingSession` request attribute.
+- **`AiEvent` sealed interface** — 13 structured event types (`TextDelta`, `ToolStart`, `ToolResult`, `AgentStep`, `EntityStart`, `StructuredField`, etc.) delivered via `StreamingSession.emit()`. Enables rich real-time UIs showing tool activity, agent steps, and progressive entity rendering.
+- **First-class identity fields** — `AiRequest` carries `userId`, `sessionId`, `agentId`, `conversationId` as explicit fields (not hidden in an untyped `hints()` map).
+- **Capability validation** — `@AiEndpoint(requires = {TOOL_CALLING})` fails fast at startup if the backend can't satisfy required capabilities.
+- **Memory strategies** — pluggable `MemoryStrategy` SPI with `MessageWindowStrategy`, `TokenWindowStrategy` (chars/4 approximation), and `SummarizingStrategy` (condenses old messages).
+- **`StructuredOutputParser` SPI** — generate JSON Schema instructions from Java classes, parse LLM output into typed objects. Built-in `JacksonStructuredOutputParser` works with any model.
+- **Enhanced RAG** — `ContextProvider.transformQuery()` and `rerank()` enable query rewriting and result re-ranking without building a custom pipeline.
+- **Auto tool events** — `ToolRegistry.execute(name, args, session)` auto-emits `AiEvent.ToolStart`/`ToolResult` through the streaming session.
+- **`atmosphere-ai-test` module** — `AiTestClient`, `AiResponse`, and fluent `AiAssertions` for testing AI endpoints in JUnit 5.
 
 ## MCP (Model Context Protocol)
 

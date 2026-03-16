@@ -172,6 +172,10 @@ export default defineConfig({
       testMatch: /ai-memory-strategies\.spec\.ts/,
     },
     {
+      name: 'ai-chat-features',
+      testMatch: /ai-chat-features\.spec\.ts/,
+    },
+    {
       name: 'mcp-tools',
       testMatch: /mcp-tools\.spec\.ts/,
     },

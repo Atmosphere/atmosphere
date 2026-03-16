@@ -39,6 +39,7 @@ A chat endpoint that:
 | `fallbackStrategy` | `String` | `"NONE"` | Fallback strategy for model routing when the primary backend fails |
 | `guardrails` | `Class<? extends AiGuardrail>[]` | `{}` | Guardrail classes that inspect requests before the LLM call and responses after |
 | `contextProviders` | `Class<? extends ContextProvider>[]` | `{}` | RAG context augmentation providers |
+| `requires` | `AiCapability[]` | `{}` | Backend capabilities this endpoint requires (fails fast at startup if not satisfied) |
 | `model` | `String` | `""` | Override the model name for this endpoint (otherwise uses `AiConfig.get().model()`) |
 | `filters` | `Class<? extends BroadcastFilter>[]` | `{}` | Broadcast filters for this endpoint's Broadcaster |
 
@@ -71,7 +72,9 @@ This is the `AiChat` class from the `spring-boot-ai-chat` sample:
 
 ```java
 @AiEndpoint(path = "/atmosphere/ai-chat",
-        systemPromptResource = "prompts/system-prompt.md")
+        systemPromptResource = "prompts/system-prompt.md",
+        requires = {AiCapability.TEXT_STREAMING, AiCapability.SYSTEM_PROMPT},
+        conversationMemory = true)
 public class AiChat {
 
     private static final Logger logger = LoggerFactory.getLogger(AiChat.class);
@@ -134,6 +137,8 @@ public interface StreamingSession extends AutoCloseable {
 
     boolean isClosed();
 
+    void emit(AiEvent event);
+
     void sendContent(Content content);
 
     void stream(String message);
@@ -146,6 +151,7 @@ public interface StreamingSession extends AutoCloseable {
 |--------|-------------|
 | `sessionId()` | Unique identifier for this streaming session |
 | `send(streamingText)` | Send a text chunk to the client (typically a single streaming text from the LLM) |
+| `emit(event)` | Emit a structured `AiEvent` (tool calls, agent steps, entities, etc.) |
 | `sendMetadata(key, value)` | Send structured metadata alongside the stream (e.g., model name, usage stats) |
 | `progress(message)` | Send a human-readable progress update (e.g., "Thinking...", "Searching documents...") |
 | `complete()` | Signal that the stream has completed successfully |
@@ -205,6 +211,74 @@ Every message from `StreamingSession` is a JSON object written directly to the W
 | `error` | Stream failed -- `data` contains the error message |
 
 The `seq` field is a monotonically increasing counter for deduplication on reconnect.
+
+## Structured Events (AiEvent)
+
+`StreamingSession.emit(AiEvent)` sends structured events to the client alongside text. This enables rich real-time UIs that show tool activity, agent steps, and progressive entity rendering.
+
+`AiEvent` is a sealed interface with 13 event types:
+
+| Event Type | Description |
+|-----------|-------------|
+| `TextDelta(text)` | A streaming text chunk |
+| `TextComplete(fullText)` | Full text response complete |
+| `ToolStart(toolName, arguments)` | A tool invocation has started |
+| `ToolResult(toolName, result)` | A tool has returned a result |
+| `ToolError(toolName, error)` | A tool invocation failed |
+| `AgentStep(stepName, description, data)` | An agent workflow step |
+| `StructuredField(fieldName, value, schemaType)` | A parsed field from structured output |
+| `EntityStart(typeName, jsonSchema)` | Structured entity streaming started |
+| `EntityComplete(typeName, entity)` | Entity fully assembled |
+| `RoutingDecision(from, to, reason)` | Backend routing changed |
+| `Progress(message, percentage)` | Progress update |
+| `Error(message, code, recoverable)` | Structured error |
+| `Complete(summary, usage)` | Stream complete with usage stats |
+
+### Example: emitting tool events
+
+```java
+session.emit(new AiEvent.ToolStart("get_weather", Map.of("city", "Montreal")));
+// ... tool executes ...
+session.emit(new AiEvent.ToolResult("get_weather", Map.of("temp", 22)));
+session.emit(new AiEvent.TextDelta("The weather in Montreal is 22°C."));
+session.emit(new AiEvent.Complete(null, Map.of()));
+```
+
+Events are serialized as JSON frames:
+
+```json
+{"event":"tool-start","data":{"toolName":"get_weather","arguments":{"city":"Montreal"}},"sessionId":"abc","seq":1}
+{"event":"tool-result","data":{"toolName":"get_weather","result":{"temp":22}},"sessionId":"abc","seq":2}
+```
+
+The `useStreaming` React hook exposes events via `aiEvents`:
+
+```tsx
+const { fullText, aiEvents, send } = useStreaming({ request });
+
+// aiEvents contains: [{ event: "tool-start", data: {...} }, ...]
+```
+
+## Capability Validation
+
+Use `requires` to declare which backend capabilities your endpoint needs. The framework validates at startup and fails fast with a clear error if the backend can't satisfy them:
+
+```java
+@AiEndpoint(path = "/tools-chat",
+    requires = {AiCapability.TOOL_CALLING, AiCapability.CONVERSATION_MEMORY})
+```
+
+Available capabilities: `TEXT_STREAMING`, `TOOL_CALLING`, `STRUCTURED_OUTPUT`, `VISION`, `AUDIO`, `MULTI_MODAL`, `CONVERSATION_MEMORY`, `SYSTEM_PROMPT`, `AGENT_ORCHESTRATION`.
+
+## Memory Strategies
+
+Beyond the default sliding-window memory, Atmosphere provides pluggable `MemoryStrategy` implementations:
+
+| Strategy | Description |
+|----------|-------------|
+| `MessageWindowStrategy` | Last N messages (default) |
+| `TokenWindowStrategy` | Last N estimated tokens (chars/4 approximation) |
+| `SummarizingStrategy` | Condenses old messages into a summary, preserves recent window |
 
 ## Option B: @ManagedService (Manual Approach)
 
