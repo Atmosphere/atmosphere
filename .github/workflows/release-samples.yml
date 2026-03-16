@@ -3,6 +3,7 @@ name: Release Sample JARs
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   build-sample-jars:
