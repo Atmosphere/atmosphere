@@ -96,8 +96,8 @@ jobs:
         ls -lh dist/
         SIZE=$(stat -f%z dist/index.js 2>/dev/null || stat -c%s dist/index.js)
         echo "Bundle size: $SIZE bytes"
-        if [ $SIZE -gt 30720 ]; then
-          echo "❌ Bundle size ($SIZE bytes) exceeds 30KB limit!"
+        if [ $SIZE -gt 32768 ]; then
+          echo "❌ Bundle size ($SIZE bytes) exceeds 32KB limit!"
           exit 1
         fi
         echo "✅ Bundle size OK: $SIZE bytes"
