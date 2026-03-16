@@ -15,6 +15,9 @@
  */
 package org.atmosphere.ai.tool;
 
+import org.atmosphere.ai.AiEvent;
+import org.atmosphere.ai.StreamingSession;
+
 import java.util.Collection;
 import java.util.Optional;
 
@@ -86,4 +89,27 @@ public interface ToolRegistry {
      * @return the tool result
      */
     ToolResult execute(String toolName, java.util.Map<String, Object> arguments);
+
+    /**
+     * Execute a tool and emit {@link AiEvent.ToolStart} / {@link AiEvent.ToolResult}
+     * or {@link AiEvent.ToolError} events through the session. This provides
+     * automatic tool call visibility in the frontend without adapters needing
+     * to manually emit events.
+     *
+     * @param toolName  the tool name
+     * @param arguments the arguments from the AI model
+     * @param session   the streaming session to emit events through
+     * @return the tool result
+     */
+    default ToolResult execute(String toolName, java.util.Map<String, Object> arguments,
+                               StreamingSession session) {
+        session.emit(new AiEvent.ToolStart(toolName, arguments));
+        var result = execute(toolName, arguments);
+        if (result.success()) {
+            session.emit(new AiEvent.ToolResult(toolName, result.result()));
+        } else {
+            session.emit(new AiEvent.ToolError(toolName, result.error()));
+        }
+        return result;
+    }
 }
