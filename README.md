@@ -85,7 +85,7 @@ public class Chat {
 }
 ```
 
-## What's New in 4.0 ([full list](docs/whats-new-4.0.md))
+## What's New in 4.0 ([full list](https://atmosphere.github.io/docs/whats-new/))
 
 Atmosphere applies the same philosophy to AI: **your code shouldn't care which AI framework is on the classpath.** Tools (`@AiTool`), conversation memory, guardrails, multi-backend routing, metrics, and observability are declared once with Atmosphere annotations and automatically bridged to Spring AI, LangChain4j, Google ADK, or Embabel at runtime. Per-endpoint model selection, auto-detected persistence (Redis/SQLite), and broadcast filter auto-registration round out the platform.
 
@@ -125,7 +125,7 @@ Swap the AI backend by changing one Maven dependency — no tool code changes:
 | Google ADK | `atmosphere-adk` | `AdkToolBridge` |
 | Embabel | `atmosphere-embabel` | `EmbabelAiSupport` |
 
-See [spring-boot-ai-tools](samples/spring-boot-ai-tools) for the full tool-calling sample, [spring-boot-ai-classroom](samples/spring-boot-ai-classroom) for multi-persona conversation memory, and [expo-client](samples/spring-boot-ai-classroom/expo-client) for React Native/Expo mobile chat. Four official framework samples have been [forked and augmented](docs/whats-new-4.0.md#samples--forked--augmented) with Atmosphere streaming: [LangChain4j tools](samples/spring-boot-langchain4j-tools), [Spring AI routing](samples/spring-boot-spring-ai-routing), [Embabel horoscope](samples/spring-boot-embabel-horoscope), and [ADK tools](samples/spring-boot-adk-tools).
+See [spring-boot-ai-tools](samples/spring-boot-ai-tools) for the full tool-calling sample, [spring-boot-ai-classroom](samples/spring-boot-ai-classroom) for multi-persona conversation memory, and [expo-client](samples/spring-boot-ai-classroom/expo-client) for React Native/Expo mobile chat. Four official framework samples have been [forked and augmented](https://atmosphere.github.io/docs/whats-new/#samples--forked--augmented) with Atmosphere streaming: [LangChain4j tools](samples/spring-boot-langchain4j-tools), [Spring AI routing](samples/spring-boot-spring-ai-routing), [Embabel horoscope](samples/spring-boot-embabel-horoscope), and [ADK tools](samples/spring-boot-adk-tools).
 
 ### CLI-powered LLM backend
 
@@ -159,39 +159,39 @@ public class MyTools {
 
 | Module | Artifact | What it does |
 |--------|----------|--------------|
-| [**Runtime**](docs/core.md) | `atmosphere-runtime` | WebSocket, SSE, Long-Polling (Servlet 6.0+) |
-| [**gRPC**](docs/grpc.md) | `atmosphere-grpc` | Bidirectional streaming transport (grpc-java 1.71) |
-| [**Rooms**](docs/rooms.md) | built into runtime | Room management with join/leave and presence |
+| [**Runtime**](https://atmosphere.github.io/docs/reference/core/) | `atmosphere-runtime` | WebSocket, SSE, Long-Polling (Servlet 6.0+) |
+| [**gRPC**](https://atmosphere.github.io/docs/reference/grpc/) | `atmosphere-grpc` | Bidirectional streaming transport (grpc-java 1.71) |
+| [**Rooms**](https://atmosphere.github.io/docs/reference/rooms/) | built into runtime | Room management with join/leave and presence |
 
 ### AI
 
 | Module | Artifact | What it does |
 |--------|----------|--------------|
-| [**AI core**](docs/ai.md) | `atmosphere-ai` | `AiSupport` SPI, `@AiEndpoint`, filters, routing, conversation memory |
-| [**Spring AI**](docs/spring-ai.md) | `atmosphere-spring-ai` | Adapter for Spring AI `ChatClient` |
-| [**LangChain4j**](docs/langchain4j.md) | `atmosphere-langchain4j` | Adapter for LangChain4j `StreamingChatLanguageModel` |
-| [**Google ADK**](docs/adk.md) | `atmosphere-adk` | Adapter for Google ADK `Runner` |
-| [**Embabel**](docs/embabel.md) | `atmosphere-embabel` | Adapter for Embabel `AgentPlatform` |
+| [**AI core**](https://atmosphere.github.io/docs/reference/ai/) | `atmosphere-ai` | `AiSupport` SPI, `@AiEndpoint`, filters, routing, conversation memory |
+| [**Spring AI**](https://atmosphere.github.io/docs/integrations/spring-ai/) | `atmosphere-spring-ai` | Adapter for Spring AI `ChatClient` |
+| [**LangChain4j**](https://atmosphere.github.io/docs/integrations/langchain4j/) | `atmosphere-langchain4j` | Adapter for LangChain4j `StreamingChatLanguageModel` |
+| [**Google ADK**](https://atmosphere.github.io/docs/integrations/adk/) | `atmosphere-adk` | Adapter for Google ADK `Runner` |
+| [**Embabel**](https://atmosphere.github.io/docs/integrations/embabel/) | `atmosphere-embabel` | Adapter for Embabel `AgentPlatform` |
 | [**RAG**](modules/rag/README.md) | `atmosphere-rag` | `ContextProvider` SPI with Spring AI and LangChain4j bridges |
-| [**MCP server**](docs/mcp.md) | `atmosphere-mcp` | MCP server + bidirectional tool invocation (server-to-client) |
+| [**MCP server**](https://atmosphere.github.io/docs/reference/mcp/) | `atmosphere-mcp` | MCP server + bidirectional tool invocation (server-to-client) |
 
 ### Cloud
 
 | Module | Artifact | What it does |
 |--------|----------|--------------|
-| [**Redis**](docs/redis.md) | `atmosphere-redis` | Cross-node broadcasting via Redis pub/sub |
-| [**Kafka**](docs/kafka.md) | `atmosphere-kafka` | Cross-node broadcasting via Kafka |
-| [**Durable sessions**](docs/durable-sessions.md) | `atmosphere-durable-sessions` | Session persistence across restarts (SQLite / Redis) |
+| [**Redis**](https://atmosphere.github.io/docs/infrastructure/redis/) | `atmosphere-redis` | Cross-node broadcasting via Redis pub/sub |
+| [**Kafka**](https://atmosphere.github.io/docs/infrastructure/kafka/) | `atmosphere-kafka` | Cross-node broadcasting via Kafka |
+| [**Durable sessions**](https://atmosphere.github.io/docs/reference/durable-sessions/) | `atmosphere-durable-sessions` | Session persistence across restarts (SQLite / Redis) |
 
 ### Extensions
 
 | Module | Artifact | What it does |
 |--------|----------|--------------|
-| [**Spring Boot**](docs/spring-boot.md) | `atmosphere-spring-boot-starter` | Auto-configuration for Spring Boot 4.0+ |
-| [**Quarkus**](docs/quarkus.md) | `atmosphere-quarkus-extension` | Build-time processing for Quarkus 3.21+ |
-| [**Kotlin DSL**](docs/kotlin.md) | `atmosphere-kotlin` | Builder API and coroutine extensions |
-| [**atmosphere.js**](docs/client-javascript.md) | `atmosphere.js` (npm) | Browser & React Native client with React, Vue, Svelte, and [RN hooks](docs/react-native.md) |
-| [**wAsync**](docs/client-java.md) | `atmosphere-wasync` | Async Java client — WebSocket, SSE, long-polling, gRPC |
+| [**Spring Boot**](https://atmosphere.github.io/docs/integrations/spring-boot/) | `atmosphere-spring-boot-starter` | Auto-configuration for Spring Boot 4.0+ |
+| [**Quarkus**](https://atmosphere.github.io/docs/integrations/quarkus/) | `atmosphere-quarkus-extension` | Build-time processing for Quarkus 3.21+ |
+| [**Kotlin DSL**](https://atmosphere.github.io/docs/reference/kotlin/) | `atmosphere-kotlin` | Builder API and coroutine extensions |
+| [**atmosphere.js**](https://atmosphere.github.io/docs/clients/javascript/) | `atmosphere.js` (npm) | Browser & React Native client with React, Vue, Svelte, and [RN hooks](https://atmosphere.github.io/docs/clients/react-native/) |
+| [**wAsync**](https://atmosphere.github.io/docs/clients/java/) | `atmosphere-wasync` | Async Java client — WebSocket, SSE, long-polling, gRPC |
 
 ## Requirements
 
@@ -203,12 +203,12 @@ JDK 21 virtual threads are used by default.
 
 ## Documentation
 
-- [**Tutorial**](docs/src/content/docs/tutorial/) — step-by-step guide from first app to AI streaming, MCP, gRPC, and production deployment
-- [**Full documentation**](docs/README.md) — architecture, configuration, and API reference for every module
+- [**Tutorial**](https://atmosphere.github.io/docs/tutorial/01-introduction/) — step-by-step guide from first app to AI streaming, MCP, gRPC, and production deployment
+- [**Full documentation**](https://atmosphere.github.io/docs/) — architecture, configuration, and API reference for every module
 - [**CLI**](cli/README.md) — install, run samples, scaffold projects from your terminal
 - [**Project generator**](generator/README.md) — generate a ready-to-run project with JBang
 - [**Samples**](samples/) — runnable apps covering every transport and integration
-- [**Javadoc**](http://atmosphere.github.io/atmosphere/apidocs/)
+- [**Javadoc**](https://atmosphere.github.io/apidocs/)
 
 ## Commercial Support
 
