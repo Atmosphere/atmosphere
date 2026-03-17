@@ -18,13 +18,13 @@ package org.atmosphere.spring.boot;
 import io.opentelemetry.api.OpenTelemetry;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.metrics.AtmosphereTracing;
-import org.atmosphere.mcp.runtime.McpTracing;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 /**
  * Auto-configuration that registers Atmosphere's OpenTelemetry tracing interceptor
@@ -59,10 +59,20 @@ public class AtmosphereTracingAutoConfiguration {
         return tracing;
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnClass(McpTracing.class)
-    public McpTracing mcpTracing(OpenTelemetry openTelemetry) {
-        return new McpTracing(openTelemetry);
+    /**
+     * Nested configuration that only loads when {@code atmosphere-mcp} is on the
+     * classpath.  Using a separate class with {@code @ConditionalOnClass(name = ...)}
+     * prevents the JVM from resolving {@code McpTracing} at class-load time when
+     * the MCP module is absent.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.atmosphere.mcp.runtime.McpTracing")
+    static class McpTracingAutoConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(name = "mcpTracing")
+        public org.atmosphere.mcp.runtime.McpTracing mcpTracing(OpenTelemetry openTelemetry) {
+            return new org.atmosphere.mcp.runtime.McpTracing(openTelemetry);
+        }
     }
 }
