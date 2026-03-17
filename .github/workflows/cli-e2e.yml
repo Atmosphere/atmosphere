@@ -196,6 +196,7 @@ jobs:
       run: npx playwright test --project="${{ matrix.e2e-name }}"
       env:
         CI: ''  # unset so Playwright reuses the already-running JAR
+        SAMPLE: ${{ matrix.e2e-name }}  # tell playwright.config.ts which sample to load
 
     - name: Upload Playwright report
       if: failure()
