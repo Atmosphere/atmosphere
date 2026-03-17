@@ -47,28 +47,24 @@ export function registerAiToolsTests(options?: AiToolsSuiteOptions): void {
     await page.goto('/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
-    // Wait for WebSocket to connect before sending the first interactive message
-    await page.waitForTimeout(2_000);
-
-    await page.getByTestId('chat-input').fill('What time is it in Tokyo?');
+    await page.getByTestId('chat-input').fill('What is the weather in Tokyo?');
     await page.getByTestId('chat-send').click();
 
-    // The ToolActivity component should appear
+    // The ToolActivity component should appear with the tool name
     await expect(page.getByTestId('tool-activity'))
       .toBeVisible({ timeout: 30_000 });
-    // Should show the tool name
-    await expect(page.getByText(timeTool, { exact: false }).first())
+    await expect(page.getByText(weatherTool, { exact: false }).first())
       .toBeVisible({ timeout: 30_000 });
   });
 
-  test('weather tool call shows relevant content', async ({ page }) => {
+  test('time tool call shows relevant content', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
-    await page.getByTestId('chat-input').fill('What is the weather in Paris?');
+    await page.getByTestId('chat-input').fill('What time is it in Paris?');
     await page.getByTestId('chat-send').click();
 
-    await expect(page.getByText(weatherTool, { exact: false }).first())
+    await expect(page.getByText(timeTool, { exact: false }).first())
       .toBeVisible({ timeout: 30_000 });
     await expect(page.getByText('paris', { exact: false }).first())
       .toBeVisible({ timeout: 30_000 });
