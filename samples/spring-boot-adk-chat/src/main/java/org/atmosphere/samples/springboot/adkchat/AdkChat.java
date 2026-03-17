@@ -17,7 +17,6 @@ package org.atmosphere.samples.springboot.adkchat;
 
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
-import org.atmosphere.ai.adk.AdkEventAdapter;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.config.service.Disconnect;
@@ -63,8 +62,10 @@ public class AdkChat {
 
         var settings = AiConfig.get();
         if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
-            var events = DemoEventProducer.stream(message);
-            AdkEventAdapter.bridge(events, session);
+            // Stream demo response directly via session.send() — bypasses ADK bridge
+            // in demo mode for reliable delivery in all environments.
+            // In real mode (API key set), session.stream() uses the full ADK pipeline.
+            DemoResponseProducer.stream(message, session);
             return;
         }
 

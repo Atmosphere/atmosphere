@@ -47,6 +47,9 @@ export function registerAiToolsTests(options?: AiToolsSuiteOptions): void {
     await page.goto('/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
+    // Wait for WebSocket to connect before sending the first interactive message
+    await page.waitForTimeout(2_000);
+
     await page.getByTestId('chat-input').fill('What time is it in Tokyo?');
     await page.getByTestId('chat-send').click();
 
