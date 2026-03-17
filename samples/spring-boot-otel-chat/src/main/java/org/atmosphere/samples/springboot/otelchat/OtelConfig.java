@@ -45,7 +45,7 @@ public class OtelConfig {
             var otel = AutoConfiguredOpenTelemetrySdk.initialize().getOpenTelemetrySdk();
             logger.info("OpenTelemetry SDK initialized — AtmosphereTracing will auto-register");
             return otel;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             logger.warn("OpenTelemetry SDK initialization failed ({}), using noop — "
                     + "tracing disabled but chat works normally", e.getMessage());
             return OpenTelemetry.noop();
