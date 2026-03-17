@@ -5,12 +5,14 @@ on:
     paths:
       - 'cli/**'
       - 'samples/**'
+      - 'e2e-tests/**'
       - '.github/workflows/cli-e2e.yml'
     branches: [main]
   pull_request:
     paths:
       - 'cli/**'
       - 'samples/**'
+      - 'e2e-tests/**'
       - '.github/workflows/cli-e2e.yml'
   workflow_dispatch:
 
@@ -34,7 +36,7 @@ jobs:
       run: sh cli/test-cli.sh
 
   # ─────────────────────────────────────────────
-  # Full: build every runnable sample from source
+  # Build every runnable sample from source
   # ─────────────────────────────────────────────
   build-sample:
     name: Build ${{ matrix.sample }}
@@ -95,7 +97,6 @@ jobs:
         if [ "$sample" = "quarkus-chat" ]; then
           ls samples/$sample/target/quarkus-app/quarkus-run.jar
         else
-          # Find the fat JAR (not -original, not -sources)
           jar=$(find samples/$sample/target -maxdepth 1 \
             -name "*.jar" ! -name "*-original*" ! -name "*-sources*" ! -name "*-javadoc*" \
             | head -1)
@@ -107,33 +108,98 @@ jobs:
           echo "Built: $jar ($(du -h "$jar" | cut -f1))"
         fi
 
-    - name: Smoke test — app starts and responds
+  # ─────────────────────────────────────────────
+  # Playwright E2E: run real browser tests against
+  # the CLI-built JARs for samples that have specs
+  # ─────────────────────────────────────────────
+  e2e-playwright:
+    name: E2E ${{ matrix.e2e-name }}
+    runs-on: ubuntu-latest
+    needs: [cli-tests]
+
+    strategy:
+      matrix:
+        include:
+          - sample: spring-boot-chat
+            e2e-name: spring-boot-chat
+            port: 8080
+          - sample: embedded-jetty-websocket-chat
+            e2e-name: embedded-jetty-chat
+            port: 8080
+          - sample: quarkus-chat
+            e2e-name: quarkus-chat
+            port: 8080
+          - sample: spring-boot-mcp-server
+            e2e-name: mcp-server
+            port: 8080
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: 21
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Setup Node.js 22
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Install Atmosphere modules locally
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -Pfastinstall
+
+    - name: Build sample JAR
       run: |
         sample="${{ matrix.sample }}"
+        cd "samples/$sample"
+        ../../mvnw package -DskipTests -Dcheckstyle.skip=true -Dpmd.skip=true -B
 
+    - name: Find JAR path
+      id: jar
+      run: |
+        sample="${{ matrix.sample }}"
         if [ "$sample" = "quarkus-chat" ]; then
-          jar="samples/$sample/target/quarkus-app/quarkus-run.jar"
+          echo "path=samples/$sample/target/quarkus-app/quarkus-run.jar" >> "$GITHUB_OUTPUT"
         else
           jar=$(find samples/$sample/target -maxdepth 1 \
             -name "*.jar" ! -name "*-original*" ! -name "*-sources*" ! -name "*-javadoc*" \
             | head -1)
+          echo "path=$jar" >> "$GITHUB_OUTPUT"
         fi
 
-        # Start the app in background
-        java -jar "$jar" &
-        APP_PID=$!
-
-        # Wait for it to start (up to 30 seconds)
-        for i in $(seq 1 30); do
-          if curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/ 2>/dev/null | grep -qE '(200|302|404)'; then
-            echo "App started successfully on attempt $i"
-            kill $APP_PID 2>/dev/null || true
+    - name: Start sample app
+      run: |
+        java -jar "${{ steps.jar.outputs.path }}" &
+        # Wait for the app to start
+        for i in $(seq 1 60); do
+          if curl -s -o /dev/null http://localhost:${{ matrix.port }} 2>/dev/null; then
+            echo "App started after ${i}s"
             exit 0
           fi
           sleep 1
         done
-
-        echo "App failed to start within 30 seconds"
-        kill $APP_PID 2>/dev/null || true
+        echo "App failed to start"
         exit 1
-      timeout-minutes: 2
+
+    - name: Install Playwright
+      working-directory: e2e-tests
+      run: |
+        npm ci
+        npx playwright install --with-deps chromium
+
+    - name: Run Playwright E2E tests
+      working-directory: e2e-tests
+      run: npx playwright test --project="${{ matrix.e2e-name }}"
+      env:
+        CI: ''  # unset so Playwright reuses the already-running JAR
+
+    - name: Upload Playwright report
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report-${{ matrix.e2e-name }}
+        path: e2e-tests/playwright-report/
