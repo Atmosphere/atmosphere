@@ -15,6 +15,36 @@ interface AssistantMessage {
 
 type Message = UserMessage | AssistantMessage;
 
+interface ToolEvent {
+  event: string;
+  data: Record<string, unknown>;
+}
+
+function ToolActivity({ events }: { events: ToolEvent[] }) {
+  if (events.length === 0) return null;
+  return createElement('div', {
+    'data-testid': 'tool-activity',
+    style: {
+      background: 'rgba(224,64,251,0.08)',
+      border: '1px solid rgba(224,64,251,0.25)',
+      borderRadius: 10,
+      padding: '8px 12px',
+      marginBottom: 8,
+      fontSize: 12,
+      fontFamily: 'monospace',
+      color: '#ccc',
+    },
+  }, events.map((ev, i) =>
+    createElement('div', { key: i, style: { marginBottom: 2 } },
+      ev.event === 'tool-start'
+        ? `\u{1F527} Calling ${ev.data.toolName}(${JSON.stringify(ev.data.arguments ?? {})})`
+        : ev.event === 'tool-result'
+        ? `\u2705 ${ev.data.toolName} returned`
+        : `${ev.event}: ${JSON.stringify(ev.data)}`,
+    ),
+  ));
+}
+
 export function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
@@ -34,7 +64,7 @@ export function App() {
     [],
   );
 
-  const { fullText, isStreaming, progress, error, send, reset } =
+  const { fullText, isStreaming, progress, aiEvents, error, send, reset } =
     useStreaming({ request });
 
   useEffect(() => {
@@ -106,6 +136,7 @@ export function App() {
                 dark: true,
               }),
         )}
+        {aiEvents.length > 0 && createElement(ToolActivity, { events: aiEvents })}
         {progress && createElement(StreamingProgress, { message: progress })}
         {error && createElement(StreamingError, { message: error })}
         <div ref={endRef} />

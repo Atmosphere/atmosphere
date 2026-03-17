@@ -1,6 +1,9 @@
 import { test } from '@playwright/test';
-import { registerAiChatTests } from '../fixtures/ai-chat-suite';
+import { registerAiToolsTests } from '../fixtures/ai-tools-suite';
 
 test.describe('Spring Boot LangChain4j Tools', () => {
-  registerAiChatTests();
+  registerAiToolsTests({
+    timeToolName: 'cityTime',
+    weatherToolName: 'weather',
+  });
 });

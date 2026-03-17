@@ -24,6 +24,7 @@ import io.reactivex.rxjava3.core.Flowable;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -153,5 +154,34 @@ public final class DemoEventProducer {
                 .actions(EventActions.builder().build())
                 .turnComplete(Optional.of(true))
                 .build();
+    }
+
+    /**
+     * Detect which tool the user prompt would invoke, or null if none.
+     */
+    static String detectTool(String userMessage) {
+        var lower = userMessage.toLowerCase();
+        if (lower.contains("time") && containsCity(lower)) return "getCurrentTime";
+        if (lower.contains("time")) return "getCurrentTime";
+        if (lower.contains("weather")) return "getWeather";
+        return null;
+    }
+
+    /**
+     * Build tool arguments for the detected tool call.
+     */
+    static Map<String, Object> buildToolArgs(String toolName, String userMessage) {
+        var lower = userMessage.toLowerCase();
+        return switch (toolName) {
+            case "getCurrentTime" -> {
+                var city = extractCity(lower);
+                yield city != null ? Map.of("city", city) : Map.of("city", "new york");
+            }
+            case "getWeather" -> {
+                var city = extractCity(lower);
+                yield Map.of("city", (Object) (city != null ? city : "new york"));
+            }
+            default -> Map.of();
+        };
     }
 }

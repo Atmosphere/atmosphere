@@ -1,6 +1,9 @@
 import { test } from '@playwright/test';
-import { registerAiChatTests } from '../fixtures/ai-chat-suite';
+import { registerAiToolsTests } from '../fixtures/ai-tools-suite';
 
 test.describe('Spring Boot ADK Tools', () => {
-  registerAiChatTests();
+  registerAiToolsTests({
+    timeToolName: 'getCurrentTime',
+    weatherToolName: 'getWeather',
+  });
 });

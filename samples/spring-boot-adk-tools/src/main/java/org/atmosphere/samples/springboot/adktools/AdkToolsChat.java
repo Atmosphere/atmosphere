@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.adktools;
 
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.adk.AdkEventAdapter;
 import org.atmosphere.ai.annotation.AiEndpoint;
@@ -96,6 +97,13 @@ public class AdkToolsChat {
 
         var settings = AiConfig.get();
         if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
+            // Emit tool events so the frontend ToolActivity panel shows activity
+            var toolName = DemoEventProducer.detectTool(message);
+            if (toolName != null) {
+                var toolArgs = DemoEventProducer.buildToolArgs(toolName, message);
+                session.emit(new AiEvent.ToolStart(toolName, toolArgs));
+                session.emit(new AiEvent.ToolResult(toolName, java.util.Map.of("status", "success")));
+            }
             var events = DemoEventProducer.stream(message, resource.uuid());
             AdkEventAdapter.bridge(events, session);
             return;

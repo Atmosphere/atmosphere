@@ -15,11 +15,13 @@
  */
 package org.atmosphere.samples.springboot.langchain4jtools;
 
+import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 
 /**
  * Simulates LLM streaming responses with tool calling for demo/testing purposes.
@@ -43,6 +45,16 @@ public final class DemoResponseProducer {
 
         try {
             session.progress("Demo mode — room: " + room + ", client: " + clientId);
+
+            // Emit tool events so the frontend ToolActivity panel shows activity
+            var toolName = detectTool(userMessage);
+            if (toolName != null) {
+                var toolArgs = buildToolArgs(toolName, userMessage);
+                session.emit(new AiEvent.ToolStart(toolName, toolArgs));
+                Thread.sleep(100);
+                session.emit(new AiEvent.ToolResult(toolName, Map.of("status", "success")));
+            }
+
             for (var word : words) {
                 session.send(word);
                 Thread.sleep(50);
@@ -59,7 +71,6 @@ public final class DemoResponseProducer {
 
         if (lower.contains("time") && containsCity(lower)) {
             var city = extractCity(lower);
-            session_progress_simulated();
             return simulateToolCall("cityTime", city);
         }
         if (lower.contains("time")) {
@@ -144,7 +155,26 @@ public final class DemoResponseProducer {
         return null;
     }
 
-    private static void session_progress_simulated() {
-        // Placeholder — in a real scenario, progress would be sent through the session
+    private static String detectTool(String userMessage) {
+        var lower = userMessage.toLowerCase();
+        if (lower.contains("time") && containsCity(lower)) return "cityTime";
+        if (lower.contains("time")) return "currentTime";
+        if (lower.contains("weather")) return "weather";
+        return null;
+    }
+
+    private static Map<String, Object> buildToolArgs(String toolName, String userMessage) {
+        var lower = userMessage.toLowerCase();
+        return switch (toolName) {
+            case "cityTime" -> {
+                var city = extractCity(lower);
+                yield city != null ? Map.of("city", city) : Map.of();
+            }
+            case "weather" -> {
+                var city = extractCity(lower);
+                yield Map.of("city", (Object) (city != null ? city : "New York"));
+            }
+            default -> Map.of();
+        };
     }
 }
