@@ -6,11 +6,11 @@
 
 set -e
 
-VERSION="4.0.14"
+VERSION="4.0.15"
 ATMOSPHERE_HOME="${ATMOSPHERE_HOME:-$HOME/.atmosphere}"
 CACHE_DIR="$ATMOSPHERE_HOME/cache"
 SAMPLES_JSON_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/samples.json"
-RELEASE_BASE_URL="https://github.com/Atmosphere/atmosphere/releases/download"
+SOURCE_TARBALL_URL="https://github.com/Atmosphere/atmosphere/archive/refs/heads/main.tar.gz"
 
 # ── Colors ──────────────────────────────────────────────────────────────────
 if [ -t 1 ]; then
@@ -122,7 +122,7 @@ ${BOLD}Usage:${RESET}
 ${BOLD}Commands:${RESET}
   ${GREEN}install${RESET}           Interactive sample picker — browse, choose, run
   ${GREEN}list${RESET}              List all available samples
-  ${GREEN}run${RESET}  <sample>     Download and run a sample application
+  ${GREEN}run${RESET}  <sample>     Build and run a sample application
   ${GREEN}new${RESET}  <name>       Scaffold a new Atmosphere project
   ${GREEN}info${RESET} <sample>     Show details about a sample
   ${GREEN}version${RESET}           Print version
@@ -293,7 +293,7 @@ cmd_install() {
     cmd_info "$selected"
 
     printf "  ${BOLD}What would you like to do?${RESET}\n\n"
-    printf "    ${GREEN}1${RESET}) Run it now          ${DIM}(downloads JAR, starts on configured port)${RESET}\n"
+    printf "    ${GREEN}1${RESET}) Run it now          ${DIM}(builds from source, caches JAR, starts on configured port)${RESET}\n"
     printf "    ${GREEN}2${RESET}) Install source code  ${DIM}(clones sample into ./$selected/)${RESET}\n"
     printf "    ${GREEN}3${RESET}) Cancel\n\n"
     printf "  Choice [1]: "
@@ -458,6 +458,120 @@ install_source() {
     printf "\n  Then open ${CYAN}http://localhost:%s${RESET}\n\n" "$port"
 }
 
+# ── Build from source ──────────────────────────────────────────────────────
+
+# Download the latest source tarball from main (always fresh)
+download_source_tarball() {
+    tarball="$CACHE_DIR/atmosphere-main.tar.gz"
+    info "Downloading latest source from main..." >&2
+    download "$SOURCE_TARBALL_URL" "$tarball" || {
+        rm -f "$tarball"
+        die "Download failed. Check your network connection."
+    }
+    printf '%s' "$tarball"
+}
+
+# Extract sample dir + mvnw from tarball into a build directory
+extract_sample() {
+    sample="$1"
+    tarball="$2"
+    build_dir="$3"
+
+    # GitHub tarballs use prefix: {repo}-{branch}/ e.g. "atmosphere-main/"
+    prefix=$(tar tzf "$tarball" | head -1 | cut -d'/' -f1)
+
+    mkdir -p "$build_dir"
+
+    # Extract mvnw + .mvn wrapper
+    tar xzf "$tarball" -C "$build_dir" --strip-components=1 \
+        "$prefix/mvnw" "$prefix/.mvn" 2>/dev/null || true
+
+    # Extract sample source
+    tar xzf "$tarball" -C "$build_dir" --strip-components=1 \
+        "$prefix/samples/$sample" 2>/dev/null || \
+        die "Sample '$sample' not found in the repository"
+
+    [ -d "$build_dir/samples/$sample" ] || die "Sample '$sample' not found in the repository"
+
+    chmod +x "$build_dir/mvnw" 2>/dev/null || true
+}
+
+# Patch POM so it builds standalone (parent from Central, not local filesystem)
+patch_pom_for_standalone() {
+    pom="$1"
+    tmp_pom="${pom}.tmp"
+    # 1. Remove relativePath so parent resolves from Maven Central
+    # 2. Pin parent version to the released VERSION (source is from main/SNAPSHOT)
+    sed -e 's|<relativePath>../../pom.xml</relativePath>|<relativePath/>|' \
+        -e 's|<version>[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*-SNAPSHOT</version>|<version>'"$VERSION"'</version>|' \
+        "$pom" > "$tmp_pom"
+    mv "$tmp_pom" "$pom"
+}
+
+# Build a sample from source and cache the resulting JAR
+build_sample() {
+    sample="$1"
+    packaging="$2"
+    jar_file="$3"
+
+    ensure_cache_dir
+    tarball=$(download_source_tarball)
+
+    build_dir=$(mktemp -d)
+    build_cleanup() { rm -rf "$build_dir"; }
+    trap build_cleanup EXIT
+
+    info "Extracting $sample source..."
+    extract_sample "$sample" "$tarball" "$build_dir"
+
+    patch_pom_for_standalone "$build_dir/samples/$sample/pom.xml"
+
+    printf "\n"
+    info "Building $sample (first run downloads dependencies)..."
+    printf "${DIM}This may take a minute — subsequent runs use the cached JAR.${RESET}\n\n"
+
+    # Build with the extracted mvnw
+    save_dir="$PWD"
+    cd "$build_dir/samples/$sample"
+    "$build_dir/mvnw" package -DskipTests -Dcheckstyle.skip=true -Dpmd.skip=true -B 2>&1 || {
+        cd "$save_dir"
+        die "Build failed for $sample. Check output above for details."
+    }
+    cd "$save_dir"
+
+    # Find and cache the built JAR
+    if [ "$packaging" = "quarkus" ]; then
+        # Quarkus: cache the entire quarkus-app directory
+        quarkus_app="$build_dir/samples/$sample/target/quarkus-app"
+        if [ -d "$quarkus_app" ]; then
+            cache_qdir="$(dirname "$jar_file")/quarkus-chat-app"
+            rm -rf "$cache_qdir"
+            cp -r "$quarkus_app" "$cache_qdir"
+            # Create a marker file so cmd_run knows this is a quarkus app
+            printf '%s' "$cache_qdir" > "$jar_file"
+            ok "Built and cached $sample"
+        else
+            die "No quarkus-app directory found after build"
+        fi
+    else
+        built_jar=$(find "$build_dir/samples/$sample/target" -maxdepth 1 \
+            -name "*.jar" ! -name "*-original*" ! -name "*-sources*" ! -name "*-javadoc*" \
+            | head -1)
+
+        if [ -z "$built_jar" ] || [ ! -f "$built_jar" ]; then
+            die "No JAR found after build in $build_dir/samples/$sample/target/"
+        fi
+
+        cp "$built_jar" "$jar_file"
+        ok "Built and cached $sample"
+    fi
+
+    rm -rf "$build_dir"
+    trap - EXIT
+}
+
+# ── Run ────────────────────────────────────────────────────────────────────
+
 cmd_run() {
     [ -z "$1" ] && die "Usage: atmosphere run <sample> [--env KEY=VALUE ...]"
     sample="$1"; shift
@@ -501,29 +615,13 @@ cmd_run() {
 
     if [ "$packaging" = "quarkus" ]; then
         jar_file="$jar_dir/$sample-runner.jar"
-        artifact_name="$sample-$VERSION-runner.jar"
     else
         jar_file="$jar_dir/$sample.jar"
-        artifact_name="$sample-$VERSION.jar"
     fi
 
-    # Download if not cached
+    # Build from source if not cached
     if [ ! -f "$jar_file" ]; then
-        download_url="$RELEASE_BASE_URL/v$VERSION/$artifact_name"
-        info "Downloading $sample v$VERSION..."
-        download "$download_url" "$jar_file" || {
-            rm -f "$jar_file"
-            printf "\n"
-            die "Download failed. The sample JAR may not be available yet for v$VERSION.
-
-To build locally instead:
-  git clone https://github.com/Atmosphere/atmosphere.git
-  cd atmosphere
-  ./mvnw install -DskipTests -Pfastinstall
-  ./mvnw package -pl samples/$sample -DskipTests
-  java -jar samples/$sample/target/*.jar"
-        }
-        ok "Downloaded $sample"
+        build_sample "$sample" "$packaging" "$jar_file"
     else
         ok "Using cached $sample v$VERSION"
     fi
@@ -534,8 +632,15 @@ To build locally instead:
     info "Open ${BOLD}http://localhost:$port${RESET} in your browser"
     printf "${DIM}Press Ctrl+C to stop${RESET}\n\n"
 
-    # shellcheck disable=SC2086
-    exec java $JAVA_OPTS $env_args -jar "$jar_file" $extra_args
+    if [ "$packaging" = "quarkus" ]; then
+        # Quarkus: jar_file is a marker containing the quarkus-app path
+        quarkus_dir=$(cat "$jar_file")
+        # shellcheck disable=SC2086
+        exec java $JAVA_OPTS $env_args -jar "$quarkus_dir/quarkus-run.jar" $extra_args
+    else
+        # shellcheck disable=SC2086
+        exec java $JAVA_OPTS $env_args -jar "$jar_file" $extra_args
+    fi
 }
 
 cmd_new() {

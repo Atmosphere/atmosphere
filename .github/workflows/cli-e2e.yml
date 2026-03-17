@@ -1,0 +1,139 @@
+name: CLI E2E — Sample Build Matrix
+
+on:
+  push:
+    paths:
+      - 'cli/**'
+      - 'samples/**'
+      - '.github/workflows/cli-e2e.yml'
+    branches: [main]
+  pull_request:
+    paths:
+      - 'cli/**'
+      - 'samples/**'
+      - '.github/workflows/cli-e2e.yml'
+  workflow_dispatch:
+
+env:
+  MAVEN_OPTS: '-Xmx2g'
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Quick: CLI unit tests (no Java needed)
+  # ─────────────────────────────────────────────
+  cli-tests:
+    name: CLI unit tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install jq
+      run: sudo apt-get install -y jq
+
+    - name: Run CLI test suite
+      run: sh cli/test-cli.sh
+
+  # ─────────────────────────────────────────────
+  # Full: build every runnable sample from source
+  # ─────────────────────────────────────────────
+  build-sample:
+    name: Build ${{ matrix.sample }}
+    runs-on: ubuntu-latest
+    needs: [cli-tests]
+
+    strategy:
+      matrix:
+        sample:
+          - spring-boot-chat
+          - spring-boot-ai-chat
+          - spring-boot-ai-classroom
+          - spring-boot-ai-tools
+          - spring-boot-adk-chat
+          - spring-boot-adk-tools
+          - spring-boot-langchain4j-chat
+          - spring-boot-langchain4j-tools
+          - spring-boot-embabel-chat
+          - spring-boot-embabel-horoscope
+          - spring-boot-spring-ai-chat
+          - spring-boot-spring-ai-routing
+          - spring-boot-rag-chat
+          - spring-boot-mcp-server
+          - spring-boot-otel-chat
+          - spring-boot-durable-sessions
+          - quarkus-chat
+          - embedded-jetty-websocket-chat
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: 21
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Install Atmosphere modules locally
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -Pfastinstall
+
+    - name: Build sample as standalone (patched POM)
+      run: |
+        sample="${{ matrix.sample }}"
+
+        # Simulate what the CLI does: patch relativePath for standalone build
+        sed -i 's|<relativePath>../../pom.xml</relativePath>|<relativePath/>|' \
+          "samples/$sample/pom.xml"
+
+        # Build the sample (skip checkstyle/pmd — config files not available standalone)
+        cd "samples/$sample"
+        ../../mvnw package -DskipTests -Dcheckstyle.skip=true -Dpmd.skip=true -B
+
+    - name: Verify JAR exists
+      run: |
+        sample="${{ matrix.sample }}"
+        if [ "$sample" = "quarkus-chat" ]; then
+          ls samples/$sample/target/quarkus-app/quarkus-run.jar
+        else
+          # Find the fat JAR (not -original, not -sources)
+          jar=$(find samples/$sample/target -maxdepth 1 \
+            -name "*.jar" ! -name "*-original*" ! -name "*-sources*" ! -name "*-javadoc*" \
+            | head -1)
+          [ -n "$jar" ] && [ -f "$jar" ] || {
+            echo "No JAR found!"
+            ls -la samples/$sample/target/
+            exit 1
+          }
+          echo "Built: $jar ($(du -h "$jar" | cut -f1))"
+        fi
+
+    - name: Smoke test — app starts and responds
+      run: |
+        sample="${{ matrix.sample }}"
+
+        if [ "$sample" = "quarkus-chat" ]; then
+          jar="samples/$sample/target/quarkus-app/quarkus-run.jar"
+        else
+          jar=$(find samples/$sample/target -maxdepth 1 \
+            -name "*.jar" ! -name "*-original*" ! -name "*-sources*" ! -name "*-javadoc*" \
+            | head -1)
+        fi
+
+        # Start the app in background
+        java -jar "$jar" &
+        APP_PID=$!
+
+        # Wait for it to start (up to 30 seconds)
+        for i in $(seq 1 30); do
+          if curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/ 2>/dev/null | grep -qE '(200|302|404)'; then
+            echo "App started successfully on attempt $i"
+            kill $APP_PID 2>/dev/null || true
+            exit 0
+          fi
+          sleep 1
+        done
+
+        echo "App failed to start within 30 seconds"
+        kill $APP_PID 2>/dev/null || true
+        exit 1
+      timeout-minutes: 2

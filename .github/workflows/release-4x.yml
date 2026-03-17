@@ -423,3 +423,78 @@ jobs:
         prerelease: ${{ contains(inputs.release_version, '-') }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
+
+  # ─────────────────────────────────────────────
+  # Phase 6: Update CLI version + Homebrew tap
+  # ─────────────────────────────────────────────
+  update-cli:
+    name: Update CLI & Homebrew
+    needs: [github-release]
+    if: inputs.dry_run == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+
+    - name: Pull latest
+      run: git pull origin main
+
+    - name: Update CLI version in all files
+      run: |
+        VERSION="${{ inputs.release_version }}"
+
+        # Update samples.json version
+        sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" cli/samples.json
+
+        # Update atmosphere CLI version
+        sed -i "s/^VERSION=\"[^\"]*\"/VERSION=\"$VERSION\"/" cli/atmosphere
+
+        # Update install.sh version
+        sed -i "s/^VERSION=\"[^\"]*\"/VERSION=\"$VERSION\"/" cli/install.sh
+
+        # Update npx package version
+        sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" cli/npx/package.json
+
+    - name: Create PR for CLI version bump
+      uses: peter-evans/create-pull-request@v7
+      with:
+        commit-message: "chore(cli): bump version to ${{ inputs.release_version }}"
+        title: "chore(cli): bump CLI version to ${{ inputs.release_version }}"
+        branch: cli-version-bump-${{ inputs.release_version }}
+        body: "Automated version bump after release ${{ inputs.release_version }}"
+
+    - name: Update Homebrew tap
+      env:
+        GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+      run: |
+        VERSION="${{ inputs.release_version }}"
+        TAG="atmosphere-${VERSION}"
+        TARBALL_URL="https://github.com/Atmosphere/atmosphere/archive/refs/tags/${TAG}.tar.gz"
+
+        # Download tarball and compute SHA256
+        curl -fsSL -o /tmp/release.tar.gz "$TARBALL_URL"
+        SHA256=$(sha256sum /tmp/release.tar.gz | cut -d' ' -f1)
+
+        # Clone the tap repo
+        git clone "https://x-access-token:${GH_TOKEN}@github.com/Atmosphere/homebrew-tap.git" /tmp/homebrew-tap
+        cd /tmp/homebrew-tap
+
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+
+        # Update formula
+        sed -i "s|url \".*\"|url \"${TARBALL_URL}\"|" Formula/atmosphere.rb
+        sed -i "s|# sha256 .*|sha256 \"${SHA256}\"|" Formula/atmosphere.rb
+        sed -i "s|sha256 \".*\"|sha256 \"${SHA256}\"|" Formula/atmosphere.rb
+        sed -i "s|version \".*\"|version \"${VERSION}\"|" Formula/atmosphere.rb
+
+        git add Formula/atmosphere.rb
+        git diff --cached --quiet || {
+          git commit -m "chore: update atmosphere to ${VERSION}"
+          git push origin main
+        }

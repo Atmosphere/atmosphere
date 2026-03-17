@@ -27,9 +27,9 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.Files;
 
 public class EmbeddedJettyWebSocketChat {
     private static final Logger log = LoggerFactory.getLogger(EmbeddedJettyWebSocketChat.class);
@@ -47,19 +47,23 @@ public class EmbeddedJettyWebSocketChat {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
 
-        // Use target/webapp first (contains all dependencies), fallback to src/main/webapp
+        // Use target/webapp first (contains all dependencies), fallback to src/main/webapp,
+        // then classpath (fat JAR)
         Path resourceBasePath = Paths.get("target/webapp").toAbsolutePath();
         if (!Files.exists(resourceBasePath)) {
-            // Fallback to src during development
             resourceBasePath = Paths.get("src/main/webapp").toAbsolutePath();
         }
-        if (!Files.exists(resourceBasePath)) {
-            log.error("webapp directory not found at target/webapp or src/main/webapp");
-            throw new IllegalStateException("No webapp directory found");
-        }
-        
-        if (resourceBasePath != null) {
+        if (Files.exists(resourceBasePath)) {
             context.setBaseResource(ResourceFactory.root().newResource(resourceBasePath.toUri()));
+        } else {
+            // Running from fat JAR — serve static files from classpath /webapp/
+            var classpathResource = getClass().getClassLoader().getResource("webapp/");
+            if (classpathResource != null) {
+                context.setBaseResource(ResourceFactory.root().newResource(classpathResource.toURI()));
+            } else {
+                log.error("webapp directory not found on filesystem or classpath");
+                throw new IllegalStateException("No webapp directory found");
+            }
         }
 
         // Add DefaultServlet to serve static content
