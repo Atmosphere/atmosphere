@@ -1,0 +1,19 @@
+name: Trigger website rebuild
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'modules/cpr/src/main/java/**'
+      - 'pom.xml'
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger atmosphere.github.io rebuild
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.SITE_DISPATCH_TOKEN }}
+          repository: Atmosphere/atmosphere.github.io
+          event-type: rebuild-site
