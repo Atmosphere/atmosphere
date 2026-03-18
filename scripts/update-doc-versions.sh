@@ -38,11 +38,13 @@ sedi() {
 
 # ── 1. Maven <version> tags in docs/*.md ──
 echo "── docs/*.md Maven snippets"
+if [ -d "$ROOT/docs" ]; then
 find "$ROOT/docs" -name '*.md' -exec grep -l '<version>[0-9]' {} + 2>/dev/null | while read -r f; do
     sedi "s|<version>[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^<]*</version>|<version>$VERSION</version>|g" "$f"
     echo "   $f"
     UPDATED=$((UPDATED + 1))
 done
+fi
 
 # ── 2. Maven <version> tags in module README.md ──
 echo "── Module README.md files"
