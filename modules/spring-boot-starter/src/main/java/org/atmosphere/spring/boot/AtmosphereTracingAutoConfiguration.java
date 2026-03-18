@@ -67,6 +67,7 @@ public class AtmosphereTracingAutoConfiguration {
      */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(name = "org.atmosphere.mcp.runtime.McpTracing")
+    @ConditionalOnBean(OpenTelemetry.class)
     static class McpTracingAutoConfiguration {
 
         @Bean
