@@ -151,7 +151,7 @@ jobs:
     - name: Commit release version
       if: inputs.dry_run == false
       run: |
-        git add -- pom.xml '**/pom.xml' docs/ README.md '**/README.md' 'generator/AtmosphereInit.java' 'generator/AtmosphereInitTest.java'
+        git add --ignore-missing -- pom.xml '**/pom.xml' README.md '**/README.md' 'generator/AtmosphereInit.java' 'generator/AtmosphereInitTest.java'
         git commit -m "release: Atmosphere ${{ inputs.release_version }}"
         # Remove stale tag from a previous failed attempt (if any)
         git tag -d "atmosphere-${{ inputs.release_version }}" 2>/dev/null || true
