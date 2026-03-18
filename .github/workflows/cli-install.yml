@@ -1,0 +1,121 @@
+name: CLI Install Tests
+
+on:
+  push:
+    paths:
+      - 'cli/**'
+      - '.github/workflows/cli-install.yml'
+    branches: [main]
+  pull_request:
+    paths:
+      - 'cli/**'
+      - '.github/workflows/cli-install.yml'
+  workflow_dispatch:
+
+jobs:
+  # ─────────────────────────────────────────────
+  # curl installer — macOS + Linux
+  # ─────────────────────────────────────────────
+  curl-install:
+    name: curl — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: 21
+        distribution: 'temurin'
+
+    - name: Run curl installer
+      run: sh cli/install.sh
+
+    - name: Verify atmosphere is on PATH
+      run: command -v atmosphere
+
+    - name: atmosphere version
+      run: atmosphere version
+
+    - name: atmosphere list
+      run: atmosphere list
+
+    - name: atmosphere list --tag ai
+      run: atmosphere list --tag ai
+
+    - name: atmosphere info spring-boot-chat
+      run: atmosphere info spring-boot-chat
+
+  # ─────────────────────────────────────────────
+  # npx — macOS + Linux
+  # ─────────────────────────────────────────────
+  npx-install:
+    name: npx — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js 22
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: 21
+        distribution: 'temurin'
+
+    - name: npx create-atmosphere-app --help
+      run: npx create-atmosphere-app --help
+
+    - name: npx create-atmosphere-app --list-templates
+      run: npx create-atmosphere-app --list-templates
+
+    - name: Scaffold a chat project
+      run: npx create-atmosphere-app test-chat-app
+
+    - name: Verify scaffolded project structure
+      run: |
+        test -f test-chat-app/pom.xml
+        test -f test-chat-app/src/main/resources/application.yml
+        echo "Project structure OK"
+
+    - name: Scaffold an AI chat project
+      run: npx create-atmosphere-app test-ai-app --template ai-chat
+
+    - name: Verify AI project structure
+      run: |
+        test -f test-ai-app/pom.xml
+        grep -q "atmosphere-ai" test-ai-app/pom.xml
+        echo "AI project structure OK"
+
+  # ─────────────────────────────────────────────
+  # Homebrew — macOS only
+  # ─────────────────────────────────────────────
+  brew-install:
+    name: brew — macos
+    runs-on: macos-latest
+
+    steps:
+    - name: Install Atmosphere CLI via Homebrew
+      run: brew install Atmosphere/tap/atmosphere
+
+    - name: atmosphere version
+      run: atmosphere version
+
+    - name: atmosphere list
+      run: atmosphere list
+
+    - name: atmosphere info spring-boot-chat
+      run: atmosphere info spring-boot-chat
