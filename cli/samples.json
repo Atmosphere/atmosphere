@@ -188,6 +188,30 @@
       "hasFrontend": true
     },
     {
+      "name": "spring-boot-a2a-agent",
+      "description": "A2A agent — AI-powered skills discoverable via Agent Card (JSON-RPC 2.0)",
+      "category": "agent",
+      "tags": ["spring-boot", "a2a", "agent-to-agent", "agent", "json-rpc", "gemini"],
+      "port": 8084,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {
+        "LLM_API_KEY": "API key for Gemini/OpenAI/Ollama (optional — demo mode without)",
+        "LLM_MODEL": "Model name (default: gemini-2.5-flash)"
+      }
+    },
+    {
+      "name": "spring-boot-agui-chat",
+      "description": "AG-UI chat — streaming agent state to frontends via SSE (CopilotKit compatible)",
+      "category": "agent",
+      "tags": ["spring-boot", "ag-ui", "copilotkit", "sse", "streaming", "agent"],
+      "port": 8085,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true
+    },
+    {
       "name": "spring-boot-otel-chat",
       "description": "Chat with OpenTelemetry tracing (Jaeger)",
       "category": "observability",

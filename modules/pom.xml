@@ -18,7 +18,10 @@
         <module>cpr</module>
         <module>ai</module>
         <module>ai-test</module>
+        <module>protocol-common</module>
         <module>mcp</module>
+        <module>a2a</module>
+        <module>agui</module>
         <module>kotlin</module>
         <module>spring-ai</module>
         <module>langchain4j</module>

@@ -1,0 +1,126 @@
+/*
+ * Copyright 2008-2026 Async-IO.org
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package org.atmosphere.a2a.runtime;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.protocol.AbstractProtocolHandler;
+
+import java.io.IOException;
+
+public final class A2aHandler extends AbstractProtocolHandler<A2aSession> {
+
+    private static final ObjectMapper mapper = new ObjectMapper();
+    private static final String APPLICATION_JSON = "application/json";
+
+    private final A2aProtocolHandler protocolHandler;
+
+    public A2aHandler(A2aProtocolHandler protocolHandler) {
+        this(protocolHandler, A2aSession.DEFAULT_TTL_MS);
+    }
+
+    public A2aHandler(A2aProtocolHandler protocolHandler, long sessionTtlMs) {
+        super(sessionTtlMs, A2aSession.SESSION_ID_HEADER,
+                A2aSession.ATTRIBUTE_KEY, "a2a-session-cleaner");
+        this.protocolHandler = protocolHandler;
+    }
+
+    @Override
+    protected void handlePost(AtmosphereResource resource) throws IOException {
+        var request = resource.getRequest();
+        var response = resource.getResponse();
+
+        var reader = request.getReader();
+        var sb = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            sb.append(line);
+        }
+
+        if (sb.isEmpty()) {
+            response.setStatus(400);
+            response.setContentType(APPLICATION_JSON);
+            response.getWriter().write(
+                    "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32700,\"message\":\"Empty body\"}}");
+            return;
+        }
+
+        restoreSession(resource);
+
+        var jsonResponse = protocolHandler.handleMessage(sb.toString());
+
+        var session = getSessionFromRequest(resource);
+        if (session == null) {
+            session = new A2aSession();
+            setSessionOnRequest(resource, session);
+        }
+        registerSession(session, response);
+
+        if (jsonResponse == null) {
+            response.setStatus(202);
+            return;
+        }
+
+        writeResponse(resource, jsonResponse);
+    }
+
+    @Override
+    protected void handleGet(AtmosphereResource resource) throws IOException {
+        var request = resource.getRequest();
+        var response = resource.getResponse();
+
+        // Check if this is an agent card request
+        var path = request.getRequestURI();
+        if (path != null && (path.endsWith("/agent.json")
+                || path.contains("/.well-known/agent.json"))) {
+            response.setStatus(200);
+            response.setContentType(APPLICATION_JSON);
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write(mapper.writeValueAsString(protocolHandler.agentCard()));
+            response.getWriter().flush();
+            return;
+        }
+
+        // SSE stream for task subscriptions
+        restoreSession(resource);
+        response.setContentType("text/event-stream");
+        response.setCharacterEncoding("UTF-8");
+        resource.suspend();
+
+        var session = getSessionFromRequest(resource);
+        if (session != null) {
+            replayPending(session, response);
+        }
+    }
+
+    @Override
+    protected void handleDelete(AtmosphereResource resource) throws IOException {
+        var removed = removeSessionByHeader(resource);
+        if (removed != null) {
+            logger.info("A2A session terminated: {}", removed.sessionId());
+        }
+        resource.getResponse().setStatus(204);
+    }
+
+    @Override
+    protected void handleIncomingMessage(AtmosphereResource resource, String message)
+            throws IOException {
+        var jsonResponse = protocolHandler.handleMessage(message);
+        if (jsonResponse != null) {
+            write(resource.getResponse(), jsonResponse);
+        }
+    }
+}

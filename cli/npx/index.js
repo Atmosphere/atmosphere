@@ -24,6 +24,8 @@ const TEMPLATES = {
   'ai-tools':       'AI tool calling with LangChain4j',
   'rag':            'RAG chat with vector store',
   'quarkus-chat':   'Real-time chat with Quarkus',
+  'a2a-agent':      'A2A agent — discoverable skills via Agent Card',
+  'agui-chat':      'AG-UI chat — stream agent state to frontends (CopilotKit)',
 };
 
 function info(msg)  { console.log(`${CYAN}→${RESET} ${msg}`); }

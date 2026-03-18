@@ -34,8 +34,8 @@ import org.springframework.context.annotation.Configuration;
  * (inspect → suspend → broadcast → disconnect). Spans include attributes for
  * transport type, resource UUID, broadcaster ID, and disconnect reason.</p>
  *
- * <p>When {@code atmosphere-mcp} is on the classpath, also creates an {@link McpTracing}
- * bean that wraps MCP tool/resource/prompt calls in trace spans.</p>
+ * <p>When {@code atmosphere-mcp}, {@code atmosphere-a2a}, or {@code atmosphere-agui}
+ * is on the classpath, also creates the corresponding tracing bean.</p>
  *
  * <p>Enable with {@code atmosphere.tracing.enabled=true} (default).
  * Requires {@code io.opentelemetry:opentelemetry-api} on the classpath and an
@@ -74,6 +74,38 @@ public class AtmosphereTracingAutoConfiguration {
         @ConditionalOnMissingBean(name = "mcpTracing")
         public org.atmosphere.mcp.runtime.McpTracing mcpTracing(OpenTelemetry openTelemetry) {
             return new org.atmosphere.mcp.runtime.McpTracing(openTelemetry);
+        }
+    }
+
+    /**
+     * Nested configuration for A2A tracing — only loads when {@code atmosphere-a2a}
+     * is on the classpath.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.atmosphere.a2a.runtime.A2aTracing")
+    @ConditionalOnBean(OpenTelemetry.class)
+    static class A2aTracingAutoConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(name = "a2aTracing")
+        public org.atmosphere.a2a.runtime.A2aTracing a2aTracing(OpenTelemetry openTelemetry) {
+            return new org.atmosphere.a2a.runtime.A2aTracing(openTelemetry);
+        }
+    }
+
+    /**
+     * Nested configuration for AG-UI tracing — only loads when {@code atmosphere-agui}
+     * is on the classpath.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.atmosphere.agui.runtime.AgUiTracing")
+    @ConditionalOnBean(OpenTelemetry.class)
+    static class AgUiTracingAutoConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(name = "agUiTracing")
+        public org.atmosphere.agui.runtime.AgUiTracing agUiTracing(OpenTelemetry openTelemetry) {
+            return new org.atmosphere.agui.runtime.AgUiTracing(openTelemetry);
         }
     }
 }

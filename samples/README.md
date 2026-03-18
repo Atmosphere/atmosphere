@@ -28,11 +28,18 @@ Example applications demonstrating Atmosphere 4.0 across different deployment ta
 | [spring-boot-ai-classroom](spring-boot-ai-classroom/) | Built-in | — | Multi-persona AI classroom ([Expo client](spring-boot-ai-classroom/expo-client/)) |
 | [spring-boot-embabel-horoscope](spring-boot-embabel-horoscope/) | Embabel | — | Embabel agent orchestration |
 
+### Agent Protocols
+
+| Sample | Protocol | Description |
+|--------|----------|-------------|
+| [spring-boot-mcp-server](spring-boot-mcp-server/) | MCP | Model Context Protocol — expose tools, resources, prompts to AI agents |
+| [spring-boot-a2a-agent](spring-boot-a2a-agent/) | A2A | Agent-to-Agent — discoverable skills via Agent Card, JSON-RPC 2.0 |
+| [spring-boot-agui-chat](spring-boot-agui-chat/) | AG-UI | Agent-User Interaction — stream agent state to frontends via SSE |
+
 ### Infrastructure & Integration
 
 | Sample | Stack | Description |
 |--------|-------|-------------|
-| [spring-boot-mcp-server](spring-boot-mcp-server/) | Spring Boot 4.0 | MCP (Model Context Protocol) server |
 | [spring-boot-durable-sessions](spring-boot-durable-sessions/) | Spring Boot 4.0 | Persistent sessions with SQLite/Redis |
 | [spring-boot-otel-chat](spring-boot-otel-chat/) | Spring Boot 4.0 | OpenTelemetry observability |
 | [shared-resources](shared-resources/) | — | Shared frontend assets |

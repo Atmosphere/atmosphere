@@ -1,0 +1,9 @@
+server:
+  port: 8085
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.agui
+
+logging:
+  level:
+    org.atmosphere: DEBUG
