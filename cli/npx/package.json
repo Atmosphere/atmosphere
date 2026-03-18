@@ -14,7 +14,7 @@
   "bin": {
     "create-atmosphere-app": "index.js"
   },
-  "files": ["index.js"],
+  "files": ["index.js", "package.json"],
   "engines": {
     "node": ">=18"
   }
