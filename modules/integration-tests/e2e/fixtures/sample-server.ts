@@ -181,6 +181,24 @@ async function waitForPort(port: number, timeoutMs = 30_000): Promise<void> {
 }
 
 /**
+ * Wait for an HTTP endpoint to return a non-5xx response.
+ * Handles the race between TCP port open and application ready.
+ */
+async function waitForHttp(url: string, timeoutMs = 30_000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(url);
+      if (res.status < 500) return; // Any non-server-error means the app is ready
+    } catch {
+      // Connection refused or fetch error — keep retrying
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error(`HTTP endpoint ${url} not ready after ${timeoutMs}ms`);
+}
+
+/**
  * Check if a port is already in use.
  */
 async function isPortInUse(port: number): Promise<boolean> {
@@ -241,6 +259,8 @@ export async function startSample(config: SampleConfig): Promise<SampleServer> {
 
   try {
     await waitForPort(config.port, 90_000);
+    // Port open doesn't mean the app is ready — wait for HTTP 200
+    await waitForHttp(`http://127.0.0.1:${config.port}/`, 30_000);
   } catch (e) {
     proc.kill('SIGTERM');
     console.error(`=== Server output for ${config.name} ===\n${output.slice(-2000)}`);
