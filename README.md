@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>The transport-agnostic real-time framework for the JVM.</strong><br/>
-  WebSocket, SSE, Long-Polling, gRPC, MCP — one API, any transport.
+  WebSocket, SSE, Long-Polling, gRPC, MCP, A2A, AG-UI — one API, any transport.
 </p>
 
 <p align="center">
@@ -28,7 +28,7 @@ The two core abstractions are **Broadcaster** (a named pub/sub channel) and **At
 # Install the Atmosphere CLI
 curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
 
-# Browse all 18 samples and pick one to run
+# Browse all 20+ samples and pick one to run
 atmosphere install
 
 # Or run a sample directly
@@ -136,22 +136,49 @@ LLM_BASE_URL=http://localhost:3000/v1 LLM_MODEL=copilot:claude-sonnet-4.6 LLM_AP
   ./mvnw spring-boot:run -pl samples/spring-boot-ai-classroom
 ```
 
-### MCP — expose tools to AI agents
+### Agent Protocols — MCP, A2A, AG-UI
+
+Three protocols for the agentic ecosystem, all riding Atmosphere's transport:
 
 ```java
+// MCP — expose tools to AI agents (Claude Desktop, Copilot, Cursor)
 @McpServer(name = "my-tools", path = "/atmosphere/mcp")
 public class MyTools {
+    @McpTool(name = "ask_ai", description = "Ask AI and stream the answer")
+    public String askAi(@McpParam(name = "question") String q, StreamingSession session) {
+        session.stream(q);
+        return "streaming";
+    }
+}
 
-    @McpTool(name = "ask_ai", description = "Ask AI and stream the answer to browsers")
-    public String askAi(
-            @McpParam(name = "question") String question,
-            @McpParam(name = "topic") String topic,
-            StreamingSession session) {
-        session.stream(question);  // streaming texts broadcast to all clients on the topic
-        return "streaming to " + topic;
+// A2A — agent-to-agent discovery and task delegation (Google/Linux Foundation)
+@A2aServer(name = "weather-agent", endpoint = "/atmosphere/a2a")
+public class WeatherAgent {
+    @A2aSkill(id = "get-weather", name = "Get Weather", description = "Weather for a city")
+    @A2aTaskHandler
+    public void weather(TaskContext task, @A2aParam(name = "city") String city) {
+        task.addArtifact(Artifact.text(weatherService.lookup(city)));
+        task.complete("Done");
+    }
+}
+
+// AG-UI — stream agent state to frontends (CopilotKit compatible)
+@AgUiEndpoint(path = "/atmosphere/agui")
+public class Assistant {
+    @AgUiAction
+    public void onRun(RunContext run, StreamingSession session) {
+        session.emit(new AiEvent.AgentStep("analyze", "Thinking...", Map.of()));
+        session.emit(new AiEvent.TextDelta("Hello! "));
+        session.emit(new AiEvent.TextComplete("Hello!"));
     }
 }
 ```
+
+| Protocol | Purpose | Sample |
+|----------|---------|--------|
+| **MCP** | Agent ↔ Tools | [spring-boot-mcp-server](samples/spring-boot-mcp-server/) |
+| **A2A** | Agent ↔ Agent | [spring-boot-a2a-agent](samples/spring-boot-a2a-agent/) |
+| **AG-UI** | Agent ↔ Frontend | [spring-boot-agui-chat](samples/spring-boot-agui-chat/) |
 
 ## Modules
 
@@ -174,6 +201,9 @@ public class MyTools {
 | [**Embabel**](https://atmosphere.github.io/docs/integrations/embabel/) | `atmosphere-embabel` | Adapter for Embabel `AgentPlatform` |
 | [**RAG**](modules/rag/README.md) | `atmosphere-rag` | `ContextProvider` SPI with Spring AI and LangChain4j bridges |
 | [**MCP server**](https://atmosphere.github.io/docs/reference/mcp/) | `atmosphere-mcp` | MCP server + bidirectional tool invocation (server-to-client) |
+| [**A2A**](samples/spring-boot-a2a-agent/) | `atmosphere-a2a` | Agent-to-Agent protocol — agent discovery, task delegation (JSON-RPC 2.0) |
+| [**AG-UI**](samples/spring-boot-agui-chat/) | `atmosphere-agui` | Agent-User Interaction — stream agent state to frontends via SSE |
+| [**Protocol Common**](modules/protocol-common/) | `atmosphere-protocol-common` | Shared JSON-RPC 2.0 infrastructure (sessions, tracing, param binding) |
 
 ### Cloud
 
