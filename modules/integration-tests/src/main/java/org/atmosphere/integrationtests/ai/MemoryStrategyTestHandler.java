@@ -117,7 +117,10 @@ public class MemoryStrategyTestHandler implements AtmosphereHandler {
         @Override
         public void stream(AiRequest request, StreamingSession session) {
             var rawHistory = request.history();
-            var selected = strategy.select(rawHistory, rawHistory.size());
+            // Pass a realistic limit so summarization triggers when history grows
+            // beyond the strategy's window (SummarizingStrategy uses recentWindowSize=4)
+            var maxMessages = "summarizing".equals(strategy.name()) ? 8 : rawHistory.size();
+            var selected = strategy.select(rawHistory, maxMessages);
 
             session.sendMetadata("strategy", strategy.name());
             session.sendMetadata("rawHistoryCount", rawHistory.size());
