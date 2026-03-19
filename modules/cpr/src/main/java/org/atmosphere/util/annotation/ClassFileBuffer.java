@@ -200,10 +200,10 @@ final class ClassFileBuffer implements DataInput {
         if (pointer + 8 > size) {
             throw new EOFException();
         }
-        return (read() << 56) +
-                (read() << 48) +
-                (read() << 40) +
-                (read() << 32) +
+        return ((long) read() << 56) +
+                ((long) read() << 48) +
+                ((long) read() << 40) +
+                ((long) read() << 32) +
                 (read() << 24) +
                 (read() << 16) +
                 (read() << 8) +
