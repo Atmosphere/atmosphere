@@ -148,6 +148,14 @@ export default defineConfig({
       testMatch: /rag-chat\.spec\.ts/,
     },
     {
+      name: 'a2a-agent',
+      testMatch: /a2a-agent\.spec\.ts/,
+    },
+    {
+      name: 'agui-chat',
+      testMatch: /agui-chat\.spec\.ts/,
+    },
+    {
       name: 'rooms-api',
       testMatch: /rooms-api\.spec\.ts/,
     },

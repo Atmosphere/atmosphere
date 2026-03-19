@@ -137,6 +137,18 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8092,
     type: 'spring-boot',
   },
+  'spring-boot-a2a-agent': {
+    name: 'spring-boot-a2a-agent',
+    dir: 'spring-boot-a2a-agent',
+    port: 8093,
+    type: 'spring-boot',
+  },
+  'spring-boot-agui-chat': {
+    name: 'spring-boot-agui-chat',
+    dir: 'spring-boot-agui-chat',
+    port: 8094,
+    type: 'spring-boot',
+  },
 };
 
 /**
