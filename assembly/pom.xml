@@ -3,7 +3,7 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>4.0.20</version>
+        <version>4.0.21-SNAPSHOT</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
