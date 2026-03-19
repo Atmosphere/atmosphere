@@ -67,7 +67,15 @@ jobs:
 
     strategy:
       matrix:
-        java-version: [21, 23, 25, 26]
+        include:
+          - java-version: 21
+            distribution: temurin
+          - java-version: 23
+            distribution: temurin
+          - java-version: 25
+            distribution: temurin
+          - java-version: 26
+            distribution: oracle
       fail-fast: false
 
     steps:
@@ -77,7 +85,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         java-version: ${{ matrix.java-version }}
-        distribution: 'temurin'
+        distribution: ${{ matrix.distribution }}
         cache: 'maven'
 
     - name: Build Core Modules
