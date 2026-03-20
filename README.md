@@ -24,9 +24,10 @@ Pluggable AI streaming adapters for Spring AI, LangChain4j, Google ADK, Embabel,
 
 ## Zero-Code AI Chat
 
-**No Java code, no frontend code** — just run:
+**No Java code, no frontend code.** Install the CLI, then run:
 
 ```bash
+brew install Atmosphere/tap/atmosphere    # or: curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
 LLM_API_KEY=your-key atmosphere run spring-boot-ai-console
 ```
 
