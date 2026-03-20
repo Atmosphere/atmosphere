@@ -59,12 +59,27 @@ Generates a ready-to-run Spring Boot project with your choice of handler (chat, 
 
 ## Quick Start
 
+Import the BOM once, then add any Atmosphere module without version tags:
+
 ```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-runtime</artifactId>
-    <version>4.0.20</version>
-</dependency>
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-bom</artifactId>
+            <version>4.0.20</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+<dependencies>
+    <dependency>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-runtime</artifactId>
+    </dependency>
+</dependencies>
 ```
 
 ```java
