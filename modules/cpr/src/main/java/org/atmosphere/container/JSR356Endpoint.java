@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -287,7 +286,7 @@ public class JSR356Endpoint extends Endpoint {
                 if (isWebsocket11Spec()) {
                     session.addMessageHandler(String.class, s -> webSocketProcessor.invokeWebSocketProtocol(webSocket, s));
                     session.addMessageHandler(ByteBuffer.class, bb -> {
-                        byte[] b = bb.hasArray() ? bb.array() : new byte[bb.limit()];
+                        byte[] b = new byte[bb.remaining()];
                         bb.get(b);
                         webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
                     });
@@ -303,7 +302,7 @@ public class JSR356Endpoint extends Endpoint {
                     session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
                         @Override
                         public void onMessage(ByteBuffer bb) {
-                            byte[] b = bb.hasArray() ? bb.array() : new byte[((Buffer)bb).limit()];
+                            byte[] b = new byte[bb.remaining()];
                             bb.get(b);
                             webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
                         }
