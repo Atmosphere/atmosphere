@@ -128,7 +128,8 @@ public class AtmosphereAiAutoConfiguration {
      */
     static class ConsoleResourceFilter implements Filter {
 
-        private static final String RESOURCE_PREFIX = "META-INF/resources";
+        private static final String CONSOLE_PREFIX = "/atmosphere/console";
+        private static final String RESOURCE_BASE = "META-INF/resources/atmosphere/console/";
 
         @Override
         public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -137,17 +138,32 @@ public class AtmosphereAiAutoConfiguration {
             var httpRes = (HttpServletResponse) response;
             var path = httpReq.getRequestURI();
 
-            // Serve index.html for the console root
-            if (path.equals("/atmosphere/console") || path.equals("/atmosphere/console/")) {
-                path = "/atmosphere/console/index.html";
+            if (!path.startsWith(CONSOLE_PREFIX)) {
+                chain.doFilter(request, response);
+                return;
             }
 
-            var resourcePath = RESOURCE_PREFIX + path;
+            // Extract the relative path after /atmosphere/console/
+            var relativePath = path.substring(CONSOLE_PREFIX.length());
+            if (relativePath.isEmpty() || relativePath.equals("/")) {
+                relativePath = "/index.html";
+            }
+
+            // Reject path traversal attempts
+            if (relativePath.contains("..")) {
+                httpRes.sendError(HttpServletResponse.SC_BAD_REQUEST);
+                return;
+            }
+
+            // Strip leading slash for classpath lookup
+            var resourceName = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+            var resourcePath = RESOURCE_BASE + resourceName;
+
             InputStream resource = Thread.currentThread().getContextClassLoader()
                     .getResourceAsStream(resourcePath);
             if (resource != null) {
                 try (resource) {
-                    httpRes.setContentType(guessContentType(path));
+                    httpRes.setContentType(guessContentType(resourceName));
                     resource.transferTo(httpRes.getOutputStream());
                 }
                 return;
