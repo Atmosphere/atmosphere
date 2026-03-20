@@ -6,7 +6,8 @@
 
 <p align="center">
   <strong>The transport-agnostic real-time framework for the JVM.</strong><br/>
-  WebSocket, SSE, Long-Polling, gRPC, MCP, A2A, AG-UI — one API, any transport.
+  WebSocket, SSE, Long-Polling, gRPC, MCP, A2A, AG-UI — one API, any transport.<br/>
+  Pluggable AI streaming adapters for Spring AI, LangChain4j, Google ADK, Embabel, and any OpenAI-compatible API.
 </p>
 
 <p align="center">
@@ -59,7 +60,7 @@ Generates a ready-to-run Spring Boot project with your choice of handler (chat, 
 
 ## Quick Start
 
-Add two dependencies, set an API key, and get a working AI chat — **zero Java code, zero frontend code:**
+Import the BOM once — all Atmosphere modules are version-free after this:
 
 ```xml
 <dependencyManagement>
@@ -73,29 +74,31 @@ Add two dependencies, set an API key, and get a working AI chat — **zero Java 
         </dependency>
     </dependencies>
 </dependencyManagement>
+```
 
-<dependencies>
-    <dependency>
-        <groupId>org.atmosphere</groupId>
-        <artifactId>atmosphere-spring-boot-starter</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.atmosphere</groupId>
-        <artifactId>atmosphere-ai</artifactId>
-    </dependency>
-</dependencies>
+### Zero-Code AI Chat
+
+Add two dependencies, set your LLM key, and get a working AI chat — **no Java code, no frontend code:**
+
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-spring-boot-starter</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-ai</artifactId>
+</dependency>
 ```
 
 ```yaml
-# application.yml
+# application.yml — works with Gemini, OpenAI, Ollama, or any OpenAI-compatible API
 atmosphere:
   ai:
-    api-key: ${GEMINI_API_KEY}
+    api-key: ${YOUR_LLM_KEY}
 ```
 
-Start the app → open `http://localhost:8080/atmosphere/console/` → working AI chat with streaming, conversation memory, and dark mode.
-
-Want full control? Add one class:
+Start the app → open `http://localhost:8080/atmosphere/console/` → working AI chat with streaming, conversation memory, and dark mode. Want full control? Add one class:
 
 ```java
 @AiEndpoint(path = "/atmosphere/ai-chat",
@@ -106,6 +109,33 @@ public class MyChat {
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
         session.stream(message);
+    }
+}
+```
+
+### Real-Time Chat (Transport-Agnostic)
+
+The classic Atmosphere pattern — works with WebSocket, SSE, Long-Polling, gRPC, or any transport:
+
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-runtime</artifactId>
+</dependency>
+```
+
+```java
+@ManagedService(path = "/chat")
+public class Chat {
+
+    @Ready
+    public void onReady(AtmosphereResource r) {
+        log.info("{} connected via {}", r.uuid(), r.transport());
+    }
+
+    @Message(encoders = JacksonEncoder.class, decoders = JacksonDecoder.class)
+    public ChatMessage onMessage(ChatMessage message) {
+        return message; // broadcast to all subscribers
     }
 }
 ```
