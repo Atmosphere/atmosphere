@@ -59,7 +59,7 @@ Generates a ready-to-run Spring Boot project with your choice of handler (chat, 
 
 ## Quick Start
 
-Import the BOM once, then add any Atmosphere module without version tags:
+Add two dependencies, set an API key, and get a working AI chat — **zero Java code, zero frontend code:**
 
 ```xml
 <dependencyManagement>
@@ -77,25 +77,35 @@ Import the BOM once, then add any Atmosphere module without version tags:
 <dependencies>
     <dependency>
         <groupId>org.atmosphere</groupId>
-        <artifactId>atmosphere-runtime</artifactId>
+        <artifactId>atmosphere-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-ai</artifactId>
     </dependency>
 </dependencies>
 ```
 
+```yaml
+# application.yml
+atmosphere:
+  ai:
+    api-key: ${GEMINI_API_KEY}
+```
+
+Start the app → open `http://localhost:8080/atmosphere/console/` → working AI chat with streaming, conversation memory, and dark mode.
+
+Want full control? Add one class:
+
 ```java
-@ManagedService(path = "/chat")
-public class Chat {
+@AiEndpoint(path = "/atmosphere/ai-chat",
+            systemPrompt = "You are a helpful assistant.",
+            conversationMemory = true)
+public class MyChat {
 
-    @Ready
-    public void onReady(AtmosphereResource r) {
-        // r could be WebSocket, SSE, Long-Polling, gRPC, or MCP — doesn't matter
-        log.info("{} connected via {}", r.uuid(), r.transport());
-    }
-
-    @Message(encoders = JacksonEncoder.class, decoders = JacksonDecoder.class)
-    public ChatMessage onMessage(ChatMessage message) {
-        // Return value is broadcast to all subscribers
-        return message;
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        session.stream(message);
     }
 }
 ```
