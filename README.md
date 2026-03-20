@@ -233,22 +233,13 @@ Swap the AI backend by changing one Maven dependency — no tool code changes:
 
 | Backend | Dependency | Bridged via |
 |---------|-----------|-------------|
-| Built-in (Gemini/OpenAI/Ollama) | `atmosphere-ai` | direct |
+| Built-in (Gemini/OpenAI/Ollama/[Embacle](https://github.com/dravr-ai/dravr-embacle)) | `atmosphere-ai` | direct |
 | Spring AI | `atmosphere-spring-ai` | `SpringAiToolBridge` |
 | LangChain4j | `atmosphere-langchain4j` | `LangChain4jToolBridge` |
 | Google ADK | `atmosphere-adk` | `AdkToolBridge` |
 | Embabel | `atmosphere-embabel` | `EmbabelAiSupport` |
 
 See [spring-boot-ai-tools](samples/spring-boot-ai-tools) for the full tool-calling sample, [spring-boot-ai-classroom](samples/spring-boot-ai-classroom) for multi-persona conversation memory, and [expo-client](samples/spring-boot-ai-classroom/expo-client) for React Native/Expo mobile chat. Four official framework samples have been [forked and augmented](https://atmosphere.github.io/docs/whats-new/#samples--forked--augmented) with Atmosphere streaming: [LangChain4j tools](samples/spring-boot-langchain4j-tools), [Spring AI routing](samples/spring-boot-spring-ai-routing), [Embabel horoscope](samples/spring-boot-embabel-horoscope), and [ADK tools](samples/spring-boot-adk-tools).
-
-### CLI-powered LLM backend
-
-Already have a Claude Code, Copilot, Cursor, or Gemini CLI license? [Embacle](https://github.com/dravr-ai/dravr-embacle) turns any CLI tool into an OpenAI-compatible LLM provider — no separate API key required.
-
-```bash
-LLM_BASE_URL=http://localhost:3000/v1 LLM_MODEL=copilot:claude-sonnet-4.6 LLM_API_KEY=not-needed \
-  ./mvnw spring-boot:run -pl samples/spring-boot-ai-classroom
-```
 
 ### Agent Protocols — MCP, A2A, AG-UI
 
