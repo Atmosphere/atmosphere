@@ -6,8 +6,7 @@
 
 <p align="center">
   <strong>The transport-agnostic real-time framework for the JVM.</strong><br/>
-  WebSocket, SSE, Long-Polling, gRPC, MCP, A2A, AG-UI — one API, any transport.<br/>
-  Pluggable AI streaming adapters for Spring AI, LangChain4j, Google ADK, Embabel, and any OpenAI-compatible API.
+  WebSocket, SSE, Long-Polling, gRPC, MCP, A2A, AG-UI — one API, any transport.
 </p>
 
 <p align="center">
@@ -19,9 +18,7 @@
 
 ---
 
-Atmosphere was built on one idea: **your application code shouldn't care how the client is connected.** Write to a Broadcaster, and the framework delivers to every subscriber — whether they're on a WebSocket, an SSE stream, a long-polling loop, a gRPC channel, or an MCP session. The transport is pluggable and transparent.
-
-The two core abstractions are **Broadcaster** (a named pub/sub channel) and **AtmosphereResource** (a single connection). Additional modules — rooms, AI/LLM streaming, clustering, observability — build on top of these.
+Atmosphere was built on one idea: **your application code shouldn't care how the client is connected.** Write once, and the framework delivers to every subscriber — whether they're on a WebSocket, an SSE stream, a long-polling loop, a gRPC channel, or an MCP session. The transport is pluggable and transparent. Pluggable AI streaming adapters for Spring AI, LangChain4j, Google ADK, Embabel, and any OpenAI-compatible API.
 
 ## Try It Now
 
