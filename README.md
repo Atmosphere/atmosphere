@@ -294,74 +294,19 @@ public class Assistant {
 | **A2A** | Agent ↔ Agent | [spring-boot-a2a-agent](samples/spring-boot-a2a-agent/) |
 | **AG-UI** | Agent ↔ Frontend | [spring-boot-agui-chat](samples/spring-boot-agui-chat/) |
 
-## JBang Support
-
-```bash
-jbang generator/AtmosphereInit.java --name my-app --handler ai-chat --ai builtin --tools
-cd my-app && ./mvnw spring-boot:run
-```
-
-Generates a ready-to-run Spring Boot project with your choice of handler (chat, ai-chat, mcp-server), AI framework, and optional `@AiTool` methods. See [generator/README.md](generator/README.md) for all options.
-
 ## Modules
 
-### Core
+**Core** — [runtime](https://atmosphere.github.io/docs/reference/core/) (WebSocket, SSE, Long-Polling), [gRPC](https://atmosphere.github.io/docs/reference/grpc/), [rooms](https://atmosphere.github.io/docs/reference/rooms/) · **AI** — adapters for [Spring AI](https://atmosphere.github.io/docs/integrations/spring-ai/), [LangChain4j](https://atmosphere.github.io/docs/integrations/langchain4j/), [ADK](https://atmosphere.github.io/docs/integrations/adk/), [Embabel](https://atmosphere.github.io/docs/integrations/embabel/), [RAG](modules/rag/README.md) · **Protocols** — [MCP](https://atmosphere.github.io/docs/reference/mcp/), [A2A](samples/spring-boot-a2a-agent/), [AG-UI](samples/spring-boot-agui-chat/) · **Cloud** — [Redis](https://atmosphere.github.io/docs/infrastructure/redis/), [Kafka](https://atmosphere.github.io/docs/infrastructure/kafka/), [durable sessions](https://atmosphere.github.io/docs/reference/durable-sessions/) · **Starters** — [Spring Boot](https://atmosphere.github.io/docs/integrations/spring-boot/), [Quarkus](https://atmosphere.github.io/docs/integrations/quarkus/), [Kotlin](https://atmosphere.github.io/docs/reference/kotlin/) · **Clients** — [atmosphere.js](https://atmosphere.github.io/docs/clients/javascript/) (React, Vue, Svelte, [React Native](https://atmosphere.github.io/docs/clients/react-native/)), [wAsync](https://atmosphere.github.io/docs/clients/java/) (Java)
 
-| Module | Artifact | What it does |
-|--------|----------|--------------|
-| [**Runtime**](https://atmosphere.github.io/docs/reference/core/) | `atmosphere-runtime` | WebSocket, SSE, Long-Polling (Servlet 6.0+) |
-| [**gRPC**](https://atmosphere.github.io/docs/reference/grpc/) | `atmosphere-grpc` | Bidirectional streaming transport (grpc-java 1.71) |
-| [**Rooms**](https://atmosphere.github.io/docs/reference/rooms/) | built into runtime | Room management with join/leave and presence |
-
-### AI
-
-| Module | Artifact | What it does |
-|--------|----------|--------------|
-| [**AI core**](https://atmosphere.github.io/docs/reference/ai/) | `atmosphere-ai` | `AiSupport` SPI, `@AiEndpoint`, filters, routing, conversation memory |
-| [**Spring AI**](https://atmosphere.github.io/docs/integrations/spring-ai/) | `atmosphere-spring-ai` | Adapter for Spring AI `ChatClient` |
-| [**LangChain4j**](https://atmosphere.github.io/docs/integrations/langchain4j/) | `atmosphere-langchain4j` | Adapter for LangChain4j `StreamingChatLanguageModel` |
-| [**Google ADK**](https://atmosphere.github.io/docs/integrations/adk/) | `atmosphere-adk` | Adapter for Google ADK `Runner` |
-| [**Embabel**](https://atmosphere.github.io/docs/integrations/embabel/) | `atmosphere-embabel` | Adapter for Embabel `AgentPlatform` |
-| [**RAG**](modules/rag/README.md) | `atmosphere-rag` | `ContextProvider` SPI with Spring AI and LangChain4j bridges |
-| [**MCP server**](https://atmosphere.github.io/docs/reference/mcp/) | `atmosphere-mcp` | MCP server + bidirectional tool invocation (server-to-client) |
-| [**A2A**](samples/spring-boot-a2a-agent/) | `atmosphere-a2a` | Agent-to-Agent protocol — agent discovery, task delegation (JSON-RPC 2.0) |
-| [**AG-UI**](samples/spring-boot-agui-chat/) | `atmosphere-agui` | Agent-User Interaction — stream agent state to frontends via SSE |
-| [**Protocol Common**](modules/protocol-common/) | `atmosphere-protocol-common` | Shared JSON-RPC 2.0 infrastructure (sessions, tracing, param binding) |
-
-### Cloud
-
-| Module | Artifact | What it does |
-|--------|----------|--------------|
-| [**Redis**](https://atmosphere.github.io/docs/infrastructure/redis/) | `atmosphere-redis` | Cross-node broadcasting via Redis pub/sub |
-| [**Kafka**](https://atmosphere.github.io/docs/infrastructure/kafka/) | `atmosphere-kafka` | Cross-node broadcasting via Kafka |
-| [**Durable sessions**](https://atmosphere.github.io/docs/reference/durable-sessions/) | `atmosphere-durable-sessions` | Session persistence across restarts (SQLite / Redis) |
-
-### Extensions
-
-| Module | Artifact | What it does |
-|--------|----------|--------------|
-| [**Spring Boot**](https://atmosphere.github.io/docs/integrations/spring-boot/) | `atmosphere-spring-boot-starter` | Auto-configuration for Spring Boot 4.0+ |
-| [**Quarkus**](https://atmosphere.github.io/docs/integrations/quarkus/) | `atmosphere-quarkus-extension` | Build-time processing for Quarkus 3.21+ |
-| [**Kotlin DSL**](https://atmosphere.github.io/docs/reference/kotlin/) | `atmosphere-kotlin` | Builder API and coroutine extensions |
-| [**atmosphere.js**](https://atmosphere.github.io/docs/clients/javascript/) | `atmosphere.js` (npm) | Browser & React Native client with React, Vue, Svelte, and [RN hooks](https://atmosphere.github.io/docs/clients/react-native/) |
-| [**wAsync**](https://atmosphere.github.io/docs/clients/java/) | `atmosphere-wasync` | Async Java client — WebSocket, SSE, long-polling, gRPC |
+[Full module reference →](https://atmosphere.github.io/docs/)
 
 ## Requirements
 
-| Java | Spring Boot | Quarkus |
-|------|-------------|---------|
-| 21+  | 4.0.2+      | 3.21+   |
-
-JDK 21 virtual threads are used by default.
+Java 21+ · Spring Boot 4.0+ · Quarkus 3.21+ · JDK 21 virtual threads used by default.
 
 ## Documentation
 
-- [**Tutorial**](https://atmosphere.github.io/docs/tutorial/01-introduction/) — step-by-step guide from first app to AI streaming, MCP, gRPC, and production deployment
-- [**Full documentation**](https://atmosphere.github.io/docs/) — architecture, configuration, and API reference for every module
-- [**CLI**](cli/README.md) — install, run samples, scaffold projects from your terminal
-- [**Project generator**](generator/README.md) — generate a ready-to-run project with JBang
-- [**Samples**](samples/) — runnable apps covering every transport and integration
-- [**Javadoc**](https://atmosphere.github.io/apidocs/)
+[Tutorial](https://atmosphere.github.io/docs/tutorial/01-introduction/) · [Full docs](https://atmosphere.github.io/docs/) · [CLI](cli/README.md) · [Project generator (JBang)](generator/README.md) · [Samples](samples/) · [Javadoc](https://atmosphere.github.io/apidocs/)
 
 ## Support
 
