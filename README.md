@@ -51,17 +51,12 @@ public class MyChat {
 
 Connect to the same AI endpoint from any framework. Install with `npm install atmosphere.js`.
 
-**React**
-
 ```tsx
+// React
 import { AtmosphereProvider, useStreaming } from 'atmosphere.js/react';
 
 function App() {
-  return (
-    <AtmosphereProvider>
-      <Chat />
-    </AtmosphereProvider>
-  );
+  return <AtmosphereProvider><Chat /></AtmosphereProvider>;
 }
 
 function Chat() {
@@ -79,7 +74,8 @@ function Chat() {
 }
 ```
 
-**Vue**
+<details>
+<summary><b>Vue</b></summary>
 
 ```vue
 <script setup lang="ts">
@@ -97,8 +93,10 @@ const { fullText, isStreaming, send } = useStreaming({
   <span v-if="isStreaming">Generating...</span>
 </template>
 ```
+</details>
 
-**Svelte**
+<details>
+<summary><b>Svelte</b></summary>
 
 ```svelte
 <script>
@@ -114,8 +112,38 @@ const { fullText, isStreaming, send } = useStreaming({
 <p>{$store.fullText}</p>
 {#if $store.isStreaming}<span>Generating...</span>{/if}
 ```
+</details>
 
-All three auto-connect on mount, stream tokens as they arrive, and clean up on unmount. See the [atmosphere.js README](atmosphere.js/README.md) for the full API.
+<details>
+<summary><b>React Native</b></summary>
+
+```tsx
+import { setupReactNative, AtmosphereProvider } from 'atmosphere.js/react-native';
+import { useStreamingRN } from 'atmosphere.js/react-native';
+
+setupReactNative();
+
+function App() {
+  return <AtmosphereProvider><Chat /></AtmosphereProvider>;
+}
+
+function Chat() {
+  const { fullText, isStreaming, isConnected, send } = useStreamingRN({
+    request: { url: 'https://your-server.com/atmosphere/ai-chat', transport: 'websocket' },
+  });
+
+  return (
+    <View>
+      <Button title="Ask" onPress={() => send('What is Atmosphere?')} />
+      <Text>{fullText}</Text>
+      {isStreaming && <Text>Generating...</Text>}
+    </View>
+  );
+}
+```
+</details>
+
+Auto-connects on mount, streams tokens as they arrive, cleans up on unmount. See the [atmosphere.js README](atmosphere.js/README.md) for the full API.
 
 ### Real-Time Chat (Transport-Agnostic)
 
