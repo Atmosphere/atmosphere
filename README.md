@@ -65,7 +65,7 @@ Import the BOM once — all Atmosphere modules are version-free after this:
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-bom</artifactId>
-            <version>4.0.20</version>
+            <version>4.0.21</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
