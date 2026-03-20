@@ -362,9 +362,9 @@ JDK 21 virtual threads are used by default.
 - [**Samples**](samples/) — runnable apps covering every transport and integration
 - [**Javadoc**](https://atmosphere.github.io/apidocs/)
 
-## Commercial Support
+## Support
 
-Available via [Async-IO.org](https://async-io.org)
+Need help? Commercial support and consulting available through [Async-IO.org](https://async-io.org).
 
 ## License
 
