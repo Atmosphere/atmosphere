@@ -89,7 +89,7 @@ Add two dependencies, set your LLM key, and get a working AI chat — **no Java 
 ```
 
 ```yaml
-# application.yml — works with Gemini, OpenAI, Ollama, or any OpenAI-compatible API
+# application.yml — works with any OpenAI-compatible API or any Coding Agent CLI supported by Embacle (https://github.com/dravr-ai/dravr-embacle)
 atmosphere:
   ai:
     api-key: ${YOUR_LLM_KEY}
