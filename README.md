@@ -24,41 +24,15 @@ Pluggable AI streaming adapters for Spring AI, LangChain4j, Google ADK, Embabel,
 
 ## Zero-Code AI Chat
 
-Add two dependencies, set your LLM key — **no Java code, no frontend code:**
+**No Java code, no frontend code** — just run:
 
-```xml
-<dependencyManagement>
-    <dependencies>
-        <dependency>
-            <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-bom</artifactId>
-            <version>4.0.21</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-    </dependencies>
-</dependencyManagement>
-
-<dependencies>
-    <dependency>
-        <groupId>org.atmosphere</groupId>
-        <artifactId>atmosphere-spring-boot-starter</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.atmosphere</groupId>
-        <artifactId>atmosphere-ai</artifactId>
-    </dependency>
-</dependencies>
+```bash
+LLM_API_KEY=your-key atmosphere run spring-boot-ai-console
 ```
 
-```yaml
-# application.yml — works with any OpenAI-compatible API or any Coding Agent CLI supported by Embacle (https://github.com/dravr-ai/dravr-embacle)
-atmosphere:
-  ai:
-    api-key: ${YOUR_LLM_KEY}
-```
+Open `http://localhost:8080/atmosphere/console/` → working AI chat with streaming, conversation memory, and dark mode. Works with any [OpenAI-compatible API](https://platform.openai.com/docs/api-reference) or any Coding Agent CLI via [Embacle](https://github.com/dravr-ai/dravr-embacle).
 
-Start the app → open `http://localhost:8080/atmosphere/console/` → working AI chat with streaming, conversation memory, and dark mode. Want full control? Add one class:
+Want full control? Add one class:
 
 ```java
 @AiEndpoint(path = "/atmosphere/ai-chat",
