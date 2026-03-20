@@ -18,48 +18,13 @@
 
 ---
 
-Atmosphere was built on one idea: **your application code shouldn't care how the client is connected.** Write once, and the framework delivers to every subscriber — whether they're on a WebSocket, an SSE stream, a long-polling loop, a gRPC channel, or an MCP session.  
+Atmosphere was built on one idea: **your application code shouldn't care how the client is connected.** Write once, and the framework delivers to every subscriber — whether they're on a WebSocket, an SSE stream, a long-polling loop, a gRPC channel, or an MCP session.
 
-Pluggable AI streaming adapters for Spring AI, LangChain4j, Google ADK, Embabel, and any OpenAI-compatible API. 
+Pluggable AI streaming adapters for Spring AI, LangChain4j, Google ADK, Embabel, and any OpenAI-compatible API.
 
-## Try It Now
+## Zero-Code AI Chat
 
-```bash
-# Install the Atmosphere CLI
-curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
-
-# Browse all 20+ samples and pick one to run
-atmosphere install
-
-# Or run a sample directly
-atmosphere run spring-boot-chat
-atmosphere run spring-boot-ai-chat --env LLM_API_KEY=your-key
-
-# Scaffold a new project
-atmosphere new my-app --template ai-chat
-```
-
-Or with npx (zero install):
-
-```bash
-npx create-atmosphere-app my-chat-app
-npx create-atmosphere-app my-ai-app --template ai-chat
-```
-
-See [cli/README.md](cli/README.md) for all commands and options.
-
-## Generate a Project with JBang
-
-```bash
-jbang generator/AtmosphereInit.java --name my-app --handler ai-chat --ai builtin --tools
-cd my-app && ./mvnw spring-boot:run
-```
-
-Generates a ready-to-run Spring Boot project with your choice of handler (chat, ai-chat, mcp-server), AI framework, and optional `@AiTool` methods. See [generator/README.md](generator/README.md) for all options.
-
-## Quick Start
-
-Import the BOM once — all Atmosphere modules are version-free after this:
+Add two dependencies, set your LLM key — **no Java code, no frontend code:**
 
 ```xml
 <dependencyManagement>
@@ -73,21 +38,17 @@ Import the BOM once — all Atmosphere modules are version-free after this:
         </dependency>
     </dependencies>
 </dependencyManagement>
-```
 
-### Zero-Code AI Chat
-
-Add two dependencies, set your LLM key, and get a working AI chat — **no Java code, no frontend code:**
-
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-spring-boot-starter</artifactId>
-</dependency>
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-ai</artifactId>
-</dependency>
+<dependencies>
+    <dependency>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-ai</artifactId>
+    </dependency>
+</dependencies>
 ```
 
 ```yaml
@@ -138,6 +99,32 @@ public class Chat {
     }
 }
 ```
+
+## Try It Now
+
+```bash
+# Install the Atmosphere CLI
+curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
+
+# Browse all 20+ samples and pick one to run
+atmosphere install
+
+# Or run a sample directly
+atmosphere run spring-boot-chat
+atmosphere run spring-boot-ai-chat --env LLM_API_KEY=your-key
+
+# Scaffold a new project
+atmosphere new my-app --template ai-chat
+```
+
+Or with npx (zero install):
+
+```bash
+npx create-atmosphere-app my-chat-app
+npx create-atmosphere-app my-ai-app --template ai-chat
+```
+
+See [cli/README.md](cli/README.md) for all commands and options.
 
 ## What's New in 4.0 ([full list](https://atmosphere.github.io/docs/whats-new/))
 
@@ -233,6 +220,15 @@ public class Assistant {
 | **MCP** | Agent ↔ Tools | [spring-boot-mcp-server](samples/spring-boot-mcp-server/) |
 | **A2A** | Agent ↔ Agent | [spring-boot-a2a-agent](samples/spring-boot-a2a-agent/) |
 | **AG-UI** | Agent ↔ Frontend | [spring-boot-agui-chat](samples/spring-boot-agui-chat/) |
+
+## JBang Support
+
+```bash
+jbang generator/AtmosphereInit.java --name my-app --handler ai-chat --ai builtin --tools
+cd my-app && ./mvnw spring-boot:run
+```
+
+Generates a ready-to-run Spring Boot project with your choice of handler (chat, ai-chat, mcp-server), AI framework, and optional `@AiTool` methods. See [generator/README.md](generator/README.md) for all options.
 
 ## Modules
 
