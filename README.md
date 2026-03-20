@@ -73,6 +73,76 @@ public class MyChat {
 }
 ```
 
+### Client — atmosphere.js
+
+Connect to the same AI endpoint from any framework. Install with `npm install atmosphere.js`.
+
+**React**
+
+```tsx
+import { AtmosphereProvider, useStreaming } from 'atmosphere.js/react';
+
+function App() {
+  return (
+    <AtmosphereProvider>
+      <Chat />
+    </AtmosphereProvider>
+  );
+}
+
+function Chat() {
+  const { fullText, isStreaming, send } = useStreaming({
+    request: { url: '/atmosphere/ai-chat', transport: 'websocket' },
+  });
+
+  return (
+    <div>
+      <button onClick={() => send('What is Atmosphere?')}>Ask</button>
+      <p>{fullText}</p>
+      {isStreaming && <span>Generating...</span>}
+    </div>
+  );
+}
+```
+
+**Vue**
+
+```vue
+<script setup lang="ts">
+import { useStreaming } from 'atmosphere.js/vue';
+
+const { fullText, isStreaming, send } = useStreaming({
+  url: '/atmosphere/ai-chat',
+  transport: 'websocket',
+});
+</script>
+
+<template>
+  <button @click="send('What is Atmosphere?')">Ask</button>
+  <p>{{ fullText }}</p>
+  <span v-if="isStreaming">Generating...</span>
+</template>
+```
+
+**Svelte**
+
+```svelte
+<script>
+  import { createStreamingStore } from 'atmosphere.js/svelte';
+
+  const { store, send } = createStreamingStore({
+    url: '/atmosphere/ai-chat',
+    transport: 'websocket',
+  });
+</script>
+
+<button on:click={() => send('What is Atmosphere?')}>Ask</button>
+<p>{$store.fullText}</p>
+{#if $store.isStreaming}<span>Generating...</span>{/if}
+```
+
+All three auto-connect on mount, stream tokens as they arrive, and clean up on unmount. See the [atmosphere.js README](atmosphere.js/README.md) for the full API.
+
 ### Real-Time Chat (Transport-Agnostic)
 
 The classic Atmosphere pattern — works with WebSocket, SSE, Long-Polling, gRPC, or any transport:
