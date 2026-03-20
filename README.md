@@ -31,7 +31,7 @@ brew install Atmosphere/tap/atmosphere    # or: curl -fsSL https://raw.githubuse
 LLM_API_KEY=your-key atmosphere run spring-boot-ai-console
 ```
 
-Open `http://localhost:8080/atmosphere/console/` → working AI chat with streaming, conversation memory, and dark mode. Works with any [OpenAI-compatible API](https://platform.openai.com/docs/api-reference) or any Coding Agent CLI via [Embacle](https://github.com/dravr-ai/dravr-embacle).
+Open `http://localhost:8080/atmosphere/console/` → full AI chat with WebSocket streaming and multi-turn conversation memory. Works with any [OpenAI-compatible API](https://platform.openai.com/docs/api-reference) or any Coding Agent CLI via [Embacle](https://github.com/dravr-ai/dravr-embacle).
 
 Want full control? Add one class:
 
