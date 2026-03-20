@@ -24,7 +24,6 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-ai</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
         <dependency>

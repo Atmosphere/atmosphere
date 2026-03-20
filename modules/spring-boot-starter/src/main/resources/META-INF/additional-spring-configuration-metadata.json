@@ -89,6 +89,69 @@
       "type": "java.lang.Boolean",
       "description": "Whether to enable gRPC server reflection (useful for grpcurl and debugging).",
       "defaultValue": true
+    },
+    {
+      "name": "atmosphere.ai.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether to enable Atmosphere AI auto-configuration. Requires atmosphere-ai on the classpath.",
+      "defaultValue": true
+    },
+    {
+      "name": "atmosphere.ai.mode",
+      "type": "java.lang.String",
+      "description": "LLM mode: 'remote' (cloud API) or 'local' (Ollama).",
+      "defaultValue": "remote"
+    },
+    {
+      "name": "atmosphere.ai.model",
+      "type": "java.lang.String",
+      "description": "LLM model name (e.g. gemini-2.5-flash, gpt-4o, llama3.2).",
+      "defaultValue": "gemini-2.5-flash"
+    },
+    {
+      "name": "atmosphere.ai.api-key",
+      "type": "java.lang.String",
+      "description": "API key for the LLM provider. Falls back to LLM_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY environment variables."
+    },
+    {
+      "name": "atmosphere.ai.base-url",
+      "type": "java.lang.String",
+      "description": "Override the LLM API base URL. Auto-detected from mode and model name when not set."
+    },
+    {
+      "name": "atmosphere.ai.path",
+      "type": "java.lang.String",
+      "description": "URL path for the default AI chat endpoint.",
+      "defaultValue": "/atmosphere/ai-chat"
+    },
+    {
+      "name": "atmosphere.ai.system-prompt",
+      "type": "java.lang.String",
+      "description": "System prompt for the default AI chat endpoint.",
+      "defaultValue": "You are a helpful assistant."
+    },
+    {
+      "name": "atmosphere.ai.system-prompt-resource",
+      "type": "java.lang.String",
+      "description": "Classpath resource path for the system prompt (takes precedence over atmosphere.ai.system-prompt)."
+    },
+    {
+      "name": "atmosphere.ai.conversation-memory",
+      "type": "java.lang.Boolean",
+      "description": "Whether to enable conversation memory for the default AI chat endpoint.",
+      "defaultValue": true
+    },
+    {
+      "name": "atmosphere.ai.max-history-messages",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of messages to retain in conversation memory per client.",
+      "defaultValue": 20
+    },
+    {
+      "name": "atmosphere.ai.timeout",
+      "type": "java.lang.Long",
+      "description": "Suspend timeout in milliseconds for the AI chat endpoint.",
+      "defaultValue": 120000
     }
   ],
   "hints": [

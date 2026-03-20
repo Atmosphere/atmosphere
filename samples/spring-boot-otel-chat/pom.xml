@@ -37,7 +37,6 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-spring-boot-starter</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
         <dependency>

@@ -1,0 +1,81 @@
+/* Atmosphere AI Console — Enterprise Design System */
+
+:root {
+  /* Light mode (default) */
+  --bg-primary: #f8f9fa;
+  --bg-surface: #ffffff;
+  --bg-tertiary: #f1f3f5;
+  --bg-hover: #e9ecef;
+  --text-primary: #1a1d21;
+  --text-secondary: #495057;
+  --text-tertiary: #868e96;
+  --border-color: #dee2e6;
+  --accent-color: #2563eb;
+  --accent-bg: rgba(37, 99, 235, 0.08);
+  --code-bg: rgba(0, 0, 0, 0.06);
+  --code-block-bg: #f8f9fa;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #0f1117;
+    --bg-surface: #1a1d23;
+    --bg-tertiary: #252830;
+    --bg-hover: #2a2d35;
+    --text-primary: #e4e5e7;
+    --text-secondary: #9ca0a8;
+    --text-tertiary: #6b7280;
+    --border-color: #2d3039;
+    --accent-color: #3b82f6;
+    --accent-bg: rgba(59, 130, 246, 0.1);
+    --code-bg: rgba(255, 255, 255, 0.08);
+    --code-block-bg: #1e2028;
+  }
+}
+
+/* Reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue',
+    Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  height: 100%;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}

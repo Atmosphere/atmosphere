@@ -4,11 +4,28 @@ Auto-configuration for running Atmosphere on Spring Boot 4.0+. Registers `Atmosp
 
 ## Maven Coordinates
 
+First, import the Atmosphere BOM in your `<dependencyManagement>` to align all module versions:
+
+```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-bom</artifactId>
+            <version>4.0.20</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+```
+
+Then add the starter — no `<version>` needed:
+
 ```xml
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-boot-starter</artifactId>
-    <version>4.0.20</version>
 </dependency>
 ```
 
@@ -67,6 +84,80 @@ All properties are under the `atmosphere.*` prefix:
 - `AtmosphereFramework` -- the framework for programmatic configuration
 - `RoomManager` -- the room API for presence and message history
 - `AtmosphereHealthIndicator` -- Actuator health check (when `spring-boot-health` is on the classpath)
+
+## Zero-Code AI Chat
+
+Add `atmosphere-ai` to your classpath, set an API key, and get a working AI chat with no Java code and no frontend code.
+
+### Dependencies
+
+With the [BOM](#maven-coordinates) imported, just add both dependencies:
+
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-spring-boot-starter</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-ai</artifactId>
+</dependency>
+```
+
+### application.yml
+
+```yaml
+atmosphere:
+  ai:
+    api-key: ${GEMINI_API_KEY}
+```
+
+Start the app and open `http://localhost:8080/atmosphere/console/` — a built-in Vue chat UI connects to the auto-configured AI endpoint.
+
+### AI Configuration Properties
+
+All properties are under the `atmosphere.ai.*` prefix:
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `atmosphere.ai.enabled` | `true` | Enable/disable AI auto-config |
+| `atmosphere.ai.mode` | `remote` | `remote` (cloud API) or `local` (Ollama) |
+| `atmosphere.ai.model` | `gemini-2.5-flash` | LLM model name |
+| `atmosphere.ai.api-key` | — | API key (falls back to `LLM_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` env vars) |
+| `atmosphere.ai.base-url` | (auto) | Override API endpoint |
+| `atmosphere.ai.path` | `/atmosphere/ai-chat` | Endpoint path |
+| `atmosphere.ai.system-prompt` | `You are a helpful assistant.` | System prompt |
+| `atmosphere.ai.system-prompt-resource` | — | Classpath resource for the prompt |
+| `atmosphere.ai.conversation-memory` | `true` | Enable multi-turn conversation memory |
+| `atmosphere.ai.max-history-messages` | `20` | Max messages retained per client |
+| `atmosphere.ai.timeout` | `120000` | Suspend timeout (ms) |
+
+### How It Works
+
+1. `AtmosphereAiAutoConfiguration` activates when `atmosphere-ai` is on the classpath
+2. LLM settings are configured from Spring properties with environment variable fallback
+3. A startup hook checks for user-defined `@AiEndpoint` classes — if none exist, a default endpoint is registered at the configured path
+4. The built-in Vue console at `/atmosphere/console/` connects via WebSocket and streams AI responses
+
+### Customizing
+
+Define your own `@AiEndpoint` to take full control — the default endpoint is automatically skipped:
+
+```java
+@AiEndpoint(path = "/atmosphere/ai-chat",
+            systemPrompt = "You are a Java expert.",
+            conversationMemory = true,
+            tools = {MyTools.class})
+public class MyAiChat {
+
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        session.stream(message);
+    }
+}
+```
+
+You can also provide your own `AiConfig.LlmSettings` bean to override all settings programmatically.
 
 ## Observability
 

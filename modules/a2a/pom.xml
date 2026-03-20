@@ -22,20 +22,17 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-protocol-common</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-runtime</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
         <!-- Optional: enables AI backend delegation in task handlers -->
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-ai</artifactId>
-            <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
 

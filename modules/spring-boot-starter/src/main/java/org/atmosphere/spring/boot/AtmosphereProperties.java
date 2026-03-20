@@ -55,6 +55,8 @@ public class AtmosphereProperties {
 
     private GrpcProperties grpc = new GrpcProperties();
 
+    private AiProperties ai = new AiProperties();
+
     public String getServletPath() {
         return servletPath;
     }
@@ -143,6 +145,14 @@ public class AtmosphereProperties {
         this.grpc = grpc;
     }
 
+    public AiProperties getAi() {
+        return ai;
+    }
+
+    public void setAi(AiProperties ai) {
+        this.ai = ai;
+    }
+
     public static class GrpcProperties {
 
         private boolean enabled = false;
@@ -208,6 +218,119 @@ public class AtmosphereProperties {
 
         public void setCleanupInterval(Duration cleanupInterval) {
             this.cleanupInterval = cleanupInterval;
+        }
+    }
+
+    public static class AiProperties {
+
+        private boolean enabled = true;
+
+        private String mode = "remote";
+
+        private String model = "gemini-2.5-flash";
+
+        private String apiKey;
+
+        private String baseUrl;
+
+        private String path = "/atmosphere/ai-chat";
+
+        private String systemPrompt = "You are a helpful assistant.";
+
+        private String systemPromptResource;
+
+        private boolean conversationMemory = true;
+
+        private int maxHistoryMessages = 20;
+
+        private long timeout = 120_000L;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getMode() {
+            return mode;
+        }
+
+        public void setMode(String mode) {
+            this.mode = mode;
+        }
+
+        public String getModel() {
+            return model;
+        }
+
+        public void setModel(String model) {
+            this.model = model;
+        }
+
+        public String getApiKey() {
+            return apiKey;
+        }
+
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey;
+        }
+
+        public String getBaseUrl() {
+            return baseUrl;
+        }
+
+        public void setBaseUrl(String baseUrl) {
+            this.baseUrl = baseUrl;
+        }
+
+        public String getPath() {
+            return path;
+        }
+
+        public void setPath(String path) {
+            this.path = path;
+        }
+
+        public String getSystemPrompt() {
+            return systemPrompt;
+        }
+
+        public void setSystemPrompt(String systemPrompt) {
+            this.systemPrompt = systemPrompt;
+        }
+
+        public String getSystemPromptResource() {
+            return systemPromptResource;
+        }
+
+        public void setSystemPromptResource(String systemPromptResource) {
+            this.systemPromptResource = systemPromptResource;
+        }
+
+        public boolean isConversationMemory() {
+            return conversationMemory;
+        }
+
+        public void setConversationMemory(boolean conversationMemory) {
+            this.conversationMemory = conversationMemory;
+        }
+
+        public int getMaxHistoryMessages() {
+            return maxHistoryMessages;
+        }
+
+        public void setMaxHistoryMessages(int maxHistoryMessages) {
+            this.maxHistoryMessages = maxHistoryMessages;
+        }
+
+        public long getTimeout() {
+            return timeout;
+        }
+
+        public void setTimeout(long timeout) {
+            this.timeout = timeout;
         }
     }
 }

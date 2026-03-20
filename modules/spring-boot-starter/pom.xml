@@ -34,7 +34,6 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-runtime</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
         <dependency>
@@ -98,35 +97,36 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-durable-sessions</artifactId>
-            <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
 
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-grpc</artifactId>
-            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
             <optional>true</optional>
         </dependency>
 
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-mcp</artifactId>
-            <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
 
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-a2a</artifactId>
-            <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
 
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-agui</artifactId>
-            <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
 

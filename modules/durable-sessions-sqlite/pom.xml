@@ -23,13 +23,11 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-durable-sessions</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-ai</artifactId>
-            <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
 

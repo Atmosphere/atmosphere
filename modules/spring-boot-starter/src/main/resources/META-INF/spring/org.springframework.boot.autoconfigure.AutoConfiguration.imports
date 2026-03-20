@@ -6,3 +6,4 @@ org.atmosphere.spring.boot.DurableSessionAutoConfiguration
 org.atmosphere.spring.boot.AtmosphereAuthAutoConfiguration
 org.atmosphere.spring.boot.AtmosphereCacheAutoConfiguration
 org.atmosphere.spring.boot.AtmosphereGrpcAutoConfiguration
+org.atmosphere.spring.boot.AtmosphereAiAutoConfiguration
