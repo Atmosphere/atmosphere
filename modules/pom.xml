@@ -35,7 +35,7 @@
         <module>durable-sessions-redis</module>
         <module>rag</module>
         <module>spring-boot-starter</module>
-
+        <module>channels</module>
         <module>quarkus-extension</module>
         <module>wasync</module>
     </modules>
