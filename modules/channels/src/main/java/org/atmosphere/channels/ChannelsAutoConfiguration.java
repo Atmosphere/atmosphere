@@ -17,8 +17,11 @@ package org.atmosphere.channels;
 
 import java.util.List;
 
+import org.atmosphere.channels.discord.DiscordChannel;
+import org.atmosphere.channels.messenger.MessengerChannel;
 import org.atmosphere.channels.slack.SlackChannel;
 import org.atmosphere.channels.telegram.TelegramChannel;
+import org.atmosphere.channels.whatsapp.WhatsAppChannel;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -39,6 +42,16 @@ import tools.jackson.databind.ObjectMapper;
  *     slack:
  *       bot-token: ${SLACK_BOT_TOKEN}
  *       signing-secret: ${SLACK_SIGNING_SECRET}
+ *     discord:
+ *       bot-token: ${DISCORD_BOT_TOKEN}
+ *       public-key: ${DISCORD_PUBLIC_KEY}
+ *     whatsapp:
+ *       phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID}
+ *       access-token: ${WHATSAPP_ACCESS_TOKEN}
+ *       app-secret: ${WHATSAPP_APP_SECRET}
+ *     messenger:
+ *       page-access-token: ${MESSENGER_PAGE_TOKEN}
+ *       app-secret: ${MESSENGER_APP_SECRET}
  * </pre>
  */
 @AutoConfiguration
@@ -62,6 +75,29 @@ public class ChannelsAutoConfiguration {
     public SlackChannel slackChannel(ChannelsProperties props, ObjectMapper objectMapper) {
         var slack = props.getSlack();
         return new SlackChannel(slack.getBotToken(), slack.getSigningSecret(), objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnProperty("atmosphere.channels.discord.bot-token")
+    public DiscordChannel discordChannel(ChannelsProperties props, ObjectMapper objectMapper) {
+        var discord = props.getDiscord();
+        return new DiscordChannel(discord.getBotToken(), discord.getPublicKey(), objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnProperty("atmosphere.channels.whatsapp.access-token")
+    public WhatsAppChannel whatsAppChannel(ChannelsProperties props, ObjectMapper objectMapper) {
+        var whatsapp = props.getWhatsapp();
+        return new WhatsAppChannel(whatsapp.getPhoneNumberId(), whatsapp.getAccessToken(),
+                whatsapp.getAppSecret(), objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnProperty("atmosphere.channels.messenger.page-access-token")
+    public MessengerChannel messengerChannel(ChannelsProperties props, ObjectMapper objectMapper) {
+        var messenger = props.getMessenger();
+        return new MessengerChannel(messenger.getPageAccessToken(), messenger.getAppSecret(),
+                objectMapper);
     }
 
     @Bean

@@ -22,7 +22,8 @@ public enum ChannelType {
     TELEGRAM("telegram", 4096),
     SLACK("slack", 40_000),
     DISCORD("discord", 2000),
-    WHATSAPP("whatsapp", 4096);
+    WHATSAPP("whatsapp", 4096),
+    MESSENGER("messenger", 2000);
 
     private final String id;
     private final int maxLength;
