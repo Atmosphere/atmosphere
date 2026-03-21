@@ -16,7 +16,6 @@
 package org.atmosphere.channels.whatsapp;
 
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
@@ -29,6 +28,7 @@ import java.util.Optional;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.atmosphere.channels.ChannelHttpClient;
 import org.atmosphere.channels.ChannelException;
 import org.atmosphere.channels.ChannelType;
 import org.atmosphere.channels.DeliveryReceipt;
@@ -56,7 +56,6 @@ public class WhatsAppChannel implements MessagingChannel {
     private final String phoneNumberId;
     private final String accessToken;
     private final String appSecret;
-    private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
     public WhatsAppChannel(String phoneNumberId, String accessToken, String appSecret,
@@ -64,7 +63,6 @@ public class WhatsAppChannel implements MessagingChannel {
         this.phoneNumberId = phoneNumberId;
         this.accessToken = accessToken;
         this.appSecret = appSecret;
-        this.httpClient = HttpClient.newHttpClient();
         this.objectMapper = objectMapper;
     }
 
@@ -185,10 +183,11 @@ public class WhatsAppChannel implements MessagingChannel {
                     .uri(URI.create(url))
                     .header("Content-Type", "application/json")
                     .header("Authorization", "Bearer " + accessToken)
+                    .timeout(ChannelHttpClient.requestTimeout())
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
-            HttpResponse<String> response = httpClient.send(request,
+            HttpResponse<String> response = ChannelHttpClient.get().send(request,
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() >= 400) {

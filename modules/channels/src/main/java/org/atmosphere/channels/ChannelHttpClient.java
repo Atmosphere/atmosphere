@@ -15,28 +15,29 @@
  */
 package org.atmosphere.channels;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
+
 /**
- * Supported external messaging platforms.
+ * Shared HTTP client for all channel adapters with connection pooling and timeouts.
  */
-public enum ChannelType {
-    TELEGRAM("telegram", 4096),
-    SLACK("slack", 40_000),
-    WHATSAPP("whatsapp", 4096),
-    MESSENGER("messenger", 2000);
+public final class ChannelHttpClient {
 
-    private final String id;
-    private final int maxLength;
+    private static final HttpClient INSTANCE = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
 
-    ChannelType(String id, int maxLength) {
-        this.id = id;
-        this.maxLength = maxLength;
+    private ChannelHttpClient() {
     }
 
-    public String id() {
-        return id;
+    public static HttpClient get() {
+        return INSTANCE;
     }
 
-    public int maxLength() {
-        return maxLength;
+    /**
+     * Default request timeout for platform API calls.
+     */
+    public static Duration requestTimeout() {
+        return Duration.ofSeconds(30);
     }
 }

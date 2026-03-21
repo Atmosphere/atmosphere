@@ -16,7 +16,6 @@
 package org.atmosphere.channels.slack;
 
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
@@ -28,6 +27,7 @@ import java.util.Optional;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.atmosphere.channels.ChannelHttpClient;
 import org.atmosphere.channels.ChannelException;
 import org.atmosphere.channels.ChannelType;
 import org.atmosphere.channels.DeliveryReceipt;
@@ -60,13 +60,11 @@ public class SlackChannel implements MessagingChannel {
 
     private final String botToken;
     private final String signingSecret;
-    private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
     public SlackChannel(String botToken, String signingSecret, ObjectMapper objectMapper) {
         this.botToken = botToken;
         this.signingSecret = signingSecret;
-        this.httpClient = HttpClient.newHttpClient();
         this.objectMapper = objectMapper;
     }
 
@@ -95,9 +93,9 @@ public class SlackChannel implements MessagingChannel {
                     "Missing x-slack-request-timestamp or x-slack-signature header");
         }
 
-        // Replay protection
+        // Replay protection (rejects both old and future-dated timestamps)
         long ts = Long.parseLong(timestamp);
-        long age = Instant.now().getEpochSecond() - ts;
+        long age = Math.abs(Instant.now().getEpochSecond() - ts);
         if (age > MAX_TIMESTAMP_AGE_SECS) {
             throw new ChannelException(ChannelType.SLACK,
                     "Timestamp too old (" + age + "s), possible replay attack");
@@ -232,10 +230,11 @@ public class SlackChannel implements MessagingChannel {
                     .uri(URI.create(url))
                     .header("Content-Type", "application/json")
                     .header("Authorization", "Bearer " + botToken)
+                    .timeout(ChannelHttpClient.requestTimeout())
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
-            HttpResponse<String> response = httpClient.send(request,
+            HttpResponse<String> response = ChannelHttpClient.get().send(request,
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() >= 400) {

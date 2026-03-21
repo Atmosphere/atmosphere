@@ -17,7 +17,6 @@ package org.atmosphere.channels;
 
 import java.util.List;
 
-import org.atmosphere.channels.discord.DiscordChannel;
 import org.atmosphere.channels.messenger.MessengerChannel;
 import org.atmosphere.channels.slack.SlackChannel;
 import org.atmosphere.channels.telegram.TelegramChannel;
@@ -42,9 +41,6 @@ import tools.jackson.databind.ObjectMapper;
  *     slack:
  *       bot-token: ${SLACK_BOT_TOKEN}
  *       signing-secret: ${SLACK_SIGNING_SECRET}
- *     discord:
- *       bot-token: ${DISCORD_BOT_TOKEN}
- *       public-key: ${DISCORD_PUBLIC_KEY}
  *     whatsapp:
  *       phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID}
  *       access-token: ${WHATSAPP_ACCESS_TOKEN}
@@ -75,13 +71,6 @@ public class ChannelsAutoConfiguration {
     public SlackChannel slackChannel(ChannelsProperties props, ObjectMapper objectMapper) {
         var slack = props.getSlack();
         return new SlackChannel(slack.getBotToken(), slack.getSigningSecret(), objectMapper);
-    }
-
-    @Bean
-    @ConditionalOnProperty("atmosphere.channels.discord.bot-token")
-    public DiscordChannel discordChannel(ChannelsProperties props, ObjectMapper objectMapper) {
-        var discord = props.getDiscord();
-        return new DiscordChannel(discord.getBotToken(), discord.getPublicKey(), objectMapper);
     }
 
     @Bean

@@ -22,7 +22,6 @@ public class ChannelsProperties {
 
     private TelegramProperties telegram = new TelegramProperties();
     private SlackProperties slack = new SlackProperties();
-    private DiscordProperties discord = new DiscordProperties();
     private WhatsAppProperties whatsapp = new WhatsAppProperties();
     private MessengerProperties messenger = new MessengerProperties();
 
@@ -31,9 +30,6 @@ public class ChannelsProperties {
 
     public SlackProperties getSlack() { return slack; }
     public void setSlack(SlackProperties slack) { this.slack = slack; }
-
-    public DiscordProperties getDiscord() { return discord; }
-    public void setDiscord(DiscordProperties discord) { this.discord = discord; }
 
     public WhatsAppProperties getWhatsapp() { return whatsapp; }
     public void setWhatsapp(WhatsAppProperties whatsapp) { this.whatsapp = whatsapp; }
@@ -59,16 +55,6 @@ public class ChannelsProperties {
         public void setBotToken(String botToken) { this.botToken = botToken; }
         public String getSigningSecret() { return signingSecret; }
         public void setSigningSecret(String signingSecret) { this.signingSecret = signingSecret; }
-    }
-
-    public static class DiscordProperties {
-        private String botToken;
-        private String publicKey;
-
-        public String getBotToken() { return botToken; }
-        public void setBotToken(String botToken) { this.botToken = botToken; }
-        public String getPublicKey() { return publicKey; }
-        public void setPublicKey(String publicKey) { this.publicKey = publicKey; }
     }
 
     public static class WhatsAppProperties {

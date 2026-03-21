@@ -16,7 +16,6 @@
 package org.atmosphere.channels.messenger;
 
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
@@ -29,6 +28,7 @@ import java.util.Optional;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.atmosphere.channels.ChannelHttpClient;
 import org.atmosphere.channels.ChannelException;
 import org.atmosphere.channels.ChannelType;
 import org.atmosphere.channels.DeliveryReceipt;
@@ -55,13 +55,11 @@ public class MessengerChannel implements MessagingChannel {
 
     private final String pageAccessToken;
     private final String appSecret;
-    private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
     public MessengerChannel(String pageAccessToken, String appSecret, ObjectMapper objectMapper) {
         this.pageAccessToken = pageAccessToken;
         this.appSecret = appSecret;
-        this.httpClient = HttpClient.newHttpClient();
         this.objectMapper = objectMapper;
     }
 
@@ -160,12 +158,14 @@ public class MessengerChannel implements MessagingChannel {
             String json = objectMapper.writeValueAsString(payload);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(GRAPH_API + "?access_token=" + pageAccessToken))
+                    .uri(URI.create(GRAPH_API))
                     .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + pageAccessToken)
+                    .timeout(ChannelHttpClient.requestTimeout())
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
-            HttpResponse<String> response = httpClient.send(request,
+            HttpResponse<String> response = ChannelHttpClient.get().send(request,
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() >= 400) {

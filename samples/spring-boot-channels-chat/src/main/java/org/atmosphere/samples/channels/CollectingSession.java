@@ -18,15 +18,17 @@ package org.atmosphere.samples.channels;
 import org.atmosphere.ai.StreamingSession;
 
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A {@link StreamingSession} that collects streaming tokens into a string.
- * Used to bridge streaming AI responses to channels that don't support
- * incremental delivery (WhatsApp, Messenger) — collect first, send once.
+ * Thread-safe: {@link #getResponse()} blocks until streaming completes.
  */
 class CollectingSession implements StreamingSession {
 
     private final StringBuilder buffer = new StringBuilder();
+    private final CountDownLatch latch = new CountDownLatch(1);
     private final String id = UUID.randomUUID().toString();
     private volatile boolean closed;
 
@@ -37,7 +39,9 @@ class CollectingSession implements StreamingSession {
 
     @Override
     public void send(String text) {
-        buffer.append(text);
+        synchronized (buffer) {
+            buffer.append(text);
+        }
     }
 
     @Override
@@ -51,16 +55,19 @@ class CollectingSession implements StreamingSession {
     @Override
     public void complete() {
         closed = true;
+        latch.countDown();
     }
 
     @Override
     public void complete(String summary) {
         closed = true;
+        latch.countDown();
     }
 
     @Override
     public void error(Throwable t) {
         closed = true;
+        latch.countDown();
     }
 
     @Override
@@ -68,7 +75,17 @@ class CollectingSession implements StreamingSession {
         return closed;
     }
 
+    /**
+     * Blocks until streaming completes and returns the collected response.
+     */
     String getResponse() {
-        return buffer.toString();
+        try {
+            latch.await(120, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        synchronized (buffer) {
+            return buffer.toString();
+        }
     }
 }

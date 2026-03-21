@@ -16,7 +16,6 @@
 package org.atmosphere.channels.telegram;
 
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.security.MessageDigest;
@@ -25,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.atmosphere.channels.ChannelHttpClient;
 import org.atmosphere.channels.ChannelException;
 import org.atmosphere.channels.ChannelType;
 import org.atmosphere.channels.DeliveryReceipt;
@@ -54,13 +54,11 @@ public class TelegramChannel implements MessagingChannel {
 
     private final String botToken;
     private final String webhookSecret;
-    private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
     public TelegramChannel(String botToken, String webhookSecret, ObjectMapper objectMapper) {
         this.botToken = botToken;
         this.webhookSecret = webhookSecret;
-        this.httpClient = HttpClient.newHttpClient();
         this.objectMapper = objectMapper;
     }
 
@@ -132,7 +130,11 @@ public class TelegramChannel implements MessagingChannel {
             payload.put("parse_mode", message.parseMode().orElse("HTML"));
 
             if (message.replyTo().isPresent()) {
-                payload.put("reply_to_message_id", message.replyTo().get());
+                try {
+                    payload.put("reply_to_message_id", Long.parseLong(message.replyTo().get()));
+                } catch (NumberFormatException ignored) {
+                    // Skip reply if the message ID isn't a valid number
+                }
             }
 
             String responseBody = callBotApi("sendMessage", payload);
@@ -182,10 +184,11 @@ public class TelegramChannel implements MessagingChannel {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .header("Content-Type", "application/json")
+                    .timeout(ChannelHttpClient.requestTimeout())
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
-            HttpResponse<String> response = httpClient.send(request,
+            HttpResponse<String> response = ChannelHttpClient.get().send(request,
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() >= 400) {
