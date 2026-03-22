@@ -55,7 +55,12 @@ class AtmosphereAiEndpointRegistrar {
 
     private boolean hasUserDefinedAiEndpoint(AtmosphereFramework framework) {
         for (var entry : framework.getAtmosphereHandlers().values()) {
-            if (entry.atmosphereHandler() instanceof AiEndpointHandler) {
+            var handler = entry.atmosphereHandler();
+            if (handler instanceof AiEndpointHandler) {
+                return true;
+            }
+            // @Agent-annotated classes register an AgentHandler that wraps AiEndpointHandler
+            if (handler.getClass().getName().equals("org.atmosphere.agent.processor.AgentHandler")) {
                 return true;
             }
         }

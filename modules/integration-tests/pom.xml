@@ -52,6 +52,12 @@
             <artifactId>atmosphere-ai</artifactId>
         </dependency>
 
+        <!-- Atmosphere Agent (for Agent E2E tests) -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-agent</artifactId>
+        </dependency>
+
         <!-- Atmosphere gRPC -->
         <dependency>
             <groupId>org.atmosphere</groupId>

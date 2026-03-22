@@ -77,9 +77,9 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
       }
       messages.value = [...messages.value, currentAssistantMessage]
     } else {
-      currentAssistantMessage.content += text
-      // Trigger reactivity
-      messages.value = [...messages.value]
+      // Replace the object so Vue's computed properties re-evaluate
+      currentAssistantMessage = { ...currentAssistantMessage, content: currentAssistantMessage.content + text }
+      messages.value = messages.value.map(m => m.id === currentAssistantMessage!.id ? currentAssistantMessage! : m)
     }
   }
 

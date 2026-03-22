@@ -2,6 +2,23 @@
   "version": "4.0.21",
   "samples": [
     {
+      "name": "spring-boot-dentist-agent",
+      "description": "Dr. Molar — dental emergency agent with @Agent, slash commands, AI tools, Slack and Telegram",
+      "category": "ai",
+      "tags": ["spring-boot", "ai", "agent", "channels", "telegram", "slack", "dental", "commands", "tools"],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)",
+        "TELEGRAM_BOT_TOKEN": "Telegram bot token from @BotFather",
+        "TELEGRAM_WEBHOOK_SECRET": "Any random string for webhook verification",
+        "SLACK_BOT_TOKEN": "Slack bot token (xoxb-...)",
+        "SLACK_SIGNING_SECRET": "Slack app signing secret"
+      }
+    },
+    {
       "name": "spring-boot-channels-chat",
       "description": "Omnichannel AI chat — same @AiEndpoint on Web, Telegram, Slack, Discord, WhatsApp, Messenger",
       "category": "ai",

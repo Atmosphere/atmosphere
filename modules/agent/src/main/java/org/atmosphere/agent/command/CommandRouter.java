@@ -108,15 +108,17 @@ public final class CommandRouter {
             return new CommandResult.NotACommand();
         }
 
+        // Parse command prefix and args, stripping @botname suffix (Telegram sends /help@BotName)
+        var spaceIndex = trimmed.indexOf(' ');
+        var rawPrefix = spaceIndex > 0 ? trimmed.substring(0, spaceIndex) : trimmed;
+        var atIndex = rawPrefix.indexOf('@');
+        var prefix = atIndex > 0 ? rawPrefix.substring(0, atIndex) : rawPrefix;
+        var args = spaceIndex > 0 ? trimmed.substring(spaceIndex + 1).trim() : "";
+
         // Handle built-in /help
-        if ("/help".equals(trimmed)) {
+        if ("/help".equals(prefix)) {
             return new CommandResult.Executed(registry.generateHelp());
         }
-
-        // Parse command prefix and args
-        var spaceIndex = trimmed.indexOf(' ');
-        var prefix = spaceIndex > 0 ? trimmed.substring(0, spaceIndex) : trimmed;
-        var args = spaceIndex > 0 ? trimmed.substring(spaceIndex + 1).trim() : "";
 
         var entry = registry.lookup(prefix);
         if (entry.isEmpty()) {

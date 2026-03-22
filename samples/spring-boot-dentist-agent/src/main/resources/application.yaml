@@ -1,0 +1,19 @@
+atmosphere:
+  packages: org.atmosphere.samples.springboot.dentist
+
+llm:
+  model: ${LLM_MODEL:gemini-2.5-flash}
+  base-url: ${LLM_BASE_URL:}
+  api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
+
+# Channel credentials — each activates when set
+atmosphere.channels:
+  telegram:
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
+  slack:
+    bot-token: ${SLACK_BOT_TOKEN:}
+    signing-secret: ${SLACK_SIGNING_SECRET:}
+
+server:
+  port: 8080

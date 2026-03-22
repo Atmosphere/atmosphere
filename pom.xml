@@ -544,6 +544,8 @@
         <module>samples/spring-boot-agui-chat</module>
         <module>samples/spring-boot-channels-chat</module>
         <module>samples/spring-boot-ai-console</module>
+        <module>samples/spring-boot-agent-chat</module>
+        <module>samples/spring-boot-dentist-agent</module>
         <module>modules/integration-tests</module>
     </modules>
     <reporting>
@@ -679,6 +681,11 @@
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-agent</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

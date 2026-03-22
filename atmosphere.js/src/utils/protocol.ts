@@ -179,12 +179,21 @@ export class AtmosphereProtocol {
       return { body: message, messages: [message] };
     }
 
-    // Length-delimited message parsing
+    // Length-delimited message parsing (mirrors legacy _trackMessageSize)
     const delimiter = request.messageDelimiter ?? '|';
     let data = this.partialMessage + message;
     const messages: string[] = [];
 
     let delimIdx = data.indexOf(delimiter);
+
+    // No delimiter found — pass message through without buffering.
+    // This matches the legacy atmosphere.js behavior: messages without
+    // a delimiter (e.g. WebSocket padding) are returned as-is and do
+    // NOT accumulate in partialMessage.
+    if (delimIdx === -1) {
+      return { body: message, messages: [message] };
+    }
+
     while (delimIdx !== -1) {
       const lengthStr = data.substring(0, delimIdx);
       const msgLength = parseInt(lengthStr, 10);

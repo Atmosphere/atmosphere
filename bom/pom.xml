@@ -29,6 +29,13 @@
                 <version>${project.version}</version>
             </dependency>
 
+            <!-- Agent -->
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-agent</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <!-- Protocols -->
             <dependency>
                 <groupId>org.atmosphere</groupId>
