@@ -23,6 +23,7 @@ import org.atmosphere.channels.slack.SlackChannel;
 import org.atmosphere.channels.telegram.TelegramChannel;
 import org.atmosphere.channels.whatsapp.WhatsAppChannel;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -106,5 +107,14 @@ public class ChannelsAutoConfiguration {
     @Bean
     public ChannelWebhookController channelWebhookController(List<MessagingChannel> channels) {
         return new ChannelWebhookController(channels);
+    }
+
+    @Bean
+    @ConditionalOnClass(name = "org.atmosphere.ai.AiConfig")
+    public ChannelAiBridge channelAiBridge(List<MessagingChannel> channels,
+                                           ChannelWebhookController webhookController) {
+        var bridge = new ChannelAiBridge(channels);
+        webhookController.onMessage(bridge::handleMessage);
+        return bridge;
     }
 }
