@@ -17,6 +17,7 @@ package org.atmosphere.channels;
 
 import java.util.List;
 
+import org.atmosphere.channels.discord.DiscordChannel;
 import org.atmosphere.channels.messenger.MessengerChannel;
 import org.atmosphere.channels.slack.SlackChannel;
 import org.atmosphere.channels.telegram.TelegramChannel;
@@ -45,6 +46,8 @@ import tools.jackson.databind.ObjectMapper;
  *       phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID}
  *       access-token: ${WHATSAPP_ACCESS_TOKEN}
  *       app-secret: ${WHATSAPP_APP_SECRET}
+ *     discord:
+ *       bot-token: ${DISCORD_BOT_TOKEN}
  *     messenger:
  *       page-access-token: ${MESSENGER_PAGE_TOKEN}
  *       app-secret: ${MESSENGER_APP_SECRET}
@@ -71,6 +74,17 @@ public class ChannelsAutoConfiguration {
     public SlackChannel slackChannel(ChannelsProperties props, ObjectMapper objectMapper) {
         var slack = props.getSlack();
         return new SlackChannel(slack.getBotToken(), slack.getSigningSecret(), objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnProperty("atmosphere.channels.discord.bot-token")
+    public DiscordChannel discordChannel(ChannelsProperties props, ObjectMapper objectMapper,
+                                         ChannelWebhookController webhookController) {
+        var discord = props.getDiscord();
+        var channel = new DiscordChannel(discord.getBotToken(), objectMapper,
+                webhookController::routeMessage);
+        channel.start();
+        return channel;
     }
 
     @Bean

@@ -62,6 +62,15 @@ public class ChannelWebhookController {
         this.onMessage = handler;
     }
 
+    /**
+     * Route an incoming message through the registered handler.
+     * Used by Gateway-based channels (e.g., Discord) that receive messages
+     * via WebSocket instead of HTTP webhooks.
+     */
+    public void routeMessage(IncomingMessage message) {
+        onMessage.accept(message);
+    }
+
     @PostMapping("/webhook/{channel}")
     public ResponseEntity<String> handleWebhook(
             @PathVariable String channel,
