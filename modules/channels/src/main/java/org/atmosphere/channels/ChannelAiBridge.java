@@ -46,9 +46,11 @@ public class ChannelAiBridge {
             + "Format responses appropriately for messaging platforms (short paragraphs, no complex markdown).";
 
     private final Map<String, MessagingChannel> channelsByType;
+    private final ChannelFilterChain filterChain;
 
-    public ChannelAiBridge(List<MessagingChannel> channels) {
+    public ChannelAiBridge(List<MessagingChannel> channels, ChannelFilterChain filterChain) {
         this.channelsByType = new ConcurrentHashMap<>();
+        this.filterChain = filterChain;
         for (MessagingChannel channel : channels) {
             channelsByType.put(channel.channelType().id(), channel);
         }
@@ -83,7 +85,15 @@ public class ChannelAiBridge {
                     Optional.of(incoming.messageId()),
                     Optional.empty()
             );
-            var receipt = channel.send(outgoing);
+
+            // Apply outbound filters (message splitting, PII redaction, etc.)
+            var filtered = filterChain.filterOutgoing(outgoing, incoming.channelType());
+            if (filtered == null) {
+                logger.debug("[{}] Outbound message blocked by filter", incoming.channelType().id());
+                return;
+            }
+
+            var receipt = channel.send(filtered);
             logger.info("[{}] Response sent ({})",
                     incoming.channelType().id(),
                     receipt.channelMessageId().orElse("ok"));

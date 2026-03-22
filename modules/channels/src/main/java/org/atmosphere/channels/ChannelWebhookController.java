@@ -44,11 +44,13 @@ public class ChannelWebhookController {
     private static final Logger log = LoggerFactory.getLogger(ChannelWebhookController.class);
 
     private final Map<String, MessagingChannel> channelsByPath;
+    private final ChannelFilterChain filterChain;
     private Consumer<IncomingMessage> onMessage = msg ->
             log.warn("No message handler registered, dropping message from {}", msg.channelType());
 
-    public ChannelWebhookController(List<MessagingChannel> channels) {
+    public ChannelWebhookController(List<MessagingChannel> channels, ChannelFilterChain filterChain) {
         this.channelsByPath = new HashMap<>();
+        this.filterChain = filterChain;
         for (MessagingChannel channel : channels) {
             channelsByPath.put(channel.webhookPath(), channel);
             log.info("Registered {} channel at {}", channel.channelType().id(), channel.webhookPath());
@@ -68,7 +70,17 @@ public class ChannelWebhookController {
      * via WebSocket instead of HTTP webhooks.
      */
     public void routeMessage(IncomingMessage message) {
-        onMessage.accept(message);
+        var filtered = filterChain.filterIncoming(message);
+        if (filtered != null) {
+            onMessage.accept(filtered);
+        }
+    }
+
+    /**
+     * Apply outbound filters before sending via a channel.
+     */
+    public ChannelFilterChain filterChain() {
+        return filterChain;
     }
 
     @PostMapping("/webhook/{channel}")
@@ -101,10 +113,15 @@ public class ChannelWebhookController {
             List<IncomingMessage> messages = adapter.receive(headers, body);
 
             for (IncomingMessage msg : messages) {
+                var filtered = filterChain.filterIncoming(msg);
+                if (filtered == null) {
+                    log.debug("Inbound message from {} blocked by filter", msg.senderId());
+                    continue;
+                }
                 log.debug("Received {} message from {}: {}",
-                        msg.channelType().id(), msg.senderId(),
-                        msg.text().substring(0, Math.min(50, msg.text().length())));
-                onMessage.accept(msg);
+                        filtered.channelType().id(), filtered.senderId(),
+                        filtered.text().substring(0, Math.min(50, filtered.text().length())));
+                onMessage.accept(filtered);
             }
 
             return ResponseEntity.ok("ok");

@@ -64,6 +64,16 @@ public class ChannelsAutoConfiguration {
     }
 
     @Bean
+    public ChannelFilterChain channelFilterChain(List<ChannelFilter> filters) {
+        return new ChannelFilterChain(filters);
+    }
+
+    @Bean
+    public org.atmosphere.channels.filter.MessageSplittingFilter messageSplittingFilter() {
+        return new org.atmosphere.channels.filter.MessageSplittingFilter();
+    }
+
+    @Bean
     @ConditionalOnProperty("atmosphere.channels.telegram.bot-token")
     public TelegramChannel telegramChannel(ChannelsProperties props, ObjectMapper objectMapper) {
         var telegram = props.getTelegram();
@@ -105,15 +115,17 @@ public class ChannelsAutoConfiguration {
     }
 
     @Bean
-    public ChannelWebhookController channelWebhookController(List<MessagingChannel> channels) {
-        return new ChannelWebhookController(channels);
+    public ChannelWebhookController channelWebhookController(List<MessagingChannel> channels,
+                                                              ChannelFilterChain filterChain) {
+        return new ChannelWebhookController(channels, filterChain);
     }
 
     @Bean
     @ConditionalOnClass(name = "org.atmosphere.ai.AiConfig")
     public ChannelAiBridge channelAiBridge(List<MessagingChannel> channels,
+                                           ChannelFilterChain filterChain,
                                            ChannelWebhookController webhookController) {
-        var bridge = new ChannelAiBridge(channels);
+        var bridge = new ChannelAiBridge(channels, filterChain);
         webhookController.onMessage(bridge::handleMessage);
         return bridge;
     }
