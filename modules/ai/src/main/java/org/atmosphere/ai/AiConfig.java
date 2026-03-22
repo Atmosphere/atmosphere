@@ -127,7 +127,7 @@ public final class AiConfig {
      * @param baseUrl explicit base URL (null for auto-detection)
      * @return the resolved settings
      */
-    public static LlmSettings configure(String mode, String model, String apiKey, String baseUrl) {
+    public static synchronized LlmSettings configure(String mode, String model, String apiKey, String baseUrl) {
         var resolvedUrl = resolveBaseUrl(mode, baseUrl, model);
 
         logger.info("AI config: mode={}, model={}, endpoint={}", mode, model, resolvedUrl);

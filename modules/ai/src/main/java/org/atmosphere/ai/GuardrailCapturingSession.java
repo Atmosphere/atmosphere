@@ -57,7 +57,7 @@ class GuardrailCapturingSession implements StreamingSession {
     }
 
     @Override
-    public void send(String text) {
+    public synchronized void send(String text) {
         if (blocked) {
             return;
         }

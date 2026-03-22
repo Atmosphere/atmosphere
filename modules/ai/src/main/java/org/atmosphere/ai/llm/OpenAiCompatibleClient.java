@@ -251,7 +251,7 @@ public class OpenAiCompatibleClient implements LlmClient {
 
             // Extract content text
             var contentNode = delta.get("content");
-            if (contentNode != null && !contentNode.isNull()) {
+            if (contentNode != null && !contentNode.isNull() && contentNode.isTextual()) {
                 var text = contentNode.asText();
                 if (!text.isEmpty()) {
                     session.send(text);

@@ -44,7 +44,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 /**
  * {@link AtmosphereHandler} that bridges an {@link org.atmosphere.ai.annotation.AiEndpoint}
@@ -323,7 +325,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                 systemPrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, metrics);
 
-        Thread.startVirtualThread(() -> {
+        var promptThread = Thread.startVirtualThread(() -> {
             try {
                 invokePrompt(userMessage, session, resource);
             } catch (Exception e) {
@@ -331,6 +333,24 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
                 session.error(e);
             }
         });
+
+        if (suspendTimeout > 0) {
+            Thread.startVirtualThread(() -> {
+                try {
+                    if (!promptThread.join(Duration.ofMillis(suspendTimeout))) {
+                        logger.warn("@Prompt method timed out after {}ms for client {}",
+                                suspendTimeout, resource.uuid());
+                        promptThread.interrupt();
+                        if (!session.isClosed()) {
+                            session.error(new TimeoutException(
+                                    "Prompt processing timed out after " + suspendTimeout + "ms"));
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+        }
     }
 
     private void invokePrompt(String message, StreamingSession session, AtmosphereResource resource)

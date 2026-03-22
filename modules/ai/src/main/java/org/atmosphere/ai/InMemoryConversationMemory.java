@@ -64,17 +64,17 @@ public class InMemoryConversationMemory implements AiConversationMemory {
             messages.add(message);
             // Evict oldest non-system messages when over limit
             while (messages.size() > maxMessages) {
-                boolean removed = false;
+                int oldestNonSystem = -1;
                 for (int i = 0; i < messages.size(); i++) {
                     if (!"system".equals(messages.get(i).role())) {
-                        messages.remove(i);
-                        removed = true;
+                        oldestNonSystem = i;
                         break;
                     }
                 }
-                if (!removed) {
+                if (oldestNonSystem < 0) {
                     break; // All remaining messages are system — cannot evict further
                 }
+                messages.remove(oldestNonSystem);
             }
         }
     }

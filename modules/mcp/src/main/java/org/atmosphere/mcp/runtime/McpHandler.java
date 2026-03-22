@@ -49,19 +49,26 @@ public final class McpHandler implements AtmosphereHandler {
     private static final Logger logger = LoggerFactory.getLogger(McpHandler.class);
     private static final String APPLICATION_JSON = "application/json";
     private static final String TEXT_EVENT_STREAM = "text/event-stream";
+    private static final int DEFAULT_MAX_SESSIONS = 10_000;
 
     private final McpProtocolHandler protocolHandler;
     private final Map<String, McpSession> sessions = new ConcurrentHashMap<>();
     private final long sessionTtlMs;
+    private final int maxSessions;
     private final ScheduledExecutorService cleaner;
 
     public McpHandler(McpProtocolHandler protocolHandler) {
-        this(protocolHandler, McpSession.DEFAULT_TTL_MS);
+        this(protocolHandler, McpSession.DEFAULT_TTL_MS, DEFAULT_MAX_SESSIONS);
     }
 
     public McpHandler(McpProtocolHandler protocolHandler, long sessionTtlMs) {
+        this(protocolHandler, sessionTtlMs, DEFAULT_MAX_SESSIONS);
+    }
+
+    public McpHandler(McpProtocolHandler protocolHandler, long sessionTtlMs, int maxSessions) {
         this.protocolHandler = protocolHandler;
         this.sessionTtlMs = sessionTtlMs;
+        this.maxSessions = maxSessions;
         this.cleaner = Executors.newSingleThreadScheduledExecutor(r -> {
             var t = Thread.ofPlatform().daemon().name("mcp-session-cleaner").unstarted(r);
             return t;
@@ -121,6 +128,13 @@ public final class McpHandler implements AtmosphereHandler {
         // After handleMessage, check if a new session was created (initialize)
         var session = (McpSession) request.getAttribute(McpSession.ATTRIBUTE_KEY);
         if (session != null) {
+            if (!sessions.containsKey(session.sessionId()) && sessions.size() >= maxSessions) {
+                response.setStatus(503);
+                response.setContentType(APPLICATION_JSON);
+                response.getWriter().write(
+                        "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32000,\"message\":\"Too many sessions\"}}");
+                return;
+            }
             sessions.putIfAbsent(session.sessionId(), session);
             session.touch();
             response.setHeader(McpSession.SESSION_ID_HEADER, session.sessionId());

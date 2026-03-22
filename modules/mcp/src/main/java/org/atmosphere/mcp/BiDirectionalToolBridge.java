@@ -94,7 +94,13 @@ public class BiDirectionalToolBridge {
         future.whenComplete((result, error) -> pendingCalls.remove(callId));
 
         var json = request.toJson();
-        resource.getResponse().write(json);
+        try {
+            resource.getResponse().write(json);
+        } catch (Exception e) {
+            pendingCalls.remove(callId);
+            future.completeExceptionally(e);
+            return future;
+        }
         logger.debug("Sent tool call {} to client {}: {}", callId, resource.uuid(), toolName);
 
         return future.orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS);

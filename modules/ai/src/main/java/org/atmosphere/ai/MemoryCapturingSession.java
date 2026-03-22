@@ -16,6 +16,8 @@
 package org.atmosphere.ai;
 
 import org.atmosphere.ai.llm.ChatMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link StreamingSession} wrapper that captures streamed streaming texts and saves
@@ -27,6 +29,8 @@ import org.atmosphere.ai.llm.ChatMessage;
  * response before we can store it in memory.</p>
  */
 class MemoryCapturingSession implements StreamingSession {
+
+    private static final Logger logger = LoggerFactory.getLogger(MemoryCapturingSession.class);
 
     private final StreamingSession delegate;
     private final AiConversationMemory memory;
@@ -78,7 +82,11 @@ class MemoryCapturingSession implements StreamingSession {
     @Override
     public void error(Throwable t) {
         // On error, save only the user message (no partial assistant response)
-        memory.addMessage(conversationId, ChatMessage.user(userMessage));
+        try {
+            memory.addMessage(conversationId, ChatMessage.user(userMessage));
+        } catch (Exception e) {
+            logger.error("Failed to save user message to memory on error", e);
+        }
         delegate.error(t);
     }
 

@@ -45,6 +45,10 @@ public final class PromptLoader {
      * @throws IllegalArgumentException if the resource is not found
      */
     public static String load(String resourcePath) {
+        if (resourcePath.contains("..") || resourcePath.startsWith("/")) {
+            throw new IllegalArgumentException(
+                    "Invalid resource path (must not contain '..' or start with '/'): " + resourcePath);
+        }
         return CACHE.computeIfAbsent(resourcePath, PromptLoader::readResource);
     }
 

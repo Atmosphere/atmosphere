@@ -182,6 +182,8 @@ public class AiStreamingSession implements StreamingSession {
             } catch (Exception e) {
                 logger.error("AiGuardrail.inspectRequest failed: {}",
                         guardrail.getClass().getName(), e);
+                delegate.error(e);
+                return;
             }
         }
 

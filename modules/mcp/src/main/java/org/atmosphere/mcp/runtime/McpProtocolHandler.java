@@ -205,8 +205,11 @@ public final class McpProtocolHandler {
             ));
         } catch (Exception e) {
             logger.warn("Tool {} invocation failed", toolName, e);
-            return JsonRpc.Response.error(id, JsonRpc.INTERNAL_ERROR,
-                    "Tool invocation failed: " + e.getMessage());
+            return JsonRpc.Response.success(id, Map.of(
+                    "content", List.of(Map.of("type", "text", "text",
+                            "Tool invocation failed: " + e.getMessage())),
+                    "isError", true
+            ));
         }
     }
 
@@ -513,7 +516,7 @@ public final class McpProtocolHandler {
             var it = arguments.fields();
             while (it.hasNext()) {
                 var field = it.next();
-                map.putIfAbsent(field.getKey(), field.getValue().asText());
+                map.putIfAbsent(field.getKey(), mapper.convertValue(field.getValue(), Object.class));
             }
         }
         return map;

@@ -46,6 +46,9 @@ import java.nio.charset.StandardCharsets;
  */
 public final class McpStdioBridge {
 
+    private static final int CONNECT_TIMEOUT_MS = 30_000;
+    private static final int READ_TIMEOUT_MS = 30_000;
+
     private final String endpointUrl;
     private volatile String sessionId;
 
@@ -94,6 +97,8 @@ public final class McpStdioBridge {
         var url = URI.create(endpointUrl).toURL();
         var conn = (HttpURLConnection) url.openConnection();
         try {
+            conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+            conn.setReadTimeout(READ_TIMEOUT_MS);
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
             conn.setRequestProperty("Content-Type", "application/json");
@@ -143,6 +148,8 @@ public final class McpStdioBridge {
         var url = URI.create(endpointUrl).toURL();
         var conn = (HttpURLConnection) url.openConnection();
         try {
+            conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+            conn.setReadTimeout(READ_TIMEOUT_MS);
             conn.setRequestMethod("DELETE");
             conn.setRequestProperty("Mcp-Session-Id", sessionId);
             conn.getResponseCode();

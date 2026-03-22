@@ -141,6 +141,11 @@ public final class DefaultStreamingSession implements StreamingSession {
     }
 
     @Override
+    public void close() {
+        complete();
+    }
+
+    @Override
     public boolean isClosed() {
         return closed.get();
     }
