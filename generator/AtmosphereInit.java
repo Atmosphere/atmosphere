@@ -353,7 +353,7 @@ public class AtmosphereInit implements Runnable {
             } catch (IOException ignored) {
             }
         }
-        return "4.0.22";
+        return "4.0.23";
     }
 
     private Path resolveScriptDir() {
