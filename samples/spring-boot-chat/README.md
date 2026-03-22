@@ -140,7 +140,7 @@ management:
 ```bash
 # JVM mode
 mvn clean package
-java -jar target/atmosphere-spring-boot-chat-4.0.21.jar
+java -jar target/atmosphere-spring-boot-chat-4.0.22.jar
 
 # Native image (requires GraalVM 25+)
 mvn clean package -Pnative
