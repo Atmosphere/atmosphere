@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { marked } from 'marked'
 import type { ChatMessage } from '../composables/useAtmosphereChat'
+
+marked.setOptions({ breaks: true, gfm: true })
 
 const props = defineProps<{
   message: ChatMessage
@@ -8,50 +11,12 @@ const props = defineProps<{
 
 const isUser = computed(() => props.message.role === 'user')
 
-const formattedContent = computed(() => renderMarkdown(props.message.content))
+const formattedContent = computed(() => marked.parse(props.message.content) as string)
 
 const timeString = computed(() => {
   const d = new Date(props.message.timestamp)
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 })
-
-function renderMarkdown(text: string): string {
-  // Basic markdown rendering without external libraries
-  let html = escapeHtml(text)
-
-  // Code blocks (```)
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_match, lang, code) => {
-    const langLabel = lang ? `<span class="code-lang">${lang}</span>` : ''
-    return `<div class="code-block">${langLabel}<pre><code>${code.trim()}</code></pre></div>`
-  })
-
-  // Inline code (`)
-  html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-
-  // Bold (**)
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-
-  // Italic (*)
-  html = html.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
-
-  // Unordered lists
-  html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>')
-  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
-
-  // Ordered lists
-  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
-
-  // Line breaks
-  html = html.replace(/\n/g, '<br>')
-
-  return html
-}
-
-function escapeHtml(text: string): string {
-  const div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
-}
 </script>
 
 <template>
@@ -148,6 +113,18 @@ function escapeHtml(text: string): string {
 }
 
 /* Markdown styles */
+.message-content :deep(p) {
+  margin: 0.75em 0;
+}
+
+.message-content :deep(p:first-child) {
+  margin-top: 0;
+}
+
+.message-content :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
 .message-content :deep(strong) {
   font-weight: 600;
 }
@@ -201,9 +178,10 @@ function escapeHtml(text: string): string {
   line-height: 1.5;
 }
 
-.message-content :deep(ul) {
+.message-content :deep(ul),
+.message-content :deep(ol) {
   margin: 0.5rem 0;
-  padding-left: 1.25rem;
+  padding-left: 1.75rem;
 }
 
 .message-content :deep(li) {
