@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import ChatContainer from './components/ChatContainer.vue'
+import logoUrl from './assets/logo.svg'
 </script>
 
 <template>
   <div class="app">
     <header class="app-header">
       <div class="header-content">
+        <img :src="logoUrl" alt="Atmosphere" class="header-logo" />
         <h1 class="header-title">Atmosphere AI Console</h1>
         <span class="header-badge">v4</span>
       </div>
@@ -38,6 +40,11 @@ import ChatContainer from './components/ChatContainer.vue'
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.header-logo {
+  width: 28px;
+  height: 28px;
 }
 
 .header-title {
