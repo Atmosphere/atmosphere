@@ -85,7 +85,7 @@ public class ChannelWebhookController {
 
     @PostMapping("/webhook/{channel}")
     public ResponseEntity<String> handleWebhook(
-            @PathVariable String channel,
+            @PathVariable("channel") String channel,
             @RequestBody byte[] body,
             HttpServletRequest request) {
 
