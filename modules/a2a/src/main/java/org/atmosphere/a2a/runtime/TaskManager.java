@@ -29,17 +29,41 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public final class TaskManager {
 
     private static final Logger logger = LoggerFactory.getLogger(TaskManager.class);
+    private static final int DEFAULT_MAX_TASKS = 10_000;
+    private static final long COMPLETED_TASK_TTL_MS = TimeUnit.MINUTES.toMillis(5);
 
     private final Map<String, TaskContext> tasks = new ConcurrentHashMap<>();
     private final List<Consumer<TaskStatusUpdateEvent>> statusListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<TaskArtifactUpdateEvent>> artifactListeners = new CopyOnWriteArrayList<>();
+    private final int maxTasks;
+    private final ScheduledExecutorService cleaner;
+
+    public TaskManager() {
+        this(DEFAULT_MAX_TASKS);
+    }
+
+    public TaskManager(int maxTasks) {
+        this.maxTasks = maxTasks;
+        this.cleaner = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "a2a-task-cleaner");
+            t.setDaemon(true);
+            return t;
+        });
+        cleaner.scheduleAtFixedRate(this::evictStaleTasks, 1, 1, TimeUnit.MINUTES);
+    }
 
     public TaskContext createTask(String contextId) {
+        if (tasks.size() >= maxTasks) {
+            throw new IllegalStateException("Task limit reached (" + maxTasks + "); cannot create new task");
+        }
         var taskId = UUID.randomUUID().toString();
         var ctx = new TaskContext(taskId, contextId);
         ctx.setTaskManager(this);
@@ -103,5 +127,25 @@ public final class TaskManager {
                 logger.warn("Artifact listener failed for task {}", task.taskId(), e);
             }
         }
+    }
+
+    private void evictStaleTasks() {
+        var now = System.currentTimeMillis();
+        var iterator = tasks.entrySet().iterator();
+        while (iterator.hasNext()) {
+            var entry = iterator.next();
+            var ctx = entry.getValue();
+            var terminalState = ctx.state() == TaskState.COMPLETED
+                    || ctx.state() == TaskState.FAILED
+                    || ctx.state() == TaskState.CANCELED;
+            if (terminalState && (now - ctx.createdAtMillis()) > COMPLETED_TASK_TTL_MS) {
+                iterator.remove();
+                logger.debug("Evicted stale task {} (state={})", entry.getKey(), ctx.state());
+            }
+        }
+    }
+
+    public void shutdown() {
+        cleaner.shutdownNow();
     }
 }

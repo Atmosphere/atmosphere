@@ -542,7 +542,7 @@
         <module>samples/grpc-chat</module>
         <module>samples/spring-boot-a2a-agent</module>
         <module>samples/spring-boot-agui-chat</module>
-        <module>samples/spring-boot-channels-chat</module>
+
         <module>samples/spring-boot-ai-console</module>
         <module>modules/integration-tests</module>
     </modules>

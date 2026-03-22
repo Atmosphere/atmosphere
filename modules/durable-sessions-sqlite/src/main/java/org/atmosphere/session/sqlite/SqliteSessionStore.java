@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -55,6 +56,7 @@ public class SqliteSessionStore implements SessionStore {
     private static final Logger logger = LoggerFactory.getLogger(SqliteSessionStore.class);
 
     private final Connection connection;
+    private final ReentrantLock lock = new ReentrantLock();
     private final ObjectMapper mapper = new ObjectMapper();
     private static final TypeReference<Set<String>> SET_TYPE = new TypeReference<>() { };
     private static final TypeReference<Map<String, String>> MAP_TYPE = new TypeReference<>() { };
@@ -129,63 +131,77 @@ public class SqliteSessionStore implements SessionStore {
     }
 
     @Override
-    public synchronized void save(DurableSession session) {
-        var sql = """
-                INSERT OR REPLACE INTO durable_sessions
-                (token, resource_id, rooms, broadcasters, metadata, created_at, last_seen)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """;
-        try (var stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, session.token());
-            stmt.setString(2, session.resourceId());
-            stmt.setString(3, toJson(session.rooms()));
-            stmt.setString(4, toJson(session.broadcasters()));
-            stmt.setString(5, toJson(session.metadata()));
-            stmt.setLong(6, session.createdAt().toEpochMilli());
-            stmt.setLong(7, session.lastSeen().toEpochMilli());
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            logger.error("Failed to save session {}", session.token(), e);
-        }
-    }
-
-    @Override
-    public synchronized Optional<DurableSession> restore(String token) {
-        var sql = "SELECT * FROM durable_sessions WHERE token = ?";
-        try (var stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, token);
-            try (var rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return Optional.of(new DurableSession(
-                            rs.getString("token"),
-                            rs.getString("resource_id"),
-                            fromJsonSet(rs.getString("rooms")),
-                            fromJsonSet(rs.getString("broadcasters")),
-                            fromJsonMap(rs.getString("metadata")),
-                            Instant.ofEpochMilli(rs.getLong("created_at")),
-                            Instant.ofEpochMilli(rs.getLong("last_seen"))
-                    ));
-                }
+    public void save(DurableSession session) {
+        lock.lock();
+        try {
+            var sql = """
+                    INSERT OR REPLACE INTO durable_sessions
+                    (token, resource_id, rooms, broadcasters, metadata, created_at, last_seen)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """;
+            try (var stmt = connection.prepareStatement(sql)) {
+                stmt.setString(1, session.token());
+                stmt.setString(2, session.resourceId());
+                stmt.setString(3, toJson(session.rooms()));
+                stmt.setString(4, toJson(session.broadcasters()));
+                stmt.setString(5, toJson(session.metadata()));
+                stmt.setLong(6, session.createdAt().toEpochMilli());
+                stmt.setLong(7, session.lastSeen().toEpochMilli());
+                stmt.executeUpdate();
+            } catch (SQLException e) {
+                logger.error("Failed to save session {}", session.token(), e);
             }
-        } catch (SQLException e) {
-            logger.error("Failed to restore session {}", token, e);
+        } finally {
+            lock.unlock();
         }
-        return Optional.empty();
     }
 
     @Override
-    public synchronized void remove(String token) {
+    public Optional<DurableSession> restore(String token) {
+        lock.lock();
+        try {
+            var sql = "SELECT * FROM durable_sessions WHERE token = ?";
+            try (var stmt = connection.prepareStatement(sql)) {
+                stmt.setString(1, token);
+                try (var rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        return Optional.of(new DurableSession(
+                                rs.getString("token"),
+                                rs.getString("resource_id"),
+                                fromJsonSet(rs.getString("rooms")),
+                                fromJsonSet(rs.getString("broadcasters")),
+                                fromJsonMap(rs.getString("metadata")),
+                                Instant.ofEpochMilli(rs.getLong("created_at")),
+                                Instant.ofEpochMilli(rs.getLong("last_seen"))
+                        ));
+                    }
+                }
+            } catch (SQLException e) {
+                logger.error("Failed to restore session {}", token, e);
+            }
+            return Optional.empty();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public void remove(String token) {
+        lock.lock();
         try (var stmt = connection.prepareStatement(
                 "DELETE FROM durable_sessions WHERE token = ?")) {
             stmt.setString(1, token);
             stmt.executeUpdate();
         } catch (SQLException e) {
             logger.error("Failed to remove session {}", token, e);
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
-    public synchronized void touch(String token) {
+    public void touch(String token) {
+        lock.lock();
         try (var stmt = connection.prepareStatement(
                 "UPDATE durable_sessions SET last_seen = ? WHERE token = ?")) {
             stmt.setLong(1, Instant.now().toEpochMilli());
@@ -193,49 +209,57 @@ public class SqliteSessionStore implements SessionStore {
             stmt.executeUpdate();
         } catch (SQLException e) {
             logger.error("Failed to touch session {}", token, e);
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
-    public synchronized List<DurableSession> removeExpired(Duration ttl) {
-        var cutoff = Instant.now().minus(ttl).toEpochMilli();
-        var expired = new ArrayList<DurableSession>();
+    public List<DurableSession> removeExpired(Duration ttl) {
+        lock.lock();
+        try {
+            var cutoff = Instant.now().minus(ttl).toEpochMilli();
+            var expired = new ArrayList<DurableSession>();
 
-        try (var select = connection.prepareStatement(
-                "SELECT * FROM durable_sessions WHERE last_seen < ?")) {
-            select.setLong(1, cutoff);
-            try (var rs = select.executeQuery()) {
-                while (rs.next()) {
-                    expired.add(new DurableSession(
-                            rs.getString("token"),
-                            rs.getString("resource_id"),
-                            fromJsonSet(rs.getString("rooms")),
-                            fromJsonSet(rs.getString("broadcasters")),
-                            fromJsonMap(rs.getString("metadata")),
-                            Instant.ofEpochMilli(rs.getLong("created_at")),
-                            Instant.ofEpochMilli(rs.getLong("last_seen"))
-                    ));
+            try (var select = connection.prepareStatement(
+                    "SELECT * FROM durable_sessions WHERE last_seen < ?")) {
+                select.setLong(1, cutoff);
+                try (var rs = select.executeQuery()) {
+                    while (rs.next()) {
+                        expired.add(new DurableSession(
+                                rs.getString("token"),
+                                rs.getString("resource_id"),
+                                fromJsonSet(rs.getString("rooms")),
+                                fromJsonSet(rs.getString("broadcasters")),
+                                fromJsonMap(rs.getString("metadata")),
+                                Instant.ofEpochMilli(rs.getLong("created_at")),
+                                Instant.ofEpochMilli(rs.getLong("last_seen"))
+                        ));
+                    }
+                }
+            } catch (SQLException e) {
+                logger.error("Failed to query expired sessions", e);
+            }
+
+            if (!expired.isEmpty()) {
+                try (var delete = connection.prepareStatement(
+                        "DELETE FROM durable_sessions WHERE last_seen < ?")) {
+                    delete.setLong(1, cutoff);
+                    delete.executeUpdate();
+                } catch (SQLException e) {
+                    logger.error("Failed to delete expired sessions", e);
                 }
             }
-        } catch (SQLException e) {
-            logger.error("Failed to query expired sessions", e);
-        }
 
-        if (!expired.isEmpty()) {
-            try (var delete = connection.prepareStatement(
-                    "DELETE FROM durable_sessions WHERE last_seen < ?")) {
-                delete.setLong(1, cutoff);
-                delete.executeUpdate();
-            } catch (SQLException e) {
-                logger.error("Failed to delete expired sessions", e);
-            }
+            return expired;
+        } finally {
+            lock.unlock();
         }
-
-        return expired;
     }
 
     @Override
-    public synchronized void close() {
+    public void close() {
+        lock.lock();
         try {
             if (connection != null && !connection.isClosed()) {
                 connection.close();
@@ -243,6 +267,8 @@ public class SqliteSessionStore implements SessionStore {
             }
         } catch (SQLException e) {
             logger.warn("Error closing SQLite connection", e);
+        } finally {
+            lock.unlock();
         }
     }
 

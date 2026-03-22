@@ -151,6 +151,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 s = tmp != null && !tmp.equalsIgnoreCase("0") ? tmp : null;
             }
         }
+        if (s != null && !isValidTrackingId(s)) {
+            logger.warn("Invalid X-Atmosphere-Tracking-ID header value, generating server-side UUID");
+            s = null;
+        }
         setUUID(s == null ? config.uuidProvider().generateUuid() : s);
 
         if (config.isSupportSession()) {
@@ -1029,6 +1033,19 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public AtmosphereResourceImpl webSocket(WebSocket webSocket) {
         this.webSocket = webSocket;
         return this;
+    }
+
+    static boolean isValidTrackingId(String trackingId) {
+        if (trackingId == null || trackingId.isEmpty() || trackingId.length() > 128) {
+            return false;
+        }
+        for (int i = 0; i < trackingId.length(); i++) {
+            char c = trackingId.charAt(i);
+            if (!Character.isLetterOrDigit(c) && c != '-' && c != '_') {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override

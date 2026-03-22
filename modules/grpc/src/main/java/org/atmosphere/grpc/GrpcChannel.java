@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Wraps a gRPC {@link StreamObserver} for outbound messages — analogous to WebSocket.
@@ -35,6 +36,7 @@ public class GrpcChannel {
     private static final Logger logger = LoggerFactory.getLogger(GrpcChannel.class);
 
     private final StreamObserver<AtmosphereMessage> responseObserver;
+    private final ReentrantLock observerLock = new ReentrantLock();
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final String uuid;
     private AtmosphereResource resource;
@@ -112,12 +114,13 @@ public class GrpcChannel {
 
     public void close() {
         if (closed.compareAndSet(false, true)) {
+            observerLock.lock();
             try {
-                synchronized (responseObserver) {
-                    responseObserver.onCompleted();
-                }
+                responseObserver.onCompleted();
             } catch (Exception e) {
                 logger.trace("Error closing gRPC channel {}", uuid, e);
+            } finally {
+                observerLock.unlock();
             }
         }
     }
@@ -141,9 +144,12 @@ public class GrpcChannel {
     }
 
     private void send(AtmosphereMessage message) {
-        synchronized (responseObserver) {
+        observerLock.lock();
+        try {
             responseObserver.onNext(message);
             lastWrite = System.currentTimeMillis();
+        } finally {
+            observerLock.unlock();
         }
     }
 }

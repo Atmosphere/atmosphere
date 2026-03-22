@@ -25,16 +25,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.locks.ReentrantLock;
 
 public final class TaskContext {
 
     private final String taskId;
     private final String contextId;
+    private final long createdAtMillis = System.currentTimeMillis();
     private volatile TaskState state = TaskState.WORKING;
     private volatile String statusMessage;
     private final List<Message> messages = new CopyOnWriteArrayList<>();
     private final List<Artifact> artifacts = new CopyOnWriteArrayList<>();
     private final Map<String, Object> metadata = new ConcurrentHashMap<>();
+    private final ReentrantLock statusLock = new ReentrantLock();
     private volatile TaskManager taskManager;
 
     public TaskContext(String taskId, String contextId) {
@@ -48,6 +51,10 @@ public final class TaskContext {
 
     public String contextId() {
         return contextId;
+    }
+
+    public long createdAtMillis() {
+        return createdAtMillis;
     }
 
     public TaskState state() {
@@ -79,10 +86,15 @@ public final class TaskContext {
     }
 
     public void updateStatus(TaskState state, String message) {
-        this.state = state;
-        this.statusMessage = message;
-        if (taskManager != null) {
-            taskManager.notifyStatusUpdate(this);
+        statusLock.lock();
+        try {
+            this.state = state;
+            this.statusMessage = message;
+            if (taskManager != null) {
+                taskManager.notifyStatusUpdate(this);
+            }
+        } finally {
+            statusLock.unlock();
         }
     }
 

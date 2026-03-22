@@ -29,10 +29,13 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.SignalType;
 
 import java.util.ArrayList;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * {@link org.atmosphere.ai.AiSupport} implementation backed by Spring AI's {@link ChatClient}.
@@ -146,7 +149,10 @@ public class SpringAiSupport extends AbstractAiSupport<ChatClient> {
         }
 
         Flux<ChatResponse> flux = promptSpec.stream().chatResponse();
-        flux.doOnNext(response -> {
+        var subscriptionRef = new AtomicReference<Disposable>();
+        Disposable subscription = flux
+                .takeWhile(ignored -> !session.isClosed())
+                .doOnNext(response -> {
                     if (response.getResult() != null
                             && response.getResult().getOutput() != null
                             && response.getResult().getOutput().getText() != null) {
@@ -154,8 +160,21 @@ public class SpringAiSupport extends AbstractAiSupport<ChatClient> {
                     }
                 })
                 .doOnComplete(session::complete)
-                .doOnError(session::error)
+                .doOnError(error -> {
+                    session.error(error);
+                    logger.debug("Streaming error for session {}", session.sessionId(), error);
+                })
+                .doFinally(signal -> {
+                    if (signal == SignalType.CANCEL) {
+                        logger.debug("Flux cancelled for session {}", session.sessionId());
+                    }
+                    var sub = subscriptionRef.getAndSet(null);
+                    if (sub != null && !sub.isDisposed()) {
+                        sub.dispose();
+                    }
+                })
                 .subscribe();
+        subscriptionRef.set(subscription);
     }
 
     @Override

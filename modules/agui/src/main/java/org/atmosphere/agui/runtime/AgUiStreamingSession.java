@@ -27,6 +27,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Decorator around a {@link StreamingSession} that translates {@link AiEvent}
@@ -52,7 +54,8 @@ public final class AgUiStreamingSession implements StreamingSession {
     private final AgUiEventMapper eventMapper;
     private final AtmosphereResponse response;
     private final RunContext runContext;
-    private volatile boolean closed;
+    private final ReentrantLock writeLock = new ReentrantLock();
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public AgUiStreamingSession(StreamingSession delegate, AtmosphereResponse response,
                                 RunContext runContext) {
@@ -89,10 +92,9 @@ public final class AgUiStreamingSession implements StreamingSession {
 
     @Override
     public void complete(String summary) {
-        if (closed) {
+        if (!closed.compareAndSet(false, true)) {
             return;
         }
-        closed = true;
         writeSSE(new AgUiEvent.RunFinished(runContext.runId(), runContext.threadId()));
         eventMapper.reset();
         delegate.complete(summary);
@@ -100,10 +102,9 @@ public final class AgUiStreamingSession implements StreamingSession {
 
     @Override
     public void error(Throwable t) {
-        if (closed) {
+        if (!closed.compareAndSet(false, true)) {
             return;
         }
-        closed = true;
         writeSSE(new AgUiEvent.RunError(runContext.runId(), t.getMessage(), -1));
         eventMapper.reset();
         delegate.error(t);
@@ -111,7 +112,7 @@ public final class AgUiStreamingSession implements StreamingSession {
 
     @Override
     public boolean isClosed() {
-        return closed;
+        return closed.get();
     }
 
     @Override
@@ -143,9 +144,12 @@ public final class AgUiStreamingSession implements StreamingSession {
         try {
             var json = MAPPER.writeValueAsString(event);
             var sseFrame = "event: " + event.type() + "\ndata: " + json + "\n\n";
-            synchronized (response) {
+            writeLock.lock();
+            try {
                 response.getWriter().write(sseFrame);
                 response.getWriter().flush();
+            } finally {
+                writeLock.unlock();
             }
         } catch (JsonProcessingException e) {
             logger.warn("Failed to serialize AG-UI event: {}", event.type(), e);

@@ -132,7 +132,7 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName(),
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(),
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest",
-                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true"
+                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false"
         ));
     }
 
@@ -173,7 +173,12 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
             var payload = serializeMessage(msg);
             var record = new ProducerRecord<>(topicName, getID(), payload);
             record.headers().add(NODE_ID_HEADER, nodeId.getBytes(StandardCharsets.UTF_8));
-            producer.send(record);
+            producer.send(record, (metadata, exception) -> {
+                if (exception != null) {
+                    logger.error("Failed to send message to Kafka topic '{}' partition {}",
+                            topicName, metadata != null ? metadata.partition() : -1, exception);
+                }
+            });
         } catch (Exception e) {
             logger.warn("Failed to publish message to Kafka topic '{}'", topicName, e);
         }
@@ -193,6 +198,9 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
                         var message = new String(record.value(), StandardCharsets.UTF_8);
                         logger.trace("Received remote broadcast on topic '{}' from node {}", topicName, senderNodeId);
                         super.broadcast(message);
+                    }
+                    if (!records.isEmpty()) {
+                        consumer.commitSync();
                     }
                 } catch (org.apache.kafka.common.errors.WakeupException e) {
                     if (!consuming.get()) break;

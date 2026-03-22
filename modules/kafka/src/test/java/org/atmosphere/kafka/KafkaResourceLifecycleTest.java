@@ -161,7 +161,7 @@ public class KafkaResourceLifecycleTest {
 
         @SuppressWarnings("rawtypes")
         ArgumentCaptor<ProducerRecord> captor = ArgumentCaptor.forClass(ProducerRecord.class);
-        verify(mockProducer).send(captor.capture());
+        verify(mockProducer).send(captor.capture(), any());
 
         var record = captor.getValue();
         assertEquals("atmosphere.publish-test", record.topic());
@@ -219,7 +219,7 @@ public class KafkaResourceLifecycleTest {
 
         @SuppressWarnings("rawtypes")
         ArgumentCaptor<ProducerRecord> captor = ArgumentCaptor.forClass(ProducerRecord.class);
-        verify(mockProducer).send(captor.capture());
+        verify(mockProducer).send(captor.capture(), any());
 
         // The key should be the broadcaster ID
         assertEquals("key-test", captor.getValue().key());
@@ -273,7 +273,7 @@ public class KafkaResourceLifecycleTest {
 
         @SuppressWarnings("rawtypes")
         ArgumentCaptor<ProducerRecord> captor = ArgumentCaptor.forClass(ProducerRecord.class);
-        verify(mockProducer).send(captor.capture());
+        verify(mockProducer).send(captor.capture(), any());
 
         var header = captor.getValue().headers().lastHeader(KafkaBroadcaster.NODE_ID_HEADER);
         assertNotNull(header);

@@ -24,6 +24,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Optional;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * {@link ConversationPersistence} backed by an embedded SQLite database.
@@ -51,6 +52,7 @@ public class SqliteConversationPersistence implements ConversationPersistence {
     private static final Logger logger = LoggerFactory.getLogger(SqliteConversationPersistence.class);
 
     private final Connection connection;
+    private final ReentrantLock lock = new ReentrantLock();
     private final boolean ownsConnection;
 
     /**
@@ -128,7 +130,8 @@ public class SqliteConversationPersistence implements ConversationPersistence {
     }
 
     @Override
-    public synchronized Optional<String> load(String conversationId) {
+    public Optional<String> load(String conversationId) {
+        lock.lock();
         try (var stmt = connection.prepareStatement(
                 "SELECT data FROM ai_conversations WHERE conversation_id = ?")) {
             stmt.setString(1, conversationId);
@@ -139,12 +142,15 @@ public class SqliteConversationPersistence implements ConversationPersistence {
             }
         } catch (SQLException e) {
             logger.error("Failed to load conversation {}", conversationId, e);
+        } finally {
+            lock.unlock();
         }
         return Optional.empty();
     }
 
     @Override
-    public synchronized void save(String conversationId, String data) {
+    public void save(String conversationId, String data) {
+        lock.lock();
         try (var stmt = connection.prepareStatement("""
                 INSERT OR REPLACE INTO ai_conversations (conversation_id, data, updated_at)
                 VALUES (?, ?, ?)
@@ -155,25 +161,31 @@ public class SqliteConversationPersistence implements ConversationPersistence {
             stmt.executeUpdate();
         } catch (SQLException e) {
             logger.error("Failed to save conversation {}", conversationId, e);
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
-    public synchronized void remove(String conversationId) {
+    public void remove(String conversationId) {
+        lock.lock();
         try (var stmt = connection.prepareStatement(
                 "DELETE FROM ai_conversations WHERE conversation_id = ?")) {
             stmt.setString(1, conversationId);
             stmt.executeUpdate();
         } catch (SQLException e) {
             logger.error("Failed to remove conversation {}", conversationId, e);
+        } finally {
+            lock.unlock();
         }
     }
 
     /**
      * Close the connection if this instance owns it.
      */
-    public synchronized void close() {
+    public void close() {
         if (ownsConnection) {
+            lock.lock();
             try {
                 if (connection != null && !connection.isClosed()) {
                     connection.close();
@@ -181,6 +193,8 @@ public class SqliteConversationPersistence implements ConversationPersistence {
                 }
             } catch (SQLException e) {
                 logger.warn("Error closing SQLite connection", e);
+            } finally {
+                lock.unlock();
             }
         }
     }

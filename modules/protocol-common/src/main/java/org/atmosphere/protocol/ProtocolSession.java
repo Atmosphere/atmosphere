@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Per-connection protocol session state with pending notification queue, TTL-based
@@ -42,6 +43,7 @@ public class ProtocolSession {
 
     private final String sessionId = UUID.randomUUID().toString();
     private final Map<String, Object> attributes = new ConcurrentHashMap<>();
+    private final ReentrantLock lock = new ReentrantLock();
 
     private volatile long lastAccessedAt = System.currentTimeMillis();
     private final int maxPending;
@@ -93,46 +95,81 @@ public class ProtocolSession {
      * Enqueue a notification for later replay. If the queue is full,
      * the oldest notification is dropped.
      */
-    public synchronized void addPendingNotification(String notification) {
-        if (pendingNotifications.size() >= maxPending) {
-            pendingNotifications.pollFirst();
+    public void addPendingNotification(String notification) {
+        lock.lock();
+        try {
+            if (pendingNotifications.size() >= maxPending) {
+                pendingNotifications.pollFirst();
+            }
+            pendingNotifications.addLast(notification);
+        } finally {
+            lock.unlock();
         }
-        pendingNotifications.addLast(notification);
     }
 
     /**
      * Drain and return all pending notifications, clearing the queue.
      */
-    public synchronized List<String> drainPendingNotifications() {
-        var list = new ArrayList<>(pendingNotifications);
-        pendingNotifications.clear();
-        return list;
+    public List<String> drainPendingNotifications() {
+        lock.lock();
+        try {
+            var list = new ArrayList<>(pendingNotifications);
+            pendingNotifications.clear();
+            return list;
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Returns the number of buffered pending notifications. */
-    public synchronized int pendingCount() {
-        return pendingNotifications.size();
+    public int pendingCount() {
+        lock.lock();
+        try {
+            return pendingNotifications.size();
+        } finally {
+            lock.unlock();
+        }
     }
 
     // ── Subscriptions ───────────────────────────────────────────────────
 
     /** Subscribe to notifications for the given key. */
-    public synchronized void addSubscription(String key) {
-        subscriptions.add(key);
+    public void addSubscription(String key) {
+        lock.lock();
+        try {
+            subscriptions.add(key);
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Unsubscribe from notifications for the given key. */
-    public synchronized void removeSubscription(String key) {
-        subscriptions.remove(key);
+    public void removeSubscription(String key) {
+        lock.lock();
+        try {
+            subscriptions.remove(key);
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Returns true if this session is subscribed to the given key. */
-    public synchronized boolean isSubscribed(String key) {
-        return subscriptions.contains(key);
+    public boolean isSubscribed(String key) {
+        lock.lock();
+        try {
+            return subscriptions.contains(key);
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Returns an unmodifiable view of all subscribed keys. */
-    public synchronized Set<String> subscriptions() {
-        return Collections.unmodifiableSet(new HashSet<>(subscriptions));
+    public Set<String> subscriptions() {
+        lock.lock();
+        try {
+            return Collections.unmodifiableSet(new HashSet<>(subscriptions));
+        } finally {
+            lock.unlock();
+        }
     }
 }
