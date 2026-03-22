@@ -19,6 +19,8 @@ import org.atmosphere.ai.llm.OpenAiCompatibleClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.locks.ReentrantLock;
+
 /**
  * Configuration for the Atmosphere AI module.
  *
@@ -106,6 +108,7 @@ public final class AiConfig {
 
     // -- Singleton holder for framework-wide access --
 
+    private static final ReentrantLock LOCK = new ReentrantLock();
     private static volatile LlmSettings instance;
 
     /**
@@ -127,20 +130,25 @@ public final class AiConfig {
      * @param baseUrl explicit base URL (null for auto-detection)
      * @return the resolved settings
      */
-    public static synchronized LlmSettings configure(String mode, String model, String apiKey, String baseUrl) {
-        var resolvedUrl = resolveBaseUrl(mode, baseUrl, model);
+    public static LlmSettings configure(String mode, String model, String apiKey, String baseUrl) {
+        LOCK.lock();
+        try {
+            var resolvedUrl = resolveBaseUrl(mode, baseUrl, model);
 
-        logger.info("AI config: mode={}, model={}, endpoint={}", mode, model, resolvedUrl);
+            logger.info("AI config: mode={}, model={}, endpoint={}", mode, model, resolvedUrl);
 
-        var builder = OpenAiCompatibleClient.builder().baseUrl(resolvedUrl);
-        if (apiKey != null && !apiKey.isBlank()) {
-            builder.apiKey(apiKey);
-        } else if (!"local".equalsIgnoreCase(mode)) {
-            logger.warn("No API key configured for remote mode. Set LLM_API_KEY or GEMINI_API_KEY environment variable.");
+            var builder = OpenAiCompatibleClient.builder().baseUrl(resolvedUrl);
+            if (apiKey != null && !apiKey.isBlank()) {
+                builder.apiKey(apiKey);
+            } else if (!"local".equalsIgnoreCase(mode)) {
+                logger.warn("No API key configured for remote mode. Set LLM_API_KEY or GEMINI_API_KEY environment variable.");
+            }
+
+            instance = new LlmSettings(builder.build(), model, mode, resolvedUrl);
+            return instance;
+        } finally {
+            LOCK.unlock();
         }
-
-        instance = new LlmSettings(builder.build(), model, mode, resolvedUrl);
-        return instance;
     }
 
     /**

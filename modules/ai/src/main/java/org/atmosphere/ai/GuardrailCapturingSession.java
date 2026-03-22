@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A {@link StreamingSession} wrapper that runs {@link AiGuardrail#inspectResponse}
@@ -36,6 +37,7 @@ class GuardrailCapturingSession implements StreamingSession {
     private final StreamingSession delegate;
     private final List<AiGuardrail> guardrails;
     private final int checkInterval;
+    private final ReentrantLock lock = new ReentrantLock();
     private final StringBuilder accumulated = new StringBuilder();
     private int lastCheckedLength;
     private volatile boolean blocked;
@@ -57,19 +59,22 @@ class GuardrailCapturingSession implements StreamingSession {
     }
 
     @Override
-    public synchronized void send(String text) {
-        if (blocked) {
-            return;
-        }
-        accumulated.append(text);
-        delegate.send(text);
-
-        // Periodically check guardrails on accumulated response
-        if (accumulated.length() - lastCheckedLength >= checkInterval) {
-            lastCheckedLength = accumulated.length();
-            if (checkGuardrails()) {
-                return; // blocked — error already sent
+    public void send(String text) {
+        lock.lock();
+        try {
+            if (blocked) {
+                return;
             }
+            accumulated.append(text);
+            if (accumulated.length() - lastCheckedLength >= checkInterval) {
+                lastCheckedLength = accumulated.length();
+                if (checkGuardrails()) {
+                    return;
+                }
+            }
+            delegate.send(text);
+        } finally {
+            lock.unlock();
         }
     }
 

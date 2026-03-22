@@ -542,6 +542,7 @@
         <module>samples/grpc-chat</module>
         <module>samples/spring-boot-a2a-agent</module>
         <module>samples/spring-boot-agui-chat</module>
+        <module>samples/spring-boot-channels-chat</module>
         <module>samples/spring-boot-ai-console</module>
         <module>modules/integration-tests</module>
     </modules>
@@ -678,6 +679,11 @@
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-channels</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
