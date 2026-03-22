@@ -2,6 +2,29 @@
   "version": "4.0.21",
   "samples": [
     {
+      "name": "spring-boot-channels-chat",
+      "description": "Omnichannel AI chat — same @AiEndpoint on Web, Telegram, Slack, Discord, WhatsApp, Messenger",
+      "category": "ai",
+      "tags": ["spring-boot", "ai", "channels", "telegram", "slack", "discord", "whatsapp", "messenger", "omnichannel"],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)",
+        "TELEGRAM_BOT_TOKEN": "Telegram bot token from @BotFather",
+        "TELEGRAM_WEBHOOK_SECRET": "Any random string for webhook verification",
+        "SLACK_BOT_TOKEN": "Slack bot token (xoxb-...)",
+        "SLACK_SIGNING_SECRET": "Slack app signing secret",
+        "DISCORD_BOT_TOKEN": "Discord bot token",
+        "WHATSAPP_PHONE_NUMBER_ID": "WhatsApp Business phone number ID",
+        "WHATSAPP_ACCESS_TOKEN": "WhatsApp Cloud API access token",
+        "WHATSAPP_APP_SECRET": "Meta app secret for signature verification",
+        "MESSENGER_PAGE_TOKEN": "Facebook Page access token",
+        "MESSENGER_APP_SECRET": "Meta app secret for signature verification"
+      }
+    },
+    {
       "name": "spring-boot-chat",
       "description": "Real-time WebSocket chat with Spring Boot",
       "category": "chat",
