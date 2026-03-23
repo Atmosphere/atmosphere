@@ -55,7 +55,7 @@ brew install Atmosphere/tap/atmosphere    # or: curl -fsSL https://raw.githubuse
 atmosphere run spring-boot-dentist-agent  # Dr. Molar — dental emergency agent on Web + Telegram + Slack
 ```
 
-Open `http://localhost:8080/atmosphere/console/` and type `/help`, `/firstaid`, or just describe your broken tooth.
+Open `http://localhost:8080/atmosphere/console/` and type `/help`, `/firstaid`, or just describe your broken tooth. To connect Slack or Telegram, [create a bot](https://atmosphere.github.io/docs/tutorial/23-channels/) and set the token as an environment variable.
 
 ### Multi-Channel — One Agent, Every Platform
 
