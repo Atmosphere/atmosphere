@@ -24,14 +24,14 @@ jobs:
     - name: Build All Modules
       run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true
 
-    - name: Package sample build output
-      run: tar czf /tmp/sample-targets.tar.gz samples/*/target
+    - name: Package build output
+      run: tar czf /tmp/build-targets.tar.gz samples/*/target modules/*/target
 
     - name: Upload build output
       uses: actions/upload-artifact@v4
       with:
-        name: sample-targets
-        path: /tmp/sample-targets.tar.gz
+        name: build-targets
+        path: /tmp/build-targets.tar.gz
         retention-days: 1
 
   e2e:
@@ -71,10 +71,10 @@ jobs:
     - name: Download build output
       uses: actions/download-artifact@v4
       with:
-        name: sample-targets
+        name: build-targets
 
-    - name: Restore sample build output
-      run: tar xzf sample-targets.tar.gz
+    - name: Restore build output
+      run: tar xzf build-targets.tar.gz
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
