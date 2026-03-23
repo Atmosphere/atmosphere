@@ -180,7 +180,7 @@ export default defineConfig({
     command: config.command,
     url: `http://localhost:${config.port}`,
     timeout: 120_000,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !!process.env.REUSE_SERVER || !process.env.CI,
     stdout: 'pipe' as const,
     stderr: 'pipe' as const,
   })),
