@@ -28,6 +28,15 @@ Example applications demonstrating Atmosphere 4.0 across different deployment ta
 | [spring-boot-ai-classroom](spring-boot-ai-classroom/) | Built-in | — | Multi-persona AI classroom ([Expo client](spring-boot-ai-classroom/expo-client/)) |
 | [spring-boot-embabel-horoscope](spring-boot-embabel-horoscope/) | Embabel | — | Embabel agent orchestration |
 
+### Agents (`@Agent` + `@Command`)
+
+One agent class — commands and AI work on Web, Slack, Telegram, Discord, WhatsApp, and Messenger simultaneously.
+
+| Sample | Features | Channels | Description |
+|--------|----------|----------|-------------|
+| [spring-boot-agent-chat](spring-boot-agent-chat/) | `@Agent`, `@Command`, `@AiTool`, skill.md | Web (+ any via `atmosphere-channels`) | DevOps assistant with slash commands and AI tools |
+| [spring-boot-dentist-agent](spring-boot-dentist-agent/) | `@Agent`, `@Command`, `@AiTool`, skill.md | Web + Slack + Telegram | Multi-channel dental emergency agent |
+
 ### Agent Protocols
 
 | Sample | Protocol | Description |

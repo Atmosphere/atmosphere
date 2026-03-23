@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>The transport-agnostic real-time framework for the JVM.</strong><br/>
-  WebSocket, SSE, Long-Polling, gRPC, MCP, A2A, AG-UI — one API, any transport.
+  Build once with <code>@Agent</code> — stream to Web, Slack, Telegram, MCP, A2A, and any transport.
 </p>
 
 <p align="center">
@@ -18,22 +18,79 @@
 
 ---
 
-Atmosphere was built on one idea: **your application code shouldn't care how the client is connected.** Write once, and the framework delivers to every subscriber — whether they're on a WebSocket, an SSE stream, a long-polling loop, a gRPC channel, or an MCP session.
+Atmosphere was built on one idea: **your application code shouldn't care how the client is connected.** Write once, and the framework delivers to every subscriber — whether they're on a WebSocket, an SSE stream, a long-polling loop, a gRPC channel, or an MCP session. Pluggable AI streaming adapters for Spring AI, LangChain4j, Google ADK, Embabel, and any OpenAI-compatible API.
 
-Pluggable AI streaming adapters for Spring AI, LangChain4j, Google ADK, Embabel, and any OpenAI-compatible API.
+## `@Agent` — Build AI Agents That Work Everywhere
 
-## Zero-Code AI Chat
+One annotation. Commands, tools, skill file, and multi-channel delivery — all wired automatically:
 
-**No Java code, no frontend code.** Install the CLI, then run:
+```java
+@Agent(name = "devops", skillFile = "prompts/devops-skill.md",
+       description = "DevOps assistant with monitoring and deployment")
+public class DevOpsAgent {
+
+    @Command(value = "/status", description = "Show service health")
+    public String status() { return "All services healthy"; }
+
+    @Command(value = "/deploy", description = "Deploy to staging",
+             confirm = "Deploy to staging environment?")
+    public String deploy(String args) { return "Deployed " + args; }
+
+    @AiTool(name = "check_service", description = "Check service health")
+    public String checkService(@Param("service") String service) { ... }
+
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        session.stream(message);
+    }
+}
+```
+
+`/status` typed in the browser, sent from Slack, or received on Telegram all route to the same `@Command` method — instant, deterministic, no inference cost. Natural language falls through to `@Prompt` and the LLM. The `confirm` attribute triggers a confirmation prompt before executing destructive actions, on every channel.
+
+**Try it now:**
 
 ```bash
 brew install Atmosphere/tap/atmosphere    # or: curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
-LLM_API_KEY=your-key atmosphere run spring-boot-ai-console
+atmosphere run spring-boot-dentist-agent  # Dr. Molar — dental emergency agent on Web + Telegram + Slack
 ```
 
-Open `http://localhost:8080/atmosphere/console/` → full AI chat with WebSocket streaming and multi-turn conversation memory. Works with any [OpenAI-compatible API](https://platform.openai.com/docs/api-reference) or any Coding Agent CLI via [Embacle](https://github.com/dravr-ai/dravr-embacle).
+Open `http://localhost:8080/atmosphere/console/` and type `/help`, `/firstaid`, or just describe your broken tooth.
 
-Want full control? Add one class:
+### Multi-Channel — One Agent, Every Platform
+
+When `atmosphere-channels` is on the classpath, the `@Command` and `@Prompt` pipeline is automatically bridged to every configured channel:
+
+| Channel | Activation | Commands + AI |
+|---------|-----------|:-------------:|
+| Web (WebSocket) | Built-in | `atmosphere-agent` |
+| Slack | `SLACK_BOT_TOKEN` | Auto-routed |
+| Telegram | `TELEGRAM_BOT_TOKEN` | Auto-routed |
+| Discord | `DISCORD_BOT_TOKEN` | Auto-routed |
+| WhatsApp | `WHATSAPP_ACCESS_TOKEN` | Auto-routed |
+| Messenger | `MESSENGER_PAGE_TOKEN` | Auto-routed |
+
+### Skill File — System Prompt + Agent Metadata
+
+The `skillFile` is a markdown file that becomes the system prompt verbatim. Its sections are also parsed for protocol metadata:
+
+```markdown
+# DevOps Assistant
+You are a DevOps assistant that helps teams monitor services.
+
+## Skills
+- Monitor service health and performance
+- Manage deployments to staging and production
+
+## Guardrails
+- Never execute production deployments without confirmation
+```
+
+See [spring-boot-agent-chat](samples/spring-boot-agent-chat/) for a DevOps agent and [spring-boot-dentist-agent](samples/spring-boot-dentist-agent/) for a multi-channel agent with Slack and Telegram.
+
+### Under the Hood
+
+`@Agent` desugars to `@AiEndpoint` + `CommandRouter` + protocol bridges. For simpler cases without commands or channels, you can use `@AiEndpoint` directly:
 
 ```java
 @AiEndpoint(path = "/atmosphere/ai-chat",
@@ -48,9 +105,15 @@ public class MyChat {
 }
 ```
 
+Or skip Java entirely — **zero-code AI chat:**
+
+```bash
+LLM_API_KEY=your-key atmosphere run spring-boot-ai-console
+```
+
 ### Client — atmosphere.js
 
-Connect to the same AI endpoint from any framework. Install with `npm install atmosphere.js`.
+Connect to any Atmosphere endpoint from any framework. Install with `npm install atmosphere.js`.
 
 ```tsx
 // React
@@ -146,78 +209,9 @@ function Chat() {
 
 Auto-connects on mount, streams tokens as they arrive, cleans up on unmount. See the [atmosphere.js README](atmosphere.js/README.md) for the full API.
 
-### Real-Time Chat (Transport-Agnostic)
+## AI Tools — Framework-Agnostic
 
-The classic Atmosphere pattern — works with WebSocket, SSE, Long-Polling, gRPC, or any transport:
-
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-runtime</artifactId>
-</dependency>
-```
-
-```java
-@ManagedService(path = "/chat")
-public class Chat {
-
-    @Ready
-    public void onReady(AtmosphereResource r) {
-        log.info("{} connected via {}", r.uuid(), r.transport());
-    }
-
-    @Message(encoders = JacksonEncoder.class, decoders = JacksonDecoder.class)
-    public ChatMessage onMessage(ChatMessage message) {
-        return message; // broadcast to all subscribers
-    }
-}
-```
-
-## Try It Now
-
-```bash
-# Install the Atmosphere CLI
-curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
-
-# Browse all 20+ samples and pick one to run
-atmosphere install
-
-# Or run a sample directly
-atmosphere run spring-boot-chat
-atmosphere run spring-boot-ai-chat --env LLM_API_KEY=your-key
-
-# Scaffold a new project
-atmosphere new my-app --template ai-chat
-```
-
-Or with npx (zero install):
-
-```bash
-npx create-atmosphere-app my-chat-app
-npx create-atmosphere-app my-ai-app --template ai-chat
-```
-
-See [cli/README.md](cli/README.md) for all commands and options.
-
-## What's New in 4.0 ([full list](https://atmosphere.github.io/docs/whats-new/))
-
-Atmosphere applies the same philosophy to AI: **your code shouldn't care which AI framework is on the classpath.** Tools (`@AiTool`), conversation memory, guardrails, multi-backend routing, metrics, and observability are declared once with Atmosphere annotations and automatically bridged to Spring AI, LangChain4j, Google ADK, or Embabel at runtime. Per-endpoint model selection, auto-detected persistence (Redis/SQLite), and broadcast filter auto-registration round out the platform.
-
-```java
-@AiEndpoint(path = "/ai/chat",
-            systemPrompt = "You are a helpful assistant",
-            conversationMemory = true,
-            tools = AssistantTools.class)
-public class AiChat {
-
-    @Prompt
-    public void onPrompt(String message, StreamingSession session) {
-        session.stream(message);  // auto-detects the AI framework from the classpath
-    }
-}
-```
-
-Tools are declared with `@AiTool` — framework-agnostic, portable across all backends:
+Tools are declared with `@AiTool` — portable across all backends:
 
 ```java
 public class AssistantTools {
@@ -239,9 +233,9 @@ Swap the AI backend by changing one Maven dependency — no tool code changes:
 | Google ADK | `atmosphere-adk` | `AdkToolBridge` |
 | Embabel | `atmosphere-embabel` | `EmbabelAiSupport` |
 
-See [spring-boot-ai-tools](samples/spring-boot-ai-tools) for the full tool-calling sample, [spring-boot-ai-classroom](samples/spring-boot-ai-classroom) for multi-persona conversation memory, and [expo-client](samples/spring-boot-ai-classroom/expo-client) for React Native/Expo mobile chat. Four official framework samples have been [forked and augmented](https://atmosphere.github.io/docs/whats-new/#samples--forked--augmented) with Atmosphere streaming: [LangChain4j tools](samples/spring-boot-langchain4j-tools), [Spring AI routing](samples/spring-boot-spring-ai-routing), [Embabel horoscope](samples/spring-boot-embabel-horoscope), and [ADK tools](samples/spring-boot-adk-tools).
+See [spring-boot-ai-tools](samples/spring-boot-ai-tools) for the full tool-calling sample and [spring-boot-ai-classroom](samples/spring-boot-ai-classroom) for multi-persona conversation memory.
 
-### Agent Protocols — MCP, A2A, AG-UI
+## Agent Protocols — MCP, A2A, AG-UI
 
 Three protocols for the agentic ecosystem, all riding Atmosphere's transport:
 
@@ -281,15 +275,62 @@ public class Assistant {
 
 | Protocol | Purpose | Sample |
 |----------|---------|--------|
-| **MCP** | Agent ↔ Tools | [spring-boot-mcp-server](samples/spring-boot-mcp-server/) |
-| **A2A** | Agent ↔ Agent | [spring-boot-a2a-agent](samples/spring-boot-a2a-agent/) |
-| **AG-UI** | Agent ↔ Frontend | [spring-boot-agui-chat](samples/spring-boot-agui-chat/) |
+| **MCP** | Agent &#8596; Tools | [spring-boot-mcp-server](samples/spring-boot-mcp-server/) |
+| **A2A** | Agent &#8596; Agent | [spring-boot-a2a-agent](samples/spring-boot-a2a-agent/) |
+| **AG-UI** | Agent &#8596; Frontend | [spring-boot-agui-chat](samples/spring-boot-agui-chat/) |
+
+## Real-Time Chat (Transport-Agnostic)
+
+The classic Atmosphere pattern — works with WebSocket, SSE, Long-Polling, gRPC, or any transport:
+
+```java
+@ManagedService(path = "/chat")
+public class Chat {
+
+    @Ready
+    public void onReady(AtmosphereResource r) {
+        log.info("{} connected via {}", r.uuid(), r.transport());
+    }
+
+    @Message(encoders = JacksonEncoder.class, decoders = JacksonDecoder.class)
+    public ChatMessage onMessage(ChatMessage message) {
+        return message; // broadcast to all subscribers
+    }
+}
+```
+
+## Try It Now
+
+```bash
+# Install the Atmosphere CLI
+curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
+
+# Browse all 20+ samples and pick one to run
+atmosphere install
+
+# Run samples directly
+atmosphere run spring-boot-dentist-agent                          # multi-channel agent
+atmosphere run spring-boot-ai-chat --env LLM_API_KEY=your-key    # AI streaming chat
+atmosphere run spring-boot-chat                                   # classic real-time chat
+
+# Scaffold a new project
+atmosphere new my-app --template ai-chat
+```
+
+Or with npx (zero install):
+
+```bash
+npx create-atmosphere-app my-chat-app
+npx create-atmosphere-app my-ai-app --template ai-chat
+```
+
+See [cli/README.md](cli/README.md) for all commands and options.
 
 ## Modules
 
-**Core** — [runtime](https://atmosphere.github.io/docs/reference/core/) (WebSocket, SSE, Long-Polling), [gRPC](https://atmosphere.github.io/docs/reference/grpc/), [rooms](https://atmosphere.github.io/docs/reference/rooms/) · **AI** — adapters for [Spring AI](https://atmosphere.github.io/docs/integrations/spring-ai/), [LangChain4j](https://atmosphere.github.io/docs/integrations/langchain4j/), [ADK](https://atmosphere.github.io/docs/integrations/adk/), [Embabel](https://atmosphere.github.io/docs/integrations/embabel/), [RAG](modules/rag/README.md) · **Protocols** — [MCP](https://atmosphere.github.io/docs/reference/mcp/), [A2A](samples/spring-boot-a2a-agent/), [AG-UI](samples/spring-boot-agui-chat/) · **Cloud** — [Redis](https://atmosphere.github.io/docs/infrastructure/redis/), [Kafka](https://atmosphere.github.io/docs/infrastructure/kafka/), [durable sessions](https://atmosphere.github.io/docs/reference/durable-sessions/) · **Starters** — [Spring Boot](https://atmosphere.github.io/docs/integrations/spring-boot/), [Quarkus](https://atmosphere.github.io/docs/integrations/quarkus/), [Kotlin](https://atmosphere.github.io/docs/reference/kotlin/) · **Clients** — [atmosphere.js](https://atmosphere.github.io/docs/clients/javascript/) (React, Vue, Svelte, [React Native](https://atmosphere.github.io/docs/clients/react-native/)), [wAsync](https://atmosphere.github.io/docs/clients/java/) (Java)
+**Core** — [runtime](https://atmosphere.github.io/docs/reference/core/) (WebSocket, SSE, Long-Polling), [gRPC](https://atmosphere.github.io/docs/reference/grpc/), [rooms](https://atmosphere.github.io/docs/reference/rooms/) · **Agents** — [`@Agent`](modules/agent/) (unified annotation, `@Command`, skill files), [channels](modules/channels/) (Slack, Telegram, Discord, WhatsApp, Messenger) · **AI** — adapters for [Spring AI](https://atmosphere.github.io/docs/integrations/spring-ai/), [LangChain4j](https://atmosphere.github.io/docs/integrations/langchain4j/), [ADK](https://atmosphere.github.io/docs/integrations/adk/), [Embabel](https://atmosphere.github.io/docs/integrations/embabel/), [RAG](modules/rag/README.md) · **Protocols** — [MCP](https://atmosphere.github.io/docs/reference/mcp/), [A2A](samples/spring-boot-a2a-agent/), [AG-UI](samples/spring-boot-agui-chat/) · **Cloud** — [Redis](https://atmosphere.github.io/docs/infrastructure/redis/), [Kafka](https://atmosphere.github.io/docs/infrastructure/kafka/), [durable sessions](https://atmosphere.github.io/docs/reference/durable-sessions/) · **Starters** — [Spring Boot](https://atmosphere.github.io/docs/integrations/spring-boot/), [Quarkus](https://atmosphere.github.io/docs/integrations/quarkus/), [Kotlin](https://atmosphere.github.io/docs/reference/kotlin/) · **Clients** — [atmosphere.js](https://atmosphere.github.io/docs/clients/javascript/) (React, Vue, Svelte, [React Native](https://atmosphere.github.io/docs/clients/react-native/)), [wAsync](https://atmosphere.github.io/docs/clients/java/) (Java)
 
-[Full module reference →](https://atmosphere.github.io/docs/)
+[Full module reference &rarr;](https://atmosphere.github.io/docs/)
 
 ## Requirements
 

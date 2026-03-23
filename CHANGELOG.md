@@ -5,6 +5,33 @@ All notable changes to the Atmosphere Framework are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`@Agent` + `@Command` — unified agent annotation.** Define an agent with
+  `@Agent(name, skillFile)`, add slash commands with `@Command`, and the
+  framework auto-generates `@AiEndpoint`, A2A Agent Card, MCP tools, AG-UI
+  events, and channel routing based on classpath detection. Commands work on
+  **every channel** — Web, Slack, Telegram, Discord, WhatsApp, Messenger —
+  with zero per-channel code.
+- **`atmosphere-agent`** module (`org.atmosphere:atmosphere-agent`) — annotation
+  processor, `CommandRouter`, `SkillFileParser`, and `AgentHandler`.
+- **`skill.md`** — markdown files that serve as both the LLM system prompt and
+  agent metadata. Sections (`## Skills`, `## Tools`, `## Channels`,
+  `## Guardrails`) are parsed for A2A Agent Card, MCP tool manifests, and
+  channel validation.
+- **`@Command` cross-channel routing** — slash commands defined once are
+  automatically routed on Web (WebSocket), Slack, Telegram, Discord, WhatsApp,
+  and Messenger when `atmosphere-channels` is on the classpath. Includes
+  confirmation flow for destructive actions and auto-generated `/help`.
+- **`spring-boot-agent-chat`** sample — DevOps assistant with `/status`,
+  `/deploy`, `/uptime`, `/incidents` commands and `check_service`,
+  `get_metrics` AI tools.
+- **`spring-boot-dentist-agent`** sample — Dr. Molar emergency dental agent
+  with `/firstaid`, `/urgency`, `/pain` commands, `assess_emergency` and
+  `pain_relief` AI tools, and Slack + Telegram channel support.
+
 ## [4.0.11] - 2026-03-11
 
 ### Fixed

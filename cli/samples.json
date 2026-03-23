@@ -1,6 +1,19 @@
 {
-  "version": "4.0.21",
+  "version": "4.0.23",
   "samples": [
+    {
+      "name": "spring-boot-agent-chat",
+      "description": "@Agent DevOps assistant — slash commands, AI tools, skill file, cross-channel (Slack/Telegram/Discord)",
+      "category": "agent",
+      "tags": ["spring-boot", "ai", "agent", "commands", "tools", "skill-file", "channels"],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)"
+      }
+    },
     {
       "name": "spring-boot-dentist-agent",
       "description": "Dr. Molar — dental emergency agent with @Agent, slash commands, AI tools, Slack and Telegram",
