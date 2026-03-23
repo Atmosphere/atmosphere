@@ -106,9 +106,28 @@ jobs:
           **/target/failsafe-reports/
 
   e2e-tests:
-    name: E2E Tests (Playwright)
+    name: E2E — ${{ matrix.group.name }}
     runs-on: ubuntu-latest
     needs: build-and-test
+
+    strategy:
+      matrix:
+        group:
+          - name: core-transports
+            projects: "chat,spring-boot-chat,multi-client,embedded-jetty-chat,quarkus-chat,sse-transport,long-polling-transport,transport-fallback,reconnection"
+          - name: ai-chat
+            projects: "ai-chat,ai-streaming-dom,ai-chat-features,ai-memory,ai-memory-strategies,ai-identity,ai-error-recovery,ai-events,unified-console"
+          - name: ai-tools-adapters
+            projects: "ai-tools,langchain4j-chat,langchain4j-tools,adk-chat,adk-tools,spring-ai-chat,spring-ai-routing,ai-session-stats"
+          - name: ai-advanced
+            projects: "embabel-chat,embabel-horoscope,rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
+          - name: protocols
+            projects: "mcp-server,mcp-tools,a2a-agent,agui-chat,grpc-browser,rooms-api,room-typing-direct"
+          - name: resilience
+            projects: "durable-sessions,durable-session-token,durable-session-identity,otel-chat,chat-observability,offline-queue,history-cache,xss-protection,auth-rejection,auth-token"
+          - name: stress
+            projects: "message-ordering,large-payload,slow-consumer,connection-timeout"
+      fail-fast: false
 
     steps:
     - uses: actions/checkout@v4
@@ -138,12 +157,12 @@ jobs:
 
     - name: Run E2E Tests
       working-directory: modules/integration-tests
-      run: npx playwright test
+      run: npx playwright test --project=${{ matrix.group.projects }}
 
     - name: Upload Playwright Report
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: playwright-report
+        name: playwright-report-${{ matrix.group.name }}
         path: modules/integration-tests/playwright-report/
         retention-days: 14
