@@ -157,7 +157,10 @@ jobs:
 
     - name: Run E2E Tests
       working-directory: modules/integration-tests
-      run: npx playwright test --project=${{ matrix.group.projects }}
+      run: |
+        # Convert comma-separated project list to --project flags
+        PROJECTS=$(echo "${{ matrix.group.projects }}" | sed 's/,/ --project=/g')
+        npx playwright test --project=$PROJECTS
 
     - name: Upload Playwright Report
       if: failure()
