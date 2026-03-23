@@ -131,7 +131,7 @@ export const SAMPLES: Record<string, SampleConfig> = {
     dir: 'spring-boot-durable-sessions',
     port: 8084,
     type: 'spring-boot',
-    readyPath: '/atmosphere/ai-chat',
+    readyPath: '/atmosphere/chat',
   },
   'spring-boot-otel-chat': {
     name: 'spring-boot-otel-chat',

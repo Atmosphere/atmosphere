@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 import WebSocket from 'ws';
+import { ChatPage } from './helpers/chat-page';
 
 let server: SampleServer;
 
@@ -45,7 +46,6 @@ test.describe('Auth Rejection', () => {
       }
     });
 
-    const { ChatPage } = await import('./helpers/chat-page');
     const chat = new ChatPage(page);
     await chat.goto(server.baseUrl);
 

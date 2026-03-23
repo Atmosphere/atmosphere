@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 import { connectWebSocket, waitFor } from './helpers/transport-helper';
+import { ChatPage } from './helpers/chat-page';
 
 let server: SampleServer;
 
@@ -67,7 +68,6 @@ test.describe('Large Payload', () => {
   });
 
   test('large message in browser renders without crashing', async ({ page }) => {
-    const { ChatPage } = await import('./helpers/chat-page');
     const chat = new ChatPage(page);
     await chat.goto(server.baseUrl);
     await chat.waitForConnected();

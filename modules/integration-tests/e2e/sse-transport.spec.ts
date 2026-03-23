@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
-import { connectSSE, waitFor } from './helpers/transport-helper';
+import { connectSSE, connectWebSocket, waitFor } from './helpers/transport-helper';
 
 let server: SampleServer;
 
@@ -31,7 +31,7 @@ test.describe('SSE Transport', () => {
     await new Promise(r => setTimeout(r, 1000));
 
     // SSE is read-only — send via a WebSocket sender
-    const { connectWebSocket } = await import('./helpers/transport-helper');
+    
     const sender = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
 
     const msg = JSON.stringify({ author: 'SSE-Test', message: 'Hello via SSE!' });
@@ -49,7 +49,7 @@ test.describe('SSE Transport', () => {
   test('SSE connection receives multiple sequential messages', async () => {
     const { messages, close } = await connectSSE(server.baseUrl, '/atmosphere/chat');
 
-    const { connectWebSocket } = await import('./helpers/transport-helper');
+    
     const sender = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
     await new Promise(r => setTimeout(r, 500));
 
