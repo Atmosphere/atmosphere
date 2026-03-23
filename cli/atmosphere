@@ -697,36 +697,48 @@ cmd_new() {
         template="agent"
     fi
 
-    # Check for JBang
+    # Check for JBang — try it first, fall back to minimal scaffold on failure
+    jbang_ok=false
     if command -v jbang >/dev/null 2>&1; then
-        info "Scaffolding '$project_name' with template '$template'..."
+        # JBang uses --handler (not --template); map "agent" to "ai-chat"
+        jbang_handler="$template"
+        if [ "$jbang_handler" = "agent" ]; then
+            jbang_handler="ai-chat"
+        fi
+
+        info "Scaffolding '$project_name' with JBang (handler: $jbang_handler)..."
         jbang_url="https://raw.githubusercontent.com/Atmosphere/atmosphere/main/generator/AtmosphereInit.java"
 
-        jbang "$jbang_url" \
+        if jbang "$jbang_url" \
             --name "$project_name" \
             --group "$group_id" \
-            --template "$template"
+            --handler "$jbang_handler"; then
+            jbang_ok=true
+        else
+            warn "JBang scaffold failed — falling back to minimal project..."
+        fi
+    fi
 
-        ok "Project created: $project_name/"
-        printf "\n  cd %s\n  ./mvnw spring-boot:run\n\n" "$project_name"
-    else
+    if [ "$jbang_ok" = false ]; then
         # Fall back to a simple template
-        info "JBang not found — creating minimal project..."
-        warn "Install JBang for full template support: https://www.jbang.dev/download/"
+        if ! command -v jbang >/dev/null 2>&1; then
+            info "JBang not found — creating minimal project..."
+            warn "Install JBang for full template support: https://www.jbang.dev/download/"
+        fi
 
         mkdir -p "$project_name"
         create_minimal_project "$project_name" "$group_id" "$template"
-
-        # Copy skill file into the project
-        if [ -n "$skill_file" ]; then
-            mkdir -p "$project_name/src/main/resources/prompts"
-            cp "$skill_file" "$project_name/src/main/resources/prompts/skill.md"
-            info "Copied skill file to src/main/resources/prompts/skill.md"
-        fi
-
-        ok "Project created: $project_name/"
-        printf "\n  cd %s\n  ./mvnw spring-boot:run\n\n" "$project_name"
     fi
+
+    # Copy skill file into the project (both JBang and minimal paths)
+    if [ -n "$skill_file" ]; then
+        mkdir -p "$project_name/src/main/resources/prompts"
+        cp "$skill_file" "$project_name/src/main/resources/prompts/skill.md"
+        info "Copied skill file to src/main/resources/prompts/skill.md"
+    fi
+
+    ok "Project created: $project_name/"
+    printf "\n  cd %s\n  ./mvnw spring-boot:run\n\n" "$project_name"
 }
 
 create_minimal_project() {

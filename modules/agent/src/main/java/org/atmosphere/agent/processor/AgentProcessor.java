@@ -18,6 +18,7 @@ package org.atmosphere.agent.processor;
 import org.atmosphere.agent.ClasspathDetector;
 import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.agent.command.CommandRegistry;
+import org.atmosphere.agent.command.CommandResult;
 import org.atmosphere.agent.command.CommandRouter;
 import org.atmosphere.agent.skill.SkillFileParser;
 import org.atmosphere.ai.AiConfig;
@@ -135,7 +136,8 @@ public class AgentProcessor implements Processor<Object> {
 
             // Step 8-11: Optional cross-protocol registration
             var protocols = new ArrayList<String>();
-            registerA2a(framework, annotation, skillFile, commandRegistry, toolRegistry, path, protocols);
+            registerA2a(framework, annotation, skillFile, commandRegistry, toolRegistry,
+                    commandRouter, promptTarget, promptMethod, path, protocols);
             registerMcp(framework, annotation, toolRegistry, path, protocols);
             registerAgUi(framework, promptTarget, promptMethod, path, protocols);
             var pipeline = new org.atmosphere.ai.AiPipeline(
@@ -276,8 +278,9 @@ public class AgentProcessor implements Processor<Object> {
 
     private void registerA2a(AtmosphereFramework framework, Agent annotation,
                              SkillFileParser skillFile, CommandRegistry commandRegistry,
-                             ToolRegistry toolRegistry, String basePath,
-                             List<String> protocols) {
+                             ToolRegistry toolRegistry, CommandRouter commandRouter,
+                             Object promptTarget, Method promptMethod,
+                             String basePath, List<String> protocols) {
         if (!ClasspathDetector.hasA2a()) {
             return;
         }
@@ -293,6 +296,30 @@ public class AgentProcessor implements Processor<Object> {
                     skills, null, null, null);
 
             var registry = new org.atmosphere.a2a.registry.A2aRegistry();
+
+            // Register executable skill handlers so A2A message/send can find them
+            var bridge = new A2aSkillBridge(commandRouter, promptTarget, promptMethod);
+            var handleCmdMethod = A2aSkillBridge.class.getDeclaredMethod(
+                    "handleCommand", org.atmosphere.a2a.runtime.TaskContext.class, String.class);
+            for (var cmd : commandRegistry.allCommands()) {
+                var skillId = "command" + cmd.prefix().replace("/", "_");
+                var cmdBridge = new A2aSkillBridge(bridge, cmd.prefix());
+                registry.registerSkill(
+                        skillId, cmd.prefix(),
+                        cmd.description().isEmpty() ? "Execute " + cmd.prefix() : cmd.description(),
+                        List.of("command"), handleCmdMethod, cmdBridge,
+                        List.of(new org.atmosphere.a2a.registry.A2aRegistry.ParamEntry(
+                                "message", "Command arguments", false, String.class)));
+            }
+            var handlePromptMethod = A2aSkillBridge.class.getDeclaredMethod(
+                    "handlePrompt", org.atmosphere.a2a.runtime.TaskContext.class, String.class);
+            registry.registerSkill(
+                    "default", "Natural Language",
+                    "Process natural language messages via the agent's prompt handler",
+                    List.of("nlp"), handlePromptMethod, bridge,
+                    List.of(new org.atmosphere.a2a.registry.A2aRegistry.ParamEntry(
+                            "message", "The message to process", true, String.class)));
+
             var taskManager = new org.atmosphere.a2a.runtime.TaskManager();
             var protocolHandler = new org.atmosphere.a2a.runtime.A2aProtocolHandler(
                     registry, taskManager, card);
@@ -300,8 +327,8 @@ public class AgentProcessor implements Processor<Object> {
 
             framework.addAtmosphereHandler(basePath + "/a2a", a2aHandler, new java.util.ArrayList<>());
             protocols.add("a2a");
-            logger.debug("A2A endpoint registered at {}/a2a with {} skills",
-                    basePath, skills.size());
+            logger.debug("A2A endpoint registered at {}/a2a with {} skills ({} executable)",
+                    basePath, skills.size(), registry.skills().size());
         } catch (Exception e) {
             logger.warn("Failed to register A2A endpoint for agent: {}", e.getMessage());
         }
@@ -426,11 +453,165 @@ public class AgentProcessor implements Processor<Object> {
         }
     }
 
+    /**
+     * Bridge between A2A skill execution and the agent's command/prompt handling.
+     * Each command skill gets its own bridge instance with the command prefix,
+     * while the default NL skill delegates to the {@code @Prompt} method.
+     */
+    static class A2aSkillBridge {
+        private final CommandRouter commandRouter;
+        private final Object promptTarget;
+        private final Method bridgedPromptMethod;
+        private final String commandPrefix;
+
+        /** Primary constructor for the default (NL) bridge. */
+        A2aSkillBridge(CommandRouter commandRouter, Object promptTarget, Method promptMethod) {
+            this.commandRouter = commandRouter;
+            this.promptTarget = promptTarget;
+            this.bridgedPromptMethod = promptMethod;
+            this.commandPrefix = null;
+        }
+
+        /** Command-specific constructor that wraps a parent bridge with a fixed prefix. */
+        A2aSkillBridge(A2aSkillBridge parent, String commandPrefix) {
+            this.commandRouter = parent.commandRouter;
+            this.promptTarget = parent.promptTarget;
+            this.bridgedPromptMethod = parent.bridgedPromptMethod;
+            this.commandPrefix = commandPrefix;
+        }
+
+        /**
+         * Handles an A2A skill invocation for a command. Prepends the command prefix
+         * and routes through the CommandRouter.
+         */
+        @SuppressWarnings("unused") // invoked reflectively by A2aProtocolHandler
+        public void handleCommand(org.atmosphere.a2a.runtime.TaskContext taskCtx, String message) {
+            var fullMessage = message != null && !message.isBlank()
+                    ? commandPrefix + " " + message : commandPrefix;
+            var result = commandRouter.route(taskCtx.taskId(), fullMessage);
+            switch (result) {
+                case CommandResult.Executed exec ->
+                        taskCtx.complete(exec.response());
+                case CommandResult.ConfirmationRequired confirm ->
+                        taskCtx.complete(confirm.prompt());
+                case CommandResult.NotACommand ignored ->
+                        taskCtx.fail("Command not recognized: " + commandPrefix);
+            }
+        }
+
+        /**
+         * Handles an A2A skill invocation for natural-language messages by delegating
+         * to the agent's {@code @Prompt} method.
+         */
+        @SuppressWarnings("unused") // invoked reflectively by A2aProtocolHandler
+        public void handlePrompt(org.atmosphere.a2a.runtime.TaskContext taskCtx, String message) {
+            if (message == null || message.isBlank()) {
+                taskCtx.fail("Empty message");
+                return;
+            }
+            try {
+                bridgedPromptMethod.setAccessible(true);
+                // The @Prompt method signature is (String, StreamingSession). For A2A we
+                // capture the output synchronously by invoking with a simple adapter
+                // that collects the response text.
+                var collector = new A2aStreamCollector(taskCtx);
+                bridgedPromptMethod.invoke(promptTarget, message, collector);
+                collector.finalizeIfNeeded();
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                var cause = e.getCause() != null ? e.getCause() : e;
+                taskCtx.fail(cause.getMessage());
+            } catch (Exception e) {
+                taskCtx.fail(e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Minimal {@link org.atmosphere.ai.StreamingSession} adapter that collects
+     * streamed text and writes it as the A2A task result on completion.
+     */
+    static class A2aStreamCollector implements org.atmosphere.ai.StreamingSession {
+        private final org.atmosphere.a2a.runtime.TaskContext taskCtx;
+        private final StringBuilder buffer = new StringBuilder();
+        private volatile boolean finalized;
+
+        A2aStreamCollector(org.atmosphere.a2a.runtime.TaskContext taskCtx) {
+            this.taskCtx = taskCtx;
+        }
+
+        @Override
+        public String sessionId() {
+            return taskCtx.taskId();
+        }
+
+        @Override
+        public void send(String text) {
+            buffer.append(text);
+        }
+
+        @Override
+        public void stream(String message) {
+            // In a full AI-wired session, stream() sends to an LLM and streams back.
+            // For A2A bridging, buffer the message as the response text. Real @Prompt
+            // implementations will call send() with AI-generated output instead.
+            buffer.append(message);
+        }
+
+        @Override
+        public void sendMetadata(String key, Object value) {
+            // A2A tasks don't propagate metadata; silently ignore
+        }
+
+        @Override
+        public void progress(String message) {
+            taskCtx.updateStatus(org.atmosphere.a2a.types.TaskState.WORKING, message);
+        }
+
+        @Override
+        public void complete() {
+            if (!finalized) {
+                finalized = true;
+                taskCtx.complete(buffer.toString());
+            }
+        }
+
+        @Override
+        public void complete(String summary) {
+            if (!finalized) {
+                finalized = true;
+                taskCtx.complete(summary != null ? summary : buffer.toString());
+            }
+        }
+
+        @Override
+        public void error(Throwable t) {
+            if (!finalized) {
+                finalized = true;
+                taskCtx.fail(t.getMessage());
+            }
+        }
+
+        @Override
+        public boolean isClosed() {
+            return finalized;
+        }
+
+        /** Ensures the task completes if the prompt method returns without calling complete(). */
+        void finalizeIfNeeded() {
+            if (!finalized) {
+                finalized = true;
+                taskCtx.complete(buffer.toString());
+            }
+        }
+    }
+
     private static Class<?> jsonSchemaTypeToClass(String type) {
         return switch (type) {
             case "integer" -> int.class;
             case "number" -> double.class;
             case "boolean" -> boolean.class;
+            case "object" -> java.util.Map.class;
+            case "array" -> java.util.List.class;
             default -> String.class;
         };
     }

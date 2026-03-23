@@ -78,8 +78,8 @@ public @interface Agent {
      * <ul>
      *   <li>{@code ## Skills} — A2A Agent Card skills</li>
      *   <li>{@code ## Tools} — cross-referenced with {@code @AiTool} methods</li>
-     *   <li>{@code ## Channels} — validated against classpath</li>
-     *   <li>{@code ## Guardrails} — part of system prompt (LLM self-enforces)</li>
+     *   <li>{@code ## Channels} — included in system prompt (routing validation planned)</li>
+     *   <li>{@code ## Guardrails} — included in system prompt (LLM self-enforces)</li>
      * </ul>
      */
     String skillFile() default "";

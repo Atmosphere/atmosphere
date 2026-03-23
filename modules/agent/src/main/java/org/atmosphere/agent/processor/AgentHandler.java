@@ -47,8 +47,8 @@ import java.util.Map;
  *     +-- RawMessage -> delegate to AI handler (streaming response)
  *     |
  *     +-- "/" prefix -> CommandRouter.route()
- *     |   +-- Executed(response) -> broadcast response
- *     |   +-- ConfirmationRequired(prompt) -> broadcast prompt
+ *     |   +-- Executed(response) -> unicast response to requesting client
+ *     |   +-- ConfirmationRequired(prompt) -> unicast prompt to requesting client
  *     |   +-- NotACommand -> fall through to LLM
  *     |
  *     +-- "yes/y" with pending confirmation -> execute pending command
@@ -122,13 +122,13 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler {
     }
 
     /**
-     * Broadcasts a command response to the client as a complete AI-style message.
-     * Uses the standard streaming session wire protocol so the client renders
-     * command responses the same way as AI responses.
+     * Sends a command response via the broadcaster. Currently broadcasts to
+     * all connected clients on the same path. Per-client unicast requires a
+     * deeper change (per-resource broadcaster or session-scoped filtering).
      */
     private void broadcastCommandResponse(AtmosphereResource resource, String response) {
-        var broadcaster = resource.getBroadcaster();
         var sessionId = "cmd-" + resource.uuid();
+        var broadcaster = resource.getBroadcaster();
         try {
             var tokenJson = MAPPER.writeValueAsString(
                     Map.of("type", "streaming-text", "data", response,

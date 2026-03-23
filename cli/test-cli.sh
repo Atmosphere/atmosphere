@@ -411,6 +411,61 @@ assert_exit_code "$ec" 1 "nonexistent skill file exits with error"
 
 printf "\n"
 
+# ── 12c. CLI: new --skill-file with fake JBang (graceful fallback) ────────
+printf "${BOLD}atmosphere new --skill-file (JBang failure fallback)${RESET}\n"
+
+# Create a fake jbang that always fails
+fake_bin="$tmp_dir/fake-bin"
+mkdir -p "$fake_bin"
+cat > "$fake_bin/jbang" <<'FAKEOF'
+#!/bin/sh
+echo "jbang: simulated failure" >&2
+exit 1
+FAKEOF
+chmod +x "$fake_bin/jbang"
+
+out=$(cd "$tmp_dir" && env PATH="$fake_bin:/usr/bin:/bin:/usr/sbin:/sbin" "$CLI" new my-fallback-agent --skill-file "$tmp_dir/test-skill.md" 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 0 "JBang failure falls back gracefully (exit 0)"
+assert_contains "$out" "Project created" "fallback prints success"
+assert_contains "$out" "JBang scaffold failed" "fallback warns about JBang failure"
+
+if [ -f "$tmp_dir/my-fallback-agent/src/main/resources/prompts/skill.md" ]; then
+    pass "fallback: skill file copied after JBang failure"
+else
+    fail "fallback: skill file copied after JBang failure"
+fi
+
+if [ -f "$tmp_dir/my-fallback-agent/pom.xml" ]; then
+    pass "fallback: pom.xml created after JBang failure"
+    fb_pom=$(cat "$tmp_dir/my-fallback-agent/pom.xml")
+    assert_contains "$fb_pom" "atmosphere-agent" "fallback pom.xml has atmosphere-agent dependency"
+else
+    fail "fallback: pom.xml created after JBang failure"
+fi
+
+if [ -f "$tmp_dir/my-fallback-agent/src/main/java/com/example/MyFallbackAgent.java" ]; then
+    pass "fallback: agent class created with correct name"
+else
+    fail "fallback: agent class created with correct name"
+fi
+
+# Verify JBang receives --handler (not --template) and maps agent -> ai-chat
+# Create a fake jbang that logs its arguments
+cat > "$fake_bin/jbang" <<'FAKEOF'
+#!/bin/sh
+echo "JBANG_ARGS: $*" >&2
+exit 1
+FAKEOF
+chmod +x "$fake_bin/jbang"
+
+out=$(cd "$tmp_dir" && env PATH="$fake_bin:/usr/bin:/bin:/usr/sbin:/sbin" "$CLI" new my-handler-test --skill-file "$tmp_dir/test-skill.md" 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "handler ai-chat" "JBang receives --handler ai-chat (not --template agent)"
+assert_not_contains "$out" "template agent" "JBang does NOT receive --template agent flag"
+
+rm -rf "$fake_bin"
+
+printf "\n"
+
 # ── 13. npx: create-atmosphere-app ─────────────────────────────────────────
 if [ -z "$SKIP_NPX" ]; then
     printf "${BOLD}npx create-atmosphere-app${RESET}\n"

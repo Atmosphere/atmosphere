@@ -68,6 +68,26 @@ public final class A2aRegistry {
         return Optional.ofNullable(skills.get(id));
     }
 
+    /**
+     * Programmatically register a skill without annotation scanning. This allows
+     * cross-protocol bridges (e.g. the Agent processor) to register executable
+     * skill handlers that back the Agent Card skills.
+     *
+     * @param id          unique skill identifier
+     * @param name        human-readable skill name
+     * @param description skill description
+     * @param tags        classification tags
+     * @param method      the method to invoke when the skill is executed
+     * @param instance    the object instance to invoke the method on
+     * @param params      parameter metadata for the skill
+     */
+    public void registerSkill(String id, String name, String description, List<String> tags,
+                              Method method, Object instance, List<ParamEntry> params) {
+        var entry = new SkillEntry(id, name, description, tags, method, instance, params);
+        skills.put(id, entry);
+        logger.debug("Programmatically registered A2A skill: {} ({})", name, id);
+    }
+
     public AgentCard buildAgentCard(String name, String description, String version, String url) {
         var skillList = skills.values().stream()
                 .map(s -> new Skill(s.id(), s.name(), s.description(), s.tags(), Map.of(), Map.of()))
