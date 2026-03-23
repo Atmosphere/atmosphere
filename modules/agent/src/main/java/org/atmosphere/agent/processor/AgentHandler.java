@@ -131,7 +131,7 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler {
         var sessionId = "cmd-" + resource.uuid();
         try {
             var tokenJson = MAPPER.writeValueAsString(
-                    Map.of("type", "token", "text", response,
+                    Map.of("type", "streaming-text", "data", response,
                             "sessionId", sessionId, "seq", 0));
             broadcaster.broadcast(new RawMessage(tokenJson));
 
