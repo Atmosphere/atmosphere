@@ -57,9 +57,15 @@ public class ChannelAiBridge {
     }
 
     /**
-     * Handle an incoming message: send to AI, collect response, reply via the channel.
+     * Handle an incoming message: dispatches AI call on a virtual thread so the
+     * webhook servlet thread returns immediately, preventing thread-pool exhaustion
+     * under load from busy Slack/Telegram bots.
      */
     public void handleMessage(IncomingMessage incoming) {
+        Thread.startVirtualThread(() -> handleMessageAsync(incoming));
+    }
+
+    private void handleMessageAsync(IncomingMessage incoming) {
         logger.info("[{}] {} says: {}",
                 incoming.channelType().id(),
                 incoming.senderName().orElse(incoming.senderId()),
