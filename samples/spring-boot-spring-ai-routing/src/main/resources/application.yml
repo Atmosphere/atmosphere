@@ -8,7 +8,7 @@ atmosphere:
 spring:
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY:${LLM_API_KEY:}}
+      api-key: ${OPENAI_API_KEY:demo}
       chat:
         options:
           model: ${SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL:gpt-4o-mini}
