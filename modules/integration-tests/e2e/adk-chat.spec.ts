@@ -13,14 +13,14 @@ test.afterAll(async () => {
 
 test.describe('ADK Chat', () => {
   test('page loads with AI chat layout', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-layout')).toBeVisible();
     await expect(page.getByTestId('chat-input')).toBeVisible();
     await expect(page.getByTestId('chat-send')).toBeVisible();
   });
 
   test('user can send hello and receive ADK agent response', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-input').fill('Hello');
     await page.getByTestId('chat-send').click();
 
@@ -32,7 +32,7 @@ test.describe('ADK Chat', () => {
   });
 
   test('user can send a prompt and receive streaming response', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Tell me about atmosphere');
@@ -46,7 +46,7 @@ test.describe('ADK Chat', () => {
   });
 
   test('input clears after sending', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-input').fill('Test message');
     await page.getByTestId('chat-send').click();
 
@@ -54,12 +54,12 @@ test.describe('ADK Chat', () => {
   });
 
   test('send button is disabled when input is empty', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-send')).toBeDisabled();
   });
 
   test('multi-turn conversation preserves history', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
 
     // First message
     await page.getByTestId('chat-input').fill('Hello');

@@ -2,6 +2,7 @@
 # Streams Embabel agent events to the browser in real-time
 
 atmosphere:
+  console-subtitle: Embabel agent integration
   packages: org.atmosphere.samples.springboot.embabelchat
 
 # Spring AI / LLM Configuration

@@ -2,6 +2,7 @@
 # Ported from spring-ai-examples/agentic-patterns/routing-workflow
 
 atmosphere:
+  console-subtitle: Spring AI with model routing
   packages: org.atmosphere.samples.springboot.springairouting
 
 spring:

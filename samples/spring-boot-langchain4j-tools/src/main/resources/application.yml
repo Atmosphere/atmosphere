@@ -2,6 +2,7 @@
 # Ported from langchain4j-examples/spring-boot-example, augmented with AI filters
 
 atmosphere:
+  console-subtitle: LangChain4j with tool calling
   packages: org.atmosphere.samples.springboot.langchain4jtools
 
 llm:

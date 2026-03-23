@@ -184,6 +184,10 @@ export default defineConfig({
       testMatch: /ai-chat-features\.spec\.ts/,
     },
     {
+      name: 'unified-console',
+      testMatch: /unified-console\.spec\.ts/,
+    },
+    {
       name: 'mcp-tools',
       testMatch: /mcp-tools\.spec\.ts/,
     },

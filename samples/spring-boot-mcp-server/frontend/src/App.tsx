@@ -46,7 +46,7 @@ export function App() {
 
   return (
     <ChatLayout
-      title="🚀 Atmosphere 4.0 — MCP + Chat"
+      title="Atmosphere 4.0 — MCP + Chat"
       subtitle="MCP Server at /atmosphere/mcp • Chat at /atmosphere/chat — AI agents can list users, broadcast messages, ban users via MCP tools"
       theme="mcp"
       state={state}

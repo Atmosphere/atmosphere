@@ -2,6 +2,7 @@
 # Uses LangChain4j's OpenAI-compatible streaming model (works with Gemini, OpenAI, Ollama)
 
 atmosphere:
+  console-subtitle: LangChain4j AI chat integration
   packages: org.atmosphere.samples.springboot.langchain4jchat
 
 # LLM Configuration — same env vars as the AI chat sample

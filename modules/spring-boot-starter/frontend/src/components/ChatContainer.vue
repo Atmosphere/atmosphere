@@ -27,7 +27,7 @@ function handleSend(text: string) {
 </script>
 
 <template>
-  <div class="chat-container">
+  <div class="chat-container" data-testid="chat-layout">
     <div class="chat-toolbar">
       <ConnectionStatus :state="connectionState" />
       <button class="clear-btn" @click="clearMessages" title="Clear messages">

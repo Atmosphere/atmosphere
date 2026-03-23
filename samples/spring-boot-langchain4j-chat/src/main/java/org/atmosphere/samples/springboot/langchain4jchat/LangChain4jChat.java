@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * <p>LangChain4j is auto-detected because {@code atmosphere-langchain4j} is on the
  * classpath, which registers {@code LangChain4jAiSupport} via ServiceLoader.</p>
  */
-@AiEndpoint(path = "/atmosphere/langchain4j-chat",
+@AiEndpoint(path = "/atmosphere/ai-chat",
         systemPromptResource = "prompts/system-prompt.md")
 public class LangChain4jChat {
 

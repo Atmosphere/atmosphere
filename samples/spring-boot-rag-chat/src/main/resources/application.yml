@@ -2,6 +2,7 @@
 # Supports any OpenAI-compatible API: Gemini, Ollama, OpenAI, Azure, etc.
 
 atmosphere:
+  console-subtitle: RAG-powered AI chat with document retrieval
   packages: org.atmosphere.samples.springboot.ragchat
 
 # LLM Configuration

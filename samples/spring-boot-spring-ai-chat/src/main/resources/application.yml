@@ -13,6 +13,7 @@
 #   export SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL=gemini-2.5-flash
 
 atmosphere:
+  console-subtitle: Spring AI chat integration
   packages: org.atmosphere.samples.springboot.springaichat
 
 spring:

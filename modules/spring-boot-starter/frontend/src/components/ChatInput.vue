@@ -45,6 +45,7 @@ function autoResize() {
         :placeholder="disabled ? 'Connecting...' : 'Type a message... (Shift+Enter for newline)'"
         rows="1"
         class="input-field"
+        data-testid="chat-input"
         @keydown="handleKeydown"
         @input="autoResize"
       ></textarea>
@@ -53,6 +54,7 @@ function autoResize() {
         :disabled="!input.trim() || disabled || isStreaming"
         @click="handleSend"
         title="Send message"
+        data-testid="chat-send"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="22" y1="2" x2="11" y2="13"/>

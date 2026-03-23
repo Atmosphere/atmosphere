@@ -13,14 +13,14 @@ test.afterAll(async () => {
 
 test.describe('ADK Tools', () => {
   test('page loads with AI chat layout', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-layout')).toBeVisible();
     await expect(page.getByTestId('chat-input')).toBeVisible();
     await expect(page.getByTestId('chat-send')).toBeVisible();
   });
 
   test('user can ask about time and receive tool call response', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('What time is it in London?');
@@ -34,7 +34,7 @@ test.describe('ADK Tools', () => {
   });
 
   test('user can ask about weather', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('What is the weather in Tokyo?');
@@ -48,7 +48,7 @@ test.describe('ADK Tools', () => {
   });
 
   test('token budget information is available', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Tell me about token budgets');
@@ -60,7 +60,7 @@ test.describe('ADK Tools', () => {
   });
 
   test('greeting message describes ADK capabilities', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Hello!');

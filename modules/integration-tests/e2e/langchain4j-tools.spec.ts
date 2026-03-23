@@ -13,14 +13,14 @@ test.afterAll(async () => {
 
 test.describe('LangChain4j Tools', () => {
   test('page loads with AI chat layout', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-layout')).toBeVisible();
     await expect(page.getByTestId('chat-input')).toBeVisible();
     await expect(page.getByTestId('chat-send')).toBeVisible();
   });
 
   test('tool call simulation: weather query shows city and weather data', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('What is the weather in Paris?');
@@ -34,7 +34,7 @@ test.describe('LangChain4j Tools', () => {
   });
 
   test('tool call simulation: time query shows city time', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('What time is it in Tokyo?');
@@ -48,7 +48,7 @@ test.describe('LangChain4j Tools', () => {
   });
 
   test('greeting message lists available tools', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Hello!');
@@ -60,7 +60,7 @@ test.describe('LangChain4j Tools', () => {
   });
 
   test('multi-turn conversation works within same session', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     // First message

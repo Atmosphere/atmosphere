@@ -2,6 +2,7 @@
 # Ported from adk-java/tutorials/city-time-weather, augmented with token budgets and caching
 
 atmosphere:
+  console-subtitle: Google ADK agent with tool calling
   packages: org.atmosphere.samples.springboot.adktools
 
 server:

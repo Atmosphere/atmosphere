@@ -14,7 +14,7 @@ test.afterAll(async () => {
 
 test.describe('AI Session Stats & UI', () => {
   test('progress indicator appears during demo mode streaming', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Hello');
@@ -26,7 +26,7 @@ test.describe('AI Session Stats & UI', () => {
   });
 
   test('stats bar appears after streaming completes', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('What is Atmosphere?');
@@ -43,7 +43,7 @@ test.describe('AI Session Stats & UI', () => {
   });
 
   test('stats bar shows non-zero values', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Hello');
@@ -62,7 +62,7 @@ test.describe('AI Session Stats & UI', () => {
   });
 
   test('send button is disabled during streaming and re-enables after', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Tell me about Atmosphere');
@@ -80,7 +80,7 @@ test.describe('AI Session Stats & UI', () => {
   });
 
   test('streaming response renders with markdown-like formatting', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('What is Atmosphere?');

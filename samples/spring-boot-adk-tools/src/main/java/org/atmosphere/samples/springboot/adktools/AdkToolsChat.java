@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
  * <a href="https://github.com/google/adk-java/tree/main/tutorials/city-time-weather">
  * adk-java/tutorials/city-time-weather</a>.</p>
  */
-@AiEndpoint(path = "/atmosphere/adk-tools",
+@AiEndpoint(path = "/atmosphere/ai-chat",
         systemPrompt = "You are a helpful assistant with access to time and weather tools. "
                 + "Use the tools to answer questions about the current time and weather in cities.",
         conversationMemory = true)

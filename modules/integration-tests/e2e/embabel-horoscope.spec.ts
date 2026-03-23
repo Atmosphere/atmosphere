@@ -13,14 +13,14 @@ test.afterAll(async () => {
 
 test.describe('Embabel Horoscope', () => {
   test('page loads with AI chat layout', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-layout')).toBeVisible();
     await expect(page.getByTestId('chat-input')).toBeVisible();
     await expect(page.getByTestId('chat-send')).toBeVisible();
   });
 
   test('generates horoscope for Leo with celestial events', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill("What's my horoscope for Leo?");
@@ -34,7 +34,7 @@ test.describe('Embabel Horoscope', () => {
   });
 
   test('generates horoscope for Pisces', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Horoscope for Pisces today');
@@ -48,7 +48,7 @@ test.describe('Embabel Horoscope', () => {
   });
 
   test('asks for zodiac sign when none provided', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Hello, tell me my fortune');
@@ -60,19 +60,19 @@ test.describe('Embabel Horoscope', () => {
   });
 
   test('send button is disabled when input is empty', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-send')).toBeDisabled();
   });
 
   test('input clears after sending', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-input').fill('Horoscope for Gemini');
     await page.getByTestId('chat-send').click();
     await expect(page.getByTestId('chat-input')).toHaveValue('');
   });
 
   test('shows progress steps during horoscope generation', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-input').fill('Horoscope for Aries');
     await page.getByTestId('chat-send').click();
 
@@ -82,7 +82,7 @@ test.describe('Embabel Horoscope', () => {
   });
 
   test('multi-turn: second horoscope request works', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     // First request

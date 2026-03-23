@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
  * <a href="https://github.com/embabel/embabel-agent-examples/tree/main/examples-java/horoscope">
  * embabel-agent-examples/horoscope</a>.</p>
  */
-@AiEndpoint(path = "/atmosphere/embabel-horoscope",
+@AiEndpoint(path = "/atmosphere/ai-chat",
         systemPrompt = "You are a mystical horoscope agent. "
                 + "Extract the zodiac sign, find relevant celestial events, "
                 + "and create a personalized horoscope.",

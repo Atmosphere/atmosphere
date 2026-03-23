@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
  * <a href="https://github.com/langchain4j/langchain4j-examples/tree/main/spring-boot-example">
  * langchain4j-examples/spring-boot-example</a>.</p>
  */
-@AiEndpoint(path = "/atmosphere/langchain4j-tools/{room}",
+@AiEndpoint(path = "/atmosphere/ai-chat",
         systemPromptResource = "prompts/system-prompt.md",
         conversationMemory = true,
         maxHistoryMessages = 30)

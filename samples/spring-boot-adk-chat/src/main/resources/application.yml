@@ -1,4 +1,5 @@
 atmosphere:
+  console-subtitle: Google ADK agent with streaming responses
   packages: org.atmosphere.samples.springboot.adkchat
 
 server:

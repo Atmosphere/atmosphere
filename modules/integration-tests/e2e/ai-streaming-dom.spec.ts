@@ -13,7 +13,7 @@ test.afterAll(async () => {
 
 test.describe('AI Streaming in DOM', () => {
   test('streaming response appears after sending a prompt', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     // Send a prompt
@@ -30,7 +30,7 @@ test.describe('AI Streaming in DOM', () => {
   });
 
   test('send button is disabled during streaming', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('What is WebSocket?');
@@ -47,7 +47,7 @@ test.describe('AI Streaming in DOM', () => {
   });
 
   test('user prompt is visible in the chat after sending', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Hello AI');

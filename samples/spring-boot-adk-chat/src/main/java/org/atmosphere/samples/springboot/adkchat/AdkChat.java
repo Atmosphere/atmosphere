@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * <p>In demo mode (no ADK Runner configured), falls back to simulated ADK events
  * via {@link DemoEventProducer}.</p>
  */
-@AiEndpoint(path = "/atmosphere/adk-chat",
+@AiEndpoint(path = "/atmosphere/ai-chat",
         systemPrompt = "You are a helpful assistant.")
 public class AdkChat {
 

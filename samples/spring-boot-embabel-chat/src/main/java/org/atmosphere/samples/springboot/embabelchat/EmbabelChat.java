@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>In demo mode (no API key configured), falls back to simulated streaming.</p>
  */
-@AiEndpoint(path = "/atmosphere/embabel-chat",
+@AiEndpoint(path = "/atmosphere/ai-chat",
         systemPrompt = "You are a helpful assistant.")
 public class EmbabelChat {
 

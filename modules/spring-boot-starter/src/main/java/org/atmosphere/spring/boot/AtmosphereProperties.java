@@ -221,6 +221,16 @@ public class AtmosphereProperties {
         }
     }
 
+    private String consoleSubtitle = "";
+
+    public String getConsoleSubtitle() {
+        return consoleSubtitle;
+    }
+
+    public void setConsoleSubtitle(String consoleSubtitle) {
+        this.consoleSubtitle = consoleSubtitle;
+    }
+
     public static class AiProperties {
 
         private boolean enabled = true;

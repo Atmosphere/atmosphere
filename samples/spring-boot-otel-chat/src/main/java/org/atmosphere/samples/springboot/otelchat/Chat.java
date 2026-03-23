@@ -36,7 +36,7 @@ import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
  * Open Jaeger at <a href="http://localhost:16686">localhost:16686</a> to see spans for
  * connect, message, and disconnect events.</p>
  */
-@ManagedService(path = "/atmosphere/chat", atmosphereConfig = MAX_INACTIVE + "=120000")
+@ManagedService(path = "/atmosphere/ai-chat", atmosphereConfig = MAX_INACTIVE + "=120000")
 public class Chat {
 
     private static final Logger logger = LoggerFactory.getLogger(Chat.class);

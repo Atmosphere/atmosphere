@@ -124,7 +124,7 @@ test.describe('MCP Tool Invocation', () => {
 
   test('broadcast_message tool delivers message to chat clients', async ({ page }) => {
     // Open browser with chat UI
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-layout').waitFor({ state: 'visible' });
 
     // Join as a user via the chat UI

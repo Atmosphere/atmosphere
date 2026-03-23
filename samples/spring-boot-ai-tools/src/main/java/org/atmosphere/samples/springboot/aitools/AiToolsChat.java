@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
  *       LangChain4j via {@code ToolAwareStreamingResponseHandler})</li>
  * </ol>
  */
-@AiEndpoint(path = "/atmosphere/langchain4j-tools/{room}",
+@AiEndpoint(path = "/atmosphere/ai-chat",
         systemPromptResource = "prompts/system-prompt.md",
         conversationMemory = true,
         maxHistoryMessages = 30,

@@ -46,17 +46,17 @@ export function App() {
 
   return (
     <ChatLayout
-      title="🚀 Atmosphere 4.0 Chat"
+      title="Atmosphere 4.0 Chat"
       subtitle="Managed Service • JDK 21 Virtual Threads • WebSocket with Long-Polling Fallback"
-      theme="default"
+      theme="ai"
       state={state}
     >
-      <MessageList messages={messages} currentUser={name ?? undefined} theme="default" />
+      <MessageList messages={messages} currentUser={name ?? undefined} theme="ai" />
       <ChatInput
         onSend={handleSend}
         placeholder={name ? 'Type a message…' : 'Enter your name to join…'}
         disabled={state !== 'connected'}
-        theme="default"
+        theme="ai"
       />
     </ChatLayout>
   );

@@ -2,6 +2,7 @@
 # Multi-step agent: extract sign → find events → generate horoscope
 
 atmosphere:
+  console-subtitle: Embabel horoscope agent
   packages: org.atmosphere.samples.springboot.embabelhoroscope
 
 spring:

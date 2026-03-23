@@ -24,38 +24,59 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function containerStyle(dark?: boolean): CSSProperties {
-  return {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100vh',
-    maxWidth: 800,
-    margin: '0 auto',
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    background: dark ? '#1a1a2e' : '#f5f6fa',
-    color: dark ? '#e0e0e0' : '#333',
-  };
+  return dark
+    ? {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+        background: '#0f1117',
+        color: '#e4e5e7',
+      }
+    : {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        maxWidth: 800,
+        margin: '0 auto',
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        background: '#f5f6fa',
+        color: '#333',
+      };
 }
 
 export function headerStyle(theme: ChatTheme): CSSProperties {
-  return {
-    background: `linear-gradient(135deg, ${theme.gradient[0]}, ${theme.gradient[1]})`,
-    color: '#fff',
-    padding: '20px 24px',
-    textAlign: 'center',
-  };
+  return theme.dark
+    ? {
+        background: '#1a1d23',
+        borderBottom: '1px solid #2d3039',
+        color: '#e4e5e7',
+        padding: '0 1.5rem',
+        height: 56,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.75rem',
+        flexShrink: 0,
+      }
+    : {
+        background: `linear-gradient(135deg, ${theme.gradient[0]}, ${theme.gradient[1]})`,
+        color: '#fff',
+        padding: '20px 24px',
+        textAlign: 'center',
+      };
 }
 
-export const titleStyle: CSSProperties = {
-  margin: 0,
-  fontSize: 22,
-  fontWeight: 700,
-};
+export function titleStyle(dark?: boolean): CSSProperties {
+  return dark
+    ? { margin: 0, fontSize: '1.125rem', fontWeight: 600, lineHeight: 1.2 }
+    : { margin: 0, fontSize: 22, fontWeight: 700 };
+}
 
-export const subtitleStyle: CSSProperties = {
-  margin: '4px 0 0',
-  fontSize: 13,
-  opacity: 0.85,
-};
+export function subtitleStyle(dark?: boolean): CSSProperties {
+  return dark
+    ? { fontSize: '0.75rem', color: '#9ca0a8', fontWeight: 400 }
+    : { margin: '4px 0 0', fontSize: 13, opacity: 0.85 };
+}
 
 export function statusBarStyle(): CSSProperties {
   return {
@@ -85,7 +106,7 @@ export function messageAreaStyle(dark?: boolean): CSSProperties {
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
-    background: dark ? '#16213e' : '#f5f6fa',
+    background: dark ? '#0f1117' : '#f5f6fa',
   };
 }
 
@@ -103,9 +124,9 @@ export function bubbleStyle(isOwn: boolean, theme: ChatTheme): CSSProperties {
         }
       : {
           alignSelf: 'flex-start',
-          background: '#16213e',
-          border: '1px solid #2a2a4a',
-          color: '#e0e0e0',
+          background: '#1a1d23',
+          border: '1px solid #2d3039',
+          color: '#e4e5e7',
           padding: '10px 14px',
           borderRadius: '16px 16px 16px 4px',
           maxWidth: '85%',
@@ -150,8 +171,8 @@ export function inputBarStyle(dark?: boolean): CSSProperties {
     display: 'flex',
     gap: 8,
     padding: '12px 16px',
-    borderTop: `1px solid ${dark ? '#2a2a4a' : '#e9ecef'}`,
-    background: dark ? '#1a1a2e' : '#fff',
+    borderTop: `1px solid ${dark ? '#2d3039' : '#e9ecef'}`,
+    background: dark ? '#1a1d23' : '#fff',
   };
 }
 
@@ -159,12 +180,12 @@ export function inputStyle(theme: ChatTheme): CSSProperties {
   return {
     flex: 1,
     padding: '10px 14px',
-    border: `1px solid ${theme.dark ? '#2a2a4a' : '#e9ecef'}`,
+    border: `1px solid ${theme.dark ? '#2d3039' : '#e9ecef'}`,
     borderRadius: 20,
     fontSize: 14,
     outline: 'none',
-    background: theme.dark ? '#16213e' : '#fff',
-    color: theme.dark ? '#e0e0e0' : '#333',
+    background: theme.dark ? '#252830' : '#fff',
+    color: theme.dark ? '#e4e5e7' : '#333',
   };
 }
 

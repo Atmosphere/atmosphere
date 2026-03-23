@@ -53,8 +53,8 @@ type IncomingMessage = JoinAck | Presence | RoomMessage | RoomError;
 
 const tabBarStyle: CSSProperties = {
   display: 'flex',
-  background: '#f0f0f0',
-  borderBottom: '1px solid #e9ecef',
+  background: '#1a1d23',
+  borderBottom: '1px solid #2d3039',
 };
 
 const tabStyle = (active: boolean): CSSProperties => ({
@@ -64,13 +64,13 @@ const tabStyle = (active: boolean): CSSProperties => ({
   cursor: 'pointer',
   fontWeight: 500,
   fontSize: 13,
-  color: active ? '#667eea' : '#666',
-  borderBottom: `3px solid ${active ? '#667eea' : 'transparent'}`,
-  background: active ? 'white' : 'transparent',
+  color: active ? '#3b82f6' : '#9ca0a8',
+  borderBottom: `3px solid ${active ? '#3b82f6' : 'transparent'}`,
+  background: active ? '#252830' : 'transparent',
 });
 
 const roomCardStyle: CSSProperties = {
-  background: 'white',
+  background: '#1a1d23',
   padding: '16px 20px',
   marginBottom: 10,
   borderRadius: 12,
@@ -78,7 +78,7 @@ const roomCardStyle: CSSProperties = {
 };
 
 const metricCardStyle: CSSProperties = {
-  background: 'white',
+  background: '#252830',
   padding: '16px 20px',
   marginBottom: 10,
   borderRadius: 12,
@@ -159,24 +159,24 @@ function RoomsPanel() {
   return (
     <div style={panelStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h3 style={{ margin: 0, fontSize: 16 }}>🏠 Active Rooms</h3>
+        <h3 style={{ margin: 0, fontSize: 16 }}>Active Rooms</h3>
         <button
           onClick={fetchRooms}
-          style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 12 }}
+          style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #2d3039', background: '#252830', cursor: 'pointer', fontSize: 12 }}
         >
           Refresh
         </button>
       </div>
-      {loading && rooms.length === 0 && <p style={{ color: '#999' }}>Loading rooms…</p>}
+      {loading && rooms.length === 0 && <p style={{ color: '#6b7280' }}>Loading rooms…</p>}
       {error && <p style={{ color: '#e74c3c' }}>Error: {error}</p>}
       {rooms.length === 0 && !loading && !error && (
-        <p style={{ color: '#999' }}>No active rooms</p>
+        <p style={{ color: '#6b7280' }}>No active rooms</p>
       )}
       {rooms.map((room) => (
         <div key={room.name} style={roomCardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <strong style={{ fontSize: 15 }}>{room.name}</strong>
-            <span style={{ fontSize: 12, color: '#999' }}>
+            <span style={{ fontSize: 12, color: '#6b7280' }}>
               {room.memberCount ?? room.members?.length ?? 0} member{(room.memberCount ?? room.members?.length ?? 0) !== 1 ? 's' : ''}
             </span>
           </div>
@@ -276,15 +276,15 @@ function ObservabilityPanel() {
   return (
     <div style={panelStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h3 style={{ margin: 0, fontSize: 16 }}>📊 Observability</h3>
+        <h3 style={{ margin: 0, fontSize: 16 }}>Observability</h3>
         <button
           onClick={fetchData}
-          style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer', fontSize: 12 }}
+          style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #2d3039', background: '#252830', cursor: 'pointer', fontSize: 12 }}
         >
           Refresh
         </button>
       </div>
-      {loading && !health && <p style={{ color: '#999' }}>Loading…</p>}
+      {loading && !health && <p style={{ color: '#6b7280' }}>Loading…</p>}
       {error && <p style={{ color: '#e74c3c' }}>Error: {error}</p>}
 
       {health && (
@@ -313,12 +313,12 @@ function ObservabilityPanel() {
             <div key={metric.name} style={metricCardStyle}>
               <strong style={{ fontSize: 13 }}>{metric.name}</strong>
               {metric.description && (
-                <p style={{ margin: '4px 0 0', fontSize: 12, color: '#999' }}>{metric.description}</p>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: '#6b7280' }}>{metric.description}</p>
               )}
               <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                 {metric.measurements.map((m) => (
                   <div key={m.statistic} style={{ fontSize: 13 }}>
-                    <span style={{ color: '#999' }}>{m.statistic}: </span>
+                    <span style={{ color: '#6b7280' }}>{m.statistic}: </span>
                     <span style={{ fontWeight: 600, color: '#333' }}>{m.value}</span>
                   </div>
                 ))}
@@ -329,7 +329,7 @@ function ObservabilityPanel() {
       )}
 
       {!loading && metrics.length === 0 && health && (
-        <p style={{ color: '#999', fontSize: 13 }}>No Atmosphere metrics found. Metrics appear after the first connection.</p>
+        <p style={{ color: '#6b7280', fontSize: 13 }}>No Atmosphere metrics found. Metrics appear after the first connection.</p>
       )}
     </div>
   );
@@ -430,31 +430,31 @@ export function App() {
 
   return (
     <ChatLayout
-      title="🚀 Atmosphere 4.0 Chat"
+      title="Atmosphere 4.0 Chat"
       subtitle="Spring Boot • Room Protocol • Presence • Message History • Health Check"
-      theme="default"
+      theme="ai"
       state={state}
     >
       <div style={tabBarStyle}>
         <div style={tabStyle(activeTab === 'chat')} onClick={() => setActiveTab('chat')}>
-          💬 Chat
+          Chat
         </div>
         <div style={tabStyle(activeTab === 'rooms')} onClick={() => setActiveTab('rooms')}>
-          🏠 Rooms
+          Rooms
         </div>
         <div style={tabStyle(activeTab === 'observability')} onClick={() => setActiveTab('observability')}>
-          📊 Observability
+          Observability
         </div>
       </div>
 
       {activeTab === 'chat' && (
         <>
-          <MessageList messages={messages} currentUser={name ?? undefined} theme="default" />
+          <MessageList messages={messages} currentUser={name ?? undefined} theme="ai" />
           <ChatInput
             onSend={handleSend}
             placeholder={name ? 'Type a message…' : 'Enter your name to join…'}
             disabled={state !== 'connected'}
-            theme="default"
+            theme="ai"
           />
         </>
       )}

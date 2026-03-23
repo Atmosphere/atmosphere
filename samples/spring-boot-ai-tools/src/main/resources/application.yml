@@ -2,6 +2,7 @@
 # Framework-agnostic tools that work with any AI backend
 
 atmosphere:
+  console-subtitle: AI chat with tool calling visualization
   packages: org.atmosphere.samples.springboot.aitools
 
 llm:

@@ -24,7 +24,7 @@ const hasJar = existsSync(OTEL_TARGET) &&
   });
 
   test('page loads and serves the chat UI', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-layout').waitFor({ state: 'visible' });
   });
 

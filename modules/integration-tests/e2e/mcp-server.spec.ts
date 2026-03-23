@@ -15,13 +15,13 @@ test.afterAll(async () => {
 test.describe('MCP Server Chat', () => {
   test('page loads and connects', async ({ page }) => {
     const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
+    await chat.goto(server.baseUrl + '/atmosphere/console/');
     await chat.waitForConnected();
   });
 
   test('user can join and send messages', async ({ page }) => {
     const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
+    await chat.goto(server.baseUrl + '/atmosphere/console/');
     await chat.waitForConnected();
 
     await chat.joinAs('Alice');
@@ -31,14 +31,14 @@ test.describe('MCP Server Chat', () => {
 
   test('status bar shows Connected', async ({ page }) => {
     const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
+    await chat.goto(server.baseUrl + '/atmosphere/console/');
     await chat.waitForConnected();
     await chat.expectStatus('Connected');
   });
 
   test('input clears after sending', async ({ page }) => {
     const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
+    await chat.goto(server.baseUrl + '/atmosphere/console/');
     await chat.waitForConnected();
 
     await chat.joinAs('Dave');
@@ -48,7 +48,7 @@ test.describe('MCP Server Chat', () => {
 
   test('message bubbles display author', async ({ page }) => {
     const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
+    await chat.goto(server.baseUrl + '/atmosphere/console/');
     await chat.waitForConnected();
 
     await chat.joinAs('Eve');

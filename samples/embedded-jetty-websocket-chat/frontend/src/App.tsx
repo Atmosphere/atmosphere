@@ -46,17 +46,17 @@ export function App() {
 
   return (
     <ChatLayout
-      title="🚀 Atmosphere 4.0 Chat"
+      title="Atmosphere 4.0 Chat"
       subtitle="Embedded Jetty 12 • WebSocket Handler • JDK 21"
-      theme="default"
+      theme="ai"
       state={state}
     >
-      <MessageList messages={messages} currentUser={name ?? undefined} theme="default" />
+      <MessageList messages={messages} currentUser={name ?? undefined} theme="ai" />
       <ChatInput
         onSend={handleSend}
         placeholder={name ? 'Type a message…' : 'Enter your name to join…'}
         disabled={state !== 'connected'}
-        theme="default"
+        theme="ai"
       />
     </ChatLayout>
   );

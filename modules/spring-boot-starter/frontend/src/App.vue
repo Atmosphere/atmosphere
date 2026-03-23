@@ -1,6 +1,21 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import ChatContainer from './components/ChatContainer.vue'
 import logoUrl from './assets/logo.svg'
+
+const subtitle = ref('')
+
+onMounted(async () => {
+  try {
+    const res = await fetch('/api/console/info')
+    if (res.ok) {
+      const data = await res.json()
+      if (data.subtitle) subtitle.value = data.subtitle
+    }
+  } catch {
+    // Console info not available — no subtitle
+  }
+})
 </script>
 
 <template>
@@ -8,7 +23,10 @@ import logoUrl from './assets/logo.svg'
     <header class="app-header">
       <div class="header-content">
         <img :src="logoUrl" alt="Atmosphere" class="header-logo" />
-        <h1 class="header-title">Atmosphere AI Console</h1>
+        <div class="header-titles">
+          <h1 class="header-title">Atmosphere AI Console</h1>
+          <span v-if="subtitle" class="header-subtitle">{{ subtitle }}</span>
+        </div>
         <span class="header-badge">v4</span>
       </div>
     </header>
@@ -47,11 +65,24 @@ import logoUrl from './assets/logo.svg'
   height: 28px;
 }
 
+.header-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
 .header-title {
   font-size: 1.125rem;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+  line-height: 1.2;
+}
+
+.header-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 400;
 }
 
 .header-badge {

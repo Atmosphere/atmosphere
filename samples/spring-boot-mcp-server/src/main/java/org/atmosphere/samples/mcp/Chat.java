@@ -33,7 +33,7 @@ import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
  * Simple chat handler. MCP tools in {@link DemoMcpServer} manage connected
  * users and broadcast messages into this same broadcaster.
  */
-@ManagedService(path = "/atmosphere/chat", atmosphereConfig = MAX_INACTIVE + "=120000")
+@ManagedService(path = "/atmosphere/ai-chat", atmosphereConfig = MAX_INACTIVE + "=120000")
 public class Chat {
 
     private final Logger logger = LoggerFactory.getLogger(Chat.class);

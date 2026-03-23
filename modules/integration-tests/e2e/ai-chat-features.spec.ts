@@ -17,12 +17,12 @@ test.describe('AI Chat — New Features E2E', () => {
     // If capability validation failed at startup, the server wouldn't be running.
     // The endpoint has requires = {TEXT_STREAMING, SYSTEM_PROMPT} and the built-in
     // support advertises both — so startup should succeed.
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-layout')).toBeVisible();
   });
 
   test('conversation memory: server remembers across turns in same session', async ({ page }) => {
-    await page.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     // First message
@@ -63,8 +63,8 @@ test.describe('AI Chat — New Features E2E', () => {
     const page1 = await ctx1.newPage();
     const page2 = await ctx2.newPage();
 
-    await page1.goto(server.baseUrl);
-    await page2.goto(server.baseUrl);
+    await page1.goto(server.baseUrl + '/atmosphere/console/');
+    await page2.goto(server.baseUrl + '/atmosphere/console/');
 
     await expect(page1.getByTestId('chat-input')).toBeVisible();
     await expect(page2.getByTestId('chat-input')).toBeVisible();

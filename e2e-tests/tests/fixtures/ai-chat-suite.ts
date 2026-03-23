@@ -32,19 +32,19 @@ export function registerAiChatTests(options?: AiChatSuiteOptions): void {
   const indicator = options?.responseIndicator ?? /real-time|demo mode/i;
 
   test('page loads with AI chat layout', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/atmosphere/console/');
     await expect(page.getByTestId('chat-layout')).toBeVisible();
     await expect(page.getByTestId('chat-input')).toBeVisible();
     await expect(page.getByTestId('chat-send')).toBeVisible();
   });
 
   test('send button is disabled when input is empty', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/atmosphere/console/');
     await expect(page.getByTestId('chat-send')).toBeDisabled();
   });
 
   test('send prompt and receive streaming response', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('What is Atmosphere?');
@@ -64,14 +64,14 @@ export function registerAiChatTests(options?: AiChatSuiteOptions): void {
   });
 
   test('input clears after sending', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/atmosphere/console/');
     await page.getByTestId('chat-input').fill('Test message');
     await page.getByTestId('chat-send').click();
     await expect(page.getByTestId('chat-input')).toHaveValue('');
   });
 
   test('multi-turn conversation preserves history', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/atmosphere/console/');
 
     // First message
     await page.getByTestId('chat-input').fill('Hello');
