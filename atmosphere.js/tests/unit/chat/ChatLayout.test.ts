@@ -88,8 +88,8 @@ describe('ChatLayout', () => {
     const html = renderToString(
       createElement(ChatLayout, { title: 'T', theme: 'ai' }, createElement('div')),
     );
-    // Dark theme uses #1a1a2e background
-    expect(html).toContain('#1a1a2e');
+    // Dark theme uses #0f1117 background
+    expect(html).toContain('#0f1117');
   });
 
   it('should apply custom theme object', () => {
@@ -103,8 +103,9 @@ describe('ChatLayout', () => {
         createElement('div'),
       ),
     );
-    expect(html).toContain('#ff0000');
-    expect(html).toContain('#1a1a2e');
+    // Dark mode uses fixed header bg (#1a1d23), not gradient
+    expect(html).toContain('#1a1d23');
+    expect(html).toContain('#0f1117');
   });
 
   it('should fall back to default theme for unknown name', () => {

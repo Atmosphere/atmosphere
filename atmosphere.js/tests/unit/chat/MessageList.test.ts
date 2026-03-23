@@ -64,6 +64,6 @@ describe('MessageList', () => {
     const html = renderToString(
       createElement(MessageList, { messages: msgs, theme: 'ai' }),
     );
-    expect(html).toContain('#16213e');
+    expect(html).toContain('#1a1d23');
   });
 });

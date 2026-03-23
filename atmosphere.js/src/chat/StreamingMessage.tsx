@@ -37,9 +37,9 @@ export interface StreamingMessageProps {
 export function StreamingMessage({ text, isStreaming, dark, markdown = true }: StreamingMessageProps) {
   const containerStyle = {
     alignSelf: 'flex-start' as const,
-    background: dark ? '#16213e' : '#fff',
-    border: dark ? '1px solid #2a2a4a' : '1px solid #e9ecef',
-    color: dark ? '#e0e0e0' : '#333',
+    background: dark ? '#1a1d23' : '#fff',
+    border: dark ? '1px solid #2d3039' : '1px solid #e9ecef',
+    color: dark ? '#e4e5e7' : '#333',
     padding: '10px 14px',
     borderRadius: '16px 16px 16px 4px',
     maxWidth: '85%',

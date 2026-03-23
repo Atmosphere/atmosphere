@@ -49,7 +49,7 @@ describe('ChatInput', () => {
     const html = renderToString(
       createElement(ChatInput, { onSend: vi.fn(), theme: 'ai' }),
     );
-    expect(html).toContain('#16213e');
+    expect(html).toContain('#1a1d23');
   });
 
   it('should apply custom theme', () => {

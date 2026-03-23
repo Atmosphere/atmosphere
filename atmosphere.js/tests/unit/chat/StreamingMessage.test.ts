@@ -58,8 +58,8 @@ describe('StreamingMessage', () => {
     const html = renderToString(
       createElement(StreamingMessage, { text: 'test', isStreaming: false, dark: true }),
     );
-    expect(html).toContain('#16213e');
-    expect(html).toContain('#e0e0e0');
+    expect(html).toContain('#1a1d23');
+    expect(html).toContain('#e4e5e7');
   });
 
   it('should handle empty text', () => {

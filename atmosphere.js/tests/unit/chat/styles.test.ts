@@ -51,8 +51,8 @@ describe('containerStyle', () => {
 
   it('should return dark theme when dark=true', () => {
     const s = containerStyle(true);
-    expect(s.background).toBe('#1a1a2e');
-    expect(s.color).toBe('#e0e0e0');
+    expect(s.background).toBe('#0f1117');
+    expect(s.color).toBe('#e4e5e7');
   });
 });
 
@@ -67,12 +67,12 @@ describe('headerStyle', () => {
 
 describe('static styles', () => {
   it('titleStyle should have expected properties', () => {
-    expect(titleStyle.margin).toBe(0);
-    expect(titleStyle.fontWeight).toBe(700);
+    expect(titleStyle().margin).toBe(0);
+    expect(titleStyle().fontWeight).toBe(700);
   });
 
   it('subtitleStyle should have opacity', () => {
-    expect(subtitleStyle.opacity).toBe(0.85);
+    expect(subtitleStyle().opacity).toBe(0.85);
   });
 
   it('authorStyle should be bold', () => {
@@ -130,7 +130,7 @@ describe('messageAreaStyle', () => {
   });
 
   it('should use dark background when dark=true', () => {
-    expect(messageAreaStyle(true).background).toBe('#16213e');
+    expect(messageAreaStyle(true).background).toBe('#0f1117');
   });
 });
 
@@ -157,8 +157,8 @@ describe('bubbleStyle', () => {
   it('should use dark bg for other messages in dark mode', () => {
     const s = bubbleStyle(false, themes.ai);
     expect(s.alignSelf).toBe('flex-start');
-    expect(s.background).toBe('#16213e');
-    expect(s.color).toBe('#e0e0e0');
+    expect(s.background).toBe('#1a1d23');
+    expect(s.color).toBe('#e4e5e7');
   });
 });
 
@@ -168,7 +168,7 @@ describe('inputBarStyle', () => {
   });
 
   it('should use dark bg in dark mode', () => {
-    expect(inputBarStyle(true).background).toBe('#1a1a2e');
+    expect(inputBarStyle(true).background).toBe('#1a1d23');
   });
 });
 
@@ -179,8 +179,8 @@ describe('inputStyle', () => {
     expect(light.color).toBe('#333');
 
     const dark = inputStyle(themes.ai);
-    expect(dark.background).toBe('#16213e');
-    expect(dark.color).toBe('#e0e0e0');
+    expect(dark.background).toBe('#252830');
+    expect(dark.color).toBe('#e4e5e7');
   });
 });
 
