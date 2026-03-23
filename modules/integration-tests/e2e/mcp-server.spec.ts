@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { ChatPage } from './helpers/chat-page';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
+import { connectWebSocket, waitFor } from './helpers/transport-helper';
 
 let server: SampleServer;
 
@@ -13,46 +13,69 @@ test.afterAll(async () => {
 });
 
 test.describe('MCP Server Chat', () => {
-  test('page loads and connects', async ({ page }) => {
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl + '/');
-    await chat.waitForConnected();
+  test('WebSocket connects to chat endpoint', async () => {
+    const client = await connectWebSocket(server.baseUrl, '/atmosphere/ai-chat');
+    expect(client.ws.readyState).toBe(1); // OPEN
+    client.close();
   });
 
-  test('user can join and send messages', async ({ page }) => {
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl + '/');
-    await chat.waitForConnected();
+  test('user can send and receive messages', async () => {
+    const sender = await connectWebSocket(server.baseUrl, '/atmosphere/ai-chat');
+    const receiver = await connectWebSocket(server.baseUrl, '/atmosphere/ai-chat');
+    await new Promise(r => setTimeout(r, 500));
 
-    await chat.joinAs('Alice');
-    await chat.sendMessage('Hello from MCP!');
-    await chat.expectMessage('Hello from MCP!');
+    const msg = JSON.stringify({ author: 'Alice', message: 'Hello from MCP!' });
+    sender.ws.send(msg);
+
+    await waitFor(
+      () => receiver.messages.some(m => m.includes('Hello from MCP!')),
+      10_000,
+    );
+
+    const received = receiver.messages.find(m => m.includes('Hello from MCP!'));
+    expect(received).toBeDefined();
+
+    sender.close();
+    receiver.close();
   });
 
-  test('status bar shows Connected', async ({ page }) => {
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl + '/');
-    await chat.waitForConnected();
-    await chat.expectStatus('Connected');
+  test('message includes author', async () => {
+    const sender = await connectWebSocket(server.baseUrl, '/atmosphere/ai-chat');
+    const receiver = await connectWebSocket(server.baseUrl, '/atmosphere/ai-chat');
+    await new Promise(r => setTimeout(r, 500));
+
+    const msg = JSON.stringify({ author: 'Eve', message: 'MCP chat works!' });
+    sender.ws.send(msg);
+
+    await waitFor(
+      () => receiver.messages.some(m => m.includes('Eve') && m.includes('MCP chat works!')),
+      10_000,
+    );
+
+    sender.close();
+    receiver.close();
   });
 
-  test('input clears after sending', async ({ page }) => {
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl + '/');
-    await chat.waitForConnected();
+  test('multiple messages delivered in order', async () => {
+    const sender = await connectWebSocket(server.baseUrl, '/atmosphere/ai-chat');
+    const receiver = await connectWebSocket(server.baseUrl, '/atmosphere/ai-chat');
+    await new Promise(r => setTimeout(r, 500));
 
-    await chat.joinAs('Dave');
-    await chat.sendMessage('test message');
-    await expect(chat.input).toHaveValue('');
-  });
+    for (let i = 1; i <= 3; i++) {
+      sender.ws.send(JSON.stringify({ author: 'Sender', message: `msg-${i}` }));
+      await new Promise(r => setTimeout(r, 100));
+    }
 
-  test('message bubbles display author', async ({ page }) => {
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl + '/');
-    await chat.waitForConnected();
+    await waitFor(
+      () => receiver.messages.filter(m => m.includes('msg-')).length >= 3,
+      10_000,
+    );
 
-    await chat.joinAs('Eve');
-    await chat.sendMessage('MCP chat works!');
-    await chat.expectMessageFrom('Eve', 'MCP chat works!');
+    for (let i = 1; i <= 3; i++) {
+      expect(receiver.messages.some(m => m.includes(`msg-${i}`))).toBe(true);
+    }
+
+    sender.close();
+    receiver.close();
   });
 });

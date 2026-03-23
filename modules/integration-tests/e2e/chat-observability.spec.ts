@@ -15,10 +15,16 @@ test.afterAll(async () => {
 
 test.describe('Chat Observability & Actuator', () => {
   test('actuator health endpoint returns UP', async ({ request }) => {
-    const res = await request.get(`${server.baseUrl}/actuator/health`);
-    expect(res.ok()).toBeTruthy();
+    // Actuator may take a moment to initialize after the server is ready
+    let res;
+    for (let i = 0; i < 10; i++) {
+      res = await request.get(`${server.baseUrl}/actuator/health`);
+      if (res.ok()) break;
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    expect(res!.ok()).toBeTruthy();
 
-    const health = await res.json();
+    const health = await res!.json();
     expect(health.status).toBe('UP');
   });
 
