@@ -48,15 +48,20 @@ async function waitFor(fn: () => boolean, timeoutMs = 15_000): Promise<void> {
 
 test.describe('Room API & Protocol', () => {
   test('REST API /api/rooms returns room list', async ({ request }) => {
-    const res = await request.get(`${server.baseUrl}/api/rooms`);
-    expect(res.ok()).toBeTruthy();
-
-    const rooms = await res.json();
+    // Rooms may take a moment to be provisioned after startup
+    let rooms: { name: string; members: number }[] = [];
+    for (let i = 0; i < 10; i++) {
+      const res = await request.get(`${server.baseUrl}/api/rooms`);
+      if (res.ok()) {
+        rooms = await res.json();
+        if (rooms.some(r => r.name === 'lobby')) break;
+      }
+      await new Promise(r => setTimeout(r, 1000));
+    }
     expect(Array.isArray(rooms)).toBeTruthy();
-    // The "lobby" room is pre-provisioned by RoomsConfig
-    const lobby = rooms.find((r: { name: string }) => r.name === 'lobby');
+    const lobby = rooms.find(r => r.name === 'lobby');
     expect(lobby).toBeDefined();
-    expect(lobby.members).toBeGreaterThanOrEqual(0);
+    expect(lobby!.members).toBeGreaterThanOrEqual(0);
   });
 
   test('user joins lobby room via Room Protocol', async () => {
