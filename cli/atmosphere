@@ -58,6 +58,22 @@ download() {
     else
         die "curl or wget is required for downloads"
     fi
+    # Verify download produced a non-empty file
+    if [ ! -s "$dest" ]; then
+        rm -f "$dest"
+        die "Download failed or produced empty file: $url"
+    fi
+}
+
+# Compute SHA-256 checksum (portable across macOS/Linux)
+sha256sum_portable() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$1" | cut -d' ' -f1
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$1" | cut -d' ' -f1
+    else
+        echo "no-checksum-tool"
+    fi
 }
 
 # Get the local samples.json — bundled with CLI or download it
@@ -563,6 +579,8 @@ build_sample() {
         fi
 
         cp "$built_jar" "$jar_file"
+        # Record checksum for cache integrity verification
+        sha256sum_portable "$jar_file" > "${jar_file}.sha256"
         ok "Built and cached $sample"
     fi
 
@@ -623,7 +641,20 @@ cmd_run() {
     if [ ! -f "$jar_file" ]; then
         build_sample "$sample" "$packaging" "$jar_file"
     else
-        ok "Using cached $sample v$VERSION"
+        # Verify cached JAR integrity if checksum exists
+        if [ -f "${jar_file}.sha256" ]; then
+            expected=$(cat "${jar_file}.sha256")
+            actual=$(sha256sum_portable "$jar_file")
+            if [ "$expected" != "$actual" ] && [ "$actual" != "no-checksum-tool" ]; then
+                warn "Cached JAR checksum mismatch — rebuilding $sample"
+                rm -f "$jar_file" "${jar_file}.sha256"
+                build_sample "$sample" "$packaging" "$jar_file"
+            else
+                ok "Using cached $sample v$VERSION (verified)"
+            fi
+        else
+            ok "Using cached $sample v$VERSION"
+        fi
     fi
 
     # Run

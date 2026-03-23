@@ -122,8 +122,14 @@ public class DefaultToolRegistry implements ToolRegistry {
                         paramAnnotation.required()
                 ));
             } else {
+                var name = param.getName();
+                if (name.matches("arg\\d+")) {
+                    logger.warn("Tool method '{}' parameter '{}' has synthetic name — "
+                            + "add @Param annotation or compile with -parameters flag",
+                            method.getName(), name);
+                }
                 parameters.add(new ToolParameter(
-                        param.getName(),
+                        name,
                         "",
                         ToolParameter.jsonSchemaType(param.getType()),
                         true

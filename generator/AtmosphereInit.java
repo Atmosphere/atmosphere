@@ -161,7 +161,7 @@ public class AtmosphereInit implements Runnable {
         m.put("packageName", groupId + "." + name.replaceAll("[^a-zA-Z0-9]", ""));
         m.put("packagePath", (groupId + "." + name.replaceAll("[^a-zA-Z0-9]", "")).replace('.', '/'));
         m.put("atmosphereVersion", readAtmosphereVersion());
-        m.put("springBootVersion", "4.0.2");
+        m.put("springBootVersion", readSpringBootVersion());
         m.put("serverPort", "8080");
 
         // Handler booleans
@@ -266,9 +266,24 @@ public class AtmosphereInit implements Runnable {
     private void renderTemplate(String templatePath, Map<String, Object> model, Path target) throws IOException {
         var templateFile = scriptDir.resolve(templatePath);
         var templateContent = Files.readString(templateFile);
-        var compiler = Mustache.compiler().defaultValue("");
+        var missingVars = new java.util.ArrayList<String>();
+        var compiler = Mustache.compiler().defaultValue("").withFormatter(
+                (value) -> value == null ? "" : String.valueOf(value));
         var template = compiler.compile(new StringReader(templateContent));
         var rendered = template.execute(model);
+        // Check for any {{var}} patterns that resolved to empty and might be missing
+        var varPattern = java.util.regex.Pattern.compile("\\{\\{([^#/^!>]\\w+)\\}\\}");
+        var varMatcher = varPattern.matcher(templateContent);
+        while (varMatcher.find()) {
+            var varName = varMatcher.group(1);
+            if (!model.containsKey(varName)) {
+                missingVars.add(varName);
+            }
+        }
+        if (!missingVars.isEmpty()) {
+            System.err.println("WARNING: template " + templatePath
+                    + " has unresolved variables: " + missingVars);
+        }
         Files.createDirectories(target.getParent());
         Files.writeString(target, rendered);
     }
@@ -334,6 +349,23 @@ public class AtmosphereInit implements Runnable {
                 }
             });
         }
+    }
+
+    String readSpringBootVersion() {
+        var repoRoot = scriptDir.getParent();
+        var starterPom = repoRoot.resolve("modules/spring-boot-starter/pom.xml");
+        if (Files.isRegularFile(starterPom)) {
+            try {
+                var content = Files.readString(starterPom);
+                var matcher = Pattern.compile("<spring-boot\\.version>([^<]+)</spring-boot\\.version>")
+                        .matcher(content);
+                if (matcher.find()) {
+                    return matcher.group(1);
+                }
+            } catch (IOException ignored) {
+            }
+        }
+        return "4.0.2";
     }
 
     String readAtmosphereVersion() {

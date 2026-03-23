@@ -47,8 +47,16 @@ public class Invoker {
             hasMatch = true;
         } catch (IllegalAccessException | IllegalArgumentException e) {
             logger.trace("", e);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            var cause = e.getCause();
+            if (cause instanceof Error err) {
+                throw err;
+            }
+            logger.error("Handler method threw exception", cause != null ? cause : e);
+        } catch (Error e) {
+            throw e;
         } catch (Throwable e) {
-            logger.error("", e);
+            logger.error("Unexpected error invoking method", e);
         }
 
         if (!hasMatch) {

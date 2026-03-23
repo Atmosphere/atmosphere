@@ -64,6 +64,10 @@ public class AtmosphereAiAutoConfiguration {
     public AiConfig.LlmSettings atmosphereAiSettings(AtmosphereProperties properties) {
         var aiProps = properties.getAi();
         var apiKey = resolveApiKey(aiProps);
+        if (apiKey == null && !"local".equalsIgnoreCase(aiProps.getMode())) {
+            logger.warn("No AI API key configured. Set atmosphere.ai.api-key, "
+                    + "LLM_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY environment variable");
+        }
         var settings = AiConfig.configure(
                 aiProps.getMode(),
                 aiProps.getModel(),

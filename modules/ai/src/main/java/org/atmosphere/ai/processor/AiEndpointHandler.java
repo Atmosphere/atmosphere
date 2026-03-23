@@ -23,6 +23,7 @@ import org.atmosphere.ai.AiMetrics;
 import org.atmosphere.ai.AiStreamingSession;
 import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.ContextProvider;
+import org.atmosphere.ai.DefaultStreamingSession;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.ai.TracingCapturingSession;
@@ -264,6 +265,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
             if (memory != null) {
                 memory.clear(resource.uuid());
             }
+            DefaultStreamingSession.cleanupResource(resource);
             lifecycle.onDisconnect(target, event);
             logger.info("Client {} disconnected from AI endpoint", resource.uuid());
             return;
@@ -273,6 +275,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
             if (memory != null) {
                 memory.clear(resource.uuid());
             }
+            DefaultStreamingSession.cleanupResource(resource);
             lifecycle.onDisconnect(target, event);
             logger.info("Client {} unexpectedly disconnected from AI endpoint", resource.uuid());
             return;
@@ -329,8 +332,16 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
             try {
                 invokePrompt(userMessage, session, resource);
             } catch (Exception e) {
-                logger.error("Error invoking @Prompt method", e);
-                session.error(e);
+                Throwable cause = e;
+                if (e instanceof java.lang.reflect.InvocationTargetException ite
+                        && ite.getCause() != null) {
+                    cause = ite.getCause();
+                }
+                if (cause instanceof Error err) {
+                    throw err;
+                }
+                logger.error("Error invoking @Prompt method", cause);
+                session.error(cause);
             }
         });
 

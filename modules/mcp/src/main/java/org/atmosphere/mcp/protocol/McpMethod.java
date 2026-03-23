@@ -43,5 +43,6 @@ public final class McpMethod {
 
     // Notifications
     public static final String PROGRESS = "notifications/progress";
+    public static final String CANCELLED = "notifications/cancelled";
     public static final String RESOURCES_UPDATED = "notifications/resources/updated";
 }

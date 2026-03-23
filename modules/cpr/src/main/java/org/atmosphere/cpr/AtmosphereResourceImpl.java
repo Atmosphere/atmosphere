@@ -75,19 +75,19 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         DISCONNECTED
     }
 
-    private AtmosphereRequest req;
-    private AtmosphereResponse response;
-    private Action action = new Action();
+    private volatile AtmosphereRequest req;
+    private volatile AtmosphereResponse response;
+    private volatile Action action = new Action();
     protected final List<Broadcaster> broadcasters = new CopyOnWriteArrayList<>();
     private final Set<String> broadcasterIdIndex = ConcurrentHashMap.newKeySet();
-    protected Broadcaster broadcaster;
-    private AtmosphereConfig config;
+    protected volatile Broadcaster broadcaster;
+    private volatile AtmosphereConfig config;
     protected AsyncSupport<AtmosphereResourceImpl> asyncSupport;
     private Serializer serializer;
     private final AtomicReference<LifecycleState> state = new AtomicReference<>(LifecycleState.CREATED);
-    private AtmosphereResourceEventImpl event;
+    private volatile AtmosphereResourceEventImpl event;
     private final AtomicBoolean resumeOnBroadcast = new AtomicBoolean();
-    private Object writeOnTimeout;
+    private volatile Object writeOnTimeout;
     private boolean disableSuspend;
     private final AtomicBoolean disconnected = new AtomicBoolean();
 
@@ -95,14 +95,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             new ConcurrentLinkedQueue<>();
 
     private final AtomicBoolean isSuspendEvent = new AtomicBoolean();
-    private AtmosphereHandler atmosphereHandler;
+    private volatile AtmosphereHandler atmosphereHandler;
     private String uuid;
-    protected HttpSession session;
-    private boolean disableSuspendEvent;
-    private TRANSPORT transport;
-    private boolean forceBinaryWrite;
-    private WebSocket webSocket;
-    private boolean closeOnCancel;
+    protected volatile HttpSession session;
+    private volatile boolean disableSuspendEvent;
+    private volatile TRANSPORT transport;
+    private volatile boolean forceBinaryWrite;
+    private volatile WebSocket webSocket;
+    private volatile boolean closeOnCancel;
     private final AtomicBoolean isPendingClose = new AtomicBoolean();
     private final ReentrantLock broadcasterRecoveryLock = new ReentrantLock();
 

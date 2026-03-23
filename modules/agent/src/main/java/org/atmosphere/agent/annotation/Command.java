@@ -33,9 +33,9 @@ import java.lang.annotation.Target;
  * </ul>
  *
  * <p>Commands are routed in the web console via "/" prefix routing.
- * For external channels (Slack, Telegram), a custom {@code ChannelBridge}
- * component is needed to route commands — see the {@code spring-boot-dentist-agent}
- * sample for an example.</p>
+ * When {@code atmosphere-channels} is on the classpath, commands are
+ * automatically routed to all configured channels (Slack, Telegram, etc.)
+ * via the {@code ChannelAiBridge} integration — no custom bridge needed.</p>
  *
  * <p>Example:</p>
  * <pre>{@code

@@ -72,6 +72,8 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
         return () -> {
             try {
                 incomingBroadcast();
+            } catch (Error t) {
+                throw t;
             } catch (Throwable t) {
                 logger.warn("incomingBroadcast Exception. Broadcaster will be broken unless reconfigured", t);
                 destroy();

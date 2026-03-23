@@ -78,6 +78,15 @@ public final class DefaultStreamingSession implements StreamingSession {
         return Optional.ofNullable(SESSION_RESOURCES.get(sessionId));
     }
 
+    /**
+     * Remove all sessions associated with a disconnecting resource.
+     * Called from {@code AiEndpointHandler} when a client disconnects
+     * before the streaming session completes.
+     */
+    public static void cleanupResource(AtmosphereResource resource) {
+        SESSION_RESOURCES.entrySet().removeIf(e -> e.getValue().uuid().equals(resource.uuid()));
+    }
+
     @Override
     public String sessionId() {
         return sessionId;

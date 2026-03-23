@@ -4,7 +4,7 @@
 #
 # Usage:
 #   ./scripts/pre-push-validate.sh          # full build + tests
-#   ./scripts/pre-push-validate.sh --fast   # compile only (no tests)
+#   ./scripts/pre-push-validate.sh --fast   # install without tests (ensures .m2 JARs)
 
 set -e
 
@@ -32,9 +32,10 @@ echo ""
 
 # Determine build mode
 if [ "$1" = "--fast" ]; then
-    echo "⚡ Fast mode: compile only"
+    echo "⚡ Fast mode: install (skip tests)"
     echo ""
-    BUILD_CMD="./mvnw compile -q"
+    # install (not compile) ensures reactor JARs are in .m2 for transitive deps
+    BUILD_CMD="./mvnw install -DskipTests -q"
 else
     echo "🔨 Full mode: compile + tests"
     echo ""

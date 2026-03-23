@@ -63,7 +63,7 @@ public class ChannelBridge {
 
     @PostConstruct
     void init() {
-        webhookController.onMessage(this::handleIncomingMessage);
+        webhookController.addMessageHandler(this::handleIncomingMessage);
         logger.info("ChannelBridge initialized — routing {} channel(s) to AI",
                 channelsByType.size());
     }

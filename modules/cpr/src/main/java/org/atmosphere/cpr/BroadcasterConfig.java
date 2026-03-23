@@ -31,6 +31,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -344,13 +345,26 @@ public class BroadcasterConfig {
 
         if ((force || !isExecutorShared) && executorService != null) {
             executorService.shutdownNow();
+            awaitQuietly(executorService, "executorService");
         }
         if ((force || !isAsyncExecutorShared) && asyncWriteService != null) {
             asyncWriteService.shutdownNow();
+            awaitQuietly(asyncWriteService, "asyncWriteService");
         }
 
         if ((force || !shared) && scheduler != null) {
             scheduler.shutdownNow();
+            awaitQuietly(scheduler, "scheduler");
+        }
+    }
+
+    private void awaitQuietly(ExecutorService service, String name) {
+        try {
+            if (!service.awaitTermination(5, TimeUnit.SECONDS)) {
+                logger.warn("{} did not terminate within 5 seconds", name);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 

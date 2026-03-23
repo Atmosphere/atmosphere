@@ -459,6 +459,8 @@ public class DefaultBroadcaster implements Broadcaster {
                 try {
                     logger.trace("{} is about to broadcast {}", getID(), msg);
                     push(msg);
+                } catch (Error ex) {
+                    throw ex;
                 } catch (Throwable ex) {
                     if (!started.get() || destroyed.get()) {
                         logger.trace("Failed to submit broadcast handler runnable on shutdown for Broadcaster {}", getID(), ex);
@@ -917,6 +919,8 @@ public class DefaultBroadcaster implements Broadcaster {
                     listeners.addAll(r.atmosphereResourceEventListener());
                 }
                 prepareInvokeOnStateChange(r, event);
+            } catch (Error t) {
+                throw t;
             } catch (Throwable t) {
                 logger.debug("Invalid AtmosphereResource state {}. The connection has been remotely" +
                         " closed and message {} will be added to the configured BroadcasterCache for later retrieval", r.uuid(), event.getMessage());
@@ -1132,8 +1136,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 // https://github.com/Atmosphere/atmosphere/issues/902
                 try {
                     ioThread.interrupt();
-                } catch (Throwable t) {
-                    // Swallow, this is already enough embarrassing
+                } catch (SecurityException t) {
                     logger.trace("I/O failure, unable to interrupt the thread", t);
                 }
 

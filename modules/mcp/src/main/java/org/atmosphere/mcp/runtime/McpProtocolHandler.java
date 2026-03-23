@@ -73,35 +73,20 @@ public final class McpProtocolHandler {
     public String handleMessage(AtmosphereResource resource, String message) {
         try {
             var node = mapper.readTree(message);
-            var method = node.has("method") ? node.get("method").asText() : null;
-            var id = node.has("id") ? node.get("id") : null;
 
-            if (method == null) {
-                return serialize(JsonRpc.Response.error(idValue(id),
-                        JsonRpc.INVALID_REQUEST, "Missing method"));
+            // JSON-RPC 2.0 batch support: array of requests
+            if (node.isArray()) {
+                var responses = new java.util.ArrayList<String>();
+                for (var element : node) {
+                    var resp = handleSingleMessage(resource, element);
+                    if (resp != null) {
+                        responses.add(resp);
+                    }
+                }
+                return responses.isEmpty() ? null : "[" + String.join(",", responses) + "]";
             }
 
-            // Notifications (no id) — don't send a response
-            if (id == null || id.isNull()) {
-                handleNotification(resource, method, node.get("params"));
-                return null;
-            }
-
-            var idVal = idValue(id);
-            return serialize(switch (method) {
-                case McpMethod.INITIALIZE -> handleInitialize(resource, idVal, node.get("params"));
-                case McpMethod.PING -> JsonRpc.Response.success(idVal, Map.of());
-                case McpMethod.TOOLS_LIST -> handleToolsList(idVal);
-                case McpMethod.TOOLS_CALL -> handleToolsCall(idVal, node.get("params"));
-                case McpMethod.RESOURCES_LIST -> handleResourcesList(idVal);
-                case McpMethod.RESOURCES_READ -> handleResourcesRead(idVal, node.get("params"));
-                case McpMethod.RESOURCES_SUBSCRIBE -> handleResourcesSubscribe(resource, idVal, node.get("params"));
-                case McpMethod.RESOURCES_UNSUBSCRIBE -> handleResourcesUnsubscribe(resource, idVal, node.get("params"));
-                case McpMethod.PROMPTS_LIST -> handlePromptsList(idVal);
-                case McpMethod.PROMPTS_GET -> handlePromptsGet(idVal, node.get("params"));
-                default -> JsonRpc.Response.error(idVal, JsonRpc.METHOD_NOT_FOUND,
-                        "Unknown method: " + method);
-            });
+            return handleSingleMessage(resource, node);
         } catch (JsonProcessingException e) {
             logger.warn("Failed to parse JSON-RPC message", e);
             return serialize(JsonRpc.Response.error(null, JsonRpc.PARSE_ERROR,
@@ -111,6 +96,38 @@ public final class McpProtocolHandler {
             return serialize(JsonRpc.Response.error(null, JsonRpc.INTERNAL_ERROR,
                     e.getMessage()));
         }
+    }
+
+    private String handleSingleMessage(AtmosphereResource resource, JsonNode node) {
+        var method = node.has("method") ? node.get("method").asText() : null;
+        var id = node.has("id") ? node.get("id") : null;
+
+        if (method == null) {
+            return serialize(JsonRpc.Response.error(idValue(id),
+                    JsonRpc.INVALID_REQUEST, "Missing method"));
+        }
+
+        // Notifications (no id) — don't send a response
+        if (id == null || id.isNull()) {
+            handleNotification(resource, method, node.get("params"));
+            return null;
+        }
+
+        var idVal = idValue(id);
+        return serialize(switch (method) {
+            case McpMethod.INITIALIZE -> handleInitialize(resource, idVal, node.get("params"));
+            case McpMethod.PING -> JsonRpc.Response.success(idVal, Map.of());
+            case McpMethod.TOOLS_LIST -> handleToolsList(idVal);
+            case McpMethod.TOOLS_CALL -> handleToolsCall(idVal, node.get("params"));
+            case McpMethod.RESOURCES_LIST -> handleResourcesList(idVal);
+            case McpMethod.RESOURCES_READ -> handleResourcesRead(idVal, node.get("params"));
+            case McpMethod.RESOURCES_SUBSCRIBE -> handleResourcesSubscribe(resource, idVal, node.get("params"));
+            case McpMethod.RESOURCES_UNSUBSCRIBE -> handleResourcesUnsubscribe(resource, idVal, node.get("params"));
+            case McpMethod.PROMPTS_LIST -> handlePromptsList(idVal);
+            case McpMethod.PROMPTS_GET -> handlePromptsGet(idVal, node.get("params"));
+            default -> JsonRpc.Response.error(idVal, JsonRpc.METHOD_NOT_FOUND,
+                    "Unknown method: " + method);
+        });
     }
 
     // ── Lifecycle ────────────────────────────────────────────────────────
@@ -150,10 +167,19 @@ public final class McpProtocolHandler {
     }
 
     private void handleNotification(AtmosphereResource resource, String method, JsonNode params) {
-        if (McpMethod.INITIALIZED.equals(method)) {
-            var session = getOrCreateSession(resource);
-            session.markInitialized();
-            logger.debug("MCP session fully initialized for resource {}", resource.uuid());
+        switch (method) {
+            case McpMethod.INITIALIZED -> {
+                var session = getOrCreateSession(resource);
+                session.markInitialized();
+                logger.debug("MCP session fully initialized for resource {}", resource.uuid());
+            }
+            case McpMethod.CANCELLED -> {
+                var requestId = params != null && params.has("requestId")
+                        ? params.get("requestId").asText() : "unknown";
+                logger.debug("MCP client cancelled request {} for resource {}",
+                        requestId, resource.uuid());
+            }
+            default -> logger.trace("Ignoring unknown notification: {}", method);
         }
     }
 

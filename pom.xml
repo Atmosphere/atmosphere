@@ -89,6 +89,7 @@
                     <compilerArgs>
                         <arg>-Xlint:all,-processing,-serial</arg>
                         <arg>-Werror</arg>
+                        <arg>-parameters</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>

@@ -202,6 +202,8 @@ public class AiStreamingSession implements StreamingSession {
                 } catch (Exception e) {
                     logger.error("ContextProvider.retrieve failed: {}",
                             provider.getClass().getName(), e);
+                    delegate.sendMetadata("rag.error",
+                            provider.getClass().getSimpleName() + ": " + e.getMessage());
                 }
             }
             if (!contextBuilder.isEmpty()) {
