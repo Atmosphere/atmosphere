@@ -22,6 +22,7 @@ import org.atmosphere.channels.messenger.MessengerChannel;
 import org.atmosphere.channels.slack.SlackChannel;
 import org.atmosphere.channels.telegram.TelegramChannel;
 import org.atmosphere.channels.whatsapp.WhatsAppChannel;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -90,10 +91,13 @@ public class ChannelsAutoConfiguration {
     @Bean
     @ConditionalOnProperty("atmosphere.channels.discord.bot-token")
     public DiscordChannel discordChannel(ChannelsProperties props, ObjectMapper objectMapper,
-                                         ChannelWebhookController webhookController) {
+                                         ObjectProvider<ChannelWebhookController> webhookControllerProvider) {
         var discord = props.getDiscord();
+        // Use ObjectProvider to break circular dependency: DiscordChannel is a
+        // MessagingChannel collected into ChannelWebhookController's List<MessagingChannel>.
+        // The provider defers resolution until the first message arrives via the Gateway.
         var channel = new DiscordChannel(discord.getBotToken(), objectMapper,
-                webhookController::routeMessage);
+                msg -> webhookControllerProvider.getObject().routeMessage(msg));
         channel.start();
         return channel;
     }

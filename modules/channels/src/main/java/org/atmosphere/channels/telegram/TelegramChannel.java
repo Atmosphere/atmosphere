@@ -79,6 +79,14 @@ public class TelegramChannel implements MessagingChannel {
 
     @Override
     public void verifySignature(Map<String, String> headers, byte[] body) {
+        // If no webhook secret is configured, skip signature verification.
+        // This is INSECURE — configure a webhook secret in production.
+        if (webhookSecret == null || webhookSecret.isEmpty()) {
+            log.warn("No Telegram webhook secret configured — skipping signature verification. "
+                    + "Set atmosphere.channels.telegram.webhook-secret for production use.");
+            return;
+        }
+
         String token = headers.get("x-telegram-bot-api-secret-token");
         if (token == null) {
             throw new ChannelException(ChannelType.TELEGRAM,

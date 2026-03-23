@@ -70,6 +70,15 @@ public class ChannelAiBridge {
     }
 
     /**
+     * Clears all registered agent bindings. Intended for test isolation and
+     * dev-mode reload scenarios where static state must not leak between
+     * test runs or application restarts.
+     */
+    static void reset() {
+        agentBindings.clear();
+    }
+
+    /**
      * Register an {@code @Agent}'s CommandRouter, system prompt, and AI pipeline
      * with the bridge. Multiple agents can be registered; commands are routed in
      * registration order (first match wins). Called via reflection by the agent module.

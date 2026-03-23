@@ -70,7 +70,7 @@ export class Atmosphere {
     logger.info(`Creating subscription ${id} to ${request.url} via ${transport}`);
 
     const mergedRequest = { ...request, transport };
-    let activeTransport: BaseTransport<T>;
+    let activeTransport: BaseTransport<T> | null = null;
 
     try {
       activeTransport = this.createTransport(mergedRequest, handlers);
@@ -80,6 +80,12 @@ export class Atmosphere {
       await activeTransport.connectWithTimeout();
     } catch (primaryError) {
       if (fallback && fallback !== transport) {
+        // Ensure the failed primary transport is fully torn down so it
+        // cannot linger as an orphan connection alongside the fallback.
+        if (activeTransport) {
+          await activeTransport.disconnect().catch(() => { /* best-effort */ });
+        }
+
         const reason = primaryError instanceof Error ? primaryError.message : String(primaryError);
         logger.info(`${transport} failed, falling back to ${fallback}`);
         handlers.transportFailure?.(reason, mergedRequest);

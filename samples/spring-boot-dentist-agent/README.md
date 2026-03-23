@@ -65,8 +65,7 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... \
 |------|---------|
 | `DentistAgent.java` | `@Agent` with `@Command` and `@AiTool` methods |
 | `prompts/dentist-skill.md` | System prompt with personality, skills, tools, channels, guardrails |
-| `ChannelBridge.java` | Bridges Slack/Telegram messages to the agent (command routing + LLM) |
-| `CollectingSession.java` | Collects streaming tokens into a complete response for channel sends |
+| `LlmConfig.java` | Configures LLM backend settings (model, API key, base URL) |
 | `ConsoleEndpointAlias.java` | Aliases the agent handler to `/atmosphere/ai-chat` for the console |
 | `DemoResponseProducer.java` | Fallback responses when no LLM API key is set |
 
@@ -86,7 +85,7 @@ Messenger ────webhook────┘        ┌───┴───┐
                                                          pain_relief)
 ```
 
-The same `@Command` methods and `@Prompt` handler serve every channel. `/firstaid` in Slack returns the exact same first-aid steps as in the browser. The `ChannelBridge` handles message format differences (max length, reply threading, markdown support) transparently.
+The same `@Command` methods and `@Prompt` handler serve every channel. `/firstaid` in Slack returns the exact same first-aid steps as in the browser. The `atmosphere-channels` module handles message format differences (max length, reply threading, markdown support) transparently.
 
 ## Skill File
 

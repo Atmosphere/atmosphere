@@ -139,6 +139,7 @@ public class ChannelWebhookController {
             // Parse incoming messages
             List<IncomingMessage> messages = adapter.receive(headers, body);
 
+            boolean handlerFailed = false;
             for (IncomingMessage msg : messages) {
                 var filtered = filterChain.filterIncoming(msg);
                 if (filtered == null) {
@@ -148,9 +149,14 @@ public class ChannelWebhookController {
                 log.debug("Received {} message from {}: {}",
                         filtered.channelType().id(), filtered.senderId(),
                         filtered.text().substring(0, Math.min(50, filtered.text().length())));
-                dispatchToHandlers(filtered);
+                if (!dispatchToHandlers(filtered)) {
+                    handlerFailed = true;
+                }
             }
 
+            if (handlerFailed) {
+                return ResponseEntity.status(500).body("One or more message handlers failed");
+            }
             return ResponseEntity.ok("ok");
         } catch (ChannelException e) {
             log.warn("Webhook error for {}: {}", channel, e.getMessage());
@@ -159,18 +165,27 @@ public class ChannelWebhookController {
         }
     }
 
-    private void dispatchToHandlers(IncomingMessage message) {
+    /**
+     * Dispatch a message to all registered handlers.
+     *
+     * @param message the incoming message
+     * @return {@code true} if all handlers succeeded, {@code false} if any handler threw
+     */
+    private boolean dispatchToHandlers(IncomingMessage message) {
         if (handlers.isEmpty()) {
             log.warn("No message handler registered, dropping message from {}", message.channelType());
-            return;
+            return true;
         }
+        boolean allSucceeded = true;
         for (Consumer<IncomingMessage> handler : handlers) {
             try {
                 handler.accept(message);
             } catch (Exception e) {
                 log.error("Message handler failed for {} message from {}: {}",
                         message.channelType().id(), message.senderId(), e.getMessage(), e);
+                allSucceeded = false;
             }
         }
+        return allSucceeded;
     }
 }

@@ -48,11 +48,12 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * An Atmosphere interceptor to enable a simple rest binding protocol.
@@ -80,13 +81,13 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     private final static String HEARTBEAT_TEMPLATE = "{\"heartbeat\": \"%s\", \"time\": %d}";
     private final static long DEFAULT_HEARTBEAT_INTERVAL = 60;
 
-    private final Map<String, AtmosphereResponse> suspendedResponses = new HashMap<>();
+    private final Map<String, AtmosphereResponse> suspendedResponses = new ConcurrentHashMap<>();
     private final ChunkConcatReaderPool readerPool = new ChunkConcatReaderPool();
 
     private Broadcaster heartbeat;
 
     // REVISIST more appropriate to store this status?
-    private boolean heartbeatScheduled;
+    private final AtomicBoolean heartbeatScheduled = new AtomicBoolean();
     private final AsyncIOInterceptor interceptor = new Interceptor();
 
     public SimpleRestInterceptor() {
@@ -112,6 +113,10 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
         if (AtmosphereResource.TRANSPORT.POLLING == r.transport()) {
             final String saruuid = (String)r.getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
             final AtmosphereResponse suspendedResponse = suspendedResponses.get(saruuid);
+            if (suspendedResponse == null) {
+                LOG.warn("No suspended response found for resource: {}", saruuid);
+                return Action.CONTINUE;
+            }
             LOG.debug("Attaching a proxy writer to suspended response");
             r.getResponse().asyncIOWriter(new AtmosphereInterceptorWriter() {
                 @Override
@@ -323,10 +328,9 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
 
     private void scheduleHeartbeat(AtmosphereResource r) {
         heartbeat.addAtmosphereResource(r);
-        if (!heartbeatScheduled) {
+        if (heartbeatScheduled.compareAndSet(false, true)) {
             heartbeat.scheduleFixedBroadcast(String.format(getHeartbeatTemplate(), getHeartbeatTemplateArguments()),
                     DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_HEARTBEAT_INTERVAL, TimeUnit.SECONDS);
-            heartbeatScheduled = true;
         }
     }
 

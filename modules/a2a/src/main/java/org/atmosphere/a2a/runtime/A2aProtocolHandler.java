@@ -66,14 +66,11 @@ public final class A2aProtocolHandler {
                         JsonRpc.INVALID_REQUEST, "Missing method"));
             }
 
-            if (id == null || id.isNull()) {
-                return null; // notification
-            }
-
-            var idVal = idValue(id);
+            var isNotification = id == null || id.isNull();
+            var idVal = isNotification ? null : idValue(id);
             var params = node.get("params");
 
-            return serialize(switch (method) {
+            var response = switch (method) {
                 case A2aMethod.SEND_MESSAGE -> handleSendMessage(idVal, params);
                 case A2aMethod.GET_TASK -> handleGetTask(idVal, params);
                 case A2aMethod.LIST_TASKS -> handleListTasks(idVal, params);
@@ -81,7 +78,14 @@ public final class A2aProtocolHandler {
                 case A2aMethod.GET_AGENT_CARD -> JsonRpc.Response.success(idVal, agentCard);
                 default -> JsonRpc.Response.error(idVal, JsonRpc.METHOD_NOT_FOUND,
                         "Unknown method: " + method);
-            });
+            };
+
+            // JSON-RPC notifications (no id) are dispatched but produce no response
+            if (isNotification) {
+                return null;
+            }
+
+            return serialize(response);
         } catch (JsonProcessingException e) {
             logger.warn("Failed to parse A2A message", e);
             return serialize(JsonRpc.Response.error(null, JsonRpc.PARSE_ERROR,

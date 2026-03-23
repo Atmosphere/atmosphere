@@ -89,18 +89,35 @@ export abstract class BaseTransport<T = unknown> {
     }
 
     return new Promise<void>((resolve, reject) => {
+      let settled = false;
+
       const timer = setTimeout(() => {
-        reject(new Error(`Connect timeout after ${timeout}ms`));
+        if (!settled) {
+          settled = true;
+          // Abort the in-flight connection so it doesn't become an orphan
+          // when the caller falls back to another transport.
+          this.disconnect().catch(() => { /* best-effort cleanup */ });
+          reject(new Error(`Connect timeout after ${timeout}ms`));
+        }
       }, timeout);
 
       this.connect()
         .then(() => {
-          clearTimeout(timer);
-          resolve();
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            resolve();
+          } else {
+            // Timeout already fired — disconnect the connection that just opened
+            this.disconnect().catch(() => { /* best-effort cleanup */ });
+          }
         })
         .catch((err) => {
-          clearTimeout(timer);
-          reject(err);
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            reject(err);
+          }
         });
     });
   }
