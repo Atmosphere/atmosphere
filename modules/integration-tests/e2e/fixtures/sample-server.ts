@@ -19,6 +19,8 @@ export interface SampleConfig {
   jvmArgs?: string[];
   /** Main class for embedded-jetty type (exec:java) */
   mainClass?: string;
+  /** Atmosphere endpoint path to check for readiness (e.g. /atmosphere/ai-chat) */
+  readyPath?: string;
 }
 
 export const SAMPLES: Record<string, SampleConfig> = {
@@ -52,90 +54,105 @@ export const SAMPLES: Record<string, SampleConfig> = {
     dir: 'spring-boot-ai-chat',
     port: 8080,
     type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
   },
   'spring-boot-langchain4j-chat': {
     name: 'spring-boot-langchain4j-chat',
     dir: 'spring-boot-langchain4j-chat',
     port: 8081,
     type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
   },
   'spring-boot-embabel-chat': {
     name: 'spring-boot-embabel-chat',
     dir: 'spring-boot-embabel-chat',
     port: 8082,
     type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
   },
   'spring-boot-spring-ai-chat': {
     name: 'spring-boot-spring-ai-chat',
     dir: 'spring-boot-spring-ai-chat',
     port: 8083,
     type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
   },
   'spring-boot-mcp-server': {
     name: 'spring-boot-mcp-server',
     dir: 'spring-boot-mcp-server',
     port: 8083,
     type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
   },
   'spring-boot-ai-classroom': {
     name: 'spring-boot-ai-classroom',
     dir: 'spring-boot-ai-classroom',
     port: 8085,
     type: 'spring-boot',
+    readyPath: '/atmosphere/classroom/general',
   },
   'spring-boot-langchain4j-tools': {
     name: 'spring-boot-langchain4j-tools',
     dir: 'spring-boot-langchain4j-tools',
     port: 8086,
     type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
   },
   'spring-boot-adk-chat': {
     name: 'spring-boot-adk-chat',
     dir: 'spring-boot-adk-chat',
     port: 8080,
     type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
   },
   'spring-boot-adk-tools': {
     name: 'spring-boot-adk-tools',
     dir: 'spring-boot-adk-tools',
     port: 8087,
     type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
   },
   'spring-boot-spring-ai-routing': {
     name: 'spring-boot-spring-ai-routing',
     dir: 'spring-boot-spring-ai-routing',
     port: 8088,
     type: 'spring-boot',
+    readyPath: '/atmosphere/spring-ai-routing/general',
   },
   'spring-boot-embabel-horoscope': {
     name: 'spring-boot-embabel-horoscope',
     dir: 'spring-boot-embabel-horoscope',
     port: 8089,
     type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
   },
   'spring-boot-durable-sessions': {
     name: 'spring-boot-durable-sessions',
     dir: 'spring-boot-durable-sessions',
     port: 8084,
     type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
   },
   'spring-boot-otel-chat': {
     name: 'spring-boot-otel-chat',
     dir: 'spring-boot-otel-chat',
     port: 8090,
     type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
   },
   'spring-boot-ai-tools': {
     name: 'spring-boot-ai-tools',
     dir: 'spring-boot-ai-tools',
     port: 8091,
     type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
   },
   'spring-boot-rag-chat': {
     name: 'spring-boot-rag-chat',
     dir: 'spring-boot-rag-chat',
     port: 8092,
     type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
   },
   'spring-boot-a2a-agent': {
     name: 'spring-boot-a2a-agent',
@@ -273,6 +290,11 @@ export async function startSample(config: SampleConfig): Promise<SampleServer> {
     await waitForPort(config.port, 90_000);
     // Port open doesn't mean the app is ready — wait for HTTP 200
     await waitForHttp(`http://127.0.0.1:${config.port}/`, 30_000);
+    // Wait for the Atmosphere endpoint to be initialized (servlet may
+    // start after the web server is ready, especially on slow CI runners)
+    if (config.readyPath) {
+      await waitForHttp(`http://127.0.0.1:${config.port}${config.readyPath}`, 30_000);
+    }
   } catch (e) {
     proc.kill('SIGTERM');
     console.error(`=== Server output for ${config.name} ===\n${output.slice(-2000)}`);

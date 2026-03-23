@@ -40,6 +40,8 @@ public class AtmosphereConsoleInfoEndpoint {
 
     @GetMapping("/api/console/info")
     public Map<String, String> info() {
-        return Map.of("subtitle", properties.getConsoleSubtitle());
+        return Map.of(
+                "subtitle", properties.getConsoleSubtitle(),
+                "endpoint", properties.getAi().getPath());
     }
 }

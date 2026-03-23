@@ -4,6 +4,8 @@ import ChatContainer from './components/ChatContainer.vue'
 import logoUrl from './assets/logo.svg'
 
 const subtitle = ref('')
+const endpoint = ref('/atmosphere/ai-chat')
+const ready = ref(false)
 
 onMounted(async () => {
   try {
@@ -11,10 +13,12 @@ onMounted(async () => {
     if (res.ok) {
       const data = await res.json()
       if (data.subtitle) subtitle.value = data.subtitle
+      if (data.endpoint) endpoint.value = data.endpoint
     }
   } catch {
-    // Console info not available — no subtitle
+    // Console info not available — use defaults
   }
+  ready.value = true
 })
 </script>
 
@@ -31,7 +35,7 @@ onMounted(async () => {
       </div>
     </header>
     <main class="app-main">
-      <ChatContainer />
+      <ChatContainer v-if="ready" :endpoint="endpoint" />
     </main>
   </div>
 </template>

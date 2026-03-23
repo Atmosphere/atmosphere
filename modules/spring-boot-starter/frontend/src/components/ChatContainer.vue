@@ -5,7 +5,11 @@ import ChatMessage from './ChatMessage.vue'
 import ChatInput from './ChatInput.vue'
 import ConnectionStatus from './ConnectionStatus.vue'
 
-const { messages, isConnected, isStreaming, connectionState, send, clearMessages } = useAtmosphereChat()
+const props = defineProps<{
+  endpoint?: string
+}>()
+
+const { messages, isConnected, isStreaming, connectionState, send, clearMessages } = useAtmosphereChat(props.endpoint)
 const messagesContainer = ref<HTMLElement | null>(null)
 
 function scrollToBottom() {
