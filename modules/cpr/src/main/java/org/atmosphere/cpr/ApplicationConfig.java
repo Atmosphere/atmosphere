@@ -157,6 +157,19 @@ public interface ApplicationConfig {
      */
     String DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER = "org.atmosphere.cpr.dropAccessControlAllowOriginHeader";
     /**
+     * Comma-separated list of allowed CORS origins. When set, only requests
+     * from these origins will receive {@code Access-Control-Allow-Origin} and
+     * {@code Access-Control-Allow-Credentials} headers.
+     * <p>
+     * When not set, the {@link org.atmosphere.interceptor.CorsInterceptor}
+     * echoes the request {@code Origin} header for backward compatibility
+     * (with a logged warning).
+     * <p/>
+     * Default: not set (echo all origins — insecure for production)<br>
+     * Value: org.atmosphere.cpr.cors.allowedOrigins
+     */
+    String CORS_ALLOWED_ORIGINS = "org.atmosphere.cpr.cors.allowedOrigins";
+    /**
      * The {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy} policy to use.
      * <p/>
      * Default: BroadcasterLifeCyclePolicy.NEVER<br>

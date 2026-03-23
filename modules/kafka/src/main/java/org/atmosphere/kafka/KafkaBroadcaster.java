@@ -148,6 +148,11 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
 
         if (consumerThread != null) {
             consumerThread.interrupt();
+            try {
+                consumerThread.join(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
 
         try {

@@ -19,26 +19,48 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
-import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
- * CORS support.
+ * CORS support with origin allowlist.
+ *
+ * <p>Configure allowed origins via
+ * {@value ApplicationConfig#CORS_ALLOWED_ORIGINS} (comma-separated).
+ * When not configured, the interceptor echoes the request {@code Origin}
+ * header for backward compatibility but logs a warning.</p>
  *
  * @author Janusz Sobolewski
  */
 public class CorsInterceptor extends AtmosphereInterceptorAdapter {
 
+    private static final Logger logger = LoggerFactory.getLogger(CorsInterceptor.class);
+
     private boolean enableAccessControl = true;
+    private Set<String> allowedOrigins;
+    private volatile boolean warnedOpenCors;
 
     @Override
     public void configure(AtmosphereConfig config) {
         String ac = config.getInitParameter(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
         if (ac != null) {
             enableAccessControl = !Boolean.parseBoolean(ac);
+        }
+
+        String origins = config.getInitParameter(ApplicationConfig.CORS_ALLOWED_ORIGINS);
+        if (origins != null && !origins.isBlank()) {
+            allowedOrigins = Arrays.stream(origins.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toUnmodifiableSet());
+            logger.info("CORS allowedOrigins: {}", allowedOrigins);
         }
     }
 
@@ -49,21 +71,24 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
 
         if (!enableAccessControl) return Action.CONTINUE;
 
-        AtmosphereRequest req = r.getRequest();
-        AtmosphereResponse res = r.getResponse();
+        var req = r.getRequest();
+        var res = r.getResponse();
 
-        String EXPOSE_HEADERS = "X-Atmosphere-tracking-id, " + HeaderConfig.X_HEARTBEAT_SERVER;
-        if (req.getHeader("Origin") != null && res.getHeader("Access-Control-Allow-Origin") == null) {
-            res.addHeader("Access-Control-Allow-Origin", req.getHeader("Origin"));
-            res.addHeader("Access-Control-Expose-Headers", EXPOSE_HEADERS);
-            res.setHeader("Access-Control-Allow-Credentials", "true");
+        String exposeHeaders = "X-Atmosphere-tracking-id, " + HeaderConfig.X_HEARTBEAT_SERVER;
+        String origin = req.getHeader("Origin");
+        if (origin != null && res.getHeader("Access-Control-Allow-Origin") == null) {
+            if (isOriginAllowed(origin)) {
+                res.addHeader("Access-Control-Allow-Origin", origin);
+                res.addHeader("Access-Control-Expose-Headers", exposeHeaders);
+                res.setHeader("Access-Control-Allow-Credentials", "true");
+            }
         }
 
         if ("OPTIONS".equals(req.getMethod())) {
             res.setHeader("Access-Control-Allow-Methods", "OPTIONS, GET, POST");
             res.setHeader("Access-Control-Allow-Headers",
                     "Origin, Content-Type, AuthToken, X-Atmosphere-Framework, X-Requested-With, "
-                            + EXPOSE_HEADERS
+                            + exposeHeaders
                             + ", X-Atmosphere-Transport, X-Atmosphere-TrackMessageSize, X-atmo-protocol");
             res.setHeader("Access-Control-Max-Age", "-1");
 
@@ -71,6 +96,23 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         return Action.CONTINUE;
+    }
+
+    /**
+     * Returns {@code true} if the origin is in the allowlist, or if no
+     * allowlist is configured (backward-compatible open CORS with warning).
+     */
+    private boolean isOriginAllowed(String origin) {
+        if (allowedOrigins != null) {
+            return allowedOrigins.contains(origin);
+        }
+        // No allowlist configured — backward-compatible echo with warning
+        if (!warnedOpenCors) {
+            warnedOpenCors = true;
+            logger.warn("CorsInterceptor: no allowedOrigins configured — echoing all Origin headers. "
+                    + "Set '{}' for production.", ApplicationConfig.CORS_ALLOWED_ORIGINS);
+        }
+        return true;
     }
 
     public boolean enableAccessControl() {

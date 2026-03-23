@@ -21,10 +21,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiPipeline;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.llm.ChatCompletionRequest;
 import org.slf4j.Logger;
@@ -46,14 +48,18 @@ public class ChannelAiBridge {
             "You are a helpful AI assistant. Keep responses concise and friendly. "
             + "Format responses appropriately for messaging platforms (short paragraphs, no complex markdown).";
 
-    // Set by AgentProcessor via reflection when atmosphere-agent is on the classpath
-    private static volatile Object commandRouterInstance;
-    private static volatile Object commandRouterTarget;
-    private static volatile Method routeMethod;
-    private static volatile String agentSystemPrompt;
+    // Registered agents, set by AgentProcessor via reflection at startup
+    private static final CopyOnWriteArrayList<AgentBinding> agentBindings = new CopyOnWriteArrayList<>();
 
     private final Map<String, MessagingChannel> channelsByType;
     private final ChannelFilterChain filterChain;
+
+    /**
+     * Binding for a single {@code @Agent} registered with the bridge.
+     * Commands route through all bindings in registration order (first match wins).
+     */
+    record AgentBinding(String name, Object router, Method routeMethod,
+                        String systemPrompt, AiPipeline aiPipeline) {}
 
     public ChannelAiBridge(List<MessagingChannel> channels, ChannelFilterChain filterChain) {
         this.channelsByType = new ConcurrentHashMap<>();
@@ -64,35 +70,26 @@ public class ChannelAiBridge {
     }
 
     /**
-     * Set a {@code CommandRouter} to handle slash commands before falling through
-     * to the LLM. Called via reflection by the agent module when both
-     * {@code atmosphere-agent} and {@code atmosphere-channels} are on the classpath.
+     * Register an {@code @Agent}'s CommandRouter, system prompt, and AI pipeline
+     * with the bridge. Multiple agents can be registered; commands are routed in
+     * registration order (first match wins). Called via reflection by the agent module.
      *
-     * @param router the CommandRouter instance
-     * @param target the agent instance (unused here, reserved for future use)
+     * @param name         the agent name (from {@code @Agent(name=...)})
+     * @param router       the CommandRouter instance
+     * @param target       the agent instance (unused here, reserved for future use)
+     * @param systemPrompt the agent's system prompt (may be null)
+     * @param aiPipeline   the agent's AI pipeline for NL message handling (may be null)
      */
-    public static void setCommandRouter(Object router, Object target) {
-        commandRouterInstance = router;
-        commandRouterTarget = target;
+    public static void registerAgent(String name, Object router, Object target,
+                                     String systemPrompt, Object aiPipeline) {
         try {
-            routeMethod = router.getClass().getMethod("route", String.class, String.class);
+            var method = router.getClass().getMethod("route", String.class, String.class);
+            var pipeline = aiPipeline instanceof AiPipeline p ? p : null;
+            agentBindings.add(new AgentBinding(name, router, method, systemPrompt, pipeline));
+            logger.info("ChannelAiBridge: agent '{}' registered (pipeline={}) — {} agent(s) active on channels",
+                    name, pipeline != null, agentBindings.size());
         } catch (NoSuchMethodException e) {
-            logger.error("CommandRouter does not have route(String, String) method", e);
-            commandRouterInstance = null;
-        }
-        logger.info("ChannelAiBridge: CommandRouter wired from @Agent — slash commands active on all channels");
-    }
-
-    /**
-     * Set the system prompt from the agent's skill file. If not set, falls back
-     * to the default generic prompt.
-     *
-     * @param prompt the system prompt text
-     */
-    public static void setSystemPrompt(String prompt) {
-        if (prompt != null && !prompt.isBlank()) {
-            agentSystemPrompt = prompt;
-            logger.info("ChannelAiBridge: using agent skill file system prompt ({} chars)", prompt.length());
+            logger.error("CommandRouter for agent '{}' does not have route(String, String) method", name, e);
         }
     }
 
@@ -151,43 +148,76 @@ public class ChannelAiBridge {
     }
 
     /**
-     * Routes the message through the CommandRouter if available. If the message
-     * is not a command (or no CommandRouter is set), falls through to the LLM.
+     * Routes the message through all registered agents' CommandRouters in
+     * registration order. The first router that returns {@code Executed} or
+     * {@code ConfirmationRequired} wins. If all return {@code NotACommand}
+     * (or no agents are registered), falls through to the LLM.
      */
     private String routeCommandOrAi(IncomingMessage incoming) {
-        if (commandRouterInstance != null && routeMethod != null) {
+        var clientId = incoming.channelType().id() + ":" + incoming.senderId();
+        for (var binding : agentBindings) {
             try {
-                var clientId = incoming.channelType().id() + ":" + incoming.senderId();
-                var result = routeMethod.invoke(commandRouterInstance, clientId, incoming.text());
-
-                // Use reflection to check the sealed interface variants
-                var resultClass = result.getClass();
-                var simpleName = resultClass.getSimpleName();
+                var result = binding.routeMethod().invoke(binding.router(), clientId, incoming.text());
+                var simpleName = result.getClass().getSimpleName();
 
                 if ("Executed".equals(simpleName)) {
-                    var responseMethod = resultClass.getMethod("response");
+                    var responseMethod = result.getClass().getMethod("response");
                     return (String) responseMethod.invoke(result);
                 }
                 if ("ConfirmationRequired".equals(simpleName)) {
-                    var promptMethod = resultClass.getMethod("prompt");
+                    var promptMethod = result.getClass().getMethod("prompt");
                     return (String) promptMethod.invoke(result);
                 }
-                // NotACommand — fall through to AI
+                // NotACommand — try next agent
             } catch (Exception e) {
-                logger.warn("CommandRouter invocation failed, falling through to AI: {}", e.getMessage());
+                logger.warn("CommandRouter for agent '{}' failed, trying next: {}",
+                        binding.name(), e.getMessage());
             }
         }
-        return callAi(incoming.text());
+        return callAi(incoming);
     }
 
-    private String callAi(String userMessage) {
+    /**
+     * Routes natural-language messages through the full AI pipeline (memory,
+     * tools, guardrails, RAG, metrics) if an agent pipeline is registered.
+     * Falls back to a raw LLM call if no agent is registered, or to demo mode
+     * if no API key is configured.
+     */
+    private String callAi(IncomingMessage incoming) {
+        var clientId = incoming.channelType().id() + ":" + incoming.senderId();
+
+        // Use the first registered agent's pipeline if available
+        for (var binding : agentBindings) {
+            if (binding.aiPipeline() != null) {
+                var collector = new CollectingSession();
+                try {
+                    binding.aiPipeline().execute(clientId, incoming.text(), collector);
+                    return collector.getResponse();
+                } catch (Exception e) {
+                    logger.error("AI pipeline for agent '{}' failed: {}",
+                            binding.name(), e.getMessage());
+                }
+            }
+        }
+
+        // Fallback: raw LLM call when no agent pipeline is available
+        return callAiRaw(incoming.text());
+    }
+
+    /**
+     * Raw LLM fallback for when no agent pipeline is registered (e.g., channels
+     * deployed without atmosphere-agent).
+     */
+    private String callAiRaw(String userMessage) {
         var settings = AiConfig.get();
         if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
             return "Hello! I received your message: \"" + userMessage
                     + "\"\n\nI'm in demo mode. Configure atmosphere.ai.api-key to enable real AI responses.";
         }
 
-        var prompt = agentSystemPrompt != null ? agentSystemPrompt : DEFAULT_SYSTEM_PROMPT;
+        var first = agentBindings.isEmpty() ? null : agentBindings.get(0);
+        var prompt = (first != null && first.systemPrompt() != null && !first.systemPrompt().isBlank())
+                ? first.systemPrompt() : DEFAULT_SYSTEM_PROMPT;
         var collector = new CollectingSession();
         var request = ChatCompletionRequest.builder(settings.model())
                 .system(prompt)

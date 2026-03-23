@@ -67,7 +67,7 @@ public @interface Agent {
 
     /**
      * Agent name. Used in the registration path ({@code /atmosphere/agent/{name}})
-     * and in protocol metadata (A2A Agent Card, MCP server name).
+     * and in protocol metadata (A2A Agent Card).
      */
     String name();
 
@@ -86,7 +86,7 @@ public @interface Agent {
 
     /**
      * Optional human-readable description of the agent. Used in protocol
-     * metadata (A2A Agent Card description, MCP server description).
+     * metadata (A2A Agent Card description).
      */
     String description() default "";
 }
