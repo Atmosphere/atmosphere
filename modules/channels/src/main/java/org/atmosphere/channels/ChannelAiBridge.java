@@ -178,15 +178,19 @@ public class ChannelAiBridge {
     }
 
     /**
-     * Routes natural-language messages through the full AI pipeline (memory,
-     * tools, guardrails, RAG, metrics) if an agent pipeline is registered.
-     * Falls back to a raw LLM call if no agent is registered, or to demo mode
-     * if no API key is configured.
+     * Routes natural-language messages through the AI pipeline.
+     *
+     * <p><strong>Limitation:</strong> when multiple agents are registered,
+     * NL messages are handled by the first agent that has a pipeline.
+     * There is no content-based routing across agents — only command
+     * routing supports multi-agent dispatch. This is a known design
+     * limitation; a future routing strategy (e.g., keyword-based or
+     * LLM-based agent selection) could address it.</p>
      */
     private String callAi(IncomingMessage incoming) {
         var clientId = incoming.channelType().id() + ":" + incoming.senderId();
 
-        // Use the first registered agent's pipeline if available
+        // First registered agent with a pipeline handles NL messages
         for (var binding : agentBindings) {
             if (binding.aiPipeline() != null) {
                 var collector = new CollectingSession();

@@ -46,7 +46,7 @@ public class DevOpsAgent {
 }
 ```
 
-`/status` typed in the browser routes instantly to the `@Command` method — deterministic, no inference cost. When `atmosphere-channels` and `atmosphere-agent` are both on the classpath, slash commands are also routed from Slack, Telegram, and other channels via the `CommandRouter` integration. Natural language falls through to `@Prompt` and the LLM on the web console; external channels use the configured LLM via `ChannelAiBridge` (the agent's `@Prompt` pipeline is not yet shared across channels).
+`/status` typed in the browser routes instantly to the `@Command` method — deterministic, no inference cost. When `atmosphere-channels` and `atmosphere-agent` are both on the classpath, slash commands are also routed from Slack, Telegram, and other channels via the `CommandRouter` integration. Natural language falls through to `@Prompt` and the LLM on the web console; external channels use `AiPipeline` (memory, tools, guardrails, RAG, metrics — same chain as WebSocket, minus `AiInterceptor`).
 
 **Try it now:**
 
@@ -59,16 +59,16 @@ Open `http://localhost:8080/atmosphere/console/` and type `/help`, `/firstaid`, 
 
 ### Multi-Channel — One Agent, Every Platform
 
-When `atmosphere-channels` is on the classpath, `@Command` slash commands are automatically routed to all configured channels. AI responses on external channels use `ChannelAiBridge` with the agent's skill-file prompt (the full `@Prompt`/`@AiTool` pipeline is web-only for now):
+When `atmosphere-channels` is on the classpath, `@Command` slash commands are automatically routed to all configured channels. AI responses on external channels go through the full `AiPipeline` (memory, tools, guardrails, RAG, metrics):
 
 | Channel | Activation | Commands | AI |
 |---------|-----------|:--------:|:--:|
-| Web (WebSocket) | Built-in | `@Command` via `CommandRouter` | `@Prompt` + `@AiTool` pipeline |
-| Slack | `SLACK_BOT_TOKEN` | Auto-routed | `ChannelAiBridge` (LLM only) |
-| Telegram | `TELEGRAM_BOT_TOKEN` | Auto-routed | `ChannelAiBridge` (LLM only) |
-| Discord | `DISCORD_BOT_TOKEN` | Auto-routed | `ChannelAiBridge` (LLM only) |
-| WhatsApp | `WHATSAPP_ACCESS_TOKEN` | Auto-routed | `ChannelAiBridge` (LLM only) |
-| Messenger | `MESSENGER_PAGE_TOKEN` | Auto-routed | `ChannelAiBridge` (LLM only) |
+| Web (WebSocket) | Built-in | `@Command` via `CommandRouter` | `@Prompt` + `@AiTool` + `AiInterceptor` |
+| Slack | `SLACK_BOT_TOKEN` | Auto-routed | `AiPipeline` (full chain, no `AiInterceptor`) |
+| Telegram | `TELEGRAM_BOT_TOKEN` | Auto-routed | `AiPipeline` (full chain, no `AiInterceptor`) |
+| Discord | `DISCORD_BOT_TOKEN` | Auto-routed | `AiPipeline` (full chain, no `AiInterceptor`) |
+| WhatsApp | `WHATSAPP_ACCESS_TOKEN` | Auto-routed | `AiPipeline` (full chain, no `AiInterceptor`) |
+| Messenger | `MESSENGER_PAGE_TOKEN` | Auto-routed | `AiPipeline` (full chain, no `AiInterceptor`) |
 
 ### Skill File — System Prompt + Agent Metadata
 

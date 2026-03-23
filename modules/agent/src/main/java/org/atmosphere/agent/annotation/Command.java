@@ -35,9 +35,7 @@ import java.lang.annotation.Target;
  * <p>Commands are routed in the web console via "/" prefix routing.
  * When {@code atmosphere-channels} is on the classpath, commands are
  * automatically routed to all configured channels (Slack, Telegram, etc.)
- * via the {@code ChannelAiBridge} integration — no custom bridge needed.
- * Note: commands are distinct from {@code @AiTool} methods — only
- * {@code @AiTool} methods are exposed as MCP tools.</p>
+ * via the {@code ChannelAiBridge} integration — no custom bridge needed.</p>
  *
  * <p>Example:</p>
  * <pre>{@code
