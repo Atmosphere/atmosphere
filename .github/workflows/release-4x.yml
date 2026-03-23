@@ -449,6 +449,11 @@ jobs:
     - name: Pull latest
       run: git pull origin main
 
+    - name: Configure Git
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+
     - name: Update CLI version in all files
       run: |
         VERSION="${{ inputs.release_version }}"
@@ -465,13 +470,13 @@ jobs:
         # Update npx package version
         sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" cli/npx/package.json
 
-    - name: Create PR for CLI version bump
-      uses: peter-evans/create-pull-request@v7
-      with:
-        commit-message: "chore(cli): bump version to ${{ inputs.release_version }}"
-        title: "chore(cli): bump CLI version to ${{ inputs.release_version }}"
-        branch: cli-version-bump-${{ inputs.release_version }}
-        body: "Automated version bump after release ${{ inputs.release_version }}"
+    - name: Commit and push CLI version bump
+      run: |
+        git add cli/samples.json cli/atmosphere cli/install.sh cli/npx/package.json
+        git diff --cached --quiet || {
+          git commit -m "chore(cli): bump version to ${{ inputs.release_version }}"
+          git push origin main
+        }
 
     - name: Update Homebrew tap
       env:
