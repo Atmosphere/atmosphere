@@ -30,7 +30,7 @@ for (const sampleName of UNIFIED_SAMPLES) {
     test('console loads at /atmosphere/console/', async ({ page }) => {
       await page.goto(server.baseUrl + '/atmosphere/console/');
       await expect(page.getByTestId('chat-layout')).toBeVisible();
-      await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
+      await expect(page.getByTestId('chat-input')).toBeVisible();
     });
 
     test('displays Atmosphere logo', async ({ page }) => {

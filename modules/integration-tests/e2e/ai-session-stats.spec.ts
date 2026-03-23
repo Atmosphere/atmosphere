@@ -15,7 +15,7 @@ test.afterAll(async () => {
 test.describe('AI Session Stats & UI', () => {
   test('progress indicator appears during demo mode streaming', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
+    await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Hello');
     await page.getByTestId('chat-send').click();
@@ -27,13 +27,13 @@ test.describe('AI Session Stats & UI', () => {
 
   test('stats bar appears after streaming completes', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
+    await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('What is Atmosphere?');
     await page.getByTestId('chat-send').click();
 
     // Wait for streaming to complete — input becomes enabled
-    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
+    await expect(page.getByTestId('chat-input')).toBeVisible();
 
     // Stats bar should show streaming text count, elapsed time, and texts/s
     await expect(page.getByText('streaming texts', { exact: false }))
@@ -44,13 +44,13 @@ test.describe('AI Session Stats & UI', () => {
 
   test('stats bar shows non-zero values', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
+    await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Hello');
     await page.getByTestId('chat-send').click();
 
     // Wait for streaming to complete
-    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
+    await expect(page.getByTestId('chat-input')).toBeVisible();
 
     // Check that streaming text count is > 0 (demo sends word-by-word)
     const statsBar = page.locator('text=/\\d+ streaming texts/');
@@ -63,7 +63,7 @@ test.describe('AI Session Stats & UI', () => {
 
   test('send button is disabled during streaming and re-enables after', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
+    await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Tell me about Atmosphere');
     await page.getByTestId('chat-send').click();
@@ -72,7 +72,7 @@ test.describe('AI Session Stats & UI', () => {
     await expect(page.getByTestId('chat-send')).toBeDisabled({ timeout: 5_000 });
 
     // Wait for streaming to complete
-    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
+    await expect(page.getByTestId('chat-input')).toBeVisible();
 
     // After completion, fill new text and send button should be enabled
     await page.getByTestId('chat-input').fill('Follow up');
@@ -81,7 +81,7 @@ test.describe('AI Session Stats & UI', () => {
 
   test('streaming response renders with markdown-like formatting', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
+    await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('What is Atmosphere?');
     await page.getByTestId('chat-send').click();

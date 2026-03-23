@@ -41,7 +41,6 @@ function autoResize() {
       <textarea
         ref="textarea"
         v-model="input"
-        :disabled="disabled"
         :placeholder="disabled ? 'Connecting...' : 'Type a message... (Shift+Enter for newline)'"
         rows="1"
         class="input-field"
