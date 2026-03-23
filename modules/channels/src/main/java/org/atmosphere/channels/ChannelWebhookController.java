@@ -18,6 +18,7 @@ package org.atmosphere.channels;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,9 +35,9 @@ import org.springframework.web.bind.annotation.RestController;
  * Receives webhooks from external messaging platforms and routes them
  * to the appropriate {@link MessagingChannel} adapter.
  * <p>
- * When a message is received, the registered {@link #onMessage} callback
- * is invoked — typically bridging to an Atmosphere {@code @AiEndpoint}
- * or {@code Broadcaster}.
+ * When a message is received, all registered message handlers are invoked
+ * in order — typically bridging to an Atmosphere {@code @AiEndpoint},
+ * {@code @Agent} command router, or {@code Broadcaster}.
  */
 @RestController
 public class ChannelWebhookController {
@@ -45,8 +46,7 @@ public class ChannelWebhookController {
 
     private final Map<String, MessagingChannel> channelsByPath;
     private final ChannelFilterChain filterChain;
-    private Consumer<IncomingMessage> onMessage = msg ->
-            log.warn("No message handler registered, dropping message from {}", msg.channelType());
+    private final List<Consumer<IncomingMessage>> handlers = new CopyOnWriteArrayList<>();
 
     public ChannelWebhookController(List<MessagingChannel> channels, ChannelFilterChain filterChain) {
         this.channelsByPath = new HashMap<>();
@@ -58,21 +58,36 @@ public class ChannelWebhookController {
     }
 
     /**
-     * Register a callback for incoming messages from any channel.
+     * Add a message handler that will be called for every incoming message.
+     * Multiple handlers can be registered and will be called in order.
+     *
+     * @param handler the handler to add
      */
-    public void onMessage(Consumer<IncomingMessage> handler) {
-        this.onMessage = handler;
+    public void addMessageHandler(Consumer<IncomingMessage> handler) {
+        handlers.add(handler);
     }
 
     /**
-     * Route an incoming message through the registered handler.
+     * Register a callback for incoming messages from any channel.
+     *
+     * @deprecated Use {@link #addMessageHandler(Consumer)} instead. This method
+     *             clears all existing handlers and replaces them with the given one.
+     */
+    @Deprecated
+    public void onMessage(Consumer<IncomingMessage> handler) {
+        handlers.clear();
+        handlers.add(handler);
+    }
+
+    /**
+     * Route an incoming message through all registered handlers.
      * Used by Gateway-based channels (e.g., Discord) that receive messages
      * via WebSocket instead of HTTP webhooks.
      */
     public void routeMessage(IncomingMessage message) {
         var filtered = filterChain.filterIncoming(message);
         if (filtered != null) {
-            onMessage.accept(filtered);
+            dispatchToHandlers(filtered);
         }
     }
 
@@ -133,7 +148,7 @@ public class ChannelWebhookController {
                 log.debug("Received {} message from {}: {}",
                         filtered.channelType().id(), filtered.senderId(),
                         filtered.text().substring(0, Math.min(50, filtered.text().length())));
-                onMessage.accept(filtered);
+                dispatchToHandlers(filtered);
             }
 
             return ResponseEntity.ok("ok");
@@ -141,6 +156,21 @@ public class ChannelWebhookController {
             log.warn("Webhook error for {}: {}", channel, e.getMessage());
             return ResponseEntity.status(e.isRetryable() ? 500 : 400)
                     .body(e.getMessage());
+        }
+    }
+
+    private void dispatchToHandlers(IncomingMessage message) {
+        if (handlers.isEmpty()) {
+            log.warn("No message handler registered, dropping message from {}", message.channelType());
+            return;
+        }
+        for (Consumer<IncomingMessage> handler : handlers) {
+            try {
+                handler.accept(message);
+            } catch (Exception e) {
+                log.error("Message handler failed for {} message from {}: {}",
+                        message.channelType().id(), message.senderId(), e.getMessage(), e);
+            }
         }
     }
 }

@@ -42,13 +42,6 @@ public final class DemoResponseProducer {
         }
     }
 
-    /**
-     * Generate a demo response without streaming (for channel bridge).
-     */
-    static String generateDemoResponse(String userMessage) {
-        return generateResponse(userMessage);
-    }
-
     private static String generateResponse(String userMessage) {
         var lower = userMessage.toLowerCase();
 

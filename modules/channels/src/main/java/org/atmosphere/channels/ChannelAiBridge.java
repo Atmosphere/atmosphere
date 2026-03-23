@@ -15,6 +15,7 @@
  */
 package org.atmosphere.channels;
 
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,9 +42,15 @@ import org.slf4j.LoggerFactory;
 public class ChannelAiBridge {
 
     private static final Logger logger = LoggerFactory.getLogger(ChannelAiBridge.class);
-    private static final String SYSTEM_PROMPT =
+    private static final String DEFAULT_SYSTEM_PROMPT =
             "You are a helpful AI assistant. Keep responses concise and friendly. "
             + "Format responses appropriately for messaging platforms (short paragraphs, no complex markdown).";
+
+    // Set by AgentProcessor via reflection when atmosphere-agent is on the classpath
+    private static volatile Object commandRouterInstance;
+    private static volatile Object commandRouterTarget;
+    private static volatile Method routeMethod;
+    private static volatile String agentSystemPrompt;
 
     private final Map<String, MessagingChannel> channelsByType;
     private final ChannelFilterChain filterChain;
@@ -53,6 +60,39 @@ public class ChannelAiBridge {
         this.filterChain = filterChain;
         for (MessagingChannel channel : channels) {
             channelsByType.put(channel.channelType().id(), channel);
+        }
+    }
+
+    /**
+     * Set a {@code CommandRouter} to handle slash commands before falling through
+     * to the LLM. Called via reflection by the agent module when both
+     * {@code atmosphere-agent} and {@code atmosphere-channels} are on the classpath.
+     *
+     * @param router the CommandRouter instance
+     * @param target the agent instance (unused here, reserved for future use)
+     */
+    public static void setCommandRouter(Object router, Object target) {
+        commandRouterInstance = router;
+        commandRouterTarget = target;
+        try {
+            routeMethod = router.getClass().getMethod("route", String.class, String.class);
+        } catch (NoSuchMethodException e) {
+            logger.error("CommandRouter does not have route(String, String) method", e);
+            commandRouterInstance = null;
+        }
+        logger.info("ChannelAiBridge: CommandRouter wired from @Agent — slash commands active on all channels");
+    }
+
+    /**
+     * Set the system prompt from the agent's skill file. If not set, falls back
+     * to the default generic prompt.
+     *
+     * @param prompt the system prompt text
+     */
+    public static void setSystemPrompt(String prompt) {
+        if (prompt != null && !prompt.isBlank()) {
+            agentSystemPrompt = prompt;
+            logger.info("ChannelAiBridge: using agent skill file system prompt ({} chars)", prompt.length());
         }
     }
 
@@ -77,7 +117,8 @@ public class ChannelAiBridge {
             return;
         }
 
-        String response = callAi(incoming.text());
+        // Route through CommandRouter first if an @Agent is registered
+        String response = routeCommandOrAi(incoming);
 
         // Truncate if exceeding channel limit
         if (response.length() > channel.maxMessageLength()) {
@@ -109,6 +150,36 @@ public class ChannelAiBridge {
         }
     }
 
+    /**
+     * Routes the message through the CommandRouter if available. If the message
+     * is not a command (or no CommandRouter is set), falls through to the LLM.
+     */
+    private String routeCommandOrAi(IncomingMessage incoming) {
+        if (commandRouterInstance != null && routeMethod != null) {
+            try {
+                var clientId = incoming.channelType().id() + ":" + incoming.senderId();
+                var result = routeMethod.invoke(commandRouterInstance, clientId, incoming.text());
+
+                // Use reflection to check the sealed interface variants
+                var resultClass = result.getClass();
+                var simpleName = resultClass.getSimpleName();
+
+                if ("Executed".equals(simpleName)) {
+                    var responseMethod = resultClass.getMethod("response");
+                    return (String) responseMethod.invoke(result);
+                }
+                if ("ConfirmationRequired".equals(simpleName)) {
+                    var promptMethod = resultClass.getMethod("prompt");
+                    return (String) promptMethod.invoke(result);
+                }
+                // NotACommand — fall through to AI
+            } catch (Exception e) {
+                logger.warn("CommandRouter invocation failed, falling through to AI: {}", e.getMessage());
+            }
+        }
+        return callAi(incoming.text());
+    }
+
     private String callAi(String userMessage) {
         var settings = AiConfig.get();
         if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
@@ -116,9 +187,10 @@ public class ChannelAiBridge {
                     + "\"\n\nI'm in demo mode. Configure atmosphere.ai.api-key to enable real AI responses.";
         }
 
+        var prompt = agentSystemPrompt != null ? agentSystemPrompt : DEFAULT_SYSTEM_PROMPT;
         var collector = new CollectingSession();
         var request = ChatCompletionRequest.builder(settings.model())
-                .system(SYSTEM_PROMPT)
+                .system(prompt)
                 .user(userMessage)
                 .build();
 

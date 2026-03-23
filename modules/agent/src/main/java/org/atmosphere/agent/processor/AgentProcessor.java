@@ -134,6 +134,7 @@ public class AgentProcessor implements Processor<Object> {
             // Step 8-9: Optional cross-protocol registration
             var protocols = new ArrayList<String>();
             registerA2a(framework, annotation, skillFile, commandRegistry, toolRegistry, path, protocols);
+            wireChannelBridge(commandRouter, instance, systemPrompt, protocols);
 
             // Step 10: Log summary
             logger.info("Agent '{}' registered at {} (class: {}, commands: {}, tools: {}, "
@@ -321,24 +322,34 @@ public class AgentProcessor implements Processor<Object> {
         return List.copyOf(skills);
     }
 
-    private void registerMcp(AtmosphereFramework framework, Agent annotation,
-                             CommandRegistry commandRegistry, ToolRegistry toolRegistry,
-                             String basePath, List<String> protocols) {
-        if (!ClasspathDetector.hasMcp()) {
+    /**
+     * Wires the agent's CommandRouter and system prompt into ChannelAiBridge via
+     * reflection. This enables slash commands and the agent's skill file prompt
+     * on all messaging channels with zero glue code.
+     */
+    private void wireChannelBridge(CommandRouter commandRouter, Object instance,
+                                    String systemPrompt, List<String> protocols) {
+        if (!ClasspathDetector.hasChannels()) {
             return;
         }
         try {
-            var mcpRegistry = new org.atmosphere.mcp.registry.McpRegistry();
+            var bridgeClass = Class.forName("org.atmosphere.channels.ChannelAiBridge",
+                    true, Thread.currentThread().getContextClassLoader());
 
-            var protocolHandler = new org.atmosphere.mcp.runtime.McpProtocolHandler(
-                    annotation.name(), AGENT_VERSION, mcpRegistry, framework.getAtmosphereConfig());
-            var mcpHandler = new org.atmosphere.mcp.runtime.McpHandler(protocolHandler);
+            var setRouter = bridgeClass.getMethod("setCommandRouter", Object.class, Object.class);
+            setRouter.invoke(null, commandRouter, instance);
 
-            framework.addAtmosphereHandler(basePath + "/mcp", mcpHandler, new java.util.ArrayList<>());
-            protocols.add("mcp");
-            logger.debug("MCP endpoint registered at {}/mcp", basePath);
+            if (systemPrompt != null && !systemPrompt.isBlank()) {
+                var setPrompt = bridgeClass.getMethod("setSystemPrompt", String.class);
+                setPrompt.invoke(null, systemPrompt);
+            }
+
+            protocols.add("channels");
+            logger.debug("CommandRouter wired into ChannelAiBridge for channel integration");
+        } catch (ClassNotFoundException e) {
+            logger.debug("ChannelAiBridge not on classpath, skipping channel integration");
         } catch (Exception e) {
-            logger.warn("Failed to register MCP endpoint for agent: {}", e.getMessage());
+            logger.warn("Failed to wire CommandRouter into ChannelAiBridge: {}", e.getMessage());
         }
     }
 

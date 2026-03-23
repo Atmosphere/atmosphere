@@ -126,7 +126,7 @@ public class ChannelsAutoConfiguration {
                                            ChannelFilterChain filterChain,
                                            ChannelWebhookController webhookController) {
         var bridge = new ChannelAiBridge(channels, filterChain);
-        webhookController.onMessage(bridge::handleMessage);
+        webhookController.addMessageHandler(bridge::handleMessage);
         return bridge;
     }
 }

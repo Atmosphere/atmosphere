@@ -35,11 +35,13 @@ public final class CommandRouter {
 
     private static final Logger logger = LoggerFactory.getLogger(CommandRouter.class);
     private static final long CONFIRMATION_TIMEOUT_MS = 60_000;
+    private static final long CLIENT_IDLE_TIMEOUT_MS = 30 * 60 * 1000L; // 30 minutes
 
     private final CommandRegistry registry;
     private final Object target;
     private final ConcurrentHashMap<String, PendingConfirmation> pending = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, ReentrantLock> clientLocks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Long> clientLastSeen = new ConcurrentHashMap<>();
 
     record PendingConfirmation(CommandRegistry.CommandEntry command, String args, Instant createdAt) {
     }
@@ -68,13 +70,14 @@ public final class CommandRouter {
             return new CommandResult.NotACommand();
         }
 
-        // Periodic cleanup of expired pending confirmations
+        // Track last-seen time for idle eviction
+        clientLastSeen.put(clientId, System.currentTimeMillis());
+
+        // Periodic cleanup of expired pending confirmations and idle clients
         cleanupExpiredPending();
+        cleanupIdleClients();
 
         // Per-client lock prevents race conditions in confirmation flow.
-        // Locks are not removed after use to avoid a race between unlock and
-        // a concurrent computeIfAbsent. The map is bounded by the number of
-        // active client IDs (WebSocket UUIDs), which are finite.
         var lock = clientLocks.computeIfAbsent(clientId, k -> new ReentrantLock());
         lock.lock();
         try {
@@ -168,6 +171,24 @@ public final class CommandRouter {
      */
     private void cleanupExpiredPending() {
         pending.entrySet().removeIf(entry -> isExpired(entry.getValue()));
+    }
+
+    /**
+     * Evicts client locks and last-seen entries for clients that have no pending
+     * confirmation and haven't been seen in {@value #CLIENT_IDLE_TIMEOUT_MS} ms.
+     * Prevents unbounded growth from unique Telegram/Slack sender IDs.
+     */
+    private void cleanupIdleClients() {
+        long now = System.currentTimeMillis();
+        clientLastSeen.entrySet().removeIf(entry -> {
+            var clientId = entry.getKey();
+            var lastSeen = entry.getValue();
+            if (now - lastSeen > CLIENT_IDLE_TIMEOUT_MS && !pending.containsKey(clientId)) {
+                clientLocks.remove(clientId);
+                return true;
+            }
+            return false;
+        });
     }
 
     private boolean isConfirmation(String message) {
