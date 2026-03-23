@@ -23,7 +23,7 @@ test.describe('Spring Boot AI Classroom', () => {
 
     await expect(page.getByTestId('classroom-layout')).toBeVisible();
     await expect(page.getByTestId('room-badge')).toContainText('Math');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
   });
 
   test('student sends question and sees streaming response', async ({ page }) => {

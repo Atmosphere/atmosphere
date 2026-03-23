@@ -358,6 +358,59 @@ assert_exit_code "$ec" 1 "new without name exits with error"
 
 printf "\n"
 
+# ── 12b. CLI: new --skill-file (agent from skill) ────────────────────────
+printf "${BOLD}atmosphere new --skill-file (agent scaffold)${RESET}\n"
+
+# Create a test skill file
+cat > "$tmp_dir/test-skill.md" <<SKILLEOF
+# Support Agent
+You are a customer support agent for Acme Corp.
+
+## Skills
+- Answer product questions
+- Handle returns and exchanges
+
+## Guardrails
+- Never share internal pricing
+SKILLEOF
+
+out=$(cd "$tmp_dir" && env PATH="/usr/bin:/bin:/usr/sbin:/sbin" "$CLI" new my-support-agent --skill-file "$tmp_dir/test-skill.md" 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 0 "new --skill-file exits successfully"
+assert_contains "$out" "Project created" "prints success message"
+
+if [ -f "$tmp_dir/my-support-agent/pom.xml" ]; then
+    pass "agent: creates pom.xml"
+    agent_pom=$(cat "$tmp_dir/my-support-agent/pom.xml")
+    assert_contains "$agent_pom" "atmosphere-agent" "agent pom.xml has atmosphere-agent dependency"
+else
+    fail "agent: creates pom.xml"
+fi
+
+if [ -f "$tmp_dir/my-support-agent/src/main/java/com/example/MySupportAgent.java" ]; then
+    pass "agent: creates agent class with PascalCase name"
+    agent_java=$(cat "$tmp_dir/my-support-agent/src/main/java/com/example/MySupportAgent.java")
+    assert_contains "$agent_java" "@Agent" "agent class has @Agent annotation"
+    assert_contains "$agent_java" "skillFile" "agent class references skill file"
+    assert_contains "$agent_java" "prompts/skill.md" "agent class points to prompts/skill.md"
+else
+    fail "agent: creates agent class"
+fi
+
+if [ -f "$tmp_dir/my-support-agent/src/main/resources/prompts/skill.md" ]; then
+    pass "agent: copies skill file to resources"
+    skill_content=$(cat "$tmp_dir/my-support-agent/src/main/resources/prompts/skill.md")
+    assert_contains "$skill_content" "Support Agent" "skill file content preserved"
+    assert_contains "$skill_content" "Guardrails" "skill file guardrails preserved"
+else
+    fail "agent: copies skill file to resources"
+fi
+
+# --skill-file with nonexistent file
+out=$("$CLI" new bad-agent --skill-file /nonexistent/skill.md 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "nonexistent skill file exits with error"
+
+printf "\n"
+
 # ── 13. npx: create-atmosphere-app ─────────────────────────────────────────
 if [ -z "$SKIP_NPX" ]; then
     printf "${BOLD}npx create-atmosphere-app${RESET}\n"

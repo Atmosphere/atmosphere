@@ -14,7 +14,8 @@ test.afterAll(async () => {
 test.describe('AI Streaming in DOM', () => {
   test('streaming response appears after sending a prompt', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    // Wait for WebSocket to connect — textarea is disabled until connected
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     // Send a prompt
     await page.getByTestId('chat-input').fill('Tell me about Atmosphere');
@@ -31,7 +32,7 @@ test.describe('AI Streaming in DOM', () => {
 
   test('send button is disabled during streaming', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('What is WebSocket?');
     await page.getByTestId('chat-send').click();
@@ -48,7 +49,7 @@ test.describe('AI Streaming in DOM', () => {
 
   test('user prompt is visible in the chat after sending', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('Hello AI');
     await page.getByTestId('chat-send').click();

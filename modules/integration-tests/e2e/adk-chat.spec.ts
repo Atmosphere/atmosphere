@@ -15,7 +15,7 @@ test.describe('ADK Chat', () => {
   test('page loads with AI chat layout', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-layout')).toBeVisible();
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
     await expect(page.getByTestId('chat-send')).toBeVisible();
   });
 
@@ -33,7 +33,7 @@ test.describe('ADK Chat', () => {
 
   test('user can send a prompt and receive streaming response', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('Tell me about atmosphere');
     await page.getByTestId('chat-send').click();

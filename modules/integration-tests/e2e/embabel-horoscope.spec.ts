@@ -15,13 +15,13 @@ test.describe('Embabel Horoscope', () => {
   test('page loads with AI chat layout', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-layout')).toBeVisible();
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
     await expect(page.getByTestId('chat-send')).toBeVisible();
   });
 
   test('generates horoscope for Leo with celestial events', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill("What's my horoscope for Leo?");
     await page.getByTestId('chat-send').click();
@@ -35,7 +35,7 @@ test.describe('Embabel Horoscope', () => {
 
   test('generates horoscope for Pisces', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('Horoscope for Pisces today');
     await page.getByTestId('chat-send').click();
@@ -49,7 +49,7 @@ test.describe('Embabel Horoscope', () => {
 
   test('asks for zodiac sign when none provided', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('Hello, tell me my fortune');
     await page.getByTestId('chat-send').click();
@@ -83,7 +83,7 @@ test.describe('Embabel Horoscope', () => {
 
   test('multi-turn: second horoscope request works', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     // First request
     await page.getByTestId('chat-input').fill('Horoscope for Aries');

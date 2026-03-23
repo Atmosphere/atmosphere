@@ -23,7 +23,7 @@ test.describe('AI Chat — New Features E2E', () => {
 
   test('conversation memory: server remembers across turns in same session', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     // First message
     await page.getByTestId('chat-input').fill('Hello');
@@ -66,8 +66,8 @@ test.describe('AI Chat — New Features E2E', () => {
     await page1.goto(server.baseUrl + '/atmosphere/console/');
     await page2.goto(server.baseUrl + '/atmosphere/console/');
 
-    await expect(page1.getByTestId('chat-input')).toBeVisible();
-    await expect(page2.getByTestId('chat-input')).toBeVisible();
+    await expect(page1.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
+    await expect(page2.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     // Client 1 sends a message
     await page1.getByTestId('chat-input').fill('Hello from client 1');

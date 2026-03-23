@@ -52,7 +52,7 @@ public class DevOpsAgent {
 
 ```bash
 brew install Atmosphere/tap/atmosphere    # or: curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
-atmosphere run spring-boot-dentist-agent  # Dr. Molar — dental emergency agent on Web + Telegram + Slack
+LLM_API_KEY=sk-... atmosphere run spring-boot-dentist-agent  # Dr. Molar — dental emergency agent
 ```
 
 Open `http://localhost:8080/atmosphere/console/` and type `/help`, `/firstaid`, or just describe your broken tooth. To connect Slack or Telegram, [create a bot](https://atmosphere.github.io/docs/tutorial/23-channels/) and set the token as an environment variable.
@@ -86,7 +86,7 @@ You are a DevOps assistant that helps teams monitor services.
 - Never execute production deployments without confirmation
 ```
 
-See [spring-boot-agent-chat](samples/spring-boot-agent-chat/) for a DevOps agent and [spring-boot-dentist-agent](samples/spring-boot-dentist-agent/) for a multi-channel agent with Slack and Telegram.
+See the [DevOps skill file](samples/spring-boot-agent-chat/src/main/resources/prompts/devops-skill.md) and [Dentist skill file](samples/spring-boot-dentist-agent/src/main/resources/prompts/dentist-skill.md) for real examples. Full samples: [spring-boot-agent-chat](samples/spring-boot-agent-chat/) (DevOps agent) and [spring-boot-dentist-agent](samples/spring-boot-dentist-agent/) (multi-channel with Slack and Telegram).
 
 ### Under the Hood
 

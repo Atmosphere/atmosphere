@@ -123,13 +123,13 @@ test.describe('AG-UI Chat UI', () => {
   test('page loads with chat layout', async ({ page }) => {
     await page.goto(server.baseUrl);
     await expect(page.getByTestId('chat-layout')).toBeVisible();
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
     await expect(page.getByText('AG-UI Protocol Demo')).toBeVisible();
   });
 
   test('send message and receive streamed response', async ({ page }) => {
     await page.goto(server.baseUrl);
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('Hello!');
     await page.getByTestId('chat-send').click();
@@ -144,7 +144,7 @@ test.describe('AG-UI Chat UI', () => {
 
   test('weather query shows tool name in UI', async ({ page }) => {
     await page.goto(server.baseUrl);
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('What is the weather today?');
     await page.getByTestId('chat-send').click();
@@ -156,7 +156,7 @@ test.describe('AG-UI Chat UI', () => {
 
   test('input disabled while streaming, re-enabled after', async ({ page }) => {
     await page.goto(server.baseUrl);
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('Hello!');
     await page.getByTestId('chat-send').click();

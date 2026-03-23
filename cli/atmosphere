@@ -675,19 +675,27 @@ cmd_run() {
 }
 
 cmd_new() {
-    [ -z "$1" ] && die "Usage: atmosphere new <project-name> [--template <template>]"
+    [ -z "$1" ] && die "Usage: atmosphere new <project-name> [--template <template>] [--skill-file <path>]"
     project_name="$1"; shift
 
     template="chat"
     group_id="com.example"
+    skill_file=""
     while [ $# -gt 0 ]; do
         case "$1" in
-            --template|-t) template="$2"; shift 2 ;;
-            --group|-g)    group_id="$2"; shift 2 ;;
-            -*)            die "Unknown option: $1" ;;
-            *)             die "Unknown argument: $1" ;;
+            --template|-t)    template="$2"; shift 2 ;;
+            --group|-g)       group_id="$2"; shift 2 ;;
+            --skill-file|-s)  skill_file="$2"; shift 2 ;;
+            -*)               die "Unknown option: $1" ;;
+            *)                die "Unknown argument: $1" ;;
         esac
     done
+
+    # --skill-file implies agent template
+    if [ -n "$skill_file" ]; then
+        [ ! -f "$skill_file" ] && die "Skill file not found: $skill_file"
+        template="agent"
+    fi
 
     # Check for JBang
     if command -v jbang >/dev/null 2>&1; then
@@ -709,6 +717,13 @@ cmd_new() {
         mkdir -p "$project_name"
         create_minimal_project "$project_name" "$group_id" "$template"
 
+        # Copy skill file into the project
+        if [ -n "$skill_file" ]; then
+            mkdir -p "$project_name/src/main/resources/prompts"
+            cp "$skill_file" "$project_name/src/main/resources/prompts/skill.md"
+            info "Copied skill file to src/main/resources/prompts/skill.md"
+        fi
+
         ok "Project created: $project_name/"
         printf "\n  cd %s\n  ./mvnw spring-boot:run\n\n" "$project_name"
     fi
@@ -727,6 +742,13 @@ create_minimal_project() {
     # ── Extra dependencies based on template ──
     extra_deps=""
     case "$tmpl" in
+        agent)
+            extra_deps='
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-agent</artifactId>
+            <version>${atmosphere.version}</version>
+        </dependency>' ;;
         ai-chat|ai-tools)
             extra_deps='
         <dependency>
@@ -809,6 +831,8 @@ JAVAEOF
 
     # ── Generate handler based on template ──
     case "$tmpl" in
+        agent)
+            create_agent_handler "$dir" "$group" "$package_path" "$artifact" ;;
         ai-chat)
             create_ai_chat_handler "$dir" "$group" "$package_path" ;;
         *)
@@ -966,11 +990,37 @@ public class AiChat {
 JAVAEOF
 }
 
+create_agent_handler() {
+    dir="$1"
+    group="$2"
+    package_path="$3"
+    agent_name="$4"
+
+    # Convert artifact name to PascalCase class name (e.g., my-support-agent → MySupportAgent)
+    class_name=$(printf '%s' "$agent_name" | awk -F- '{for(i=1;i<=NF;i++){$i=toupper(substr($i,1,1)) substr($i,2)}}1' OFS='')
+
+    cat > "$dir/src/main/java/$package_path/${class_name}.java" <<JAVAEOF
+package ${group};
+
+import org.atmosphere.agent.annotation.Agent;
+
+@Agent(name = "${agent_name}", skillFile = "prompts/skill.md")
+public class ${class_name} {
+    // Everything comes from the skill file — system prompt, metadata, guardrails.
+    // Add @Command methods for slash commands, @AiTool methods for tool calling.
+}
+JAVAEOF
+}
+
 create_index_html() {
     dir="$1"
     tmpl="$2"
 
     case "$tmpl" in
+        agent)
+            # Agent uses the unified console provided by the starter
+            info "Agent template uses the built-in console at /atmosphere/console/"
+            return ;;
         ai-chat)
             ws_path="/ai/chat"
             title="AI Chat"

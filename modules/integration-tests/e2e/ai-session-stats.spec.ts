@@ -15,7 +15,7 @@ test.afterAll(async () => {
 test.describe('AI Session Stats & UI', () => {
   test('progress indicator appears during demo mode streaming', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('Hello');
     await page.getByTestId('chat-send').click();
@@ -27,7 +27,7 @@ test.describe('AI Session Stats & UI', () => {
 
   test('stats bar appears after streaming completes', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('What is Atmosphere?');
     await page.getByTestId('chat-send').click();
@@ -44,7 +44,7 @@ test.describe('AI Session Stats & UI', () => {
 
   test('stats bar shows non-zero values', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('Hello');
     await page.getByTestId('chat-send').click();
@@ -63,7 +63,7 @@ test.describe('AI Session Stats & UI', () => {
 
   test('send button is disabled during streaming and re-enables after', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('Tell me about Atmosphere');
     await page.getByTestId('chat-send').click();
@@ -81,7 +81,7 @@ test.describe('AI Session Stats & UI', () => {
 
   test('streaming response renders with markdown-like formatting', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('What is Atmosphere?');
     await page.getByTestId('chat-send').click();
