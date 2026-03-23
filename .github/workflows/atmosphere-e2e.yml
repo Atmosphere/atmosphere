@@ -74,7 +74,7 @@ jobs:
         name: build-targets
 
     - name: Restore build output
-      run: tar xzf build-targets.tar.gz
+      run: tar xzmf build-targets.tar.gz
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
