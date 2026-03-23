@@ -64,7 +64,7 @@ import java.util.ServiceLoader;
  *   <li>Create {@link AgentHandler} (composition: CommandRouter + AiEndpointHandler)</li>
  *   <li>Register at {@code /atmosphere/agent/{name}}</li>
  *   <li>If atmosphere-a2a on classpath → build Agent Card, register A2A handler</li>
- *   <li>If atmosphere-mcp on classpath → expose tools + commands as MCP tools</li>
+ *   <li>If atmosphere-channels on classpath → wire CommandRouter into ChannelAiBridge</li>
  *   <li>Log diagnostic summary</li>
  * </ol>
  */

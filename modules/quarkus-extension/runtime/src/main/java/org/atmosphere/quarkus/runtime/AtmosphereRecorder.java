@@ -38,8 +38,6 @@ import org.slf4j.LoggerFactory;
 public class AtmosphereRecorder {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereRecorder.class);
-    private static final String PATH = "/{path";
-
     public InstanceFactory<QuarkusAtmosphereServlet> createInstanceFactory(
             Map<String, List<String>> annotationClassNames) {
         return new AtmosphereServletInstanceFactory(annotationClassNames);
@@ -79,21 +77,26 @@ public class AtmosphereRecorder {
         ServerWebSocketContainer wsContainer = container.getValue();
         LazyAtmosphereConfigurator configurator = new LazyAtmosphereConfigurator();
 
-        int pathLength = 5;
-        String servletPath = PATH + "}";
-        StringBuilder b = new StringBuilder(servletPath);
-        for (int i = 0; i < pathLength; i++) {
+        // Register endpoints with increasing path depth so Atmosphere can match
+        // URLs like /ws, /ws/chat, /ws/chat/room, etc.
+        String[] paths = {
+                "/{path}",
+                "/{path}/{path0}",
+                "/{path}/{path0}/{path1}",
+                "/{path}/{path0}/{path1}/{path2}",
+                "/{path}/{path0}/{path1}/{path2}/{path3}"
+        };
+        for (String wsPath : paths) {
             try {
                 wsContainer.addEndpoint(ServerEndpointConfig.Builder
-                        .create(JSR356Endpoint.class, b.toString())
+                        .create(JSR356Endpoint.class, wsPath)
                         .configurator(configurator)
                         .build());
             } catch (DeploymentException e) {
-                logger.warn("Failed to register WebSocket endpoint path {}: {}", b, e.getMessage());
+                logger.warn("Failed to register WebSocket endpoint path {}: {}", wsPath, e.getMessage());
             }
-            b.append(PATH).append(i).append("}");
         }
 
-        logger.info("Registered {} JSR-356 WebSocket endpoint paths for Atmosphere", pathLength);
+        logger.info("Registered {} JSR-356 WebSocket endpoint paths for Atmosphere", paths.length);
     }
 }
