@@ -66,16 +66,7 @@ Open `http://localhost:8080/atmosphere/console/` and type `/help`, `/firstaid`, 
 
 ### Multi-Channel — One Agent, Every Platform
 
-When `atmosphere-channels` is on the classpath, `@Command` slash commands are automatically routed to all configured channels. AI responses on external channels go through the full `AiPipeline` (memory, tools, guardrails, RAG, metrics):
-
-| Channel | Activation | Commands | AI |
-|---------|-----------|:--------:|:--:|
-| Web (WebSocket) | Built-in | `@Command` via `CommandRouter` | `@Prompt` + `@AiTool` + `AiInterceptor` |
-| Slack | `SLACK_BOT_TOKEN` | Auto-routed | `AiPipeline` (full chain, no `AiInterceptor`) |
-| Telegram | `TELEGRAM_BOT_TOKEN` | Auto-routed | `AiPipeline` (full chain, no `AiInterceptor`) |
-| Discord | `DISCORD_BOT_TOKEN` | Auto-routed | `AiPipeline` (full chain, no `AiInterceptor`) |
-| WhatsApp | `WHATSAPP_ACCESS_TOKEN` | Auto-routed | `AiPipeline` (full chain, no `AiInterceptor`) |
-| Messenger | `MESSENGER_PAGE_TOKEN` | Auto-routed | `AiPipeline` (full chain, no `AiInterceptor`) |
+Add `atmosphere-channels` to the classpath and set a bot token — commands and AI route to Slack, Telegram, Discord, WhatsApp, and Messenger automatically. See [docs/channels.md](docs/channels.md) for the full channel matrix and setup.
 
 ### Skill File — System Prompt + Agent Metadata
 
