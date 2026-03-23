@@ -14,7 +14,7 @@ const crossBrowserSpecs = /\/(chat|multi-client|sse-transport|long-polling-trans
 export default defineConfig({
   testDir: './e2e',
   timeout: 90_000,
-  expect: { timeout: 10_000 },
+  expect: { timeout: process.env.CI ? 15_000 : 10_000 },
   fullyParallel: false,
   retries: 1,
   workers: 1,

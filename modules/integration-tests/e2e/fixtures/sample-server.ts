@@ -2,6 +2,7 @@ import { type ChildProcess, spawn } from 'child_process';
 import { resolve } from 'path';
 import { readdirSync } from 'fs';
 import net from 'net';
+import { WebSocket } from 'ws';
 
 const ROOT = resolve(__dirname, '..', '..', '..', '..');
 
@@ -228,6 +229,29 @@ async function waitForHttp(url: string, timeoutMs = 30_000): Promise<void> {
 }
 
 /**
+ * Wait for a WebSocket endpoint to accept connections.
+ * Opens a throwaway connection, waits for the 'open' event, then closes.
+ * This eliminates the race between "HTTP responds" and "WebSocket layer initialized".
+ */
+async function waitForWebSocket(url: string, timeoutMs = 15_000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      await new Promise<void>((ok, fail) => {
+        const ws = new WebSocket(url);
+        const timer = setTimeout(() => { ws.close(); fail(new Error('timeout')); }, 5_000);
+        ws.once('open', () => { clearTimeout(timer); ws.close(); ok(); });
+        ws.once('error', (e) => { clearTimeout(timer); fail(e); });
+      });
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
+  throw new Error(`WebSocket endpoint ${url} not ready after ${timeoutMs}ms`);
+}
+
+/**
  * Check if a port is already in use.
  */
 async function isPortInUse(port: number): Promise<boolean> {
@@ -294,6 +318,9 @@ export async function startSample(config: SampleConfig): Promise<SampleServer> {
     // start after the web server is ready, especially on slow CI runners)
     if (config.readyPath) {
       await waitForHttp(`http://127.0.0.1:${config.port}${config.readyPath}`, 30_000);
+      // Verify the WebSocket layer is fully initialized (not just HTTP)
+      const wsUrl = `ws://127.0.0.1:${config.port}${config.readyPath}`;
+      await waitForWebSocket(wsUrl, 15_000);
     }
   } catch (e) {
     proc.kill('SIGTERM');
