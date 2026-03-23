@@ -46,13 +46,20 @@ public class DevOpsAgent {
 }
 ```
 
-`/status` typed in the browser routes instantly to the `@Command` method — deterministic, no inference cost. When `atmosphere-channels` and `atmosphere-agent` are both on the classpath, slash commands are also routed from Slack, Telegram, and other channels via the `CommandRouter` integration. Natural language falls through to `@Prompt` and the LLM on the web console; external channels use `AiPipeline` (memory, tools, guardrails, RAG, metrics — same chain as WebSocket, minus `AiInterceptor`).
+Slash commands execute instantly (no LLM cost). Natural language goes through the full AI pipeline — memory, tools, guardrails, RAG, metrics — on every transport.
 
-**Try it now:**
+**Try it now — generate an agent from a skill file:**
 
 ```bash
 brew install Atmosphere/tap/atmosphere    # or: curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
-LLM_API_KEY=sk-... atmosphere run spring-boot-dentist-agent  # Dr. Molar — dental emergency agent
+atmosphere new my-agent --skill-file skill.md
+cd my-agent && LLM_API_KEY=sk-... ./mvnw spring-boot:run
+```
+
+Or run a built-in sample:
+
+```bash
+LLM_API_KEY=sk-... atmosphere run spring-boot-dentist-agent
 ```
 
 Open `http://localhost:8080/atmosphere/console/` and type `/help`, `/firstaid`, or just describe your broken tooth. To connect Slack or Telegram, [create a bot](https://atmosphere.github.io/docs/tutorial/23-channels/) and set the token as an environment variable.
