@@ -65,7 +65,6 @@ import java.util.ServiceLoader;
  *   <li>Register at {@code /atmosphere/agent/{name}}</li>
  *   <li>If atmosphere-a2a on classpath → build Agent Card, register A2A handler</li>
  *   <li>If atmosphere-mcp on classpath → expose tools + commands as MCP tools</li>
- *   <li>If atmosphere-agui on classpath → register AG-UI endpoint</li>
  *   <li>Log diagnostic summary</li>
  * </ol>
  */
@@ -132,21 +131,22 @@ public class AgentProcessor implements Processor<Object> {
             AnnotationUtil.defaultManagedServiceInterceptors(framework, interceptors);
             framework.addAtmosphereHandler(path, handler, interceptors);
 
-            // Step 8-10: Optional cross-protocol registration
+            // Step 8-9: Optional cross-protocol registration
             var protocols = new ArrayList<String>();
             registerA2a(framework, annotation, skillFile, commandRegistry, toolRegistry, path, protocols);
             registerMcp(framework, annotation, commandRegistry, toolRegistry, path, protocols);
-            registerAgUi(framework, path, protocols);
 
-            // Step 11: Log summary
+            // Step 10: Log summary
             logger.info("Agent '{}' registered at {} (class: {}, commands: {}, tools: {}, "
                             + "memory: on(max={}), protocols: {})",
                     agentName, path, annotatedClass.getSimpleName(),
                     commandRegistry.size(), toolRegistry.allTools().size(),
                     DEFAULT_MAX_HISTORY, protocols.isEmpty() ? "[web]" : protocols);
 
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
-            logger.error("Failed to register Agent from {}", annotatedClass.getName(), e);
+            throw new RuntimeException("Failed to register Agent from " + annotatedClass.getName(), e);
         }
     }
 
@@ -202,7 +202,10 @@ public class AgentProcessor implements Processor<Object> {
         for (var backend : allBackends) {
             backend.configure(settings);
         }
-        return allBackends.getFirst();
+        return allBackends.stream().findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "No AI support backend available. Add an atmosphere-ai-* provider "
+                                + "(e.g. atmosphere-ai-openai) to the classpath."));
     }
 
     private AiConversationMemory resolveMemory(int maxHistory) {
@@ -337,19 +340,6 @@ public class AgentProcessor implements Processor<Object> {
             logger.debug("MCP endpoint registered at {}/mcp", basePath);
         } catch (Exception e) {
             logger.warn("Failed to register MCP endpoint for agent: {}", e.getMessage());
-        }
-    }
-
-    private void registerAgUi(AtmosphereFramework framework, String basePath,
-                              List<String> protocols) {
-        if (!ClasspathDetector.hasAgUi()) {
-            return;
-        }
-        try {
-            protocols.add("agui");
-            logger.debug("AG-UI protocol available for agent at {}", basePath);
-        } catch (Exception e) {
-            logger.warn("Failed to register AG-UI endpoint for agent: {}", e.getMessage());
         }
     }
 

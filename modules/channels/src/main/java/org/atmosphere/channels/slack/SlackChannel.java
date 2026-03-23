@@ -18,6 +18,7 @@ package org.atmosphere.channels.slack;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
@@ -108,7 +109,7 @@ public class SlackChannel implements MessagingChannel {
             mac.init(new SecretKeySpec(signingSecret.getBytes(), "HmacSHA256"));
             String expected = "v0=" + HexFormat.of().formatHex(mac.doFinal(baseString.getBytes()));
 
-            if (!expected.equals(signature)) {
+            if (!MessageDigest.isEqual(expected.getBytes(), signature.getBytes())) {
                 throw new ChannelException(ChannelType.SLACK, "Signature mismatch");
             }
         } catch (ChannelException e) {

@@ -30,7 +30,6 @@ import java.lang.annotation.Target;
  * <ul>
  *   <li>No parameters — {@code String status()}</li>
  *   <li>{@code String} — the arguments after the command prefix</li>
- *   <li>{@code IncomingMessage} — the full channel message (for cross-channel commands)</li>
  * </ul>
  *
  * <p>Commands are exposed across all protocols:</p>

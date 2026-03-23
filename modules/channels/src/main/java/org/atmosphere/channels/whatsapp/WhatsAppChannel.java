@@ -94,7 +94,7 @@ public class WhatsAppChannel implements MessagingChannel {
             mac.init(new SecretKeySpec(appSecret.getBytes(), "HmacSHA256"));
             String expected = "sha256=" + HexFormat.of().formatHex(mac.doFinal(body));
 
-            if (!expected.equals(signature)) {
+            if (!java.security.MessageDigest.isEqual(expected.getBytes(), signature.getBytes())) {
                 throw new ChannelException(ChannelType.WHATSAPP, "HMAC signature mismatch");
             }
         } catch (ChannelException e) {

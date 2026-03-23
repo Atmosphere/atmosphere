@@ -15,6 +15,8 @@
  */
 package org.atmosphere.agent.processor;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.agent.command.CommandResult;
 import org.atmosphere.agent.command.CommandRouter;
 import org.atmosphere.ai.processor.AiEndpointHandler;
@@ -28,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * {@link AtmosphereHandler} that wraps an {@link AiEndpointHandler} with
@@ -56,6 +59,7 @@ import java.io.IOException;
 public class AgentHandler extends AbstractReflectorAtmosphereHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AgentHandler.class);
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final AiEndpointHandler aiDelegate;
     private final CommandRouter commandRouter;
@@ -124,39 +128,19 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler {
      */
     private void broadcastCommandResponse(AtmosphereResource resource, String response) {
         var broadcaster = resource.getBroadcaster();
-        // Format as a complete streaming response:
-        // send the text + complete signal via RawMessage
-        var json = "{\"type\":\"token\",\"text\":" + escapeJson(response) + ","
-                + "\"sessionId\":\"cmd-" + resource.uuid() + "\",\"seq\":0}";
-        broadcaster.broadcast(new RawMessage(json));
+        var sessionId = "cmd-" + resource.uuid();
+        try {
+            var tokenJson = MAPPER.writeValueAsString(
+                    Map.of("type", "token", "text", response,
+                            "sessionId", sessionId, "seq", 0));
+            broadcaster.broadcast(new RawMessage(tokenJson));
 
-        var complete = "{\"type\":\"complete\",\"sessionId\":\"cmd-" + resource.uuid() + "\",\"seq\":1}";
-        broadcaster.broadcast(new RawMessage(complete));
-    }
-
-    private String escapeJson(String text) {
-        var sb = new StringBuilder("\"");
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            switch (c) {
-                case '"' -> sb.append("\\\"");
-                case '\\' -> sb.append("\\\\");
-                case '\n' -> sb.append("\\n");
-                case '\r' -> sb.append("\\r");
-                case '\t' -> sb.append("\\t");
-                case '\b' -> sb.append("\\b");
-                case '\f' -> sb.append("\\f");
-                default -> {
-                    if (c < 0x20) {
-                        sb.append(String.format("\\u%04x", (int) c));
-                    } else {
-                        sb.append(c);
-                    }
-                }
-            }
+            var completeJson = MAPPER.writeValueAsString(
+                    Map.of("type", "complete", "sessionId", sessionId, "seq", 1));
+            broadcaster.broadcast(new RawMessage(completeJson));
+        } catch (JsonProcessingException e) {
+            logger.error("Failed to serialize command response: {}", e.getMessage(), e);
         }
-        sb.append("\"");
-        return sb.toString();
     }
 
     // visible for testing

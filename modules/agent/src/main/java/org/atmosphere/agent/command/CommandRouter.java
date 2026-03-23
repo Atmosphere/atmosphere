@@ -68,6 +68,9 @@ public final class CommandRouter {
             return new CommandResult.NotACommand();
         }
 
+        // Periodic cleanup of expired pending confirmations
+        cleanupExpiredPending();
+
         // Per-client lock prevents race conditions in confirmation flow
         var lock = clientLocks.computeIfAbsent(clientId, k -> new ReentrantLock());
         lock.lock();
@@ -75,6 +78,10 @@ public final class CommandRouter {
             return routeUnderLock(clientId, message.trim());
         } finally {
             lock.unlock();
+            // Remove the lock if no other thread is waiting on it
+            if (!lock.hasQueuedThreads()) {
+                clientLocks.remove(clientId, lock);
+            }
         }
     }
 
@@ -141,8 +148,8 @@ public final class CommandRouter {
             String result = switch (command.paramType()) {
                 case NONE -> (String) command.method().invoke(target);
                 case STRING -> (String) command.method().invoke(target, args);
-                case INCOMING_MESSAGE -> throw new UnsupportedOperationException(
-                        "IncomingMessage parameter requires channel context");
+                case INCOMING_MESSAGE -> throw new IllegalStateException(
+                        "INCOMING_MESSAGE commands should be rejected at registration time");
             };
             logger.debug("Command {} executed: {}", command.prefix(),
                     result != null ? result.substring(0, Math.min(result.length(), 50)) : "null");
@@ -155,6 +162,13 @@ public final class CommandRouter {
             logger.error("Command {} not accessible: {}", command.prefix(), e.getMessage(), e);
             return new CommandResult.Executed("Error: command not accessible");
         }
+    }
+
+    /**
+     * Removes expired entries from the pending confirmations map.
+     */
+    private void cleanupExpiredPending() {
+        pending.entrySet().removeIf(entry -> isExpired(entry.getValue()));
     }
 
     private boolean isConfirmation(String message) {
