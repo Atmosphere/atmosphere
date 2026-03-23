@@ -32,13 +32,10 @@ import java.lang.annotation.Target;
  *   <li>{@code String} — the arguments after the command prefix</li>
  * </ul>
  *
- * <p>Commands are exposed across all protocols:</p>
- * <ul>
- *   <li>Web chat: "/" prefix routing</li>
- *   <li>Telegram/Slack: same routing via ChannelAiBridge</li>
- *   <li>MCP: as tools (e.g. {@code command_help})</li>
- *   <li>A2A: as skills in the Agent Card</li>
- * </ul>
+ * <p>Commands are routed in the web console via "/" prefix routing.
+ * For external channels (Slack, Telegram), a custom {@code ChannelBridge}
+ * component is needed to route commands — see the {@code spring-boot-dentist-agent}
+ * sample for an example.</p>
  *
  * <p>Example:</p>
  * <pre>{@code

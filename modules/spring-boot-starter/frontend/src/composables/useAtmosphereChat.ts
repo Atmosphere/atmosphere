@@ -77,9 +77,11 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
       }
       messages.value = [...messages.value, currentAssistantMessage]
     } else {
-      // Replace the object so Vue's computed properties re-evaluate
-      currentAssistantMessage = { ...currentAssistantMessage, content: currentAssistantMessage.content + text }
-      messages.value = messages.value.map(m => m.id === currentAssistantMessage!.id ? currentAssistantMessage! : m)
+      currentAssistantMessage.content += text
+      // Trigger reactivity by creating a new array reference.
+      // The ChatMessage component uses v-html with a method call (not computed)
+      // so it re-evaluates on every parent render.
+      messages.value = [...messages.value]
     }
   }
 

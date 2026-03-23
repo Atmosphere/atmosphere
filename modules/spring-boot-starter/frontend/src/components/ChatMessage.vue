@@ -11,7 +11,9 @@ const props = defineProps<{
 
 const isUser = computed(() => props.message.role === 'user')
 
-const formattedContent = computed(() => marked.parse(props.message.content) as string)
+function formattedContent(): string {
+  return marked.parse(props.message.content) as string
+}
 
 const timeString = computed(() => {
   const d = new Date(props.message.timestamp)
@@ -30,7 +32,7 @@ const timeString = computed(() => {
       </span>
     </div>
     <div class="message-body">
-      <div class="message-content" v-html="formattedContent"></div>
+      <div class="message-content" v-html="formattedContent()"></div>
       <div class="message-meta">
         <span class="message-time">{{ timeString }}</span>
       </div>

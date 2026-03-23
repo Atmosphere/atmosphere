@@ -134,7 +134,6 @@ public class AgentProcessor implements Processor<Object> {
             // Step 8-9: Optional cross-protocol registration
             var protocols = new ArrayList<String>();
             registerA2a(framework, annotation, skillFile, commandRegistry, toolRegistry, path, protocols);
-            registerMcp(framework, annotation, commandRegistry, toolRegistry, path, protocols);
 
             // Step 10: Log summary
             logger.info("Agent '{}' registered at {} (class: {}, commands: {}, tools: {}, "

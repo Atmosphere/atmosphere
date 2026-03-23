@@ -71,17 +71,16 @@ public final class CommandRouter {
         // Periodic cleanup of expired pending confirmations
         cleanupExpiredPending();
 
-        // Per-client lock prevents race conditions in confirmation flow
+        // Per-client lock prevents race conditions in confirmation flow.
+        // Locks are not removed after use to avoid a race between unlock and
+        // a concurrent computeIfAbsent. The map is bounded by the number of
+        // active client IDs (WebSocket UUIDs), which are finite.
         var lock = clientLocks.computeIfAbsent(clientId, k -> new ReentrantLock());
         lock.lock();
         try {
             return routeUnderLock(clientId, message.trim());
         } finally {
             lock.unlock();
-            // Remove the lock if no other thread is waiting on it
-            if (!lock.hasQueuedThreads()) {
-                clientLocks.remove(clientId, lock);
-            }
         }
     }
 
