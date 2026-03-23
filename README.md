@@ -326,9 +326,7 @@ See [cli/README.md](cli/README.md) for all commands and options.
 
 ## Modules
 
-**Core** — [runtime](https://atmosphere.github.io/docs/reference/core/) (WebSocket, SSE, Long-Polling), [gRPC](https://atmosphere.github.io/docs/reference/grpc/), [rooms](https://atmosphere.github.io/docs/reference/rooms/) · **Agents** — [`@Agent`](modules/agent/) (unified annotation, `@Command`, skill files), [channels](modules/channels/) (Slack, Telegram, Discord, WhatsApp, Messenger) · **AI** — adapters for [Spring AI](https://atmosphere.github.io/docs/integrations/spring-ai/), [LangChain4j](https://atmosphere.github.io/docs/integrations/langchain4j/), [ADK](https://atmosphere.github.io/docs/integrations/adk/), [Embabel](https://atmosphere.github.io/docs/integrations/embabel/), [RAG](modules/rag/README.md) · **Protocols** — [MCP](https://atmosphere.github.io/docs/reference/mcp/), [A2A](samples/spring-boot-a2a-agent/), [AG-UI](samples/spring-boot-agui-chat/) · **Cloud** — [Redis](https://atmosphere.github.io/docs/infrastructure/redis/), [Kafka](https://atmosphere.github.io/docs/infrastructure/kafka/), [durable sessions](https://atmosphere.github.io/docs/reference/durable-sessions/) · **Starters** — [Spring Boot](https://atmosphere.github.io/docs/integrations/spring-boot/), [Quarkus](https://atmosphere.github.io/docs/integrations/quarkus/), [Kotlin](https://atmosphere.github.io/docs/reference/kotlin/) · **Clients** — [atmosphere.js](https://atmosphere.github.io/docs/clients/javascript/) (React, Vue, Svelte, [React Native](https://atmosphere.github.io/docs/clients/react-native/)), [wAsync](https://atmosphere.github.io/docs/clients/java/) (Java)
-
-[Full module reference &rarr;](https://atmosphere.github.io/docs/)
+25+ modules: core transports, agents, AI adapters, protocol bridges, cloud infrastructure, framework starters, and clients. [Full module reference &rarr;](https://atmosphere.github.io/docs/)
 
 ## Requirements
 
