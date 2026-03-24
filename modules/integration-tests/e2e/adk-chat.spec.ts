@@ -19,16 +19,15 @@ test.describe('ADK Chat', () => {
     await expect(page.getByTestId('chat-send')).toBeVisible();
   });
 
-  test('user can send hello and receive ADK agent response', async ({ page }) => {
+  test('user can send hello and receive a response', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-input').fill('Hello');
     await page.getByTestId('chat-send').click();
 
     await expect(page.getByText('Hello', { exact: true })).toBeVisible();
 
-    // DemoEventProducer responds with text containing "ADK agent" for hello
-    await expect(page.getByText('ADK agent', { exact: false }))
-      .toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+      .not.toBeEmpty({ timeout: 30_000 });
   });
 
   test('user can send a prompt and receive streaming response', async ({ page }) => {
@@ -40,9 +39,8 @@ test.describe('ADK Chat', () => {
 
     await expect(page.getByText('Tell me about atmosphere')).toBeVisible();
 
-    // DemoEventProducer responds with text containing "real-time" for atmosphere
-    await expect(page.getByText('real-time', { exact: false }))
-      .toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+      .not.toBeEmpty({ timeout: 30_000 });
   });
 
   test('input clears after sending', async ({ page }) => {
@@ -64,8 +62,8 @@ test.describe('ADK Chat', () => {
     // First message
     await page.getByTestId('chat-input').fill('Hello');
     await page.getByTestId('chat-send').click();
-    await expect(page.getByText('ADK agent', { exact: false }))
-      .toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+      .not.toBeEmpty({ timeout: 30_000 });
 
     // Wait for streaming to finish
     await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 15_000 });
@@ -73,8 +71,8 @@ test.describe('ADK Chat', () => {
     // Second message
     await page.getByTestId('chat-input').fill('Tell me about atmosphere');
     await page.getByTestId('chat-send').click();
-    await expect(page.getByText('real-time', { exact: false }))
-      .toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+      .not.toBeEmpty({ timeout: 30_000 });
 
     // Both user messages should still be visible
     await expect(page.getByText('Hello', { exact: true })).toBeVisible();

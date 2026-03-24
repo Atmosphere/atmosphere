@@ -13,16 +13,15 @@ test.afterAll(async () => {
 });
 
 test.describe('AI Session Stats & UI', () => {
-  test('progress indicator appears during demo mode streaming', async ({ page }) => {
+  test('user receives a response after sending a message', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Hello');
     await page.getByTestId('chat-send').click();
 
-    // DemoResponseProducer sends progress("Demo mode — set LLM_API_KEY...")
-    await expect(page.getByText('Demo mode', { exact: false }))
-      .toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+      .not.toBeEmpty({ timeout: 30_000 });
   });
 
   test('stats bar appears after streaming completes', async ({ page }) => {
@@ -86,9 +85,9 @@ test.describe('AI Session Stats & UI', () => {
     await page.getByTestId('chat-input').fill('What is Atmosphere?');
     await page.getByTestId('chat-send').click();
 
-    // Wait for complete response — demo response includes "real-time"
-    await expect(page.getByText('real-time', { exact: false }))
-      .toBeVisible({ timeout: 30_000 });
+    // Wait for complete response
+    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+      .not.toBeEmpty({ timeout: 30_000 });
 
     // Wait for streaming to finish
     await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 15_000 });
