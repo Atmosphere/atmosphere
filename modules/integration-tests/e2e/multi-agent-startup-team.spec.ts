@@ -86,7 +86,7 @@ test.describe('Multi-Agent Startup Team', () => {
     expect(output).toContain("Agent 'finance-agent' registered");
     expect(output).toContain("Agent 'writer-agent' registered");
     // All should be headless
-    const headlessCount = (output.match(/headless, skills: 1/g) || []).length;
+    const headlessCount = (output.match(/headless, protocols:/g) || []).length;
     expect(headlessCount).toBeGreaterThanOrEqual(4);
   });
 
