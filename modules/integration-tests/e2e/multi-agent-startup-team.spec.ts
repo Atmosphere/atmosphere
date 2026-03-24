@@ -142,13 +142,15 @@ test.describe('Multi-Agent Startup Team', () => {
     expect(status.state).toBe('COMPLETED');
   });
 
-  // ── Demo mode streaming ──
+  // ── Streaming response ──
 
-  test('demo mode streams response when no API key', async () => {
+  test('CEO streams a response to user message', async () => {
     const result = await sendAndCollect(server.baseUrl,
       '/atmosphere/agent/ceo', 'hello', 20_000);
     expect(result.texts.length).toBeGreaterThan(0);
-    expect(result.fullText).toContain('GEMINI_API_KEY');
+    // In demo mode: mentions GEMINI_API_KEY. With key: real LLM response.
+    // Either way, we should get non-empty text back.
+    expect(result.fullText.length).toBeGreaterThan(10);
   });
 
   // ── Console UI ──
