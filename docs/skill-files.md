@@ -62,8 +62,8 @@ manage deployments, and respond to incidents.
 
 ## Real Examples
 
-- [devops-skill.md](../samples/spring-boot-agent-chat/src/main/resources/prompts/devops-skill.md) — DevOps agent with deployment guardrails
 - [dentist-skill.md](../samples/spring-boot-dentist-agent/src/main/resources/prompts/dentist-skill.md) — Multi-channel dental assistant
+- [ceo-skill.md](../samples/spring-boot-multi-agent-startup-team/src/main/resources/prompts/ceo-skill.md) — Multi-agent CEO orchestrator
 
 ## CLI: Generate an Agent from a Skill File
 

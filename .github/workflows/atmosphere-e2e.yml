@@ -51,9 +51,9 @@ jobs:
           - name: ai-chat
             projects: "ai-chat,ai-streaming-dom,ai-chat-features,ai-memory,ai-memory-strategies,ai-identity,ai-error-recovery,ai-events,unified-console"
           - name: ai-tools-adapters
-            projects: "ai-tools,langchain4j-chat,langchain4j-tools,adk-chat,adk-tools,spring-ai-chat,spring-ai-routing,ai-session-stats"
+            projects: "ai-tools,spring-ai-routing,ai-session-stats"
           - name: ai-advanced
-            projects: "embabel-chat,embabel-horoscope,rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
+            projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
           - name: protocols
             projects: "mcp-server,mcp-tools,a2a-agent,agui-chat,multi-agent-startup-team,grpc-browser,rooms-api,room-typing-direct"
           - name: resilience

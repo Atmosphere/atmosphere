@@ -3,9 +3,9 @@
   "samples": [
     {
       "name": "spring-boot-multi-agent-startup-team",
-      "description": "True multi-agent: 5 independent @Agent classes collaborate via A2A protocol (Agent Cards + JSON-RPC)",
+      "description": "True multi-agent: 5 independent @Agent classes collaborate via A2A protocol",
       "category": "agent",
-      "tags": ["spring-boot", "ai", "multi-agent", "a2a", "agent-card", "json-rpc", "gemini", "web-scraping"],
+      "tags": ["spring-boot", "ai", "multi-agent", "a2a", "agent-card", "json-rpc", "gemini"],
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
@@ -15,23 +15,10 @@
       }
     },
     {
-      "name": "spring-boot-agent-chat",
-      "description": "@Agent DevOps assistant — slash commands, AI tools, skill file, cross-channel (Slack/Telegram/Discord)",
-      "category": "agent",
-      "tags": ["spring-boot", "ai", "agent", "commands", "tools", "skill-file", "channels"],
-      "port": 8080,
-      "runnable": true,
-      "packaging": "spring-boot",
-      "hasFrontend": true,
-      "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)"
-      }
-    },
-    {
       "name": "spring-boot-dentist-agent",
       "description": "Dr. Molar — dental emergency agent with @Agent, slash commands, AI tools, Slack and Telegram",
-      "category": "ai",
-      "tags": ["spring-boot", "ai", "agent", "channels", "telegram", "slack", "dental", "commands", "tools"],
+      "category": "agent",
+      "tags": ["spring-boot", "ai", "agent", "channels", "telegram", "slack", "commands", "tools"],
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
@@ -46,55 +33,22 @@
     },
     {
       "name": "spring-boot-channels-chat",
-      "description": "Omnichannel AI chat — same @AiEndpoint on Web, Telegram, Slack, Discord, WhatsApp, Messenger",
+      "description": "Omnichannel AI chat — Web, Telegram, Slack, Discord, WhatsApp, Messenger",
       "category": "ai",
-      "tags": ["spring-boot", "ai", "channels", "telegram", "slack", "discord", "whatsapp", "messenger", "omnichannel"],
+      "tags": ["spring-boot", "ai", "channels", "telegram", "slack", "discord", "whatsapp", "messenger"],
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
       "hasFrontend": true,
       "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)",
-        "TELEGRAM_BOT_TOKEN": "Telegram bot token from @BotFather",
-        "TELEGRAM_WEBHOOK_SECRET": "Any random string for webhook verification",
-        "SLACK_BOT_TOKEN": "Slack bot token (xoxb-...)",
-        "SLACK_SIGNING_SECRET": "Slack app signing secret",
-        "DISCORD_BOT_TOKEN": "Discord bot token",
-        "WHATSAPP_PHONE_NUMBER_ID": "WhatsApp Business phone number ID",
-        "WHATSAPP_ACCESS_TOKEN": "WhatsApp Cloud API access token",
-        "WHATSAPP_APP_SECRET": "Meta app secret for signature verification",
-        "MESSENGER_PAGE_TOKEN": "Facebook Page access token",
-        "MESSENGER_APP_SECRET": "Meta app secret for signature verification"
-      }
-    },
-    {
-      "name": "spring-boot-chat",
-      "description": "Real-time WebSocket chat with Spring Boot",
-      "category": "chat",
-      "tags": ["spring-boot", "websocket", "chat"],
-      "port": 8080,
-      "runnable": true,
-      "packaging": "spring-boot",
-      "hasFrontend": true
-    },
-    {
-      "name": "spring-boot-ai-console",
-      "description": "Zero-code AI chat — add dependencies, set API key, open browser",
-      "category": "ai",
-      "tags": ["spring-boot", "ai", "zero-code", "console", "gemini", "openai", "ollama"],
-      "port": 8080,
-      "runnable": true,
-      "packaging": "spring-boot",
-      "hasFrontend": false,
-      "envVars": {
-        "GEMINI_API_KEY": "API key for Gemini (or set OPENAI_API_KEY, LLM_API_KEY)"
+        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)"
       }
     },
     {
       "name": "spring-boot-ai-chat",
-      "description": "AI streaming chat with capability validation, conversation memory, and structured events",
+      "description": "AI streaming chat — swap backend via one dependency (Spring AI, LangChain4j, ADK, Embabel)",
       "category": "ai",
-      "tags": ["spring-boot", "ai", "streaming", "openai", "gemini", "ollama"],
+      "tags": ["spring-boot", "ai", "streaming", "gemini", "openai", "ollama", "spring-ai", "langchain4j", "adk", "embabel"],
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
@@ -121,9 +75,9 @@
     },
     {
       "name": "spring-boot-ai-tools",
-      "description": "Framework-agnostic AI tool calling with real-time tool events and cost metering",
+      "description": "Framework-agnostic AI tool calling — swap backend via one dependency",
       "category": "tools",
-      "tags": ["spring-boot", "ai", "tools", "langchain4j", "framework-agnostic"],
+      "tags": ["spring-boot", "ai", "tools", "framework-agnostic"],
       "port": 8090,
       "runnable": true,
       "packaging": "spring-boot",
@@ -131,102 +85,6 @@
       "envVars": {
         "LLM_API_KEY": "API key for your LLM provider",
         "LLM_MODEL": "Model name"
-      }
-    },
-    {
-      "name": "spring-boot-adk-chat",
-      "description": "AI chat with Google ADK (Agent Development Kit)",
-      "category": "ai",
-      "tags": ["spring-boot", "ai", "adk", "google", "agent"],
-      "port": 8080,
-      "runnable": true,
-      "packaging": "spring-boot",
-      "hasFrontend": true,
-      "envVars": {
-        "GEMINI_API_KEY": "Google Gemini API key"
-      }
-    },
-    {
-      "name": "spring-boot-adk-tools",
-      "description": "Google ADK tool calling with token budgets and caching",
-      "category": "tools",
-      "tags": ["spring-boot", "ai", "adk", "google", "tools", "caching"],
-      "port": 8087,
-      "runnable": true,
-      "packaging": "spring-boot",
-      "hasFrontend": true,
-      "envVars": {
-        "GEMINI_API_KEY": "Google Gemini API key"
-      }
-    },
-    {
-      "name": "spring-boot-langchain4j-chat",
-      "description": "AI chat with LangChain4j streaming",
-      "category": "ai",
-      "tags": ["spring-boot", "ai", "langchain4j", "streaming"],
-      "port": 8081,
-      "runnable": true,
-      "packaging": "spring-boot",
-      "hasFrontend": true,
-      "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider",
-        "LLM_MODEL": "Model name"
-      }
-    },
-    {
-      "name": "spring-boot-langchain4j-tools",
-      "description": "LangChain4j tool calling with PII redaction and cost metering",
-      "category": "tools",
-      "tags": ["spring-boot", "ai", "langchain4j", "tools", "pii", "metering"],
-      "port": 8086,
-      "runnable": true,
-      "packaging": "spring-boot",
-      "hasFrontend": true,
-      "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider",
-        "LLM_MODEL": "Model name"
-      }
-    },
-    {
-      "name": "spring-boot-embabel-chat",
-      "description": "AI agent chat with Embabel Agent Framework",
-      "category": "ai",
-      "tags": ["spring-boot", "ai", "embabel", "agent"],
-      "port": 8082,
-      "runnable": true,
-      "packaging": "spring-boot",
-      "hasFrontend": true,
-      "envVars": {
-        "OPENAI_API_KEY": "OpenAI API key (or compatible)",
-        "LLM_API_KEY": "Alternative LLM API key",
-        "LLM_BASE_URL": "Custom LLM API base URL"
-      }
-    },
-    {
-      "name": "spring-boot-embabel-horoscope",
-      "description": "Multi-step horoscope agent with content safety and progress tracking",
-      "category": "agent",
-      "tags": ["spring-boot", "ai", "embabel", "agent", "multi-step", "content-safety"],
-      "port": 8089,
-      "runnable": true,
-      "packaging": "spring-boot",
-      "hasFrontend": true,
-      "envVars": {
-        "OPENAI_API_KEY": "OpenAI API key (or compatible)",
-        "LLM_API_KEY": "Alternative LLM API key"
-      }
-    },
-    {
-      "name": "spring-boot-spring-ai-chat",
-      "description": "AI chat with Spring AI ChatClient",
-      "category": "ai",
-      "tags": ["spring-boot", "ai", "spring-ai", "openai"],
-      "port": 8083,
-      "runnable": true,
-      "packaging": "spring-boot",
-      "hasFrontend": true,
-      "envVars": {
-        "OPENAI_API_KEY": "OpenAI API key"
       }
     },
     {
@@ -244,9 +102,9 @@
     },
     {
       "name": "spring-boot-rag-chat",
-      "description": "RAG chat with Spring AI VectorStore and embeddings",
+      "description": "RAG chat with document retrieval and embeddings",
       "category": "rag",
-      "tags": ["spring-boot", "ai", "rag", "spring-ai", "vectorstore", "embeddings"],
+      "tags": ["spring-boot", "ai", "rag", "vectorstore", "embeddings"],
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
@@ -268,16 +126,15 @@
     },
     {
       "name": "spring-boot-a2a-agent",
-      "description": "A2A agent — AI-powered skills discoverable via Agent Card (JSON-RPC 2.0)",
+      "description": "Headless A2A agent — AI-powered skills discoverable via Agent Card",
       "category": "agent",
-      "tags": ["spring-boot", "a2a", "agent-to-agent", "agent", "json-rpc", "gemini"],
+      "tags": ["spring-boot", "a2a", "agent-to-agent", "agent", "json-rpc", "headless"],
       "port": 8084,
       "runnable": true,
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for Gemini/OpenAI/Ollama (optional — demo mode without)",
-        "LLM_MODEL": "Model name (default: gemini-2.5-flash)"
+        "LLM_API_KEY": "API key for Gemini/OpenAI/Ollama (optional — demo mode without)"
       }
     },
     {
@@ -294,7 +151,7 @@
       "name": "spring-boot-otel-chat",
       "description": "Chat with OpenTelemetry tracing (Jaeger)",
       "category": "observability",
-      "tags": ["spring-boot", "otel", "tracing", "jaeger", "actuator"],
+      "tags": ["spring-boot", "otel", "tracing", "jaeger"],
       "port": 8084,
       "runnable": true,
       "packaging": "spring-boot",
@@ -312,6 +169,16 @@
       "runnable": true,
       "packaging": "spring-boot",
       "hasFrontend": false
+    },
+    {
+      "name": "spring-boot-chat",
+      "description": "Real-time WebSocket chat with Spring Boot",
+      "category": "chat",
+      "tags": ["spring-boot", "websocket", "chat"],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true
     },
     {
       "name": "quarkus-chat",
@@ -343,7 +210,7 @@
       "runnable": false,
       "packaging": "war",
       "hasFrontend": true,
-      "note": "Requires a servlet container (Tomcat, Jetty). Use 'spring-boot-chat' for standalone."
+      "note": "Requires a servlet container. Use 'spring-boot-chat' for standalone."
     },
     {
       "name": "grpc-chat",

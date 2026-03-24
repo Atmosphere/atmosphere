@@ -42,7 +42,7 @@ springAiAdapter.stream(chatClient, prompt, session);
 
 ## Samples
 
-- [Spring Boot Spring AI Chat](../../samples/spring-boot-spring-ai-chat/)
+- [Spring Boot AI Chat](../../samples/spring-boot-ai-chat/) -- swap to `atmosphere-spring-ai` dependency for Spring AI support
 
 ## Full Documentation
 

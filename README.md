@@ -85,7 +85,7 @@ You are a DevOps assistant that helps teams monitor services.
 - Never execute production deployments without confirmation
 ```
 
-See the [DevOps skill file](samples/spring-boot-agent-chat/src/main/resources/prompts/devops-skill.md) and [Dentist skill file](samples/spring-boot-dentist-agent/src/main/resources/prompts/dentist-skill.md) for real examples. Full samples: [spring-boot-agent-chat](samples/spring-boot-agent-chat/) (DevOps agent) and [spring-boot-dentist-agent](samples/spring-boot-dentist-agent/) (multi-channel with Slack and Telegram).
+See the [Dentist skill file](samples/spring-boot-dentist-agent/src/main/resources/prompts/dentist-skill.md) and [CEO skill file](samples/spring-boot-multi-agent-startup-team/src/main/resources/prompts/ceo-skill.md) for real examples. Full samples: [spring-boot-dentist-agent](samples/spring-boot-dentist-agent/) (multi-channel with Slack and Telegram) and [multi-agent startup team](samples/spring-boot-multi-agent-startup-team/) (5 agents via A2A).
 
 ### Under the Hood
 
@@ -107,7 +107,7 @@ public class MyChat {
 Or skip Java entirely — **zero-code AI chat:**
 
 ```bash
-LLM_API_KEY=your-key atmosphere run spring-boot-ai-console
+LLM_API_KEY=your-key atmosphere run spring-boot-ai-chat
 ```
 
 ### Client — atmosphere.js
@@ -337,17 +337,17 @@ Atmosphere has powered real-time Java applications for 18 years — from long-po
 
 ## Samples
 
-**Agents** — [dentist agent](samples/spring-boot-dentist-agent/) (multi-channel), [devops agent](samples/spring-boot-agent-chat/), [A2A startup team](samples/spring-boot-a2a-startup-team/)
+**Agents** — [dentist agent](samples/spring-boot-dentist-agent/) (multi-channel), [multi-agent startup team](samples/spring-boot-multi-agent-startup-team/) (5 agents via A2A)
 
-**AI / LLM Streaming** — [built-in](samples/spring-boot-ai-chat/), [Spring AI](samples/spring-boot-spring-ai-chat/), [LangChain4j](samples/spring-boot-langchain4j-chat/), [Google ADK](samples/spring-boot-adk-chat/), [Embabel](samples/spring-boot-embabel-chat/), [tool calling](samples/spring-boot-ai-tools/), [RAG](samples/spring-boot-rag-chat/), [model routing](samples/spring-boot-spring-ai-routing/), [AI classroom](samples/spring-boot-ai-classroom/)
+**AI / LLM Streaming** — [ai-chat](samples/spring-boot-ai-chat/) (swap backend via one dependency), [tool calling](samples/spring-boot-ai-tools/), [RAG](samples/spring-boot-rag-chat/), [model routing](samples/spring-boot-spring-ai-routing/), [AI classroom](samples/spring-boot-ai-classroom/)
 
-**Protocols** — [MCP server](samples/spring-boot-mcp-server/), [A2A agent](samples/spring-boot-a2a-agent/), [A2A startup team](samples/spring-boot-a2a-startup-team/), [AG-UI chat](samples/spring-boot-agui-chat/)
+**Protocols** — [MCP server](samples/spring-boot-mcp-server/), [A2A agent](samples/spring-boot-a2a-agent/), [A2A startup team](samples/spring-boot-multi-agent-startup-team/), [AG-UI chat](samples/spring-boot-agui-chat/)
 
 **Infrastructure** — [durable sessions](samples/spring-boot-durable-sessions/), [OpenTelemetry](samples/spring-boot-otel-chat/), [channels](samples/spring-boot-channels-chat/)
 
 **Chat & Messaging** — [spring-boot-chat](samples/spring-boot-chat/), [quarkus-chat](samples/quarkus-chat/), [grpc-chat](samples/grpc-chat/), [embedded-jetty](samples/embedded-jetty-websocket-chat/)
 
-[Browse all 28+ samples &rarr;](samples/)
+[Browse all 18 samples &rarr;](samples/)
 
 ## Modules
 

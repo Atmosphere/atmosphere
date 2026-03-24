@@ -52,18 +52,6 @@ export default defineConfig({
       testMatch: /spring-boot-ai-chat\.spec\.ts/,
     },
     {
-      name: 'langchain4j-chat',
-      testMatch: /langchain4j-chat\.spec\.ts/,
-    },
-    {
-      name: 'embabel-chat',
-      testMatch: /embabel-chat\.spec\.ts/,
-    },
-    {
-      name: 'spring-ai-chat',
-      testMatch: /spring-ai-chat\.spec\.ts/,
-    },
-    {
       name: 'durable-sessions',
       testMatch: /durable-sessions\.spec\.ts/,
     },
@@ -120,24 +108,8 @@ export default defineConfig({
       testMatch: /ai-memory\.spec\.ts/,
     },
     {
-      name: 'langchain4j-tools',
-      testMatch: /langchain4j-tools\.spec\.ts/,
-    },
-    {
-      name: 'adk-chat',
-      testMatch: /adk-chat\.spec\.ts/,
-    },
-    {
-      name: 'adk-tools',
-      testMatch: /adk-tools\.spec\.ts/,
-    },
-    {
       name: 'spring-ai-routing',
       testMatch: /spring-ai-routing\.spec\.ts/,
-    },
-    {
-      name: 'embabel-horoscope',
-      testMatch: /embabel-horoscope\.spec\.ts/,
     },
     {
       name: 'ai-tools',

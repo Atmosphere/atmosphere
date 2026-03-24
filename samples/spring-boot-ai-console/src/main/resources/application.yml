@@ -1,6 +1,0 @@
-atmosphere:
-  ai:
-    api-key: ${GEMINI_API_KEY:}
-    model: gemini-2.5-flash
-    system-prompt: >
-      You are a helpful AI assistant. Be concise and informative.

@@ -245,11 +245,9 @@ Rules are evaluated in order; first match wins. If no model fits the constraint,
 
 ## Samples
 
-- [Spring Boot AI Chat](../../samples/spring-boot-ai-chat/) -- built-in client with Gemini/OpenAI/Ollama
-- [Spring Boot Spring AI Chat](../../samples/spring-boot-spring-ai-chat/) -- Spring AI adapter
-- [Spring Boot LangChain4j Chat](../../samples/spring-boot-langchain4j-chat/) -- LangChain4j adapter
-- [Spring Boot ADK Chat](../../samples/spring-boot-adk-chat/) -- Google ADK adapter
-- [Spring Boot Embabel Chat](../../samples/spring-boot-embabel-chat/) -- Embabel agent adapter
+- [Spring Boot AI Chat](../../samples/spring-boot-ai-chat/) -- works with all backends (swap one Maven dependency)
+- [Spring Boot AI Tools](../../samples/spring-boot-ai-tools/) -- framework-agnostic tool calling
+- [Dentist Agent](../../samples/spring-boot-dentist-agent/) -- full `@Agent` with commands, tools, and multi-channel
 
 ## AI-MCP Bridge
 

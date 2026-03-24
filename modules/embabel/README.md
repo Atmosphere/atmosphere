@@ -45,7 +45,7 @@ embabelAdapter.stream(AgentRequest("assistant") { channel ->
 
 ## Samples
 
-- [Spring Boot Embabel Chat](../../samples/spring-boot-embabel-chat/)
+- [Spring Boot AI Chat](../../samples/spring-boot-ai-chat/) -- swap to `atmosphere-embabel` dependency for Embabel support
 
 ## Full Documentation
 

@@ -99,5 +99,5 @@ spring-boot-ai-chat/
 ## See Also
 
 - [AI Tools sample](../spring-boot-ai-tools/) — framework-agnostic tool calling with real-time tool events
-- [LangChain4j sample](../spring-boot-langchain4j-chat/) — same app with LangChain4j adapter
-- [Embabel sample](../spring-boot-embabel-chat/) — agentic AI with Embabel
+- [Dentist agent](../spring-boot-dentist-agent/) — full `@Agent` with commands, tools, and multi-channel
+- [Multi-agent startup team](../spring-boot-multi-agent-startup-team/) — 5 agents collaborating via A2A

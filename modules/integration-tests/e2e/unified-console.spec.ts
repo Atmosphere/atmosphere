@@ -8,12 +8,8 @@ import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-serve
  */
 
 // spring-boot-ai-chat excluded: its browser console WebSocket never connects in CI.
-// It is tested separately in spring-boot-ai-chat.spec.ts (non-WebSocket tests pass).
 const UNIFIED_SAMPLES = [
-  'spring-boot-langchain4j-chat',
-  'spring-boot-embabel-chat',
   'spring-boot-rag-chat',
-  'spring-boot-spring-ai-chat',
 ] as const;
 
 for (const sampleName of UNIFIED_SAMPLES) {

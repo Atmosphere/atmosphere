@@ -33,8 +33,6 @@ jobs:
           - quarkus-chat
           - embedded-jetty-websocket-chat
           - spring-boot-ai-chat
-          - spring-boot-langchain4j-chat
-          - spring-boot-embabel-chat
           - spring-boot-rag-chat
       fail-fast: false
     
@@ -98,8 +96,6 @@ jobs:
           - quarkus-chat
           - spring-boot-chat
           - spring-boot-ai-chat
-          - spring-boot-langchain4j-chat
-          - spring-boot-embabel-chat
           - spring-boot-mcp-server
           - spring-boot-rag-chat
       fail-fast: false

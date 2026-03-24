@@ -43,7 +43,7 @@ atmosphere list --category tools
 ```bash
 atmosphere run spring-boot-chat
 atmosphere run spring-boot-ai-chat --env LLM_API_KEY=your-key
-atmosphere run spring-boot-langchain4j-chat --port 9090
+atmosphere run spring-boot-dentist-agent --port 9090
 ```
 
 The CLI downloads pre-built JARs from GitHub Releases and caches them in `~/.atmosphere/cache/`.

@@ -44,7 +44,7 @@ model.chat(ChatMessage.userMessage(prompt),
 
 ## Samples
 
-- [Spring Boot LangChain4j Chat](../../samples/spring-boot-langchain4j-chat/)
+- [Spring Boot AI Chat](../../samples/spring-boot-ai-chat/) -- swap to `atmosphere-langchain4j` dependency for LangChain4j support
 
 ## Full Documentation
 
