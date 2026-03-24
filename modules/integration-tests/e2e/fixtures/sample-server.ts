@@ -160,6 +160,7 @@ export const SAMPLES: Record<string, SampleConfig> = {
     dir: 'spring-boot-a2a-agent',
     port: 8093,
     type: 'spring-boot',
+    env: { GEMINI_API_KEY: '' },
   },
   'spring-boot-agui-chat': {
     name: 'spring-boot-agui-chat',
