@@ -168,6 +168,13 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8094,
     type: 'spring-boot',
   },
+  'spring-boot-multi-agent': {
+    name: 'spring-boot-multi-agent',
+    dir: 'spring-boot-multi-agent',
+    port: 8096,
+    type: 'spring-boot',
+    readyPath: '/atmosphere/agent/startup-ceo',
+  },
 };
 
 /**

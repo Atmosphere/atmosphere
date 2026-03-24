@@ -2,6 +2,19 @@
   "version": "4.0.23",
   "samples": [
     {
+      "name": "spring-boot-multi-agent",
+      "description": "Multi-agent startup team — 5 AI agents collaborate in real-time (Research, Strategy, Finance, Writer, CEO)",
+      "category": "agent",
+      "tags": ["spring-boot", "ai", "multi-agent", "agent", "tools", "adk", "spring-ai", "gemini", "web-scraping"],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "GEMINI_API_KEY": "Google Gemini API key (optional — demo mode without)"
+      }
+    },
+    {
       "name": "spring-boot-agent-chat",
       "description": "@Agent DevOps assistant — slash commands, AI tools, skill file, cross-channel (Slack/Telegram/Discord)",
       "category": "agent",
