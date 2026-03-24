@@ -34,31 +34,38 @@ import java.lang.annotation.Target;
  *   <li>Protocol exposure is automatic based on classpath</li>
  * </ul>
  *
- * <p>Zero-code agent example:</p>
- * <pre>{@code
- * @Agent(name = "customer-support", skillFile = "skill.md")
- * public class SupportAgent {
- *     // Everything comes from skill.md + classpath + config
- * }
- * }</pre>
- *
- * <p>Agent with commands:</p>
+ * <p>Full-stack agent with WebSocket UI:</p>
  * <pre>{@code
  * @Agent(name = "devops", skillFile = "devops-skill.md")
  * public class DevOpsAgent {
  *
- *     @Command(value = "/status", description = "Show service status")
- *     public String status() {
- *         return "All systems operational.";
+ *     @Prompt
+ *     public void onMessage(String msg, StreamingSession session) {
+ *         session.stream(msg);
  *     }
  *
- *     @Command(value = "/deploy", description = "Deploy to staging",
- *              confirm = "Deploy latest build to staging?")
- *     public String deploy(String args) {
- *         return "Deployed " + args + " to staging.";
+ *     @Command(value = "/status", description = "Show service status")
+ *     public String status() { return "All systems operational."; }
+ * }
+ * }</pre>
+ *
+ * <p>Headless agent (no WebSocket UI, A2A protocol only):</p>
+ * <pre>{@code
+ * @Agent(name = "research", endpoint = "/atmosphere/a2a/research",
+ *        description = "Web research agent")
+ * public class ResearchAgent {
+ *
+ *     @A2aSkill(id = "search", name = "Search", description = "Search the web")
+ *     @A2aTaskHandler
+ *     public void search(TaskContext task, @A2aParam(name="query") String query) {
+ *         task.addArtifact(Artifact.text("Results for: " + query));
+ *         task.complete("Search complete");
  *     }
  * }
  * }</pre>
+ *
+ * <p>Headless mode is auto-detected when a class has {@code @A2aSkill} methods
+ * but no {@code @Prompt} method, or can be forced with {@code headless = true}.</p>
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
@@ -89,4 +96,28 @@ public @interface Agent {
      * metadata (A2A Agent Card description).
      */
     String description() default "";
+
+    /**
+     * Custom endpoint path for the agent's A2A protocol endpoint.
+     * When non-empty, overrides the default {@code /atmosphere/agent/{name}/a2a}.
+     * This is primarily useful for headless agents that only expose A2A.
+     *
+     * <p>Example: {@code endpoint = "/atmosphere/a2a/research"}</p>
+     */
+    String endpoint() default "";
+
+    /**
+     * Agent version, used in Agent Card metadata and protocol responses.
+     */
+    String version() default "1.0.0";
+
+    /**
+     * When {@code true}, no WebSocket UI handler is registered — the agent
+     * operates as a headless A2A/MCP service only.
+     *
+     * <p>Headless mode is also auto-detected: if the class has
+     * {@code @A2aSkill}/{@code @A2aTaskHandler} methods but no
+     * {@code @Prompt} method, it is treated as headless.</p>
+     */
+    boolean headless() default false;
 }

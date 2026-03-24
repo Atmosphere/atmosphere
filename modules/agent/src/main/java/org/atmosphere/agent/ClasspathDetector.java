@@ -26,7 +26,7 @@ public final class ClasspathDetector {
     private static final ConcurrentHashMap<String, Boolean> CACHE = new ConcurrentHashMap<>();
 
     // Sentinel class names for each optional module
-    private static final String A2A_CLASS = "org.atmosphere.a2a.annotation.A2aServer";
+    private static final String A2A_CLASS = "org.atmosphere.a2a.registry.A2aRegistry";
     private static final String MCP_CLASS = "org.atmosphere.mcp.annotation.McpServer";
     private static final String AGUI_CLASS = "org.atmosphere.agui.annotation.AgUiEndpoint";
     private static final String CHANNELS_CLASS = "org.atmosphere.channels.IncomingMessage";

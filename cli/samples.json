@@ -2,7 +2,6 @@
   "version": "4.0.23",
   "samples": [
     {
-      "name": "spring-boot-startup-advisor",
       "description": "AI startup advisor — 5 AI agents collaborate in real-time (Research, Strategy, Finance, Writer, CEO)",
       "category": "agent",
       "tags": ["spring-boot", "ai", "startup", "advisor", "tools", "adk", "spring-ai", "gemini", "web-scraping"],

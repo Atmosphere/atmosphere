@@ -15,6 +15,11 @@
  */
 package org.atmosphere.agent.processor;
 
+import org.atmosphere.a2a.annotation.A2aParam;
+import org.atmosphere.a2a.annotation.A2aSkill;
+import org.atmosphere.a2a.annotation.A2aTaskHandler;
+import org.atmosphere.a2a.runtime.TaskContext;
+import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.agent.ClasspathDetector;
 import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.agent.annotation.Command;
@@ -123,6 +128,132 @@ public class AgentProcessorTest {
     @Test
     public void testClasspathDetectorUnknown() {
         assertFalse(ClasspathDetector.isPresent("com.nonexistent.FakeClass"));
+    }
+
+    // ── Headless agent test classes ──
+
+    @Agent(name = "headless-a2a", endpoint = "/atmosphere/a2a/headless",
+            description = "Headless agent with A2A skills")
+    static class HeadlessA2aAgent {
+        @A2aSkill(id = "greet", name = "Greet", description = "Say hello",
+                tags = {"greeting"})
+        @A2aTaskHandler
+        public void greet(TaskContext task,
+                          @A2aParam(name = "name", description = "Name") String name) {
+            task.addArtifact(Artifact.text("Hello " + name));
+            task.complete("Greeted " + name);
+        }
+    }
+
+    @Agent(name = "explicit-headless", headless = true,
+            description = "Explicitly headless agent")
+    static class ExplicitHeadlessAgent {
+        @Prompt
+        public void onPrompt(String msg, StreamingSession session) {
+            session.stream(msg);
+        }
+    }
+
+    @Agent(name = "mixed-agent", description = "Full agent with A2A skills")
+    static class MixedAgent {
+        @Prompt
+        public void onPrompt(String msg, StreamingSession session) {
+            session.stream(msg);
+        }
+
+        @A2aSkill(id = "compute", name = "Compute", description = "Compute something",
+                tags = {"math"})
+        @A2aTaskHandler
+        public void compute(TaskContext task,
+                            @A2aParam(name = "expr", description = "Expression") String expr) {
+            task.addArtifact(Artifact.text("Result: " + expr));
+            task.complete("Computed");
+        }
+    }
+
+    @Agent(name = "custom-endpoint", endpoint = "/api/custom",
+            version = "2.0.0", description = "Custom endpoint agent")
+    static class CustomEndpointAgent {
+        @A2aSkill(id = "ping", name = "Ping", description = "Ping",
+                tags = {"health"})
+        @A2aTaskHandler
+        public void ping(TaskContext task) {
+            task.complete("pong");
+        }
+    }
+
+    // ── Headless detection tests ──
+
+    @Test
+    public void testHeadlessAutoDetected() {
+        var processor = new AgentProcessor();
+        var annotation = HeadlessA2aAgent.class.getAnnotation(Agent.class);
+        assertTrue(processor.isHeadless(annotation, HeadlessA2aAgent.class),
+                "Agent with @A2aSkill methods and no @Prompt should be headless");
+    }
+
+    @Test
+    public void testExplicitHeadlessFlag() {
+        var processor = new AgentProcessor();
+        var annotation = ExplicitHeadlessAgent.class.getAnnotation(Agent.class);
+        assertTrue(processor.isHeadless(annotation, ExplicitHeadlessAgent.class),
+                "Agent with headless=true should be headless even with @Prompt");
+    }
+
+    @Test
+    public void testMixedAgentNotHeadless() {
+        var processor = new AgentProcessor();
+        var annotation = MixedAgent.class.getAnnotation(Agent.class);
+        assertFalse(processor.isHeadless(annotation, MixedAgent.class),
+                "Agent with both @Prompt and @A2aSkill should NOT be headless");
+    }
+
+    @Test
+    public void testFullAgentNotHeadless() {
+        var processor = new AgentProcessor();
+        var annotation = FullAgent.class.getAnnotation(Agent.class);
+        assertFalse(processor.isHeadless(annotation, FullAgent.class),
+                "Agent with @Prompt should NOT be headless");
+    }
+
+    @Test
+    public void testMinimalAgentNotHeadless() {
+        var processor = new AgentProcessor();
+        var annotation = MinimalAgent.class.getAnnotation(Agent.class);
+        assertFalse(processor.isHeadless(annotation, MinimalAgent.class),
+                "Agent with no @Prompt and no @A2aSkill should NOT be headless");
+    }
+
+    // ── Annotation attribute tests ──
+
+    @Test
+    public void testCustomEndpointAttribute() {
+        var annotation = CustomEndpointAgent.class.getAnnotation(Agent.class);
+        assertEquals("/api/custom", annotation.endpoint());
+    }
+
+    @Test
+    public void testVersionAttribute() {
+        var annotation = CustomEndpointAgent.class.getAnnotation(Agent.class);
+        assertEquals("2.0.0", annotation.version());
+    }
+
+    @Test
+    public void testDefaultEndpointIsEmpty() {
+        var annotation = MinimalAgent.class.getAnnotation(Agent.class);
+        assertEquals("", annotation.endpoint());
+    }
+
+    @Test
+    public void testDefaultVersionIs1() {
+        var annotation = MinimalAgent.class.getAnnotation(Agent.class);
+        assertEquals("1.0.0", annotation.version());
+    }
+
+    @Test
+    public void testDefaultHeadlessIsFalse() {
+        var annotation = MinimalAgent.class.getAnnotation(Agent.class);
+        assertFalse(annotation.headless());
     }
 
     @Test

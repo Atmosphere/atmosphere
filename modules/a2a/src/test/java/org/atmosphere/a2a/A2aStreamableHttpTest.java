@@ -17,7 +17,6 @@ package org.atmosphere.a2a;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.a2a.annotation.A2aParam;
-import org.atmosphere.a2a.annotation.A2aServer;
 import org.atmosphere.a2a.annotation.A2aSkill;
 import org.atmosphere.a2a.annotation.A2aTaskHandler;
 import org.atmosphere.a2a.registry.A2aRegistry;
@@ -56,7 +55,6 @@ class A2aStreamableHttpTest {
     private static final ObjectMapper mapper = new ObjectMapper();
     private A2aHandler handler;
 
-    @A2aServer(name = "test-agent", description = "A test agent", endpoint = "/a2a")
     static class TestAgent {
         @A2aSkill(id = "echo", name = "Echo", description = "Echo input back")
         @A2aTaskHandler

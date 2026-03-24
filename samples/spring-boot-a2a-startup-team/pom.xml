@@ -11,12 +11,15 @@
     </parent>
 
     <groupId>org.atmosphere.samples</groupId>
-    <artifactId>atmosphere-spring-boot-a2a-agent</artifactId>
-    <name>atmosphere-spring-boot-a2a-agent</name>
-    <description>A2A (Agent-to-Agent) protocol demo — weather and time agent with discoverable Agent Card</description>
+    <artifactId>atmosphere-spring-boot-a2a-startup-team</artifactId>
+    <name>atmosphere-spring-boot-a2a-startup-team</name>
+    <description>True multi-agent: 5 independent A2A agents collaborate via Agent Cards and JSON-RPC</description>
 
     <properties>
+        <google-adk.version>0.2.0</google-adk.version>
         <maven.deploy.skip>true</maven.deploy.skip>
+        <checkstyle.skip>true</checkstyle.skip>
+        <pmd.skip>true</pmd.skip>
     </properties>
 
     <dependencyManagement>
@@ -32,29 +35,50 @@
     </dependencyManagement>
 
     <dependencies>
+        <!-- Atmosphere core -->
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-spring-boot-starter</artifactId>
         </dependency>
 
+        <!-- @Agent for the CEO coordinator (WebSocket UI) -->
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-agent</artifactId>
         </dependency>
 
+        <!-- @A2aServer for the 4 specialist agents -->
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-a2a</artifactId>
         </dependency>
 
+        <!-- AI backend for CEO synthesis (Google ADK) -->
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-ai</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-adk</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.adk</groupId>
+            <artifactId>google-adk</artifactId>
+            <version>${google-adk.version}</version>
+        </dependency>
 
+        <!-- MCP (required by atmosphere-agent for auto-bridging) -->
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-mcp</artifactId>
+        </dependency>
+
+        <!-- Web scraping for Research Agent -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.18.3</version>
         </dependency>
 
         <dependency>

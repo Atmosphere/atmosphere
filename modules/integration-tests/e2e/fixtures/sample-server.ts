@@ -168,9 +168,6 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8094,
     type: 'spring-boot',
   },
-  'spring-boot-startup-advisor': {
-    name: 'spring-boot-startup-advisor',
-    dir: 'spring-boot-startup-advisor',
     port: 8096,
     type: 'spring-boot',
     readyPath: '/atmosphere/agent/startup-ceo',

@@ -17,7 +17,6 @@ package org.atmosphere.a2a;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.a2a.annotation.A2aParam;
-import org.atmosphere.a2a.annotation.A2aServer;
 import org.atmosphere.a2a.annotation.A2aSkill;
 import org.atmosphere.a2a.annotation.A2aTaskHandler;
 import org.atmosphere.a2a.registry.A2aRegistry;
@@ -39,7 +38,6 @@ class A2aProtocolHandlerTest {
     private final ObjectMapper mapper = new ObjectMapper();
     private A2aProtocolHandler handler;
 
-    @A2aServer(name = "test-agent", description = "Test", endpoint = "/a2a")
     static class TestAgent {
         @A2aSkill(id = "greet", name = "Greet", description = "Greet someone")
         @A2aTaskHandler

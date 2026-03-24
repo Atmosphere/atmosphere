@@ -16,7 +16,6 @@
 package org.atmosphere.a2a;
 
 import org.atmosphere.a2a.annotation.A2aParam;
-import org.atmosphere.a2a.annotation.A2aServer;
 import org.atmosphere.a2a.annotation.A2aSkill;
 import org.atmosphere.a2a.annotation.A2aTaskHandler;
 import org.atmosphere.a2a.registry.A2aRegistry;
@@ -29,7 +28,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class A2aRegistryTest {
 
-    @A2aServer(name = "test", endpoint = "/a2a")
     static class TestAgent {
         @A2aSkill(id = "s1", name = "Skill One", description = "First skill", tags = {"tag1", "tag2"})
         @A2aTaskHandler

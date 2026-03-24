@@ -547,7 +547,7 @@
         <module>samples/spring-boot-ai-console</module>
         <module>samples/spring-boot-agent-chat</module>
         <module>samples/spring-boot-dentist-agent</module>
-        <module>samples/spring-boot-startup-advisor</module>
+        <module>samples/spring-boot-a2a-startup-team</module>
         <module>modules/integration-tests</module>
     </modules>
     <reporting>

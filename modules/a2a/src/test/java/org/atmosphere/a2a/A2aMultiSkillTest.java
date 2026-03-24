@@ -18,7 +18,6 @@ package org.atmosphere.a2a;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.a2a.annotation.A2aParam;
-import org.atmosphere.a2a.annotation.A2aServer;
 import org.atmosphere.a2a.annotation.A2aSkill;
 import org.atmosphere.a2a.annotation.A2aTaskHandler;
 import org.atmosphere.a2a.registry.A2aRegistry;
@@ -41,7 +40,6 @@ class A2aMultiSkillTest {
     private final ObjectMapper mapper = new ObjectMapper();
     private A2aProtocolHandler handler;
 
-    @A2aServer(name = "multi-skill-agent", endpoint = "/a2a")
     static class MultiSkillAgent {
         @A2aSkill(id = "greet", name = "Greet", description = "Greet someone", tags = {"social"})
         @A2aTaskHandler

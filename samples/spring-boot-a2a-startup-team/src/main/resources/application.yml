@@ -1,0 +1,15 @@
+atmosphere:
+  packages: org.atmosphere.samples.springboot.a2astartup
+
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
+
+llm:
+  model: ${LLM_MODEL:gemini-2.5-flash}
+  base-url: ${LLM_BASE_URL:}
+  api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
+
+server:
+  port: ${SERVER_PORT:8080}

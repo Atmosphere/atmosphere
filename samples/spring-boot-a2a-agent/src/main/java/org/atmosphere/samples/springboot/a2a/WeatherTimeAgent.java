@@ -16,7 +16,7 @@
 package org.atmosphere.samples.springboot.a2a;
 
 import org.atmosphere.a2a.annotation.A2aParam;
-import org.atmosphere.a2a.annotation.A2aServer;
+import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.a2a.annotation.A2aSkill;
 import org.atmosphere.a2a.annotation.A2aTaskHandler;
 import org.atmosphere.a2a.runtime.TaskContext;
@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * environment variable or {@code llm.api-key} property), the agent uses the real
  * LLM for responses. Without a key, it falls back to deterministic demo responses.
  */
-@A2aServer(
+@Agent(
     name = "atmosphere-assistant",
     description = "AI-powered assistant that answers questions, provides weather info, and handles time queries. Uses Gemini/OpenAI/Ollama when configured, with built-in demo fallback.",
     version = "1.0.0",

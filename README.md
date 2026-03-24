@@ -13,6 +13,7 @@
   <a href="https://central.sonatype.com/artifact/org.atmosphere/atmosphere-runtime"><img src="https://img.shields.io/maven-central/v/org.atmosphere/atmosphere-runtime?label=Maven%20Central&color=blue" alt="Maven Central"/></a>
   <a href="https://www.npmjs.com/package/atmosphere.js"><img src="https://img.shields.io/npm/v/atmosphere.js?label=atmosphere.js&color=blue" alt="npm"/></a>
   <a href="https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml"><img src="https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml/badge.svg?branch=main" alt="Atmosphere CI"/></a>
+  <a href="https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-e2e.yml"><img src="https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-e2e.yml/badge.svg?branch=main" alt="E2E Tests"/></a>
   <a href="https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-js-ci.yml"><img src="https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-js-ci.yml/badge.svg?branch=main" alt="Atmosphere.js CI"/></a>
 </p>
 
@@ -231,7 +232,7 @@ Swap the AI backend by changing one Maven dependency — no tool code changes:
 | Google ADK | `atmosphere-adk` | `AdkToolBridge` |
 | Embabel | `atmosphere-embabel` | `EmbabelAiSupport` |
 
-See [spring-boot-ai-tools](samples/spring-boot-ai-tools) for the full tool-calling sample and [spring-boot-ai-classroom](samples/spring-boot-ai-classroom) for multi-persona conversation memory.
+See [spring-boot-ai-tools](samples/spring-boot-ai-tools/) for the full tool-calling sample and [spring-boot-ai-classroom](samples/spring-boot-ai-classroom/) for multi-persona conversation memory.
 
 ## Agent Protocols — MCP, A2A, AG-UI
 
@@ -303,7 +304,7 @@ public class Chat {
 # Install the Atmosphere CLI
 curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
 
-# Browse all 20+ samples and pick one to run
+# Browse all 28+ samples and pick one to run
 atmosphere install
 
 # Run samples directly
@@ -323,6 +324,29 @@ npx create-atmosphere-app my-ai-app --template ai-chat
 ```
 
 See [cli/README.md](cli/README.md) for all commands and options.
+
+## Since 2008
+
+Atmosphere has powered real-time Java applications for 18 years — from long-polling on Servlet 2.x to virtual threads on JDK 21.
+
+- **280+ releases** on Maven Central
+- **18 years** in continuous production — trading floors, healthcare, collaboration
+- **Evolution:** Servlet 3.0 async (2008) &rarr; WebSocket (2013) &rarr; SSE (2016) &rarr; Virtual Threads (2024) &rarr; AI Agents (2025) &rarr; Multi-Agent Teams (2026)
+- **Atmosphere 3.x** still maintained on the [atmosphere-3.x](https://github.com/Atmosphere/atmosphere/tree/atmosphere-3.x) branch
+
+## Samples
+
+**Agents** — [dentist agent](samples/spring-boot-dentist-agent/) (multi-channel), [devops agent](samples/spring-boot-agent-chat/), [multi-agent startup team](samples/spring-boot-multi-agent/)
+
+**AI / LLM Streaming** — [built-in](samples/spring-boot-ai-chat/), [Spring AI](samples/spring-boot-spring-ai-chat/), [LangChain4j](samples/spring-boot-langchain4j-chat/), [Google ADK](samples/spring-boot-adk-chat/), [Embabel](samples/spring-boot-embabel-chat/), [tool calling](samples/spring-boot-ai-tools/), [RAG](samples/spring-boot-rag-chat/), [model routing](samples/spring-boot-spring-ai-routing/), [AI classroom](samples/spring-boot-ai-classroom/)
+
+**Protocols** — [MCP server](samples/spring-boot-mcp-server/), [A2A agent](samples/spring-boot-a2a-agent/), [AG-UI chat](samples/spring-boot-agui-chat/)
+
+**Infrastructure** — [durable sessions](samples/spring-boot-durable-sessions/), [OpenTelemetry](samples/spring-boot-otel-chat/), [channels](samples/spring-boot-channels-chat/)
+
+**Chat & Messaging** — [spring-boot-chat](samples/spring-boot-chat/), [quarkus-chat](samples/quarkus-chat/), [grpc-chat](samples/grpc-chat/), [embedded-jetty](samples/embedded-jetty-websocket-chat/)
+
+[Browse all 28+ samples &rarr;](samples/)
 
 ## Modules
 
