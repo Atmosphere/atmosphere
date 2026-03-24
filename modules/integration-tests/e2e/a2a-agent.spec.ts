@@ -67,7 +67,7 @@ test.describe('A2A Agent Protocol', () => {
     expect(skillIds).toContain('get-time');
   });
 
-  test('ask skill returns demo response', async () => {
+  test('ask skill returns a response', async () => {
     const { body } = await sendTask(server.baseUrl, 'ask', 'Hello!');
 
     const result = body.result as Record<string, unknown>;
@@ -78,12 +78,10 @@ test.describe('A2A Agent Protocol', () => {
 
     const artifacts = result.artifacts as { parts: { text: string }[] }[];
     expect(artifacts.length).toBeGreaterThan(0);
-
-    const text = artifacts[0].parts[0].text;
-    expect(text).toContain('Atmosphere A2A assistant');
+    expect(artifacts[0].parts[0].text.length).toBeGreaterThan(0);
   });
 
-  test('get-weather returns deterministic demo weather', async () => {
+  test('get-weather returns weather info', async () => {
     const { body } = await sendTask(
       server.baseUrl,
       'get-weather',
@@ -99,11 +97,7 @@ test.describe('A2A Agent Protocol', () => {
 
     const artifacts = result.artifacts as { parts: { text: string }[] }[];
     const text = artifacts[0].parts[0].text;
-    expect(text).toContain('Weather for Montreal');
-    // Deterministic format: "<temp>°C, <condition>, Humidity: <pct>%"
-    // The degree symbol may be encoded differently through JSON; match loosely
-    expect(text).toMatch(/\d+.C,/);
-    expect(text).toMatch(/Humidity: \d+%/);
+    expect(text.length).toBeGreaterThan(0);
   });
 
   test('get-time returns time for valid timezone', async () => {

@@ -55,42 +55,43 @@ test.describe('History Cache (BoundedMemoryCache)', () => {
       '&X-Atmosphere-Auth=demo-token&Content-Type=application/json' +
       '&X-Atmosphere-TrackMessageSize=true';
 
-    const allMessages: string[] = [];
+    const firstMessages: string[] = [];
+    const secondMessages: string[] = [];
     const result = await new Promise<string>((resolve) => {
       const ws = new WebSocket(wsUrl);
-      let sentCount = 0;
+      let phase: 'init' | 'first' | 'second' = 'init';
 
       ws.on('open', () => {
         setTimeout(() => {
+          phase = 'first';
           ws.send('What is 2+2?');
-          sentCount++;
         }, 500);
       });
 
       ws.on('message', (data) => {
-        allMessages.push(data.toString());
-        // After getting some responses, send a second message
-        if (allMessages.length > 3 && sentCount === 1) {
-          ws.send('And what is 3+3?');
-          sentCount++;
-        }
-        // After more responses to second question, close
-        if (allMessages.length > 6 && sentCount === 2) {
-          ws.close();
-          resolve('received');
-        }
+        if (phase === 'first') firstMessages.push(data.toString());
+        if (phase === 'second') secondMessages.push(data.toString());
       });
+
+      // Send second question after a delay to let first response complete
+      setTimeout(() => {
+        phase = 'second';
+        ws.send('And what is 3+3?');
+      }, 10_000);
+
+      // Close after both questions have had time to respond
+      setTimeout(() => {
+        ws.close();
+        const total = firstMessages.length + secondMessages.length;
+        resolve(total > 0 ? 'received' : 'timeout');
+      }, 25_000);
 
       ws.on('error', (err) => resolve(`error: ${err.message}`));
       ws.on('unexpected-response', (_req, res) => resolve(`HTTP ${res.statusCode}`));
-      setTimeout(() => {
-        ws.close();
-        resolve(allMessages.length > 0 ? 'received' : 'timeout');
-      }, 30_000);
     });
 
     expect(result).toBe('received');
-    // Should have received responses to both questions
-    expect(allMessages.length).toBeGreaterThan(3);
+    expect(firstMessages.length).toBeGreaterThan(0);
+    expect(secondMessages.length).toBeGreaterThan(0);
   });
 });
