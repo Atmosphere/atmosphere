@@ -180,22 +180,24 @@ public class AgentProcessor implements Processor<Object> {
         if (annotation.headless()) {
             return true;
         }
-        // Auto-detect: has @Skill methods but no @Prompt
-        if (!ClasspathDetector.hasA2a()) {
-            return false;
-        }
+        // Auto-detect: has protocol-specific methods but no @Prompt
         boolean hasPrompt = false;
-        boolean hasSkills = false;
+        boolean hasProtocolMethods = false;
         for (var method : clazz.getDeclaredMethods()) {
             if (method.isAnnotationPresent(Prompt.class)) {
                 hasPrompt = true;
             }
-            if (method.isAnnotationPresent(org.atmosphere.a2a.annotation.AgentSkill.class)
+            if (ClasspathDetector.hasA2a()
+                    && method.isAnnotationPresent(org.atmosphere.a2a.annotation.AgentSkill.class)
                     && method.isAnnotationPresent(org.atmosphere.a2a.annotation.AgentSkillHandler.class)) {
-                hasSkills = true;
+                hasProtocolMethods = true;
+            }
+            if (ClasspathDetector.hasMcp()
+                    && method.isAnnotationPresent(org.atmosphere.mcp.annotation.McpTool.class)) {
+                hasProtocolMethods = true;
             }
         }
-        return hasSkills && !hasPrompt;
+        return hasProtocolMethods && !hasPrompt;
     }
 
     /**

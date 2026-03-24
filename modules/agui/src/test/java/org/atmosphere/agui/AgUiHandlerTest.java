@@ -16,7 +16,6 @@
 package org.atmosphere.agui;
 
 import org.atmosphere.agui.annotation.AgUiAction;
-import org.atmosphere.agui.annotation.AgUiEndpoint;
 import org.atmosphere.agui.runtime.AgUiHandler;
 import org.atmosphere.agui.runtime.RunContext;
 import org.atmosphere.ai.StreamingSession;
@@ -39,7 +38,6 @@ import static org.mockito.Mockito.when;
 
 class AgUiHandlerTest {
 
-    @AgUiEndpoint(path = "/agui")
     public static class TestEndpoint {
         @AgUiAction
         public void onRun(RunContext run, StreamingSession session) {
@@ -48,7 +46,6 @@ class AgUiHandlerTest {
         }
     }
 
-    @AgUiEndpoint(path = "/agui-error")
     public static class ErrorEndpoint {
         @AgUiAction
         public void onRun(RunContext run, StreamingSession session) {

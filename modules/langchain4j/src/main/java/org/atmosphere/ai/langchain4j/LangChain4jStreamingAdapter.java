@@ -15,13 +15,13 @@
  */
 package org.atmosphere.ai.langchain4j;
 
-import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import org.atmosphere.ai.AiStreamingAdapter;
 import org.atmosphere.ai.StreamingSession;
 
 /**
- * LangChain4j adapter that bridges {@link StreamingChatLanguageModel}
+ * LangChain4j adapter that bridges {@link StreamingChatModel}
  * to an Atmosphere {@link StreamingSession}.
  *
  * <p>Usage:</p>
@@ -47,13 +47,13 @@ public class LangChain4jStreamingAdapter implements AiStreamingAdapter<LangChain
     /**
      * Convenience method for direct streaming.
      */
-    public void stream(StreamingChatLanguageModel model, ChatRequest chatRequest, StreamingSession session) {
+    public void stream(StreamingChatModel model, ChatRequest chatRequest, StreamingSession session) {
         stream(new LangChain4jRequest(model, chatRequest), session);
     }
 
     /**
      * Request record wrapping a model and chat request.
      */
-    public record LangChain4jRequest(StreamingChatLanguageModel model, ChatRequest chatRequest) {
+    public record LangChain4jRequest(StreamingChatModel model, ChatRequest chatRequest) {
     }
 }

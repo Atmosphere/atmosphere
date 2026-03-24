@@ -17,7 +17,7 @@ package org.atmosphere.ai.langchain4j;
 
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.ChatMessage;
-import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
@@ -47,7 +47,7 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
     private static final int MAX_TOOL_ROUNDS = 5;
 
     private final StreamingSession session;
-    private final StreamingChatLanguageModel model;
+    private final StreamingChatModel model;
     private final List<ChatMessage> conversationHistory;
     private final List<ToolSpecification> toolSpecifications;
     private final Map<String, ToolDefinition> toolMap;
@@ -55,7 +55,7 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
 
     ToolAwareStreamingResponseHandler(
             StreamingSession session,
-            StreamingChatLanguageModel model,
+            StreamingChatModel model,
             List<ChatMessage> conversationHistory,
             List<ToolSpecification> toolSpecifications,
             Map<String, ToolDefinition> toolMap) {
@@ -64,7 +64,7 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
 
     private ToolAwareStreamingResponseHandler(
             StreamingSession session,
-            StreamingChatLanguageModel model,
+            StreamingChatModel model,
             List<ChatMessage> conversationHistory,
             List<ToolSpecification> toolSpecifications,
             Map<String, ToolDefinition> toolMap,

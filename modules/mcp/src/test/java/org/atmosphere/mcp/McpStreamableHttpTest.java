@@ -21,7 +21,6 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.mcp.annotation.McpParam;
-import org.atmosphere.mcp.annotation.McpServer;
 import org.atmosphere.mcp.annotation.McpTool;
 import org.atmosphere.mcp.registry.McpRegistry;
 import org.atmosphere.mcp.runtime.McpHandler;
@@ -47,7 +46,6 @@ public class McpStreamableHttpTest {
     private static final ObjectMapper mapper = new ObjectMapper();
     private McpHandler handler;
 
-    @McpServer(name = "test-server", version = "1.0.0")
     public static class SimpleMcpServer {
         @McpTool(name = "echo", description = "Echo input")
         public String echo(@McpParam(name = "text") String text) {

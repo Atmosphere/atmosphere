@@ -16,7 +16,7 @@
 package org.atmosphere.ai.langchain4j;
 
 import dev.langchain4j.data.message.AiMessage;
-import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
@@ -154,7 +154,7 @@ public class LangChain4jStreamingAdapterTest {
 
     @Test
     public void testAdapterWithMockModel() {
-        var model = mock(StreamingChatLanguageModel.class);
+        var model = mock(StreamingChatModel.class);
         var chatRequest = mock(ChatRequest.class);
 
         // Capture the handler passed to the model
@@ -183,7 +183,7 @@ public class LangChain4jStreamingAdapterTest {
 
     @Test
     public void testAdapterWithModelError() {
-        var model = mock(StreamingChatLanguageModel.class);
+        var model = mock(StreamingChatModel.class);
         var chatRequest = mock(ChatRequest.class);
 
         doAnswer(invocation -> {
@@ -207,7 +207,7 @@ public class LangChain4jStreamingAdapterTest {
 
     @Test
     public void testAdapterViaGenericInterface() {
-        var model = mock(StreamingChatLanguageModel.class);
+        var model = mock(StreamingChatModel.class);
         var chatRequest = mock(ChatRequest.class);
 
         doAnswer(invocation -> {
@@ -350,7 +350,7 @@ public class LangChain4jStreamingAdapterTest {
 
     @Test
     public void testAdapterSendsProgressMessageFirst() {
-        var model = mock(StreamingChatLanguageModel.class);
+        var model = mock(StreamingChatModel.class);
         var chatRequest = mock(ChatRequest.class);
 
         // Model does nothing (simulates a model that hasn't responded yet)
@@ -368,7 +368,7 @@ public class LangChain4jStreamingAdapterTest {
 
     @Test
     public void testLangChain4jRequestRecordAccessors() {
-        var model = mock(StreamingChatLanguageModel.class);
+        var model = mock(StreamingChatModel.class);
         var chatRequest = mock(ChatRequest.class);
 
         var request = new LangChain4jStreamingAdapter.LangChain4jRequest(model, chatRequest);
@@ -379,7 +379,7 @@ public class LangChain4jStreamingAdapterTest {
 
     @Test
     public void testLangChain4jRequestRecordEquality() {
-        var model = mock(StreamingChatLanguageModel.class);
+        var model = mock(StreamingChatModel.class);
         var chatRequest = mock(ChatRequest.class);
 
         var request1 = new LangChain4jStreamingAdapter.LangChain4jRequest(model, chatRequest);
@@ -430,7 +430,7 @@ public class LangChain4jStreamingAdapterTest {
 
     @Test
     public void testAdapterConvenienceMethodDelegates() {
-        var model = mock(StreamingChatLanguageModel.class);
+        var model = mock(StreamingChatModel.class);
         var chatRequest = mock(ChatRequest.class);
 
         doAnswer(invocation -> {

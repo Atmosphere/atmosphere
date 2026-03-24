@@ -15,7 +15,7 @@
  */
 package org.atmosphere.ai.langchain4j;
 
-import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -23,17 +23,17 @@ import org.springframework.context.annotation.Bean;
 
 /**
  * Auto-configuration that bridges the Spring-managed
- * {@link StreamingChatLanguageModel} bean to the {@link LangChain4jAiSupport}
+ * {@link StreamingChatModel} bean to the {@link LangChain4jAiSupport}
  * SPI so that {@code @AiEndpoint} methods can stream via
  * {@code session.stream(message)}.
  */
 @AutoConfiguration
-@ConditionalOnClass(name = "dev.langchain4j.model.chat.StreamingChatLanguageModel")
+@ConditionalOnClass(name = "dev.langchain4j.model.chat.StreamingChatModel")
 public class AtmosphereLangChain4jAutoConfiguration {
 
     @Bean
-    @ConditionalOnBean(StreamingChatLanguageModel.class)
-    LangChain4jAiSupport langChain4jAiSupportBridge(StreamingChatLanguageModel model) {
+    @ConditionalOnBean(StreamingChatModel.class)
+    LangChain4jAiSupport langChain4jAiSupportBridge(StreamingChatModel model) {
         LangChain4jAiSupport.setModel(model);
         return new LangChain4jAiSupport();
     }

@@ -18,7 +18,7 @@ package org.atmosphere.ai.langchain4j;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import org.atmosphere.ai.AbstractAiSupport;
 import org.atmosphere.ai.AiCapability;
@@ -35,13 +35,13 @@ import java.util.Set;
 
 /**
  * {@link org.atmosphere.ai.AiSupport} implementation backed by LangChain4j's
- * {@link StreamingChatLanguageModel}.
+ * {@link StreamingChatModel}.
  *
  * <p>Auto-detected when {@code langchain4j-core} is on the classpath.
  * The model must be configured via {@link #setModel} — typically done
  * by application configuration or Spring auto-configuration.</p>
  */
-public class LangChain4jAiSupport extends AbstractAiSupport<StreamingChatLanguageModel> {
+public class LangChain4jAiSupport extends AbstractAiSupport<StreamingChatModel> {
 
     private static final Logger logger = LoggerFactory.getLogger(LangChain4jAiSupport.class);
 
@@ -52,12 +52,12 @@ public class LangChain4jAiSupport extends AbstractAiSupport<StreamingChatLanguag
 
     @Override
     protected String nativeClientClassName() {
-        return "dev.langchain4j.model.chat.StreamingChatLanguageModel";
+        return "dev.langchain4j.model.chat.StreamingChatModel";
     }
 
     @Override
     protected String clientDescription() {
-        return "StreamingChatLanguageModel";
+        return "StreamingChatModel";
     }
 
     @Override
@@ -66,7 +66,7 @@ public class LangChain4jAiSupport extends AbstractAiSupport<StreamingChatLanguag
     }
 
     @Override
-    protected StreamingChatLanguageModel createNativeClient(AiConfig.LlmSettings settings) {
+    protected StreamingChatModel createNativeClient(AiConfig.LlmSettings settings) {
         var apiKey = settings.client().apiKey();
         if (apiKey == null || apiKey.isBlank()) {
             return null;
@@ -89,14 +89,14 @@ public class LangChain4jAiSupport extends AbstractAiSupport<StreamingChatLanguag
     }
 
     /**
-     * Set the {@link StreamingChatLanguageModel} to use for streaming.
+     * Set the {@link StreamingChatModel} to use for streaming.
      */
-    public static void setModel(StreamingChatLanguageModel streamingModel) {
+    public static void setModel(StreamingChatModel streamingModel) {
         staticModel = streamingModel;
     }
 
     // Held for static setter compatibility with Spring auto-configuration
-    private static volatile StreamingChatLanguageModel staticModel;
+    private static volatile StreamingChatModel staticModel;
 
     @Override
     public void configure(AiConfig.LlmSettings settings) {
@@ -108,7 +108,7 @@ public class LangChain4jAiSupport extends AbstractAiSupport<StreamingChatLanguag
     }
 
     @Override
-    protected void doStream(StreamingChatLanguageModel streamingModel,
+    protected void doStream(StreamingChatModel streamingModel,
                             AiRequest request, StreamingSession session) {
         session.progress("Connecting to AI model...");
 

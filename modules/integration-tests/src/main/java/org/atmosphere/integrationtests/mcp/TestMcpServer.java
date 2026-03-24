@@ -16,14 +16,14 @@
 package org.atmosphere.integrationtests.mcp;
 
 import org.atmosphere.mcp.annotation.McpParam;
-import org.atmosphere.mcp.annotation.McpServer;
+import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.mcp.annotation.McpTool;
 
 /**
  * Simple MCP server for integration testing. Exposes a single tool
  * that echoes back its input.
  */
-@McpServer(name = "test-server", version = "1.0.0", path = "/mcp")
+@Agent(name = "test-server", version = "1.0.0", endpoint = "/mcp", headless = true)
 public class TestMcpServer {
 
     @McpTool(name = "echo", description = "Echoes back the input text")

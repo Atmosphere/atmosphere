@@ -29,7 +29,6 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.mcp.annotation.McpParam;
-import org.atmosphere.mcp.annotation.McpServer;
 import org.atmosphere.mcp.annotation.McpTool;
 import org.atmosphere.mcp.registry.McpRegistry;
 import org.atmosphere.mcp.runtime.McpProtocolHandler;
@@ -88,7 +87,6 @@ public class McpBroadcasterIntegrationTest {
         }
     }
 
-    @McpServer(name = "integration-test", version = "1.0.0")
     public static class IntegrationMcpServer {
 
         @McpTool(name = "send_message", description = "Send a message to a topic")

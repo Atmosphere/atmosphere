@@ -23,7 +23,6 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.mcp.annotation.McpParam;
 import org.atmosphere.mcp.annotation.McpPrompt;
 import org.atmosphere.mcp.annotation.McpResource;
-import org.atmosphere.mcp.annotation.McpServer;
 import org.atmosphere.mcp.annotation.McpTool;
 import org.atmosphere.mcp.protocol.McpMessage;
 import org.atmosphere.mcp.registry.McpRegistry;
@@ -51,7 +50,6 @@ public class McpProtocolHandlerTest {
 
     // ── Test MCP Server class ────────────────────────────────────────────
 
-    @McpServer(name = "test-server", version = "1.0.0", path = "/mcp")
     public static class TestMcpServer {
 
         @McpTool(name = "greet", description = "Greet a person")

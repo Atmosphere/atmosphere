@@ -23,7 +23,6 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.mcp.annotation.McpParam;
-import org.atmosphere.mcp.annotation.McpServer;
 import org.atmosphere.mcp.annotation.McpTool;
 import org.atmosphere.mcp.registry.McpRegistry;
 import org.atmosphere.mcp.runtime.McpProtocolHandler;
@@ -56,7 +55,6 @@ public class McpToolInjectionTest {
     static BroadcasterFactory capturedBroadcasterFactory;
     static AtmosphereFramework capturedFramework;
 
-    @McpServer(name = "injection-test", version = "1.0.0")
     public static class InjectionMcpServer {
 
         @McpTool(name = "broadcast_message", description = "Broadcast a message to a topic")
