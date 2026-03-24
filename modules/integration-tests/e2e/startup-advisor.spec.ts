@@ -6,7 +6,7 @@ let server: SampleServer;
 
 test.beforeAll(async () => {
   test.setTimeout(120_000);
-  server = await startSample(SAMPLES['spring-boot-multi-agent']);
+  server = await startSample(SAMPLES['spring-boot-startup-advisor']);
 });
 
 test.afterAll(async () => {

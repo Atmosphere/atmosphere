@@ -30,14 +30,14 @@ Compared to OpenClaw, CrewAI, or AutoGen:
 
 ```bash
 export GEMINI_API_KEY=your-gemini-api-key
-cd samples/spring-boot-multi-agent
+cd samples/spring-boot-startup-advisor
 ../../mvnw spring-boot:run
 ```
 
 ### Demo Mode (no API key needed)
 
 ```bash
-cd samples/spring-boot-multi-agent
+cd samples/spring-boot-startup-advisor
 ../../mvnw spring-boot:run
 ```
 

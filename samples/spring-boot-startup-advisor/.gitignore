@@ -1,0 +1,3 @@
+samples/spring-boot-startup-advisor/.vite/
+node_modules/
+target/
