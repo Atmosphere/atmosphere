@@ -50,6 +50,7 @@ public class AdkAiSupport extends AbstractAiSupport<Runner> {
     private static volatile String defaultUserId = "atmosphere-user";
     private static volatile String defaultSessionId = "atmosphere-session";
     private static final Set<String> knownSessions = ConcurrentHashMap.newKeySet();
+    private volatile boolean toolsRegistered;
 
     @Override
     public String name() {
@@ -149,16 +150,53 @@ public class AdkAiSupport extends AbstractAiSupport<Runner> {
         logger.info("ADK configured with {} tools: model={}", adkTools.size(), settings.model());
     }
 
+    /**
+     * Lazily rebuild the ADK runner with tools from the AiRequest. Called on the
+     * first request that contains tool definitions. The runner is replaced in-place
+     * and used for all subsequent requests.
+     */
+    private synchronized void rebuildRunnerWithTools(AiRequest request) {
+        if (toolsRegistered) {
+            return;
+        }
+        var settings = AiConfig.get();
+        if (settings == null) {
+            settings = AiConfig.fromEnvironment();
+        }
+        var apiKey = settings.client().apiKey();
+        var gemini = new Gemini(settings.model(), apiKey);
+
+        var adkTools = AdkToolBridge.toAdkTools(request.tools());
+        var instruction = request.systemPrompt() != null && !request.systemPrompt().isEmpty()
+                ? request.systemPrompt() : "You are a helpful assistant.";
+
+        var agentBuilder = LlmAgent.builder()
+                .name("atmosphere-agent")
+                .model(gemini)
+                .instruction(instruction);
+
+        if (!adkTools.isEmpty()) {
+            agentBuilder.tools(adkTools.toArray(new BaseTool[0]));
+        }
+
+        var runner = new InMemoryRunner(agentBuilder.build(), "atmosphere");
+        setNativeClient(runner);
+        knownSessions.clear();
+        toolsRegistered = true;
+        logger.info("ADK rebuilt with {} tools and system prompt ({} chars)",
+                adkTools.size(), instruction.length());
+    }
+
     @Override
     protected void doStream(Runner adkRunner, AiRequest request, StreamingSession session) {
         session.progress("Starting ADK agent...");
 
-        // ADK tools must be registered at agent construction time
+        // ADK requires tools at agent construction time. If the AiRequest contains
+        // tools that haven't been registered yet, rebuild the runner with those tools.
         var tools = request.tools();
-        if (!tools.isEmpty()) {
-            logger.debug("AiRequest contains {} tools — ADK requires tools at agent build time. "
-                    + "Use AdkAiSupport.configureWithTools() to register tools before streaming.",
-                    tools.size());
+        if (!tools.isEmpty() && !toolsRegistered) {
+            rebuildRunnerWithTools(request);
+            adkRunner = getNativeClient();
         }
 
         var userId = request.userId() != null ? request.userId() : defaultUserId;
