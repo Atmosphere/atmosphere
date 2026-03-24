@@ -25,7 +25,11 @@ jobs:
       run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true
 
     - name: Package build output
-      run: tar czf /tmp/build-targets.tar.gz samples/*/target modules/*/target
+      run: |
+        tar czf /tmp/build-targets.tar.gz \
+          samples/*/target \
+          modules/*/target \
+          -C "$HOME" .m2/repository/org/atmosphere
 
     - name: Upload build output
       uses: actions/upload-artifact@v4
@@ -74,7 +78,14 @@ jobs:
         name: build-targets
 
     - name: Restore build output
-      run: tar xzmf build-targets.tar.gz
+      run: |
+        tar xzmf build-targets.tar.gz
+        # Restore atmosphere SNAPSHOT artifacts to local Maven repo
+        if [ -d .m2/repository/org/atmosphere ]; then
+          mkdir -p ~/.m2/repository/org
+          cp -r .m2/repository/org/atmosphere ~/.m2/repository/org/
+          rm -rf .m2
+        fi
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
