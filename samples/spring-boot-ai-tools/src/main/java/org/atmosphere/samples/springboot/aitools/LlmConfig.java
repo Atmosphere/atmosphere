@@ -15,7 +15,7 @@
  */
 package org.atmosphere.samples.springboot.aitools;
 
-import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import org.atmosphere.ai.AiConfig;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,7 +43,7 @@ public class LlmConfig {
     }
 
     @Bean
-    public StreamingChatLanguageModel streamingChatModel(AiConfig.LlmSettings settings) {
+    public StreamingChatModel streamingChatModel(AiConfig.LlmSettings settings) {
         return OpenAiStreamingChatModel.builder()
                 .baseUrl(settings.baseUrl())
                 .apiKey(settings.client().apiKey())

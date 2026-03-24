@@ -207,47 +207,47 @@ public class AgentProcessor implements Processor<Object> {
      */
     private void handleHeadless(AtmosphereFramework framework, Agent annotation,
                                 Object instance, String agentName) {
-        if (!ClasspathDetector.hasA2a()) {
-            logger.warn("Agent '{}' is headless but atmosphere-a2a is not on the classpath. "
-                    + "Add atmosphere-a2a to expose the agent via A2A protocol.", agentName);
-            return;
-        }
-        try {
-            var registry = new org.atmosphere.a2a.registry.A2aRegistry();
-            registry.scan(instance);
+        var protocols = new ArrayList<String>();
+        var basePath = "/atmosphere/agent/" + agentName;
 
-            if (registry.skills().isEmpty()) {
-                logger.warn("Agent '{}' is headless but has no @Skill methods", agentName);
+        try {
+            var toolRegistry = registerTools(instance, framework);
+
+            // Register A2A if on classpath and agent has @AgentSkill methods
+            if (ClasspathDetector.hasA2a()) {
+                var registry = new org.atmosphere.a2a.registry.A2aRegistry();
+                registry.scan(instance);
+
+                if (!registry.skills().isEmpty()) {
+                    var a2aEndpoint = annotation.endpoint().isEmpty()
+                            ? basePath + "/a2a"
+                            : annotation.endpoint();
+                    var version = annotation.version();
+                    var description = annotation.description().isEmpty()
+                            ? "Headless agent: " + agentName
+                            : annotation.description();
+
+                    var card = registry.buildAgentCard(agentName, description, version, a2aEndpoint);
+                    var taskManager = new org.atmosphere.a2a.runtime.TaskManager();
+                    var protocolHandler = new org.atmosphere.a2a.runtime.A2aProtocolHandler(
+                            registry, taskManager, card);
+                    var a2aHandler = new org.atmosphere.a2a.runtime.A2aHandler(protocolHandler);
+
+                    framework.addAtmosphereHandler(a2aEndpoint, a2aHandler, new java.util.ArrayList<>());
+                    protocols.add("a2a");
+                }
+            }
+
+            // Register MCP if on classpath (independent of A2A)
+            registerMcp(framework, annotation, toolRegistry, basePath, protocols);
+
+            if (protocols.isEmpty()) {
+                logger.warn("Agent '{}' is headless but no protocol modules on classpath. "
+                        + "Add atmosphere-a2a or atmosphere-mcp.", agentName);
                 return;
             }
 
-            var endpoint = annotation.endpoint().isEmpty()
-                    ? "/atmosphere/agent/" + agentName + "/a2a"
-                    : annotation.endpoint();
-            var version = annotation.version();
-            var description = annotation.description().isEmpty()
-                    ? "Headless agent: " + agentName
-                    : annotation.description();
-
-            var card = registry.buildAgentCard(agentName, description, version, endpoint);
-            var taskManager = new org.atmosphere.a2a.runtime.TaskManager();
-            var protocolHandler = new org.atmosphere.a2a.runtime.A2aProtocolHandler(
-                    registry, taskManager, card);
-            var a2aHandler = new org.atmosphere.a2a.runtime.A2aHandler(protocolHandler);
-
-            framework.addAtmosphereHandler(endpoint, a2aHandler, new java.util.ArrayList<>());
-
-            var protocols = new ArrayList<String>();
-            protocols.add("a2a");
-
-            // Also register MCP if on classpath
-            var skillFile = parseSkillFile(annotation);
-            var toolRegistry = registerTools(instance, framework);
-            registerMcp(framework, annotation, toolRegistry,
-                    endpoint.replace("/a2a", ""), protocols);
-
-            logger.info("Agent '{}' registered at {} (headless, skills: {}, protocols: {})",
-                    agentName, endpoint, registry.skills().size(), protocols);
+            logger.info("Agent '{}' registered (headless, protocols: {})", agentName, protocols);
         } catch (Exception e) {
             logger.error("Failed to register headless agent '{}'", agentName, e);
         }

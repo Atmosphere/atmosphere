@@ -16,7 +16,7 @@
     <description>Framework-agnostic @AiTool pipeline — tools that work with any AI backend (Spring AI, LangChain4j, ADK)</description>
 
     <properties>
-        <langchain4j.version>1.0.0-beta3</langchain4j.version>
+        <langchain4j.version>1.12.2</langchain4j.version>
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
 
