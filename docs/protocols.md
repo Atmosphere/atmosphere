@@ -33,10 +33,11 @@ See [modules/mcp/README.md](../modules/mcp/README.md) for the full API and [spri
 
 ## A2A (Agent-to-Agent)
 
-Publish an Agent Card for discovery and handle tasks from other agents via JSON-RPC 2.0.
+Publish an Agent Card for discovery and handle tasks from other agents via JSON-RPC 2.0. Use `@Agent` with `@A2aSkill` methods — headless mode is auto-detected when there is no `@Prompt` method.
 
 ```java
-@A2aServer(name = "weather-agent", endpoint = "/atmosphere/a2a")
+@Agent(name = "weather-agent", endpoint = "/atmosphere/a2a",
+       description = "Weather and time agent")
 public class WeatherAgent {
     @A2aSkill(id = "get-weather", name = "Get Weather", description = "Weather for a city")
     @A2aTaskHandler
@@ -47,11 +48,11 @@ public class WeatherAgent {
 }
 ```
 
-**Annotations**: `@A2aServer`, `@A2aSkill`, `@A2aTaskHandler`, `@A2aParam`
+**Annotations**: `@Agent`, `@A2aSkill`, `@A2aTaskHandler`, `@A2aParam`
 **Wire format**: JSON-RPC 2.0 over HTTP
-**Features**: Auto-published Agent Card at `/.well-known/agent.json`, skill metadata from `@Agent` skill file
+**Features**: Auto-published Agent Card at `/.well-known/agent.json`, skill metadata from `@Agent` skill file, headless auto-detection
 
-See [spring-boot-a2a-agent](../samples/spring-boot-a2a-agent/) for a working sample.
+See [spring-boot-a2a-agent](../samples/spring-boot-a2a-agent/) for a standalone A2A agent and [spring-boot-a2a-startup-team](../samples/spring-boot-a2a-startup-team/) for a multi-agent team with headless agents.
 
 ## AG-UI (Agent-User Interaction)
 
@@ -80,10 +81,24 @@ See [spring-boot-agui-chat](../samples/spring-boot-agui-chat/) for a working sam
 Protocol exposure is **automatic based on classpath detection** — there is no `protocols` attribute on `@Agent`. If `atmosphere-a2a` is on the classpath, the A2A endpoint is registered; if `atmosphere-mcp` is present, MCP is registered; and so on.
 
 ```java
+// Full-stack agent: WebSocket UI + all protocols
 @Agent(name = "devops", skillFile = "prompts/devops-skill.md")
-public class DevOpsAgent { ... }
-// A2A, MCP, AG-UI endpoints are registered automatically
-// if the corresponding modules are on the classpath.
+public class DevOpsAgent {
+    @Prompt
+    public void onMessage(String msg, StreamingSession s) { s.stream(msg); }
+}
+
+// Headless agent: A2A/MCP only, no WebSocket UI
+@Agent(name = "research", endpoint = "/atmosphere/a2a/research",
+       description = "Web research agent")
+public class ResearchAgent {
+    @A2aSkill(id = "search", name = "Search", description = "Search the web")
+    @A2aTaskHandler
+    public void search(TaskContext task, @A2aParam(name="query") String query) {
+        task.addArtifact(Artifact.text("Results for: " + query));
+        task.complete("Done");
+    }
+}
 ```
 
-When used with `@Agent`, skill file sections (`## Skills`, `## Tools`) are automatically exported to the corresponding protocol metadata (A2A Agent Card, MCP tool list).
+Headless mode is auto-detected when a class has `@A2aSkill` methods but no `@Prompt` method, or can be forced with `headless = true`. Skill file sections (`## Skills`, `## Tools`) are automatically exported to protocol metadata (A2A Agent Card, MCP tool list).

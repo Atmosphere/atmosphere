@@ -55,16 +55,16 @@ import java.lang.annotation.Target;
  *        description = "Web research agent")
  * public class ResearchAgent {
  *
- *     @A2aSkill(id = "search", name = "Search", description = "Search the web")
- *     @A2aTaskHandler
- *     public void search(TaskContext task, @A2aParam(name="query") String query) {
+ *     @AgentSkill(id = "search", name = "Search", description = "Search the web")
+ *     @AgentSkillHandler
+ *     public void search(TaskContext task, @AgentSkillParam(name="query") String query) {
  *         task.addArtifact(Artifact.text("Results for: " + query));
  *         task.complete("Search complete");
  *     }
  * }
  * }</pre>
  *
- * <p>Headless mode is auto-detected when a class has {@code @A2aSkill} methods
+ * <p>Headless mode is auto-detected when a class has {@code @Skill} methods
  * but no {@code @Prompt} method, or can be forced with {@code headless = true}.</p>
  */
 @Target(ElementType.TYPE)
@@ -116,7 +116,7 @@ public @interface Agent {
      * operates as a headless A2A/MCP service only.
      *
      * <p>Headless mode is also auto-detected: if the class has
-     * {@code @A2aSkill}/{@code @A2aTaskHandler} methods but no
+     * {@code @Skill}/{@code @AgentSkillHandler} methods but no
      * {@code @Prompt} method, it is treated as headless.</p>
      */
     boolean headless() default false;

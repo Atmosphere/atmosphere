@@ -11,8 +11,8 @@
     </parent>
 
     <groupId>org.atmosphere.samples</groupId>
-    <artifactId>atmosphere-spring-boot-a2a-startup-team</artifactId>
-    <name>atmosphere-spring-boot-a2a-startup-team</name>
+    <artifactId>atmosphere-spring-boot-multi-agent-startup-team</artifactId>
+    <name>atmosphere-spring-boot-multi-agent-startup-team</name>
     <description>True multi-agent: 5 independent A2A agents collaborate via Agent Cards and JSON-RPC</description>
 
     <properties>

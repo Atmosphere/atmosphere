@@ -2,9 +2,10 @@
   "version": "4.0.23",
   "samples": [
     {
-      "description": "AI startup advisor — 5 AI agents collaborate in real-time (Research, Strategy, Finance, Writer, CEO)",
+      "name": "spring-boot-multi-agent-startup-team",
+      "description": "True multi-agent: 5 independent @Agent classes collaborate via A2A protocol (Agent Cards + JSON-RPC)",
       "category": "agent",
-      "tags": ["spring-boot", "ai", "startup", "advisor", "tools", "adk", "spring-ai", "gemini", "web-scraping"],
+      "tags": ["spring-boot", "ai", "multi-agent", "a2a", "agent-card", "json-rpc", "gemini", "web-scraping"],
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",

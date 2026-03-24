@@ -15,10 +15,10 @@
  */
 package org.atmosphere.samples.springboot.a2astartup;
 
-import org.atmosphere.a2a.annotation.A2aParam;
+import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.agent.annotation.Agent;
-import org.atmosphere.a2a.annotation.A2aSkill;
-import org.atmosphere.a2a.annotation.A2aTaskHandler;
+import org.atmosphere.a2a.annotation.AgentSkill;
+import org.atmosphere.a2a.annotation.AgentSkillHandler;
 import org.atmosphere.a2a.runtime.TaskContext;
 import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.a2a.types.TaskState;
@@ -39,14 +39,14 @@ public class StrategyAgent {
 
     private static final Logger logger = LoggerFactory.getLogger(StrategyAgent.class);
 
-    @A2aSkill(id = "analyze_strategy", name = "Analyze Strategy",
+    @AgentSkill(id = "analyze_strategy", name = "Analyze Strategy",
             description = "Analyze market research data and identify strategic opportunities, threats, and positioning",
             tags = {"strategy", "swot", "analysis"})
-    @A2aTaskHandler
+    @AgentSkillHandler
     public void analyzeStrategy(TaskContext task,
-                                @A2aParam(name = "market", description = "Market being analyzed") String market,
-                                @A2aParam(name = "research_findings", description = "Key findings from research") String findings,
-                                @A2aParam(name = "focus_area", description = "Strategic question") String focusArea) {
+                                @AgentSkillParam(name = "market", description = "Market being analyzed") String market,
+                                @AgentSkillParam(name = "research_findings", description = "Key findings from research") String findings,
+                                @AgentSkillParam(name = "focus_area", description = "Strategic question") String focusArea) {
         task.updateStatus(TaskState.WORKING, "Analyzing strategy for: " + market);
         logger.info("Strategy Agent: analyzing {} market, focus: {}", market, focusArea);
 

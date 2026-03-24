@@ -15,10 +15,10 @@
  */
 package org.atmosphere.samples.springboot.a2astartup;
 
-import org.atmosphere.a2a.annotation.A2aParam;
+import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.agent.annotation.Agent;
-import org.atmosphere.a2a.annotation.A2aSkill;
-import org.atmosphere.a2a.annotation.A2aTaskHandler;
+import org.atmosphere.a2a.annotation.AgentSkill;
+import org.atmosphere.a2a.annotation.AgentSkillHandler;
 import org.atmosphere.a2a.runtime.TaskContext;
 import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.a2a.types.TaskState;
@@ -46,13 +46,13 @@ public class ResearchAgent {
 
     private static final Logger logger = LoggerFactory.getLogger(ResearchAgent.class);
 
-    @A2aSkill(id = "web_search", name = "Web Search",
+    @AgentSkill(id = "web_search", name = "Web Search",
             description = "Search the web for market data, news, competitors, and trends. Returns relevant excerpts.",
             tags = {"research", "web", "scraping"})
-    @A2aTaskHandler
+    @AgentSkillHandler
     public void webSearch(TaskContext task,
-                          @A2aParam(name = "query", description = "Search query") String query,
-                          @A2aParam(name = "num_results", description = "Number of results (1-5)") String numResults) {
+                          @AgentSkillParam(name = "query", description = "Search query") String query,
+                          @AgentSkillParam(name = "num_results", description = "Number of results (1-5)") String numResults) {
         task.updateStatus(TaskState.WORKING, "Searching the web for: " + query);
         logger.info("Research Agent: searching web for '{}'", query);
 

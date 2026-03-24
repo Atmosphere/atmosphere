@@ -15,10 +15,10 @@
  */
 package org.atmosphere.samples.springboot.a2astartup;
 
-import org.atmosphere.a2a.annotation.A2aParam;
+import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.agent.annotation.Agent;
-import org.atmosphere.a2a.annotation.A2aSkill;
-import org.atmosphere.a2a.annotation.A2aTaskHandler;
+import org.atmosphere.a2a.annotation.AgentSkill;
+import org.atmosphere.a2a.annotation.AgentSkillHandler;
 import org.atmosphere.a2a.runtime.TaskContext;
 import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.a2a.types.TaskState;
@@ -41,14 +41,14 @@ public class WriterAgent {
 
     private static final Logger logger = LoggerFactory.getLogger(WriterAgent.class);
 
-    @A2aSkill(id = "write_report", name = "Write Report",
+    @AgentSkill(id = "write_report", name = "Write Report",
             description = "Synthesize findings into a polished executive briefing",
             tags = {"writing", "report", "briefing"})
-    @A2aTaskHandler
+    @AgentSkillHandler
     public void writeReport(TaskContext task,
-                            @A2aParam(name = "title", description = "Report title") String title,
-                            @A2aParam(name = "key_findings", description = "Summary of findings") String keyFindings,
-                            @A2aParam(name = "recommendation", description = "Strategic recommendation") String recommendation) {
+                            @AgentSkillParam(name = "title", description = "Report title") String title,
+                            @AgentSkillParam(name = "key_findings", description = "Summary of findings") String keyFindings,
+                            @AgentSkillParam(name = "recommendation", description = "Strategic recommendation") String recommendation) {
         task.updateStatus(TaskState.WORKING, "Drafting executive briefing: " + title);
         logger.info("Writer Agent: drafting report '{}'", title);
 

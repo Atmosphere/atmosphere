@@ -55,7 +55,7 @@ jobs:
           - name: ai-advanced
             projects: "embabel-chat,embabel-horoscope,rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
           - name: protocols
-            projects: "mcp-server,mcp-tools,a2a-agent,agui-chat,grpc-browser,rooms-api,room-typing-direct"
+            projects: "mcp-server,mcp-tools,a2a-agent,agui-chat,multi-agent-startup-team,grpc-browser,rooms-api,room-typing-direct"
           - name: resilience
             projects: "durable-sessions,durable-session-token,durable-session-identity,otel-chat,chat-observability,offline-queue,history-cache,xss-protection,auth-rejection,auth-token"
           - name: stress

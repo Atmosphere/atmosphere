@@ -4,7 +4,7 @@ An AI-powered agent that speaks the [A2A (Agent-to-Agent)](https://google.github
 
 ## What It Does
 
-The `WeatherTimeAgent` exposes three skills via `@A2aServer`:
+The `WeatherTimeAgent` exposes three skills via `@Agent` (headless A2A mode):
 
 | Skill | ID | Description |
 |-------|----|-------------|
@@ -61,7 +61,7 @@ curl -X POST http://localhost:8084/atmosphere/a2a \
 
 | File | Purpose |
 |------|---------|
-| `WeatherTimeAgent.java` | `@A2aServer` with three `@A2aSkill` methods using `TaskContext` |
+| `WeatherTimeAgent.java` | `@Agent` with three `@A2aSkill` methods using `TaskContext` (headless mode) |
 | `LlmConfig.java` | Bridges Spring properties to `AiConfig` |
 | `A2aAgentApplication.java` | Spring Boot entry point |
 

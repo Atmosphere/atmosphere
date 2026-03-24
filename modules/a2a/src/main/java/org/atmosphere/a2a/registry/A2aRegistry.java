@@ -15,9 +15,9 @@
  */
 package org.atmosphere.a2a.registry;
 
-import org.atmosphere.a2a.annotation.A2aParam;
-import org.atmosphere.a2a.annotation.A2aSkill;
-import org.atmosphere.a2a.annotation.A2aTaskHandler;
+import org.atmosphere.a2a.annotation.AgentSkillParam;
+import org.atmosphere.a2a.annotation.AgentSkill;
+import org.atmosphere.a2a.annotation.AgentSkillHandler;
 import org.atmosphere.a2a.runtime.TaskContext;
 import org.atmosphere.a2a.types.AgentCard;
 import org.atmosphere.a2a.types.Skill;
@@ -47,8 +47,8 @@ public final class A2aRegistry {
 
     public void scan(Object instance) {
         for (var method : instance.getClass().getDeclaredMethods()) {
-            var skillAnn = method.getAnnotation(A2aSkill.class);
-            var handlerAnn = method.getAnnotation(A2aTaskHandler.class);
+            var skillAnn = method.getAnnotation(AgentSkill.class);
+            var handlerAnn = method.getAnnotation(AgentSkillHandler.class);
             if (skillAnn != null && handlerAnn != null) {
                 var params = extractParams(method);
                 var entry = new SkillEntry(skillAnn.id(), skillAnn.name(),
@@ -100,7 +100,7 @@ public final class A2aRegistry {
     private List<ParamEntry> extractParams(Method method) {
         var params = new ArrayList<ParamEntry>();
         for (var param : method.getParameters()) {
-            var ann = param.getAnnotation(A2aParam.class);
+            var ann = param.getAnnotation(AgentSkillParam.class);
             // Skip TaskContext (injectable)
             if (param.getType() == TaskContext.class) {
                 continue;

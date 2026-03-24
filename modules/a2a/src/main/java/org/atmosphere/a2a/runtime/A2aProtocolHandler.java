@@ -18,7 +18,7 @@ package org.atmosphere.a2a.runtime;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.atmosphere.a2a.annotation.A2aParam;
+import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.a2a.protocol.A2aMethod;
 import org.atmosphere.a2a.registry.A2aRegistry;
 import org.atmosphere.a2a.types.AgentCard;
@@ -177,7 +177,7 @@ public final class A2aProtocolHandler {
                 if (methodParams[i].getType() == TaskContext.class) {
                     args[i] = taskCtx;
                 } else {
-                    var a2aParam = methodParams[i].getAnnotation(A2aParam.class);
+                    var a2aParam = methodParams[i].getAnnotation(AgentSkillParam.class);
                     if (a2aParam != null && arguments != null && arguments.has(a2aParam.name())) {
                         var argNode = arguments.get(a2aParam.name());
                         args[i] = argNode.isTextual() ? argNode.asText() : argNode.toString();

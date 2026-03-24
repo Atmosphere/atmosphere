@@ -15,9 +15,9 @@
  */
 package org.atmosphere.agent.processor;
 
-import org.atmosphere.a2a.annotation.A2aParam;
-import org.atmosphere.a2a.annotation.A2aSkill;
-import org.atmosphere.a2a.annotation.A2aTaskHandler;
+import org.atmosphere.a2a.annotation.AgentSkillParam;
+import org.atmosphere.a2a.annotation.AgentSkill;
+import org.atmosphere.a2a.annotation.AgentSkillHandler;
 import org.atmosphere.a2a.runtime.TaskContext;
 import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.agent.ClasspathDetector;
@@ -135,11 +135,11 @@ public class AgentProcessorTest {
     @Agent(name = "headless-a2a", endpoint = "/atmosphere/a2a/headless",
             description = "Headless agent with A2A skills")
     static class HeadlessA2aAgent {
-        @A2aSkill(id = "greet", name = "Greet", description = "Say hello",
+        @AgentSkill(id = "greet", name = "Greet", description = "Say hello",
                 tags = {"greeting"})
-        @A2aTaskHandler
+        @AgentSkillHandler
         public void greet(TaskContext task,
-                          @A2aParam(name = "name", description = "Name") String name) {
+                          @AgentSkillParam(name = "name", description = "Name") String name) {
             task.addArtifact(Artifact.text("Hello " + name));
             task.complete("Greeted " + name);
         }
@@ -161,11 +161,11 @@ public class AgentProcessorTest {
             session.stream(msg);
         }
 
-        @A2aSkill(id = "compute", name = "Compute", description = "Compute something",
+        @AgentSkill(id = "compute", name = "Compute", description = "Compute something",
                 tags = {"math"})
-        @A2aTaskHandler
+        @AgentSkillHandler
         public void compute(TaskContext task,
-                            @A2aParam(name = "expr", description = "Expression") String expr) {
+                            @AgentSkillParam(name = "expr", description = "Expression") String expr) {
             task.addArtifact(Artifact.text("Result: " + expr));
             task.complete("Computed");
         }
@@ -174,9 +174,9 @@ public class AgentProcessorTest {
     @Agent(name = "custom-endpoint", endpoint = "/api/custom",
             version = "2.0.0", description = "Custom endpoint agent")
     static class CustomEndpointAgent {
-        @A2aSkill(id = "ping", name = "Ping", description = "Ping",
+        @AgentSkill(id = "ping", name = "Ping", description = "Ping",
                 tags = {"health"})
-        @A2aTaskHandler
+        @AgentSkillHandler
         public void ping(TaskContext task) {
             task.complete("pong");
         }
@@ -189,7 +189,7 @@ public class AgentProcessorTest {
         var processor = new AgentProcessor();
         var annotation = HeadlessA2aAgent.class.getAnnotation(Agent.class);
         assertTrue(processor.isHeadless(annotation, HeadlessA2aAgent.class),
-                "Agent with @A2aSkill methods and no @Prompt should be headless");
+                "Agent with @Skill methods and no @Prompt should be headless");
     }
 
     @Test
@@ -205,7 +205,7 @@ public class AgentProcessorTest {
         var processor = new AgentProcessor();
         var annotation = MixedAgent.class.getAnnotation(Agent.class);
         assertFalse(processor.isHeadless(annotation, MixedAgent.class),
-                "Agent with both @Prompt and @A2aSkill should NOT be headless");
+                "Agent with both @Prompt and @Skill should NOT be headless");
     }
 
     @Test
@@ -221,7 +221,7 @@ public class AgentProcessorTest {
         var processor = new AgentProcessor();
         var annotation = MinimalAgent.class.getAnnotation(Agent.class);
         assertFalse(processor.isHeadless(annotation, MinimalAgent.class),
-                "Agent with no @Prompt and no @A2aSkill should NOT be headless");
+                "Agent with no @Prompt and no @Skill should NOT be headless");
     }
 
     // ── Annotation attribute tests ──

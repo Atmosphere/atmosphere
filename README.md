@@ -249,8 +249,9 @@ public class MyTools {
     }
 }
 
-// A2A — agent-to-agent discovery and task delegation (Google/Linux Foundation)
-@A2aServer(name = "weather-agent", endpoint = "/atmosphere/a2a")
+// A2A — headless agent for agent-to-agent discovery (Google/Linux Foundation)
+@Agent(name = "weather-agent", endpoint = "/atmosphere/a2a",
+       description = "Weather and time agent")
 public class WeatherAgent {
     @A2aSkill(id = "get-weather", name = "Get Weather", description = "Weather for a city")
     @A2aTaskHandler
@@ -336,11 +337,11 @@ Atmosphere has powered real-time Java applications for 18 years — from long-po
 
 ## Samples
 
-**Agents** — [dentist agent](samples/spring-boot-dentist-agent/) (multi-channel), [devops agent](samples/spring-boot-agent-chat/), [multi-agent startup team](samples/spring-boot-multi-agent/)
+**Agents** — [dentist agent](samples/spring-boot-dentist-agent/) (multi-channel), [devops agent](samples/spring-boot-agent-chat/), [A2A startup team](samples/spring-boot-a2a-startup-team/)
 
 **AI / LLM Streaming** — [built-in](samples/spring-boot-ai-chat/), [Spring AI](samples/spring-boot-spring-ai-chat/), [LangChain4j](samples/spring-boot-langchain4j-chat/), [Google ADK](samples/spring-boot-adk-chat/), [Embabel](samples/spring-boot-embabel-chat/), [tool calling](samples/spring-boot-ai-tools/), [RAG](samples/spring-boot-rag-chat/), [model routing](samples/spring-boot-spring-ai-routing/), [AI classroom](samples/spring-boot-ai-classroom/)
 
-**Protocols** — [MCP server](samples/spring-boot-mcp-server/), [A2A agent](samples/spring-boot-a2a-agent/), [AG-UI chat](samples/spring-boot-agui-chat/)
+**Protocols** — [MCP server](samples/spring-boot-mcp-server/), [A2A agent](samples/spring-boot-a2a-agent/), [A2A startup team](samples/spring-boot-a2a-startup-team/), [AG-UI chat](samples/spring-boot-agui-chat/)
 
 **Infrastructure** — [durable sessions](samples/spring-boot-durable-sessions/), [OpenTelemetry](samples/spring-boot-otel-chat/), [channels](samples/spring-boot-channels-chat/)
 

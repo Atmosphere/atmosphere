@@ -15,10 +15,10 @@
  */
 package org.atmosphere.samples.springboot.a2astartup;
 
-import org.atmosphere.a2a.annotation.A2aParam;
+import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.agent.annotation.Agent;
-import org.atmosphere.a2a.annotation.A2aSkill;
-import org.atmosphere.a2a.annotation.A2aTaskHandler;
+import org.atmosphere.a2a.annotation.AgentSkill;
+import org.atmosphere.a2a.annotation.AgentSkillHandler;
 import org.atmosphere.a2a.runtime.TaskContext;
 import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.a2a.types.TaskState;
@@ -39,15 +39,15 @@ public class FinanceAgent {
 
     private static final Logger logger = LoggerFactory.getLogger(FinanceAgent.class);
 
-    @A2aSkill(id = "financial_model", name = "Financial Model",
+    @AgentSkill(id = "financial_model", name = "Financial Model",
             description = "Build TAM/SAM/SOM analysis, revenue projections, burn rate, and funding requirements",
             tags = {"finance", "projections", "tam"})
-    @A2aTaskHandler
+    @AgentSkillHandler
     public void financialModel(TaskContext task,
-                               @A2aParam(name = "market", description = "Target market") String market,
-                               @A2aParam(name = "tam_estimate", description = "TAM in billions USD") String tamEstimate,
-                               @A2aParam(name = "growth_rate", description = "Annual growth rate %") String growthRate,
-                               @A2aParam(name = "pricing_model", description = "Pricing approach") String pricingModel) {
+                               @AgentSkillParam(name = "market", description = "Target market") String market,
+                               @AgentSkillParam(name = "tam_estimate", description = "TAM in billions USD") String tamEstimate,
+                               @AgentSkillParam(name = "growth_rate", description = "Annual growth rate %") String growthRate,
+                               @AgentSkillParam(name = "pricing_model", description = "Pricing approach") String pricingModel) {
         task.updateStatus(TaskState.WORKING, "Building financial model for: " + market);
         logger.info("Finance Agent: modeling {} (TAM: ${}B, growth: {}%)", market, tamEstimate, growthRate);
 

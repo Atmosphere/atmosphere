@@ -16,9 +16,9 @@
 package org.atmosphere.a2a;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.atmosphere.a2a.annotation.A2aParam;
-import org.atmosphere.a2a.annotation.A2aSkill;
-import org.atmosphere.a2a.annotation.A2aTaskHandler;
+import org.atmosphere.a2a.annotation.AgentSkillParam;
+import org.atmosphere.a2a.annotation.AgentSkill;
+import org.atmosphere.a2a.annotation.AgentSkillHandler;
 import org.atmosphere.a2a.registry.A2aRegistry;
 import org.atmosphere.a2a.runtime.A2aHandler;
 import org.atmosphere.a2a.runtime.A2aProtocolHandler;
@@ -56,9 +56,9 @@ class A2aStreamableHttpTest {
     private A2aHandler handler;
 
     static class TestAgent {
-        @A2aSkill(id = "echo", name = "Echo", description = "Echo input back")
-        @A2aTaskHandler
-        public void echo(TaskContext task, @A2aParam(name = "text") String text) {
+        @AgentSkill(id = "echo", name = "Echo", description = "Echo input back")
+        @AgentSkillHandler
+        public void echo(TaskContext task, @AgentSkillParam(name = "text") String text) {
             task.addArtifact(Artifact.text("Echo: " + text));
             task.complete("Echoed");
         }

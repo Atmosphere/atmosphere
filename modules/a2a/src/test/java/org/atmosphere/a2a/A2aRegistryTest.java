@@ -15,9 +15,9 @@
  */
 package org.atmosphere.a2a;
 
-import org.atmosphere.a2a.annotation.A2aParam;
-import org.atmosphere.a2a.annotation.A2aSkill;
-import org.atmosphere.a2a.annotation.A2aTaskHandler;
+import org.atmosphere.a2a.annotation.AgentSkillParam;
+import org.atmosphere.a2a.annotation.AgentSkill;
+import org.atmosphere.a2a.annotation.AgentSkillHandler;
 import org.atmosphere.a2a.registry.A2aRegistry;
 import org.atmosphere.a2a.runtime.TaskContext;
 import org.junit.jupiter.api.Test;
@@ -29,18 +29,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class A2aRegistryTest {
 
     static class TestAgent {
-        @A2aSkill(id = "s1", name = "Skill One", description = "First skill", tags = {"tag1", "tag2"})
-        @A2aTaskHandler
-        public void skill1(TaskContext task, @A2aParam(name = "input") String input) {
+        @AgentSkill(id = "s1", name = "Skill One", description = "First skill", tags = {"tag1", "tag2"})
+        @AgentSkillHandler
+        public void skill1(TaskContext task, @AgentSkillParam(name = "input") String input) {
         }
 
-        @A2aSkill(id = "s2", name = "Skill Two", description = "Second skill")
-        @A2aTaskHandler
+        @AgentSkill(id = "s2", name = "Skill Two", description = "Second skill")
+        @AgentSkillHandler
         public void skill2(TaskContext task) {
         }
 
-        // Not a skill - no @A2aTaskHandler
-        @A2aSkill(id = "s3", name = "Not a skill", description = "No handler")
+        // Not a skill - no @AgentSkillHandler
+        @AgentSkill(id = "s3", name = "Not a skill", description = "No handler")
         public void notASkill() {
         }
     }
@@ -53,7 +53,7 @@ class A2aRegistryTest {
         assertEquals(2, registry.skills().size());
         assertTrue(registry.skill("s1").isPresent());
         assertTrue(registry.skill("s2").isPresent());
-        assertFalse(registry.skill("s3").isPresent()); // missing @A2aTaskHandler
+        assertFalse(registry.skill("s3").isPresent()); // missing @AgentSkillHandler
     }
 
     @Test

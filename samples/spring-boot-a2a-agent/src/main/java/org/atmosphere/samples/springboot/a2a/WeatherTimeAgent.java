@@ -15,10 +15,10 @@
  */
 package org.atmosphere.samples.springboot.a2a;
 
-import org.atmosphere.a2a.annotation.A2aParam;
+import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.agent.annotation.Agent;
-import org.atmosphere.a2a.annotation.A2aSkill;
-import org.atmosphere.a2a.annotation.A2aTaskHandler;
+import org.atmosphere.a2a.annotation.AgentSkill;
+import org.atmosphere.a2a.annotation.AgentSkillHandler;
 import org.atmosphere.a2a.runtime.TaskContext;
 import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.a2a.types.Message;
@@ -52,12 +52,12 @@ public class WeatherTimeAgent {
 
     private static final Logger logger = LoggerFactory.getLogger(WeatherTimeAgent.class);
 
-    @A2aSkill(id = "ask", name = "Ask Assistant",
+    @AgentSkill(id = "ask", name = "Ask Assistant",
               description = "Ask the AI assistant any question. Uses LLM when API key is configured, otherwise provides demo responses.",
               tags = {"ai", "general", "chat"})
-    @A2aTaskHandler
+    @AgentSkillHandler
     public void ask(TaskContext task,
-                    @A2aParam(name = "message", description = "The question or request") String message) {
+                    @AgentSkillParam(name = "message", description = "The question or request") String message) {
         task.updateStatus(TaskState.WORKING, "Processing your request...");
         task.addMessage(Message.user(message));
 
@@ -83,12 +83,12 @@ public class WeatherTimeAgent {
         }
     }
 
-    @A2aSkill(id = "get-weather", name = "Get Weather",
+    @AgentSkill(id = "get-weather", name = "Get Weather",
               description = "Get weather for a location. With LLM configured, provides AI-generated weather analysis. Without, returns simulated data.",
               tags = {"weather", "information"})
-    @A2aTaskHandler
+    @AgentSkillHandler
     public void getWeather(TaskContext task,
-                           @A2aParam(name = "location", description = "City or location name") String location) {
+                           @AgentSkillParam(name = "location", description = "City or location name") String location) {
         task.updateStatus(TaskState.WORKING, "Checking weather for " + location + "...");
 
         try {
@@ -120,12 +120,12 @@ public class WeatherTimeAgent {
         }
     }
 
-    @A2aSkill(id = "get-time", name = "Get Time",
+    @AgentSkill(id = "get-time", name = "Get Time",
               description = "Returns the current date and time in any timezone",
               tags = {"time", "timezone", "utility"})
-    @A2aTaskHandler
+    @AgentSkillHandler
     public void getTime(TaskContext task,
-                        @A2aParam(name = "timezone", description = "IANA timezone (e.g., America/New_York, Europe/Paris, Asia/Tokyo)") String timezone) {
+                        @AgentSkillParam(name = "timezone", description = "IANA timezone (e.g., America/New_York, Europe/Paris, Asia/Tokyo)") String timezone) {
         task.updateStatus(TaskState.WORKING, "Looking up time...");
 
         try {

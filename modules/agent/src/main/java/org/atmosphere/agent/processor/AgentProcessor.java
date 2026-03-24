@@ -93,7 +93,7 @@ public class AgentProcessor implements Processor<Object> {
             var instance = framework.newClassInstance(Object.class, annotatedClass);
             AnnotatedLifecycle.injectFields(framework, instance);
 
-            // Headless mode: if the class has @A2aSkill methods but no @Prompt,
+            // Headless mode: if the class has @Skill methods but no @Prompt,
             // or headless=true is set, register only protocol endpoints (no WebSocket UI).
             if (isHeadless(annotation, annotatedClass)) {
                 handleHeadless(framework, annotation, instance, agentName);
@@ -171,7 +171,7 @@ public class AgentProcessor implements Processor<Object> {
      * Headless is auto-detected when:
      * <ul>
      *   <li>{@code headless = true} is set explicitly, OR</li>
-     *   <li>The class has {@code @A2aSkill}+{@code @A2aTaskHandler} methods
+     *   <li>The class has {@code @Skill}+{@code @AgentSkillHandler} methods
      *       AND no {@code @Prompt} method</li>
      * </ul>
      */
@@ -180,22 +180,22 @@ public class AgentProcessor implements Processor<Object> {
         if (annotation.headless()) {
             return true;
         }
-        // Auto-detect: has @A2aSkill methods but no @Prompt
+        // Auto-detect: has @Skill methods but no @Prompt
         if (!ClasspathDetector.hasA2a()) {
             return false;
         }
         boolean hasPrompt = false;
-        boolean hasA2aSkills = false;
+        boolean hasSkills = false;
         for (var method : clazz.getDeclaredMethods()) {
             if (method.isAnnotationPresent(Prompt.class)) {
                 hasPrompt = true;
             }
-            if (method.isAnnotationPresent(org.atmosphere.a2a.annotation.A2aSkill.class)
-                    && method.isAnnotationPresent(org.atmosphere.a2a.annotation.A2aTaskHandler.class)) {
-                hasA2aSkills = true;
+            if (method.isAnnotationPresent(org.atmosphere.a2a.annotation.AgentSkill.class)
+                    && method.isAnnotationPresent(org.atmosphere.a2a.annotation.AgentSkillHandler.class)) {
+                hasSkills = true;
             }
         }
-        return hasA2aSkills && !hasPrompt;
+        return hasSkills && !hasPrompt;
     }
 
     /**
@@ -215,7 +215,7 @@ public class AgentProcessor implements Processor<Object> {
             registry.scan(instance);
 
             if (registry.skills().isEmpty()) {
-                logger.warn("Agent '{}' is headless but has no @A2aSkill methods", agentName);
+                logger.warn("Agent '{}' is headless but has no @Skill methods", agentName);
                 return;
             }
 
@@ -377,7 +377,7 @@ public class AgentProcessor implements Processor<Object> {
             return;
         }
         try {
-            var skills = buildA2aSkills(skillFile, commandRegistry);
+            var skills = buildSkills(skillFile, commandRegistry);
             var card = new org.atmosphere.a2a.types.AgentCard(
                     annotation.name(),
                     annotation.description().isEmpty() ? skillFile.title() : annotation.description(),
@@ -390,12 +390,12 @@ public class AgentProcessor implements Processor<Object> {
             var registry = new org.atmosphere.a2a.registry.A2aRegistry();
 
             // Register executable skill handlers so A2A message/send can find them
-            var bridge = new A2aSkillBridge(commandRouter, promptTarget, promptMethod);
-            var handleCmdMethod = A2aSkillBridge.class.getDeclaredMethod(
+            var bridge = new SkillBridge(commandRouter, promptTarget, promptMethod);
+            var handleCmdMethod = SkillBridge.class.getDeclaredMethod(
                     "handleCommand", org.atmosphere.a2a.runtime.TaskContext.class, String.class);
             for (var cmd : commandRegistry.allCommands()) {
                 var skillId = "command" + cmd.prefix().replace("/", "_");
-                var cmdBridge = new A2aSkillBridge(bridge, cmd.prefix());
+                var cmdBridge = new SkillBridge(bridge, cmd.prefix());
                 registry.registerSkill(
                         skillId, cmd.prefix(),
                         cmd.description().isEmpty() ? "Execute " + cmd.prefix() : cmd.description(),
@@ -403,7 +403,7 @@ public class AgentProcessor implements Processor<Object> {
                         List.of(new org.atmosphere.a2a.registry.A2aRegistry.ParamEntry(
                                 "message", "Command arguments", false, String.class)));
             }
-            var handlePromptMethod = A2aSkillBridge.class.getDeclaredMethod(
+            var handlePromptMethod = SkillBridge.class.getDeclaredMethod(
                     "handlePrompt", org.atmosphere.a2a.runtime.TaskContext.class, String.class);
             registry.registerSkill(
                     "default", "Natural Language",
@@ -427,7 +427,7 @@ public class AgentProcessor implements Processor<Object> {
         }
     }
 
-    private List<org.atmosphere.a2a.types.Skill> buildA2aSkills(
+    private List<org.atmosphere.a2a.types.Skill> buildSkills(
             SkillFileParser skillFile, CommandRegistry commandRegistry) {
         var skills = new java.util.ArrayList<org.atmosphere.a2a.types.Skill>();
 
@@ -551,14 +551,14 @@ public class AgentProcessor implements Processor<Object> {
      * Each command skill gets its own bridge instance with the command prefix,
      * while the default NL skill delegates to the {@code @Prompt} method.
      */
-    static class A2aSkillBridge {
+    static class SkillBridge {
         private final CommandRouter commandRouter;
         private final Object promptTarget;
         private final Method bridgedPromptMethod;
         private final String commandPrefix;
 
         /** Primary constructor for the default (NL) bridge. */
-        A2aSkillBridge(CommandRouter commandRouter, Object promptTarget, Method promptMethod) {
+        SkillBridge(CommandRouter commandRouter, Object promptTarget, Method promptMethod) {
             this.commandRouter = commandRouter;
             this.promptTarget = promptTarget;
             this.bridgedPromptMethod = promptMethod;
@@ -566,7 +566,7 @@ public class AgentProcessor implements Processor<Object> {
         }
 
         /** Command-specific constructor that wraps a parent bridge with a fixed prefix. */
-        A2aSkillBridge(A2aSkillBridge parent, String commandPrefix) {
+        SkillBridge(SkillBridge parent, String commandPrefix) {
             this.commandRouter = parent.commandRouter;
             this.promptTarget = parent.promptTarget;
             this.bridgedPromptMethod = parent.bridgedPromptMethod;

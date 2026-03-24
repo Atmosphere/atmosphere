@@ -22,5 +22,9 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-public @interface A2aTaskHandler {
+public @interface AgentSkill {
+    String id();
+    String name();
+    String description() default "";
+    String[] tags() default {};
 }

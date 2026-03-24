@@ -21,9 +21,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.PARAMETER)
-public @interface A2aParam {
-    String name();
-    String description() default "";
-    boolean required() default true;
+@Target(ElementType.METHOD)
+public @interface AgentSkillHandler {
 }

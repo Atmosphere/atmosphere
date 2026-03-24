@@ -156,6 +156,8 @@ export default defineConfig({
       testMatch: /agui-chat\.spec\.ts/,
     },
     {
+      name: 'multi-agent-startup-team',
+      testMatch: /multi-agent-startup-team\.spec\.ts/,
     },
     {
       name: 'rooms-api',

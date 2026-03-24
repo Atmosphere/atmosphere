@@ -17,9 +17,9 @@ package org.atmosphere.a2a;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.atmosphere.a2a.annotation.A2aParam;
-import org.atmosphere.a2a.annotation.A2aSkill;
-import org.atmosphere.a2a.annotation.A2aTaskHandler;
+import org.atmosphere.a2a.annotation.AgentSkillParam;
+import org.atmosphere.a2a.annotation.AgentSkill;
+import org.atmosphere.a2a.annotation.AgentSkillHandler;
 import org.atmosphere.a2a.registry.A2aRegistry;
 import org.atmosphere.a2a.runtime.A2aProtocolHandler;
 import org.atmosphere.a2a.runtime.TaskContext;
@@ -41,26 +41,26 @@ class A2aMultiSkillTest {
     private A2aProtocolHandler handler;
 
     static class MultiSkillAgent {
-        @A2aSkill(id = "greet", name = "Greet", description = "Greet someone", tags = {"social"})
-        @A2aTaskHandler
-        public void greet(TaskContext task, @A2aParam(name = "name") String name) {
+        @AgentSkill(id = "greet", name = "Greet", description = "Greet someone", tags = {"social"})
+        @AgentSkillHandler
+        public void greet(TaskContext task, @AgentSkillParam(name = "name") String name) {
             task.updateStatus(TaskState.WORKING, "Greeting...");
             task.addArtifact(Artifact.text("Hello, " + name + "!"));
             task.complete("Greeted");
         }
 
-        @A2aSkill(id = "compute", name = "Compute", description = "Compute a sum", tags = {"math"})
-        @A2aTaskHandler
+        @AgentSkill(id = "compute", name = "Compute", description = "Compute a sum", tags = {"math"})
+        @AgentSkillHandler
         public void compute(TaskContext task,
-                            @A2aParam(name = "a") String a,
-                            @A2aParam(name = "b") String b) {
+                            @AgentSkillParam(name = "a") String a,
+                            @AgentSkillParam(name = "b") String b) {
             int sum = Integer.parseInt(a) + Integer.parseInt(b);
             task.addArtifact(Artifact.text("Sum: " + sum));
             task.complete("Computed");
         }
 
-        @A2aSkill(id = "failing", name = "Failing", description = "Always fails")
-        @A2aTaskHandler
+        @AgentSkill(id = "failing", name = "Failing", description = "Always fails")
+        @AgentSkillHandler
         public void failing(TaskContext task) {
             throw new RuntimeException("Intentional failure");
         }
