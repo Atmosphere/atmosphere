@@ -799,6 +799,57 @@ fi
 rm -rf "$IMPORT_TMP"
 printf "\n"
 
+# ── Remote import tests (require network) ─────────────────────────────────
+# Only run if ATMOSPHERE_TEST_REMOTE=true (skipped in offline CI by default)
+if [ "${ATMOSPHERE_TEST_REMOTE:-false}" = "true" ]; then
+    printf "${BOLD}Import (Remote Skills)${RESET}\n"
+
+    REMOTE_TMP=$(mktemp -d)
+    cd "$REMOTE_TMP"
+
+    # Test: Import from Atmosphere skills repo (trusted)
+    output=$("$CLI" import --name remote-dentist https://raw.githubusercontent.com/Atmosphere/atmosphere-skills/main/skills/dentist-agent/SKILL.md 2>&1) || true
+    assert_contains "$output" "Project scaffolded" "remote: import from atmosphere-skills repo"
+
+    if [ -d "$REMOTE_TMP/remote-dentist" ]; then
+        pass "remote: project directory created"
+        agent_file=$(find "$REMOTE_TMP/remote-dentist/src/main/java" -name "*Agent.java" 2>/dev/null | head -1)
+        if [ -n "$agent_file" ]; then
+            assert_contains "$(cat "$agent_file")" "@Agent" "remote: @Agent annotation present"
+            assert_contains "$(cat "$agent_file")" "@Prompt" "remote: @Prompt method present"
+        else
+            fail "remote: agent file not generated"
+        fi
+        assert_contains "$(cat "$REMOTE_TMP/remote-dentist/pom.xml")" "atmosphere-spring-boot-starter" "remote: pom.xml has starter dep"
+    else
+        fail "remote: project directory not created"
+    fi
+
+    # Test: Import from Anthropic skills repo (trusted)
+    output=$("$CLI" import --name remote-anthropic https://raw.githubusercontent.com/anthropics/skills/main/skills/frontend-design/SKILL.md 2>&1) || true
+    assert_contains "$output" "Parsed skill: frontend-design" "remote: anthropic skill name parsed"
+    assert_contains "$output" "Project scaffolded" "remote: anthropic import scaffolded"
+
+    # Test: Import from Antigravity repo (trusted)
+    output=$("$CLI" import --name remote-antigravity https://raw.githubusercontent.com/sickn33/antigravity-awesome-skills/main/skills/customer-support/SKILL.md 2>&1) || true
+    assert_contains "$output" "Parsed skill: customer-support" "remote: antigravity skill name parsed"
+    assert_contains "$output" "Project scaffolded" "remote: antigravity import scaffolded"
+
+    # Test: Untrusted source is blocked
+    output=$("$CLI" import --name untrusted https://example.com/evil/SKILL.md 2>&1) || true
+    assert_contains "$output" "Untrusted source" "remote: untrusted URL blocked"
+
+    # Test: --trust flag bypasses trust check
+    # (don't actually download from example.com — it will fail with download error, not trust error)
+    output=$("$CLI" import --trust --name trusted-override https://example.com/evil/SKILL.md 2>&1) || true
+    assert_not_contains "$output" "Untrusted source" "remote: --trust bypasses trust check"
+
+    rm -rf "$REMOTE_TMP"
+    printf "\n"
+else
+    printf "${BOLD}Import (Remote Skills)${RESET} ${DIM}— skipped (set ATMOSPHERE_TEST_REMOTE=true)${RESET}\n\n"
+fi
+
 # ── Summary ─────────────────────────────────────────────────────────────────
 total=$((PASS + FAIL))
 printf "${BOLD}Results: %s passed, %s failed${RESET} (out of %s)\n\n" "$PASS" "$FAIL" "$total"

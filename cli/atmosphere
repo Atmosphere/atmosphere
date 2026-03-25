@@ -1161,6 +1161,33 @@ SKILLS_BASE_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere-skills/
 
 PLUGINS_DIR="${ATMOSPHERE_PLUGINS_DIR:-$HOME/.atmosphere/plugins}"
 
+# Trusted skill sources — URLs from these GitHub orgs/repos are allowed without --trust flag
+TRUSTED_SOURCES="
+github.com/Atmosphere/
+github.com/anthropics/skills
+github.com/sickn33/antigravity-awesome-skills
+github.com/K-Dense-AI/
+github.com/agentskills/
+raw.githubusercontent.com/Atmosphere/
+raw.githubusercontent.com/anthropics/
+raw.githubusercontent.com/sickn33/antigravity-awesome-skills
+raw.githubusercontent.com/K-Dense-AI/
+raw.githubusercontent.com/agentskills/
+"
+
+# Check if a URL is from a trusted source
+is_trusted_source() {
+    local url="$1"
+    local _ts
+    for _ts in $TRUSTED_SOURCES; do
+        [ -z "$_ts" ] && continue
+        if printf '%s' "$url" | grep -q "$_ts"; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Delegate to a target plugin for project scaffolding.
 # Plugins are shell scripts at ~/.atmosphere/plugins/import-<target>.sh
 # Contract: plugin receives (skill_file, project_name, skill_name, skill_desc, headless)
@@ -1181,16 +1208,18 @@ cmd_import() {
     local headless=false
     local target=""
     local project_name_arg=""
+    local trust=false
     while [ $# -gt 0 ]; do
         case "$1" in
             --headless) headless=true; shift ;;
             --target|-t) shift; [ -z "$1" ] && die "--target requires a value"; target="$1"; shift ;;
             --name) shift; [ -z "$1" ] && die "--name requires a value"; project_name_arg="$1"; shift ;;
+            --trust) trust=true; shift ;;
             *) break ;;
         esac
     done
 
-    [ -z "$1" ] && die "Usage: atmosphere import [--target <plugin>] [--headless] [--name <project>] <url-or-skill-id>"
+    [ -z "$1" ] && die "Usage: atmosphere import [--trust] [--headless] [--name <project>] <url-or-skill-id>"
 
     local source="$1"
     local project_name="${project_name_arg:-${2:-}}"
@@ -1212,6 +1241,13 @@ cmd_import() {
             source=$(echo "$source" | sed 's|gist\.github\.com/|gist.githubusercontent.com/|')
             # Gist raw URLs need /raw appended
             echo "$source" | grep -q '/raw' || source="${source}/raw"
+        fi
+
+        # Check trust for remote URLs
+        if [ "$trust" = false ] && ! is_trusted_source "$source"; then
+            warn "Untrusted source: $source"
+            warn "Add --trust to import from untrusted sources"
+            die "Use: atmosphere import --trust $source"
         fi
 
         # URL — download directly
