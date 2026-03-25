@@ -143,6 +143,7 @@ ${BOLD}Commands:${RESET}
   ${GREEN}info${RESET} <sample>     Show details about a sample
   ${GREEN}import${RESET} <url>      Import a skill file and scaffold a project
   ${GREEN}skills${RESET}            Browse and run skills from the registry
+  ${GREEN}plugins${RESET}           List installed import plugins (--target)
   ${GREEN}version${RESET}           Print version
   ${GREEN}help${RESET}              Show this help
 
@@ -1268,7 +1269,18 @@ cmd_import() {
     ok "Parsed skill: $skill_name"
     printf "  ${DIM}Description:${RESET} %s\n" "$skill_desc"
 
-    # Scaffold project using atmosphere new
+    # Delegate to plugin if --target specified
+    if [ -n "$target" ]; then
+        # Save skill content to a temp file for the plugin
+        local plugin_skill_file
+        plugin_skill_file=$(mktemp)
+        echo "$skill_content" > "$plugin_skill_file"
+        run_import_plugin "$target" "$plugin_skill_file" "$project_name" "$skill_name" "$skill_desc" "$headless"
+        rm -f "$plugin_skill_file"
+        return $?
+    fi
+
+    # Default: scaffold standalone Atmosphere project
     info "Scaffolding project '$project_name'..."
     local project_dir="$project_name"
 
@@ -1569,6 +1581,31 @@ cmd_skills() {
     esac
 }
 
+# ── Plugins ─────────────────────────────────────────────────────────────────
+
+cmd_plugins() {
+    local subcmd="${1:-list}"
+    case "$subcmd" in
+        list|ls)
+            printf "\n${BOLD}Installed Import Plugins${RESET}\n"
+            printf "  ${DIM}Location: %s${RESET}\n\n" "$PLUGINS_DIR"
+            if [ -d "$PLUGINS_DIR" ] && ls "$PLUGINS_DIR"/import-*.sh >/dev/null 2>&1; then
+                for plugin in "$PLUGINS_DIR"/import-*.sh; do
+                    local name=$(basename "$plugin" | sed 's/^import-//;s/\.sh$//')
+                    printf "  ${GREEN}%-15s${RESET} %s\n" "$name" "$plugin"
+                done
+            else
+                printf "  ${DIM}(none installed)${RESET}\n"
+            fi
+            printf "\n  Use with: ${BOLD}atmosphere import --target <name> <skill>${RESET}\n"
+            printf "  Install:  Copy a plugin script to %s/\n\n" "$PLUGINS_DIR"
+            ;;
+        *)
+            die "Unknown plugins subcommand: $subcmd. Use: list"
+            ;;
+    esac
+}
+
 # ── Dispatch ────────────────────────────────────────────────────────────────
 
 case "${1:-help}" in
@@ -1581,5 +1618,6 @@ case "${1:-help}" in
     info|show)            shift; cmd_info "$@" ;;
     import)               shift; cmd_import "$@" ;;
     skills)               shift; cmd_skills "$@" ;;
+    plugins)              shift; cmd_plugins "$@" ;;
     *)                    die "Unknown command: $1. Run 'atmosphere help' for usage." ;;
 esac
