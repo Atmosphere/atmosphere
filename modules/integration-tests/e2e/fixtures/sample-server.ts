@@ -133,6 +133,13 @@ export const SAMPLES: Record<string, SampleConfig> = {
     type: 'spring-boot',
     readyPath: '/atmosphere/agent/dentist',
   },
+  'spring-boot-channels-chat': {
+    name: 'spring-boot-channels-chat',
+    dir: 'spring-boot-channels-chat',
+    port: 8104,
+    type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
+  },
 };
 
 /**

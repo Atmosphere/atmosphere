@@ -136,6 +136,10 @@ export default defineConfig({
       testMatch: /dentist-agent\.spec\.ts/,
     },
     {
+      name: 'channels-chat',
+      testMatch: /channels-chat\.spec\.ts/,
+    },
+    {
       name: 'rooms-api',
       testMatch: /rooms-api\.spec\.ts/,
     },
