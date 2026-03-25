@@ -141,6 +141,8 @@ ${BOLD}Commands:${RESET}
   ${GREEN}run${RESET}  <sample>     Build and run a sample application
   ${GREEN}new${RESET}  <name>       Scaffold a new Atmosphere project
   ${GREEN}info${RESET} <sample>     Show details about a sample
+  ${GREEN}import${RESET} <url>      Import a skill file and scaffold a project
+  ${GREEN}skills${RESET}            Browse and run skills from the registry
   ${GREEN}version${RESET}           Print version
   ${GREEN}help${RESET}              Show this help
 
@@ -1151,6 +1153,329 @@ create_index_html() {
 HTMLEOF
 }
 
+# ── Import ─────────────────────────────────────────────────────────────────
+
+SKILLS_REGISTRY_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere-skills/main/registry.json"
+SKILLS_BASE_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere-skills/main"
+
+cmd_import() {
+    local headless=false
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --headless) headless=true; shift ;;
+            --name) shift; project_name_override="$1"; shift ;;
+            *) break ;;
+        esac
+    done
+
+    [ -z "$1" ] && die "Usage: atmosphere import [--headless] [--name <project>] <url-or-skill-id>"
+
+    local source="$1"
+    local project_name="${project_name_override:-${2:-}}"
+    local skill_content=""
+    local skill_name=""
+    local skill_desc=""
+
+    # Detect source type
+    if [ -f "$source" ]; then
+        # Local file
+        info "Reading skill from $source..."
+        skill_content=$(cat "$source")
+    elif echo "$source" | grep -qE '^https?://'; then
+        # URL — download directly
+        info "Downloading skill from $source..."
+        ensure_cache_dir
+        local tmp_file="$CACHE_DIR/imported-skill.md"
+        download "$source" "$tmp_file"
+        skill_content=$(cat "$tmp_file")
+    else
+        # Treat as skill ID from registry
+        info "Looking up skill '$source' in registry..."
+        ensure_cache_dir
+        download "$SKILLS_REGISTRY_URL" "$CACHE_DIR/skills-registry.json"
+
+        if has_jq; then
+            local skill_path
+            skill_path=$(jq -r ".skills[] | select(.id == \"$source\") | .path" "$CACHE_DIR/skills-registry.json")
+            [ -z "$skill_path" ] || [ "$skill_path" = "null" ] && die "Skill not found: $source"
+
+            local skill_url="$SKILLS_BASE_URL/$skill_path"
+            info "Downloading $skill_url..."
+            local tmp_file="$CACHE_DIR/imported-skill.md"
+            download "$skill_url" "$tmp_file"
+            skill_content=$(cat "$tmp_file")
+        else
+            die "jq is required for registry lookups. Install with: brew install jq"
+        fi
+    fi
+
+    # Parse YAML frontmatter
+    if echo "$skill_content" | head -1 | grep -q '^---$'; then
+        skill_name=$(echo "$skill_content" | sed -n '/^---$/,/^---$/p' | grep '^name:' | sed 's/name: *//;s/"//g' | head -1)
+        skill_desc=$(echo "$skill_content" | sed -n '/^---$/,/^---$/p' | grep '^description:' | sed 's/description: *//;s/"//g' | head -1)
+    fi
+
+    # Fallback: extract from first heading
+    if [ -z "$skill_name" ]; then
+        skill_name=$(echo "$skill_content" | grep '^# ' | head -1 | sed 's/^# //' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+    fi
+    [ -z "$skill_name" ] && skill_name="imported-agent"
+    [ -z "$skill_desc" ] && skill_desc="Imported agent skill"
+
+    # Project name
+    [ -z "$project_name" ] && project_name="$skill_name"
+
+    ok "Parsed skill: $skill_name"
+    printf "  ${DIM}Description:${RESET} %s\n" "$skill_desc"
+
+    # Scaffold project using atmosphere new
+    info "Scaffolding project '$project_name'..."
+    local project_dir="$project_name"
+
+    if [ -d "$project_dir" ]; then
+        die "Directory '$project_dir' already exists"
+    fi
+
+    # Use the existing new command infrastructure but with the imported skill file
+    mkdir -p "$project_dir/src/main/resources/prompts"
+    echo "$skill_content" > "$project_dir/src/main/resources/prompts/skill.md"
+
+    # Generate class name: "frontend-design" → "FrontendDesign"
+    local agent_class=$(echo "$skill_name" | sed 's/[^a-zA-Z0-9]/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1' | tr -d ' ')
+    local safe_pkg=$(echo "$skill_name" | tr '-' '_' | sed 's/[^a-z0-9_]//g')
+    local package_name="com.example.${safe_pkg}"
+    local package_dir=$(echo "$package_name" | tr '.' '/')
+
+    mkdir -p "$project_dir/src/main/java/$package_dir"
+
+    # Extract @AiTool stubs from ## Tools section
+    local tool_stubs=""
+    local tool_imports=""
+    local tools_section
+    tools_section=$(echo "$skill_content" | sed -n '/^## Tools/,/^## /p' | grep '^\- ' | sed 's/^- //')
+
+    if [ -n "$tools_section" ]; then
+        tool_imports="
+import org.atmosphere.ai.annotation.AiTool;
+import org.atmosphere.ai.annotation.Param;"
+
+        while IFS= read -r tool_line; do
+            # Parse "tool_name: description" or "tool_name — description" or just "tool name"
+            local tool_name
+            local tool_desc
+            if echo "$tool_line" | grep -q ':'; then
+                tool_name=$(echo "$tool_line" | cut -d: -f1 | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+                tool_desc=$(echo "$tool_line" | cut -d: -f2- | sed 's/^ *//')
+            elif echo "$tool_line" | grep -q '—'; then
+                tool_name=$(echo "$tool_line" | cut -d'—' -f1 | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+                tool_desc=$(echo "$tool_line" | cut -d'—' -f2- | sed 's/^ *//')
+            else
+                tool_name=$(echo "$tool_line" | tr '[:upper:]' '[:lower:]' | tr ' ' '_' | sed 's/[^a-z0-9_]//g')
+                tool_desc="$tool_line"
+            fi
+
+            # Convert to Java method name: "get_weather" → "getWeather"
+            local method_name=$(echo "$tool_name" | awk -F_ '{for(i=1;i<=NF;i++){if(i==1)printf "%s",$i;else printf "%s",toupper(substr($i,1,1))substr($i,2)}print ""}')
+
+            tool_stubs="${tool_stubs}
+
+    @AiTool(name = \"${tool_name}\", description = \"${tool_desc}\")
+    public String ${method_name}(@Param(\"input\") String input) {
+        // TODO: implement
+        return \"${tool_name} result for: \" + input;
+    }"
+        done <<< "$tools_section"
+
+        info "Generated $(echo "$tools_section" | wc -l | tr -d ' ') @AiTool stubs from ## Tools section"
+    fi
+
+    if [ "$headless" = true ]; then
+        # Headless agent — A2A/MCP only, no WebSocket UI
+        local skill_imports="
+import org.atmosphere.a2a.annotation.AgentSkill;
+import org.atmosphere.a2a.annotation.AgentSkillHandler;
+import org.atmosphere.a2a.annotation.AgentSkillParam;
+import org.atmosphere.a2a.runtime.Artifact;
+import org.atmosphere.a2a.runtime.TaskContext;"
+
+        cat > "$project_dir/src/main/java/$package_dir/${agent_class}Agent.java" <<JAVAEOF
+package $package_name;
+
+import org.atmosphere.agent.annotation.Agent;${skill_imports}${tool_imports}
+
+@Agent(name = "$skill_name", headless = true,
+       description = "$skill_desc")
+public class ${agent_class}Agent {
+
+    @AgentSkill(id = "execute", name = "Execute", description = "$skill_desc")
+    @AgentSkillHandler
+    public void execute(TaskContext task, @AgentSkillParam(name = "input") String input) {
+        // TODO: implement skill logic
+        task.addArtifact(Artifact.text("Result for: " + input));
+        task.complete("Done");
+    }${tool_stubs}
+}
+JAVAEOF
+        info "Generated headless @Agent (A2A/MCP only)"
+    else
+        # Full-stack agent — WebSocket UI + all protocols
+        cat > "$project_dir/src/main/java/$package_dir/${agent_class}Agent.java" <<JAVAEOF
+package $package_name;
+
+import org.atmosphere.agent.annotation.Agent;
+import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.Prompt;${tool_imports}
+
+@Agent(name = "$skill_name", skillFile = "prompts/skill.md",
+       description = "$skill_desc")
+public class ${agent_class}Agent {
+
+    @Prompt
+    public void onMessage(String message, StreamingSession session) {
+        session.stream(message);
+    }${tool_stubs}
+}
+JAVAEOF
+    fi
+
+    cat > "$project_dir/src/main/java/$package_dir/Application.java" <<JAVAEOF
+package $package_name;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+JAVAEOF
+
+    cat > "$project_dir/src/main/resources/application.yml" <<YMLEOF
+atmosphere:
+  ai:
+    api-key: \${LLM_API_KEY:\${GEMINI_API_KEY:}}
+    model: \${LLM_MODEL:gemini-2.0-flash}
+YMLEOF
+
+    cat > "$project_dir/pom.xml" <<POMEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.0.2</version>
+    </parent>
+
+    <groupId>com.example</groupId>
+    <artifactId>$project_name</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+
+    <properties>
+        <java.version>21</java.version>
+        <atmosphere.version>4.0.25</atmosphere.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-spring-boot-starter</artifactId>
+            <version>\${atmosphere.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-agent</artifactId>
+            <version>\${atmosphere.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+            <version>\${atmosphere.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+POMEOF
+
+    ok "Project scaffolded at ./$project_dir"
+    printf "\n"
+    printf "  ${BOLD}Run it:${RESET}\n"
+    printf "  cd %s && LLM_API_KEY=your-key ./mvnw spring-boot:run\n" "$project_dir"
+    printf "\n"
+    printf "  ${BOLD}Files:${RESET}\n"
+    printf "  %s/src/main/resources/prompts/skill.md  ${DIM}(skill file)${RESET}\n" "$project_dir"
+    printf "  %s/src/main/java/%s/${agent_class}Agent.java  ${DIM}(agent class)${RESET}\n" "$project_dir" "$package_dir"
+    printf "\n"
+}
+
+cmd_skills() {
+    local subcmd="${1:-list}"
+    shift 2>/dev/null || true
+
+    case "$subcmd" in
+        list|ls)
+            info "Fetching skill registry..."
+            ensure_cache_dir
+            download "$SKILLS_REGISTRY_URL" "$CACHE_DIR/skills-registry.json"
+
+            if has_jq; then
+                printf "\n${BOLD}Available Skills${RESET}\n\n"
+                printf "  ${DIM}%-20s %-12s %s${RESET}\n" "ID" "CATEGORY" "DESCRIPTION"
+                printf "  ${DIM}%-20s %-12s %s${RESET}\n" "──────────────────" "──────────" "───────────────────────────────────────"
+                jq -r '.skills[] | "  \(.id)\t\(.category)\t\(.description)"' "$CACHE_DIR/skills-registry.json" | \
+                    while IFS=$'\t' read -r id cat desc; do
+                        printf "  ${GREEN}%-20s${RESET} %-12s %s\n" "$id" "$cat" "$desc"
+                    done
+                printf "\n  Run a skill: ${BOLD}atmosphere skills run <id>${RESET}\n\n"
+            else
+                die "jq is required. Install with: brew install jq"
+            fi
+            ;;
+        run)
+            [ -z "$1" ] && die "Usage: atmosphere skills run <skill-id>"
+            cmd_import "$1"
+            local project_dir="$1"
+            if [ -d "$project_dir" ]; then
+                info "Building and running $project_dir..."
+                cd "$project_dir"
+                ./mvnw spring-boot:run
+            fi
+            ;;
+        search)
+            [ -z "$1" ] && die "Usage: atmosphere skills search <query>"
+            ensure_cache_dir
+            download "$SKILLS_REGISTRY_URL" "$CACHE_DIR/skills-registry.json"
+            if has_jq; then
+                local query="$1"
+                printf "\n${BOLD}Search results for '${query}'${RESET}\n\n"
+                jq -r --arg q "$query" '.skills[] | select((.description | ascii_downcase | contains($q | ascii_downcase)) or (.id | contains($q)) or (.tags[] | contains($q))) | "  \(.id)\t\(.category)\t\(.description)"' "$CACHE_DIR/skills-registry.json" | \
+                    while IFS=$'\t' read -r id cat desc; do
+                        printf "  ${GREEN}%-20s${RESET} %-12s %s\n" "$id" "$cat" "$desc"
+                    done
+                printf "\n"
+            else
+                die "jq is required. Install with: brew install jq"
+            fi
+            ;;
+        *)
+            die "Unknown skills subcommand: $subcmd. Use: list, run, search"
+            ;;
+    esac
+}
+
 # ── Dispatch ────────────────────────────────────────────────────────────────
 
 case "${1:-help}" in
@@ -1161,5 +1486,7 @@ case "${1:-help}" in
     run)                  shift; cmd_run "$@" ;;
     new|init|create)      shift; cmd_new "$@" ;;
     info|show)            shift; cmd_info "$@" ;;
+    import)               shift; cmd_import "$@" ;;
+    skills)               shift; cmd_skills "$@" ;;
     *)                    die "Unknown command: $1. Run 'atmosphere help' for usage." ;;
 esac
