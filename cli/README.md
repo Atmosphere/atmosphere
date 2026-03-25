@@ -69,6 +69,62 @@ npx create-atmosphere-app my-ai-app --template ai-chat
 atmosphere info spring-boot-ai-chat
 ```
 
+### Import a Skill from GitHub
+
+Turn any skill file into a running Atmosphere agent:
+
+```bash
+# From Anthropic's official skills
+atmosphere import https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
+
+# From Antigravity community (1,200+ skills)
+atmosphere import https://github.com/sickn33/antigravity-awesome-skills/blob/main/skills/customer-support/SKILL.md
+
+# From a local file
+atmosphere import ./my-skill.md
+
+# Custom project name
+atmosphere import --name my-agent https://github.com/anthropics/skills/blob/main/skills/pdf/SKILL.md
+
+# Headless agent (A2A/MCP only, no WebSocket UI)
+atmosphere import --headless https://example.com/SKILL.md --trust
+```
+
+The import command:
+- Downloads the skill file (GitHub blob URLs auto-normalized to raw)
+- Parses YAML frontmatter for `name:` and `description:`
+- Extracts `## Tools` sections → generates `@AiTool` method stubs
+- Scaffolds a complete Spring Boot project
+- Places the skill at `META-INF/skills/{name}/SKILL.md` for auto-discovery
+
+### Skills Registry
+
+Browse and run curated skills from [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills):
+
+```bash
+atmosphere skills list                # List all skills
+atmosphere skills search medical      # Search by keyword
+atmosphere skills run dentist-agent   # Scaffold and run
+```
+
+### Trusted Sources
+
+Remote imports are restricted to trusted GitHub organizations by default:
+
+| Trusted Source | Repository |
+|---------------|-----------|
+| `Atmosphere/*` | [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills) |
+| `anthropics/skills` | [Official Anthropic skills](https://github.com/anthropics/skills) |
+| `sickn33/antigravity-awesome-skills` | [1,200+ community skills](https://github.com/sickn33/antigravity-awesome-skills) |
+| `K-Dense-AI/*` | [Scientific/research skills](https://github.com/K-Dense-AI/claude-scientific-skills) |
+| `agentskills/*` | [Agent Skills spec](https://github.com/agentskills/agentskills) |
+
+To import from an untrusted source, use `--trust`:
+
+```bash
+atmosphere import --trust https://example.com/custom/SKILL.md
+```
+
 ## Available Templates
 
 | Template | Description |

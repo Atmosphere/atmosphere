@@ -23,14 +23,16 @@
 
 ```bash
 brew install Atmosphere/tap/atmosphere    # or: curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
-atmosphere run spring-boot-multi-agent-startup-team   # demo mode — no API key needed
+
+# Run a built-in sample
+atmosphere run spring-boot-multi-agent-startup-team
+
+# Import any skill from GitHub and run it
+atmosphere import https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
+cd frontend-design && LLM_API_KEY=your-key ./mvnw spring-boot:run
 ```
 
-Open `http://localhost:8080` — ask any business question and watch 5 AI agents collaborate in real-time. To run with a real LLM:
-
-```bash
-LLM_API_KEY=your-key atmosphere run spring-boot-multi-agent-startup-team
-```
+Open `http://localhost:8080/atmosphere/console/` — the console auto-connects to your agent. Import skills from [Anthropic](https://github.com/anthropics/skills), [Antigravity](https://github.com/sickn33/antigravity-awesome-skills) (1,200+ skills), or any GitHub URL.
 
 ## Multi-Agent Startup Team
 
@@ -231,6 +233,36 @@ Vue, Svelte, and React Native bindings also available. See the [atmosphere.js RE
 | Chat | [embedded-jetty](samples/embedded-jetty-websocket-chat/) | Embedded Jetty, no framework |
 
 `atmosphere install` for interactive picker · [CLI reference](cli/README.md)
+
+## Skills Ecosystem
+
+Import any skill file from GitHub and get a running agent — WebSocket, MCP, A2A, and console UI auto-wired:
+
+```bash
+# From Anthropic's official skills (17 skills)
+atmosphere import https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
+
+# From Antigravity community collection (1,200+ skills)
+atmosphere import https://github.com/sickn33/antigravity-awesome-skills/blob/main/skills/customer-support/SKILL.md
+
+# From our curated registry
+atmosphere skills run dentist-agent
+
+# Browse and search
+atmosphere skills list
+atmosphere skills search medical
+```
+
+Skills use the [Agent Skills](https://agentskills.io/specification) format — YAML frontmatter + Markdown body. Atmosphere auto-discovers skill files at `META-INF/skills/{name}/SKILL.md` on the classpath, so skills can also be distributed as Maven JARs.
+
+| Trusted Source | Skills | Link |
+|---------------|-------:|------|
+| Atmosphere | 6 | [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills) |
+| Anthropic | 17 | [anthropics/skills](https://github.com/anthropics/skills) |
+| Antigravity | 1,200+ | [antigravity-awesome-skills](https://github.com/sickn33/antigravity-awesome-skills) |
+| K-Dense AI | 200+ | [claude-scientific-skills](https://github.com/K-Dense-AI/claude-scientific-skills) |
+
+Untrusted sources require `--trust` flag. See [cli/README.md](cli/README.md) for the full CLI reference.
 
 ## Requirements
 
