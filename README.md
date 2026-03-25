@@ -46,14 +46,16 @@ public class MyAgent {
 }
 ```
 
-What this registers:
-- **WebSocket endpoint** at `/atmosphere/agent/my-agent` — streaming AI chat with conversation memory
-- **MCP endpoint** at `/atmosphere/agent/my-agent/mcp` — if `atmosphere-mcp` is on the classpath
-- **A2A endpoint** at `/atmosphere/agent/my-agent/a2a` — if `atmosphere-a2a` is on the classpath
-- **AG-UI endpoint** at `/atmosphere/agent/my-agent/agui` — if `atmosphere-agui` is on the classpath
-- **Console UI** at `/atmosphere/console/` — built-in, auto-detects the agent
-- **Slash commands** — `/status` executes instantly, `/help` auto-generated
-- **Multi-channel** — add `atmosphere-channels` + a bot token and the same agent responds on Slack, Telegram, Discord, WhatsApp, Messenger
+What this registers depends on which modules are on the classpath:
+
+| Module on classpath | What gets registered |
+|---|---|
+| `atmosphere-agent` (required) | WebSocket endpoint at `/atmosphere/agent/my-agent` with streaming AI, conversation memory, `/help` auto-generation |
+| `atmosphere-mcp` | MCP endpoint at `/atmosphere/agent/my-agent/mcp` |
+| `atmosphere-a2a` | A2A endpoint at `/atmosphere/agent/my-agent/a2a` with Agent Card discovery |
+| `atmosphere-agui` | AG-UI endpoint at `/atmosphere/agent/my-agent/agui` |
+| `atmosphere-channels` + bot token | Same agent responds on Slack, Telegram, Discord, WhatsApp, Messenger |
+| (built-in) | Console UI at `/atmosphere/console/` — auto-detects the agent |
 
 ### Full-Stack vs. Headless
 
@@ -155,23 +157,26 @@ See [docs/protocols.md](docs/protocols.md) and [docs/channels.md](docs/channels.
 
 ## LLM Backends
 
-Atmosphere is not an LLM library. Your LLM library calls the model. Atmosphere delivers the response. Swap the backend by changing one Maven dependency — your `@Agent`, `@AiTool`, and `@Command` code stays the same.
+Atmosphere is not an LLM library — it's the layer between the LLM and your users. Your code is never locked to a single AI framework. `@Agent`, `@AiTool`, `@Command`, skill files, conversation memory, guardrails, and protocol exposure are all **framework-independent**. The LLM backend is a pluggable dependency — swap it without touching your agent code.
 
-| Backend | Dependency | What You Get |
+| Backend | Dependency | What It Brings |
 |---------|-----------|-------------|
-| Built-in (Gemini / OpenAI / Ollama) | `atmosphere-ai` | Direct OpenAI-compatible client. Zero framework overhead. Works with any API that speaks the OpenAI chat completions format. |
-| Spring AI | `atmosphere-spring-ai` | Spring AI's `ChatClient`, embeddings, vector stores, and RAG pipelines — streamed over WebSocket/MCP/A2A instead of HTTP. Portable RAG: build once with Spring AI's `VectorStore`, deliver to every transport. |
-| LangChain4j | `atmosphere-langchain4j` | LangChain4j chains, agents, and tool calling — with Atmosphere handling the streaming delivery. `@AiTool` methods are automatically bridged to LangChain4j's tool format. |
-| Google ADK | `atmosphere-adk` | Google's Agent Development Kit for multi-agent orchestration. ADK agents run inside Atmosphere's transport layer with real-time WebSocket visibility. |
+| Built-in (Gemini / OpenAI / Ollama) | `atmosphere-ai` | Direct OpenAI-compatible client. Zero framework overhead. Good starting point — upgrade to a full AI framework later without rewriting your agent. |
+| Spring AI | `atmosphere-spring-ai` | Spring AI's `ChatClient`, embeddings, vector stores, and RAG pipelines. Atmosphere adds what Spring AI doesn't: real-time WebSocket streaming, MCP/A2A/AG-UI exposure, and multi-channel delivery. Your Spring AI RAG pipeline becomes portable across every transport and protocol. |
+| LangChain4j | `atmosphere-langchain4j` | LangChain4j chains, agents, and tool calling. `@AiTool` methods are automatically bridged to LangChain4j's tool format. You get LangChain4j's inference capabilities with Atmosphere's delivery infrastructure. |
+| Google ADK | `atmosphere-adk` | Google's Agent Development Kit for multi-agent orchestration. ADK agents run inside Atmosphere's transport layer with real-time WebSocket visibility and protocol exposure that ADK alone doesn't provide. |
 | Embabel | `atmosphere-embabel` | Embabel's goal-driven agent framework. Embabel agents stream their output through Atmosphere to browsers, MCP clients, and messaging channels. |
 
-**What Atmosphere adds on top of each backend:**
-- **Streaming delivery** — LLM tokens streamed to browsers via WebSocket, not buffered as HTTP responses
-- **Protocol exposure** — your Spring AI RAG pipeline is automatically accessible via MCP, A2A, and AG-UI
-- **Multi-channel** — the same LangChain4j chain responds on Web, Slack, and Telegram
-- **Conversation memory** — multi-turn context managed by the framework, independent of which LLM backend you use
-- **Tool portability** — `@AiTool` methods work with every backend. Write the tool once, swap the LLM library freely
-- **Guardrails and filters** — pre/post processing applied before any backend processes the message
+**Why not use Spring AI / LangChain4j / ADK directly?**
+
+You can — and you should use their LLM capabilities. But they handle **inference**, not **delivery**. When you add Atmosphere:
+
+- **Streaming** — LLM tokens stream to browsers via WebSocket in real-time, not buffered as HTTP responses
+- **Protocol exposure** — your RAG pipeline is automatically accessible via MCP, A2A, and AG-UI with zero extra code
+- **Multi-channel** — the same agent responds on Web, Slack, Telegram, Discord — not just HTTP
+- **Conversation memory** — multi-turn context managed by the framework, works identically across all backends
+- **Tool portability** — `@AiTool` methods work with every backend. Start with built-in, move to Spring AI later — tools don't change
+- **No lock-in** — switch from LangChain4j to Spring AI by changing one Maven dependency. Your `@Agent`, tools, commands, skill file, and tests stay the same
 
 ## Annotation Compatibility
 
