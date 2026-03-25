@@ -16,6 +16,7 @@
 package org.atmosphere.config.managed;
 
 import org.atmosphere.config.service.Disconnect;
+import org.atmosphere.config.service.Heartbeat;
 import org.atmosphere.config.service.PathParam;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereConfig;
@@ -72,17 +73,23 @@ public final class AnnotatedLifecycle {
 
     private final Method readyMethod;
     private final Method disconnectMethod;
+    private final Method heartbeatMethod;
     private final boolean hasPathParams;
 
-    private AnnotatedLifecycle(Method readyMethod, Method disconnectMethod, boolean hasPathParams) {
+    private AnnotatedLifecycle(Method readyMethod, Method disconnectMethod,
+                                Method heartbeatMethod, boolean hasPathParams) {
         this.readyMethod = readyMethod;
         this.disconnectMethod = disconnectMethod;
+        this.heartbeatMethod = heartbeatMethod;
         this.hasPathParams = hasPathParams;
         if (this.readyMethod != null) {
             this.readyMethod.setAccessible(true);
         }
         if (this.disconnectMethod != null) {
             this.disconnectMethod.setAccessible(true);
+        }
+        if (this.heartbeatMethod != null) {
+            this.heartbeatMethod.setAccessible(true);
         }
     }
 
@@ -97,6 +104,7 @@ public final class AnnotatedLifecycle {
         return new AnnotatedLifecycle(
                 findMethod(clazz, Ready.class),
                 findMethod(clazz, Disconnect.class),
+                findMethod(clazz, Heartbeat.class),
                 hasPathParamFields(clazz)
         );
     }
@@ -119,6 +127,14 @@ public final class AnnotatedLifecycle {
         Utils.invoke(target, disconnectMethod, event);
     }
 
+    /**
+     * Invokes the {@code @Heartbeat}-annotated method if present.
+     * Supports signatures: {@code ()}, {@code (AtmosphereResourceEvent)}.
+     */
+    public void onHeartbeat(Object target, AtmosphereResourceEvent event) {
+        Utils.invoke(target, heartbeatMethod, event);
+    }
+
     // ---- Accessors ----
 
     public Method readyMethod() {
@@ -127,6 +143,10 @@ public final class AnnotatedLifecycle {
 
     public Method disconnectMethod() {
         return disconnectMethod;
+    }
+
+    public Method heartbeatMethod() {
+        return heartbeatMethod;
     }
 
     public boolean hasPathParams() {

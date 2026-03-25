@@ -87,6 +87,10 @@ public class ManagedServiceProcessor implements Processor<Object> {
 
             AnnotationUtil.interceptorsForManagedService(framework, List.of(a.interceptors()), l);
             framework.addAtmosphereHandler(a.path(), handler, broadcaster(framework, a.broadcaster(), a.path()), l);
+
+            // Bridge protocol annotations (@McpTool, @AgentSkill) if the modules are on the classpath
+            ProtocolBridge.tryRegisterMcp(framework, c, a.path());
+            ProtocolBridge.tryRegisterA2a(framework, c, a.path());
         } catch (Throwable e) {
             logger.warn("", e);
         }

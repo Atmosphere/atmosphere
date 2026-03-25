@@ -33,6 +33,7 @@ import org.atmosphere.config.managed.AnnotatedLifecycle;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.BroadcastFilter;
@@ -74,7 +75,8 @@ import java.util.concurrent.TimeoutException;
  *       methods are discovered and invoked on connect/disconnect</li>
  * </ul>
  */
-public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
+public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
+        implements AtmosphereResourceHeartbeatEventListener {
 
     /**
      * Request attribute key for the system prompt configured on the {@code @AiEndpoint}.
@@ -543,5 +545,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
      */
     public static String pathParam(AtmosphereResource resource, String name) {
         return (String) resource.getRequest().getAttribute(PATH_PARAM_ATTRIBUTE_PREFIX + name);
+    }
+
+    @Override
+    public void onHeartbeat(AtmosphereResourceEvent event) {
+        if (lifecycle != null) {
+            lifecycle.onHeartbeat(target, event);
+        }
     }
 }
