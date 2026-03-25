@@ -108,7 +108,7 @@ All lifecycle annotations work in both `@Agent` and `@ManagedService`.
 
 | What | How | Works In |
 |------|-----|----------|
-| `Broadcaster` | `@Inject @Named("/path")` | `@Agent`, `@ManagedService` |
+| `Broadcaster` | `@Inject @Named("/path")` | `@Agent`, `@ManagedService` — pub/sub to Kafka, Redis, or any custom channel |
 | `AtmosphereResource` | `@Inject` | `@ManagedService` |
 | `AtmosphereResourceEvent` | `@Inject` | `@ManagedService` |
 | `AtmosphereConfig` | `@Inject` | `@Agent`, `@ManagedService` |

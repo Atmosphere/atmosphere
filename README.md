@@ -176,6 +176,10 @@ You can — and you should use their LLM capabilities. But they handle **inferen
 - **Multi-channel** — the same agent responds on Web, Slack, Telegram, Discord — not just HTTP
 - **Conversation memory** — multi-turn context managed by the framework, works identically across all backends
 - **Tool portability** — `@AiTool` methods work with every backend. Start with built-in, move to Spring AI later — tools don't change
+- **RAG portability** — build your retrieval pipeline with any backend's vector store. Atmosphere delivers the augmented response to every transport and protocol
+- **Skill file portability** — same Markdown skill file (system prompt, tools, guardrails) works across all backends
+- **Agent composition** — headless agents collaborate via A2A regardless of which backend each one uses. A Spring AI agent can delegate to a LangChain4j agent
+- **Durable sessions** — conversation state survives server restarts (SQLite, Redis), independent of backend
 - **No lock-in** — switch from LangChain4j to Spring AI by changing one Maven dependency. Your `@Agent`, tools, commands, skill file, and tests stay the same
 
 ## Annotation Compatibility
@@ -195,7 +199,7 @@ See the [full annotation reference](docs/annotations.md) for all supported annot
 | `@Disconnect` | yes | yes | Connection closed |
 | `@Heartbeat` | yes | yes | Keep-alive received |
 | `@Message` (encoders/decoders) | yes | yes | Raw message handling |
-| `Broadcaster` injection | yes | yes | Pub/sub to Kafka, Redis, etc. |
+| `@Inject @Named("...")` `Broadcaster` | yes | yes | Pub/sub to Kafka, Redis, etc. |
 | `@PathParam` | yes | yes | URL path parameter injection |
 | `@DeliverTo` | — | yes | Message delivery scope |
 | `@Singleton` | — | yes | Single instance per path |
@@ -223,7 +227,7 @@ function Chat() {
 }
 ```
 
-Vue, Svelte, and React Native bindings also available. See [atmosphere.js](atmosphere.js/README.md).
+[Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svelte), and [React Native](atmosphere.js/README.md#react-native) bindings also available. See [atmosphere.js](atmosphere.js/README.md).
 
 ## Samples
 
