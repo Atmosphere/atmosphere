@@ -39,7 +39,7 @@ sedi() {
 # ── 1. Maven <version> tags in docs/*.md ──
 echo "── docs/*.md Maven snippets"
 if [ -d "$ROOT/docs" ]; then
-find "$ROOT/docs" -name '*.md' -exec grep -l '<version>[0-9]' {} + 2>/dev/null | while read -r f; do
+{ find "$ROOT/docs" -name '*.md' -exec grep -l '<version>[0-9]' {} + 2>/dev/null || true; } | while read -r f; do
     sedi "s|<version>[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^<]*</version>|<version>$VERSION</version>|g" "$f"
     echo "   $f"
     UPDATED=$((UPDATED + 1))
@@ -48,7 +48,7 @@ fi
 
 # ── 2. Maven <version> tags in module README.md ──
 echo "── Module README.md files"
-find "$ROOT/modules" -name 'README.md' -exec grep -l '<version>[0-9]' {} + 2>/dev/null | while read -r f; do
+{ find "$ROOT/modules" -name 'README.md' -exec grep -l '<version>[0-9]' {} + 2>/dev/null || true; } | while read -r f; do
     sedi "s|<version>[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^<]*</version>|<version>$VERSION</version>|g" "$f"
     echo "   $f"
     UPDATED=$((UPDATED + 1))
@@ -63,7 +63,7 @@ fi
 
 # ── 4. JAR artifact names in sample README.md ──
 echo "── Sample README.md JAR references"
-find "$ROOT/samples" -name 'README.md' -exec grep -lE 'atmosphere-[a-z-]+-[0-9]+\.[0-9]+\.[0-9]+' {} + 2>/dev/null | while read -r f; do
+{ find "$ROOT/samples" -name 'README.md' -exec grep -lE 'atmosphere-[a-z-]+-[0-9]+\.[0-9]+\.[0-9]+' {} + 2>/dev/null || true; } | while read -r f; do
     sedi -E "s/(atmosphere-[a-z-]+)-[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT|-RC[0-9]+)?/\1-$VERSION/g" "$f"
     echo "   $f"
     UPDATED=$((UPDATED + 1))
