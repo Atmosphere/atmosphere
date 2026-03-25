@@ -499,7 +499,9 @@ public class AgentProcessor implements Processor<Object> {
             }
 
             var protocolHandler = new org.atmosphere.mcp.runtime.McpProtocolHandler(
-                    annotation.name(), AGENT_VERSION, mcpRegistry,
+                    annotation.name(),
+                    annotation.version().isEmpty() ? AGENT_VERSION : annotation.version(),
+                    mcpRegistry,
                     framework.getAtmosphereConfig());
 
             var handler = new org.atmosphere.mcp.runtime.McpHandler(protocolHandler);

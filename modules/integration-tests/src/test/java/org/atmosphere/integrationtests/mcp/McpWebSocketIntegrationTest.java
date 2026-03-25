@@ -54,7 +54,7 @@ public class McpWebSocketIntegrationTest {
     public void setUp() throws Exception {
         server = new EmbeddedAtmosphereServer()
                 .withAnnotationPackage("org.atmosphere.integrationtests.mcp")
-                .withInitParam("org.atmosphere.annotation.packages", "org.atmosphere.mcp.processor");
+                .withInitParam("org.atmosphere.annotation.packages", "org.atmosphere.agent.processor");
         server.start();
         httpClient = HttpClient.newHttpClient();
     }
