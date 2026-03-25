@@ -104,6 +104,53 @@ All lifecycle annotations work in both `@Agent` and `@ManagedService`.
 | `encoders` | Class[] | `{}` | Encoder classes for outgoing messages. |
 | `decoders` | Class[] | `{}` | Decoder classes for incoming messages. |
 
+## SPI & Configuration Annotations
+
+These annotations register custom implementations of framework services. Applied to classes that implement the corresponding interface.
+
+### Broadcaster
+
+| Annotation | Target | Description |
+|-----------|--------|-------------|
+| `@BroadcasterService` | Class | Register a custom `Broadcaster` implementation. |
+| `@BroadcasterFilterService` | Class | Register a custom `BroadcastFilter` (transform/filter messages before delivery). |
+| `@BroadcasterCacheService` | Class | Register a custom `BroadcasterCache` (message replay on reconnection). |
+| `@BroadcasterCacheInspectorService` | Class | Register a `BroadcasterCacheInspector` (inspect/modify cached messages). |
+| `@BroadcasterCacheListenerService` | Class | Register a `BroadcasterCacheListener` (cache event notifications). |
+| `@BroadcasterFactoryService` | Class | Register a custom `BroadcasterFactory`. |
+| `@BroadcasterListenerService` | Class | Register a `BroadcasterListener` (broadcaster lifecycle events). |
+
+### Transport & WebSocket
+
+| Annotation | Target | Description |
+|-----------|--------|-------------|
+| `@AtmosphereService` | Class | Low-level alternative to `@ManagedService` — registers an `AtmosphereHandler` with full control. |
+| `@AtmosphereHandlerService` | Class | Register a custom `AtmosphereHandler` implementation. |
+| `@AtmosphereInterceptorService` | Class | Register a custom `AtmosphereInterceptor`. |
+| `@AsyncSupportService` | Class | Register a custom `AsyncSupport` implementation (transport layer). |
+| `@AsyncSupportListenerService` | Class | Register an `AsyncSupportListener` (transport lifecycle events). |
+| `@WebSocketHandlerService` | Class | Register a custom `WebSocketHandler`. |
+| `@WebSocketProtocolService` | Class | Register a custom `WebSocketProtocol` (message framing). |
+| `@WebSocketProcessorService` | Class | Register a custom `WebSocketProcessor`. |
+| `@WebSocketFactoryService` | Class | Register a custom `WebSocketFactory`. |
+
+### Framework & Resources
+
+| Annotation | Target | Description |
+|-----------|--------|-------------|
+| `@AtmosphereFrameworkListenerService` | Class | Register an `AtmosphereFrameworkListener` (framework lifecycle events). |
+| `@AtmosphereResourceListenerService` | Class | Register an `AtmosphereResourceListener` (resource lifecycle events). |
+| `@AtmosphereResourceFactoryService` | Class | Register a custom `AtmosphereResourceFactory`. |
+| `@EndpointMapperService` | Class | Register a custom `EndpointMapper` (URL-to-handler resolution). |
+| `@UUIDProviderService` | Class | Register a custom `UUIDProvider` (resource identifier generation). |
+| `@RoomService` | Class | Register a custom `RoomManager` for room-based messaging. |
+
+### Additional Lifecycle
+
+| Annotation | Target | Description |
+|-----------|--------|-------------|
+| `@Resume` | Method | Invoked when a suspended resource resumes (long-polling cycle). |
+
 ## Injection
 
 | What | How | Works In |
