@@ -19,7 +19,20 @@
 
 ---
 
-Atmosphere is a transport-agnostic runtime for Java. Your application code declares **what** it does — the framework handles **how** it's delivered. A single `@Agent` class can serve browsers over WebSocket, expose tools via MCP, accept tasks from other agents via A2A, stream state to frontends via AG-UI, and route messages to Slack, Telegram, or Discord — all without changing a line of code. Skills follow the [Agent Skills](https://agentskills.io/specification) standard.
+Atmosphere is a transport-agnostic runtime for Java. Your application code declares **what** it does — the framework handles **how** it's delivered. A single `@Agent` class can serve browsers over WebSocket, expose tools via MCP, accept tasks from other agents via A2A, stream state to frontends via AG-UI, and route messages to Slack, Telegram, or Discord — all without changing a line of code.
+
+## Quick Start
+
+```bash
+brew install Atmosphere/tap/atmosphere    # or: curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
+
+# Run a built-in sample
+atmosphere run spring-boot-ai-chat
+
+# Import a skill from GitHub and run it
+atmosphere import https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
+cd frontend-design && LLM_API_KEY=your-key ./mvnw spring-boot:run
+```
 
 ## `@Agent`
 
