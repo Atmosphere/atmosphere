@@ -146,6 +146,9 @@ Already have an Atmosphere 3.x `@ManagedService`? Add `atmosphere-mcp` or `atmos
 @ManagedService(path = "/chat")
 public class Chat {
 
+    @Inject @Named("/chat")
+    private Broadcaster broadcaster;
+
     @Ready
     public void onReady(AtmosphereResource r) {
         log.info("{} connected via {}", r.uuid(), r.transport());
