@@ -138,12 +138,11 @@ Atmosphere is not an LLM library — it's the infrastructure layer underneath. Y
 
 Swap the backend by changing one Maven dependency. Your `@Agent`, `@AiTool`, and `@Command` code stays the same.
 
-## Add MCP to Existing Apps
+## Add Protocols to Existing Apps
 
-Already have an Atmosphere `@ManagedService` chat? Add `atmosphere-mcp` and a headless `@Agent` to expose tools to any MCP client — your existing WebSocket chat keeps working:
+Already have an Atmosphere 3.x `@ManagedService`? Add `atmosphere-mcp` or `atmosphere-a2a` to the classpath and annotate methods directly on the same class — no separate `@Agent` needed:
 
 ```java
-// Your existing chat — unchanged
 @ManagedService(path = "/chat")
 public class Chat {
 
@@ -156,27 +155,25 @@ public class Chat {
     public ChatMessage onMessage(ChatMessage message) {
         return message;
     }
-}
 
-// New: expose tools to MCP clients alongside the chat
-@Agent(name = "chat-tools", endpoint = "/atmosphere/mcp", headless = true)
-public class ChatMcpTools {
-
+    // Add atmosphere-mcp to classpath → MCP endpoint at /chat/mcp
     @McpTool(name = "list_users", description = "List connected chat users")
     public List<String> listUsers() {
-        return broadcasterFactory.lookup("/chat").getAtmosphereResources()
+        return broadcaster.getAtmosphereResources()
                 .stream().map(AtmosphereResource::uuid).toList();
     }
 
-    @McpTool(name = "broadcast", description = "Send a message to all chat users")
-    public String broadcast(@McpParam(name = "message") String message) {
-        broadcasterFactory.lookup("/chat").broadcast(message);
-        return "sent";
+    // Add atmosphere-a2a to classpath → A2A endpoint at /chat/a2a
+    @AgentSkill(id = "broadcast", name = "Broadcast", description = "Send to all users")
+    @AgentSkillHandler
+    public void broadcast(TaskContext task, @AgentSkillParam(name = "message") String message) {
+        broadcaster.broadcast(message);
+        task.complete("Sent to " + broadcaster.getAtmosphereResources().size() + " users");
     }
 }
 ```
 
-Same app, two entry points: browsers connect via WebSocket to `/chat`, MCP clients connect to `/atmosphere/mcp`.
+Same class, three entry points: browsers via WebSocket at `/chat`, MCP clients at `/chat/mcp`, A2A agents at `/chat/a2a`. Protocol endpoints are auto-registered when the module is on the classpath.
 
 ## Client — atmosphere.js
 
