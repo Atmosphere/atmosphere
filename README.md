@@ -19,166 +19,182 @@
 
 ---
 
-## Try It
+Atmosphere is a transport-agnostic runtime for Java. Your application code declares **what** it does — the framework handles **how** it's delivered. A single `@Agent` class can serve browsers over WebSocket, expose tools via MCP, accept tasks from other agents via A2A, stream state to frontends via AG-UI, and route messages to Slack, Telegram, or Discord — all without changing a line of code. Skills follow the [Agent Skills](https://agentskills.io/specification) standard.
 
-```bash
-brew install Atmosphere/tap/atmosphere    # or: curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
+## `@Agent`
 
-# Run a built-in sample
-atmosphere run spring-boot-multi-agent-startup-team
-
-# Import any skill from GitHub and run it
-atmosphere import https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
-cd frontend-design && LLM_API_KEY=your-key ./mvnw spring-boot:run
-```
-
-Open `http://localhost:8080/atmosphere/console/` — the console auto-connects to your agent. Import skills from [Anthropic](https://github.com/anthropics/skills), [Antigravity](https://github.com/sickn33/antigravity-awesome-skills) (1,200+ skills), or any GitHub URL.
-
-## Multi-Agent Startup Team
-
-Five independent `@Agent` classes collaborate via A2A to deliver startup advisory briefings. A CEO agent discovers four headless specialists (Research, Strategy, Finance, Writer) via Agent Cards, delegates over JSON-RPC, and synthesizes a GO/NO-GO recommendation — streamed live over WebSocket.
-
-<details>
-<summary><b>Show the code</b></summary>
+One annotation. The framework wires everything based on what's in the class and what's on the classpath.
 
 ```java
-// Full-stack agent: WebSocket UI + all protocols
-@Agent(name = "startup-ceo", skillFile = "prompts/ceo-skill.md",
-       description = "CEO agent — orchestrates the team")
-public class CeoAgent {
-
-    @AiTool(name = "delegate_research", description = "Delegate to research agent")
-    public String delegateResearch(@Param("query") String query) {
-        return a2aClient.sendTask("research", "web_search", Map.of("query", query));
-    }
+@Agent(name = "my-agent", description = "What this agent does")
+public class MyAgent {
 
     @Prompt
     public void onMessage(String message, StreamingSession session) {
-        session.stream(message);
+        session.stream(message);  // LLM streaming via configured backend
+    }
+
+    @Command(value = "/status", description = "Show status")
+    public String status() {
+        return "All systems operational";  // Executes instantly, no LLM cost
+    }
+
+    @AiTool(name = "lookup", description = "Look up data")
+    public String lookup(@Param("query") String query) {
+        return dataService.find(query);  // Callable by the LLM during inference
     }
 }
+```
 
-// Headless agent: A2A only, no WebSocket UI
-@Agent(name = "research", endpoint = "/atmosphere/a2a/research",
-       description = "Web research agent")
+What this registers:
+- **WebSocket endpoint** at `/atmosphere/agent/my-agent` — streaming AI chat with conversation memory
+- **MCP endpoint** at `/atmosphere/agent/my-agent/mcp` — if `atmosphere-mcp` is on the classpath
+- **A2A endpoint** at `/atmosphere/agent/my-agent/a2a` — if `atmosphere-a2a` is on the classpath
+- **AG-UI endpoint** at `/atmosphere/agent/my-agent/agui` — if `atmosphere-agui` is on the classpath
+- **Console UI** at `/atmosphere/console/` — built-in, auto-detects the agent
+- **Slash commands** — `/status` executes instantly, `/help` auto-generated
+- **Multi-channel** — add `atmosphere-channels` + a bot token and the same agent responds on Slack, Telegram, Discord, WhatsApp, Messenger
+
+### Full-Stack vs. Headless
+
+An `@Agent` with a `@Prompt` method gets a WebSocket UI. An `@Agent` with only `@AgentSkill` methods runs headless — A2A and MCP only, no browser endpoint. The framework detects the mode automatically.
+
+```java
+// Headless: A2A/MCP only
+@Agent(name = "research", description = "Web research agent")
 public class ResearchAgent {
 
-    @AgentSkill(id = "web_search", name = "Search", description = "Search the web")
+    @AgentSkill(id = "search", name = "Search", description = "Search the web")
     @AgentSkillHandler
     public void search(TaskContext task, @AgentSkillParam(name = "query") String query) {
-        task.addArtifact(Artifact.text(scrapeWeb(query)));
+        task.addArtifact(Artifact.text(doSearch(query)));
         task.complete("Done");
     }
 }
 ```
 
-</details>
+Full-stack and headless agents can collaborate via A2A — full-stack agents delegate to headless specialists using Agent Card discovery and JSON-RPC task delegation.
 
-See the [full source](samples/spring-boot-multi-agent-startup-team/).
+## Skills
 
-## Transports & Protocols
+A skill file is a Markdown document with YAML frontmatter that becomes the agent's system prompt. Sections like `## Tools`, `## Skills`, and `## Guardrails` are also parsed for protocol metadata.
 
-Your code doesn't change. Atmosphere delivers to every subscriber — regardless of how they're connected.
+```markdown
+---
+name: my-agent
+description: "What this agent does"
+---
+# My Agent
+You are a helpful assistant.
 
-| Layer | What | How |
-|-------|------|-----|
-| **Transports** | WebSocket, SSE, Long-Polling, gRPC | Auto-negotiated with fallback. Reconnection, heartbeats, message caching. |
-| **Agent Protocols** | MCP, A2A, AG-UI | Auto-registered based on classpath. Your `@Agent` is discoverable by any MCP client, any A2A agent, and any AG-UI frontend. |
-| **Channels** | Slack, Telegram, Discord, WhatsApp, Messenger | Set a bot token — interact with your agent from any messaging platform. |
+## Tools
+- lookup: Search the knowledge base
+- calculate: Perform calculations
 
-| Protocol | Direction | What It Does | Sample |
-|----------|-----------|--------------|--------|
-| **MCP** | Agent &#8596; Tools | Expose tools to Claude Desktop, Copilot, Cursor | [mcp-server](samples/spring-boot-mcp-server/) |
-| **A2A** | Agent &#8596; Agent | Agent discovery via Agent Cards, task delegation over JSON-RPC | [a2a-agent](samples/spring-boot-a2a-agent/) |
-| **AG-UI** | Agent &#8596; Frontend | Stream agent state (steps, tool calls, text deltas) via SSE | [agui-chat](samples/spring-boot-agui-chat/) |
-| **WebSocket** | Agent &#8596; Browser | Full-duplex streaming with auto-reconnection | [ai-chat](samples/spring-boot-ai-chat/) |
-| **SSE** | Agent &#8594; Browser | Server-sent events fallback | Built-in |
-| **Long-Polling** | Agent &#8596; Browser | Universal fallback for restrictive networks | Built-in |
-| **gRPC** | Agent &#8596; Service | Binary streaming for service-to-service | [grpc-chat](samples/grpc-chat/) |
-
-Protocol exposure is automatic — add the module to your classpath, and the endpoint appears. See [docs/protocols.md](docs/protocols.md) and [docs/channels.md](docs/channels.md).
-
-## `@Agent` — One Annotation, Everything Wired
-
-**What `@Agent` wires for you:**
-
-- **AI endpoint** at `/atmosphere/agent/{name}` — no servlet config, no router
-- **Slash commands** — `@Command` methods execute instantly (no LLM cost), auto-generate `/help`
-- **AI tools** — `@AiTool` methods callable by the LLM, portable across all backends
-- **Skill file** — Markdown system prompt parsed for protocol metadata ([reference](docs/skill-files.md))
-- **Multi-channel** — same commands and AI pipeline on Web, Slack, Telegram, Discord, WhatsApp, Messenger
-- **Protocol exposure** — MCP, A2A, AG-UI auto-registered based on classpath
-- **Conversation memory** — multi-turn by default
-- **Headless mode** — auto-detected when there's no `@Prompt` (A2A/MCP only, no WebSocket UI)
-
-For simpler cases without commands or channels, use `@AiEndpoint` directly:
-
-```java
-@AiEndpoint(path = "/atmosphere/ai-chat",
-            systemPrompt = "You are a helpful assistant.",
-            conversationMemory = true)
-public class MyChat {
-
-    @Prompt
-    public void onPrompt(String message, StreamingSession session) {
-        session.stream(message);
-    }
-}
+## Guardrails
+- Never execute destructive operations without confirmation
 ```
 
-## Pick Your LLM Library
+### Auto-Discovery
 
-Atmosphere is not an LLM library — it's the infrastructure layer underneath. Your LLM library calls the model. Atmosphere delivers the response.
+Drop a skill file at `META-INF/skills/{agent-name}/SKILL.md` on the classpath and `@Agent` picks it up automatically — no `skillFile` attribute needed. This means skills can be distributed as Maven JARs.
 
-| Backend | Dependency | Bridged via |
+The framework also checks `prompts/{agent-name}.md` and `prompts/skill.md` as fallbacks.
+
+### Import from GitHub
+
+Point the CLI at any skill file on GitHub. Atmosphere generates the `@Agent` class, wires the Spring Boot project, and the built-in console UI is ready to use — one command to a running agent:
+
+```bash
+atmosphere import https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
+cd frontend-design && LLM_API_KEY=your-key ./mvnw spring-boot:run
+# Open http://localhost:8080/atmosphere/console/ — chat with your agent
+```
+
+The import command parses YAML frontmatter into `@Agent` annotations, extracts `## Tools` into `@AiTool` method stubs, and places the skill file at `META-INF/skills/` for auto-discovery. The generated project compiles and runs immediately — WebSocket streaming, MCP, A2A, AG-UI, gRPC, and the Atmosphere AI Console are all wired automatically.
+
+Compatible with [Anthropic](https://github.com/anthropics/skills), [Antigravity](https://github.com/sickn33/antigravity-awesome-skills) (1,200+ skills), [K-Dense AI](https://github.com/K-Dense-AI/claude-scientific-skills), and any repository following the [Agent Skills](https://agentskills.io/specification) format.
+
+Remote imports are restricted to [trusted sources](cli/README.md) by default. Use `--trust` for other URLs.
+
+## Transports
+
+Your code never changes. Atmosphere picks the best transport, handles fallback, reconnection, heartbeats, and message caching.
+
+| Transport | Direction | Use Case |
+|-----------|-----------|----------|
+| **WebSocket** | Full-duplex | Default for browsers and agents |
+| **SSE** | Server → Client | Fallback when WebSocket is unavailable |
+| **Long-Polling** | Request/Response | Universal fallback for restrictive networks |
+| **gRPC** | Full-duplex | Service-to-service binary streaming |
+
+## Agent Protocols
+
+Auto-registered based on classpath — add the module, the endpoint appears. No configuration.
+
+| Protocol | Direction | Purpose | Annotations |
+|----------|-----------|---------|-------------|
+| **MCP** | Agent &#8596; Tools | Expose tools to any MCP client | `@McpTool`, `@McpResource`, `@McpPrompt` |
+| **A2A** | Agent &#8596; Agent | Agent Card discovery and task delegation over JSON-RPC | `@AgentSkill`, `@AgentSkillHandler` |
+| **AG-UI** | Agent &#8596; Frontend | Stream agent state (steps, tool calls, text deltas) via SSE | `@AgUiEndpoint`, `@AgUiAction` |
+
+## Channels
+
+Set a bot token — interact with your agent from any messaging platform. Same `@Command` methods and AI pipeline, every channel.
+
+| Channel | Activation |
+|---------|-----------|
+| Web (WebSocket/SSE) | Built-in |
+| Slack | `SLACK_BOT_TOKEN` |
+| Telegram | `TELEGRAM_BOT_TOKEN` |
+| Discord | `DISCORD_BOT_TOKEN` |
+| WhatsApp | `WHATSAPP_ACCESS_TOKEN` |
+| Messenger | `MESSENGER_PAGE_TOKEN` |
+
+See [docs/protocols.md](docs/protocols.md) and [docs/channels.md](docs/channels.md).
+
+## LLM Backends
+
+Atmosphere is not an LLM library. Your LLM library calls the model. Atmosphere delivers the response. Swap the backend by changing one Maven dependency — your `@Agent`, `@AiTool`, and `@Command` code stays the same.
+
+| Backend | Dependency | What You Get |
 |---------|-----------|-------------|
-| Built-in (Gemini/OpenAI/Ollama/[Embacle](https://github.com/dravr-ai/dravr-embacle)) | `atmosphere-ai` | direct |
-| Spring AI | `atmosphere-spring-ai` | `SpringAiToolBridge` |
-| LangChain4j | `atmosphere-langchain4j` | `LangChain4jToolBridge` |
-| Google ADK | `atmosphere-adk` | `AdkToolBridge` |
-| Embabel | `atmosphere-embabel` | `EmbabelAiSupport` |
+| Built-in (Gemini / OpenAI / Ollama) | `atmosphere-ai` | Direct OpenAI-compatible client. Zero framework overhead. Works with any API that speaks the OpenAI chat completions format. |
+| Spring AI | `atmosphere-spring-ai` | Spring AI's `ChatClient`, embeddings, vector stores, and RAG pipelines — streamed over WebSocket/MCP/A2A instead of HTTP. Portable RAG: build once with Spring AI's `VectorStore`, deliver to every transport. |
+| LangChain4j | `atmosphere-langchain4j` | LangChain4j chains, agents, and tool calling — with Atmosphere handling the streaming delivery. `@AiTool` methods are automatically bridged to LangChain4j's tool format. |
+| Google ADK | `atmosphere-adk` | Google's Agent Development Kit for multi-agent orchestration. ADK agents run inside Atmosphere's transport layer with real-time WebSocket visibility. |
+| Embabel | `atmosphere-embabel` | Embabel's goal-driven agent framework. Embabel agents stream their output through Atmosphere to browsers, MCP clients, and messaging channels. |
 
-Swap the backend by changing one Maven dependency. Your `@Agent`, `@AiTool`, and `@Command` code stays the same.
+**What Atmosphere adds on top of each backend:**
+- **Streaming delivery** — LLM tokens streamed to browsers via WebSocket, not buffered as HTTP responses
+- **Protocol exposure** — your Spring AI RAG pipeline is automatically accessible via MCP, A2A, and AG-UI
+- **Multi-channel** — the same LangChain4j chain responds on Web, Slack, and Telegram
+- **Conversation memory** — multi-turn context managed by the framework, independent of which LLM backend you use
+- **Tool portability** — `@AiTool` methods work with every backend. Write the tool once, swap the LLM library freely
+- **Guardrails and filters** — pre/post processing applied before any backend processes the message
 
-## Add Protocols to Existing Apps
+## Annotation Compatibility
 
-Already have an Atmosphere 3.x `@ManagedService`? Add `atmosphere-mcp` or `atmosphere-a2a` to the classpath and annotate methods directly on the same class — no separate `@Agent` needed:
+Atmosphere 4.x is fully backward-compatible with 3.x annotations. All `@ManagedService` lifecycle annotations (`@Ready`, `@Message`, `@Disconnect`, `@Heartbeat`, `@PathParam`, `Broadcaster` injection) work in `@Agent`. Protocol annotations (`@McpTool`, `@AgentSkill`) can be added directly to existing `@ManagedService` classes — no migration required.
 
-```java
-@ManagedService(path = "/chat")
-public class Chat {
+See the [full annotation reference](docs/annotations.md) for all supported annotations, parameters, and usage examples.
 
-    @Inject @Named("/chat")
-    private Broadcaster broadcaster;
-
-    @Ready
-    public void onReady(AtmosphereResource r) {
-        log.info("{} connected via {}", r.uuid(), r.transport());
-    }
-
-    @Message(encoders = JacksonEncoder.class, decoders = JacksonDecoder.class)
-    public ChatMessage onMessage(ChatMessage message) {
-        return message;
-    }
-
-    // Add atmosphere-mcp to classpath → MCP endpoint at /chat/mcp
-    @McpTool(name = "list_users", description = "List connected chat users")
-    public List<String> listUsers() {
-        return broadcaster.getAtmosphereResources()
-                .stream().map(AtmosphereResource::uuid).toList();
-    }
-
-    // Add atmosphere-a2a to classpath → A2A endpoint at /chat/a2a
-    @AgentSkill(id = "broadcast", name = "Broadcast", description = "Send to all users")
-    @AgentSkillHandler
-    public void broadcast(TaskContext task, @AgentSkillParam(name = "message") String message) {
-        broadcaster.broadcast(message);
-        task.complete("Sent to " + broadcaster.getAtmosphereResources().size() + " users");
-    }
-}
-```
-
-Same class, three entry points: browsers via WebSocket at `/chat`, MCP clients at `/chat/mcp`, A2A agents at `/chat/a2a`. Protocol endpoints are auto-registered when the module is on the classpath.
+| Annotation | `@Agent` | `@ManagedService` | Purpose |
+|-----------|:--------:|:-----------------:|---------|
+| `@Prompt` | yes | — | LLM streaming entry point |
+| `@Command` | yes | — | Slash commands (no LLM cost) |
+| `@AiTool` / `@Param` | yes | — | LLM-callable tool methods |
+| `@McpTool` / `@McpResource` / `@McpPrompt` | yes | yes | MCP protocol exposure |
+| `@AgentSkill` / `@AgentSkillHandler` | yes | yes | A2A protocol exposure |
+| `@Ready` | yes | yes | Connection established |
+| `@Disconnect` | yes | yes | Connection closed |
+| `@Heartbeat` | yes | yes | Keep-alive received |
+| `@Message` (encoders/decoders) | yes | yes | Raw message handling |
+| `Broadcaster` injection | yes | yes | Pub/sub to Kafka, Redis, etc. |
+| `@PathParam` | yes | yes | URL path parameter injection |
+| `@DeliverTo` | — | yes | Message delivery scope |
+| `@Singleton` | — | yes | Single instance per path |
+| `@Get` / `@Post` / `@Put` / `@Delete` | — | yes | HTTP method handlers |
 
 ## Client — atmosphere.js
 
@@ -189,80 +205,39 @@ npm install atmosphere.js
 ```tsx
 import { AtmosphereProvider, useStreaming } from 'atmosphere.js/react';
 
-function App() {
-  return <AtmosphereProvider><Chat /></AtmosphereProvider>;
-}
-
 function Chat() {
   const { fullText, isStreaming, send } = useStreaming({
-    request: { url: '/atmosphere/ai-chat', transport: 'websocket' },
+    request: { url: '/atmosphere/agent/my-agent', transport: 'websocket' },
   });
-
   return (
     <div>
-      <button onClick={() => send('What is Atmosphere?')}>Ask</button>
+      <button onClick={() => send('Hello')}>Send</button>
       <p>{fullText}</p>
-      {isStreaming && <span>Generating...</span>}
     </div>
   );
 }
 ```
 
-Vue, Svelte, and React Native bindings also available. See the [atmosphere.js README](atmosphere.js/README.md).
+Vue, Svelte, and React Native bindings also available. See [atmosphere.js](atmosphere.js/README.md).
 
 ## Samples
 
 | Category | Sample | Description |
 |----------|--------|-------------|
-| Multi-Agent | [startup team](samples/spring-boot-multi-agent-startup-team/) | 5 agents collaborate via A2A with real-time WebSocket visualization |
+| Multi-Agent | [startup team](samples/spring-boot-multi-agent-startup-team/) | 5 agents collaborate via A2A with real-time visualization |
 | Agent | [dentist agent](samples/spring-boot-dentist-agent/) | Commands, tools, skill file, Slack and Telegram |
-| AI Streaming | [ai-chat](samples/spring-boot-ai-chat/) | Swap backend via one dependency (Gemini, OpenAI, Spring AI, LangChain4j, ADK, Embabel) |
-| AI Streaming | [ai-tools](samples/spring-boot-ai-tools/) | Framework-agnostic tool calling with real-time events |
-| AI Streaming | [rag-chat](samples/spring-boot-rag-chat/) | RAG with document retrieval and embeddings |
-| AI Streaming | [ai-routing](samples/spring-boot-spring-ai-routing/) | Content-based model routing |
-| AI Streaming | [ai-classroom](samples/spring-boot-ai-classroom/) | Multi-room, multi-persona streaming |
+| AI Streaming | [ai-chat](samples/spring-boot-ai-chat/) | Swap backend via one dependency |
+| AI Streaming | [ai-tools](samples/spring-boot-ai-tools/) | Framework-agnostic tool calling |
+| AI Streaming | [rag-chat](samples/spring-boot-rag-chat/) | RAG with document retrieval |
 | Protocol | [mcp-server](samples/spring-boot-mcp-server/) | MCP tools, resources, and prompts |
-| Protocol | [a2a-agent](samples/spring-boot-a2a-agent/) | Headless A2A agent with Agent Card discovery |
-| Protocol | [agui-chat](samples/spring-boot-agui-chat/) | AG-UI streaming to frontends via SSE |
+| Protocol | [a2a-agent](samples/spring-boot-a2a-agent/) | Headless A2A agent |
+| Protocol | [agui-chat](samples/spring-boot-agui-chat/) | AG-UI streaming via SSE |
 | Infrastructure | [channels](samples/spring-boot-channels-chat/) | Slack, Telegram, Discord, WhatsApp, Messenger |
 | Infrastructure | [durable-sessions](samples/spring-boot-durable-sessions/) | Survive server restarts with SQLite |
-| Infrastructure | [otel-chat](samples/spring-boot-otel-chat/) | OpenTelemetry tracing |
-| Chat | [spring-boot-chat](samples/spring-boot-chat/) | WebSocket chat with Spring Boot |
+| Chat | [spring-boot-chat](samples/spring-boot-chat/) | WebSocket chat |
 | Chat | [quarkus-chat](samples/quarkus-chat/) | WebSocket chat with Quarkus |
-| Chat | [grpc-chat](samples/grpc-chat/) | Chat over gRPC transport |
-| Chat | [embedded-jetty](samples/embedded-jetty-websocket-chat/) | Embedded Jetty, no framework |
 
-`atmosphere install` for interactive picker · [CLI reference](cli/README.md)
-
-## Skills Ecosystem
-
-Import any skill file from GitHub and get a running agent — WebSocket, MCP, A2A, and console UI auto-wired:
-
-```bash
-# From Anthropic's official skills (17 skills)
-atmosphere import https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
-
-# From Antigravity community collection (1,200+ skills)
-atmosphere import https://github.com/sickn33/antigravity-awesome-skills/blob/main/skills/customer-support/SKILL.md
-
-# From our curated registry
-atmosphere skills run dentist-agent
-
-# Browse and search
-atmosphere skills list
-atmosphere skills search medical
-```
-
-Skills use the [Agent Skills](https://agentskills.io/specification) format — YAML frontmatter + Markdown body. Atmosphere auto-discovers skill files at `META-INF/skills/{name}/SKILL.md` on the classpath, so skills can also be distributed as Maven JARs.
-
-| Trusted Source | Skills | Link |
-|---------------|-------:|------|
-| Atmosphere | 6 | [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills) |
-| Anthropic | 17 | [anthropics/skills](https://github.com/anthropics/skills) |
-| Antigravity | 1,200+ | [antigravity-awesome-skills](https://github.com/sickn33/antigravity-awesome-skills) |
-| K-Dense AI | 200+ | [claude-scientific-skills](https://github.com/K-Dense-AI/claude-scientific-skills) |
-
-Untrusted sources require `--trust` flag. See [cli/README.md](cli/README.md) for the full CLI reference.
+[All 18 samples](samples/) · `atmosphere install` for interactive picker · [CLI reference](cli/README.md)
 
 ## Requirements
 
