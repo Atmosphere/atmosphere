@@ -6,8 +6,7 @@
 
 <p align="center">
   <strong>The real-time infrastructure layer for Java AI agents.</strong><br/>
-  Pick any LLM library. Build once with <code>@Agent</code> — deliver over WebSocket, SSE, gRPC, MCP, A2A, AG-UI, or any transport.<br/>
-  In production since 2008.
+  Pick any LLM library. Build once with <code>@Agent</code> — deliver over WebSocket, SSE, gRPC, MCP, A2A, AG-UI, or any transport.
 </p>
 
 <p align="center">
