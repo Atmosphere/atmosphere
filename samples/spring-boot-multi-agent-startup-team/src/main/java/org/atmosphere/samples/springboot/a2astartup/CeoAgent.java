@@ -74,15 +74,31 @@ public class CeoAgent {
     public void onReady(AtmosphereResource resource) {
         logger.info("Client {} connected to CEO", resource.uuid());
         if (serverPort == 0) {
-            // Detect the actual Tomcat port from the running connector
-            var req = resource.getRequest();
-            serverPort = req.getLocalPort();
-            // If behind a proxy, localPort might be wrong; fall back to servlet container port
-            if (serverPort <= 0 || serverPort == 80) {
-                serverPort = 8080;
-            }
+            serverPort = detectPort(resource);
             logger.info("A2A delegation will use port {}", serverPort);
         }
+    }
+
+    private static int detectPort(AtmosphereResource resource) {
+        // 1. Try SERVER_PORT env var (set by docker-compose, CLI, etc.)
+        var envPort = System.getenv("SERVER_PORT");
+        if (envPort != null && !envPort.isBlank()) {
+            try {
+                return Integer.parseInt(envPort);
+            } catch (NumberFormatException ignored) { }
+        }
+        // 2. Try servlet request's serverPort (from Host header)
+        var req = resource.getRequest();
+        var port = req.getServerPort();
+        if (port > 0 && port != 80 && port != 443) {
+            return port;
+        }
+        // 3. Try localPort (actual connector port)
+        port = req.getLocalPort();
+        if (port > 0 && port != 80 && port != 443) {
+            return port;
+        }
+        return 8080;
     }
 
     @Disconnect

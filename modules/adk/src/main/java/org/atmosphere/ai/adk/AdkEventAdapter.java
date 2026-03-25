@@ -158,8 +158,11 @@ public final class AdkEventAdapter {
         // Handle turn completion
         if (event.turnComplete().orElse(false)) {
             if (completed.compareAndSet(false, true)) {
-                var summary = extractText(event).orElse(null);
-                session.emit(new AiEvent.Complete(summary, java.util.Map.of()));
+                // The turnComplete event may contain the full response text
+                // (not sent as partials). Emit it as a text delta before completing.
+                extractText(event).ifPresent(text ->
+                        session.emit(new AiEvent.TextDelta(text)));
+                session.emit(new AiEvent.Complete(null, java.util.Map.of()));
             }
             return;
         }
