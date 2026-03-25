@@ -75,7 +75,7 @@ mvn quarkus:dev
 
 # Native image (requires GraalVM 21+ or Mandrel)
 mvn clean package -Pnative
-./target/atmosphere-quarkus-chat-4.0.23-runner
+./target/atmosphere-quarkus-chat-4.0.24-runner
 
 # Native via container build (no local GraalVM needed)
 mvn clean package -Pnative -Dquarkus.native.container-build=true
