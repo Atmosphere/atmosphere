@@ -17,6 +17,7 @@ package org.atmosphere.spring.boot;
 
 import java.util.Map;
 
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -25,6 +26,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Auto-configured REST endpoint providing metadata for the Atmosphere AI Console.
+ * Auto-detects {@code @Agent} endpoints — if one is registered, the console
+ * connects to it instead of the default {@code /atmosphere/ai-chat}.
  */
 @AutoConfiguration
 @RestController
@@ -33,15 +36,39 @@ import org.springframework.web.bind.annotation.RestController;
 public class AtmosphereConsoleInfoEndpoint {
 
     private final AtmosphereProperties properties;
+    private final AtmosphereFramework framework;
 
-    public AtmosphereConsoleInfoEndpoint(AtmosphereProperties properties) {
+    public AtmosphereConsoleInfoEndpoint(AtmosphereProperties properties,
+                                          AtmosphereFramework framework) {
         this.properties = properties;
+        this.framework = framework;
     }
 
     @GetMapping("/api/console/info")
     public Map<String, String> info() {
         return Map.of(
                 "subtitle", properties.getConsoleSubtitle(),
-                "endpoint", properties.getAi().getPath());
+                "endpoint", detectEndpoint());
+    }
+
+    /**
+     * Auto-detects the best endpoint for the console. Prefers {@code @Agent}
+     * endpoints (paths starting with {@code /atmosphere/agent/}) over the
+     * default {@code /atmosphere/ai-chat}.
+     */
+    private String detectEndpoint() {
+        var configuredPath = properties.getAi().getPath();
+        try {
+            var handlers = framework.getAtmosphereHandlers();
+            // Look for @Agent handler (AgentHandler at /atmosphere/agent/*)
+            for (var path : handlers.keySet()) {
+                if (path.startsWith("/atmosphere/agent/") && !path.contains("/a2a") && !path.contains("/mcp")) {
+                    return path;
+                }
+            }
+        } catch (Exception e) {
+            // Framework not initialized yet — use configured default
+        }
+        return configuredPath;
     }
 }
