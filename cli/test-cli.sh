@@ -707,6 +707,67 @@ mkdir -p "$IMPORT_TMP/existing-dir"
 output=$("$CLI" import --name existing-dir "$IMPORT_TMP/test-skill.md" 2>&1) || true
 assert_contains "$output" "already exists" "import: fails when directory exists"
 
+# Test: Path traversal in skill name is sanitized
+cat > "$IMPORT_TMP/traversal-skill.md" <<'TRAVEOF'
+---
+name: "../../../etc/evil"
+description: "Attempted path traversal"
+---
+# Evil Agent
+TRAVEOF
+
+output=$("$CLI" import --name test-traversal "$IMPORT_TMP/traversal-skill.md" 2>&1) || true
+assert_contains "$output" "Parsed skill: etc-evil" "import: path traversal stripped from skill name"
+# Verify project is created in current dir, not escaped
+if [ -d "$IMPORT_TMP/test-traversal" ] && [ ! -d "$IMPORT_TMP/../../../etc/evil" ]; then
+    pass "import: path traversal blocked — project in safe location"
+else
+    fail "import: path traversal not blocked"
+fi
+
+# Test: Quotes in description are escaped for Java
+cat > "$IMPORT_TMP/quotes-skill.md" <<'QUOTESEOF'
+---
+name: quotes-test
+description: 'She said "hello" and it\'s fine'
+---
+# Quotes Test
+QUOTESEOF
+
+output=$("$CLI" import --name test-quotes "$IMPORT_TMP/quotes-skill.md" 2>&1) || true
+quotes_file=$(find "$IMPORT_TMP/test-quotes/src/main/java" -name "*Agent.java" 2>/dev/null | head -1)
+if [ -n "$quotes_file" ]; then
+    assert_not_contains "$(cat "$quotes_file")" 'description = "She said "hello"' "import: quotes escaped in description"
+    pass "import: agent with quoted description compiles (no raw quotes)"
+else
+    fail "import: agent with quoted description not generated"
+fi
+
+# Test: Markdown emphasis stripped from tool names
+cat > "$IMPORT_TMP/emphasis-skill.md" <<'EMPHEOF'
+---
+name: emphasis-test
+description: "Test markdown emphasis in tools"
+---
+# Emphasis Test
+
+## Tools
+- **get_data**: Fetch data from API
+- `check_status`: Check system status
+EMPHEOF
+
+output=$("$CLI" import --name test-emphasis "$IMPORT_TMP/emphasis-skill.md" 2>&1) || true
+emph_file=$(find "$IMPORT_TMP/test-emphasis/src/main/java" -name "*Agent.java" 2>/dev/null | head -1)
+if [ -n "$emph_file" ]; then
+    assert_contains "$(cat "$emph_file")" 'name = "get_data"' "import: bold markdown stripped from tool name"
+    assert_contains "$(cat "$emph_file")" 'name = "check_status"' "import: backtick markdown stripped from tool name"
+    # Verify tool names are clean (no markdown formatting)
+    assert_contains "$(cat "$emph_file")" 'name = "get_data"' "import: bold stripped, clean tool name get_data"
+    assert_contains "$(cat "$emph_file")" 'name = "check_status"' "import: backtick stripped, clean tool name check_status"
+else
+    fail "import: agent with emphasis tools not generated"
+fi
+
 # Test 10: Skills without ## Tools generates no @AiTool stubs
 cat > "$IMPORT_TMP/no-tools-skill.md" <<'NOTOOLSEOF'
 ---

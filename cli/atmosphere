@@ -1182,6 +1182,16 @@ cmd_import() {
         info "Reading skill from $source..."
         skill_content=$(cat "$source")
     elif echo "$source" | grep -qE '^https?://'; then
+        # [P2] Normalize GitHub URLs: blob/... → raw content
+        if echo "$source" | grep -qE 'github\.com/[^/]+/[^/]+/blob/'; then
+            source=$(echo "$source" | sed 's|github\.com/\([^/]*/[^/]*\)/blob/|raw.githubusercontent.com/\1/|')
+            info "Normalized GitHub URL to raw content"
+        elif echo "$source" | grep -qE 'gist\.github\.com/'; then
+            source=$(echo "$source" | sed 's|gist\.github\.com/|gist.githubusercontent.com/|')
+            # Gist raw URLs need /raw appended
+            echo "$source" | grep -q '/raw' || source="${source}/raw"
+        fi
+
         # URL — download directly
         info "Downloading skill from $source..."
         ensure_cache_dir
@@ -1222,8 +1232,17 @@ cmd_import() {
     [ -z "$skill_name" ] && skill_name="imported-agent"
     [ -z "$skill_desc" ] && skill_desc="Imported agent skill"
 
-    # Project name
+    # [P0] Sanitize skill_name: only allow [a-z0-9-], strip everything else
+    skill_name=$(echo "$skill_name" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+    [ -z "$skill_name" ] && skill_name="imported-agent"
+
+    # [P0] Sanitize skill_desc: escape quotes and backslashes for Java string literal
+    skill_desc=$(printf '%s' "$skill_desc" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | cut -c1-200)
+
+    # [P1] Project name: sanitize to prevent path traversal
     [ -z "$project_name" ] && project_name="$skill_name"
+    project_name=$(printf '%s' "$project_name" | sed 's|[/\\.]||g' | sed 's/[^a-zA-Z0-9_-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+    [ -z "$project_name" ] && project_name="imported-agent"
 
     ok "Parsed skill: $skill_name"
     printf "  ${DIM}Description:${RESET} %s\n" "$skill_desc"
@@ -1231,6 +1250,11 @@ cmd_import() {
     # Scaffold project using atmosphere new
     info "Scaffolding project '$project_name'..."
     local project_dir="$project_name"
+
+    # [P1] Verify project_dir is a simple name (no path separators)
+    case "$project_dir" in
+        */*|*\\*) die "Invalid project name: $project_dir" ;;
+    esac
 
     if [ -d "$project_dir" ]; then
         die "Directory '$project_dir' already exists"
@@ -1273,6 +1297,13 @@ import org.atmosphere.ai.annotation.Param;"
                 tool_name=$(echo "$tool_line" | tr '[:upper:]' '[:lower:]' | tr ' ' '_' | sed 's/[^a-z0-9_]//g')
                 tool_desc="$tool_line"
             fi
+
+            # [P0] Sanitize tool_name: only [a-z0-9_], strip markdown emphasis
+            tool_name=$(echo "$tool_name" | sed 's/[*`]//g' | sed 's/[^a-z0-9_]/_/g' | sed 's/__*/_/g' | sed 's/^_//;s/_$//')
+            [ -z "$tool_name" ] && continue
+
+            # [P0] Sanitize tool_desc: escape quotes for Java string
+            tool_desc=$(printf '%s' "$tool_desc" | sed 's/[*`]//g' | sed 's/"/\\"/g' | cut -c1-150)
 
             # Convert to Java method name: "get_weather" → "getWeather"
             local method_name=$(echo "$tool_name" | awk -F_ '{for(i=1;i<=NF;i++){if(i==1)printf "%s",$i;else printf "%s",toupper(substr($i,1,1))substr($i,2)}print ""}')
@@ -1457,11 +1488,26 @@ cmd_skills() {
         run)
             [ -z "$1" ] && die "Usage: atmosphere skills run <skill-id>"
             cmd_import "$1"
-            local project_dir="$1"
-            if [ -d "$project_dir" ]; then
-                info "Building and running $project_dir..."
-                cd "$project_dir"
-                ./mvnw spring-boot:run
+            local skill_id="$1"
+            # Project dir is the sanitized skill ID
+            local run_dir=$(printf '%s' "$skill_id" | sed 's/[^a-zA-Z0-9_-]/-/g' | sed 's/--*/-/g')
+            if [ -d "$run_dir" ]; then
+                info "Building and running $run_dir..."
+                cd "$run_dir"
+                # [P1] Generate Maven wrapper if absent
+                if [ ! -f "./mvnw" ]; then
+                    if command -v mvn >/dev/null 2>&1; then
+                        info "Generating Maven wrapper..."
+                        mvn -N wrapper:wrapper -q 2>/dev/null || true
+                    fi
+                fi
+                if [ -f "./mvnw" ]; then
+                    ./mvnw spring-boot:run
+                elif command -v mvn >/dev/null 2>&1; then
+                    mvn spring-boot:run
+                else
+                    die "Neither ./mvnw nor mvn found. Install Maven: brew install maven"
+                fi
             fi
             ;;
         search)
