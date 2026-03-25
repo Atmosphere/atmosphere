@@ -1158,18 +1158,38 @@ HTMLEOF
 SKILLS_REGISTRY_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere-skills/main/registry.json"
 SKILLS_BASE_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere-skills/main"
 
+PLUGINS_DIR="${ATMOSPHERE_PLUGINS_DIR:-$HOME/.atmosphere/plugins}"
+
+# Delegate to a target plugin for project scaffolding.
+# Plugins are shell scripts at ~/.atmosphere/plugins/import-<target>.sh
+# Contract: plugin receives (skill_file, project_name, skill_name, skill_desc, headless)
+run_import_plugin() {
+    local target="$1" skill_file="$2" project_name="$3" skill_name="$4" skill_desc="$5" headless="$6"
+    local plugin_script="$PLUGINS_DIR/import-${target}.sh"
+    if [ ! -f "$plugin_script" ]; then
+        die "Import plugin '$target' not found at $plugin_script"
+    fi
+    if [ ! -x "$plugin_script" ]; then
+        chmod +x "$plugin_script"
+    fi
+    info "Delegating to '$target' plugin..."
+    "$plugin_script" "$skill_file" "$project_name" "$skill_name" "$skill_desc" "$headless"
+}
+
 cmd_import() {
     local headless=false
+    local target=""
     local project_name_arg=""
     while [ $# -gt 0 ]; do
         case "$1" in
             --headless) headless=true; shift ;;
+            --target|-t) shift; [ -z "$1" ] && die "--target requires a value"; target="$1"; shift ;;
             --name) shift; [ -z "$1" ] && die "--name requires a value"; project_name_arg="$1"; shift ;;
             *) break ;;
         esac
     done
 
-    [ -z "$1" ] && die "Usage: atmosphere import [--headless] [--name <project>] <url-or-skill-id>"
+    [ -z "$1" ] && die "Usage: atmosphere import [--target <plugin>] [--headless] [--name <project>] <url-or-skill-id>"
 
     local source="$1"
     local project_name="${project_name_arg:-${2:-}}"
@@ -1277,6 +1297,7 @@ cmd_import() {
     mkdir -p "$project_dir/src/main/java/$package_dir"
 
     # Extract @AiTool stubs from ## Tools section
+    ensure_cache_dir
     local tool_stubs=""
     local tool_imports=""
     local tools_section
@@ -1296,26 +1317,26 @@ import org.atmosphere.ai.annotation.Param;"
             # Parse "tool_name: description" or "tool_name — description" or just "tool name"
             tool_name=""
             tool_desc=""
-            if echo "$tool_line" | grep -q ':'; then
-                tool_name=$(echo "$tool_line" | cut -d: -f1 | tr -d ' ' | tr '[:upper:]' '[:lower:]')
-                tool_desc=$(echo "$tool_line" | cut -d: -f2- | sed 's/^ *//')
-            elif echo "$tool_line" | grep -q '—'; then
-                tool_name=$(echo "$tool_line" | cut -d'—' -f1 | tr -d ' ' | tr '[:upper:]' '[:lower:]')
-                tool_desc=$(echo "$tool_line" | cut -d'—' -f2- | sed 's/^ *//')
+            if printf '%s' "$tool_line" | grep -q ':'; then
+                tool_name=$(printf '%s' "$tool_line" | cut -d: -f1 | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+                tool_desc=$(printf '%s' "$tool_line" | cut -d: -f2- | sed 's/^ *//')
+            elif printf '%s' "$tool_line" | grep -q '—'; then
+                tool_name=$(printf '%s' "$tool_line" | cut -d'—' -f1 | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+                tool_desc=$(printf '%s' "$tool_line" | cut -d'—' -f2- | sed 's/^ *//')
             else
-                tool_name=$(echo "$tool_line" | tr '[:upper:]' '[:lower:]' | tr ' ' '_' | sed 's/[^a-z0-9_]//g')
+                tool_name=$(printf '%s' "$tool_line" | tr '[:upper:]' '[:lower:]' | tr ' ' '_' | sed 's/[^a-z0-9_]//g')
                 tool_desc="$tool_line"
             fi
 
             # Sanitize tool_name: only [a-z0-9_], strip markdown emphasis
-            tool_name=$(echo "$tool_name" | sed 's/[*`]//g' | sed 's/[^a-z0-9_]/_/g' | sed 's/__*/_/g' | sed 's/^_//;s/_$//')
+            tool_name=$(printf '%s' "$tool_name" | sed 's/[*`]//g' | sed 's/[^a-z0-9_]/_/g' | sed 's/__*/_/g' | sed 's/^_//;s/_$//')
             [ -z "$tool_name" ] && continue
 
             # Sanitize tool_desc: escape backslashes and quotes for Java string
             tool_desc=$(printf '%s' "$tool_desc" | sed 's/[*`]//g' | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | cut -c1-150)
 
             # Convert to Java method name: "get_weather" → "getWeather"
-            method_name=$(echo "$tool_name" | awk -F_ '{for(i=1;i<=NF;i++){if(i==1)printf "%s",$i;else printf "%s",toupper(substr($i,1,1))substr($i,2)}print ""}')
+            method_name=$(printf '%s' "$tool_name" | awk -F_ '{for(i=1;i<=NF;i++){if(i==1)printf "%s",$i;else printf "%s",toupper(substr($i,1,1))substr($i,2)}print ""}')
 
             cat >> "$stubs_file" <<STUBEOF
 
