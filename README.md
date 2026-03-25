@@ -208,7 +208,8 @@ See the [full annotation reference](docs/annotations.md) for all supported annot
 ## Client — atmosphere.js
 
 ```bash
-npm install atmosphere.js
+npm install atmosphere.js                                    # add to existing project
+npx create-atmosphere-app my-app --template ai-chat          # scaffold a new React app
 ```
 
 ```tsx
