@@ -794,7 +794,7 @@ create_minimal_project() {
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.2</version>
+        <version>4.0.3</version>
     </parent>
 
     <groupId>${group}</groupId>
@@ -1295,7 +1295,7 @@ import org.atmosphere.ai.annotation.Param;"
 import org.atmosphere.a2a.annotation.AgentSkill;
 import org.atmosphere.a2a.annotation.AgentSkillHandler;
 import org.atmosphere.a2a.annotation.AgentSkillParam;
-import org.atmosphere.a2a.runtime.Artifact;
+import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.a2a.runtime.TaskContext;"
 
         cat > "$project_dir/src/main/java/$package_dir/${agent_class}Agent.java" <<JAVAEOF
@@ -1356,7 +1356,7 @@ JAVAEOF
 atmosphere:
   ai:
     api-key: \${LLM_API_KEY:\${GEMINI_API_KEY:}}
-    model: \${LLM_MODEL:gemini-2.0-flash}
+    model: \${LLM_MODEL:gemini-2.5-flash}
 YMLEOF
 
     cat > "$project_dir/pom.xml" <<POMEOF
@@ -1369,7 +1369,7 @@ YMLEOF
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.2</version>
+        <version>4.0.3</version>
     </parent>
 
     <groupId>com.example</groupId>
@@ -1395,6 +1395,16 @@ YMLEOF
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-ai</artifactId>
+            <version>\${atmosphere.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-a2a</artifactId>
+            <version>\${atmosphere.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-mcp</artifactId>
             <version>\${atmosphere.version}</version>
         </dependency>
     </dependencies>

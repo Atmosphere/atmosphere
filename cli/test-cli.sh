@@ -622,6 +622,8 @@ if [ -f "$IMPORT_TMP/test-weather-bot/pom.xml" ]; then
     pass "import: pom.xml generated"
     assert_contains "$(cat "$IMPORT_TMP/test-weather-bot/pom.xml")" "atmosphere-spring-boot-starter" "import: pom.xml includes atmosphere starter"
     assert_contains "$(cat "$IMPORT_TMP/test-weather-bot/pom.xml")" "atmosphere-agent" "import: pom.xml includes atmosphere-agent"
+    assert_contains "$(cat "$IMPORT_TMP/test-weather-bot/pom.xml")" "atmosphere-a2a" "import: pom.xml includes atmosphere-a2a"
+    assert_contains "$(cat "$IMPORT_TMP/test-weather-bot/pom.xml")" "atmosphere-mcp" "import: pom.xml includes atmosphere-mcp"
 else
     fail "import: pom.xml not generated"
 fi
@@ -677,6 +679,7 @@ if [ -n "$headless_file" ]; then
     assert_contains "$headless_content" "@AgentSkill" "import --headless: @AgentSkill annotation present"
     assert_contains "$headless_content" "@AgentSkillHandler" "import --headless: @AgentSkillHandler annotation present"
     assert_contains "$headless_content" "TaskContext" "import --headless: TaskContext parameter present"
+    assert_contains "$headless_content" "a2a.types.Artifact" "import --headless: Artifact import from types package"
     assert_not_contains "$headless_content" "@Prompt" "import --headless: no @Prompt method"
 else
     fail "import --headless: agent file not generated"
