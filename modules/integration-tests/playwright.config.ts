@@ -132,6 +132,10 @@ export default defineConfig({
       testMatch: /multi-agent-startup-team\.spec\.ts/,
     },
     {
+      name: 'dentist-agent',
+      testMatch: /dentist-agent\.spec\.ts/,
+    },
+    {
       name: 'rooms-api',
       testMatch: /rooms-api\.spec\.ts/,
     },

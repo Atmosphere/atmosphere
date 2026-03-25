@@ -126,6 +126,13 @@ export const SAMPLES: Record<string, SampleConfig> = {
     type: 'spring-boot',
     readyPath: '/atmosphere/agent/ceo',
   },
+  'spring-boot-dentist-agent': {
+    name: 'spring-boot-dentist-agent',
+    dir: 'spring-boot-dentist-agent',
+    port: 8096,
+    type: 'spring-boot',
+    readyPath: '/atmosphere/agent/dentist',
+  },
 };
 
 /**
