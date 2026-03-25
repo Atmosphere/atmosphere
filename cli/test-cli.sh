@@ -551,22 +551,27 @@ printf "${BOLD}samples.json ↔ filesystem${RESET}\n"
 repo_root="$(cd "$SCRIPT_DIR/.." && pwd)"
 if [ -d "$repo_root/samples" ]; then
     # Every sample in JSON should exist on disk
-    jq -r '.samples[].name' "$SAMPLES_JSON" | while read -r name; do
+    # Use temp file to avoid subshell variable loss in piped while loops
+    fs_tmp="${TMPDIR:-/tmp}/atmo-test-fs-$$"
+    jq -r '.samples[].name' "$SAMPLES_JSON" > "$fs_tmp"
+    while read -r name; do
         if [ -d "$repo_root/samples/$name" ]; then
             pass "sample dir exists: $name"
         else
             fail "sample dir missing: $name"
         fi
-    done
+    done < "$fs_tmp"
 
     # Samples claiming hasFrontend should have frontend/
-    jq -r '.samples[] | select(.hasFrontend == true) | .name' "$SAMPLES_JSON" | while read -r name; do
+    jq -r '.samples[] | select(.hasFrontend == true) | .name' "$SAMPLES_JSON" > "$fs_tmp"
+    while read -r name; do
         if [ -d "$repo_root/samples/$name/frontend" ]; then
             pass "frontend dir exists: $name"
         else
             fail "frontend dir missing: $name"
         fi
-    done
+    done < "$fs_tmp"
+    rm -f "$fs_tmp"
 else
     fail "samples directory not found at $repo_root/samples"
 fi

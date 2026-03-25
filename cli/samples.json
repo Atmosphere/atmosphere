@@ -5,26 +5,43 @@
       "name": "spring-boot-multi-agent-startup-team",
       "description": "True multi-agent: 5 independent @Agent classes collaborate via A2A protocol",
       "category": "agent",
-      "tags": ["spring-boot", "ai", "multi-agent", "a2a", "agent-card", "json-rpc", "gemini"],
+      "tags": [
+        "spring-boot",
+        "ai",
+        "multi-agent",
+        "a2a",
+        "agent-card",
+        "json-rpc",
+        "gemini"
+      ],
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
       "hasFrontend": true,
       "envVars": {
-        "GEMINI_API_KEY": "Google Gemini API key (optional — demo mode without)"
+        "GEMINI_API_KEY": "Google Gemini API key (optional \u2014 demo mode without)"
       }
     },
     {
       "name": "spring-boot-dentist-agent",
-      "description": "Dr. Molar — dental emergency agent with @Agent, slash commands, AI tools, Slack and Telegram",
+      "description": "Dr. Molar \u2014 dental emergency agent with @Agent, slash commands, AI tools, Slack and Telegram",
       "category": "agent",
-      "tags": ["spring-boot", "ai", "agent", "channels", "telegram", "slack", "commands", "tools"],
+      "tags": [
+        "spring-boot",
+        "ai",
+        "agent",
+        "channels",
+        "telegram",
+        "slack",
+        "commands",
+        "tools"
+      ],
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
-      "hasFrontend": true,
+      "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)",
+        "LLM_API_KEY": "API key for your LLM provider (optional \u2014 demo mode without)",
         "TELEGRAM_BOT_TOKEN": "Telegram bot token from @BotFather",
         "TELEGRAM_WEBHOOK_SECRET": "Any random string for webhook verification",
         "SLACK_BOT_TOKEN": "Slack bot token (xoxb-...)",
@@ -33,22 +50,42 @@
     },
     {
       "name": "spring-boot-channels-chat",
-      "description": "Omnichannel AI chat — Web, Telegram, Slack, Discord, WhatsApp, Messenger",
+      "description": "Omnichannel AI chat \u2014 Web, Telegram, Slack, Discord, WhatsApp, Messenger",
       "category": "ai",
-      "tags": ["spring-boot", "ai", "channels", "telegram", "slack", "discord", "whatsapp", "messenger"],
+      "tags": [
+        "spring-boot",
+        "ai",
+        "channels",
+        "telegram",
+        "slack",
+        "discord",
+        "whatsapp",
+        "messenger"
+      ],
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
-      "hasFrontend": true,
+      "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)"
+        "LLM_API_KEY": "API key for your LLM provider (optional \u2014 demo mode without)"
       }
     },
     {
       "name": "spring-boot-ai-chat",
-      "description": "AI streaming chat — swap backend via one dependency (Spring AI, LangChain4j, ADK, Embabel)",
+      "description": "AI streaming chat \u2014 swap backend via one dependency (Spring AI, LangChain4j, ADK, Embabel)",
       "category": "ai",
-      "tags": ["spring-boot", "ai", "streaming", "gemini", "openai", "ollama", "spring-ai", "langchain4j", "adk", "embabel"],
+      "tags": [
+        "spring-boot",
+        "ai",
+        "streaming",
+        "gemini",
+        "openai",
+        "ollama",
+        "spring-ai",
+        "langchain4j",
+        "adk",
+        "embabel"
+      ],
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
@@ -61,9 +98,15 @@
     },
     {
       "name": "spring-boot-ai-classroom",
-      "description": "AI classroom — multiple clients share streaming AI responses",
+      "description": "AI classroom \u2014 multiple clients share streaming AI responses",
       "category": "ai",
-      "tags": ["spring-boot", "ai", "classroom", "broadcasting", "collaborative"],
+      "tags": [
+        "spring-boot",
+        "ai",
+        "classroom",
+        "broadcasting",
+        "collaborative"
+      ],
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
@@ -75,9 +118,14 @@
     },
     {
       "name": "spring-boot-ai-tools",
-      "description": "Framework-agnostic AI tool calling — swap backend via one dependency",
+      "description": "Framework-agnostic AI tool calling \u2014 swap backend via one dependency",
       "category": "tools",
-      "tags": ["spring-boot", "ai", "tools", "framework-agnostic"],
+      "tags": [
+        "spring-boot",
+        "ai",
+        "tools",
+        "framework-agnostic"
+      ],
       "port": 8090,
       "runnable": true,
       "packaging": "spring-boot",
@@ -91,7 +139,14 @@
       "name": "spring-boot-spring-ai-routing",
       "description": "Spring AI routing workflow with content safety and cost metering",
       "category": "agent",
-      "tags": ["spring-boot", "ai", "spring-ai", "routing", "workflow", "metering"],
+      "tags": [
+        "spring-boot",
+        "ai",
+        "spring-ai",
+        "routing",
+        "workflow",
+        "metering"
+      ],
       "port": 8088,
       "runnable": true,
       "packaging": "spring-boot",
@@ -104,7 +159,13 @@
       "name": "spring-boot-rag-chat",
       "description": "RAG chat with document retrieval and embeddings",
       "category": "rag",
-      "tags": ["spring-boot", "ai", "rag", "vectorstore", "embeddings"],
+      "tags": [
+        "spring-boot",
+        "ai",
+        "rag",
+        "vectorstore",
+        "embeddings"
+      ],
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
@@ -116,9 +177,15 @@
     },
     {
       "name": "spring-boot-mcp-server",
-      "description": "MCP server — expose tools, resources, and prompts to AI agents",
+      "description": "MCP server \u2014 expose tools, resources, and prompts to AI agents",
       "category": "mcp",
-      "tags": ["spring-boot", "mcp", "model-context-protocol", "tools", "resources"],
+      "tags": [
+        "spring-boot",
+        "mcp",
+        "model-context-protocol",
+        "tools",
+        "resources"
+      ],
       "port": 8083,
       "runnable": true,
       "packaging": "spring-boot",
@@ -126,22 +193,36 @@
     },
     {
       "name": "spring-boot-a2a-agent",
-      "description": "Headless A2A agent — AI-powered skills discoverable via Agent Card",
+      "description": "Headless A2A agent \u2014 AI-powered skills discoverable via Agent Card",
       "category": "agent",
-      "tags": ["spring-boot", "a2a", "agent-to-agent", "agent", "json-rpc", "headless"],
+      "tags": [
+        "spring-boot",
+        "a2a",
+        "agent-to-agent",
+        "agent",
+        "json-rpc",
+        "headless"
+      ],
       "port": 8084,
       "runnable": true,
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for Gemini/OpenAI/Ollama (optional — demo mode without)"
+        "LLM_API_KEY": "API key for Gemini/OpenAI/Ollama (optional \u2014 demo mode without)"
       }
     },
     {
       "name": "spring-boot-agui-chat",
-      "description": "AG-UI chat — streaming agent state to frontends via SSE (CopilotKit compatible)",
+      "description": "AG-UI chat \u2014 streaming agent state to frontends via SSE (CopilotKit compatible)",
       "category": "agent",
-      "tags": ["spring-boot", "ag-ui", "copilotkit", "sse", "streaming", "agent"],
+      "tags": [
+        "spring-boot",
+        "ag-ui",
+        "copilotkit",
+        "sse",
+        "streaming",
+        "agent"
+      ],
       "port": 8085,
       "runnable": true,
       "packaging": "spring-boot",
@@ -151,7 +232,12 @@
       "name": "spring-boot-otel-chat",
       "description": "Chat with OpenTelemetry tracing (Jaeger)",
       "category": "observability",
-      "tags": ["spring-boot", "otel", "tracing", "jaeger"],
+      "tags": [
+        "spring-boot",
+        "otel",
+        "tracing",
+        "jaeger"
+      ],
       "port": 8084,
       "runnable": true,
       "packaging": "spring-boot",
@@ -162,9 +248,14 @@
     },
     {
       "name": "spring-boot-durable-sessions",
-      "description": "Durable sessions — survive server restarts with SQLite",
+      "description": "Durable sessions \u2014 survive server restarts with SQLite",
       "category": "infrastructure",
-      "tags": ["spring-boot", "sessions", "persistence", "sqlite"],
+      "tags": [
+        "spring-boot",
+        "sessions",
+        "persistence",
+        "sqlite"
+      ],
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
@@ -174,7 +265,11 @@
       "name": "spring-boot-chat",
       "description": "Real-time WebSocket chat with Spring Boot",
       "category": "chat",
-      "tags": ["spring-boot", "websocket", "chat"],
+      "tags": [
+        "spring-boot",
+        "websocket",
+        "chat"
+      ],
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
@@ -184,7 +279,11 @@
       "name": "quarkus-chat",
       "description": "Real-time WebSocket chat with Quarkus",
       "category": "chat",
-      "tags": ["quarkus", "websocket", "chat"],
+      "tags": [
+        "quarkus",
+        "websocket",
+        "chat"
+      ],
       "port": 8080,
       "runnable": true,
       "packaging": "quarkus",
@@ -194,7 +293,12 @@
       "name": "embedded-jetty-websocket-chat",
       "description": "Embedded Jetty WebSocket chat (no framework)",
       "category": "chat",
-      "tags": ["jetty", "websocket", "embedded", "standalone"],
+      "tags": [
+        "jetty",
+        "websocket",
+        "embedded",
+        "standalone"
+      ],
       "port": 8080,
       "runnable": true,
       "packaging": "executable-jar",
@@ -205,7 +309,11 @@
       "name": "chat",
       "description": "Classic Atmosphere chat (WAR deployment)",
       "category": "chat",
-      "tags": ["servlet", "websocket", "war"],
+      "tags": [
+        "servlet",
+        "websocket",
+        "war"
+      ],
       "port": 8080,
       "runnable": false,
       "packaging": "war",
@@ -216,7 +324,10 @@
       "name": "grpc-chat",
       "description": "Chat over gRPC transport",
       "category": "chat",
-      "tags": ["grpc", "transport"],
+      "tags": [
+        "grpc",
+        "transport"
+      ],
       "port": 8080,
       "runnable": false,
       "packaging": "jar",

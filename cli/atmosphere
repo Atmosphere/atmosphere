@@ -1242,14 +1242,14 @@ cmd_import() {
     fi
 
     # Parse YAML frontmatter
-    if echo "$skill_content" | head -1 | grep -q '^---$'; then
-        skill_name=$(echo "$skill_content" | sed -n '/^---$/,/^---$/p' | grep '^name:' | sed 's/name: *//;s/"//g' | head -1)
-        skill_desc=$(echo "$skill_content" | sed -n '/^---$/,/^---$/p' | grep '^description:' | sed 's/description: *//;s/"//g' | head -1)
+    if printf '%s\n' "$skill_content" | head -1 | grep -q '^---$'; then
+        skill_name=$(printf '%s\n' "$skill_content" | sed -n '/^---$/,/^---$/p' | grep '^name:' | sed 's/name: *//;s/"//g' | head -1)
+        skill_desc=$(printf '%s\n' "$skill_content" | sed -n '/^---$/,/^---$/p' | grep '^description:' | sed 's/description: *//;s/"//g' | head -1)
     fi
 
     # Fallback: extract from first heading
     if [ -z "$skill_name" ]; then
-        skill_name=$(echo "$skill_content" | grep '^# ' | head -1 | sed 's/^# //' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+        skill_name=$(printf '%s\n' "$skill_content" | grep '^# ' | head -1 | sed 's/^# //' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
     fi
     [ -z "$skill_name" ] && skill_name="imported-agent"
     [ -z "$skill_desc" ] && skill_desc="Imported agent skill"
@@ -1274,7 +1274,7 @@ cmd_import() {
         # Save skill content to a temp file for the plugin
         local plugin_skill_file
         plugin_skill_file=$(mktemp)
-        echo "$skill_content" > "$plugin_skill_file"
+        printf '%s\n' "$skill_content" > "$plugin_skill_file"
         run_import_plugin "$target" "$plugin_skill_file" "$project_name" "$skill_name" "$skill_desc" "$headless"
         rm -f "$plugin_skill_file"
         return $?
@@ -1295,7 +1295,7 @@ cmd_import() {
 
     # Use the existing new command infrastructure but with the imported skill file
     mkdir -p "$project_dir/src/main/resources/prompts"
-    echo "$skill_content" > "$project_dir/src/main/resources/prompts/skill.md"
+    printf '%s\n' "$skill_content" > "$project_dir/src/main/resources/prompts/skill.md"
 
     # Generate class name: "frontend-design" → "FrontendDesign"
     # [P1] Prepend 'X' if name starts with a digit (invalid Java identifier)
@@ -1313,7 +1313,7 @@ cmd_import() {
     local tool_stubs=""
     local tool_imports=""
     local tools_section
-    tools_section=$(echo "$skill_content" | sed -n '/^## Tools/,/^## /p' | grep '^\- ' | sed 's/^- //')
+    tools_section=$(printf '%s\n' "$skill_content" | sed -n '/^## Tools/,/^## /p' | grep '^\- ' | sed 's/^- //')
 
     if [ -n "$tools_section" ]; then
         tool_imports="
@@ -1321,7 +1321,12 @@ import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;"
 
         ensure_cache_dir
-        local stubs_file="$CACHE_DIR/import-stubs-$$"
+        local stubs_file
+        if [ -w "$CACHE_DIR" ]; then
+            stubs_file="$CACHE_DIR/import-stubs-$$"
+        else
+            stubs_file="${TMPDIR:-/tmp}/atmosphere-import-stubs-$$"
+        fi
         : > "$stubs_file"
         local tool_count=0
 
