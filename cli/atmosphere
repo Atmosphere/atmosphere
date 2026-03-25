@@ -1330,7 +1330,7 @@ import org.atmosphere.ai.annotation.Param;"
         : > "$stubs_file"
         local tool_count=0
 
-        echo "$tools_section" | while IFS= read -r tool_line; do
+        printf '%s\n' "$tools_section" | while IFS= read -r tool_line; do
             # Parse "tool_name: description" or "tool_name — description" or just "tool name"
             tool_name=""
             tool_desc=""
