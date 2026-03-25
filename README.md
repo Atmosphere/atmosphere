@@ -30,7 +30,7 @@ atmosphere run spring-boot-multi-agent-startup-team   # demo mode — no API key
 Open `http://localhost:8080` — ask any business question and watch 5 AI agents collaborate in real-time. To run with a real LLM:
 
 ```bash
-GEMINI_API_KEY=your-key atmosphere run spring-boot-multi-agent-startup-team
+LLM_API_KEY=your-key atmosphere run spring-boot-multi-agent-startup-team
 ```
 
 ## Multi-Agent Startup Team
@@ -164,17 +164,6 @@ function Chat() {
 ```
 
 Vue, Svelte, and React Native bindings also available. See the [atmosphere.js README](atmosphere.js/README.md).
-
-## Since 2008
-
-- **2008** — Async I/O and Comet (long-polling) on Servlet containers
-- **2010** — WebSocket support. Open-sourced on GitHub
-- **2012** — Version 1.0. Annotation-driven API (`@ManagedService`, `@Message`)
-- **2013** — Version 2.0. Universal transport abstraction
-- **2022** — Version 3.0. Jakarta EE migration
-- **2026** — Version 4.0. `@Agent`, AI streaming, MCP/A2A/AG-UI, multi-channel, multi-agent teams
-
-**246 releases** on Maven Central · Atmosphere 3.x maintained on [`atmosphere-3.0.x`](https://github.com/Atmosphere/atmosphere/tree/atmosphere-3.0.x).
 
 ## Samples
 
