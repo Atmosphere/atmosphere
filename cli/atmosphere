@@ -1287,14 +1287,15 @@ cmd_import() {
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;"
 
-        # Write tools to temp file to avoid subshell variable scope issues
-        local tools_tmp="$CACHE_DIR/import-tools-$$"
-        echo "$tools_section" > "$tools_tmp"
+        ensure_cache_dir
+        local stubs_file="$CACHE_DIR/import-stubs-$$"
+        : > "$stubs_file"
+        local tool_count=0
 
-        while IFS= read -r tool_line; do
+        echo "$tools_section" | while IFS= read -r tool_line; do
             # Parse "tool_name: description" or "tool_name — description" or just "tool name"
-            local tool_name
-            local tool_desc
+            tool_name=""
+            tool_desc=""
             if echo "$tool_line" | grep -q ':'; then
                 tool_name=$(echo "$tool_line" | cut -d: -f1 | tr -d ' ' | tr '[:upper:]' '[:lower:]')
                 tool_desc=$(echo "$tool_line" | cut -d: -f2- | sed 's/^ *//')
@@ -1306,27 +1307,33 @@ import org.atmosphere.ai.annotation.Param;"
                 tool_desc="$tool_line"
             fi
 
-            # [P0] Sanitize tool_name: only [a-z0-9_], strip markdown emphasis
+            # Sanitize tool_name: only [a-z0-9_], strip markdown emphasis
             tool_name=$(echo "$tool_name" | sed 's/[*`]//g' | sed 's/[^a-z0-9_]/_/g' | sed 's/__*/_/g' | sed 's/^_//;s/_$//')
             [ -z "$tool_name" ] && continue
 
-            # [P0] Sanitize tool_desc: escape backslashes and quotes for Java string
+            # Sanitize tool_desc: escape backslashes and quotes for Java string
             tool_desc=$(printf '%s' "$tool_desc" | sed 's/[*`]//g' | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | cut -c1-150)
 
             # Convert to Java method name: "get_weather" → "getWeather"
-            local method_name=$(echo "$tool_name" | awk -F_ '{for(i=1;i<=NF;i++){if(i==1)printf "%s",$i;else printf "%s",toupper(substr($i,1,1))substr($i,2)}print ""}')
+            method_name=$(echo "$tool_name" | awk -F_ '{for(i=1;i<=NF;i++){if(i==1)printf "%s",$i;else printf "%s",toupper(substr($i,1,1))substr($i,2)}print ""}')
 
-            tool_stubs="${tool_stubs}
+            cat >> "$stubs_file" <<STUBEOF
 
-    @AiTool(name = \"${tool_name}\", description = \"${tool_desc}\")
-    public String ${method_name}(@Param(\"input\") String input) {
+    @AiTool(name = "${tool_name}", description = "${tool_desc}")
+    public String ${method_name}(@Param("input") String input) {
         // TODO: implement
-        return \"${tool_name} result for: \" + input;
-    }"
-        done < "$tools_tmp"
-        rm -f "$tools_tmp"
+        return "${tool_name} result for: " + input;
+    }
+STUBEOF
+        done
 
-        info "Generated $(echo "$tools_section" | wc -l | tr -d ' ') @AiTool stubs from ## Tools section"
+        if [ -s "$stubs_file" ]; then
+            tool_stubs=$(cat "$stubs_file")
+            tool_count=$(grep -c '@AiTool' "$stubs_file")
+        fi
+        rm -f "$stubs_file"
+
+        info "Generated $tool_count @AiTool stubs from ## Tools section"
     fi
 
     if [ "$headless" = true ]; then
