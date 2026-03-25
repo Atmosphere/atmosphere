@@ -26,8 +26,11 @@ Atmosphere is a transport-agnostic runtime for Java. Your application code decla
 ```bash
 brew install Atmosphere/tap/atmosphere    # or: curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
 
-# Run a built-in sample
-atmosphere run spring-boot-ai-chat
+# Run a built-in agent sample
+atmosphere run spring-boot-dentist-agent
+
+# Or scaffold your own project from a sample
+atmosphere new my-agent --template ai-chat
 
 # Import a skill from GitHub and run it
 atmosphere import https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
