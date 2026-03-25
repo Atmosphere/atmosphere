@@ -125,6 +125,15 @@ To import from an untrusted source, use `--trust`:
 atmosphere import --trust https://example.com/custom/SKILL.md
 ```
 
+### Import Plugins
+
+The `import` command supports plugins for custom project scaffolding targets. Plugins are shell scripts at `~/.atmosphere/plugins/import-<target>.sh`:
+
+```bash
+atmosphere import --target kotlin https://example.com/SKILL.md   # uses import-kotlin.sh
+atmosphere plugins                                                # list installed plugins
+```
+
 ## Available Templates
 
 | Template | Description |
