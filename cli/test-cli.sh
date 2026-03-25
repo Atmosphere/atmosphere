@@ -633,9 +633,10 @@ else
     fail "import: pom.xml not generated"
 fi
 
-if [ -f "$IMPORT_TMP/test-weather-bot/src/main/resources/prompts/skill.md" ]; then
-    pass "import: skill file copied to resources"
-    assert_contains "$(cat "$IMPORT_TMP/test-weather-bot/src/main/resources/prompts/skill.md")" "Weather Bot" "import: skill file content preserved"
+skill_file="$IMPORT_TMP/test-weather-bot/src/main/resources/META-INF/skills/weather-bot/SKILL.md"
+if [ -f "$skill_file" ]; then
+    pass "import: skill file at META-INF/skills convention path"
+    assert_contains "$(cat "$skill_file")" "Weather Bot" "import: skill file content preserved"
 else
     fail "import: skill file not copied"
 fi
@@ -646,6 +647,7 @@ if [ -n "$agent_file" ]; then
     pass "import: agent Java file generated"
     agent_content=$(cat "$agent_file")
     assert_contains "$agent_content" '@Agent(name = "weather-bot"' "import: @Agent annotation with correct name"
+    assert_not_contains "$agent_content" 'skillFile' "import: no explicit skillFile (auto-discovery)"
     assert_contains "$agent_content" '@Prompt' "import: @Prompt method generated"
     assert_contains "$agent_content" '@AiTool(name = "get_weather"' "import: @AiTool stub for get_weather"
     assert_contains "$agent_content" '@AiTool(name = "get_forecast"' "import: @AiTool stub for get_forecast"

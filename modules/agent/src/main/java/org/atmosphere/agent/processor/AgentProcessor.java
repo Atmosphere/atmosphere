@@ -291,11 +291,31 @@ public class AgentProcessor implements Processor<Object> {
 
     private SkillFileParser parseSkillFile(Agent annotation) {
         var skillPath = annotation.skillFile();
-        if (skillPath == null || skillPath.isEmpty()) {
-            return SkillFileParser.parse("");
+        if (skillPath != null && !skillPath.isEmpty()) {
+            var content = PromptLoader.load(skillPath);
+            return SkillFileParser.parse(content);
         }
-        var content = PromptLoader.load(skillPath);
-        return SkillFileParser.parse(content);
+        // Auto-discover skill file from classpath conventions
+        var agentName = annotation.name();
+        var candidates = new String[]{
+                "META-INF/skills/" + agentName + "/SKILL.md",
+                "prompts/" + agentName + ".md",
+                "prompts/" + agentName + "-skill.md",
+                "prompts/skill.md",
+        };
+        for (var candidate : candidates) {
+            var classLoader = Thread.currentThread().getContextClassLoader();
+            if (classLoader == null) {
+                classLoader = getClass().getClassLoader();
+            }
+            if (classLoader.getResource(candidate) != null) {
+                logger.info("Auto-discovered skill file at {} for agent '{}'", candidate, agentName);
+                var content = PromptLoader.load(candidate);
+                return SkillFileParser.parse(content);
+            }
+        }
+        logger.debug("No skill file found for agent '{}' — using empty system prompt", agentName);
+        return SkillFileParser.parse("");
     }
 
     private AiConfig.LlmSettings resolveSettings() {
