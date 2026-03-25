@@ -134,13 +134,16 @@ public class AgentWebSocketIntegrationTest {
         assertTrue(confirmLatch.await(5, TimeUnit.SECONDS),
                 "Should receive confirmation prompt but got: " + received);
 
-        // Confirm
+        // Confirm — response goes only to the requesting client (unicast)
         var executeLatch = new MessageLatch(m -> m.contains("Danger executed!"));
+        received.clear();
         var ws2 = connect("/atmosphere/agent/test-agent", received, new CountDownLatch(1), executeLatch);
-        Thread.sleep(500);
-
+        // Re-register latch on same ws connection since responses are unicast
         ws.sendText("yes", true).join();
-        assertTrue(executeLatch.await(5, TimeUnit.SECONDS),
+
+        // The confirmation response goes to ws (sender), so wait a moment and check received
+        Thread.sleep(2000);
+        assertTrue(received.stream().anyMatch(m -> m.contains("Danger executed!")),
                 "Should receive execution result but got: " + received);
 
         ws.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
