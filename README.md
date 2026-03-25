@@ -239,13 +239,18 @@ function Chat() {
 | AI Streaming | [ai-chat](samples/spring-boot-ai-chat/) | Swap backend via one dependency |
 | AI Streaming | [ai-tools](samples/spring-boot-ai-tools/) | Framework-agnostic tool calling |
 | AI Streaming | [rag-chat](samples/spring-boot-rag-chat/) | RAG with document retrieval |
+| AI Streaming | [ai-classroom](samples/spring-boot-ai-classroom/) | Multi-room, multi-persona streaming |
+| AI Streaming | [ai-routing](samples/spring-boot-spring-ai-routing/) | Content-based model routing with Spring AI |
 | Protocol | [mcp-server](samples/spring-boot-mcp-server/) | MCP tools, resources, and prompts |
 | Protocol | [a2a-agent](samples/spring-boot-a2a-agent/) | Headless A2A agent |
 | Protocol | [agui-chat](samples/spring-boot-agui-chat/) | AG-UI streaming via SSE |
 | Infrastructure | [channels](samples/spring-boot-channels-chat/) | Slack, Telegram, Discord, WhatsApp, Messenger |
 | Infrastructure | [durable-sessions](samples/spring-boot-durable-sessions/) | Survive server restarts with SQLite |
-| Chat | [spring-boot-chat](samples/spring-boot-chat/) | WebSocket chat |
+| Infrastructure | [otel-chat](samples/spring-boot-otel-chat/) | OpenTelemetry tracing |
+| Chat | [spring-boot-chat](samples/spring-boot-chat/) | WebSocket chat with Spring Boot |
 | Chat | [quarkus-chat](samples/quarkus-chat/) | WebSocket chat with Quarkus |
+| Chat | [grpc-chat](samples/grpc-chat/) | Chat over gRPC transport |
+| Chat | [embedded-jetty](samples/embedded-jetty-websocket-chat/) | Embedded Jetty, no framework |
 
 [All 18 samples](samples/) · `atmosphere install` for interactive picker · [CLI reference](cli/README.md)
 
