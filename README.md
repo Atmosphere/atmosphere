@@ -34,17 +34,18 @@ LLM_API_KEY=your-key atmosphere run spring-boot-multi-agent-startup-team
 
 ## Multi-Agent Startup Team
 
-Five independent `@Agent` classes collaborate via the A2A protocol to deliver instant startup advisory briefings.
+Five independent `@Agent` classes collaborate via A2A to deliver startup advisory briefings. A CEO agent discovers four headless specialists (Research, Strategy, Finance, Writer) via Agent Cards, delegates over JSON-RPC, and synthesizes a GO/NO-GO recommendation — streamed live over WebSocket.
 
-Four specialist agents — **Research** (web scraping), **Strategy** (market analysis), **Finance** (TAM/SAM/SOM projections), **Writer** (executive briefing) — each run headless with `@AgentSkill` methods. A **CEO agent** discovers them via Agent Cards, delegates via A2A over JSON-RPC, and synthesizes findings into a GO/NO-GO recommendation streamed live over WebSocket.
+<details>
+<summary><b>Show the code</b></summary>
 
 ```java
 // Full-stack agent: WebSocket UI + all protocols
 @Agent(name = "startup-ceo", skillFile = "prompts/ceo-skill.md",
-       description = "CEO agent — orchestrates research, strategy, finance, and writing")
+       description = "CEO agent — orchestrates the team")
 public class CeoAgent {
 
-    @AiTool(name = "delegate_research", description = "Delegate research to the research agent")
+    @AiTool(name = "delegate_research", description = "Delegate to research agent")
     public String delegateResearch(@Param("query") String query) {
         return a2aClient.sendTask("research", "web_search", Map.of("query", query));
     }
@@ -69,6 +70,8 @@ public class ResearchAgent {
 }
 ```
 
+</details>
+
 See the [full source](samples/spring-boot-multi-agent-startup-team/).
 
 ## Transports & Protocols
@@ -77,9 +80,9 @@ Your code doesn't change. Atmosphere delivers to every subscriber — regardless
 
 | Layer | What | How |
 |-------|------|-----|
-| **Transports** | WebSocket, SSE, Long-Polling, gRPC | Auto-negotiated with fallback. Reconnection, heartbeats, message caching built-in. |
-| **Agent Protocols** | MCP, A2A, AG-UI | Auto-registered based on classpath. Your `@Agent` is discoverable by Claude Desktop, other agents, and frontend frameworks. |
-| **Channels** | Slack, Telegram, Discord, WhatsApp, Messenger | Set a bot token — `@Command` and AI responses route to every platform automatically. |
+| **Transports** | WebSocket, SSE, Long-Polling, gRPC | Auto-negotiated with fallback. Reconnection, heartbeats, message caching. |
+| **Agent Protocols** | MCP, A2A, AG-UI | Auto-registered based on classpath. Your `@Agent` is discoverable by any MCP client, any A2A agent, and any AG-UI frontend. |
+| **Channels** | Slack, Telegram, Discord, WhatsApp, Messenger | Set a bot token — interact with your agent from any messaging platform. |
 
 | Protocol | Direction | What It Does | Sample |
 |----------|-----------|--------------|--------|
@@ -88,6 +91,7 @@ Your code doesn't change. Atmosphere delivers to every subscriber — regardless
 | **AG-UI** | Agent &#8596; Frontend | Stream agent state (steps, tool calls, text deltas) via SSE | [agui-chat](samples/spring-boot-agui-chat/) |
 | **WebSocket** | Agent &#8596; Browser | Full-duplex streaming with auto-reconnection | [ai-chat](samples/spring-boot-ai-chat/) |
 | **SSE** | Agent &#8594; Browser | Server-sent events fallback | Built-in |
+| **Long-Polling** | Agent &#8596; Browser | Universal fallback for restrictive networks | Built-in |
 | **gRPC** | Agent &#8596; Service | Binary streaming for service-to-service | [grpc-chat](samples/grpc-chat/) |
 
 Protocol exposure is automatic — add the module to your classpath, and the endpoint appears. See [docs/protocols.md](docs/protocols.md) and [docs/channels.md](docs/channels.md).
@@ -134,6 +138,46 @@ Atmosphere is not an LLM library — it's the infrastructure layer underneath. Y
 
 Swap the backend by changing one Maven dependency. Your `@Agent`, `@AiTool`, and `@Command` code stays the same.
 
+## Add MCP to Existing Apps
+
+Already have an Atmosphere `@ManagedService` chat? Add `atmosphere-mcp` and a headless `@Agent` to expose tools to any MCP client — your existing WebSocket chat keeps working:
+
+```java
+// Your existing chat — unchanged
+@ManagedService(path = "/chat")
+public class Chat {
+
+    @Ready
+    public void onReady(AtmosphereResource r) {
+        log.info("{} connected via {}", r.uuid(), r.transport());
+    }
+
+    @Message(encoders = JacksonEncoder.class, decoders = JacksonDecoder.class)
+    public ChatMessage onMessage(ChatMessage message) {
+        return message;
+    }
+}
+
+// New: expose tools to MCP clients alongside the chat
+@Agent(name = "chat-tools", endpoint = "/atmosphere/mcp", headless = true)
+public class ChatMcpTools {
+
+    @McpTool(name = "list_users", description = "List connected chat users")
+    public List<String> listUsers() {
+        return broadcasterFactory.lookup("/chat").getAtmosphereResources()
+                .stream().map(AtmosphereResource::uuid).toList();
+    }
+
+    @McpTool(name = "broadcast", description = "Send a message to all chat users")
+    public String broadcast(@McpParam(name = "message") String message) {
+        broadcasterFactory.lookup("/chat").broadcast(message);
+        return "sent";
+    }
+}
+```
+
+Same app, two entry points: browsers connect via WebSocket to `/chat`, MCP clients connect to `/atmosphere/mcp`.
+
 ## Client — atmosphere.js
 
 ```bash
@@ -166,19 +210,27 @@ Vue, Svelte, and React Native bindings also available. See the [atmosphere.js RE
 
 ## Samples
 
-**Multi-Agent** — [startup team](samples/spring-boot-multi-agent-startup-team/) (5 agents via A2A)
+| Category | Sample | Description |
+|----------|--------|-------------|
+| Multi-Agent | [startup team](samples/spring-boot-multi-agent-startup-team/) | 5 agents collaborate via A2A with real-time WebSocket visualization |
+| Agent | [dentist agent](samples/spring-boot-dentist-agent/) | Commands, tools, skill file, Slack and Telegram |
+| AI Streaming | [ai-chat](samples/spring-boot-ai-chat/) | Swap backend via one dependency (Gemini, OpenAI, Spring AI, LangChain4j, ADK, Embabel) |
+| AI Streaming | [ai-tools](samples/spring-boot-ai-tools/) | Framework-agnostic tool calling with real-time events |
+| AI Streaming | [rag-chat](samples/spring-boot-rag-chat/) | RAG with document retrieval and embeddings |
+| AI Streaming | [ai-routing](samples/spring-boot-spring-ai-routing/) | Content-based model routing |
+| AI Streaming | [ai-classroom](samples/spring-boot-ai-classroom/) | Multi-room, multi-persona streaming |
+| Protocol | [mcp-server](samples/spring-boot-mcp-server/) | MCP tools, resources, and prompts |
+| Protocol | [a2a-agent](samples/spring-boot-a2a-agent/) | Headless A2A agent with Agent Card discovery |
+| Protocol | [agui-chat](samples/spring-boot-agui-chat/) | AG-UI streaming to frontends via SSE |
+| Infrastructure | [channels](samples/spring-boot-channels-chat/) | Slack, Telegram, Discord, WhatsApp, Messenger |
+| Infrastructure | [durable-sessions](samples/spring-boot-durable-sessions/) | Survive server restarts with SQLite |
+| Infrastructure | [otel-chat](samples/spring-boot-otel-chat/) | OpenTelemetry tracing |
+| Chat | [spring-boot-chat](samples/spring-boot-chat/) | WebSocket chat with Spring Boot |
+| Chat | [quarkus-chat](samples/quarkus-chat/) | WebSocket chat with Quarkus |
+| Chat | [grpc-chat](samples/grpc-chat/) | Chat over gRPC transport |
+| Chat | [embedded-jetty](samples/embedded-jetty-websocket-chat/) | Embedded Jetty, no framework |
 
-**AI Streaming** — [ai-chat](samples/spring-boot-ai-chat/) (swap backend via one dependency), [tool calling](samples/spring-boot-ai-tools/), [RAG](samples/spring-boot-rag-chat/), [model routing](samples/spring-boot-spring-ai-routing/), [AI classroom](samples/spring-boot-ai-classroom/)
-
-**Agents** — [dentist agent](samples/spring-boot-dentist-agent/) (commands, tools, Slack, Telegram)
-
-**Protocols** — [MCP server](samples/spring-boot-mcp-server/), [A2A agent](samples/spring-boot-a2a-agent/), [AG-UI chat](samples/spring-boot-agui-chat/)
-
-**Infrastructure** — [channels](samples/spring-boot-channels-chat/), [durable sessions](samples/spring-boot-durable-sessions/), [OpenTelemetry](samples/spring-boot-otel-chat/)
-
-**Chat** — [spring-boot](samples/spring-boot-chat/), [quarkus](samples/quarkus-chat/), [gRPC](samples/grpc-chat/), [embedded-jetty](samples/embedded-jetty-websocket-chat/)
-
-[Browse all 18 samples &rarr;](samples/) · [CLI reference](cli/README.md) · `atmosphere install` for interactive picker
+`atmosphere install` for interactive picker · [CLI reference](cli/README.md)
 
 ## Requirements
 
