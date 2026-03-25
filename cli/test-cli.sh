@@ -573,6 +573,161 @@ fi
 
 printf "\n"
 
+# ── Import command tests ───────────────────────────────────────────────────
+printf "${BOLD}Import Command${RESET}\n"
+
+IMPORT_TMP=$(mktemp -d)
+trap "rm -rf $IMPORT_TMP" EXIT
+
+# Create a test skill file with YAML frontmatter and ## Tools
+cat > "$IMPORT_TMP/test-skill.md" <<'SKILLEOF'
+---
+name: weather-bot
+description: "A weather assistant with location lookup"
+---
+
+# Weather Bot
+You are a helpful weather assistant.
+
+## Skills
+- Provide weather forecasts
+- Answer climate questions
+
+## Tools
+- get_weather: Get current weather for a city
+- get_forecast: Get 5-day forecast for a location
+
+## Guardrails
+- Never make up weather data
+SKILLEOF
+
+# Run imports from the temp directory so projects are created there
+cd "$IMPORT_TMP"
+
+# Test 1: Import from local file
+output=$("$CLI" import --name test-weather-bot "$IMPORT_TMP/test-skill.md" 2>&1) || true
+assert_contains "$output" "Parsed skill: weather-bot" "import: parses skill name from YAML frontmatter"
+assert_contains "$output" "weather assistant" "import: parses description from YAML frontmatter"
+assert_contains "$output" "2 @AiTool stubs" "import: generates @AiTool stubs from ## Tools"
+assert_contains "$output" "Project scaffolded" "import: scaffolds project successfully"
+
+# Test 2: Verify generated project structure
+if [ -d "$IMPORT_TMP/test-weather-bot" ]; then
+    pass "import: project directory created"
+else
+    fail "import: project directory not created"
+fi
+
+if [ -f "$IMPORT_TMP/test-weather-bot/pom.xml" ]; then
+    pass "import: pom.xml generated"
+    assert_contains "$(cat "$IMPORT_TMP/test-weather-bot/pom.xml")" "atmosphere-spring-boot-starter" "import: pom.xml includes atmosphere starter"
+    assert_contains "$(cat "$IMPORT_TMP/test-weather-bot/pom.xml")" "atmosphere-agent" "import: pom.xml includes atmosphere-agent"
+else
+    fail "import: pom.xml not generated"
+fi
+
+if [ -f "$IMPORT_TMP/test-weather-bot/src/main/resources/prompts/skill.md" ]; then
+    pass "import: skill file copied to resources"
+    assert_contains "$(cat "$IMPORT_TMP/test-weather-bot/src/main/resources/prompts/skill.md")" "Weather Bot" "import: skill file content preserved"
+else
+    fail "import: skill file not copied"
+fi
+
+# Test 3: Verify generated Java agent class
+agent_file=$(find "$IMPORT_TMP/test-weather-bot/src/main/java" -name "*Agent.java" | head -1)
+if [ -n "$agent_file" ]; then
+    pass "import: agent Java file generated"
+    agent_content=$(cat "$agent_file")
+    assert_contains "$agent_content" '@Agent(name = "weather-bot"' "import: @Agent annotation with correct name"
+    assert_contains "$agent_content" '@Prompt' "import: @Prompt method generated"
+    assert_contains "$agent_content" '@AiTool(name = "get_weather"' "import: @AiTool stub for get_weather"
+    assert_contains "$agent_content" '@AiTool(name = "get_forecast"' "import: @AiTool stub for get_forecast"
+    assert_contains "$agent_content" "getWeather" "import: camelCase method name for get_weather"
+    assert_contains "$agent_content" "getForecast" "import: camelCase method name for get_forecast"
+    assert_contains "$agent_content" "StreamingSession" "import: StreamingSession import present"
+else
+    fail "import: agent Java file not generated"
+fi
+
+# Test 4: Verify Application.java generated
+app_file=$(find "$IMPORT_TMP/test-weather-bot/src/main/java" -name "Application.java" | head -1)
+if [ -n "$app_file" ]; then
+    pass "import: Application.java generated"
+    assert_contains "$(cat "$app_file")" "@SpringBootApplication" "import: @SpringBootApplication annotation present"
+else
+    fail "import: Application.java not generated"
+fi
+
+# Test 5: Verify application.yml generated
+if [ -f "$IMPORT_TMP/test-weather-bot/src/main/resources/application.yml" ]; then
+    pass "import: application.yml generated"
+    assert_contains "$(cat "$IMPORT_TMP/test-weather-bot/src/main/resources/application.yml")" "LLM_API_KEY" "import: application.yml references LLM_API_KEY"
+else
+    fail "import: application.yml not generated"
+fi
+
+# Test 6: Import with --headless flag
+output=$("$CLI" import --headless --name test-headless "$IMPORT_TMP/test-skill.md" 2>&1) || true
+assert_contains "$output" "headless @Agent" "import --headless: reports headless mode"
+
+headless_file=$(find "$IMPORT_TMP/test-headless/src/main/java" -name "*Agent.java" | head -1)
+if [ -n "$headless_file" ]; then
+    headless_content=$(cat "$headless_file")
+    assert_contains "$headless_content" "headless = true" "import --headless: @Agent has headless = true"
+    assert_contains "$headless_content" "@AgentSkill" "import --headless: @AgentSkill annotation present"
+    assert_contains "$headless_content" "@AgentSkillHandler" "import --headless: @AgentSkillHandler annotation present"
+    assert_contains "$headless_content" "TaskContext" "import --headless: TaskContext parameter present"
+    assert_not_contains "$headless_content" "@Prompt" "import --headless: no @Prompt method"
+else
+    fail "import --headless: agent file not generated"
+fi
+
+# Test 7: Import skill without YAML frontmatter (fallback to heading)
+cat > "$IMPORT_TMP/plain-skill.md" <<'PLAINEOF'
+# Customer Support Agent
+You help customers with their questions about our product.
+
+## Skills
+- Answer product questions
+- Handle complaints
+PLAINEOF
+
+output=$("$CLI" import --name test-plain "$IMPORT_TMP/plain-skill.md" 2>&1) || true
+assert_contains "$output" "Parsed skill: customer-support-agent" "import: extracts name from # heading when no frontmatter"
+
+# Test 8: Import with no arguments fails
+output=$("$CLI" import 2>&1) || true
+assert_contains "$output" "Usage" "import: shows usage when no arguments"
+
+# Test 9: Import to existing directory fails
+mkdir -p "$IMPORT_TMP/existing-dir"
+output=$("$CLI" import --name existing-dir "$IMPORT_TMP/test-skill.md" 2>&1) || true
+assert_contains "$output" "already exists" "import: fails when directory exists"
+
+# Test 10: Skills without ## Tools generates no @AiTool stubs
+cat > "$IMPORT_TMP/no-tools-skill.md" <<'NOTOOLSEOF'
+---
+name: simple-chat
+description: "A simple chat agent"
+---
+
+# Simple Chat
+You are a simple chat assistant.
+NOTOOLSEOF
+
+output=$("$CLI" import --name test-no-tools "$IMPORT_TMP/no-tools-skill.md" 2>&1) || true
+assert_not_contains "$output" "@AiTool" "import: no @AiTool stubs when no ## Tools section"
+
+no_tools_file=$(find "$IMPORT_TMP/test-no-tools/src/main/java" -name "*Agent.java" | head -1)
+if [ -n "$no_tools_file" ]; then
+    assert_not_contains "$(cat "$no_tools_file")" "@AiTool" "import: generated class has no @AiTool when no ## Tools"
+else
+    fail "import: agent file not generated for no-tools skill"
+fi
+
+rm -rf "$IMPORT_TMP"
+printf "\n"
+
 # ── Summary ─────────────────────────────────────────────────────────────────
 total=$((PASS + FAIL))
 printf "${BOLD}Results: %s passed, %s failed${RESET} (out of %s)\n\n" "$PASS" "$FAIL" "$total"
