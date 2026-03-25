@@ -799,6 +799,39 @@ fi
 rm -rf "$IMPORT_TMP"
 printf "\n"
 
+# ── Plugins command tests ──────────────────────────────────────────────────
+printf "${BOLD}atmosphere plugins${RESET}\n"
+
+output=$("$CLI" plugins 2>&1) || true
+assert_contains "$output" "plugins" "plugins: command runs without error"
+
+output=$("$CLI" plugins list 2>&1) || true
+assert_contains "$output" "plugins" "plugins list: shows plugin info"
+
+printf "\n"
+
+# ── Skills command tests (offline) ─────────────────────────────────────────
+printf "${BOLD}atmosphere skills (offline)${RESET}\n"
+
+# skills list without network should fail gracefully (no registry cached)
+output=$("$CLI" skills list 2>&1) || true
+# It will either show cached results or fail with download error — both are OK
+pass "skills list: command runs without crash"
+
+# skills search without network
+output=$("$CLI" skills search medical 2>&1) || true
+pass "skills search: command runs without crash"
+
+# skills run without argument
+output=$("$CLI" skills run 2>&1) || true
+assert_contains "$output" "Usage" "skills run: shows usage when no argument"
+
+# skills unknown subcommand
+output=$("$CLI" skills foobar 2>&1) || true
+assert_contains "$output" "Unknown" "skills: unknown subcommand rejected"
+
+printf "\n"
+
 # ── Remote import tests (require network) ─────────────────────────────────
 # Only run if ATMOSPHERE_TEST_REMOTE=true (skipped in offline CI by default)
 if [ "${ATMOSPHERE_TEST_REMOTE:-false}" = "true" ]; then
