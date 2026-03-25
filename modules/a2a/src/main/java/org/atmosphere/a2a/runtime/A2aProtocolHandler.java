@@ -180,7 +180,7 @@ public final class A2aProtocolHandler {
                     var a2aParam = methodParams[i].getAnnotation(AgentSkillParam.class);
                     if (a2aParam != null && arguments != null && arguments.has(a2aParam.name())) {
                         var argNode = arguments.get(a2aParam.name());
-                        args[i] = argNode.isTextual() ? argNode.asText() : argNode.toString();
+                        args[i] = coerceArgument(argNode, methodParams[i].getType());
                     } else if (paramIdx < skill.params().size()) {
                         var message = extractMessage(params);
                         if (!message.parts().isEmpty()
@@ -200,6 +200,38 @@ public final class A2aProtocolHandler {
         } catch (Exception e) {
             logger.warn("Skill {} execution failed", skill.id(), e);
             taskCtx.fail(e.getMessage());
+        }
+    }
+
+    /**
+     * Coerces a JSON argument to the declared parameter type.
+     * Supports String, primitives, boxed primitives, and Jackson-deserializable objects.
+     */
+    private Object coerceArgument(JsonNode node, Class<?> targetType) {
+        if (targetType == String.class) {
+            return node.isTextual() ? node.asText() : node.toString();
+        }
+        if (targetType == int.class || targetType == Integer.class) {
+            return node.asInt();
+        }
+        if (targetType == long.class || targetType == Long.class) {
+            return node.asLong();
+        }
+        if (targetType == double.class || targetType == Double.class) {
+            return node.asDouble();
+        }
+        if (targetType == boolean.class || targetType == Boolean.class) {
+            return node.asBoolean();
+        }
+        if (targetType == JsonNode.class) {
+            return node;
+        }
+        // For complex types, attempt Jackson deserialization
+        try {
+            return mapper.treeToValue(node, targetType);
+        } catch (Exception e) {
+            // Fall back to string representation
+            return node.isTextual() ? node.asText() : node.toString();
         }
     }
 

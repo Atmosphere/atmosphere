@@ -27,10 +27,10 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class A2aRegistry {
 
@@ -43,7 +43,7 @@ public final class A2aRegistry {
     public record ParamEntry(String name, String description, boolean required, Class<?> type) {
     }
 
-    private final Map<String, SkillEntry> skills = new ConcurrentHashMap<>();
+    private final Map<String, SkillEntry> skills = new LinkedHashMap<>();
 
     public void scan(Object instance) {
         for (var method : instance.getClass().getDeclaredMethods()) {

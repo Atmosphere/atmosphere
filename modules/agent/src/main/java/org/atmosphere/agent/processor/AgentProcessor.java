@@ -238,8 +238,13 @@ public class AgentProcessor implements Processor<Object> {
                 }
             }
 
-            // Register MCP if on classpath (independent of A2A)
-            registerMcp(framework, annotation, toolRegistry, basePath, protocols);
+            // Register MCP if on classpath (independent of A2A).
+            // If endpoint is explicitly set and ends with /mcp, register there directly.
+            // Otherwise, derive from basePath (/atmosphere/agent/{name}/mcp).
+            var mcpPath = annotation.endpoint().endsWith("/mcp")
+                    ? annotation.endpoint()
+                    : basePath + "/mcp";
+            registerMcpAt(framework, annotation, toolRegistry, instance, mcpPath, protocols);
 
             if (protocols.isEmpty()) {
                 logger.warn("Agent '{}' is headless but no protocol modules on classpath. "
@@ -459,12 +464,25 @@ public class AgentProcessor implements Processor<Object> {
     private void registerMcp(AtmosphereFramework framework, Agent annotation,
                               ToolRegistry toolRegistry, String basePath,
                               List<String> protocols) {
+        registerMcpAt(framework, annotation, toolRegistry, basePath + "/mcp", protocols);
+    }
+
+    private void registerMcpAt(AtmosphereFramework framework, Agent annotation,
+                                ToolRegistry toolRegistry, String mcpPath,
+                                List<String> protocols) {
+        registerMcpAt(framework, annotation, toolRegistry, null, mcpPath, protocols);
+    }
+
+    private void registerMcpAt(AtmosphereFramework framework, Agent annotation,
+                                ToolRegistry toolRegistry, Object instance,
+                                String mcpPath, List<String> protocols) {
         if (!ClasspathDetector.hasMcp()) {
             return;
         }
         try {
             var mcpRegistry = new org.atmosphere.mcp.registry.McpRegistry();
 
+            // Bridge @AiTool methods (from ToolRegistry)
             for (var tool : toolRegistry.allTools()) {
                 var params = tool.parameters().stream()
                         .map(p -> new org.atmosphere.mcp.registry.McpRegistry.ParamEntry(
@@ -475,15 +493,20 @@ public class AgentProcessor implements Processor<Object> {
                         args -> tool.executor().execute(args));
             }
 
+            // Also scan for @McpTool, @McpResource, @McpPrompt directly on the instance
+            if (instance != null) {
+                mcpRegistry.scan(instance);
+            }
+
             var protocolHandler = new org.atmosphere.mcp.runtime.McpProtocolHandler(
                     annotation.name(), AGENT_VERSION, mcpRegistry,
                     framework.getAtmosphereConfig());
 
             var handler = new org.atmosphere.mcp.runtime.McpHandler(protocolHandler);
-            framework.addAtmosphereHandler(basePath + "/mcp", handler, new java.util.ArrayList<>());
+            framework.addAtmosphereHandler(mcpPath, handler, new java.util.ArrayList<>());
             protocols.add("mcp");
-            logger.debug("MCP endpoint registered at {}/mcp with {} tools",
-                    basePath, mcpRegistry.tools().size());
+            logger.debug("MCP endpoint registered at {} with {} tools",
+                    mcpPath, mcpRegistry.tools().size());
         } catch (Exception e) {
             logger.warn("Failed to register MCP endpoint for agent: {}", e.getMessage());
         }

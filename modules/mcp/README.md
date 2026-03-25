@@ -1,6 +1,6 @@
 # Atmosphere MCP
 
-MCP (Model Context Protocol) server module for Atmosphere. Exposes annotation-driven tools, resources, and prompt templates to AI agents over Streamable HTTP, WebSocket, or SSE transport.
+MCP (Model Context Protocol) server module for Atmosphere. Exposes annotation-driven tools, resources, and prompt templates to AI agents over Streamable HTTP, WebSocket, or SSE transport. MCP is auto-registered when `atmosphere-mcp` is on the classpath — no `@McpServer` annotation needed on your `@Agent` class.
 
 ## Maven Coordinates
 
@@ -15,8 +15,9 @@ MCP (Model Context Protocol) server module for Atmosphere. Exposes annotation-dr
 ## Minimal Example
 
 ```java
-@McpServer(name = "my-server", path = "/atmosphere/mcp")
-public class MyMcpServer {
+@Agent(name = "my-tools", skillFile = "tools.md",
+       description = "Tools for AI agents")
+public class MyTools {
 
     @McpTool(name = "greet", description = "Say hello")
     public String greet(@McpParam(name = "name", required = true) String name) {
@@ -44,7 +45,6 @@ public class MyMcpServer {
 
 | Annotation | Target | Description |
 |-----------|--------|-------------|
-| `@McpServer` | Class | Marks the class as an MCP server and sets the endpoint path |
 | `@McpTool` | Method | Exposes a method as a callable tool (`tools/call`) |
 | `@McpResource` | Method | Exposes a method as a read-only resource (`resources/read`) |
 | `@McpPrompt` | Method | Exposes a method as a prompt template (`prompts/get`) |
@@ -93,8 +93,8 @@ For clients that only support stdio, build the bridge JAR with `mvn package -Pst
 ### Example: Push Messages to Browser Clients
 
 ```java
-@McpServer(name = "my-server", path = "/atmosphere/mcp")
-public class MyMcpServer {
+@Agent(name = "mcp-tools", description = "MCP tools with broadcaster injection")
+public class MyMcpTools {
 
     @McpTool(name = "broadcast", description = "Send a message to a chat topic")
     public String broadcast(

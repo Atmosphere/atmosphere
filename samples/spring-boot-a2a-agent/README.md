@@ -61,7 +61,7 @@ curl -X POST http://localhost:8084/atmosphere/a2a \
 
 | File | Purpose |
 |------|---------|
-| `WeatherTimeAgent.java` | `@Agent` with three `@A2aSkill` methods using `TaskContext` (headless mode) |
+| `WeatherTimeAgent.java` | `@Agent` with three `@AgentSkill` methods using `TaskContext` (headless mode) |
 | `LlmConfig.java` | Bridges Spring properties to `AiConfig` |
 | `A2aAgentApplication.java` | Spring Boot entry point |
 

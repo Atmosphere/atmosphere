@@ -24,7 +24,6 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
-import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,13 +90,13 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler {
                         logger.debug("Command executed for client {}: {}",
                                 clientId, exec.response().substring(
                                         0, Math.min(exec.response().length(), 80)));
-                        broadcastCommandResponse(resource, exec.response());
+                        sendCommandResponse(resource, exec.response());
                         return;
                     }
                     case CommandResult.ConfirmationRequired confirm -> {
                         logger.debug("Confirmation required for client {}: {}",
                                 clientId, confirm.prompt());
-                        broadcastCommandResponse(resource, confirm.prompt());
+                        sendCommandResponse(resource, confirm.prompt());
                         return;
                     }
                     case CommandResult.NotACommand ignored -> {
@@ -122,22 +121,21 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler {
     }
 
     /**
-     * Sends a command response via the broadcaster. Currently broadcasts to
-     * all connected clients on the same path. Per-client unicast requires a
-     * deeper change (per-resource broadcaster or session-scoped filtering).
+     * Sends a command response directly to the requesting client only (unicast).
+     * Uses {@code resource.write()} instead of broadcaster to avoid leaking
+     * command responses to other subscribers on the same path.
      */
-    private void broadcastCommandResponse(AtmosphereResource resource, String response) {
+    private void sendCommandResponse(AtmosphereResource resource, String response) {
         var sessionId = "cmd-" + resource.uuid();
-        var broadcaster = resource.getBroadcaster();
         try {
             var tokenJson = MAPPER.writeValueAsString(
                     Map.of("type", "streaming-text", "data", response,
                             "sessionId", sessionId, "seq", 0));
-            broadcaster.broadcast(new RawMessage(tokenJson));
+            resource.write(tokenJson);
 
             var completeJson = MAPPER.writeValueAsString(
                     Map.of("type", "complete", "sessionId", sessionId, "seq", 1));
-            broadcaster.broadcast(new RawMessage(completeJson));
+            resource.write(completeJson);
         } catch (JsonProcessingException e) {
             logger.error("Failed to serialize command response: {}", e.getMessage(), e);
         }

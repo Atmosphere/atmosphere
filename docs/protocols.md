@@ -33,22 +33,22 @@ See [modules/mcp/README.md](../modules/mcp/README.md) for the full API and [spri
 
 ## A2A (Agent-to-Agent)
 
-Publish an Agent Card for discovery and handle tasks from other agents via JSON-RPC 2.0. Use `@Agent` with `@A2aSkill` methods — headless mode is auto-detected when there is no `@Prompt` method.
+Publish an Agent Card for discovery and handle tasks from other agents via JSON-RPC 2.0. Use `@Agent` with `@AgentSkill` methods — headless mode is auto-detected when there is no `@Prompt` method.
 
 ```java
 @Agent(name = "weather-agent", endpoint = "/atmosphere/a2a",
        description = "Weather and time agent")
 public class WeatherAgent {
-    @A2aSkill(id = "get-weather", name = "Get Weather", description = "Weather for a city")
-    @A2aTaskHandler
-    public void weather(TaskContext task, @A2aParam(name = "city") String city) {
+    @AgentSkill(id = "get-weather", name = "Get Weather", description = "Weather for a city")
+    @AgentSkillHandler
+    public void weather(TaskContext task, @AgentSkillParam(name = "city") String city) {
         task.addArtifact(Artifact.text(weatherService.lookup(city)));
         task.complete("Done");
     }
 }
 ```
 
-**Annotations**: `@Agent`, `@A2aSkill`, `@A2aTaskHandler`, `@A2aParam`
+**Annotations**: `@Agent`, `@AgentSkill`, `@AgentSkillHandler`, `@AgentSkillParam` (in `org.atmosphere.a2a.annotation`)
 **Wire format**: JSON-RPC 2.0 over HTTP
 **Features**: Auto-published Agent Card at `/.well-known/agent.json`, skill metadata from `@Agent` skill file, headless auto-detection
 
@@ -92,13 +92,13 @@ public class DevOpsAgent {
 @Agent(name = "research", endpoint = "/atmosphere/a2a/research",
        description = "Web research agent")
 public class ResearchAgent {
-    @A2aSkill(id = "search", name = "Search", description = "Search the web")
-    @A2aTaskHandler
-    public void search(TaskContext task, @A2aParam(name="query") String query) {
+    @AgentSkill(id = "search", name = "Search", description = "Search the web")
+    @AgentSkillHandler
+    public void search(TaskContext task, @AgentSkillParam(name="query") String query) {
         task.addArtifact(Artifact.text("Results for: " + query));
         task.complete("Done");
     }
 }
 ```
 
-Headless mode is auto-detected when a class has `@A2aSkill` methods but no `@Prompt` method, or can be forced with `headless = true`. Skill file sections (`## Skills`, `## Tools`) are automatically exported to protocol metadata (A2A Agent Card, MCP tool list).
+Headless mode is auto-detected when a class has `@AgentSkill` methods but no `@Prompt` method, or can be forced with `headless = true`. Skill file sections (`## Skills`, `## Tools`) are automatically exported to protocol metadata (A2A Agent Card, MCP tool list).
