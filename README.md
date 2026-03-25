@@ -279,6 +279,12 @@ Java 21+ · Spring Boot 4.0+ · Quarkus 3.21+ · Virtual threads enabled by defa
 
 Commercial support and consulting available through [Async-IO.org](https://async-io.org).
 
+## Companion Projects
+
+| Project | Description |
+|---------|-------------|
+| [javaclaw-atmosphere](https://github.com/Atmosphere/javaclaw-atmosphere) | Atmosphere chat transport plugin for JavaClaw — drop-in replacement for Spring WebSocket with multi-client support, transport fallback, and auto-reconnection |
+
 ## License
 
 Apache 2.0 — @Copyright 2008-2026 [Async-IO.org](https://async-io.org)
