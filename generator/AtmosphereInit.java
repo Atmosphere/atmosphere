@@ -365,7 +365,7 @@ public class AtmosphereInit implements Runnable {
             } catch (IOException ignored) {
             }
         }
-        return "4.0.24";
+        return "4.0.25";
     }
 
     String readAtmosphereVersion() {
@@ -385,7 +385,7 @@ public class AtmosphereInit implements Runnable {
             } catch (IOException ignored) {
             }
         }
-        return "4.0.24";
+        return "4.0.25";
     }
 
     private Path resolveScriptDir() {
