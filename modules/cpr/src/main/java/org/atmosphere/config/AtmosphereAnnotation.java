@@ -36,4 +36,18 @@ public @interface AtmosphereAnnotation {
      * Return the handled annotation associated with the {@link org.atmosphere.annotation.Processor}
      */
     Class<? extends Annotation> value();
+
+    /**
+     * Processing priority. Processors with lower priority run first during
+     * annotation scanning. Processors with priority &gt; 0 are deferred until
+     * all default-priority (0) processors complete, then executed in order.
+     *
+     * <p>This ensures dependencies between processors are respected. For example,
+     * a coordinator processor (priority 100) runs after agent processors
+     * (priority 0) so that agent endpoints are registered before the
+     * coordinator resolves its fleet.</p>
+     *
+     * @return the priority, default 0 (immediate processing)
+     */
+    int priority() default 0;
 }

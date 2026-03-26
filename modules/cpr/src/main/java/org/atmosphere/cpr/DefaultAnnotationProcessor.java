@@ -57,6 +57,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
     private AnnotationProcessor delegate;
     private final AnnotationHandler handler;
     private final AtomicBoolean coreAnnotationsFound = new AtomicBoolean();
+    private AtmosphereFramework framework;
 
     private final AnnotationDetector.TypeReporter atmosphereReporter = new AnnotationDetector.TypeReporter() {
         @SuppressWarnings({"unchecked", "rawtypes"})
@@ -106,6 +107,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             scanForAnnotation(config.framework());
         }
 
+        this.framework = config.framework();
         delegate.configure(config.framework().getAtmosphereConfig());
     }
 
@@ -166,18 +168,21 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
     @Override
     public AnnotationProcessor scan(final File rootDir) throws IOException {
         delegate.scan(rootDir);
+        handler.processDeferred(framework);
         return this;
     }
 
     @Override
     public AnnotationProcessor scan(final String packageName) throws IOException {
         delegate.scan(packageName);
+        handler.processDeferred(framework);
         return this;
     }
 
     @Override
     public AnnotationProcessor scanAll() throws IOException {
         delegate.scanAll();
+        handler.processDeferred(framework);
         return this;
     }
 

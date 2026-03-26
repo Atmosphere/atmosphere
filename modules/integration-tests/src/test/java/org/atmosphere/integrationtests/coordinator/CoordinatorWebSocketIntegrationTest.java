@@ -45,7 +45,6 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @Tag("coordinator")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@org.junit.jupiter.api.Disabled("Annotation scan order in embedded Jetty is non-deterministic — coordinator may resolve before agents register. Fix planned with AgentRuntime SPI lazy init.")
 public class CoordinatorWebSocketIntegrationTest {
 
     private EmbeddedAtmosphereServer server;

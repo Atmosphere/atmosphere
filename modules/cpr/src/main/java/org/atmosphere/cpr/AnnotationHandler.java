@@ -23,13 +23,20 @@ import org.slf4j.LoggerFactory;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
  * A class that handles the results of an annotation scan. This class contains the logic that maps
  * an annotation type to the corresponding framework setup.
+ *
+ * <p>Processors with {@link AtmosphereAnnotation#priority()} &gt; 0 are deferred until
+ * {@link #processDeferred(AtmosphereFramework)} is called after all scanning completes.
+ * This ensures that higher-priority processors (e.g. coordinators) run after
+ * default-priority processors (e.g. agents) have registered their endpoints.</p>
  *
  * @author Stuart Douglas
  * @author Jeanfrancois Arcand
@@ -40,6 +47,7 @@ public class AnnotationHandler {
 
     private final Map<Class<? extends Annotation>, Class<? extends Processor<?>>> annotations = new HashMap<>();
     private final Map<Class<? extends Processor<?>>, Processor<?>> processors = new HashMap<>();
+    private final List<DeferredEntry> deferred = new ArrayList<>();
 
     public AnnotationHandler() {
     }
@@ -84,27 +92,68 @@ public class AnnotationHandler {
         Class<? extends Processor<?>> a = annotations.get(annotation);
 
         if (a != null) {
-            Processor p = processors.get(a);
-            if (p == null) {
-                try {
-                    p = framework.newClassInstance(Processor.class, (Class<Processor>) (Class<?>) a);
-                } catch (Exception e) {
-                    logger.warn("Unable to create Processor {}", p);
-                }
-                processors.put(a, p);
+            // Check if this processor should be deferred
+            var atmosphereAnnotation = a.getAnnotation(AtmosphereAnnotation.class);
+            if (atmosphereAnnotation != null && atmosphereAnnotation.priority() > 0) {
+                deferred.add(new DeferredEntry(a, annotation, discoveredClass, atmosphereAnnotation.priority()));
+                logger.trace("Annotation {} on {} deferred (priority {})",
+                        annotation, discoveredClass, atmosphereAnnotation.priority());
+                return this;
             }
-            p.handle(framework, discoveredClass);
-            logger.trace("Annotation {} handled by {}", annotation, p.getClass().getName());
+
+            processNow(framework, a, annotation, discoveredClass);
         } else {
             logger.trace("Annotation {} unhandled", annotation);
         }
         return this;
     }
 
+    /**
+     * Process all deferred annotations, sorted by priority (lower first).
+     * Call this after all scanning is complete to ensure default-priority
+     * processors have registered their endpoints.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void processDeferred(final AtmosphereFramework framework) {
+        if (deferred.isEmpty()) {
+            return;
+        }
+        deferred.sort(Comparator.comparingInt(DeferredEntry::priority));
+        logger.debug("Processing {} deferred annotation(s)", deferred.size());
+        for (var entry : deferred) {
+            processNow(framework, entry.processorClass, entry.annotation, entry.discoveredClass);
+        }
+        deferred.clear();
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void processNow(AtmosphereFramework framework,
+                            Class<? extends Processor<?>> a,
+                            Class<? extends Annotation> annotation,
+                            Class<?> discoveredClass) {
+        Processor p = processors.get(a);
+        if (p == null) {
+            try {
+                p = framework.newClassInstance(Processor.class, (Class<Processor>) (Class<?>) a);
+            } catch (Exception e) {
+                logger.warn("Unable to create Processor {}", a);
+            }
+            processors.put(a, p);
+        }
+        p.handle(framework, discoveredClass);
+        logger.trace("Annotation {} handled by {}", annotation, p.getClass().getName());
+    }
+
     public void destroy() {
         annotations.clear();
         processors.clear();
+        deferred.clear();
     }
+
+    private record DeferredEntry(
+            Class<? extends Processor<?>> processorClass,
+            Class<? extends Annotation> annotation,
+            Class<?> discoveredClass,
+            int priority
+    ) {}
 }
-
-

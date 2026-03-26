@@ -89,7 +89,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>Log fleet topology</li>
  * </ol>
  */
-@AtmosphereAnnotation(Coordinator.class)
+@AtmosphereAnnotation(value = Coordinator.class, priority = 100)
 public class CoordinatorProcessor implements Processor<Object> {
 
     private static final Logger logger = LoggerFactory.getLogger(CoordinatorProcessor.class);
