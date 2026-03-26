@@ -74,6 +74,23 @@
             <version>${google-adk.version}</version>
         </dependency>
 
+        <!-- LangChain4j runtime (uncomment to switch execution engine)
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-langchain4j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-core</artifactId>
+            <version>1.12.2</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-open-ai</artifactId>
+            <version>1.12.2</version>
+        </dependency>
+        -->
+
         <!-- MCP (required by atmosphere-agent for auto-bridging) -->
         <dependency>
             <groupId>org.atmosphere</groupId>
