@@ -368,10 +368,14 @@ public class CoordinatorProcessor implements Processor<Object> {
     }
 
     private AiConversationMemory resolveMemory(int maxHistory) {
-        var persistence = ServiceLoader.load(ConversationPersistence.class)
-                .findFirst().orElse(null);
-        if (persistence != null) {
-            return new PersistentConversationMemory(persistence, maxHistory);
+        try {
+            var persistence = ServiceLoader.load(ConversationPersistence.class)
+                    .findFirst().orElse(null);
+            if (persistence != null) {
+                return new PersistentConversationMemory(persistence, maxHistory);
+            }
+        } catch (Exception | ServiceConfigurationError e) {
+            logger.debug("No ConversationPersistence provider: {}", e.getMessage());
         }
         return new InMemoryConversationMemory(maxHistory);
     }
