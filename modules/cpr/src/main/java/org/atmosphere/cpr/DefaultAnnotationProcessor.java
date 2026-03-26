@@ -239,6 +239,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             if (handleAtmosphereAnnotation) {
                 scanForCustomAnnotation(atmosphereAnnotatedClasses);
             }
+            handler.processDeferred(framework);
             return this;
         }
 
@@ -293,6 +294,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 if (handleAtmosphereAnnotation) {
                     scanForCustomAnnotation(atmosphereAnnotatedClasses);
                 }
+                handler.processDeferred(framework);
             }
 
             return this;
