@@ -27,7 +27,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.ServiceConfigurationError;
 import java.util.Set;
 
 /**
@@ -141,13 +140,8 @@ public class AnnotationHandler {
             }
             processors.put(a, p);
         }
-        try {
-            p.handle(framework, discoveredClass);
-            logger.trace("Annotation {} handled by {}", annotation, p.getClass().getName());
-        } catch (Exception | ServiceConfigurationError e) {
-            logger.warn("Processor {} failed for {}: {}", a.getSimpleName(),
-                    discoveredClass.getSimpleName(), e.getMessage());
-        }
+        p.handle(framework, discoveredClass);
+        logger.trace("Annotation {} handled by {}", annotation, p.getClass().getName());
     }
 
     public void destroy() {

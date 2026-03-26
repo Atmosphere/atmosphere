@@ -355,16 +355,21 @@ public class CoordinatorProcessor implements Processor<Object> {
     }
 
     private AiSupport resolveAiSupport(AiConfig.LlmSettings settings) {
-        var all = DefaultAiSupportResolver.resolveAll();
-        if (all.isEmpty()) {
-            logger.warn("No AiSupport implementation found on classpath");
+        try {
+            var all = DefaultAiSupportResolver.resolveAll();
+            if (all.isEmpty()) {
+                logger.warn("No AiSupport implementation found on classpath");
+                return null;
+            }
+            var support = all.getFirst();
+            if (settings != null) {
+                support.configure(settings);
+            }
+            return support;
+        } catch (Exception | ServiceConfigurationError e) {
+            logger.warn("Failed to resolve AiSupport: {}", e.getMessage());
             return null;
         }
-        var support = all.getFirst();
-        if (settings != null) {
-            support.configure(settings);
-        }
-        return support;
     }
 
     private AiConversationMemory resolveMemory(int maxHistory) {
