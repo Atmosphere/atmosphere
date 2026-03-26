@@ -93,7 +93,7 @@ public class A2aAgentTransport implements AgentTransport {
                 if (result != null && result.has("status")) {
                     var state = result.get("status").has("state")
                             ? result.get("status").get("state").asText() : "";
-                    if ("failed".equals(state) || "canceled".equals(state)) {
+                    if ("failed".equalsIgnoreCase(state) || "canceled".equalsIgnoreCase(state)) {
                         var statusMsg = result.get("status").has("message")
                                 ? result.get("status").get("message").asText()
                                 : "Task " + state;

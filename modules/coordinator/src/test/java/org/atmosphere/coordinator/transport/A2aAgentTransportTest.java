@@ -97,6 +97,23 @@ public class A2aAgentTransportTest {
     }
 
     @Test
+    void sendReturnsFailureOnUppercaseFailedStatus() throws Exception {
+        var httpClient = mock(HttpClient.class);
+        var httpResponse = mock(HttpResponse.class);
+        when(httpResponse.statusCode()).thenReturn(200);
+        when(httpResponse.body()).thenReturn(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"status\":{\"state\":\"FAILED\",\"message\":\"boom\"}}}");
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
+
+        var transport = new A2aAgentTransport("agent", "http://localhost:9999/a2a", httpClient);
+        var result = transport.send("agent", "skill", Map.of());
+
+        assertFalse(result.success());
+        assertEquals("boom", result.text());
+    }
+
+    @Test
     void isAvailableReturnsFalseOnConnectionError() throws Exception {
         var httpClient = mock(HttpClient.class);
         when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
