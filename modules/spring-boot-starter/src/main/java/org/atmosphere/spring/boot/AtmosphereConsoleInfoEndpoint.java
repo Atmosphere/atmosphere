@@ -15,8 +15,10 @@
  */
 package org.atmosphere.spring.boot;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -46,9 +48,24 @@ public class AtmosphereConsoleInfoEndpoint {
 
     @GetMapping("/api/console/info")
     public Map<String, String> info() {
-        return Map.of(
-                "subtitle", properties.getConsoleSubtitle(),
-                "endpoint", detectEndpoint());
+        var result = new LinkedHashMap<String, String>();
+        var subtitle = properties.getConsoleSubtitle();
+        if (subtitle == null || subtitle.isBlank()) {
+            subtitle = "Runtime: " + detectRuntime();
+        }
+        result.put("subtitle", subtitle);
+        result.put("endpoint", detectEndpoint());
+        result.put("runtime", detectRuntime());
+        return result;
+    }
+
+    private String detectRuntime() {
+        try {
+            var runtime = AgentRuntimeResolver.resolve();
+            return runtime.name();
+        } catch (Exception e) {
+            return "unknown";
+        }
     }
 
     /**
