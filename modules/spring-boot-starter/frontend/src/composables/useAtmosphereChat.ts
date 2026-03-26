@@ -9,8 +9,16 @@ export interface ChatMessage {
   timestamp: number
 }
 
+export interface ToolCall {
+  name: string
+  args: Record<string, unknown>
+  result?: string
+  done: boolean
+}
+
 export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
   const messages = ref<ChatMessage[]>([])
+  const toolCalls = ref<ToolCall[]>([])
   const isConnected = ref(false)
   const isStreaming = ref(false)
   const connectionState = ref<string>('disconnected')
@@ -58,6 +66,25 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
       case 'progress':
         // Ignored for chat display
         break
+      case 'tool-start': {
+        const name = ((msg.data as Record<string, unknown>)?.toolName ?? '') as string
+        const args = ((msg.data as Record<string, unknown>)?.arguments ?? {}) as Record<string, unknown>
+        if (name && !toolCalls.value.find(t => t.name === name)) {
+          toolCalls.value = [...toolCalls.value, { name, args, done: false }]
+        }
+        break
+      }
+      case 'tool-result': {
+        const name = ((msg.data as Record<string, unknown>)?.toolName ?? '') as string
+        const result = ((msg.data as Record<string, unknown>)?.result ?? '') as string
+        const tc = toolCalls.value.find(t => t.name === name && !t.done)
+        if (tc) {
+          tc.result = typeof result === 'string' ? result : JSON.stringify(result)
+          tc.done = true
+          toolCalls.value = [...toolCalls.value]
+        }
+        break
+      }
       default:
         // Unknown type — try to use data as text
         if (typeof msg.data === 'string' && msg.data) {
@@ -143,6 +170,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
       timestamp: Date.now(),
     }
     messages.value = [...messages.value, userMessage]
+    toolCalls.value = []
     isStreaming.value = true
 
     subscription.push(text.trim())
@@ -150,6 +178,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
 
   function clearMessages() {
     messages.value = []
+    toolCalls.value = []
     currentAssistantMessage = null
   }
 
@@ -165,6 +194,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
 
   return {
     messages,
+    toolCalls,
     isConnected,
     isStreaming,
     connectionState,

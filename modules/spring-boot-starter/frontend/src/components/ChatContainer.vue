@@ -4,12 +4,13 @@ import { useAtmosphereChat } from '../composables/useAtmosphereChat'
 import ChatMessage from './ChatMessage.vue'
 import ChatInput from './ChatInput.vue'
 import ConnectionStatus from './ConnectionStatus.vue'
+import ToolCard from './ToolCard.vue'
 
 const props = defineProps<{
   endpoint?: string
 }>()
 
-const { messages, isConnected, isStreaming, connectionState, send, clearMessages } = useAtmosphereChat(props.endpoint)
+const { messages, toolCalls, isConnected, isStreaming, connectionState, send, clearMessages } = useAtmosphereChat(props.endpoint)
 const messagesContainer = ref<HTMLElement | null>(null)
 
 function scrollToBottom() {
@@ -20,7 +21,7 @@ function scrollToBottom() {
   })
 }
 
-watch(messages, () => {
+watch([messages, toolCalls], () => {
   scrollToBottom()
 }, { deep: true })
 
@@ -48,7 +49,14 @@ function handleSend(text: string) {
         <p class="empty-title">Start a conversation</p>
         <p class="empty-subtitle">Type a message below to begin chatting with the AI assistant.</p>
       </div>
-      <ChatMessage v-for="msg in messages" :key="msg.id" :message="msg" />
+      <template v-for="msg in messages" :key="msg.id">
+        <ChatMessage :message="msg" />
+        <!-- Show tool cards after user message, before assistant response -->
+        <div v-if="msg.role === 'user' && toolCalls.length > 0" class="tool-section">
+          <div class="tool-section-label">Agent Collaboration</div>
+          <ToolCard v-for="tc in toolCalls" :key="tc.name" :tool="tc" />
+        </div>
+      </template>
       <div v-if="isStreaming" class="streaming-indicator">
         <span class="dot"></span><span class="dot"></span><span class="dot"></span>
       </div>
@@ -124,6 +132,20 @@ function handleSend(text: string) {
   margin: 0;
   max-width: 320px;
   line-height: 1.5;
+}
+
+.tool-section {
+  margin: 0.5rem 0 1rem 2.75rem;
+  max-width: 42rem;
+}
+
+.tool-section-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
 }
 
 .streaming-indicator {

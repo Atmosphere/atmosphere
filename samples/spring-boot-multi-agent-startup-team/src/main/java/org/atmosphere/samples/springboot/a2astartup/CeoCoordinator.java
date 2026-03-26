@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.a2astartup;
 
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.config.service.Disconnect;
@@ -80,28 +81,39 @@ public class CeoCoordinator {
         }
 
         // Step 1: Research (sequential — need results before other agents)
-        var research = fleet.agent("research-agent").call("web_search",
-                Map.of("query", message, "num_results", "3"));
+        var researchArgs = Map.of("query", message, "num_results", "3");
+        session.emit(new AiEvent.ToolStart("web_search", Map.<String, Object>of("query", message)));
+        var research = fleet.agent("research-agent").call("web_search", researchArgs);
+        session.emit(new AiEvent.ToolResult("web_search", research.text()));
 
         // Step 2: Strategy + Finance in parallel
+        var strategyArgs = Map.of("market", message,
+                "research_findings", research.text(), "focus_area", "market entry");
+        var financeArgs = Map.of("market", message,
+                "tam_estimate", "15", "growth_rate", "35",
+                "pricing_model", "SaaS $29/mo per seat");
+        session.emit(new AiEvent.ToolStart("analyze_strategy",
+                Map.<String, Object>of("market", message)));
+        session.emit(new AiEvent.ToolStart("financial_model",
+                Map.<String, Object>of("market", message)));
         var results = fleet.parallel(
-                fleet.call("strategy-agent", "analyze_strategy",
-                        Map.of("market", message,
-                                "research_findings", research.text(),
-                                "focus_area", "market entry")),
-                fleet.call("finance-agent", "financial_model",
-                        Map.of("market", message,
-                                "tam_estimate", "15",
-                                "growth_rate", "35",
-                                "pricing_model", "SaaS $29/mo per seat"))
+                fleet.call("strategy-agent", "analyze_strategy", strategyArgs),
+                fleet.call("finance-agent", "financial_model", financeArgs)
         );
+        session.emit(new AiEvent.ToolResult("analyze_strategy",
+                results.get("strategy-agent").text()));
+        session.emit(new AiEvent.ToolResult("financial_model",
+                results.get("finance-agent").text()));
 
         // Step 3: Writer synthesizes findings
-        fleet.agent("writer-agent").call("write_report",
-                Map.of("title", message + " — Market Analysis",
-                        "key_findings", research.text() + "\n"
-                                + results.get("strategy-agent").text(),
-                        "recommendation", "Comprehensive analysis with financial projections"));
+        var writerArgs = Map.of("title", message + " — Market Analysis",
+                "key_findings", research.text() + "\n"
+                        + results.get("strategy-agent").text(),
+                "recommendation", "Comprehensive analysis with financial projections");
+        session.emit(new AiEvent.ToolStart("write_report",
+                Map.<String, Object>of("title", message)));
+        var report = fleet.agent("writer-agent").call("write_report", writerArgs);
+        session.emit(new AiEvent.ToolResult("write_report", report.text()));
 
         // Step 4: CEO synthesis via LLM
         session.stream(String.format(
