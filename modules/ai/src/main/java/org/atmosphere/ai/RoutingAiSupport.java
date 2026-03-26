@@ -22,38 +22,38 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * An {@link AiSupport} that wraps a {@link ModelRouter} and a list of backends.
+ * An {@link AgentRuntime} that wraps a {@link ModelRouter} and a list of backends.
  * Routes each request via the router, delegates to the selected backend,
  * and reports success/failure for health tracking.
  *
  * <p>On failure, attempts one retry with the next backend from the router.</p>
  */
-public class RoutingAiSupport implements AiSupport {
+public class RoutingAiSupport implements AgentRuntime {
 
     private static final Logger logger = LoggerFactory.getLogger(RoutingAiSupport.class);
 
     private final ModelRouter router;
-    private final List<AiSupport> backends;
+    private final List<AgentRuntime> backends;
 
-    public RoutingAiSupport(ModelRouter router, List<AiSupport> backends) {
+    public RoutingAiSupport(ModelRouter router, List<AgentRuntime> backends) {
         this.router = router;
         this.backends = backends;
     }
 
     @Override
     public String name() {
-        return "routing(" + backends.stream().map(AiSupport::name)
+        return "routing(" + backends.stream().map(AgentRuntime::name)
                 .reduce((a, b) -> a + "," + b).orElse("none") + ")";
     }
 
     @Override
     public boolean isAvailable() {
-        return backends.stream().anyMatch(AiSupport::isAvailable);
+        return backends.stream().anyMatch(AgentRuntime::isAvailable);
     }
 
     @Override
     public int priority() {
-        return backends.stream().mapToInt(AiSupport::priority).max().orElse(0);
+        return backends.stream().mapToInt(AgentRuntime::priority).max().orElse(0);
     }
 
     @Override
@@ -64,8 +64,14 @@ public class RoutingAiSupport implements AiSupport {
     }
 
     @Override
-    public void stream(AiRequest request, StreamingSession session) {
-        var selected = router.route(request, backends, Set.of());
+    public void execute(AgentExecutionContext context, StreamingSession session) {
+        // Build a minimal AiRequest for routing (router uses message/model for selection)
+        var routingRequest = new AiRequest(
+                context.message(), context.systemPrompt(), context.model(),
+                context.userId(), context.sessionId(), context.agentId(),
+                context.conversationId(), context.metadata(), context.history());
+
+        var selected = router.route(routingRequest, backends, Set.of());
         if (selected.isEmpty()) {
             session.error(new IllegalStateException("No available AI backend for request"));
             return;
@@ -73,18 +79,17 @@ public class RoutingAiSupport implements AiSupport {
 
         var backend = selected.get();
         try {
-            backend.stream(request, session);
+            backend.execute(context, session);
             router.reportSuccess(backend);
         } catch (Exception e) {
             logger.warn("Backend {} failed, attempting failover: {}",
                     backend.name(), e.getMessage());
             router.reportFailure(backend, e);
 
-            // Attempt one retry with next backend
-            var fallback = router.route(request, backends, Set.of());
+            var fallback = router.route(routingRequest, backends, Set.of());
             if (fallback.isPresent() && fallback.get() != backend) {
                 try {
-                    fallback.get().stream(request, session);
+                    fallback.get().execute(context, session);
                     router.reportSuccess(fallback.get());
                 } catch (Exception e2) {
                     router.reportFailure(fallback.get(), e2);
@@ -103,8 +108,7 @@ public class RoutingAiSupport implements AiSupport {
                 .collect(java.util.stream.Collectors.toSet());
     }
 
-    // visible for testing
-    List<AiSupport> backends() {
+    List<AgentRuntime> backends() {
         return backends;
     }
 

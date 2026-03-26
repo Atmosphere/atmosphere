@@ -49,7 +49,7 @@ public class AiStreamingSessionTest {
 
     @Test
     public void testStreamDelegatesToAiSupport() {
-        var aiSupport = new RecordingAiSupport();
+        var aiSupport = new RecordingRuntime();
 
         var session = new AiStreamingSession(delegate, aiSupport,
                 "You are helpful", null, List.of(), resource);
@@ -64,7 +64,7 @@ public class AiStreamingSessionTest {
 
     @Test
     public void testPreProcessModifiesRequest() {
-        var aiSupport = new RecordingAiSupport();
+        var aiSupport = new RecordingRuntime();
         var interceptor = new AiInterceptor() {
             @Override
             public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
@@ -83,7 +83,7 @@ public class AiStreamingSessionTest {
 
     @Test
     public void testPostProcessCalledAfterStream() {
-        var aiSupport = new RecordingAiSupport();
+        var aiSupport = new RecordingRuntime();
         var postProcessed = new ArrayList<String>();
         var interceptor = new AiInterceptor() {
             @Override
@@ -104,7 +104,7 @@ public class AiStreamingSessionTest {
 
     @Test
     public void testInterceptorChainFifoPreLifoPost() {
-        var aiSupport = new RecordingAiSupport();
+        var aiSupport = new RecordingRuntime();
         var order = new ArrayList<String>();
 
         var first = new AiInterceptor() {
@@ -145,7 +145,7 @@ public class AiStreamingSessionTest {
 
     @Test
     public void testPreProcessErrorStopsChain() {
-        var aiSupport = new RecordingAiSupport();
+        var aiSupport = new RecordingRuntime();
         var interceptor = new AiInterceptor() {
             @Override
             public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
@@ -167,7 +167,7 @@ public class AiStreamingSessionTest {
 
     @Test
     public void testDelegateMethods() {
-        var aiSupport = new RecordingAiSupport();
+        var aiSupport = new RecordingRuntime();
         var session = new AiStreamingSession(delegate, aiSupport,
                 "", null, List.of(), resource);
 
@@ -200,7 +200,7 @@ public class AiStreamingSessionTest {
 
     @Test
     public void testStreamWithNoInterceptors() {
-        var aiSupport = new RecordingAiSupport();
+        var aiSupport = new RecordingRuntime();
         var session = new AiStreamingSession(delegate, aiSupport,
                 "system", null, null, resource);
 
@@ -269,7 +269,7 @@ public class AiStreamingSessionTest {
 
     @Test
     public void testStreamWithMemoryLoadsHistory() {
-        var aiSupport = new RecordingAiSupport();
+        var aiSupport = new RecordingRuntime();
         var memory = new InMemoryConversationMemory();
         memory.addMessage("res-1", ChatMessage.user("prev question"));
         memory.addMessage("res-1", ChatMessage.assistant("prev answer"));
@@ -292,7 +292,7 @@ public class AiStreamingSessionTest {
 
     @Test
     public void testStreamWithoutMemoryHasEmptyHistory() {
-        var aiSupport = new RecordingAiSupport();
+        var aiSupport = new RecordingRuntime();
 
         var session = new AiStreamingSession(delegate, aiSupport,
                 "system", null, List.of(), resource);
@@ -310,7 +310,7 @@ public class AiStreamingSessionTest {
         var memory = new InMemoryConversationMemory();
         when(resource.uuid()).thenReturn("res-1");
 
-        var capturingAiSupport = new AiSupport() {
+        var capturingAiSupport = new AgentRuntime() {
             @Override
             public String name() { return "capturing"; }
 
@@ -324,7 +324,7 @@ public class AiStreamingSessionTest {
             public void configure(AiConfig.LlmSettings settings) { }
 
             @Override
-            public void stream(AiRequest request, StreamingSession session) {
+            public void execute(AgentExecutionContext context, StreamingSession session) {
                 // Simulate LLM response
                 session.send("Hello");
                 session.send(" world");
@@ -348,13 +348,13 @@ public class AiStreamingSessionTest {
     @Test
     public void testMetricsRecordLatencyOnComplete() {
         var metricsRecorder = new RecordingMetrics();
-        var aiSupport = new AiSupport() {
+        var aiSupport = new AgentRuntime() {
             @Override public String name() { return "test"; }
             @Override public boolean isAvailable() { return true; }
             @Override public int priority() { return 0; }
             @Override public void configure(AiConfig.LlmSettings settings) { }
             @Override
-            public void stream(AiRequest request, StreamingSession session) {
+            public void execute(AgentExecutionContext context, StreamingSession session) {
                 session.send("Hello");
                 session.complete();
             }
@@ -373,13 +373,13 @@ public class AiStreamingSessionTest {
     @Test
     public void testMetricsRecordStreamingTextUsage() {
         var metricsRecorder = new RecordingMetrics();
-        var aiSupport = new AiSupport() {
+        var aiSupport = new AgentRuntime() {
             @Override public String name() { return "test"; }
             @Override public boolean isAvailable() { return true; }
             @Override public int priority() { return 0; }
             @Override public void configure(AiConfig.LlmSettings settings) { }
             @Override
-            public void stream(AiRequest request, StreamingSession session) {
+            public void execute(AgentExecutionContext context, StreamingSession session) {
                 session.send("Hello");
                 session.sendMetadata("usage.promptStreamingTexts", 10);
                 session.sendMetadata("usage.completionStreamingTexts", 5);
@@ -401,13 +401,13 @@ public class AiStreamingSessionTest {
     @Test
     public void testMetricsRecordErrorOnFailure() {
         var metricsRecorder = new RecordingMetrics();
-        var aiSupport = new AiSupport() {
+        var aiSupport = new AgentRuntime() {
             @Override public String name() { return "test"; }
             @Override public boolean isAvailable() { return true; }
             @Override public int priority() { return 0; }
             @Override public void configure(AiConfig.LlmSettings settings) { }
             @Override
-            public void stream(AiRequest request, StreamingSession session) {
+            public void execute(AgentExecutionContext context, StreamingSession session) {
                 session.error(new RuntimeException("timeout exceeded"));
             }
         };
@@ -460,8 +460,8 @@ public class AiStreamingSessionTest {
     /**
      * AiSupport that records all requests for verification.
      */
-    static class RecordingAiSupport implements AiSupport {
-        final List<AiRequest> requests = new ArrayList<>();
+    static class RecordingRuntime implements AgentRuntime {
+        final List<AgentExecutionContext> requests = new ArrayList<>();
 
         @Override
         public String name() {
@@ -483,8 +483,8 @@ public class AiStreamingSessionTest {
         }
 
         @Override
-        public void stream(AiRequest request, StreamingSession session) {
-            requests.add(request);
+        public void execute(AgentExecutionContext context, StreamingSession session) {
+            requests.add(context);
         }
     }
 }

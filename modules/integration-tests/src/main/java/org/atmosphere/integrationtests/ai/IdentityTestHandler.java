@@ -16,8 +16,8 @@
 package org.atmosphere.integrationtests.ai;
 
 import org.atmosphere.ai.AiConfig;
-import org.atmosphere.ai.AiRequest;
-import org.atmosphere.ai.AiSupport;
+import org.atmosphere.ai.AgentExecutionContext;
+import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.cpr.AtmosphereHandler;
@@ -44,13 +44,13 @@ public class IdentityTestHandler implements AtmosphereHandler {
             var trimmed = prompt.trim();
             Thread.ofVirtual().name("identity-test").start(() -> {
                 var session = StreamingSessions.start(resource);
-                var request = new AiRequest(trimmed)
-                        .withUserId("user-42")
-                        .withSessionId("sess-abc")
-                        .withAgentId("research-agent")
-                        .withConversationId("conv-xyz");
+                var context = new AgentExecutionContext(
+                        trimmed, "", null, "research-agent", "sess-abc",
+                        "user-42", "conv-xyz",
+                        java.util.List.of(), null, null, java.util.List.of(),
+                        java.util.Map.of(), java.util.List.of());
 
-                new IdentityEchoingAiSupport().stream(request, session);
+                new IdentityEchoingRuntime().execute(context, session);
             });
         }
     }
@@ -72,7 +72,7 @@ public class IdentityTestHandler implements AtmosphereHandler {
     public void destroy() {
     }
 
-    private static class IdentityEchoingAiSupport implements AiSupport {
+    private static class IdentityEchoingRuntime implements AgentRuntime {
 
         @Override
         public String name() {
@@ -94,15 +94,15 @@ public class IdentityTestHandler implements AtmosphereHandler {
         }
 
         @Override
-        public void stream(AiRequest request, StreamingSession session) {
-            session.sendMetadata("userId", request.userId());
-            session.sendMetadata("sessionId", request.sessionId());
-            session.sendMetadata("agentId", request.agentId());
-            session.sendMetadata("conversationId", request.conversationId());
-            session.send("Identity: " + request.userId()
-                    + "/" + request.sessionId()
-                    + "/" + request.agentId()
-                    + "/" + request.conversationId());
+        public void execute(AgentExecutionContext context, StreamingSession session) {
+            session.sendMetadata("userId", context.userId());
+            session.sendMetadata("sessionId", context.sessionId());
+            session.sendMetadata("agentId", context.agentId());
+            session.sendMetadata("conversationId", context.conversationId());
+            session.send("Identity: " + context.userId()
+                    + "/" + context.sessionId()
+                    + "/" + context.agentId()
+                    + "/" + context.conversationId());
             session.complete();
         }
     }

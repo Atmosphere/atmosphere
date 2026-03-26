@@ -27,13 +27,13 @@ public class RoutingAiSupportTest {
 
     @Test
     public void testRoutesToSelectedBackend() {
-        var primary = new StubAiSupport("primary");
-        var secondary = new StubAiSupport("secondary");
+        var primary = new StubRuntime("primary");
+        var secondary = new StubRuntime("secondary");
         var router = new DefaultModelRouter(ModelRouter.FallbackStrategy.FAILOVER);
         var routing = new RoutingAiSupport(router, List.of(primary, secondary));
 
         var session = mock(StreamingSession.class);
-        routing.stream(new AiRequest("Hello"), session);
+        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null, java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(), java.util.List.of()), session);
 
         assertTrue(primary.called);
         assertFalse(secondary.called);
@@ -41,9 +41,9 @@ public class RoutingAiSupportTest {
 
     @Test
     public void testFailoverOnPrimaryFailure() {
-        var primary = new StubAiSupport("primary");
+        var primary = new StubRuntime("primary");
         primary.shouldFail = true;
-        var secondary = new StubAiSupport("secondary");
+        var secondary = new StubRuntime("secondary");
         // maxConsecutiveFailures=1 so the first failure marks primary unhealthy,
         // and the router picks secondary on the retry route() call
         var router = new DefaultModelRouter(ModelRouter.FallbackStrategy.FAILOVER, 1,
@@ -51,7 +51,7 @@ public class RoutingAiSupportTest {
         var routing = new RoutingAiSupport(router, List.of(primary, secondary));
 
         var session = mock(StreamingSession.class);
-        routing.stream(new AiRequest("Hello"), session);
+        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null, java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(), java.util.List.of()), session);
 
         assertTrue(primary.called);
         assertTrue(secondary.called);
@@ -63,16 +63,16 @@ public class RoutingAiSupportTest {
         var routing = new RoutingAiSupport(router, List.of());
 
         var session = mock(StreamingSession.class);
-        routing.stream(new AiRequest("Hello"), session);
+        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null, java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(), java.util.List.of()), session);
 
         verify(session).error(any(IllegalStateException.class));
     }
 
     @Test
     public void testCapabilitiesAggregated() {
-        var primary = new StubAiSupport("primary");
+        var primary = new StubRuntime("primary");
         primary.caps = Set.of(AiCapability.TEXT_STREAMING);
-        var secondary = new StubAiSupport("secondary");
+        var secondary = new StubRuntime("secondary");
         secondary.caps = Set.of(AiCapability.TOOL_CALLING);
         var router = new DefaultModelRouter(ModelRouter.FallbackStrategy.FAILOVER);
         var routing = new RoutingAiSupport(router, List.of(primary, secondary));
@@ -84,8 +84,8 @@ public class RoutingAiSupportTest {
 
     @Test
     public void testNameIncludesBackends() {
-        var primary = new StubAiSupport("primary");
-        var secondary = new StubAiSupport("secondary");
+        var primary = new StubRuntime("primary");
+        var secondary = new StubRuntime("secondary");
         var router = new DefaultModelRouter(ModelRouter.FallbackStrategy.FAILOVER);
         var routing = new RoutingAiSupport(router, List.of(primary, secondary));
 
@@ -93,13 +93,13 @@ public class RoutingAiSupportTest {
         assertTrue(routing.name().contains("secondary"));
     }
 
-    static class StubAiSupport implements AiSupport {
+    static class StubRuntime implements AgentRuntime {
         final String id;
         boolean called;
         boolean shouldFail;
         Set<AiCapability> caps = Set.of(AiCapability.TEXT_STREAMING);
 
-        StubAiSupport(String id) {
+        StubRuntime(String id) {
             this.id = id;
         }
 
@@ -109,7 +109,7 @@ public class RoutingAiSupportTest {
         @Override public void configure(AiConfig.LlmSettings settings) { }
 
         @Override
-        public void stream(AiRequest request, StreamingSession session) {
+        public void execute(AgentExecutionContext context, StreamingSession session) {
             called = true;
             if (shouldFail) {
                 throw new RuntimeException("Simulated failure");

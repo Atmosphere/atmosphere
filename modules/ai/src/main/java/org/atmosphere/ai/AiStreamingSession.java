@@ -40,7 +40,7 @@ import java.util.Map;
  *   <li>Builds an {@link AiRequest} from the message + stored system prompt + model + history</li>
  *   <li>Runs {@link AiInterceptor#preProcess} in FIFO order</li>
  *   <li>Wraps the delegate in a {@link MemoryCapturingSession} to capture the response</li>
- *   <li>Delegates to {@link AiSupport#stream(AiRequest, StreamingSession)}</li>
+ *   <li>Delegates to {@link AgentRuntime#stream(AiRequest, StreamingSession)}</li>
  *   <li>Runs {@link AiInterceptor#postProcess} in LIFO order</li>
  * </ol>
  */
@@ -55,7 +55,7 @@ public class AiStreamingSession implements StreamingSession {
     public static final String STREAMING_SESSION_ATTR = "ai.streaming.session";
 
     private final StreamingSession delegate;
-    private final AiSupport aiSupport;
+    private final AgentRuntime runtime;
     private final String systemPrompt;
     private final String model;
     private final List<AiInterceptor> interceptors;
@@ -68,42 +68,42 @@ public class AiStreamingSession implements StreamingSession {
 
     /**
      * @param delegate     the underlying streaming session
-     * @param aiSupport    the resolved AI support implementation
+     * @param runtime    the resolved AI support implementation
      * @param systemPrompt the system prompt from {@code @AiEndpoint}
      * @param model        the model name (may be null for provider default)
      * @param interceptors the interceptor chain
      * @param resource     the atmosphere resource for this client
      */
-    public AiStreamingSession(StreamingSession delegate, AiSupport aiSupport,
+    public AiStreamingSession(StreamingSession delegate, AgentRuntime runtime,
                               String systemPrompt, String model,
                               List<AiInterceptor> interceptors,
                               AtmosphereResource resource) {
-        this(delegate, aiSupport, systemPrompt, model, interceptors, resource, null,
+        this(delegate, runtime, systemPrompt, model, interceptors, resource, null,
                 null, List.of(), List.of(), AiMetrics.NOOP);
     }
 
     /**
      * @param delegate     the underlying streaming session
-     * @param aiSupport    the resolved AI support implementation
+     * @param runtime    the resolved AI support implementation
      * @param systemPrompt the system prompt from {@code @AiEndpoint}
      * @param model        the model name (may be null for provider default)
      * @param interceptors the interceptor chain
      * @param resource     the atmosphere resource for this client
      * @param memory       conversation memory (may be null if disabled)
      */
-    public AiStreamingSession(StreamingSession delegate, AiSupport aiSupport,
+    public AiStreamingSession(StreamingSession delegate, AgentRuntime runtime,
                               String systemPrompt, String model,
                               List<AiInterceptor> interceptors,
                               AtmosphereResource resource,
                               AiConversationMemory memory) {
-        this(delegate, aiSupport, systemPrompt, model, interceptors, resource, memory,
+        this(delegate, runtime, systemPrompt, model, interceptors, resource, memory,
                 null, List.of(), List.of(), AiMetrics.NOOP);
     }
 
     /**
      * Full constructor with tools, guardrails, context providers, and metrics.
      */
-    public AiStreamingSession(StreamingSession delegate, AiSupport aiSupport,
+    public AiStreamingSession(StreamingSession delegate, AgentRuntime runtime,
                               String systemPrompt, String model,
                               List<AiInterceptor> interceptors,
                               AtmosphereResource resource,
@@ -111,14 +111,14 @@ public class AiStreamingSession implements StreamingSession {
                               ToolRegistry toolRegistry,
                               List<AiGuardrail> guardrails,
                               List<ContextProvider> contextProviders) {
-        this(delegate, aiSupport, systemPrompt, model, interceptors, resource, memory,
+        this(delegate, runtime, systemPrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, AiMetrics.NOOP);
     }
 
     /**
      * Full constructor with metrics.
      */
-    public AiStreamingSession(StreamingSession delegate, AiSupport aiSupport,
+    public AiStreamingSession(StreamingSession delegate, AgentRuntime runtime,
                               String systemPrompt, String model,
                               List<AiInterceptor> interceptors,
                               AtmosphereResource resource,
@@ -128,7 +128,7 @@ public class AiStreamingSession implements StreamingSession {
                               List<ContextProvider> contextProviders,
                               AiMetrics metrics) {
         this.delegate = delegate;
-        this.aiSupport = aiSupport;
+        this.runtime = runtime;
         this.systemPrompt = systemPrompt != null ? systemPrompt : "";
         this.model = model;
         this.interceptors = interceptors != null ? interceptors : List.of();
@@ -243,10 +243,18 @@ public class AiStreamingSession implements StreamingSession {
         // Expose the session to interceptors via request attribute
         resource.getRequest().setAttribute(STREAMING_SESSION_ATTR, target);
 
-        // Delegate to the AI support
+        // Build execution context and delegate to runtime
         var finalRequest = request;
+        var tools = toolRegistry != null ? toolRegistry.allTools()
+                : java.util.List.<org.atmosphere.ai.tool.ToolDefinition>of();
+        var context = new AgentExecutionContext(
+                request.message(), request.systemPrompt(), request.model(),
+                request.agentId(), request.sessionId(), request.userId(),
+                request.conversationId(),
+                java.util.List.copyOf(tools), null, memory,
+                contextProviders, request.metadata(), request.history());
         try {
-            aiSupport.stream(finalRequest, target);
+            runtime.execute(context, target);
         } catch (Exception e) {
             metrics.recordError(model != null ? model : "unknown", "stream_error");
             throw e;
@@ -311,8 +319,8 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     // visible for testing
-    AiSupport aiSupport() {
-        return aiSupport;
+    AgentRuntime runtime() {
+        return runtime;
     }
 
     List<AiInterceptor> interceptors() {

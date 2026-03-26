@@ -17,7 +17,8 @@ package org.atmosphere.ai.test;
 
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.AiRequest;
-import org.atmosphere.ai.AiSupport;
+import org.atmosphere.ai.AgentExecutionContext;
+import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.StreamingSession;
 
 import java.time.Duration;
@@ -47,10 +48,10 @@ import java.util.concurrent.TimeUnit;
  */
 public class AiTestClient {
 
-    private final AiSupport aiSupport;
+    private final AgentRuntime runtime;
 
-    public AiTestClient(AiSupport aiSupport) {
-        this.aiSupport = aiSupport;
+    public AiTestClient(AgentRuntime runtime) {
+        this.runtime = runtime;
     }
 
     /**
@@ -71,7 +72,10 @@ public class AiTestClient {
         var session = new CapturingSession();
 
         var start = Instant.now();
-        aiSupport.stream(request, session);
+        var context = new AgentExecutionContext(
+                message, systemPrompt, null, null, null, null, null,
+                List.of(), null, null, List.of(), Map.of(), List.of());
+        runtime.execute(context, session);
         session.awaitCompletion(Duration.ofSeconds(30));
         var elapsed = Duration.between(start, Instant.now());
 

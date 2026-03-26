@@ -16,9 +16,9 @@
 package org.atmosphere.integrationtests.ai;
 
 import org.atmosphere.ai.AiConfig;
-import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.AgentExecutionContext;
+import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AiStreamingSession;
-import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
@@ -42,7 +42,7 @@ import java.util.List;
 public class ConversationMemoryTestHandler implements AtmosphereHandler {
 
     private final InMemoryConversationMemory memory;
-    private final AiSupport echoingSupport = new HistoryEchoingAiSupport();
+    private final AgentRuntime echoingRuntime = new HistoryEchoingRuntime();
 
     public ConversationMemoryTestHandler(int maxMessages) {
         this.memory = new InMemoryConversationMemory(maxMessages);
@@ -57,7 +57,7 @@ public class ConversationMemoryTestHandler implements AtmosphereHandler {
         if (prompt != null && !prompt.trim().isEmpty()) {
             var trimmed = prompt.trim();
             Thread.ofVirtual().name("memory-test").start(() -> {
-                try (var session = new AiStreamingSession(StreamingSessions.start(resource), echoingSupport,
+                try (var session = new AiStreamingSession(StreamingSessions.start(resource), echoingRuntime,
                         "You are a test assistant", null, List.of(), resource, memory)) {
                     session.stream(trimmed);
                 }
@@ -93,7 +93,7 @@ public class ConversationMemoryTestHandler implements AtmosphereHandler {
      * AiSupport that echoes back the conversation history count and content.
      * This allows the Playwright spec to verify that history is being passed.
      */
-    private static class HistoryEchoingAiSupport implements AiSupport {
+    private static class HistoryEchoingRuntime implements AgentRuntime {
 
         @Override
         public String name() {
@@ -115,8 +115,8 @@ public class ConversationMemoryTestHandler implements AtmosphereHandler {
         }
 
         @Override
-        public void stream(AiRequest request, StreamingSession session) {
-            var history = request.history();
+        public void execute(AgentExecutionContext context, StreamingSession session) {
+            var history = context.history();
             int historyCount = history.size();
 
             session.sendMetadata("historyCount", historyCount);
@@ -137,7 +137,7 @@ public class ConversationMemoryTestHandler implements AtmosphereHandler {
             session.send("HISTORY:");
             session.send(String.valueOf(historyCount));
             session.send("|");
-            session.send(request.message());
+            session.send(context.message());
             session.complete();
         }
     }

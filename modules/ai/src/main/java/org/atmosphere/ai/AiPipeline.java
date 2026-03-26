@@ -36,7 +36,7 @@ public class AiPipeline {
 
     private static final Logger logger = LoggerFactory.getLogger(AiPipeline.class);
 
-    private final AiSupport aiSupport;
+    private final AgentRuntime runtime;
     private final String systemPrompt;
     private final String model;
     private final AiConversationMemory memory;
@@ -45,11 +45,11 @@ public class AiPipeline {
     private final List<ContextProvider> contextProviders;
     private final AiMetrics metrics;
 
-    public AiPipeline(AiSupport aiSupport, String systemPrompt, String model,
+    public AiPipeline(AgentRuntime runtime, String systemPrompt, String model,
                       AiConversationMemory memory, ToolRegistry toolRegistry,
                       List<AiGuardrail> guardrails, List<ContextProvider> contextProviders,
                       AiMetrics metrics) {
-        this.aiSupport = aiSupport;
+        this.runtime = runtime;
         this.systemPrompt = systemPrompt != null ? systemPrompt : "";
         this.model = model;
         this.memory = memory;
@@ -68,7 +68,6 @@ public class AiPipeline {
      * @param session  the streaming session to push tokens through
      */
     public void execute(String clientId, String message, StreamingSession session) {
-        // Load conversation history
         var history = memory != null
                 ? memory.getHistory(clientId)
                 : List.<org.atmosphere.ai.llm.ChatMessage>of();
@@ -104,32 +103,6 @@ public class AiPipeline {
             }
         }
 
-        // Context providers: RAG augmentation with query transform + reranking
-        if (!contextProviders.isEmpty()) {
-            var contextBuilder = new StringBuilder();
-            for (var provider : contextProviders) {
-                try {
-                    var query = provider.transformQuery(request.message());
-                    var docs = provider.retrieve(query, 5);
-                    docs = provider.rerank(query, docs);
-                    for (var doc : docs) {
-                        contextBuilder.append("\n---\nSource: ").append(doc.source())
-                                .append("\n").append(doc.content());
-                    }
-                } catch (Exception e) {
-                    logger.error("ContextProvider.retrieve failed: {}",
-                            provider.getClass().getName(), e);
-                    session.sendMetadata("rag.error",
-                            provider.getClass().getSimpleName() + ": " + e.getMessage());
-                }
-            }
-            if (!contextBuilder.isEmpty()) {
-                var augmented = request.message()
-                        + "\n\nRelevant context:" + contextBuilder;
-                request = request.withMessage(augmented);
-            }
-        }
-
         // Wrap session in decorators
         StreamingSession target = session;
         if (memory != null) {
@@ -142,9 +115,16 @@ public class AiPipeline {
             target = new GuardrailCapturingSession(target, guardrails);
         }
 
-        // Delegate to AI backend
+        // Build execution context — runtime decides how to use tools, memory, RAG
+        var tools = toolRegistry != null ? toolRegistry.allTools() : List.<org.atmosphere.ai.tool.ToolDefinition>of();
+        var context = new AgentExecutionContext(
+                request.message(), systemPrompt, model,
+                null, clientId, null, clientId,
+                List.copyOf(tools), null, memory,
+                contextProviders, request.metadata(), history);
+
         try {
-            aiSupport.stream(request, target);
+            runtime.execute(context, target);
         } catch (Exception e) {
             metrics.recordError(model != null ? model : "unknown", "stream_error");
             throw e;

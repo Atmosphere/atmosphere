@@ -64,7 +64,7 @@ public class DefaultModelRouter implements ModelRouter {
     }
 
     @Override
-    public Optional<AiSupport> route(AiRequest request, List<AiSupport> availableBackends,
+    public Optional<AgentRuntime> route(AiRequest request, List<AgentRuntime> availableBackends,
                                      Set<AiCapability> requiredCapabilities) {
         if (availableBackends.isEmpty()) {
             return Optional.empty();
@@ -102,7 +102,7 @@ public class DefaultModelRouter implements ModelRouter {
     }
 
     @Override
-    public void reportFailure(AiSupport backend, Throwable error) {
+    public void reportFailure(AgentRuntime backend, Throwable error) {
         var health = healthMap.computeIfAbsent(backend.name(), k -> new BackendHealth());
         var failures = health.consecutiveFailures.incrementAndGet();
         health.lastFailure = Instant.now();
@@ -112,7 +112,7 @@ public class DefaultModelRouter implements ModelRouter {
     }
 
     @Override
-    public void reportSuccess(AiSupport backend) {
+    public void reportSuccess(AgentRuntime backend) {
         var health = healthMap.get(backend.name());
         if (health != null) {
             health.consecutiveFailures.set(0);
@@ -120,7 +120,7 @@ public class DefaultModelRouter implements ModelRouter {
         }
     }
 
-    private boolean isHealthy(AiSupport backend) {
+    private boolean isHealthy(AgentRuntime backend) {
         var health = healthMap.get(backend.name());
         if (health == null) {
             return true;
@@ -140,7 +140,7 @@ public class DefaultModelRouter implements ModelRouter {
         return false;
     }
 
-    private Optional<AiSupport> routeByContent(AiRequest request, List<AiSupport> eligible) {
+    private Optional<AgentRuntime> routeByContent(AiRequest request, List<AgentRuntime> eligible) {
         // If request has a model hint, try to match it
         if (request.model() != null) {
             for (var backend : eligible) {

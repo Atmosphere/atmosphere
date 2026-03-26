@@ -25,9 +25,9 @@ import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.ai.AiMetrics;
 import org.atmosphere.ai.AiPipeline;
-import org.atmosphere.ai.AiSupport;
+import org.atmosphere.ai.AgentRuntime;
+import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.ConversationPersistence;
-import org.atmosphere.ai.DefaultAiSupportResolver;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.PersistentConversationMemory;
 import org.atmosphere.ai.StreamingSession;
@@ -127,7 +127,7 @@ public class CoordinatorProcessor implements Processor<Object> {
 
             // Step 5: Resolve AI infrastructure
             var settings = resolveSettings();
-            var aiSupport = resolveAiSupport(settings);
+            var runtime = resolveRuntime(settings);
             var memory = resolveMemory(DEFAULT_MAX_HISTORY);
             var toolRegistry = registerTools(instance);
             var metrics = resolveMetrics();
@@ -149,7 +149,7 @@ public class CoordinatorProcessor implements Processor<Object> {
             var injectables = Map.<Class<?>, Object>of(AgentFleet.class, fleet);
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
-                    systemPrompt, path, aiSupport, List.of(),
+                    systemPrompt, path, runtime, List.of(),
                     memory, lifecycle, toolRegistry,
                     List.of(), List.of(), metrics, List.of(), null, injectables);
 
@@ -169,7 +169,7 @@ public class CoordinatorProcessor implements Processor<Object> {
             registerMcp(framework, annotation, toolRegistry, path, protocols);
             registerAgUi(framework, promptTarget, promptMethod, path, protocols);
             var model = settings != null ? settings.model() : null;
-            var pipeline = new AiPipeline(aiSupport, systemPrompt, model, memory,
+            var pipeline = new AiPipeline(runtime, systemPrompt, model, memory,
                     toolRegistry, List.of(), List.of(), metrics);
             wireChannelBridge(coordinatorName, commandRouter, instance, systemPrompt,
                     pipeline, protocols);
@@ -354,20 +354,20 @@ public class CoordinatorProcessor implements Processor<Object> {
         return config != null ? config : AiConfig.fromEnvironment();
     }
 
-    private AiSupport resolveAiSupport(AiConfig.LlmSettings settings) {
+    private AgentRuntime resolveRuntime(AiConfig.LlmSettings settings) {
         try {
-            var all = DefaultAiSupportResolver.resolveAll();
+            var all = AgentRuntimeResolver.resolveAll();
             if (all.isEmpty()) {
-                logger.warn("No AiSupport implementation found on classpath");
+                logger.warn("No AgentRuntime found on classpath");
                 return null;
             }
-            var support = all.getFirst();
+            var rt = all.getFirst();
             if (settings != null) {
-                support.configure(settings);
+                rt.configure(settings);
             }
-            return support;
+            return rt;
         } catch (Exception | ServiceConfigurationError e) {
-            logger.warn("Failed to resolve AiSupport: {}", e.getMessage());
+            logger.warn("Failed to resolve AgentRuntime: {}", e.getMessage());
             return null;
         }
     }

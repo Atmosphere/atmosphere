@@ -154,8 +154,8 @@ public class DefaultModelRouterTest {
         assertEquals("gpt4", result.get().name());
     }
 
-    private static AiSupport backend(String name, AiCapability... capabilities) {
-        return new AiSupport() {
+    private static AgentRuntime backend(String name, AiCapability... capabilities) {
+        return new AgentRuntime() {
             @Override
             public String name() {
                 return name;
@@ -176,7 +176,7 @@ public class DefaultModelRouterTest {
             }
 
             @Override
-            public void stream(AiRequest request, StreamingSession session) {
+            public void execute(AgentExecutionContext context, StreamingSession session) {
             }
 
             @Override

@@ -18,7 +18,7 @@ package org.atmosphere.spring.boot;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.ai.AiMetrics;
-import org.atmosphere.ai.DefaultAiSupportResolver;
+import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.processor.AiEndpointHandler;
@@ -80,9 +80,9 @@ class AtmosphereAiEndpointRegistrar {
 
         // Resolve AI support
         var settings = AiConfig.get();
-        var aiSupport = DefaultAiSupportResolver.resolve();
+        var runtime = AgentRuntimeResolver.resolve();
         if (settings != null) {
-            aiSupport.configure(settings);
+            runtime.configure(settings);
         }
 
         // Conversation memory
@@ -98,7 +98,7 @@ class AtmosphereAiEndpointRegistrar {
 
         var handler = new AiEndpointHandler(
                 target, promptMethod, aiProps.getTimeout(),
-                systemPrompt, path, aiSupport, List.of(),
+                systemPrompt, path, runtime, List.of(),
                 memory, lifecycle,
                 new DefaultToolRegistry(), List.of(), List.of(),
                 AiMetrics.NOOP, List.of(), null);

@@ -21,7 +21,7 @@ import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiMetrics;
 import org.atmosphere.ai.AiStreamingSession;
-import org.atmosphere.ai.AiSupport;
+import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.DefaultStreamingSession;
 import org.atmosphere.ai.StreamingSession;
@@ -101,7 +101,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     private final long suspendTimeout;
     private final String systemPrompt;
     private final String pathTemplate;
-    private final AiSupport aiSupport;
+    private final AgentRuntime runtime;
     private final List<AiInterceptor> interceptors;
     private final AiConversationMemory memory;
     private final AnnotatedLifecycle lifecycle;
@@ -118,13 +118,13 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * @param promptMethod the @Prompt-annotated method
      * @param timeout      per-resource suspend timeout in milliseconds
      * @param systemPrompt the system prompt from the @AiEndpoint annotation (may be empty)
-     * @param aiSupport    the resolved AI support implementation
+     * @param runtime    the resolved AI support implementation
      * @param interceptors the interceptor chain
      */
     public AiEndpointHandler(Object target, Method promptMethod, long timeout,
-                             String systemPrompt, AiSupport aiSupport,
+                             String systemPrompt, AgentRuntime runtime,
                              List<AiInterceptor> interceptors) {
-        this(target, promptMethod, timeout, systemPrompt, null, aiSupport, interceptors,
+        this(target, promptMethod, timeout, systemPrompt, null, runtime, interceptors,
                 null, AnnotatedLifecycle.scan(target.getClass()),
                 new DefaultToolRegistry(), List.of(), List.of(), AiMetrics.NOOP, List.of(), null);
     }
@@ -135,18 +135,18 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * @param timeout      per-resource suspend timeout in milliseconds
      * @param systemPrompt the system prompt from the @AiEndpoint annotation (may be empty)
      * @param pathTemplate the path template from the @AiEndpoint annotation (e.g. "/chat/{room}")
-     * @param aiSupport    the resolved AI support implementation
+     * @param runtime    the resolved AI support implementation
      * @param interceptors the interceptor chain
      * @param memory       conversation memory (may be null if disabled)
      * @param lifecycle    the shared lifecycle descriptor from {@link AnnotatedLifecycle#scan}
      */
     public AiEndpointHandler(Object target, Method promptMethod, long timeout,
                              String systemPrompt, String pathTemplate,
-                             AiSupport aiSupport,
+                             AgentRuntime runtime,
                              List<AiInterceptor> interceptors,
                              AiConversationMemory memory,
                              AnnotatedLifecycle lifecycle) {
-        this(target, promptMethod, timeout, systemPrompt, pathTemplate, aiSupport,
+        this(target, promptMethod, timeout, systemPrompt, pathTemplate, runtime,
                 interceptors, memory, lifecycle,
                 new DefaultToolRegistry(), List.of(), List.of(), AiMetrics.NOOP, List.of(), null);
     }
@@ -156,7 +156,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      */
     public AiEndpointHandler(Object target, Method promptMethod, long timeout,
                              String systemPrompt, String pathTemplate,
-                             AiSupport aiSupport,
+                             AgentRuntime runtime,
                              List<AiInterceptor> interceptors,
                              AiConversationMemory memory,
                              AnnotatedLifecycle lifecycle,
@@ -164,7 +164,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                              List<AiGuardrail> guardrails,
                              List<ContextProvider> contextProviders,
                              AiMetrics metrics) {
-        this(target, promptMethod, timeout, systemPrompt, pathTemplate, aiSupport,
+        this(target, promptMethod, timeout, systemPrompt, pathTemplate, runtime,
                 interceptors, memory, lifecycle, toolRegistry, guardrails,
                 contextProviders, metrics, List.of(), null);
     }
@@ -174,7 +174,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      */
     public AiEndpointHandler(Object target, Method promptMethod, long timeout,
                              String systemPrompt, String pathTemplate,
-                             AiSupport aiSupport,
+                             AgentRuntime runtime,
                              List<AiInterceptor> interceptors,
                              AiConversationMemory memory,
                              AnnotatedLifecycle lifecycle,
@@ -183,7 +183,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                              List<ContextProvider> contextProviders,
                              AiMetrics metrics,
                              List<BroadcastFilter> broadcastFilters) {
-        this(target, promptMethod, timeout, systemPrompt, pathTemplate, aiSupport,
+        this(target, promptMethod, timeout, systemPrompt, pathTemplate, runtime,
                 interceptors, memory, lifecycle, toolRegistry, guardrails,
                 contextProviders, metrics, broadcastFilters, null);
     }
@@ -193,7 +193,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      */
     public AiEndpointHandler(Object target, Method promptMethod, long timeout,
                              String systemPrompt, String pathTemplate,
-                             AiSupport aiSupport,
+                             AgentRuntime runtime,
                              List<AiInterceptor> interceptors,
                              AiConversationMemory memory,
                              AnnotatedLifecycle lifecycle,
@@ -203,7 +203,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                              AiMetrics metrics,
                              List<BroadcastFilter> broadcastFilters,
                              String endpointModel) {
-        this(target, promptMethod, timeout, systemPrompt, pathTemplate, aiSupport,
+        this(target, promptMethod, timeout, systemPrompt, pathTemplate, runtime,
                 interceptors, memory, lifecycle, toolRegistry, guardrails,
                 contextProviders, metrics, broadcastFilters, endpointModel, Map.of());
     }
@@ -220,7 +220,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      */
     public AiEndpointHandler(Object target, Method promptMethod, long timeout,
                              String systemPrompt, String pathTemplate,
-                             AiSupport aiSupport,
+                             AgentRuntime runtime,
                              List<AiInterceptor> interceptors,
                              AiConversationMemory memory,
                              AnnotatedLifecycle lifecycle,
@@ -236,7 +236,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         this.suspendTimeout = timeout;
         this.systemPrompt = systemPrompt != null ? systemPrompt : "";
         this.pathTemplate = pathTemplate;
-        this.aiSupport = aiSupport;
+        this.runtime = runtime;
         this.interceptors = interceptors != null ? interceptors : List.of();
         this.memory = memory;
         this.lifecycle = lifecycle;
@@ -355,7 +355,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             traced = new TracingCapturingSession(delegate, metrics, model);
         }
 
-        var session = new AiStreamingSession(traced, aiSupport,
+        var session = new AiStreamingSession(traced, runtime,
                 systemPrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, metrics);
 
@@ -436,8 +436,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         return systemPrompt;
     }
 
-    AiSupport aiSupport() {
-        return aiSupport;
+    AgentRuntime runtime() {
+        return runtime;
     }
 
     List<AiInterceptor> interceptors() {

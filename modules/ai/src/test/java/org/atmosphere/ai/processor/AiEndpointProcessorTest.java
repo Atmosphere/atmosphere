@@ -215,7 +215,7 @@ public class AiEndpointProcessorTest {
     }
 
     @Test
-    public void testHandlerHasAiSupport() throws Exception {
+    public void testHandlerHasRuntime() throws Exception {
         when(framework.newClassInstance(eq(Object.class), any()))
                 .thenReturn(new ValidEndpoint());
 
@@ -224,7 +224,7 @@ public class AiEndpointProcessorTest {
         var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
         verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
         var handler = (AiEndpointHandler) handlerCaptor.getValue();
-        assertNotNull(handler.aiSupport());
+        assertNotNull(handler.runtime());
     }
 
     @Test

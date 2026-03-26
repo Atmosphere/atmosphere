@@ -16,9 +16,9 @@
 package org.atmosphere.integrationtests.ai;
 
 import org.atmosphere.ai.AiConfig;
-import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.AgentExecutionContext;
+import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AiStreamingSession;
-import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.MemoryStrategy;
 import org.atmosphere.ai.StreamingSession;
@@ -42,12 +42,12 @@ public class MemoryStrategyTestHandler implements AtmosphereHandler {
 
     private final InMemoryConversationMemory memory;
     private final MemoryStrategy strategy;
-    private final AiSupport echoingSupport;
+    private final AgentRuntime echoingRuntime;
 
     public MemoryStrategyTestHandler(MemoryStrategy strategy) {
         this.memory = new InMemoryConversationMemory(100);
         this.strategy = strategy;
-        this.echoingSupport = new StrategyEchoingAiSupport(strategy);
+        this.echoingRuntime = new StrategyEchoingRuntime(strategy);
     }
 
     @Override
@@ -60,7 +60,7 @@ public class MemoryStrategyTestHandler implements AtmosphereHandler {
             var trimmed = prompt.trim();
             Thread.ofVirtual().name("strategy-test").start(() -> {
                 try (var session = new AiStreamingSession(StreamingSessions.start(resource),
-                        echoingSupport, "You are a test assistant", null,
+                        echoingRuntime, "You are a test assistant", null,
                         List.of(), resource, memory)) {
                     session.stream(trimmed);
                 }
@@ -88,10 +88,10 @@ public class MemoryStrategyTestHandler implements AtmosphereHandler {
     public void destroy() {
     }
 
-    private static class StrategyEchoingAiSupport implements AiSupport {
+    private static class StrategyEchoingRuntime implements AgentRuntime {
         private final MemoryStrategy strategy;
 
-        StrategyEchoingAiSupport(MemoryStrategy strategy) {
+        StrategyEchoingRuntime(MemoryStrategy strategy) {
             this.strategy = strategy;
         }
 
@@ -115,8 +115,8 @@ public class MemoryStrategyTestHandler implements AtmosphereHandler {
         }
 
         @Override
-        public void stream(AiRequest request, StreamingSession session) {
-            var rawHistory = request.history();
+        public void execute(AgentExecutionContext context, StreamingSession session) {
+            var rawHistory = context.history();
             // Pass a realistic limit so summarization triggers when history grows
             // beyond the strategy's window (SummarizingStrategy uses recentWindowSize=4)
             var maxMessages = "summarizing".equals(strategy.name()) ? 8 : rawHistory.size();
@@ -142,7 +142,7 @@ public class MemoryStrategyTestHandler implements AtmosphereHandler {
             session.send("STRATEGY:" + strategy.name()
                     + "|RAW:" + rawHistory.size()
                     + "|SELECTED:" + selected.size()
-                    + "|" + request.message());
+                    + "|" + context.message());
             session.complete();
         }
     }

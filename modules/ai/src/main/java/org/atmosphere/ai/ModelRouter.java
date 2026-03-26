@@ -36,16 +36,16 @@ import java.util.Set;
 public interface ModelRouter {
 
     /**
-     * Select the best {@link AiSupport} for the given request.
+     * Select the best {@link AgentRuntime} for the given request.
      *
      * @param request            the AI request
      * @param availableBackends  the available AI backends
      * @param requiredCapabilities capabilities the backend must support
      * @return the selected backend, or empty if none are suitable
      */
-    Optional<AiSupport> route(
+    Optional<AgentRuntime> route(
             AiRequest request,
-            List<AiSupport> availableBackends,
+            List<AgentRuntime> availableBackends,
             Set<AiCapability> requiredCapabilities
     );
 
@@ -55,14 +55,14 @@ public interface ModelRouter {
      * @param backend the backend that failed
      * @param error   the error that occurred
      */
-    void reportFailure(AiSupport backend, Throwable error);
+    void reportFailure(AgentRuntime backend, Throwable error);
 
     /**
      * Report that a backend succeeded, so the router can track health.
      *
      * @param backend the backend that succeeded
      */
-    void reportSuccess(AiSupport backend);
+    void reportSuccess(AgentRuntime backend);
 
     /**
      * Fallback strategies for model routing.

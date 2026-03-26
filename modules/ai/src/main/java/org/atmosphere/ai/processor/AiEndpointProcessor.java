@@ -21,10 +21,10 @@ import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiMetrics;
-import org.atmosphere.ai.AiSupport;
+import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.ConversationPersistence;
-import org.atmosphere.ai.DefaultAiSupportResolver;
+import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.DefaultModelRouter;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.ModelRouter;
@@ -104,7 +104,7 @@ public class AiEndpointProcessor implements Processor<Object> {
             var systemPrompt = resolveSystemPrompt(annotation);
             var fallbackStrategy = parseFallbackStrategy(annotation.fallbackStrategy());
             var settings = resolveSettings();
-            var aiSupport = resolveAiSupportWithRouting(fallbackStrategy, settings);
+            var runtime = resolveRuntimeWithRouting(fallbackStrategy, settings);
             var interceptors = instantiateInterceptors(annotation.interceptors(), framework);
             AiConversationMemory memory = null;
             if (annotation.conversationMemory()) {
@@ -123,7 +123,7 @@ public class AiEndpointProcessor implements Processor<Object> {
             var broadcastFilters = instantiateBroadcastFilters(annotation.filters(), framework);
 
             // Validate required capabilities
-            validateCapabilities(annotation.requires(), aiSupport, annotation.path());
+            validateCapabilities(annotation.requires(), runtime, annotation.path());
 
             // Per-endpoint model override
             var endpointModel = annotation.model().isEmpty() ? null : annotation.model();
@@ -133,7 +133,7 @@ public class AiEndpointProcessor implements Processor<Object> {
 
             var handler = new AiEndpointHandler(instance, promptMethod,
                     annotation.timeout(), systemPrompt, annotation.path(),
-                    aiSupport, interceptors, memory, lifecycle,
+                    runtime, interceptors, memory, lifecycle,
                     toolRegistry, guardrails, contextProviders, metrics,
                     broadcastFilters, endpointModel);
 
@@ -141,12 +141,12 @@ public class AiEndpointProcessor implements Processor<Object> {
             AnnotationUtil.defaultManagedServiceInterceptors(framework, frameworkInterceptors);
             framework.addAtmosphereHandler(annotation.path(), handler, frameworkInterceptors);
 
-            logger.info("AI endpoint registered at {} (class: {}, aiSupport: {}, interceptors: {}, "
+            logger.info("AI endpoint registered at {} (class: {}, runtime: {}, interceptors: {}, "
                             + "memory: {}, tools: {}, guardrails: {}, contextProviders: {}, "
                             + "filters: {}, fallback: {}, timeout: {}ms, "
                             + "@Ready: {}, @Disconnect: {}, @PathParam: {})",
                     annotation.path(), annotatedClass.getSimpleName(),
-                    aiSupport.name(), interceptors.size(),
+                    runtime.name(), interceptors.size(),
                     memory != null ? "on(max=" + memory.maxMessages() + ")" : "off",
                     toolRegistry.allTools().size(),
                     guardrails.size(), contextProviders.size(),
@@ -217,9 +217,9 @@ public class AiEndpointProcessor implements Processor<Object> {
         return settings;
     }
 
-    private AiSupport resolveAiSupportWithRouting(ModelRouter.FallbackStrategy strategy,
+    private AgentRuntime resolveRuntimeWithRouting(ModelRouter.FallbackStrategy strategy,
                                                   AiConfig.LlmSettings settings) {
-        var allBackends = DefaultAiSupportResolver.resolveAll();
+        var allBackends = AgentRuntimeResolver.resolveAll();
         for (var backend : allBackends) {
             backend.configure(settings);
         }
@@ -227,13 +227,13 @@ public class AiEndpointProcessor implements Processor<Object> {
         if (strategy != ModelRouter.FallbackStrategy.NONE && allBackends.size() > 1) {
             var router = new DefaultModelRouter(strategy);
             logger.info("Routing enabled: strategy={}, backends={}", strategy,
-                    allBackends.stream().map(AiSupport::name).toList());
+                    allBackends.stream().map(AgentRuntime::name).toList());
             return new RoutingAiSupport(router, allBackends);
         }
 
         if (strategy != ModelRouter.FallbackStrategy.NONE && allBackends.size() <= 1) {
-            logger.warn("fallbackStrategy={} configured but only {} AiSupport backend(s) available. "
-                    + "Add more AiSupport JARs to enable routing.",
+            logger.warn("fallbackStrategy={} configured but only {} AgentRuntime backend(s) available. "
+                    + "Add more AgentRuntime JARs to enable routing.",
                     strategy, allBackends.size());
         }
         return allBackends.getFirst();
@@ -364,21 +364,21 @@ public class AiEndpointProcessor implements Processor<Object> {
         }
     }
 
-    private void validateCapabilities(AiCapability[] required, AiSupport aiSupport, String path) {
+    private void validateCapabilities(AiCapability[] required, AgentRuntime runtime, String path) {
         if (required.length == 0) {
             return;
         }
-        var supported = aiSupport.capabilities();
+        var supported = runtime.capabilities();
         var missing = Arrays.stream(required)
                 .filter(cap -> !supported.contains(cap))
                 .collect(Collectors.toSet());
         if (!missing.isEmpty()) {
             throw new IllegalStateException(
                     "@AiEndpoint at " + path + " requires capabilities " + missing
-                            + " but backend '" + aiSupport.name() + "' only provides " + supported
+                            + " but backend '" + runtime.name() + "' only provides " + supported
                             + ". Use a different backend or remove the requires declaration.");
         }
         logger.info("Capability check passed for {}: required={}, backend={}",
-                path, Arrays.toString(required), aiSupport.name());
+                path, Arrays.toString(required), runtime.name());
     }
 }

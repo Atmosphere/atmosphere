@@ -24,9 +24,9 @@ import org.atmosphere.agent.skill.SkillFileParser;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.ai.AiMetrics;
-import org.atmosphere.ai.AiSupport;
+import org.atmosphere.ai.AgentRuntime;
+import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.ConversationPersistence;
-import org.atmosphere.ai.DefaultAiSupportResolver;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.PersistentConversationMemory;
 import org.atmosphere.ai.PromptLoader;
@@ -116,7 +116,7 @@ public class AgentProcessor implements Processor<Object> {
 
             // Step 5: Resolve AI infrastructure
             var settings = resolveSettings();
-            var aiSupport = resolveAiSupport(settings);
+            var runtime = resolveRuntime(settings);
             AiConversationMemory memory = resolveMemory(DEFAULT_MAX_HISTORY);
             var toolRegistry = registerTools(instance, framework);
 
@@ -129,7 +129,7 @@ public class AgentProcessor implements Processor<Object> {
             // Step 6: Create AgentHandler
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
-                    systemPrompt, path, aiSupport, List.of(),
+                    systemPrompt, path, runtime, List.of(),
                     memory, lifecycle, toolRegistry,
                     List.of(), List.of(), metrics, List.of(), null);
 
@@ -149,7 +149,7 @@ public class AgentProcessor implements Processor<Object> {
             registerMcp(framework, annotation, toolRegistry, path, protocols);
             registerAgUi(framework, promptTarget, promptMethod, path, protocols);
             var pipeline = new org.atmosphere.ai.AiPipeline(
-                    aiSupport, systemPrompt, settings.model(), memory,
+                    runtime, systemPrompt, settings.model(), memory,
                     toolRegistry, List.of(), List.of(), metrics);
             wireChannelBridge(agentName, commandRouter, instance, systemPrompt, pipeline, protocols);
 
@@ -326,15 +326,15 @@ public class AgentProcessor implements Processor<Object> {
         return settings;
     }
 
-    private AiSupport resolveAiSupport(AiConfig.LlmSettings settings) {
-        var allBackends = DefaultAiSupportResolver.resolveAll();
+    private AgentRuntime resolveRuntime(AiConfig.LlmSettings settings) {
+        var allBackends = AgentRuntimeResolver.resolveAll();
         for (var backend : allBackends) {
             backend.configure(settings);
         }
         return allBackends.stream().findFirst()
                 .orElseThrow(() -> new IllegalStateException(
-                        "No AI support backend available. Add an atmosphere-ai-* provider "
-                                + "(e.g. atmosphere-ai-openai) to the classpath."));
+                        "No AgentRuntime available. Add an AI provider "
+                                + "(e.g. atmosphere-langchain4j) to the classpath."));
     }
 
     private AiConversationMemory resolveMemory(int maxHistory) {
