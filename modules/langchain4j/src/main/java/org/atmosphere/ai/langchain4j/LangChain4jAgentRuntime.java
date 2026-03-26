@@ -20,10 +20,10 @@ import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
-import org.atmosphere.ai.AbstractAiSupport;
+import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
-import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.tool.ToolExecutionHelper;
 import org.slf4j.Logger;
@@ -41,9 +41,9 @@ import java.util.Set;
  * The model must be configured via {@link #setModel} — typically done
  * by application configuration or Spring auto-configuration.</p>
  */
-public class LangChain4jAiSupport extends AbstractAiSupport<StreamingChatModel> {
+public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatModel> {
 
-    private static final Logger logger = LoggerFactory.getLogger(LangChain4jAiSupport.class);
+    private static final Logger logger = LoggerFactory.getLogger(LangChain4jAgentRuntime.class);
 
     @Override
     public String name() {
@@ -62,7 +62,7 @@ public class LangChain4jAiSupport extends AbstractAiSupport<StreamingChatModel> 
 
     @Override
     protected String configurationHint() {
-        return "Call LangChain4jAiSupport.setModel() or use Spring auto-configuration.";
+        return "Call LangChain4jAgentRuntime.setModel() or use Spring auto-configuration.";
     }
 
     @Override
@@ -108,16 +108,16 @@ public class LangChain4jAiSupport extends AbstractAiSupport<StreamingChatModel> 
     }
 
     @Override
-    protected void doStream(StreamingChatModel streamingModel,
-                            AiRequest request, StreamingSession session) {
+    protected void doExecute(StreamingChatModel streamingModel,
+                            AgentExecutionContext context, StreamingSession session) {
         session.progress("Connecting to AI model...");
 
         var messages = new ArrayList<dev.langchain4j.data.message.ChatMessage>();
-        if (request.systemPrompt() != null && !request.systemPrompt().isEmpty()) {
-            messages.add(SystemMessage.from(request.systemPrompt()));
+        if (context.systemPrompt() != null && !context.systemPrompt().isEmpty()) {
+            messages.add(SystemMessage.from(context.systemPrompt()));
         }
         // Insert conversation history between system prompt and current user message
-        for (var historyMsg : request.history()) {
+        for (var historyMsg : context.history()) {
             switch (historyMsg.role()) {
                 case "user" -> messages.add(UserMessage.from(historyMsg.content()));
                 case "assistant" -> messages.add(AiMessage.from(historyMsg.content()));
@@ -125,10 +125,10 @@ public class LangChain4jAiSupport extends AbstractAiSupport<StreamingChatModel> 
                 default -> messages.add(UserMessage.from(historyMsg.content()));
             }
         }
-        messages.add(UserMessage.from(request.message()));
+        messages.add(UserMessage.from(context.message()));
 
         // Add tool specifications if tools are present
-        var tools = request.tools();
+        var tools = context.tools();
         var toolSpecs = tools.isEmpty()
                 ? List.<dev.langchain4j.agent.tool.ToolSpecification>of()
                 : LangChain4jToolBridge.toToolSpecifications(tools);

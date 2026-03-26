@@ -15,36 +15,25 @@
  */
 package org.atmosphere.ai.llm;
 
+import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AgentExecutionContext;
-import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
-import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.StreamingSession;
 
+import java.util.ArrayList;
 import java.util.Set;
 
 /**
- * Default fallback {@link AgentRuntime} that uses Atmosphere's built-in
- * OpenAI-compatible HTTP client. Priority 0 — always available, used when
- * no framework-specific runtime is on the classpath.
- *
- * <p>Handles the full agent loop: RAG augmentation via context providers,
- * tool calling via ToolRegistry, and conversation memory. Guardrails and
- * interceptors are handled externally by the Atmosphere pipeline.</p>
+ * Default fallback {@link org.atmosphere.ai.AgentRuntime} that uses Atmosphere's
+ * built-in OpenAI-compatible HTTP client. Priority 0 — always available, used
+ * when no framework-specific runtime is on the classpath.
  */
-public class BuiltInAgentRuntime implements AgentRuntime {
-
-    private final BuiltInAiSupport delegate = new BuiltInAiSupport();
+public class BuiltInAgentRuntime extends AbstractAgentRuntime<OpenAiCompatibleClient> {
 
     @Override
     public String name() {
         return "built-in";
-    }
-
-    @Override
-    public boolean isAvailable() {
-        return true;
     }
 
     @Override
@@ -53,33 +42,49 @@ public class BuiltInAgentRuntime implements AgentRuntime {
     }
 
     @Override
+    protected String nativeClientClassName() {
+        return "org.atmosphere.ai.llm.OpenAiCompatibleClient";
+    }
+
+    @Override
+    protected String clientDescription() {
+        return "OpenAiCompatibleClient";
+    }
+
+    @Override
+    protected OpenAiCompatibleClient createNativeClient(AiConfig.LlmSettings settings) {
+        return settings != null ? settings.client() : null;
+    }
+
+    @Override
     public void configure(AiConfig.LlmSettings settings) {
-        delegate.configure(settings);
+        if (getNativeClient() == null && settings != null) {
+            setNativeClient(settings.client());
+        }
+    }
+
+    @Override
+    protected void doExecute(OpenAiCompatibleClient client,
+                             AgentExecutionContext context, StreamingSession session) {
+        var messages = new ArrayList<ChatMessage>();
+        if (context.systemPrompt() != null && !context.systemPrompt().isEmpty()) {
+            messages.add(ChatMessage.system(context.systemPrompt()));
+        }
+        for (var h : context.history()) {
+            messages.add(new ChatMessage(h.role(), h.content()));
+        }
+        messages.add(ChatMessage.user(context.message()));
+
+        var builder = ChatCompletionRequest.builder(context.model());
+        for (var msg : messages) {
+            builder.message(msg);
+        }
+        var request = builder.build();
+        client.streamChatCompletion(request, session);
     }
 
     @Override
     public Set<AiCapability> capabilities() {
-        return delegate.capabilities();
-    }
-
-    @Override
-    public void execute(AgentExecutionContext context, StreamingSession session) {
-        // Bridge to AiRequest for the built-in client
-        // Phase 2 will add RAG augmentation and tool calling loop here
-        var request = new AiRequest(
-                context.message(),
-                context.systemPrompt(),
-                context.model(),
-                context.userId(),
-                context.sessionId(),
-                context.agentId(),
-                context.conversationId(),
-                context.metadata(),
-                context.history()
-        );
-        if (!context.tools().isEmpty()) {
-            request = request.withTools(context.tools());
-        }
-        delegate.stream(request, session);
+        return Set.of(AiCapability.TEXT_STREAMING, AiCapability.SYSTEM_PROMPT);
     }
 }

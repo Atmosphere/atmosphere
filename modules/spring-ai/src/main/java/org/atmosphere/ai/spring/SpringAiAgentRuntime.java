@@ -15,10 +15,10 @@
  */
 package org.atmosphere.ai.spring;
 
-import org.atmosphere.ai.AbstractAiSupport;
+import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
-import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.StreamingSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,9 +44,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * The {@link ChatClient} must be configured via {@link #setChatClient} — typically
  * done by {@link AtmosphereSpringAiAutoConfiguration}.</p>
  */
-public class SpringAiSupport extends AbstractAiSupport<ChatClient> {
+public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
 
-    private static final Logger logger = LoggerFactory.getLogger(SpringAiSupport.class);
+    private static final Logger logger = LoggerFactory.getLogger(SpringAiAgentRuntime.class);
 
     @Override
     public String name() {
@@ -123,25 +123,25 @@ public class SpringAiSupport extends AbstractAiSupport<ChatClient> {
     }
 
     @Override
-    protected void doStream(ChatClient client, AiRequest request, StreamingSession session) {
+    protected void doExecute(ChatClient client, AgentExecutionContext context, StreamingSession session) {
         session.progress("Connecting to AI model...");
 
         var promptSpec = client.prompt();
-        if (request.systemPrompt() != null && !request.systemPrompt().isEmpty()) {
-            promptSpec = promptSpec.system(request.systemPrompt());
+        if (context.systemPrompt() != null && !context.systemPrompt().isEmpty()) {
+            promptSpec = promptSpec.system(context.systemPrompt());
         }
         // Insert conversation history between system prompt and current user message
-        if (!request.history().isEmpty()) {
+        if (!context.history().isEmpty()) {
             var historyMessages = new ArrayList<Message>();
-            for (var historyMsg : request.history()) {
+            for (var historyMsg : context.history()) {
                 historyMessages.add(toSpringMessage(historyMsg));
             }
             promptSpec = promptSpec.messages(historyMessages);
         }
-        promptSpec = promptSpec.user(request.message());
+        promptSpec = promptSpec.user(context.message());
 
         // Register tool callbacks if tools are present
-        var tools = request.tools();
+        var tools = context.tools();
         if (!tools.isEmpty()) {
             var callbacks = SpringAiToolBridge.toToolCallbacks(tools);
             promptSpec = promptSpec.toolCallbacks(callbacks);

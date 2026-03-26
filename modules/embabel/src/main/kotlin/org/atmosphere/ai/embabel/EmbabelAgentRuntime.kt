@@ -19,8 +19,8 @@ import com.embabel.agent.core.AgentPlatform
 import com.embabel.agent.core.ProcessOptions
 import org.atmosphere.ai.AiCapability
 import org.atmosphere.ai.AiConfig
-import org.atmosphere.ai.AiRequest
-import org.atmosphere.ai.AiSupport
+import org.atmosphere.ai.AgentExecutionContext
+import org.atmosphere.ai.AgentRuntime
 import org.atmosphere.ai.StreamingSession
 import org.slf4j.LoggerFactory
 
@@ -31,10 +31,10 @@ import org.slf4j.LoggerFactory
  * The [AgentPlatform] and agent name must be configured via [setAgentPlatform]
  * and [setAgentName] — typically done by Spring auto-configuration.
  */
-class EmbabelAiSupport : AiSupport {
+class EmbabelAgentRuntime : AgentRuntime {
 
     companion object {
-        private val logger = LoggerFactory.getLogger(EmbabelAiSupport::class.java)
+        private val logger = LoggerFactory.getLogger(EmbabelAgentRuntime::class.java)
 
         @Volatile
         private var agentPlatform: AgentPlatform? = null
@@ -77,14 +77,14 @@ class EmbabelAiSupport : AiSupport {
         )
     }
 
-    override fun stream(request: AiRequest, session: StreamingSession) {
+    override fun execute(context: AgentExecutionContext, session: StreamingSession) {
         val platform = agentPlatform
             ?: throw IllegalStateException(
-                "EmbabelAiSupport: AgentPlatform not configured. " +
-                    "Call EmbabelAiSupport.setAgentPlatform() or use Spring auto-configuration."
+                "EmbabelAgentRuntime: AgentPlatform not configured. " +
+                    "Call EmbabelAgentRuntime.setAgentPlatform() or use Spring auto-configuration."
             )
 
-        val targetAgent = request.agentId() ?: agentName
+        val targetAgent = context.agentId() ?: agentName
 
         session.progress("Starting agent: $targetAgent...")
 
@@ -96,7 +96,7 @@ class EmbabelAiSupport : AiSupport {
         val channel = AtmosphereOutputChannel(session)
         try {
             val options = ProcessOptions.DEFAULT.withOutputChannel(channel)
-            platform.runAgentFrom(agent, options, mapOf("userMessage" to request.message()))
+            platform.runAgentFrom(agent, options, mapOf("userMessage" to context.message()))
         } catch (e: Exception) {
             logger.error("Agent execution failed", e)
             session.error(e)

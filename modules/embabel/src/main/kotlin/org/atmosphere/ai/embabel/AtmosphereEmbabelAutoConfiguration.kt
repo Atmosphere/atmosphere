@@ -23,7 +23,7 @@ import org.springframework.context.annotation.Bean
 
 /**
  * Auto-configuration that bridges the Spring-managed [AgentPlatform] bean
- * to the [EmbabelAiSupport] SPI so that `@AiEndpoint` methods
+ * to the [EmbabelAgentRuntime] SPI so that `@AiEndpoint` methods
  * can stream via `session.stream(message)`.
  */
 @AutoConfiguration
@@ -32,8 +32,8 @@ open class AtmosphereEmbabelAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(AgentPlatform::class)
-    open fun embabelAiSupportBridge(platform: AgentPlatform): EmbabelAiSupport {
-        EmbabelAiSupport.setAgentPlatform(platform)
-        return EmbabelAiSupport()
+    open fun embabelAiSupportBridge(platform: AgentPlatform): EmbabelAgentRuntime {
+        EmbabelAgentRuntime.setAgentPlatform(platform)
+        return EmbabelAgentRuntime()
     }
 }

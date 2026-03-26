@@ -22,10 +22,10 @@ import com.google.adk.runner.Runner;
 import com.google.adk.tools.BaseTool;
 import com.google.genai.types.Content;
 import com.google.genai.types.Part;
-import org.atmosphere.ai.AbstractAiSupport;
+import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
-import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.slf4j.Logger;
@@ -43,9 +43,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * The runner must be configured via {@link #setRunner} — typically done
  * by application configuration or Spring auto-configuration.</p>
  */
-public class AdkAiSupport extends AbstractAiSupport<Runner> {
+public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
 
-    private static final Logger logger = LoggerFactory.getLogger(AdkAiSupport.class);
+    private static final Logger logger = LoggerFactory.getLogger(AdkAgentRuntime.class);
 
     private static volatile String defaultUserId = "atmosphere-user";
     private static volatile String defaultSessionId = "atmosphere-session";
@@ -69,7 +69,7 @@ public class AdkAiSupport extends AbstractAiSupport<Runner> {
 
     @Override
     protected String configurationHint() {
-        return "Call AdkAiSupport.setRunner() or use Spring auto-configuration.";
+        return "Call AdkAgentRuntime.setRunner() or use Spring auto-configuration.";
     }
 
     @Override
@@ -151,11 +151,11 @@ public class AdkAiSupport extends AbstractAiSupport<Runner> {
     }
 
     /**
-     * Lazily rebuild the ADK runner with tools from the AiRequest. Called on the
+     * Lazily rebuild the ADK runner with tools from the AgentExecutionContext. Called on the
      * first request that contains tool definitions. The runner is replaced in-place
      * and used for all subsequent requests.
      */
-    private synchronized void rebuildRunnerWithTools(AiRequest request) {
+    private synchronized void rebuildRunnerWithTools(AgentExecutionContext context) {
         if (toolsRegistered) {
             return;
         }
@@ -166,9 +166,9 @@ public class AdkAiSupport extends AbstractAiSupport<Runner> {
         var apiKey = settings.client().apiKey();
         var gemini = new Gemini(settings.model(), apiKey);
 
-        var adkTools = AdkToolBridge.toAdkTools(request.tools());
-        var instruction = request.systemPrompt() != null && !request.systemPrompt().isEmpty()
-                ? request.systemPrompt() : "You are a helpful assistant.";
+        var adkTools = AdkToolBridge.toAdkTools(context.tools());
+        var instruction = context.systemPrompt() != null && !context.systemPrompt().isEmpty()
+                ? context.systemPrompt() : "You are a helpful assistant.";
 
         var agentBuilder = LlmAgent.builder()
                 .name("atmosphere-agent")
@@ -188,26 +188,26 @@ public class AdkAiSupport extends AbstractAiSupport<Runner> {
     }
 
     @Override
-    protected void doStream(Runner adkRunner, AiRequest request, StreamingSession session) {
+    protected void doExecute(Runner adkRunner, AgentExecutionContext context, StreamingSession session) {
         session.progress("Starting ADK agent...");
 
-        // ADK requires tools at agent construction time. If the AiRequest contains
+        // ADK requires tools at agent construction time. If the AgentExecutionContext contains
         // tools that haven't been registered yet, rebuild the runner with those tools.
-        var tools = request.tools();
+        var tools = context.tools();
         if (!tools.isEmpty() && !toolsRegistered) {
-            rebuildRunnerWithTools(request);
+            rebuildRunnerWithTools(context);
             adkRunner = getNativeClient();
         }
 
-        var userId = request.userId() != null ? request.userId() : defaultUserId;
-        var sessionId = request.sessionId() != null ? request.sessionId() : defaultSessionId;
+        var userId = context.userId() != null ? context.userId() : defaultUserId;
+        var sessionId = context.sessionId() != null ? context.sessionId() : defaultSessionId;
 
         ensureSession(adkRunner, userId, sessionId);
 
         var events = adkRunner.runAsync(
                 userId,
                 sessionId,
-                Content.fromParts(Part.fromText(request.message()))
+                Content.fromParts(Part.fromText(context.message()))
         );
         AdkEventAdapter.bridge(events, session);
     }

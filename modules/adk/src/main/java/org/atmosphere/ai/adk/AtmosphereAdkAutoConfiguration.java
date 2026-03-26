@@ -23,7 +23,7 @@ import org.springframework.context.annotation.Bean;
 
 /**
  * Auto-configuration that bridges the Spring-managed {@link Runner} bean
- * to the {@link AdkAiSupport} SPI so that {@code @AiEndpoint} methods
+ * to the {@link AdkAgentRuntime} SPI so that {@code @AiEndpoint} methods
  * can stream via {@code session.stream(message)}.
  */
 @AutoConfiguration
@@ -32,8 +32,8 @@ public class AtmosphereAdkAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(Runner.class)
-    AdkAiSupport adkAiSupportBridge(Runner runner) {
-        AdkAiSupport.setRunner(runner);
-        return new AdkAiSupport();
+    AdkAgentRuntime adkAiSupportBridge(Runner runner) {
+        AdkAgentRuntime.setRunner(runner);
+        return new AdkAgentRuntime();
     }
 }

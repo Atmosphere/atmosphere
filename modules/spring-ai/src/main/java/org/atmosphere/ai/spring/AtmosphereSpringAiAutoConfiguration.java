@@ -27,7 +27,7 @@ import org.springframework.context.annotation.Bean;
  * Activates when {@code spring-ai-model} is on the classpath.
  *
  * <p>Bridges the Spring-managed {@link ChatClient} bean to the
- * {@link SpringAiSupport} SPI so that {@code @AiEndpoint} methods
+ * {@link SpringAiAgentRuntime} SPI so that {@code @AiEndpoint} methods
  * can stream via {@code session.stream(message)}.</p>
  */
 @AutoConfiguration
@@ -42,8 +42,8 @@ public class AtmosphereSpringAiAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(ChatClient.class)
-    SpringAiSupport springAiSupportBridge(ChatClient chatClient) {
-        SpringAiSupport.setChatClient(chatClient);
-        return new SpringAiSupport();
+    SpringAiAgentRuntime springAiSupportBridge(ChatClient chatClient) {
+        SpringAiAgentRuntime.setChatClient(chatClient);
+        return new SpringAiAgentRuntime();
     }
 }
