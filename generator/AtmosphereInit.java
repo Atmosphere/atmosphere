@@ -369,7 +369,7 @@ public class AtmosphereInit implements Runnable {
     }
 
     /** Spring Boot version — NOT updated by update-doc-versions.sh */
-    private static String springBootFallback() { return "4.0.3"; }
+    private static String springBootFallback() { return "4.0.27"; }
 
     String readAtmosphereVersion() {
         var repoRoot = scriptDir.getParent();
@@ -388,7 +388,7 @@ public class AtmosphereInit implements Runnable {
             } catch (IOException ignored) {
             }
         }
-        return "4.0.26";
+        return "4.0.27";
     }
 
     private Path resolveScriptDir() {

@@ -343,6 +343,6 @@ public class AtmosphereInitTest {
         // Point scriptDir to a temp dir (no pom.xml in parent)
         gen.scriptDir = tempDir.resolve("generator");
         var version = gen.readAtmosphereVersion();
-        assertEquals("4.0.26", version);
+        assertEquals("4.0.27", version);
     }
 }
