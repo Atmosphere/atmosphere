@@ -93,6 +93,43 @@ public class ResearchAgent {
 
 Full-stack and headless agents can collaborate via A2A — full-stack agents delegate to headless specialists using Agent Card discovery and JSON-RPC task delegation.
 
+## `@Coordinator` — Multi-Agent Orchestration
+
+A coordinator manages a fleet of agents. Declare the fleet, inject `AgentFleet` into your `@Prompt` method, and orchestrate with plain Java — sequential, parallel, pipeline, or any pattern.
+
+```java
+@Coordinator(name = "ceo", skillFile = "prompts/ceo-skill.md")
+@Fleet({
+    @AgentRef(type = ResearchAgent.class),
+    @AgentRef(type = StrategyAgent.class),
+    @AgentRef(type = FinanceAgent.class),
+    @AgentRef(type = WriterAgent.class)
+})
+public class CeoCoordinator {
+
+    @Prompt
+    public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
+        // Sequential: research first
+        var research = fleet.agent("research").call("web_search", Map.of("query", message));
+
+        // Parallel: strategy + finance concurrently
+        var results = fleet.parallel(
+            fleet.call("strategy", "analyze", Map.of("data", research.text())),
+            fleet.call("finance", "model", Map.of("market", message))
+        );
+
+        // CEO synthesizes via LLM
+        session.stream("Synthesize: " + research.text() + results.get("strategy").text());
+    }
+}
+```
+
+The fleet handles transport automatically — local agents are invoked directly (no HTTP), remote agents use A2A JSON-RPC. `@AgentRef(type = ...)` gives you compile-safe references with IDE navigation. Specialist agents are plain `@Agent` classes — they don't know they're in a fleet.
+
+**Fleet features:** parallel fan-out, sequential pipeline, optional agents (`required = false`), advisory versioning, weight-based routing metadata, circular dependency detection at startup, fleet topology logging.
+
+See [multi-agent sample](samples/spring-boot-multi-agent-startup-team/) for a working 5-agent team.
+
 ## Skills
 
 A skill file is a Markdown document with YAML frontmatter that becomes the agent's system prompt. Sections like `## Tools`, `## Skills`, and `## Guardrails` are also parsed for protocol metadata.
@@ -171,17 +208,21 @@ Set a bot token — interact with your agent from any messaging platform. Same `
 
 See [docs/protocols.md](docs/protocols.md) and [docs/channels.md](docs/channels.md).
 
-## LLM Backends
+## AgentRuntime — The Servlet Model for AI Agents
 
-Atmosphere is not an LLM library — it's the layer between the LLM and your users. Your code is never locked to a single AI framework. `@Agent`, `@AiTool`, `@Command`, skill files, conversation memory, guardrails, and protocol exposure are all **framework-independent**. The LLM backend is a pluggable dependency — swap it without touching your agent code.
+Write your agent once. The execution engine is determined by what's on the classpath — like Servlets run on Tomcat or Jetty without code changes.
 
-| Backend | Dependency | What It Brings |
+`AgentRuntime` is the single SPI that dispatches the entire agent loop — tool calling, memory, RAG, retries — to the AI framework on the classpath. Drop in one dependency and your `@Agent` gets the full power of that framework's agentic runtime.
+
+| Runtime | Dependency | What Your Agent Gets |
 |---------|-----------|-------------|
-| Built-in (Gemini / OpenAI / Ollama) | `atmosphere-ai` | Direct OpenAI-compatible client. Zero framework overhead. Good starting point — upgrade to a full AI framework later without rewriting your agent. |
-| Spring AI | `atmosphere-spring-ai` | Spring AI's `ChatClient`, embeddings, vector stores, and RAG pipelines. Atmosphere adds what Spring AI doesn't: real-time WebSocket streaming, MCP/A2A/AG-UI exposure, and multi-channel delivery. Your Spring AI RAG pipeline becomes portable across every transport and protocol. |
-| LangChain4j | `atmosphere-langchain4j` | LangChain4j chains, agents, and tool calling. `@AiTool` methods are automatically bridged to LangChain4j's tool format. You get LangChain4j's inference capabilities with Atmosphere's delivery infrastructure. |
-| Google ADK | `atmosphere-adk` | Google's Agent Development Kit for multi-agent orchestration. ADK agents run inside Atmosphere's transport layer with real-time WebSocket visibility and protocol exposure that ADK alone doesn't provide. |
-| Embabel | `atmosphere-embabel` | Embabel's goal-driven agent framework. Embabel agents stream their output through Atmosphere to browsers, MCP clients, and messaging channels. |
+| **Built-in** | `atmosphere-ai` | OpenAI-compatible client (Gemini, OpenAI, Ollama). Zero framework overhead. Good starting point. |
+| **LangChain4j** | `atmosphere-langchain4j` | LangChain4j's full agentic pipeline: ReAct tool loops, `StreamingChatModel`, automatic retries. `@AiTool` methods are bridged to LangChain4j tools automatically. |
+| **Spring AI** | `atmosphere-spring-ai` | Spring AI's `ChatClient`, function calling, RAG advisors. Your Spring AI pipeline gets real-time WebSocket streaming and multi-protocol exposure. |
+| **Google ADK** | `atmosphere-adk` | Google's Agent Development Kit: `LlmAgent`, function tools, session management. ADK agents gain WebSocket visibility and A2A interop. |
+| **Embabel** | `atmosphere-embabel` | Embabel's goal-driven GOAP planning. Embabel agents stream through Atmosphere to every transport and channel. |
+
+**Switching is one line in `pom.xml`.** Your `@Agent`, `@AiTool`, `@Command`, skill files, conversation memory, guardrails, and protocol exposure stay the same. The `AgentRuntime` handles the rest.
 
 **Why not use Spring AI / LangChain4j / ADK directly?**
 
@@ -250,7 +291,7 @@ function Chat() {
 
 | Category | Sample | Description |
 |----------|--------|-------------|
-| Multi-Agent | [startup team](samples/spring-boot-multi-agent-startup-team/) | 5 agents collaborate via A2A with real-time visualization |
+| Multi-Agent | [startup team](samples/spring-boot-multi-agent-startup-team/) | `@Coordinator` with fleet of 4 specialist agents — parallel delegation, real-time tool cards |
 | Agent | [dentist agent](samples/spring-boot-dentist-agent/) | Commands, tools, skill file, Slack and Telegram |
 | AI Streaming | [ai-chat](samples/spring-boot-ai-chat/) | Swap backend via one dependency |
 | AI Streaming | [ai-tools](samples/spring-boot-ai-tools/) | Framework-agnostic tool calling |
