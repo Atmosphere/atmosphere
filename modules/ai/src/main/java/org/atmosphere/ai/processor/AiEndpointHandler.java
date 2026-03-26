@@ -48,6 +48,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -97,7 +98,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     private final Object target;
     private final Method promptMethod;
-    private final int paramCount;
     private final long suspendTimeout;
     private final String systemPrompt;
     private final String pathTemplate;
@@ -111,6 +111,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     private final AiMetrics metrics;
     private final List<BroadcastFilter> broadcastFilters;
     private final String endpointModel;
+    private final Map<Class<?>, Object> injectables;
 
     /**
      * @param target       the user's @AiEndpoint instance
@@ -202,9 +203,36 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                              AiMetrics metrics,
                              List<BroadcastFilter> broadcastFilters,
                              String endpointModel) {
+        this(target, promptMethod, timeout, systemPrompt, pathTemplate, aiSupport,
+                interceptors, memory, lifecycle, toolRegistry, guardrails,
+                contextProviders, metrics, broadcastFilters, endpointModel, Map.of());
+    }
+
+    /**
+     * Full constructor with injectable parameters for {@code @Prompt} methods.
+     * The {@code injectables} map provides additional type-to-instance mappings
+     * that are resolved by parameter type when invoking the {@code @Prompt} method.
+     * This enables modules like {@code atmosphere-coordinator} to inject custom
+     * parameters (e.g. {@code AgentFleet}) without modifying this class.
+     *
+     * @param injectables extra parameters to inject into {@code @Prompt} methods,
+     *                    keyed by parameter type
+     */
+    public AiEndpointHandler(Object target, Method promptMethod, long timeout,
+                             String systemPrompt, String pathTemplate,
+                             AiSupport aiSupport,
+                             List<AiInterceptor> interceptors,
+                             AiConversationMemory memory,
+                             AnnotatedLifecycle lifecycle,
+                             ToolRegistry toolRegistry,
+                             List<AiGuardrail> guardrails,
+                             List<ContextProvider> contextProviders,
+                             AiMetrics metrics,
+                             List<BroadcastFilter> broadcastFilters,
+                             String endpointModel,
+                             Map<Class<?>, Object> injectables) {
         this.target = target;
         this.promptMethod = promptMethod;
-        this.paramCount = promptMethod.getParameterCount();
         this.suspendTimeout = timeout;
         this.systemPrompt = systemPrompt != null ? systemPrompt : "";
         this.pathTemplate = pathTemplate;
@@ -218,6 +246,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         this.metrics = metrics != null ? metrics : AiMetrics.NOOP;
         this.broadcastFilters = broadcastFilters != null ? broadcastFilters : List.of();
         this.endpointModel = endpointModel;
+        this.injectables = injectables != null ? Map.copyOf(injectables) : Map.of();
         this.promptMethod.setAccessible(true);
     }
 
@@ -368,11 +397,26 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     private void invokePrompt(String message, StreamingSession session, AtmosphereResource resource)
             throws InvocationTargetException, IllegalAccessException {
-        if (paramCount == 3) {
-            promptMethod.invoke(target, message, session, resource);
-        } else {
-            promptMethod.invoke(target, message, session);
+        var paramTypes = promptMethod.getParameterTypes();
+        var args = new Object[paramTypes.length];
+        for (var i = 0; i < paramTypes.length; i++) {
+            if (paramTypes[i] == String.class) {
+                args[i] = message;
+            } else if (StreamingSession.class.isAssignableFrom(paramTypes[i])) {
+                args[i] = session;
+            } else if (AtmosphereResource.class.isAssignableFrom(paramTypes[i])) {
+                args[i] = resource;
+            } else {
+                var injectable = injectables.get(paramTypes[i]);
+                if (injectable != null) {
+                    args[i] = injectable;
+                } else {
+                    throw new IllegalStateException(
+                            "Unsupported parameter type in @Prompt method: " + paramTypes[i].getName());
+                }
+            }
         }
+        promptMethod.invoke(target, args);
     }
 
     // visible for testing

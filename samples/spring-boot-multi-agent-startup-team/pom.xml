@@ -41,7 +41,13 @@
             <artifactId>atmosphere-spring-boot-starter</artifactId>
         </dependency>
 
-        <!-- @Agent for the CEO coordinator (WebSocket UI) -->
+        <!-- @Coordinator for the CEO (fleet management + WebSocket UI) -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-coordinator</artifactId>
+        </dependency>
+
+        <!-- @Agent for specialist agents -->
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-agent</artifactId>

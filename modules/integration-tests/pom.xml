@@ -58,6 +58,18 @@
             <artifactId>atmosphere-agent</artifactId>
         </dependency>
 
+        <!-- Atmosphere Coordinator (for Coordinator E2E tests) -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-coordinator</artifactId>
+        </dependency>
+
+        <!-- Atmosphere A2A (for headless agents in coordinator tests) -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-a2a</artifactId>
+        </dependency>
+
         <!-- Atmosphere gRPC -->
         <dependency>
             <groupId>org.atmosphere</groupId>

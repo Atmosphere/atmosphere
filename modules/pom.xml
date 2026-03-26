@@ -36,6 +36,7 @@
         <module>rag</module>
         <module>spring-boot-starter</module>
         <module>agent</module>
+        <module>coordinator</module>
         <module>channels</module>
         <module>quarkus-extension</module>
         <module>wasync</module>
