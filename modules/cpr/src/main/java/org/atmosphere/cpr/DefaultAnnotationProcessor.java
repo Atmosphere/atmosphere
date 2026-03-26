@@ -315,6 +315,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
         private AnnotationDetector detector;
         private final AnnotationHandler handler;
+        private AtmosphereFramework framework;
 
         public BytecodeBasedAnnotationProcessor(AnnotationHandler handler) {
             this.handler = handler;
@@ -322,6 +323,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
         @Override
         public void configure(final AtmosphereConfig config) {
+            this.framework = config.framework();
 
             final AnnotationDetector.TypeReporter reporter = new AnnotationDetector.TypeReporter() {
                 @Override
@@ -346,6 +348,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         @Override
         public AnnotationProcessor scan(File rootDir) throws IOException {
             detector.detect(rootDir);
+            handler.processDeferred(framework);
             return this;
         }
 
@@ -353,12 +356,14 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         public AnnotationProcessor scan(String packageName) throws IOException {
             logger.trace("Scanning @Service annotations in {}", packageName);
             detector.detect(packageName);
+            handler.processDeferred(framework);
             return this;
         }
 
         @Override
         public AnnotationProcessor scanAll() throws IOException {
             detector.detect();
+            handler.processDeferred(framework);
             return this;
         }
 
