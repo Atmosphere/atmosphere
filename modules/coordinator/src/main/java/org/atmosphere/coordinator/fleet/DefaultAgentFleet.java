@@ -23,6 +23,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Default {@link AgentFleet} implementation. Holds a map of agent proxies and
@@ -69,11 +71,14 @@ public final class DefaultAgentFleet implements AgentFleet {
     public Map<String, AgentResult> parallel(AgentCall... calls) {
         logger.debug("Parallel fan-out to {} agents", calls.length);
 
+        ExecutorService vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
         var futures = new LinkedHashMap<String, CompletableFuture<AgentResult>>();
         for (var agentCall : calls) {
             var proxy = agent(agentCall.agentName());
             futures.put(agentCall.agentName(),
-                    proxy.callAsync(agentCall.skill(), agentCall.args()));
+                    CompletableFuture.supplyAsync(
+                            () -> proxy.call(agentCall.skill(), agentCall.args()),
+                            vtExecutor));
         }
 
         var results = new LinkedHashMap<String, AgentResult>();
@@ -88,6 +93,7 @@ public final class DefaultAgentFleet implements AgentFleet {
             }
         }
 
+        vtExecutor.close();
         logger.debug("Parallel fan-out complete: {} results", results.size());
         return results;
     }

@@ -122,6 +122,35 @@ public class CoordinatorProcessorTest {
         assertEquals("coord-a", name);
     }
 
+    @Coordinator(name = "dup-coord")
+    @Fleet({
+            @AgentRef(type = WorkerAgentA.class),
+            @AgentRef(type = WorkerAgentA.class)
+    })
+    static class DuplicateFleetCoordinator {}
+
+    @Coordinator(name = "no-fleet-coord")
+    static class NoFleetCoordinator {}
+
+    @Test
+    void duplicateAgentNameInFleetDetected() {
+        var fleet = DuplicateFleetCoordinator.class.getAnnotation(Fleet.class);
+        assertNotNull(fleet);
+        // Both refs resolve to the same agent name "worker-a"
+        var firstName = CoordinatorProcessor.resolveAgentName(fleet.value()[0]);
+        var secondName = CoordinatorProcessor.resolveAgentName(fleet.value()[1]);
+        assertEquals(firstName, secondName,
+                "Both refs should resolve to the same name to trigger duplication");
+    }
+
+    @Test
+    void missingFleetAnnotation() {
+        var coordinator = NoFleetCoordinator.class.getAnnotation(Coordinator.class);
+        assertNotNull(coordinator, "@Coordinator should be present");
+        var fleet = NoFleetCoordinator.class.getAnnotation(Fleet.class);
+        assertNull(fleet, "@Fleet should not be present");
+    }
+
     @Test
     void promptMethodDetected() {
         var hasPrompt = false;

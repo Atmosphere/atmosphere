@@ -67,6 +67,7 @@ public class A2aAgentTransport implements AgentTransport {
                     .uri(URI.create(baseUrl))
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(30))
                     .build();
 
             logger.debug("A2A dispatch to '{}' skill '{}' at {}", agentName, skill, baseUrl);
@@ -75,6 +76,18 @@ public class A2aAgentTransport implements AgentTransport {
 
             if (response.statusCode() == 200) {
                 var json = mapper.readTree(response.body());
+
+                // Check for JSON-RPC error field before reporting success
+                if (json.has("error")) {
+                    var errorNode = json.get("error");
+                    var errorMsg = errorNode.has("message")
+                            ? errorNode.get("message").asText()
+                            : errorNode.toString();
+                    logger.warn("A2A dispatch to '{}' skill '{}' returned error: {}",
+                            agentName, skill, errorMsg);
+                    return AgentResult.failure(agentName, skill, errorMsg, duration);
+                }
+
                 var text = extractArtifactText(json);
                 return new AgentResult(agentName, skill, text, Map.of(), duration, true);
             }

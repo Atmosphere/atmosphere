@@ -166,6 +166,8 @@ public class CoordinatorProcessor implements Processor<Object> {
             var protocols = new ArrayList<String>();
             registerA2a(framework, annotation, commandRegistry, toolRegistry,
                     commandRouter, promptTarget, promptMethod, path, protocols);
+            registerMcp(framework, annotation, toolRegistry, path, protocols);
+            registerAgUi(framework, promptTarget, promptMethod, path, protocols);
             var model = settings != null ? settings.model() : null;
             var pipeline = new AiPipeline(aiSupport, systemPrompt, model, memory,
                     toolRegistry, List.of(), List.of(), metrics);
@@ -506,6 +508,117 @@ public class CoordinatorProcessor implements Processor<Object> {
             logger.warn("Failed to register A2A for coordinator '{}'",
                     annotation.name(), e);
         }
+    }
+
+    /**
+     * Registers the coordinator's {@code @AiTool} methods as MCP tools.
+     * The MCP endpoint is registered at {@code basePath + "/mcp"}.
+     */
+    private void registerMcp(AtmosphereFramework framework, Coordinator annotation,
+                              ToolRegistry toolRegistry, String basePath,
+                              List<String> protocols) {
+        if (!ClasspathDetector.hasMcp()) {
+            return;
+        }
+        try {
+            var mcpRegistry = new org.atmosphere.mcp.registry.McpRegistry();
+
+            // Bridge @AiTool methods from the ToolRegistry
+            for (var tool : toolRegistry.allTools()) {
+                var params = tool.parameters().stream()
+                        .map(p -> new org.atmosphere.mcp.registry.McpRegistry.ParamEntry(
+                                p.name(), p.description(), p.required(),
+                                jsonSchemaTypeToClass(p.type())))
+                        .toList();
+                mcpRegistry.registerTool(tool.name(), tool.description(), params,
+                        args -> tool.executor().execute(args));
+            }
+
+            var version = annotation.version();
+            var protocolHandler = new org.atmosphere.mcp.runtime.McpProtocolHandler(
+                    annotation.name(), version, mcpRegistry,
+                    framework.getAtmosphereConfig());
+
+            var handler = new org.atmosphere.mcp.runtime.McpHandler(protocolHandler);
+            var mcpPath = basePath + "/mcp";
+            framework.addAtmosphereHandler(mcpPath, handler, new ArrayList<>());
+            protocols.add("mcp");
+            logger.debug("MCP endpoint registered at {} with {} tools",
+                    mcpPath, mcpRegistry.tools().size());
+        } catch (Exception e) {
+            logger.warn("Failed to register MCP endpoint for coordinator '{}': {}",
+                    annotation.name(), e.getMessage());
+        }
+    }
+
+    /**
+     * Registers an AG-UI endpoint that bridges the coordinator's {@code @Prompt}
+     * method into the AG-UI SSE protocol. The endpoint is registered at
+     * {@code basePath + "/agui"}.
+     */
+    private void registerAgUi(AtmosphereFramework framework,
+                               Object promptTarget, Method promptMethod,
+                               String basePath, List<String> protocols) {
+        if (!ClasspathDetector.hasAgUi()) {
+            return;
+        }
+        try {
+            var bridge = new AgUiCoordinatorBridge(promptTarget, promptMethod);
+            var actionMethod = AgUiCoordinatorBridge.class.getDeclaredMethod(
+                    "onAction",
+                    org.atmosphere.agui.runtime.RunContext.class,
+                    StreamingSession.class);
+
+            var handler = new org.atmosphere.agui.runtime.AgUiHandler(bridge, actionMethod);
+            framework.addAtmosphereHandler(basePath + "/agui", handler, new ArrayList<>());
+            protocols.add("ag-ui");
+            logger.debug("AG-UI endpoint registered at {}/agui", basePath);
+        } catch (Exception e) {
+            logger.warn("Failed to register AG-UI endpoint for coordinator: {}",
+                    e.getMessage());
+        }
+    }
+
+    /**
+     * Bridge between the coordinator's {@code @Prompt} method and the AG-UI
+     * {@link org.atmosphere.agui.runtime.RunContext}-based action protocol.
+     */
+    static class AgUiCoordinatorBridge {
+        private final Object promptTarget;
+        private final Method bridgedPromptMethod;
+
+        AgUiCoordinatorBridge(Object promptTarget, Method promptMethod) {
+            this.promptTarget = promptTarget;
+            this.bridgedPromptMethod = promptMethod;
+        }
+
+        @SuppressWarnings("unused") // invoked reflectively by AgUiHandler
+        public void onAction(org.atmosphere.agui.runtime.RunContext context,
+                             StreamingSession session) {
+            var message = context.lastUserMessage();
+            if (message != null && !message.isBlank()) {
+                try {
+                    bridgedPromptMethod.invoke(promptTarget, message, session);
+                } catch (java.lang.reflect.InvocationTargetException e) {
+                    session.error(e.getCause() != null ? e.getCause() : e);
+                } catch (Exception e) {
+                    session.error(e);
+                }
+            } else {
+                session.complete();
+            }
+        }
+    }
+
+    private static Class<?> jsonSchemaTypeToClass(String type) {
+        return switch (type) {
+            case "integer" -> int.class;
+            case "number" -> double.class;
+            case "boolean" -> boolean.class;
+            case "object" -> java.util.Map.class;
+            case "array" -> java.util.List.class;
+            default -> String.class;
+        };
     }
 
     private void wireChannelBridge(String coordinatorName,

@@ -1,33 +1,35 @@
-# A2A Startup Team — True Multi-Agent
+# Multi-Agent Startup Team — @Coordinator + Fleet
 
-5 independent AI agents collaborate via the A2A (Agent-to-Agent) protocol over JSON-RPC.
-
-Each specialist is a headless `@Agent` with `@Skill` methods — headless mode is auto-detected when there's no `@Prompt`. The CEO discovers them via Agent Cards and delegates via HTTP JSON-RPC.
+5 AI agents collaborate via the `@Coordinator` fleet abstraction. The CEO coordinator
+manages 4 specialist agents, delegating tasks and synthesizing results in real-time.
 
 ## The Team
 
 | Agent | Role | Endpoint | How |
 |-------|------|----------|-----|
-| **CEO** | Orchestrates, synthesizes via Gemini | `/atmosphere/agent/ceo` | `@Agent` + `@Prompt` (full-stack) |
-| **Research** | Web scraping via JSoup + DuckDuckGo | `/atmosphere/a2a/research` | `@Agent` + `@Skill` (headless) |
-| **Strategy** | SWOT analysis, competitive positioning | `/atmosphere/a2a/strategy` | `@Agent` + `@Skill` (headless) |
-| **Finance** | TAM/SAM/SOM, revenue projections | `/atmosphere/a2a/finance` | `@Agent` + `@Skill` (headless) |
-| **Writer** | Executive briefing synthesis | `/atmosphere/a2a/writer` | `@Agent` + `@Skill` (headless) |
+| **CEO** | Coordinates fleet, synthesizes via Gemini | `/atmosphere/agent/ceo` | `@Coordinator` + `@Fleet` + `@Prompt` |
+| **Research** | Web scraping via JSoup + DuckDuckGo | `/atmosphere/a2a/research` | `@Agent` + `@AgentSkill` (headless) |
+| **Strategy** | SWOT analysis, competitive positioning | `/atmosphere/a2a/strategy` | `@Agent` + `@AgentSkill` (headless) |
+| **Finance** | TAM/SAM/SOM, revenue projections | `/atmosphere/a2a/finance` | `@Agent` + `@AgentSkill` (headless) |
+| **Writer** | Executive briefing synthesis | `/atmosphere/a2a/writer` | `@Agent` + `@AgentSkill` (headless) |
 
 ## How It Works
 
 ```
-CEO @Agent (WebSocket UI)
+@Coordinator "ceo" with @Fleet of 4 agents
   |
-  |-- GET  /atmosphere/a2a/research  → discovers Agent Card
-  |-- POST /atmosphere/a2a/research  → message/send { skillId: "web_search" }
-  |-- POST /atmosphere/a2a/strategy  → message/send { skillId: "analyze_strategy" }
-  |-- POST /atmosphere/a2a/finance   → message/send { skillId: "financial_model" }
-  |-- POST /atmosphere/a2a/writer    → message/send { skillId: "write_report" }
+  |-- fleet.agent("research-agent").call("web_search", ...)     (sequential)
+  |-- fleet.parallel(                                            (parallel)
+  |       fleet.call("strategy-agent", "analyze_strategy", ...),
+  |       fleet.call("finance-agent", "financial_model", ...))
+  |-- fleet.agent("writer-agent").call("write_report", ...)     (sequential)
   |
   v
-Gemini synthesizes all agent findings → streams to browser
+session.stream(synthesisPrompt) → Gemini CEO synthesis → streams to browser
 ```
+
+The `AgentFleet` handles transport automatically: local agents are invoked directly
+(no HTTP), remote agents use A2A JSON-RPC. The developer writes only orchestration logic.
 
 ## Running
 
@@ -37,27 +39,34 @@ cd samples/spring-boot-multi-agent-startup-team
 ../../mvnw spring-boot:run
 ```
 
-Open http://localhost:8080. Demo mode works without a key.
+Open http://localhost:8080/atmosphere/console/. Demo mode works without a key.
 
-## Key Difference: Unified `@Agent`
-
-All 5 agents use ONE annotation. Headless mode is auto-detected:
+## Key Code: CeoCoordinator
 
 ```java
-// Full-stack (has @Prompt → WebSocket UI)
-@Agent(name = "ceo", skillFile = "ceo.md")
-public class CeoAgent {
-    @Prompt
-    public void onMessage(String msg, StreamingSession s) { ... }
-}
+@Coordinator(name = "ceo", skillFile = "prompts/ceo-skill.md")
+@Fleet({
+    @AgentRef(type = ResearchAgent.class),
+    @AgentRef(type = StrategyAgent.class),
+    @AgentRef(type = FinanceAgent.class),
+    @AgentRef(type = WriterAgent.class)
+})
+public class CeoCoordinator {
 
-// Headless (has @Skill, no @Prompt → A2A only)
-@Agent(name = "research", endpoint = "/atmosphere/a2a/research")
-public class ResearchAgent {
-    @Skill(id = "web_search", name = "Search", ...)
-    @SkillHandler
-    public void search(TaskContext task, @SkillParam(name="query") String q) { ... }
+    @Prompt
+    public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
+        var research = fleet.agent("research-agent").call("web_search",
+                Map.of("query", message));
+
+        var results = fleet.parallel(
+                fleet.call("strategy-agent", "analyze_strategy",
+                        Map.of("market", message, "research_findings", research.text())),
+                fleet.call("finance-agent", "financial_model",
+                        Map.of("market", message)));
+
+        session.stream(synthesize(research, results));
+    }
 }
 ```
 
-No `@Agent` annotation — it was removed in favor of the unified `@Agent`.
+The specialist agents are plain `@Agent` classes — they don't know they're in a fleet.

@@ -64,8 +64,8 @@ public class CoordinatorWebSocketIntegrationTest {
 
     @AfterAll
     public void tearDown() throws Exception {
-        httpClient.close();
-        server.close();
+        if (httpClient != null) httpClient.close();
+        if (server != null) server.close();
     }
 
     @Timeout(value = 30_000, unit = TimeUnit.MILLISECONDS)

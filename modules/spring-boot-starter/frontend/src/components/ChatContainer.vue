@@ -49,12 +49,12 @@ function handleSend(text: string) {
         <p class="empty-title">Start a conversation</p>
         <p class="empty-subtitle">Type a message below to begin chatting with the AI assistant.</p>
       </div>
-      <template v-for="msg in messages" :key="msg.id">
+      <template v-for="(msg, idx) in messages" :key="msg.id">
         <ChatMessage :message="msg" />
         <!-- Show tool cards after user message, before assistant response -->
-        <div v-if="msg.role === 'user' && toolCalls.length > 0" class="tool-section">
+        <div v-if="msg.role === 'user' && toolCalls.length > 0 && (idx === messages.length - 1 || messages[idx + 1]?.role === 'assistant')" class="tool-section">
           <div class="tool-section-label">Agent Collaboration</div>
-          <ToolCard v-for="tc in toolCalls" :key="tc.name" :tool="tc" />
+          <ToolCard v-for="tc in toolCalls" :key="tc.id" :tool="tc" />
         </div>
       </template>
       <div v-if="isStreaming" class="streaming-indicator">

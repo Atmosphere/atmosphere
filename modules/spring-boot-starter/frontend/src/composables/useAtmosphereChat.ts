@@ -10,6 +10,7 @@ export interface ChatMessage {
 }
 
 export interface ToolCall {
+  id: string
   name: string
   args: Record<string, unknown>
   result?: string
@@ -26,6 +27,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
   let atmosphere: Atmosphere | null = null
   let subscription: Subscription | null = null
   let currentAssistantMessage: ChatMessage | null = null
+  let toolCallCounter = 0
 
   function parseStreamingMessage(body: string) {
     // Messages can be batched with TrackMessageSizeInterceptor framing.
@@ -69,8 +71,9 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
       case 'tool-start': {
         const name = ((msg.data as Record<string, unknown>)?.toolName ?? '') as string
         const args = ((msg.data as Record<string, unknown>)?.arguments ?? {}) as Record<string, unknown>
-        if (name && !toolCalls.value.find(t => t.name === name)) {
-          toolCalls.value = [...toolCalls.value, { name, args, done: false }]
+        if (name) {
+          const id = `${++toolCallCounter}-${name}`
+          toolCalls.value = [...toolCalls.value, { id, name, args, done: false }]
         }
         break
       }

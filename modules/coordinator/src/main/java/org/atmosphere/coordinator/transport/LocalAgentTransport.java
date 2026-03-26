@@ -69,8 +69,20 @@ public class LocalAgentTransport implements AgentTransport {
             var responseStr = (String) handleMethod.invoke(protocolHandler, requestBody);
 
             var json = mapper.readTree(responseStr);
-            var text = extractArtifactText(json);
             var duration = Duration.between(start, Instant.now());
+
+            // Check for JSON-RPC error field before reporting success
+            if (json.has("error")) {
+                var errorNode = json.get("error");
+                var errorMsg = errorNode.has("message")
+                        ? errorNode.get("message").asText()
+                        : errorNode.toString();
+                logger.warn("Local dispatch to '{}' skill '{}' returned error: {}",
+                        agentName, skill, errorMsg);
+                return AgentResult.failure(agentName, skill, errorMsg, duration);
+            }
+
+            var text = extractArtifactText(json);
 
             logger.debug("Local dispatch to '{}' skill '{}' completed in {}ms",
                     agentName, skill, duration.toMillis());
