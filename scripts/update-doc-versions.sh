@@ -73,7 +73,7 @@ done
 echo "── Generator fallback"
 INIT_FILE="$ROOT/generator/AtmosphereInit.java"
 if [ -f "$INIT_FILE" ]; then
-    sedi "s|return \"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^\"]*\";|return \"$VERSION\";|" "$INIT_FILE"
+    sedi "/readAtmosphereVersion/,/^    }/s|return \"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^\"]*\";|return \"$VERSION\";|" "$INIT_FILE"
     echo "   generator/AtmosphereInit.java"
 fi
 INIT_TEST="$ROOT/generator/AtmosphereInitTest.java"
