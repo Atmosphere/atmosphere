@@ -88,6 +88,19 @@ public class A2aAgentTransport implements AgentTransport {
                     return AgentResult.failure(agentName, skill, errorMsg, duration);
                 }
 
+                // Check for failed task status
+                var result = json.get("result");
+                if (result != null && result.has("status")) {
+                    var state = result.get("status").has("state")
+                            ? result.get("status").get("state").asText() : "";
+                    if ("failed".equals(state) || "canceled".equals(state)) {
+                        var statusMsg = result.get("status").has("message")
+                                ? result.get("status").get("message").asText()
+                                : "Task " + state;
+                        return AgentResult.failure(agentName, skill, statusMsg, duration);
+                    }
+                }
+
                 var text = extractArtifactText(json);
                 return new AgentResult(agentName, skill, text, Map.of(), duration, true);
             }

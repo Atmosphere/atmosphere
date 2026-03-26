@@ -19,7 +19,6 @@ import org.atmosphere.coordinator.transport.AgentTransport;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 /**
@@ -64,9 +63,15 @@ public final class DefaultAgentProxy implements AgentProxy {
 
     @Override
     public CompletableFuture<AgentResult> callAsync(String skill, Map<String, String> args) {
-        return CompletableFuture.supplyAsync(
-                () -> transport.send(name, skill, args),
-                Executors.newVirtualThreadPerTaskExecutor());
+        var future = new CompletableFuture<AgentResult>();
+        Thread.startVirtualThread(() -> {
+            try {
+                future.complete(transport.send(name, skill, args));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        return future;
     }
 
     @Override

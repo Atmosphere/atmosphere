@@ -76,7 +76,7 @@ test.describe('Multi-Agent Startup Team', () => {
   test('server logs confirm CEO agent with protocols', () => {
     const output = server.getOutput();
     expect(output).toContain('/atmosphere/agent/ceo');
-    expect(output).toContain("Agent 'ceo' registered");
+    expect(output).toContain("Coordinator 'ceo' registered");
   });
 
   test('4 headless agents registered', () => {

@@ -80,7 +80,14 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
       case 'tool-result': {
         const name = ((msg.data as Record<string, unknown>)?.toolName ?? '') as string
         const result = ((msg.data as Record<string, unknown>)?.result ?? '') as string
-        const tc = toolCalls.value.find(t => t.name === name && !t.done)
+        // FIFO match: finds the first unfinished tool call with this name.
+        // For true out-of-order correlation, the server should include a correlation ID
+        // in tool-start/tool-result events (planned for AgentRuntime SPI).
+        let tc = toolCalls.value.find(t => t.name === name && !t.done)
+        if (!tc) {
+          // Fallback: if no unfinished match by name, match any unfinished call
+          tc = toolCalls.value.find(t => !t.done)
+        }
         if (tc) {
           tc.result = typeof result === 'string' ? result : JSON.stringify(result)
           tc.done = true
