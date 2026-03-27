@@ -177,7 +177,8 @@ public final class DefaultStreamingSession implements StreamingSession {
             case AiEvent.Error err -> {
                 if (closed.compareAndSet(false, true)) {
                     SESSION_RESOURCES.remove(sessionId);
-                    broadcast(buildEventMessage(event));
+                    logger.error("Streaming session {} error: {}", sessionId, err.message());
+                    broadcast(buildMessage("error", err.message()));
                 }
                 return;
             }

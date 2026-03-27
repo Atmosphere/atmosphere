@@ -25,6 +25,7 @@ import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
 import org.atmosphere.coordinator.fleet.AgentFleet;
+import org.atmosphere.coordinator.journal.CoordinationEvent;
 import org.atmosphere.coordinator.journal.CoordinationQuery;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -112,15 +113,36 @@ public class CeoCoordinator {
         var report = fleet.agent("writer-agent").call("write_report", writerArgs);
         session.emit(new AiEvent.ToolResult("write_report", report.text()));
 
-        // Journal: show fleet execution stats as a visible tool card
+        // Journal: show fleet execution log as a visible tool card
         var journal = fleet.journal();
         var allEvents = journal.query(CoordinationQuery.all());
-        var journalSummary = "Recorded " + allEvents.size() + " events across "
-                + fleet.agents().size() + " agents";
+        var sb = new StringBuilder();
+        sb.append(allEvents.size()).append(" events:\n");
+        for (var event : allEvents) {
+            switch (event) {
+                case CoordinationEvent.CoordinationStarted e ->
+                        sb.append("  START  ").append(e.coordinatorName()).append("\n");
+                case CoordinationEvent.AgentDispatched e ->
+                        sb.append("  DISPATCH  ").append(e.agentName())
+                                .append(" -> ").append(e.skill()).append("\n");
+                case CoordinationEvent.AgentCompleted e ->
+                        sb.append("  DONE  ").append(e.agentName())
+                                .append(" (").append(e.duration().toMillis()).append("ms)\n");
+                case CoordinationEvent.CoordinationCompleted e ->
+                        sb.append("  COMPLETE  ").append(e.agentCallCount())
+                                .append(" calls in ").append(e.totalDuration().toMillis()).append("ms\n");
+                case CoordinationEvent.AgentFailed e ->
+                        sb.append("  FAILED  ").append(e.agentName())
+                                .append(": ").append(e.error()).append("\n");
+                case CoordinationEvent.AgentEvaluated e ->
+                        sb.append("  EVAL  ").append(e.agentName())
+                                .append(" score=").append(e.score()).append("\n");
+            }
+        }
         session.emit(new AiEvent.ToolStart("coordination_journal",
                 Map.<String, Object>of("query", "all events")));
-        session.emit(new AiEvent.ToolResult("coordination_journal", journalSummary));
-        logger.info("Coordination journal: {}", journalSummary);
+        session.emit(new AiEvent.ToolResult("coordination_journal", sb.toString()));
+        logger.info("Coordination journal: {}", sb);
 
         // Step 4: CEO synthesis via LLM — trim agent results for LLM context
         var researchSummary = truncate(research.text(), 800);
