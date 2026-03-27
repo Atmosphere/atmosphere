@@ -212,7 +212,9 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     @Override
     public void destroy(boolean force) {
-        if (!force) return;
+        if (!force) {
+            return;
+        }
         logger.trace("{} destroyed", uuid);
         cookies.clear();
         headers.clear();
@@ -306,8 +308,12 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     @Override
     public void setHeader(String name, String value) {
-        if (value == null) headers.remove(name);
-        else headers.put(name, value);
+        if (value == null) {
+            headers.remove(name);
+        }
+        else {
+            headers.put(name, value);
+        }
 
         if (writer.isDelegateToNativeResponse()) {
             _r().setHeader(name, value);

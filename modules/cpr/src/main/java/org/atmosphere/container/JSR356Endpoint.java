@@ -78,7 +78,8 @@ public class JSR356Endpoint extends Endpoint {
         this.webSocketProcessor = webSocketProcessor;
 
         if (framework.isUseNativeImplementation()) {
-            throw new IllegalStateException("You cannot use WebSocket native implementation with JSR356. Please set " + ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT + " to false");
+            throw new IllegalStateException("You cannot use WebSocket native implementation with JSR356. Please set "
+                    + ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT + " to false");
         }
 
         String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
@@ -120,16 +121,24 @@ public class JSR356Endpoint extends Endpoint {
     @Override
     public void onOpen(Session session, final EndpointConfig endpointConfig) {
 
-        if (framework.isDestroyed()) return;
+        if (framework.isDestroyed()) {
+            return;
+        }
 
         if (!session.isOpen()) {
             logger.trace("Session Closed {}", session);
             return;
         }
 
-        if (maxBinaryBufferSize != -1) session.setMaxBinaryMessageBufferSize(maxBinaryBufferSize);
-        if (webSocketIdleTimeoutMs != -1) session.setMaxIdleTimeout(webSocketIdleTimeoutMs);
-        if (maxTextBufferSize != -1) session.setMaxTextMessageBufferSize(maxTextBufferSize);
+        if (maxBinaryBufferSize != -1) {
+            session.setMaxBinaryMessageBufferSize(maxBinaryBufferSize);
+        }
+        if (webSocketIdleTimeoutMs != -1) {
+            session.setMaxIdleTimeout(webSocketIdleTimeoutMs);
+        }
+        if (maxTextBufferSize != -1) {
+            session.setMaxTextMessageBufferSize(maxTextBufferSize);
+        }
 
         webSocket = new JSR356WebSocket(session, framework.getAtmosphereConfig());
 
@@ -231,8 +240,9 @@ public class JSR356Endpoint extends Endpoint {
             Set<Cookie> cookies = null;
             if (cookieHeaders != null) {
                 cookies = new HashSet<>();
-                for (String cookieHeader : cookieHeaders)
+                for (String cookieHeader : cookieHeaders) {
                     cookies.addAll(CookieUtil.ServerCookieDecoder.STRICT.decode(cookieHeader));
+                }
             }
 
             final Map<String, Object> attributes = new ConcurrentHashMap<>();
@@ -258,8 +268,12 @@ public class JSR356Endpoint extends Endpoint {
                     .pathInfo(pathInfo)
                     .destroyable(false)
                     .userPrincipal(session.getUserPrincipal())
-                    .remoteInetSocketAddress(() -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS), disableDnsLookups)
-                    .localInetSocketAddress(() -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS), disableDnsLookups)
+                    .remoteInetSocketAddress(
+                            () -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS),
+                            disableDnsLookups)
+                    .localInetSocketAddress(
+                            () -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS),
+                            disableDnsLookups)
                     .attributes(attributes)
                     .isSecure(session.isSecure())
                     .build()

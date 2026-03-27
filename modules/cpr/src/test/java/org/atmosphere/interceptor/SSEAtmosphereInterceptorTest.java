@@ -110,16 +110,16 @@ public class SSEAtmosphereInterceptorTest {
                 framework.getBroadcasterFactory().get(),
                 request, response, Mockito.mock(AsyncSupport.class), null);
         resource.suspend();
-        
+
         SSEAtmosphereInterceptor interceptor = new SSEAtmosphereInterceptor();
         interceptor.configure(config);
         interceptor.inspect(resource);
-        
+
         // no newline
         response.write("Good Morning".getBytes());
         assertEquals("data:Good Morning\r\n\r\n", baos.toString());
         baos.reset();
-        
+
         // \n
         response.write("Hello World!\nHave a nice day!".getBytes());
         assertEquals("data:Hello World!\r\ndata:Have a nice day!\r\n\r\n", baos.toString());

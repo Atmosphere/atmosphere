@@ -91,7 +91,9 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         AtmosphereRequest request = resource.getRequest(false);
         request.setAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
 
-        if (!resource.isInScope()) return List.of();
+        if (!resource.isInScope()) {
+            return List.of();
+        }
 
         String pathInfo = request.getPathInfo();
         String requestURI = request.getRequestURI();
@@ -115,7 +117,8 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         }
 
         List<AtmosphereRequest> list = new ArrayList<>();
-        list.add(constructRequest(webSocket, pathInfo, requestURI, methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(message).build());
+        list.add(constructRequest(webSocket, pathInfo, requestURI, methodType,
+                contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(message).build());
 
         return list;
     }
@@ -123,7 +126,8 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     @Override
     public List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] d, final int offset, final int length) {
 
-        //Converting to a string and delegating to onMessage(WebSocket webSocket, String d) causes issues because the binary data may not be a valid string.
+        //Converting to a string and delegating to onMessage(WebSocket webSocket, String d) causes issues
+        //because the binary data may not be a valid string.
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
         if (resource == null) {
             logger.trace("The WebSocket has been closed before the message was processed.");
@@ -133,10 +137,13 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         AtmosphereRequest request = resource.getRequest(false);
         request.setAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
 
-        if (!resource.isInScope()) return List.of();
+        if (!resource.isInScope()) {
+            return List.of();
+        }
 
         List<AtmosphereRequest> list = new ArrayList<>();
-        list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(d, offset, length).build());
+        list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(), methodType,
+                contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(d, offset, length).build());
 
         return list;
     }

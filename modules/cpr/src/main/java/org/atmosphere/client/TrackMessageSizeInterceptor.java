@@ -106,8 +106,9 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
-        if (AtmosphereResource.TRANSPORT.UNDEFINED == r.transport() || Utils.webSocketMessage(r))
+        if (AtmosphereResource.TRANSPORT.UNDEFINED == r.transport() || Utils.webSocketMessage(r)) {
             return Action.CONTINUE;
+        }
 
         final AtmosphereResponse response = r.getResponse();
 
@@ -117,7 +118,8 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
         if (writer instanceof AtmosphereInterceptorWriter interceptorWriter) {
             interceptorWriter.interceptor(interceptor);
         } else {
-            logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
+            logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}",
+                    getClass().getName(), AtmosphereInterceptorWriter.class.getName());
         }
         return Action.CONTINUE;
     }

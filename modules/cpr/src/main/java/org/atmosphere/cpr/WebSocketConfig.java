@@ -85,7 +85,9 @@ public class WebSocketConfig {
      */
     @SuppressWarnings("unchecked")
     public void initWebSocket() {
-        if (webSocketProtocolInitialized) return;
+        if (webSocketProtocolInitialized) {
+            return;
+        }
 
         if (webSocketProtocol == null) {
             try {
@@ -109,11 +111,15 @@ public class WebSocketConfig {
      * Configure the WebSocket factory (double-checked locking).
      */
     public void configureWebSocketFactory() {
-        if (webSocketFactory != null) return;
+        if (webSocketFactory != null) {
+            return;
+        }
 
         webSocketFactoryLock.lock();
         try {
-            if (webSocketFactory != null) return;
+            if (webSocketFactory != null) {
+                return;
+            }
             try {
                 webSocketFactory = config.framework().newClassInstance(WebSocketFactory.class, DefaultWebSocketFactory.class);
             } catch (InstantiationException | IllegalAccessException e) {

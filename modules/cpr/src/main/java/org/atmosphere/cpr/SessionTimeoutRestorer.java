@@ -56,25 +56,29 @@ public final class SessionTimeoutRestorer implements Serializable, HttpSessionAc
         int oldCount = requestCount.getAndIncrement();
         logger.trace("requestCount => {}",requestCount );
 
-        if (oldCount == 0)
+        if (oldCount == 0) {
             refreshTimeout(session);
+        }
     }
 
     public void restore(HttpSession session) {
         int count = requestCount.decrementAndGet();
         logger.trace("requestCount <= {}",requestCount );
 
-        if (count == 0)
+        if (count == 0) {
             refreshTimeout(session);
+        }
     }
 
     private void refreshTimeout(HttpSession session) {
         refreshTimeoutLock.lock();
         try {
-            if (requestCount.get() > 0)
+            if (requestCount.get() > 0) {
                 session.setMaxInactiveInterval(internalSessionTimeout);
-            else
+            }
+            else {
                 session.setMaxInactiveInterval(timeout);
+            }
         } finally {
             refreshTimeoutLock.unlock();
         }

@@ -47,7 +47,9 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(final AtmosphereResource r) {
 
-        if (!r.transport().equals(TRANSPORT.STREAMING)) return Action.CONTINUE;
+        if (!r.transport().equals(TRANSPORT.STREAMING)) {
+            return Action.CONTINUE;
+        }
 
         final AtmosphereResponse response = ((AtmosphereResourceImpl) r).getResponse(false);
         String userAgent = ((AtmosphereResourceImpl) r).getRequest(false).getHeader("User-Agent");
@@ -72,7 +74,8 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
                 });
             } else {
-                logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
+                logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}",
+                        getClass().getName(), AtmosphereInterceptorWriter.class.getName());
             }
         }
         return Action.CONTINUE;

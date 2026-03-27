@@ -80,7 +80,8 @@ public @interface ManagedService {
     Class<? extends Broadcaster> broadcaster() default DefaultBroadcaster.class;
 
     /**
-     * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install. Defined interceptor will be appended to the default set: {@link AtmosphereResourceLifecycleInterceptor},
+     * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install. Defined interceptor will be appended to the
+     * default set: {@link AtmosphereResourceLifecycleInterceptor},
      * {@link org.atmosphere.config.managed.ManagedServiceInterceptor}, {@link TrackMessageSizeInterceptor},
      * {@link HeartbeatInterceptor} and {@link SuspendTrackerInterceptor}
      */

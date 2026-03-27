@@ -33,7 +33,9 @@ public class RoutingAiSupportTest {
         var routing = new RoutingAiSupport(router, List.of(primary, secondary));
 
         var session = mock(StreamingSession.class);
-        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null, java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(), java.util.List.of(), null), session);
+        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null,
+                java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(),
+                java.util.List.of(), null), session);
 
         assertTrue(primary.called);
         assertFalse(secondary.called);
@@ -51,7 +53,9 @@ public class RoutingAiSupportTest {
         var routing = new RoutingAiSupport(router, List.of(primary, secondary));
 
         var session = mock(StreamingSession.class);
-        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null, java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(), java.util.List.of(), null), session);
+        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null,
+                java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(),
+                java.util.List.of(), null), session);
 
         assertTrue(primary.called);
         assertTrue(secondary.called);
@@ -63,7 +67,9 @@ public class RoutingAiSupportTest {
         var routing = new RoutingAiSupport(router, List.of());
 
         var session = mock(StreamingSession.class);
-        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null, java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(), java.util.List.of(), null), session);
+        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null,
+                java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(),
+                java.util.List.of(), null), session);
 
         verify(session).error(any(IllegalStateException.class));
     }

@@ -225,7 +225,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
         if (createIfNull) {
             b = (T) store.computeIfAbsent(id, new CreateBroacasterFunction(c));
         }
-        
+
         if (b != null && !c.isInstance(b)) {
             String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
             logger.debug(msg);
@@ -249,7 +249,9 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
         lock.lock();
         try {
             // Invalid state
-            if (config == null) return;
+            if (config == null) {
+                return;
+            }
 
             String s = config.getInitParameter(ApplicationConfig.SHARED);
             if (s != null && s.equalsIgnoreCase("true")) {

@@ -93,7 +93,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     private AtmosphereRequestImpl(Builder b) {
         super(b.request == null ? new org.atmosphere.cpr.NoOpsRequest() : b.request);
-        if (b.request == null) b.request(new org.atmosphere.cpr.NoOpsRequest());
+        if (b.request == null) {
+            b.request(new org.atmosphere.cpr.NoOpsRequest());
+        }
 
         this.b = b;
         this.uuid = resource() != null ? resource().uuid() : "0";
@@ -176,7 +178,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
                 q.append(e.getKey()).append("=").append(k).append("&");
             }
         }
-        if (q.length() > 0) q.deleteCharAt(q.length() - 1);
+        if (q.length() > 0) q.deleteCharAt(q.length() {
+            - 1);
+        }
         return q.toString();
     }
 
@@ -237,8 +241,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         // Never override the parent Request
         if (!name.equalsIgnoreCase("content-type")) {
             Enumeration<String> e = b.request.getHeaders(name);
-            while (e.hasMoreElements())
+            while (e.hasMoreElements()) {
                 list.add(e.nextElement());
+            }
         }
 
         if (name.equalsIgnoreCase("content-type")) {
@@ -315,8 +320,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public Cookie[] getCookies() {
         if (!cookieComputed) {
-            if (b.cookies == null)
+            if (b.cookies == null) {
                 return new Cookie[0];
+            }
             cookieComputed = true;
             Cookie[] c = b.request.getCookies();
             if (c != null && c.length > 0) {
@@ -504,7 +510,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public AtmosphereRequest queryString(String qs) {
 
-        if (qs == null) return this;
+        if (qs == null) {
+            return this;
+        }
 
         if (!qs.isEmpty()) {
             var decoder = new QueryStringDecoder(getRequestURI() + "?" + qs);
@@ -955,7 +963,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public void destroy(boolean force) {
-        if (!force) return;
+        if (!force) {
+            return;
+        }
         destroyed.set(true);
         b.localAttributes.clear();
         if (bis != null) {
@@ -1420,7 +1430,8 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
      * @param request {@link HttpServletRequest}
      * @return an {@link AtmosphereRequest}
      */
-    public static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession, boolean isDestroyable, boolean createSession) {
+    public static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory,
+            boolean copySession, boolean isDestroyable, boolean createSession) {
         Builder b;
         HttpServletRequest r;
 

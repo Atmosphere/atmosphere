@@ -20,12 +20,21 @@ import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.websocket.WebSocket;
 
-import jakarta.servlet.*;
+import jakarta.servlet.AsyncContext;
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.util.*;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -125,7 +134,8 @@ public class AtmosphereResourceTest {
             }
         });
 
-        final AtmosphereRequest parentRequest = new AtmosphereRequestImpl.Builder().pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
+        final AtmosphereRequest parentRequest = new AtmosphereRequestImpl.Builder()
+                .pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
         final CountDownLatch suspended = new CountDownLatch(1);
 
         framework.interceptor(new AtmosphereInterceptor() {
@@ -173,7 +183,8 @@ public class AtmosphereResourceTest {
         Map<String, Object> m = new HashMap<String, Object>();
         m.put(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, parentRequest.resource().uuid());
 
-        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().attributes(m).pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder()
+                .attributes(m).pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
         request.setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, "true");
 
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance().request(request));

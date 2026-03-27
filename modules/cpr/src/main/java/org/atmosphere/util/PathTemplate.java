@@ -158,10 +158,14 @@ public final class PathTemplate {
         int depth = 1;
         for (int i = openPos + 1; i < s.length(); i++) {
             char c = s.charAt(i);
-            if (c == '{') depth++;
+            if (c == '{') {
+                depth++;
+            }
             else if (c == '}') {
                 depth--;
-                if (depth == 0) return i;
+                if (depth == 0) {
+                    return i;
+                }
             }
         }
         throw new IllegalArgumentException(

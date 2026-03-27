@@ -99,7 +99,9 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     protected CacheMessage put(BroadcastMessage message, Long now, String uuid) {
-        if (!inspect(message)) return null;
+        if (!inspect(message)) {
+            return null;
+        }
 
         logger.trace("Caching message {} for Broadcaster {}", message.message(), uuid);
 
@@ -166,7 +168,9 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
 
     protected boolean inspect(BroadcastMessage m) {
         for (BroadcasterCacheInspector b : inspectors) {
-            if (!b.inspect(m)) return false;
+            if (!b.inspect(m)) {
+                return false;
+            }
         }
         return true;
     }

@@ -70,7 +70,9 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     }
 
     private boolean writePadding(AtmosphereResponse response) {
-        if (response.request() != null && response.request().getAttribute("paddingWritten") != null) return false;
+        if (response.request() != null && response.request().getAttribute("paddingWritten") != null) {
+            return false;
+        }
 
         response.setContentType(contentType);
         response.setCharacterEncoding("utf-8");
@@ -117,7 +119,9 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(final AtmosphereResource r) {
 
-        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+        if (Utils.webSocketMessage(r)) {
+            return Action.CONTINUE;
+        }
 
         final AtmosphereResponse response = r.getResponse();
         final AtmosphereRequest request = r.getRequest();
@@ -189,7 +193,8 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     }
                 });
             } else {
-                logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
+                logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}",
+                        getClass().getName(), AtmosphereInterceptorWriter.class.getName());
             }
         }
         return Action.CONTINUE;

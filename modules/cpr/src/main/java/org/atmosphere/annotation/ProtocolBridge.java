@@ -65,13 +65,16 @@ public final class ProtocolBridge {
 
             boolean hasMcpMethods = false;
             for (var m : instance.getClass().getMethods()) {
-                if (m.isAnnotationPresent(mcpToolClass) || m.isAnnotationPresent(mcpResourceClass)
-                        || m.isAnnotationPresent(mcpPromptClass)) {
+                if (m.isAnnotationPresent(mcpToolClass) || m.isAnnotationPresent(mcpResourceClass) {
+                    || m.isAnnotationPresent(mcpPromptClass)) {
+                }
                     hasMcpMethods = true;
                     break;
                 }
             }
-            if (!hasMcpMethods) return;
+            if (!hasMcpMethods) {
+                return;
+            }
 
             // Create McpRegistry and scan the instance
             var registryClass = Class.forName("org.atmosphere.mcp.registry.McpRegistry");
@@ -119,7 +122,9 @@ public final class ProtocolBridge {
                     break;
                 }
             }
-            if (!hasSkills) return;
+            if (!hasSkills) {
+                return;
+            }
 
             // Create A2aRegistry and scan
             var registryClass = Class.forName("org.atmosphere.a2a.registry.A2aRegistry");

@@ -64,7 +64,9 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     private void writePadding(AtmosphereResponse response) {
         AtmosphereRequest request = response.request();
-        if (request == null || request.getAttribute("paddingWritten") != null) return;
+        if (request == null || request.getAttribute("paddingWritten") != null) {
+            return;
+        }
 
         if (response.resource() != null && response.resource().transport().equals(TRANSPORT.STREAMING)) {
             request.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.STREAMING_TRANSPORT);
@@ -82,7 +84,9 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(final AtmosphereResource r) {
 
-        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+        if (Utils.webSocketMessage(r)) {
+            return Action.CONTINUE;
+        }
 
         final AtmosphereResponse response = r.getResponse();
         final AtmosphereRequest request = r.getRequest();
@@ -121,7 +125,8 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     }
                 });
             } else {
-                logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
+                logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}",
+                        getClass().getName(), AtmosphereInterceptorWriter.class.getName());
             }
         }
         return Action.CONTINUE;

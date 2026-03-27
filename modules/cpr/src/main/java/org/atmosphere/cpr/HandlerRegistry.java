@@ -103,7 +103,8 @@ public class HandlerRegistry {
         createWrapperAndConfigureHandler(h, mapping, l).setBroadcaster(broadcaster);
 
         if (!config.framework().isInit) {
-            logger.info("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}", h.getClass().getName(), mapping, broadcaster.getClass().getName());
+            logger.info("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
+                    h.getClass().getName(), mapping, broadcaster.getClass().getName());
         } else {
             logger.debug("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
                     h.getClass().getName(), mapping, broadcaster.getClass().getName());
@@ -175,7 +176,9 @@ public class HandlerRegistry {
     }
 
     private void initServletProcessor(AtmosphereHandler h) {
-        if (!config.framework().isInit) return;
+        if (!config.framework().isInit) {
+            return;
+        }
 
         try {
             if (h instanceof AtmosphereServletProcessor asp) {
@@ -281,7 +284,8 @@ public class HandlerRegistry {
         String s = fw.getServletConfig().getInitParameter(ApplicationConfig.ENDPOINT_MAPPER);
         if (s != null) {
             try {
-                endpointMapper = (EndpointMapper<AtmosphereHandlerWrapper>) fw.newClassInstance(EndpointMapper.class, (Class<EndpointMapper<?>>) (Class<?>) IOUtils.loadClass(fw.getClass(), s));
+                endpointMapper = (EndpointMapper<AtmosphereHandlerWrapper>) fw.newClassInstance(
+                        EndpointMapper.class, (Class<EndpointMapper<?>>) (Class<?>) IOUtils.loadClass(fw.getClass(), s));
                 logger.info("Installed EndpointMapper {} ", s);
             } catch (Exception ex) {
                 logger.error("Cannot load the EndpointMapper {}", s, ex);

@@ -174,7 +174,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     @Override
     public final void open(final WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse response) throws IOException {
 
-        if (framework.isDestroyed()) return;
+        if (framework.isDestroyed()) {
+            return;
+        }
 
         // Auto-register a default handler when none is configured
         if (framework.getAtmosphereConfig().handlers().isEmpty()) {
@@ -324,7 +326,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     }
 
     private void dispatch(final WebSocket webSocket, List<AtmosphereRequest> list) {
-        if (list == null) return;
+        if (list == null) {
+            return;
+        }
 
         for (final AtmosphereRequest r : list) {
             if (r != null) {
@@ -577,7 +581,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      * @param r       a {@link AtmosphereResponse}
      */
     public final void dispatch(WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse r) {
-        if (request == null) return;
+        if (request == null) {
+            return;
+        }
 
         try {
             framework.doCometSupport(request, r);
@@ -623,7 +629,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
 
                 logger.trace("About to close AtmosphereResource for {} with code {}", resource, closeCode);
-                if (!resource.getAtmosphereResourceEvent().isClosedByClient() && !resource.getAtmosphereResourceEvent().isClosedByApplication() && !resource.isCancelled()) {
+                if (!resource.getAtmosphereResourceEvent().isClosedByClient() {
+                    && !resource.getAtmosphereResourceEvent().isClosedByApplication()
+                }
+                        && !resource.isCancelled()) {
                     // See https://github.com/Atmosphere/atmosphere/issues/1590
                     // Better to call onDisconnect that onResume.
                     if (allowedToClose) {
@@ -675,7 +684,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 r.setAttribute(WebSocket.CLEAN_CLOSE, Boolean.TRUE);
                 webSocket.resource(null);
 
-                if (closeWebSocket) webSocket.close(s);
+                if (closeWebSocket) {
+                    webSocket.close(s);
+                }
             } catch (IOException e) {
                 logger.trace("", e);
             }
@@ -720,7 +731,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     @Override
     public void notifyListener(WebSocket webSocket, WebSocketEventListener.WebSocketEvent<?> event) {
         AtmosphereResource resource = webSocket.resource();
-        if (resource == null) return;
+        if (resource == null) {
+            return;
+        }
 
         AtmosphereResourceImpl r = (AtmosphereResourceImpl) resource;
         for (AtmosphereResourceEventListener l : r.atmosphereResourceEventListener()) {

@@ -36,7 +36,8 @@ import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnBroadc
 /**
  * <p>This {@link AtmosphereInterceptor} implementation automatically suspends the intercepted
  * {@link AtmosphereResource} and takes care of managing the response's state (flushing, resuming,
- * etc.) when a {@link org.atmosphere.cpr.Broadcaster#broadcast} is invoked. When used, {@link org.atmosphere.cpr.AtmosphereHandler} implementations no longer need to make calls to
+ * etc.) when a {@link org.atmosphere.cpr.Broadcaster#broadcast} is invoked. When used,
+ * {@link org.atmosphere.cpr.AtmosphereHandler} implementations no longer need to make calls to
  * {@link AtmosphereResource#suspend}.
  * </p>
  * If your application doesn't use {@link org.atmosphere.cpr.Broadcaster}, this interceptor will not work and you need to programmatically
@@ -127,11 +128,14 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
     @Override
     public void postInspect(final AtmosphereResource r) {
 
-        if (Utils.pollableTransport(r.transport()) || r.transport().equals(UNDEFINED) || Utils.webSocketMessage(r)) return;
+        if (Utils.pollableTransport(r.transport()) || r.transport().equals(UNDEFINED) || Utils.webSocketMessage(r)) {
+            return;
+        }
 
         AtmosphereResourceImpl impl = (AtmosphereResourceImpl) r;
-        if ( (force || impl.getRequest(false).getMethod().equalsIgnoreCase(method))
+        if ( (force || impl.getRequest(false).getMethod().equalsIgnoreCase(method)) {
             && !impl.action().equals(Action.CANCELLED)
+        }
             && impl.isInScope()) {
 
             logger.trace("Marking AtmosphereResource {} for suspend operation", r.uuid());

@@ -44,7 +44,9 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
         long now = System.nanoTime();
         CacheMessage cacheMessage = put(message, now, uuid);
 
-        if (uuid.equals(NULL)) return cacheMessage;
+        if (uuid.equals(NULL)) {
+            return cacheMessage;
+        }
 
         try {
             AtmosphereResource r = config.resourcesFactory().findResource(uuid).orElse(null);
@@ -89,7 +91,9 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
             }
 
             String cacheHeaderTimeStr = (String)session.getAttribute(broadcasterId);
-            if (cacheHeaderTimeStr == null) return result;
+            if (cacheHeaderTimeStr == null) {
+                return result;
+            }
             long cacheHeaderTime = Long.parseLong(cacheHeaderTimeStr);
 
             return get(cacheHeaderTime);

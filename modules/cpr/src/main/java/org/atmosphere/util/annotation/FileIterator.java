@@ -14,14 +14,14 @@
  * the License.
  */
 /* FileIterator.java
- * 
+ *
  ******************************************************************************
  *
  * Created: Oct 10, 2011
  * Character encoding: UTF-8
- * 
+ *
  * Copyright (c) 2011 - XIAM Solutions B.V. The Netherlands, http://www.xiam.nl
- * 
+ *
  ********************************* LICENSE ************************************
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,7 +57,7 @@ import java.util.NoSuchElementException;
  *     assert f == iter.getCurrent();
  * }
  * </pre>
- * 
+ *
  * @author <a href="mailto:rmuller@xiam.nl">Ronald K. Muller</a>
  * @since annotation-detector 3.0.0
  */
@@ -66,14 +66,14 @@ public final class FileIterator {
     private final Deque<File> stack = new LinkedList<>();
     private int rootCount;
     private File current;
-    
+
     /**
      * Create a new {@code FileIterator} using the specified 'filesOrDirectories' as root.
      * <br/>
-     * If 'filesOrDirectories' contains a file, the iterator just returns that single file. 
-     * If 'filesOrDirectories' contains a directory, all files in that directory 
+     * If 'filesOrDirectories' contains a file, the iterator just returns that single file.
+     * If 'filesOrDirectories' contains a directory, all files in that directory
      * and its sub directories are returned (depth first).
-     * 
+     *
      * @param filesOrDirectories Zero or more {@link java.io.File} objects, which are iterated
      * in the specified order (depth first)
      */
@@ -106,7 +106,7 @@ public final class FileIterator {
     /**
      * Return the next {@link java.io.File} object or {@code null} if no more files are
      * available.
-     * 
+     *
      * @see #getFile()
      */
     public File next() throws IOException {
@@ -131,7 +131,9 @@ public final class FileIterator {
      * Add the specified files in reverse order.
      */
     private void addReverse(final File[] files) {
-        if (files == null) return;
+        if (files == null) {
+            return;
+        }
 
         for (int i = files.length - 1; i >=0; --i) {
             stack.add(files[i]);

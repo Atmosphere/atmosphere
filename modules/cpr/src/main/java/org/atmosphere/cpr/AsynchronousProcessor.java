@@ -132,8 +132,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
 
         if (config.handlers().isEmpty()) {
-            logger.error("No AtmosphereHandler found. Make sure you define it inside WEB-INF/atmosphere.xml or annotate using @___Service");
-            throw new AtmosphereMappingException("No AtmosphereHandler found. Make sure you define it inside WEB-INF/atmosphere.xml or annotate using @___Service");
+            logger.error("No AtmosphereHandler found. Make sure you define it inside WEB-INF/atmosphere.xml"
+                    + " or annotate using @___Service");
+            throw new AtmosphereMappingException("No AtmosphereHandler found. Make sure you define it"
+                    + " inside WEB-INF/atmosphere.xml or annotate using @___Service");
         }
 
         if (res.request() == null) {
@@ -165,7 +167,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     res.flushBuffer();
                     return new Action();
                 }
-            } 
+            }
         }
 
         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
@@ -232,7 +234,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             // Do not allow times out.
             SessionTimeoutSupport.setupTimeout(config, req.getSession(config.getInitParameter(ApplicationConfig.PROPERTY_SESSION_CREATE, true)));
         }
-        logger.trace("Action for {} was {} with transport " + req.getHeader(X_ATMOSPHERE_TRANSPORT), req.resource() != null ? req.resource().uuid() : "null", action);
+        logger.trace("Action for {} was {} with transport " + req.getHeader(X_ATMOSPHERE_TRANSPORT),
+                req.resource() != null ? req.resource().uuid() : "null", action);
         return action;
     }
 
@@ -414,7 +417,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         AtmosphereResourceImpl r =
                 (AtmosphereResourceImpl) request.getAttribute(ATMOSPHERE_RESOURCE);
 
-        if (r == null) return Action.CANCELLED; // We are cancelled already
+        if (r == null) { return Action.CANCELLED; } // We are cancelled already
 
         AtmosphereHandler atmosphereHandler = r.getAtmosphereHandler();
 

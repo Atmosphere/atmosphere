@@ -101,7 +101,9 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
 
                         logger.debug("IdleResourceInterceptor disconnecting {}", r);
                         Future<?> f = (Future<?>) req.getAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
-                        if (f != null) f.cancel(false);
+                        if (f != null) {
+                            f.cancel(false);
+                        }
                         req.removeAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
 
                         WebSocket webSocket = ((AtmosphereResourceImpl) r).webSocket();

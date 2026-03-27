@@ -112,7 +112,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                         latch.countDown();
                     }
                 });
-                
+
                 if (action.timeout() != -1) {
                     ok = latch.await(action.timeout(), TimeUnit.MILLISECONDS);
                 } else {

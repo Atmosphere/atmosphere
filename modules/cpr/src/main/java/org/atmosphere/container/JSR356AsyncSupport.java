@@ -87,7 +87,8 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
                 container.addEndpoint(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, b.toString())
                         .extensions(new ArrayList<>(container.getInstalledExtensions())).configurator(configurator).build());
             } catch (DeploymentException e) {
-                logger.warn("Duplicate Servlet Mapping Path {}. Use {} init-param to prevent this message", servletPath, ApplicationConfig.JSR356_MAPPING_PATH);
+                logger.warn("Duplicate Servlet Mapping Path {}. Use {} init-param to prevent this message",
+                        servletPath, ApplicationConfig.JSR356_MAPPING_PATH);
                 logger.trace("", e);
                 servletPath = IOUtils.guestServletPath(config);
                 logger.warn("Duplicate guess {}", servletPath, e);
@@ -121,7 +122,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         static {
             checkContainerDefaultConfigurator();
         }
-        
+
         public AtmosphereConfigurator(AtmosphereFramework framework) {
             this.framework = framework;
         }
@@ -148,7 +149,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
          * This is necessary e.g. in a scenario where Jetty >= 10 is used as embedded server in an OSGi application,
          * beacause in this scenario the ServiceLoader won't work and a RuntimeException is thrown when calling one of the methods
          * {@link #checkOrigin(String)}, {@link #getNegotiatedSubprotocol(List, List)} or {@link #getNegotiatedExtensions(List, List)}.
-         * 
+         *
          */
         @SuppressWarnings("unused")
         private static void checkContainerDefaultConfigurator() {
@@ -161,7 +162,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
 
         /**
          * Calls {@link #checkOrigin(String)} in super class if a Default Configurator could be loaded.
-         * Otherwise <code>true</code> is returned as default. 
+         * Otherwise <code>true</code> is returned as default.
          */
         public boolean checkOrigin(String originHeaderValue) {
             if(hasContainerDefaultConfigurator.get()) {
@@ -173,7 +174,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
 
         /**
          * Calls {@link #getNegotiatedSubprotocol(List, List)} in super class if a Default Configurator could be loaded.
-         * Otherwise <code>""</code> is returned as default. 
+         * Otherwise <code>""</code> is returned as default.
          */
         public String getNegotiatedSubprotocol(List<String> supported, List<String> requested) {
             if(hasContainerDefaultConfigurator.get()) {
@@ -185,20 +186,21 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
 
         /**
          * Calls {@link #getNegotiatedExtensions(List, List)} in super class if a Default Configurator could be loaded.
-         * Otherwise the list of matching extensions is returned as default. 
+         * Otherwise the list of matching extensions is returned as default.
          */
         public List<Extension> getNegotiatedExtensions(List<Extension> installed, List<Extension> requested) {
             if(hasContainerDefaultConfigurator.get()) {
                 return super.getNegotiatedExtensions(installed, requested);
             }
-            
+
             // no default configurator, find matching extensions as default implementation
             List<Extension> negotiatedExtensions = new ArrayList<>();
             for (Extension ext : requested) {
                 // Only choose the first extension if multiple with the same name.
                 long matches = negotiatedExtensions.stream().filter(e -> e.getName().equals(ext.getName())).count();
-                if (matches == 0)
+                if (matches == 0) {
                     negotiatedExtensions.add(ext);
+                }
             }
 
             return negotiatedExtensions;

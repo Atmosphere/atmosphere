@@ -41,7 +41,7 @@ public class ConcurrentBroadcasterTest {
     private DefaultBroadcaster broadcaster;
     private AR atmosphereHandler;
     private AtmosphereConfig config;
-    
+
     @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework()

@@ -66,15 +66,18 @@ public interface FrameworkConfig {
      */
     String JERSEY_CONTAINER = "com.sun.jersey.spi.container.servlet.ServletContainer";
     /**
-     * A request attribute used to lookup the {@link AtmosphereServlet}. This attribute is for framework integrators and not recommend for normal applications.
+     * A request attribute used to lookup the {@link AtmosphereServlet}. This attribute is for framework integrators
+     * and not recommend for normal applications.
      */
     String ATMOSPHERE_SERVLET = "org.atmosphere.cpr.AtmosphereServlet";
     /**
-     * A request attribute used to lookup the {@link AtmosphereResource}. This attribute is for framework integrators and not recommend for normal applications.
+     * A request attribute used to lookup the {@link AtmosphereResource}. This attribute is for framework integrators
+     * and not recommend for normal applications.
      */
     String ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName();
     /**
-     * A request attribute used to lookup the {@link AtmosphereResource} created by an external component and injected inside the {@link AsynchronousProcessor}.
+     * A request attribute used to lookup the {@link AtmosphereResource} created by an external component
+     * and injected inside the {@link AsynchronousProcessor}.
      */
     String INJECTED_ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName() + ".injected";
     /**
@@ -82,7 +85,8 @@ public interface FrameworkConfig {
      */
     String SUPPORT_SESSION = AsynchronousProcessor.class.getName() + ".supportSession";
     /**
-     * A request attribute used to lookup the {@link AtmosphereHandler}. This attribute is for framework integrator and not recommend for normal application.
+     * A request attribute used to lookup the {@link AtmosphereHandler}. This attribute is for framework integrator
+     * and not recommend for normal application.
      */
     String ATMOSPHERE_HANDLER_WRAPPER = AtmosphereHandlerWrapper.class.getName();
     /**

@@ -145,17 +145,30 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         AtmosphereResourceEventImpl that = (AtmosphereResourceEventImpl) o;
 
-        if (!isCancelled.equals(that.isCancelled)) return false;
-        if (!isResumedOnTimeout.equals(that.isResumedOnTimeout))
+        if (!isCancelled.equals(that.isCancelled)) {
             return false;
-        if (!Objects.equals(message, that.message)) return false;
-        if (!Objects.equals(resource, that.resource)) return false;
-        if (!Objects.equals(throwable, that.throwable)) return false;
+        }
+        if (!isResumedOnTimeout.equals(that.isResumedOnTimeout)) {
+            return false;
+        }
+        if (!Objects.equals(message, that.message)) {
+            return false;
+        }
+        if (!Objects.equals(resource, that.resource)) {
+            return false;
+        }
+        if (!Objects.equals(throwable, that.throwable)) {
+            return false;
+        }
 
         return true;
     }

@@ -5,5 +5,9 @@
 <suppressions>
     <suppress checks=".*"
               files=".+[\\\/]target[\\\/].+\.java"
-              />              
+              />
+    <!-- Text block in test cannot be line-wrapped without changing string value -->
+    <suppress checks="LineLength"
+              files="OpenAiCompatibleClientTest\.java"
+              lines="170"/>
 </suppressions>

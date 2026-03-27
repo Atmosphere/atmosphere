@@ -55,7 +55,7 @@ public class ChunkConcatReaderPool {
 
     /**
      * Returns the specified reader. If the reader is absent, returns null. If create is set to true, a new reader is created.
-     * 
+     *
      * @param key
      * @param create
      * @return

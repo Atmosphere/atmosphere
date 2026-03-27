@@ -8,9 +8,39 @@
     <exclude-pattern>.*.js</exclude-pattern>
     <exclude-pattern>.*.txt</exclude-pattern>
 
-    <!-- PMD 7+ rule paths -->
-    <rule ref="category/java/bestpractices.xml/UseCollectionIsEmpty"/>
+    <!-- Threading -->
     <rule ref="category/java/multithreading.xml/AvoidThreadGroup"/>
     <rule ref="category/java/multithreading.xml/DontCallThreadRun"/>
- 
+
+    <!-- Best practices -->
+    <rule ref="category/java/bestpractices.xml/UseCollectionIsEmpty"/>
+    <rule ref="category/java/bestpractices.xml/UnusedLocalVariable"/>
+    <rule ref="category/java/bestpractices.xml/UnusedPrivateField"/>
+    <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod"/>
+    <rule ref="category/java/bestpractices.xml/ForLoopCanBeForeach"/>
+    <rule ref="category/java/bestpractices.xml/UseTryWithResources"/>
+
+    <!-- Error prone -->
+    <rule ref="category/java/errorprone.xml/EmptyCatchBlock">
+        <properties>
+            <property name="allowCommentedBlocks" value="true"/>
+        </properties>
+    </rule>
+    <rule ref="category/java/errorprone.xml/CloseResource"/>
+    <rule ref="category/java/errorprone.xml/EqualsNull"/>
+    <rule ref="category/java/errorprone.xml/ReturnEmptyCollectionRatherThanNull"/>
+    <rule ref="category/java/errorprone.xml/ComparisonWithNaN"/>
+    <rule ref="category/java/errorprone.xml/MissingBreakInSwitch"/>
+    <rule ref="category/java/errorprone.xml/JumbledIncrementer"/>
+
+    <!-- Code style -->
+    <rule ref="category/java/codestyle.xml/UnnecessaryImport"/>
+    <rule ref="category/java/codestyle.xml/ExtendsObject"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryReturn"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryModifier"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryCast"/>
+
+    <!-- Performance -->
+    <rule ref="category/java/performance.xml/UseStringBufferForStringAppends"/>
+
 </ruleset>

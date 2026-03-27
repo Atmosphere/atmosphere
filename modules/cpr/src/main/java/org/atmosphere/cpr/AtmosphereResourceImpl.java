@@ -24,7 +24,13 @@ import org.slf4j.LoggerFactory;
 
 import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
-import java.util.*;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -183,10 +189,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     private TRANSPORT configureTransport() {
-        if (req == null) return UNDEFINED;
+        if (req == null) {
+            return UNDEFINED;
+        }
 
         String s = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
-        if (s == null) return UNDEFINED;
+        if (s == null) {
+            return UNDEFINED;
+        }
 
         if (s.equals(UNDEFINED.name()) && Utils.rawWebSocket(req)) {
             return TRANSPORT.WEBSOCKET;
@@ -346,10 +356,13 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public AtmosphereResource suspend(long timeout) {
 
-        if (event.isSuspended() || disableSuspend) return this;
+        if (event.isSuspended() || disableSuspend) {
+            return this;
+        }
 
-        if (config.isSupportSession()
-                && req.getSession(false) != null
+        if (config.isSupportSession() {
+            && req.getSession(false) != null
+        }
                 && req.getSession().getMaxInactiveInterval() >= 0
                 && req.getSession().getMaxInactiveInterval() * 1000L < timeout) {
             throw new IllegalStateException("Cannot suspend a " +
@@ -363,7 +376,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         onPreSuspend(event);
 
         // Recheck based on preSuspend
-        if (event.isSuspended() || disableSuspend) return this;
+        if (event.isSuspended() || disableSuspend) {
+            return this;
+        }
 
         if (!event.isResumedOnTimeout()) {
             // CAS guard: only transition to SUSPENDED from CREATED or RESUMED
@@ -654,7 +669,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     @Override
     public AtmosphereResource addEventListener(AtmosphereResourceEventListener e) {
-        if (listeners.contains(e)) return this;
+        if (listeners.contains(e)) {
+            return this;
+        }
         listeners.add(e);
         return this;
     }
@@ -855,7 +872,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
                 SessionTimeoutSupport.restoreTimeout(req);
                 action = new Action(Action.TYPE.CANCELLED, action.timeout());
-                if (asyncSupport != null) asyncSupport.action(this);
+                if (asyncSupport != null) {
+                    asyncSupport.action(this);
+                }
                 // We must close the underlying WebSocket as well.
                 if (response instanceof AtmosphereResponseImpl) {
                     if (closeOnCancel) {
@@ -1050,8 +1069,12 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         AtmosphereResourceImpl that = (AtmosphereResourceImpl) o;
 

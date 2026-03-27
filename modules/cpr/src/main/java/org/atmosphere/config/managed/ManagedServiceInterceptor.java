@@ -56,7 +56,8 @@ public final class ManagedServiceInterceptor extends ServiceInterceptor {
                                 if (!singleton) {
                                     ap = proxyHandler();
 
-                                    final Object o = config.framework().newClassInstance(Object.class, ((AnnotatedProxy) w.atmosphereHandler()).target().getClass());
+                                    final Object o = config.framework().newClassInstance(Object.class,
+                                            ((AnnotatedProxy) w.atmosphereHandler()).target().getClass());
                                     ap.configure(config, o);
                                 }
 
@@ -90,7 +91,9 @@ public final class ManagedServiceInterceptor extends ServiceInterceptor {
 
     protected ManagedAnnotation managed(AnnotatedProxy ap, final AtmosphereResource r){
         final ManagedService a = ap.target().getClass().getAnnotation(ManagedService.class);
-        if (a == null) return null;
+        if (a == null) {
+            return null;
+        }
 
         return new ManagedAnnotation() {
             @Override

@@ -125,7 +125,9 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
             ((AtmosphereResourceImpl) r).cloneState(this.r);
         }
         this.r = r;
-        if (r != null) uuid = r.uuid();
+        if (r != null) {
+            uuid = r.uuid();
+        }
         return this;
     }
 
@@ -199,7 +201,9 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
             return this;
         }
 
-        if (!isOpen()) throw new IOException("Connection remotely closed for " + uuid);
+        if (!isOpen()) {
+            throw new IOException("Connection remotely closed for " + uuid);
+        }
         logger.trace("WebSocket.write() {}", data);
 
         boolean transform = !filters.isEmpty() && r.getStatus() < 400;
@@ -240,7 +244,9 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
             logger.error("Cannot write null value for {}", resource());
             return this;
         }
-        if (!isOpen()) throw new IOException("Connection remotely closed for " + uuid);
+        if (!isOpen()) {
+            throw new IOException("Connection remotely closed for " + uuid);
+        }
 
         if (logger.isTraceEnabled()) {
             logger.trace("WebSocket.write() {}", new String(b, offset, length, StandardCharsets.UTF_8));

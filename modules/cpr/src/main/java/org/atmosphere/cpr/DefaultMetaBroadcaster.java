@@ -154,7 +154,9 @@ public class DefaultMetaBroadcaster implements MetaBroadcaster {
      * @return this
      */
     protected MetaBroadcaster flushCache() {
-        if (cache != null) cache.flushCache();
+        if (cache != null) {
+            cache.flushCache();
+        }
         return this;
     }
 

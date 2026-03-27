@@ -408,7 +408,9 @@ public class LangChain4jStreamingAdapterTest {
             assertTrue(idx > 0, "Message should contain seq field");
             int start = idx + 6;
             int end = msg.indexOf("}", start);
-            if (end < 0) end = msg.indexOf(",", start);
+            if (end < 0) {
+                end = msg.indexOf(",", start);
+            }
             long seq = Long.parseLong(msg.substring(start, end).trim());
             assertTrue(seq > prevSeq, "Sequence " + seq + " should be greater than " + prevSeq);
             prevSeq = seq;

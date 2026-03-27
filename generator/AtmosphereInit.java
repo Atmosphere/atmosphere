@@ -231,7 +231,8 @@ public class AtmosphereInit implements Runnable {
                     renderTemplate("templates/handler/ai-chat/AssistantTools.java.mustache", model, javaDir.resolve("AssistantTools.java"));
                 }
                 if ((boolean) model.get("needsDemoProducer")) {
-                    renderTemplate("templates/handler/ai-chat/DemoResponseProducer.java.mustache", model, javaDir.resolve("DemoResponseProducer.java"));
+                    renderTemplate("templates/handler/ai-chat/DemoResponseProducer.java.mustache",
+                            model, javaDir.resolve("DemoResponseProducer.java"));
                 }
                 if ((boolean) model.get("needsAdkProducer")) {
                     renderTemplate("templates/handler/ai-chat/DemoEventProducer.java.mustache", model, javaDir.resolve("DemoEventProducer.java"));

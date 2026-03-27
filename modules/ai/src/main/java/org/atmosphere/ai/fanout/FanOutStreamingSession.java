@@ -153,7 +153,9 @@ public final class FanOutStreamingSession implements AutoCloseable {
                             cancelAllExcept(winner);
                             break;
                         }
-                        if (latch.getCount() == 0) break;
+                        if (latch.getCount() == 0) {
+                            break;
+                        }
                         Thread.sleep(10);
                     }
                     // Wait for remaining to finish

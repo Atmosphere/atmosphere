@@ -208,7 +208,9 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
                         consumer.commitSync();
                     }
                 } catch (org.apache.kafka.common.errors.WakeupException e) {
-                    if (!consuming.get()) break;
+                    if (!consuming.get()) {
+                        break;
+                    }
                 } catch (Exception e) {
                     if (consuming.get()) {
                         logger.warn("Error polling Kafka topic '{}', retrying...", topicName, e);

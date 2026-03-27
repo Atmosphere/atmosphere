@@ -135,7 +135,9 @@ public class JSR356WebSocket extends WebSocket {
     @Override
     public void close() {
 
-        if (!session.isOpen() || closed.getAndSet(true)) return;
+        if (!session.isOpen() || closed.getAndSet(true)) {
+            return;
+        }
 
         logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
         try {

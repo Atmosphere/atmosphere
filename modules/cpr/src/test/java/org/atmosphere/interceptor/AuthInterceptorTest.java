@@ -203,7 +203,9 @@ public class AuthInterceptorTest {
         // First call returns Invalid (since alwaysInvalid), not Expired
         // We need a validator that returns Expired for old tokens, Invalid for new
         TokenValidator mixedValidator = token -> {
-            if ("old-token".equals(token)) return new TokenValidator.Expired();
+            if ("old-token".equals(token)) {
+                return new TokenValidator.Expired();
+            }
             return new TokenValidator.Invalid("still invalid after refresh");
         };
         interceptor = new AuthInterceptor(mixedValidator, refresher);

@@ -106,7 +106,9 @@ public class IOUtils {
     }
 
     public static boolean isBodyEmpty(Object o) {
-        if (o instanceof String s && s.isEmpty()) return true;
+        if (o instanceof String s && s.isEmpty()) {
+            return true;
+        }
         assert o != null;
         return o instanceof Byte[] bytes && bytes.length == 0;
     }
@@ -162,7 +164,9 @@ public class IOUtils {
         } else {
             AtmosphereRequestImpl.Body body = request.body();
             try {
-                stringBuilder.append(body.hasString() ? body.asString() : new String(body.asBytes(), body.byteOffset(), body.byteLength(), request.getCharacterEncoding()));
+                stringBuilder.append(body.hasString() ? body.asString()
+                        : new String(body.asBytes(), body.byteOffset(), body.byteLength(),
+                                request.getCharacterEncoding()));
             } catch (UnsupportedEncodingException e) {
                 logger.error("", e);
             }
@@ -209,8 +213,9 @@ public class IOUtils {
                     int bytesRead = 0;
                     while (bytesRead != -1) {
                         bytesRead = bufferedStream.read(bytes);
-                        if (bytesRead > 0)
+                        if (bytesRead > 0) {
                             bbIS.write(bytes, 0, bytesRead);
+                        }
                     }
 
                 } else {
@@ -301,12 +306,16 @@ public class IOUtils {
      */
     public static String getCleanedServletPath(String fullServletPath) {
 
-        if (fullServletPath.equalsIgnoreCase("/*")) return "";
+        if (fullServletPath.equalsIgnoreCase("/*")) {
+            return "";
+        }
 
         Matcher matcher = SERVLET_PATH_PATTERN.matcher(fullServletPath);
 
         // It should not happen if the servlet path is valid
-        if (!matcher.find()) return fullServletPath;
+        if (!matcher.find()) {
+            return fullServletPath;
+        }
 
         String servletPath = matcher.group(0);
         if (!servletPath.startsWith("/")) {

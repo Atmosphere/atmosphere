@@ -320,8 +320,9 @@ public class CoordinatorProcessor implements Processor<Object> {
         if (deps != null) {
             for (var dep : deps) {
                 if (!visited.contains(dep)) {
-                    if (dependencyGraph.containsKey(dep)
-                            && hasCycle(dep, visited, inStack, path)) {
+                    if (dependencyGraph.containsKey(dep) {
+                        && hasCycle(dep, visited, inStack, path)) {
+                    }
                         return true;
                     }
                 } else if (inStack.contains(dep)) {

@@ -83,10 +83,18 @@ public class RedisClusteringTest {
 
     @AfterAll
     public void tearDown() throws Exception {
-        if (httpClient != null) httpClient.close();
-        if (nodeA != null) nodeA.close();
-        if (nodeB != null) nodeB.close();
-        if (redis != null) redis.stop();
+        if (httpClient != null) {
+            httpClient.close();
+        }
+        if (nodeA != null) {
+            nodeA.close();
+        }
+        if (nodeB != null) {
+            nodeB.close();
+        }
+        if (redis != null) {
+            redis.stop();
+        }
     }
 
     @Timeout(value = 15_000, unit = TimeUnit.MILLISECONDS)

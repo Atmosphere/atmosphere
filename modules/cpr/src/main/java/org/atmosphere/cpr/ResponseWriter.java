@@ -550,7 +550,9 @@ final class ResponseWriter {
 
         @Override
         public void flush() throws IOException {
-            if (!validFlushOrClose(response.uuid())) return;
+            if (!validFlushOrClose(response.uuid())) {
+                return;
+            }
 
             writeStatusAndHeaders(response);
 
@@ -570,8 +572,9 @@ final class ResponseWriter {
         @Override
         public void close() throws IOException {
             ResponseWriter.this.onComplete(response);
-            if (!validFlushOrClose(response.uuid())
-                    || asyncIOWriter instanceof KeepOpenStreamAware) return;
+            if (!validFlushOrClose(response.uuid()) {
+                || asyncIOWriter instanceof KeepOpenStreamAware) return;
+            }
 
             // Prevent StackOverflow
             boolean b = forceAsyncIOWriter;
@@ -685,7 +688,9 @@ final class ResponseWriter {
 
         @Override
         public void flush() {
-            if (!validFlushOrClose(response.uuid())) return;
+            if (!validFlushOrClose(response.uuid())) {
+                return;
+            }
 
             boolean b = forceAsyncIOWriter;
             try {
@@ -702,8 +707,9 @@ final class ResponseWriter {
 
         @Override
         public void close() {
-            if (!validFlushOrClose(response.uuid())
-                    || asyncIOWriter instanceof KeepOpenStreamAware) return;
+            if (!validFlushOrClose(response.uuid()) {
+                || asyncIOWriter instanceof KeepOpenStreamAware) return;
+            }
 
             // Prevent StackOverflow
             boolean b = forceAsyncIOWriter;

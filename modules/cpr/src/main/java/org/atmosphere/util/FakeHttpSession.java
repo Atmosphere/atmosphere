@@ -55,20 +55,26 @@ public class FakeHttpSession implements HttpSession {
 
     @Override
     public long getCreationTime() {
-        if (!valid.get()) throw new IllegalStateException();
+        if (!valid.get()) {
+            throw new IllegalStateException();
+        }
         return creationTime;
     }
 
     @Override
     public String getId() {
-        if (!valid.get()) throw new IllegalStateException();
+        if (!valid.get()) {
+            throw new IllegalStateException();
+        }
         return sessionId;
     }
 
     // Returns 0 as last-accessed tracking is not supported in this fake session
     @Override
     public long getLastAccessedTime() {
-        if (!valid.get()) throw new IllegalStateException();
+        if (!valid.get()) {
+            throw new IllegalStateException();
+        }
         return 0;
     }
 
@@ -95,33 +101,43 @@ public class FakeHttpSession implements HttpSession {
 
     @Override
     public Object getAttribute(String name) {
-        if (!valid.get()) throw new IllegalStateException();
+        if (!valid.get()) {
+            throw new IllegalStateException();
+        }
         return attributes.get(name);
     }
 
     @SuppressWarnings("deprecation")
     @Override
     public Object getValue(String name) {
-        if (!valid.get()) throw new IllegalStateException();
+        if (!valid.get()) {
+            throw new IllegalStateException();
+        }
         return attributes.get(name);
     }
 
     @Override
     public Enumeration<String> getAttributeNames() {
-        if (!valid.get()) throw new IllegalStateException();
+        if (!valid.get()) {
+            throw new IllegalStateException();
+        }
         return attributes.keys();
     }
 
     @SuppressWarnings("deprecation")
     @Override
     public String[] getValueNames() {
-        if (!valid.get()) throw new IllegalStateException();
+        if (!valid.get()) {
+            throw new IllegalStateException();
+        }
         return (String[]) Collections.list(attributes.keys()).toArray();
     }
 
     @Override
     public void setAttribute(String name, Object value) {
-        if (!valid.get()) throw new IllegalStateException();
+        if (!valid.get()) {
+            throw new IllegalStateException();
+        }
         if (value == null) {
             attributes.remove(name);
         } else {
@@ -132,7 +148,9 @@ public class FakeHttpSession implements HttpSession {
     @SuppressWarnings("deprecation")
     @Override
     public void putValue(String name, Object value) {
-        if (!valid.get()) throw new IllegalStateException();
+        if (!valid.get()) {
+            throw new IllegalStateException();
+        }
         if (value == null) {
             attributes.remove(name);
         } else {
@@ -142,14 +160,18 @@ public class FakeHttpSession implements HttpSession {
 
     @Override
     public void removeAttribute(String name) {
-        if (!valid.get()) throw new IllegalStateException();
+        if (!valid.get()) {
+            throw new IllegalStateException();
+        }
         attributes.remove(name);
     }
 
     @SuppressWarnings("deprecation")
     @Override
     public void removeValue(String name) {
-        if (!valid.get()) throw new IllegalStateException();
+        if (!valid.get()) {
+            throw new IllegalStateException();
+        }
         attributes.remove(name);
     }
 
@@ -158,10 +180,14 @@ public class FakeHttpSession implements HttpSession {
         String k;
         while (e.hasMoreElements()) {
             k = e.nextElement();
-            if (k == null) continue;
+            if (k == null) {
+                continue;
+            }
 
             Object o = httpSession.getAttribute(k);
-            if (o == null) continue;
+            if (o == null) {
+                continue;
+            }
 
             attributes.put(k, o);
         }
@@ -170,13 +196,17 @@ public class FakeHttpSession implements HttpSession {
 
     @Override
     public void invalidate() {
-        if (!valid.get()) throw new IllegalStateException();
+        if (!valid.get()) {
+            throw new IllegalStateException();
+        }
         valid.set(false);
     }
 
     @Override
     public boolean isNew() {
-        if (!valid.get()) throw new IllegalStateException();
+        if (!valid.get()) {
+            throw new IllegalStateException();
+        }
         return false;
     }
 

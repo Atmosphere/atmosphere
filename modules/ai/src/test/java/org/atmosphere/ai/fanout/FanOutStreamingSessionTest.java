@@ -59,7 +59,9 @@ public class FanOutStreamingSessionTest {
     private static LlmClient fixedTextClient(String... texts) {
         return (request, session) -> {
             for (var text : texts) {
-                if (session.isClosed()) return;
+                if (session.isClosed()) {
+                    return;
+                }
                 session.send(text);
                 try { Thread.sleep(5); } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -74,7 +76,9 @@ public class FanOutStreamingSessionTest {
     private static LlmClient slowClient(int delayMs, String... texts) {
         return (request, session) -> {
             for (var text : texts) {
-                if (session.isClosed()) return;
+                if (session.isClosed()) {
+                    return;
+                }
                 session.send(text);
                 try { Thread.sleep(delayMs); } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();

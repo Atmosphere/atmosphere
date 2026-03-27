@@ -186,7 +186,9 @@ public class ClasspathScanner {
     }
 
     void getFiles(File f) {
-        if (scanDone) return;
+        if (scanDone) {
+            return;
+        }
 
         File[] files = f.listFiles();
         if (files != null) {
@@ -258,7 +260,9 @@ public class ClasspathScanner {
         var fwk = config.framework();
 
         // If Handler has been added
-        if (!fwk.getHandlerRegistry().handlers().isEmpty()) return;
+        if (!fwk.getHandlerRegistry().handlers().isEmpty()) {
+            return;
+        }
 
         logger.info("Auto detecting atmosphere handlers {}", handlersPath);
 
@@ -267,7 +271,9 @@ public class ClasspathScanner {
         // Weblogic bug
         if (rp == null) {
             URL u = servletContext.getResource(handlersPath);
-            if (u == null) return;
+            if (u == null) {
+                return;
+            }
             rp = u.getPath();
         }
 
@@ -308,14 +314,18 @@ public class ClasspathScanner {
             throws MalformedURLException {
         var fwk = config.framework();
 
-        if (fwk.getWebSocketConfig().hasNewProtocol()) return;
+        if (fwk.getWebSocketConfig().hasNewProtocol()) {
+            return;
+        }
 
         logger.info("Auto detecting WebSocketHandler in {}", handlersPath);
         loadWebSocketFromPath(classloader, realPath(servletContext, handlersPath));
     }
 
     void loadWebSocketFromPath(ClassLoader classloader, String realPath) {
-        if (realPath == null || realPath.isEmpty()) return;
+        if (realPath == null || realPath.isEmpty()) {
+            return;
+        }
         var fwk = config.framework();
 
         var file = new File(realPath);
@@ -344,7 +354,9 @@ public class ClasspathScanner {
     void loadConfiguration(ServletConfig sc) throws Exception {
         var fwk = config.framework();
 
-        if (!fwk.isAutoDetectHandlers()) return;
+        if (!fwk.isAutoDetectHandlers()) {
+            return;
+        }
 
         URL url = sc.getServletContext().getResource(handlersPath);
         ClassLoader urlC = url == null ? fwk.getClass().getClassLoader() : new URLClassLoader(new URL[]{url},
@@ -399,7 +411,9 @@ public class ClasspathScanner {
         logger.debug("Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey");
 
         ReflectorServletProcessor rsp = fwk.newClassInstance(ReflectorServletProcessor.class, ReflectorServletProcessor.class);
-        if (broadcasterClassNameTmp != null) broadcasterSetup.setBroadcasterClassName(broadcasterClassNameTmp);
+        if (broadcasterClassNameTmp != null) {
+            broadcasterSetup.setBroadcasterClassName(broadcasterClassNameTmp);
+        }
         configureDetectedFramework(rsp, isJersey);
         fwk.sessionSupport(false);
         fwk.initParams.put(DISABLE_ONSTATE_EVENT, "true");

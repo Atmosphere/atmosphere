@@ -116,7 +116,9 @@ public class Invoker {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     public static Object matchEncoder(Object instanceType, List<Encoder<?, ?>> encoders) {
-        if (instanceType == null) return null;
+        if (instanceType == null) {
+            return null;
+        }
 
         Object encodedObject = encoders.isEmpty() ? instanceType : null;
         for (Encoder d : encoders) {

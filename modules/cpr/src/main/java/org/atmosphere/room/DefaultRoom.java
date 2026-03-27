@@ -87,7 +87,9 @@ public class DefaultRoom implements Room {
 
     @Override
     public Room join(AtmosphereResource resource, RoomMember member) {
-        if (destroyed) throw new IllegalStateException("Room '" + name + "' is destroyed");
+        if (destroyed) {
+            throw new IllegalStateException("Room '" + name + "' is destroyed");
+        }
 
         broadcaster.addAtmosphereResource(resource);
 
@@ -206,7 +208,9 @@ public class DefaultRoom implements Room {
 
     @Override
     public Room joinVirtual(VirtualRoomMember member) {
-        if (destroyed) throw new IllegalStateException("Room '" + name + "' is destroyed");
+        if (destroyed) {
+            throw new IllegalStateException("Room '" + name + "' is destroyed");
+        }
         virtualMembers.add(member);
         fireVirtualPresence(PresenceEvent.Type.JOIN, member);
         logger.debug("Virtual member '{}' joined room '{}'", member.id(), name);
@@ -274,7 +278,9 @@ public class DefaultRoom implements Room {
 
     private void dispatchToVirtualMembers(Object message, String excludeId) {
         for (var vm : virtualMembers) {
-            if (vm.id().equals(excludeId)) continue;
+            if (vm.id().equals(excludeId)) {
+                continue;
+            }
             try {
                 vm.onMessage(this, excludeId != null ? excludeId : "room", message);
             } catch (Exception e) {

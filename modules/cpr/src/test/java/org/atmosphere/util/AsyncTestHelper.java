@@ -37,16 +37,16 @@ import java.util.concurrent.TimeUnit;
  * <b>Usage Example:</b>
  * <pre>{@code
  * AsyncTestHelper helper = new AsyncTestHelper();
- * 
+ *
  * // Start async suspend
  * helper.asyncDoCometSupport(framework, request, response);
- * 
+ *
  * // Wait for suspend to be set up
  * helper.awaitSuspendSetup();
- * 
+ *
  * // Now do operations that depend on the suspended state
  * broadcaster.broadcast("message");
- * 
+ *
  * // Cleanup
  * helper.shutdown();
  * }</pre>
@@ -54,22 +54,22 @@ import java.util.concurrent.TimeUnit;
  * @author Jeanfrancois Arcand
  */
 public class AsyncTestHelper {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(AsyncTestHelper.class);
-    
+
     private final ExecutorService executor;
     private final long defaultSetupDelayMs;
-    
+
     /**
      * Creates a new AsyncTestHelper with default setup delay of 100ms
      */
     public AsyncTestHelper() {
         this(100);
     }
-    
+
     /**
      * Creates a new AsyncTestHelper with specified setup delay
-     * 
+     *
      * @param setupDelayMs time in milliseconds to wait for async operations to set up
      */
     public AsyncTestHelper(long setupDelayMs) {
@@ -81,11 +81,11 @@ public class AsyncTestHelper {
         });
         this.defaultSetupDelayMs = setupDelayMs;
     }
-    
+
     /**
      * Executes doCometSupport asynchronously in a separate thread.
      * This allows the test to continue and trigger broadcasts or other operations.
-     * 
+     *
      * @param framework the AtmosphereFramework
      * @param request the AtmosphereRequest
      * @param response the AtmosphereResponse
@@ -95,10 +95,10 @@ public class AsyncTestHelper {
             final AtmosphereFramework framework,
             final AtmosphereRequest request,
             final AtmosphereResponse response) {
-        
+
         return CompletableFuture.runAsync(() -> {
             try {
-                logger.debug("Starting async doCometSupport in thread: {}", 
+                logger.debug("Starting async doCometSupport in thread: {}",
                            Thread.currentThread().getName());
                 framework.doCometSupport(request, response);
                 logger.debug("Completed async doCometSupport");
@@ -108,21 +108,21 @@ public class AsyncTestHelper {
             }
         }, executor);
     }
-    
+
     /**
      * Waits for the default setup delay to allow async operations to initialize.
      * This is useful after starting an async suspend to ensure the framework
      * is ready before proceeding with broadcasts.
-     * 
+     *
      * @throws InterruptedException if interrupted while waiting
      */
     public void awaitSuspendSetup() throws InterruptedException {
         awaitSuspendSetup(defaultSetupDelayMs);
     }
-    
+
     /**
      * Waits for the specified time to allow async operations to initialize.
-     * 
+     *
      * @param delayMs time in milliseconds to wait
      * @throws InterruptedException if interrupted while waiting
      */
@@ -130,17 +130,17 @@ public class AsyncTestHelper {
         logger.debug("Waiting {}ms for suspend setup", delayMs);
         Thread.sleep(delayMs);
     }
-    
+
     /**
      * Executes a runnable asynchronously
-     * 
+     *
      * @param task the task to execute
      * @return CompletableFuture that completes when task finishes
      */
     public CompletableFuture<Void> async(Runnable task) {
         return CompletableFuture.runAsync(task, executor);
     }
-    
+
     /**
      * Shuts down the executor service.
      * Should be called in test cleanup (@AfterEach)
@@ -160,11 +160,11 @@ public class AsyncTestHelper {
             Thread.currentThread().interrupt();
         }
     }
-    
+
     /**
      * Gets the executor service used by this helper.
      * Advanced usage only.
-     * 
+     *
      * @return the ExecutorService
      */
     public ExecutorService getExecutor() {

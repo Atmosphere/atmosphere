@@ -45,7 +45,8 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     public AbstractBroadcasterProxy() {
         try {
             Class<?> jerseyBroadcasterUtil = Class.forName("org.atmosphere.jersey.util.JerseyBroadcasterUtil");
-            jerseyBroadcast = jerseyBroadcasterUtil.getMethod("broadcast", AtmosphereResource.class, AtmosphereResourceEvent.class, Broadcaster.class);
+            jerseyBroadcast = jerseyBroadcasterUtil.getMethod("broadcast",
+                    AtmosphereResource.class, AtmosphereResourceEvent.class, Broadcaster.class);
         } catch (Exception e) {
             logger.trace("", e);
         }

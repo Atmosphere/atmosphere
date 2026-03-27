@@ -270,7 +270,9 @@ public class RedisBroadcasterTest {
         public void onStateChange(AtmosphereResourceEvent event) throws IOException {
             if (event.getMessage() != null) {
                 received.add(event.getMessage().toString());
-                if (latch != null) latch.countDown();
+                if (latch != null) {
+                    latch.countDown();
+                }
             }
         }
 

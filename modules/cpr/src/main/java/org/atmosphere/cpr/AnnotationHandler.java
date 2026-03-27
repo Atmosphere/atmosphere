@@ -86,7 +86,9 @@ public class AnnotationHandler {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public AnnotationHandler handleAnnotation(final AtmosphereFramework framework, final Class<? extends Annotation> annotation, final Class<?> discoveredClass) {
+    public AnnotationHandler handleAnnotation(final AtmosphereFramework framework,
+            final Class<? extends Annotation> annotation,
+            final Class<?> discoveredClass) {
         logger.info("Found Annotation in {} being scanned: {}", discoveredClass, annotation);
         framework.annotationScanned(true);
         Class<? extends Processor<?>> a = annotations.get(annotation);

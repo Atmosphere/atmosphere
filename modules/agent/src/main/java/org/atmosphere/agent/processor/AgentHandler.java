@@ -150,7 +150,9 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
                 // Try @Message handler before AI pipeline
                 if (messageMethod != null) {
                     var handled = invokeMessageHandler(resource, msg);
-                    if (handled) return;
+                    if (handled) {
+                        return;
+                    }
                 }
             }
         }

@@ -349,12 +349,24 @@ public final class McpRegistry {
     }
 
     private static String jsonSchemaType(Class<?> type) {
-        if (type == String.class) return "string";
-        if (type == int.class || type == Integer.class) return "integer";
-        if (type == long.class || type == Long.class) return "integer";
-        if (type == double.class || type == Double.class) return "number";
-        if (type == float.class || type == Float.class) return "number";
-        if (type == boolean.class || type == Boolean.class) return "boolean";
+        if (type == String.class) {
+            return "string";
+        }
+        if (type == int.class || type == Integer.class) {
+            return "integer";
+        }
+        if (type == long.class || type == Long.class) {
+            return "integer";
+        }
+        if (type == double.class || type == Double.class) {
+            return "number";
+        }
+        if (type == float.class || type == Float.class) {
+            return "number";
+        }
+        if (type == boolean.class || type == Boolean.class) {
+            return "boolean";
+        }
         return "string";
     }
 }

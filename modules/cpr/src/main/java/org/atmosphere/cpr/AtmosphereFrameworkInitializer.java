@@ -49,7 +49,8 @@ public class AtmosphereFrameworkInitializer {
         return configureFramework(sc, true, false, AtmosphereFramework.class);
     }
 
-    public AtmosphereFrameworkInitializer configureFramework(ServletConfig sc, boolean init, boolean useNative, Class<? extends AtmosphereFramework> frameworkClass) throws ServletException {
+    public AtmosphereFrameworkInitializer configureFramework(ServletConfig sc, boolean init, boolean useNative,
+            Class<? extends AtmosphereFramework> frameworkClass) throws ServletException {
         if (framework == null) {
             if (sc.getServletContext().getMajorVersion() > 2) {
                 try {
@@ -77,7 +78,9 @@ public class AtmosphereFrameworkInitializer {
             }
         }
         framework.setUseNativeImplementation(useNative);
-        if (init) framework.init(sc);
+        if (init) {
+            framework.init(sc);
+        }
         return this;
     }
 
@@ -86,7 +89,8 @@ public class AtmosphereFrameworkInitializer {
     }
 
     @SuppressWarnings("rawtypes")
-    protected static AtmosphereFramework newAtmosphereFramework(Class<? extends AtmosphereFramework> frameworkClass, boolean isFilter, boolean autoDetectHandlers, final ServletContext c) {
+    protected static AtmosphereFramework newAtmosphereFramework(Class<? extends AtmosphereFramework> frameworkClass,
+            boolean isFilter, boolean autoDetectHandlers, final ServletContext c) {
         AtmosphereFramework framework;
         try {
             framework = frameworkClass.getDeclaredConstructor(
@@ -108,7 +112,8 @@ public class AtmosphereFrameworkInitializer {
         return framework;
     }
 
-    protected static AtmosphereFramework newAtmosphereFramework(Class<? extends AtmosphereFramework> frameworkClass, boolean isFilter, boolean autoDetectHandlers) {
+    protected static AtmosphereFramework newAtmosphereFramework(Class<? extends AtmosphereFramework> frameworkClass,
+            boolean isFilter, boolean autoDetectHandlers) {
         return newAtmosphereFramework(frameworkClass, isFilter,autoDetectHandlers, null);
     }
 

@@ -126,7 +126,9 @@ public class WriteTimeoutTest {
         @Override
         public void onStateChange(AtmosphereResourceEvent e) throws IOException {
             try {
-                if (latch != null) latch.await(10, TimeUnit.SECONDS);
+                if (latch != null) {
+                    latch.await(10, TimeUnit.SECONDS);
+                }
             } catch (InterruptedException e1) {
                 e1.printStackTrace();
             }

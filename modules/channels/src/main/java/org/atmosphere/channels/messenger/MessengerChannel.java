@@ -115,12 +115,16 @@ public class MessengerChannel implements MessagingChannel {
 
             for (JsonNode entry : entries) {
                 JsonNode messagingEvents = entry.get("messaging");
-                if (messagingEvents == null || !messagingEvents.isArray()) continue;
+                if (messagingEvents == null || !messagingEvents.isArray()) {
+                    continue;
+                }
 
                 for (JsonNode event : messagingEvents) {
                     String senderId = event.path("sender").path("id").stringValue("");
                     JsonNode message = event.get("message");
-                    if (message == null) continue;
+                    if (message == null) {
+                        continue;
+                    }
 
                     String text = message.path("text").stringValue("");
                     String mid = message.path("mid").stringValue("");

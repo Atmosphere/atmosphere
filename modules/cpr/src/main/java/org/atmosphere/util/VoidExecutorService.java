@@ -92,7 +92,8 @@ public class VoidExecutorService implements ExecutorService {
     }
 
     @Override
-    public <T> T invokeAny(Collection<? extends Callable<T>> callables, long l, TimeUnit timeUnit) throws InterruptedException, ExecutionException, TimeoutException {
+    public <T> T invokeAny(Collection<? extends Callable<T>> callables, long l, TimeUnit timeUnit)
+            throws InterruptedException, ExecutionException, TimeoutException {
         throw new UnsupportedOperationException();
     }
 

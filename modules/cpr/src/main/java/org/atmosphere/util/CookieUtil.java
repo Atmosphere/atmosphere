@@ -53,14 +53,17 @@ public class CookieUtil {
     }
 
     public static boolean isToken(String value) {
-        if (value == null) return true;
+        if (value == null) {
+            return true;
+        }
         int len = value.length();
 
         for (int i = 0; i < len; i++) {
             char c = value.charAt(i);
 
-            if (c < 0x20 || c >= 0x7f || tspecials.indexOf(c) != -1)
+            if (c < 0x20 || c >= 0x7f || tspecials.indexOf(c) != -1) {
                 return false;
+            }
         }
         return true;
     }

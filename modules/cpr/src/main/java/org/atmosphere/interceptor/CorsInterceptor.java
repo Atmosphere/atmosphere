@@ -67,9 +67,13 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(AtmosphereResource r) {
 
-        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+        if (Utils.webSocketMessage(r)) {
+            return Action.CONTINUE;
+        }
 
-        if (!enableAccessControl) return Action.CONTINUE;
+        if (!enableAccessControl) {
+            return Action.CONTINUE;
+        }
 
         var req = r.getRequest();
         var res = r.getResponse();

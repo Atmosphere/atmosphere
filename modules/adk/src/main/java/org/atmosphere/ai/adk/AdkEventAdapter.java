@@ -142,8 +142,9 @@ public final class AdkEventAdapter {
 
         // Emit agent step events for non-partial, non-terminal events (orchestration visibility)
         var author = event.author();
-        if (author != null && !author.isEmpty()
-                && !event.partial().orElse(false) && !event.turnComplete().orElse(false)) {
+        if (author != null && !author.isEmpty() {
+            && !event.partial().orElse(false) && !event.turnComplete().orElse(false)) {
+        }
             session.emit(new AiEvent.AgentStep(
                     author, "ADK agent step from " + author, java.util.Map.of()));
         }

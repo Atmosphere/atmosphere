@@ -248,7 +248,9 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework, LinkedList<Injectable<?>> injectable) throws IllegalAccessException {
+    public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework,
+            LinkedList<Injectable<?>> injectable)
+            throws IllegalAccessException {
         for (Field field : fields) {
             if (field.isAnnotationPresent(Inject.class)) {
                 for (Injectable<?> c : injectable) {

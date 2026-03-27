@@ -41,7 +41,9 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
     private final static Broadcaster noOps = (Broadcaster)
             Proxy.newProxyInstance(Broadcaster.class.getClassLoader(), new Class[]{Broadcaster.class},
                     (proxy, method, args) -> {
-                        if (method.getName().equals("isDestroyed")) return false;
+                        if (method.getName().equals("isDestroyed")) {
+                            return false;
+                        }
                         return null;
                     });
     @SuppressWarnings("rawtypes")
@@ -261,7 +263,9 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
     @Deprecated(since = "4.0.0", forRemoval = false)
     @Override
     public AtmosphereResource find(String uuid) {
-        if (uuid == null) return null;
+        if (uuid == null) {
+            return null;
+        }
         return resources.get(uuid);
     }
 
@@ -270,7 +274,9 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
      */
     @Override
     public Optional<AtmosphereResource> findResource(String uuid) {
-        if (uuid == null) return Optional.empty();
+        if (uuid == null) {
+            return Optional.empty();
+        }
         return Optional.ofNullable(resources.get(uuid));
     }
 

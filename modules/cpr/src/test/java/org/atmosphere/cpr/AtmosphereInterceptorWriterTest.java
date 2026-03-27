@@ -29,12 +29,12 @@ public class AtmosphereInterceptorWriterTest {
         for (int i = 0; i < 4; i++) {
             filters[i] = new TestFilter();
         }
-        
+
         // adding the filters using the default logic (adding at the end of the list)
         writer.interceptor(filters[0]);
         writer.interceptor(filters[1]);
         verifyInterceptors(writer, new AsyncIOInterceptor[]{filters[0], filters[1]});
-        
+
         // addint one at the beginning
         writer.interceptor(filters[2], 0);
         verifyInterceptors(writer, new AsyncIOInterceptor[]{filters[2], filters[0], filters[1]});
@@ -75,7 +75,7 @@ public class AtmosphereInterceptorWriterTest {
         public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
             // noop;
         }
-        
+
         @Override
         public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
             // noop

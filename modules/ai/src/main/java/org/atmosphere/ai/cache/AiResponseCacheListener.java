@@ -136,10 +136,14 @@ public class AiResponseCacheListener implements BroadcasterCacheListener {
     static String extractJsonField(String json, String field) {
         var search = "\"" + field + "\":\"";
         var idx = json.indexOf(search);
-        if (idx < 0) return null;
+        if (idx < 0) {
+            return null;
+        }
         var start = idx + search.length();
         var end = json.indexOf('"', start);
-        if (end < 0) return null;
+        if (end < 0) {
+            return null;
+        }
         return json.substring(start, end);
     }
 }

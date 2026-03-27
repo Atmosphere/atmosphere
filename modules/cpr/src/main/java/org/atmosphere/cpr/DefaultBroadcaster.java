@@ -154,7 +154,8 @@ public class DefaultBroadcaster implements Broadcaster {
         bc = createBroadcasterConfig(config);
         String s = config.getInitParameter(BROADCASTER_CACHE_STRATEGY);
         if (s != null) {
-            logger.warn("{} is no longer supported. Use BroadcastInterceptor instead. By default the original message will be cached.", BROADCASTER_CACHE_STRATEGY);
+            logger.warn("{} is no longer supported. Use BroadcastInterceptor instead." +
+                    " By default the original message will be cached.", BROADCASTER_CACHE_STRATEGY);
         }
         s = config.getInitParameter(OUT_OF_ORDER_BROADCAST);
         if (s != null) {
@@ -209,12 +210,16 @@ public class DefaultBroadcaster implements Broadcaster {
         try {
             logger.trace("Broadcaster {} will be pooled: {}", getID(), candidateForPoolable);
             if (!candidateForPoolable) {
-                if (notifyOnPreDestroy()) return;
+                if (notifyOnPreDestroy()) {
+                    return;
+                }
 
                 logger.trace("Broadcaster {} is being destroyed and cannot be re-used. Policy was {}", getID(), policy);
                 logger.trace("Broadcaster {} is being destroyed and cannot be re-used. Resources are {}", getID(), resources);
 
-                if (destroyed.getAndSet(true)) return;
+                if (destroyed.getAndSet(true)) {
+                    return;
+                }
 
                 started.set(false);
 
@@ -318,8 +323,9 @@ public class DefaultBroadcaster implements Broadcaster {
                 id = getClass().getSimpleName() + "/" + config.uuidProvider().generateUuid();
             }
 
-            if (config.getBroadcasterFactory() == null)
+            if (config.getBroadcasterFactory() == null) {
                 return; // we are shutdown or destroyed, but someone still reference
+            }
 
             Broadcaster b = config.getBroadcasterFactory().lookup(this.getClass(), id);
             if (b != null && b.getScope() == SCOPE.REQUEST) {
@@ -431,7 +437,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public Broadcaster removeBroadcasterListener(BroadcasterListener b) {
-        if (!sharedListeners) broadcasterListeners.remove(b);
+        if (!sharedListeners) {
+            broadcasterListeners.remove(b);
+        }
         return this;
     }
 
@@ -520,7 +528,8 @@ public class DefaultBroadcaster implements Broadcaster {
                             executeAsyncWrite(token);
                         } catch (Throwable ex) {
                             if (!started.get() || destroyed.get()) {
-                                logger.trace("Failed to execute a write operation. Broadcaster is destroyed or not yet started for Broadcaster {}", getID(), ex);
+                                logger.trace("Failed to execute a write operation. Broadcaster is destroyed" +
+                                        " or not yet started for Broadcaster {}", getID(), ex);
                                 return;
                             } else {
                                 try {
@@ -581,15 +590,17 @@ public class DefaultBroadcaster implements Broadcaster {
     protected void killReactiveThreads() {
         if (notifierFuture != null) {
             for (Future<?> f : notifierFuture) {
-                if (f != null)
+                if (f != null) {
                     f.cancel(false);
+                }
             }
         }
 
         if (asyncWriteFuture != null) {
             for (Future<?> f : asyncWriteFuture) {
-                if (f != null)
+                if (f != null) {
                     f.cancel(false);
+                }
             }
         }
     }
@@ -650,8 +661,9 @@ public class DefaultBroadcaster implements Broadcaster {
                     resourcesLock.lock();
                     try {
                         for (AtmosphereResource r : resources) {
-                            if (Utils.resumableTransport(r.transport()))
+                            if (Utils.resumableTransport(r.transport())) {
                                 try {
+                            }
                                     r.resume();
                                 } catch (Exception t) {
                                     logger.trace("resumeAll", t);
@@ -723,7 +735,9 @@ public class DefaultBroadcaster implements Broadcaster {
                         deliver.message = beforeProcessingMessage;
                         boolean deliverMessage = perRequestFilter(r, deliver);
 
-                        if (endBroadcast(deliver, r, deliver.cache, deliverMessage)) continue;
+                        if (endBroadcast(deliver, r, deliver.cache, deliverMessage)) {
+                            continue;
+                        }
 
                         if (deliver.writeLocally) {
                             queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver, count);
@@ -733,7 +747,9 @@ public class DefaultBroadcaster implements Broadcaster {
                 case RESOURCE -> {
                     boolean deliverMessage = perRequestFilter(deliver.resource, deliver);
 
-                    if (endBroadcast(deliver, deliver.resource, deliver.cache, deliverMessage)) return;
+                    if (endBroadcast(deliver, deliver.resource, deliver.cache, deliverMessage)) {
+                        return;
+                    }
 
                     if (deliver.writeLocally) {
                         queueWriteIO(deliver.resource, deliver, new AtomicInteger(1));
@@ -748,7 +764,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
                         CacheMessage cacheMsg = cacheForSet.remove(r.uuid());
 
-                        if (endBroadcast(deliver, r, cacheMsg, deliverMessage)) continue;
+                        if (endBroadcast(deliver, r, cacheMsg, deliverMessage)) {
+                            continue;
+                        }
 
                         if (deliver.writeLocally) {
                             queueWriteIO(r, new Deliver(r, deliver, cacheMsg), count);
@@ -768,7 +786,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected boolean endBroadcast(Deliver deliver, AtmosphereResource r, CacheMessage cacheMsg, boolean deliverMessage) {
         if (!deliverMessage || deliver.message == null) {
-            logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message, deliver.resource != null ? deliver.resource.uuid() : "null");
+            logger.debug("Skipping broadcast delivery {} for resource {} ",
+                    deliver.message, deliver.resource != null ? deliver.resource.uuid() : "null");
             bc.getBroadcasterCache().clearCache(getID(), r.uuid(), cacheMsg);
             entryDone(deliver.future);
 
@@ -891,7 +910,9 @@ public class DefaultBroadcaster implements Broadcaster {
         boolean notifyListeners = true;
         boolean lostCandidate = false;
 
-        if (token.resource == null) throw new NullPointerException();
+        if (token.resource == null) {
+            throw new NullPointerException();
+        }
 
         final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) token.resource.getAtmosphereResourceEvent();
         final AtmosphereResourceImpl r = (AtmosphereResourceImpl) token.resource;
@@ -954,7 +975,9 @@ public class DefaultBroadcaster implements Broadcaster {
                 notifyBroadcastListener();
             }
 
-            if (token.future != null) token.future.done();
+            if (token.future != null) {
+                token.future.done();
+            }
 
             if (lostCandidate) {
                 cacheLostMessage(r, token, true);
@@ -983,7 +1006,9 @@ public class DefaultBroadcaster implements Broadcaster {
     protected boolean checkCachedAndPush(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         boolean cache = retrieveTrackedBroadcast(r, e);
 
-        if (!cache) return false;
+        if (!cache) {
+            return false;
+        }
 
         if (!((List<?>) e.getMessage()).isEmpty()) {
             logger.debug("Sending cached message {} to {}", e.getMessage(), r.uuid());
@@ -1291,10 +1316,12 @@ public class DefaultBroadcaster implements Broadcaster {
      */
     protected Object filter(Object msg) {
         BroadcastAction a = bc.filter(msg);
-        if (a.action() == BroadcastAction.ACTION.ABORT || msg == null)
+        if (a.action() == BroadcastAction.ACTION.ABORT || msg == null) {
             return null;
-        else
+        }
+        else {
             return a.message();
+        }
     }
 
     @Override
@@ -1308,7 +1335,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return futureDone(msg);
+        if (newMsg == null) {
+            return futureDone(msg);
+        }
 
         var f = new BroadcasterFuture<>(newMsg, 1);
         dispatchMessages(new Deliver(newMsg, r, f, msg));
@@ -1325,7 +1354,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return futureDone(msg);
+        if (newMsg == null) {
+            return futureDone(msg);
+        }
 
         var f = new BroadcasterFuture<>(newMsg, resources.size());
         broadcastOnResume.offer(new Deliver(newMsg, f, msg));
@@ -1354,7 +1385,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return futureDone(msg);
+        if (newMsg == null) {
+            return futureDone(msg);
+        }
 
         var f = new BroadcasterFuture<>(null, newMsg, subset.size());
         dispatchMessages(new Deliver(newMsg, subset, f, msg));
@@ -1395,7 +1428,8 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             if (!r.isSuspended()) {
-                logger.warn("AtmosphereResource {} is not suspended. If cached messages exists, this may cause unexpected situation. Suspend first", r.uuid());
+                logger.warn("AtmosphereResource {} is not suspended. If cached messages exists," +
+                        " this may cause unexpected situation. Suspend first", r.uuid());
             }
 
             if (!backwardCompatible && resources.contains(r)) {
@@ -1498,7 +1532,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void entryDone(final BroadcasterFuture<?> f) {
         notifyBroadcastListener();
-        if (f != null) f.done();
+        if (f != null) {
+            f.done();
+        }
     }
 
     private void forEachListener(Consumer<BroadcasterListener> action) {
@@ -1551,7 +1587,9 @@ public class DefaultBroadcaster implements Broadcaster {
         }
         r.removeBroadcaster(this);
 
-        if (!removed) return this;
+        if (!removed) {
+            return this;
+        }
 
         logger.trace("Removing AtmosphereResource {} for Broadcaster {}", r.uuid(), name);
         writeQueues.remove(r.uuid());
@@ -1595,7 +1633,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
         start();
         final Object msg = filter(o);
-        if (msg == null) return null;
+        if (msg == null) {
+            return null;
+        }
 
         final var future = new BroadcasterFuture<>(msg);
         final var e = new Deliver(msg, future, o);
@@ -1648,7 +1688,9 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         final Object msg = filter(o);
-        if (msg == null) return null;
+        if (msg == null) {
+            return null;
+        }
 
         final var f = new BroadcasterFuture<Object>(msg);
 
@@ -1698,7 +1740,8 @@ public class DefaultBroadcaster implements Broadcaster {
             this.count = count;
         }
 
-        public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture<?> future, Object originalMessage, CacheMessage cache, AtomicInteger count) {
+        public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture<?> future,
+                Object originalMessage, CacheMessage cache, AtomicInteger count) {
             this.resource = resource;
             this.msg = msg;
             this.future = future;
@@ -1729,7 +1772,9 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     private long translateTimeUnit(long period, TimeUnit tu) {
-        if (period == -1) return period;
+        if (period == -1) {
+            return period;
+        }
         return tu.toMillis(period);
     }
 

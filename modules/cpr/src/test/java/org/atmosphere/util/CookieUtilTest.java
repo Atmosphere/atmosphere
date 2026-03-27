@@ -32,7 +32,7 @@ public class CookieUtilTest {
         for (String cookieHeader : COOKIES1) {
             CookieUtil.ServerCookieDecoder.STRICT.decode(cookieHeader, cookies);
         }
-        
+
         assertEquals(3, cookies.size());
         for (Cookie cookie : cookies) {
             if ("theme".equals(cookie.getName())) {

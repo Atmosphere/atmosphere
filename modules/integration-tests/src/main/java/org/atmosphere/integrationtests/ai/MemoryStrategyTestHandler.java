@@ -70,8 +70,9 @@ public class MemoryStrategyTestHandler implements AtmosphereHandler {
 
     @Override
     public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-        if (event.isCancelled() || event.isResumedOnTimeout()
-                || event.isClosedByClient() || event.isClosedByApplication()) {
+        if (event.isCancelled() || event.isResumedOnTimeout() {
+            || event.isClosedByClient() || event.isClosedByApplication()) {
+        }
             if (event.isClosedByClient() || event.isClosedByApplication()) {
                 memory.clear(event.getResource().uuid());
             }

@@ -24,7 +24,18 @@ import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.cpr.*;
+import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.DefaultBroadcaster;
+import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.util.ExecutorsFactory;
 import org.mockito.Mockito;
 
@@ -62,7 +73,8 @@ public class AtmosphereTracingTest {
 
         Mockito.when(tracer.spanBuilder(Mockito.anyString())).thenReturn(spanBuilder);
         Mockito.when(spanBuilder.setSpanKind(Mockito.any(SpanKind.class))).thenReturn(spanBuilder);
-        Mockito.when(spanBuilder.setAttribute(Mockito.any(io.opentelemetry.api.common.AttributeKey.class), Mockito.anyString())).thenReturn(spanBuilder);
+        Mockito.when(spanBuilder.setAttribute(
+                Mockito.any(io.opentelemetry.api.common.AttributeKey.class), Mockito.anyString())).thenReturn(spanBuilder);
         Mockito.when(spanBuilder.startSpan()).thenReturn(span);
         Mockito.when(span.makeCurrent()).thenReturn(scope);
         Mockito.when(span.setAttribute(Mockito.any(io.opentelemetry.api.common.AttributeKey.class), Mockito.anyString())).thenReturn(span);

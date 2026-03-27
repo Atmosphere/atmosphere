@@ -424,7 +424,9 @@ public class AtmosphereFramework {
      * @param sc the {@link ServletContext}
      */
     public AtmosphereFramework init(final ServletConfig sc, boolean wrap) throws ServletException {
-        if (isInit) return this;
+        if (isInit) {
+            return this;
+        }
 
         new FrameworkBootstrap(this).bootstrap(sc, wrap);
 
@@ -566,12 +568,16 @@ public class AtmosphereFramework {
         String s = sc.getInitParameter(PROPERTY_NATIVE_COMETSUPPORT);
         if (s != null) {
             useNativeImplementation = Boolean.parseBoolean(s);
-            if (useNativeImplementation) isCometSupportSpecified = true;
+            if (useNativeImplementation) {
+                isCometSupportSpecified = true;
+            }
         }
         s = sc.getInitParameter(PROPERTY_BLOCKING_COMETSUPPORT);
         if (s != null) {
             useBlockingImplementation = Boolean.parseBoolean(s);
-            if (useBlockingImplementation) isCometSupportSpecified = true;
+            if (useBlockingImplementation) {
+                isCometSupportSpecified = true;
+            }
         }
         s = sc.getInitParameter(PROPERTY_USE_STREAM);
         if (s != null) {
@@ -597,7 +603,9 @@ public class AtmosphereFramework {
             boolean sessionSupport = Boolean.parseBoolean(s) || SessionSupport.initializationHint;
             config.setSupportSession(sessionSupport);
             if (sessionSupport && (sc.getServletContext().getMajorVersion() < 3 || !SessionSupport.initializationHint)) {
-                logger.warn("SessionSupport error. Make sure you also define {} as a listener in web.xml, see https://github.com/Atmosphere/atmosphere/wiki/Enabling-HttpSession-Support", SessionSupport.class.getName());
+                logger.warn("SessionSupport error. Make sure you also define {} as a listener in web.xml,"
+                        + " see https://github.com/Atmosphere/atmosphere/wiki/Enabling-HttpSession-Support",
+                        SessionSupport.class.getName());
             }
             isSessionSupportSpecified = true;
         }
@@ -664,8 +672,11 @@ public class AtmosphereFramework {
 
     protected AtmosphereObjectFactory<?> lookupDefaultObjectFactoryType() {
 
-        if (objectFactory != null && !DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass()
-                .getName())) return objectFactory;
+        if (objectFactory != null && !DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass() {
+            .getName() {
+            )) return objectFactory;
+        }
+        }
 
         for (String b : objectFactoryType) {
             try {
@@ -679,8 +690,9 @@ public class AtmosphereFramework {
             }
         }
 
-        if (objectFactory == null || DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass()
-                .getName())) {
+        if (objectFactory == null || DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass() {
+            .getName())) {
+        }
             try {
                 IOUtils.loadClass(getClass(), INJECT_LIBARY);
                 objectFactory = new InjectableObjectFactory();
@@ -741,7 +753,9 @@ public class AtmosphereFramework {
     }
 
     public AtmosphereFramework destroy() {
-        if (isDestroyed.getAndSet(true)) return this;
+        if (isDestroyed.getAndSet(true)) {
+            return this;
+        }
 
         // Phase 1: Pre-destroy callbacks and close active resources
         onPreDestroy();
@@ -808,7 +822,8 @@ public class AtmosphereFramework {
     @SuppressWarnings("unchecked")
     protected void loadMetaService() {
         try {
-            Map<String, MetaServiceAction> config = (Map<String, MetaServiceAction>) servletConfig.getServletContext().getAttribute(MetaServiceAction.class.getName());
+            Map<String, MetaServiceAction> config = (Map<String, MetaServiceAction>) servletConfig
+                    .getServletContext().getAttribute(MetaServiceAction.class.getName());
             if (config == null) {
                 config = IOUtils.readServiceFile(metaServicePath + AtmosphereFramework.class.getName());
             }
@@ -1105,7 +1120,9 @@ public class AtmosphereFramework {
      */
     public Action doCometSupport(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
 
-        if (isDestroyed.get()) return Action.CANCELLED;
+        if (isDestroyed.get()) {
+            return Action.CANCELLED;
+        }
 
         Action a = null;
         try {

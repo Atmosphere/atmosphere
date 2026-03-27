@@ -73,7 +73,9 @@ public class EmbeddedWebSocketHandler {
     }
 
     public EmbeddedWebSocketHandler off() {
-        if (on) framework.destroy();
+        if (on) {
+            framework.destroy();
+        }
         return this;
     }
 

@@ -104,8 +104,9 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
-        if (AtmosphereResource.TRANSPORT.WEBSOCKET != r.transport()
-                && AtmosphereResource.TRANSPORT.SSE != r.transport()
+        if (AtmosphereResource.TRANSPORT.WEBSOCKET != r.transport() {
+            && AtmosphereResource.TRANSPORT.SSE != r.transport()
+        }
                 && AtmosphereResource.TRANSPORT.POLLING != r.transport()) {
             LOG.debug("Skipping for non websocket request");
             return Action.CONTINUE;

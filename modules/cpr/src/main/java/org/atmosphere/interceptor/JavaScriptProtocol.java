@@ -84,7 +84,9 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(final AtmosphereResource ar) {
 
-        if (Utils.webSocketMessage(ar)) return Action.CONTINUE;
+        if (Utils.webSocketMessage(ar)) {
+            return Action.CONTINUE;
+        }
 
         final AtmosphereResourceImpl r = (AtmosphereResourceImpl) ar;
         final AtmosphereRequest request = r.getRequest(false);

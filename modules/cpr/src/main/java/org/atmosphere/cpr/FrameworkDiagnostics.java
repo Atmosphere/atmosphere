@@ -67,7 +67,8 @@ final class FrameworkDiagnostics {
             logger.info("Using BroadcastFilter: {}", i);
         }
 
-        if (broadcasterSetup.broadcasterCacheClassName() == null || DefaultBroadcasterCache.class.getName().equals(broadcasterSetup.broadcasterCacheClassName())) {
+        if (broadcasterSetup.broadcasterCacheClassName() == null
+                || DefaultBroadcasterCache.class.getName().equals(broadcasterSetup.broadcasterCacheClassName())) {
             logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
                     "It is recommended to configure the {}", UUIDBroadcasterCache.class.getName());
         } else {
@@ -133,12 +134,16 @@ final class FrameworkDiagnostics {
     }
 
     static void analytics(AtmosphereConfig config) {
-        if (!config.getInitParameter(ANALYTICS, true)) return;
+        if (!config.getInitParameter(ANALYTICS, true)) {
+            return;
+        }
 
         var t = new Thread(() -> {
             try {
                 var currentVersion = Version.getRawVersion();
-                if (currentVersion.contains("SNAPSHOT")) return;
+                if (currentVersion.contains("SNAPSHOT")) {
+                    return;
+                }
 
                 logger.debug("Checking for Atmosphere updates via GitHub API");
                 var url = URI.create("https://api.github.com/repos/Atmosphere/atmosphere/releases/latest").toURL();
@@ -150,19 +155,24 @@ final class FrameworkDiagnostics {
                 conn.setInstanceFollowRedirects(true);
 
                 try {
-                    if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) return;
+                    if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                        return;
+                    }
 
                     var body = new String(conn.getInputStream().readAllBytes());
                     // Minimal JSON parsing — extract "tag_name":"atmosphere-X.Y.Z"
                     int idx = body.indexOf("\"tag_name\"");
-                    if (idx < 0) return;
+                    if (idx < 0) {
+                        return;
+                    }
                     int start = body.indexOf('"', idx + 10) + 1;
                     int end = body.indexOf('"', start);
                     var tag = body.substring(start, end);
                     var latestVersion = tag.startsWith("atmosphere-") ? tag.substring(11) : tag;
 
-                    if (isNewerVersion(latestVersion, currentVersion)
-                            && !latestVersion.toLowerCase().contains("rc")
+                    if (isNewerVersion(latestVersion, currentVersion) {
+                        && !latestVersion.toLowerCase().contains("rc")
+                    }
                             && !latestVersion.toLowerCase().contains("beta")) {
                         logger.info("\n\n\tAtmosphere {} is available (you are running {})"
                                         + "\n\thttps://github.com/Atmosphere/atmosphere/releases/tag/{}",

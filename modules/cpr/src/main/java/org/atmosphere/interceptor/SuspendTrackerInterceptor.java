@@ -31,7 +31,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * An interceptor that keep track of {@link AtmosphereResource#uuid()} and disable invocation of {@link org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter#onSuspend(org.atmosphere.cpr.AtmosphereResourceEvent)}
+ * An interceptor that keep track of {@link AtmosphereResource#uuid()} and disable invocation of
+ * {@link org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter#onSuspend(org.atmosphere.cpr.AtmosphereResourceEvent)}
  * and {@link org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter#onPreSuspend(org.atmosphere.cpr.AtmosphereResourceEvent)}
  * </p>
  * When used, the onSuspend will be only called ONCE for every transport, when the first request is made.
@@ -46,10 +47,13 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(final AtmosphereResource r) {
 
-        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+        if (Utils.webSocketMessage(r)) {
+            return Action.CONTINUE;
+        }
 
         final AtmosphereRequest request = ((AtmosphereResourceImpl) r).getRequest(false);
-        boolean connecting = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null && request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID).equals("0");
+        boolean connecting = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null
+                && request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID).equals("0");
 
         if (!connecting && !Utils.pollableTransport(r.transport())) {
             if (!trackedUUID.add(r.uuid())) {

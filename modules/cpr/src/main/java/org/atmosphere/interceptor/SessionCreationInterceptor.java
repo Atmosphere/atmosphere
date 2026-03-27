@@ -38,7 +38,9 @@ public class SessionCreationInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(AtmosphereResource r) {
 
-        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+        if (Utils.webSocketMessage(r)) {
+            return Action.CONTINUE;
+        }
 
         if (r.session(false) == null
                 && !ids.remove(r.uuid())

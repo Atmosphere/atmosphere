@@ -136,7 +136,9 @@ public class BroadcasterConfig {
     }
 
     protected void configureSharedCacheExecutor() {
-        if (!shared) return;
+        if (!shared) {
+            return;
+        }
 
         config.properties().put("shared", "true");
     }
@@ -230,7 +232,8 @@ public class BroadcasterConfig {
 
     /**
      * Set an {@link ExecutorService} which can be used to write
-     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, the result of {@link ExecutorsFactory#getAsyncOperationExecutor(AtmosphereConfig, String)}
+     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, the result of
+     * {@link ExecutorsFactory#getAsyncOperationExecutor(AtmosphereConfig, String)}
      * is used if this method is not invoked.
      *
      * @param asyncWriteService to be used when writing events.
@@ -241,13 +244,14 @@ public class BroadcasterConfig {
 
     /**
      * Set an {@link ExecutorService} which can be used to write
-     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, the result of {@link ExecutorsFactory#getAsyncOperationExecutor(AtmosphereConfig, String)}
+     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, the result of
+     * {@link ExecutorsFactory#getAsyncOperationExecutor(AtmosphereConfig, String)}
      * is used if this method is not invoked.
      *
      * @param asyncWriteService     to be used when writing events.
      * @param isAsyncExecutorShared true if the life cycle of the {@link ExecutorService} will be executed by the application.
-     *                              It means Atmosphere will NOT invoke the shutdown method when this {@link org.atmosphere.cpr.BroadcasterConfig#destroy()}
-     *                              is invoked.
+     *                              It means Atmosphere will NOT invoke the shutdown method when this
+     *                              {@link org.atmosphere.cpr.BroadcasterConfig#destroy()} is invoked.
      */
     public BroadcasterConfig setAsyncWriteService(ExecutorService asyncWriteService, boolean isAsyncExecutorShared) {
         if (!this.isAsyncExecutorShared && this.asyncWriteService != null) {
@@ -286,7 +290,9 @@ public class BroadcasterConfig {
      */
     protected boolean addFilter(BroadcastFilter e, boolean init) {
         logDuplicateFilter(e);
-        if (filters.contains(e)) return false;
+        if (filters.contains(e)) {
+            return false;
+        }
 
         if (e instanceof BroadcastFilterLifecycle lifecycle) {
             lifecycle.init(config);
@@ -341,7 +347,9 @@ public class BroadcasterConfig {
 
         removeAllFilters();
 
-        if (!force && !handleExecutors) return;
+        if (!force && !handleExecutors) {
+            return;
+        }
 
         if ((force || !isExecutorShared) && executorService != null) {
             executorService.shutdownNow();
@@ -507,7 +515,9 @@ public class BroadcasterConfig {
         BroadcastFilter.BroadcastAction a;
         for (Object o : cacheMessages) {
             a = filter(o);
-            if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) return List.of();
+            if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) {
+                return List.of();
+            }
 
             if (a.action() == BroadcastAction.ACTION.SKIP) {
                 filteredMessage.add(a.message());
@@ -515,7 +525,9 @@ public class BroadcasterConfig {
             }
 
             a = filter(r, a.message(), a.originalMessage());
-            if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) return List.of();
+            if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) {
+                return List.of();
+            }
 
             if (a.action() == BroadcastAction.ACTION.SKIP) {
                 filteredMessage.add(a.message());
@@ -579,7 +591,8 @@ public class BroadcasterConfig {
         for (String broadcastFilter : list) {
             BroadcastFilter bf = null;
             try {
-                bf = config.framework().newClassInstance(BroadcastFilter.class, (Class<BroadcastFilter>) IOUtils.loadClass(getClass(), broadcastFilter));
+                bf = config.framework().newClassInstance(BroadcastFilter.class,
+                        (Class<BroadcastFilter>) IOUtils.loadClass(getClass(), broadcastFilter));
             } catch (Exception e) {
                 logger.warn("Error trying to instantiate BroadcastFilter: {}", broadcastFilter, e);
             }

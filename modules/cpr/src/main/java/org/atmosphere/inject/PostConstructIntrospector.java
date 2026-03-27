@@ -35,7 +35,9 @@ public class PostConstructIntrospector extends InjectIntrospectorAdapter<PostCon
 
     @Override
     public void introspectMethod(Method m, Object instance) {
-        if (!m.isAnnotationPresent(PostConstruct.class)) return;
+        if (!m.isAnnotationPresent(PostConstruct.class)) {
+            return;
+        }
 
         try {
             m.setAccessible(true);

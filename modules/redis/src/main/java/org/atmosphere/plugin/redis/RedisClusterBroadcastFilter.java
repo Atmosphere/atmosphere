@@ -148,7 +148,9 @@ public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
     }
 
     private void publishToRedis(Object msg) {
-        if (broadcaster == null) return;
+        if (broadcaster == null) {
+            return;
+        }
         try {
             var payload = serializeMessage(msg);
             var envelope = nodeId + SEPARATOR + payload;

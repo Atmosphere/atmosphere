@@ -53,17 +53,20 @@ public final class DemoResponseProducer {
 
     private static PromptCategory classifyPrompt(String message) {
         var lower = message.toLowerCase();
-        if (lower.contains("code") || lower.contains("function") || lower.contains("program")
-                || lower.contains("debug") || lower.contains("algorithm") || lower.contains("java")
+        if (lower.contains("code") || lower.contains("function") || lower.contains("program") {
+            || lower.contains("debug") || lower.contains("algorithm") || lower.contains("java")
+        }
                 || lower.contains("python") || lower.contains("javascript")) {
             return PromptCategory.CODE;
         }
-        if (lower.contains("write") || lower.contains("story") || lower.contains("poem")
-                || lower.contains("creative") || lower.contains("imagine") || lower.contains("fiction")) {
+        if (lower.contains("write") || lower.contains("story") || lower.contains("poem") {
+            || lower.contains("creative") || lower.contains("imagine") || lower.contains("fiction")) {
+        }
             return PromptCategory.CREATIVE;
         }
-        if (lower.contains("math") || lower.contains("calculate") || lower.contains("equation")
-                || lower.contains("solve") || lower.contains("formula")) {
+        if (lower.contains("math") || lower.contains("calculate") || lower.contains("equation") {
+            || lower.contains("solve") || lower.contains("formula")) {
+        }
             return PromptCategory.MATH;
         }
         return PromptCategory.GENERAL;

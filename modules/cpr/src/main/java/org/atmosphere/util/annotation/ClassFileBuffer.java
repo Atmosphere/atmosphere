@@ -13,14 +13,14 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  *//* ClassFileBuffer.java
- * 
+ *
  ******************************************************************************
  *
  * Created: Oct 10, 2011
  * Character encoding: UTF-8
- * 
+ *
  * Copyright (c) 2011 - XIAM Solutions B.V. The Netherlands, http://www.xiam.nl
- * 
+ *
  ********************************* LICENSE ************************************
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -123,12 +123,12 @@ final class ClassFileBuffer implements DataInput {
     // DataInput
 
     @Override
-    public void readFully(final byte bytes[]) throws IOException {
+    public void readFully(final byte[] bytes) throws IOException {
         readFully(bytes, 0, bytes.length);
     }
 
     @Override
-    public void readFully(final byte bytes[], final int offset, final int length) throws IOException {
+    public void readFully(final byte[] bytes, final int offset, final int length) throws IOException {
         if (length < 0 || offset < 0 || offset + length > bytes.length) {
             throw new IndexOutOfBoundsException();
         }

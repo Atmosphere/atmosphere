@@ -203,8 +203,12 @@ public class SpringAiStreamingAdapterTest {
                     int idx = m.indexOf("\"seq\":");
                     int start = idx + 6;
                     int end = m.indexOf("}", start);
-                    if (end < 0) end = m.indexOf(",", start);
-                    if (end < 0) end = m.length();
+                    if (end < 0) {
+                        end = m.indexOf(",", start);
+                    }
+                    if (end < 0) {
+                        end = m.length();
+                    }
                     return Long.parseLong(m.substring(start, end).trim());
                 })
                 .toList();

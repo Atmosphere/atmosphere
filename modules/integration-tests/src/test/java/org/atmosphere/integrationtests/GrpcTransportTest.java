@@ -354,13 +354,19 @@ public class GrpcTransportTest {
                 received.add(message);
                 switch (message.getType()) {
                     case ACK -> {
-                        if (ackLatch != null) ackLatch.countDown();
+                        if (ackLatch != null) {
+                            ackLatch.countDown();
+                        }
                     }
                     case MESSAGE -> {
-                        if (msgLatch != null) msgLatch.countDown();
+                        if (msgLatch != null) {
+                            msgLatch.countDown();
+                        }
                     }
                     case HEARTBEAT -> {
-                        if (heartbeatLatch != null) heartbeatLatch.countDown();
+                        if (heartbeatLatch != null) {
+                            heartbeatLatch.countDown();
+                        }
                     }
                     default -> { }
                 }

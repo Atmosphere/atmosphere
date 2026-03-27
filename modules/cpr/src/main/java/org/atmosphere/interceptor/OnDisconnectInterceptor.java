@@ -49,7 +49,9 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(final AtmosphereResource r) {
 
-        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+        if (Utils.webSocketMessage(r)) {
+            return Action.CONTINUE;
+        }
 
         AtmosphereRequest request = ((AtmosphereResourceImpl) r).getRequest(false);
         String uuid = r.uuid();

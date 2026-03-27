@@ -452,7 +452,9 @@ public class WebSocketProcessorTest {
         dup.addEventListener(new AtmosphereResourceEventListenerAdapter.OnDisconnect() {
             @Override
             public void onDisconnect(AtmosphereResourceEvent event) {
-                if (event.isCancelled()) dirtyDisconnect.set(true);
+                if (event.isCancelled()) {
+                    dirtyDisconnect.set(true);
+                }
             }
         });
         request.setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, null);

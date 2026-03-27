@@ -47,7 +47,9 @@ public class ServletContextFactory {
     }
 
     public static ServletContextFactory getDefault() {
-        if (servletContextFactory == null) servletContextFactory = new ServletContextFactory();
+        if (servletContextFactory == null) {
+            servletContextFactory = new ServletContextFactory();
+        }
         return servletContextFactory;
     }
 }

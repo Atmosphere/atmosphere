@@ -79,7 +79,7 @@ public class EmbeddedJettyWebSocketChat {
             log.info("WebSocket ServerContainer configured: {}", serverContainer.getClass().getName());
         });
 
-        // Add AtmosphereServlet - will auto-detect JSR356 support after WebSocket is configured  
+        // Add AtmosphereServlet - will auto-detect JSR356 support after WebSocket is configured
         ServletHolder atmosphereServlet = new ServletHolder(AtmosphereServlet.class);
         atmosphereServlet.setInitParameter(ApplicationConfig.ANNOTATION_PACKAGE, "org.atmosphere.samples.chat");
         atmosphereServlet.setInitParameter(ApplicationConfig.WEBSOCKET_CONTENT_TYPE, "application/json");

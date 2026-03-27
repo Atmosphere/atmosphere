@@ -185,8 +185,12 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     }
 
     public AsyncSupport<?> resolveWebSocket(final java.util.List<Class<? extends AsyncSupport<?>>> available) {
-        if (available == null || available.isEmpty()) return null;
-        else return newCometSupport(available.get(0));
+        if (available == null || available.isEmpty()) {
+            return null;
+        }
+        else {
+            return newCometSupport(available.get(0));
+        }
     }
 
     /**
@@ -196,9 +200,15 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      * @return the result of @link {resolveMultipleNativeSupportConflict} if there are more than 1 item in the list of available ontainers
      */
     protected AsyncSupport<?> resolveNativeCometSupport(final java.util.List<Class<? extends AsyncSupport<?>>> available) {
-        if (available == null || available.isEmpty()) return null;
-        else if (available.size() == 1) return newCometSupport(available.get(0));
-        else return resolveMultipleNativeSupportConflict(available);
+        if (available == null || available.isEmpty()) {
+            return null;
+        }
+        else if (available.size() == 1) {
+            return newCometSupport(available.get(0));
+        }
+        else {
+            return resolveMultipleNativeSupportConflict(available);
+        }
     }
 
     /**

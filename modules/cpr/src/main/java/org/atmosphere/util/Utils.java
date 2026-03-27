@@ -68,10 +68,14 @@ public final class Utils {
 
     public static boolean webSocketEnabled(HttpServletRequest request) {
 
-        if (closeMessage(request) || !webSocketQueryStringPresentOrNull(request)) return false;
+        if (closeMessage(request) || !webSocketQueryStringPresentOrNull(request)) {
+            return false;
+        }
 
         boolean allowWebSocketWithoutHeaders = request.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null;
-        if (allowWebSocketWithoutHeaders) return true;
+        if (allowWebSocketWithoutHeaders) {
+            return true;
+        }
 
         return rawWebSocket(request);
     }

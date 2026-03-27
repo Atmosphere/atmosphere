@@ -82,10 +82,18 @@ public class KafkaClusteringTest {
 
     @AfterAll
     public void tearDown() throws Exception {
-        if (httpClient != null) httpClient.close();
-        if (nodeA != null) nodeA.close();
-        if (nodeB != null) nodeB.close();
-        if (kafka != null) kafka.stop();
+        if (httpClient != null) {
+            httpClient.close();
+        }
+        if (nodeA != null) {
+            nodeA.close();
+        }
+        if (nodeB != null) {
+            nodeB.close();
+        }
+        if (kafka != null) {
+            kafka.stop();
+        }
     }
 
     @Timeout(value = 30_000, unit = TimeUnit.MILLISECONDS)

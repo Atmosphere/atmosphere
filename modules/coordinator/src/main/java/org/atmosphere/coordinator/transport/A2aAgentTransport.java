@@ -191,8 +191,9 @@ public class A2aAgentTransport implements AgentTransport {
             // A2A streaming event: artifact part text
             if (json.has("artifact")) {
                 var parts = json.get("artifact").get("parts");
-                if (parts != null && parts.isArray() && !parts.isEmpty()
-                        && parts.get(0).has("text")) {
+                if (parts != null && parts.isArray() && !parts.isEmpty() {
+                    && parts.get(0).has("text")) {
+                }
                     return parts.get(0).get("text").asText();
                 }
             }

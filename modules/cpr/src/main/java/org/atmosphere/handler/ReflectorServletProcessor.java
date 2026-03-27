@@ -231,7 +231,9 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
      * @param filterClass
      */
     public void setFilterClassName(String filterClass) {
-        if (filterClass == null) return;
+        if (filterClass == null) {
+            return;
+        }
         filtersClassAndNames.put(filterClass, filterClass);
     }
 
@@ -243,7 +245,9 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
      * @param filterName  mapping name of the filter to instantiate
      */
     public void addFilterClassName(String filterClass, String filterName) {
-        if (filterClass == null || filterName == null) return;
+        if (filterClass == null || filterName == null) {
+            return;
+        }
         filtersClassAndNames.put(filterClass, filterName);
     }
 

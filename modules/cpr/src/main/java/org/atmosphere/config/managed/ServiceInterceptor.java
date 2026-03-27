@@ -56,7 +56,9 @@ public abstract sealed class ServiceInterceptor extends AtmosphereInterceptorAda
             w = (AtmosphereHandlerWrapper)
                                         r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER);
 
-            if (!w.wildcardMapping()) return Action.CONTINUE;
+            if (!w.wildcardMapping()) {
+                return Action.CONTINUE;
+            }
 
             mapAnnotatedService(r.getRequest(), w);
 

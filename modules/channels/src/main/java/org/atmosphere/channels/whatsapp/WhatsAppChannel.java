@@ -118,15 +118,21 @@ public class WhatsAppChannel implements MessagingChannel {
 
             for (JsonNode entry : entries) {
                 JsonNode changes = entry.get("changes");
-                if (changes == null || !changes.isArray()) continue;
+                if (changes == null || !changes.isArray()) {
+                    continue;
+                }
 
                 for (JsonNode change : changes) {
                     JsonNode value = change.get("value");
-                    if (value == null) continue;
+                    if (value == null) {
+                        continue;
+                    }
 
                     // Skip status updates — only process user messages
                     JsonNode msgs = value.get("messages");
-                    if (msgs == null || !msgs.isArray()) continue;
+                    if (msgs == null || !msgs.isArray()) {
+                        continue;
+                    }
 
                     for (JsonNode msg : msgs) {
                         String from = msg.path("from").stringValue("");

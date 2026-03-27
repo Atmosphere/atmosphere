@@ -222,7 +222,9 @@ public class CommandRouterTest {
                 }
             }));
         }
-        for (var t : threads) t.join(5000);
+        for (var t : threads) {
+            t.join(5000);
+        }
         assertEquals(threadCount, successes.get());
     }
 
@@ -253,7 +255,9 @@ public class CommandRouterTest {
                 }
             }));
         }
-        for (var t : threads) t.join(5000);
+        for (var t : threads) {
+            t.join(5000);
+        }
 
         // Exactly one thread wins the confirmation, rest fall through
         assertEquals(1, executed.get(),
@@ -322,7 +326,9 @@ public class CommandRouterTest {
                 }
             }));
         }
-        for (var t : threads) t.join(10000);
+        for (var t : threads) {
+            t.join(10000);
+        }
         assertEquals(clientCount, successes.get(),
                 "All clients should complete their confirmation flow independently");
     }

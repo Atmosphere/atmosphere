@@ -93,8 +93,12 @@ public class TokenValidatorTest {
     @Test
     public void testFunctionalInterface() {
         TokenValidator validator = token -> {
-            if ("good".equals(token)) return new TokenValidator.Valid("user1");
-            if ("old".equals(token)) return new TokenValidator.Expired();
+            if ("good".equals(token)) {
+                return new TokenValidator.Valid("user1");
+            }
+            if ("old".equals(token)) {
+                return new TokenValidator.Expired();
+            }
             return new TokenValidator.Invalid();
         };
 

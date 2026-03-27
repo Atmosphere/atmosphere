@@ -327,7 +327,7 @@ public class BroadcasterTest {
         config.getBroadcasterFactory().addBroadcasterListener(l).get("/b1").destroy();
         assertTrue(deleted.get());
     }
-    
+
     @Test
     public void shouldCleanUpBroadcasterUponDestory(){
         DefaultBroadcasterFactory broadcasterFactory = new DefaultBroadcasterFactory();
@@ -335,7 +335,7 @@ public class BroadcasterTest {
         Broadcaster b1 = broadcasterFactory.lookup("/LEAK/EXISTS", true);
 
         b1.destroy();
-        
+
         assertNull(broadcasterFactory.lookup("/LEAJ/EXISTS"));
     }
 

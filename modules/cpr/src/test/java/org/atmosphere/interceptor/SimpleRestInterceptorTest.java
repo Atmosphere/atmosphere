@@ -15,7 +15,16 @@
  */
 package org.atmosphere.interceptor;
 
-import org.atmosphere.cpr.*;
+import org.atmosphere.cpr.AsyncSupport;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.IOUtils;
 import org.json.JSONObject;
 import org.mockito.Mockito;
@@ -43,11 +52,13 @@ public class SimpleRestInterceptorTest {
         final String data = "{\"id\": \"123\", \"method\": \"POST\", \"path\": \"/topics/test\", "
                 + "\"type\": \"application/json\", \"detached\": true}{\"records\": [{\"value\": \"S2Fma2E=\"}]}";
 
-        AtmosphereResource resource = createAtmosphereResource("POST", "/", Collections.singletonMap(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, "0123456789"), data);
+        AtmosphereResource resource = createAtmosphereResource("POST", "/",
+                Collections.singletonMap(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, "0123456789"), data);
         SimpleRestInterceptor interceptor = new SimpleRestInterceptor();
         interceptor.configure(config);
 
-        AtmosphereRequest dispatchedRequest = interceptor.createAtmosphereRequest(resource.getRequest(), IOUtils.readEntirelyAsString(resource).toString());
+        AtmosphereRequest dispatchedRequest = interceptor.createAtmosphereRequest(
+                resource.getRequest(), IOUtils.readEntirelyAsString(resource).toString());
         assertEquals("POST", dispatchedRequest.getMethod());
         assertEquals("/topics/test", dispatchedRequest.getRequestURI());
         assertEquals("application/json", dispatchedRequest.getContentType());
@@ -68,12 +79,14 @@ public class SimpleRestInterceptorTest {
         SimpleRestInterceptor interceptor = new SimpleRestInterceptor();
         interceptor.configure(config);
 
-        AtmosphereRequest dispatchedRequest1 = interceptor.createAtmosphereRequest(resource1.getRequest(), IOUtils.readEntirelyAsString(resource1).toString());
+        AtmosphereRequest dispatchedRequest1 = interceptor.createAtmosphereRequest(
+                resource1.getRequest(), IOUtils.readEntirelyAsString(resource1).toString());
         assertEquals("POST", dispatchedRequest1.getMethod());
         assertEquals("/topics/test", dispatchedRequest1.getRequestURI());
         assertEquals("application/json", dispatchedRequest1.getContentType());
 
-        AtmosphereRequest dispatchedRequest2 = interceptor.createAtmosphereRequest(resource1.getRequest(), IOUtils.readEntirelyAsString(resource2).toString());
+        AtmosphereRequest dispatchedRequest2 = interceptor.createAtmosphereRequest(
+                resource1.getRequest(), IOUtils.readEntirelyAsString(resource2).toString());
         assertNull(dispatchedRequest2);
 
         assertEquals("{\"records\": [{\"value\": \"S2Fma2E=\"}]}", extractContent(dispatchedRequest1.getReader()));

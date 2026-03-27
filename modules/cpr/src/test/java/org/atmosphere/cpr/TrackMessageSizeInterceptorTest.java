@@ -129,7 +129,8 @@ public class TrackMessageSizeInterceptorTest {
         testTrackMessageSize(enabled, icp, "yoComet", "yoWebSocket", expected);
     }
 
-    private void testTrackMessageSize(boolean enabled, AtmosphereInterceptor icp, String bodyMessage, String websocketMessage, String expected) throws Exception {
+    private void testTrackMessageSize(boolean enabled, AtmosphereInterceptor icp,
+            String bodyMessage, String websocketMessage, String expected) throws Exception {
         ByteArrayOutputStream b = new ByteArrayOutputStream();
         final WebSocket w = new ArrayBaseWebSocket(b);
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()

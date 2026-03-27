@@ -36,8 +36,9 @@ public final class SessionTimeoutSupport {
      * Disable HTTP session timeout.
      */
     public static void setupTimeout(AtmosphereConfig config, HttpSession session) {
-        if (session == null)
+        if (session == null) {
             return;
+        }
 
         try {
             SessionTimeoutRestorer restorer = getOrCreate(config, session);
@@ -52,14 +53,16 @@ public final class SessionTimeoutSupport {
      * Try to restore HTTP session timeout that was set before disabling it.
      */
     public static void restoreTimeout(HttpSession session) {
-        if (session == null)
+        if (session == null) {
             return;
+        }
 
         try {
             SessionTimeoutRestorer restorer = get(session);
 
-            if (restorer != null)
+            if (restorer != null) {
                 restorer.restore(session);
+            }
         } catch (Exception e) {
             logger.trace("", e);
         }

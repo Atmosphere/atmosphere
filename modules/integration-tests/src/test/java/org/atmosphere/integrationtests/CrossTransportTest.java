@@ -74,8 +74,12 @@ public class CrossTransportTest {
     @AfterAll
     public void tearDown() throws Exception {
         httpClient.close();
-        if (grpcServer != null) grpcServer.close();
-        if (jettyServer != null) jettyServer.close();
+        if (grpcServer != null) {
+            grpcServer.close();
+        }
+        if (jettyServer != null) {
+            jettyServer.close();
+        }
     }
 
     /**
@@ -112,7 +116,9 @@ public class CrossTransportTest {
                         @Override
                         public void onNext(AtmosphereMessage msg) {
                             grpcReceived.add(msg);
-                            if (msg.getType() == MessageType.ACK) ackLatch.countDown();
+                            if (msg.getType() == MessageType.ACK) {
+                                ackLatch.countDown();
+                            }
                         }
 
                         @Override
@@ -167,7 +173,9 @@ public class CrossTransportTest {
                         @Override
                         public void onNext(AtmosphereMessage msg) {
                             grpcReceived.add(msg);
-                            if (msg.getType() == MessageType.ACK) ackLatch.countDown();
+                            if (msg.getType() == MessageType.ACK) {
+                                ackLatch.countDown();
+                            }
                             if (msg.getType() == MessageType.MESSAGE
                                     && msg.getPayload().contains("hello-from-websocket")) {
                                 grpcMsgLatch.countDown();
@@ -248,7 +256,9 @@ public class CrossTransportTest {
                         @Override
                         public void onNext(AtmosphereMessage msg) {
                             grpcReceived.add(msg);
-                            if (msg.getType() == MessageType.ACK) ackLatch.countDown();
+                            if (msg.getType() == MessageType.ACK) {
+                                ackLatch.countDown();
+                            }
                             if (msg.getType() == MessageType.MESSAGE
                                     && msg.getPayload().contains("from-ws-bidi")) {
                                 grpcWsMsgLatch.countDown();

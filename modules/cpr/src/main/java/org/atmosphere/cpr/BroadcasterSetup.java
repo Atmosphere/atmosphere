@@ -118,10 +118,18 @@ public class BroadcasterSetup {
      * Destroy broadcaster factory, meta-broadcaster, resource factory, and session factory.
      */
     void destroyFactories() {
-        if (broadcasterFactory != null) broadcasterFactory.destroy();
-        if (metaBroadcaster != null) metaBroadcaster.destroy();
-        if (arFactory != null) arFactory.destroy();
-        if (sessionFactory != null) sessionFactory.destroy();
+        if (broadcasterFactory != null) {
+            broadcasterFactory.destroy();
+        }
+        if (metaBroadcaster != null) {
+            metaBroadcaster.destroy();
+        }
+        if (arFactory != null) {
+            arFactory.destroy();
+        }
+        if (sessionFactory != null) {
+            sessionFactory.destroy();
+        }
     }
 
     BroadcasterSetup(AtmosphereConfig config) {
@@ -272,11 +280,15 @@ public class BroadcasterSetup {
     }
 
     void configureAtmosphereResourceFactory() {
-        if (arFactory != null) return;
+        if (arFactory != null) {
+            return;
+        }
 
         resourceFactoryLock.lock();
         try {
-            if (arFactory != null) return;
+            if (arFactory != null) {
+                return;
+            }
             try {
                 arFactory = config.framework().newClassInstance(AtmosphereResourceFactory.class, DefaultAtmosphereResourceFactory.class);
             } catch (InstantiationException | IllegalAccessException e) {
@@ -314,13 +326,16 @@ public class BroadcasterSetup {
     AtmosphereResourceSessionFactory getSessionFactory() { return sessionFactory; }
 
     AtmosphereResourceSessionFactory getOrCreateSessionFactory() {
-        if (sessionFactory != null) return sessionFactory;
+        if (sessionFactory != null) {
+            return sessionFactory;
+        }
 
         sessionFactoryLock.lock();
         try {
             if (sessionFactory == null) {
                 try {
-                    sessionFactory = config.framework().newClassInstance(AtmosphereResourceSessionFactory.class, DefaultAtmosphereResourceSessionFactory.class);
+                    sessionFactory = config.framework().newClassInstance(
+                            AtmosphereResourceSessionFactory.class, DefaultAtmosphereResourceSessionFactory.class);
                 } catch (InstantiationException | IllegalAccessException e) {
                     logger.error("", e);
                 }

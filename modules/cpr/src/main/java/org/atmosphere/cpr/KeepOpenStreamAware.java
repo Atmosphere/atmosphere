@@ -18,8 +18,8 @@ package org.atmosphere.cpr;
 
 /**
  * The KeepOpenStreamAware interface is used by a class implementing the {@link AsyncIOWriter} interface
- * to indicate the closing of the underlining stream is managed elsewhere and invoking the 
- * {@link AsyncIOWriter#close(AtmosphereResponse)} method does not close the stream. In other words, 
+ * to indicate the closing of the underlining stream is managed elsewhere and invoking the
+ * {@link AsyncIOWriter#close(AtmosphereResponse)} method does not close the stream. In other words,
  * the underlining stream will be kept open until it is closed by other means.
  */
 public interface KeepOpenStreamAware {

@@ -151,7 +151,7 @@ public class JSR356WebSocketTest {
             }
         }).when(asyncRemoteEndpoint).sendText(anyString(), any(SendHandler.class));
     }
-    
+
     @Test
     public void testAttributePropagationFromHandshakeSessionToAtmosphereRequest() throws NoSuchFieldException, IllegalAccessException {
         HandshakeRequest mockHandshakeRequest = mock(HandshakeRequest.class);
@@ -192,7 +192,8 @@ public class JSR356WebSocketTest {
         Enumeration<String> attributeNames = request.getAttributeNames();
         while (attributeNames.hasMoreElements()) {
             String attributeName = attributeNames.nextElement();
-            assertEquals(sessionAttributes.get(attributeName), request.getAttribute(attributeName), "Attribute value should match the value from the HttpSession");
+            assertEquals(sessionAttributes.get(attributeName), request.getAttribute(attributeName),
+                    "Attribute value should match the value from the HttpSession");
         }
     }
 

@@ -82,8 +82,9 @@ public final class DemoResponseProducer {
             var city = extractCity(lower);
             return simulateToolCall("get_weather", city != null ? city : "New York");
         }
-        if (lower.contains("convert") && lower.contains("temperature")
-                || lower.contains("celsius") || lower.contains("fahrenheit")) {
+        if (lower.contains("convert") && lower.contains("temperature") {
+            || lower.contains("celsius") || lower.contains("fahrenheit")) {
+        }
             return simulateToolCall("convert_temperature", "100 C");
         }
         if (lower.contains("hello") || lower.contains("hi")) {
@@ -173,21 +174,38 @@ public final class DemoResponseProducer {
     }
 
     private static String extractCity(String text) {
-        if (text.contains("new york")) return "new york";
-        if (text.contains("london")) return "london";
-        if (text.contains("paris")) return "paris";
-        if (text.contains("tokyo")) return "tokyo";
-        if (text.contains("sydney")) return "sydney";
+        if (text.contains("new york")) {
+            return "new york";
+        }
+        if (text.contains("london")) {
+            return "london";
+        }
+        if (text.contains("paris")) {
+            return "paris";
+        }
+        if (text.contains("tokyo")) {
+            return "tokyo";
+        }
+        if (text.contains("sydney")) {
+            return "sydney";
+        }
         return null;
     }
 
     private static String detectTool(String userMessage) {
         var lower = userMessage.toLowerCase();
-        if (lower.contains("time") && containsCity(lower)) return "get_city_time";
-        if (lower.contains("time")) return "get_current_time";
-        if (lower.contains("weather")) return "get_weather";
-        if (lower.contains("convert") || lower.contains("celsius") || lower.contains("fahrenheit"))
+        if (lower.contains("time") && containsCity(lower)) {
+            return "get_city_time";
+        }
+        if (lower.contains("time")) {
+            return "get_current_time";
+        }
+        if (lower.contains("weather")) {
+            return "get_weather";
+        }
+        if (lower.contains("convert") || lower.contains("celsius") || lower.contains("fahrenheit")) {
             return "convert_temperature";
+        }
         return null;
     }
 

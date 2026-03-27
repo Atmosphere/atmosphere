@@ -549,29 +549,57 @@ public final class McpProtocolHandler {
     }
 
     private Object convertParam(JsonNode node, Class<?> type) {
-        if (node == null || node.isNull()) return defaultValue(type);
-        if (type == String.class) return node.asText();
-        if (type == int.class || type == Integer.class) return node.asInt();
-        if (type == long.class || type == Long.class) return node.asLong();
-        if (type == double.class || type == Double.class) return node.asDouble();
-        if (type == float.class || type == Float.class) return (float) node.asDouble();
-        if (type == boolean.class || type == Boolean.class) return node.asBoolean();
+        if (node == null || node.isNull()) {
+            return defaultValue(type);
+        }
+        if (type == String.class) {
+            return node.asText();
+        }
+        if (type == int.class || type == Integer.class) {
+            return node.asInt();
+        }
+        if (type == long.class || type == Long.class) {
+            return node.asLong();
+        }
+        if (type == double.class || type == Double.class) {
+            return node.asDouble();
+        }
+        if (type == float.class || type == Float.class) return (float) {
+            node.asDouble();
+        }
+        if (type == boolean.class || type == Boolean.class) {
+            return node.asBoolean();
+        }
         // Complex types — try Jackson deserialization
         return mapper.convertValue(node, type);
     }
 
     private Object defaultValue(Class<?> type) {
-        if (type == int.class) return 0;
-        if (type == long.class) return 0L;
-        if (type == double.class) return 0.0;
-        if (type == float.class) return 0.0f;
-        if (type == boolean.class) return false;
+        if (type == int.class) {
+            return 0;
+        }
+        if (type == long.class) {
+            return 0L;
+        }
+        if (type == double.class) {
+            return 0.0;
+        }
+        if (type == float.class) {
+            return 0.0f;
+        }
+        if (type == boolean.class) {
+            return false;
+        }
         return null;
     }
 
     private Object idValue(JsonNode id) {
-        if (id == null || id.isNull()) return null;
-        if (id.isNumber()) return id.numberValue();
+        if (id == null || id.isNull()) {
+            return null;
+        }
+        if (id.isNumber()) {
+            return id.numberValue();
+        }
         return id.asText();
     }
 

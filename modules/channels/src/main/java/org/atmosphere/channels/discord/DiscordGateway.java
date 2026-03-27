@@ -268,17 +268,25 @@ public class DiscordGateway implements WebSocket.Listener {
 
     private Optional<IncomingMessage> parseMessageCreate(JsonNode data) {
         JsonNode author = data.get("author");
-        if (author == null) return Optional.empty();
+        if (author == null) {
+            return Optional.empty();
+        }
 
         // Skip bot messages (including ourselves)
-        if (author.path("bot").booleanValue()) return Optional.empty();
+        if (author.path("bot").booleanValue()) {
+            return Optional.empty();
+        }
 
         String authorId = author.path("id").stringValue("");
         String myId = botUserId.get();
-        if (myId != null && myId.equals(authorId)) return Optional.empty();
+        if (myId != null && myId.equals(authorId)) {
+            return Optional.empty();
+        }
 
         String content = data.path("content").stringValue("");
-        if (content.isEmpty()) return Optional.empty();
+        if (content.isEmpty()) {
+            return Optional.empty();
+        }
 
         String username = author.path("username").stringValue(null);
         String channelId = data.path("channel_id").stringValue("");

@@ -41,7 +41,8 @@ import java.util.List;
  *     2. Just after the constructor has been invoked, the {@link #configure(BroadcasterConfig)} will get invoked, allowing
  *     the instance to configure itself based on a {@link BroadcasterConfig}.
  *     3. When {@link Broadcaster} starts, {@link #start()} will be invoked.
- *     4. Every time a {@link Broadcaster#broadcast(Object)} invocation occurs, the {@link #addToCache(String, String, org.atmosphere.cache.BroadcastMessage)}
+ *     4. Every time a {@link Broadcaster#broadcast(Object)} invocation occurs, the
+ *     {@link #addToCache(String, String, org.atmosphere.cache.BroadcastMessage)}
  *     method will be invoked, allowing the instance to cache the object.
  *     5. If the write operation succeeds, the {@link #clearCache(String, String, org.atmosphere.cache.CacheMessage)} method will
  *     be invoked. If the write operation fail the cache won't be cleared, and the message will be available next time the

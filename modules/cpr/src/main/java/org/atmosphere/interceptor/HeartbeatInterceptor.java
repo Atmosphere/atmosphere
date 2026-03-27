@@ -171,8 +171,10 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         heartBeat = ExecutorsFactory.getScheduler(config);
 
         resumeOnHeartbeat = config.getInitParameter(RESUME_ON_HEARTBEAT, true);
-        logger.info("HeartbeatInterceptor configured with padding value '{}', client frequency {} seconds and server frequency {} seconds", (Object[]) new String[]
-                {new String(paddingBytes), String.valueOf(clientHeartbeatFrequencyInSeconds), String.valueOf(heartbeatFrequencyInSeconds)});
+        logger.info("HeartbeatInterceptor configured with padding value '{}', client frequency {} seconds"
+                + " and server frequency {} seconds", (Object[]) new String[]
+                {new String(paddingBytes), String.valueOf(clientHeartbeatFrequencyInSeconds),
+                        String.valueOf(heartbeatFrequencyInSeconds)});
 
         this.config = config;
     }
@@ -192,8 +194,9 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         if (clientHeartbeatFrequencyInSeconds > 0) {
             AtmosphereRequestImpl.Body body = request.body();
 
-            if (body.isEmpty()
-                    || (body.hasString() && body.asString().length() <= paddingBytes.length)
+            if (body.isEmpty() {
+                || (body.hasString() && body.asString().length() <= paddingBytes.length)
+            }
                     || (body.hasBytes() && body.byteLength() == paddingBytes.length)) {
 
                 byte[] bytes;
@@ -231,13 +234,16 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
             }
         }
 
-        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+        if (Utils.webSocketMessage(r)) {
+            return Action.CONTINUE;
+        }
 
         final int interval = extractHeartbeatInterval(impl);
 
         if (interval != 0) {
-            if (!(Utils.pollableTransport(r.transport())
-                    || r.transport() == AtmosphereResource.TRANSPORT.UNDEFINED)) {
+            if (!(Utils.pollableTransport(r.transport()) {
+                || r.transport() == AtmosphereResource.TRANSPORT.UNDEFINED)) {
+            }
                 super.inspect(r);
                 final boolean wasSuspended = r.isSuspended();
 
@@ -278,8 +284,9 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
             final AsyncIOWriter writer = response.getAsyncIOWriter();
 
-            if (!Utils.resumableTransport(r.transport())
-                    && writer instanceof AtmosphereInterceptorWriter interceptorWriter
+            if (!Utils.resumableTransport(r.transport()) {
+                && writer instanceof AtmosphereInterceptorWriter interceptorWriter
+            }
                     && request.getAttribute(INTERCEPTOR_ADDED) == null) {
                 interceptorWriter.interceptor(new AsyncIOInterceptorAdapter() {
 
@@ -336,7 +343,9 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     void cancelF(AtmosphereRequest request) {
         try {
             Future<?> f = (Future<?>) request.getAttribute(HEARTBEAT_FUTURE);
-            if (f != null) f.cancel(false);
+            if (f != null) {
+                f.cancel(false);
+            }
             request.removeAttribute(HEARTBEAT_FUTURE);
         } catch (Exception ex) {
             // https://github.com/Atmosphere/atmosphere/issues/1503
@@ -399,7 +408,9 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public void destroy() {
-        if (destroyed.getAndSet(true)) return;
+        if (destroyed.getAndSet(true)) {
+            return;
+        }
 
         for (AtmosphereResource r : config.resourcesFactory().findAll()) {
             cancelF(r.getRequest());

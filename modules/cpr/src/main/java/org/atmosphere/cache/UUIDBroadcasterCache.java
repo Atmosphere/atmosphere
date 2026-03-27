@@ -291,7 +291,9 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     protected boolean inspect(BroadcastMessage m) {
         for (BroadcasterCacheInspector b : inspectors) {
-            if (!b.inspect(m)) return false;
+            if (!b.inspect(m)) {
+                return false;
+            }
         }
         return true;
     }

@@ -105,7 +105,8 @@ public class ManagedAtmosphereHandlerTest {
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/cache").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
-        assertEquals(UUIDBroadcasterCache.class, framework.getBroadcasterFactory().lookup("/*", true).getBroadcasterConfig().getBroadcasterCache().getClass());
+        assertEquals(UUIDBroadcasterCache.class, framework.getBroadcasterFactory().lookup("/*", true)
+                .getBroadcasterConfig().getBroadcasterCache().getClass());
 
     }
 }

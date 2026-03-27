@@ -168,7 +168,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             MethodInfo.EncoderObject e = message(resource, body);
             if (e != null && e.encodedObject != null) {
                 AtmosphereResource r = resource;
-                if ( e.methodInfo.deliverTo == DeliverTo.DELIVER_TO.RESOURCE && !resource.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET)) {
+                if (e.methodInfo.deliverTo == DeliverTo.DELIVER_TO.RESOURCE
+                        && !resource.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET)) {
                     r = resourcesFactory.findResource(resource.uuid()).orElse(resource);
                 }
                 IOUtils.deliver(new RawMessage(e.encodedObject), null, e.methodInfo.deliverTo, r);
@@ -454,7 +455,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
         /**
          * <p>
-         * Creates a new {@link org.atmosphere.config.managed.ManagedAtmosphereHandler.MethodInfo.EncoderObject} which encodes the given object and wraps the result.
+         * Creates a new {@link org.atmosphere.config.managed.ManagedAtmosphereHandler.MethodInfo.EncoderObject}
+         * which encodes the given object and wraps the result.
          * </p>
          *
          * @param encoders       the encoders

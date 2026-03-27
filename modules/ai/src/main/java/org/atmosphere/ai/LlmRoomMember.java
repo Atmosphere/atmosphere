@@ -76,10 +76,14 @@ public class LlmRoomMember implements VirtualRoomMember {
     @Override
     public void onMessage(Room room, String senderId, Object message) {
         // Don't respond to our own messages (avoid loops)
-        if (id.equals(senderId)) return;
+        if (id.equals(senderId)) {
+            return;
+        }
 
         var text = message.toString();
-        if (text.isBlank()) return;
+        if (text.isBlank()) {
+            return;
+        }
 
         Thread.startVirtualThread(() -> {
             try {

@@ -93,17 +93,17 @@ public class WebSocketTest {
 
         ws.interceptor(new DummyInterceptor(500));
         ws.interceptor(new DummyInterceptor(10));
-        
+
         AtmosphereResponse response1 = AtmosphereResponseImpl.newInstance();
         AtmosphereResponse response2 = AtmosphereResponseImpl.newInstance();
-        
+
         Worker worker1 = new Worker(ws, response1);
         Worker worker2 = new Worker(ws, response2);
         Thread t1 = new Thread(worker1);
         Thread t2 = new Thread(worker2);
         t1.start();
         t2.start();
-        
+
         t1.join(2000);
         t2.join(2000);
 
@@ -115,7 +115,7 @@ public class WebSocketTest {
         private boolean corrupted;
         private WebSocket ws;
         private AtmosphereResponse response;
-        
+
         public Worker(WebSocket ws, AtmosphereResponse response) {
             this.ws = ws;
             this.response = response;
@@ -132,7 +132,7 @@ public class WebSocketTest {
                 // ignore;
             }
         }
-        
+
         public boolean isCorrupted() {
             return corrupted;
         }
