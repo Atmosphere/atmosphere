@@ -905,7 +905,7 @@
         <commons-pool2>2.12.0</commons-pool2>
         <junit-jupiter.version>5.11.4</junit-jupiter.version>
         <jackson.version>2.18.6</jackson.version>
-        <mockito.version>5.21.0</mockito.version>
+        <mockito.version>5.23.0</mockito.version>
         <mockito-kotlin.version>5.4.0</mockito-kotlin.version>
         <json.version>20250517</json.version>
         <micrometer.version>1.14.5</micrometer.version>
