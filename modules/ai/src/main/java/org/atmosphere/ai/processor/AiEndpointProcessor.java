@@ -118,11 +118,16 @@ public class AiEndpointProcessor implements Processor<Object> {
             // Shared lifecycle scanning — same infrastructure as @ManagedService
             var lifecycle = AnnotatedLifecycle.scan(annotatedClass);
 
+            var responseType = annotation.responseAs() == Void.class
+                    ? null : annotation.responseAs();
+            var injectables = responseType != null
+                    ? java.util.Map.<Class<?>, Object>of(Class.class, responseType)
+                    : java.util.Map.<Class<?>, Object>of();
             var handler = new AiEndpointHandler(instance, promptMethod,
                     annotation.timeout(), systemPrompt, annotation.path(),
                     runtime, interceptors, memory, lifecycle,
                     toolRegistry, guardrails, contextProviders, metrics,
-                    broadcastFilters, endpointModel);
+                    broadcastFilters, endpointModel, injectables);
 
             List<AtmosphereInterceptor> frameworkInterceptors = new LinkedList<>();
             AnnotationUtil.defaultManagedServiceInterceptors(framework, frameworkInterceptors);

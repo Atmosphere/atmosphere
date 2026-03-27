@@ -44,11 +44,20 @@ public class AiPipeline {
     private final List<AiGuardrail> guardrails;
     private final List<ContextProvider> contextProviders;
     private final AiMetrics metrics;
+    private final Class<?> responseType;
 
     public AiPipeline(AgentRuntime runtime, String systemPrompt, String model,
                       AiConversationMemory memory, ToolRegistry toolRegistry,
                       List<AiGuardrail> guardrails, List<ContextProvider> contextProviders,
                       AiMetrics metrics) {
+        this(runtime, systemPrompt, model, memory, toolRegistry, guardrails,
+                contextProviders, metrics, null);
+    }
+
+    public AiPipeline(AgentRuntime runtime, String systemPrompt, String model,
+                      AiConversationMemory memory, ToolRegistry toolRegistry,
+                      List<AiGuardrail> guardrails, List<ContextProvider> contextProviders,
+                      AiMetrics metrics, Class<?> responseType) {
         this.runtime = runtime;
         this.systemPrompt = systemPrompt != null ? systemPrompt : "";
         this.model = model;
@@ -57,6 +66,7 @@ public class AiPipeline {
         this.guardrails = guardrails != null ? guardrails : List.of();
         this.contextProviders = contextProviders != null ? contextProviders : List.of();
         this.metrics = metrics != null ? metrics : AiMetrics.NOOP;
+        this.responseType = responseType;
     }
 
     /**
@@ -115,6 +125,15 @@ public class AiPipeline {
             target = new GuardrailCapturingSession(target, guardrails);
         }
 
+        // Wrap in StructuredOutputCapturingSession for typed response parsing
+        var effectiveResponseType = responseType != null ? responseType : request.responseType();
+        if (effectiveResponseType != null && effectiveResponseType != Void.class) {
+            var parser = StructuredOutputParser.resolve();
+            target = new StructuredOutputCapturingSession(target, parser, effectiveResponseType);
+            request = request.withSystemPrompt(
+                    request.systemPrompt() + "\n\n" + parser.schemaInstructions(effectiveResponseType));
+        }
+
         // Build execution context from the (potentially guardrail-modified) request
         // so that guardrail modifications to systemPrompt/model are honored
         var tools = toolRegistry != null ? toolRegistry.allTools() : List.<org.atmosphere.ai.tool.ToolDefinition>of();
@@ -122,7 +141,8 @@ public class AiPipeline {
                 request.message(), request.systemPrompt(), request.model(),
                 null, clientId, null, clientId,
                 List.copyOf(tools), null, memory,
-                contextProviders, request.metadata(), history);
+                contextProviders, request.metadata(), history,
+                effectiveResponseType);
 
         try {
             runtime.execute(context, target);

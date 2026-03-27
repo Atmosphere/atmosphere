@@ -362,7 +362,7 @@ public class AiStreamingSessionTest {
 
         var session = new AiStreamingSession(delegate, aiSupport,
                 "", "test-model", List.of(), resource, null,
-                null, List.of(), List.of(), metricsRecorder);
+                null, List.of(), List.of(), metricsRecorder, null);
 
         session.stream("Hi");
 
@@ -389,7 +389,7 @@ public class AiStreamingSessionTest {
 
         var session = new AiStreamingSession(delegate, aiSupport,
                 "", "test-model", List.of(), resource, null,
-                null, List.of(), List.of(), metricsRecorder);
+                null, List.of(), List.of(), metricsRecorder, null);
 
         session.stream("Hi");
 
@@ -414,7 +414,7 @@ public class AiStreamingSessionTest {
 
         var session = new AiStreamingSession(delegate, aiSupport,
                 "", "test-model", List.of(), resource, null,
-                null, List.of(), List.of(), metricsRecorder);
+                null, List.of(), List.of(), metricsRecorder, null);
 
         session.stream("Hi");
 

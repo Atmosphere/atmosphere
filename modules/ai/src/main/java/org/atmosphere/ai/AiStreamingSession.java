@@ -65,6 +65,7 @@ public class AiStreamingSession implements StreamingSession {
     private final List<AiGuardrail> guardrails;
     private final List<ContextProvider> contextProviders;
     private final AiMetrics metrics;
+    private final Class<?> responseType;
 
     /**
      * @param delegate     the underlying streaming session
@@ -79,7 +80,7 @@ public class AiStreamingSession implements StreamingSession {
                               List<AiInterceptor> interceptors,
                               AtmosphereResource resource) {
         this(delegate, runtime, systemPrompt, model, interceptors, resource, null,
-                null, List.of(), List.of(), AiMetrics.NOOP);
+                null, List.of(), List.of(), AiMetrics.NOOP, null);
     }
 
     /**
@@ -97,7 +98,7 @@ public class AiStreamingSession implements StreamingSession {
                               AtmosphereResource resource,
                               AiConversationMemory memory) {
         this(delegate, runtime, systemPrompt, model, interceptors, resource, memory,
-                null, List.of(), List.of(), AiMetrics.NOOP);
+                null, List.of(), List.of(), AiMetrics.NOOP, null);
     }
 
     /**
@@ -112,11 +113,11 @@ public class AiStreamingSession implements StreamingSession {
                               List<AiGuardrail> guardrails,
                               List<ContextProvider> contextProviders) {
         this(delegate, runtime, systemPrompt, model, interceptors, resource, memory,
-                toolRegistry, guardrails, contextProviders, AiMetrics.NOOP);
+                toolRegistry, guardrails, contextProviders, AiMetrics.NOOP, null);
     }
 
     /**
-     * Full constructor with metrics.
+     * Full constructor with metrics and structured output.
      */
     public AiStreamingSession(StreamingSession delegate, AgentRuntime runtime,
                               String systemPrompt, String model,
@@ -126,7 +127,8 @@ public class AiStreamingSession implements StreamingSession {
                               ToolRegistry toolRegistry,
                               List<AiGuardrail> guardrails,
                               List<ContextProvider> contextProviders,
-                              AiMetrics metrics) {
+                              AiMetrics metrics,
+                              Class<?> responseType) {
         this.delegate = delegate;
         this.runtime = runtime;
         this.systemPrompt = systemPrompt != null ? systemPrompt : "";
@@ -138,6 +140,7 @@ public class AiStreamingSession implements StreamingSession {
         this.guardrails = guardrails != null ? guardrails : List.of();
         this.contextProviders = contextProviders != null ? contextProviders : List.of();
         this.metrics = metrics != null ? metrics : AiMetrics.NOOP;
+        this.responseType = responseType;
     }
 
     @Override
@@ -240,6 +243,15 @@ public class AiStreamingSession implements StreamingSession {
             target = new GuardrailCapturingSession(target, guardrails);
         }
 
+        // Wrap in StructuredOutputCapturingSession for typed response parsing
+        var effectiveResponseType = responseType != null ? responseType : request.responseType();
+        if (effectiveResponseType != null && effectiveResponseType != Void.class) {
+            var parser = StructuredOutputParser.resolve();
+            target = new StructuredOutputCapturingSession(target, parser, effectiveResponseType);
+            request = request.withSystemPrompt(
+                    request.systemPrompt() + "\n\n" + parser.schemaInstructions(effectiveResponseType));
+        }
+
         // Expose the session to interceptors via request attribute
         resource.getRequest().setAttribute(STREAMING_SESSION_ATTR, target);
 
@@ -252,7 +264,8 @@ public class AiStreamingSession implements StreamingSession {
                 request.agentId(), request.sessionId(), request.userId(),
                 request.conversationId(),
                 java.util.List.copyOf(tools), null, memory,
-                contextProviders, request.metadata(), request.history());
+                contextProviders, request.metadata(), request.history(),
+                effectiveResponseType);
         try {
             runtime.execute(context, target);
         } catch (Exception e) {

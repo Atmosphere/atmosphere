@@ -129,21 +129,31 @@ class AgUiEventMapperCompleteTest {
     }
 
     @Test
-    void testStructuredFieldReturnsEmpty() {
+    void testStructuredFieldMapsToStateDelta() {
         var events = mapper.toAgUi(new AiEvent.StructuredField("name", "John", "string"));
-        assertTrue(events.isEmpty(), "StructuredField should have no AG-UI mapping");
+        assertEquals(1, events.size());
+        assertTrue(events.getFirst() instanceof AgUiEvent.StateDelta);
+        var delta = (AgUiEvent.StateDelta) events.getFirst();
+        assertTrue(delta.delta().contains("\"field\":\"name\""));
+        assertTrue(delta.delta().contains("\"value\":\"John\""));
     }
 
     @Test
-    void testEntityStartReturnsEmpty() {
+    void testEntityStartMapsToStateDelta() {
         var events = mapper.toAgUi(new AiEvent.EntityStart("Person", "{\"type\":\"object\"}"));
-        assertTrue(events.isEmpty(), "EntityStart should have no AG-UI mapping");
+        assertEquals(1, events.size());
+        assertTrue(events.getFirst() instanceof AgUiEvent.StateDelta);
+        var delta = (AgUiEvent.StateDelta) events.getFirst();
+        assertTrue(delta.delta().contains("\"entityType\":\"Person\""));
     }
 
     @Test
-    void testEntityCompleteReturnsEmpty() {
+    void testEntityCompleteMapsToStateSnapshot() {
         var events = mapper.toAgUi(new AiEvent.EntityComplete("Person", Map.of("name", "John")));
-        assertTrue(events.isEmpty(), "EntityComplete should have no AG-UI mapping");
+        assertEquals(1, events.size());
+        assertTrue(events.getFirst() instanceof AgUiEvent.StateSnapshot);
+        var snapshot = (AgUiEvent.StateSnapshot) events.getFirst();
+        assertTrue(snapshot.snapshot().contains("\"entityType\":\"Person\""));
     }
 
     @Test

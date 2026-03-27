@@ -48,7 +48,7 @@ public class IdentityTestHandler implements AtmosphereHandler {
                         trimmed, "", null, "research-agent", "sess-abc",
                         "user-42", "conv-xyz",
                         java.util.List.of(), null, null, java.util.List.of(),
-                        java.util.Map.of(), java.util.List.of());
+                        java.util.Map.of(), java.util.List.of(), null);
 
                 new IdentityEchoingRuntime().execute(context, session);
             });

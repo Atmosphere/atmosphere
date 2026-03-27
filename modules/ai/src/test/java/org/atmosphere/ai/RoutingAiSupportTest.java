@@ -33,7 +33,7 @@ public class RoutingAiSupportTest {
         var routing = new RoutingAiSupport(router, List.of(primary, secondary));
 
         var session = mock(StreamingSession.class);
-        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null, java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(), java.util.List.of()), session);
+        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null, java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(), java.util.List.of(), null), session);
 
         assertTrue(primary.called);
         assertFalse(secondary.called);
@@ -51,7 +51,7 @@ public class RoutingAiSupportTest {
         var routing = new RoutingAiSupport(router, List.of(primary, secondary));
 
         var session = mock(StreamingSession.class);
-        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null, java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(), java.util.List.of()), session);
+        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null, java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(), java.util.List.of(), null), session);
 
         assertTrue(primary.called);
         assertTrue(secondary.called);
@@ -63,7 +63,7 @@ public class RoutingAiSupportTest {
         var routing = new RoutingAiSupport(router, List.of());
 
         var session = mock(StreamingSession.class);
-        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null, java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(), java.util.List.of()), session);
+        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null, java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(), java.util.List.of(), null), session);
 
         verify(session).error(any(IllegalStateException.class));
     }
@@ -107,7 +107,7 @@ public class RoutingAiSupportTest {
         var session = mock(StreamingSession.class);
         routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null,
                 java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(),
-                java.util.List.of()), session);
+                java.util.List.of(), null), session);
 
         assertFalse(textOnly.called, "text-only backend should be skipped (missing TOOL_CALLING)");
         assertTrue(toolCapable.called, "tool-capable backend should be selected");
@@ -142,7 +142,7 @@ public class RoutingAiSupportTest {
 
         routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null,
                 java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(),
-                java.util.List.of()), session);
+                java.util.List.of(), null), session);
 
         assertTrue(completed[0], "Session should be completed");
         assertFalse(tokens.isEmpty(), "Tokens should have been delivered");
@@ -175,7 +175,7 @@ public class RoutingAiSupportTest {
 
         routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null,
                 java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(),
-                java.util.List.of()), session);
+                java.util.List.of(), null), session);
 
         assertNotNull(errorCaught[0], "Error should have been propagated");
         assertTrue(errorCaught[0].getMessage().contains("async failure"));

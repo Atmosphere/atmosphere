@@ -170,4 +170,22 @@ public record AiRequest(
         }
         return List.of();
     }
+
+    /**
+     * Return a copy with a target response type for structured output.
+     * When set, the framework appends JSON schema instructions to the system
+     * prompt and parses the LLM output into the specified type.
+     */
+    public AiRequest withResponseType(Class<?> responseType) {
+        return withMetadata(Map.of("ai.responseType", responseType));
+    }
+
+    /**
+     * Get the target response type for structured output, or {@code null}
+     * for plain text streaming.
+     */
+    public Class<?> responseType() {
+        var type = metadata.get("ai.responseType");
+        return type instanceof Class<?> c ? c : null;
+    }
 }

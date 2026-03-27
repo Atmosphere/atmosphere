@@ -220,4 +220,22 @@ public @interface AiEndpoint {
      * }</pre>
      */
     Class<? extends org.atmosphere.cpr.BroadcastFilter>[] filters() default {};
+
+    /**
+     * Target Java type for structured output. When set to anything other than
+     * {@code Void.class}, the framework instructs the LLM to produce JSON
+     * conforming to this type's schema and parses the output into a typed entity.
+     *
+     * <p>The framework will:</p>
+     * <ol>
+     *   <li>Append JSON schema instructions to the system prompt via
+     *       {@link org.atmosphere.ai.StructuredOutputParser#schemaInstructions}</li>
+     *   <li>Emit {@link org.atmosphere.ai.AiEvent.EntityStart} when streaming begins</li>
+     *   <li>Emit {@link org.atmosphere.ai.AiEvent.StructuredField} events as fields are parsed</li>
+     *   <li>Emit {@link org.atmosphere.ai.AiEvent.EntityComplete} with the fully-parsed entity</li>
+     * </ol>
+     *
+     * <p>Example: {@code @AiEndpoint(path = "/extract", responseAs = MovieReview.class)}</p>
+     */
+    Class<?> responseAs() default Void.class;
 }

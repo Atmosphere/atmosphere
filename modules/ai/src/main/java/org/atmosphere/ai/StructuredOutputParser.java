@@ -15,8 +15,10 @@
  */
 package org.atmosphere.ai;
 
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ServiceLoader;
 
 /**
  * SPI for parsing structured output from LLM responses. Implementations
@@ -81,6 +83,19 @@ public interface StructuredOutputParser {
      */
     default boolean isAvailable() {
         return true;
+    }
+
+    /**
+     * Resolve the highest-priority available parser via ServiceLoader.
+     * Falls back to {@link JacksonStructuredOutputParser} if no providers
+     * are registered.
+     */
+    static StructuredOutputParser resolve() {
+        return ServiceLoader.load(StructuredOutputParser.class).stream()
+                .map(ServiceLoader.Provider::get)
+                .filter(StructuredOutputParser::isAvailable)
+                .max(Comparator.comparingInt(StructuredOutputParser::priority))
+                .orElseGet(JacksonStructuredOutputParser::new);
     }
 
     /**

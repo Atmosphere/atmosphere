@@ -336,9 +336,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             traced = new TracingCapturingSession(delegate, metrics, model);
         }
 
+        var responseType = injectables.get(Class.class) instanceof Class<?> c ? c : null;
         var session = new AiStreamingSession(traced, runtime,
                 systemPrompt, model, interceptors, resource, memory,
-                toolRegistry, guardrails, contextProviders, metrics);
+                toolRegistry, guardrails, contextProviders, metrics, responseType);
 
         var promptThread = Thread.startVirtualThread(() -> {
             try {

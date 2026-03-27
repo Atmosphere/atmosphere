@@ -48,7 +48,8 @@ public record AgentExecutionContext(
         AiConversationMemory memory,
         List<ContextProvider> contextProviders,
         Map<String, Object> metadata,
-        List<ChatMessage> history
+        List<ChatMessage> history,
+        Class<?> responseType
 ) {
 
     public AgentExecutionContext {
@@ -62,27 +63,34 @@ public record AgentExecutionContext(
     public AgentExecutionContext withMessage(String message) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history);
+                contextProviders, metadata, history, responseType);
     }
 
     /** Create a context with a different system prompt. */
     public AgentExecutionContext withSystemPrompt(String systemPrompt) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history);
+                contextProviders, metadata, history, responseType);
     }
 
     /** Create a context with additional metadata. */
     public AgentExecutionContext withMetadata(Map<String, Object> metadata) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history);
+                contextProviders, metadata, history, responseType);
     }
 
     /** Create a context with conversation history. */
     public AgentExecutionContext withHistory(List<ChatMessage> history) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history);
+                contextProviders, metadata, history, responseType);
+    }
+
+    /** Create a context with a target response type for structured output. */
+    public AgentExecutionContext withResponseType(Class<?> responseType) {
+        return new AgentExecutionContext(message, systemPrompt, model, agentId,
+                sessionId, userId, conversationId, tools, toolTarget, memory,
+                contextProviders, metadata, history, responseType);
     }
 }

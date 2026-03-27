@@ -74,7 +74,7 @@ public class AiTestClient {
         var start = Instant.now();
         var context = new AgentExecutionContext(
                 message, systemPrompt, null, null, null, null, null,
-                List.of(), null, null, List.of(), Map.of(), List.of());
+                List.of(), null, null, List.of(), Map.of(), List.of(), null);
         runtime.execute(context, session);
         session.awaitCompletion(Duration.ofSeconds(30));
         var elapsed = Duration.between(start, Instant.now());

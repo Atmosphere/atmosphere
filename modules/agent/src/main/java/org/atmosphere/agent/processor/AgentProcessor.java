@@ -111,11 +111,16 @@ public class AgentProcessor implements Processor<Object> {
             var lifecycle = AnnotatedLifecycle.scan(annotatedClass);
 
             // Step 6: Create AgentHandler
+            var responseType = annotation.responseAs() == Void.class
+                    ? null : annotation.responseAs();
+            var agentInjectables = responseType != null
+                    ? java.util.Map.<Class<?>, Object>of(Class.class, responseType)
+                    : java.util.Map.<Class<?>, Object>of();
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
                     systemPrompt, path, runtime, List.of(),
                     memory, lifecycle, toolRegistry,
-                    List.of(), List.of(), metrics, List.of(), null);
+                    List.of(), List.of(), metrics, List.of(), null, agentInjectables);
 
             var commandRouter = new CommandRouter(commandRegistry, instance);
             var handler = new AgentHandler(aiHandler, commandRouter,

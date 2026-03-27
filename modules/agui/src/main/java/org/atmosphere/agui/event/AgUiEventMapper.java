@@ -119,7 +119,25 @@ public final class AgUiEventMapper {
                             error.code() != null ? error.code().hashCode() : -1)
             );
             case AiEvent.Complete ignored -> List.of();
-            // StructuredField, EntityStart, EntityComplete, RoutingDecision have no AG-UI mapping
+            case AiEvent.EntityStart start -> {
+                var json = serializeQuietly(Map.of(
+                        "entityType", start.typeName(),
+                        "state", "streaming"));
+                yield List.<AgUiEvent>of(new AgUiEvent.StateDelta(json));
+            }
+            case AiEvent.StructuredField field -> {
+                var json = serializeQuietly(Map.of(
+                        "field", field.fieldName(),
+                        "value", field.value() != null ? field.value() : "",
+                        "type", field.schemaType()));
+                yield List.<AgUiEvent>of(new AgUiEvent.StateDelta(json));
+            }
+            case AiEvent.EntityComplete complete -> {
+                var json = serializeQuietly(Map.of(
+                        "entityType", complete.typeName(),
+                        "entity", complete.entity()));
+                yield List.<AgUiEvent>of(new AgUiEvent.StateSnapshot(json));
+            }
             default -> List.of();
         };
     }

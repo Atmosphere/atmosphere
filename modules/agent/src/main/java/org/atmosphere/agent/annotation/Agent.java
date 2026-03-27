@@ -120,4 +120,10 @@ public @interface Agent {
      * {@code @Prompt} method, it is treated as headless.</p>
      */
     boolean headless() default false;
+
+    /**
+     * Target Java type for structured output from this agent.
+     * See {@link org.atmosphere.ai.annotation.AiEndpoint#responseAs()} for details.
+     */
+    Class<?> responseAs() default Void.class;
 }
