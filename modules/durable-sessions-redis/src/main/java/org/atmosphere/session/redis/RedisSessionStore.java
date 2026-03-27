@@ -35,17 +35,8 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@link SessionStore} backed by Redis, using Lettuce.
- *
- * <p>Sessions are stored as JSON hashes with a TTL, making them accessible
- * across all nodes in a cluster. Perfect for multi-node production deployments
- * and Kubernetes environments.</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * var store = new RedisSessionStore("redis://localhost:6379");
- * var store = new RedisSessionStore("redis://password@redis-host:6379/0");
- * }</pre>
+ * {@link SessionStore} backed by Redis via Lettuce. Sessions are stored as
+ * JSON hashes with a configurable TTL.
  */
 public class RedisSessionStore implements SessionStore {
 

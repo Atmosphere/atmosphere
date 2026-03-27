@@ -52,29 +52,10 @@ import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 /**
- * {@link AtmosphereHandler} that bridges an {@link org.atmosphere.ai.annotation.AiEndpoint}
- * annotated class to Atmosphere's lifecycle. Handles connect, disconnect, and message
- * events — delegating prompt handling to the user's {@code @Prompt} method on a virtual thread.
- *
- * <p>Extends {@link AbstractReflectorAtmosphereHandler} so that broadcast responses
- * (streaming texts, progress, completion) are written through the standard output path, which
- * honours the {@code AsyncIOWriter} interceptor chain (including
- * {@code TrackMessageSizeInterceptor}).</p>
- *
- * <h3>Shared injection framework</h3>
- * <p>{@code @AiEndpoint} reuses the same injection infrastructure as
- * {@link org.atmosphere.config.service.ManagedService} via the shared
- * {@link AnnotatedLifecycle} class — no scanning or injection logic is
- * duplicated:</p>
- * <ul>
- *   <li>{@link org.atmosphere.config.service.PathParam @PathParam} fields are
- *       injected per-request via {@link InjectableObjectFactory#requestScoped}</li>
- *   <li>{@link jakarta.inject.Inject @Inject} fields (e.g. {@code Broadcaster},
- *       {@code AtmosphereConfig}) are injected once at registration time</li>
- *   <li>{@link org.atmosphere.config.service.Ready @Ready} and
- *       {@link org.atmosphere.config.service.Disconnect @Disconnect} lifecycle
- *       methods are discovered and invoked on connect/disconnect</li>
- * </ul>
+ * {@link AtmosphereHandler} for {@link org.atmosphere.ai.annotation.AiEndpoint @AiEndpoint}
+ * classes. Handles connect, disconnect, and message events, dispatching prompt handling
+ * to the {@code @Prompt} method on a virtual thread. Broadcast responses flow through
+ * the standard {@code AsyncIOWriter} interceptor chain.
  */
 public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         implements AtmosphereResourceHeartbeatEventListener {

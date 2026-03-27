@@ -31,26 +31,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Inbound rate-limiting interceptor using a token-bucket algorithm.
- * Limits the number of messages a single client can send per time window,
- * preventing abuse and protecting server resources.
- *
- * <p>The token bucket refills at a steady rate of {@code maxMessages / windowSeconds}
- * tokens per second, with bursts up to {@code maxMessages} allowed. This provides
- * smooth rate limiting that tolerates short bursts while enforcing long-term limits.</p>
- *
- * <h3>Configuration (init-params or ApplicationConfig)</h3>
- * <ul>
- *   <li>{@code org.atmosphere.rateLimit.maxMessages} — max messages per window / burst size (default: 100)</li>
- *   <li>{@code org.atmosphere.rateLimit.windowSeconds} — refill window in seconds (default: 60)</li>
- *   <li>{@code org.atmosphere.rateLimit.policy} — action when exceeded:
- *       {@code drop} (silent), {@code disconnect} (close connection) (default: drop)</li>
- * </ul>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * framework.interceptor(new RateLimitingInterceptor());
- * }</pre>
+ * Per-client rate-limiting interceptor using a token-bucket algorithm.
+ * Configurable via {@code org.atmosphere.rateLimit.maxMessages},
+ * {@code org.atmosphere.rateLimit.windowSeconds}, and
+ * {@code org.atmosphere.rateLimit.policy} (drop or disconnect).
  *
  * @since 4.0
  */

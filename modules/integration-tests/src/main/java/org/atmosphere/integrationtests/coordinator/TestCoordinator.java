@@ -29,8 +29,8 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 
 /**
- * Test coordinator for E2E integration tests. Delegates to two headless
- * specialist agents (worker-alpha and worker-beta) and synthesizes results.
+ * Test coordinator for E2E integration tests with two headless agents
+ * (worker-alpha and worker-beta).
  */
 @Coordinator(name = "test-coordinator",
         description = "Test coordinator for E2E tests")

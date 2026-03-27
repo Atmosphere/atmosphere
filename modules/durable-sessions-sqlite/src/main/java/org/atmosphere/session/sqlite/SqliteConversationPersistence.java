@@ -28,24 +28,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * {@link ConversationPersistence} backed by an embedded SQLite database.
- *
- * <p>Shares the same SQLite infrastructure as {@link SqliteSessionStore}.
- * Conversations are stored in the {@code ai_conversations} table.</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * // Default: atmosphere-conversations.db in working directory
- * var persistence = new SqliteConversationPersistence();
- *
- * // Custom path (can be same DB as SqliteSessionStore)
- * var persistence = new SqliteConversationPersistence(Path.of("atmosphere-sessions.db"));
- *
- * // Shared connection with SqliteSessionStore
- * var persistence = new SqliteConversationPersistence(existingConnection);
- *
- * // Wire into PersistentConversationMemory
- * var memory = new PersistentConversationMemory(persistence, 20);
- * }</pre>
+ * Conversations are stored in the {@code ai_conversations} table. Can share
+ * a connection with {@link SqliteSessionStore}.
  */
 public class SqliteConversationPersistence implements ConversationPersistence {
 

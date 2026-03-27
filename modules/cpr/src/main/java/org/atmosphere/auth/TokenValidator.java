@@ -19,18 +19,9 @@ import java.security.Principal;
 import java.util.Map;
 
 /**
- * SPI for validating authentication tokens on Atmosphere connections.
- * Implementations are responsible for verifying tokens (JWT, opaque, session-based, etc.)
- * and returning structured results that the {@link org.atmosphere.interceptor.AuthInterceptor}
- * uses to allow, deny, or trigger refresh flows.
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * framework.interceptor(new AuthInterceptor(token -> {
- *     var claims = myJwtLib.verify(token);
- *     return new TokenValidator.Valid(claims.getSubject(), claims);
- * }));
- * }</pre>
+ * SPI for validating authentication tokens on Atmosphere connections. Returns a
+ * {@link Result} that the {@link org.atmosphere.interceptor.AuthInterceptor} uses
+ * to allow, deny, or trigger refresh flows.
  *
  * @since 4.0
  */

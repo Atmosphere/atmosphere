@@ -25,25 +25,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 /**
- * A {@link AiStreamBroadcastFilter} that scans AI-generated content for harmful
- * patterns and blocks or replaces unsafe content mid-stream.
- *
- * <p>Like {@link PiiRedactionFilter}, this filter buffers streaming texts into sentence-sized
- * chunks for context-aware scanning. A pluggable {@link SafetyChecker} interface
- * allows custom safety logic — from simple keyword lists to external moderation APIs.</p>
- *
- * <h3>Safety outcomes</h3>
- * <ul>
- *   <li><b>Safe</b> — pass through unchanged</li>
- *   <li><b>Unsafe</b> — abort the entire stream and send an error to the client</li>
- *   <li><b>Redacted</b> — replace the text with a cleaned version and continue streaming</li>
- * </ul>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * var checker = ContentSafetyFilter.keywordChecker(Set.of("harmful-term"));
- * broadcaster.getBroadcasterConfig().addFilter(new ContentSafetyFilter(checker));
- * }</pre>
+ * {@link AiStreamBroadcastFilter} that scans AI-generated content for harmful patterns
+ * and blocks or replaces unsafe content mid-stream. Buffers streaming texts into
+ * sentence-sized chunks for context-aware scanning via a pluggable {@link SafetyChecker}.
  */
 public class ContentSafetyFilter extends AiStreamBroadcastFilter {
 

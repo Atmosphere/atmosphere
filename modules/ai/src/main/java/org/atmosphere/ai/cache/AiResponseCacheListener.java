@@ -29,25 +29,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A {@link BroadcasterCacheListener} that tracks AI streaming sessions in the cache.
- *
- * <p>When streaming text messages are cached, this listener counts them per session.
- * When a "complete" message is cached, it logs the total streaming text count for that
- * session — useful for monitoring cache size and replay cost.</p>
- *
- * <p>This is an observational hook (not a gate). It does not modify cached messages.
- * For controlling what gets cached, use {@link AiResponseCacheInspector}.</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * var listener = new AiResponseCacheListener();
- * broadcaster.getBroadcasterConfig()
- *     .getBroadcasterCache()
- *     .addBroadcasterCacheListener(listener);
- *
- * // Later: check how many streaming texts were cached for a session
- * int count = listener.getCachedStreamingTextCount("session-123");
- * }</pre>
+ * {@link BroadcasterCacheListener} that counts cached streaming text messages per session.
+ * Observational only — does not modify cached messages. For cache filtering, see
+ * {@link AiResponseCacheInspector}.
  */
 public class AiResponseCacheListener implements BroadcasterCacheListener {
 

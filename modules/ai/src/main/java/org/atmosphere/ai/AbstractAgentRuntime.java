@@ -16,21 +16,11 @@
 package org.atmosphere.ai;
 
 /**
- * Base class for {@link AgentRuntime} implementations that share a common
- * pattern: a volatile native client field, classpath-based availability
- * check, environment-driven lazy initialization, and delegation to a
- * framework-specific execution method.
+ * Base class for {@link AgentRuntime} implementations. Provides classpath-based
+ * availability detection, lazy client initialization, and a template method
+ * ({@link #doExecute}) for framework-specific execution.
  *
- * <p>Subclasses provide:</p>
- * <ul>
- *   <li>{@link #nativeClientClassName()} — the FQCN to probe for availability</li>
- *   <li>{@link #createNativeClient(AiConfig.LlmSettings)} — factory for the native client</li>
- *   <li>{@link #doExecute(Object, AgentExecutionContext, StreamingSession)} — the actual execution logic</li>
- *   <li>{@link #clientDescription()} — human-readable name for error messages</li>
- * </ul>
- *
- * @param <C> the native client type (e.g., {@code ChatClient},
- *            {@code StreamingChatModel}, {@code Runner})
+ * @param <C> the native client type (e.g. {@code ChatClient}, {@code StreamingChatModel})
  */
 public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
 

@@ -21,24 +21,9 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.MDC;
 
 /**
- * Interceptor that populates the SLF4J {@link MDC} with Atmosphere-specific
- * context for structured logging. Values are set on request entry and cleared
- * after processing to avoid leaking into unrelated threads.
- *
- * <h3>MDC keys</h3>
- * <ul>
- *   <li>{@code atmosphere.uuid} — the unique resource identifier</li>
- *   <li>{@code atmosphere.transport} — the transport type (websocket, long-polling, sse, etc.)</li>
- *   <li>{@code atmosphere.broadcaster} — the broadcaster ID this resource is attached to</li>
- * </ul>
- *
- * <h3>Logback pattern example</h3>
- * <pre>
- * %d{HH:mm:ss.SSS} [%thread] %-5level [uuid=%X{atmosphere.uuid} transport=%X{atmosphere.transport}] %logger{36} - %msg%n
- * </pre>
- *
- * <h3>JSON layout (logback-contrib or logstash-logback-encoder)</h3>
- * MDC keys are automatically included as top-level fields in JSON output.
+ * Populates the SLF4J {@link MDC} with {@code atmosphere.uuid},
+ * {@code atmosphere.transport}, and {@code atmosphere.broadcaster} for
+ * structured logging. Cleared after processing.
  *
  * @since 4.0
  */

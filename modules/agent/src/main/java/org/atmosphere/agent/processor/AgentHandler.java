@@ -44,25 +44,6 @@ import java.util.Map;
  * {@link AtmosphereHandler} that wraps an {@link AiEndpointHandler} with
  * command routing. Messages starting with "/" are routed to the
  * {@link CommandRouter}; all other messages fall through to the AI pipeline.
- *
- * <p>Uses composition, not inheritance — the {@code AiEndpointHandler} is
- * a delegate, keeping the two concerns cleanly separated.</p>
- *
- * <h3>Message routing flow</h3>
- * <pre>
- * Message arrives at AgentHandler
- *     |
- *     +-- RawMessage -> delegate to AI handler (streaming response)
- *     |
- *     +-- "/" prefix -> CommandRouter.route()
- *     |   +-- Executed(response) -> unicast response to requesting client
- *     |   +-- ConfirmationRequired(prompt) -> unicast prompt to requesting client
- *     |   +-- NotACommand -> fall through to LLM
- *     |
- *     +-- "yes/y" with pending confirmation -> execute pending command
- *     |
- *     +-- else -> AiEndpointHandler (LLM pipeline)
- * </pre>
  */
 public class AgentHandler extends AbstractReflectorAtmosphereHandler
         implements AtmosphereResourceHeartbeatEventListener {

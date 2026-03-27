@@ -27,29 +27,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 /**
- * A {@link AiStreamBroadcastFilter} that detects and redacts personally identifiable
- * information (PII) from AI-generated streaming text streams.
- *
- * <p>Since AI streaming texts arrive one or a few words at a time, the filter buffers
- * streaming texts per session until a sentence boundary ({@code .}, {@code !}, {@code ?},
- * or newline) is detected. At that point it scans the buffered sentence for PII patterns,
- * redacts any matches, and emits the cleaned text as a single streaming text message. On
- * stream completion, any remaining buffered text is flushed with redaction applied.</p>
- *
- * <h3>Default patterns</h3>
- * <ul>
- *   <li><b>email</b> — standard email addresses</li>
- *   <li><b>us-phone</b> — US phone numbers (10+ digits, various formats)</li>
- *   <li><b>ssn</b> — US Social Security Numbers (NNN-NN-NNNN)</li>
- *   <li><b>credit-card</b> — credit card numbers (13-19 digits with optional separators)</li>
- * </ul>
- *
- * <p>Custom patterns can be added via {@link #addPattern(String, Pattern)}.</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * broadcaster.getBroadcasterConfig().addFilter(new PiiRedactionFilter());
- * }</pre>
+ * {@link AiStreamBroadcastFilter} that detects and redacts PII (email, phone, SSN,
+ * credit card) from AI streaming text streams. Buffers streaming texts per session
+ * until a sentence boundary, then scans and redacts before emitting. Custom patterns
+ * can be added via {@link #addPattern(String, Pattern)}.
  */
 public class PiiRedactionFilter extends AiStreamBroadcastFilter {
 

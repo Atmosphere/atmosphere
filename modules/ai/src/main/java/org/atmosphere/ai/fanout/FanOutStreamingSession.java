@@ -33,33 +33,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Orchestrates multi-model fan-out streaming: sends the same prompt to N models
- * simultaneously, with each model streaming texts through its own child session.
- *
- * <p>This is the Broadcaster pattern applied to model routing. Each model endpoint
- * gets a child {@link StreamingSession} with a sessionId of
- * {@code parentSessionId + "-" + modelEndpoint.id()}. All child sessions broadcast
- * through the same {@link Broadcaster}, so the client receives interleaved streaming
- * text streams that are distinguishable by sessionId.</p>
- *
- * <h3>Strategies</h3>
- * <ul>
- *   <li>{@link FanOutStrategy.AllResponses} — all models stream to completion</li>
- *   <li>{@link FanOutStrategy.FirstComplete} — first to finish wins, others are cancelled</li>
- *   <li>{@link FanOutStrategy.FastestStreamingTexts} — fastest streaming text producer wins after N streaming texts</li>
- * </ul>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * var endpoints = List.of(
- *     new ModelEndpoint("gemini", geminiClient, "gemini-2.5-flash"),
- *     new ModelEndpoint("gpt4", openaiClient, "gpt-4o")
- * );
- * try (var fanOut = new FanOutStreamingSession(session, endpoints,
- *         new FanOutStrategy.AllResponses(), resource)) {
- *     fanOut.fanOut(ChatCompletionRequest.of("ignored", userPrompt));
- * }
- * }</pre>
+ * Multi-model fan-out streaming: sends the same prompt to N {@link ModelEndpoint}s
+ * simultaneously, each streaming through its own child session. The {@link FanOutStrategy}
+ * controls completion semantics (all responses, first complete, or fastest producer).
  */
 public final class FanOutStreamingSession implements AutoCloseable {
 

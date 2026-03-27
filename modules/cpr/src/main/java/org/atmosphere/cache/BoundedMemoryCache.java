@@ -34,19 +34,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * A bounded, in-memory {@link BroadcasterCache} that stores recent broadcast
- * messages per client UUID. Messages are automatically evicted when the cache
- * exceeds its maximum size or when entries are older than the configured TTL.
- *
- * <p>This implementation is suitable for applications that need message
- * replay on reconnect (e.g., AI chat conversation history, real-time
- * collaboration). For distributed deployments, use a Redis-backed cache.</p>
- *
- * <h3>Configuration</h3>
- * <ul>
- *   <li>{@code org.atmosphere.cache.maxSize} — max messages per broadcaster (default 1000)</li>
- *   <li>{@code org.atmosphere.cache.ttlSeconds} — message TTL in seconds (default 3600)</li>
- * </ul>
+ * Bounded, in-memory {@link BroadcasterCache} with per-broadcaster size limits and TTL-based
+ * eviction. Configurable via {@code org.atmosphere.cache.maxSize} (default 1000)
+ * and {@code org.atmosphere.cache.ttlSeconds} (default 3600).
  *
  * @since 4.0.8
  */

@@ -27,22 +27,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Bridge for bidirectional tool invocation between server and client.
- *
- * <p>Allows the server to call tools on connected clients (e.g. browser-side
- * JavaScript functions) and receive results asynchronously. Uses Atmosphere's
- * transport layer to send requests and receive responses.</p>
- *
- * <p>Thread-safe: uses {@link ConcurrentHashMap} for pending calls and
- * {@link CompletableFuture} for async completion. Safe for virtual threads.</p>
- *
- * <p>Usage:</p>
- * <pre>{@code
- * var bridge = new BiDirectionalToolBridge();
- * CompletableFuture<String> result = bridge.callClientTool(
- *     resource, "getLocation", Map.of());
- * result.thenAccept(location -> System.out.println("Client location: " + location));
- * }</pre>
+ * Bidirectional tool invocation between server and client. Allows the server to call
+ * tools on connected clients (e.g. browser-side JavaScript functions) and receive
+ * results asynchronously via {@link CompletableFuture}.
  */
 public class BiDirectionalToolBridge {
 

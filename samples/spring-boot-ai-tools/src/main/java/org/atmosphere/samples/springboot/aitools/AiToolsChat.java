@@ -28,24 +28,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * AI chat endpoint demonstrating Atmosphere's framework-agnostic {@code @AiTool} pipeline.
- *
- * <h3>Key difference from the LangChain4j tools sample</h3>
- * <p>The {@code spring-boot-langchain4j-tools} sample uses LangChain4j's native
- * {@code @Tool} annotation, which locks you into LangChain4j. This sample uses
- * Atmosphere's {@code @AiTool} annotation via the {@code tools} attribute, making
- * the tools portable across all supported AI backends.</p>
- *
- * <h3>How it works</h3>
- * <ol>
- *   <li>{@code @AiEndpoint(tools = AssistantTools.class)} tells the framework to
- *       scan {@code AssistantTools} for {@code @AiTool}-annotated methods</li>
- *   <li>Tools are registered in the global {@code ToolRegistry}</li>
- *   <li>When {@code session.stream()} is called, tools are attached to the
- *       {@code AiRequest} and bridged to the active backend's native format</li>
- *   <li>The backend handles the tool call loop (Spring AI and ADK automatically,
- *       LangChain4j via {@code ToolAwareStreamingResponseHandler})</li>
- * </ol>
+ * AI chat endpoint demonstrating Atmosphere's {@code @AiTool} pipeline.
+ * Uses the {@code tools} attribute to register {@link AssistantTools} methods
+ * as backend-portable tools.
  */
 @AiEndpoint(path = "/atmosphere/ai-chat",
         systemPromptResource = "prompts/system-prompt.md",

@@ -51,25 +51,9 @@ import java.util.List;
 import java.util.ServiceLoader;
 
 /**
- * Annotation processor for {@link Agent}. Orchestrates the creation of an
- * agent by combining skill file parsing, command scanning, AI endpoint setup,
- * and optional cross-protocol registration.
- *
- * <h3>Orchestration steps</h3>
- * <ol>
- *   <li>Create instance, inject fields via {@link AnnotatedLifecycle}</li>
- *   <li>Parse skill.md — entire file becomes system prompt verbatim</li>
- *   <li>Scan {@code @Command} methods → {@link CommandRegistry} (auto-generates /help)</li>
- *   <li>Find {@code @Prompt} or auto-create synthetic {@code session.stream(message)}</li>
- *   <li>Resolve AI infrastructure: AiSupport, memory (on by default), tools from @AiTool</li>
- *   <li>Create {@link AgentHandler} (composition: CommandRouter + AiEndpointHandler)</li>
- *   <li>Register at {@code /atmosphere/agent/{name}}</li>
- *   <li>If atmosphere-a2a on classpath → build Agent Card, register A2A handler</li>
- *   <li>If atmosphere-mcp on classpath → bridge @AiTool methods as MCP tools, register MCP handler</li>
- *   <li>If atmosphere-agui on classpath → bridge @Prompt as AG-UI action, register AG-UI handler</li>
- *   <li>If atmosphere-channels on classpath → wire CommandRouter into ChannelAiBridge</li>
- *   <li>Log diagnostic summary</li>
- * </ol>
+ * Annotation processor for {@link Agent}. Handles instance creation, skill file
+ * parsing, command scanning, AI endpoint setup, and optional cross-protocol
+ * registration (A2A, MCP, AG-UI) when the corresponding modules are on the classpath.
  */
 @AtmosphereAnnotation(Agent.class)
 public class AgentProcessor implements Processor<Object> {
@@ -169,13 +153,8 @@ public class AgentProcessor implements Processor<Object> {
     }
 
     /**
-     * Determines if an agent should run in headless mode (no WebSocket UI).
-     * Headless is auto-detected when:
-     * <ul>
-     *   <li>{@code headless = true} is set explicitly, OR</li>
-     *   <li>The class has {@code @Skill}+{@code @AgentSkillHandler} methods
-     *       AND no {@code @Prompt} method</li>
-     * </ul>
+     * Returns {@code true} if the agent should run headless (no WebSocket UI):
+     * either explicitly set, or auto-detected when the class has skill handlers but no {@code @Prompt}.
      */
     // Package-private for testing
     boolean isHeadless(Agent annotation, Class<?> clazz) {

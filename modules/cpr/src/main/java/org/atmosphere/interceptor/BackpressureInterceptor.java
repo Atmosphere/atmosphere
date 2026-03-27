@@ -31,20 +31,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Backpressure interceptor that tracks per-client pending message counts
- * and applies configurable policies when a client falls behind.
- *
- * <h3>Configuration (init-params or ApplicationConfig)</h3>
- * <ul>
- *   <li>{@code org.atmosphere.backpressure.highWaterMark} — max pending messages per client (default: 1000)</li>
- *   <li>{@code org.atmosphere.backpressure.policy} — what to do when exceeded:
- *       {@code drop-oldest}, {@code drop-newest}, {@code disconnect} (default: drop-oldest)</li>
- * </ul>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * framework.interceptor(new BackpressureInterceptor());
- * }</pre>
+ * Backpressure interceptor that tracks per-client pending message counts and applies
+ * a configurable policy (drop-oldest, drop-newest, or disconnect) when a client
+ * exceeds the high water mark.
  *
  * @since 4.0
  */

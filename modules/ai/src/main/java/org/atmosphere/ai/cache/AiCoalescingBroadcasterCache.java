@@ -33,20 +33,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
- * A decorator around {@link BroadcasterCache} that coalesces cached AI streaming text
- * messages into a single replay message per session on {@link #retrieveFromCache}.
- *
- * <p>When a client reconnects and the cache returns N individual streaming text messages
- * for a session, this cache merges them into one synthetic streaming text message whose
- * {@code data} is the concatenation of all individual streaming text values. Non-AI
- * messages and terminal messages (complete, error) are preserved as-is.</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * var delegate = broadcaster.getBroadcasterConfig().getBroadcasterCache();
- * var coalescing = new AiCoalescingBroadcasterCache(delegate);
- * broadcaster.getBroadcasterConfig().setBroadcasterCache(coalescing);
- * }</pre>
+ * {@link BroadcasterCache} decorator that coalesces cached AI streaming text messages
+ * into a single replay message per session on {@link #retrieveFromCache}. Non-AI and
+ * terminal messages (complete, error) are preserved as-is.
  */
 public class AiCoalescingBroadcasterCache implements BroadcasterCache {
 

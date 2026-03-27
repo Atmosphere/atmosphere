@@ -34,17 +34,8 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 
 /**
- * CEO Coordinator — manages a fleet of specialist agents via the
- * {@code @Coordinator} abstraction. Replaces the 277-line manual HTTP/JSON-RPC
- * implementation with ~50 lines of pure orchestration logic.
- *
- * <p>The fleet delegates to 4 specialist agents:</p>
- * <ul>
- *   <li><b>research</b> — web scraping + search</li>
- *   <li><b>strategy</b> — SWOT analysis and positioning</li>
- *   <li><b>finance</b> — financial modeling and projections</li>
- *   <li><b>writer</b> — report generation</li>
- * </ul>
+ * Coordinator that dispatches user prompts to a fleet of specialist agents
+ * (research, strategy, finance, writer) and streams back a synthesized report.
  */
 @Coordinator(name = "ceo",
         skillFile = "prompts/ceo-skill.md",
@@ -121,12 +112,15 @@ public class CeoCoordinator {
         var report = fleet.agent("writer-agent").call("write_report", writerArgs);
         session.emit(new AiEvent.ToolResult("write_report", report.text()));
 
-        // Journal: log fleet execution stats for observability
+        // Journal: show fleet execution stats as a visible tool card
         var journal = fleet.journal();
         var allEvents = journal.query(CoordinationQuery.all());
-        session.progress("Fleet completed: " + allEvents.size() + " events across "
-                + fleet.agents().size() + " agents");
-        logger.info("Coordination journal: {} events", allEvents.size());
+        var journalSummary = "Recorded " + allEvents.size() + " events across "
+                + fleet.agents().size() + " agents";
+        session.emit(new AiEvent.ToolStart("coordination_journal",
+                Map.<String, Object>of("query", "all events")));
+        session.emit(new AiEvent.ToolResult("coordination_journal", journalSummary));
+        logger.info("Coordination journal: {}", journalSummary);
 
         // Step 4: CEO synthesis via LLM — trim agent results for LLM context
         var researchSummary = truncate(research.text(), 800);

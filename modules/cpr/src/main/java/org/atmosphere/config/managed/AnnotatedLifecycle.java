@@ -33,37 +33,10 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 /**
- * Shared lifecycle and injection support for annotated endpoint classes.
- * Provides a unified framework that both {@link ManagedAtmosphereHandler}
- * ({@code @ManagedService}) and {@code @AiEndpoint} delegate to, so
- * annotation scanning, lifecycle invocation, and field injection are
- * never duplicated.
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * // At registration time:
- * var lifecycle = AnnotatedLifecycle.scan(MyEndpoint.class);
- * AnnotatedLifecycle.injectFields(framework, instance);
- *
- * // On connect:
- * lifecycle.onReady(instance, resource);
- * lifecycle.injectPathParams(instance, resource, pathTemplate, config);
- *
- * // On disconnect:
- * lifecycle.onDisconnect(instance, event);
- * }</pre>
- *
- * <h3>Capabilities</h3>
- * <ul>
- *   <li>Scans for {@link Ready @Ready} and {@link Disconnect @Disconnect}
- *       lifecycle methods</li>
- *   <li>Detects {@link PathParam @PathParam} fields for per-request injection</li>
- *   <li>Invokes lifecycle methods via {@link Utils#invoke}</li>
- *   <li>Triggers per-request {@code @PathParam} field injection via
- *       {@link InjectableObjectFactory#requestScoped}</li>
- *   <li>Triggers one-time {@code @Inject} field injection via
- *       {@link InjectableObjectFactory#injectInjectable}</li>
- * </ul>
+ * Shared lifecycle and injection support for annotated endpoint classes
+ * ({@code @ManagedService}, {@code @AiEndpoint}). Scans for {@link Ready @Ready},
+ * {@link Disconnect @Disconnect}, and {@link PathParam @PathParam} annotations,
+ * and handles field injection via {@link InjectableObjectFactory}.
  *
  * @author Jeanfrancois Arcand
  */

@@ -22,11 +22,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * An {@link AgentRuntime} that wraps a {@link ModelRouter} and a list of backends.
- * Routes each request via the router, delegates to the selected backend,
- * and reports success/failure for health tracking.
- *
- * <p>On failure, attempts one retry with the next backend from the router.</p>
+ * {@link AgentRuntime} that routes requests across multiple backends via a
+ * {@link ModelRouter}. Retries once on failure using the next available backend.
  */
 public class RoutingAiSupport implements AgentRuntime {
 

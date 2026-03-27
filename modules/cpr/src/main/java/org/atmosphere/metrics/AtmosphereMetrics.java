@@ -42,36 +42,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Micrometer metrics integration for Atmosphere.
- *
- * <p>Registers gauges, counters and timers on an Atmosphere framework instance.
- * Requires {@code io.micrometer:micrometer-core} on the classpath (optional dependency).</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * MeterRegistry registry = new SimpleMeterRegistry();
- * AtmosphereMetrics.install(framework, registry);
- * }</pre>
- *
- * <h3>Metrics published</h3>
- * <ul>
- *   <li>{@code atmosphere.connections.active} — gauge of active connections</li>
- *   <li>{@code atmosphere.connections.total} — counter of all connections ever</li>
- *   <li>{@code atmosphere.connections.disconnects} — counter of disconnects</li>
- *   <li>{@code atmosphere.broadcasters.active} — gauge of active broadcasters</li>
- *   <li>{@code atmosphere.messages.broadcast} — counter of messages broadcast</li>
- *   <li>{@code atmosphere.messages.delivered} — counter of messages delivered to resources</li>
- *   <li>{@code atmosphere.broadcast.timer} — timer of broadcast completion latency</li>
- *   <li>{@code atmosphere.rooms.active} — gauge of active rooms</li>
- *   <li>{@code atmosphere.rooms.members} — gauge of room members (tagged by room)</li>
- *   <li>{@code atmosphere.rooms.messages} — counter of room messages (tagged by room)</li>
- *   <li>{@code atmosphere.cache.size} — gauge of total cached messages</li>
- *   <li>{@code atmosphere.cache.evictions} — counter of cache evictions</li>
- *   <li>{@code atmosphere.cache.hits} — counter of cache hits</li>
- *   <li>{@code atmosphere.cache.misses} — counter of cache misses</li>
- *   <li>{@code atmosphere.backpressure.drops} — counter of backpressure drops</li>
- *   <li>{@code atmosphere.backpressure.disconnects} — counter of backpressure disconnects</li>
- * </ul>
+ * Micrometer metrics integration for Atmosphere. Registers gauges, counters, and timers
+ * for connections, broadcasters, messages, rooms, cache, and backpressure. All metrics
+ * use the {@code atmosphere.*} prefix. Requires {@code io.micrometer:micrometer-core}
+ * on the classpath.
  */
 public final class AtmosphereMetrics {
 

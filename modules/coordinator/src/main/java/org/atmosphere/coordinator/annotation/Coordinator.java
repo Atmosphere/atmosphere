@@ -22,12 +22,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a class as an Atmosphere Coordinator. A coordinator manages a fleet of
- * agents, delegating tasks and aggregating results. It subsumes {@code @Agent}
- * — the {@link CoordinatorProcessor} delegates to {@code AgentProcessor}
- * internally for base agent setup, then adds fleet wiring on top.
+ * Marks a class as an Atmosphere Coordinator — an agent that manages a
+ * {@link Fleet} of other agents. Subsumes {@code @Agent}: the
+ * {@link CoordinatorProcessor} handles base agent setup internally,
+ * then adds fleet wiring.
  *
- * <p>Usage:</p>
  * <pre>{@code
  * @Coordinator(name = "ceo", skillFile = "prompts/ceo-skill.md")
  * @Fleet({

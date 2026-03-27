@@ -56,24 +56,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Annotation processor for {@link AiEndpoint}. Discovered by Atmosphere's annotation
- * scanning infrastructure via {@link AtmosphereAnnotation}. Scans the annotated class
- * for a {@link Prompt} method, validates the signature, and registers an
- * {@link AiEndpointHandler} at the configured path.
- *
- * <h3>Shared injection framework</h3>
- * <p>This processor delegates to the shared {@link AnnotatedLifecycle} class
- * for annotation scanning and field injection — the same infrastructure
- * used by {@link org.atmosphere.config.service.ManagedService @ManagedService}:</p>
- * <ul>
- *   <li>{@link jakarta.inject.Inject @Inject} fields are injected once at registration
- *       time via {@link AnnotatedLifecycle#injectFields}</li>
- *   <li>{@link org.atmosphere.config.service.PathParam @PathParam} fields are detected
- *       for per-request injection</li>
- *   <li>{@link org.atmosphere.config.service.Ready @Ready} and
- *       {@link org.atmosphere.config.service.Disconnect @Disconnect} lifecycle methods
- *       are discovered and delegated to the handler</li>
- * </ul>
+ * Annotation processor for {@link AiEndpoint}. Scans the annotated class for a
+ * {@link Prompt} method, validates the signature, and registers an
+ * {@link AiEndpointHandler} at the configured path. Field injection and lifecycle
+ * discovery are handled by {@link AnnotatedLifecycle}.
  */
 @AtmosphereAnnotation(AiEndpoint.class)
 public class AiEndpointProcessor implements Processor<Object> {

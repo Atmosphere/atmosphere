@@ -24,37 +24,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Abstract base class for {@link BroadcastFilter} implementations that operate
- * on the AI streaming wire protocol.
- *
- * <p>When {@code DefaultStreamingSession} broadcasts a message, it wraps the JSON
- * string in a {@link RawMessage}: {@code broadcaster.broadcast(new RawMessage(json))}.
- * The {@code FilterManipulator} registered by {@code ManagedServiceProcessor} only
- * unwraps {@code Managed} instances (a deprecated subclass of {@code RawMessage}),
- * so plain {@code RawMessage} objects pass through to filters as-is.</p>
- *
- * <p>This base class handles the {@code RawMessage} unwrapping, JSON parsing via
- * {@link AiStreamMessage}, and re-wrapping automatically. Subclasses only need to
- * implement {@link #filterAiMessage} to inspect or transform AI messages. Non-AI
- * messages (anything that is not a {@code RawMessage} wrapping a JSON string with
- * a valid "type" field) pass through unchanged.</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * public class MyFilter extends AiStreamBroadcastFilter {
- *     @Override
- *     protected BroadcastAction filterAiMessage(
- *             String broadcasterId, AiStreamMessage msg,
- *             String originalJson, RawMessage rawMessage) {
- *         if (msg.isStreamingText()) {
- *             // transform the streaming text
- *             var modified = msg.withData(transform(msg.data()));
- *             return new BroadcastAction(new RawMessage(modified.toJson()));
- *         }
- *         return new BroadcastAction(rawMessage);
- *     }
- * }
- * }</pre>
+ * Base class for {@link BroadcastFilter} implementations that operate on the AI streaming
+ * wire protocol. Handles {@link RawMessage} unwrapping and JSON parsing via
+ * {@link AiStreamMessage}; subclasses implement {@link #filterAiMessage} to inspect
+ * or transform AI messages. Non-AI messages pass through unchanged.
  *
  * @see AiStreamMessage
  * @see BroadcastFilter

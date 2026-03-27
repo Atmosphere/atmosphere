@@ -30,32 +30,9 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
- * An {@link LlmClient} decorator that routes prompts to different backends
- * based on configurable rules.
- *
- * <p>Rules are evaluated in order. The first matching rule determines the target
- * client and model. If no rule matches, the default client is used.</p>
- *
- * <h3>Rule types</h3>
- * <ul>
- *   <li>{@link RoutingRule.ContentBased} — route based on prompt content (e.g., code questions → GPT-4)</li>
- *   <li>{@link RoutingRule.ModelBased} — route based on the requested model name</li>
- * </ul>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * var router = RoutingLlmClient.builder(defaultClient, "gemini-2.5-flash")
- *     .route(RoutingRule.contentBased(
- *         prompt -> prompt.contains("code"),
- *         openaiClient, "gpt-4o"))
- *     .route(RoutingRule.contentBased(
- *         prompt -> prompt.contains("translate"),
- *         claudeClient, "claude-3-haiku"))
- *     .build();
- *
- * // All requests go through the router:
- * router.streamChatCompletion(request, session);
- * }</pre>
+ * {@link LlmClient} decorator that routes prompts to different backends based on
+ * configurable {@link RoutingRule}s. Rules are evaluated in order; the first match
+ * determines the target client and model. Falls back to the default client.
  */
 public final class RoutingLlmClient implements LlmClient {
 

@@ -36,24 +36,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Interceptor that saves and restores session state across server restarts.
- *
- * <p>On each new connection, if the client sends an
- * {@code X-Atmosphere-Session-Token} header, this interceptor looks up the
- * stored session and re-joins the resource to its previous rooms and
- * broadcasters. If no token is present, a new durable session is created
- * and the token is sent back in the response header.</p>
- *
- * <p>Session state is periodically saved and expired sessions are cleaned
- * up on a background thread.</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * // In application.properties (Spring Boot)
- * atmosphere.durable-sessions.enabled=true
- *
- * // Or register programmatically
- * framework.interceptor(new DurableSessionInterceptor(store));
- * }</pre>
+ * Uses the {@code X-Atmosphere-Session-Token} header to identify returning clients
+ * and re-join them to their previous rooms and broadcasters.
  */
 public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
 

@@ -39,17 +39,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * {@link SessionStore} backed by an embedded SQLite database.
- *
- * <p>Zero configuration — just add the JAR and sessions are persisted
- * to a local file. Perfect for single-node deployments, development,
- * and edge/IoT scenarios.</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * var store = new SqliteSessionStore();                           // default: atmosphere-sessions.db
- * var store = new SqliteSessionStore(Path.of("/data/sessions")); // custom path
- * var store = SqliteSessionStore.inMemory();                     // for testing
- * }</pre>
+ * Defaults to {@code atmosphere-sessions.db} in the working directory.
  */
 public class SqliteSessionStore implements SessionStore {
 

@@ -26,23 +26,9 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * {@link ConversationPersistence} backed by Redis, using Lettuce.
- *
- * <p>Shares the same Redis infrastructure as {@link RedisSessionStore}.
- * Conversations are stored under the key prefix {@code atmosphere:conversation:}
- * with a configurable TTL.</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * // Standalone
- * var persistence = new RedisConversationPersistence("redis://localhost:6379");
- *
- * // Shared connection with RedisSessionStore
- * var persistence = new RedisConversationPersistence(existingConnection, Duration.ofHours(24));
- *
- * // Wire into PersistentConversationMemory
- * var memory = new PersistentConversationMemory(persistence, 20);
- * }</pre>
+ * {@link ConversationPersistence} backed by Redis via Lettuce. Conversations are stored
+ * under the key prefix {@code atmosphere:conversation:} with a configurable TTL.
+ * Can share a connection with {@link RedisSessionStore}.
  */
 public class RedisConversationPersistence implements ConversationPersistence {
 

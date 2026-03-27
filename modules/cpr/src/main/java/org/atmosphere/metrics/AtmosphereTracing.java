@@ -33,26 +33,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * OpenTelemetry tracing interceptor for Atmosphere requests.
- *
- * <p>Creates a trace span for each incoming request covering the full
- * lifecycle from {@code inspect} through to disconnect. Requires
- * {@code io.opentelemetry:opentelemetry-api} on the classpath (optional dependency).</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * OpenTelemetry otel = GlobalOpenTelemetry.get(); // or your configured instance
- * framework.interceptor(new AtmosphereTracing(otel));
- * }</pre>
- *
- * <h3>Span attributes</h3>
- * <ul>
- *   <li>{@code atmosphere.resource.uuid} — the resource UUID</li>
- *   <li>{@code atmosphere.transport} — transport type (WEBSOCKET, SSE, etc.)</li>
- *   <li>{@code atmosphere.action} — the action result (CONTINUE, SUSPEND, etc.)</li>
- *   <li>{@code atmosphere.broadcaster} — the broadcaster ID</li>
- *   <li>{@code atmosphere.disconnect.reason} — reason for disconnect (if applicable)</li>
- * </ul>
+ * OpenTelemetry tracing interceptor. Creates a span per Atmosphere request covering
+ * the full lifecycle from inspect through disconnect. Requires
+ * {@code io.opentelemetry:opentelemetry-api} on the classpath.
  *
  * @since 4.0
  */

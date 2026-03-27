@@ -24,18 +24,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Framework-level health check for Atmosphere.
- *
- * <p>Provides a snapshot of the framework's health status including
- * active connections, broadcasters, and framework lifecycle state.
- * Can be used by any health check system (Spring Actuator, MicroProfile Health, etc.).</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * AtmosphereHealth health = new AtmosphereHealth(framework);
- * Map<String, Object> status = health.check();
- * // { "status": "UP", "version": "4.0.0-SNAPSHOT", "connections": 42, ... }
- * }</pre>
+ * Framework-level health check. Returns a snapshot of active connections,
+ * broadcasters, and lifecycle state via {@link #check()}.
  *
  * @since 4.0
  */

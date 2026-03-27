@@ -25,30 +25,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 /**
- * A {@link AiStreamBroadcastFilter} that tracks streaming text counts per session and per
- * broadcaster (user/topic), and can enforce streaming text budgets by aborting streams
- * that exceed their allocation.
- *
- * <p>This filter does <b>not</b> modify streaming text content — it only counts streaming texts,
- * injects cost metadata on stream completion, and optionally enforces limits.</p>
- *
- * <h3>Streaming text counting</h3>
- * <p>Each "streaming-text" message increments a per-session counter and a per-broadcaster
- * counter. The streaming text count here is the number of streaming chunks, not LLM tokens.
- * For precise LLM streaming text counts, use the {@code usage.totalStreamingTexts} metadata emitted
- * by the LLM client.</p>
- *
- * <h3>Budget enforcement</h3>
- * <p>When a per-broadcaster budget is set via {@link #setBudget(String, long)},
- * the filter will {@code ABORT} any streaming text message that would exceed the limit.
- * An error message is injected to notify the client.</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * var metering = new CostMeteringFilter();
- * metering.setBudget("user-123-broadcaster", 10000); // max 10K streaming texts
- * broadcaster.getBroadcasterConfig().addFilter(metering);
- * }</pre>
+ * {@link AiStreamBroadcastFilter} that counts streaming text chunks per session and
+ * per broadcaster. Optionally enforces budgets set via {@link #setBudget(String, long)},
+ * aborting streams that exceed their allocation. Does not modify content.
  */
 public class CostMeteringFilter extends AiStreamBroadcastFilter {
 

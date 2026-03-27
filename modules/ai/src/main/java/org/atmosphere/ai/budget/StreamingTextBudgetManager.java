@@ -23,28 +23,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Manages per-user or per-organization streaming text budgets with graceful degradation.
- *
- * <p>When an owner's streaming text usage approaches their budget limit (at the configured
- * {@code degradationThreshold}), the manager recommends switching to a cheaper
- * fallback model. When the budget is fully exhausted, {@link #recordUsage} returns
- * {@code false} and {@link #recommendedModel} throws {@link BudgetExceededException}.</p>
- *
- * <p>Thread-safe: designed for concurrent access from multiple streaming sessions.</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * var budgetManager = new StreamingTextBudgetManager();
- * budgetManager.setBudget(new StreamingTextBudgetManager.Budget(
- *     "user-123", 100_000, "gemini-2.5-flash", 0.8));
- *
- * // In a BroadcastFilter or before starting a stream:
- * var model = budgetManager.recommendedModel("user-123");
- * // model.isPresent() if degradation is recommended
- *
- * // After each streaming text:
- * boolean withinBudget = budgetManager.recordUsage("user-123", 1);
- * }</pre>
+ * Per-user/organization streaming text budget tracking. Recommends a fallback model
+ * when usage approaches the configured threshold, and rejects usage when the budget
+ * is exhausted. Thread-safe.
  *
  * @see org.atmosphere.ai.filter.CostMeteringFilter
  */

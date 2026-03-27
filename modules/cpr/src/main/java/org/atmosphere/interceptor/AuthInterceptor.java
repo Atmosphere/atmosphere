@@ -36,34 +36,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Authentication interceptor that validates tokens on every inbound request.
- * Supports all Atmosphere transports (WebSocket, SSE, long-polling, streaming).
- *
- * <p>Tokens are extracted from:</p>
- * <ul>
- *   <li>The {@code X-Atmosphere-Auth} HTTP header (long-polling, streaming)</li>
- *   <li>The query parameter (configurable, defaults to {@code X-Atmosphere-Auth}) — all transports,
- *       especially WebSocket and SSE where custom headers are not supported</li>
- * </ul>
- *
- * <p>On token expiration, if a {@link TokenRefresher} is configured, the interceptor attempts
- * a server-side refresh and sends the new token to the client via the
- * {@code X-Atmosphere-Auth-Refresh} response header.</p>
- *
- * <h3>Programmatic usage</h3>
- * <pre>{@code
- * framework.interceptor(new AuthInterceptor(token -> {
- *     var claims = jwt.verify(token);
- *     return new TokenValidator.Valid(claims.getSubject(), claims);
- * }));
- * }</pre>
- *
- * <h3>Configuration (init-params)</h3>
- * <ul>
- *   <li>{@code org.atmosphere.auth.tokenValidator} — FQCN of a {@link TokenValidator}</li>
- *   <li>{@code org.atmosphere.auth.tokenRefresher} — FQCN of a {@link TokenRefresher} (optional)</li>
- *   <li>{@code org.atmosphere.auth.queryParam} — query param name (default: X-Atmosphere-Auth)</li>
- *   <li>{@code org.atmosphere.auth.disconnectOnFailure} — disconnect on auth failure (default: true)</li>
- * </ul>
+ * Tokens are extracted from the {@code X-Atmosphere-Auth} header or query param.
+ * Supports optional server-side refresh via {@link TokenRefresher}.
  *
  * @since 4.0
  */

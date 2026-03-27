@@ -22,19 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link BroadcasterCacheInspector} that understands the AI streaming wire protocol
- * and controls which AI messages are eligible for caching.
- *
- * <p>By default, all AI messages are cached except ephemeral "progress" messages
- * (e.g., "Thinking...", "Searching documents...") which are transient status updates
- * that are meaningless on replay.</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- * broadcaster.getBroadcasterConfig()
- *     .getBroadcasterCache()
- *     .inspector(new AiResponseCacheInspector());
- * }</pre>
+ * {@link BroadcasterCacheInspector} that filters AI messages for caching. By default,
+ * all messages are cached except ephemeral "progress" updates.
  *
  * @see org.atmosphere.cpr.BroadcasterCache#inspector(BroadcasterCacheInspector)
  */

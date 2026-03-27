@@ -23,19 +23,9 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
 
 /**
- * OpenTelemetry tracing for MCP tool/resource/prompt calls.
- *
- * <p>Creates a trace span per tool invocation with attributes for tool name,
- * argument count, success/error status, and duration. Requires
- * {@code io.opentelemetry:opentelemetry-api} on the classpath (optional dependency).</p>
- *
- * <h3>Span attributes</h3>
- * <ul>
- *   <li>{@code mcp.tool.name} — the tool/resource/prompt name</li>
- *   <li>{@code mcp.tool.type} — "tool", "resource", or "prompt"</li>
- *   <li>{@code mcp.tool.arg_count} — number of arguments provided</li>
- *   <li>{@code mcp.tool.error} — true if the invocation failed</li>
- * </ul>
+ * OpenTelemetry tracing for MCP tool/resource/prompt calls. Creates a span per
+ * invocation with tool name, type, argument count, and error status attributes.
+ * Requires {@code io.opentelemetry:opentelemetry-api} on the classpath.
  *
  * @since 4.0.5
  */
