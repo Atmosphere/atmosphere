@@ -261,8 +261,27 @@ public class ChannelAiBridge {
         @Override public void progress(String message) {}
 
         @Override public void complete() { closed = true; latch.countDown(); }
-        @Override public void complete(String summary) { closed = true; latch.countDown(); }
-        @Override public void error(Throwable t) { closed = true; latch.countDown(); }
+
+        @Override
+        public void complete(String summary) {
+            if (summary != null && !summary.isBlank()) {
+                synchronized (buffer) { buffer.setLength(0); buffer.append(summary); }
+            }
+            closed = true;
+            latch.countDown();
+        }
+
+        @Override
+        public void error(Throwable t) {
+            synchronized (buffer) {
+                if (buffer.isEmpty()) {
+                    buffer.append("Error: ").append(
+                            t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName());
+                }
+            }
+            closed = true;
+            latch.countDown();
+        }
         @Override public boolean isClosed() { return closed; }
 
         String getResponse() {

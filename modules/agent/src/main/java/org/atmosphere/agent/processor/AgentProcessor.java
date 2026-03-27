@@ -670,7 +670,7 @@ public class AgentProcessor implements Processor<Object> {
                 // that collects the response text.
                 var collector = new A2aStreamCollector(taskCtx, pipeline);
                 bridgedPromptMethod.invoke(promptTarget, message, collector);
-                collector.finalizeIfNeeded();
+                collector.awaitAndFinalize(120_000L);
             } catch (java.lang.reflect.InvocationTargetException e) {
                 var cause = e.getCause() != null ? e.getCause() : e;
                 taskCtx.fail(cause.getMessage());
@@ -688,6 +688,8 @@ public class AgentProcessor implements Processor<Object> {
         private final org.atmosphere.a2a.runtime.TaskContext taskCtx;
         private final org.atmosphere.ai.AiPipeline pipeline;
         private final StringBuilder buffer = new StringBuilder();
+        private final java.util.concurrent.CountDownLatch completionLatch =
+                new java.util.concurrent.CountDownLatch(1);
         private volatile boolean finalized;
 
         A2aStreamCollector(org.atmosphere.a2a.runtime.TaskContext taskCtx,
@@ -734,6 +736,7 @@ public class AgentProcessor implements Processor<Object> {
             if (!finalized) {
                 finalized = true;
                 taskCtx.complete(buffer.toString());
+                completionLatch.countDown();
             }
         }
 
@@ -742,6 +745,7 @@ public class AgentProcessor implements Processor<Object> {
             if (!finalized) {
                 finalized = true;
                 taskCtx.complete(summary != null ? summary : buffer.toString());
+                completionLatch.countDown();
             }
         }
 
@@ -750,6 +754,7 @@ public class AgentProcessor implements Processor<Object> {
             if (!finalized) {
                 finalized = true;
                 taskCtx.fail(t.getMessage());
+                completionLatch.countDown();
             }
         }
 
@@ -758,8 +763,16 @@ public class AgentProcessor implements Processor<Object> {
             return finalized;
         }
 
-        /** Ensures the task completes if the prompt method returns without calling complete(). */
-        void finalizeIfNeeded() {
+        /**
+         * Waits for async completion, then finalizes if the prompt method
+         * returned without calling complete() (e.g., synchronous prompt).
+         */
+        void awaitAndFinalize(long timeoutMs) {
+            try {
+                completionLatch.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             if (!finalized) {
                 finalized = true;
                 taskCtx.complete(buffer.toString());

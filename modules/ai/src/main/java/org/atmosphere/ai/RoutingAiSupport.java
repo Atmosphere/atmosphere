@@ -34,10 +34,17 @@ public class RoutingAiSupport implements AgentRuntime {
 
     private final ModelRouter router;
     private final List<AgentRuntime> backends;
+    private final Set<AiCapability> requiredCapabilities;
 
     public RoutingAiSupport(ModelRouter router, List<AgentRuntime> backends) {
+        this(router, backends, Set.of());
+    }
+
+    public RoutingAiSupport(ModelRouter router, List<AgentRuntime> backends,
+                            Set<AiCapability> requiredCapabilities) {
         this.router = router;
         this.backends = backends;
+        this.requiredCapabilities = requiredCapabilities;
     }
 
     @Override
@@ -71,7 +78,7 @@ public class RoutingAiSupport implements AgentRuntime {
                 context.userId(), context.sessionId(), context.agentId(),
                 context.conversationId(), context.metadata(), context.history());
 
-        var selected = router.route(routingRequest, backends, Set.of());
+        var selected = router.route(routingRequest, backends, requiredCapabilities);
         if (selected.isEmpty()) {
             session.error(new IllegalStateException("No available AI backend for request"));
             return;
@@ -79,18 +86,20 @@ public class RoutingAiSupport implements AgentRuntime {
 
         var backend = selected.get();
         try {
-            backend.execute(context, session);
-            router.reportSuccess(backend);
+            var healthSession = new HealthTrackingSession(session, router, backend);
+            backend.execute(context, healthSession);
         } catch (Exception e) {
             logger.warn("Backend {} failed, attempting failover: {}",
                     backend.name(), e.getMessage());
             router.reportFailure(backend, e);
 
-            var fallback = router.route(routingRequest, backends, Set.of());
+            var fallback = router.route(routingRequest, backends, requiredCapabilities);
             if (fallback.isPresent() && fallback.get() != backend) {
                 try {
-                    fallback.get().execute(context, session);
-                    router.reportSuccess(fallback.get());
+                    var fallbackBackend = fallback.get();
+                    var healthSession = new HealthTrackingSession(
+                            session, router, fallbackBackend);
+                    fallbackBackend.execute(context, healthSession);
                 } catch (Exception e2) {
                     router.reportFailure(fallback.get(), e2);
                     session.error(e2);
@@ -114,5 +123,46 @@ public class RoutingAiSupport implements AgentRuntime {
 
     ModelRouter router() {
         return router;
+    }
+
+    /**
+     * Session decorator that reports health to the router on completion or error,
+     * rather than optimistically after dispatch.
+     */
+    private static class HealthTrackingSession implements StreamingSession {
+        private final StreamingSession delegate;
+        private final ModelRouter router;
+        private final AgentRuntime backend;
+
+        HealthTrackingSession(StreamingSession delegate, ModelRouter router,
+                              AgentRuntime backend) {
+            this.delegate = delegate;
+            this.router = router;
+            this.backend = backend;
+        }
+
+        @Override public String sessionId() { return delegate.sessionId(); }
+        @Override public void send(String text) { delegate.send(text); }
+        @Override public void sendMetadata(String key, Object value) { delegate.sendMetadata(key, value); }
+        @Override public void progress(String message) { delegate.progress(message); }
+        @Override public boolean isClosed() { return delegate.isClosed(); }
+
+        @Override
+        public void complete() {
+            router.reportSuccess(backend);
+            delegate.complete();
+        }
+
+        @Override
+        public void complete(String summary) {
+            router.reportSuccess(backend);
+            delegate.complete(summary);
+        }
+
+        @Override
+        public void error(Throwable t) {
+            router.reportFailure(backend, t);
+            delegate.error(t);
+        }
     }
 }

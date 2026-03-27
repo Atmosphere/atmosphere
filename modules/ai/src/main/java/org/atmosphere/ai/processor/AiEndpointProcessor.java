@@ -104,7 +104,8 @@ public class AiEndpointProcessor implements Processor<Object> {
             var systemPrompt = resolveSystemPrompt(annotation);
             var fallbackStrategy = parseFallbackStrategy(annotation.fallbackStrategy());
             var settings = resolveSettings();
-            var runtime = resolveRuntimeWithRouting(fallbackStrategy, settings);
+            var runtime = resolveRuntimeWithRouting(fallbackStrategy, settings,
+                    annotation.requires());
             var interceptors = instantiateInterceptors(annotation.interceptors(), framework);
             AiConversationMemory memory = null;
             if (annotation.conversationMemory()) {
@@ -218,7 +219,8 @@ public class AiEndpointProcessor implements Processor<Object> {
     }
 
     private AgentRuntime resolveRuntimeWithRouting(ModelRouter.FallbackStrategy strategy,
-                                                  AiConfig.LlmSettings settings) {
+                                                  AiConfig.LlmSettings settings,
+                                                  AiCapability[] requiredCapabilities) {
         var allBackends = AgentRuntimeResolver.resolveAll();
         for (var backend : allBackends) {
             backend.configure(settings);
@@ -226,9 +228,10 @@ public class AiEndpointProcessor implements Processor<Object> {
 
         if (strategy != ModelRouter.FallbackStrategy.NONE && allBackends.size() > 1) {
             var router = new DefaultModelRouter(strategy);
+            var required = Set.of(requiredCapabilities);
             logger.info("Routing enabled: strategy={}, backends={}", strategy,
                     allBackends.stream().map(AgentRuntime::name).toList());
-            return new RoutingAiSupport(router, allBackends);
+            return new RoutingAiSupport(router, allBackends, required);
         }
 
         if (strategy != ModelRouter.FallbackStrategy.NONE && allBackends.size() <= 1) {

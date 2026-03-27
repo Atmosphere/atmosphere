@@ -174,11 +174,18 @@ public class CoordinatorProcessor implements Processor<Object> {
             // Step 10: Register protocol bridges
             var protocols = new ArrayList<String>();
             var model = settings != null ? settings.model() : null;
-            var pipeline = new AiPipeline(runtime, systemPrompt, model, memory,
-                    toolRegistry, List.of(), List.of(), metrics);
+            AiPipeline pipeline = null;
+            if (runtime != null) {
+                pipeline = new AiPipeline(runtime, systemPrompt, model, memory,
+                        toolRegistry, List.of(), List.of(), metrics);
+            } else {
+                logger.warn("Coordinator '{}': no AgentRuntime on classpath — "
+                        + "session.stream() will buffer text instead of invoking LLM",
+                        coordinatorName);
+            }
             registerA2a(framework, annotation, commandRegistry, toolRegistry,
                     commandRouter, promptTarget, promptMethod, fleet,
-                    path, protocols);
+                    pipeline, path, protocols);
             registerMcp(framework, annotation, toolRegistry, path, protocols);
             registerAgUi(framework, promptTarget, promptMethod, path,
                     pipeline, fleet, protocols);
@@ -516,7 +523,7 @@ public class CoordinatorProcessor implements Processor<Object> {
                              CommandRegistry commandRegistry, ToolRegistry toolRegistry,
                              CommandRouter commandRouter, Object promptTarget,
                              Method promptMethod, AgentFleet fleet,
-                             String basePath,
+                             AiPipeline pipeline, String basePath,
                              List<String> protocols) {
         if (!ClasspathDetector.hasA2a()) {
             return;
@@ -528,6 +535,7 @@ public class CoordinatorProcessor implements Processor<Object> {
             // signature (String, AgentFleet, StreamingSession) by injecting the
             // fleet and a collecting StreamingSession
             var bridge = new A2aCoordinatorBridge(promptTarget, promptMethod, fleet);
+            bridge.setPipeline(pipeline);
             var handleMethod = A2aCoordinatorBridge.class.getDeclaredMethod(
                     "handlePrompt",
                     org.atmosphere.a2a.runtime.TaskContext.class, String.class);
@@ -684,12 +692,17 @@ public class CoordinatorProcessor implements Processor<Object> {
         private final Object promptTarget;
         private final Method bridgedPromptMethod;
         private final AgentFleet fleet;
+        private volatile AiPipeline pipeline;
 
         A2aCoordinatorBridge(Object promptTarget, Method promptMethod,
                              AgentFleet fleet) {
             this.promptTarget = promptTarget;
             this.bridgedPromptMethod = promptMethod;
             this.fleet = fleet;
+        }
+
+        void setPipeline(AiPipeline pipeline) {
+            this.pipeline = pipeline;
         }
 
         @SuppressWarnings("unused") // invoked reflectively by A2aProtocolHandler
@@ -701,7 +714,7 @@ public class CoordinatorProcessor implements Processor<Object> {
             }
             try {
                 bridgedPromptMethod.setAccessible(true);
-                var collector = new A2aCoordinatorCollector(taskCtx);
+                var collector = new A2aCoordinatorCollector(taskCtx, pipeline);
                 var paramTypes = bridgedPromptMethod.getParameterTypes();
                 var args = new Object[paramTypes.length];
                 for (var i = 0; i < paramTypes.length; i++) {
@@ -714,7 +727,7 @@ public class CoordinatorProcessor implements Processor<Object> {
                     }
                 }
                 bridgedPromptMethod.invoke(promptTarget, args);
-                collector.finalizeIfNeeded();
+                collector.awaitAndFinalize(120_000L);
             } catch (java.lang.reflect.InvocationTargetException e) {
                 var cause = e.getCause() != null ? e.getCause() : e;
                 taskCtx.fail(cause.getMessage());
@@ -730,11 +743,16 @@ public class CoordinatorProcessor implements Processor<Object> {
      */
     static class A2aCoordinatorCollector implements StreamingSession {
         private final org.atmosphere.a2a.runtime.TaskContext taskCtx;
+        private final AiPipeline pipeline;
         private final StringBuilder buffer = new StringBuilder();
+        private final java.util.concurrent.CountDownLatch completionLatch =
+                new java.util.concurrent.CountDownLatch(1);
         private volatile boolean finalized;
 
-        A2aCoordinatorCollector(org.atmosphere.a2a.runtime.TaskContext taskCtx) {
+        A2aCoordinatorCollector(org.atmosphere.a2a.runtime.TaskContext taskCtx,
+                                AiPipeline pipeline) {
             this.taskCtx = taskCtx;
+            this.pipeline = pipeline;
         }
 
         @Override public String sessionId() { return taskCtx.taskId(); }
@@ -746,10 +764,11 @@ public class CoordinatorProcessor implements Processor<Object> {
 
         @Override
         public void stream(String message) {
-            // For coordinator A2A bridge, buffer the message. The coordinator's
-            // @Prompt method typically orchestrates via AgentFleet and calls
-            // session.send() with the result, rather than using stream().
-            buffer.append(message);
+            if (pipeline != null) {
+                pipeline.execute(taskCtx.taskId(), message, this);
+            } else {
+                buffer.append(message);
+            }
         }
 
         @Override public void sendMetadata(String key, Object value) { }
@@ -764,6 +783,7 @@ public class CoordinatorProcessor implements Processor<Object> {
             if (!finalized) {
                 finalized = true;
                 taskCtx.complete(buffer.toString());
+                completionLatch.countDown();
             }
         }
 
@@ -772,6 +792,7 @@ public class CoordinatorProcessor implements Processor<Object> {
             if (!finalized) {
                 finalized = true;
                 taskCtx.complete(summary != null ? summary : buffer.toString());
+                completionLatch.countDown();
             }
         }
 
@@ -780,12 +801,18 @@ public class CoordinatorProcessor implements Processor<Object> {
             if (!finalized) {
                 finalized = true;
                 taskCtx.fail(t.getMessage());
+                completionLatch.countDown();
             }
         }
 
         @Override public boolean isClosed() { return finalized; }
 
-        void finalizeIfNeeded() {
+        void awaitAndFinalize(long timeoutMs) {
+            try {
+                completionLatch.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             if (!finalized) {
                 finalized = true;
                 taskCtx.complete(buffer.toString());

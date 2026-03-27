@@ -114,7 +114,6 @@ public final class A2aProtocolHandler {
             var params = node.get("params");
 
             if (params == null) {
-                onComplete.run();
                 return;
             }
 

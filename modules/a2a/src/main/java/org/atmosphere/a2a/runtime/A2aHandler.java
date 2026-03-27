@@ -16,6 +16,7 @@
 package org.atmosphere.a2a.runtime;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.atmosphere.a2a.protocol.A2aMethod;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.protocol.AbstractProtocolHandler;
 
@@ -59,6 +60,14 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession> {
         }
 
         restoreSession(resource);
+
+        // Detect message/stream and write SSE events if client accepts them
+        var accept = request.getHeader("Accept");
+        if (accept != null && accept.contains("text/event-stream")
+                && isStreamingRequest(sb.toString())) {
+            handleSseStreaming(resource, sb.toString());
+            return;
+        }
 
         var jsonResponse = protocolHandler.handleMessage(sb.toString());
 
@@ -122,5 +131,43 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession> {
         if (jsonResponse != null) {
             write(resource.getResponse(), jsonResponse);
         }
+    }
+
+    private boolean isStreamingRequest(String body) {
+        try {
+            var node = mapper.readTree(body);
+            var method = node.has("method") ? node.get("method").asText() : null;
+            return A2aMethod.SEND_STREAMING_MESSAGE.equals(method);
+        } catch (Exception e) {
+            logger.trace("Failed to parse body for streaming detection", e);
+            return false;
+        }
+    }
+
+    private void handleSseStreaming(AtmosphereResource resource, String body)
+            throws IOException {
+        var response = resource.getResponse();
+        response.setStatus(200);
+        response.setContentType("text/event-stream");
+        response.setCharacterEncoding("UTF-8");
+
+        var writer = response.getWriter();
+        protocolHandler.handleStreamingMessage(body,
+                token -> {
+                    try {
+                        writer.write("data: " + mapper.writeValueAsString(
+                                java.util.Map.of("artifact",
+                                        java.util.Map.of("parts",
+                                                java.util.List.of(java.util.Map.of("text", token)))))
+                                + "\n\n");
+                        writer.flush();
+                    } catch (IOException e) {
+                        logger.warn("Failed to write SSE token", e);
+                    }
+                },
+                () -> {
+                    writer.write("data: [DONE]\n\n");
+                    writer.flush();
+                });
     }
 }

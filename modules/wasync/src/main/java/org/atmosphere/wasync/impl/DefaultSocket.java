@@ -148,7 +148,9 @@ public class DefaultSocket implements Socket {
             default -> throw new IllegalStateException("Unknown transport: " + transport);
         }
 
-        status = STATUS.OPEN;
+        // Don't set OPEN here — async transports (WebSocket, SSE) set it in
+        // their connected callback. Setting it prematurely prevents fallback
+        // since the error handler only triggers while status == INIT.
 
         // Register reconnection logic
         if (options.reconnect()) {
