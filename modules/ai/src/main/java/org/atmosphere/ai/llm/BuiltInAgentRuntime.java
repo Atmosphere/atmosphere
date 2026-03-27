@@ -79,6 +79,9 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
         for (var msg : messages) {
             builder.message(msg);
         }
+        if (context.responseType() != null) {
+            builder.jsonMode(true);
+        }
         var request = builder.build();
         client.streamChatCompletion(request, session);
     }

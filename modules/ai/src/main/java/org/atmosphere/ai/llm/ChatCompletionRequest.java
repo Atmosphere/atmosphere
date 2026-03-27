@@ -26,13 +26,14 @@ public record ChatCompletionRequest(
         String model,
         List<ChatMessage> messages,
         double temperature,
-        int maxStreamingTexts
+        int maxStreamingTexts,
+        boolean jsonMode
 ) {
     /**
      * Create a simple single-prompt request.
      */
     public static ChatCompletionRequest of(String model, String userPrompt) {
-        return new ChatCompletionRequest(model, List.of(ChatMessage.user(userPrompt)), 0.7, 2048);
+        return new ChatCompletionRequest(model, List.of(ChatMessage.user(userPrompt)), 0.7, 2048, false);
     }
 
     /**
@@ -47,6 +48,7 @@ public record ChatCompletionRequest(
         private final List<ChatMessage> messages = new ArrayList<>();
         private double temperature = 0.7;
         private int maxStreamingTexts = 2048;
+        private boolean jsonMode = false;
 
         private Builder(String model) {
             this.model = model;
@@ -82,8 +84,13 @@ public record ChatCompletionRequest(
             return this;
         }
 
+        public Builder jsonMode(boolean jsonMode) {
+            this.jsonMode = jsonMode;
+            return this;
+        }
+
         public ChatCompletionRequest build() {
-            return new ChatCompletionRequest(model, List.copyOf(messages), temperature, maxStreamingTexts);
+            return new ChatCompletionRequest(model, List.copyOf(messages), temperature, maxStreamingTexts, jsonMode);
         }
     }
 }

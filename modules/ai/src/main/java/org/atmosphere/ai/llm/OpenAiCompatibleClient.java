@@ -307,6 +307,9 @@ public class OpenAiCompatibleClient implements LlmClient {
         if (request.maxStreamingTexts() > 0) {
             body.put("max_tokens", request.maxStreamingTexts());
         }
+        if (request.jsonMode()) {
+            body.put("response_format", java.util.Map.of("type", "json_object"));
+        }
         return MAPPER.writeValueAsString(body);
     }
 
