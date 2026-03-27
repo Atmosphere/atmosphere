@@ -18,6 +18,7 @@
     <properties>
         <langchain4j.version>1.12.2</langchain4j.version>
         <maven.deploy.skip>true</maven.deploy.skip>
+        <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
     </properties>
 
     <dependencyManagement>
@@ -35,7 +36,7 @@
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-spring-boot-starter</artifactId>
+            <artifactId>${atmosphere.starter}</artifactId>
         </dependency>
 
         <dependency>
@@ -93,4 +94,13 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>spring-boot3</id>
+            <properties>
+                <spring-boot.version>3.5.0</spring-boot.version>
+                <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
+            </properties>
+        </profile>
+    </profiles>
 </project>

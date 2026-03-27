@@ -59,8 +59,8 @@ public class AtmosphereRuntimeHints implements RuntimeHintsRegistrar {
                 for (String typeName : AtmosphereReflectiveTypes.poolTypes()) {
                     registerTypeByName(reflection, typeName);
                 }
-            } catch (ClassNotFoundException ex) {
-                logger.trace("commons-pool2 not available; skip pool class registration", ex);
+            } catch (ClassNotFoundException e) {
+                logger.trace("commons-pool2 not on classpath; skipping pool class registration", e);
             }
         }
 

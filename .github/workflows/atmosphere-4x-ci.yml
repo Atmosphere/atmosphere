@@ -94,7 +94,7 @@ jobs:
       run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true ${{ matrix.mvn-extra-args }}
 
     - name: Run Core Tests
-      run: ./mvnw -B test -Dgpg.skip=true ${{ matrix.mvn-extra-args }} -pl modules/cpr,modules/ai,modules/mcp,modules/kotlin,modules/spring-ai,modules/langchain4j,modules/embabel,modules/redis,modules/kafka,modules/durable-sessions,modules/durable-sessions-sqlite,modules/durable-sessions-redis,modules/integration-tests,modules/quarkus-extension,modules/spring-boot-starter,modules/coordinator,modules/agent -Dsurefire.excludes="**/coordinator/CoordinatorWebSocketIntegrationTest.java"
+      run: ./mvnw -B test -Dgpg.skip=true ${{ matrix.mvn-extra-args }} -pl modules/cpr,modules/ai,modules/mcp,modules/kotlin,modules/spring-ai,modules/langchain4j,modules/embabel,modules/redis,modules/kafka,modules/durable-sessions,modules/durable-sessions-sqlite,modules/durable-sessions-redis,modules/integration-tests,modules/quarkus-extension,modules/spring-boot-starter,modules/spring-boot3-starter,modules/coordinator,modules/agent -Dsurefire.excludes="**/coordinator/CoordinatorWebSocketIntegrationTest.java"
 
     - name: Upload Test Results
       if: failure()

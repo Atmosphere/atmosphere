@@ -19,6 +19,9 @@
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
+        <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
+        <jackson.source.dir>src/main/java-jackson3</jackson.source.dir>
+        <jackson.test.source.dir>src/test/java-jackson3</jackson.test.source.dir>
     </properties>
 
     <dependencyManagement>
@@ -36,7 +39,7 @@
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-spring-boot-starter</artifactId>
+            <artifactId>${atmosphere.starter}</artifactId>
         </dependency>
 
         <dependency>
@@ -103,10 +106,46 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>add-jackson-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals><goal>add-source</goal></goals>
+                        <configuration>
+                            <sources>
+                                <source>${jackson.source.dir}</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>add-jackson-test-sources</id>
+                        <phase>generate-test-sources</phase>
+                        <goals><goal>add-test-source</goal></goals>
+                        <configuration>
+                            <sources>
+                                <source>${jackson.test.source.dir}</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
     <profiles>
+        <profile>
+            <id>spring-boot3</id>
+            <properties>
+                <spring-boot.version>3.5.0</spring-boot.version>
+                <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
+                <jackson.source.dir>src/main/java-jackson2</jackson.source.dir>
+                <jackson.test.source.dir>src/test/java-jackson2</jackson.test.source.dir>
+            </properties>
+        </profile>
         <profile>
             <id>native</id>
             <build>
