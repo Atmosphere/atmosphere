@@ -120,6 +120,15 @@ public class CeoCoordinator {
         var report = fleet.agent("writer-agent").call("write_report", writerArgs);
         session.emit(new AiEvent.ToolResult("write_report", report.text()));
 
+        // (Advanced) Query the coordination journal for observability:
+        // var events = fleet.journal().query(
+        //     new CoordinationQuery().forAgent("research-agent"));
+        // logger.info("Research agent events: {}", events.size());
+
+        // (Advanced) Evaluate a result with registered ResultEvaluators:
+        // var evals = fleet.evaluate(research, fleet.call("research-agent", "web_search", researchArgs));
+        // evals.forEach(e -> logger.info("Eval: {} score={} passed={}", e.evaluatorName(), e.score(), e.passed()));
+
         // Step 4: CEO synthesis via LLM — trim agent results for LLM context
         var researchSummary = truncate(research.text(), 800);
         var strategySummary = truncate(results.get("strategy-agent").text(), 800);
