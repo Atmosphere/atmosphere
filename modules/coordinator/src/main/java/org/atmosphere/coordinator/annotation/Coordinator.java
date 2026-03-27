@@ -59,4 +59,15 @@ public @interface Coordinator {
 
     /** Coordinator version for Agent Card metadata. */
     String version() default "1.0.0";
+
+    /**
+     * Target Java type for structured output from the coordinator's LLM synthesis.
+     * When set to a type other than {@code Void.class}, the framework wraps the
+     * streaming session with a {@code StructuredOutputCapturingSession} that
+     * parses the LLM JSON response into the specified type and emits
+     * {@code EntityStart}, {@code StructuredField}, and {@code EntityComplete} events.
+     *
+     * @see org.atmosphere.ai.annotation.AiEndpoint#responseAs()
+     */
+    Class<?> responseAs() default Void.class;
 }

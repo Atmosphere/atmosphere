@@ -80,7 +80,8 @@ import java.util.Map;
  */
 @Coordinator(name = "ceo",
         skillFile = "prompts/ceo-skill.md",
-        description = "Startup CEO that coordinates specialist A2A agents for market analysis")
+        description = "Startup CEO that coordinates specialist A2A agents for market analysis",
+        responseAs = MarketAssessment.class)
 @Fleet({
         @AgentRef(type = ResearchAgent.class),
         @AgentRef(type = StrategyAgent.class),

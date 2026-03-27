@@ -155,7 +155,11 @@ public class CoordinatorProcessor implements Processor<Object> {
                 journal.start();
                 fleet = new JournalingAgentFleet(fleet, journal, coordinatorName);
             }
-            var injectables = Map.<Class<?>, Object>of(AgentFleet.class, fleet);
+            var responseType = annotation.responseAs() == Void.class
+                    ? null : annotation.responseAs();
+            var injectables = responseType != null
+                    ? Map.<Class<?>, Object>of(AgentFleet.class, fleet, Class.class, responseType)
+                    : Map.<Class<?>, Object>of(AgentFleet.class, fleet);
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
                     systemPrompt, path, runtime, List.of(),
