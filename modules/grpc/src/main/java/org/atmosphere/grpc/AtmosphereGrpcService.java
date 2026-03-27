@@ -18,11 +18,19 @@ package org.atmosphere.grpc;
 import io.grpc.stub.StreamObserver;
 import org.atmosphere.grpc.proto.AtmosphereMessage;
 import org.atmosphere.grpc.proto.AtmosphereServiceGrpc;
+import org.atmosphere.grpc.proto.MessageType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * gRPC service implementation that extends the generated {@link AtmosphereServiceGrpc.AtmosphereServiceImplBase}.
+ *
+ * <p>Provides three RPCs:
+ * <ul>
+ *   <li>{@code Stream} — bidirectional streaming for native gRPC clients</li>
+ *   <li>{@code Subscribe} — server-streaming, browser-compatible via Connect / gRPC-Web</li>
+ *   <li>{@code Send} — unary, browser-compatible via Connect / gRPC-Web</li>
+ * </ul>
  */
 public class AtmosphereGrpcService extends AtmosphereServiceGrpc.AtmosphereServiceImplBase {
 
@@ -65,5 +73,59 @@ public class AtmosphereGrpcService extends AtmosphereServiceGrpc.AtmosphereServi
                 processor.close(channel);
             }
         };
+    }
+
+    @Override
+    public void subscribe(AtmosphereMessage request, StreamObserver<AtmosphereMessage> responseObserver) {
+        var channel = processor.open(responseObserver);
+
+        // Force the message type to SUBSCRIBE regardless of what the client sent
+        var subscribeMsg = request.toBuilder()
+                .setType(MessageType.SUBSCRIBE)
+                .setTrackingId(channel.uuid())
+                .build();
+
+        try {
+            processor.onMessage(channel, subscribeMsg);
+            logger.debug("Web client {} subscribed to topic {} via Connect/gRPC-Web",
+                    channel.uuid(), request.getTopic());
+        } catch (Exception e) {
+            logger.error("Error processing subscribe on channel {}", channel.uuid(), e);
+            responseObserver.onError(io.grpc.Status.INTERNAL
+                    .withDescription(e.getMessage()).asRuntimeException());
+        }
+        // Response stream stays open — messages arrive via the Broadcaster → GrpcAsyncIOWriter
+    }
+
+    @Override
+    public void send(AtmosphereMessage request, StreamObserver<AtmosphereMessage> responseObserver) {
+        var trackingId = request.getTrackingId();
+        var channel = processor.getChannel(trackingId);
+
+        if (channel == null) {
+            responseObserver.onError(io.grpc.Status.NOT_FOUND
+                    .withDescription("No channel found for tracking_id: " + trackingId)
+                    .asRuntimeException());
+            return;
+        }
+
+        var message = request.toBuilder()
+                .setType(MessageType.MESSAGE)
+                .build();
+
+        try {
+            processor.onMessage(channel, message);
+            var ack = AtmosphereMessage.newBuilder()
+                    .setType(MessageType.ACK)
+                    .setTopic(request.getTopic())
+                    .setTrackingId(trackingId)
+                    .build();
+            responseObserver.onNext(ack);
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            logger.error("Error processing send on channel {}", channel.uuid(), e);
+            responseObserver.onError(io.grpc.Status.INTERNAL
+                    .withDescription(e.getMessage()).asRuntimeException());
+        }
     }
 }

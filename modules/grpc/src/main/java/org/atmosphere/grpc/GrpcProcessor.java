@@ -182,6 +182,7 @@ public class GrpcProcessor {
             channel.sendRaw(AtmosphereMessage.newBuilder()
                     .setType(MessageType.ACK)
                     .setTopic(topic)
+                    .setTrackingId(channel.uuid())
                     .build());
         } catch (Exception e) {
             logger.warn("Failed to send ACK to channel {}", channel.uuid(), e);
