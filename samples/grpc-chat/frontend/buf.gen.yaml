@@ -1,0 +1,7 @@
+version: v2
+plugins:
+  - local: protoc-gen-es
+    out: src/gen
+    opt: target=ts
+inputs:
+  - directory: ../../../modules/grpc/src/main/proto

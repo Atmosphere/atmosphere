@@ -25,8 +25,16 @@ option java_multiple_files = true;
 // Clients connect via a single Stream RPC and exchange AtmosphereMessages
 // to subscribe/unsubscribe to broadcasters and send/receive messages.
 service AtmosphereService {
-    // Bidirectional streaming — client and server exchange messages
+    // Bidirectional streaming — client and server exchange messages (native gRPC clients)
     rpc Stream(stream AtmosphereMessage) returns (stream AtmosphereMessage);
+
+    // Server-streaming subscribe — browser-compatible via Connect / gRPC-Web.
+    // Client sends a single SUBSCRIBE message; server streams back all topic messages.
+    rpc Subscribe(AtmosphereMessage) returns (stream AtmosphereMessage);
+
+    // Unary send — browser-compatible via Connect / gRPC-Web.
+    // Client sends a MESSAGE; server returns an ACK.
+    rpc Send(AtmosphereMessage) returns (AtmosphereMessage);
 }
 
 message AtmosphereMessage {

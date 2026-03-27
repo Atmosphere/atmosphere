@@ -11,7 +11,7 @@
     <artifactId>atmosphere-grpc-chat</artifactId>
     <packaging>jar</packaging>
     <name>atmosphere-grpc-chat</name>
-    <description>Atmosphere gRPC transport chat sample</description>
+    <description>Atmosphere gRPC transport chat sample with Connect-Web frontend</description>
 
     <dependencies>
         <dependency>
@@ -22,6 +22,26 @@
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-grpc</artifactId>
         </dependency>
+
+        <!-- Embedded Jetty for HTTP server (Connect protocol + static frontend) -->
+        <dependency>
+            <groupId>org.eclipse.jetty.ee10</groupId>
+            <artifactId>jetty-ee10-servlet</artifactId>
+            <version>${jetty-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+            <version>${jetty-version}</version>
+        </dependency>
+
+        <!-- Protobuf JSON format for Connect protocol JSON mode -->
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java-util</artifactId>
+            <version>${protobuf.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
