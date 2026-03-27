@@ -33,6 +33,7 @@ import java.time.LocalDate;
  */
 @Agent(
         name = "writer-agent",
+        skillFile = "prompts/writer-skill.md",
         description = "Report writing agent that synthesizes research, strategy, and financial data into executive briefings",
         version = "1.0.0",
         endpoint = "/atmosphere/a2a/writer"

@@ -38,6 +38,7 @@ import java.util.ArrayList;
  */
 @Agent(
         name = "research-agent",
+        skillFile = "prompts/research-skill.md",
         description = "Web research agent that scrapes DuckDuckGo for market data, news, and competitor information",
         version = "1.0.0",
         endpoint = "/atmosphere/a2a/research"
