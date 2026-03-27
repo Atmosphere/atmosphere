@@ -78,6 +78,25 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
         )
         break
       case 'complete':
+        // If content looks like JSON (structured output), format it
+        if (currentAssistantMessage) {
+          const content = currentAssistantMessage.content.trim()
+            .replace(/^```json\s*\n?/, '').replace(/\n?```\s*$/, '').trim()
+          if (content.startsWith('{') && content.endsWith('}')) {
+            try {
+              const entity = JSON.parse(content) as Record<string, unknown>
+              const lines: string[] = []
+              for (const [key, val] of Object.entries(entity)) {
+                const display = typeof val === 'string' && val.length > 200
+                  ? val.substring(0, 200) + '...'
+                  : String(val)
+                lines.push(`- **${key}:** ${display}`)
+              }
+              currentAssistantMessage.content = lines.join('\n')
+              messages.value = [...messages.value]
+            } catch { /* not valid JSON, keep as-is */ }
+          }
+        }
         finalizeAssistant()
         break
       case 'error':
@@ -111,6 +130,31 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
           tc.result = typeof result === 'string' ? result : JSON.stringify(result)
           tc.done = true
           toolCalls.value = [...toolCalls.value]
+        }
+        break
+      }
+      case 'entity-start':
+        // Structured output starting — suppress raw JSON text
+        break
+      case 'structured-field':
+        // Progressive field parsing — ignore (entity-complete is authoritative)
+        break
+      case 'entity-complete': {
+        // Structured output: replace raw JSON with formatted entity fields
+        const data = msg.data as Record<string, unknown>
+        const entity = data?.entity as Record<string, unknown>
+        const typeName = (data?.typeName ?? 'Entity') as string
+        if (entity && currentAssistantMessage) {
+          const lines = [`**${typeName}**\n`]
+          for (const [key, val] of Object.entries(entity)) {
+            const display = typeof val === 'string' && val.length > 200
+              ? val.substring(0, 200) + '...'
+              : String(val)
+            lines.push(`- **${key}:** ${display}`)
+          }
+          // Replace raw JSON text with formatted entity
+          currentAssistantMessage.content = lines.join('\n')
+          messages.value = [...messages.value]
         }
         break
       }
