@@ -164,13 +164,15 @@ public class CoordinatorProcessor implements Processor<Object> {
 
             // Step 10: Register protocol bridges
             var protocols = new ArrayList<String>();
-            registerA2a(framework, annotation, commandRegistry, toolRegistry,
-                    commandRouter, promptTarget, promptMethod, path, protocols);
-            registerMcp(framework, annotation, toolRegistry, path, protocols);
-            registerAgUi(framework, promptTarget, promptMethod, path, protocols);
             var model = settings != null ? settings.model() : null;
             var pipeline = new AiPipeline(runtime, systemPrompt, model, memory,
                     toolRegistry, List.of(), List.of(), metrics);
+            registerA2a(framework, annotation, commandRegistry, toolRegistry,
+                    commandRouter, promptTarget, promptMethod, fleet,
+                    path, protocols);
+            registerMcp(framework, annotation, toolRegistry, path, protocols);
+            registerAgUi(framework, promptTarget, promptMethod, path,
+                    pipeline, fleet, protocols);
             wireChannelBridge(coordinatorName, commandRouter, instance, systemPrompt,
                     pipeline, protocols);
 
@@ -484,7 +486,8 @@ public class CoordinatorProcessor implements Processor<Object> {
     private void registerA2a(AtmosphereFramework framework, Coordinator annotation,
                              CommandRegistry commandRegistry, ToolRegistry toolRegistry,
                              CommandRouter commandRouter, Object promptTarget,
-                             Method promptMethod, String basePath,
+                             Method promptMethod, AgentFleet fleet,
+                             String basePath,
                              List<String> protocols) {
         if (!ClasspathDetector.hasA2a()) {
             return;
@@ -492,10 +495,18 @@ public class CoordinatorProcessor implements Processor<Object> {
         try {
             var registry = new org.atmosphere.a2a.registry.A2aRegistry();
 
-            // Register default NL skill
+            // Register a bridge that properly handles the coordinator's @Prompt
+            // signature (String, AgentFleet, StreamingSession) by injecting the
+            // fleet and a collecting StreamingSession
+            var bridge = new A2aCoordinatorBridge(promptTarget, promptMethod, fleet);
+            var handleMethod = A2aCoordinatorBridge.class.getDeclaredMethod(
+                    "handlePrompt",
+                    org.atmosphere.a2a.runtime.TaskContext.class, String.class);
             registry.registerSkill("chat", "Chat",
                     "Natural language conversation",
-                    List.of("chat", "nl"), promptMethod, promptTarget, List.of());
+                    List.of("chat", "nl"), handleMethod, bridge,
+                    List.of(new org.atmosphere.a2a.registry.A2aRegistry.ParamEntry(
+                            "message", "The message to process", true, String.class)));
 
             var a2aEndpoint = basePath + "/a2a";
             var description = annotation.description().isEmpty()
@@ -567,18 +578,20 @@ public class CoordinatorProcessor implements Processor<Object> {
      */
     private void registerAgUi(AtmosphereFramework framework,
                                Object promptTarget, Method promptMethod,
-                               String basePath, List<String> protocols) {
+                               String basePath, AiPipeline pipeline,
+                               AgentFleet fleet, List<String> protocols) {
         if (!ClasspathDetector.hasAgUi()) {
             return;
         }
         try {
-            var bridge = new AgUiCoordinatorBridge(promptTarget, promptMethod);
+            var bridge = new AgUiCoordinatorBridge(promptTarget, promptMethod, fleet);
             var actionMethod = AgUiCoordinatorBridge.class.getDeclaredMethod(
                     "onAction",
                     org.atmosphere.agui.runtime.RunContext.class,
                     StreamingSession.class);
 
-            var handler = new org.atmosphere.agui.runtime.AgUiHandler(bridge, actionMethod);
+            var handler = new org.atmosphere.agui.runtime.AgUiHandler(
+                    bridge, actionMethod, pipeline);
             framework.addAtmosphereHandler(basePath + "/agui", handler, new ArrayList<>());
             protocols.add("ag-ui");
             logger.debug("AG-UI endpoint registered at {}/agui", basePath);
@@ -595,10 +608,13 @@ public class CoordinatorProcessor implements Processor<Object> {
     static class AgUiCoordinatorBridge {
         private final Object promptTarget;
         private final Method bridgedPromptMethod;
+        private final AgentFleet fleet;
 
-        AgUiCoordinatorBridge(Object promptTarget, Method promptMethod) {
+        AgUiCoordinatorBridge(Object promptTarget, Method promptMethod,
+                              AgentFleet fleet) {
             this.promptTarget = promptTarget;
             this.bridgedPromptMethod = promptMethod;
+            this.fleet = fleet;
         }
 
         @SuppressWarnings("unused") // invoked reflectively by AgUiHandler
@@ -607,7 +623,18 @@ public class CoordinatorProcessor implements Processor<Object> {
             var message = context.lastUserMessage();
             if (message != null && !message.isBlank()) {
                 try {
-                    bridgedPromptMethod.invoke(promptTarget, message, session);
+                    var paramTypes = bridgedPromptMethod.getParameterTypes();
+                    var args = new Object[paramTypes.length];
+                    for (var i = 0; i < paramTypes.length; i++) {
+                        if (paramTypes[i] == String.class) {
+                            args[i] = message;
+                        } else if (StreamingSession.class.isAssignableFrom(paramTypes[i])) {
+                            args[i] = session;
+                        } else if (AgentFleet.class.isAssignableFrom(paramTypes[i])) {
+                            args[i] = fleet;
+                        }
+                    }
+                    bridgedPromptMethod.invoke(promptTarget, args);
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     session.error(e.getCause() != null ? e.getCause() : e);
                 } catch (Exception e) {
@@ -615,6 +642,124 @@ public class CoordinatorProcessor implements Processor<Object> {
                 }
             } else {
                 session.complete();
+            }
+        }
+    }
+
+    /**
+     * Bridge between the coordinator's {@code @Prompt} method and the A2A
+     * protocol. Handles the coordinator's prompt signature by injecting
+     * the {@link AgentFleet} and a collecting {@link StreamingSession}.
+     */
+    static class A2aCoordinatorBridge {
+        private final Object promptTarget;
+        private final Method bridgedPromptMethod;
+        private final AgentFleet fleet;
+
+        A2aCoordinatorBridge(Object promptTarget, Method promptMethod,
+                             AgentFleet fleet) {
+            this.promptTarget = promptTarget;
+            this.bridgedPromptMethod = promptMethod;
+            this.fleet = fleet;
+        }
+
+        @SuppressWarnings("unused") // invoked reflectively by A2aProtocolHandler
+        public void handlePrompt(org.atmosphere.a2a.runtime.TaskContext taskCtx,
+                                 String message) {
+            if (message == null || message.isBlank()) {
+                taskCtx.fail("Empty message");
+                return;
+            }
+            try {
+                bridgedPromptMethod.setAccessible(true);
+                var collector = new A2aCoordinatorCollector(taskCtx);
+                var paramTypes = bridgedPromptMethod.getParameterTypes();
+                var args = new Object[paramTypes.length];
+                for (var i = 0; i < paramTypes.length; i++) {
+                    if (paramTypes[i] == String.class) {
+                        args[i] = message;
+                    } else if (StreamingSession.class.isAssignableFrom(paramTypes[i])) {
+                        args[i] = collector;
+                    } else if (AgentFleet.class.isAssignableFrom(paramTypes[i])) {
+                        args[i] = fleet;
+                    }
+                }
+                bridgedPromptMethod.invoke(promptTarget, args);
+                collector.finalizeIfNeeded();
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                var cause = e.getCause() != null ? e.getCause() : e;
+                taskCtx.fail(cause.getMessage());
+            } catch (Exception e) {
+                taskCtx.fail(e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Minimal {@link StreamingSession} adapter for A2A coordinator invocations.
+     * Collects streamed text and writes it as the A2A task result on completion.
+     */
+    static class A2aCoordinatorCollector implements StreamingSession {
+        private final org.atmosphere.a2a.runtime.TaskContext taskCtx;
+        private final StringBuilder buffer = new StringBuilder();
+        private volatile boolean finalized;
+
+        A2aCoordinatorCollector(org.atmosphere.a2a.runtime.TaskContext taskCtx) {
+            this.taskCtx = taskCtx;
+        }
+
+        @Override public String sessionId() { return taskCtx.taskId(); }
+
+        @Override
+        public void send(String text) {
+            buffer.append(text);
+        }
+
+        @Override
+        public void stream(String message) {
+            // For coordinator A2A bridge, buffer the message. The coordinator's
+            // @Prompt method typically orchestrates via AgentFleet and calls
+            // session.send() with the result, rather than using stream().
+            buffer.append(message);
+        }
+
+        @Override public void sendMetadata(String key, Object value) { }
+
+        @Override
+        public void progress(String message) {
+            taskCtx.updateStatus(org.atmosphere.a2a.types.TaskState.WORKING, message);
+        }
+
+        @Override
+        public void complete() {
+            if (!finalized) {
+                finalized = true;
+                taskCtx.complete(buffer.toString());
+            }
+        }
+
+        @Override
+        public void complete(String summary) {
+            if (!finalized) {
+                finalized = true;
+                taskCtx.complete(summary != null ? summary : buffer.toString());
+            }
+        }
+
+        @Override
+        public void error(Throwable t) {
+            if (!finalized) {
+                finalized = true;
+                taskCtx.fail(t.getMessage());
+            }
+        }
+
+        @Override public boolean isClosed() { return finalized; }
+
+        void finalizeIfNeeded() {
+            if (!finalized) {
+                finalized = true;
+                taskCtx.complete(buffer.toString());
             }
         }
     }

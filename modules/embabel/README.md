@@ -1,6 +1,6 @@
 # Atmosphere Embabel Adapter
 
-`AiSupport` implementation backed by Embabel `AgentPlatform`. When this JAR is on the classpath, `@AiEndpoint` can run Embabel agents and stream their output to browser clients.
+`AgentRuntime` implementation backed by Embabel `AgentPlatform`. When this JAR is on the classpath, `@AiEndpoint` can run Embabel agents and stream their output to browser clients.
 
 ## Maven Coordinates
 
@@ -40,7 +40,7 @@ embabelAdapter.stream(AgentRequest("assistant") { channel ->
 |-------|---------|
 | `EmbabelStreamingAdapter` | Bridges Embabel agents to `StreamingSession` |
 | `AtmosphereOutputChannel` | Routes Embabel `OutputChannelEvent` to `StreamingSession` |
-| `EmbabelAiSupport` | `AiSupport` SPI implementation (priority 100) |
+| `EmbabelAgentRuntime` | `AgentRuntime` SPI implementation (priority 100) |
 | `AtmosphereEmbabelAutoConfiguration` | Spring Boot auto-configuration |
 
 ## Samples

@@ -115,10 +115,11 @@ public class AiPipeline {
             target = new GuardrailCapturingSession(target, guardrails);
         }
 
-        // Build execution context — runtime decides how to use tools, memory, RAG
+        // Build execution context from the (potentially guardrail-modified) request
+        // so that guardrail modifications to systemPrompt/model are honored
         var tools = toolRegistry != null ? toolRegistry.allTools() : List.<org.atmosphere.ai.tool.ToolDefinition>of();
         var context = new AgentExecutionContext(
-                request.message(), systemPrompt, model,
+                request.message(), request.systemPrompt(), request.model(),
                 null, clientId, null, clientId,
                 List.copyOf(tools), null, memory,
                 contextProviders, request.metadata(), history);

@@ -32,7 +32,7 @@ open class AtmosphereEmbabelAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(AgentPlatform::class)
-    open fun embabelAiSupportBridge(platform: AgentPlatform): EmbabelAgentRuntime {
+    open fun embabelAgentRuntime(platform: AgentPlatform): EmbabelAgentRuntime {
         EmbabelAgentRuntime.setAgentPlatform(platform)
         return EmbabelAgentRuntime()
     }

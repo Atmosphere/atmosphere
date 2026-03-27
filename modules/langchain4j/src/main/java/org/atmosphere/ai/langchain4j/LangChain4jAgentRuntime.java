@@ -134,6 +134,10 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 : LangChain4jToolBridge.toToolSpecifications(tools);
 
         var chatRequestBuilder = ChatRequest.builder().messages(messages);
+        if (context.model() != null && !context.model().isBlank()) {
+            chatRequestBuilder.modelName(context.model());
+            logger.debug("Using per-request model override: {}", context.model());
+        }
         if (!toolSpecs.isEmpty()) {
             chatRequestBuilder.toolSpecifications(toolSpecs);
             logger.debug("Registered {} tool specifications with LangChain4j", toolSpecs.size());

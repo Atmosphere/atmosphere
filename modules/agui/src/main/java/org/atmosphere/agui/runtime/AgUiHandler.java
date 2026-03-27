@@ -48,10 +48,17 @@ public final class AgUiHandler implements AtmosphereHandler {
 
     private final Object endpoint;
     private final Method actionMethod;
+    private final org.atmosphere.ai.AiPipeline pipeline;
 
     public AgUiHandler(Object endpoint, Method actionMethod) {
+        this(endpoint, actionMethod, null);
+    }
+
+    public AgUiHandler(Object endpoint, Method actionMethod,
+                       org.atmosphere.ai.AiPipeline pipeline) {
         this.endpoint = endpoint;
         this.actionMethod = actionMethod;
+        this.pipeline = pipeline;
     }
 
     @Override
@@ -123,7 +130,7 @@ public final class AgUiHandler implements AtmosphereHandler {
             try {
                 var delegateSession = new NoOpStreamingSession();
                 var session = new ResourceAgUiStreamingSession(
-                        delegateSession, sseWriter, finalRunContext);
+                        delegateSession, sseWriter, finalRunContext, pipeline);
                 actionMethod.invoke(endpoint, finalRunContext, session);
                 if (!session.isClosed()) {
                     session.complete();
@@ -198,15 +205,23 @@ public final class AgUiHandler implements AtmosphereHandler {
         private final StreamingSession delegate;
         private final SseWriter writer;
         private final RunContext runContext;
+        private final org.atmosphere.ai.AiPipeline pipeline;
         private final org.atmosphere.agui.event.AgUiEventMapper eventMapper =
                 new org.atmosphere.agui.event.AgUiEventMapper();
         private final AtomicBoolean closed = new AtomicBoolean(false);
 
         ResourceAgUiStreamingSession(StreamingSession delegate, SseWriter writer,
                                      RunContext runContext) {
+            this(delegate, writer, runContext, null);
+        }
+
+        ResourceAgUiStreamingSession(StreamingSession delegate, SseWriter writer,
+                                     RunContext runContext,
+                                     org.atmosphere.ai.AiPipeline pipeline) {
             this.delegate = delegate;
             this.writer = writer;
             this.runContext = runContext;
+            this.pipeline = pipeline;
         }
 
         @Override public String sessionId() { return delegate.sessionId(); }
@@ -252,7 +267,13 @@ public final class AgUiHandler implements AtmosphereHandler {
 
         @Override
         public void stream(String message) {
-            throw new UnsupportedOperationException("Use emit() for AG-UI streaming");
+            if (pipeline != null) {
+                pipeline.execute(runContext.threadId(), message, this);
+            } else {
+                throw new UnsupportedOperationException(
+                        "stream(String) requires an AiPipeline. "
+                                + "Ensure the AG-UI handler is registered with a pipeline.");
+            }
         }
     }
 

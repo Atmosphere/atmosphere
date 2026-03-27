@@ -25,7 +25,7 @@ import org.atmosphere.ai.StreamingSession
 import org.slf4j.LoggerFactory
 
 /**
- * [AiSupport] implementation backed by the Embabel Agent Platform.
+ * [AgentRuntime] implementation backed by the Embabel Agent Platform.
  *
  * Auto-detected when `embabel-agent-api` is on the classpath.
  * The [AgentPlatform] and agent name must be configured via [setAgentPlatform]

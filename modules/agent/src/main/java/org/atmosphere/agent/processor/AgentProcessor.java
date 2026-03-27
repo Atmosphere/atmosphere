@@ -144,13 +144,14 @@ public class AgentProcessor implements Processor<Object> {
 
             // Step 8-11: Optional cross-protocol registration
             var protocols = new ArrayList<String>();
-            registerA2a(framework, annotation, skillFile, commandRegistry, toolRegistry,
-                    commandRouter, promptTarget, promptMethod, path, protocols);
-            registerMcp(framework, annotation, toolRegistry, path, protocols);
-            registerAgUi(framework, promptTarget, promptMethod, path, protocols);
             var pipeline = new org.atmosphere.ai.AiPipeline(
                     runtime, systemPrompt, settings.model(), memory,
                     toolRegistry, List.of(), List.of(), metrics);
+            registerA2a(framework, annotation, skillFile, commandRegistry, toolRegistry,
+                    commandRouter, promptTarget, promptMethod, pipeline,
+                    path, protocols);
+            registerMcp(framework, annotation, toolRegistry, path, protocols);
+            registerAgUi(framework, promptTarget, promptMethod, path, pipeline, protocols);
             wireChannelBridge(agentName, commandRouter, instance, systemPrompt, pipeline, protocols);
 
             // Step 12: Log summary
@@ -400,6 +401,7 @@ public class AgentProcessor implements Processor<Object> {
                              SkillFileParser skillFile, CommandRegistry commandRegistry,
                              ToolRegistry toolRegistry, CommandRouter commandRouter,
                              Object promptTarget, Method promptMethod,
+                             org.atmosphere.ai.AiPipeline pipeline,
                              String basePath, List<String> protocols) {
         if (!ClasspathDetector.hasA2a()) {
             return;
@@ -419,6 +421,7 @@ public class AgentProcessor implements Processor<Object> {
 
             // Register executable skill handlers so A2A message/send can find them
             var bridge = new SkillBridge(commandRouter, promptTarget, promptMethod);
+            bridge.setPipeline(pipeline);
             var handleCmdMethod = SkillBridge.class.getDeclaredMethod(
                     "handleCommand", org.atmosphere.a2a.runtime.TaskContext.class, String.class);
             for (var cmd : commandRegistry.allCommands()) {
@@ -542,7 +545,9 @@ public class AgentProcessor implements Processor<Object> {
      */
     private void registerAgUi(AtmosphereFramework framework,
                                Object promptTarget, Method promptMethod,
-                               String basePath, List<String> protocols) {
+                               String basePath,
+                               org.atmosphere.ai.AiPipeline pipeline,
+                               List<String> protocols) {
         if (!ClasspathDetector.hasAgUi()) {
             return;
         }
@@ -553,7 +558,8 @@ public class AgentProcessor implements Processor<Object> {
                     org.atmosphere.agui.runtime.RunContext.class,
                     org.atmosphere.ai.StreamingSession.class);
 
-            var handler = new org.atmosphere.agui.runtime.AgUiHandler(bridge, actionMethod);
+            var handler = new org.atmosphere.agui.runtime.AgUiHandler(
+                    bridge, actionMethod, pipeline);
             framework.addAtmosphereHandler(basePath + "/agui", handler, new java.util.ArrayList<>());
             protocols.add("ag-ui");
             logger.debug("AG-UI endpoint registered at {}/agui", basePath);
@@ -604,6 +610,7 @@ public class AgentProcessor implements Processor<Object> {
         private final Object promptTarget;
         private final Method bridgedPromptMethod;
         private final String commandPrefix;
+        private volatile org.atmosphere.ai.AiPipeline pipeline;
 
         /** Primary constructor for the default (NL) bridge. */
         SkillBridge(CommandRouter commandRouter, Object promptTarget, Method promptMethod) {
@@ -619,6 +626,12 @@ public class AgentProcessor implements Processor<Object> {
             this.promptTarget = parent.promptTarget;
             this.bridgedPromptMethod = parent.bridgedPromptMethod;
             this.commandPrefix = commandPrefix;
+            this.pipeline = parent.pipeline;
+        }
+
+        /** Set the AI pipeline for stream() delegation. */
+        void setPipeline(org.atmosphere.ai.AiPipeline pipeline) {
+            this.pipeline = pipeline;
         }
 
         /**
@@ -655,7 +668,7 @@ public class AgentProcessor implements Processor<Object> {
                 // The @Prompt method signature is (String, StreamingSession). For A2A we
                 // capture the output synchronously by invoking with a simple adapter
                 // that collects the response text.
-                var collector = new A2aStreamCollector(taskCtx);
+                var collector = new A2aStreamCollector(taskCtx, pipeline);
                 bridgedPromptMethod.invoke(promptTarget, message, collector);
                 collector.finalizeIfNeeded();
             } catch (java.lang.reflect.InvocationTargetException e) {
@@ -673,11 +686,14 @@ public class AgentProcessor implements Processor<Object> {
      */
     static class A2aStreamCollector implements org.atmosphere.ai.StreamingSession {
         private final org.atmosphere.a2a.runtime.TaskContext taskCtx;
+        private final org.atmosphere.ai.AiPipeline pipeline;
         private final StringBuilder buffer = new StringBuilder();
         private volatile boolean finalized;
 
-        A2aStreamCollector(org.atmosphere.a2a.runtime.TaskContext taskCtx) {
+        A2aStreamCollector(org.atmosphere.a2a.runtime.TaskContext taskCtx,
+                           org.atmosphere.ai.AiPipeline pipeline) {
             this.taskCtx = taskCtx;
+            this.pipeline = pipeline;
         }
 
         @Override
@@ -692,10 +708,15 @@ public class AgentProcessor implements Processor<Object> {
 
         @Override
         public void stream(String message) {
-            // In a full AI-wired session, stream() sends to an LLM and streams back.
-            // For A2A bridging, buffer the message as the response text. Real @Prompt
-            // implementations will call send() with AI-generated output instead.
-            buffer.append(message);
+            if (pipeline != null) {
+                // Delegate to the AI pipeline so the message is processed through
+                // the LLM and the response streams back through this collector
+                pipeline.execute(taskCtx.taskId(), message, this);
+            } else {
+                // Fallback: buffer the message as the response text when no
+                // pipeline is available
+                buffer.append(message);
+            }
         }
 
         @Override

@@ -28,6 +28,7 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.prompt.ChatOptions;
 
 import java.util.ArrayList;
 import java.util.Set;
@@ -91,6 +92,12 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
             promptSpec = promptSpec.messages(historyMessages);
         }
         promptSpec = promptSpec.user(context.message());
+
+        if (context.model() != null && !context.model().isBlank()) {
+            promptSpec = promptSpec.options(
+                    ChatOptions.builder().model(context.model()).build());
+            logger.debug("Using per-request model override: {}", context.model());
+        }
 
         var tools = context.tools();
         if (!tools.isEmpty()) {
