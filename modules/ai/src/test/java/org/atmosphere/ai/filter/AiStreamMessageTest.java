@@ -15,7 +15,7 @@
  */
 package org.atmosphere.ai.filter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -131,9 +131,9 @@ public class AiStreamMessageTest {
         var json = msg.toJson();
         var node = MAPPER.readTree(json);
 
-        assertEquals("streaming-text", node.get("type").asText());
-        assertEquals("Hello", node.get("data").asText());
-        assertEquals("abc-123", node.get("sessionId").asText());
+        assertEquals("streaming-text", node.get("type").stringValue());
+        assertEquals("Hello", node.get("data").stringValue());
+        assertEquals("abc-123", node.get("sessionId").stringValue());
         assertEquals(1L, node.get("seq").asLong());
         assertFalse(node.has("key"));
         assertFalse(node.has("value"));
@@ -145,10 +145,10 @@ public class AiStreamMessageTest {
         var json = msg.toJson();
         var node = MAPPER.readTree(json);
 
-        assertEquals("metadata", node.get("type").asText());
+        assertEquals("metadata", node.get("type").stringValue());
         assertFalse(node.has("data"));
-        assertEquals("model", node.get("key").asText());
-        assertEquals("gpt-4", node.get("value").asText());
+        assertEquals("model", node.get("key").stringValue());
+        assertEquals("gpt-4", node.get("value").stringValue());
     }
 
     @Test

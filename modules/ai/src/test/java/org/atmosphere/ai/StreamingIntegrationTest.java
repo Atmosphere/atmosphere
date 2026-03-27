@@ -15,8 +15,8 @@
  */
 package org.atmosphere.ai;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.RawMessage;
@@ -126,10 +126,10 @@ public class StreamingIntegrationTest {
 
         // Count messages per session
         long session1Count = messages.stream()
-                .filter(j -> "session-1".equals(j.get("sessionId").asText()))
+                .filter(j -> "session-1".equals(j.get("sessionId").stringValue()))
                 .count();
         long session2Count = messages.stream()
-                .filter(j -> "session-2".equals(j.get("sessionId").asText()))
+                .filter(j -> "session-2".equals(j.get("sessionId").stringValue()))
                 .count();
 
         assertEquals(2, session1Count, "Session 1 should have 2 messages (streaming text + complete)");
@@ -221,7 +221,7 @@ public class StreamingIntegrationTest {
             RawMessage rawMsg = inv.getArgument(0);
             String json = raw(rawMsg);
             var node = MAPPER.readTree(json);
-            capturedTypes.add(node.get("type").asText());
+            capturedTypes.add(node.get("type").stringValue());
             return null;
         }).when(broadcaster).broadcast(any(RawMessage.class), any(Set.class));
 
@@ -270,14 +270,14 @@ public class StreamingIntegrationTest {
 
         // Verify metadata messages have key/value pairs
         var metaMsgs = messages.stream()
-                .filter(j -> "metadata".equals(j.get("type").asText()))
+                .filter(j -> "metadata".equals(j.get("type").stringValue()))
                 .toList();
         assertEquals(3, metaMsgs.size());
-        assertEquals("model", metaMsgs.get(0).get("key").asText());
-        assertEquals("gpt-4o", metaMsgs.get(0).get("value").asText());
-        assertEquals("temperature", metaMsgs.get(1).get("key").asText());
+        assertEquals("model", metaMsgs.get(0).get("key").stringValue());
+        assertEquals("gpt-4o", metaMsgs.get(0).get("value").stringValue());
+        assertEquals("temperature", metaMsgs.get(1).get("key").stringValue());
         assertEquals(0.7, metaMsgs.get(1).get("value").asDouble());
-        assertEquals("texts_used", metaMsgs.get(2).get("key").asText());
+        assertEquals("texts_used", metaMsgs.get(2).get("key").stringValue());
         assertEquals(42, metaMsgs.get(2).get("value").asInt());
     }
 
@@ -339,9 +339,9 @@ public class StreamingIntegrationTest {
         assertTrue(json.has("sessionId"), "Must have 'sessionId' field");
         assertTrue(json.has("seq"), "Must have 'seq' field");
 
-        assertEquals("streaming-text", json.get("type").asText());
-        assertEquals("Hello", json.get("data").asText());
-        assertEquals("wire-test", json.get("sessionId").asText());
+        assertEquals("streaming-text", json.get("type").stringValue());
+        assertEquals("Hello", json.get("data").stringValue());
+        assertEquals("wire-test", json.get("sessionId").stringValue());
         assertTrue(json.get("seq").asLong() > 0, "Seq should be positive");
 
         // Verify it's valid JSON that JavaScript can parse
@@ -365,7 +365,7 @@ public class StreamingIntegrationTest {
         verify(broadcaster).broadcast(captor.capture(), any(Set.class));
 
         var json = MAPPER.readTree(raw(captor.getValue()));
-        assertEquals(10_000, json.get("data").asText().length());
+        assertEquals(10_000, json.get("data").stringValue().length());
     }
 
     @Test
@@ -387,7 +387,7 @@ public class StreamingIntegrationTest {
         // All should be valid JSON
         for (var msg : captor.getAllValues()) {
             JsonNode json = MAPPER.readTree(raw(msg));
-            assertNotNull(json.get("data").asText());
+            assertNotNull(json.get("data").stringValue());
         }
     }
 }

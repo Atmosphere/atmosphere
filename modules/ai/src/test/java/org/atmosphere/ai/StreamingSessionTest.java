@@ -15,7 +15,7 @@
  */
 package org.atmosphere.ai;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.RawMessage;
@@ -64,9 +64,9 @@ public class StreamingSessionTest {
         verify(broadcaster).broadcast(captor.capture(), any(Set.class));
 
         var json = MAPPER.readTree(raw(captor.getValue()));
-        assertEquals("streaming-text", json.get("type").asText());
-        assertEquals("Hello", json.get("data").asText());
-        assertEquals("test-session", json.get("sessionId").asText());
+        assertEquals("streaming-text", json.get("type").stringValue());
+        assertEquals("Hello", json.get("data").stringValue());
+        assertEquals("test-session", json.get("sessionId").stringValue());
         assertEquals(1L, json.get("seq").asLong());
     }
 
@@ -84,7 +84,7 @@ public class StreamingSessionTest {
 
         assertEquals(1L, first.get("seq").asLong());
         assertEquals(2L, second.get("seq").asLong());
-        assertEquals(" world", second.get("data").asText());
+        assertEquals(" world", second.get("data").stringValue());
     }
 
     @Test
@@ -95,8 +95,8 @@ public class StreamingSessionTest {
         verify(broadcaster).broadcast(captor.capture(), any(Set.class));
 
         var json = MAPPER.readTree(raw(captor.getValue()));
-        assertEquals("progress", json.get("type").asText());
-        assertEquals("Thinking...", json.get("data").asText());
+        assertEquals("progress", json.get("type").stringValue());
+        assertEquals("Thinking...", json.get("data").stringValue());
     }
 
     @Test
@@ -107,7 +107,7 @@ public class StreamingSessionTest {
         verify(broadcaster).broadcast(captor.capture(), any(Set.class));
 
         var json = MAPPER.readTree(raw(captor.getValue()));
-        assertEquals("complete", json.get("type").asText());
+        assertEquals("complete", json.get("type").stringValue());
         assertFalse(json.has("data"));
         assertTrue(session.isClosed());
     }
@@ -120,8 +120,8 @@ public class StreamingSessionTest {
         verify(broadcaster).broadcast(captor.capture(), any(Set.class));
 
         var json = MAPPER.readTree(raw(captor.getValue()));
-        assertEquals("complete", json.get("type").asText());
-        assertEquals("Full response here", json.get("data").asText());
+        assertEquals("complete", json.get("type").stringValue());
+        assertEquals("Full response here", json.get("data").stringValue());
     }
 
     @Test
@@ -132,8 +132,8 @@ public class StreamingSessionTest {
         verify(broadcaster).broadcast(captor.capture(), any(Set.class));
 
         var json = MAPPER.readTree(raw(captor.getValue()));
-        assertEquals("error", json.get("type").asText());
-        assertEquals("Connection lost", json.get("data").asText());
+        assertEquals("error", json.get("type").stringValue());
+        assertEquals("Connection lost", json.get("data").stringValue());
         assertTrue(session.isClosed());
     }
 
@@ -165,9 +165,9 @@ public class StreamingSessionTest {
         verify(broadcaster).broadcast(captor.capture(), any(Set.class));
 
         var json = MAPPER.readTree(raw(captor.getValue()));
-        assertEquals("metadata", json.get("type").asText());
-        assertEquals("model", json.get("key").asText());
-        assertEquals("gpt-4", json.get("value").asText());
+        assertEquals("metadata", json.get("type").stringValue());
+        assertEquals("model", json.get("key").stringValue());
+        assertEquals("gpt-4", json.get("value").stringValue());
     }
 
     @Test
@@ -180,7 +180,7 @@ public class StreamingSessionTest {
         verify(broadcaster, times(2)).broadcast(captor.capture(), any(Set.class));
 
         var last = MAPPER.readTree(raw(captor.getAllValues().get(1)));
-        assertEquals("complete", last.get("type").asText());
+        assertEquals("complete", last.get("type").stringValue());
         assertTrue(session.isClosed());
     }
 
@@ -214,7 +214,7 @@ public class StreamingSessionTest {
         var types = captor.getAllValues().stream()
                 .map(m -> {
                     try {
-                        return MAPPER.readTree(raw(m)).get("type").asText();
+                        return MAPPER.readTree(raw(m)).get("type").stringValue();
                     } catch (Exception e) {
                         return "error";
                     }

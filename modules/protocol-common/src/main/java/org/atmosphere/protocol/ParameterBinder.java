@@ -15,8 +15,8 @@
  */
 package org.atmosphere.protocol;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
@@ -64,7 +64,7 @@ public final class ParameterBinder {
 
         String topic = null;
         if (arguments != null && arguments.has("topic")) {
-            topic = arguments.get("topic").asText();
+            topic = arguments.get("topic").stringValue();
         }
 
         for (int i = 0; i < methodParams.length; i++) {
@@ -104,10 +104,8 @@ public final class ParameterBinder {
             }
         }
         if (arguments != null) {
-            var it = arguments.fields();
-            while (it.hasNext()) {
-                var field = it.next();
-                map.putIfAbsent(field.getKey(), field.getValue().asText());
+            for (var field : arguments.properties()) {
+                map.putIfAbsent(field.getKey(), nodeToObject(field.getValue()));
             }
         }
         return map;
@@ -126,13 +124,22 @@ public final class ParameterBinder {
     /** Convert a JSON node to the target type. */
     public static Object convertParam(JsonNode node, Class<?> type) {
         if (node == null || node.isNull()) return defaultValue(type);
-        if (type == String.class) return node.asText();
+        if (type == String.class) return node.isString() ? node.stringValue() : node.toString();
         if (type == int.class || type == Integer.class) return node.asInt();
         if (type == long.class || type == Long.class) return node.asLong();
         if (type == double.class || type == Double.class) return node.asDouble();
         if (type == float.class || type == Float.class) return (float) node.asDouble();
         if (type == boolean.class || type == Boolean.class) return node.asBoolean();
         return MAPPER.convertValue(node, type);
+    }
+
+    /** Extract a plain Java value from a JSON node. */
+    private static Object nodeToObject(JsonNode node) {
+        if (node == null || node.isNull()) return null;
+        if (node.isString()) return node.stringValue();
+        if (node.isNumber()) return node.numberValue();
+        if (node.isBoolean()) return node.booleanValue();
+        return node.toString();
     }
 
     /** Return the default value for a primitive type. */

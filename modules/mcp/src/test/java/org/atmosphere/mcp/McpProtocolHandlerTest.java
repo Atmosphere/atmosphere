@@ -15,8 +15,8 @@
  */
 package org.atmosphere.mcp;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -125,14 +125,14 @@ public class McpProtocolHandlerTest {
         assertNotNull(response);
 
         var node = mapper.readTree(response);
-        assertEquals("2.0", node.get("jsonrpc").asText());
+        assertEquals("2.0", node.get("jsonrpc").stringValue());
         assertEquals(1, node.get("id").asInt());
 
         var result = node.get("result");
         assertNotNull(result);
-        assertEquals("2025-03-26", result.get("protocolVersion").asText());
-        assertEquals("test-server", result.get("serverInfo").get("name").asText());
-        assertEquals("1.0.0", result.get("serverInfo").get("version").asText());
+        assertEquals("2025-03-26", result.get("protocolVersion").stringValue());
+        assertEquals("test-server", result.get("serverInfo").get("name").stringValue());
+        assertEquals("1.0.0", result.get("serverInfo").get("version").stringValue());
 
         // Should report tool and resource capabilities
         assertTrue(result.get("capabilities").has("tools"));
@@ -176,19 +176,19 @@ public class McpProtocolHandlerTest {
         // Find the greet tool
         JsonNode greetTool = null;
         for (var tool : tools) {
-            if ("greet".equals(tool.get("name").asText())) {
+            if ("greet".equals(tool.get("name").stringValue())) {
                 greetTool = tool;
                 break;
             }
         }
         assertNotNull(greetTool, "greet tool should be listed");
-        assertEquals("Greet a person", greetTool.get("description").asText());
+        assertEquals("Greet a person", greetTool.get("description").stringValue());
 
         // Check input schema
         var schema = greetTool.get("inputSchema");
-        assertEquals("object", schema.get("type").asText());
+        assertEquals("object", schema.get("type").stringValue());
         assertTrue(schema.get("properties").has("name"));
-        assertEquals("string", schema.get("properties").get("name").get("type").asText());
+        assertEquals("string", schema.get("properties").get("name").get("type").stringValue());
     }
 
     @Test
@@ -202,7 +202,7 @@ public class McpProtocolHandlerTest {
         var node = mapper.readTree(handler.handleMessage(resource, request));
         var result = node.get("result");
         assertFalse(result.get("isError").asBoolean());
-        assertEquals("Hello, World!", result.get("content").get(0).get("text").asText());
+        assertEquals("Hello, World!", result.get("content").get(0).get("text").stringValue());
     }
 
     @Test
@@ -216,7 +216,7 @@ public class McpProtocolHandlerTest {
         var node = mapper.readTree(handler.handleMessage(resource, request));
         var result = node.get("result");
         assertFalse(result.get("isError").asBoolean());
-        assertEquals("10", result.get("content").get(0).get("text").asText());
+        assertEquals("10", result.get("content").get(0).get("text").stringValue());
     }
 
     @Test
@@ -241,7 +241,7 @@ public class McpProtocolHandlerTest {
         var node = mapper.readTree(handler.handleMessage(resource, request));
         var result = node.get("result");
         assertTrue(result.get("isError").asBoolean());
-        assertTrue(result.get("content").get(0).get("text").asText().contains("Something went wrong"));
+        assertTrue(result.get("content").get(0).get("text").stringValue().contains("Something went wrong"));
     }
 
     // ── Resources ────────────────────────────────────────────────────────
@@ -255,8 +255,8 @@ public class McpProtocolHandlerTest {
         var resources = node.get("result").get("resources");
         assertTrue(resources.isArray());
         assertEquals(1, resources.size());
-        assertEquals("test://data/status", resources.get(0).get("uri").asText());
-        assertEquals("application/json", resources.get(0).get("mimeType").asText());
+        assertEquals("test://data/status", resources.get(0).get("uri").stringValue());
+        assertEquals("application/json", resources.get(0).get("mimeType").stringValue());
     }
 
     @Test
@@ -268,7 +268,7 @@ public class McpProtocolHandlerTest {
 
         var node = mapper.readTree(handler.handleMessage(resource, request));
         var contents = node.get("result").get("contents");
-        assertEquals("{\"status\":\"ok\"}", contents.get(0).get("text").asText());
+        assertEquals("{\"status\":\"ok\"}", contents.get(0).get("text").stringValue());
     }
 
     // ── Prompts ──────────────────────────────────────────────────────────
@@ -281,7 +281,7 @@ public class McpProtocolHandlerTest {
         var node = mapper.readTree(handler.handleMessage(resource, request));
         var prompts = node.get("result").get("prompts");
         assertEquals(1, prompts.size());
-        assertEquals("analyze", prompts.get(0).get("name").asText());
+        assertEquals("analyze", prompts.get(0).get("name").stringValue());
         assertTrue(prompts.get(0).has("arguments"));
     }
 
@@ -297,9 +297,9 @@ public class McpProtocolHandlerTest {
         var result = node.get("result");
         var messages = result.get("messages");
         assertEquals(2, messages.size());
-        assertEquals("system", messages.get(0).get("role").asText());
-        assertEquals("user", messages.get(1).get("role").asText());
-        assertTrue(messages.get(1).get("content").get("text").asText().contains("sales data"));
+        assertEquals("system", messages.get(0).get("role").stringValue());
+        assertEquals("user", messages.get(1).get("role").stringValue());
+        assertTrue(messages.get(1).get("content").get("text").stringValue().contains("sales data"));
     }
 
     // ── Error handling ───────────────────────────────────────────────────
@@ -385,7 +385,7 @@ public class McpProtocolHandlerTest {
         var node = mapper.readTree(testHandler.handleMessage(resource, request));
         var result = node.get("result");
         assertFalse(result.get("isError").asBoolean());
-        assertEquals("HELLO WORLD", result.get("content").get(0).get("text").asText());
+        assertEquals("HELLO WORLD", result.get("content").get(0).get("text").stringValue());
     }
 
     @Test
@@ -398,7 +398,7 @@ public class McpProtocolHandlerTest {
                 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"version"}}""";
 
         var node = mapper.readTree(testHandler.handleMessage(resource, request));
-        assertEquals("4.0.0", node.get("result").get("content").get(0).get("text").asText());
+        assertEquals("4.0.0", node.get("result").get("content").get(0).get("text").stringValue());
     }
 
     @Test
@@ -424,7 +424,7 @@ public class McpProtocolHandlerTest {
 
         var node = mapper.readTree(testHandler.handleMessage(resource, request));
         var contents = node.get("result").get("contents");
-        assertEquals("{\"up\":true}", contents.get(0).get("text").asText());
+        assertEquals("{\"up\":true}", contents.get(0).get("text").stringValue());
     }
 
     @Test
@@ -542,7 +542,7 @@ public class McpProtocolHandlerTest {
 
         var node = mapper.readTree(handler.handleMessage(resource, request));
         assertEquals(-32602, node.get("error").get("code").asInt());
-        assertTrue(node.get("error").get("message").asText().contains("Missing required parameter"));
+        assertTrue(node.get("error").get("message").stringValue().contains("Missing required parameter"));
     }
 
     @Test
@@ -556,7 +556,7 @@ public class McpProtocolHandlerTest {
         var node = mapper.readTree(handler.handleMessage(resource, request));
         var result = node.get("result");
         assertFalse(result.get("isError").asBoolean());
-        assertEquals("Hello, Alice!", result.get("content").get(0).get("text").asText());
+        assertEquals("Hello, Alice!", result.get("content").get(0).get("text").stringValue());
     }
 
     @Test
@@ -570,7 +570,7 @@ public class McpProtocolHandlerTest {
         var node = mapper.readTree(handler.handleMessage(resource, request));
         var result = node.get("result");
         assertFalse(result.get("isError").asBoolean());
-        assertEquals("Hello, Dr. Alice!", result.get("content").get(0).get("text").asText());
+        assertEquals("Hello, Dr. Alice!", result.get("content").get(0).get("text").stringValue());
     }
 
     @Test
@@ -583,7 +583,7 @@ public class McpProtocolHandlerTest {
 
         var node = mapper.readTree(handler.handleMessage(resource, request));
         assertEquals(-32602, node.get("error").get("code").asInt());
-        assertTrue(node.get("error").get("message").asText().contains("Missing required parameter"));
+        assertTrue(node.get("error").get("message").stringValue().contains("Missing required parameter"));
     }
 
     // ── Session Subscription Tracking ────────────────────────────────────

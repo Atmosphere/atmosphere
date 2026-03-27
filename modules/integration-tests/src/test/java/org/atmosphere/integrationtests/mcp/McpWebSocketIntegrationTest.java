@@ -15,7 +15,7 @@
  */
 package org.atmosphere.integrationtests.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.integrationtests.EmbeddedAtmosphereServer;
 
 import java.net.URI;
@@ -108,14 +108,14 @@ public class McpWebSocketIntegrationTest {
         var initResponse = findResponseById(received, 1);
         assertNotNull(initResponse, "Should have initialize response");
         var initResult = MAPPER.readTree(initResponse);
-        assertEquals("test-server", initResult.get("result").get("serverInfo").get("name").asText());
+        assertEquals("test-server", initResult.get("result").get("serverInfo").get("name").stringValue());
 
         // Verify echo response
         var echoResponse = findResponseById(received, 2);
         assertNotNull(echoResponse, "Should have echo response");
         var echoResult = MAPPER.readTree(echoResponse);
         assertFalse(echoResult.get("result").get("isError").asBoolean());
-        assertEquals("Echo: ws-test-message", echoResult.get("result").get("content").get(0).get("text").asText());
+        assertEquals("Echo: ws-test-message", echoResult.get("result").get("content").get(0).get("text").stringValue());
 
         ws.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
     }
@@ -191,7 +191,7 @@ public class McpWebSocketIntegrationTest {
         assertNotNull(addResponse);
         var result = MAPPER.readTree(addResponse).get("result");
         assertFalse(result.get("isError").asBoolean());
-        assertEquals("42", result.get("content").get(0).get("text").asText());
+        assertEquals("42", result.get("content").get(0).get("text").stringValue());
 
         ws.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
     }

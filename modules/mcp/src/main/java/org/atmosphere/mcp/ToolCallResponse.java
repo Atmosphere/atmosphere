@@ -15,8 +15,8 @@
  */
 package org.atmosphere.mcp;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Represents a client-to-server tool call response.
@@ -78,6 +78,6 @@ public record ToolCallResponse(String id, String result, String error) {
         if (child == null || child.isNull()) {
             return null;
         }
-        return child.asText();
+        return child.isString() ? child.stringValue() : child.toString();
     }
 }

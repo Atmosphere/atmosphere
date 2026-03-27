@@ -15,7 +15,7 @@
  */
 package org.atmosphere.a2a;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.a2a.annotation.AgentSkill;
 import org.atmosphere.a2a.annotation.AgentSkillHandler;
@@ -92,7 +92,7 @@ class A2aStreamableHttpTest {
         assertEquals(1, node.get("id").asInt());
         assertNotNull(node.get("result"));
         assertNotNull(node.get("result").get("id"));
-        assertEquals("COMPLETED", node.get("result").get("status").get("state").asText());
+        assertEquals("COMPLETED", node.get("result").get("status").get("state").stringValue());
         verify(resource.getResponse()).setContentType("application/json");
         verify(resource.getResponse()).setStatus(200);
     }
@@ -164,8 +164,8 @@ class A2aStreamableHttpTest {
         verify(resource.getResponse()).setContentType("application/json");
 
         var node = mapper.readTree(output.toString());
-        assertEquals("test-agent", node.get("name").asText());
-        assertEquals("1.0.0", node.get("version").asText());
+        assertEquals("test-agent", node.get("name").stringValue());
+        assertEquals("1.0.0", node.get("version").stringValue());
         assertTrue(node.has("skills"));
         assertTrue(node.get("skills").isArray());
         assertEquals(1, node.get("skills").size());
@@ -184,7 +184,7 @@ class A2aStreamableHttpTest {
         verify(resource.getResponse()).setContentType("application/json");
 
         var node = mapper.readTree(output.toString());
-        assertEquals("test-agent", node.get("name").asText());
+        assertEquals("test-agent", node.get("name").stringValue());
     }
 
     @Test

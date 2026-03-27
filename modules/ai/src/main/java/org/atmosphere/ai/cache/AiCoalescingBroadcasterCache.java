@@ -15,7 +15,7 @@
  */
 package org.atmosphere.ai.cache;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 import org.atmosphere.ai.filter.AiStreamMessage;
 import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.BroadcasterCacheInspector;
@@ -129,7 +129,7 @@ public class AiCoalescingBroadcasterCache implements BroadcasterCache {
         }
         try {
             return AiStreamMessage.parse(json);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             logger.debug("Failed to parse cached message as AI stream message: {}", e.getMessage());
             return null;
         }

@@ -15,8 +15,8 @@
  */
 package org.atmosphere.ai;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
@@ -198,7 +198,7 @@ final class BroadcasterStreamingSession implements StreamingSession {
     private static String toJson(Map<String, Object> map) {
         try {
             return MAPPER.writeValueAsString(map);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             logger.error("Failed to serialize streaming message", e);
             return "{}";
         }

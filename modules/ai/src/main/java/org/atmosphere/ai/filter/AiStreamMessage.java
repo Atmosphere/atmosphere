@@ -15,9 +15,9 @@
  */
 package org.atmosphere.ai.filter;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.LinkedHashMap;
 
@@ -56,9 +56,9 @@ public record AiStreamMessage(
      *
      * @param json the JSON string from the wire protocol
      * @return the parsed message, or {@code null} if the JSON does not contain a valid "type" field
-     * @throws JsonProcessingException if the JSON is malformed
+     * @throws JacksonException if the JSON is malformed
      */
-    public static AiStreamMessage parse(String json) throws JsonProcessingException {
+    public static AiStreamMessage parse(String json) throws JacksonException {
         var node = MAPPER.readTree(json);
 
         var typeNode = node.get("type");
@@ -66,11 +66,11 @@ public record AiStreamMessage(
             return null;
         }
 
-        var type = typeNode.asText();
-        var data = node.has("data") && !node.get("data").isNull() ? node.get("data").asText() : null;
-        var sessionId = node.has("sessionId") ? node.get("sessionId").asText() : null;
+        var type = typeNode.stringValue();
+        var data = node.has("data") && !node.get("data").isNull() ? node.get("data").stringValue() : null;
+        var sessionId = node.has("sessionId") ? node.get("sessionId").stringValue() : null;
         var seq = node.has("seq") ? node.get("seq").asLong() : 0L;
-        var key = node.has("key") ? node.get("key").asText() : null;
+        var key = node.has("key") ? node.get("key").stringValue() : null;
 
         Object value = null;
         if (node.has("value")) {
@@ -106,7 +106,7 @@ public record AiStreamMessage(
         }
         try {
             return MAPPER.writeValueAsString(map);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("Failed to serialize AiStreamMessage", e);
         }
     }
@@ -154,8 +154,8 @@ public record AiStreamMessage(
     private static Object extractValue(JsonNode valueNode) {
         if (valueNode.isNull()) {
             return null;
-        } else if (valueNode.isTextual()) {
-            return valueNode.asText();
+        } else if (valueNode.isString()) {
+            return valueNode.stringValue();
         } else if (valueNode.isInt()) {
             return valueNode.asInt();
         } else if (valueNode.isLong()) {

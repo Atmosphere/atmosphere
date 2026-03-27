@@ -20,7 +20,6 @@
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
         <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
-        <jackson.source.dir>src/main/java-jackson3</jackson.source.dir>
     </properties>
 
     <dependencyManagement>
@@ -67,6 +66,12 @@
         </dependency>
 
         <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
@@ -99,23 +104,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.6.0</version>
-                <executions>
-                    <execution>
-                        <id>add-jackson-sources</id>
-                        <phase>generate-sources</phase>
-                        <goals><goal>add-source</goal></goals>
-                        <configuration>
-                            <sources>
-                                <source>${jackson.source.dir}</source>
-                            </sources>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
     <profiles>
@@ -124,7 +112,6 @@
             <properties>
                 <spring-boot.version>3.5.3</spring-boot.version>
                 <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
-                <jackson.source.dir>src/main/java-jackson2</jackson.source.dir>
             </properties>
         </profile>
     </profiles>

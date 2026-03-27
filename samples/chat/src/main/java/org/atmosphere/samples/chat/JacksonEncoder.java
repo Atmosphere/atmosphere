@@ -15,11 +15,10 @@
  */
 package org.atmosphere.samples.chat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.config.managed.Encoder;
 
 import jakarta.inject.Inject;
-import java.io.IOException;
 
 /**
  * Encode a {@link Message} into a String
@@ -31,10 +30,6 @@ public class JacksonEncoder implements Encoder<Message, String> {
 
     @Override
     public String encode(Message m) {
-        try {
-            return mapper.writeValueAsString(m);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        return mapper.writeValueAsString(m);
     }
 }

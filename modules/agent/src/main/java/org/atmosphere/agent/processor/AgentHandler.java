@@ -15,8 +15,8 @@
  */
 package org.atmosphere.agent.processor;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.agent.command.CommandResult;
 import org.atmosphere.agent.command.CommandRouter;
 import org.atmosphere.ai.processor.AiEndpointHandler;
@@ -190,7 +190,7 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
             var completeJson = MAPPER.writeValueAsString(
                     Map.of("type", "complete", "sessionId", sessionId, "seq", 1));
             resource.write(completeJson);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             logger.error("Failed to serialize command response: {}", e.getMessage(), e);
         }
     }

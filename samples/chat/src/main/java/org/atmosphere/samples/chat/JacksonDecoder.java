@@ -15,11 +15,10 @@
  */
 package org.atmosphere.samples.chat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.config.managed.Decoder;
 
 import jakarta.inject.Inject;
-import java.io.IOException;
 
 /**
  * Decode a String into a {@link Message}.
@@ -31,10 +30,6 @@ public class JacksonDecoder implements Decoder<String, Message> {
 
     @Override
     public Message decode(String s) {
-        try {
-            return mapper.readValue(s, Message.class);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        return mapper.readValue(s, Message.class);
     }
 }

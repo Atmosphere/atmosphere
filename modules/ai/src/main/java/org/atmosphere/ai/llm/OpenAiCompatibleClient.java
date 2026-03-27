@@ -15,8 +15,8 @@
  */
 package org.atmosphere.ai.llm;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.ai.RetryPolicy;
 import org.atmosphere.ai.StreamingSession;
 import org.slf4j.Logger;
@@ -251,8 +251,8 @@ public class OpenAiCompatibleClient implements LlmClient {
 
             // Extract content text
             var contentNode = delta.get("content");
-            if (contentNode != null && !contentNode.isNull() && contentNode.isTextual()) {
-                var text = contentNode.asText();
+            if (contentNode != null && !contentNode.isNull() && contentNode.isString()) {
+                var text = contentNode.stringValue();
                 if (!text.isEmpty()) {
                     session.send(text);
                 }
@@ -261,7 +261,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             // Check for finish reason
             var finishNode = firstChoice.get("finish_reason");
             if (finishNode != null && !finishNode.isNull()) {
-                var reason = finishNode.asText();
+                var reason = finishNode.stringValue();
                 if (!"null".equals(reason)) {
                     logger.debug("Stream finished: reason={}", reason);
                 }
@@ -284,14 +284,14 @@ public class OpenAiCompatibleClient implements LlmClient {
             // Forward model metadata
             var modelNode = node.get("model");
             if (modelNode != null && !modelNode.isNull()) {
-                session.sendMetadata("model", modelNode.asText());
+                session.sendMetadata("model", modelNode.stringValue());
             }
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             logger.warn("Failed to parse SSE data: {}", data, e);
         }
     }
 
-    private String buildRequestBody(ChatCompletionRequest request) throws JsonProcessingException {
+    private String buildRequestBody(ChatCompletionRequest request) throws JacksonException {
         var body = new LinkedHashMap<String, Object>();
         body.put("model", request.model());
         body.put("messages", request.messages().stream()
@@ -334,7 +334,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             }
             var errorNode = node.get("error");
             if (errorNode != null && errorNode.has("message")) {
-                return errorNode.get("message").asText();
+                return errorNode.get("message").stringValue();
             }
         } catch (Exception ex) {
             logger.trace("Failed to parse error response JSON", ex);

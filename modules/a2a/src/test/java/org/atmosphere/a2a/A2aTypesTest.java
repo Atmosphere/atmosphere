@@ -15,8 +15,8 @@
  */
 package org.atmosphere.a2a;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.a2a.registry.A2aRegistry;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.a2a.types.AgentCard;
 import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.a2a.types.Message;

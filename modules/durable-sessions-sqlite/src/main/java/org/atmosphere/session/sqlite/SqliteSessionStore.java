@@ -33,9 +33,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * {@link SessionStore} backed by an embedded SQLite database.
@@ -267,7 +267,7 @@ public class SqliteSessionStore implements SessionStore {
     private String toJson(Object value) {
         try {
             return mapper.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             logger.error("Failed to serialize value", e);
             return "[]";
         }
@@ -279,7 +279,7 @@ public class SqliteSessionStore implements SessionStore {
         }
         try {
             return mapper.readValue(json, SET_TYPE);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             logger.error("Failed to deserialize set", e);
             return Set.of();
         }
@@ -291,7 +291,7 @@ public class SqliteSessionStore implements SessionStore {
         }
         try {
             return mapper.readValue(json, MAP_TYPE);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             logger.error("Failed to deserialize map", e);
             return Map.of();
         }

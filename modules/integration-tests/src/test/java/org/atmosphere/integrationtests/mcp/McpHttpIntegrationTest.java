@@ -15,7 +15,7 @@
  */
 package org.atmosphere.integrationtests.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.integrationtests.EmbeddedAtmosphereServer;
 
 import java.net.URI;
@@ -75,14 +75,14 @@ public class McpHttpIntegrationTest {
         assertEquals(200, response.statusCode());
 
         var body = MAPPER.readTree(response.body());
-        assertEquals("2.0", body.get("jsonrpc").asText());
+        assertEquals("2.0", body.get("jsonrpc").stringValue());
         assertEquals(1, body.get("id").asInt());
 
         var result = body.get("result");
         assertNotNull(result, "Initialize response must have result");
-        assertEquals("2025-03-26", result.get("protocolVersion").asText());
-        assertEquals("test-server", result.get("serverInfo").get("name").asText());
-        assertNotNull(result.get("serverInfo").get("version").asText());
+        assertEquals("2025-03-26", result.get("protocolVersion").stringValue());
+        assertEquals("test-server", result.get("serverInfo").get("name").stringValue());
+        assertNotNull(result.get("serverInfo").get("version").stringValue());
         assertTrue(result.get("capabilities").has("tools"));
     }
 
@@ -118,7 +118,7 @@ public class McpHttpIntegrationTest {
 
         var toolNames = new java.util.ArrayList<String>();
         for (var tool : tools) {
-            toolNames.add(tool.get("name").asText());
+            toolNames.add(tool.get("name").stringValue());
         }
         assertTrue(toolNames.contains("echo"), "Should contain echo tool");
         assertTrue(toolNames.contains("add"), "Should contain add tool");
@@ -139,8 +139,8 @@ public class McpHttpIntegrationTest {
         var result = body.get("result");
         assertFalse(result.get("isError").asBoolean());
         var content = result.get("content").get(0);
-        assertEquals("text", content.get("type").asText());
-        assertEquals("Echo: hello world", content.get("text").asText());
+        assertEquals("text", content.get("type").stringValue());
+        assertEquals("Echo: hello world", content.get("text").stringValue());
     }
 
     @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
@@ -157,7 +157,7 @@ public class McpHttpIntegrationTest {
         var body = MAPPER.readTree(response.body());
         var result = body.get("result");
         assertFalse(result.get("isError").asBoolean());
-        assertEquals("10", result.get("content").get(0).get("text").asText());
+        assertEquals("10", result.get("content").get(0).get("text").stringValue());
     }
 
     @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)

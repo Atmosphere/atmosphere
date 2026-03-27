@@ -15,8 +15,8 @@
  */
 package org.atmosphere.mcp;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -48,7 +48,7 @@ public record ToolCallRequest(String id, String name, Map<String, Object> args) 
         map.put("args", args != null ? args : Map.of());
         try {
             return MAPPER.writeValueAsString(map);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("Failed to serialize ToolCallRequest", e);
         }
     }

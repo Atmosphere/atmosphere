@@ -15,7 +15,7 @@
  */
 package org.atmosphere.agui;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.agui.event.AgUiEvent;
 import org.atmosphere.agui.event.AgUiEventType;
 import org.junit.jupiter.api.Test;
