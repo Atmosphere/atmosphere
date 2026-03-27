@@ -31,7 +31,7 @@ jobs:
     - name: Rebuild Spring Boot samples with SB3
       if: matrix.spring-boot-version == 3
       run: |
-        SB_SAMPLES=$(ls -d samples/spring-boot-*/pom.xml | sed 's|/pom.xml||' | paste -sd, -)
+        SB_SAMPLES=$(ls -d samples/spring-boot-*/pom.xml | grep -v embabel | sed 's|/pom.xml||' | paste -sd, -)
         ./mvnw -B package -DskipTests -Dgpg.skip=true -Pspring-boot3 -pl "$SB_SAMPLES"
 
     - name: Package build output
