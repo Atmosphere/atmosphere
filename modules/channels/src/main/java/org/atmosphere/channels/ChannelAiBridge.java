@@ -223,7 +223,7 @@ public class ChannelAiBridge {
      */
     private String callAiRaw(String userMessage) {
         var settings = AiConfig.get();
-        if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
+        if (settings == null || settings.apiKey() == null || settings.apiKey().isBlank()) {
             return "Hello! I received your message: \"" + userMessage
                     + "\"\n\nI'm in demo mode. Configure atmosphere.ai.api-key to enable real AI responses.";
         }

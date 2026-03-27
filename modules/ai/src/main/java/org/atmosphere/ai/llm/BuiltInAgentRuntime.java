@@ -29,7 +29,7 @@ import java.util.Set;
  * built-in OpenAI-compatible HTTP client. Priority 0 — always available, used
  * when no framework-specific runtime is on the classpath.
  */
-public class BuiltInAgentRuntime extends AbstractAgentRuntime<OpenAiCompatibleClient> {
+public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
 
     @Override
     public String name() {
@@ -43,16 +43,16 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<OpenAiCompatibleCl
 
     @Override
     protected String nativeClientClassName() {
-        return "org.atmosphere.ai.llm.OpenAiCompatibleClient";
+        return "org.atmosphere.ai.llm.LlmClient";
     }
 
     @Override
     protected String clientDescription() {
-        return "OpenAiCompatibleClient";
+        return "LlmClient";
     }
 
     @Override
-    protected OpenAiCompatibleClient createNativeClient(AiConfig.LlmSettings settings) {
+    protected LlmClient createNativeClient(AiConfig.LlmSettings settings) {
         return settings != null ? settings.client() : null;
     }
 
@@ -64,7 +64,7 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<OpenAiCompatibleCl
     }
 
     @Override
-    protected void doExecute(OpenAiCompatibleClient client,
+    protected void doExecute(LlmClient client,
                              AgentExecutionContext context, StreamingSession session) {
         var messages = new ArrayList<ChatMessage>();
         if (context.systemPrompt() != null && !context.systemPrompt().isEmpty()) {

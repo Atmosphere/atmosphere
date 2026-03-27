@@ -15,6 +15,8 @@
  */
 package org.atmosphere.ai;
 
+import org.atmosphere.ai.llm.FakeLlmClient;
+import org.atmosphere.ai.llm.LlmClient;
 import org.atmosphere.ai.llm.OpenAiCompatibleClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,12 +99,27 @@ public final class AiConfig {
     /**
      * Immutable settings record holding the resolved LLM configuration.
      */
-    public record LlmSettings(OpenAiCompatibleClient client, String model, String mode, String baseUrl) {
+    public record LlmSettings(LlmClient client, String model, String mode, String baseUrl) {
         /**
          * @return {@code true} if running against a local model (e.g. Ollama)
          */
         public boolean isLocal() {
             return "local".equalsIgnoreCase(mode);
+        }
+
+        /**
+         * @return {@code true} if running in fake/demo mode
+         */
+        public boolean isFake() {
+            return "fake".equalsIgnoreCase(mode);
+        }
+
+        /**
+         * Returns the API key if the underlying client is an {@link OpenAiCompatibleClient},
+         * or {@code null} otherwise (e.g. for fake mode).
+         */
+        public String apiKey() {
+            return client instanceof OpenAiCompatibleClient oac ? oac.apiKey() : null;
         }
     }
 
@@ -133,6 +150,12 @@ public final class AiConfig {
     public static LlmSettings configure(String mode, String model, String apiKey, String baseUrl) {
         LOCK.lock();
         try {
+            if ("fake".equalsIgnoreCase(mode)) {
+                logger.info("AI config: mode=fake (using FakeLlmClient — no real API calls)");
+                instance = new LlmSettings(new FakeLlmClient(model), model, mode, "fake");
+                return instance;
+            }
+
             var resolvedUrl = resolveBaseUrl(mode, baseUrl, model);
 
             logger.info("AI config: mode={}, model={}, endpoint={}", mode, model, resolvedUrl);

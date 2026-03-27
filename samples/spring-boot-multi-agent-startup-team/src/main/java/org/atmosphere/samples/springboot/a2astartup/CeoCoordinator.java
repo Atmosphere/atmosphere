@@ -81,7 +81,8 @@ import java.util.Map;
 @Coordinator(name = "ceo",
         skillFile = "prompts/ceo-skill.md",
         description = "Startup CEO that coordinates specialist A2A agents for market analysis",
-        responseAs = MarketAssessment.class)
+        responseAs = MarketAssessment.class,
+        journalFormat = JournalFormat.Markdown.class)
 @Fleet({
         @AgentRef(type = ResearchAgent.class),
         @AgentRef(type = StrategyAgent.class),
@@ -135,9 +136,8 @@ public class CeoCoordinator {
 
         // Fall back to demo mode if no LLM API key is configured
         var settings = AiConfig.get();
-        if (settings == null || settings.client() == null
-                || settings.client().apiKey() == null
-                || settings.client().apiKey().isBlank()) {
+        if (settings == null || settings.apiKey() == null
+                || settings.apiKey().isBlank()) {
             DemoResponseProducer.stream(message, session);
             return;
         }
@@ -180,16 +180,9 @@ public class CeoCoordinator {
         var report = fleet.agent("writer-agent").call("write_report", writerArgs);
         session.emit(new AiEvent.ToolResult("write_report", report.text()));
 
-        // --- Step 4: Coordination Journal (observability) ---
-        // The journal records every dispatch and completion in the fleet execution.
-        // formatLog() renders the event trace; it appears as a tool card in the console.
-        var journalLog = fleet.journal().formatLog(JournalFormat.MARKDOWN);
-        session.emit(new AiEvent.ToolStart("coordination_journal",
-                Map.<String, Object>of("query", "all events")));
-        session.emit(new AiEvent.ToolResult("coordination_journal", journalLog));
-        logger.info("Coordination journal:\n{}", journalLog);
+        // Journal is auto-emitted by the framework via journalFormat = Markdown.class
 
-        // --- Step 5: CEO synthesis via LLM ---
+        // --- Step 4: CEO synthesis via LLM ---
         // Trim agent results to fit within the LLM context window, then stream
         // the executive briefing to the browser in real-time via session.stream().
         // This call delegates to whichever AgentRuntime is on the classpath

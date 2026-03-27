@@ -67,7 +67,7 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
 
     @Override
     protected StreamingChatModel createNativeClient(AiConfig.LlmSettings settings) {
-        var apiKey = settings.client().apiKey();
+        var apiKey = settings.apiKey();
         if (apiKey == null || apiKey.isBlank()) {
             return null;
         }

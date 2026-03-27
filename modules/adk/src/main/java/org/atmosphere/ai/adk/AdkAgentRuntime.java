@@ -74,7 +74,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
 
     @Override
     protected Runner createNativeClient(AiConfig.LlmSettings settings) {
-        var apiKey = settings.client().apiKey();
+        var apiKey = settings.apiKey();
         if (apiKey == null || apiKey.isBlank()) {
             return null;
         }
@@ -133,7 +133,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
      */
     public static void configureWithTools(AiConfig.LlmSettings settings,
                                           List<ToolDefinition> tools) {
-        var apiKey = settings.client().apiKey();
+        var apiKey = settings.apiKey();
         var gemini = new Gemini(settings.model(), apiKey);
 
         var adkTools = AdkToolBridge.toAdkTools(tools);
@@ -163,7 +163,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         if (settings == null) {
             settings = AiConfig.fromEnvironment();
         }
-        var apiKey = settings.client().apiKey();
+        var apiKey = settings.apiKey();
         var gemini = new Gemini(settings.model(), apiKey);
 
         var adkTools = AdkToolBridge.toAdkTools(context.tools());

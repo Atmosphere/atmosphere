@@ -46,7 +46,7 @@ public class LlmConfig {
     public StreamingChatModel streamingChatModel(AiConfig.LlmSettings settings) {
         return OpenAiStreamingChatModel.builder()
                 .baseUrl(settings.baseUrl())
-                .apiKey(settings.client().apiKey())
+                .apiKey(settings.apiKey())
                 .modelName(settings.model())
                 .build();
     }

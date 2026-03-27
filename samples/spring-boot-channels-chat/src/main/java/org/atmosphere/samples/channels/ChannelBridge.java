@@ -86,7 +86,7 @@ public class ChannelBridge {
 
     private String generateResponse(String userMessage) {
         var settings = AiConfig.get();
-        if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
+        if (settings == null || settings.apiKey() == null || settings.apiKey().isBlank()) {
             return "Hello from Atmosphere! I received your message: \""
                     + userMessage + "\"\n\nI'm in demo mode. Set LLM_API_KEY to enable real AI.";
         }

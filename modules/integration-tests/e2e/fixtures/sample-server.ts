@@ -71,13 +71,6 @@ export const SAMPLES: Record<string, SampleConfig> = {
     type: 'spring-boot',
     readyPath: '/atmosphere/classroom/general',
   },
-  'spring-boot-spring-ai-routing': {
-    name: 'spring-boot-spring-ai-routing',
-    dir: 'spring-boot-spring-ai-routing',
-    port: 8088,
-    type: 'spring-boot',
-    readyPath: '/atmosphere/spring-ai-routing/general',
-  },
   'spring-boot-durable-sessions': {
     name: 'spring-boot-durable-sessions',
     dir: 'spring-boot-durable-sessions',
@@ -111,7 +104,6 @@ export const SAMPLES: Record<string, SampleConfig> = {
     dir: 'spring-boot-a2a-agent',
     port: 8093,
     type: 'spring-boot',
-    env: { GEMINI_API_KEY: '' },
   },
   'spring-boot-agui-chat': {
     name: 'spring-boot-agui-chat',

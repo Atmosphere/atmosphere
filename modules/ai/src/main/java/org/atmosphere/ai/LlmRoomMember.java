@@ -16,7 +16,7 @@
 package org.atmosphere.ai;
 
 import org.atmosphere.ai.llm.ChatCompletionRequest;
-import org.atmosphere.ai.llm.OpenAiCompatibleClient;
+import org.atmosphere.ai.llm.LlmClient;
 import org.atmosphere.room.Room;
 import org.atmosphere.room.VirtualRoomMember;
 import org.slf4j.Logger;
@@ -46,14 +46,14 @@ public class LlmRoomMember implements VirtualRoomMember {
     private static final Logger logger = LoggerFactory.getLogger(LlmRoomMember.class);
 
     private final String id;
-    private final OpenAiCompatibleClient client;
+    private final LlmClient client;
     private final String model;
     private final String systemPrompt;
 
     /**
      * Create an LLM room member with the default system prompt.
      */
-    public LlmRoomMember(String id, OpenAiCompatibleClient client, String model) {
+    public LlmRoomMember(String id, LlmClient client, String model) {
         this(id, client, model, "You are a helpful assistant participating in a chat room. "
                 + "Keep responses concise and conversational.");
     }
@@ -61,7 +61,7 @@ public class LlmRoomMember implements VirtualRoomMember {
     /**
      * Create an LLM room member with a custom system prompt.
      */
-    public LlmRoomMember(String id, OpenAiCompatibleClient client, String model, String systemPrompt) {
+    public LlmRoomMember(String id, LlmClient client, String model, String systemPrompt) {
         this.id = Objects.requireNonNull(id, "id");
         this.client = Objects.requireNonNull(client, "client");
         this.model = Objects.requireNonNull(model, "model");

@@ -63,7 +63,7 @@ public class AiToolsChat {
         logger.info("[room={}] Prompt from {}: {}", room, resource.uuid(), message);
 
         var settings = AiConfig.get();
-        if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
+        if (settings == null || settings.apiKey() == null || settings.apiKey().isBlank()) {
             var model = settings != null ? settings.model() : "unknown";
             DemoResponseProducer.stream(message, session, room, model);
             return;

@@ -48,7 +48,7 @@ public class OmnichannelChat {
         logger.info("Prompt: {}", message);
 
         var settings = AiConfig.get();
-        if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
+        if (settings == null || settings.apiKey() == null || settings.apiKey().isBlank()) {
             DemoResponseProducer.stream(message, session);
             return;
         }
