@@ -124,11 +124,11 @@ public class ChannelWebhookController {
             // Handle Slack URL verification challenge before signature check
             if ("slack".equals(channel)) {
                 try {
-                    var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body);
-                    if ("url_verification".equals(json.path("type").asText())) {
-                        return ResponseEntity.ok(json.path("challenge").asText());
+                    var json = new tools.jackson.databind.ObjectMapper().readTree(body);
+                    if ("url_verification".equals(json.path("type").stringValue())) {
+                        return ResponseEntity.ok(json.path("challenge").stringValue());
                     }
-                } catch (java.io.IOException ex) {
+                } catch (tools.jackson.core.JacksonException ex) {
                     log.trace("Slack challenge detection: not JSON or not a challenge", ex);
                 }
             }
