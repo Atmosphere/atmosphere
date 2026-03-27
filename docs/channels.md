@@ -15,7 +15,7 @@ When `atmosphere-channels` and `atmosphere-agent` are both on the classpath, `@C
 
 ## How It Works
 
-Commands route through all registered agents in registration order — first match wins. Natural-language messages go through the first registered agent's `AiPipeline`.
+Commands (messages starting with `/`) route through all registered agents — first match wins. Natural-language messages go through the **first registered agent's** `AiPipeline` only. Multi-agent NL routing is not yet supported; use commands for multi-agent dispatch.
 
 **Web (WebSocket)** uses the full `AiStreamingSession` pipeline, which includes `AiInterceptor` (pre/post processing that requires `AtmosphereResource`).
 

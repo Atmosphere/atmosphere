@@ -5,8 +5,8 @@
 <h1 align="center">Atmosphere</h1>
 
 <p align="center">
-  <strong>The real-time infrastructure layer for Java AI agents.</strong><br/>
-  Pick any LLM library. Build once with <code>@Agent</code> — deliver over WebSocket, SSE, gRPC, MCP, A2A, AG-UI, or any transport.
+  <strong>Real-time transport layer for Java AI agents.</strong><br/>
+  Build once with <code>@Agent</code> — deliver over WebSocket, SSE, gRPC, MCP, A2A, AG-UI, or any transport. Works with Spring AI, LangChain4j, Google ADK, Embabel, or the built-in OpenAI-compatible client.
 </p>
 
 <p align="center">
@@ -270,22 +270,21 @@ Write your agent once. The execution engine is determined by what's on the class
 | **Google ADK** | `atmosphere-adk` | Google's Agent Development Kit: `LlmAgent`, function tools, session management. ADK agents gain WebSocket visibility and A2A interop. |
 | **Embabel** | `atmosphere-embabel` | Embabel's goal-driven GOAP planning. Embabel agents stream through Atmosphere to every transport and channel. |
 
-**Switching is one line in `pom.xml`.** Your `@Agent`, `@AiTool`, `@Command`, skill files, conversation memory, guardrails, and protocol exposure stay the same. The `AgentRuntime` handles the rest.
+Switching backends is one dependency change. Your `@Agent`, `@AiTool`, `@Command`, skill files, conversation memory, guardrails, and protocol exposure stay the same.
 
-**Why not use Spring AI / LangChain4j / ADK directly?**
+### What Atmosphere adds to an AI framework
 
-You can — and you should use their LLM capabilities. But they handle **inference**, not **delivery**. When you add Atmosphere:
+Spring AI, LangChain4j, and ADK handle inference. Atmosphere handles delivery — getting the LLM response to the client over the right transport and protocol.
 
-- **Streaming** — LLM tokens stream to browsers via WebSocket in real-time, not buffered as HTTP responses
-- **Protocol exposure** — your RAG pipeline is automatically accessible via MCP, A2A, and AG-UI with zero extra code
-- **Multi-channel** — the same agent responds on Web, Slack, Telegram, Discord — not just HTTP
-- **Conversation memory** — multi-turn context managed by the framework, works identically across all backends
-- **Tool portability** — `@AiTool` methods work with every backend. Start with built-in, move to Spring AI later — tools don't change
-- **RAG portability** — build your retrieval pipeline with any backend's vector store. Atmosphere delivers the augmented response to every transport and protocol
-- **Skill file portability** — same Markdown skill file (system prompt, tools, guardrails) works across all backends
-- **Agent composition** — headless agents collaborate via A2A regardless of which backend each one uses. A Spring AI agent can delegate to a LangChain4j agent
-- **Durable sessions** — conversation state survives server restarts (SQLite, Redis), independent of backend
-- **No lock-in** — switch from LangChain4j to Spring AI by changing one Maven dependency. Your `@Agent`, tools, commands, skill file, and tests stay the same
+| Concern | Without Atmosphere | With Atmosphere |
+|---------|-------------------|-----------------|
+| LLM streaming to browser | HTTP response buffering | WebSocket/SSE real-time token streaming |
+| Protocol exposure | Manual endpoint per protocol | Auto-registered MCP, A2A, AG-UI from classpath |
+| Multi-channel | One integration per platform | Same agent on Web, Slack, Telegram, Discord |
+| Conversation memory | Per-backend implementation | Framework-managed, backend-independent (SQLite, Redis) |
+| Tool portability | Backend-specific annotations | `@AiTool` works across all backends |
+| Agent composition | Custom HTTP plumbing | Headless agents collaborate via A2A, any backend mix |
+| Backend switching | Rewrite integration code | Change one Maven dependency |
 
 ## Annotation Compatibility
 
@@ -357,6 +356,26 @@ function Chat() {
 | Chat | [embedded-jetty](samples/embedded-jetty-websocket-chat/) | Embedded Jetty, no framework |
 
 [All 18 samples](samples/) · `atmosphere install` for interactive picker · [CLI reference](cli/README.md)
+
+## Maven Coordinates
+
+```xml
+<!-- Spring Boot 4.0 starter (includes atmosphere-runtime + auto-configuration) -->
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-spring-boot-starter</artifactId>
+    <version>4.0.28-SNAPSHOT</version>
+</dependency>
+
+<!-- Agent module (required for @Agent, @Coordinator) -->
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-agent</artifactId>
+    <version>4.0.28-SNAPSHOT</version>
+</dependency>
+```
+
+Optional modules: `atmosphere-ai`, `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`, `atmosphere-channels`, `atmosphere-coordinator`. Add them to the classpath and the corresponding features auto-register.
 
 ## Requirements
 

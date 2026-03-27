@@ -8,7 +8,7 @@ Multi-agent orchestration module for Atmosphere. Provides `@Coordinator`, `@Flee
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-coordinator</artifactId>
-    <version>4.0.28-SNAPSHOT</version>
+    <version>4.0.27</version>
 </dependency>
 ```
 

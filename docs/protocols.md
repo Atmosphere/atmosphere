@@ -15,17 +15,22 @@ Atmosphere supports three agentic protocols. All ride Atmosphere's transport lay
 Expose tools, resources, and prompts to external AI agents.
 
 ```java
-@McpServer(name = "my-tools", path = "/atmosphere/mcp")
+@Agent(name = "my-tools", headless = true)
 public class MyTools {
     @McpTool(name = "ask_ai", description = "Ask AI and stream the answer")
-    public String askAi(@McpParam(name = "question") String q, StreamingSession session) {
-        session.stream(q);
-        return "streaming";
+    public String askAi(@McpParam(name = "question") String q) {
+        return myService.answer(q);
+    }
+
+    @McpResource(uri = "config://settings", name = "Settings",
+                 description = "Application settings")
+    public String settings() {
+        return settingsJson;
     }
 }
 ```
 
-**Annotations**: `@McpServer`, `@McpTool`, `@McpResource`, `@McpPrompt`, `@McpParam`
+**Annotations**: `@McpTool`, `@McpResource`, `@McpPrompt`, `@McpParam` (used on `@Agent` classes — MCP endpoint auto-registers when `atmosphere-mcp` is on the classpath)
 **Transports**: Streamable HTTP, WebSocket, SSE
 **Features**: BiDirectionalToolBridge (server -> client tool calls), OpenTelemetry tracing
 
