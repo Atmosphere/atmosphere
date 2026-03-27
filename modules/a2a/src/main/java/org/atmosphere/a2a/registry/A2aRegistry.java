@@ -89,12 +89,18 @@ public final class A2aRegistry {
     }
 
     public AgentCard buildAgentCard(String name, String description, String version, String url) {
+        return buildAgentCard(name, description, version, url, null);
+    }
+
+    public AgentCard buildAgentCard(String name, String description, String version,
+                                    String url, List<String> guardrails) {
         var skillList = skills.values().stream()
                 .map(s -> new Skill(s.id(), s.name(), s.description(), s.tags(), Map.of(), Map.of()))
                 .toList();
         var capabilities = new AgentCard.AgentCapabilities(true, false, true);
         return new AgentCard(name, description, url, version, null, null,
-                capabilities, skillList, Map.of(), List.of("text"), List.of("text"));
+                capabilities, skillList, Map.of(), List.of("text"), List.of("text"),
+                guardrails);
     }
 
     private List<ParamEntry> extractParams(Method method) {

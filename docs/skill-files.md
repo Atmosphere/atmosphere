@@ -26,8 +26,8 @@ All sections are optional. Unrecognized sections are ignored by the parser but s
 | *(body text)* | Free-form instructions, persona, behavior rules — all sent to the LLM. |
 | `## Skills` | Bullet list of capabilities. Exported to A2A Agent Card. |
 | `## Tools` | Bullet list of tool names + descriptions. Cross-referenced against `@AiTool` methods at startup — mismatches produce warnings. |
-| `## Channels` | Bullet list of enabled channels (`slack`, `telegram`, `web`, etc.). Included in the system prompt; routing validation is planned but not yet implemented. |
-| `## Guardrails` | Safety rules. Sent to the LLM as part of the system prompt. Protocol metadata export is planned but not yet implemented. |
+| `## Channels` | Bullet list of enabled channels (`slack`, `telegram`, `web`, etc.). Included in the system prompt and used for routing validation — agents only receive messages from listed channels. |
+| `## Guardrails` | Safety rules. Sent to the LLM as part of the system prompt and exported as protocol metadata (A2A Agent Card `guardrails` field, MCP `serverInfo.guardrails`). |
 
 ## Example
 

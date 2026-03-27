@@ -194,14 +194,16 @@ public class CoordinatorProcessor implements Processor<Object> {
                         + "session.stream() will buffer text instead of invoking LLM",
                         coordinatorName);
             }
+            var guardrails = skillFile != null ? skillFile.listItems("Guardrails") : List.<String>of();
+            var channels = skillFile != null ? skillFile.listItems("Channels") : List.<String>of();
             registerA2a(framework, annotation, commandRegistry, toolRegistry,
                     commandRouter, promptTarget, promptMethod, fleet,
-                    pipeline, path, protocols);
-            registerMcp(framework, annotation, toolRegistry, path, protocols);
+                    pipeline, path, guardrails, protocols);
+            registerMcp(framework, annotation, toolRegistry, path, guardrails, protocols);
             registerAgUi(framework, promptTarget, promptMethod, path,
                     pipeline, fleet, protocols);
             wireChannelBridge(coordinatorName, commandRouter, instance, systemPrompt,
-                    pipeline, protocols);
+                    pipeline, channels, protocols);
 
             // Step 11: Log fleet topology
             logTopology(coordinatorName, annotation.version(), proxies,
@@ -559,7 +561,7 @@ public class CoordinatorProcessor implements Processor<Object> {
                              CommandRouter commandRouter, Object promptTarget,
                              Method promptMethod, AgentFleet fleet,
                              AiPipeline pipeline, String basePath,
-                             List<String> protocols) {
+                             List<String> guardrails, List<String> protocols) {
         if (!ClasspathDetector.hasA2a()) {
             return;
         }
@@ -585,7 +587,8 @@ public class CoordinatorProcessor implements Processor<Object> {
                     ? "Coordinator: " + annotation.name()
                     : annotation.description();
             var card = registry.buildAgentCard(annotation.name(), description,
-                    annotation.version(), a2aEndpoint);
+                    annotation.version(), a2aEndpoint,
+                    guardrails.isEmpty() ? null : guardrails);
             var taskManager = new org.atmosphere.a2a.runtime.TaskManager();
             var protocolHandler =
                     new org.atmosphere.a2a.runtime.A2aProtocolHandler(
@@ -608,7 +611,7 @@ public class CoordinatorProcessor implements Processor<Object> {
      */
     private void registerMcp(AtmosphereFramework framework, Coordinator annotation,
                               ToolRegistry toolRegistry, String basePath,
-                              List<String> protocols) {
+                              List<String> guardrails, List<String> protocols) {
         if (!ClasspathDetector.hasMcp()) {
             return;
         }
@@ -629,7 +632,7 @@ public class CoordinatorProcessor implements Processor<Object> {
             var version = annotation.version();
             var protocolHandler = new org.atmosphere.mcp.runtime.McpProtocolHandler(
                     annotation.name(), version, mcpRegistry,
-                    framework.getAtmosphereConfig());
+                    framework.getAtmosphereConfig(), guardrails);
 
             var handler = new org.atmosphere.mcp.runtime.McpHandler(protocolHandler);
             var mcpPath = basePath + "/mcp";
@@ -869,7 +872,7 @@ public class CoordinatorProcessor implements Processor<Object> {
     private void wireChannelBridge(String coordinatorName,
                                    CommandRouter commandRouter, Object instance,
                                    String systemPrompt, AiPipeline pipeline,
-                                   List<String> protocols) {
+                                   List<String> channels, List<String> protocols) {
         if (!ClasspathDetector.hasChannels()) {
             return;
         }
@@ -878,9 +881,9 @@ public class CoordinatorProcessor implements Processor<Object> {
                     "org.atmosphere.channels.ChannelAiBridge");
             var registerMethod = bridgeClass.getMethod("registerAgent",
                     String.class, Object.class, Object.class,
-                    String.class, Object.class);
+                    String.class, Object.class, List.class);
             registerMethod.invoke(null, coordinatorName, commandRouter,
-                    instance, systemPrompt, pipeline);
+                    instance, systemPrompt, pipeline, channels);
             protocols.add("channels");
         } catch (ClassNotFoundException ex) {
             logger.trace("Channels not available", ex);

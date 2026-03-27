@@ -139,9 +139,11 @@ public class AgentProcessor implements Processor<Object> {
             registerA2a(framework, annotation, skillFile, commandRegistry, toolRegistry,
                     commandRouter, promptTarget, promptMethod, pipeline,
                     path, protocols);
-            registerMcp(framework, annotation, toolRegistry, path, protocols);
+            registerMcp(framework, annotation, skillFile, toolRegistry, path, protocols);
             registerAgUi(framework, promptTarget, promptMethod, path, pipeline, protocols);
-            wireChannelBridge(agentName, commandRouter, instance, systemPrompt, pipeline, protocols);
+            var channels = skillFile.listItems("Channels");
+            wireChannelBridge(agentName, commandRouter, instance, systemPrompt, pipeline,
+                    channels, protocols);
 
             // Step 12: Log summary
             logger.info("Agent '{}' registered at {} (class: {}, commands: {}, tools: {}, "
@@ -392,6 +394,7 @@ public class AgentProcessor implements Processor<Object> {
         }
         try {
             var skills = buildSkills(skillFile, commandRegistry);
+            var guardrails = skillFile.listItems("Guardrails");
             var card = new org.atmosphere.a2a.types.AgentCard(
                     annotation.name(),
                     annotation.description().isEmpty() ? skillFile.title() : annotation.description(),
@@ -399,7 +402,8 @@ public class AgentProcessor implements Processor<Object> {
                     annotation.version().isEmpty() ? AGENT_VERSION : annotation.version(),
                     null, null,
                     new org.atmosphere.a2a.types.AgentCard.AgentCapabilities(true, false, false),
-                    skills, null, null, null);
+                    skills, null, null, null,
+                    guardrails.isEmpty() ? null : guardrails);
 
             var registry = new org.atmosphere.a2a.registry.A2aRegistry();
 
@@ -470,20 +474,30 @@ public class AgentProcessor implements Processor<Object> {
      * The MCP endpoint is registered at {@code basePath + "/mcp"}.
      */
     private void registerMcp(AtmosphereFramework framework, Agent annotation,
-                              ToolRegistry toolRegistry, String basePath,
-                              List<String> protocols) {
-        registerMcpAt(framework, annotation, toolRegistry, basePath + "/mcp", protocols);
+                              SkillFileParser skillFile, ToolRegistry toolRegistry,
+                              String basePath, List<String> protocols) {
+        registerMcpAt(framework, annotation, toolRegistry, basePath + "/mcp",
+                skillFile.listItems("Guardrails"), protocols);
     }
 
     private void registerMcpAt(AtmosphereFramework framework, Agent annotation,
                                 ToolRegistry toolRegistry, String mcpPath,
-                                List<String> protocols) {
-        registerMcpAt(framework, annotation, toolRegistry, null, mcpPath, protocols);
+                                List<String> guardrails, List<String> protocols) {
+        registerMcpAt(framework, annotation, toolRegistry, null, mcpPath,
+                guardrails, protocols);
     }
 
     private void registerMcpAt(AtmosphereFramework framework, Agent annotation,
                                 ToolRegistry toolRegistry, Object instance,
                                 String mcpPath, List<String> protocols) {
+        registerMcpAt(framework, annotation, toolRegistry, instance, mcpPath,
+                List.of(), protocols);
+    }
+
+    private void registerMcpAt(AtmosphereFramework framework, Agent annotation,
+                                ToolRegistry toolRegistry, Object instance,
+                                String mcpPath, List<String> guardrails,
+                                List<String> protocols) {
         if (!ClasspathDetector.hasMcp()) {
             return;
         }
@@ -510,7 +524,8 @@ public class AgentProcessor implements Processor<Object> {
                     annotation.name(),
                     annotation.version().isEmpty() ? AGENT_VERSION : annotation.version(),
                     mcpRegistry,
-                    framework.getAtmosphereConfig());
+                    framework.getAtmosphereConfig(),
+                    guardrails);
 
             var handler = new org.atmosphere.mcp.runtime.McpHandler(protocolHandler);
             framework.addAtmosphereHandler(mcpPath, handler, new java.util.ArrayList<>());
@@ -784,7 +799,7 @@ public class AgentProcessor implements Processor<Object> {
     private void wireChannelBridge(String agentName, CommandRouter commandRouter,
                                     Object instance, String systemPrompt,
                                     org.atmosphere.ai.AiPipeline pipeline,
-                                    List<String> protocols) {
+                                    List<String> channels, List<String> protocols) {
         if (!ClasspathDetector.hasChannels()) {
             return;
         }
@@ -793,8 +808,10 @@ public class AgentProcessor implements Processor<Object> {
                     true, Thread.currentThread().getContextClassLoader());
 
             var register = bridgeClass.getMethod("registerAgent",
-                    String.class, Object.class, Object.class, String.class, Object.class);
-            register.invoke(null, agentName, commandRouter, instance, systemPrompt, pipeline);
+                    String.class, Object.class, Object.class,
+                    String.class, Object.class, List.class);
+            register.invoke(null, agentName, commandRouter, instance,
+                    systemPrompt, pipeline, channels);
 
             protocols.add("channels");
             logger.debug("Agent '{}' registered with ChannelAiBridge for channel integration", agentName);

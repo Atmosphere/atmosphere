@@ -69,7 +69,7 @@ class A2aTypesTest {
         var skill = new Skill("s1", "Skill One", "desc", List.of("tag1"), Map.of(), Map.of());
         var caps = new AgentCard.AgentCapabilities(true, false, true);
         var card = new AgentCard("test", "desc", "http://localhost/a2a", "1.0", null, null,
-                caps, List.of(skill), Map.of(), List.of("text"), List.of("text"));
+                caps, List.of(skill), Map.of(), List.of("text"), List.of("text"), null);
         var json = mapper.writeValueAsString(card);
         assertTrue(json.contains("\"name\":\"test\""));
         assertTrue(json.contains("\"streaming\":true"));

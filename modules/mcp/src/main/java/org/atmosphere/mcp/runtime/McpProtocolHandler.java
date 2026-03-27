@@ -49,14 +49,22 @@ public final class McpProtocolHandler {
     private final String serverVersion;
     private final McpRegistry registry;
     private final AtmosphereConfig config;
+    private final List<String> guardrails;
     private volatile McpTracing tracing;
 
     public McpProtocolHandler(String serverName, String serverVersion,
                               McpRegistry registry, AtmosphereConfig config) {
+        this(serverName, serverVersion, registry, config, List.of());
+    }
+
+    public McpProtocolHandler(String serverName, String serverVersion,
+                              McpRegistry registry, AtmosphereConfig config,
+                              List<String> guardrails) {
         this.serverName = serverName;
         this.serverVersion = serverVersion;
         this.registry = registry;
         this.config = config;
+        this.guardrails = guardrails != null ? List.copyOf(guardrails) : List.of();
     }
 
     /**
@@ -157,10 +165,17 @@ public final class McpProtocolHandler {
             serverCapabilities.put("prompts", Map.of("listChanged", true));
         }
 
+        var serverInfo = new LinkedHashMap<String, Object>();
+        serverInfo.put("name", serverName);
+        serverInfo.put("version", serverVersion);
+        if (!guardrails.isEmpty()) {
+            serverInfo.put("guardrails", guardrails);
+        }
+
         var result = new LinkedHashMap<String, Object>();
         result.put("protocolVersion", PROTOCOL_VERSION);
         result.put("capabilities", serverCapabilities);
-        result.put("serverInfo", Map.of("name", serverName, "version", serverVersion));
+        result.put("serverInfo", serverInfo);
 
         logger.info("MCP client initialized: {} v{}", session.clientName(), session.clientVersion());
         return JsonRpc.Response.success(id, result);
