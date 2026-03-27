@@ -16,7 +16,7 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.kafka</atmosphere.module.name>
-        <kafka.version>3.9.1</kafka.version>
+        <kafka.version>4.2.0</kafka.version>
     </properties>
 
     <dependencies>
