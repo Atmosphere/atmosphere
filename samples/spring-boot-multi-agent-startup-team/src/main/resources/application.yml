@@ -5,6 +5,14 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
+  # Spring AI config (uncomment when using atmosphere-spring-ai runtime):
+  # ai:
+  #   openai:
+  #     api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
+  #     base-url: ${LLM_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+  #     chat:
+  #       options:
+  #         model: ${LLM_MODEL:gemini-2.5-flash}
 
 llm:
   model: ${LLM_MODEL:gemini-2.5-flash}
