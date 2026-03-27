@@ -98,24 +98,26 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
             promptSpec = promptSpec.toolCallbacks(callbacks);
         }
 
-        // Use synchronous call for reliable completion, simulate streaming
-        try {
-            var response = promptSpec.call().chatResponse();
-            if (response != null && response.getResult() != null
-                    && response.getResult().getOutput() != null
-                    && response.getResult().getOutput().getText() != null) {
-                var fullText = response.getResult().getOutput().getText();
-                // Send word-by-word for streaming effect
-                for (var word : fullText.split("(?<=\\s)")) {
-                    if (session.isClosed()) break;
-                    session.send(word);
-                }
-            }
-            session.complete();
-        } catch (Exception e) {
-            logger.error("Spring AI execution error: {}", e.getMessage());
-            session.error(e);
-        }
+        var flux = promptSpec.stream().chatResponse();
+        flux.takeWhile(ignored -> !session.isClosed())
+                .doOnNext(response -> {
+                    if (response.getResult() != null
+                            && response.getResult().getOutput() != null) {
+                        var text = response.getResult().getOutput().getText();
+                        if (text != null && !text.isEmpty()) {
+                            // Split large chunks into words for reliable console rendering
+                            for (var word : text.split("(?<=\\s)")) {
+                                session.send(word);
+                            }
+                        }
+                    }
+                })
+                .doOnComplete(session::complete)
+                .doOnError(error -> {
+                    logger.error("Spring AI streaming error: {}", error.getMessage());
+                    session.error(error);
+                })
+                .blockLast();
     }
 
     @Override
