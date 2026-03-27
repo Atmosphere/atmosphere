@@ -19,6 +19,10 @@
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
+        <!-- Quarkus 3.31 uses Netty 4.1.x (not affected by the 4.2.x CVE).
+             Reset the parent POM's 4.2.11 override to avoid GraalVM native-image
+             incompatibility with BrotliOptions. -->
+        <netty.version>4.1.130.Final</netty.version>
     </properties>
 
     <dependencyManagement>

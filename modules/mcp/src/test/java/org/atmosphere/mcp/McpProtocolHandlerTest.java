@@ -637,4 +637,52 @@ public class McpProtocolHandlerTest {
         var resources = capabilities.get("resources");
         assertTrue(resources.get("subscribe").asBoolean());
     }
+
+    // ── Guardrails in server info ───────────────────────────────────────
+
+    @Test
+    public void testInitializeWithGuardrailsIncludesThemInServerInfo() throws Exception {
+        var registry = new McpRegistry();
+        registry.scan(new TestMcpServer());
+        var guardedHandler = new McpProtocolHandler("guarded-server", "2.0.0",
+                registry, mock(AtmosphereConfig.class),
+                List.of("No medical advice", "No financial advice"));
+
+        var request = """
+                {"jsonrpc":"2.0","id":50,"method":"initialize","params":{
+                    "protocolVersion":"2025-03-26",
+                    "clientInfo":{"name":"test","version":"0.1"},
+                    "capabilities":{}
+                }}""";
+
+        var node = mapper.readTree(guardedHandler.handleMessage(resource, request));
+        var serverInfo = node.get("result").get("serverInfo");
+        assertEquals("guarded-server", serverInfo.get("name").asText());
+        assertEquals("2.0.0", serverInfo.get("version").asText());
+
+        var guardrails = serverInfo.get("guardrails");
+        assertNotNull(guardrails, "serverInfo should include guardrails");
+        assertTrue(guardrails.isArray());
+        assertEquals(2, guardrails.size());
+        assertEquals("No medical advice", guardrails.get(0).asText());
+        assertEquals("No financial advice", guardrails.get(1).asText());
+    }
+
+    @Test
+    public void testInitializeWithoutGuardrailsOmitsFieldFromServerInfo() throws Exception {
+        // The default handler from setUp() uses the 4-param constructor (no guardrails)
+        var request = """
+                {"jsonrpc":"2.0","id":51,"method":"initialize","params":{
+                    "protocolVersion":"2025-03-26",
+                    "clientInfo":{"name":"test","version":"0.1"},
+                    "capabilities":{}
+                }}""";
+
+        var node = mapper.readTree(handler.handleMessage(resource, request));
+        var serverInfo = node.get("result").get("serverInfo");
+        assertEquals("test-server", serverInfo.get("name").asText());
+        assertEquals("1.0.0", serverInfo.get("version").asText());
+        assertNull(serverInfo.get("guardrails"),
+                "serverInfo should NOT include guardrails when handler has no guardrails");
+    }
 }

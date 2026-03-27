@@ -16,6 +16,7 @@
 package org.atmosphere.a2a;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.atmosphere.a2a.registry.A2aRegistry;
 import org.atmosphere.a2a.types.AgentCard;
 import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.a2a.types.Message;
@@ -29,8 +30,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -92,5 +95,64 @@ class A2aTypesTest {
     void taskStates() {
         assertEquals(7, TaskState.values().length);
         assertNotNull(TaskState.valueOf("INPUT_REQUIRED"));
+    }
+
+    // ── Guardrails Metadata ─────────────────────────────────────────────
+
+    @Test
+    void agentCardWithGuardrailsSerializesToJson() throws Exception {
+        var caps = new AgentCard.AgentCapabilities(true, false, false);
+        var card = new AgentCard("guarded", "A guarded agent", "http://localhost/a2a",
+                "1.0", null, null, caps, List.of(), Map.of(),
+                List.of("text"), List.of("text"),
+                List.of("No medical advice", "No financial advice"));
+
+        var json = mapper.writeValueAsString(card);
+        assertTrue(json.contains("\"guardrails\""), "JSON should contain guardrails field");
+        assertTrue(json.contains("No medical advice"));
+        assertTrue(json.contains("No financial advice"));
+
+        // Verify round-trip deserialization
+        var node = mapper.readTree(json);
+        var guardrails = node.get("guardrails");
+        assertNotNull(guardrails, "guardrails field should be present");
+        assertTrue(guardrails.isArray());
+        assertEquals(2, guardrails.size());
+        assertEquals("No medical advice", guardrails.get(0).asText());
+        assertEquals("No financial advice", guardrails.get(1).asText());
+    }
+
+    @Test
+    void agentCardWithNullGuardrailsOmitsField() throws Exception {
+        var caps = new AgentCard.AgentCapabilities(true, false, false);
+        var card = new AgentCard("unguarded", "No guardrails", "http://localhost/a2a",
+                "1.0", null, null, caps, List.of(), Map.of(),
+                List.of("text"), List.of("text"), null);
+
+        var json = mapper.writeValueAsString(card);
+        assertFalse(json.contains("\"guardrails\""),
+                "JSON should NOT contain guardrails field when null");
+        assertNull(card.guardrails());
+    }
+
+    @Test
+    void registryBuildAgentCardFiveParamIncludesGuardrails() {
+        var registry = new A2aRegistry();
+        var guardrails = List.of("PII redaction", "Content filtering");
+        var card = registry.buildAgentCard("test", "Test Agent", "1.0", "/a2a", guardrails);
+
+        assertNotNull(card.guardrails());
+        assertEquals(2, card.guardrails().size());
+        assertEquals("PII redaction", card.guardrails().get(0));
+        assertEquals("Content filtering", card.guardrails().get(1));
+    }
+
+    @Test
+    void registryBuildAgentCardFourParamHasNullGuardrails() {
+        var registry = new A2aRegistry();
+        var card = registry.buildAgentCard("test", "Test Agent", "1.0", "/a2a");
+
+        assertNull(card.guardrails(),
+                "4-param buildAgentCard should produce null guardrails");
     }
 }

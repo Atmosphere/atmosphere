@@ -16,6 +16,8 @@
 
     <properties>
         <quarkus.version>3.31.3</quarkus.version>
+        <!-- Quarkus 3.31 uses Netty 4.1.x — reset the root POM's 4.2.11 override -->
+        <netty.version>4.1.130.Final</netty.version>
     </properties>
 
     <dependencyManagement>
