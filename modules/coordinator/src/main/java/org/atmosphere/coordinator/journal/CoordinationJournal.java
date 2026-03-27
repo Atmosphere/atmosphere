@@ -45,6 +45,25 @@ public interface CoordinationJournal {
     /** Add an inspector that filters events before recording. */
     CoordinationJournal inspector(CoordinationJournalInspector inspector);
 
+    /**
+     * Formats all recorded events as a human-readable log string.
+     * Equivalent to {@code formatLog(CoordinationQuery.all())}.
+     */
+    default String formatLog() {
+        return formatLog(CoordinationQuery.all());
+    }
+
+    /** Formats events matching the given query as a human-readable log string. */
+    default String formatLog(CoordinationQuery filter) {
+        var events = query(filter);
+        var sb = new StringBuilder();
+        sb.append(events.size()).append(" events:\n");
+        for (var event : events) {
+            sb.append("  ").append(event.toLogLine()).append('\n');
+        }
+        return sb.toString();
+    }
+
     /** No-op journal that discards all events. */
     CoordinationJournal NOOP = new NoopCoordinationJournal();
 }

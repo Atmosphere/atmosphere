@@ -29,11 +29,19 @@ public sealed interface CoordinationEvent {
 
     Instant timestamp();
 
+    /** Returns a single-line human-readable log representation of this event. */
+    String toLogLine();
+
     record CoordinationStarted(
             String coordinationId,
             String coordinatorName,
             Instant timestamp
-    ) implements CoordinationEvent {}
+    ) implements CoordinationEvent {
+        @Override
+        public String toLogLine() {
+            return "START  " + coordinatorName;
+        }
+    }
 
     record AgentDispatched(
             String coordinationId,
@@ -45,6 +53,11 @@ public sealed interface CoordinationEvent {
         public AgentDispatched {
             args = args != null ? Map.copyOf(args) : Map.of();
         }
+
+        @Override
+        public String toLogLine() {
+            return "DISPATCH  " + agentName + " -> " + skill;
+        }
     }
 
     record AgentCompleted(
@@ -54,7 +67,12 @@ public sealed interface CoordinationEvent {
             String resultText,
             Duration duration,
             Instant timestamp
-    ) implements CoordinationEvent {}
+    ) implements CoordinationEvent {
+        @Override
+        public String toLogLine() {
+            return "DONE  " + agentName + " (" + duration.toMillis() + "ms)";
+        }
+    }
 
     record AgentFailed(
             String coordinationId,
@@ -63,7 +81,12 @@ public sealed interface CoordinationEvent {
             String error,
             Duration duration,
             Instant timestamp
-    ) implements CoordinationEvent {}
+    ) implements CoordinationEvent {
+        @Override
+        public String toLogLine() {
+            return "FAILED  " + agentName + ": " + error;
+        }
+    }
 
     record AgentEvaluated(
             String coordinationId,
@@ -72,12 +95,22 @@ public sealed interface CoordinationEvent {
             double score,
             boolean passed,
             Instant timestamp
-    ) implements CoordinationEvent {}
+    ) implements CoordinationEvent {
+        @Override
+        public String toLogLine() {
+            return "EVAL  " + agentName + " score=" + score;
+        }
+    }
 
     record CoordinationCompleted(
             String coordinationId,
             Duration totalDuration,
             int agentCallCount,
             Instant timestamp
-    ) implements CoordinationEvent {}
+    ) implements CoordinationEvent {
+        @Override
+        public String toLogLine() {
+            return "COMPLETE  " + agentCallCount + " calls in " + totalDuration.toMillis() + "ms";
+        }
+    }
 }
