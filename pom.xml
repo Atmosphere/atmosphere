@@ -893,7 +893,7 @@
         <jetty-version>12.0.32</jetty-version>
         <tomcat-version>11.0.18</tomcat-version>
         <shade-version>1.2.1</shade-version>
-        <bnd-maven-plugin.version>7.2.1</bnd-maven-plugin.version>
+        <bnd-maven-plugin.version>7.2.3</bnd-maven-plugin.version>
         <ahc.version>1.9.40</ahc.version>
         <jakarta-servlet-api.version>5.0.0</jakarta-servlet-api.version>
         <jakarta-websocket-api.version>2.0.0</jakarta-websocket-api.version>
