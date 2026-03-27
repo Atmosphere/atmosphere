@@ -118,9 +118,87 @@ public class A2aAgentTransport implements AgentTransport {
     @Override
     public void stream(String agentName, String skill, Map<String, String> args,
                        Consumer<String> onToken, Runnable onComplete) {
+        try {
+            var requestBody = buildStreamingJsonRpc(skill, args);
+            var httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl))
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "text/event-stream")
+                    .timeout(Duration.ofSeconds(60))
+                    .build();
+
+            var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
+
+            if (response.statusCode() == 200) {
+                response.body().forEach(line -> {
+                    if (line.startsWith("data:")) {
+                        var data = line.substring(5).strip();
+                        if (!data.isEmpty() && !"[DONE]".equals(data)) {
+                            var text = extractStreamingText(data);
+                            if (text != null && !text.isEmpty()) {
+                                onToken.accept(text);
+                            }
+                        }
+                    }
+                });
+                onComplete.run();
+                return;
+            }
+            logger.debug("A2A streaming returned HTTP {}, falling back to send", response.statusCode());
+        } catch (Exception e) {
+            logger.debug("A2A streaming to '{}' failed, falling back to send: {}",
+                    agentName, e.getMessage());
+        }
+        // Graceful fallback to synchronous
         var result = send(agentName, skill, args);
         onToken.accept(result.text());
         onComplete.run();
+    }
+
+    private String buildStreamingJsonRpc(String skill, Map<String, String> args) throws Exception {
+        var firstValue = args.values().isEmpty() ? "" : args.values().iterator().next();
+        var message = Map.of(
+                "role", "user",
+                "parts", List.of(Map.of("type", "text", "text", firstValue)),
+                "metadata", Map.of("skillId", skill)
+        );
+        var params = new LinkedHashMap<String, Object>();
+        params.put("message", message);
+        params.put("arguments", args);
+
+        var rpcRequest = Map.of(
+                "jsonrpc", "2.0",
+                "id", 1,
+                "method", "message/stream",
+                "params", params
+        );
+        return mapper.writeValueAsString(rpcRequest);
+    }
+
+    private String extractStreamingText(String data) {
+        try {
+            var json = mapper.readTree(data);
+            // A2A streaming event: artifact part text
+            if (json.has("artifact")) {
+                var parts = json.get("artifact").get("parts");
+                if (parts != null && parts.isArray() && !parts.isEmpty()
+                        && parts.get(0).has("text")) {
+                    return parts.get(0).get("text").asText();
+                }
+            }
+            // Status update with message
+            if (json.has("status") && json.get("status").has("message")) {
+                return json.get("status").get("message").asText();
+            }
+            // Plain text delta
+            if (json.has("text")) {
+                return json.get("text").asText();
+            }
+        } catch (Exception e) {
+            logger.debug("Failed to parse SSE data: {}", data);
+        }
+        return null;
     }
 
     @Override

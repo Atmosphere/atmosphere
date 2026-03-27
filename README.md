@@ -128,6 +128,46 @@ The fleet handles transport automatically — local agents are invoked directly 
 
 **Fleet features:** parallel fan-out, sequential pipeline, optional agents (`required = false`), advisory versioning, weight-based routing metadata, circular dependency detection at startup, fleet topology logging.
 
+### Coordination Journal
+
+Every coordination is automatically journaled — which agents were called, what they returned, timing, success/failure. The journal is a pluggable SPI (`CoordinationJournal`) with an in-memory default, discovered via `ServiceLoader`. Query events from your `@Prompt` code:
+
+```java
+// After parallel execution, query the journal
+var events = fleet.journal().retrieve(coordinationId);
+var failed = fleet.journal().query(CoordinationQuery.forAgent("weather"));
+```
+
+### Result Evaluation
+
+Plug in quality assessment via the `ResultEvaluator` SPI. Evaluators run automatically (async, non-blocking, recorded in journal) after each agent call, and can be invoked explicitly:
+
+```java
+var result = fleet.agent("writer").call("draft", Map.of("topic", "AI"));
+var evals = fleet.evaluate(result, call);
+if (evals.stream().allMatch(Evaluation::passed)) {
+    session.stream(result.text());
+}
+```
+
+### Test Support
+
+The coordinator module includes test stubs for exercising `@Prompt` methods without infrastructure:
+
+```java
+var fleet = StubAgentFleet.builder()
+    .agent("weather", "Sunny, 72F in Madrid")
+    .agent("activities", "Visit Retiro Park, Prado Museum")
+    .build();
+
+coordinator.onPrompt("What to do in Madrid?", fleet, session);
+
+CoordinatorAssertions.assertThat(result)
+    .succeeded().containsText("Madrid").completedWithin(Duration.ofSeconds(5));
+```
+
+See [coordinator module](modules/coordinator/) for full documentation.
+
 See [multi-agent sample](samples/spring-boot-multi-agent-startup-team/) for a working 5-agent team.
 
 ## Skills

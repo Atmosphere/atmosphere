@@ -15,6 +15,10 @@
  */
 package org.atmosphere.coordinator.fleet;
 
+import org.atmosphere.coordinator.evaluation.Evaluation;
+import org.atmosphere.coordinator.evaluation.ResultEvaluator;
+import org.atmosphere.coordinator.journal.CoordinationJournal;
+
 import java.util.List;
 import java.util.Map;
 
@@ -41,4 +45,20 @@ public interface AgentFleet {
 
     /** Execute calls sequentially. Returns the final result. */
     AgentResult pipeline(AgentCall... calls);
+
+    /**
+     * Evaluate an agent result using all registered {@link ResultEvaluator}s.
+     * Returns an empty list if no evaluators are registered.
+     */
+    default List<Evaluation> evaluate(AgentResult result, AgentCall originalCall) {
+        return List.of();
+    }
+
+    /**
+     * Access the coordination journal for querying past events.
+     * Returns {@link CoordinationJournal#NOOP} if journaling is not active.
+     */
+    default CoordinationJournal journal() {
+        return CoordinationJournal.NOOP;
+    }
 }
