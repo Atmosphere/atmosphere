@@ -16,7 +16,7 @@
     <description>Embabel GOAP agent running on Atmosphere with real-time streaming</description>
 
     <properties>
-        <embabel.version>0.3.4</embabel.version>
+        <embabel.version>0.3.5-SNAPSHOT</embabel.version>
         <kotlin.version>2.1.10</kotlin.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <checkstyle.skip>true</checkstyle.skip>
@@ -27,6 +27,11 @@
         <repository>
             <id>embabel-releases</id>
             <url>https://repo.embabel.com/artifactory/libs-release</url>
+        </repository>
+        <repository>
+            <id>embabel-snapshots</id>
+            <url>https://repo.embabel.com/artifactory/libs-snapshot</url>
+            <snapshots><enabled>true</enabled></snapshots>
         </repository>
     </repositories>
 
@@ -63,13 +68,28 @@
             <artifactId>embabel-agent-api</artifactId>
             <version>${embabel.version}</version>
         </dependency>
-        <!-- Embabel autoconfigure JAR not yet published; uncomment when available
         <dependency>
             <groupId>com.embabel.agent</groupId>
-            <artifactId>embabel-agent-autoconfigure</artifactId>
+            <artifactId>embabel-agent-starter-platform</artifactId>
             <version>${embabel.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
-        -->
+        <dependency>
+            <groupId>com.embabel.agent</groupId>
+            <artifactId>embabel-agent-starter-gemini</artifactId>
+            <version>${embabel.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
 
 
         <dependency>
@@ -90,6 +110,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-tomcat</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
         </dependency>
     </dependencies>
 
