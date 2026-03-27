@@ -84,7 +84,7 @@ jobs:
         cache: 'maven'
 
     - name: Download build output
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: build-targets-sb${{ matrix.spring-boot-version }}
 
