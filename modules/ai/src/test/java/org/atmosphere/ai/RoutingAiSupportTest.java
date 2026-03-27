@@ -93,6 +93,94 @@ public class RoutingAiSupportTest {
         assertTrue(routing.name().contains("secondary"));
     }
 
+    @Test
+    public void testRequiredCapabilitiesEnforcedAtRuntime() {
+        var textOnly = new StubRuntime("text-only");
+        textOnly.caps = Set.of(AiCapability.TEXT_STREAMING);
+        var toolCapable = new StubRuntime("tool-capable");
+        toolCapable.caps = Set.of(AiCapability.TEXT_STREAMING, AiCapability.TOOL_CALLING);
+
+        var router = new DefaultModelRouter(ModelRouter.FallbackStrategy.FAILOVER);
+        var required = Set.of(AiCapability.TOOL_CALLING);
+        var routing = new RoutingAiSupport(router, List.of(textOnly, toolCapable), required);
+
+        var session = mock(StreamingSession.class);
+        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null,
+                java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(),
+                java.util.List.of()), session);
+
+        assertFalse(textOnly.called, "text-only backend should be skipped (missing TOOL_CALLING)");
+        assertTrue(toolCapable.called, "tool-capable backend should be selected");
+    }
+
+    @Test
+    public void testHealthReportedOnCompletionNotDispatch() {
+        var primary = new StubRuntime("primary") {
+            @Override
+            public void execute(AgentExecutionContext context, StreamingSession session) {
+                called = true;
+                // Simulate async: call session.complete() later
+                session.send("token");
+                session.complete();
+            }
+        };
+        var router = new DefaultModelRouter(ModelRouter.FallbackStrategy.FAILOVER);
+        var routing = new RoutingAiSupport(router, List.of(primary));
+
+        var tokens = new java.util.ArrayList<String>();
+        var completed = new boolean[]{false};
+        var session = new StreamingSession() {
+            @Override public String sessionId() { return "test"; }
+            @Override public void send(String text) { tokens.add(text); }
+            @Override public void sendMetadata(String key, Object value) {}
+            @Override public void progress(String message) {}
+            @Override public void complete() { completed[0] = true; }
+            @Override public void complete(String summary) { completed[0] = true; }
+            @Override public void error(Throwable t) {}
+            @Override public boolean isClosed() { return completed[0]; }
+        };
+
+        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null,
+                java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(),
+                java.util.List.of()), session);
+
+        assertTrue(completed[0], "Session should be completed");
+        assertFalse(tokens.isEmpty(), "Tokens should have been delivered");
+    }
+
+    @Test
+    public void testHealthReportedOnErrorNotDispatch() {
+        var failing = new StubRuntime("failing") {
+            @Override
+            public void execute(AgentExecutionContext context, StreamingSession session) {
+                called = true;
+                // Async error through session, not throw
+                session.error(new RuntimeException("async failure"));
+            }
+        };
+        var router = new DefaultModelRouter(ModelRouter.FallbackStrategy.FAILOVER);
+        var routing = new RoutingAiSupport(router, List.of(failing));
+
+        var errorCaught = new Throwable[]{null};
+        var session = new StreamingSession() {
+            @Override public String sessionId() { return "test"; }
+            @Override public void send(String text) {}
+            @Override public void sendMetadata(String key, Object value) {}
+            @Override public void progress(String message) {}
+            @Override public void complete() {}
+            @Override public void complete(String summary) {}
+            @Override public void error(Throwable t) { errorCaught[0] = t; }
+            @Override public boolean isClosed() { return errorCaught[0] != null; }
+        };
+
+        routing.execute(new AgentExecutionContext("Hello", "", null, null, null, null, null,
+                java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(),
+                java.util.List.of()), session);
+
+        assertNotNull(errorCaught[0], "Error should have been propagated");
+        assertTrue(errorCaught[0].getMessage().contains("async failure"));
+    }
+
     static class StubRuntime implements AgentRuntime {
         final String id;
         boolean called;

@@ -180,6 +180,15 @@ class A2aProtocolHandlerTest {
     }
 
     @Test
+    void handleStreamingMessageNoParamsCallsOnCompleteExactlyOnce() {
+        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"message/stream\"}";
+        var completeCount = new int[]{0};
+        handler.handleStreamingMessage(request, t -> {}, () -> completeCount[0]++);
+        assertEquals(1, completeCount[0],
+                "onComplete must be called exactly once, even with no params");
+    }
+
+    @Test
     void handleStreamingMessageWithNoSkillsProducesNoTokens() {
         // Build a handler with an empty registry (no skills)
         var emptyRegistry = new A2aRegistry();
