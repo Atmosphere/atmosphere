@@ -20,7 +20,7 @@ import org.atmosphere.ai.annotation.Prompt;
 
 /**
  * Default AI chat endpoint used when no user-defined {@code @AiEndpoint} is detected.
- * Delegates entirely to the auto-resolved {@link org.atmosphere.ai.AiSupport} backend
+ * Delegates entirely to the auto-resolved {@link org.atmosphere.agent.AgentRuntime} backend
  * via {@link StreamingSession#stream(String)}.
  */
 final class DefaultAiChatEndpoint {

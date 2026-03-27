@@ -36,7 +36,7 @@ jobs:
 
     - name: Package build output
       run: |
-        tar czf /tmp/build-targets.tar.gz \
+        tar czf /tmp/build-targets-sb${{ matrix.spring-boot-version }}.tar.gz \
           samples/*/target \
           modules/*/target \
           -C "$HOME" .m2/repository/org/atmosphere
@@ -45,7 +45,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: build-targets-sb${{ matrix.spring-boot-version }}
-        path: /tmp/build-targets.tar.gz
+        path: /tmp/build-targets-sb${{ matrix.spring-boot-version }}.tar.gz
         retention-days: 1
 
   e2e:
