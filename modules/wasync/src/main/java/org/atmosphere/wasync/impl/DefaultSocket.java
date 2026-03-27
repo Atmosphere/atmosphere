@@ -137,6 +137,11 @@ public class DefaultSocket implements Socket {
         activeTransport = transport;
         status = STATUS.INIT;
 
+        // Sync socket status when the transport fires OPEN
+        transport.registerFunction(new FunctionBinding(Event.OPEN.name(), (Function<Object>) o -> {
+            status = STATUS.OPEN;
+        }));
+
         var uri = buildUri(request);
 
         switch (transport) {
@@ -147,10 +152,6 @@ public class DefaultSocket implements Socket {
             case GrpcTransport grpc -> grpc.connect(uri, request);
             default -> throw new IllegalStateException("Unknown transport: " + transport);
         }
-
-        // Don't set OPEN here — async transports (WebSocket, SSE) set it in
-        // their connected callback. Setting it prematurely prevents fallback
-        // since the error handler only triggers while status == INIT.
 
         // Register reconnection logic
         if (options.reconnect()) {
