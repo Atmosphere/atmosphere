@@ -25,6 +25,7 @@ import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
 import org.atmosphere.coordinator.fleet.AgentFleet;
+import org.atmosphere.coordinator.journal.JournalFormat;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.slf4j.Logger;
@@ -112,11 +113,11 @@ public class CeoCoordinator {
         session.emit(new AiEvent.ToolResult("write_report", report.text()));
 
         // Journal: show fleet execution log as a visible tool card
-        var journalLog = fleet.journal().formatLog();
+        var journalLog = fleet.journal().formatLog(JournalFormat.MARKDOWN);
         session.emit(new AiEvent.ToolStart("coordination_journal",
                 Map.<String, Object>of("query", "all events")));
         session.emit(new AiEvent.ToolResult("coordination_journal", journalLog));
-        logger.info("Coordination journal: {}", journalLog);
+        logger.info("Coordination journal:\n{}", journalLog);
 
         // Step 4: CEO synthesis via LLM — trim agent results for LLM context
         var researchSummary = truncate(research.text(), 800);
