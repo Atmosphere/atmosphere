@@ -15,8 +15,8 @@
  */
 package org.atmosphere.coordinator.transport;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.atmosphere.a2a.runtime.LocalDispatchable;
 import org.atmosphere.coordinator.fleet.AgentResult;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
@@ -24,8 +24,6 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -40,20 +38,18 @@ public class LocalAgentTransport implements AgentTransport {
     private static final ObjectMapper mapper = new ObjectMapper();
 
     private final AtmosphereFramework framework;
-    private final String agentName;
     private final String a2aPath;
 
     public LocalAgentTransport(AtmosphereFramework framework, String agentName, String a2aPath) {
         this.framework = framework;
-        this.agentName = agentName;
         this.a2aPath = a2aPath;
     }
 
     @Override
-    public AgentResult send(String agentName, String skill, Map<String, String> args) {
+    public AgentResult send(String agentName, String skill, Map<String, Object> args) {
         var start = Instant.now();
         try {
-            var requestBody = buildJsonRpc(skill, args);
+            var requestBody = JsonRpcUtils.buildSendRequest(skill, args);
 
             var handlerWrapper = framework.getAtmosphereHandlers().get(a2aPath);
             if (handlerWrapper == null) {
@@ -61,14 +57,14 @@ public class LocalAgentTransport implements AgentTransport {
                         "Agent not found at " + a2aPath, Duration.between(start, Instant.now()));
             }
 
-            // Access the A2aHandler -> protocolHandler via reflection
             var handler = handlerWrapper.atmosphereHandler();
-            var protocolHandlerField = handler.getClass().getDeclaredField("protocolHandler");
-            protocolHandlerField.setAccessible(true);
-            var protocolHandler = protocolHandlerField.get(handler);
-            var handleMethod = protocolHandler.getClass().getMethod("handleMessage", String.class);
-            var responseStr = (String) handleMethod.invoke(protocolHandler, requestBody);
+            if (!(handler instanceof LocalDispatchable dispatchable)) {
+                return AgentResult.failure(agentName, skill,
+                        "Handler at " + a2aPath + " does not support local dispatch",
+                        Duration.between(start, Instant.now()));
+            }
 
+            var responseStr = dispatchable.dispatchLocal(requestBody);
             var json = mapper.readTree(responseStr);
             var duration = Duration.between(start, Instant.now());
 
@@ -96,7 +92,7 @@ public class LocalAgentTransport implements AgentTransport {
                 }
             }
 
-            var text = extractArtifactText(json);
+            var text = JsonRpcUtils.extractArtifactText(json);
 
             logger.debug("Local dispatch to '{}' skill '{}' completed in {}ms",
                     agentName, skill, duration.toMillis());
@@ -111,37 +107,25 @@ public class LocalAgentTransport implements AgentTransport {
     }
 
     @Override
-    public void stream(String agentName, String skill, Map<String, String> args,
+    public void stream(String agentName, String skill, Map<String, Object> args,
                        Consumer<String> onToken, Runnable onComplete) {
         try {
             var handlerWrapper = framework.getAtmosphereHandlers().get(a2aPath);
-            if (handlerWrapper != null) {
-                var handler = handlerWrapper.atmosphereHandler();
-                var protocolHandlerField = handler.getClass().getDeclaredField("protocolHandler");
-                protocolHandlerField.setAccessible(true);
-                var protocolHandler = protocolHandlerField.get(handler);
-
-                // Try streaming method first
-                try {
-                    var streamMethod = protocolHandler.getClass().getMethod(
-                            "handleStreamingMessage", String.class, Consumer.class, Runnable.class);
-                    var requestBody = buildJsonRpc(skill, args);
-                    var tokenEmitted = new AtomicBoolean(false);
-                    Consumer<String> trackingToken = token -> {
-                        tokenEmitted.set(true);
-                        onToken.accept(token);
-                    };
-                    streamMethod.invoke(protocolHandler, requestBody, trackingToken,
-                            (Runnable) () -> {});
-                    if (tokenEmitted.get()) {
-                        onComplete.run();
-                        return;
-                    }
-                    logger.debug("Local streaming to '{}' produced no tokens, " +
-                            "falling back to send", agentName);
-                } catch (NoSuchMethodException ignored) {
-                    // Protocol handler doesn't support streaming — fall through
+            if (handlerWrapper != null
+                    && handlerWrapper.atmosphereHandler() instanceof LocalDispatchable dispatchable) {
+                var requestBody = JsonRpcUtils.buildSendRequest(skill, args);
+                var tokenEmitted = new AtomicBoolean(false);
+                Consumer<String> trackingToken = token -> {
+                    tokenEmitted.set(true);
+                    onToken.accept(token);
+                };
+                dispatchable.dispatchLocalStreaming(requestBody, trackingToken, () -> {});
+                if (tokenEmitted.get()) {
+                    onComplete.run();
+                    return;
                 }
+                logger.debug("Local streaming to '{}' produced no tokens, " +
+                        "falling back to send", agentName);
             }
         } catch (Exception e) {
             logger.debug("Local streaming to '{}' failed, falling back to send: {}",
@@ -158,42 +142,4 @@ public class LocalAgentTransport implements AgentTransport {
         return framework.getAtmosphereHandlers().containsKey(a2aPath);
     }
 
-    private String buildJsonRpc(String skill, Map<String, String> args) throws Exception {
-        var firstValue = args.values().isEmpty() ? "" : args.values().iterator().next();
-        var message = Map.of(
-                "role", "user",
-                "parts", List.of(Map.of("type", "text", "text", firstValue)),
-                "metadata", Map.of("skillId", skill)
-        );
-        var params = new LinkedHashMap<String, Object>();
-        params.put("message", message);
-        params.put("arguments", args);
-
-        var rpcRequest = Map.of(
-                "jsonrpc", "2.0",
-                "id", 1,
-                "method", "message/send",
-                "params", params
-        );
-        return mapper.writeValueAsString(rpcRequest);
-    }
-
-    private String extractArtifactText(JsonNode json) {
-        var result = json.get("result");
-        if (result != null) {
-            var artifacts = result.get("artifacts");
-            if (artifacts != null && artifacts.isArray() && !artifacts.isEmpty()) {
-                var parts = artifacts.get(0).get("parts");
-                if (parts != null && parts.isArray() && !parts.isEmpty()) {
-                    if (parts.get(0).has("text")) {
-                        return parts.get(0).get("text").asText();
-                    }
-                }
-            }
-            if (result.has("status") && result.get("status").has("message")) {
-                return result.get("status").get("message").asText();
-            }
-        }
-        return json.toString();
-    }
 }

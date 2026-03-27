@@ -21,7 +21,7 @@ import java.util.Map;
  * A pending call specification. Built by {@link AgentFleet#call}, executed by
  * {@link AgentFleet#parallel} or {@link AgentFleet#pipeline}.
  */
-public record AgentCall(String agentName, String skill, Map<String, String> args) {
+public record AgentCall(String agentName, String skill, Map<String, Object> args) {
 
     public AgentCall {
         args = args != null ? Map.copyOf(args) : Map.of();

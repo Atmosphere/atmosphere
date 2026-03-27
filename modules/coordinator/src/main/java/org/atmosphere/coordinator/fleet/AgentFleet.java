@@ -38,7 +38,7 @@ public interface AgentFleet {
     List<AgentProxy> available();
 
     /** Build a call spec (does not execute). */
-    AgentCall call(String agentName, String skill, Map<String, String> args);
+    AgentCall call(String agentName, String skill, Map<String, Object> args);
 
     /** Execute calls in parallel. Returns results keyed by agent name. */
     Map<String, AgentResult> parallel(AgentCall... calls);

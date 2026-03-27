@@ -28,6 +28,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Default {@link AgentFleet} implementation. Holds a map of agent proxies and
@@ -37,8 +39,12 @@ public final class DefaultAgentFleet implements AgentFleet {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultAgentFleet.class);
 
+    /** Default per-agent timeout for parallel calls: 2 minutes. */
+    static final long DEFAULT_PARALLEL_TIMEOUT_MS = 120_000L;
+
     private final Map<String, AgentProxy> proxies;
     private final List<ResultEvaluator> evaluators;
+    private final long parallelTimeoutMs;
 
     public DefaultAgentFleet(Map<String, AgentProxy> proxies) {
         this(proxies, List.of());
@@ -46,8 +52,15 @@ public final class DefaultAgentFleet implements AgentFleet {
 
     public DefaultAgentFleet(Map<String, AgentProxy> proxies,
                              List<ResultEvaluator> evaluators) {
+        this(proxies, evaluators, DEFAULT_PARALLEL_TIMEOUT_MS);
+    }
+
+    public DefaultAgentFleet(Map<String, AgentProxy> proxies,
+                             List<ResultEvaluator> evaluators,
+                             long parallelTimeoutMs) {
         this.proxies = Map.copyOf(proxies);
         this.evaluators = List.copyOf(evaluators);
+        this.parallelTimeoutMs = parallelTimeoutMs;
     }
 
     @Override
@@ -73,7 +86,7 @@ public final class DefaultAgentFleet implements AgentFleet {
     }
 
     @Override
-    public AgentCall call(String agentName, String skill, Map<String, String> args) {
+    public AgentCall call(String agentName, String skill, Map<String, Object> args) {
         return new AgentCall(agentName, skill, args);
     }
 
@@ -92,7 +105,8 @@ public final class DefaultAgentFleet implements AgentFleet {
             futures.put(key,
                     CompletableFuture.supplyAsync(
                             () -> proxy.call(agentCall.skill(), agentCall.args()),
-                            vtExecutor));
+                            vtExecutor)
+                            .orTimeout(parallelTimeoutMs, TimeUnit.MILLISECONDS));
         }
 
         var results = new LinkedHashMap<String, AgentResult>();
@@ -100,10 +114,13 @@ public final class DefaultAgentFleet implements AgentFleet {
             try {
                 results.put(entry.getKey(), entry.getValue().join());
             } catch (Exception e) {
-                logger.error("Parallel call to '{}' failed", entry.getKey(), e);
+                var cause = e.getCause();
+                var msg = cause instanceof TimeoutException
+                        ? "Agent timed out after " + parallelTimeoutMs + "ms"
+                        : "Parallel call failed: " + e.getMessage();
+                logger.error("Parallel call to '{}' failed: {}", entry.getKey(), msg);
                 results.put(entry.getKey(), AgentResult.failure(
-                        entry.getKey(), "", "Parallel call failed: " + e.getMessage(),
-                        Duration.ZERO));
+                        entry.getKey(), "", msg, Duration.ZERO));
             }
         }
 
@@ -118,7 +135,14 @@ public final class DefaultAgentFleet implements AgentFleet {
         AgentResult last = null;
         for (var agentCall : calls) {
             var proxy = agent(agentCall.agentName());
-            last = proxy.call(agentCall.skill(), agentCall.args());
+            // Merge previous result into args so pipeline steps can chain
+            var args = agentCall.args();
+            if (last != null) {
+                var merged = new LinkedHashMap<>(args);
+                merged.put("_previous_result", last.text());
+                args = Map.copyOf(merged);
+            }
+            last = proxy.call(agentCall.skill(), args);
             if (!last.success()) {
                 logger.warn("Pipeline step '{}' failed, aborting", agentCall.agentName());
                 return last;

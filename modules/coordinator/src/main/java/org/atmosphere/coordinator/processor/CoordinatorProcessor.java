@@ -217,7 +217,7 @@ public class CoordinatorProcessor implements Processor<Object> {
         var seenNames = new HashSet<String>();
 
         for (var ref : fleetAnnotation.value()) {
-            var agentName = resolveAgentName(ref);
+            var agentName = resolveAgentName(ref, coordinatorName);
             if (!seenNames.add(agentName)) {
                 throw new IllegalStateException("Duplicate agent reference '"
                         + agentName + "' in coordinator '" + coordinatorName + "'");
@@ -228,7 +228,8 @@ public class CoordinatorProcessor implements Processor<Object> {
             var isLocal = transport instanceof LocalAgentTransport;
 
             proxies.put(agentName, new DefaultAgentProxy(
-                    agentName, version, ref.weight(), isLocal, transport));
+                    agentName, version, ref.weight(), isLocal,
+                    ref.maxRetries(), transport));
 
             if (!transport.isAvailable() && ref.required()) {
                 logger.warn("Coordinator '{}': required agent '{}' not yet available",
@@ -238,7 +239,7 @@ public class CoordinatorProcessor implements Processor<Object> {
         return proxies;
     }
 
-    static String resolveAgentName(AgentRef ref) {
+    static String resolveAgentName(AgentRef ref, String coordinatorName) {
         if (ref.type() != void.class) {
             var agentAnn = ref.type().getAnnotation(Agent.class);
             if (agentAnn != null) {
@@ -248,14 +249,15 @@ public class CoordinatorProcessor implements Processor<Object> {
             if (coordAnn != null) {
                 return coordAnn.name();
             }
-            throw new IllegalStateException("@AgentRef type "
-                    + ref.type().getName() + " has neither @Agent nor @Coordinator");
+            throw new IllegalStateException("Coordinator '" + coordinatorName
+                    + "': @AgentRef type " + ref.type().getName()
+                    + " has neither @Agent nor @Coordinator");
         }
         if (!ref.value().isEmpty()) {
             return ref.value();
         }
-        throw new IllegalStateException(
-                "@AgentRef must specify either value() or type()");
+        throw new IllegalStateException("Coordinator '" + coordinatorName
+                + "': @AgentRef must specify either value() or type()");
     }
 
     private AgentTransport resolveTransport(AtmosphereFramework framework,
@@ -343,7 +345,7 @@ public class CoordinatorProcessor implements Processor<Object> {
                              Fleet fleetAnnotation, List<String> protocols) {
         var refMap = new LinkedHashMap<String, AgentRef>();
         for (var ref : fleetAnnotation.value()) {
-            refMap.put(resolveAgentName(ref), ref);
+            refMap.put(resolveAgentName(ref, coordinatorName), ref);
         }
 
         var sb = new StringBuilder();

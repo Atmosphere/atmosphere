@@ -193,7 +193,7 @@ class JournalingAgentFleetTest {
     }
 
     @Test
-    void parallelAndPipelineShareCoordinationId() {
+    void parallelAndPipelineGetSeparateCoordinationIds() {
         fleet.parallel(
                 new AgentCall("weather", "forecast", Map.of("city", "Madrid")),
                 new AgentCall("news", "headlines", Map.of())
@@ -209,8 +209,9 @@ class JournalingAgentFleetTest {
                 .map(CoordinationEvent::coordinationId)
                 .collect(Collectors.toSet());
 
-        assertEquals(1, coordinationIds.size(),
-                "parallel() and pipeline() on the same thread must share coordination ID");
+        assertEquals(2, coordinationIds.size(),
+                "parallel() and pipeline() should each get their own coordination ID "
+                        + "since the ThreadLocal is cleared after each coordination");
     }
 
     @Test

@@ -71,7 +71,7 @@ public class CoordinatorProcessorTest {
     void resolveAgentNameFromType() {
         var fleet = CoordinatorA.class.getAnnotation(Fleet.class);
         var ref = fleet.value()[0];
-        var name = CoordinatorProcessor.resolveAgentName(ref);
+        var name = CoordinatorProcessor.resolveAgentName(ref, "test");
         assertEquals("worker-a", name);
     }
 
@@ -79,7 +79,7 @@ public class CoordinatorProcessorTest {
     void resolveAgentNameFromValue() {
         var fleet = FullCoordinator.class.getAnnotation(Fleet.class);
         var ref = fleet.value()[1];
-        var name = CoordinatorProcessor.resolveAgentName(ref);
+        var name = CoordinatorProcessor.resolveAgentName(ref, "test");
         assertEquals("remote-agent", name);
     }
 
@@ -94,7 +94,7 @@ public class CoordinatorProcessorTest {
         var fleet = BadCoordinator.class.getAnnotation(Fleet.class);
         var ref = fleet.value()[0];
         assertThrows(IllegalStateException.class,
-                () -> CoordinatorProcessor.resolveAgentName(ref));
+                () -> CoordinatorProcessor.resolveAgentName(ref, "test"));
     }
 
     @Test
@@ -107,7 +107,7 @@ public class CoordinatorProcessorTest {
         var fleet = BadCoordinator2.class.getAnnotation(Fleet.class);
         var ref = fleet.value()[0];
         assertThrows(IllegalStateException.class,
-                () -> CoordinatorProcessor.resolveAgentName(ref));
+                () -> CoordinatorProcessor.resolveAgentName(ref, "test"));
     }
 
     @Test
@@ -118,7 +118,7 @@ public class CoordinatorProcessorTest {
 
         var fleet = NestedCoordinator.class.getAnnotation(Fleet.class);
         var ref = fleet.value()[0];
-        var name = CoordinatorProcessor.resolveAgentName(ref);
+        var name = CoordinatorProcessor.resolveAgentName(ref, "test");
         assertEquals("coord-a", name);
     }
 
@@ -137,8 +137,8 @@ public class CoordinatorProcessorTest {
         var fleet = DuplicateFleetCoordinator.class.getAnnotation(Fleet.class);
         assertNotNull(fleet);
         // Both refs resolve to the same agent name "worker-a"
-        var firstName = CoordinatorProcessor.resolveAgentName(fleet.value()[0]);
-        var secondName = CoordinatorProcessor.resolveAgentName(fleet.value()[1]);
+        var firstName = CoordinatorProcessor.resolveAgentName(fleet.value()[0], "test");
+        var secondName = CoordinatorProcessor.resolveAgentName(fleet.value()[1], "test");
         assertEquals(firstName, secondName,
                 "Both refs should resolve to the same name to trigger duplication");
     }

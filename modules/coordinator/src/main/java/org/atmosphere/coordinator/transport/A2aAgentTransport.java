@@ -15,7 +15,6 @@
  */
 package org.atmosphere.coordinator.transport;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.coordinator.fleet.AgentResult;
 import org.slf4j.Logger;
@@ -27,8 +26,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -41,7 +38,6 @@ public class A2aAgentTransport implements AgentTransport {
     private static final Logger logger = LoggerFactory.getLogger(A2aAgentTransport.class);
     private static final ObjectMapper mapper = new ObjectMapper();
 
-    private final String agentName;
     private final String baseUrl;
     private final HttpClient httpClient;
 
@@ -54,16 +50,15 @@ public class A2aAgentTransport implements AgentTransport {
 
     /** Constructor with injectable HttpClient for testing. */
     public A2aAgentTransport(String agentName, String baseUrl, HttpClient httpClient) {
-        this.agentName = agentName;
         this.baseUrl = baseUrl;
         this.httpClient = httpClient;
     }
 
     @Override
-    public AgentResult send(String agentName, String skill, Map<String, String> args) {
+    public AgentResult send(String agentName, String skill, Map<String, Object> args) {
         var start = Instant.now();
         try {
-            var requestBody = buildJsonRpc(skill, args);
+            var requestBody = JsonRpcUtils.buildSendRequest(skill, args);
             var httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl))
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -102,7 +97,7 @@ public class A2aAgentTransport implements AgentTransport {
                     }
                 }
 
-                var text = extractArtifactText(json);
+                var text = JsonRpcUtils.extractArtifactText(json);
                 return new AgentResult(agentName, skill, text, Map.of(), duration, true);
             }
             return AgentResult.failure(agentName, skill,
@@ -117,10 +112,10 @@ public class A2aAgentTransport implements AgentTransport {
     }
 
     @Override
-    public void stream(String agentName, String skill, Map<String, String> args,
+    public void stream(String agentName, String skill, Map<String, Object> args,
                        Consumer<String> onToken, Runnable onComplete) {
         try {
-            var requestBody = buildStreamingJsonRpc(skill, args);
+            var requestBody = JsonRpcUtils.buildStreamRequest(skill, args);
             var httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl))
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -163,26 +158,6 @@ public class A2aAgentTransport implements AgentTransport {
         var result = send(agentName, skill, args);
         onToken.accept(result.text());
         onComplete.run();
-    }
-
-    private String buildStreamingJsonRpc(String skill, Map<String, String> args) throws Exception {
-        var firstValue = args.values().isEmpty() ? "" : args.values().iterator().next();
-        var message = Map.of(
-                "role", "user",
-                "parts", List.of(Map.of("type", "text", "text", firstValue)),
-                "metadata", Map.of("skillId", skill)
-        );
-        var params = new LinkedHashMap<String, Object>();
-        params.put("message", message);
-        params.put("arguments", args);
-
-        var rpcRequest = Map.of(
-                "jsonrpc", "2.0",
-                "id", 1,
-                "method", "message/stream",
-                "params", params
-        );
-        return mapper.writeValueAsString(rpcRequest);
     }
 
     private String extractStreamingText(String data) {
@@ -228,39 +203,4 @@ public class A2aAgentTransport implements AgentTransport {
         }
     }
 
-    private String buildJsonRpc(String skill, Map<String, String> args) throws Exception {
-        var firstValue = args.values().isEmpty() ? "" : args.values().iterator().next();
-        var message = Map.of(
-                "role", "user",
-                "parts", List.of(Map.of("type", "text", "text", firstValue)),
-                "metadata", Map.of("skillId", skill)
-        );
-        var params = new LinkedHashMap<String, Object>();
-        params.put("message", message);
-        params.put("arguments", args);
-
-        var rpcRequest = Map.of(
-                "jsonrpc", "2.0",
-                "id", 1,
-                "method", "message/send",
-                "params", params
-        );
-        return mapper.writeValueAsString(rpcRequest);
-    }
-
-    private String extractArtifactText(JsonNode json) {
-        var result = json.get("result");
-        if (result != null) {
-            var artifacts = result.get("artifacts");
-            if (artifacts != null && artifacts.isArray() && !artifacts.isEmpty()) {
-                var parts = artifacts.get(0).get("parts");
-                if (parts != null && parts.isArray() && !parts.isEmpty()) {
-                    if (parts.get(0).has("text")) {
-                        return parts.get(0).get("text").asText();
-                    }
-                }
-            }
-        }
-        return json.toString();
-    }
 }

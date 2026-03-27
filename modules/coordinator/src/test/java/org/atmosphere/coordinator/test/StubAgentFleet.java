@@ -63,7 +63,7 @@ public final class StubAgentFleet implements AgentFleet {
     }
 
     @Override
-    public AgentCall call(String agentName, String skill, Map<String, String> args) {
+    public AgentCall call(String agentName, String skill, Map<String, Object> args) {
         return delegate.call(agentName, skill, args);
     }
 
