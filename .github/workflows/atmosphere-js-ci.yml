@@ -53,7 +53,7 @@ jobs:
     
     - name: Upload Coverage
       if: matrix.node-version == 20
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v6
       with:
         files: ./atmosphere.js/coverage/coverage-final.json
         flags: atmosphere-js
