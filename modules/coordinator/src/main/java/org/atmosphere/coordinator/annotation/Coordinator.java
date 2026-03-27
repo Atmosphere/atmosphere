@@ -15,6 +15,8 @@
  */
 package org.atmosphere.coordinator.annotation;
 
+import org.atmosphere.coordinator.journal.JournalFormat;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -70,4 +72,14 @@ public @interface Coordinator {
      * @see org.atmosphere.ai.annotation.AiEndpoint#responseAs()
      */
     Class<?> responseAs() default Void.class;
+
+    /**
+     * Journal format to auto-emit as a tool card after the {@code @Prompt} method completes.
+     * When set, the framework renders the coordination journal using the specified format
+     * and emits it as a {@code ToolStart}/{@code ToolResult} event pair.
+     *
+     * <p>Defaults to {@code JournalFormat.class} (disabled). Use
+     * {@code JournalFormat.Markdown.class} or a custom implementation.</p>
+     */
+    Class<? extends JournalFormat> journalFormat() default JournalFormat.class;
 }

@@ -49,6 +49,7 @@ import org.atmosphere.coordinator.fleet.AgentProxy;
 import org.atmosphere.coordinator.fleet.DefaultAgentFleet;
 import org.atmosphere.coordinator.fleet.DefaultAgentProxy;
 import org.atmosphere.coordinator.journal.CoordinationJournal;
+import org.atmosphere.coordinator.journal.JournalFormat;
 import org.atmosphere.coordinator.journal.JournalingAgentFleet;
 import org.atmosphere.coordinator.transport.A2aAgentTransport;
 import org.atmosphere.coordinator.transport.AgentTransport;
@@ -157,9 +158,15 @@ public class CoordinatorProcessor implements Processor<Object> {
             }
             var responseType = annotation.responseAs() == Void.class
                     ? null : annotation.responseAs();
-            var injectables = responseType != null
-                    ? Map.<Class<?>, Object>of(AgentFleet.class, fleet, Class.class, responseType)
-                    : Map.<Class<?>, Object>of(AgentFleet.class, fleet);
+            var journalHook = resolveJournalHook(annotation, fleet, journal);
+            var injectables = new LinkedHashMap<Class<?>, Object>();
+            injectables.put(AgentFleet.class, fleet);
+            if (responseType != null) {
+                injectables.put(Class.class, responseType);
+            }
+            if (journalHook != null) {
+                injectables.put(org.atmosphere.ai.PostPromptHook.class, journalHook);
+            }
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
                     systemPrompt, path, runtime, List.of(),
@@ -427,6 +434,28 @@ public class CoordinatorProcessor implements Processor<Object> {
         } catch (Exception | ServiceConfigurationError e) {
             logger.debug("No AiMetrics provider available: {}", e.getMessage());
             return AiMetrics.NOOP;
+        }
+    }
+
+    private org.atmosphere.ai.PostPromptHook resolveJournalHook(
+            Coordinator annotation, AgentFleet fleet, CoordinationJournal journal) {
+        var formatClass = annotation.journalFormat();
+        if (formatClass == JournalFormat.class || journal == CoordinationJournal.NOOP) {
+            return null;
+        }
+        try {
+            var format = formatClass.getDeclaredConstructor().newInstance();
+            return session -> {
+                var log = fleet.journal().formatLog(format);
+                session.emit(new org.atmosphere.ai.AiEvent.ToolStart(
+                        "coordination_journal", Map.of("query", "all events")));
+                session.emit(new org.atmosphere.ai.AiEvent.ToolResult(
+                        "coordination_journal", log));
+            };
+        } catch (ReflectiveOperationException e) {
+            logger.warn("Failed to instantiate JournalFormat '{}': {}",
+                    formatClass.getName(), e.getMessage());
+            return null;
         }
     }
 

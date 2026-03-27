@@ -24,6 +24,7 @@ import org.atmosphere.ai.AiStreamingSession;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.DefaultStreamingSession;
+import org.atmosphere.ai.PostPromptHook;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.ai.TracingCapturingSession;
@@ -344,6 +345,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var promptThread = Thread.startVirtualThread(() -> {
             try {
                 invokePrompt(userMessage, session, resource);
+                if (injectables.get(PostPromptHook.class) instanceof PostPromptHook hook) {
+                    hook.afterPrompt(session);
+                }
             } catch (Exception e) {
                 Throwable cause = e;
                 if (e instanceof java.lang.reflect.InvocationTargetException ite

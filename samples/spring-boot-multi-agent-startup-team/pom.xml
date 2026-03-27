@@ -81,7 +81,7 @@
             <artifactId>atmosphere-ai</artifactId>
         </dependency>
 
-        <!-- Google ADK runtime (default) -->
+        <!-- Google ADK runtime (uncomment for Gemini-only use)
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-adk</artifactId>
@@ -91,6 +91,7 @@
             <artifactId>google-adk</artifactId>
             <version>${google-adk.version}</version>
         </dependency>
+        -->
 
         <!-- Spring AI runtime (uncomment to switch execution engine)
         <dependency>
