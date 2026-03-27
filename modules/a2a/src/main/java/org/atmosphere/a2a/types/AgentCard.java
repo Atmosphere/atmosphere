@@ -33,13 +33,15 @@ public record AgentCard(
     List<Skill> skills,
     Map<String, Object> securitySchemes,
     List<String> defaultInputModes,
-    List<String> defaultOutputModes
+    List<String> defaultOutputModes,
+    List<String> guardrails
 ) {
     public AgentCard {
         skills = skills != null ? List.copyOf(skills) : List.of();
         securitySchemes = securitySchemes != null ? Map.copyOf(securitySchemes) : Map.of();
         defaultInputModes = defaultInputModes != null ? List.copyOf(defaultInputModes) : List.of("text");
         defaultOutputModes = defaultOutputModes != null ? List.copyOf(defaultOutputModes) : List.of("text");
+        guardrails = guardrails != null ? List.copyOf(guardrails) : null;
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

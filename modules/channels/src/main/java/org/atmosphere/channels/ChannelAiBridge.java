@@ -59,7 +59,8 @@ public class ChannelAiBridge {
      * Commands route through all bindings in registration order (first match wins).
      */
     record AgentBinding(String name, Object router, Method routeMethod,
-                        String systemPrompt, AiPipeline aiPipeline) {}
+                        String systemPrompt, AiPipeline aiPipeline,
+                        List<String> allowedChannels) {}
 
     public ChannelAiBridge(List<MessagingChannel> channels, ChannelFilterChain filterChain) {
         this.channelsByType = new ConcurrentHashMap<>();
@@ -91,12 +92,37 @@ public class ChannelAiBridge {
      */
     public static void registerAgent(String name, Object router, Object target,
                                      String systemPrompt, Object aiPipeline) {
+        registerAgent(name, router, target, systemPrompt, aiPipeline, List.of());
+    }
+
+    /**
+     * Register an {@code @Agent}'s CommandRouter, system prompt, AI pipeline, and
+     * allowed channels with the bridge. When {@code allowedChannels} is non-empty,
+     * the agent only handles messages from the listed channel types.
+     *
+     * @param name            the agent name (from {@code @Agent(name=...)})
+     * @param router          the CommandRouter instance
+     * @param target          the agent instance (unused here, reserved for future use)
+     * @param systemPrompt    the agent's system prompt (may be null)
+     * @param aiPipeline      the agent's AI pipeline for NL message handling (may be null)
+     * @param allowedChannels channel type IDs this agent handles (empty = all channels)
+     */
+    public static void registerAgent(String name, Object router, Object target,
+                                     String systemPrompt, Object aiPipeline,
+                                     List<String> allowedChannels) {
         try {
             var method = router.getClass().getMethod("route", String.class, String.class);
             var pipeline = aiPipeline instanceof AiPipeline p ? p : null;
-            agentBindings.add(new AgentBinding(name, router, method, systemPrompt, pipeline));
-            logger.info("ChannelAiBridge: agent '{}' registered (pipeline={}) — {} agent(s) active on channels",
-                    name, pipeline != null, agentBindings.size());
+            var normalized = allowedChannels != null
+                    ? allowedChannels.stream().map(String::toLowerCase).toList()
+                    : List.<String>of();
+            agentBindings.add(new AgentBinding(name, router, method, systemPrompt,
+                    pipeline, normalized));
+            logger.info("ChannelAiBridge: agent '{}' registered (pipeline={}, channels={}) "
+                            + "— {} agent(s) active on channels",
+                    name, pipeline != null,
+                    normalized.isEmpty() ? "all" : normalized,
+                    agentBindings.size());
         } catch (NoSuchMethodException e) {
             logger.error("CommandRouter for agent '{}' does not have route(String, String) method", name, e);
         }
@@ -164,7 +190,14 @@ public class ChannelAiBridge {
      */
     private String routeCommandOrAi(IncomingMessage incoming) {
         var clientId = incoming.channelType().id() + ":" + incoming.senderId();
+        var channelId = incoming.channelType().id().toLowerCase();
         for (var binding : agentBindings) {
+            if (!binding.allowedChannels().isEmpty()
+                    && !binding.allowedChannels().contains(channelId)) {
+                logger.debug("Skipping agent '{}' — channel '{}' not in allowed list {}",
+                        binding.name(), channelId, binding.allowedChannels());
+                continue;
+            }
             try {
                 var result = binding.routeMethod().invoke(binding.router(), clientId, incoming.text());
                 var simpleName = result.getClass().getSimpleName();
@@ -198,9 +231,14 @@ public class ChannelAiBridge {
      */
     private String callAi(IncomingMessage incoming) {
         var clientId = incoming.channelType().id() + ":" + incoming.senderId();
+        var channelId = incoming.channelType().id().toLowerCase();
 
         // First registered agent with a pipeline handles NL messages
         for (var binding : agentBindings) {
+            if (!binding.allowedChannels().isEmpty()
+                    && !binding.allowedChannels().contains(channelId)) {
+                continue;
+            }
             if (binding.aiPipeline() != null) {
                 var collector = new CollectingSession();
                 try {
