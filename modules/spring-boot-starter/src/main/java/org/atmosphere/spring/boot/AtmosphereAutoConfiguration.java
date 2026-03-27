@@ -190,7 +190,7 @@ public class AtmosphereAutoConfiguration {
             try {
                 classes.add(Class.forName(bd.getBeanClassName()));
             } catch (ClassNotFoundException e) {
-                logger.warn("Could not load Atmosphere annotated class: {}", bd.getBeanClassName());
+                logger.warn("Could not load Atmosphere annotated class: {}", bd.getBeanClassName(), e);
             }
         }
     }

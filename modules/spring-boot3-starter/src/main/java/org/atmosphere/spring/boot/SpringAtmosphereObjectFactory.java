@@ -69,7 +69,7 @@ public class SpringAtmosphereObjectFactory extends InjectableObjectFactory {
             return instance;
         } catch (Exception e) {
             logger.trace("Spring could not create {}; falling back to InjectableObjectFactory",
-                    defaultType.getName());
+                    defaultType.getName(), e);
         }
 
         // Hybrid path: Atmosphere creates the instance and injects its own

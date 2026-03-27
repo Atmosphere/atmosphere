@@ -16,6 +16,8 @@
 package org.atmosphere.spring.boot;
 
 import org.atmosphere.cpr.AtmosphereReflectiveTypes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.ReflectionHints;
 import org.springframework.aot.hint.RuntimeHints;
@@ -29,6 +31,8 @@ import org.springframework.aot.hint.TypeReference;
  * processors, and ServiceLoader resource files.
  */
 public class AtmosphereRuntimeHints implements RuntimeHintsRegistrar {
+
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereRuntimeHints.class);
 
     private static final MemberCategory[] HINT_CATEGORIES = {
             MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
@@ -55,8 +59,8 @@ public class AtmosphereRuntimeHints implements RuntimeHintsRegistrar {
                 for (String typeName : AtmosphereReflectiveTypes.poolTypes()) {
                     registerTypeByName(reflection, typeName);
                 }
-            } catch (ClassNotFoundException ignored) {
-                // commons-pool2 not available; skip pool class registration
+            } catch (ClassNotFoundException e) {
+                logger.trace("commons-pool2 not on classpath; skipping pool class registration", e);
             }
         }
 

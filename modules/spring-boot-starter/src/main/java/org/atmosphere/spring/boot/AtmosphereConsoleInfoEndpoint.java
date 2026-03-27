@@ -20,6 +20,8 @@ import java.util.Map;
 
 import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -36,6 +38,8 @@ import org.springframework.web.bind.annotation.RestController;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableConfigurationProperties(AtmosphereProperties.class)
 public class AtmosphereConsoleInfoEndpoint {
+
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereConsoleInfoEndpoint.class);
 
     private final AtmosphereProperties properties;
     private final AtmosphereFramework framework;
@@ -64,6 +68,7 @@ public class AtmosphereConsoleInfoEndpoint {
             var runtime = AgentRuntimeResolver.resolve();
             return runtime.name();
         } catch (Exception e) {
+            logger.debug("Could not resolve AgentRuntime", e);
             return "unknown";
         }
     }
@@ -84,7 +89,7 @@ public class AtmosphereConsoleInfoEndpoint {
                 }
             }
         } catch (Exception e) {
-            // Framework not initialized yet — use configured default
+            logger.debug("Framework not initialized yet, using configured default", e);
         }
         return configuredPath;
     }
