@@ -76,24 +76,22 @@
             <version>${google-adk.version}</version>
         </dependency>
 
-        <!-- Spring AI runtime — change scope to "compile" to activate -->
+        <!-- Spring AI runtime (uncomment to switch execution engine)
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-spring-ai</artifactId>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-client-chat</artifactId>
             <version>2.0.0-M2</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-openai</artifactId>
             <version>2.0.0-M2</version>
-            <scope>provided</scope>
         </dependency>
+        -->
 
         <!-- Embabel runtime (uncomment to switch execution engine)
         <dependency>

@@ -15,24 +15,29 @@
  */
 package org.atmosphere.ai.spring;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 
 /**
- * Auto-configuration for the Spring AI streaming adapter.
- * Activates when {@code spring-ai-model} is on the classpath.
- *
- * <p>Bridges the Spring-managed {@link ChatClient} bean to the
- * {@link SpringAiAgentRuntime} SPI so that {@code @AiEndpoint} methods
- * can stream via {@code session.stream(message)}.</p>
+ * Auto-configuration for the Spring AI agent runtime.
+ * Creates a {@link ChatClient} bean from environment config when no other
+ * Spring AI auto-configuration provides one (e.g., Spring Boot 4.0 where
+ * Spring AI 2.0 autoconfig is not yet compatible).
  */
 @AutoConfiguration
 @ConditionalOnClass(name = "org.springframework.ai.chat.client.ChatClient")
 public class AtmosphereSpringAiAutoConfiguration {
+
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereSpringAiAutoConfiguration.class);
 
     @Bean
     @ConditionalOnMissingBean
@@ -41,8 +46,27 @@ public class AtmosphereSpringAiAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnBean(ChatClient.class)
-    SpringAiAgentRuntime springAiSupportBridge(ChatClient chatClient) {
+    @ConditionalOnMissingBean(ChatClient.class)
+    public ChatClient atmosphereChatClient(
+            @Value("${spring.ai.openai.api-key:${LLM_API_KEY:${GEMINI_API_KEY:}}}") String apiKey,
+            @Value("${spring.ai.openai.base-url:${LLM_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}}") String baseUrl,
+            @Value("${spring.ai.openai.chat.options.model:${LLM_MODEL:gemini-2.5-flash}}") String model) {
+        if (apiKey == null || apiKey.isBlank()) {
+            logger.debug("No API key for Spring AI ChatClient — skipping");
+            return null;
+        }
+        var api = OpenAiApi.builder().apiKey(apiKey).baseUrl(baseUrl).build();
+        var chatModel = OpenAiChatModel.builder()
+                .openAiApi(api)
+                .defaultOptions(OpenAiChatOptions.builder().model(model).build())
+                .build();
+        logger.info("Spring AI ChatClient auto-configured: model={}, endpoint={}", model, baseUrl);
+        return ChatClient.builder(chatModel).build();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SpringAiAgentRuntime.class)
+    public SpringAiAgentRuntime springAiAgentRuntime(ChatClient chatClient) {
         SpringAiAgentRuntime.setChatClient(chatClient);
         return new SpringAiAgentRuntime();
     }
