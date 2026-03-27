@@ -2,7 +2,7 @@ name: Samples CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ '**' ]
     paths:
       - 'samples/**'
       - 'modules/**'
