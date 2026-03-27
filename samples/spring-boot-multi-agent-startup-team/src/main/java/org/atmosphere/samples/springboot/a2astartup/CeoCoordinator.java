@@ -25,6 +25,7 @@ import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
 import org.atmosphere.coordinator.fleet.AgentFleet;
+import org.atmosphere.coordinator.journal.CoordinationQuery;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.slf4j.Logger;
@@ -120,14 +121,12 @@ public class CeoCoordinator {
         var report = fleet.agent("writer-agent").call("write_report", writerArgs);
         session.emit(new AiEvent.ToolResult("write_report", report.text()));
 
-        // (Advanced) Query the coordination journal for observability:
-        // var events = fleet.journal().query(
-        //     new CoordinationQuery().forAgent("research-agent"));
-        // logger.info("Research agent events: {}", events.size());
-
-        // (Advanced) Evaluate a result with registered ResultEvaluators:
-        // var evals = fleet.evaluate(research, fleet.call("research-agent", "web_search", researchArgs));
-        // evals.forEach(e -> logger.info("Eval: {} score={} passed={}", e.evaluatorName(), e.score(), e.passed()));
+        // Journal: log fleet execution stats for observability
+        var journal = fleet.journal();
+        var allEvents = journal.query(CoordinationQuery.all());
+        session.progress("Fleet completed: " + allEvents.size() + " events across "
+                + fleet.agents().size() + " agents");
+        logger.info("Coordination journal: {} events", allEvents.size());
 
         // Step 4: CEO synthesis via LLM — trim agent results for LLM context
         var researchSummary = truncate(research.text(), 800);
