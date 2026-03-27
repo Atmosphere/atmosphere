@@ -23,6 +23,13 @@
         <pmd.skip>true</pmd.skip>
     </properties>
 
+    <repositories>
+        <repository>
+            <id>embabel-releases</id>
+            <url>https://repo.embabel.com/artifactory/libs-release</url>
+        </repository>
+    </repositories>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -56,6 +63,13 @@
             <artifactId>embabel-agent-api</artifactId>
             <version>${embabel.version}</version>
         </dependency>
+        <!-- Embabel autoconfigure JAR not yet published; uncomment when available
+        <dependency>
+            <groupId>com.embabel.agent</groupId>
+            <artifactId>embabel-agent-autoconfigure</artifactId>
+            <version>${embabel.version}</version>
+        </dependency>
+        -->
 
 
         <dependency>

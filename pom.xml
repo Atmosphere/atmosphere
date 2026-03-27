@@ -539,7 +539,7 @@
         <module>samples/spring-boot-channels-chat</module>
         <module>samples/spring-boot-dentist-agent</module>
         <module>samples/spring-boot-multi-agent-startup-team</module>
-        <!-- <module>samples/spring-boot-embabel-chat</module> -->
+        <!-- <module>samples/spring-boot-embabel-chat</module> --> <!-- Embabel autoconfigure JAR not yet published -->
         <module>modules/integration-tests</module>
     </modules>
     <reporting>
