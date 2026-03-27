@@ -144,7 +144,9 @@ public final class AgUiHandler implements AtmosphereHandler {
             } finally {
                 try {
                     servletWriter.close();
-                } catch (Exception ignored) { }
+                } catch (Exception ex) {
+                    logger.trace("Failed to close servlet writer", ex);
+                }
             }
         });
     }

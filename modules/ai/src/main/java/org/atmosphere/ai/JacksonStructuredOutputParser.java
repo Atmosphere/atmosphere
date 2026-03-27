@@ -99,8 +99,8 @@ public class JacksonStructuredOutputParser implements StructuredOutputParser {
                 return Optional.of(new AbstractMap.SimpleImmutableEntry<>(
                         field.getKey(), value));
             }
-        } catch (Exception ignored) {
-            // Not a parseable field yet — expected during streaming
+        } catch (Exception ex) {
+            logger.trace("Not a parseable field yet — expected during streaming", ex);
         }
         return Optional.empty();
     }

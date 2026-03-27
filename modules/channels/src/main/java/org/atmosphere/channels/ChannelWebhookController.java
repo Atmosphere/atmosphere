@@ -128,8 +128,8 @@ public class ChannelWebhookController {
                     if ("url_verification".equals(json.path("type").asText())) {
                         return ResponseEntity.ok(json.path("challenge").asText());
                     }
-                } catch (java.io.IOException ignored) {
-                    // Not JSON or not a challenge — continue with normal processing
+                } catch (java.io.IOException ex) {
+                    log.trace("Slack challenge detection: not JSON or not a challenge", ex);
                 }
             }
 

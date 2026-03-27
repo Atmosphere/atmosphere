@@ -89,7 +89,8 @@ public class DefaultMetaBroadcaster implements MetaBroadcaster {
                     }
                     m.clear();
                 }
-            } catch (IllegalArgumentException ignored) {
+            } catch (IllegalArgumentException ex) {
+                logger.trace("PathTemplate match failed for path '{}'", path, ex);
             }
 
             if (l.isEmpty() && cacheMessage) {

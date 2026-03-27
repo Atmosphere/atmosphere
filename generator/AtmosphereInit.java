@@ -325,8 +325,10 @@ public class AtmosphereInit implements Runnable {
                                 PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.GROUP_READ,
                                 PosixFilePermission.GROUP_EXECUTE, PosixFilePermission.OTHERS_READ,
                                 PosixFilePermission.OTHERS_EXECUTE));
-            } catch (UnsupportedOperationException ignored) {
-                // Windows
+            } catch (UnsupportedOperationException ex) {
+                // Windows — POSIX permissions not supported
+                System.getLogger(AtmosphereInit.class.getName())
+                        .log(System.Logger.Level.TRACE, "POSIX file permissions not supported", ex);
             }
         }
         if (Files.isRegularFile(mvnwCmd)) {
@@ -362,7 +364,9 @@ public class AtmosphereInit implements Runnable {
                 if (matcher.find()) {
                     return matcher.group(1);
                 }
-            } catch (IOException ignored) {
+            } catch (IOException ex) {
+                System.getLogger(AtmosphereInit.class.getName())
+                        .log(System.Logger.Level.TRACE, "Failed to read Spring Boot version from POM", ex);
             }
         }
         return springBootFallback();
@@ -385,7 +389,9 @@ public class AtmosphereInit implements Runnable {
                         return ver;
                     }
                 }
-            } catch (IOException ignored) {
+            } catch (IOException ex) {
+                System.getLogger(AtmosphereInit.class.getName())
+                        .log(System.Logger.Level.TRACE, "Failed to read Atmosphere version from POM", ex);
             }
         }
         return "4.0.27";
@@ -422,7 +428,9 @@ public class AtmosphereInit implements Runnable {
             var reader = new BufferedReader(new InputStreamReader(System.in));
             var input = reader.readLine();
             return (input == null || input.isBlank()) ? defaultValue : input.trim();
-        } catch (IOException e) {
+        } catch (IOException ex) {
+            System.getLogger(AtmosphereInit.class.getName())
+                    .log(System.Logger.Level.TRACE, "Failed to read user input", ex);
             return defaultValue;
         }
     }

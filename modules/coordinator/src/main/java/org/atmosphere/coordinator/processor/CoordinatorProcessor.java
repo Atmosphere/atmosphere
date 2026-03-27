@@ -847,8 +847,8 @@ public class CoordinatorProcessor implements Processor<Object> {
             registerMethod.invoke(null, coordinatorName, commandRouter,
                     instance, systemPrompt, pipeline);
             protocols.add("channels");
-        } catch (ClassNotFoundException ignored) {
-            // Channels not available
+        } catch (ClassNotFoundException ex) {
+            logger.trace("Channels not available", ex);
         } catch (Exception e) {
             logger.warn("Failed to wire channel bridge for coordinator '{}'",
                     coordinatorName, e);

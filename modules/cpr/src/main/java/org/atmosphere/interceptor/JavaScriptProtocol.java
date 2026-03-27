@@ -200,7 +200,8 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         if (parts.length >= 3) {
             try {
                 return Integer.parseInt(parts[0] + parts[1] + parts[2]);
-            } catch (NumberFormatException ignored) {
+            } catch (NumberFormatException ex) {
+                logger.trace("Failed to parse version string '{}'", version, ex);
             }
         }
         return 0;

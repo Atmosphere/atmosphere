@@ -19,6 +19,8 @@ import org.atmosphere.mcp.annotation.McpParam;
 import org.atmosphere.mcp.annotation.McpPrompt;
 import org.atmosphere.mcp.annotation.McpResource;
 import org.atmosphere.mcp.annotation.McpTool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -36,6 +38,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * (via {@link #registerTool(String, String, List, ToolHandler)}).
  */
 public final class McpRegistry {
+
+    private static final Logger logger = LoggerFactory.getLogger(McpRegistry.class);
 
     /**
      * Functional interface for dynamically registered tools.
@@ -338,8 +342,8 @@ public final class McpRegistry {
             if (streamingSessionClass.isAssignableFrom(type)) {
                 return true;
             }
-        } catch (ClassNotFoundException ignored) {
-            // atmosphere-ai not on classpath
+        } catch (ClassNotFoundException ex) {
+            logger.trace("atmosphere-ai not on classpath", ex);
         }
         return false;
     }

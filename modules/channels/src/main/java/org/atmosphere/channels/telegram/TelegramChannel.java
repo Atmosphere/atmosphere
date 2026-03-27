@@ -140,8 +140,8 @@ public class TelegramChannel implements MessagingChannel {
             if (message.replyTo().isPresent()) {
                 try {
                     payload.put("reply_to_message_id", Long.parseLong(message.replyTo().get()));
-                } catch (NumberFormatException ignored) {
-                    // Skip reply if the message ID isn't a valid number
+                } catch (NumberFormatException ex) {
+                    log.trace("Invalid reply-to message ID, skipping reply", ex);
                 }
             }
 

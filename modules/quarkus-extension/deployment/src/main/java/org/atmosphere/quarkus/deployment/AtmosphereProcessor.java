@@ -192,8 +192,8 @@ class AtmosphereProcessor {
                             .fields()
                             .reason("Atmosphere pool implementations (commons-pool2 present)")
                             .build());
-        } catch (ClassNotFoundException ignored) {
-            // commons-pool2 not on classpath; skip pool class registration
+        } catch (ClassNotFoundException ex) {
+            logger.trace("commons-pool2 not on classpath; skip pool class registration", ex);
         }
     }
 

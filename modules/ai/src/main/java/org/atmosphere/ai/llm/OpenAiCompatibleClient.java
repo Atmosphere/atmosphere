@@ -218,8 +218,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                 try {
                     var seconds = Integer.parseInt(retryAfter.get());
                     return Duration.ofSeconds(Math.min(seconds, 60));
-                } catch (NumberFormatException ignored) {
-                    // Fall through to exponential backoff
+                } catch (NumberFormatException ex) {
+                    logger.trace("Failed to parse Retry-After header", ex);
                 }
             }
         }
@@ -336,8 +336,8 @@ public class OpenAiCompatibleClient implements LlmClient {
             if (errorNode != null && errorNode.has("message")) {
                 return errorNode.get("message").asText();
             }
-        } catch (Exception ignored) {
-            // Fall through to return raw body
+        } catch (Exception ex) {
+            logger.trace("Failed to parse error response JSON", ex);
         }
         return errorBody.length() > 200 ? errorBody.substring(0, 200) + "..." : errorBody;
     }

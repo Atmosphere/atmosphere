@@ -51,7 +51,8 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
                         logger.trace("Mapped {} to {}", t, e.getValue());
                         break;
                     }
-                } catch (IllegalArgumentException ignored) {
+                } catch (IllegalArgumentException ex) {
+                    logger.trace("PathTemplate match failed for key '{}'", e.getKey(), ex);
                 }
             }
         }

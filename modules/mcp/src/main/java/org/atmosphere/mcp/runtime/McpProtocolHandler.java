@@ -513,8 +513,8 @@ public final class McpProtocolHandler {
                 var startMethod = factoryClass.getMethod("start", Broadcaster.class);
                 return startMethod.invoke(null, broadcaster);
             }
-        } catch (ClassNotFoundException ignored) {
-            // atmosphere-ai not on classpath — fall through
+        } catch (ClassNotFoundException ex) {
+            logger.trace("atmosphere-ai not on classpath — fall through", ex);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to create StreamingSession for topic " + topic, e);
         }

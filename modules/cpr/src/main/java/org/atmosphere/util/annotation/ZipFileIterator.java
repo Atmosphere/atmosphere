@@ -91,7 +91,8 @@ final class ZipFileIterator {
             // zipFile is never null here
             zipFile.close();
         } catch (IOException ex) { // SUPPRESS CHECKSTYLE EmptyBlockCheck
-            // suppress IOException, otherwise close() is called twice
+            java.util.logging.Logger.getLogger(ZipFileIterator.class.getName())
+                    .log(java.util.logging.Level.FINEST, "IOException closing ZipFile", ex);
         }
         return null;
     }
