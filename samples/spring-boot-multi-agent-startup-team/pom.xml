@@ -17,11 +17,26 @@
 
     <properties>
         <google-adk.version>0.2.0</google-adk.version>
+        <embabel.version>0.3.5-SNAPSHOT</embabel.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
         <checkstyle.skip>true</checkstyle.skip>
         <pmd.skip>true</pmd.skip>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>embabel-releases</id>
+            <url>https://repo.embabel.com/artifactory/libs-release</url>
+        </repository>
+        <repository>
+            <id>embabel-snapshots</id>
+            <url>https://repo.embabel.com/artifactory/libs-snapshot</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 
     <dependencyManagement>
         <dependencies>
@@ -94,15 +109,20 @@
         </dependency>
         -->
 
-        <!-- Embabel runtime (uncomment to switch execution engine)
+        <!-- Embabel runtime (uncomment + use -Pspring-boot3 to switch execution engine)
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-embabel</artifactId>
         </dependency>
         <dependency>
             <groupId>com.embabel.agent</groupId>
-            <artifactId>embabel-agent-api</artifactId>
-            <version>0.3.4</version>
+            <artifactId>embabel-agent-starter-platform</artifactId>
+            <version>${embabel.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.embabel.agent</groupId>
+            <artifactId>embabel-agent-starter-gemini</artifactId>
+            <version>${embabel.version}</version>
         </dependency>
         -->
 

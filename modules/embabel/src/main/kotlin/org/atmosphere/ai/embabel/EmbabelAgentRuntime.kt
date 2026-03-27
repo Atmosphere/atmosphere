@@ -17,6 +17,7 @@ package org.atmosphere.ai.embabel
 
 import com.embabel.agent.core.AgentPlatform
 import com.embabel.agent.core.ProcessOptions
+import com.embabel.agent.domain.library.HasContent
 import org.atmosphere.ai.AiCapability
 import org.atmosphere.ai.AiConfig
 import org.atmosphere.ai.AgentExecutionContext
@@ -94,13 +95,30 @@ class EmbabelAgentRuntime : AgentRuntime {
             )
 
         val channel = AtmosphereOutputChannel(session)
-        try {
+        val process = try {
             val options = ProcessOptions.DEFAULT.withOutputChannel(channel)
             platform.runAgentFrom(agent, options, mapOf("userMessage" to context.message()))
         } catch (e: Exception) {
             logger.error("Agent execution failed", e)
             session.error(e)
             return
+        }
+
+        // Structured output (e.g. promptedTransformer with typed output) doesn't
+        // stream through the OutputChannel. Extract the result from the blackboard
+        // and send it to the session so the console renders the response.
+        if (!session.isClosed) {
+            val result = process.blackboard.lastResult()
+            if (result != null) {
+                val text = when (result) {
+                    is HasContent -> result.content
+                    is String -> result
+                    else -> result.toString()
+                }
+                if (!text.isNullOrBlank()) {
+                    session.send(text)
+                }
+            }
         }
         session.complete()
     }

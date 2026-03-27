@@ -19,5 +19,17 @@ llm:
   base-url: ${LLM_BASE_URL:}
   api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
 
+# Embabel config (only active when atmosphere-embabel is on the classpath):
+atmosphere:
+  embabel:
+    agent-name: ceo
+embabel:
+  models:
+    default-llm: gemini-2.5-flash
+  agent:
+    platform:
+      scanning:
+        bean: true
+
 server:
   port: ${SERVER_PORT:8080}
