@@ -68,6 +68,11 @@ public class CeoCoordinator {
         logger.info("Client {} disconnected", event.getResource().uuid());
     }
 
+    private static String truncate(String text, int maxLen) {
+        return text != null && text.length() > maxLen
+                ? text.substring(0, maxLen) + "..." : (text != null ? text : "");
+    }
+
     @Prompt
     public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
         logger.info("CEO received: {}", message);
@@ -115,16 +120,15 @@ public class CeoCoordinator {
         var report = fleet.agent("writer-agent").call("write_report", writerArgs);
         session.emit(new AiEvent.ToolResult("write_report", report.text()));
 
-        // Step 4: CEO synthesis via LLM
+        // Step 4: CEO synthesis via LLM — trim agent results for LLM context
+        var researchSummary = truncate(research.text(), 800);
+        var strategySummary = truncate(results.get("strategy-agent").text(), 800);
+        var financeSummary = truncate(results.get("finance-agent").text(), 800);
+
         session.stream(String.format(
-                "You are a startup CEO synthesizing findings from your team. "
-                + "Each agent worked independently via the A2A protocol. Write a concise "
-                + "executive briefing: 1) Executive Summary (3 bullets), "
-                + "2) GO/NO-GO recommendation, 3) Key risks, 4) Next steps.\n\n"
-                + "RESEARCH AGENT:\n%s\n\nSTRATEGY AGENT:\n%s\n\nFINANCE AGENT:\n%s\n\n"
-                + "Be concise and decisive. Use markdown.",
-                research.text(),
-                results.get("strategy-agent").text(),
-                results.get("finance-agent").text()));
+                "Based on team findings, write an executive briefing. Include: "
+                + "Executive Summary (3 bullets), GO/NO-GO recommendation with rationale, "
+                + "4 key risks, and 4 next steps. Research: %s Strategy: %s Finance: %s",
+                researchSummary, strategySummary, financeSummary));
     }
 }
