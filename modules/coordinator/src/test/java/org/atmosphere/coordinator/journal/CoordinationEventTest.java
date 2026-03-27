@@ -39,7 +39,7 @@ class CoordinationEventTest {
 
     @Test
     void agentDispatchedDefensivelyCopiesArgs() {
-        var args = new java.util.HashMap<String, String>();
+        var args = new java.util.HashMap<String, Object>();
         args.put("q", "test");
         var event = new CoordinationEvent.AgentDispatched("c1", "weather", "forecast", args, Instant.now());
 

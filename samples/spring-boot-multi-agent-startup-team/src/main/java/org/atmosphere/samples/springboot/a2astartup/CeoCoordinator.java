@@ -142,7 +142,7 @@ public class CeoCoordinator {
 
         // --- Step 1: Research (sequential — other agents need these results) ---
         // ToolStart/ToolResult events render as expandable cards in the console.
-        var researchArgs = Map.of("query", message, "num_results", "3");
+        var researchArgs = Map.<String, Object>of("query", message, "num_results", "3");
         session.emit(new AiEvent.ToolStart("web_search", Map.<String, Object>of("query", message)));
         var research = fleet.agent("research-agent").call("web_search", researchArgs);
         session.emit(new AiEvent.ToolResult("web_search", research.text()));
@@ -150,9 +150,9 @@ public class CeoCoordinator {
         // --- Step 2: Strategy + Finance in parallel ---
         // fleet.parallel() dispatches both agents concurrently and blocks until
         // both complete. Results are keyed by agent name.
-        var strategyArgs = Map.of("market", message,
+        var strategyArgs = Map.<String, Object>of("market", message,
                 "research_findings", research.text(), "focus_area", "market entry");
-        var financeArgs = Map.of("market", message,
+        var financeArgs = Map.<String, Object>of("market", message,
                 "tam_estimate", "15", "growth_rate", "35",
                 "pricing_model", "SaaS $29/mo per seat");
         session.emit(new AiEvent.ToolStart("analyze_strategy",
@@ -169,7 +169,7 @@ public class CeoCoordinator {
                 results.get("finance-agent").text()));
 
         // --- Step 3: Writer synthesizes all findings into a report ---
-        var writerArgs = Map.of("title", message + " — Market Analysis",
+        var writerArgs = Map.<String, Object>of("title", message + " — Market Analysis",
                 "key_findings", research.text() + "\n"
                         + results.get("strategy-agent").text(),
                 "recommendation", "Comprehensive analysis with financial projections");

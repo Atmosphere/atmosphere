@@ -16,6 +16,8 @@
 package org.atmosphere.coordinator.fleet;
 
 import org.atmosphere.coordinator.transport.AgentTransport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -26,18 +28,28 @@ import java.util.function.Consumer;
  */
 public final class DefaultAgentProxy implements AgentProxy {
 
+    private static final Logger logger = LoggerFactory.getLogger(DefaultAgentProxy.class);
+    private static final long BASE_BACKOFF_MS = 100L;
+
     private final String name;
     private final String version;
     private final int weight;
     private final boolean local;
+    private final int maxRetries;
     private final AgentTransport transport;
 
     public DefaultAgentProxy(String name, String version, int weight,
                              boolean local, AgentTransport transport) {
+        this(name, version, weight, local, 0, transport);
+    }
+
+    public DefaultAgentProxy(String name, String version, int weight,
+                             boolean local, int maxRetries, AgentTransport transport) {
         this.name = name;
         this.version = version;
         this.weight = weight;
         this.local = local;
+        this.maxRetries = maxRetries;
         this.transport = transport;
     }
 
@@ -57,16 +69,35 @@ public final class DefaultAgentProxy implements AgentProxy {
     public boolean isLocal() { return local; }
 
     @Override
-    public AgentResult call(String skill, Map<String, String> args) {
-        return transport.send(name, skill, args);
+    public AgentResult call(String skill, Map<String, Object> args) {
+        var result = transport.send(name, skill, args);
+        if (result.success() || maxRetries <= 0) {
+            return result;
+        }
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            var backoffMs = BASE_BACKOFF_MS * (1L << (attempt - 1));
+            logger.debug("Agent '{}' call failed, retry {}/{} after {}ms",
+                    name, attempt, maxRetries, backoffMs);
+            try {
+                Thread.sleep(backoffMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return result;
+            }
+            result = transport.send(name, skill, args);
+            if (result.success()) {
+                return result;
+            }
+        }
+        return result;
     }
 
     @Override
-    public CompletableFuture<AgentResult> callAsync(String skill, Map<String, String> args) {
+    public CompletableFuture<AgentResult> callAsync(String skill, Map<String, Object> args) {
         var future = new CompletableFuture<AgentResult>();
         Thread.startVirtualThread(() -> {
             try {
-                future.complete(transport.send(name, skill, args));
+                future.complete(call(skill, args));
             } catch (Exception e) {
                 future.completeExceptionally(e);
             }
@@ -75,7 +106,7 @@ public final class DefaultAgentProxy implements AgentProxy {
     }
 
     @Override
-    public void stream(String skill, Map<String, String> args,
+    public void stream(String skill, Map<String, Object> args,
                        Consumer<String> onToken, Runnable onComplete) {
         transport.stream(name, skill, args, onToken, onComplete);
     }

@@ -41,7 +41,7 @@ import java.util.function.Consumer;
  * <p>Follows the decorator pattern used by {@code MemoryCapturingSession}
  * and {@code MetricsCapturingSession} in the AI module.</p>
  */
-public final class JournalingAgentFleet implements AgentFleet {
+public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(JournalingAgentFleet.class);
 
@@ -56,6 +56,15 @@ public final class JournalingAgentFleet implements AgentFleet {
         this.delegate = delegate;
         this.journal = journal;
         this.coordinatorName = coordinatorName;
+    }
+
+    /**
+     * Shuts down the background evaluation executor. Should be called when
+     * the coordinator is being unregistered or the application is stopping.
+     */
+    @Override
+    public void close() {
+        evalExecutor.close();
     }
 
     @Override
@@ -74,7 +83,7 @@ public final class JournalingAgentFleet implements AgentFleet {
     }
 
     @Override
-    public AgentCall call(String agentName, String skill, Map<String, String> args) {
+    public AgentCall call(String agentName, String skill, Map<String, Object> args) {
         return delegate.call(agentName, skill, args);
     }
 
@@ -82,65 +91,79 @@ public final class JournalingAgentFleet implements AgentFleet {
     public Map<String, AgentResult> parallel(AgentCall... calls) {
         var coordId = coordinationId();
         var start = Instant.now();
+        try {
+            journal.record(new CoordinationEvent.CoordinationStarted(
+                    coordId, coordinatorName, start));
 
-        journal.record(new CoordinationEvent.CoordinationStarted(
-                coordId, coordinatorName, start));
+            for (var agentCall : calls) {
+                journal.record(new CoordinationEvent.AgentDispatched(
+                        coordId, agentCall.agentName(), agentCall.skill(),
+                        agentCall.args(), Instant.now()));
+            }
 
-        for (var agentCall : calls) {
-            journal.record(new CoordinationEvent.AgentDispatched(
-                    coordId, agentCall.agentName(), agentCall.skill(),
-                    agentCall.args(), Instant.now()));
+            var results = delegate.parallel(calls);
+
+            int idx = 0;
+            for (var entry : results.entrySet()) {
+                var result = entry.getValue();
+                recordResult(coordId, result);
+                autoEvaluate(coordId, result, idx < calls.length ? calls[idx] : null);
+                idx++;
+            }
+
+            journal.record(new CoordinationEvent.CoordinationCompleted(
+                    coordId, Duration.between(start, Instant.now()),
+                    calls.length, Instant.now()));
+
+            return results;
+        } finally {
+            activeCoordinationId.remove();
         }
-
-        var results = delegate.parallel(calls);
-
-        int idx = 0;
-        for (var entry : results.entrySet()) {
-            var result = entry.getValue();
-            recordResult(coordId, result);
-            autoEvaluate(coordId, result, idx < calls.length ? calls[idx] : null);
-            idx++;
-        }
-
-        journal.record(new CoordinationEvent.CoordinationCompleted(
-                coordId, Duration.between(start, Instant.now()),
-                calls.length, Instant.now()));
-
-        return results;
     }
 
     @Override
     public AgentResult pipeline(AgentCall... calls) {
         var coordId = coordinationId();
         var start = Instant.now();
+        try {
+            journal.record(new CoordinationEvent.CoordinationStarted(
+                    coordId, coordinatorName, start));
 
-        journal.record(new CoordinationEvent.CoordinationStarted(
-                coordId, coordinatorName, start));
+            AgentResult last = null;
+            for (var agentCall : calls) {
+                // Merge previous result into args so pipeline steps can chain
+                var args = agentCall.args();
+                if (last != null) {
+                    var merged = new java.util.LinkedHashMap<>(args);
+                    merged.put("_previous_result", last.text());
+                    args = Map.copyOf(merged);
+                }
 
-        AgentResult last = null;
-        for (var agentCall : calls) {
-            journal.record(new CoordinationEvent.AgentDispatched(
-                    coordId, agentCall.agentName(), agentCall.skill(),
-                    agentCall.args(), Instant.now()));
+                journal.record(new CoordinationEvent.AgentDispatched(
+                        coordId, agentCall.agentName(), agentCall.skill(),
+                        args, Instant.now()));
 
-            var proxy = delegate.agent(agentCall.agentName());
-            last = proxy.call(agentCall.skill(), agentCall.args());
-            recordResult(coordId, last);
-            autoEvaluate(coordId, last, agentCall);
+                var proxy = delegate.agent(agentCall.agentName());
+                last = proxy.call(agentCall.skill(), args);
+                recordResult(coordId, last);
+                autoEvaluate(coordId, last, agentCall);
 
-            if (!last.success()) {
-                break;
+                if (!last.success()) {
+                    break;
+                }
             }
+
+            var completedCount = last != null
+                    ? (int) results(calls, last)
+                    : 0;
+            journal.record(new CoordinationEvent.CoordinationCompleted(
+                    coordId, Duration.between(start, Instant.now()),
+                    completedCount, Instant.now()));
+
+            return last;
+        } finally {
+            activeCoordinationId.remove();
         }
-
-        var completedCount = last != null
-                ? (int) results(calls, last)
-                : 0;
-        journal.record(new CoordinationEvent.CoordinationCompleted(
-                coordId, Duration.between(start, Instant.now()),
-                completedCount, Instant.now()));
-
-        return last;
     }
 
     @Override
@@ -244,7 +267,7 @@ public final class JournalingAgentFleet implements AgentFleet {
         }
 
         @Override
-        public AgentResult call(String skill, Map<String, String> args) {
+        public AgentResult call(String skill, Map<String, Object> args) {
             journal.record(new CoordinationEvent.AgentDispatched(
                     coordId, delegate.name(), skill, args, Instant.now()));
 
@@ -255,7 +278,7 @@ public final class JournalingAgentFleet implements AgentFleet {
 
         @Override
         public CompletableFuture<AgentResult> callAsync(String skill,
-                                                         Map<String, String> args) {
+                                                         Map<String, Object> args) {
             journal.record(new CoordinationEvent.AgentDispatched(
                     coordId, delegate.name(), skill, args, Instant.now()));
 
@@ -272,7 +295,7 @@ public final class JournalingAgentFleet implements AgentFleet {
         }
 
         @Override
-        public void stream(String skill, Map<String, String> args,
+        public void stream(String skill, Map<String, Object> args,
                            Consumer<String> onToken, Runnable onComplete) {
             journal.record(new CoordinationEvent.AgentDispatched(
                     coordId, delegate.name(), skill, args, Instant.now()));

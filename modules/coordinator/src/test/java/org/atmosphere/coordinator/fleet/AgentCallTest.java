@@ -26,7 +26,7 @@ public class AgentCallTest {
 
     @Test
     void accessors() {
-        var call = new AgentCall("agent", "skill", Map.of("q", "test"));
+        var call = new AgentCall("agent", "skill", Map.<String, Object>of("q", "test"));
         assertEquals("agent", call.agentName());
         assertEquals("skill", call.skill());
         assertEquals("test", call.args().get("q"));
@@ -34,7 +34,7 @@ public class AgentCallTest {
 
     @Test
     void argsDefensiveCopy() {
-        var original = new HashMap<String, String>();
+        var original = new HashMap<String, Object>();
         original.put("key", "val");
         var call = new AgentCall("a", "s", original);
         original.put("new", "should not appear");
@@ -50,7 +50,7 @@ public class AgentCallTest {
 
     @Test
     void argsAreImmutable() {
-        var call = new AgentCall("a", "s", Map.of("k", "v"));
+        var call = new AgentCall("a", "s", Map.<String, Object>of("k", "v"));
         assertThrows(UnsupportedOperationException.class,
                 () -> call.args().put("new", "val"));
     }

@@ -47,7 +47,7 @@ public sealed interface CoordinationEvent {
             String coordinationId,
             String agentName,
             String skill,
-            Map<String, String> args,
+            Map<String, Object> args,
             Instant timestamp
     ) implements CoordinationEvent {
         public AgentDispatched {

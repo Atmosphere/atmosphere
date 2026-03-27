@@ -21,8 +21,10 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.protocol.AbstractProtocolHandler;
 
 import java.io.IOException;
+import java.util.function.Consumer;
 
-public final class A2aHandler extends AbstractProtocolHandler<A2aSession> {
+public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
+        implements LocalDispatchable {
 
     private static final ObjectMapper mapper = new ObjectMapper();
     private static final String APPLICATION_JSON = "application/json";
@@ -37,6 +39,17 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession> {
         super(sessionTtlMs, A2aSession.SESSION_ID_HEADER,
                 A2aSession.ATTRIBUTE_KEY, "a2a-session-cleaner");
         this.protocolHandler = protocolHandler;
+    }
+
+    @Override
+    public String dispatchLocal(String jsonRpcRequest) {
+        return protocolHandler.handleMessage(jsonRpcRequest);
+    }
+
+    @Override
+    public void dispatchLocalStreaming(String jsonRpcRequest, Consumer<String> onToken,
+                                       Runnable onComplete) {
+        protocolHandler.handleStreamingMessage(jsonRpcRequest, onToken, onComplete);
     }
 
     @Override

@@ -26,10 +26,10 @@ import java.util.function.Consumer;
 public interface AgentTransport {
 
     /** Send a synchronous request to an agent skill. */
-    AgentResult send(String agentName, String skill, Map<String, String> args);
+    AgentResult send(String agentName, String skill, Map<String, Object> args);
 
     /** Send a streaming request. Tokens are pushed to the consumer. */
-    void stream(String agentName, String skill, Map<String, String> args,
+    void stream(String agentName, String skill, Map<String, Object> args,
                 Consumer<String> onToken, Runnable onComplete);
 
     /** Whether the target agent is currently reachable. */

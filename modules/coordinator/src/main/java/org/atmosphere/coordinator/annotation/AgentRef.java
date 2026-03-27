@@ -59,6 +59,17 @@ public @interface AgentRef {
     /** If false, coordinator starts even if this agent is unavailable. */
     boolean required() default true;
 
-    /** Preference weight for routing decisions. Higher values = stronger preference. */
+    /**
+     * Preference weight for routing decisions. Higher values indicate stronger
+     * preference. Reserved for future load-balancing and preference scoring
+     * across agents with overlapping capabilities. Currently logged at startup
+     * but not used for routing.
+     */
     int weight() default 1;
+
+    /**
+     * Maximum retry attempts for transient failures. Default 0 means no retry.
+     * Uses exponential backoff starting at 100ms (100ms, 200ms, 400ms, ...).
+     */
+    int maxRetries() default 0;
 }

@@ -50,8 +50,9 @@ public final class StubAgentTransport implements AgentTransport {
     }
 
     @Override
-    public AgentResult send(String agentName, String skill, Map<String, String> args) {
-        var inputText = args.values().isEmpty() ? skill : args.values().iterator().next();
+    public AgentResult send(String agentName, String skill, Map<String, Object> args) {
+        var inputText = args.values().isEmpty()
+                ? skill : String.valueOf(args.values().iterator().next());
         for (var entry : canned.entrySet()) {
             if (entry.getKey().test(inputText) || entry.getKey().test(skill)) {
                 return entry.getValue();
@@ -61,7 +62,7 @@ public final class StubAgentTransport implements AgentTransport {
     }
 
     @Override
-    public void stream(String agentName, String skill, Map<String, String> args,
+    public void stream(String agentName, String skill, Map<String, Object> args,
                        Consumer<String> onToken, Runnable onComplete) {
         var result = send(agentName, skill, args);
         if (result.text() != null) {
