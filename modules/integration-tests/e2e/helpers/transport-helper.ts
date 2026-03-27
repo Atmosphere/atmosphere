@@ -211,3 +211,27 @@ export async function waitFor(fn: () => boolean, timeoutMs = 15_000): Promise<vo
   }
   throw new Error(`waitFor timed out after ${timeoutMs}ms`);
 }
+
+/**
+ * Retry an async operation with exponential backoff.
+ * Useful for flaky WebSocket connections that may fail on first attempt.
+ */
+export async function retryAsync<T>(
+  fn: () => Promise<T>,
+  opts: { maxRetries?: number; baseDelayMs?: number; label?: string } = {},
+): Promise<T> {
+  const { maxRetries = 3, baseDelayMs = 500, label = 'operation' } = opts;
+  let lastError: Error | undefined;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      if (attempt < maxRetries) {
+        const delay = baseDelayMs * Math.pow(2, attempt);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+  throw new Error(`${label} failed after ${maxRetries + 1} attempts: ${lastError?.message}`);
+}

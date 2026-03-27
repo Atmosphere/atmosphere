@@ -169,4 +169,37 @@ test.describe('A2A Agent Protocol', () => {
     expect(error).toBeDefined();
     expect(error.code).toBe(-32601);
   });
+
+  test('invalid JSON body returns parse error (-32700)', async () => {
+    const res = await fetch(`${server.baseUrl}/atmosphere/a2a`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{{not valid json!!',
+    });
+    const body = (await res.json()) as Record<string, unknown>;
+
+    const error = body.error as { code: number; message: string };
+    expect(error).toBeDefined();
+    expect(error.code).toBe(-32700);
+  });
+
+  test('agent card has expected skill metadata', async () => {
+    const { body } = await a2aRequest(
+      server.baseUrl,
+      'agent/authenticatedExtendedCard',
+    );
+
+    const result = body.result as Record<string, unknown>;
+    expect(result).toBeDefined();
+
+    const skills = result.skills as { id: string; name: string; description: string }[];
+    expect(skills).toBeDefined();
+    expect(skills.length).toBeGreaterThan(0);
+
+    for (const skill of skills) {
+      expect(skill.id).toBeTruthy();
+      expect(skill.name).toBeTruthy();
+      expect(skill.description).toBeTruthy();
+    }
+  });
 });

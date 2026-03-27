@@ -321,6 +321,14 @@ export class SampleServer {
     return this.output;
   }
 
+  /**
+   * Get the last N lines of server output (for failure debugging).
+   */
+  getRecentOutput(lines = 200): string {
+    const allLines = this.output.split('\n');
+    return allLines.slice(-lines).join('\n');
+  }
+
   async stop(): Promise<void> {
     if (this.proc.killed) return;
     this.proc.kill('SIGTERM');

@@ -119,4 +119,32 @@ test.describe('Dentist Agent', () => {
     expect(output).toContain('Registered telegram channel at /webhook/telegram');
     expect(output).toContain('Registered slack channel at /webhook/slack');
   });
+
+  // ── Behavioral depth tests ──
+
+  test('unknown slash command returns help text', async () => {
+    const result = await sendAndCollect(server.baseUrl,
+      '/atmosphere/agent/dentist', '/unknown', 10_000);
+    // The agent should gracefully handle unknown commands by returning
+    // help information or listing available commands
+    const text = result.fullText.toLowerCase();
+    expect(
+      text.includes('help') ||
+      text.includes('available') ||
+      text.includes('command') ||
+      text.includes('firstaid') ||
+      text.includes('unknown'),
+    ).toBe(true);
+    expect(result.fullText.length).toBeGreaterThan(0);
+  });
+
+  test('/help lists all available commands', async () => {
+    const result = await sendAndCollect(server.baseUrl,
+      '/atmosphere/agent/dentist', '/help', 10_000);
+    const text = result.fullText.toLowerCase();
+    // Should list the 3 known commands
+    expect(text).toContain('firstaid');
+    expect(text).toContain('urgency');
+    expect(text).toContain('pain');
+  });
 });

@@ -141,4 +141,98 @@ test.describe('MCP Tool Invocation', () => {
     const status = JSON.parse(text!);
     expect(status.status).toBe('sent');
   });
+
+  test('resource atmosphere://server/status returns valid JSON', async () => {
+    const { body } = await mcpRequest(
+      server.baseUrl,
+      'resources/read',
+      { uri: 'atmosphere://server/status' },
+      6,
+      mcpSessionId,
+    );
+
+    const result = (body as { result?: { contents?: { text?: string }[] } }).result;
+    expect(result).toBeDefined();
+    expect(result!.contents).toBeDefined();
+    expect(result!.contents!.length).toBeGreaterThan(0);
+
+    const text = result!.contents![0].text;
+    expect(text).toBeDefined();
+
+    // Must be valid JSON
+    const parsed = JSON.parse(text!);
+    expect(parsed).toBeDefined();
+  });
+
+  test('resource atmosphere://server/capabilities lists features', async () => {
+    const { body } = await mcpRequest(
+      server.baseUrl,
+      'resources/read',
+      { uri: 'atmosphere://server/capabilities' },
+      7,
+      mcpSessionId,
+    );
+
+    const result = (body as { result?: { contents?: { text?: string }[] } }).result;
+    expect(result).toBeDefined();
+    expect(result!.contents).toBeDefined();
+    expect(result!.contents!.length).toBeGreaterThan(0);
+
+    const text = result!.contents![0].text;
+    expect(text).toBeDefined();
+    expect(text!.length).toBeGreaterThan(0);
+  });
+
+  test('prompt template chat_summary renders with parameters', async () => {
+    const { body } = await mcpRequest(
+      server.baseUrl,
+      'prompts/get',
+      { name: 'chat_summary', arguments: { topic: 'testing' } },
+      8,
+      mcpSessionId,
+    );
+
+    const result = (body as { result?: { messages?: { content?: { text?: string } }[] } }).result;
+    expect(result).toBeDefined();
+    expect(result!.messages).toBeDefined();
+    expect(result!.messages!.length).toBeGreaterThan(0);
+
+    const text = result!.messages![0].content?.text;
+    expect(text).toBeDefined();
+    expect(text!.length).toBeGreaterThan(0);
+  });
+
+  test('invalid tool name returns JSON-RPC error', async () => {
+    const { body } = await mcpRequest(
+      server.baseUrl,
+      'tools/call',
+      { name: 'nonexistent_tool', arguments: {} },
+      9,
+      mcpSessionId,
+    );
+
+    const result = (body as { result?: { isError?: boolean }; error?: unknown }).result;
+    const error = (body as { error?: unknown }).error;
+
+    // Either the result indicates an error or a JSON-RPC error is returned
+    const hasError = result?.isError === true || error !== undefined;
+    expect(hasError).toBeTruthy();
+  });
+
+  test('missing required params returns validation error', async () => {
+    const { body } = await mcpRequest(
+      server.baseUrl,
+      'tools/call',
+      { name: 'broadcast_message', arguments: {} },
+      10,
+      mcpSessionId,
+    );
+
+    const result = (body as { result?: { isError?: boolean }; error?: unknown }).result;
+    const error = (body as { error?: unknown }).error;
+
+    // Either the result indicates an error or a JSON-RPC error is returned
+    const hasError = result?.isError === true || error !== undefined;
+    expect(hasError).toBeTruthy();
+  });
 });

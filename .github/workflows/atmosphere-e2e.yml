@@ -115,6 +115,7 @@ jobs:
       working-directory: modules/integration-tests
       env:
         LLM_MODE: fake
+        SMOKE_ONLY: ${{ github.event_name == 'pull_request' && 'true' || '' }}
       run: |
         PROJECTS=$(echo "${{ matrix.group.projects }}" | sed 's/,/ --project=/g')
         npx playwright test --project=$PROJECTS
