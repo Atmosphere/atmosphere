@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public final class A2aProtocolHandler {
 
@@ -94,6 +95,62 @@ public final class A2aProtocolHandler {
             logger.error("Error handling A2A message", e);
             return serialize(JsonRpc.Response.error(null, JsonRpc.INTERNAL_ERROR,
                     e.getMessage()));
+        }
+    }
+
+    /**
+     * Handle a streaming message from a local transport. Executes the skill
+     * and bridges each artifact text part to the token consumer.
+     *
+     * @param message    JSON-RPC request string
+     * @param onToken    callback for each text token
+     * @param onComplete callback when execution finishes
+     */
+    public void handleStreamingMessage(String message, Consumer<String> onToken,
+                                        Runnable onComplete) {
+        try {
+            var node = mapper.readTree(message);
+            var params = node.get("params");
+
+            if (params == null) {
+                onComplete.run();
+                return;
+            }
+
+            var msg = extractMessage(params);
+            var contextId = params.has("contextId")
+                    ? params.get("contextId").asText() : UUID.randomUUID().toString();
+            var skillId = resolveSkillId(msg);
+
+            var taskCtx = taskManager.createTask(contextId);
+            taskCtx.addMessage(msg);
+
+            A2aRegistry.SkillEntry skill = null;
+            if (skillId != null) {
+                skill = registry.skill(skillId).orElse(null);
+            }
+            if (skill == null && !registry.skills().isEmpty()) {
+                skill = registry.skills().values().iterator().next();
+            }
+
+            if (skill != null) {
+                executeSkill(skill, taskCtx, params);
+            }
+
+            // Stream all artifact text parts to the consumer
+            for (var artifact : taskCtx.artifacts()) {
+                if (artifact.parts() != null) {
+                    for (var part : artifact.parts()) {
+                        if (part instanceof Part.TextPart tp) {
+                            onToken.accept(tp.text());
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Streaming message handling failed", e);
+        } finally {
+            onComplete.run();
         }
     }
 

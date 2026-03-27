@@ -43,10 +43,13 @@ import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
+import org.atmosphere.coordinator.evaluation.ResultEvaluator;
 import org.atmosphere.coordinator.fleet.AgentFleet;
 import org.atmosphere.coordinator.fleet.AgentProxy;
 import org.atmosphere.coordinator.fleet.DefaultAgentFleet;
 import org.atmosphere.coordinator.fleet.DefaultAgentProxy;
+import org.atmosphere.coordinator.journal.CoordinationJournal;
+import org.atmosphere.coordinator.journal.JournalingAgentFleet;
 import org.atmosphere.coordinator.transport.A2aAgentTransport;
 import org.atmosphere.coordinator.transport.AgentTransport;
 import org.atmosphere.coordinator.transport.LocalAgentTransport;
@@ -145,7 +148,13 @@ public class CoordinatorProcessor implements Processor<Object> {
             detectCircularDependencies(coordinatorName, proxies.keySet());
 
             // Step 8: Create AgentFleet and AiEndpointHandler with injectable
-            var fleet = new DefaultAgentFleet(proxies);
+            var evaluators = resolveEvaluators();
+            var journal = resolveJournal();
+            AgentFleet fleet = new DefaultAgentFleet(proxies, evaluators);
+            if (journal != CoordinationJournal.NOOP) {
+                journal.start();
+                fleet = new JournalingAgentFleet(fleet, journal, coordinatorName);
+            }
             var injectables = Map.<Class<?>, Object>of(AgentFleet.class, fleet);
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
@@ -406,6 +415,26 @@ public class CoordinatorProcessor implements Processor<Object> {
             logger.debug("No AiMetrics provider available: {}", e.getMessage());
             return AiMetrics.NOOP;
         }
+    }
+
+    private CoordinationJournal resolveJournal() {
+        try {
+            return ServiceLoader.load(CoordinationJournal.class)
+                    .findFirst().orElse(CoordinationJournal.NOOP);
+        } catch (Exception | ServiceConfigurationError e) {
+            logger.debug("No CoordinationJournal provider: {}", e.getMessage());
+            return CoordinationJournal.NOOP;
+        }
+    }
+
+    private List<ResultEvaluator> resolveEvaluators() {
+        var evaluators = new ArrayList<ResultEvaluator>();
+        try {
+            ServiceLoader.load(ResultEvaluator.class).forEach(evaluators::add);
+        } catch (Exception | ServiceConfigurationError e) {
+            logger.debug("No ResultEvaluator providers: {}", e.getMessage());
+        }
+        return evaluators;
     }
 
     // --- Prompt method resolution ---

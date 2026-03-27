@@ -112,6 +112,30 @@ public class LocalAgentTransport implements AgentTransport {
     @Override
     public void stream(String agentName, String skill, Map<String, String> args,
                        Consumer<String> onToken, Runnable onComplete) {
+        try {
+            var handlerWrapper = framework.getAtmosphereHandlers().get(a2aPath);
+            if (handlerWrapper != null) {
+                var handler = handlerWrapper.atmosphereHandler();
+                var protocolHandlerField = handler.getClass().getDeclaredField("protocolHandler");
+                protocolHandlerField.setAccessible(true);
+                var protocolHandler = protocolHandlerField.get(handler);
+
+                // Try streaming method first
+                try {
+                    var streamMethod = protocolHandler.getClass().getMethod(
+                            "handleStreamingMessage", String.class, Consumer.class, Runnable.class);
+                    var requestBody = buildJsonRpc(skill, args);
+                    streamMethod.invoke(protocolHandler, requestBody, onToken, onComplete);
+                    return;
+                } catch (NoSuchMethodException ignored) {
+                    // Protocol handler doesn't support streaming — fall through
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Local streaming to '{}' failed, falling back to send: {}",
+                    agentName, e.getMessage());
+        }
+        // Graceful fallback to synchronous
         var result = send(agentName, skill, args);
         onToken.accept(result.text());
         onComplete.run();

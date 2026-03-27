@@ -15,6 +15,8 @@
  */
 package org.atmosphere.coordinator.fleet;
 
+import org.atmosphere.coordinator.evaluation.Evaluation;
+import org.atmosphere.coordinator.evaluation.ResultEvaluator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,9 +37,16 @@ public final class DefaultAgentFleet implements AgentFleet {
     private static final Logger logger = LoggerFactory.getLogger(DefaultAgentFleet.class);
 
     private final Map<String, AgentProxy> proxies;
+    private final List<ResultEvaluator> evaluators;
 
     public DefaultAgentFleet(Map<String, AgentProxy> proxies) {
+        this(proxies, List.of());
+    }
+
+    public DefaultAgentFleet(Map<String, AgentProxy> proxies,
+                             List<ResultEvaluator> evaluators) {
         this.proxies = Map.copyOf(proxies);
+        this.evaluators = List.copyOf(evaluators);
     }
 
     @Override
@@ -111,5 +120,21 @@ public final class DefaultAgentFleet implements AgentFleet {
             }
         }
         return last;
+    }
+
+    @Override
+    public List<Evaluation> evaluate(AgentResult result, AgentCall originalCall) {
+        return evaluators.stream()
+                .map(e -> {
+                    try {
+                        return e.evaluate(result, originalCall);
+                    } catch (Exception ex) {
+                        logger.warn("Evaluator '{}' failed for agent '{}'",
+                                e.name(), result.agentName(), ex);
+                        return Evaluation.fail(0.0,
+                                "Evaluator error: " + ex.getMessage());
+                    }
+                })
+                .toList();
     }
 }
