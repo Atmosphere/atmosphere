@@ -15,6 +15,8 @@
  */
 package org.atmosphere.coordinator.journal;
 
+import org.atmosphere.coordinator.evaluation.Evaluation;
+import org.atmosphere.coordinator.evaluation.ResultEvaluator;
 import org.atmosphere.coordinator.fleet.AgentCall;
 import org.atmosphere.coordinator.fleet.AgentProxy;
 import org.atmosphere.coordinator.fleet.AgentResult;
@@ -26,7 +28,11 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -164,5 +170,110 @@ class JournalingAgentFleetTest {
     @Test
     void availableDelegates() {
         assertEquals(2, fleet.available().size());
+    }
+
+    @Test
+    void agentAndParallelShareCoordinationId() {
+        // Direct agent call followed by parallel — should share one coordination ID
+        var proxy = fleet.agent("weather");
+        proxy.call("forecast", Map.of("city", "Paris"));
+
+        fleet.parallel(
+                new AgentCall("weather", "forecast", Map.of("city", "Madrid")),
+                new AgentCall("news", "headlines", Map.of())
+        );
+
+        var allEvents = journal.query(CoordinationQuery.all());
+        var coordinationIds = allEvents.stream()
+                .map(CoordinationEvent::coordinationId)
+                .collect(Collectors.toSet());
+
+        assertEquals(1, coordinationIds.size(),
+                "All operations on the same thread should share one coordination ID");
+    }
+
+    @Test
+    void parallelAndPipelineShareCoordinationId() {
+        fleet.parallel(
+                new AgentCall("weather", "forecast", Map.of("city", "Madrid")),
+                new AgentCall("news", "headlines", Map.of())
+        );
+
+        fleet.pipeline(
+                new AgentCall("weather", "forecast", Map.of()),
+                new AgentCall("news", "headlines", Map.of())
+        );
+
+        var allEvents = journal.query(CoordinationQuery.all());
+        var coordinationIds = allEvents.stream()
+                .map(CoordinationEvent::coordinationId)
+                .collect(Collectors.toSet());
+
+        assertEquals(1, coordinationIds.size(),
+                "parallel() and pipeline() on the same thread must share coordination ID");
+    }
+
+    @Test
+    void differentThreadsGetDifferentCoordinationIds() throws Exception {
+        var ids = java.util.concurrent.ConcurrentHashMap.<String>newKeySet();
+        var latch = new CountDownLatch(2);
+
+        Runnable task = () -> {
+            fleet.parallel(
+                    new AgentCall("weather", "forecast", Map.of())
+            );
+            var events = journal.query(CoordinationQuery.all());
+            for (var e : events) {
+                ids.add(e.coordinationId());
+            }
+            latch.countDown();
+        };
+
+        Thread.startVirtualThread(task);
+        Thread.startVirtualThread(task);
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+
+        assertTrue(ids.size() >= 2,
+                "Different threads should produce different coordination IDs");
+    }
+
+    @Test
+    void autoEvaluateIsNonBlocking() throws Exception {
+        // Create a fleet with a slow evaluator
+        var latch = new CountDownLatch(1);
+        ResultEvaluator slowEvaluator = new ResultEvaluator() {
+            @Override
+            public String name() { return "slow"; }
+
+            @Override
+            public Evaluation evaluate(AgentResult result, AgentCall call) {
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                latch.countDown();
+                return Evaluation.pass(1.0, "ok");
+            }
+        };
+
+        var proxies = new LinkedHashMap<String, AgentProxy>();
+        proxies.put("weather", new DefaultAgentProxy("weather", "1.0.0", 1,
+                true, weatherTransport));
+        var delegateWithEval = new DefaultAgentFleet(proxies, List.of(slowEvaluator));
+        var journalFleet = new JournalingAgentFleet(delegateWithEval, journal,
+                "test-coordinator");
+
+        // parallel() should return quickly — evaluation runs async
+        long start = System.nanoTime();
+        journalFleet.parallel(new AgentCall("weather", "forecast", Map.of()));
+        long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+
+        assertTrue(elapsed < 150,
+                "parallel() should not block on evaluation; took " + elapsed + "ms");
+
+        // Evaluation should eventually complete in the background
+        assertTrue(latch.await(3, TimeUnit.SECONDS),
+                "Background evaluation should complete");
     }
 }

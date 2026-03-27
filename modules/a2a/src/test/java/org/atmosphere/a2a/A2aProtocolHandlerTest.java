@@ -29,7 +29,10 @@ import org.atmosphere.protocol.JsonRpc;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -133,5 +136,67 @@ class A2aProtocolHandlerTest {
         var node = mapper.readTree(response);
         assertNotNull(node.get("error"));
         assertEquals(JsonRpc.PARSE_ERROR, node.get("error").get("code").asInt());
+    }
+
+    @Test
+    void handleStreamingMessageDispatchesSameAsSend() throws Exception {
+        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"message/stream\","
+                + "\"params\":{\"message\":{\"role\":\"user\","
+                + "\"parts\":[{\"type\":\"text\",\"text\":\"hello\"}],"
+                + "\"messageId\":\"m1\"},\"arguments\":{\"name\":\"World\"}}}";
+        var response = handler.handleMessage(request);
+        assertNotNull(response);
+        var node = mapper.readTree(response);
+        // Should succeed (not METHOD_NOT_FOUND) — same behavior as message/send
+        assertNotNull(node.get("result"));
+        assertEquals("COMPLETED", node.get("result").get("status").get("state").asText());
+    }
+
+    @Test
+    void handleStreamingMessageCallbackProducesTokens() {
+        var tokens = new ArrayList<String>();
+        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"message/stream\","
+                + "\"params\":{\"message\":{\"role\":\"user\","
+                + "\"parts\":[{\"type\":\"text\",\"text\":\"hello\"}],"
+                + "\"messageId\":\"m1\"},\"arguments\":{\"name\":\"World\"}}}";
+
+        var completed = new boolean[]{false};
+        handler.handleStreamingMessage(request, tokens::add, () -> completed[0] = true);
+
+        assertFalse(tokens.isEmpty(), "Should have emitted at least one token");
+        assertTrue(completed[0], "onComplete should have been called");
+    }
+
+    @Test
+    void handleStreamingMessageWithNoParamsCallsComplete() {
+        var tokens = new ArrayList<String>();
+        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"message/stream\"}";
+
+        var completed = new boolean[]{false};
+        handler.handleStreamingMessage(request, tokens::add, () -> completed[0] = true);
+
+        assertTrue(tokens.isEmpty());
+        assertTrue(completed[0], "onComplete must be called even with no params");
+    }
+
+    @Test
+    void handleStreamingMessageWithNoSkillsProducesNoTokens() {
+        // Build a handler with an empty registry (no skills)
+        var emptyRegistry = new A2aRegistry();
+        var taskManager = new TaskManager();
+        var card = emptyRegistry.buildAgentCard("empty", "Empty", "1.0", "/a2a");
+        var emptyHandler = new A2aProtocolHandler(emptyRegistry, taskManager, card);
+
+        var tokens = new ArrayList<String>();
+        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"message/stream\","
+                + "\"params\":{\"message\":{\"role\":\"user\","
+                + "\"parts\":[{\"type\":\"text\",\"text\":\"hello\"}],"
+                + "\"messageId\":\"m1\"}}}";
+
+        var completed = new boolean[]{false};
+        emptyHandler.handleStreamingMessage(request, tokens::add, () -> completed[0] = true);
+
+        assertTrue(tokens.isEmpty(), "No skills means no tokens");
+        assertTrue(completed[0], "onComplete must still be called");
     }
 }

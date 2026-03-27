@@ -150,4 +150,100 @@ class InMemoryCoordinationJournalTest {
         var results = journal.query(CoordinationQuery.forAgent("weather"));
         assertEquals(1, results.size());
     }
+
+    @Test
+    void evictsOldestWhenMaxCoordinationsExceeded() {
+        var bounded = new InMemoryCoordinationJournal(3);
+        bounded.start();
+
+        bounded.record(new CoordinationEvent.CoordinationStarted("c1", "ceo", Instant.now()));
+        bounded.record(new CoordinationEvent.CoordinationStarted("c2", "ceo", Instant.now()));
+        bounded.record(new CoordinationEvent.CoordinationStarted("c3", "ceo", Instant.now()));
+
+        // All 3 present
+        assertEquals(1, bounded.retrieve("c1").size());
+        assertEquals(1, bounded.retrieve("c2").size());
+        assertEquals(1, bounded.retrieve("c3").size());
+
+        // Adding a 4th should evict c1
+        bounded.record(new CoordinationEvent.CoordinationStarted("c4", "ceo", Instant.now()));
+
+        assertTrue(bounded.retrieve("c1").isEmpty(), "c1 should have been evicted");
+        assertEquals(1, bounded.retrieve("c2").size());
+        assertEquals(1, bounded.retrieve("c3").size());
+        assertEquals(1, bounded.retrieve("c4").size());
+    }
+
+    @Test
+    void evictsMultipleWhenBurstExceedsLimit() {
+        var bounded = new InMemoryCoordinationJournal(2);
+        bounded.start();
+
+        bounded.record(new CoordinationEvent.CoordinationStarted("c1", "ceo", Instant.now()));
+        bounded.record(new CoordinationEvent.CoordinationStarted("c2", "ceo", Instant.now()));
+        bounded.record(new CoordinationEvent.CoordinationStarted("c3", "ceo", Instant.now()));
+        bounded.record(new CoordinationEvent.CoordinationStarted("c4", "ceo", Instant.now()));
+
+        // c1 and c2 should be evicted, c3 and c4 remain
+        assertTrue(bounded.retrieve("c1").isEmpty());
+        assertTrue(bounded.retrieve("c2").isEmpty());
+        assertEquals(1, bounded.retrieve("c3").size());
+        assertEquals(1, bounded.retrieve("c4").size());
+    }
+
+    @Test
+    void multipleEventsForSameCoordinationCountAsOne() {
+        var bounded = new InMemoryCoordinationJournal(3);
+        bounded.start();
+
+        // Multiple events under the same coordination ID = 1 slot
+        bounded.record(new CoordinationEvent.CoordinationStarted("c1", "ceo", Instant.now()));
+        bounded.record(new CoordinationEvent.AgentDispatched(
+                "c1", "weather", "forecast", java.util.Map.of(), Instant.now()));
+        bounded.record(new CoordinationEvent.AgentCompleted(
+                "c1", "weather", "forecast", "Sunny", Duration.ZERO, Instant.now()));
+
+        bounded.record(new CoordinationEvent.CoordinationStarted("c2", "ceo", Instant.now()));
+        bounded.record(new CoordinationEvent.CoordinationStarted("c3", "ceo", Instant.now()));
+
+        // 3 coordinations, exactly at limit — no eviction
+        assertEquals(3, bounded.retrieve("c1").size());
+        assertEquals(1, bounded.retrieve("c2").size());
+        assertEquals(1, bounded.retrieve("c3").size());
+
+        // Adding c4 should evict c1 (the oldest coordination)
+        bounded.record(new CoordinationEvent.CoordinationStarted("c4", "ceo", Instant.now()));
+        assertTrue(bounded.retrieve("c1").isEmpty());
+    }
+
+    @Test
+    void defaultMaxCoordinationsIsLarge() {
+        // Default constructor should accept many coordinations without eviction
+        for (int i = 0; i < 100; i++) {
+            journal.record(new CoordinationEvent.CoordinationStarted(
+                    "c" + i, "ceo", Instant.now()));
+        }
+        // All 100 should still be present
+        for (int i = 0; i < 100; i++) {
+            assertEquals(1, journal.retrieve("c" + i).size());
+        }
+    }
+
+    @Test
+    void stopClearsEvictionTracking() {
+        var bounded = new InMemoryCoordinationJournal(2);
+        bounded.start();
+
+        bounded.record(new CoordinationEvent.CoordinationStarted("c1", "ceo", Instant.now()));
+        bounded.record(new CoordinationEvent.CoordinationStarted("c2", "ceo", Instant.now()));
+        bounded.stop();
+
+        // After stop+restart, adding 2 new ones should work without hitting stale order
+        bounded.start();
+        bounded.record(new CoordinationEvent.CoordinationStarted("c3", "ceo", Instant.now()));
+        bounded.record(new CoordinationEvent.CoordinationStarted("c4", "ceo", Instant.now()));
+
+        assertEquals(1, bounded.retrieve("c3").size());
+        assertEquals(1, bounded.retrieve("c4").size());
+    }
 }

@@ -30,6 +30,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -131,21 +132,29 @@ public class A2aAgentTransport implements AgentTransport {
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
 
             if (response.statusCode() == 200) {
+                var tokenEmitted = new AtomicBoolean(false);
                 response.body().forEach(line -> {
                     if (line.startsWith("data:")) {
                         var data = line.substring(5).strip();
                         if (!data.isEmpty() && !"[DONE]".equals(data)) {
                             var text = extractStreamingText(data);
                             if (text != null && !text.isEmpty()) {
+                                tokenEmitted.set(true);
                                 onToken.accept(text);
                             }
                         }
                     }
                 });
-                onComplete.run();
-                return;
+                if (tokenEmitted.get()) {
+                    onComplete.run();
+                    return;
+                }
+                logger.debug("A2A streaming to '{}' returned no tokens, falling back to send",
+                        agentName);
+            } else {
+                logger.debug("A2A streaming returned HTTP {}, falling back to send",
+                        response.statusCode());
             }
-            logger.debug("A2A streaming returned HTTP {}, falling back to send", response.statusCode());
         } catch (Exception e) {
             logger.debug("A2A streaming to '{}' failed, falling back to send: {}",
                     agentName, e.getMessage());

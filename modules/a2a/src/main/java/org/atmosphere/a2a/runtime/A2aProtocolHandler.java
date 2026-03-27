@@ -72,7 +72,8 @@ public final class A2aProtocolHandler {
             var params = node.get("params");
 
             var response = switch (method) {
-                case A2aMethod.SEND_MESSAGE -> handleSendMessage(idVal, params);
+                case A2aMethod.SEND_MESSAGE, A2aMethod.SEND_STREAMING_MESSAGE ->
+                        handleSendMessage(idVal, params);
                 case A2aMethod.GET_TASK -> handleGetTask(idVal, params);
                 case A2aMethod.LIST_TASKS -> handleListTasks(idVal, params);
                 case A2aMethod.CANCEL_TASK -> handleCancelTask(idVal, params);
@@ -135,17 +136,25 @@ public final class A2aProtocolHandler {
 
             if (skill != null) {
                 executeSkill(skill, taskCtx, params);
+            } else {
+                logger.warn("No skill found for streaming request (skillId: {})", skillId);
             }
 
             // Stream all artifact text parts to the consumer
+            boolean hasTokens = false;
             for (var artifact : taskCtx.artifacts()) {
                 if (artifact.parts() != null) {
                     for (var part : artifact.parts()) {
                         if (part instanceof Part.TextPart tp) {
+                            hasTokens = true;
                             onToken.accept(tp.text());
                         }
                     }
                 }
+            }
+            if (!hasTokens) {
+                logger.debug("Streaming execution produced no output for skillId '{}'",
+                        skillId);
             }
         } catch (Exception e) {
             logger.warn("Streaming message handling failed", e);

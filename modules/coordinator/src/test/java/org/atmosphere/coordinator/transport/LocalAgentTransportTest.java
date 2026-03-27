@@ -18,6 +18,7 @@ package org.atmosphere.coordinator.transport;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -44,5 +45,23 @@ public class LocalAgentTransportTest {
 
         assertFalse(result.success());
         assertTrue(result.text().contains("Agent not found"));
+    }
+
+    @Test
+    void streamFallsBackToSendWhenHandlerNotFound() {
+        var framework = mock(AtmosphereFramework.class);
+        when(framework.getAtmosphereHandlers()).thenReturn(Map.of());
+
+        var transport = new LocalAgentTransport(framework, "test-agent", "/a2a/test");
+        var tokens = new ArrayList<String>();
+        var completed = new boolean[]{false};
+
+        transport.stream("test-agent", "search", Map.of("q", "hello"),
+                tokens::add, () -> completed[0] = true);
+
+        assertTrue(completed[0], "onComplete must be called even on fallback");
+        // Fallback to send() which also fails — produces a failure text token
+        assertFalse(tokens.isEmpty(), "Fallback send() should produce a token");
+        assertTrue(tokens.getFirst().contains("Agent not found"));
     }
 }

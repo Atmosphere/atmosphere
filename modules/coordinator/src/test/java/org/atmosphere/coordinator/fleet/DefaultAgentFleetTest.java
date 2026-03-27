@@ -109,6 +109,53 @@ public class DefaultAgentFleetTest {
     }
 
     @Test
+    void parallelHandlesDuplicateAgentNames() {
+        var transport = mock(AgentTransport.class);
+        when(transport.isAvailable()).thenReturn(true);
+        when(transport.send(eq("analyzer"), eq("summarize"), anyMap()))
+                .thenReturn(new AgentResult("analyzer", "summarize", "summary result",
+                        Map.of(), Duration.ofMillis(50), true));
+        when(transport.send(eq("analyzer"), eq("classify"), anyMap()))
+                .thenReturn(new AgentResult("analyzer", "classify", "classify result",
+                        Map.of(), Duration.ofMillis(50), true));
+
+        var proxies = new LinkedHashMap<String, AgentProxy>();
+        proxies.put("analyzer", new DefaultAgentProxy("analyzer", "1.0.0", 1, true, transport));
+        var fleet = new DefaultAgentFleet(proxies);
+
+        var results = fleet.parallel(
+                fleet.call("analyzer", "summarize", Map.of("text", "abc")),
+                fleet.call("analyzer", "classify", Map.of("text", "abc"))
+        );
+
+        assertEquals(2, results.size(),
+                "Both calls should be present — second must not overwrite first");
+
+        // First call uses plain name as key
+        assertTrue(results.containsKey("analyzer"));
+        // Second call uses disambiguated key
+        assertTrue(results.containsKey("analyzer#2"));
+
+        // Verify both results are present
+        var allTexts = results.values().stream()
+                .map(AgentResult::text).collect(java.util.stream.Collectors.toSet());
+        assertTrue(allTexts.contains("summary result"));
+        assertTrue(allTexts.contains("classify result"));
+    }
+
+    @Test
+    void parallelUniqueAgentNamesUseSimpleKeys() {
+        var fleet = createFleet();
+        var results = fleet.parallel(
+                fleet.call("research", "search", Map.of("q", "ai")),
+                fleet.call("strategy", "analyze", Map.of("data", "x"))
+        );
+        // Non-duplicate names should use plain names as keys
+        assertTrue(results.containsKey("research"));
+        assertTrue(results.containsKey("strategy"));
+    }
+
+    @Test
     void pipelineAbortsOnFailure() {
         var failTransport = mock(AgentTransport.class);
         when(failTransport.isAvailable()).thenReturn(true);

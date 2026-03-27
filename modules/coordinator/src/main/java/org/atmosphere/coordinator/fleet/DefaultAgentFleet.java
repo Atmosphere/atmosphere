@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,9 +83,13 @@ public final class DefaultAgentFleet implements AgentFleet {
 
         ExecutorService vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
         var futures = new LinkedHashMap<String, CompletableFuture<AgentResult>>();
+        var nameCount = new HashMap<String, Integer>();
         for (var agentCall : calls) {
-            var proxy = agent(agentCall.agentName());
-            futures.put(agentCall.agentName(),
+            var name = agentCall.agentName();
+            var count = nameCount.merge(name, 1, Integer::sum);
+            var key = count == 1 ? name : name + "#" + count;
+            var proxy = agent(name);
+            futures.put(key,
                     CompletableFuture.supplyAsync(
                             () -> proxy.call(agentCall.skill(), agentCall.args()),
                             vtExecutor));

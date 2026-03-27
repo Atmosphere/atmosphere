@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -125,8 +126,19 @@ public class LocalAgentTransport implements AgentTransport {
                     var streamMethod = protocolHandler.getClass().getMethod(
                             "handleStreamingMessage", String.class, Consumer.class, Runnable.class);
                     var requestBody = buildJsonRpc(skill, args);
-                    streamMethod.invoke(protocolHandler, requestBody, onToken, onComplete);
-                    return;
+                    var tokenEmitted = new AtomicBoolean(false);
+                    Consumer<String> trackingToken = token -> {
+                        tokenEmitted.set(true);
+                        onToken.accept(token);
+                    };
+                    streamMethod.invoke(protocolHandler, requestBody, trackingToken,
+                            (Runnable) () -> {});
+                    if (tokenEmitted.get()) {
+                        onComplete.run();
+                        return;
+                    }
+                    logger.debug("Local streaming to '{}' produced no tokens, " +
+                            "falling back to send", agentName);
                 } catch (NoSuchMethodException ignored) {
                     // Protocol handler doesn't support streaming — fall through
                 }

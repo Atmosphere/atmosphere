@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
@@ -47,6 +48,8 @@ public final class JournalingAgentFleet implements AgentFleet {
     private final AgentFleet delegate;
     private final CoordinationJournal journal;
     private final String coordinatorName;
+    private final ExecutorService evalExecutor = Executors.newVirtualThreadPerTaskExecutor();
+    private final ThreadLocal<String> activeCoordinationId = new ThreadLocal<>();
 
     public JournalingAgentFleet(AgentFleet delegate, CoordinationJournal journal,
                                 String coordinatorName) {
@@ -57,7 +60,7 @@ public final class JournalingAgentFleet implements AgentFleet {
 
     @Override
     public AgentProxy agent(String name) {
-        return new JournalingAgentProxy(delegate.agent(name), newCoordinationId());
+        return new JournalingAgentProxy(delegate.agent(name), coordinationId());
     }
 
     @Override
@@ -77,7 +80,7 @@ public final class JournalingAgentFleet implements AgentFleet {
 
     @Override
     public Map<String, AgentResult> parallel(AgentCall... calls) {
-        var coordId = newCoordinationId();
+        var coordId = coordinationId();
         var start = Instant.now();
 
         journal.record(new CoordinationEvent.CoordinationStarted(
@@ -91,10 +94,12 @@ public final class JournalingAgentFleet implements AgentFleet {
 
         var results = delegate.parallel(calls);
 
+        int idx = 0;
         for (var entry : results.entrySet()) {
             var result = entry.getValue();
             recordResult(coordId, result);
-            autoEvaluate(coordId, result, findCall(calls, entry.getKey()));
+            autoEvaluate(coordId, result, idx < calls.length ? calls[idx] : null);
+            idx++;
         }
 
         journal.record(new CoordinationEvent.CoordinationCompleted(
@@ -106,7 +111,7 @@ public final class JournalingAgentFleet implements AgentFleet {
 
     @Override
     public AgentResult pipeline(AgentCall... calls) {
-        var coordId = newCoordinationId();
+        var coordId = coordinationId();
         var start = Instant.now();
 
         journal.record(new CoordinationEvent.CoordinationStarted(
@@ -148,8 +153,13 @@ public final class JournalingAgentFleet implements AgentFleet {
         return journal;
     }
 
-    private String newCoordinationId() {
-        return UUID.randomUUID().toString();
+    private String coordinationId() {
+        var id = activeCoordinationId.get();
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+            activeCoordinationId.set(id);
+        }
+        return id;
     }
 
     private void recordResult(String coordId, AgentResult result) {
@@ -168,31 +178,19 @@ public final class JournalingAgentFleet implements AgentFleet {
         if (!result.success() || call == null) {
             return;
         }
-        // Run evaluation async on a virtual thread — non-blocking
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            CompletableFuture.runAsync(() -> {
-                try {
-                    var evaluations = delegate.evaluate(result, call);
-                    for (var eval : evaluations) {
-                        journal.record(new CoordinationEvent.AgentEvaluated(
-                                coordId, result.agentName(), "auto",
-                                eval.score(), eval.passed(), Instant.now()));
-                    }
-                } catch (Exception e) {
-                    logger.debug("Auto-evaluation failed for agent '{}'",
-                            result.agentName(), e);
+        CompletableFuture.runAsync(() -> {
+            try {
+                var evaluations = delegate.evaluate(result, call);
+                for (var eval : evaluations) {
+                    journal.record(new CoordinationEvent.AgentEvaluated(
+                            coordId, result.agentName(), "auto",
+                            eval.score(), eval.passed(), Instant.now()));
                 }
-            }, executor);
-        }
-    }
-
-    private static AgentCall findCall(AgentCall[] calls, String agentName) {
-        for (var c : calls) {
-            if (c.agentName().equals(agentName)) {
-                return c;
+            } catch (Exception e) {
+                logger.debug("Auto-evaluation failed for agent '{}'",
+                        result.agentName(), e);
             }
-        }
-        return null;
+        }, evalExecutor);
     }
 
     private static long results(AgentCall[] calls, AgentResult last) {

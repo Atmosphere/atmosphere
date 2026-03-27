@@ -21,10 +21,9 @@ package org.atmosphere.a2a.protocol;
  * <p>Currently implemented methods: {@link #SEND_MESSAGE}, {@link #GET_TASK},
  * {@link #LIST_TASKS}, {@link #CANCEL_TASK}, {@link #GET_AGENT_CARD}.</p>
  *
- * <p>Streaming and push-notification methods are defined here to match the
- * A2A specification but are defined by the spec but unhandled by
- * {@code A2aProtocolHandler}. Invoking them will return a
- * {@code METHOD_NOT_FOUND} JSON-RPC error.</p>
+ * <p>Push-notification methods are defined here to match the A2A
+ * specification but are not yet handled by {@code A2aProtocolHandler}.
+ * Invoking them will return a {@code METHOD_NOT_FOUND} JSON-RPC error.</p>
  */
 public final class A2aMethod {
     private A2aMethod() {
@@ -33,7 +32,7 @@ public final class A2aMethod {
     /** Send a message to the agent and receive a task. Implemented. */
     public static final String SEND_MESSAGE = "message/send";
 
-    /** Stream a message to the agent. A2A spec constant; returns METHOD_NOT_FOUND. */
+    /** Stream a message to the agent. Handled as synchronous send when received via JSON-RPC. */
     public static final String SEND_STREAMING_MESSAGE = "message/stream";
 
     /** Get the current state of a task by ID. Implemented. */

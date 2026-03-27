@@ -17,19 +17,35 @@ package org.atmosphere.coordinator.journal;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
 /**
  * In-memory {@link CoordinationJournal} implementation. Thread-safe via
  * {@link ConcurrentHashMap} and {@link CopyOnWriteArrayList}.
+ *
+ * <p>Enforces a maximum number of coordinations to prevent unbounded memory
+ * growth. When the limit is exceeded, the oldest coordinations are evicted.</p>
  */
 public final class InMemoryCoordinationJournal implements CoordinationJournal {
 
+    private static final int DEFAULT_MAX_COORDINATIONS = 10_000;
+
+    private final int maxCoordinations;
     private final ConcurrentHashMap<String, CopyOnWriteArrayList<CoordinationEvent>> store =
             new ConcurrentHashMap<>();
+    private final ConcurrentLinkedDeque<String> insertionOrder = new ConcurrentLinkedDeque<>();
     private final CopyOnWriteArrayList<CoordinationJournalInspector> inspectors =
             new CopyOnWriteArrayList<>();
+
+    public InMemoryCoordinationJournal() {
+        this(DEFAULT_MAX_COORDINATIONS);
+    }
+
+    public InMemoryCoordinationJournal(int maxCoordinations) {
+        this.maxCoordinations = maxCoordinations;
+    }
 
     @Override
     public void start() {
@@ -39,6 +55,7 @@ public final class InMemoryCoordinationJournal implements CoordinationJournal {
     @Override
     public void stop() {
         store.clear();
+        insertionOrder.clear();
         inspectors.clear();
     }
 
@@ -49,8 +66,22 @@ public final class InMemoryCoordinationJournal implements CoordinationJournal {
                 return;
             }
         }
-        store.computeIfAbsent(event.coordinationId(), k -> new CopyOnWriteArrayList<>())
-                .add(event);
+        store.computeIfAbsent(event.coordinationId(), k -> {
+            insertionOrder.addLast(k);
+            return new CopyOnWriteArrayList<>();
+        }).add(event);
+        evictIfNeeded();
+    }
+
+    private void evictIfNeeded() {
+        while (store.size() > maxCoordinations) {
+            var oldest = insertionOrder.pollFirst();
+            if (oldest != null) {
+                store.remove(oldest);
+            } else {
+                break;
+            }
+        }
     }
 
     @Override

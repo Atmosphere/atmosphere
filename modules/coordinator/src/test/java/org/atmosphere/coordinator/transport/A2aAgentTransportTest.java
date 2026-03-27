@@ -21,7 +21,9 @@ import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -134,6 +136,96 @@ public class A2aAgentTransportTest {
 
         var transport = new A2aAgentTransport("agent", "http://localhost:9999/a2a", httpClient);
         assertTrue(transport.isAvailable());
+    }
+
+    @Test
+    void streamFallsBackToSendWhenNoTokensEmitted() throws Exception {
+        var httpClient = mock(HttpClient.class);
+
+        // First call: streaming request returns 200 but plain JSON (no SSE data: lines)
+        var streamResponse = mock(HttpResponse.class);
+        when(streamResponse.statusCode()).thenReturn(200);
+        when(streamResponse.body()).thenReturn(
+                Stream.of("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}"));
+
+        // Second call: fallback send() returns proper result
+        var sendResponse = mock(HttpResponse.class);
+        when(sendResponse.statusCode()).thenReturn(200);
+        when(sendResponse.body()).thenReturn(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"status\":{\"state\":\"COMPLETED\"},"
+                        + "\"artifacts\":[{\"parts\":[{\"type\":\"text\",\"text\":\"fallback result\"}]}]}}");
+
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(streamResponse)
+                .thenReturn(sendResponse);
+
+        var transport = new A2aAgentTransport("agent", "http://localhost:9999/a2a", httpClient);
+        var tokens = new ArrayList<String>();
+        var completed = new boolean[]{false};
+
+        transport.stream("agent", "search", Map.of("q", "test"),
+                tokens::add, () -> completed[0] = true);
+
+        assertTrue(completed[0], "onComplete must be called");
+        assertFalse(tokens.isEmpty(), "Fallback to send() should produce tokens");
+        assertEquals("fallback result", tokens.getFirst());
+    }
+
+    @Test
+    void streamDeliversSseTokensDirectly() throws Exception {
+        var httpClient = mock(HttpClient.class);
+        var streamResponse = mock(HttpResponse.class);
+        when(streamResponse.statusCode()).thenReturn(200);
+        when(streamResponse.body()).thenReturn(
+                Stream.of("data: {\"artifact\":{\"parts\":[{\"text\":\"token1\"}]}}",
+                        "data: {\"artifact\":{\"parts\":[{\"text\":\"token2\"}]}}",
+                        "data: [DONE]"));
+
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(streamResponse);
+
+        var transport = new A2aAgentTransport("agent", "http://localhost:9999/a2a", httpClient);
+        var tokens = new ArrayList<String>();
+        var completed = new boolean[]{false};
+
+        transport.stream("agent", "search", Map.of("q", "test"),
+                tokens::add, () -> completed[0] = true);
+
+        assertTrue(completed[0]);
+        assertEquals(2, tokens.size());
+        assertEquals("token1", tokens.get(0));
+        assertEquals("token2", tokens.get(1));
+    }
+
+    @Test
+    void streamFallsBackOnNon200Status() throws Exception {
+        var httpClient = mock(HttpClient.class);
+
+        // Streaming returns 500
+        var streamResponse = mock(HttpResponse.class);
+        when(streamResponse.statusCode()).thenReturn(500);
+        when(streamResponse.body()).thenReturn(Stream.of());
+
+        // Fallback send returns success
+        var sendResponse = mock(HttpResponse.class);
+        when(sendResponse.statusCode()).thenReturn(200);
+        when(sendResponse.body()).thenReturn(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"status\":{\"state\":\"COMPLETED\"},"
+                        + "\"artifacts\":[{\"parts\":[{\"type\":\"text\",\"text\":\"sync result\"}]}]}}");
+
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(streamResponse)
+                .thenReturn(sendResponse);
+
+        var transport = new A2aAgentTransport("agent", "http://localhost:9999/a2a", httpClient);
+        var tokens = new ArrayList<String>();
+        var completed = new boolean[]{false};
+
+        transport.stream("agent", "search", Map.of("q", "test"),
+                tokens::add, () -> completed[0] = true);
+
+        assertTrue(completed[0]);
+        assertEquals("sync result", tokens.getFirst());
     }
 
     @Test
