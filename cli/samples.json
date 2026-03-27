@@ -136,29 +136,9 @@
       }
     },
     {
-      "name": "spring-boot-spring-ai-routing",
-      "description": "Spring AI routing workflow with content safety and cost metering",
-      "category": "agent",
-      "tags": [
-        "spring-boot",
-        "ai",
-        "spring-ai",
-        "routing",
-        "workflow",
-        "metering"
-      ],
-      "port": 8088,
-      "runnable": true,
-      "packaging": "spring-boot",
-      "hasFrontend": true,
-      "envVars": {
-        "OPENAI_API_KEY": "OpenAI API key"
-      }
-    },
-    {
       "name": "spring-boot-rag-chat",
-      "description": "RAG chat with document retrieval and embeddings",
-      "category": "rag",
+      "description": "RAG agent — @Agent with AI tools for knowledge base search, slash commands, and document retrieval",
+      "category": "agent",
       "tags": [
         "spring-boot",
         "ai",

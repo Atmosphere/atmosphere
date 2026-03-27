@@ -24,7 +24,6 @@ Example applications demonstrating Atmosphere 4.0 across different deployment ta
 | [spring-boot-langchain4j-tools](spring-boot-langchain4j-tools/) | LangChain4j | `@Tool` (native) | LangChain4j-native tool calling |
 | [spring-boot-ai-tools](spring-boot-ai-tools/) | LangChain4j | `@AiTool` (portable) | Framework-agnostic tool calling pipeline |
 | [spring-boot-adk-tools](spring-boot-adk-tools/) | Google ADK | `@AiTool` (portable) | ADK with Atmosphere tool bridge |
-| [spring-boot-spring-ai-routing](spring-boot-spring-ai-routing/) | Spring AI | — | Cost/latency-based model routing |
 | [spring-boot-ai-classroom](spring-boot-ai-classroom/) | Built-in | — | Multi-persona AI classroom ([Expo client](spring-boot-ai-classroom/expo-client/)) |
 | [spring-boot-embabel-horoscope](spring-boot-embabel-horoscope/) | Embabel | — | Embabel agent orchestration |
 
@@ -36,6 +35,7 @@ One agent class — commands and AI work on Web, Slack, Telegram, Discord, Whats
 |--------|----------|----------|-------------|
 | [spring-boot-agent-chat](spring-boot-agent-chat/) | `@Agent`, `@Command`, `@AiTool`, skill.md | Web (+ any via `atmosphere-channels`) | DevOps assistant with slash commands and AI tools |
 | [spring-boot-dentist-agent](spring-boot-dentist-agent/) | `@Agent`, `@Command`, `@AiTool`, skill.md | Web + Slack + Telegram | Multi-channel dental emergency agent |
+| [spring-boot-rag-chat](spring-boot-rag-chat/) | `@Agent`, `@Command`, `@AiTool`, RAG | Web | Knowledge base agent with document search tools |
 
 ### Agent Protocols
 

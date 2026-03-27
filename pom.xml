@@ -527,7 +527,6 @@
         <module>samples/quarkus-chat</module>
         <module>samples/spring-boot-ai-chat</module>
         <module>samples/spring-boot-ai-classroom</module>
-        <module>samples/spring-boot-spring-ai-routing</module>
         <module>samples/spring-boot-otel-chat</module>
         <module>samples/spring-boot-mcp-server</module>
         <module>samples/spring-boot-durable-sessions</module>

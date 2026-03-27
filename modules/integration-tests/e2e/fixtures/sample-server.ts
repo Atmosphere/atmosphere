@@ -97,7 +97,7 @@ export const SAMPLES: Record<string, SampleConfig> = {
     dir: 'spring-boot-rag-chat',
     port: 8092,
     type: 'spring-boot',
-    readyPath: '/atmosphere/ai-chat',
+    readyPath: '/atmosphere/agent/rag-assistant',
   },
   'spring-boot-a2a-agent': {
     name: 'spring-boot-a2a-agent',

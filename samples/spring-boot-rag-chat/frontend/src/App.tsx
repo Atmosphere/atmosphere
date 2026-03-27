@@ -21,7 +21,7 @@ export function App() {
 
   const request = useMemo(
     () => ({
-      url: `${window.location.protocol}//${window.location.host}/atmosphere/ai-chat`,
+      url: `${window.location.protocol}//${window.location.host}/atmosphere/agent/rag-assistant`,
       transport: 'websocket' as const,
       fallbackTransport: 'long-polling' as const,
       reconnect: true,
@@ -72,8 +72,8 @@ export function App() {
 
   return (
     <ChatLayout
-      title={<><img src="/logo.png" alt="" style={{ height: '1.2em', verticalAlign: 'middle', marginRight: 8 }} />Atmosphere RAG Chat</>}
-      subtitle="Retrieval-Augmented Generation + Spring AI VectorStore + WebSocket Transport"
+      title={<><img src="/logo.png" alt="" style={{ height: '1.2em', verticalAlign: 'middle', marginRight: 8 }} />Atmosphere RAG Agent</>}
+      subtitle="@Agent + AI Tools + RAG Retrieval + Spring AI VectorStore"
       theme="ai"
     >
       <div style={{
@@ -112,7 +112,7 @@ export function App() {
       </div>
       <ChatInput
         onSend={handleSend}
-        placeholder="Ask about Atmosphere (RAG-powered)..."
+        placeholder="Ask about Atmosphere, or try /sources and /help..."
         disabled={isStreaming}
         theme="ai"
       />

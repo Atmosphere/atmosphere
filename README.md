@@ -24,7 +24,11 @@ Atmosphere is a transport-agnostic runtime for Java. Your application code decla
 ## Quick Start
 
 ```bash
-brew install Atmosphere/tap/atmosphere    # or: curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
+brew install Atmosphere/tap/atmosphere    
+
+# or
+
+curl -fsSL https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/install.sh | sh
 
 # Run a built-in agent sample
 atmosphere run spring-boot-multi-agent-startup-team
@@ -32,8 +36,9 @@ atmosphere run spring-boot-multi-agent-startup-team
 # Or scaffold your own project from a sample
 atmosphere new my-agent --template ai-chat
 
-# Import a skill from GitHub and run it
+# Import a skill from skills repositories like Claude, Github, Antigravrity etc. and run it
 atmosphere import https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
+
 cd frontend-design && LLM_API_KEY=your-key ./mvnw spring-boot:run
 ```
 
@@ -98,7 +103,10 @@ Full-stack and headless agents can collaborate via A2A — full-stack agents del
 A coordinator manages a fleet of agents. Declare the fleet, inject `AgentFleet` into your `@Prompt` method, and orchestrate with plain Java — sequential, parallel, pipeline, or any pattern.
 
 ```java
-@Coordinator(name = "ceo", skillFile = "prompts/ceo-skill.md")
+@Coordinator(name = "ceo", 
+             skillFile = "prompts/ceo-skill.md"
+             responseAs = MarketAssessment.class,
+             journalFormat = JournalFormat.Markdown.class)
 @Fleet({
     @AgentRef(type = ResearchAgent.class),
     @AgentRef(type = StrategyAgent.class),
@@ -335,9 +343,8 @@ function Chat() {
 | Agent | [dentist agent](samples/spring-boot-dentist-agent/) | Commands, tools, skill file, Slack and Telegram |
 | AI Streaming | [ai-chat](samples/spring-boot-ai-chat/) | Swap backend via one dependency |
 | AI Streaming | [ai-tools](samples/spring-boot-ai-tools/) | Framework-agnostic tool calling |
-| AI Streaming | [rag-chat](samples/spring-boot-rag-chat/) | RAG with document retrieval |
+| Agent | [rag-agent](samples/spring-boot-rag-chat/) | RAG agent with AI tools for knowledge base search |
 | AI Streaming | [ai-classroom](samples/spring-boot-ai-classroom/) | Multi-room, multi-persona streaming |
-| AI Streaming | [ai-routing](samples/spring-boot-spring-ai-routing/) | Content-based model routing with Spring AI |
 | Protocol | [mcp-server](samples/spring-boot-mcp-server/) | MCP tools, resources, and prompts |
 | Protocol | [a2a-agent](samples/spring-boot-a2a-agent/) | Headless A2A agent |
 | Protocol | [agui-chat](samples/spring-boot-agui-chat/) | AG-UI streaming via SSE |

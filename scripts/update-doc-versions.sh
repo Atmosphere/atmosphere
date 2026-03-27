@@ -82,6 +82,33 @@ if [ -f "$INIT_TEST" ]; then
     echo "   generator/AtmosphereInitTest.java"
 fi
 
+# ── 6. CLI version strings ──
+echo "── CLI version strings"
+CLI_SCRIPT="$ROOT/cli/atmosphere"
+if [ -f "$CLI_SCRIPT" ]; then
+    sedi "s|^VERSION=\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^\"]*\"|VERSION=\"$VERSION\"|" "$CLI_SCRIPT"
+    echo "   cli/atmosphere"
+fi
+
+CLI_SAMPLES="$ROOT/cli/samples.json"
+if [ -f "$CLI_SAMPLES" ]; then
+    sedi "s|\"version\": \"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^\"]*\"|\"version\": \"$VERSION\"|" "$CLI_SAMPLES"
+    echo "   cli/samples.json"
+fi
+
+CLI_NPX="$ROOT/cli/npx/package.json"
+if [ -f "$CLI_NPX" ]; then
+    sedi "s|\"version\": \"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^\"]*\"|\"version\": \"$VERSION\"|" "$CLI_NPX"
+    echo "   cli/npx/package.json"
+fi
+
+CLI_HOMEBREW="$ROOT/cli/homebrew/atmosphere.rb"
+if [ -f "$CLI_HOMEBREW" ]; then
+    sedi "s|atmosphere-[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^\"]*\.tar\.gz|atmosphere-$VERSION.tar.gz|" "$CLI_HOMEBREW"
+    sedi "s|version \"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^\"]*\"|version \"$VERSION\"|" "$CLI_HOMEBREW"
+    echo "   cli/homebrew/atmosphere.rb (SHA256 must be updated manually after tagging)"
+fi
+
 echo ""
 echo "Done. Summary of changes:"
 git diff --stat

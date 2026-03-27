@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.springboot.ragchat;
 
+import org.atmosphere.ai.ContextProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
@@ -24,6 +25,7 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 
 import java.io.BufferedReader;
@@ -31,16 +33,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 /**
- * Configures a {@link SimpleVectorStore} and loads the knowledge base documents
- * on startup.
- *
- * <p>The {@link EmbeddingModel} is auto-configured by Spring AI's OpenAI starter
- * when an API key is provided. Without it, the vector store bean is not created
- * and the sample falls back to demo mode.</p>
+ * Loads the knowledge base documents into both the in-memory {@link KnowledgeBase}
+ * (always available, used by {@code @AiTool} methods) and the Spring AI
+ * {@link SimpleVectorStore} (when embeddings are configured).
  */
 @Configuration
 public class VectorStoreConfig {
@@ -51,25 +49,23 @@ public class VectorStoreConfig {
             "classpath:docs/atmosphere-overview.md",
             "classpath:docs/atmosphere-transports.md",
             "classpath:docs/atmosphere-ai-module.md",
-            "classpath:docs/atmosphere-getting-started.md"
+            "classpath:docs/atmosphere-getting-started.md",
+            "classpath:docs/atmosphere-agents.md"
     };
 
-    @Bean
-    @ConditionalOnBean(EmbeddingModel.class)
-    public VectorStore vectorStore(EmbeddingModel embeddingModel, ResourceLoader resourceLoader) {
-        var store = SimpleVectorStore.builder(embeddingModel).build();
+    private final ResourceLoader resourceLoader;
 
-        var documents = loadDocuments(resourceLoader);
-        if (!documents.isEmpty()) {
-            store.doAdd(documents);
-            logger.info("Loaded {} documents into SimpleVectorStore", documents.size());
-        }
-
-        return store;
+    public VectorStoreConfig(ResourceLoader resourceLoader) {
+        this.resourceLoader = resourceLoader;
     }
 
-    private List<Document> loadDocuments(ResourceLoader resourceLoader) {
-        var documents = new ArrayList<Document>();
+    /**
+     * Always populate the in-memory knowledge base — used by {@code @AiTool}
+     * methods for explicit search, even in demo mode without embeddings.
+     */
+    @jakarta.annotation.PostConstruct
+    void populateKnowledgeBase() {
+        var docs = new ArrayList<ContextProvider.Document>();
         for (var path : KNOWLEDGE_BASE) {
             try {
                 var resource = resourceLoader.getResource(path);
@@ -79,16 +75,38 @@ public class VectorStoreConfig {
                 }
                 var content = readResource(resource);
                 var source = path.replace("classpath:", "");
-                documents.add(new Document(content, Map.of("source", source)));
+                docs.add(new ContextProvider.Document(content, source, 1.0));
                 logger.debug("Loaded knowledge base document: {}", source);
             } catch (IOException e) {
                 logger.error("Failed to load knowledge base document: {}", path, e);
             }
         }
-        return documents;
+        KnowledgeBase.instance().addDocuments(docs);
+        logger.info("Knowledge base: {} documents loaded", docs.size());
     }
 
-    private static String readResource(org.springframework.core.io.Resource resource) throws IOException {
+    /**
+     * When embeddings are available, also load documents into a vector store
+     * for semantic similarity search via the framework's RAG pipeline.
+     */
+    @Bean
+    @ConditionalOnBean(EmbeddingModel.class)
+    public VectorStore vectorStore(EmbeddingModel embeddingModel) {
+        var store = SimpleVectorStore.builder(embeddingModel).build();
+
+        var springDocs = KnowledgeBase.instance().documents().stream()
+                .map(d -> new Document(d.content(), Map.of("source", d.source())))
+                .toList();
+        if (!springDocs.isEmpty()) {
+            store.doAdd(springDocs);
+            logger.info("Loaded {} documents into SimpleVectorStore with embeddings",
+                    springDocs.size());
+        }
+
+        return store;
+    }
+
+    private static String readResource(Resource resource) throws IOException {
         try (var reader = new BufferedReader(
                 new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
             var sb = new StringBuilder();

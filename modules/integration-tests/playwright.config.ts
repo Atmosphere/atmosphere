@@ -108,10 +108,6 @@ export default defineConfig({
       testMatch: /ai-memory\.spec\.ts/,
     },
     {
-      name: 'spring-ai-routing',
-      testMatch: /spring-ai-routing\.spec\.ts/,
-    },
-    {
       name: 'ai-tools',
       testMatch: /ai-tools\.spec\.ts/,
     },
