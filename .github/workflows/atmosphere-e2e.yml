@@ -9,8 +9,12 @@ on:
 
 jobs:
   build:
-    name: Build
+    name: Build (SB${{ matrix.spring-boot-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        spring-boot-version: [4, 3]
+      fail-fast: false
     steps:
     - uses: actions/checkout@v4
 
@@ -24,6 +28,12 @@ jobs:
     - name: Build All Modules
       run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true
 
+    - name: Rebuild Spring Boot samples with SB3
+      if: matrix.spring-boot-version == 3
+      run: |
+        SB_SAMPLES=$(ls -d samples/spring-boot-*/pom.xml | sed 's|/pom.xml||' | paste -sd, -)
+        ./mvnw -B package -DskipTests -Dgpg.skip=true -Pspring-boot3 -pl "$SB_SAMPLES"
+
     - name: Package build output
       run: |
         tar czf /tmp/build-targets.tar.gz \
@@ -34,17 +44,18 @@ jobs:
     - name: Upload build output
       uses: actions/upload-artifact@v4
       with:
-        name: build-targets
+        name: build-targets-sb${{ matrix.spring-boot-version }}
         path: /tmp/build-targets.tar.gz
         retention-days: 1
 
   e2e:
-    name: E2E — ${{ matrix.group.name }}
+    name: E2E — ${{ matrix.group.name }} (SB${{ matrix.spring-boot-version }})
     runs-on: ubuntu-latest
     needs: [build]
 
     strategy:
       matrix:
+        spring-boot-version: [4, 3]
         group:
           - name: core-transports
             projects: "chat,spring-boot-chat,multi-client,embedded-jetty-chat,quarkus-chat,sse-transport,long-polling-transport,transport-fallback,reconnection"
@@ -75,11 +86,11 @@ jobs:
     - name: Download build output
       uses: actions/download-artifact@v4
       with:
-        name: build-targets
+        name: build-targets-sb${{ matrix.spring-boot-version }}
 
     - name: Restore build output
       run: |
-        tar xzmf build-targets.tar.gz
+        tar xzmf build-targets-sb${{ matrix.spring-boot-version }}.tar.gz
         # Restore atmosphere SNAPSHOT artifacts to local Maven repo
         if [ -d .m2/repository/org/atmosphere ]; then
           mkdir -p ~/.m2/repository/org
@@ -112,6 +123,6 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: playwright-report-${{ matrix.group.name }}
+        name: playwright-report-${{ matrix.group.name }}-sb${{ matrix.spring-boot-version }}
         path: modules/integration-tests/playwright-report/
         retention-days: 14

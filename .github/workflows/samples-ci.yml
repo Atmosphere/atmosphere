@@ -22,9 +22,9 @@ on:
 
 jobs:
   test-samples:
-    name: Test Sample - ${{ matrix.sample }}
+    name: Test Sample - ${{ matrix.sample }} (SB${{ matrix.spring-boot-version }})
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         sample:
@@ -34,26 +34,43 @@ jobs:
           - embedded-jetty-websocket-chat
           - spring-boot-ai-chat
           - spring-boot-rag-chat
+        spring-boot-version: [4]
+        include:
+          # Run Spring Boot samples with SB3 as well
+          - sample: spring-boot-chat
+            spring-boot-version: 3
+          - sample: spring-boot-ai-chat
+            spring-boot-version: 3
+          - sample: spring-boot-rag-chat
+            spring-boot-version: 3
+        exclude:
+          # Non-Spring-Boot samples don't need the SB version axis
+          - sample: chat
+            spring-boot-version: 3
+          - sample: quarkus-chat
+            spring-boot-version: 3
+          - sample: embedded-jetty-websocket-chat
+            spring-boot-version: 3
       fail-fast: false
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
         java-version: 21
         distribution: 'temurin'
         cache: 'maven'
-    
+
     - name: Install Atmosphere Modules
-      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl modules/cpr,modules/ai,modules/rag,modules/spring-ai,modules/langchain4j,modules/embabel,modules/adk,modules/spring-boot-starter,modules/quarkus-extension/runtime,modules/quarkus-extension/deployment,modules/wasync -am
-    
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl modules/cpr,modules/ai,modules/rag,modules/spring-ai,modules/langchain4j,modules/embabel,modules/adk,modules/spring-boot-starter,modules/spring-boot3-starter,modules/quarkus-extension/runtime,modules/quarkus-extension/deployment,modules/wasync -am
+
     - name: Build Sample - ${{ matrix.sample }}
-      run: ./mvnw -B package -DskipTests -Dgpg.skip=true -pl samples/${{ matrix.sample }}
-    
+      run: ./mvnw -B package -DskipTests -Dgpg.skip=true -pl samples/${{ matrix.sample }} ${{ matrix.spring-boot-version == 3 && '-Pspring-boot3' || '' }}
+
     - name: Test Sample - ${{ matrix.sample }}
-      run: ./mvnw -B test -Dgpg.skip=true -pl samples/${{ matrix.sample }}
+      run: ./mvnw -B test -Dgpg.skip=true -pl samples/${{ matrix.sample }} ${{ matrix.spring-boot-version == 3 && '-Pspring-boot3' || '' }}
       # embedded-jetty-websocket-chat has no tests (standalone demo app)
       if: matrix.sample != 'embedded-jetty-websocket-chat'
       env:

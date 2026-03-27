@@ -35,6 +35,7 @@
         <module>durable-sessions-redis</module>
         <module>rag</module>
         <module>spring-boot-starter</module>
+        <module>spring-boot3-starter</module>
         <module>agent</module>
         <module>coordinator</module>
         <module>channels</module>

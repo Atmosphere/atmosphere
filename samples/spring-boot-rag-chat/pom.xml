@@ -17,6 +17,7 @@
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
+        <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
         <spring-ai.version>2.0.0-M2</spring-ai.version>
     </properties>
 
@@ -35,7 +36,7 @@
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-spring-boot-starter</artifactId>
+            <artifactId>${atmosphere.starter}</artifactId>
         </dependency>
 
         <dependency>
@@ -114,4 +115,13 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>spring-boot3</id>
+            <properties>
+                <spring-boot.version>3.5.0</spring-boot.version>
+                <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
+            </properties>
+        </profile>
+    </profiles>
 </project>
