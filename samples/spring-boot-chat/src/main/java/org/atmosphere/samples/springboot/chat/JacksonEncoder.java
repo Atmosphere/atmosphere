@@ -17,12 +17,10 @@ package org.atmosphere.samples.springboot.chat;
 
 import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.config.managed.Encoder;
-import org.springframework.beans.factory.annotation.Autowired;
 
 public class JacksonEncoder implements Encoder<Message, String> {
 
-    @Autowired
-    private ObjectMapper mapper;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public String encode(Message m) {

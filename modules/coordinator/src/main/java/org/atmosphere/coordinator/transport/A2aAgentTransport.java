@@ -15,7 +15,6 @@
  */
 package org.atmosphere.coordinator.transport;
 
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.coordinator.fleet.AgentResult;
 import org.slf4j.Logger;
@@ -202,41 +201,5 @@ public class A2aAgentTransport implements AgentTransport {
         } catch (Exception e) {
             return false;
         }
-    }
-
-    private String buildJsonRpc(String skill, Map<String, String> args) throws Exception {
-        var firstValue = args.values().isEmpty() ? "" : args.values().iterator().next();
-        var message = Map.of(
-                "role", "user",
-                "parts", List.of(Map.of("type", "text", "text", firstValue)),
-                "metadata", Map.of("skillId", skill)
-        );
-        var params = new LinkedHashMap<String, Object>();
-        params.put("message", message);
-        params.put("arguments", args);
-
-        var rpcRequest = Map.of(
-                "jsonrpc", "2.0",
-                "id", 1,
-                "method", "message/send",
-                "params", params
-        );
-        return mapper.writeValueAsString(rpcRequest);
-    }
-
-    private String extractArtifactText(JsonNode json) {
-        var result = json.get("result");
-        if (result != null) {
-            var artifacts = result.get("artifacts");
-            if (artifacts != null && artifacts.isArray() && !artifacts.isEmpty()) {
-                var parts = artifacts.get(0).get("parts");
-                if (parts != null && parts.isArray() && !parts.isEmpty()) {
-                    if (parts.get(0).has("text")) {
-                        return parts.get(0).get("text").stringValue();
-                    }
-                }
-            }
-        }
-        return json.toString();
     }
 }

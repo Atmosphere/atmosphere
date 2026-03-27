@@ -657,15 +657,15 @@ public class McpProtocolHandlerTest {
 
         var node = mapper.readTree(guardedHandler.handleMessage(resource, request));
         var serverInfo = node.get("result").get("serverInfo");
-        assertEquals("guarded-server", serverInfo.get("name").asText());
-        assertEquals("2.0.0", serverInfo.get("version").asText());
+        assertEquals("guarded-server", serverInfo.get("name").stringValue());
+        assertEquals("2.0.0", serverInfo.get("version").stringValue());
 
         var guardrails = serverInfo.get("guardrails");
         assertNotNull(guardrails, "serverInfo should include guardrails");
         assertTrue(guardrails.isArray());
         assertEquals(2, guardrails.size());
-        assertEquals("No medical advice", guardrails.get(0).asText());
-        assertEquals("No financial advice", guardrails.get(1).asText());
+        assertEquals("No medical advice", guardrails.get(0).stringValue());
+        assertEquals("No financial advice", guardrails.get(1).stringValue());
     }
 
     @Test
@@ -680,8 +680,8 @@ public class McpProtocolHandlerTest {
 
         var node = mapper.readTree(handler.handleMessage(resource, request));
         var serverInfo = node.get("result").get("serverInfo");
-        assertEquals("test-server", serverInfo.get("name").asText());
-        assertEquals("1.0.0", serverInfo.get("version").asText());
+        assertEquals("test-server", serverInfo.get("name").stringValue());
+        assertEquals("1.0.0", serverInfo.get("version").stringValue());
         assertNull(serverInfo.get("guardrails"),
                 "serverInfo should NOT include guardrails when handler has no guardrails");
     }

@@ -821,6 +821,13 @@
                 <artifactId>grpc-testing</artifactId>
                 <version>${grpc.version}</version>
             </dependency>
+            <!-- Jackson 3.x needs jackson-annotations >= 2.21 for JsonSerializeAs;
+                 override Spring Boot BOMs which may pin an older version -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>${jackson-annotations.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <!-- All dependencies are available on Maven Central. Legacy repositories
@@ -905,6 +912,7 @@
         <commons-pool2>2.12.0</commons-pool2>
         <junit-jupiter.version>5.11.4</junit-jupiter.version>
         <jackson.version>3.1.0</jackson.version>
+        <jackson-annotations.version>2.21</jackson-annotations.version>
         <mockito.version>5.21.0</mockito.version>
         <mockito-kotlin.version>5.4.0</mockito-kotlin.version>
         <json.version>20250517</json.version>

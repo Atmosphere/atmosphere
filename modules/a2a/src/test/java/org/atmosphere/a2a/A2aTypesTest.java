@@ -118,8 +118,8 @@ class A2aTypesTest {
         assertNotNull(guardrails, "guardrails field should be present");
         assertTrue(guardrails.isArray());
         assertEquals(2, guardrails.size());
-        assertEquals("No medical advice", guardrails.get(0).asText());
-        assertEquals("No financial advice", guardrails.get(1).asText());
+        assertEquals("No medical advice", guardrails.get(0).stringValue());
+        assertEquals("No financial advice", guardrails.get(1).stringValue());
     }
 
     @Test

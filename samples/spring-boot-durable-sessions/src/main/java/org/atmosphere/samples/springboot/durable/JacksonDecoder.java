@@ -17,12 +17,10 @@ package org.atmosphere.samples.springboot.durable;
 
 import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.config.managed.Decoder;
-import org.springframework.beans.factory.annotation.Autowired;
 
 public class JacksonDecoder implements Decoder<String, Message> {
 
-    @Autowired
-    private ObjectMapper mapper;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public Message decode(String s) {
