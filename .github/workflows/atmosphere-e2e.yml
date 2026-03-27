@@ -62,7 +62,7 @@ jobs:
           - name: ai-chat
             projects: "ai-chat,ai-streaming-dom,ai-chat-features,ai-memory,ai-memory-strategies,ai-identity,ai-error-recovery,ai-events,unified-console"
           - name: ai-tools-adapters
-            projects: "ai-tools,spring-ai-routing,ai-session-stats"
+            projects: "ai-tools,ai-session-stats"
           - name: ai-advanced
             projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
           - name: protocols

@@ -585,6 +585,19 @@
     </reporting>
     <dependencyManagement>
         <dependencies>
+            <!-- Netty — override Spring Boot's transitive 4.2.9 to fix CVEs
+                 (netty-codec-http ≥ 4.2.10, netty-codec-http2 ≥ 4.2.11) -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-codec-http</artifactId>
+                <version>${netty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-codec-http2</artifactId>
+                <version>${netty.version}</version>
+            </dependency>
+
             <!-- Atmosphere modules — centralized version management -->
             <dependency>
                 <groupId>org.atmosphere</groupId>
@@ -899,6 +912,7 @@
         <jakarta-enterprise-cdi-api.version>4.1.0</jakarta-enterprise-cdi-api.version>
         <testcontainers.version>1.20.6</testcontainers.version>
         <awaitility.version>4.2.2</awaitility.version>
+        <netty.version>4.2.11.Final</netty.version>
         <grpc.version>1.79.0</grpc.version>
         <protobuf.version>3.25.5</protobuf.version>
         <tomcat-annotations-api.version>6.0.53</tomcat-annotations-api.version>

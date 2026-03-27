@@ -16,7 +16,7 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.spring.boot3</atmosphere.module.name>
-        <spring-boot.version>3.5.0</spring-boot.version>
+        <spring-boot.version>3.5.3</spring-boot.version>
     </properties>
 
     <dependencyManagement>

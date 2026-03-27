@@ -122,7 +122,7 @@
         <profile>
             <id>spring-boot3</id>
             <properties>
-                <spring-boot.version>3.5.0</spring-boot.version>
+                <spring-boot.version>3.5.3</spring-boot.version>
                 <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
                 <jackson.source.dir>src/main/java-jackson2</jackson.source.dir>
             </properties>
