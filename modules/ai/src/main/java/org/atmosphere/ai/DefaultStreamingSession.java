@@ -179,16 +179,9 @@ public final class DefaultStreamingSession implements StreamingSession {
                 return;
             }
             default -> {
-                // Allow tool cards and metadata events even after complete() —
-                // PostPromptHook emits journal cards after the @Prompt method returns,
-                // which may race with the async LLM thread calling complete().
                 if (closed.get()) {
-                    if (event instanceof AiEvent.ToolStart || event instanceof AiEvent.ToolResult) {
-                        logger.debug("Emitting tool event on closed session {} (post-prompt hook)", sessionId);
-                    } else {
-                        logger.debug("Dropping event on closed session {}: {}", sessionId, event.getClass().getSimpleName());
-                        return;
-                    }
+                    logger.warn("Attempted to emit event on closed session {}", sessionId);
+                    return;
                 }
                 broadcast(buildEventMessage(event));
             }

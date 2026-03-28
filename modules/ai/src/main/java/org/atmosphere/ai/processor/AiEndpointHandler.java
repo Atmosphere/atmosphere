@@ -342,12 +342,14 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 systemPrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, metrics, responseType);
 
+        // Set pre-stream hook so journal cards emit before LLM starts
+        if (injectables.get(PostPromptHook.class) instanceof PostPromptHook hook) {
+            session.setPreStreamHook(hook);
+        }
+
         var promptThread = Thread.startVirtualThread(() -> {
             try {
                 invokePrompt(userMessage, session, resource);
-                if (injectables.get(PostPromptHook.class) instanceof PostPromptHook hook) {
-                    hook.afterPrompt(session);
-                }
             } catch (Exception e) {
                 Throwable cause = e;
                 if (e instanceof java.lang.reflect.InvocationTargetException ite

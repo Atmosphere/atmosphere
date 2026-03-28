@@ -66,6 +66,7 @@ public class AiStreamingSession implements StreamingSession {
     private final List<ContextProvider> contextProviders;
     private final AiMetrics metrics;
     private final Class<?> responseType;
+    private volatile PostPromptHook preStreamHook;
 
     /**
      * @param delegate     the underlying streaming session
@@ -143,8 +144,21 @@ public class AiStreamingSession implements StreamingSession {
         this.responseType = responseType;
     }
 
+    /** Sets a hook to fire once at the start of the first {@code stream()} call. */
+    public void setPreStreamHook(PostPromptHook hook) {
+        this.preStreamHook = hook;
+    }
+
     @Override
     public void stream(String message) {
+        // Fire pre-stream hook (e.g., journal emit) before LLM call starts.
+        // By the time stream() is called, all coordinator/agent work is done.
+        var hook = preStreamHook;
+        if (hook != null) {
+            preStreamHook = null; // fire once
+            hook.afterPrompt(this);
+        }
+
         // Load conversation history if memory is enabled
         var history = memory != null
                 ? memory.getHistory(resource.uuid())
@@ -266,21 +280,16 @@ public class AiStreamingSession implements StreamingSession {
                 java.util.List.copyOf(tools), null, memory,
                 contextProviders, request.metadata(), request.history(),
                 effectiveResponseType);
-        // Fire-and-forget: run the LLM call asynchronously so the @Prompt method
-        // returns immediately. This allows PostPromptHook (e.g., journal emit) to
-        // fire before the session is closed by complete().
         var streamingTarget = target;
-        Thread.startVirtualThread(() -> {
-            try {
-                runtime.execute(context, streamingTarget);
-            } catch (Exception e) {
-                metrics.recordError(model != null ? model : "unknown", "stream_error");
-                logger.error("Async streaming error", e);
-                streamingTarget.error(e);
-            }
-        });
         try {
-            // no-op: runtime runs async now
+            runtime.execute(context, streamingTarget);
+        } catch (Exception e) {
+            metrics.recordError(model != null ? model : "unknown", "stream_error");
+            logger.error("Streaming error", e);
+            streamingTarget.error(e);
+        }
+        try {
+            // Post-process follows execution
         } finally {
             // Post-process: LIFO order (matching AtmosphereInterceptor convention)
             for (int i = interceptors.size() - 1; i >= 0; i--) {

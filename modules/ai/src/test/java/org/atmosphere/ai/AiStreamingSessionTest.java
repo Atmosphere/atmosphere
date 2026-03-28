@@ -39,15 +39,6 @@ public class AiStreamingSessionTest {
     private StreamingSession delegate;
     private AtmosphereResource resource;
 
-    /** Wait for the async virtual thread spawned by stream() to complete, with exponential backoff. */
-    private static void awaitAsync() {
-        long delay = 10;
-        for (int i = 0; i < 10; i++) {
-            try { Thread.sleep(delay); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
-            delay = Math.min(delay * 2, 500);
-        }
-    }
-
     @BeforeEach
     public void setUp() {
         delegate = mock(StreamingSession.class);
@@ -214,7 +205,7 @@ public class AiStreamingSessionTest {
                 "system", null, null, resource);
 
         session.stream("Hello");
-        awaitAsync();
+
 
         assertEquals(1, aiSupport.requests.size());
         assertEquals("system", session.systemPrompt());
@@ -346,7 +337,7 @@ public class AiStreamingSessionTest {
                 "", null, List.of(), resource, memory);
 
         session.stream("Hi");
-        awaitAsync();
+
         session.close();
 
         // Memory should now contain the conversation
@@ -376,7 +367,7 @@ public class AiStreamingSessionTest {
                 null, List.of(), List.of(), metricsRecorder, null);
 
         session.stream("Hi");
-        awaitAsync();
+
 
         assertTrue(metricsRecorder.latencyRecorded);
         assertEquals("test-model", metricsRecorder.latencyModel);
@@ -404,7 +395,7 @@ public class AiStreamingSessionTest {
                 null, List.of(), List.of(), metricsRecorder, null);
 
         session.stream("Hi");
-        awaitAsync();
+
 
         assertTrue(metricsRecorder.streamingTextUsageRecorded);
         assertEquals(10, metricsRecorder.promptStreamingTexts);
@@ -430,7 +421,7 @@ public class AiStreamingSessionTest {
                 null, List.of(), List.of(), metricsRecorder, null);
 
         session.stream("Hi");
-        awaitAsync();
+
 
         assertTrue(metricsRecorder.errorRecorded);
         assertEquals("test-model", metricsRecorder.errorModel);
