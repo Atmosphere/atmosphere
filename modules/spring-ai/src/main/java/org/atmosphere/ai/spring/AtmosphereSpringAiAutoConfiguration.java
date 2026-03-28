@@ -21,6 +21,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -52,7 +53,7 @@ public class AtmosphereSpringAiAutoConfiguration {
             @Value("${spring.ai.openai.base-url:${LLM_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}}") String baseUrl,
             @Value("${spring.ai.openai.chat.options.model:${LLM_MODEL:gemini-2.5-flash}}") String model) {
         if (apiKey == null || apiKey.isBlank()) {
-            logger.debug("No API key for Spring AI ChatClient — skipping");
+            logger.info("No API key configured — Spring AI ChatClient not created");
             return null;
         }
         var api = OpenAiApi.builder().apiKey(apiKey).baseUrl(baseUrl).build();
@@ -66,7 +67,12 @@ public class AtmosphereSpringAiAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(SpringAiAgentRuntime.class)
-    public SpringAiAgentRuntime springAiAgentRuntime(ChatClient chatClient) {
+    public SpringAiAgentRuntime springAiAgentRuntime(ObjectProvider<ChatClient> chatClientProvider) {
+        var chatClient = chatClientProvider.getIfAvailable();
+        if (chatClient == null) {
+            logger.info("No ChatClient available — Spring AI AgentRuntime runs in demo mode");
+            return new SpringAiAgentRuntime();
+        }
         SpringAiAgentRuntime.setChatClient(chatClient);
         return new SpringAiAgentRuntime();
     }
