@@ -364,14 +364,14 @@ function Chat() {
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-boot-starter</artifactId>
-    <version>4.0.28-SNAPSHOT</version>
+    <version>4.0.28</version>
 </dependency>
 
 <!-- Agent module (required for @Agent, @Coordinator) -->
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-agent</artifactId>
-    <version>4.0.28-SNAPSHOT</version>
+    <version>4.0.28</version>
 </dependency>
 ```
 
