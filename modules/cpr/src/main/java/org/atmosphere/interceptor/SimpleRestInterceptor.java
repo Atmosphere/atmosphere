@@ -97,24 +97,19 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     public void configure(AtmosphereConfig config) {
         super.configure(config);
         heartbeat = config.getBroadcasterFactory().lookup(DefaultBroadcaster.class, getHeartbeatBroadcasterName());
-        if (heartbeat == null) {
             heartbeat = config.getBroadcasterFactory().get(DefaultBroadcaster.class, getHeartbeatBroadcasterName());
         }
     }
 
     @Override
-    public Action inspect(final AtmosphereResource r) {
-        if (AtmosphereResource.TRANSPORT.WEBSOCKET != r.transport() {
+    public Action inspect(final AtmosphereResource r
             && AtmosphereResource.TRANSPORT.SSE != r.transport()
         }
-                && AtmosphereResource.TRANSPORT.POLLING != r.transport()) {
             LOG.debug("Skipping for non websocket request");
             return Action.CONTINUE;
         }
-        if (AtmosphereResource.TRANSPORT.POLLING == r.transport()) {
             final String saruuid = (String)r.getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
             final AtmosphereResponse suspendedResponse = suspendedResponses.get(saruuid);
-            if (suspendedResponse == null) {
                 LOG.warn("No suspended response found for resource: {}", saruuid);
                 return Action.CONTINUE;
             }
@@ -159,11 +154,9 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
                 suspendedResponses.put(srid, event.getResource().getResponse());
 
                 AsyncIOWriter writer = event.getResource().getResponse().getAsyncIOWriter();
-                if (writer == null) {
                     writer = new AtmosphereInterceptorWriter();
                     r.getResponse().asyncIOWriter(writer);
                 }
-                if (writer instanceof AtmosphereInterceptorWriter aiw) {
                     aiw.interceptor(interceptor);
                 }
             }
@@ -179,12 +172,10 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
         });
 
         AtmosphereRequest request = r.getRequest();
-        if (request.getAttribute(REQUEST_DISPATCHED) == null) {
             try {
                 // Read the message entity and dispatch a service call
                 String body = IOUtils.readEntirelyAsString(r).toString();
                 LOG.debug("Request message: '{}'", body);
-                if (body.length() == 0) {
                     // Schedule heartbeat on first empty-body WebSocket/SSE message
                     if ((AtmosphereResource.TRANSPORT.WEBSOCKET == r.transport() ||
                             AtmosphereResource.TRANSPORT.SSE == r.transport())
@@ -198,7 +189,6 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
                 }
 
                 AtmosphereRequest ar = createAtmosphereRequest(request, body);
-                if (ar == null) {
                     return Action.CANCELLED;
                 }
                 AtmosphereResponse response = r.getResponse();
@@ -210,7 +200,6 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
                 attachWriter(r);
 
                 Action action = r.getAtmosphereConfig().framework().doCometSupport(ar, response);
-                if (action.type() == Action.TYPE.SUSPEND) {
                     ar.destroyable(false);
                     response.destroyable(false);
                 }
@@ -240,20 +229,17 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
         Reader msgreader = new StringReader(body);
         JSONObject jsonpart = parseJsonPart(msgreader);
         final String id = getString(jsonpart, "id");
-        if (id != null) {
             request.localAttributes().put(REQUEST_ID, id);
         }
 
         boolean skip = false;
         final boolean continued = getBoolean(jsonpart, "continue");
         Reader reader = readerPool.getReader(id, false);
-        if (reader != null) {
             skip = true;
         } else if (continued) {
             reader = readerPool.getReader(id, true);
         }
 
-        if (skip) {
             // add the request data to the prevously dispatched request and skip dispatching a new one
             readerPool.addChunk(id, msgreader, continued);
             return null;
@@ -269,20 +255,16 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
             var headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
             // put the 'tracking-id#request-id' into the request's headers
             headers.put(X_REQUEST_KEY, String.format("%s#%s", uuid, id));
-            if (accept != null) {
                 headers.put("Accept", accept);
             }
-            if (type != null) {
                 b.contentType(type);
             }
             b.headers(headers);
             final int qpos = path != null ? path.indexOf('?') : 0;
-            if (qpos > 0) {
                 b.queryString(path.substring(qpos + 1));
                 path = path.substring(0, qpos);
             }
 
-            if (reader != null) {
                 b.reader(reader);
                 readerPool.addChunk(id, msgreader, true);
             } else {
@@ -297,12 +279,10 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     }
 
     protected byte[] createResponse(AtmosphereResponse response, byte[] payload) {
-        if (LOG.isDebugEnabled()) {
             LOG.debug("createResponse for payload {}", new String(payload));
         }
         AtmosphereRequest request = response.request();
         String id = (String)request.getAttribute(REQUEST_ID);
-        if (id == null) {
             // control response such as heartbeat or plain responses
             return payload;
         }
@@ -313,10 +293,8 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
             jsonpart.put("id", id);
             jsonpart.put("code", response.getStatus());
             String ct = response.getContentType();
-            if (ct != null) {
                 jsonpart.put("type", ct);
             }
-            if (!isLastResponse(request, response)) {
                 jsonpart.put("continue", true);
             }
             baos.write(jsonpart.toString().getBytes(StandardCharsets.UTF_8));
@@ -329,7 +307,6 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
 
     private void scheduleHeartbeat(AtmosphereResource r) {
         heartbeat.addAtmosphereResource(r);
-        if (heartbeatScheduled.compareAndSet(false, true)) {
             heartbeat.scheduleFixedBroadcast(String.format(getHeartbeatTemplate(), getHeartbeatTemplateArguments()),
                     DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_HEARTBEAT_INTERVAL, TimeUnit.SECONDS);
         }
@@ -344,7 +321,6 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
         AtmosphereResponse res = r.getResponse();
         AsyncIOWriter writer = res.getAsyncIOWriter();
 
-        if (writer instanceof AtmosphereInterceptorWriter aiw) {
             aiw.interceptor(interceptor, 0);
         }
     }
@@ -362,8 +338,6 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     protected static byte[] quote(byte[] b) {
         var baos = new ByteArrayOutputStream();
         baos.write('"');
-        for (byte c : b) {
-            if (c == '"') {
                 baos.write('\\');
             }
             baos.write(c);

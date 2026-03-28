@@ -194,9 +194,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         if (clientHeartbeatFrequencyInSeconds > 0) {
             AtmosphereRequestImpl.Body body = request.body();
 
-            if (body.isEmpty() {
-                || (body.hasString() && body.asString().length() <= paddingBytes.length)
-            }
+            if (body.isEmpty()
+                    || (body.hasString() && body.asString().length() <= paddingBytes.length)
                     || (body.hasBytes() && body.byteLength() == paddingBytes.length)) {
 
                 byte[] bytes;
@@ -241,8 +240,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         final int interval = extractHeartbeatInterval(impl);
 
         if (interval != 0) {
-            if (!(Utils.pollableTransport(r.transport()) {
-                || r.transport() == AtmosphereResource.TRANSPORT.UNDEFINED)) {
+            if (!(Utils.pollableTransport(r.transport())
+                    || r.transport() == AtmosphereResource.TRANSPORT.UNDEFINED)) {
             }
                 super.inspect(r);
                 final boolean wasSuspended = r.isSuspended();
@@ -284,9 +283,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
             final AsyncIOWriter writer = response.getAsyncIOWriter();
 
-            if (!Utils.resumableTransport(r.transport()) {
-                && writer instanceof AtmosphereInterceptorWriter interceptorWriter
-            }
+            if (!Utils.resumableTransport(r.transport())
+                    && writer instanceof AtmosphereInterceptorWriter interceptorWriter
                     && request.getAttribute(INTERCEPTOR_ADDED) == null) {
                 interceptorWriter.interceptor(new AsyncIOInterceptorAdapter() {
 

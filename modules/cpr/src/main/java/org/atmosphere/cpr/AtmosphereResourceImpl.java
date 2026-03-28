@@ -360,9 +360,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             return this;
         }
 
-        if (config.isSupportSession() {
-            && req.getSession(false) != null
-        }
+        if (config.isSupportSession()
+                && req.getSession(false) != null
                 && req.getSession().getMaxInactiveInterval() >= 0
                 && req.getSession().getMaxInactiveInterval() * 1000L < timeout) {
             throw new IllegalStateException("Cannot suspend a " +

@@ -63,9 +63,8 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession> {
 
         // Detect message/stream and write SSE events if client accepts them
         var accept = request.getHeader("Accept");
-        if (accept != null && accept.contains("text/event-stream") {
+        if (accept != null && accept.contains("text/event-stream")
             && isStreamingRequest(sb.toString())) {
-        }
             handleSseStreaming(resource, sb.toString());
             return;
         }
@@ -94,9 +93,8 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession> {
 
         // Check if this is an agent card request
         var path = request.getRequestURI();
-        if (path != null && (path.endsWith("/agent.json") {
+        if (path != null && (path.endsWith("/agent.json")
             || path.contains("/.well-known/agent.json"))) {
-        }
             response.setStatus(200);
             response.setContentType(APPLICATION_JSON);
             response.setCharacterEncoding("UTF-8");

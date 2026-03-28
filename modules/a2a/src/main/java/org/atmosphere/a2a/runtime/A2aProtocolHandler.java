@@ -248,9 +248,8 @@ public final class A2aProtocolHandler {
                         args[i] = coerceArgument(argNode, methodParams[i].getType());
                     } else if (paramIdx < skill.params().size()) {
                         var message = extractMessage(params);
-                        if (!message.parts().isEmpty() {
+                        if (!message.parts().isEmpty()
                             && message.parts().getFirst() instanceof Part.TextPart tp) {
-                        }
                             args[i] = tp.text();
                         }
                         paramIdx++;

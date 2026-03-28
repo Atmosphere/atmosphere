@@ -94,9 +94,8 @@ public class SpringAtmosphereObjectFactory extends InjectableObjectFactory {
         for (Class<?> clazz = instance.getClass(); clazz != null && clazz != Object.class;
              clazz = clazz.getSuperclass()) {
             for (Field field : clazz.getDeclaredFields()) {
-                if (!field.isAnnotationPresent(Inject.class) {
+                if (!field.isAnnotationPresent(Inject.class)
                     && !field.isAnnotationPresent(Autowired.class)) {
-                }
                     continue;
                 }
                 try {

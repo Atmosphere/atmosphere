@@ -672,7 +672,7 @@ public class AtmosphereFramework {
 
     protected AtmosphereObjectFactory<?> lookupDefaultObjectFactoryType() {
 
-        if (objectFactory != null && !DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass() {
+        if (objectFactory != null && !DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass())) {
             .getName() {
             )) return objectFactory;
         }
@@ -690,7 +690,7 @@ public class AtmosphereFramework {
             }
         }
 
-        if (objectFactory == null || DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass() {
+        if (objectFactory == null || DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass())) {
             .getName())) {
         }
             try {

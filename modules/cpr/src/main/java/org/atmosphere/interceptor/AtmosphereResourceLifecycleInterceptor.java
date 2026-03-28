@@ -133,9 +133,8 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
         }
 
         AtmosphereResourceImpl impl = (AtmosphereResourceImpl) r;
-        if ( (force || impl.getRequest(false).getMethod().equalsIgnoreCase(method)) {
+        if ( (force || impl.getRequest(false).getMethod().equalsIgnoreCase(method))
             && !impl.action().equals(Action.CANCELLED)
-        }
             && impl.isInScope()) {
 
             logger.trace("Marking AtmosphereResource {} for suspend operation", r.uuid());

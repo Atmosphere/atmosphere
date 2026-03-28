@@ -621,9 +621,8 @@ public final class IntrospectionUtils {
         }
         var v = new ArrayList<String>();
         for (int i = 0; i < m.length; i++) {
-            if (m[i].getName().startsWith("set") {
-                && m[i].getParameterTypes().length == 0) {
-            }
+            if (m[i].getName().startsWith("set")
+                    && m[i].getParameterTypes().length == 0) {
                 String arg = m[i].getName().substring(3);
                 v.add(unCapitalize(arg));
             }
@@ -642,9 +641,8 @@ public final class IntrospectionUtils {
         }
         var v = new ArrayList<String>();
         for (int i = 0; i < m.length; i++) {
-            if (m[i].getName().startsWith("set") {
-                && m[i].getParameterTypes().length == 1
-            }
+            if (m[i].getName().startsWith("set")
+                    && m[i].getParameterTypes().length == 1
                     && "boolean".equalsIgnoreCase(m[i].getParameterTypes()[0]
                     .getName())) {
                 String arg = m[i].getName().substring(3);

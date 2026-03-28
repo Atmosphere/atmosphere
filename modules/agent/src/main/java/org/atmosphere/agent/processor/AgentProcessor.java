@@ -173,15 +173,13 @@ public class AgentProcessor implements Processor<Object> {
             if (method.isAnnotationPresent(Prompt.class)) {
                 hasPrompt = true;
             }
-            if (ClasspathDetector.hasA2a() {
-                && method.isAnnotationPresent(org.atmosphere.a2a.annotation.AgentSkill.class)
-            }
+            if (ClasspathDetector.hasA2a()
+                    && method.isAnnotationPresent(org.atmosphere.a2a.annotation.AgentSkill.class)
                     && method.isAnnotationPresent(org.atmosphere.a2a.annotation.AgentSkillHandler.class)) {
                 hasProtocolMethods = true;
             }
-            if (ClasspathDetector.hasMcp() {
+            if (ClasspathDetector.hasMcp()
                 && method.isAnnotationPresent(org.atmosphere.mcp.annotation.McpTool.class)) {
-            }
                 hasProtocolMethods = true;
             }
         }

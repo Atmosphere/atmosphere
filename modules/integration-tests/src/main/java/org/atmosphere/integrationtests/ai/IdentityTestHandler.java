@@ -57,9 +57,8 @@ public class IdentityTestHandler implements AtmosphereHandler {
 
     @Override
     public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-        if (event.isCancelled() || event.isResumedOnTimeout() {
+        if (event.isCancelled() || event.isResumedOnTimeout()
             || event.isClosedByClient() || event.isClosedByApplication()) {
-        }
             return;
         }
         var message = event.getMessage();

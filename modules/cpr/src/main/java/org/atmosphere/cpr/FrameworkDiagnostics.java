@@ -170,9 +170,8 @@ final class FrameworkDiagnostics {
                     var tag = body.substring(start, end);
                     var latestVersion = tag.startsWith("atmosphere-") ? tag.substring(11) : tag;
 
-                    if (isNewerVersion(latestVersion, currentVersion) {
-                        && !latestVersion.toLowerCase().contains("rc")
-                    }
+                    if (isNewerVersion(latestVersion, currentVersion)
+                            && !latestVersion.toLowerCase().contains("rc")
                             && !latestVersion.toLowerCase().contains("beta")) {
                         logger.info("\n\n\tAtmosphere {} is available (you are running {})"
                                         + "\n\thttps://github.com/Atmosphere/atmosphere/releases/tag/{}",

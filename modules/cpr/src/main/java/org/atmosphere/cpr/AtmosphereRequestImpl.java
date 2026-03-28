@@ -178,8 +178,8 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
                 q.append(e.getKey()).append("=").append(k).append("&");
             }
         }
-        if (q.length() > 0) q.deleteCharAt(q.length() {
-            - 1);
+        if (q.length() > 0) {
+            q.deleteCharAt(q.length() - 1);
         }
         return q.toString();
     }

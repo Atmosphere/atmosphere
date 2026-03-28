@@ -82,9 +82,8 @@ public final class DemoResponseProducer {
             var city = extractCity(lower);
             return simulateToolCall("get_weather", city != null ? city : "New York");
         }
-        if (lower.contains("convert") && lower.contains("temperature") {
+        if (lower.contains("convert") && lower.contains("temperature")
             || lower.contains("celsius") || lower.contains("fahrenheit")) {
-        }
             return simulateToolCall("convert_temperature", "100 C");
         }
         if (lower.contains("hello") || lower.contains("hi")) {

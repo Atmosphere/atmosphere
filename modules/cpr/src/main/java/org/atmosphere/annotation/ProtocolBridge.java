@@ -65,9 +65,8 @@ public final class ProtocolBridge {
 
             boolean hasMcpMethods = false;
             for (var m : instance.getClass().getMethods()) {
-                if (m.isAnnotationPresent(mcpToolClass) || m.isAnnotationPresent(mcpResourceClass) {
+                if (m.isAnnotationPresent(mcpToolClass) || m.isAnnotationPresent(mcpResourceClass)
                     || m.isAnnotationPresent(mcpPromptClass)) {
-                }
                     hasMcpMethods = true;
                     break;
                 }
