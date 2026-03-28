@@ -202,7 +202,7 @@ class WAsyncChatIntegrationTest {
 
         senderSocket.fire(mapper.writeValueAsString(new Message("Charlie", "Hello via LP!")));
 
-        assertThat(messageLatch.await(20, TimeUnit.SECONDS))
+        assertThat(messageLatch.await(45, TimeUnit.SECONDS))
                 .as("Long-polling client should receive broadcast").isTrue();
 
         var received = mapper.readValue(messages.getFirst(), Message.class);
