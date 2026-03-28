@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2022 Async-IO.org
+ * Copyright 2008-2026 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,6 +15,8 @@
  */
 package org.atmosphere.samples.chat;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -74,7 +76,9 @@ public class WebSocketChat extends WebSocketStreamingHandlerAdapter {
             this("", "", new Date().getTime());
         }
 
-        public Data(String author, String message) {
+        @JsonCreator
+        public Data(@JsonProperty("author") String author,
+                    @JsonProperty("message") String message) {
             this(author, message, new Date().getTime());
         }
     }
