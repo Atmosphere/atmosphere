@@ -4,6 +4,19 @@ import { defineConfig, devices } from '@playwright/test';
 const crossBrowserSpecs = /\/(chat|multi-client|sse-transport|long-polling-transport|transport-fallback)\.spec\.ts/;
 
 /**
+ * Smoke / Deep CI split:
+ *   - Tag critical tests with @smoke in their title (e.g. test('@smoke basic chat …'))
+ *   - Set SMOKE_ONLY=true to run only @smoke tests (used for PR CI)
+ *   - Full suite runs on push-to-main and nightly
+ *
+ * Flaky test exclusion:
+ *   - Tag known-flaky tests with @flaky in their title
+ *   - Set INCLUDE_FLAKY=false to exclude them from CI runs
+ */
+const grepFilter = process.env.SMOKE_ONLY === 'true' ? /@smoke/ : undefined;
+const grepInvert = process.env.INCLUDE_FLAKY === 'false' ? /@flaky/ : undefined;
+
+/**
  * Playwright configuration for Atmosphere E2E tests.
  *
  * Each sample application runs on a specific port. Tests that share port 8080
@@ -17,6 +30,8 @@ export default defineConfig({
   expect: { timeout: process.env.CI ? 15_000 : 10_000 },
   fullyParallel: false,
   retries: 1,
+  grep: grepFilter,
+  grepInvert: grepInvert,
   workers: 1,
   reporter: [['html', { open: 'never' }], ['list']],
 

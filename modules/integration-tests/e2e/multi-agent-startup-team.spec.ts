@@ -159,4 +159,40 @@ test.describe('Multi-Agent Startup Team', () => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-layout')).toBeVisible();
   });
+
+  // ── Behavioral depth tests ──
+
+  test('coordination journal shows all 5 agents', () => {
+    const output = server.getOutput();
+    // Verify the coordinator (ceo) and all 4 headless agents appear in logs
+    expect(output).toContain('ceo');
+    expect(output).toContain('research-agent');
+    expect(output).toContain('strategy-agent');
+    expect(output).toContain('finance-agent');
+    expect(output).toContain('writer-agent');
+    // Count total registered agents (1 coordinator + 4 headless)
+    const registeredMatches = output.match(/registered/g) || [];
+    expect(registeredMatches.length).toBeGreaterThanOrEqual(5);
+  });
+
+  test('individual agent failure doesn\'t crash coordinator', async () => {
+    // Send a request to the research agent with an invalid skill ID
+    const body = await a2aRequest(server.baseUrl, '/atmosphere/a2a/research',
+      'message/send', {
+        message: { role: 'user', parts: [{ type: 'text', text: 'test' }],
+          metadata: { skillId: 'nonexistent_skill_xyz' } },
+        arguments: {},
+      });
+    // The agent should return an error or handle gracefully (not crash)
+    // It may return an error in the result or a JSON-RPC error
+    const hasError = body.error !== undefined ||
+      (body.result as Record<string, unknown>)?.status !== undefined;
+    expect(hasError).toBe(true);
+
+    // Verify the CEO agent still responds after the failed request
+    const ceoResult = await sendAndCollect(server.baseUrl,
+      '/atmosphere/agent/ceo', 'Are you still running?', 20_000);
+    expect(ceoResult.texts.length).toBeGreaterThan(0);
+    expect(ceoResult.fullText.length).toBeGreaterThan(0);
+  });
 });
