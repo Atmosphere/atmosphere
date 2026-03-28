@@ -22,6 +22,8 @@ export interface SampleConfig {
   mainClass?: string;
   /** Atmosphere endpoint path to check for readiness (e.g. /atmosphere/ai-chat) */
   readyPath?: string;
+  /** Skip WebSocket readiness probe — use for endpoints that only serve HTTP */
+  httpOnlyReady?: boolean;
 }
 
 export const SAMPLES: Record<string, SampleConfig> = {
@@ -98,6 +100,7 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8092,
     type: 'spring-boot',
     readyPath: '/atmosphere/console/',
+    httpOnlyReady: true,
   },
   'spring-boot-a2a-agent': {
     name: 'spring-boot-a2a-agent',
@@ -283,9 +286,11 @@ export async function startSample(config: SampleConfig): Promise<SampleServer> {
     // start after the web server is ready, especially on slow CI runners)
     if (config.readyPath) {
       await waitForHttp(`http://127.0.0.1:${config.port}${config.readyPath}`, 30_000);
-      // Verify the WebSocket layer is fully initialized (not just HTTP)
-      const wsUrl = `ws://127.0.0.1:${config.port}${config.readyPath}`;
-      await waitForWebSocket(wsUrl, 15_000);
+      if (!config.httpOnlyReady) {
+        // Verify the WebSocket layer is fully initialized (not just HTTP)
+        const wsUrl = `ws://127.0.0.1:${config.port}${config.readyPath}`;
+        await waitForWebSocket(wsUrl, 15_000);
+      }
     }
   } catch (e) {
     proc.kill('SIGTERM');
