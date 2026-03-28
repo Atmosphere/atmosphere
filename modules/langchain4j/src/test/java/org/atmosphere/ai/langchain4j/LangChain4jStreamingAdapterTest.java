@@ -117,7 +117,7 @@ public class LangChain4jStreamingAdapterTest {
         verify(broadcaster).broadcast(captor.capture(), any(Set.class));
 
         var msg = captor.getValue().toString();
-        assertTrue(msg.contains("\"type\":\"error\""));
+        assertTrue(msg.contains("\"event\":\"error\""));
         assertTrue(msg.contains("Model timeout"));
         assertTrue(session.isClosed());
     }
@@ -200,7 +200,7 @@ public class LangChain4jStreamingAdapterTest {
         verify(broadcaster, times(3)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream().map(Object::toString).toList();
-        assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"error\"")));
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"event\":\"error\"")));
         assertTrue(messages.stream().anyMatch(m -> m.contains("Rate limited")));
         assertTrue(session.isClosed());
     }
@@ -269,7 +269,7 @@ public class LangChain4jStreamingAdapterTest {
         verify(broadcaster).broadcast(captor.capture(), any(Set.class));
 
         var msg = captor.getValue().toString();
-        assertTrue(msg.contains("\"type\":\"error\""));
+        assertTrue(msg.contains("\"event\":\"error\""));
         assertTrue(session.isClosed());
     }
 

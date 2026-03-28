@@ -147,7 +147,7 @@ public class SpringAiStreamingAdapterTest {
         var messages = captor.getAllValues().stream()
                 .map(Object::toString)
                 .toList();
-        assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"error\"")),
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"event\":\"error\"")),
                 "Should send error message");
         assertTrue(messages.stream().anyMatch(m -> m.contains("Model unavailable")),
                 "Should include error details");
@@ -462,7 +462,7 @@ public class SpringAiStreamingAdapterTest {
                 .toList();
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\"partial\"")),
                 "Should have sent the partial streaming text before error");
-        assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"error\"")),
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"event\":\"error\"")),
                 "Should send error after partial streaming texts");
         assertTrue(messages.stream().anyMatch(m -> m.contains("Connection lost")),
                 "Error message should contain cause");
