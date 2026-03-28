@@ -80,10 +80,19 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
       case 'complete':
         finalizeAssistant()
         break
-      case 'error':
-        appendToAssistant(`\n\n**Error:** ${msg.data || 'Unknown error'}`)
+      case 'error': {
+        const errData = msg.data
+        const errMsg = typeof errData === 'string'
+          ? errData
+          : typeof errData === 'object' && errData !== null
+            ? (errData as Record<string, unknown>).message as string
+              || (errData as Record<string, unknown>).data as string
+              || JSON.stringify(errData)
+            : 'Unknown error'
+        appendToAssistant(`\n\n**Error:** ${errMsg}`)
         finalizeAssistant()
         break
+      }
       case 'progress':
         // Ignored for chat display
         break
