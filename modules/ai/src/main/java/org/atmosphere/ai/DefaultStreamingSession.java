@@ -161,10 +161,6 @@ public final class DefaultStreamingSession implements StreamingSession {
 
     @Override
     public void emit(AiEvent event) {
-        if (closed.get()) {
-            logger.warn("Attempted to emit event on closed session {}", sessionId);
-            return;
-        }
         // Terminal events must transition the closed state
         switch (event) {
             case AiEvent.Complete c -> {
@@ -182,7 +178,20 @@ public final class DefaultStreamingSession implements StreamingSession {
                 }
                 return;
             }
-            default -> broadcast(buildEventMessage(event));
+            default -> {
+                // Allow tool cards and metadata events even after complete() —
+                // PostPromptHook emits journal cards after the @Prompt method returns,
+                // which may race with the async LLM thread calling complete().
+                if (closed.get()) {
+                    if (event instanceof AiEvent.ToolStart || event instanceof AiEvent.ToolResult) {
+                        logger.debug("Emitting tool event on closed session {} (post-prompt hook)", sessionId);
+                    } else {
+                        logger.debug("Dropping event on closed session {}: {}", sessionId, event.getClass().getSimpleName());
+                        return;
+                    }
+                }
+                broadcast(buildEventMessage(event));
+            }
         }
     }
 

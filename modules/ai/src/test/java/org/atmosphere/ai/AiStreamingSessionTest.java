@@ -39,6 +39,11 @@ public class AiStreamingSessionTest {
     private StreamingSession delegate;
     private AtmosphereResource resource;
 
+    /** Wait for the async virtual thread spawned by stream() to complete. */
+    private static void awaitAsync() {
+        try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+
     @BeforeEach
     public void setUp() {
         delegate = mock(StreamingSession.class);
@@ -205,6 +210,7 @@ public class AiStreamingSessionTest {
                 "system", null, null, resource);
 
         session.stream("Hello");
+        awaitAsync();
 
         assertEquals(1, aiSupport.requests.size());
         assertEquals("system", session.systemPrompt());
@@ -336,6 +342,7 @@ public class AiStreamingSessionTest {
                 "", null, List.of(), resource, memory);
 
         session.stream("Hi");
+        awaitAsync();
         session.close();
 
         // Memory should now contain the conversation
@@ -365,6 +372,7 @@ public class AiStreamingSessionTest {
                 null, List.of(), List.of(), metricsRecorder, null);
 
         session.stream("Hi");
+        awaitAsync();
 
         assertTrue(metricsRecorder.latencyRecorded);
         assertEquals("test-model", metricsRecorder.latencyModel);
@@ -392,6 +400,7 @@ public class AiStreamingSessionTest {
                 null, List.of(), List.of(), metricsRecorder, null);
 
         session.stream("Hi");
+        awaitAsync();
 
         assertTrue(metricsRecorder.streamingTextUsageRecorded);
         assertEquals(10, metricsRecorder.promptStreamingTexts);
@@ -417,6 +426,7 @@ public class AiStreamingSessionTest {
                 null, List.of(), List.of(), metricsRecorder, null);
 
         session.stream("Hi");
+        awaitAsync();
 
         assertTrue(metricsRecorder.errorRecorded);
         assertEquals("test-model", metricsRecorder.errorModel);
