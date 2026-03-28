@@ -16,22 +16,27 @@
 package org.atmosphere.samples.springboot.a2astartup;
 
 /**
- * Structured output record for market assessment. When an {@code @AiEndpoint}
- * or {@code @Agent} declares {@code responseAs = MarketAssessment.class}, the
- * framework instructs the LLM to return JSON matching this schema and emits
- * {@code EntityStart}, {@code StructuredField}, and {@code EntityComplete}
- * events with the parsed result.
+ * Structured output record for market assessment. When a {@code @Coordinator}
+ * declares {@code responseAs = MarketAssessment.class}, the framework instructs
+ * the LLM to return JSON matching this schema and emits {@code EntityStart},
+ * {@code StructuredField}, and {@code EntityComplete} events with the parsed result.
  *
- * @param market     the market being analyzed (e.g., "AI fitness apps")
- * @param verdict    GO or NO_GO recommendation
- * @param confidence confidence level 1-10
- * @param reasoning  one-sentence rationale for the verdict
- * @param tamBillions total addressable market in billions USD
+ * @param market           the market being analyzed (e.g., "AI fitness apps")
+ * @param verdict          GO or NO_GO recommendation
+ * @param confidence       confidence level 0-100
+ * @param executiveSummary 3-bullet executive summary of findings
+ * @param risks            top risks identified (comma-separated or numbered)
+ * @param nextSteps        recommended next actions
+ * @param reasoning        detailed rationale for the verdict
+ * @param tamBillions      total addressable market in billions USD
  */
 public record MarketAssessment(
         String market,
         String verdict,
         int confidence,
+        String executiveSummary,
+        String risks,
+        String nextSteps,
         String reasoning,
         double tamBillions
 ) {}

@@ -51,6 +51,11 @@
 
         <dependency>
             <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-mcp</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-rag</artifactId>
         </dependency>
 

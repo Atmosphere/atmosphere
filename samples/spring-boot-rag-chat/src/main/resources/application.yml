@@ -35,7 +35,12 @@ spring:
   ai:
     openai:
       api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
-      base-url: ${LLM_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+      # Spring AI appends /v1/chat/completions internally, so base-url must NOT include /v1.
+      # Use SPRING_AI_BASE_URL to override, or defaults to Gemini.
+      base-url: ${SPRING_AI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+      chat:
+        options:
+          model: ${LLM_MODEL:gemini-2.5-flash}
       embedding:
         options:
           model: text-embedding-004

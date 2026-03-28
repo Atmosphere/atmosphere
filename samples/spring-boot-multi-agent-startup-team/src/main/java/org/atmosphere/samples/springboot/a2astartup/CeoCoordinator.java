@@ -25,6 +25,7 @@ import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
 import org.atmosphere.coordinator.fleet.AgentFleet;
+import org.atmosphere.coordinator.journal.JournalFormat;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.slf4j.Logger;
@@ -80,7 +81,9 @@ import java.util.Map;
 @Coordinator(name = "ceo",
         skillFile = "prompts/ceo-skill.md",
         description = "Startup CEO that coordinates specialist A2A agents for market analysis",
-        responseAs = MarketAssessment.class)
+        // Uncomment to get structured JSON output parsed into MarketAssessment fields:
+        // responseAs = MarketAssessment.class,
+        journalFormat = JournalFormat.Markdown.class)
 @Fleet({
         @AgentRef(type = ResearchAgent.class),
         @AgentRef(type = StrategyAgent.class),
