@@ -398,21 +398,40 @@ public class AtmosphereInit implements Runnable {
     }
 
     private Path resolveScriptDir() {
-        // JBang sets the source path; we can also detect from class location
+        // JBang sets the source path when running a .java file directly
         var prop = System.getProperty("jbang.source");
         if (prop != null) {
-            return Path.of(prop).getParent();
+            var source = Path.of(prop);
+            var dir = Files.isDirectory(source) ? source : source.getParent();
+            if (dir != null && Files.isDirectory(dir.resolve("templates"))) {
+                return dir;
+            }
         }
-        // Fallback: check if generator/ dir exists relative to CWD
+        // Resolve from the jbang cache: the jar path encodes the source file hash,
+        // and the class path entry points to the cached jar. Walk up from the
+        // classpath to find the original source by checking known repo layouts.
+        var cp = System.getProperty("java.class.path", "");
+        for (var entry : cp.split(java.io.File.pathSeparator)) {
+            if (entry.contains("AtmosphereInit.java")) {
+                // Cache path: ~/.jbang/cache/jars/AtmosphereInit.java.<hash>/AtmosphereInit.jar
+                // Not useful for finding the source, but confirms we're running via jbang
+                break;
+            }
+        }
+        // Walk up from CWD looking for the templates directory
         var cwd = Path.of("").toAbsolutePath();
-        if (Files.isDirectory(cwd.resolve("generator/templates"))) {
-            return cwd.resolve("generator");
+        for (var dir = cwd; dir != null; dir = dir.getParent()) {
+            if (Files.isDirectory(dir.resolve("generator/templates"))) {
+                return dir.resolve("generator");
+            }
+            if (Files.isDirectory(dir.resolve("templates")) && Files.exists(dir.resolve("templates/pom.xml.mustache"))) {
+                return dir;
+            }
         }
-        if (Files.isDirectory(cwd.resolve("templates"))) {
-            return cwd;
-        }
-        // Last resort: assume we're in the generator dir
-        return cwd;
+        // Last resort with clear error
+        throw new IllegalStateException(
+                "Cannot find generator templates. Run from the Atmosphere repo root, "
+                + "the generator/ directory, or set -Djbang.source=/path/to/generator/AtmosphereInit.java");
     }
 
     private static String prompt(String label, String defaultValue) {
