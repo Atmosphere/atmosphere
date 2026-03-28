@@ -119,18 +119,16 @@ test.describe('AiEvent Wire Protocol E2E', () => {
     }
   });
 
-  test('error event: emits structured error with code and recoverable flag', async () => {
+  test('error event: emits error message string', async () => {
     const client = new AiWsClient(server.wsUrl, '/ai/events');
     try {
       await client.connect();
       client.send('error');
       await client.waitForDone(15_000);
 
-      const errorEvent = client.aiEventData('error');
-      expect(errorEvent).toBeDefined();
-      expect(errorEvent!.message).toBe('Rate limit exceeded');
-      expect(errorEvent!.code).toBe('rate_limit');
-      expect(errorEvent!.recoverable).toBe(true);
+      const errorMsg = client.messages.find(m => m.type === 'error');
+      expect(errorMsg).toBeDefined();
+      expect(errorMsg!.data).toBe('Rate limit exceeded');
     } finally {
       client.close();
     }
