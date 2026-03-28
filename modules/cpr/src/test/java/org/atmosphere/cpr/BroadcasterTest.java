@@ -139,7 +139,7 @@ public class BroadcasterTest {
 
     @Test
     public void testSetBroadcastMethod() throws ExecutionException, InterruptedException, ServletException {
-        AtmosphereConfig config = new AtmosphereFramework()
+        AtmosphereConfig localConfig = new AtmosphereFramework()
                 .setAsyncSupport(mock(BlockingIOCometSupport.class))
                 .init(new ServletConfig() {
                     @Override
@@ -165,22 +165,22 @@ public class BroadcasterTest {
                 .getAtmosphereConfig();
 
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
-        factory.configure(DefaultBroadcaster.class, "NEVER", config);
+        factory.configure(DefaultBroadcaster.class, "NEVER", localConfig);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         atmosphereHandler = new AR();
-        ar = new AtmosphereResourceImpl(config,
+        ar = new AtmosphereResourceImpl(localConfig,
                 broadcaster,
                 mock(AtmosphereRequestImpl.class),
                 AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
-        AtmosphereResource ar2 = new AtmosphereResourceImpl(config,
+        AtmosphereResource ar2 = new AtmosphereResourceImpl(localConfig,
                 broadcaster,
                 mock(AtmosphereRequestImpl.class),
                 AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
-        AtmosphereResource ar3 = new AtmosphereResourceImpl(config,
+        AtmosphereResource ar3 = new AtmosphereResourceImpl(localConfig,
                 broadcaster,
                 mock(AtmosphereRequestImpl.class),
                 AtmosphereResponseImpl.newInstance(),

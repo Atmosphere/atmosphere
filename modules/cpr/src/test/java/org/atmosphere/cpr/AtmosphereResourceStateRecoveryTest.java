@@ -148,27 +148,27 @@ public class AtmosphereResourceStateRecoveryTest {
     @Test
     public void longPollingAggregatedTest() throws ServletException, IOException, ExecutionException, InterruptedException {
         final AtomicReference<Object> ref = new AtomicReference<>();
-        AtmosphereResourceImpl r = (AtmosphereResourceImpl) config.resourcesFactory().create(config, "1234567");
-        r.setBroadcaster(config.getBroadcasterFactory().lookup("/1", true));
+        AtmosphereResourceImpl localR = (AtmosphereResourceImpl) config.resourcesFactory().create(config, "1234567");
+        localR.setBroadcaster(config.getBroadcasterFactory().lookup("/1", true));
 
         recovery.configure(config);
-        recovery.inspect(r);
+        recovery.inspect(localR);
 
         config.getBroadcasterFactory().lookup("/1", true).getBroadcasterConfig().setBroadcasterCache(new UUIDBroadcasterCache());
         config.getBroadcasterFactory().lookup("/2", true).getBroadcasterConfig().setBroadcasterCache(new UUIDBroadcasterCache());
         config.getBroadcasterFactory().lookup("/3", true).getBroadcasterConfig().setBroadcasterCache(new UUIDBroadcasterCache());
         config.getBroadcasterFactory().lookup("/4", true).getBroadcasterConfig().setBroadcasterCache(new UUIDBroadcasterCache());
 
-        config.getBroadcasterFactory().lookup("/1", true).addAtmosphereResource(r);
-        config.getBroadcasterFactory().lookup("/2", true).addAtmosphereResource(r);
-        config.getBroadcasterFactory().lookup("/3", true).addAtmosphereResource(r);
-        config.getBroadcasterFactory().lookup("/4", true).addAtmosphereResource(r);
+        config.getBroadcasterFactory().lookup("/1", true).addAtmosphereResource(localR);
+        config.getBroadcasterFactory().lookup("/2", true).addAtmosphereResource(localR);
+        config.getBroadcasterFactory().lookup("/3", true).addAtmosphereResource(localR);
+        config.getBroadcasterFactory().lookup("/4", true).addAtmosphereResource(localR);
 
-        r.suspend();
+        localR.suspend();
         config.metaBroadcaster().broadcastTo("/1", "Initialize Cache").get();
         // Resume instead of close — simulates long-polling request completing normally,
         // which preserves the recovery state for the next request
-        r.resume();
+        localR.resume();
 
         AtmosphereResourceImpl r2 = (AtmosphereResourceImpl) config.resourcesFactory().create(config, "1234567");
         // Set a different one to hit caching.
