@@ -179,6 +179,7 @@ public class CeoCoordinator {
         session.emit(new AiEvent.ToolResult("write_report", report.text()));
 
         // Journal is auto-emitted by the framework via journalFormat = Markdown.class
+        // (PostPromptHook fires after @Prompt returns, before async LLM streaming completes)
 
         // --- Step 4: CEO synthesis via LLM ---
         // Trim agent results to fit within the LLM context window, then stream

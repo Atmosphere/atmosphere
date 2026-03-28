@@ -78,25 +78,6 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
         )
         break
       case 'complete':
-        // If content looks like JSON (structured output), format it
-        if (currentAssistantMessage) {
-          const content = currentAssistantMessage.content.trim()
-            .replace(/^```json\s*\n?/, '').replace(/\n?```\s*$/, '').trim()
-          if (content.startsWith('{') && content.endsWith('}')) {
-            try {
-              const entity = JSON.parse(content) as Record<string, unknown>
-              const lines: string[] = []
-              for (const [key, val] of Object.entries(entity)) {
-                const display = typeof val === 'string' && val.length > 200
-                  ? val.substring(0, 200) + '...'
-                  : String(val)
-                lines.push(`- **${key}:** ${display}`)
-              }
-              currentAssistantMessage.content = lines.join('\n')
-              messages.value = [...messages.value]
-            } catch { /* not valid JSON, keep as-is */ }
-          }
-        }
         finalizeAssistant()
         break
       case 'error':
@@ -140,7 +121,8 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
         // Progressive field parsing — ignore (entity-complete is authoritative)
         break
       case 'entity-complete': {
-        // Structured output: replace raw JSON with formatted entity fields
+        // Structured output: replace raw JSON with formatted entity fields.
+        // Must replace the object reference (not just mutate .content) for Vue reactivity.
         const data = msg.data as Record<string, unknown>
         const entity = data?.entity as Record<string, unknown>
         const typeName = (data?.typeName ?? 'Entity') as string
@@ -152,8 +134,18 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
               : String(val)
             lines.push(`- **${key}:** ${display}`)
           }
-          // Replace raw JSON text with formatted entity
-          currentAssistantMessage.content = lines.join('\n')
+          // Cancel any pending throttled update
+          if (reactivityTimer) {
+            clearTimeout(reactivityTimer)
+            reactivityTimer = null
+          }
+          // Replace the object reference so Vue detects the change
+          const updated = { ...currentAssistantMessage, content: lines.join('\n') }
+          const idx = messages.value.findIndex(m => m.id === updated.id)
+          if (idx >= 0) {
+            messages.value[idx] = updated
+          }
+          currentAssistantMessage = updated
           messages.value = [...messages.value]
         }
         break
@@ -199,6 +191,27 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
   }
 
   function finalizeAssistant() {
+    // If content looks like JSON (structured output from responseAs), format it
+    if (currentAssistantMessage) {
+      const raw = currentAssistantMessage.content
+      const content = raw.trim()
+        .replace(/^```json\s*\n?/, '').replace(/\n?```\s*$/, '').trim()
+      if (content.startsWith('{') && content.endsWith('}')) {
+        try {
+          const entity = JSON.parse(content) as Record<string, unknown>
+          console.log('[FINALIZE] parsed OK, keys:', Object.keys(entity))
+          const lines: string[] = []
+          for (const [key, val] of Object.entries(entity)) {
+            const display = typeof val === 'string' && val.length > 200
+              ? val.substring(0, 200) + '...'
+              : String(val)
+            lines.push(`- **${key}:** ${display}`)
+          }
+          currentAssistantMessage.content = lines.join('\n')
+          messages.value = [...messages.value]
+        } catch { /* not valid JSON, keep as-is */ }
+      }
+    }
     currentAssistantMessage = null
     isStreaming.value = false
   }

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { marked } from 'marked'
 import type { ToolCall } from '../composables/useAtmosphereChat'
+
+marked.setOptions({ breaks: true, gfm: true })
 
 const props = defineProps<{
   tool: ToolCall
@@ -10,6 +13,18 @@ const displayName = computed(() => {
   return props.tool.name
     .replace(/_/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase())
+})
+
+const renderedResult = computed(() => {
+  if (!props.tool.result) return ''
+  const text = props.tool.result.length > 800
+    ? props.tool.result.slice(0, 800) + '...'
+    : props.tool.result
+  // Render markdown (tables, bold, lists) if content has markdown syntax
+  if (text.includes('|') || text.includes('**') || text.includes('- ')) {
+    return marked.parse(text) as string
+  }
+  return ''
 })
 
 const truncatedResult = computed(() => {
@@ -39,7 +54,8 @@ const argEntries = computed(() =>
         <span class="arg-val">{{ String(val).slice(0, 120) }}</span>
       </div>
     </div>
-    <div v-if="truncatedResult" class="tool-result">
+    <div v-if="renderedResult" class="tool-result tool-result--md" v-html="renderedResult"></div>
+    <div v-else-if="truncatedResult" class="tool-result">
       {{ truncatedResult }}
     </div>
   </div>
@@ -121,10 +137,32 @@ const argEntries = computed(() =>
   background: var(--bg-tertiary);
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
-  max-height: 150px;
+  max-height: 200px;
   overflow-y: auto;
   white-space: pre-wrap;
   line-height: 1.5;
+}
+
+.tool-result--md {
+  white-space: normal;
+}
+
+.tool-result--md :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.7rem;
+}
+
+.tool-result--md :deep(th),
+.tool-result--md :deep(td) {
+  border: 1px solid var(--border-color);
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+}
+
+.tool-result--md :deep(th) {
+  background: var(--bg-surface);
+  font-weight: 600;
 }
 
 @keyframes slideIn {

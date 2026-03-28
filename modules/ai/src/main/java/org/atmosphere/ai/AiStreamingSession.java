@@ -266,11 +266,21 @@ public class AiStreamingSession implements StreamingSession {
                 java.util.List.copyOf(tools), null, memory,
                 contextProviders, request.metadata(), request.history(),
                 effectiveResponseType);
+        // Fire-and-forget: run the LLM call asynchronously so the @Prompt method
+        // returns immediately. This allows PostPromptHook (e.g., journal emit) to
+        // fire before the session is closed by complete().
+        var streamingTarget = target;
+        Thread.startVirtualThread(() -> {
+            try {
+                runtime.execute(context, streamingTarget);
+            } catch (Exception e) {
+                metrics.recordError(model != null ? model : "unknown", "stream_error");
+                logger.error("Async streaming error", e);
+                streamingTarget.error(e);
+            }
+        });
         try {
-            runtime.execute(context, target);
-        } catch (Exception e) {
-            metrics.recordError(model != null ? model : "unknown", "stream_error");
-            throw e;
+            // no-op: runtime runs async now
         } finally {
             // Post-process: LIFO order (matching AtmosphereInterceptor convention)
             for (int i = interceptors.size() - 1; i >= 0; i--) {

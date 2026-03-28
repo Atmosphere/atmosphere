@@ -216,6 +216,12 @@ The pre-push hook blocks `git push` unless you run the validation script first:
 ```
 The script stamps a marker valid for 30 minutes. The pre-push hook checks the marker is fresh and matches the current commit.
 
+**Always cancel previous GitHub Actions runs on the branch before pushing** to avoid runner congestion:
+```bash
+gh run list --branch $(git branch --show-current) --json databaseId,status -q '.[] | select(.status == "queued" or .status == "in_progress") | .databaseId' | xargs -I{} gh run cancel {}
+```
+This frees up runners for the new push. Without this, stale queued runs accumulate and block CI for all branches.
+
 ### Before Merging / PR
 ```bash
 # Full build with all checks
