@@ -115,8 +115,8 @@ public final class TypeResolver {
 
         if (arguments.length != 1) {
             throw new IllegalArgumentException("Expected 1 type argument on generic type "
-        }
                     + targetType.getName() + " but found " + arguments.length);
+        }
 
         return arguments[0];
     }
