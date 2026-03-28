@@ -108,6 +108,83 @@ public class AtmosphereAutoConfiguration {
         return new AtmosphereLifecycle(framework, applicationContext);
     }
 
+    /**
+     * Serves the built-in AI console static assets from
+     * {@code META-INF/resources/atmosphere/console/} before the Atmosphere
+     * servlet (mapped to {@code /atmosphere/*}) can intercept them.
+     * Registered in the base auto-configuration so ALL samples get the console,
+     * not just those with {@code atmosphere-ai} on the classpath.
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereConsoleFilter")
+    org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter> atmosphereConsoleFilter() {
+        var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter>(
+                new ConsoleResourceFilter());
+        registration.addUrlPatterns("/atmosphere/console/*");
+        registration.setOrder(0);
+        return registration;
+    }
+
+    /**
+     * Serves built-in console static assets from {@code META-INF/resources/atmosphere/console/}
+     * before the Atmosphere servlet (mapped to {@code /atmosphere/*}) can intercept them.
+     */
+    static class ConsoleResourceFilter implements jakarta.servlet.Filter {
+
+        private static final String CONSOLE_PREFIX = "/atmosphere/console";
+        private static final String RESOURCE_BASE = "META-INF/resources/atmosphere/console/";
+
+        @Override
+        public void doFilter(jakarta.servlet.ServletRequest request,
+                             jakarta.servlet.ServletResponse response,
+                             jakarta.servlet.FilterChain chain)
+                throws java.io.IOException, jakarta.servlet.ServletException {
+            var httpReq = (jakarta.servlet.http.HttpServletRequest) request;
+            var httpRes = (jakarta.servlet.http.HttpServletResponse) response;
+            var path = httpReq.getRequestURI();
+
+            if (!path.startsWith(CONSOLE_PREFIX)) {
+                chain.doFilter(request, response);
+                return;
+            }
+
+            var relativePath = path.substring(CONSOLE_PREFIX.length());
+            if (relativePath.isEmpty() || relativePath.equals("/")) {
+                relativePath = "/index.html";
+            }
+
+            if (relativePath.contains("..")) {
+                httpRes.sendError(jakarta.servlet.http.HttpServletResponse.SC_BAD_REQUEST);
+                return;
+            }
+
+            var resourceName = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+            var resourcePath = RESOURCE_BASE + resourceName;
+
+            java.io.InputStream resource = Thread.currentThread().getContextClassLoader()
+                    .getResourceAsStream(resourcePath);
+            if (resource != null) {
+                try (resource) {
+                    httpRes.setContentType(guessContentType(resourceName));
+                    resource.transferTo(httpRes.getOutputStream());
+                }
+                return;
+            }
+
+            chain.doFilter(request, response);
+        }
+
+        private String guessContentType(String path) {
+            if (path.endsWith(".html")) return "text/html; charset=utf-8";
+            if (path.endsWith(".js")) return "application/javascript; charset=utf-8";
+            if (path.endsWith(".css")) return "text/css; charset=utf-8";
+            if (path.endsWith(".svg")) return "image/svg+xml";
+            if (path.endsWith(".png")) return "image/png";
+            if (path.endsWith(".ico")) return "image/x-icon";
+            return "application/octet-stream";
+        }
+    }
+
     private Map<Class<? extends Annotation>, Set<Class<?>>> scanAnnotations(
             AtmosphereProperties properties) {
         ClassPathScanningCandidateComponentProvider scanner =

@@ -15,17 +15,6 @@
  */
 package org.atmosphere.spring.boot;
 
-import java.io.IOException;
-import java.io.InputStream;
-
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
@@ -37,7 +26,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.server.context.WebServerInitializedEvent;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 
@@ -85,13 +73,7 @@ public class AtmosphereAiAutoConfiguration {
         return new AtmosphereAiEndpointRegistrar(framework, properties);
     }
 
-    @Bean
-    FilterRegistrationBean<Filter> atmosphereConsoleFilter() {
-        var registration = new FilterRegistrationBean<Filter>(new ConsoleResourceFilter());
-        registration.addUrlPatterns("/atmosphere/console/*");
-        registration.setOrder(0);
-        return registration;
-    }
+
 
     @Bean
     ApplicationListener<WebServerInitializedEvent> atmosphereAiConsoleLog() {
@@ -126,64 +108,4 @@ public class AtmosphereAiAutoConfiguration {
         return (val != null && !val.isBlank()) ? val : null;
     }
 
-    /**
-     * Serves built-in console static assets from {@code META-INF/resources/atmosphere/console/}
-     * before the Atmosphere servlet (mapped to {@code /atmosphere/*}) can intercept them.
-     */
-    static class ConsoleResourceFilter implements Filter {
-
-        private static final String CONSOLE_PREFIX = "/atmosphere/console";
-        private static final String RESOURCE_BASE = "META-INF/resources/atmosphere/console/";
-
-        @Override
-        public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-                throws IOException, ServletException {
-            var httpReq = (HttpServletRequest) request;
-            var httpRes = (HttpServletResponse) response;
-            var path = httpReq.getRequestURI();
-
-            if (!path.startsWith(CONSOLE_PREFIX)) {
-                chain.doFilter(request, response);
-                return;
-            }
-
-            // Extract the relative path after /atmosphere/console/
-            var relativePath = path.substring(CONSOLE_PREFIX.length());
-            if (relativePath.isEmpty() || relativePath.equals("/")) {
-                relativePath = "/index.html";
-            }
-
-            // Reject path traversal attempts
-            if (relativePath.contains("..")) {
-                httpRes.sendError(HttpServletResponse.SC_BAD_REQUEST);
-                return;
-            }
-
-            // Strip leading slash for classpath lookup
-            var resourceName = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
-            var resourcePath = RESOURCE_BASE + resourceName;
-
-            InputStream resource = Thread.currentThread().getContextClassLoader()
-                    .getResourceAsStream(resourcePath);
-            if (resource != null) {
-                try (resource) {
-                    httpRes.setContentType(guessContentType(resourceName));
-                    resource.transferTo(httpRes.getOutputStream());
-                }
-                return;
-            }
-
-            chain.doFilter(request, response);
-        }
-
-        private String guessContentType(String path) {
-            if (path.endsWith(".html")) return "text/html; charset=utf-8";
-            if (path.endsWith(".js")) return "application/javascript; charset=utf-8";
-            if (path.endsWith(".css")) return "text/css; charset=utf-8";
-            if (path.endsWith(".svg")) return "image/svg+xml";
-            if (path.endsWith(".png")) return "image/png";
-            if (path.endsWith(".ico")) return "image/x-icon";
-            return "application/octet-stream";
-        }
-    }
 }
