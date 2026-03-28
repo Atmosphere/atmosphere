@@ -78,7 +78,8 @@ public class JSR356Endpoint extends Endpoint {
         this.webSocketProcessor = webSocketProcessor;
 
         if (framework.isUseNativeImplementation()) {
-            throw new IllegalStateException("You cannot use WebSocket native implementation with JSR356. Please set " + ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT + " to false");
+            throw new IllegalStateException("You cannot use WebSocket native implementation with JSR356. "
+                    + "Please set " + ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT + " to false");
         }
 
         String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
@@ -258,8 +259,14 @@ public class JSR356Endpoint extends Endpoint {
                     .pathInfo(pathInfo)
                     .destroyable(false)
                     .userPrincipal(session.getUserPrincipal())
-                    .remoteInetSocketAddress(() -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS), disableDnsLookups)
-                    .localInetSocketAddress(() -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS), disableDnsLookups)
+                    .remoteInetSocketAddress(
+                            () -> (InetSocketAddress) endpointConfig.getUserProperties()
+                                    .get(JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS),
+                            disableDnsLookups)
+                    .localInetSocketAddress(
+                            () -> (InetSocketAddress) endpointConfig.getUserProperties()
+                                    .get(JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS),
+                            disableDnsLookups)
                     .attributes(attributes)
                     .isSecure(session.isSecure())
                     .build()

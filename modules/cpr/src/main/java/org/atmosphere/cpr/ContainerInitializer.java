@@ -108,7 +108,9 @@ public class ContainerInitializer implements jakarta.servlet.ServletContainerIni
                         }
                     }
                 } catch (Throwable t) {
-                    c.log("AtmosphereFramework : SessionSupport error. Make sure you also define {} as a listener in web.xml, see https://github.com/Atmosphere/atmosphere/wiki/Enabling-HttpSession-Support", t);
+                    c.log("AtmosphereFramework : SessionSupport error. Make sure you also define {} "
+                            + "as a listener in web.xml, see "
+                            + "https://github.com/Atmosphere/atmosphere/wiki/Enabling-HttpSession-Support", t);
                 }
 
                 c.setAttribute(reg.getKey(), framework);

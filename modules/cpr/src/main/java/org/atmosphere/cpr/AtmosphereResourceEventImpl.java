@@ -107,13 +107,13 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     }
 
     @Override
-    public AtmosphereResourceEventImpl setMessage(Object message) {
-        this.message = message;
+    public AtmosphereResourceEventImpl setMessage(Object newMessage) {
+        this.message = newMessage;
         return this;
     }
 
-    public AtmosphereResourceEventImpl isClosedByClient(boolean isClosedByClient) {
-        this.isClosedByClient.set(isClosedByClient);
+    public AtmosphereResourceEventImpl isClosedByClient(boolean newIsClosedByClient) {
+        this.isClosedByClient.set(newIsClosedByClient);
         return this;
     }
 
@@ -127,18 +127,18 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return isCancelled.get();
     }
 
-    public AtmosphereResourceEventImpl setCancelled(boolean isCancelled) {
+    public AtmosphereResourceEventImpl setCancelled(boolean newIsCancelled) {
         if (check()) {
             resource.setAction(new Action(Action.TYPE.CANCELLED, resource.action().timeout()));
-            this.isCancelled.set(isCancelled);
+            this.isCancelled.set(newIsCancelled);
         }
         return this;
     }
 
-    protected AtmosphereResourceEventImpl setIsResumedOnTimeout(boolean isResumedOnTimeout) {
+    protected AtmosphereResourceEventImpl setIsResumedOnTimeout(boolean newIsResumedOnTimeout) {
         if (check()) {
             resource.setAction(new Action(Action.TYPE.TIMEOUT, resource.action().timeout()));
-            this.isResumedOnTimeout.set(isResumedOnTimeout);
+            this.isResumedOnTimeout.set(newIsResumedOnTimeout);
         }
         return this;
     }

@@ -92,8 +92,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
      */
     private int clientHeartbeatFrequencyInSeconds;
 
-    public HeartbeatInterceptor paddingText(byte[] paddingBytes) {
-        this.paddingBytes = paddingBytes;
+    public HeartbeatInterceptor paddingText(byte[] newPaddingBytes) {
+        this.paddingBytes = newPaddingBytes;
         return this;
     }
 
@@ -108,8 +108,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         return this.paddingBytes;
     }
 
-    public HeartbeatInterceptor heartbeatFrequencyInSeconds(int heartbeatFrequencyInSeconds) {
-        this.heartbeatFrequencyInSeconds = heartbeatFrequencyInSeconds;
+    public HeartbeatInterceptor heartbeatFrequencyInSeconds(int newHeartbeatFrequencyInSeconds) {
+        this.heartbeatFrequencyInSeconds = newHeartbeatFrequencyInSeconds;
 
         return this;
     }
@@ -129,8 +129,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         return clientHeartbeatFrequencyInSeconds;
     }
 
-    public HeartbeatInterceptor clientHeartbeatFrequencyInSeconds(int clientHeartbeatFrequencyInSeconds) {
-        this.clientHeartbeatFrequencyInSeconds = clientHeartbeatFrequencyInSeconds;
+    public HeartbeatInterceptor clientHeartbeatFrequencyInSeconds(int newClientHeartbeatFrequencyInSeconds) {
+        this.clientHeartbeatFrequencyInSeconds = newClientHeartbeatFrequencyInSeconds;
         return this;
     }
 
@@ -138,43 +138,46 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         return resumeOnHeartbeat;
     }
 
-    public HeartbeatInterceptor resumeOnHeartbeat(boolean resumeOnHeartbeat) {
-        this.resumeOnHeartbeat = resumeOnHeartbeat;
+    public HeartbeatInterceptor resumeOnHeartbeat(boolean newResumeOnHeartbeat) {
+        this.resumeOnHeartbeat = newResumeOnHeartbeat;
         return this;
     }
 
     @Override
-    public void configure(final AtmosphereConfig config) {
+    public void configure(final AtmosphereConfig newConfig) {
         // Server
-        String s = config.getInitParameter(HEARTBEAT_INTERVAL_IN_SECONDS);
+        String s = newConfig.getInitParameter(HEARTBEAT_INTERVAL_IN_SECONDS);
         if (s != null) {
             heartbeatFrequencyInSeconds = Integer.parseInt(s);
         }
 
         // Server
-        s = config.getInitParameter(HEARTBEAT_PADDING_CHAR);
+        s = newConfig.getInitParameter(HEARTBEAT_PADDING_CHAR);
         if (s != null) {
             paddingBytes = s.getBytes(StandardCharsets.UTF_8);
         }
 
         // Client
-        s = config.getInitParameter(CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS);
+        s = newConfig.getInitParameter(CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS);
         if (s != null) {
             clientHeartbeatFrequencyInSeconds = Integer.parseInt(s);
         }
 
-        s = config.getInitParameter(FLUSH_BUFFER_HEARTBEAT);
+        s = newConfig.getInitParameter(FLUSH_BUFFER_HEARTBEAT);
         if (s != null) {
             flushBuffer = Boolean.parseBoolean(s);
         }
 
-        heartBeat = ExecutorsFactory.getScheduler(config);
+        heartBeat = ExecutorsFactory.getScheduler(newConfig);
 
-        resumeOnHeartbeat = config.getInitParameter(RESUME_ON_HEARTBEAT, true);
-        logger.info("HeartbeatInterceptor configured with padding value '{}', client frequency {} seconds and server frequency {} seconds", (Object[]) new String[]
-                {new String(paddingBytes), String.valueOf(clientHeartbeatFrequencyInSeconds), String.valueOf(heartbeatFrequencyInSeconds)});
+        resumeOnHeartbeat = newConfig.getInitParameter(RESUME_ON_HEARTBEAT, true);
+        logger.info("HeartbeatInterceptor configured with padding value '{}', "
+                + "client frequency {} seconds and server frequency {} seconds",
+                (Object[]) new String[]{new String(paddingBytes),
+                        String.valueOf(clientHeartbeatFrequencyInSeconds),
+                        String.valueOf(heartbeatFrequencyInSeconds)});
 
-        this.config = config;
+        this.config = newConfig;
     }
 
     private static class Clock extends AtmosphereResourceEventListenerAdapter implements AllowInterceptor {

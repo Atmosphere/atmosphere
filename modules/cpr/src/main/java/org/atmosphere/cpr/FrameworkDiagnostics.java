@@ -67,7 +67,8 @@ final class FrameworkDiagnostics {
             logger.info("Using BroadcastFilter: {}", i);
         }
 
-        if (broadcasterSetup.broadcasterCacheClassName() == null || DefaultBroadcasterCache.class.getName().equals(broadcasterSetup.broadcasterCacheClassName())) {
+        if (broadcasterSetup.broadcasterCacheClassName() == null
+                || DefaultBroadcasterCache.class.getName().equals(broadcasterSetup.broadcasterCacheClassName())) {
             logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
                     "It is recommended to configure the {}", UUIDBroadcasterCache.class.getName());
         } else {

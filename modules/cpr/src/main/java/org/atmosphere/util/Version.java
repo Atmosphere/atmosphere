@@ -114,7 +114,7 @@ public class Version {
      * @param minor Atmosphere framework minor version
      * @return true, if versions are equal; false otherwise
      */
-    public static boolean equalVersion(int major, int minor) {
-        return minor == Version.minor && major == Version.major;
+    public static boolean equalVersion(int majorVersion, int minorVersion) {
+        return minorVersion == Version.minor && majorVersion == Version.major;
     }
 }

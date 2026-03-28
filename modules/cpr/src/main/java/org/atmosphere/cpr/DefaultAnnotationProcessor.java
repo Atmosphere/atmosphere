@@ -88,7 +88,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
     public void configure(final AtmosphereConfig config) {
         ServletContext sc = config.framework().getServletContext();
 
-        Map<Class<? extends Annotation>, Set<Class<?>>>  annotations= (Map<Class<? extends Annotation>, Set<Class<?>>>) sc.getAttribute(ANNOTATION_ATTRIBUTE);
+        Map<Class<? extends Annotation>, Set<Class<?>>> annotations =
+                (Map<Class<? extends Annotation>, Set<Class<?>>>) sc.getAttribute(ANNOTATION_ATTRIBUTE);
         sc.removeAttribute(ANNOTATION_ATTRIBUTE);
 
         boolean useByteCodeProcessor = config.getInitParameter(ApplicationConfig.BYTECODE_PROCESSOR, false);

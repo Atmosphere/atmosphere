@@ -44,7 +44,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Agent(
     name = "atmosphere-assistant",
-    description = "AI-powered assistant that answers questions, provides weather info, and handles time queries. Uses Gemini/OpenAI/Ollama when configured, with built-in demo fallback.",
+    description = "AI-powered assistant that answers questions, provides weather info, "
+            + "and handles time queries. Uses Gemini/OpenAI/Ollama when configured, "
+            + "with built-in demo fallback.",
     version = "1.0.0",
     endpoint = "/atmosphere/a2a"
 )
@@ -83,7 +85,8 @@ public class WeatherTimeAgent {
     }
 
     @AgentSkill(id = "get-weather", name = "Get Weather",
-              description = "Get weather for a location. With LLM configured, provides AI-generated weather analysis. Without, returns simulated data.",
+              description = "Get weather for a location. With LLM configured, provides "
+                      + "AI-generated weather analysis. Without, returns simulated data.",
               tags = {"weather", "information"})
     @AgentSkillHandler
     public void getWeather(TaskContext task,
@@ -123,7 +126,9 @@ public class WeatherTimeAgent {
               tags = {"time", "timezone", "utility"})
     @AgentSkillHandler
     public void getTime(TaskContext task,
-                        @AgentSkillParam(name = "timezone", description = "IANA timezone (e.g., America/New_York, Europe/Paris, Asia/Tokyo)") String timezone) {
+                        @AgentSkillParam(name = "timezone",
+                                description = "IANA timezone (e.g., America/New_York, "
+                                        + "Europe/Paris, Asia/Tokyo)") String timezone) {
         task.updateStatus(TaskState.WORKING, "Looking up time...");
 
         try {

@@ -16,8 +16,9 @@
 package org.atmosphere.config.managed;
 
 /**
- * Encode a message returned by a method annotated with {@link org.atmosphere.config.service.Message} or a {@link org.atmosphere.config.service.ManagedService}
- * annotated class. The encoded object will be written back to the client. For example
+ * Encode a message returned by a method annotated with
+ * {@link org.atmosphere.config.service.Message} or a
+ * {@link org.atmosphere.config.service.ManagedService} annotated class. The encoded object will be written back to the client. For example
  *
  * <blockquote><pre>
 

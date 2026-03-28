@@ -68,8 +68,8 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
     public DefaultBroadcasterFactory() {
     }
 
-    public void configure(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
-        this.clazz = clazz;
+    public void configure(Class<? extends Broadcaster> broadcasterClass, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
+        this.clazz = broadcasterClass;
         config = c;
         configure(broadcasterLifeCyclePolicy);
     }

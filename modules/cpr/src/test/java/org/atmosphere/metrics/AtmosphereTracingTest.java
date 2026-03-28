@@ -62,7 +62,9 @@ public class AtmosphereTracingTest {
 
         Mockito.when(tracer.spanBuilder(Mockito.anyString())).thenReturn(spanBuilder);
         Mockito.when(spanBuilder.setSpanKind(Mockito.any(SpanKind.class))).thenReturn(spanBuilder);
-        Mockito.when(spanBuilder.setAttribute(Mockito.any(io.opentelemetry.api.common.AttributeKey.class), Mockito.anyString())).thenReturn(spanBuilder);
+        Mockito.when(spanBuilder.setAttribute(
+                Mockito.any(io.opentelemetry.api.common.AttributeKey.class),
+                Mockito.anyString())).thenReturn(spanBuilder);
         Mockito.when(spanBuilder.startSpan()).thenReturn(span);
         Mockito.when(span.makeCurrent()).thenReturn(scope);
         Mockito.when(span.setAttribute(Mockito.any(io.opentelemetry.api.common.AttributeKey.class), Mockito.anyString())).thenReturn(span);

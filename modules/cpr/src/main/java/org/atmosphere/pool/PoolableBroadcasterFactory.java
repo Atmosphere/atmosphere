@@ -31,7 +31,8 @@ import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_TRACKED_BROADCASTER;
 /**
  * This class uses a {@link org.atmosphere.pool.PoolableProvider} to retrieve instance of {@link Broadcaster}. This class
  * doesn't validate the id of the Broadcaster [{@link Broadcaster#setID(String)}] and can return a Broadcaster
- * with was already created under that name. Set {@link #trackPooledBroadcaster(boolean)} or {@link org.atmosphere.cpr.ApplicationConfig#SUPPORT_TRACKED_BROADCASTER} to true to track duplication but
+ * with was already created under that name. Set {@link #trackPooledBroadcaster(boolean)} or
+ * {@link org.atmosphere.cpr.ApplicationConfig#SUPPORT_TRACKED_BROADCASTER} to true to track duplication but
  * be aware it can significantly reduce performance. Use the {@link org.atmosphere.cpr.DefaultBroadcasterFactory} is recommended
  * under that scenario.
  * <p></p>
@@ -140,8 +141,8 @@ public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
      * @param trackPooledBroadcaster
      * @return
      */
-    public PoolableBroadcasterFactory trackPooledBroadcaster(boolean trackPooledBroadcaster) {
-        this.trackPooledBroadcaster = trackPooledBroadcaster;
+    public PoolableBroadcasterFactory trackPooledBroadcaster(boolean newTrackPooledBroadcaster) {
+        this.trackPooledBroadcaster = newTrackPooledBroadcaster;
         return this;
     }
 
@@ -170,8 +171,8 @@ public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
      * @return this
      */
     @SuppressWarnings("unchecked")
-    public PoolableBroadcasterFactory poolableProvider(PoolableProvider<? extends Broadcaster, ?> poolableProvider) {
-        this.poolableProvider = (PoolableProvider<Broadcaster, ?>) poolableProvider;
+    public PoolableBroadcasterFactory poolableProvider(PoolableProvider<? extends Broadcaster, ?> newPoolableProvider) {
+        this.poolableProvider = (PoolableProvider<Broadcaster, ?>) newPoolableProvider;
         this.poolableProvider.configure(config);
         return this;
     }

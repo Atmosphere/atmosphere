@@ -85,8 +85,8 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
      * Set the character delimiter used by this class to separate message.
      * @return this
      */
-    public TrackMessageSizeInterceptor messageDelimiter(String endString) {
-        this.endString = endString;
+    public TrackMessageSizeInterceptor messageDelimiter(String newEndString) {
+        this.endString = newEndString;
         return this;
     }
 
@@ -117,7 +117,8 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
         if (writer instanceof AtmosphereInterceptorWriter interceptorWriter) {
             interceptorWriter.interceptor(interceptor);
         } else {
-            logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
+            logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}",
+                    getClass().getName(), AtmosphereInterceptorWriter.class.getName());
         }
         return Action.CONTINUE;
     }

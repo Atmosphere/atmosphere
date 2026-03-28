@@ -67,7 +67,7 @@ public class AiStreamingSessionTest {
         var aiSupport = new RecordingRuntime();
         var interceptor = new AiInterceptor() {
             @Override
-            public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
+            public AiRequest preProcess(AiRequest request, AtmosphereResource atmosphereResource) {
                 return request.withMessage("[augmented] " + request.message());
             }
         };
@@ -87,7 +87,7 @@ public class AiStreamingSessionTest {
         var postProcessed = new ArrayList<String>();
         var interceptor = new AiInterceptor() {
             @Override
-            public void postProcess(AiRequest request, AtmosphereResource resource) {
+            public void postProcess(AiRequest request, AtmosphereResource atmosphereResource) {
                 postProcessed.add(request.message());
             }
         };
@@ -109,26 +109,26 @@ public class AiStreamingSessionTest {
 
         var first = new AiInterceptor() {
             @Override
-            public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
+            public AiRequest preProcess(AiRequest request, AtmosphereResource atmosphereResource) {
                 order.add("pre-first");
                 return request;
             }
 
             @Override
-            public void postProcess(AiRequest request, AtmosphereResource resource) {
+            public void postProcess(AiRequest request, AtmosphereResource atmosphereResource) {
                 order.add("post-first");
             }
         };
 
         var second = new AiInterceptor() {
             @Override
-            public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
+            public AiRequest preProcess(AiRequest request, AtmosphereResource atmosphereResource) {
                 order.add("pre-second");
                 return request;
             }
 
             @Override
-            public void postProcess(AiRequest request, AtmosphereResource resource) {
+            public void postProcess(AiRequest request, AtmosphereResource atmosphereResource) {
                 order.add("post-second");
             }
         };
@@ -148,7 +148,7 @@ public class AiStreamingSessionTest {
         var aiSupport = new RecordingRuntime();
         var interceptor = new AiInterceptor() {
             @Override
-            public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
+            public AiRequest preProcess(AiRequest request, AtmosphereResource atmosphereResource) {
                 throw new RuntimeException("guardrail violation");
             }
         };
@@ -437,10 +437,10 @@ public class AiStreamingSessionTest {
         int completionStreamingTexts;
 
         @Override
-        public void recordStreamingTextUsage(String model, int promptStreamingTexts, int completionStreamingTexts) {
+        public void recordStreamingTextUsage(String model, int newPromptStreamingTexts, int newCompletionStreamingTexts) {
             this.streamingTextUsageRecorded = true;
-            this.promptStreamingTexts = promptStreamingTexts;
-            this.completionStreamingTexts = completionStreamingTexts;
+            this.promptStreamingTexts = newPromptStreamingTexts;
+            this.completionStreamingTexts = newCompletionStreamingTexts;
         }
 
         @Override

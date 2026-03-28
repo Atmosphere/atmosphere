@@ -175,9 +175,9 @@ public final class AtmosphereFilterChain implements FilterChain {
      * Set the servlet that will be executed at the end of this chain.
      * Set by the mapper filter
      */
-    public void setServlet(ServletConfig configImpl, Servlet servlet) {
-        this.configImpl = configImpl;
-        this.servlet = servlet;
+    public void setServlet(ServletConfig newConfigImpl, Servlet newServlet) {
+        this.configImpl = newConfigImpl;
+        this.servlet = newServlet;
     }
 
     public FilterConfigImpl getFilter(int i) {

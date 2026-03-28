@@ -65,7 +65,8 @@ public class LifecycleHandler {
 
         ScheduledExecutorService scheduler = bc.getScheduledExecutorService();
         if (scheduler == null) {
-            logger.error("No Broadcaster's SchedulerExecutorService has been configured on {}. BroadcasterLifeCyclePolicy won't work.", broadcaster.getID());
+            logger.error("No Broadcaster's SchedulerExecutorService has been configured on {}. "
+                    + "BroadcasterLifeCyclePolicy won't work.", broadcaster.getID());
             return this;
         }
 
@@ -81,7 +82,9 @@ public class LifecycleHandler {
                 throw new IllegalStateException("BroadcasterLifeCyclePolicy time is not set");
             }
 
-            logger.debug("{} new lifecycle policy: {} [expire {} in {}]", broadcaster.getID(), lifeCyclePolicy.getLifeCyclePolicy().name(), time, lifeCyclePolicy.getLifeCyclePolicy());
+            logger.debug("{} new lifecycle policy: {} [expire {} in {}]",
+                    broadcaster.getID(), lifeCyclePolicy.getLifeCyclePolicy().name(),
+                    time, lifeCyclePolicy.getLifeCyclePolicy());
             Future<?> currentLifecycleTask = scheduler.scheduleAtFixedRate(new Runnable() {
 
                 @Override

@@ -78,7 +78,7 @@ public class AtmosphereInterceptorTest {
         framework.addAtmosphereHandler("/*", handler);
         framework.interceptor(new AtmosphereInterceptor() {
             @Override
-            public void configure(AtmosphereConfig config) {
+            public void configure(AtmosphereConfig atmosphereConfig) {
             }
 
             @Override
@@ -103,7 +103,7 @@ public class AtmosphereInterceptorTest {
         framework.addAtmosphereHandler("/*", handler);
         framework.interceptor(new AtmosphereInterceptor() {
             @Override
-            public void configure(AtmosphereConfig config) {
+            public void configure(AtmosphereConfig atmosphereConfig) {
             }
             @Override
             public void destroy() {
@@ -123,7 +123,7 @@ public class AtmosphereInterceptorTest {
         assertEquals(processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()), Action.CONTINUE);
         framework.interceptor(new AtmosphereInterceptor() {
             @Override
-            public void configure(AtmosphereConfig config) {
+            public void configure(AtmosphereConfig atmosphereConfig) {
             }
             @Override
             public void destroy() {
@@ -147,7 +147,7 @@ public class AtmosphereInterceptorTest {
         framework.addAtmosphereHandler("/*", handler);
         framework.interceptor(new AtmosphereInterceptor() {
             @Override
-            public void configure(AtmosphereConfig config) {
+            public void configure(AtmosphereConfig atmosphereConfig) {
             }
             @Override
             public void destroy() {
@@ -170,7 +170,7 @@ public class AtmosphereInterceptorTest {
         framework.addAtmosphereHandler("/*", handler);
         framework.interceptor(new AtmosphereInterceptor() {
             @Override
-            public void configure(AtmosphereConfig config) {
+            public void configure(AtmosphereConfig atmosphereConfig) {
             }
             @Override
             public void destroy() {
@@ -210,7 +210,8 @@ public class AtmosphereInterceptorTest {
         });
 
         assertEquals(processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()), Action.CREATED);
-        assertEquals("CORS Interceptor Support", framework.getAtmosphereHandlers().get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors().removeFirst().toString());
+        assertEquals("CORS Interceptor Support", framework.getAtmosphereHandlers()
+                .get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors().removeFirst().toString());
         assertEquals("XXX", framework.getAtmosphereHandlers().get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors().getFirst().toString());
 
     }
@@ -222,7 +223,7 @@ public class AtmosphereInterceptorTest {
         framework.setAsyncSupport(mock(AsyncSupport.class));
         framework.interceptor(new AtmosphereInterceptor() {
             @Override
-            public void configure(AtmosphereConfig config) {
+            public void configure(AtmosphereConfig atmosphereConfig) {
                 count.incrementAndGet();
             }
 
@@ -316,20 +317,21 @@ public class AtmosphereInterceptorTest {
         } catch (Exception ignored) {
         }
         assertEquals(processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()), Action.CREATED);
-        assertEquals("CORS Interceptor Support", framework.getAtmosphereHandlers().get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors().removeFirst().toString());
+        assertEquals("CORS Interceptor Support", framework.getAtmosphereHandlers()
+                .get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors().removeFirst().toString());
         assertEquals("XXX", framework.getAtmosphereHandlers().get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors().getFirst().toString());
     }
 
     @Test
     public void postInspectOnThrown() throws Exception{
-        AtmosphereHandler handler = mock(AtmosphereHandler.class);
-        Mockito.doThrow(new RuntimeException()).when(handler).onRequest(Mockito.any(AtmosphereResource.class));
-        framework.addAtmosphereHandler("/*", handler);
+        AtmosphereHandler localHandler = mock(AtmosphereHandler.class);
+        Mockito.doThrow(new RuntimeException()).when(localHandler).onRequest(Mockito.any(AtmosphereResource.class));
+        framework.addAtmosphereHandler("/*", localHandler);
 
         final AtomicBoolean postInspected = new AtomicBoolean(false);
         framework.interceptor(new AtmosphereInterceptor() {
             @Override
-            public void configure(AtmosphereConfig config) {
+            public void configure(AtmosphereConfig atmosphereConfig) {
             }
 
             @Override

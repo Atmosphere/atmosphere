@@ -58,7 +58,8 @@ public class AnnotationUtil {
         }
     }
 
-    public static void filters(Class<? extends BroadcastFilter>[] bf, AtmosphereFramework framework) throws IllegalAccessException, InstantiationException {
+    public static void filters(Class<? extends BroadcastFilter>[] bf,
+            AtmosphereFramework framework) throws IllegalAccessException, InstantiationException {
         for (Class<? extends BroadcastFilter> b : bf) {
             framework.broadcasterFilters(framework.newClassInstance(BroadcastFilter.class, b));
         }
@@ -76,11 +77,15 @@ public class AnnotationUtil {
         interceptorsForManagedService(framework, MANAGED_ATMOSPHERE_INTERCEPTORS, l, false);
     }
 
-    public static void interceptorsForManagedService(AtmosphereFramework framework, List<Class<? extends AtmosphereInterceptor>> interceptors, List<AtmosphereInterceptor> l) {
+    public static void interceptorsForManagedService(AtmosphereFramework framework,
+            List<Class<? extends AtmosphereInterceptor>> interceptors,
+            List<AtmosphereInterceptor> l) {
         interceptorsForManagedService(framework, interceptors, l, true);
     }
 
-    public static void interceptorsForManagedService(AtmosphereFramework framework, List<Class<? extends AtmosphereInterceptor>> interceptors, List<AtmosphereInterceptor> l, boolean checkDuplicate) {
+    public static void interceptorsForManagedService(AtmosphereFramework framework,
+            List<Class<? extends AtmosphereInterceptor>> interceptors,
+            List<AtmosphereInterceptor> l, boolean checkDuplicate) {
         for (Class<? extends AtmosphereInterceptor> i : interceptors) {
             if (!framework.excludedInterceptors().contains(i.getName())
                     && (!checkDuplicate || checkDefault(i))) {
@@ -94,7 +99,9 @@ public class AnnotationUtil {
         }
     }
 
-    public static void interceptorsForHandler(AtmosphereFramework framework, List<Class<? extends AtmosphereInterceptor>> interceptors, List<AtmosphereInterceptor> l) {
+    public static void interceptorsForHandler(AtmosphereFramework framework,
+            List<Class<? extends AtmosphereInterceptor>> interceptors,
+            List<AtmosphereInterceptor> l) {
         for (Class<? extends AtmosphereInterceptor> i : interceptors) {
             if (!framework.excludedInterceptors().contains(i.getName())
                     && (!AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(i))) {
@@ -114,7 +121,9 @@ public class AnnotationUtil {
 
 
 
-    public static AtmosphereInterceptor listeners(final Class<? extends AtmosphereResourceEventListener>[] listeners, final AtmosphereFramework framework) {
+    public static AtmosphereInterceptor listeners(
+            final Class<? extends AtmosphereResourceEventListener>[] listeners,
+            final AtmosphereFramework framework) {
         if (listeners.length > 0) {
             try {
                 return new AtmosphereInterceptorAdapter() {
@@ -151,12 +160,15 @@ public class AnnotationUtil {
     }
 
     @SuppressWarnings("unchecked")
-    public static Class<? extends Broadcaster> broadcasterClass(AtmosphereFramework framework, Class<? extends Broadcaster> broadcaster) throws Exception {
+    public static Class<? extends Broadcaster> broadcasterClass(AtmosphereFramework framework,
+            Class<? extends Broadcaster> broadcaster) throws Exception {
         if (framework.isBroadcasterSpecified()) {
             try {
-                broadcaster = (Class<? extends Broadcaster>) framework.getClass().getClassLoader().loadClass(framework.getDefaultBroadcasterClassName());
+                broadcaster = (Class<? extends Broadcaster>) framework.getClass().getClassLoader()
+                        .loadClass(framework.getDefaultBroadcasterClassName());
             } catch (ClassNotFoundException ex) {
-                broadcaster = (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader().loadClass(framework.getDefaultBroadcasterClassName());
+                broadcaster = (Class<? extends Broadcaster>) Thread.currentThread()
+                        .getContextClassLoader().loadClass(framework.getDefaultBroadcasterClassName());
             }
         }
         return broadcaster;

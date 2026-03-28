@@ -34,8 +34,8 @@ public class AtmosphereProducers implements CDIProducer {
 
     private AtmosphereConfig config;
 
-    public void configure(AtmosphereConfig config) {
-        this.config = config;
+    public void configure(AtmosphereConfig newConfig) {
+        this.config = newConfig;
     }
 
     @Produces

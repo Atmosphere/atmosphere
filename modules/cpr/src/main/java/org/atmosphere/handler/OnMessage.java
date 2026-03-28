@@ -75,7 +75,8 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
 
     /**
      * This method will be invoked when an connection has been received and not haven't yet be suspended. Note that
-     * the connection will be suspended AFTER the method has been invoked when used with {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
+     * the connection will be suspended AFTER the method has been invoked when used with
+     * {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
      *
      * @param resource an {@link AtmosphereResource}
      * @throws IOException

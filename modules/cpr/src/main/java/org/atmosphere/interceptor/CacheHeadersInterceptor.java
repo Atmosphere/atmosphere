@@ -79,13 +79,13 @@ public class CacheHeadersInterceptor extends AtmosphereInterceptorAdapter {
         return writeHeaders;
     }
 
-    public CacheHeadersInterceptor injectCacheHeaders(boolean injectCacheHeaders) {
-        this.injectCacheHeaders = injectCacheHeaders;
+    public CacheHeadersInterceptor injectCacheHeaders(boolean newInjectCacheHeaders) {
+        this.injectCacheHeaders = newInjectCacheHeaders;
         return this;
     }
 
-    public CacheHeadersInterceptor writeHeaders(boolean writeHeaders) {
-        this.writeHeaders = writeHeaders;
+    public CacheHeadersInterceptor writeHeaders(boolean newWriteHeaders) {
+        this.writeHeaders = newWriteHeaders;
         return this;
     }
 

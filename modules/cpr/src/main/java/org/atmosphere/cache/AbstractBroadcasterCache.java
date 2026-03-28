@@ -142,8 +142,8 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
      * @param invalidateCacheInterval the purge interval in milliseconds
      * @return this
      */
-    public AbstractBroadcasterCache setInvalidateCacheInterval(long invalidateCacheInterval) {
-        this.invalidateCacheInterval = invalidateCacheInterval;
+    public AbstractBroadcasterCache setInvalidateCacheInterval(long newInvalidateCacheInterval) {
+        this.invalidateCacheInterval = newInvalidateCacheInterval;
         return this;
     }
 
@@ -153,8 +153,8 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
      * @param maxCacheTime the maximum time in milliseconds.
      * @return this
      */
-    public AbstractBroadcasterCache setMaxCacheTime(long maxCacheTime) {
-        this.maxCacheTime = maxCacheTime;
+    public AbstractBroadcasterCache setMaxCacheTime(long newMaxCacheTime) {
+        this.maxCacheTime = newMaxCacheTime;
         return this;
     }
 
@@ -172,18 +172,18 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void configure(AtmosphereConfig config) {
-        Object o = config.properties().get("shared");
+    public void configure(AtmosphereConfig newConfig) {
+        Object o = newConfig.properties().get("shared");
         if (o != null) {
             isShared = Boolean.parseBoolean(o.toString());
         }
 
         if (isShared) {
-            reaper = ExecutorsFactory.getScheduler(config);
+            reaper = ExecutorsFactory.getScheduler(newConfig);
         } else {
             reaper = Executors.newSingleThreadScheduledExecutor();
         }
-        this.config = config;
+        this.config = newConfig;
     }
 
     @Override

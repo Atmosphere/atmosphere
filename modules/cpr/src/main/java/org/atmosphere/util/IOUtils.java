@@ -162,7 +162,9 @@ public class IOUtils {
         } else {
             AtmosphereRequestImpl.Body body = request.body();
             try {
-                stringBuilder.append(body.hasString() ? body.asString() : new String(body.asBytes(), body.byteOffset(), body.byteLength(), request.getCharacterEncoding()));
+                stringBuilder.append(body.hasString() ? body.asString()
+                        : new String(body.asBytes(), body.byteOffset(), body.byteLength(),
+                                request.getCharacterEncoding()));
             } catch (UnsupportedEncodingException e) {
                 logger.error("", e);
             }

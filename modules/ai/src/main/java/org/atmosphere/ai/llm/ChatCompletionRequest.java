@@ -74,18 +74,18 @@ public record ChatCompletionRequest(
             return this;
         }
 
-        public Builder temperature(double temperature) {
-            this.temperature = temperature;
+        public Builder temperature(double newTemperature) {
+            this.temperature = newTemperature;
             return this;
         }
 
-        public Builder maxStreamingTexts(int maxStreamingTexts) {
-            this.maxStreamingTexts = maxStreamingTexts;
+        public Builder maxStreamingTexts(int newMaxStreamingTexts) {
+            this.maxStreamingTexts = newMaxStreamingTexts;
             return this;
         }
 
-        public Builder jsonMode(boolean jsonMode) {
-            this.jsonMode = jsonMode;
+        public Builder jsonMode(boolean newJsonMode) {
+            this.jsonMode = newJsonMode;
             return this;
         }
 

@@ -166,7 +166,8 @@ public interface AtmosphereResourceFactory extends AtmosphereConfigAware {
 
     /**
      * Locate an {@link AtmosphereResource}, based on its {@link org.atmosphere.cpr.AtmosphereResource#uuid()}, in a
-     * cluster. If the {@link AtmosphereResource} is available in the cluster, the {@link org.atmosphere.cpr.AtmosphereResourceFactory.Async#available}
+     * cluster. If the {@link AtmosphereResource} is available in the cluster, the
+     * {@link org.atmosphere.cpr.AtmosphereResourceFactory.Async#available}
      * callback will be invoked. If not, the {@link org.atmosphere.cpr.AtmosphereResourceFactory.Async#notAvailable}
      *
      * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}

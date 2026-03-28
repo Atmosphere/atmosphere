@@ -109,8 +109,8 @@ public class EmbeddedWebSocketHandler {
         return webSocket;
     }
 
-    public EmbeddedWebSocketHandler requestURI(String requestURI) {
-        this.requestURI = requestURI;
+    public EmbeddedWebSocketHandler requestURI(String newRequestURI) {
+        this.requestURI = newRequestURI;
         return this;
     }
 

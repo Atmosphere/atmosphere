@@ -68,14 +68,14 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     }
 
     @Override
-    public void configure(AtmosphereConfig config) {
-        this.config = config;
-        this.maxTry = config.getInitParameter(ApplicationConfig.INJECTION_TRY, 5);
+    public void configure(AtmosphereConfig newConfig) {
+        this.config = newConfig;
+        this.maxTry = newConfig.getInitParameter(ApplicationConfig.INJECTION_TRY, 5);
 
-        String s = config.getInitParameter(ApplicationConfig.INJECTION_LISTENERS, "");
+        String s = newConfig.getInitParameter(ApplicationConfig.INJECTION_LISTENERS, "");
         if (s != null && !s.isEmpty()) {
-            String[] listeners = s.split(",");
-            for (String l : listeners) {
+            String[] listenerNames = s.split(",");
+            for (String l : listenerNames) {
                 try {
                     listener((InjectionListener) IOUtils.loadClass(getClass(), l).getDeclaredConstructor().newInstance());
                 } catch (Exception ex) {
@@ -248,7 +248,8 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework, LinkedList<Injectable<?>> injectable) throws IllegalAccessException {
+    public <U> void injectFields(Set<Field> fields, U instance,
+            AtmosphereFramework framework, LinkedList<Injectable<?>> injectable) throws IllegalAccessException {
         for (Field field : fields) {
             if (field.isAnnotationPresent(Inject.class)) {
                 for (Injectable<?> c : injectable) {

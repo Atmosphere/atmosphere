@@ -114,8 +114,10 @@ public class AtmosphereSession {
      * and will make subsequent callers wait until the client reconnects and the {@link #broadcasterListener}'s
      * {@link BroadcasterListenerAdapter#onAddAtmosphereResource} method gets called again.</p>
      *
-     * <p>WARNING: Use this method with long polling only if you intend to broadcast to the returned resource. If no broadcast is made,
-     * the client won't have to reconnect, the resource won't get re-added, and any subsequent calls will have to wait until the timeout is reached.</p>
+     * <p>WARNING: Use this method with long polling only if you intend to broadcast to the
+     * returned resource. If no broadcast is made,
+     * the client won't have to reconnect, the resource won't get re-added, and any subsequent
+     * calls will have to wait until the timeout is reached.</p>
      *
      * @param timeInSecond The timeToWait before continuing the execution
      * @return an {@link AtmosphereResource} or {@code null} if the resource was not set and it didn't get set during the timeout

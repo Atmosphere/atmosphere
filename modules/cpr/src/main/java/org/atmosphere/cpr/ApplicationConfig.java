@@ -115,21 +115,24 @@ public interface ApplicationConfig {
      */
     String PROPERTY_SESSION_SUPPORT = "org.atmosphere.cpr.sessionSupport";
     /**
-     * Tell Atmosphere to create a new {@link jakarta.servlet.http.HttpSession} when starting and when {@link #PROPERTY_SESSION_SUPPORT} is set to true.
+     * Tell Atmosphere to create a new {@link jakarta.servlet.http.HttpSession} when starting
+     * and when {@link #PROPERTY_SESSION_SUPPORT} is set to true.
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.cpr.sessionCreate
      */
     String PROPERTY_SESSION_CREATE = "org.atmosphere.cpr.sessionCreate";
     /**
-     * Tell Atmosphere to set session max inactive interval to -1 when an atmosphere connection exists. See {@link jakarta.servlet.http.HttpSession#setMaxInactiveInterval(int)}
+     * Tell Atmosphere to set session max inactive interval to -1 when an atmosphere connection exists.
+     * See {@link jakarta.servlet.http.HttpSession#setMaxInactiveInterval(int)}
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.cpr.removeSessionTimeout
      */
     String PROPERTY_ALLOW_SESSION_TIMEOUT_REMOVAL = "org.atmosphere.cpr.removeSessionTimeout";
     /**
-     * Force Atmosphere to invoke {@link AtmosphereResource#resume()} after the first {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)} invocation.
+     * Force Atmosphere to invoke {@link AtmosphereResource#resume()} after the first
+     * {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)} invocation.
      * <p/>
      * Default: false<br>
      * Value: org.atmosphere.resumeOnBroadcast
@@ -242,14 +245,16 @@ public interface ApplicationConfig {
      */
     String WEBSOCKET_PATH_DELIMITER = "org.atmosphere.websocket.pathDelimiter";
     /**
-     * Set the WebSocket max text size. Size lower than 0: no aggregation of frames to messages, larger than 0: max size of text frame aggregation buffer in characters
+     * Set the WebSocket max text size. Size lower than 0: no aggregation of frames to messages,
+     * larger than 0: max size of text frame aggregation buffer in characters
      * <p/>
      * Default: 8192<br>
      * Value: org.atmosphere.websocket.maxTextMessageSize
      */
     String WEBSOCKET_MAXTEXTSIZE = "org.atmosphere.websocket.maxTextMessageSize";
     /**
-     * Set the WebSocket max text size. Size < 0: no aggregation of frames to messages, size >=0: max size of text frame aggregation buffer in characters
+     * Set the WebSocket max text size. Size &lt; 0: no aggregation of frames to messages,
+     * size &gt;=0: max size of text frame aggregation buffer in characters
      * <p/>
      * Default: 8192<br>
      * Value: org.atmosphere.websocket.maxBinaryMessageSize
@@ -285,14 +290,17 @@ public interface ApplicationConfig {
      */
     String RESUMED_ON_TIMEOUT = "org.atmosphere.cpr.AtmosphereServlet.resumedOnTimeout";
     /**
-     * Disable invoking {@link org.atmosphere.cpr.AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)} when the connection times out or get cancelled.
+     * Disable invoking
+     * {@link org.atmosphere.cpr.AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)}
+     * when the connection times out or get cancelled.
      * <p/>
      * Default: false<br>
      * Value: org.atmosphere.disableOnStateEvent
      */
     String DISABLE_ONSTATE_EVENT = "org.atmosphere.disableOnStateEvent";
     /**
-     * The maximum time, in milliseconds, a connection gets idle or when the WIFI disconnection wasn't detected by the underlying container. This property works with the
+     * The maximum time, in milliseconds, a connection gets idle or when the WIFI disconnection
+     * wasn't detected by the underlying container. This property works with the
      * {@link org.atmosphere.interceptor.IdleResourceInterceptor}, e.g you must install that interceptor in order to use the property.
      * <p/>
      * Default: -1 (not enabled)<br>
@@ -325,14 +333,16 @@ public interface ApplicationConfig {
      */
     String BROADCASTER_SHARABLE_THREAD_POOLS = "org.atmosphere.cpr.broadcaster.shareableThreadPool";
     /**
-     * The maximum number of Thread created when processing broadcast operations {@link BroadcasterConfig#setExecutorService(java.util.concurrent.ExecutorService)}.
+     * The maximum number of Thread created when processing broadcast operations
+     * {@link BroadcasterConfig#setExecutorService(java.util.concurrent.ExecutorService)}.
      * <p/>
      * Default: unlimited<br>
      * Value: org.atmosphere.cpr.broadcaster.maxProcessingThreads
      */
     String BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE = "org.atmosphere.cpr.broadcaster.maxProcessingThreads";
     /**
-     * The maximum number of Thread created when writing requests {@link BroadcasterConfig#setAsyncWriteService(java.util.concurrent.ExecutorService)}.
+     * The maximum number of Thread created when writing requests
+     * {@link BroadcasterConfig#setAsyncWriteService(java.util.concurrent.ExecutorService)}.
      * <p/>
      * Default: 200<br>
      * Value: org.atmosphere.cpr.broadcaster.maxAsyncWriteThreads
@@ -506,7 +516,8 @@ public interface ApplicationConfig {
      */
     String MESSAGE_DELIMITER = "org.atmosphere.client.TrackMessageSizeInterceptor.delimiter";
     /**
-     * The method used that trigger automatic management of {@link AtmosphereResource} when the {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
+     * The method used that trigger automatic management of {@link AtmosphereResource} when the
+     * {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
      * is used.
      * <p/>
      * Default: "GET"<br>
@@ -514,7 +525,9 @@ public interface ApplicationConfig {
      */
     String ATMOSPHERERESOURCE_INTERCEPTOR_METHOD = "org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor.method";
     /**
-     * The timeout, in second, for configuring the time an AtmosphereResource is suspended. Same as {@link AtmosphereResource#suspend(long, java.util.concurrent.TimeUnit)} when the {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
+     * The timeout, in second, for configuring the time an AtmosphereResource is suspended.
+     * Same as {@link AtmosphereResource#suspend(long, java.util.concurrent.TimeUnit)} when the
+     * {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
      * is used.
      * <p/>
      * Default: "-1"<br>
@@ -557,7 +570,8 @@ public interface ApplicationConfig {
      */
     String OUT_OF_ORDER_BROADCAST = "org.atmosphere.cpr.Broadcaster.supportOutOfOrderBroadcast";
     /**
-     * The write operation timeout, in millisecond, when using the {@link DefaultBroadcaster}. When the timeout occurs, the calling thread gets interrupted.
+     * The write operation timeout, in millisecond, when using the {@link DefaultBroadcaster}.
+     * When the timeout occurs, the calling thread gets interrupted.
      * <p/>
      * Default: 5 * 60 * 1000 (5 minutes)<br>
      * Value: org.atmosphere.cpr.Broadcaster.writeTimeout
@@ -616,7 +630,8 @@ public interface ApplicationConfig {
      */
     String BROADCASTER_POLICY = "org.atmosphere.cpr.Broadcaster.POLICY";
     /**
-     * Allow defining the Broadcaster's maximum Suspended Atmosphere Policy {@link Broadcaster#setSuspendPolicy(long, org.atmosphere.cpr.Broadcaster.POLICY)}.
+     * Allow defining the Broadcaster's maximum Suspended Atmosphere Policy
+     * {@link Broadcaster#setSuspendPolicy(long, org.atmosphere.cpr.Broadcaster.POLICY)}.
      * <p/>
      * Default: -1 (unlimited)<br>
      * Value: org.atmosphere.cpr.Broadcaster.POLICY.maximumSuspended
@@ -677,8 +692,11 @@ public interface ApplicationConfig {
      */
     String OBJECT_FACTORY = "org.atmosphere.cpr.objectFactory";
     /**
-     * The maximum number of time, in seconds, thread will be stay alive when created with {@link org.atmosphere.util.ExecutorsFactory}. Those {@link java.util.concurrent.Executor}.
-     * are used by the {@link DefaultBroadcaster}'s Thread Pool. See also {@link #BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE} and {@link #BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE}
+     * The maximum number of time, in seconds, thread will be stay alive when created with
+     * {@link org.atmosphere.util.ExecutorsFactory}. Those {@link java.util.concurrent.Executor}
+     * are used by the {@link DefaultBroadcaster}'s Thread Pool. See also
+     * {@link #BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE} and
+     * {@link #BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE}
      * <p/>
      * Default: 10 seconds<br>
      * Value: org.atmosphere.cpr.threadPool.maxKeepAliveThreads
@@ -721,7 +739,8 @@ public interface ApplicationConfig {
      */
     String SESSION_MAX_INACTIVE_INTERVAL = "org.atmosphere.cpr.session.maxInactiveInterval";
     /**
-     * Wait X milliseconds before considering the {@link AtmosphereResource} closed. This is useful when {@link org.atmosphere.util.Utils#atmosphereProtocol(AtmosphereRequest r))}
+     * Wait X milliseconds before considering the {@link AtmosphereResource} closed. This is useful
+     * when {@link org.atmosphere.util.Utils#atmosphereProtocol(AtmosphereRequest r))}
      * return true, and let the client send the {@link HeaderConfig#DISCONNECT_TRANSPORT_MESSAGE} message.
      * <p/>
      * Default: 500<br>

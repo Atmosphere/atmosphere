@@ -186,12 +186,12 @@ public class ChunkConcatReaderPool {
             return readers.getFirst().ready();
         }
 
-        void addChunk(Reader chunk, boolean continued) {
+        void addChunk(Reader chunk, boolean isContinued) {
             readersLock.lock();
             try {
                 readers.addLast(chunk);
                 readersAvailable.signalAll();
-                this.continued = continued;
+                this.continued = isContinued;
             } finally {
                 readersLock.unlock();
             }

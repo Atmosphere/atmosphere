@@ -277,9 +277,9 @@ public final class RoutingLlmClient implements LlmClient {
          * @return this builder
          */
         public Builder budgetManager(StreamingTextBudgetManager mgr,
-                                     Function<ChatCompletionRequest, String> ownerResolver) {
+                                     Function<ChatCompletionRequest, String> newOwnerResolver) {
             this.budgetManager = mgr;
-            this.ownerResolver = ownerResolver;
+            this.ownerResolver = newOwnerResolver;
             return this;
         }
 

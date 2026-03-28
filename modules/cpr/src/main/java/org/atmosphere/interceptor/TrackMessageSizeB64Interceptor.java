@@ -82,7 +82,8 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
         if (writer instanceof AtmosphereInterceptorWriter interceptorWriter) {
             interceptorWriter.interceptor(interceptor);
         } else {
-            logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
+            logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}",
+                    getClass().getName(), AtmosphereInterceptorWriter.class.getName());
         }
         return Action.CONTINUE;
     }

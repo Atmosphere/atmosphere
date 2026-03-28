@@ -35,8 +35,8 @@ public class ServletContextFactory {
      *
      * @param servletContext ServletContext
      */
-    public void init(ServletContext servletContext) {
-        this.servletContext = servletContext;
+    public void init(ServletContext newServletContext) {
+        this.servletContext = newServletContext;
     }
 
     public ServletContext getServletContext() {

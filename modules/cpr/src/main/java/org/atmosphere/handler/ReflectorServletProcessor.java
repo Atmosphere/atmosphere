@@ -185,15 +185,15 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     }
 
     @Override
-    public void init(AtmosphereConfig config) throws ServletException {
-        this.config = config;
+    public void init(AtmosphereConfig newConfig) throws ServletException {
+        this.config = newConfig;
         try {
-            loadWebApplication(config.getServletConfig());
+            loadWebApplication(newConfig.getServletConfig());
         } catch (Exception ex) {
             throw new ServletException(ex);
         }
-        filterChain.setServlet(config.getServletConfig(), servlet);
-        wrapper.init(config.getServletConfig());
+        filterChain.setServlet(newConfig.getServletConfig(), servlet);
+        wrapper.init(newConfig.getServletConfig());
     }
 
     public void addFilter(Filter filter) {

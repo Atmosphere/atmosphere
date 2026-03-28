@@ -320,7 +320,9 @@ public class BroadcasterSetup {
         try {
             if (sessionFactory == null) {
                 try {
-                    sessionFactory = config.framework().newClassInstance(AtmosphereResourceSessionFactory.class, DefaultAtmosphereResourceSessionFactory.class);
+                    sessionFactory = config.framework().newClassInstance(
+                            AtmosphereResourceSessionFactory.class,
+                            DefaultAtmosphereResourceSessionFactory.class);
                 } catch (InstantiationException | IllegalAccessException e) {
                     logger.error("", e);
                 }

@@ -141,8 +141,8 @@ public class BroadcasterConfig {
         config.properties().put("shared", "true");
     }
 
-    protected BroadcasterConfig broadcasterID(String broadcasterId) {
-        this.broadcasterId = broadcasterId;
+    protected BroadcasterConfig broadcasterID(String newBroadcasterId) {
+        this.broadcasterId = newBroadcasterId;
         initClusterExtension();
         return this;
     }
@@ -195,8 +195,8 @@ public class BroadcasterConfig {
      *
      * @param executorService to be used when broadcasting.
      */
-    public BroadcasterConfig setExecutorService(ExecutorService executorService) {
-        return setExecutorService(executorService, false);
+    public BroadcasterConfig setExecutorService(ExecutorService newExecutorService) {
+        return setExecutorService(newExecutorService, false);
     }
 
     /**
@@ -209,12 +209,12 @@ public class BroadcasterConfig {
      *                         It means Atmosphere will NOT invoke the shutdown method when {@link org.atmosphere.cpr.BroadcasterConfig#destroy()}
      *                         is invoked.
      */
-    public BroadcasterConfig setExecutorService(ExecutorService executorService, boolean isExecutorShared) {
+    public BroadcasterConfig setExecutorService(ExecutorService newExecutorService, boolean newIsExecutorShared) {
         if (!this.isExecutorShared && this.executorService != null) {
             this.executorService.shutdown();
         }
-        this.executorService = executorService;
-        this.isExecutorShared = isExecutorShared;
+        this.executorService = newExecutorService;
+        this.isExecutorShared = newIsExecutorShared;
         return this;
     }
 
@@ -230,31 +230,34 @@ public class BroadcasterConfig {
 
     /**
      * Set an {@link ExecutorService} which can be used to write
-     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, the result of {@link ExecutorsFactory#getAsyncOperationExecutor(AtmosphereConfig, String)}
+     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, the result of
+     * {@link ExecutorsFactory#getAsyncOperationExecutor(AtmosphereConfig, String)}
      * is used if this method is not invoked.
      *
      * @param asyncWriteService to be used when writing events.
      */
-    public BroadcasterConfig setAsyncWriteService(ExecutorService asyncWriteService) {
-        return setAsyncWriteService(asyncWriteService, false);
+    public BroadcasterConfig setAsyncWriteService(ExecutorService newAsyncWriteService) {
+        return setAsyncWriteService(newAsyncWriteService, false);
     }
 
     /**
      * Set an {@link ExecutorService} which can be used to write
-     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, the result of {@link ExecutorsFactory#getAsyncOperationExecutor(AtmosphereConfig, String)}
+     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, the result of
+     * {@link ExecutorsFactory#getAsyncOperationExecutor(AtmosphereConfig, String)}
      * is used if this method is not invoked.
      *
      * @param asyncWriteService     to be used when writing events.
      * @param isAsyncExecutorShared true if the life cycle of the {@link ExecutorService} will be executed by the application.
-     *                              It means Atmosphere will NOT invoke the shutdown method when this {@link org.atmosphere.cpr.BroadcasterConfig#destroy()}
+     *                              It means Atmosphere will NOT invoke the shutdown method when
+     *                              this {@link org.atmosphere.cpr.BroadcasterConfig#destroy()}
      *                              is invoked.
      */
-    public BroadcasterConfig setAsyncWriteService(ExecutorService asyncWriteService, boolean isAsyncExecutorShared) {
+    public BroadcasterConfig setAsyncWriteService(ExecutorService newAsyncWriteService, boolean newIsAsyncExecutorShared) {
         if (!this.isAsyncExecutorShared && this.asyncWriteService != null) {
             this.asyncWriteService.shutdown();
         }
-        this.asyncWriteService = asyncWriteService;
-        this.isAsyncExecutorShared = isAsyncExecutorShared;
+        this.asyncWriteService = newAsyncWriteService;
+        this.isAsyncExecutorShared = newIsAsyncExecutorShared;
         return this;
     }
 
@@ -535,11 +538,11 @@ public class BroadcasterConfig {
      * @param scheduler to be used when broadcasting.
      * @return this.
      */
-    public BroadcasterConfig setScheduledExecutorService(ScheduledExecutorService scheduler) {
+    public BroadcasterConfig setScheduledExecutorService(ScheduledExecutorService newScheduler) {
         if (this.scheduler != null) {
             this.scheduler.shutdown();
         }
-        this.scheduler = scheduler;
+        this.scheduler = newScheduler;
         return this;
     }
 
@@ -560,8 +563,8 @@ public class BroadcasterConfig {
      * @param broadcasterCache a {@link BroadcasterCache}
      * @return this
      */
-    public BroadcasterConfig setBroadcasterCache(BroadcasterCache broadcasterCache) {
-        this.broadcasterCache = broadcasterCache;
+    public BroadcasterConfig setBroadcasterCache(BroadcasterCache newBroadcasterCache) {
+        this.broadcasterCache = newBroadcasterCache;
         return this;
     }
 
@@ -579,7 +582,8 @@ public class BroadcasterConfig {
         for (String broadcastFilter : list) {
             BroadcastFilter bf = null;
             try {
-                bf = config.framework().newClassInstance(BroadcastFilter.class, (Class<BroadcastFilter>) IOUtils.loadClass(getClass(), broadcastFilter));
+                bf = config.framework().newClassInstance(BroadcastFilter.class,
+                        (Class<BroadcastFilter>) IOUtils.loadClass(getClass(), broadcastFilter));
             } catch (Exception e) {
                 logger.warn("Error trying to instantiate BroadcastFilter: {}", broadcastFilter, e);
             }

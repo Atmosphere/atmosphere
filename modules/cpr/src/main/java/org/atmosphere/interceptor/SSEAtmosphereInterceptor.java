@@ -189,7 +189,8 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     }
                 });
             } else {
-                logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
+                logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}",
+                        getClass().getName(), AtmosphereInterceptorWriter.class.getName());
             }
         }
         return Action.CONTINUE;

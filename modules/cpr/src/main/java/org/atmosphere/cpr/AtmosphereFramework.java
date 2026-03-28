@@ -597,7 +597,9 @@ public class AtmosphereFramework {
             boolean sessionSupport = Boolean.parseBoolean(s) || SessionSupport.initializationHint;
             config.setSupportSession(sessionSupport);
             if (sessionSupport && (sc.getServletContext().getMajorVersion() < 3 || !SessionSupport.initializationHint)) {
-                logger.warn("SessionSupport error. Make sure you also define {} as a listener in web.xml, see https://github.com/Atmosphere/atmosphere/wiki/Enabling-HttpSession-Support", SessionSupport.class.getName());
+                logger.warn("SessionSupport error. Make sure you also define {} as a listener in web.xml, "
+                        + "see https://github.com/Atmosphere/atmosphere/wiki/Enabling-HttpSession-Support",
+                        SessionSupport.class.getName());
             }
             isSessionSupportSpecified = true;
         }
@@ -808,12 +810,13 @@ public class AtmosphereFramework {
     @SuppressWarnings("unchecked")
     protected void loadMetaService() {
         try {
-            Map<String, MetaServiceAction> config = (Map<String, MetaServiceAction>) servletConfig.getServletContext().getAttribute(MetaServiceAction.class.getName());
-            if (config == null) {
-                config = IOUtils.readServiceFile(metaServicePath + AtmosphereFramework.class.getName());
+            Map<String, MetaServiceAction> metaServiceActions = (Map<String, MetaServiceAction>) servletConfig
+                    .getServletContext().getAttribute(MetaServiceAction.class.getName());
+            if (metaServiceActions == null) {
+                metaServiceActions = IOUtils.readServiceFile(metaServicePath + AtmosphereFramework.class.getName());
             }
 
-            for (final Map.Entry<String, MetaServiceAction> action : config.entrySet()) {
+            for (final Map.Entry<String, MetaServiceAction> action : metaServiceActions.entrySet()) {
                 try {
                     final Class<?> c = IOUtils.loadClass(AtmosphereFramework.class, action.getKey());
                     action.getValue().apply(this, c);
@@ -955,8 +958,8 @@ public class AtmosphereFramework {
      *
      * @param asyncSupport
      */
-    public AtmosphereFramework setAsyncSupport(AsyncSupport<?> asyncSupport) {
-        this.asyncSupport = asyncSupport;
+    public AtmosphereFramework setAsyncSupport(AsyncSupport<?> newAsyncSupport) {
+        this.asyncSupport = newAsyncSupport;
         return this;
     }
 
@@ -1187,8 +1190,8 @@ public class AtmosphereFramework {
      *
      * @param useStreamForFlushingComments the useStreamForFlushingComments to set
      */
-    public AtmosphereFramework setUseStreamForFlushingComments(boolean useStreamForFlushingComments) {
-        this.useStreamForFlushingComments = useStreamForFlushingComments;
+    public AtmosphereFramework setUseStreamForFlushingComments(boolean newUseStreamForFlushingComments) {
+        this.useStreamForFlushingComments = newUseStreamForFlushingComments;
         return this;
     }
 
@@ -1319,8 +1322,8 @@ public class AtmosphereFramework {
         return useNativeImplementation;
     }
 
-    public AtmosphereFramework setUseNativeImplementation(boolean useNativeImplementation) {
-        this.useNativeImplementation = useNativeImplementation;
+    public AtmosphereFramework setUseNativeImplementation(boolean newUseNativeImplementation) {
+        this.useNativeImplementation = newUseNativeImplementation;
         return this;
     }
 
@@ -1328,8 +1331,8 @@ public class AtmosphereFramework {
         return useBlockingImplementation;
     }
 
-    public AtmosphereFramework setUseBlockingImplementation(boolean useBlockingImplementation) {
-        this.useBlockingImplementation = useBlockingImplementation;
+    public AtmosphereFramework setUseBlockingImplementation(boolean newUseBlockingImplementation) {
+        this.useBlockingImplementation = newUseBlockingImplementation;
         return this;
     }
 
@@ -1337,8 +1340,8 @@ public class AtmosphereFramework {
         return atmosphereDotXmlPath;
     }
 
-    public AtmosphereFramework setAtmosphereDotXmlPath(String atmosphereDotXmlPath) {
-        this.atmosphereDotXmlPath = atmosphereDotXmlPath;
+    public AtmosphereFramework setAtmosphereDotXmlPath(String newAtmosphereDotXmlPath) {
+        this.atmosphereDotXmlPath = newAtmosphereDotXmlPath;
         return this;
     }
 
@@ -1610,8 +1613,8 @@ public class AtmosphereFramework {
      * @param sharedThreadPools
      * @return this
      */
-    public AtmosphereFramework shareExecutorServices(boolean sharedThreadPools) {
-        this.sharedThreadPools = sharedThreadPools;
+    public AtmosphereFramework shareExecutorServices(boolean newSharedThreadPools) {
+        this.sharedThreadPools = newSharedThreadPools;
         return this;
     }
 
@@ -1779,8 +1782,8 @@ public class AtmosphereFramework {
      *
      * @param objectFactory
      */
-    public void objectFactory(AtmosphereObjectFactory<?> objectFactory) {
-        this.objectFactory = objectFactory;
+    public void objectFactory(AtmosphereObjectFactory<?> newObjectFactory) {
+        this.objectFactory = newObjectFactory;
         this.objectFactory.configure(config);
     }
 
@@ -1790,8 +1793,8 @@ public class AtmosphereFramework {
      * @param externalizeDestroy
      * @return this
      */
-    public AtmosphereFramework externalizeDestroy(boolean externalizeDestroy) {
-        this.externalizeDestroy = externalizeDestroy;
+    public AtmosphereFramework externalizeDestroy(boolean newExternalizeDestroy) {
+        this.externalizeDestroy = newExternalizeDestroy;
         return this;
     }
 
@@ -1902,8 +1905,8 @@ public class AtmosphereFramework {
         return sharedThreadPools;
     }
 
-    public AtmosphereFramework sharedThreadPools(boolean sharedThreadPools) {
-        this.sharedThreadPools = sharedThreadPools;
+    public AtmosphereFramework sharedThreadPools(boolean newSharedThreadPools) {
+        this.sharedThreadPools = newSharedThreadPools;
         return this;
     }
 
@@ -2064,8 +2067,8 @@ public class AtmosphereFramework {
      * @param uuidProvider
      * @return this
      */
-    public AtmosphereFramework uuidProvider(UUIDProvider uuidProvider) {
-        this.uuidProvider = uuidProvider;
+    public AtmosphereFramework uuidProvider(UUIDProvider newUuidProvider) {
+        this.uuidProvider = newUuidProvider;
         return this;
     }
 
@@ -2103,7 +2106,7 @@ public class AtmosphereFramework {
      *
      * @param initializationError
      */
-    public void initializationError(IllegalStateException initializationError) {
-        this.initializationError = initializationError;
+    public void initializationError(IllegalStateException newInitializationError) {
+        this.initializationError = newInitializationError;
     }
 }

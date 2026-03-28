@@ -67,9 +67,9 @@ public class CustomAnnotationTest {
                 return suspended(req, res);
             }
 
-            public void action(AtmosphereResourceImpl r) {
+            public void action(AtmosphereResourceImpl resource) {
                 try {
-                    resumed(r.getRequest(), r.getResponse());
+                    resumed(resource.getRequest(), resource.getResponse());
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (ServletException e) {

@@ -142,14 +142,14 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         closingTime = Long.parseLong(config.getInitParameter(ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME, "0"));
         invokeInterceptors = Boolean.parseBoolean(config.getInitParameter(INVOKE_ATMOSPHERE_INTERCEPTOR_ON_WEBSOCKET_MESSAGE, "true"));
-        config.startupHook(framework -> {
-            if (framework.getAsyncSupport() instanceof AsynchronousProcessor ap) {
+        config.startupHook(fw -> {
+            if (fw.getAsyncSupport() instanceof AsynchronousProcessor ap) {
                 asynchronousProcessor = ap;
             } else {
-                asynchronousProcessor = new AsynchronousProcessor(framework.getAtmosphereConfig()) {
+                asynchronousProcessor = new AsynchronousProcessor(fw.getAtmosphereConfig()) {
                     @Override
                     public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
-                        return framework.getAsyncSupport().service(req, res);
+                        return fw.getAsyncSupport().service(req, res);
                     }
                 };
             }
@@ -623,7 +623,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
 
                 logger.trace("About to close AtmosphereResource for {} with code {}", resource, closeCode);
-                if (!resource.getAtmosphereResourceEvent().isClosedByClient() && !resource.getAtmosphereResourceEvent().isClosedByApplication() && !resource.isCancelled()) {
+                if (!resource.getAtmosphereResourceEvent().isClosedByClient()
+                        && !resource.getAtmosphereResourceEvent().isClosedByApplication()
+                        && !resource.isCancelled()) {
                     // See https://github.com/Atmosphere/atmosphere/issues/1590
                     // Better to call onDisconnect that onResume.
                     if (allowedToClose) {
@@ -871,8 +873,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         return wildcardMapping;
     }
 
-    public DefaultWebSocketProcessor wildcardMapping(boolean wildcardMapping) {
-        this.wildcardMapping = wildcardMapping;
+    public DefaultWebSocketProcessor wildcardMapping(boolean newWildcardMapping) {
+        this.wildcardMapping = newWildcardMapping;
         return this;
     }
 
@@ -892,8 +894,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         return byteBufferMaxSize;
     }
 
-    public DefaultWebSocketProcessor byteBufferMaxSize(int byteBufferMaxSize) {
-        this.byteBufferMaxSize = byteBufferMaxSize;
+    public DefaultWebSocketProcessor byteBufferMaxSize(int newByteBufferMaxSize) {
+        this.byteBufferMaxSize = newByteBufferMaxSize;
         return this;
     }
 
@@ -901,8 +903,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         return charBufferMaxSize;
     }
 
-    public DefaultWebSocketProcessor charBufferMaxSize(int charBufferMaxSize) {
-        this.charBufferMaxSize = charBufferMaxSize;
+    public DefaultWebSocketProcessor charBufferMaxSize(int newCharBufferMaxSize) {
+        this.charBufferMaxSize = newCharBufferMaxSize;
         return this;
     }
 

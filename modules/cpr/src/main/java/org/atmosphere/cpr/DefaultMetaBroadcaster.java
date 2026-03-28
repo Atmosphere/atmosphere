@@ -69,8 +69,8 @@ public class DefaultMetaBroadcaster implements MetaBroadcaster {
     }
 
     @Override
-    public void configure(AtmosphereConfig config) {
-        this.config = config;
+    public void configure(AtmosphereConfig newConfig) {
+        this.config = newConfig;
     }
 
     protected MetaBroadcasterFuture broadcast(final String path, Object message, int time, TimeUnit unit, boolean delay, boolean cacheMessage) {
@@ -270,8 +270,8 @@ public class DefaultMetaBroadcaster implements MetaBroadcaster {
     }
 
     @Override
-    public MetaBroadcaster cache(MetaBroadcasterCache cache) {
-        this.cache = cache;
+    public MetaBroadcaster cache(MetaBroadcasterCache newCache) {
+        this.cache = newCache;
         return this;
     }
 

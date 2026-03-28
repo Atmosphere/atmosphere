@@ -125,7 +125,8 @@ public class AtmosphereResourceTest {
             }
         });
 
-        final AtmosphereRequest parentRequest = new AtmosphereRequestImpl.Builder().pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
+        final AtmosphereRequest parentRequest = new AtmosphereRequestImpl.Builder()
+                .pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
         final CountDownLatch suspended = new CountDownLatch(1);
 
         framework.interceptor(new AtmosphereInterceptor() {
@@ -173,7 +174,8 @@ public class AtmosphereResourceTest {
         Map<String, Object> m = new HashMap<String, Object>();
         m.put(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, parentRequest.resource().uuid());
 
-        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().attributes(m).pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().attributes(m)
+                .pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
         request.setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, "true");
 
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance().request(request));

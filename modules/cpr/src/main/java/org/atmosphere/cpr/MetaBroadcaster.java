@@ -71,7 +71,8 @@ public interface MetaBroadcaster extends AtmosphereConfigAware {
 
     /**
      * Broadcast the message at a fixed rate to all Broadcasters whose {@link org.atmosphere.cpr.Broadcaster#getID()}
-     * matches the broadcasterID value. This operation will invoke {@link Broadcaster#scheduleFixedBroadcast(Object, long, java.util.concurrent.TimeUnit)}}
+     * matches the broadcasterID value. This operation will invoke
+     * {@link Broadcaster#scheduleFixedBroadcast(Object, long, java.util.concurrent.TimeUnit)}}
      *
      * @param broadcasterID a String (or path) that can potentially match a {@link org.atmosphere.cpr.Broadcaster#getID()}
      * @param message       a message to be broadcasted
@@ -83,7 +84,9 @@ public interface MetaBroadcaster extends AtmosphereConfigAware {
 
     /**
      * Delay the message delivery to Broadcasters whose {@link org.atmosphere.cpr.Broadcaster#getID()}
-     * matches the broadcasterID value. This operation will invoke {@link Broadcaster#delayBroadcast(Object, long, java.util.concurrent.TimeUnit)} (Object, long, java.util.concurrent.TimeUnit)}}
+     * matches the broadcasterID value. This operation will invoke
+     * {@link Broadcaster#delayBroadcast(Object, long, java.util.concurrent.TimeUnit)}
+     * (Object, long, java.util.concurrent.TimeUnit)}}
      *
      * @param broadcasterID a String (or path) that can potentially match a {@link org.atmosphere.cpr.Broadcaster#getID()}
      * @param message       a message to be broadcasted

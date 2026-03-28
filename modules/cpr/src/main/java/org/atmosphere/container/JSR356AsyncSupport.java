@@ -87,7 +87,8 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
                 container.addEndpoint(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, b.toString())
                         .extensions(new ArrayList<>(container.getInstalledExtensions())).configurator(configurator).build());
             } catch (DeploymentException e) {
-                logger.warn("Duplicate Servlet Mapping Path {}. Use {} init-param to prevent this message", servletPath, ApplicationConfig.JSR356_MAPPING_PATH);
+                logger.warn("Duplicate Servlet Mapping Path {}. Use {} init-param to prevent this message",
+                        servletPath, ApplicationConfig.JSR356_MAPPING_PATH);
                 logger.trace("", e);
                 servletPath = IOUtils.guestServletPath(config);
                 logger.warn("Duplicate guess {}", servletPath, e);

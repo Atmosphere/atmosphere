@@ -47,10 +47,10 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
     private AtmosphereConfig config;
     private Future<?> future;
 
-    public void configure(AtmosphereConfig config) {
-        this.config = config;
+    public void configure(AtmosphereConfig newConfig) {
+        this.config = newConfig;
 
-        String maxInactive = config.getInitParameter(MAX_INACTIVE);
+        String maxInactive = newConfig.getInitParameter(MAX_INACTIVE);
         if (maxInactive != null) {
             maxInactiveTime = Long.parseLong(maxInactive);
         }
@@ -125,8 +125,8 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
         return maxInactiveTime;
     }
 
-    public IdleResourceInterceptor maxInactiveTime(long maxInactiveTime) {
-        this.maxInactiveTime = maxInactiveTime;
+    public IdleResourceInterceptor maxInactiveTime(long newMaxInactiveTime) {
+        this.maxInactiveTime = newMaxInactiveTime;
         start();
         return this;
     }

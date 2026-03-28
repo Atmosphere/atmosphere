@@ -160,8 +160,8 @@ public interface WebSocketProcessor {
             return path;
         }
 
-        public WebSocketHandlerProxy path(String path) {
-            this.path = path;
+        public WebSocketHandlerProxy path(String newPath) {
+            this.path = newPath;
             return this;
         }
 

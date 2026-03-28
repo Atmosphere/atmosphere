@@ -130,24 +130,24 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     @SuppressWarnings("unchecked")
     @Override
-    public AtmosphereResource initialize(AtmosphereConfig config, Broadcaster broadcaster,
-                                         AtmosphereRequest req, AtmosphereResponse response,
-                                         AsyncSupport<?> asyncSupport, AtmosphereHandler atmosphereHandler) {
-        this.req = req;
-        this.response = response;
-        this.config = config;
-        this.asyncSupport = (AsyncSupport<AtmosphereResourceImpl>) asyncSupport;
-        this.atmosphereHandler = atmosphereHandler;
+    public AtmosphereResource initialize(AtmosphereConfig newConfig, Broadcaster newBroadcaster,
+                                         AtmosphereRequest newReq, AtmosphereResponse newResponse,
+                                         AsyncSupport<?> newAsyncSupport, AtmosphereHandler newAtmosphereHandler) {
+        this.req = newReq;
+        this.response = newResponse;
+        this.config = newConfig;
+        this.asyncSupport = (AsyncSupport<AtmosphereResourceImpl>) newAsyncSupport;
+        this.atmosphereHandler = newAtmosphereHandler;
         this.event = new AtmosphereResourceEventImpl(this);
 
-        this.broadcaster = broadcaster;
-        uniqueBroadcaster(broadcaster);
+        this.broadcaster = newBroadcaster;
+        uniqueBroadcaster(newBroadcaster);
 
-        String s = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+        String s = (String) newReq.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
         if (s == null) {
-            s = response.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+            s = newResponse.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
             if (s == null) {
-                String tmp = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+                String tmp = newReq.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
                 s = tmp != null && !tmp.equalsIgnoreCase("0") ? tmp : null;
             }
         }
@@ -155,24 +155,24 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             logger.warn("Invalid X-Atmosphere-Tracking-ID header value, generating server-side UUID");
             s = null;
         }
-        setUUID(s == null ? config.uuidProvider().generateUuid() : s);
+        setUUID(s == null ? newConfig.uuidProvider().generateUuid() : s);
 
-        if (config.isSupportSession()) {
+        if (newConfig.isSupportSession()) {
             // Keep a reference to an HttpSession in case the associated request get recycled by the underlying container.
             try {
-                session = req.getSession(config.getInitParameter(PROPERTY_SESSION_CREATE, true));
+                session = newReq.getSession(newConfig.getInitParameter(PROPERTY_SESSION_CREATE, true));
             } catch (NullPointerException ex) {
                 // http://java.net/jira/browse/GLASSFISH-18856
                 logger.trace("http://java.net/jira/browse/GLASSFISH-18856", ex);
             }
         }
         transport = configureTransport();
-        closeOnCancel = config.getInitParameter(ApplicationConfig.CLOSE_STREAM_ON_CANCEL, false);
+        closeOnCancel = newConfig.getInitParameter(ApplicationConfig.CLOSE_STREAM_ON_CANCEL, false);
         return this;
     }
 
-    protected void setUUID(String uuid) {
-        this.uuid = uuid;
+    protected void setUUID(String newUuid) {
+        this.uuid = newUuid;
     }
 
 
@@ -240,16 +240,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      *
      * @param transport set the {@link TRANSPORT}
      */
-    public AtmosphereResourceImpl transport(TRANSPORT transport) {
-        this.transport = transport;
+    public AtmosphereResourceImpl transport(TRANSPORT newTransport) {
+        this.transport = newTransport;
         return this;
     }
 
     @Override
-    public AtmosphereResource resumeOnBroadcast(boolean resumeOnBroadcast) {
-        this.resumeOnBroadcast.set(resumeOnBroadcast);
+    public AtmosphereResource resumeOnBroadcast(boolean newResumeOnBroadcast) {
+        this.resumeOnBroadcast.set(newResumeOnBroadcast);
         // For legacy reason
-        req.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, resumeOnBroadcast);
+        req.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, newResumeOnBroadcast);
         return this;
     }
 
@@ -405,20 +405,20 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
             boolean skipCreation = req.getAttribute(SKIP_BROADCASTER_CREATION) != null;
 
-            Broadcaster broadcaster = getBroadcaster();
+            Broadcaster localBroadcaster = getBroadcaster();
 
             // Null means SCOPE=REQUEST
-            if (!skipCreation && (broadcaster == null || broadcaster.getScope() == Broadcaster.SCOPE.REQUEST) && !isJersey) {
-                String id = broadcaster != null ? broadcaster.getID() : ROOT_MASTER;
-                Class<? extends Broadcaster> clazz = broadcaster != null ? broadcaster.getClass() : DefaultBroadcaster.class;
+            if (!skipCreation && (localBroadcaster == null || localBroadcaster.getScope() == Broadcaster.SCOPE.REQUEST) && !isJersey) {
+                String id = localBroadcaster != null ? localBroadcaster.getID() : ROOT_MASTER;
+                Class<? extends Broadcaster> clazz = localBroadcaster != null ? localBroadcaster.getClass() : DefaultBroadcaster.class;
 
-                broadcaster = config.getBroadcasterFactory().lookup(clazz, id, false);
-                if (broadcaster == null || !broadcaster.getAtmosphereResources().isEmpty()) {
-                    broadcaster = config.getBroadcasterFactory().lookup(clazz, id + "/" + UUID.randomUUID(), true);
+                localBroadcaster = config.getBroadcasterFactory().lookup(clazz, id, false);
+                if (localBroadcaster == null || !localBroadcaster.getAtmosphereResources().isEmpty()) {
+                    localBroadcaster = config.getBroadcasterFactory().lookup(clazz, id + "/" + UUID.randomUUID(), true);
                 }
             }
 
-            Objects.requireNonNull(broadcaster).addAtmosphereResource(this);
+            Objects.requireNonNull(localBroadcaster).addAtmosphereResource(this);
             if (req.getAttribute(DefaultBroadcaster.CACHED) != null && transport() != null && Utils.resumableTransport(transport())) {
                 action = new Action(Action.TYPE.CONTINUE, action.timeout());
                 // Do nothing because we have found cached message which was written already, and the handler resumed.
@@ -498,21 +498,21 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     @Override
-    public AtmosphereResource setBroadcaster(Broadcaster broadcaster) {
-        this.broadcaster = broadcaster;
-        return uniqueBroadcaster(broadcaster);
+    public AtmosphereResource setBroadcaster(Broadcaster newBroadcaster) {
+        this.broadcaster = newBroadcaster;
+        return uniqueBroadcaster(newBroadcaster);
     }
 
     @Override
-    public AtmosphereResource addBroadcaster(Broadcaster broadcaster) {
-        return uniqueBroadcaster(broadcaster);
+    public AtmosphereResource addBroadcaster(Broadcaster newBroadcaster) {
+        return uniqueBroadcaster(newBroadcaster);
     }
 
     @Override
-    public AtmosphereResource removeBroadcaster(Broadcaster broadcaster) {
-        broadcasters.remove(broadcaster);
-        if (broadcaster.getID() != null) {
-            broadcasterIdIndex.remove(broadcaster.getID().toLowerCase(Locale.ROOT));
+    public AtmosphereResource removeBroadcaster(Broadcaster newBroadcaster) {
+        broadcasters.remove(newBroadcaster);
+        if (newBroadcaster.getID() != null) {
+            broadcasterIdIndex.remove(newBroadcaster.getID().toLowerCase(Locale.ROOT));
         }
         return this;
     }
@@ -678,7 +678,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     @Override
-    public AtmosphereResource notifyListeners(AtmosphereResourceEvent event) {
+    public AtmosphereResource notifyListeners(AtmosphereResourceEvent resourceEvent) {
         if (listeners.isEmpty() && config.framework().atmosphereResourceListeners().isEmpty()) {
             logger.trace("No listener with {}", uuid());
             return this;
@@ -687,43 +687,43 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         Action.TYPE previousType = action.type();
         try {
-            if (event instanceof HeartbeatAtmosphereResourceEvent) {
-                onHeartbeat(event);
-            } else if (event.isClosedByApplication()) {
-                onClose(event);
-            } else if (event.isCancelled() || event.isClosedByClient()) {
+            if (resourceEvent instanceof HeartbeatAtmosphereResourceEvent) {
+                onHeartbeat(resourceEvent);
+            } else if (resourceEvent.isClosedByApplication()) {
+                onClose(resourceEvent);
+            } else if (resourceEvent.isCancelled() || resourceEvent.isClosedByClient()) {
                 if (!disconnected.getAndSet(true)) {
-                    onDisconnect(event);
+                    onDisconnect(resourceEvent);
                 } else {
-                    logger.trace("Skipping notification, already disconnected {}", event.getResource() != null ? event.getResource().uuid() : uuid());
+                    logger.trace("Skipping notification, already disconnected {}", resourceEvent.getResource() != null ? resourceEvent.getResource().uuid() : uuid());
                 }
-            } else if (event.isResuming() || event.isResumedOnTimeout()) {
-                onResume(event);
-            } else if (!isSuspendEvent.getAndSet(true) && event.isSuspended()) {
-                onSuspend(event);
-            } else if (event.throwable() != null) {
-                onThrowable(event);
+            } else if (resourceEvent.isResuming() || resourceEvent.isResumedOnTimeout()) {
+                onResume(resourceEvent);
+            } else if (!isSuspendEvent.getAndSet(true) && resourceEvent.isSuspended()) {
+                onSuspend(resourceEvent);
+            } else if (resourceEvent.throwable() != null) {
+                onThrowable(resourceEvent);
             } else {
-                onBroadcast(event);
+                onBroadcast(resourceEvent);
             }
 
             if (previousType != action.type()) {
                 action = new Action(Action.TYPE.CREATED, action.timeout());
             }
         } catch (Throwable t) {
-            ((AtmosphereResourceEventImpl) event).setThrowable(t);
-            if (event.isSuspended()) {
+            ((AtmosphereResourceEventImpl) resourceEvent).setThrowable(t);
+            if (resourceEvent.isSuspended()) {
                 logger.warn("Exception during suspend() operation {}", t.toString());
                 logger.debug("", t);
                 removeFromAllBroadcasters();
             } else {
-                logger.debug("Listener error {}", event, t);
+                logger.debug("Listener error {}", resourceEvent, t);
             }
 
             try {
-                onThrowable(event);
+                onThrowable(resourceEvent);
             } catch (Throwable t2) {
-                logger.warn("Listener error {}", event, t2);
+                logger.warn("Listener error {}", resourceEvent, t2);
             }
         }
         return this;
@@ -831,8 +831,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return listeners;
     }
 
-    public AtmosphereResourceImpl atmosphereHandler(AtmosphereHandler atmosphereHandler) {
-        this.atmosphereHandler = atmosphereHandler;
+    public AtmosphereResourceImpl atmosphereHandler(AtmosphereHandler newAtmosphereHandler) {
+        this.atmosphereHandler = newAtmosphereHandler;
         return this;
     }
 
@@ -920,8 +920,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         }
     }
 
-    public AtmosphereResourceImpl disableSuspend(boolean disableSuspend) {
-        this.disableSuspend = disableSuspend;
+    public AtmosphereResourceImpl disableSuspend(boolean newDisableSuspend) {
+        this.disableSuspend = newDisableSuspend;
         return this;
     }
 
@@ -958,8 +958,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     @Override
-    public AtmosphereResource forceBinaryWrite(boolean forceBinaryWrite) {
-        this.forceBinaryWrite = forceBinaryWrite;
+    public AtmosphereResource forceBinaryWrite(boolean newForceBinaryWrite) {
+        this.forceBinaryWrite = newForceBinaryWrite;
         return this;
     }
 
@@ -973,8 +973,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return session(true);
     }
 
-    public AtmosphereResourceImpl session(HttpSession session) {
-        this.session = session;
+    public AtmosphereResourceImpl session(HttpSession newSession) {
+        this.session = newSession;
         return this;
     }
 
@@ -1011,8 +1011,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * @param disableSuspendEvent
      * @return this
      */
-    public AtmosphereResourceImpl disableSuspendEvent(boolean disableSuspendEvent) {
-        this.disableSuspendEvent = disableSuspendEvent;
+    public AtmosphereResourceImpl disableSuspendEvent(boolean newDisableSuspendEvent) {
+        this.disableSuspendEvent = newDisableSuspendEvent;
         return this;
     }
 
@@ -1030,8 +1030,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return webSocket;
     }
 
-    public AtmosphereResourceImpl webSocket(WebSocket webSocket) {
-        this.webSocket = webSocket;
+    public AtmosphereResourceImpl webSocket(WebSocket newWebSocket) {
+        this.webSocket = newWebSocket;
         return this;
     }
 

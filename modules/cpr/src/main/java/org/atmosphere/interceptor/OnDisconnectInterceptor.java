@@ -42,8 +42,8 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
     private AtmosphereConfig config;
 
     @Override
-    public void configure(AtmosphereConfig config) {
-        this.config = config;
+    public void configure(AtmosphereConfig newConfig) {
+        this.config = newConfig;
     }
 
     @Override

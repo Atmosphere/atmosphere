@@ -92,8 +92,8 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
         return config;
     }
 
-    protected WebSocket webSocketHandler(WebSocketHandler webSocketHandler) {
-        this.webSocketHandler = webSocketHandler;
+    protected WebSocket webSocketHandler(WebSocketHandler newWebSocketHandler) {
+        this.webSocketHandler = newWebSocketHandler;
         return this;
     }
 
@@ -103,8 +103,8 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      * @param binaryWrite true to switch to binary write.
      * @return WebSocket
      */
-    public WebSocket binaryWrite(boolean binaryWrite) {
-        this.binaryWrite = binaryWrite;
+    public WebSocket binaryWrite(boolean newBinaryWrite) {
+        this.binaryWrite = newBinaryWrite;
         return this;
     }
 
@@ -118,14 +118,14 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      * @param r an {@link AtmosphereResource} to this WebSocket
      * @return this
      */
-    public WebSocket resource(AtmosphereResource r) {
+    public WebSocket resource(AtmosphereResource newResource) {
 
         // Make sure we carry what was set at the onOpen stage.
-        if (this.r != null && r != null) {
-            ((AtmosphereResourceImpl) r).cloneState(this.r);
+        if (this.r != null && newResource != null) {
+            ((AtmosphereResourceImpl) newResource).cloneState(this.r);
         }
-        this.r = r;
-        if (r != null) uuid = r.uuid();
+        this.r = newResource;
+        if (newResource != null) uuid = newResource.uuid();
         return this;
     }
 
@@ -192,7 +192,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     }
 
     @Override
-    public WebSocket write(AtmosphereResponse r, String data) throws IOException {
+    public WebSocket write(AtmosphereResponse response, String data) throws IOException {
         firstWrite.set(true);
         if (data == null) {
             logger.error("Cannot write null value for {}", resource());
@@ -202,11 +202,11 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
         if (!isOpen()) throw new IOException("Connection remotely closed for " + uuid);
         logger.trace("WebSocket.write() {}", data);
 
-        boolean transform = !filters.isEmpty() && r.getStatus() < 400;
+        boolean transform = !filters.isEmpty() && response.getStatus() < 400;
         if (binaryWrite) {
             byte[] b = data.getBytes(resource().getResponse().getCharacterEncoding());
             if (transform) {
-                b = transform(r, b, 0, b.length);
+                b = transform(response, b, 0, b.length);
             }
 
             if (b != null) {
@@ -215,7 +215,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
         } else {
             if (transform) {
                 byte[] b = data.getBytes(resource().getResponse().getCharacterEncoding());
-                data = new String(transform(r, b, 0, b.length), r.getCharacterEncoding());
+                data = new String(transform(response, b, 0, b.length), response.getCharacterEncoding());
             }
 
             write(data);
@@ -225,16 +225,16 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     }
 
     @Override
-    public WebSocket write(AtmosphereResponse r, byte[] data) throws IOException {
+    public WebSocket write(AtmosphereResponse response, byte[] data) throws IOException {
         if (data == null) {
             logger.error("Cannot write null value for {}", resource());
             return this;
         }
-        return write(r, data, 0, data.length);
+        return write(response, data, 0, data.length);
     }
 
     @Override
-    public WebSocket write(AtmosphereResponse r, byte[] b, int offset, int length) throws IOException {
+    public WebSocket write(AtmosphereResponse response, byte[] b, int offset, int length) throws IOException {
         firstWrite.set(true);
         if (b == null) {
             logger.error("Cannot write null value for {}", resource());
@@ -246,10 +246,10 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
             logger.trace("WebSocket.write() {}", new String(b, offset, length, StandardCharsets.UTF_8));
         }
 
-        boolean transform = !filters.isEmpty() && r.getStatus() < 400;
+        boolean transform = !filters.isEmpty() && response.getStatus() < 400;
         if (binaryWrite || resource().forceBinaryWrite()) {
             if (transform) {
-                b = transform(r, b, offset, length);
+                b = transform(response, b, offset, length);
             }
 
             if (b != null) {
@@ -257,9 +257,9 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
             }
         } else {
             String data;
-            String charset = r.getCharacterEncoding() == null ? "UTF-8" : r.getCharacterEncoding();
+            String charset = response.getCharacterEncoding() == null ? "UTF-8" : response.getCharacterEncoding();
             if (transform) {
-                data = new String(transform(r, b, offset, length), charset);
+                data = new String(transform(response, b, offset, length), charset);
             } else {
                 data = new String(b, offset, length, charset);
             }
@@ -287,8 +287,8 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     }
 
     @Override
-    public WebSocket writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
-        super.writeError(r, errorCode, message);
+    public WebSocket writeError(AtmosphereResponse response, int errorCode, String message) throws IOException {
+        super.writeError(response, errorCode, message);
         if (!firstWrite.get()) {
             logger.debug("The WebSocket handshake succeeded but the dispatched URI failed with status {} : {} " +
                     "The WebSocket connection is still open and client can continue sending messages.", errorCode + " " + message, uuid());
@@ -300,20 +300,20 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     }
 
     @Override
-    public WebSocket redirect(AtmosphereResponse r, String location) throws IOException {
+    public WebSocket redirect(AtmosphereResponse response, String location) throws IOException {
         logger.error("WebSocket Redirect not supported");
         return this;
     }
 
 
     @Override
-    public void close(AtmosphereResponse r) throws IOException {
+    public void close(AtmosphereResponse response) throws IOException {
         logger.trace("WebSocket.close() for {}", uuid);
 
         try {
             // Never trust underlying server.
             // https://github.com/Atmosphere/atmosphere/issues/1633
-            if (r.request() != null && r.request().getAttribute(CLEAN_CLOSE) == null) {
+            if (response.request() != null && response.request().getAttribute(CLEAN_CLOSE) == null) {
                 close();
             }
         } catch (Exception ex) {
@@ -330,7 +330,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     }
 
     @Override
-    public WebSocket flush(AtmosphereResponse r) throws IOException {
+    public WebSocket flush(AtmosphereResponse response) throws IOException {
         return this;
     }
 
@@ -415,8 +415,8 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      *
      * @oaram object
      */
-    public WebSocket attachment(Object attachment) {
-        this.attachment = attachment;
+    public WebSocket attachment(Object newAttachment) {
+        this.attachment = newAttachment;
         return this;
     }
 

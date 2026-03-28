@@ -71,9 +71,9 @@ public class PathTest {
             }
 
             @Override
-            public void action(AtmosphereResourceImpl r) {
+            public void action(AtmosphereResourceImpl resource) {
                 try {
-                    resumed(r.getRequest(), r.getResponse());
+                    resumed(resource.getRequest(), resource.getResponse());
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (ServletException e) {
@@ -300,13 +300,13 @@ public class PathTest {
         private static int invokationCount = 0;
 
         @Override
-        public Action inspect(AtmosphereResource r) {
+        public Action inspect(AtmosphereResource resource) {
             invokationCount++;
             return Action.CONTINUE;
         }
 
         @Override
-        public void postInspect(AtmosphereResource r) {
+        public void postInspect(AtmosphereResource resource) {
 
         }
 

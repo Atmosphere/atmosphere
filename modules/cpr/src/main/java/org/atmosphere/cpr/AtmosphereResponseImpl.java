@@ -147,26 +147,26 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         }
 
         @Override
-        public Builder asyncIOWriter(AsyncIOWriter asyncIOWriter) {
-            this.asyncIOWriter = asyncIOWriter;
+        public Builder asyncIOWriter(AsyncIOWriter newAsyncIOWriter) {
+            this.asyncIOWriter = newAsyncIOWriter;
             return this;
         }
 
         @Override
-        public Builder status(int status) {
-            this.status = status;
+        public Builder status(int newStatus) {
+            this.status = newStatus;
             return this;
         }
 
         @Override
-        public Builder statusMessage(String statusMessage) {
-            this.statusMessage = statusMessage;
+        public Builder statusMessage(String newStatusMessage) {
+            this.statusMessage = newStatusMessage;
             return this;
         }
 
         @Override
-        public Builder request(AtmosphereRequest atmosphereRequest) {
-            this.atmosphereRequest = atmosphereRequest;
+        public Builder request(AtmosphereRequest newAtmosphereRequest) {
+            this.atmosphereRequest = newAtmosphereRequest;
             return this;
         }
 
@@ -182,8 +182,8 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         }
 
         @Override
-        public Builder writeHeader(boolean writeStatusAndHeader) {
-            this.writeStatusAndHeader.set(writeStatusAndHeader);
+        public Builder writeHeader(boolean newWriteStatusAndHeader) {
+            this.writeStatusAndHeader.set(newWriteStatusAndHeader);
             return this;
         }
 
@@ -443,11 +443,11 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     }
 
     @Override
-    public void setCharacterEncoding(String charSet) {
+    public void setCharacterEncoding(String newCharSet) {
         if (!writer.isDelegateToNativeResponse()) {
-            this.charSet = charSet;
+            this.charSet = newCharSet;
         } else {
-            _r().setCharacterEncoding(charSet);
+            _r().setCharacterEncoding(newCharSet);
         }
     }
 
@@ -484,8 +484,8 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     }
 
     @Override
-    public AtmosphereResponse destroyable(boolean destroyable) {
-        this.destroyable = destroyable;
+    public AtmosphereResponse destroyable(boolean newDestroyable) {
+        this.destroyable = newDestroyable;
         return this;
     }
 
@@ -586,8 +586,8 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     }
 
     @Override
-    public AtmosphereResponse request(AtmosphereRequest atmosphereRequest) {
-        this.atmosphereRequest = atmosphereRequest;
+    public AtmosphereResponse request(AtmosphereRequest newAtmosphereRequest) {
+        this.atmosphereRequest = newAtmosphereRequest;
         return this;
     }
 

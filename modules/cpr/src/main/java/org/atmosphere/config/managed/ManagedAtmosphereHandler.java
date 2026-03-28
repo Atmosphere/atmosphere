@@ -92,7 +92,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     @Override
-    public AnnotatedProxy configure(AtmosphereConfig config, Object c) {
+    public AnnotatedProxy configure(AtmosphereConfig newConfig, Object c) {
         this.proxiedInstance = c;
         this.onRuntimeMethod = populateMessage(c);
         this.onHeartbeatMethod = populate(c, Heartbeat.class);
@@ -104,9 +104,9 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         this.onDeleteMethod = populate(c, Delete.class);
         this.onReadyMethod = populate(c, Ready.class);
         this.onResumeMethod = populate(c, Resume.class);
-        this.config = config;
+        this.config = newConfig;
         this.pathParams = pathParams(c);
-        this.resourcesFactory = config.resourcesFactory();
+        this.resourcesFactory = newConfig.resourcesFactory();
 
         scanForReaderOrInputStream();
 
@@ -168,7 +168,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             MethodInfo.EncoderObject e = message(resource, body);
             if (e != null && e.encodedObject != null) {
                 AtmosphereResource r = resource;
-                if ( e.methodInfo.deliverTo == DeliverTo.DELIVER_TO.RESOURCE && !resource.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET)) {
+                if (e.methodInfo.deliverTo == DeliverTo.DELIVER_TO.RESOURCE
+                        && !resource.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET)) {
                     r = resourcesFactory.findResource(resource.uuid()).orElse(resource);
                 }
                 IOUtils.deliver(new RawMessage(e.encodedObject), null, e.methodInfo.deliverTo, r);
@@ -454,7 +455,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
         /**
          * <p>
-         * Creates a new {@link org.atmosphere.config.managed.ManagedAtmosphereHandler.MethodInfo.EncoderObject} which encodes the given object and wraps the result.
+         * Creates a new {@link org.atmosphere.config.managed.ManagedAtmosphereHandler.MethodInfo.EncoderObject}
+         * which encodes the given object and wraps the result.
          * </p>
          *
          * @param encoders       the encoders

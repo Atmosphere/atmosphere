@@ -45,8 +45,8 @@ public abstract sealed class ServiceInterceptor extends AtmosphereInterceptorAda
     }
 
     @Override
-    public void configure(AtmosphereConfig config) {
-        this.config = config;
+    public void configure(AtmosphereConfig newConfig) {
+        this.config = newConfig;
     }
 
     @Override

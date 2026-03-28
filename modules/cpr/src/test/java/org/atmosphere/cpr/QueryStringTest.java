@@ -123,7 +123,9 @@ public class QueryStringTest {
             public void destroy() {
             }
         });
-        String s = "&X-Atmosphere-tracking-id=c8834462-c46e-4dad-a22f-b86aabe3f883&X-Atmosphere-Framework=2.0.3-javascript&X-Atmosphere-Transport=long-polling&X-Atmosphere-TrackMessageSize=true&X-atmo-protocol=true&_=1380799455333";
+        String s = "&X-Atmosphere-tracking-id=c8834462-c46e-4dad-a22f-b86aabe3f883"
+                + "&X-Atmosphere-Framework=2.0.3-javascript&X-Atmosphere-Transport=long-polling"
+                + "&X-Atmosphere-TrackMessageSize=true&X-atmo-protocol=true&_=1380799455333";
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().queryString(s).pathInfo("/a").build();
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
@@ -155,7 +157,10 @@ public class QueryStringTest {
             public void destroy() {
             }
         });
-        String s = "&Content-Type=text/x-gwt-rpc;%20charset=UTF-8&X-Atmosphere-tracking-id=c8834462-c46e-4dad-a22f-b86aabe3f883&X-Atmosphere-Framework=2.0.3-javascript&X-Atmosphere-Transport=long-polling&X-Atmosphere-TrackMessageSize=true&X-atmo-protocol=true&_=1380799455333";
+        String s = "&Content-Type=text/x-gwt-rpc;%20charset=UTF-8"
+                + "&X-Atmosphere-tracking-id=c8834462-c46e-4dad-a22f-b86aabe3f883"
+                + "&X-Atmosphere-Framework=2.0.3-javascript&X-Atmosphere-Transport=long-polling"
+                + "&X-Atmosphere-TrackMessageSize=true&X-atmo-protocol=true&_=1380799455333";
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().queryString(s).pathInfo("/a").build();
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());

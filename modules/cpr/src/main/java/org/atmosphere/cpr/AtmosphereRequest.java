@@ -125,7 +125,8 @@ public interface AtmosphereRequest extends HttpServletRequest {
     AtmosphereRequest pathInfo(String pathInfo);
 
     /**
-     * Return a subset of the attributes set on this AtmosphereRequest, set locally by the framework or by an application. Attributes added using this method
+     * Return a subset of the attributes set on this AtmosphereRequest, set locally by the
+     * framework or by an application. Attributes added using this method
      * won't be propagated to the original, container-only, native request object.
      *
      * @return a {@linkLocalAttributes>}

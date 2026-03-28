@@ -164,14 +164,13 @@ public class OpenAiCompatibleClientTest {
 
     @Test
     public void testUsageMetadata() throws Exception {
-        var sseResponse = """
-                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"content":"Hi"},"finish_reason":null}]}
-
-                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}
-
-                data: [DONE]
-
-                """;
+        var sseResponse = "data: {\"id\":\"chatcmpl-1\",\"choices\":[{\"index\":0,"
+                + "\"delta\":{\"content\":\"Hi\"},\"finish_reason\":null}]}\n\n"
+                + "data: {\"id\":\"chatcmpl-1\",\"choices\":[{\"index\":0,"
+                + "\"delta\":{},\"finish_reason\":\"stop\"}],"
+                + "\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":5,"
+                + "\"total_tokens\":15}}\n\n"
+                + "data: [DONE]\n\n";
 
         var httpClient = mockHttpClient(200, sseResponse);
         var client = OpenAiCompatibleClient.builder()

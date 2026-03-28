@@ -42,7 +42,8 @@ public record Action(TYPE type, long timeout) {
          */
         TIMEOUT,
         /**
-         * Cancel the current connection/response and close it. The request will NOT be dispatched to framework/container via {@link AtmosphereHandler}
+         * Cancel the current connection/response and close it. The request will NOT be dispatched
+         * to framework/container via {@link AtmosphereHandler}
          */
         CANCELLED,
         /**

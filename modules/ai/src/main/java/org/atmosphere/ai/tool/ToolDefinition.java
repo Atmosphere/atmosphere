@@ -77,13 +77,13 @@ public record ToolDefinition(
             return parameter(paramName, paramDescription, type, true);
         }
 
-        public Builder returnType(String returnType) {
-            this.returnType = returnType;
+        public Builder returnType(String newReturnType) {
+            this.returnType = newReturnType;
             return this;
         }
 
-        public Builder executor(ToolExecutor executor) {
-            this.executor = executor;
+        public Builder executor(ToolExecutor newExecutor) {
+            this.executor = newExecutor;
             return this;
         }
 

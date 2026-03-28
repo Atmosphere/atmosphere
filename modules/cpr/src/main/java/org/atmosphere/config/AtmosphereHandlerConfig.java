@@ -105,8 +105,8 @@ public class AtmosphereHandlerConfig {
         return broadcastFilterClasses;
     }
 
-    public void setAtmosphereInterceptorClasses(List<String> interceptors) {
-        this.interceptors = interceptors;
+    public void setAtmosphereInterceptorClasses(List<String> newInterceptors) {
+        this.interceptors = newInterceptors;
     }
 
     public List<String> getAtmosphereInterceptorClasses() {

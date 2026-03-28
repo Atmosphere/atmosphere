@@ -60,37 +60,37 @@ public record AgentExecutionContext(
     }
 
     /** Create a context with a different message. */
-    public AgentExecutionContext withMessage(String message) {
-        return new AgentExecutionContext(message, systemPrompt, model, agentId,
+    public AgentExecutionContext withMessage(String newMessage) {
+        return new AgentExecutionContext(newMessage, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
                 contextProviders, metadata, history, responseType);
     }
 
     /** Create a context with a different system prompt. */
-    public AgentExecutionContext withSystemPrompt(String systemPrompt) {
-        return new AgentExecutionContext(message, systemPrompt, model, agentId,
+    public AgentExecutionContext withSystemPrompt(String newSystemPrompt) {
+        return new AgentExecutionContext(message, newSystemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
                 contextProviders, metadata, history, responseType);
     }
 
     /** Create a context with additional metadata. */
-    public AgentExecutionContext withMetadata(Map<String, Object> metadata) {
+    public AgentExecutionContext withMetadata(Map<String, Object> newMetadata) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType);
+                contextProviders, newMetadata, history, responseType);
     }
 
     /** Create a context with conversation history. */
-    public AgentExecutionContext withHistory(List<ChatMessage> history) {
+    public AgentExecutionContext withHistory(List<ChatMessage> newHistory) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType);
+                contextProviders, metadata, newHistory, responseType);
     }
 
     /** Create a context with a target response type for structured output. */
-    public AgentExecutionContext withResponseType(Class<?> responseType) {
+    public AgentExecutionContext withResponseType(Class<?> newResponseType) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType);
+                contextProviders, metadata, history, newResponseType);
     }
 }

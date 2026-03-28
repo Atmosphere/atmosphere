@@ -85,10 +85,10 @@ public final class TaskContext {
         messages.add(msg);
     }
 
-    public void updateStatus(TaskState state, String message) {
+    public void updateStatus(TaskState newState, String message) {
         statusLock.lock();
         try {
-            this.state = state;
+            this.state = newState;
             this.statusMessage = message;
             if (taskManager != null) {
                 taskManager.notifyStatusUpdate(this);

@@ -60,23 +60,23 @@ public class StreamingHttpProtocol implements WebSocketProtocolStream {
 
     @Override
     public void configure(AtmosphereConfig config) {
-        String contentType = config.getInitParameter(ApplicationConfig.WEBSOCKET_CONTENT_TYPE);
-        if (contentType == null) {
-            contentType = "text/plain";
+        String configContentType = config.getInitParameter(ApplicationConfig.WEBSOCKET_CONTENT_TYPE);
+        if (configContentType == null) {
+            configContentType = "text/plain";
         }
-        this.contentType = contentType;
+        this.contentType = configContentType;
 
-        String methodType = config.getInitParameter(ApplicationConfig.WEBSOCKET_METHOD);
-        if (methodType == null) {
-            methodType = "POST";
+        String configMethodType = config.getInitParameter(ApplicationConfig.WEBSOCKET_METHOD);
+        if (configMethodType == null) {
+            configMethodType = "POST";
         }
-        this.methodType = methodType;
+        this.methodType = configMethodType;
 
-        String delimiter = config.getInitParameter(ApplicationConfig.WEBSOCKET_PATH_DELIMITER);
-        if (delimiter == null) {
-            delimiter = "@@";
+        String configDelimiter = config.getInitParameter(ApplicationConfig.WEBSOCKET_PATH_DELIMITER);
+        if (configDelimiter == null) {
+            configDelimiter = "@@";
         }
-        this.delimiter = delimiter;
+        this.delimiter = configDelimiter;
 
         String s = config.getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
         destroyable = Boolean.parseBoolean(s);
@@ -84,7 +84,8 @@ public class StreamingHttpProtocol implements WebSocketProtocolStream {
 
     @Override
     public List<AtmosphereRequest> onTextStream(WebSocket webSocket, Reader r) {
-        //Converting to a string and delegating to onMessage(WebSocket webSocket, String d) causes issues because the binary data may not be a valid string.
+        //Converting to a string and delegating to onMessage(WebSocket webSocket, String d) causes
+        //issues because the binary data may not be a valid string.
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
         if (resource == null) {
             logger.trace("The WebSocket has been closed before the message was processed.");
@@ -95,13 +96,16 @@ public class StreamingHttpProtocol implements WebSocketProtocolStream {
         request.setAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.STREAMING_HTTP_OVER_WEBSOCKET);
 
         List<AtmosphereRequest> list = new ArrayList<>();
-        list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).reader(r).build());
+        list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(),
+                methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable)
+                .reader(r).build());
         return list;
     }
 
     @Override
     public List<AtmosphereRequest> onBinaryStream(WebSocket webSocket, InputStream stream) {
-        //Converting to a string and delegating to onMessage(WebSocket webSocket, String d) causes issues because the binary data may not be a valid string.
+        //Converting to a string and delegating to onMessage(WebSocket webSocket, String d) causes
+        //issues because the binary data may not be a valid string.
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
         if (resource == null) {
             logger.trace("The WebSocket has been closed before the message was processed.");
@@ -112,7 +116,9 @@ public class StreamingHttpProtocol implements WebSocketProtocolStream {
         request.setAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.STREAMING_HTTP_OVER_WEBSOCKET);
 
         List<AtmosphereRequest> list = new ArrayList<>();
-        list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).inputStream(stream).build());
+        list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(),
+                methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable)
+                .inputStream(stream).build());
 
         return list;
     }

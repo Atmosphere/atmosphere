@@ -18,7 +18,8 @@ package org.atmosphere.config.service;
 import java.lang.annotation.*;
 
 /**
- * Use this annotation with the {@link org.atmosphere.config.service.ManagedService} annotation. Annotate a field which will get appropriate value when
+ * Use this annotation with the {@link org.atmosphere.config.service.ManagedService} annotation.
+ * Annotate a field which will get appropriate value when
  * the service is instantiated for given path. The syntax of the path is the following
  * /whatever/{varX}/.../whatever/.../{varY}/...
  * The @PathVariable annotation may be given a name, otherwise verbatim name of field is used

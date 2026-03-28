@@ -146,51 +146,52 @@ public class DefaultBroadcaster implements Broadcaster {
     public DefaultBroadcaster() {
     }
 
-    public Broadcaster initialize(String name, URI uri, AtmosphereConfig config) {
-        this.name = name;
-        this.uri = uri;
-        this.config = config;
+    public Broadcaster initialize(String newName, URI newUri, AtmosphereConfig newConfig) {
+        this.name = newName;
+        this.uri = newUri;
+        this.config = newConfig;
 
-        bc = createBroadcasterConfig(config);
-        String s = config.getInitParameter(BROADCASTER_CACHE_STRATEGY);
+        bc = createBroadcasterConfig(newConfig);
+        String s = newConfig.getInitParameter(BROADCASTER_CACHE_STRATEGY);
         if (s != null) {
-            logger.warn("{} is no longer supported. Use BroadcastInterceptor instead. By default the original message will be cached.", BROADCASTER_CACHE_STRATEGY);
+            logger.warn("{} is no longer supported. Use BroadcastInterceptor instead. "
+                    + "By default the original message will be cached.", BROADCASTER_CACHE_STRATEGY);
         }
-        s = config.getInitParameter(OUT_OF_ORDER_BROADCAST);
+        s = newConfig.getInitParameter(OUT_OF_ORDER_BROADCAST);
         if (s != null) {
             outOfOrderBroadcastSupported.set(Boolean.parseBoolean(s));
         }
 
-        s = config.getInitParameter(BROADCASTER_WAIT_TIME);
+        s = newConfig.getInitParameter(BROADCASTER_WAIT_TIME);
         if (s != null) {
             waitTime = Integer.parseInt(s);
         }
 
-        s = config.getInitParameter(WRITE_TIMEOUT);
+        s = newConfig.getInitParameter(WRITE_TIMEOUT);
         if (s != null) {
             writeTimeoutInSecond = Integer.parseInt(s);
         }
         if (outOfOrderBroadcastSupported.get()) {
-            logger.trace("{} supports Out Of Order Broadcast: {}", name, outOfOrderBroadcastSupported.get());
+            logger.trace("{} supports Out Of Order Broadcast: {}", newName, outOfOrderBroadcastSupported.get());
         }
         initialized.set(true);
-        backwardCompatible = Boolean.parseBoolean(config.getInitParameter(BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
-        cacheOnIOFlushException = config.getInitParameter(CACHE_MESSAGE_ON_IO_FLUSH_EXCEPTION, true);
-        sharedListeners = config.getInitParameter(BROADCASTER_SHAREABLE_LISTENERS, false);
+        backwardCompatible = Boolean.parseBoolean(newConfig.getInitParameter(BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
+        cacheOnIOFlushException = newConfig.getInitParameter(CACHE_MESSAGE_ON_IO_FLUSH_EXCEPTION, true);
+        sharedListeners = newConfig.getInitParameter(BROADCASTER_SHAREABLE_LISTENERS, false);
 
         if (sharedListeners) {
-            broadcasterListeners = config.getBroadcasterFactory().broadcasterListeners();
+            broadcasterListeners = newConfig.getBroadcasterFactory().broadcasterListeners();
         } else {
             broadcasterListeners = new ConcurrentLinkedQueue<>();
         }
 
-        candidateForPoolable = config.getBroadcasterFactory() instanceof PoolableBroadcasterFactory;
+        candidateForPoolable = newConfig.getBroadcasterFactory() instanceof PoolableBroadcasterFactory;
 
         return this;
     }
 
-    public Broadcaster initialize(String name, AtmosphereConfig config) {
-        return initialize(name, URI.create("http://localhost"), config);
+    public Broadcaster initialize(String newName, AtmosphereConfig newConfig) {
+        return initialize(newName, URI.create("http://localhost"), newConfig);
     }
 
     /**
@@ -199,8 +200,8 @@ public class DefaultBroadcaster implements Broadcaster {
      * @param config the {@link AtmosphereConfig}
      * @return an instance of {@link BroadcasterConfig}
      */
-    protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config) {
-        return new BroadcasterConfig(config.framework().broadcasterFilters(), config, getID()).init();
+    protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig newConfig) {
+        return new BroadcasterConfig(newConfig.framework().broadcasterFilters(), newConfig, getID()).init();
     }
 
     @Override
@@ -520,7 +521,9 @@ public class DefaultBroadcaster implements Broadcaster {
                             executeAsyncWrite(token);
                         } catch (Throwable ex) {
                             if (!started.get() || destroyed.get()) {
-                                logger.trace("Failed to execute a write operation. Broadcaster is destroyed or not yet started for Broadcaster {}", getID(), ex);
+                                logger.trace("Failed to execute a write operation. "
+                                        + "Broadcaster is destroyed or not yet started for Broadcaster {}",
+                                        getID(), ex);
                                 return;
                             } else {
                                 try {
@@ -768,7 +771,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected boolean endBroadcast(Deliver deliver, AtmosphereResource r, CacheMessage cacheMsg, boolean deliverMessage) {
         if (!deliverMessage || deliver.message == null) {
-            logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message, deliver.resource != null ? deliver.resource.uuid() : "null");
+            logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message,
+                    deliver.resource != null ? deliver.resource.uuid() : "null");
             bc.getBroadcasterCache().clearCache(getID(), r.uuid(), cacheMsg);
             entryDone(deliver.future);
 
@@ -1242,9 +1246,9 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     @Override
-    public void setSuspendPolicy(long maxSuspendResource, POLICY policy) {
-        this.maxSuspendResource.set(maxSuspendResource);
-        this.policy = policy;
+    public void setSuspendPolicy(long newMaxSuspendResource, POLICY newPolicy) {
+        this.maxSuspendResource.set(newMaxSuspendResource);
+        this.policy = newPolicy;
     }
 
     @Override
@@ -1395,7 +1399,8 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             if (!r.isSuspended()) {
-                logger.warn("AtmosphereResource {} is not suspended. If cached messages exists, this may cause unexpected situation. Suspend first", r.uuid());
+                logger.warn("AtmosphereResource {} is not suspended. If cached messages exists, "
+                        + "this may cause unexpected situation. Suspend first", r.uuid());
             }
 
             if (!backwardCompatible && resources.contains(r)) {
@@ -1571,8 +1576,8 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     @Override
-    public void setBroadcasterConfig(BroadcasterConfig bc) {
-        this.bc = bc;
+    public void setBroadcasterConfig(BroadcasterConfig newBc) {
+        this.bc = newBc;
     }
 
     @Override
@@ -1698,7 +1703,8 @@ public class DefaultBroadcaster implements Broadcaster {
             this.count = count;
         }
 
-        public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture<?> future, Object originalMessage, CacheMessage cache, AtomicInteger count) {
+        public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture<?> future,
+                Object originalMessage, CacheMessage cache, AtomicInteger count) {
             this.resource = resource;
             this.msg = msg;
             this.future = future;

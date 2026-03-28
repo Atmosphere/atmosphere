@@ -44,8 +44,8 @@ public class UnboundedApachePoolableProvider implements PoolableProvider<Broadca
     private final AtomicLong count = new AtomicLong();
 
     @Override
-    public void configure(AtmosphereConfig config) {
-        this.config = config;
+    public void configure(AtmosphereConfig newConfig) {
+        this.config = newConfig;
         configureGenericObjectPoolConfig();
         genericObjectPool = new GenericObjectPool<>(new BroadcasterFactory(), poolConfig, abandonedConfig);
     }

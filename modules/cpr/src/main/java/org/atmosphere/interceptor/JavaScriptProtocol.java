@@ -211,8 +211,8 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         return wsDelimiter;
     }
 
-    public JavaScriptProtocol wsDelimiter(String wsDelimiter) {
-        this.wsDelimiter = wsDelimiter;
+    public JavaScriptProtocol wsDelimiter(String newWsDelimiter) {
+        this.wsDelimiter = newWsDelimiter;
         return this;
     }
 
@@ -220,8 +220,8 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         return enforceAtmosphereVersion;
     }
 
-    public JavaScriptProtocol enforceAtmosphereVersion(boolean enforceAtmosphereVersion) {
-        this.enforceAtmosphereVersion = enforceAtmosphereVersion;
+    public JavaScriptProtocol enforceAtmosphereVersion(boolean newEnforceAtmosphereVersion) {
+        this.enforceAtmosphereVersion = newEnforceAtmosphereVersion;
         return this;
     }
 

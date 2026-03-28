@@ -366,31 +366,31 @@ public class OpenAiCompatibleClient implements LlmClient {
         private Builder() {
         }
 
-        public Builder baseUrl(String baseUrl) {
-            this.baseUrl = baseUrl;
+        public Builder baseUrl(String newBaseUrl) {
+            this.baseUrl = newBaseUrl;
             return this;
         }
 
-        public Builder apiKey(String apiKey) {
-            this.apiKey = apiKey;
+        public Builder apiKey(String newApiKey) {
+            this.apiKey = newApiKey;
             return this;
         }
 
-        public Builder httpClient(HttpClient httpClient) {
-            this.httpClient = httpClient;
+        public Builder httpClient(HttpClient newHttpClient) {
+            this.httpClient = newHttpClient;
             return this;
         }
 
-        public Builder timeout(Duration timeout) {
-            this.timeout = timeout;
+        public Builder timeout(Duration newTimeout) {
+            this.timeout = newTimeout;
             return this;
         }
 
         /**
          * Set a custom retry policy. Overrides {@link #maxRetries} and {@link #retryBaseDelay}.
          */
-        public Builder retryPolicy(RetryPolicy retryPolicy) {
-            this.retryPolicy = retryPolicy;
+        public Builder retryPolicy(RetryPolicy newRetryPolicy) {
+            this.retryPolicy = newRetryPolicy;
             return this;
         }
 
@@ -398,8 +398,8 @@ public class OpenAiCompatibleClient implements LlmClient {
          * Maximum number of retries on transient errors (429, 500, 502, 503)
          * and connection/timeout failures. Default is 3.
          */
-        public Builder maxRetries(int maxRetries) {
-            this.maxRetries = maxRetries;
+        public Builder maxRetries(int newMaxRetries) {
+            this.maxRetries = newMaxRetries;
             return this;
         }
 
@@ -408,8 +408,8 @@ public class OpenAiCompatibleClient implements LlmClient {
          * Actual delay is {@code base * 2^attempt} with 20% jitter, capped at 30s.
          * Default is 500ms.
          */
-        public Builder retryBaseDelay(Duration retryBaseDelay) {
-            this.retryBaseDelay = retryBaseDelay;
+        public Builder retryBaseDelay(Duration newRetryBaseDelay) {
+            this.retryBaseDelay = newRetryBaseDelay;
             return this;
         }
 

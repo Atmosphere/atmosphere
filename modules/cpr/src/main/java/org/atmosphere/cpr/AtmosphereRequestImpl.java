@@ -1031,15 +1031,15 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         @Override
-        public Builder destroyable(boolean destroyable) {
-            this.destroyable = destroyable;
+        public Builder destroyable(boolean newDestroyable) {
+            this.destroyable = newDestroyable;
             return this;
         }
 
         @Override
-        public Builder headers(Map<String, String> headers) {
+        public Builder headers(Map<String, String> newHeaders) {
             this.headers = new ConcurrentHashMap<>();
-            headers.forEach((k, v) -> {
+            newHeaders.forEach((k, v) -> {
                 if (k != null && v != null) {
                     this.headers.put(k, v);
                 }
@@ -1048,62 +1048,62 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         @Override
-        public Builder cookies(Set<Cookie> cookies) {
-            this.cookies = cookies;
+        public Builder cookies(Set<Cookie> newCookies) {
+            this.cookies = newCookies;
             return this;
         }
 
         @Override
-        public Builder dispatchRequestAsynchronously(boolean dispatchRequestAsynchronously) {
-            this.dispatchRequestAsynchronously = dispatchRequestAsynchronously;
+        public Builder dispatchRequestAsynchronously(boolean newDispatchRequestAsynchronously) {
+            this.dispatchRequestAsynchronously = newDispatchRequestAsynchronously;
             return this;
         }
 
         @Override
-        public Builder remoteAddr(String remoteAddr) {
-            this.remoteAddr = remoteAddr;
+        public Builder remoteAddr(String newRemoteAddr) {
+            this.remoteAddr = newRemoteAddr;
             return this;
         }
 
         @Override
-        public Builder remoteHost(String remoteHost) {
-            this.remoteHost = remoteHost;
+        public Builder remoteHost(String newRemoteHost) {
+            this.remoteHost = newRemoteHost;
             return this;
         }
 
         @Override
-        public Builder remotePort(int remotePort) {
-            this.remotePort = remotePort;
+        public Builder remotePort(int newRemotePort) {
+            this.remotePort = newRemotePort;
             return this;
         }
 
         @Override
-        public Builder localAddr(String localAddr) {
-            this.localAddr = localAddr;
+        public Builder localAddr(String newLocalAddr) {
+            this.localAddr = newLocalAddr;
             return this;
         }
 
         @Override
-        public Builder localName(String localName) {
-            this.localName = localName;
+        public Builder localName(String newLocalName) {
+            this.localName = newLocalName;
             return this;
         }
 
         @Override
-        public Builder localPort(int localPort) {
-            this.localPort = localPort;
+        public Builder localPort(int newLocalPort) {
+            this.localPort = newLocalPort;
             return this;
         }
 
         @Override
-        public Builder remoteInetSocketAddress(Callable<InetSocketAddress> remoteAddr, boolean disableDnsLookup) {
-            this.lazyRemote = new LazyComputation(remoteAddr, disableDnsLookup);
+        public Builder remoteInetSocketAddress(Callable<InetSocketAddress> newRemoteAddr, boolean disableDnsLookup) {
+            this.lazyRemote = new LazyComputation(newRemoteAddr, disableDnsLookup);
             return this;
         }
 
         @Override
-        public Builder localInetSocketAddress(Callable<InetSocketAddress> localAddr, boolean disableDnsLookup) {
-            this.lazyLocal = new LazyComputation(localAddr, disableDnsLookup);
+        public Builder localInetSocketAddress(Callable<InetSocketAddress> newLocalAddr, boolean disableDnsLookup) {
+            this.lazyLocal = new LazyComputation(newLocalAddr, disableDnsLookup);
             return this;
         }
 
@@ -1114,38 +1114,38 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         @Override
-        public Builder request(HttpServletRequest request) {
-            this.request = request;
+        public Builder request(HttpServletRequest newRequest) {
+            this.request = newRequest;
             return this;
         }
 
         @Override
-        public Builder servletPath(String servletPath) {
-            this.servletPath = servletPath;
+        public Builder servletPath(String newServletPath) {
+            this.servletPath = newServletPath;
             return this;
         }
 
         @Override
-        public Builder requestURI(String requestURI) {
-            this.requestURI = requestURI;
+        public Builder requestURI(String newRequestURI) {
+            this.requestURI = newRequestURI;
             return this;
         }
 
         @Override
-        public Builder requestURL(String requestURL) {
-            this.requestURL = requestURL;
+        public Builder requestURL(String newRequestURL) {
+            this.requestURL = newRequestURL;
             return this;
         }
 
         @Override
-        public Builder pathInfo(String pathInfo) {
-            this.pathInfo = pathInfo;
+        public Builder pathInfo(String newPathInfo) {
+            this.pathInfo = newPathInfo;
             return this;
         }
 
         @Override
-        public Builder queryString(String queryString) {
-            this.queryString = queryString;
+        public Builder queryString(String newQueryString) {
+            this.queryString = newQueryString;
             return this;
         }
 
@@ -1161,29 +1161,29 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         @Override
-        public Builder encoding(String encoding) {
-            this.encoding = encoding;
+        public Builder encoding(String newEncoding) {
+            this.encoding = newEncoding;
             return this;
         }
 
         @Override
-        public Builder method(String methodType) {
-            this.methodType = methodType;
+        public Builder method(String newMethodType) {
+            this.methodType = newMethodType;
             return this;
         }
 
         @Override
-        public Builder contentType(String contentType) {
-            this.contentType = contentType;
-            if (contentType == null) {
+        public Builder contentType(String newContentType) {
+            this.contentType = newContentType;
+            if (newContentType == null) {
                 noContentType = true;
             }
             return this;
         }
 
         @Override
-        public Builder contentLength(Long contentLength) {
-            this.contentLength = contentLength;
+        public Builder contentLength(Long newContentLength) {
+            this.contentLength = newContentLength;
             return this;
         }
 
@@ -1194,14 +1194,14 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         @Override
-        public Builder inputStream(InputStream inputStream) {
-            this.inputStream = inputStream;
+        public Builder inputStream(InputStream newInputStream) {
+            this.inputStream = newInputStream;
             return this;
         }
 
         @Override
-        public Builder reader(Reader reader) {
-            this.reader = reader;
+        public Builder reader(Reader newReader) {
+            this.reader = newReader;
             return this;
         }
 
@@ -1214,9 +1214,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         @Override
-        public Builder queryStrings(Map<String, String[]> queryStrings) {
+        public Builder queryStrings(Map<String, String[]> newQueryStrings) {
             this.queryStrings = new ConcurrentHashMap<>();
-            queryStrings.forEach((k, v) -> {
+            newQueryStrings.forEach((k, v) -> {
                 if (k != null && v != null) {
                     this.queryStrings.put(k, v);
                 }
@@ -1225,20 +1225,20 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         @Override
-        public Builder contextPath(String contextPath) {
-            this.contextPath = contextPath == null ? "" : contextPath;
+        public Builder contextPath(String newContextPath) {
+            this.contextPath = newContextPath == null ? "" : newContextPath;
             return this;
         }
 
         @Override
-        public Builder serverName(String serverName) {
-            this.serverName = serverName;
+        public Builder serverName(String newServerName) {
+            this.serverName = newServerName;
             return this;
         }
 
         @Override
-        public Builder serverPort(int serverPort) {
-            this.serverPort = serverPort;
+        public Builder serverPort(int newServerPort) {
+            this.serverPort = newServerPort;
             return this;
         }
 
@@ -1257,27 +1257,27 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         @Override
-        public Builder principal(Principal principal) {
-            this.principal = principal;
+        public Builder principal(Principal newPrincipal) {
+            this.principal = newPrincipal;
             return this;
         }
 
         @Override
-        public Builder authType(String authType) {
-            this.authType = authType;
+        public Builder authType(String newAuthType) {
+            this.authType = newAuthType;
             return this;
         }
 
         @Deprecated
         @Override
-        public Builder isSSecure(boolean isSecure) {
-            this.isSecure = isSecure;
+        public Builder isSSecure(boolean newIsSecure) {
+            this.isSecure = newIsSecure;
             return this;
         }
 
         @Override
-        public Builder isSecure(boolean isSecure) {
-            this.isSecure = isSecure;
+        public Builder isSecure(boolean newIsSecure) {
+            this.isSecure = newIsSecure;
             return this;
         }
 
@@ -1420,7 +1420,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
      * @param request {@link HttpServletRequest}
      * @return an {@link AtmosphereRequest}
      */
-    public static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession, boolean isDestroyable, boolean createSession) {
+    public static AtmosphereRequest cloneRequest(HttpServletRequest request,
+            boolean loadInMemory, boolean copySession,
+            boolean isDestroyable, boolean createSession) {
         Builder b;
         HttpServletRequest r;
 
@@ -1626,7 +1628,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         @Override
-        public void addListener(AsyncListener listener, ServletRequest request, ServletResponse response) throws IllegalStateException {
+        public void addListener(AsyncListener listener, ServletRequest servletRequest, ServletResponse servletResponse) throws IllegalStateException {
         }
 
         @Override

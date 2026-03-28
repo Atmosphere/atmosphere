@@ -76,7 +76,9 @@ public class DefaultAsyncSupportResolverTest {
                 .when(defaultAsyncSupportResolver)
                 .resolveNativeCometSupport(anyList());
 
-        assertEquals(Servlet30CometSupport.class, defaultAsyncSupportResolver.resolve(useNativeIfPossible, defaultToBlocking, useServlet30Async).getClass());
+        assertEquals(Servlet30CometSupport.class,
+                defaultAsyncSupportResolver.resolve(useNativeIfPossible, defaultToBlocking,
+                        useServlet30Async).getClass());
     }
 
     @Test
@@ -100,7 +102,9 @@ public class DefaultAsyncSupportResolverTest {
                 .when(defaultAsyncSupportResolver)
                 .testClassExists(DefaultAsyncSupportResolver.SERVLET_30);
 
-        assertEquals(BlockingIOCometSupport.class, defaultAsyncSupportResolver.resolve(useNativeIfPossible, defaultToBlocking, useServlet30Async).getClass());
+        assertEquals(BlockingIOCometSupport.class,
+                defaultAsyncSupportResolver.resolve(useNativeIfPossible, defaultToBlocking,
+                        useServlet30Async).getClass());
     }
 
     class InvalidAsyncSupportClass implements AsyncSupport<AtmosphereResource> {

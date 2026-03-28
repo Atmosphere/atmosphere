@@ -118,20 +118,20 @@ public class BroadcasterLifeCyclePolicy {
         private int time;
         private TimeUnit timeUnit;
 
-        public Builder policy(ATMOSPHERE_RESOURCE_POLICY policy) {
-            this.policy = policy;
+        public Builder policy(ATMOSPHERE_RESOURCE_POLICY newPolicy) {
+            this.policy = newPolicy;
             return this;
         }
 
-        public Builder idleTimeInMS(int time) {
+        public Builder idleTimeInMS(int newTime) {
             timeUnit = TimeUnit.MILLISECONDS;
-            this.time = time;
+            this.time = newTime;
             return this;
         }
 
-        public Builder idleTime(int time, TimeUnit timeUnit) {
-            this.timeUnit = timeUnit;
-            this.time = time;
+        public Builder idleTime(int newTime, TimeUnit newTimeUnit) {
+            this.timeUnit = newTimeUnit;
+            this.time = newTime;
             return this;
         }
 

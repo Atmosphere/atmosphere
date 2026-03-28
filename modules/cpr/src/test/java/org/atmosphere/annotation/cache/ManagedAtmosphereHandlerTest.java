@@ -60,9 +60,9 @@ public class ManagedAtmosphereHandlerTest {
                 return suspended(req, res);
             }
 
-            public void action(AtmosphereResourceImpl r) {
+            public void action(AtmosphereResourceImpl resource) {
                 try {
-                    resumed(r.getRequest(), r.getResponse());
+                    resumed(resource.getRequest(), resource.getResponse());
                 } catch (IOException | ServletException e) {
                     e.printStackTrace();
                 }
@@ -105,7 +105,8 @@ public class ManagedAtmosphereHandlerTest {
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/cache").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
-        assertEquals(UUIDBroadcasterCache.class, framework.getBroadcasterFactory().lookup("/*", true).getBroadcasterConfig().getBroadcasterCache().getClass());
+        assertEquals(UUIDBroadcasterCache.class, framework.getBroadcasterFactory()
+                .lookup("/*", true).getBroadcasterConfig().getBroadcasterCache().getClass());
 
     }
 }

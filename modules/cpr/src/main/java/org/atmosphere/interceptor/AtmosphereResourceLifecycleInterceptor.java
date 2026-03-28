@@ -36,7 +36,8 @@ import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnBroadc
 /**
  * <p>This {@link AtmosphereInterceptor} implementation automatically suspends the intercepted
  * {@link AtmosphereResource} and takes care of managing the response's state (flushing, resuming,
- * etc.) when a {@link org.atmosphere.cpr.Broadcaster#broadcast} is invoked. When used, {@link org.atmosphere.cpr.AtmosphereHandler} implementations no longer need to make calls to
+ * etc.) when a {@link org.atmosphere.cpr.Broadcaster#broadcast} is invoked. When used,
+ * {@link org.atmosphere.cpr.AtmosphereHandler} implementations no longer need to make calls to
  * {@link AtmosphereResource#suspend}.
  * </p>
  * If your application doesn't use {@link org.atmosphere.cpr.Broadcaster}, this interceptor will not work and you need to programmatically
@@ -97,14 +98,14 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
         return timeoutInSeconds;
     }
 
-    public AtmosphereResourceLifecycleInterceptor method(String method){
-        this.method = method;
+    public AtmosphereResourceLifecycleInterceptor method(String newMethod){
+        this.method = newMethod;
         return this;
     }
 
-    public AtmosphereResourceLifecycleInterceptor timeoutInSeconds(int timeoutInSeconds) {
-        this.timeoutInSeconds = timeoutInSeconds;
-        timeoutInMilli = TimeUnit.MILLISECONDS.convert(timeoutInSeconds, TimeUnit.SECONDS);
+    public AtmosphereResourceLifecycleInterceptor timeoutInSeconds(int newTimeoutInSeconds) {
+        this.timeoutInSeconds = newTimeoutInSeconds;
+        timeoutInMilli = TimeUnit.MILLISECONDS.convert(newTimeoutInSeconds, TimeUnit.SECONDS);
         return this;
     }
 

@@ -57,23 +57,23 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
 
     @Override
     public void configure(AtmosphereConfig config) {
-        String contentType = config.getInitParameter(ApplicationConfig.WEBSOCKET_CONTENT_TYPE);
-        if (contentType == null) {
-            contentType = "text/plain";
+        String configContentType = config.getInitParameter(ApplicationConfig.WEBSOCKET_CONTENT_TYPE);
+        if (configContentType == null) {
+            configContentType = "text/plain";
         }
-        this.contentType = contentType;
+        this.contentType = configContentType;
 
-        String methodType = config.getInitParameter(ApplicationConfig.WEBSOCKET_METHOD);
-        if (methodType == null) {
-            methodType = "POST";
+        String configMethodType = config.getInitParameter(ApplicationConfig.WEBSOCKET_METHOD);
+        if (configMethodType == null) {
+            configMethodType = "POST";
         }
-        this.methodType = methodType;
+        this.methodType = configMethodType;
 
-        String delimiter = config.getInitParameter(ApplicationConfig.WEBSOCKET_PATH_DELIMITER);
-        if (delimiter == null) {
-            delimiter = "@@";
+        String configDelimiter = config.getInitParameter(ApplicationConfig.WEBSOCKET_PATH_DELIMITER);
+        if (configDelimiter == null) {
+            configDelimiter = "@@";
         }
-        this.delimiter = delimiter;
+        this.delimiter = configDelimiter;
 
         String s = config.getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
         destroyable = Boolean.parseBoolean(s);
@@ -115,7 +115,9 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         }
 
         List<AtmosphereRequest> list = new ArrayList<>();
-        list.add(constructRequest(webSocket, pathInfo, requestURI, methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(message).build());
+        list.add(constructRequest(webSocket, pathInfo, requestURI, methodType,
+                contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable)
+                .body(message).build());
 
         return list;
     }
@@ -123,7 +125,8 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     @Override
     public List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] d, final int offset, final int length) {
 
-        //Converting to a string and delegating to onMessage(WebSocket webSocket, String d) causes issues because the binary data may not be a valid string.
+        //Converting to a string and delegating to onMessage(WebSocket webSocket, String d) causes
+        //issues because the binary data may not be a valid string.
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
         if (resource == null) {
             logger.trace("The WebSocket has been closed before the message was processed.");
@@ -136,7 +139,9 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         if (!resource.isInScope()) return List.of();
 
         List<AtmosphereRequest> list = new ArrayList<>();
-        list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(d, offset, length).build());
+        list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(),
+                methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable)
+                .body(d, offset, length).build());
 
         return list;
     }

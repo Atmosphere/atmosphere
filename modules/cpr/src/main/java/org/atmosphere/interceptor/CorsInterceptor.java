@@ -119,8 +119,8 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
         return enableAccessControl;
     }
 
-    public CorsInterceptor enableAccessControl(boolean enableAccessControl) {
-        this.enableAccessControl = enableAccessControl;
+    public CorsInterceptor enableAccessControl(boolean newEnableAccessControl) {
+        this.enableAccessControl = newEnableAccessControl;
         return this;
     }
 

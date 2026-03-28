@@ -69,9 +69,9 @@ public class EncoderDecoderTest {
                 return suspended(req, res);
             }
 
-            public void action(AtmosphereResourceImpl r) {
+            public void action(AtmosphereResourceImpl resource) {
                 try {
-                    resumed(r.getRequest(), r.getResponse());
+                    resumed(resource.getRequest(), resource.getResponse());
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (ServletException e) {
@@ -249,7 +249,7 @@ public class EncoderDecoderTest {
 
         response.asyncIOWriter(new AsyncIOWriterAdapter() {
             @Override
-            public AsyncIOWriter write(AtmosphereResponse r, byte[] data) throws IOException {
+            public AsyncIOWriter write(AtmosphereResponse response, byte[] data) throws IOException {
                 ref.set(new String(data));
                 return this;
             }
