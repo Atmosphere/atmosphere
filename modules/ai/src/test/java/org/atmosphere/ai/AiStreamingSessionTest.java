@@ -39,9 +39,13 @@ public class AiStreamingSessionTest {
     private StreamingSession delegate;
     private AtmosphereResource resource;
 
-    /** Wait for the async virtual thread spawned by stream() to complete. */
+    /** Wait for the async virtual thread spawned by stream() to complete, with exponential backoff. */
     private static void awaitAsync() {
-        try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        long delay = 10;
+        for (int i = 0; i < 10; i++) {
+            try { Thread.sleep(delay); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
+            delay = Math.min(delay * 2, 500);
+        }
     }
 
     @BeforeEach
