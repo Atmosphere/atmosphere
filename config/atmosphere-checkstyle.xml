@@ -7,15 +7,26 @@
 Checks the code meets the Atmosphere's coding guidelines.
 -->
 <module name="Checker">
-<!-- TODO add more checks as we improve the code style  ... -->
 
     <module name="FileTabCharacter">
+        <property name="fileExtensions" value="java"/>
+    </module>
+
+    <module name="LineLength">
+        <property name="max" value="150"/>
+        <property name="ignorePattern" value="^import .*|^ *\* .*https?://.*"/>
         <property name="fileExtensions" value="java"/>
     </module>
 
     <module name="TreeWalker">
         <module name="UnusedImports"/>
         <module name="RedundantImport"/>
+
+        <module name="HiddenField">
+            <property name="ignoreConstructorParameter" value="true"/>
+            <property name="ignoreSetter" value="true"/>
+            <property name="ignoreAbstractMethods" value="true"/>
+        </module>
     </module>
 
 </module>
