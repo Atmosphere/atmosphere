@@ -180,10 +180,10 @@ cmd_list() {
     if has_jq; then
         filter='.'
         if [ -n "$filter_tag" ]; then
-            filter=". | select(.tags | index(\"$filter_tag\"))"
+            filter="$filter | select(.tags | index(\"$filter_tag\"))"
         fi
         if [ -n "$filter_category" ]; then
-            filter=". | select(.category == \"$filter_category\")"
+            filter="$filter | select(.category == \"$filter_category\")"
         fi
 
         printf "\n${BOLD}%-36s %-8s %-14s %s${RESET}\n" "SAMPLE" "PORT" "CATEGORY" "DESCRIPTION"
@@ -700,6 +700,11 @@ cmd_new() {
         template="agent"
     fi
 
+    # Prevent silent overwrite of existing directories
+    if [ -d "$project_name" ]; then
+        die "Directory '$project_name' already exists. Remove it first or choose a different name."
+    fi
+
     # Check for JBang — try it first, fall back to minimal scaffold on failure
     jbang_ok=false
     if command -v jbang >/dev/null 2>&1; then
@@ -1209,20 +1214,22 @@ cmd_import() {
     local target=""
     local project_name_arg=""
     local trust=false
+    local source=""
     while [ $# -gt 0 ]; do
         case "$1" in
             --headless) headless=true; shift ;;
             --target|-t) shift; [ -z "$1" ] && die "--target requires a value"; target="$1"; shift ;;
             --name) shift; [ -z "$1" ] && die "--name requires a value"; project_name_arg="$1"; shift ;;
             --trust) trust=true; shift ;;
-            *) break ;;
+            --help|-h) echo "Usage: atmosphere import [--trust] [--headless] [--name <project>] [--target <plugin>] <url-or-skill-id>"; return 0 ;;
+            -*) die "Unknown option: $1" ;;
+            *) [ -z "$source" ] && source="$1" || true; shift ;;
         esac
     done
 
-    [ -z "$1" ] && die "Usage: atmosphere import [--trust] [--headless] [--name <project>] <url-or-skill-id>"
+    [ -z "$source" ] && die "Usage: atmosphere import [--trust] [--headless] [--name <project>] <url-or-skill-id>"
 
-    local source="$1"
-    local project_name="${project_name_arg:-${2:-}}"
+    local project_name="${project_name_arg:-}"
     local skill_content=""
     local skill_name=""
     local skill_desc=""
