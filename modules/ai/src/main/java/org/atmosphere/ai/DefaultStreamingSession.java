@@ -145,7 +145,8 @@ public final class DefaultStreamingSession implements StreamingSession {
             SESSION_RESOURCES.remove(sessionId);
             logger.error("Streaming session {} error", sessionId, t);
             var message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
-            broadcast(buildMessage("error", message));
+            var errorEvent = new AiEvent.Error(message, t.getClass().getSimpleName(), true);
+            broadcast(buildEventMessage(errorEvent));
         }
     }
 
@@ -174,7 +175,7 @@ public final class DefaultStreamingSession implements StreamingSession {
                 if (closed.compareAndSet(false, true)) {
                     SESSION_RESOURCES.remove(sessionId);
                     logger.error("Streaming session {} error: {}", sessionId, err.message());
-                    broadcast(buildMessage("error", err.message()));
+                    broadcast(buildEventMessage(event));
                 }
                 return;
             }
