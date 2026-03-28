@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger atmosphere.github.io rebuild
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.SITE_DISPATCH_TOKEN }}
           repository: Atmosphere/atmosphere.github.io

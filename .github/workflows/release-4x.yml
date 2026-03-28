@@ -75,7 +75,7 @@ jobs:
         ref: main
 
     - name: Setup Node.js 24
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: '24'
         registry-url: 'https://registry.npmjs.org'
@@ -280,7 +280,7 @@ jobs:
 
     - name: Setup Node.js 24
       if: steps.detect.outputs.has_changes == 'true'
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: '24'
         registry-url: 'https://registry.npmjs.org'
@@ -295,7 +295,7 @@ jobs:
 
     - name: Download JS dist
       if: steps.detect.outputs.has_changes == 'true'
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: atmosphere-js-dist
         path: atmosphere.js/dist/

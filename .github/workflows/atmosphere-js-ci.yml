@@ -30,7 +30,7 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
@@ -53,7 +53,7 @@ jobs:
     
     - name: Upload Coverage
       if: matrix.node-version == 20
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v6
       with:
         files: ./atmosphere.js/coverage/coverage-final.json
         flags: atmosphere-js
@@ -79,7 +79,7 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Setup Node.js 20
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: 20
         cache: 'npm'

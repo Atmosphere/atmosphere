@@ -82,7 +82,7 @@
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.15.0</version>
                 <configuration>
                     <release>21</release>
                     <showWarnings>true</showWarnings>
@@ -893,7 +893,7 @@
         <jetty-version>12.0.32</jetty-version>
         <tomcat-version>11.0.18</tomcat-version>
         <shade-version>1.2.1</shade-version>
-        <bnd-maven-plugin.version>7.2.1</bnd-maven-plugin.version>
+        <bnd-maven-plugin.version>7.2.3</bnd-maven-plugin.version>
         <ahc.version>1.9.40</ahc.version>
         <jakarta-servlet-api.version>5.0.0</jakarta-servlet-api.version>
         <jakarta-websocket-api.version>2.0.0</jakarta-websocket-api.version>
@@ -905,7 +905,7 @@
         <commons-pool2>2.12.0</commons-pool2>
         <junit-jupiter.version>5.11.4</junit-jupiter.version>
         <jackson.version>2.18.6</jackson.version>
-        <mockito.version>5.21.0</mockito.version>
+        <mockito.version>5.23.0</mockito.version>
         <mockito-kotlin.version>5.4.0</mockito-kotlin.version>
         <json.version>20250517</json.version>
         <micrometer.version>1.14.5</micrometer.version>
@@ -913,7 +913,7 @@
         <testcontainers.version>1.20.6</testcontainers.version>
         <awaitility.version>4.2.2</awaitility.version>
         <netty.version>4.2.11.Final</netty.version>
-        <grpc.version>1.79.0</grpc.version>
+        <grpc.version>1.80.0</grpc.version>
         <protobuf.version>3.25.5</protobuf.version>
         <tomcat-annotations-api.version>6.0.53</tomcat-annotations-api.version>
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
@@ -921,7 +921,7 @@
         <maven-shade-plugin.version>3.6.0</maven-shade-plugin.version>
         <maven-install-plugin.version>3.1.3</maven-install-plugin.version>
         <lettuce.version>6.5.5.RELEASE</lettuce.version>
-        <spring-boot.version>4.0.2</spring-boot.version>
+        <spring-boot.version>4.0.5</spring-boot.version>
         <quarkus.version>3.31.3</quarkus.version>
         <atmosphere.module.name>org.atmosphere</atmosphere.module.name>
     </properties>

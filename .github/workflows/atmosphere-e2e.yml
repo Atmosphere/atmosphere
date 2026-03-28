@@ -88,7 +88,7 @@ jobs:
         cache: 'maven'
 
     - name: Download build output
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: build-targets-sb${{ matrix.spring-boot-version }}
 
@@ -103,7 +103,7 @@ jobs:
         fi
 
     - name: Set up Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: 22
         cache: 'npm'
