@@ -126,9 +126,8 @@ test.describe('AiEvent Wire Protocol E2E', () => {
       client.send('error');
       await client.waitForDone(15_000);
 
-      const errorMsg = client.messages.find(m => m.type === 'error');
-      expect(errorMsg).toBeDefined();
-      expect(errorMsg!.data).toBe('Rate limit exceeded');
+      expect(client.errors.length).toBeGreaterThan(0);
+      expect(client.errors[0]).toBe('Rate limit exceeded');
     } finally {
       client.close();
     }
