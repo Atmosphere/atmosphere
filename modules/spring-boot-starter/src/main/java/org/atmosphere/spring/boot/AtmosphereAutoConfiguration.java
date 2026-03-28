@@ -109,6 +109,21 @@ public class AtmosphereAutoConfiguration {
     }
 
     /**
+     * Serves {@code /.well-known/agent.json} with an array of all registered
+     * A2A agent cards. Enables standard agent discovery per the A2A protocol.
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereWellKnownFilter")
+    org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter> atmosphereWellKnownFilter(
+            AtmosphereFramework framework) {
+        var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter>(
+                new WellKnownAgentFilter(framework));
+        registration.addUrlPatterns("/.well-known/agent.json");
+        registration.setOrder(-1);
+        return registration;
+    }
+
+    /**
      * Serves the built-in AI console static assets from
      * {@code META-INF/resources/atmosphere/console/} before the Atmosphere
      * servlet (mapped to {@code /atmosphere/*}) can intercept them.
@@ -182,6 +197,72 @@ public class AtmosphereAutoConfiguration {
             if (path.endsWith(".png")) return "image/png";
             if (path.endsWith(".ico")) return "image/x-icon";
             return "application/octet-stream";
+        }
+    }
+
+    /**
+     * Serves {@code /.well-known/agent.json} by scanning the framework's handler
+     * registry for A2A handlers and returning an array of their agent cards.
+     */
+    static class WellKnownAgentFilter implements jakarta.servlet.Filter {
+
+        private final AtmosphereFramework framework;
+
+        WellKnownAgentFilter(AtmosphereFramework framework) {
+            this.framework = framework;
+        }
+
+        @Override
+        public void doFilter(jakarta.servlet.ServletRequest request,
+                             jakarta.servlet.ServletResponse response,
+                             jakarta.servlet.FilterChain chain)
+                throws java.io.IOException, jakarta.servlet.ServletException {
+            var httpReq = (jakarta.servlet.http.HttpServletRequest) request;
+            var httpRes = (jakarta.servlet.http.HttpServletResponse) response;
+
+            if (!"GET".equalsIgnoreCase(httpReq.getMethod())) {
+                chain.doFilter(request, response);
+                return;
+            }
+
+            // Collect agent card JSON from all registered A2A handlers
+            var cardJsonList = new java.util.ArrayList<String>();
+            for (var entry : framework.getAtmosphereHandlers().entrySet()) {
+                try {
+                    var wrapper = entry.getValue();
+                    var handlerField = wrapper.getClass().getDeclaredField("atmosphereHandler");
+                    handlerField.setAccessible(true);
+                    var handler = handlerField.get(wrapper);
+                    if (!"org.atmosphere.a2a.runtime.A2aHandler".equals(
+                            handler.getClass().getName())) {
+                        continue;
+                    }
+                    var phField = handler.getClass().getDeclaredField("protocolHandler");
+                    phField.setAccessible(true);
+                    var protocolHandler = phField.get(handler);
+                    var cardMethod = protocolHandler.getClass().getMethod("agentCardJson");
+                    var json = (String) cardMethod.invoke(protocolHandler);
+                    if (json != null) {
+                        cardJsonList.add(json);
+                    }
+                } catch (ReflectiveOperationException e) {
+                    logger.trace("Failed to extract agent card from {}", entry.getKey(), e);
+                }
+            }
+
+            if (cardJsonList.isEmpty()) {
+                chain.doFilter(request, response);
+                return;
+            }
+
+            httpRes.setStatus(200);
+            httpRes.setContentType("application/json; charset=utf-8");
+            if (cardJsonList.size() == 1) {
+                httpRes.getWriter().write(cardJsonList.getFirst());
+            } else {
+                httpRes.getWriter().write("[" + String.join(",", cardJsonList) + "]");
+            }
+            httpRes.getWriter().flush();
         }
     }
 

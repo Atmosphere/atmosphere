@@ -56,6 +56,15 @@ public final class A2aProtocolHandler {
         return agentCard;
     }
 
+    /** Returns the agent card serialized as JSON. Used by the well-known filter. */
+    public String agentCardJson() {
+        try {
+            return mapper.writeValueAsString(agentCard);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public String handleMessage(String message) {
         try {
             var node = mapper.readTree(message);
