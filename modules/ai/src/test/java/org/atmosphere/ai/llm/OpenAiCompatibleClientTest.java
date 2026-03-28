@@ -158,7 +158,7 @@ public class OpenAiCompatibleClientTest {
         verify(broadcaster, atLeast(2)).broadcast(captor.capture(), any(Set.class));
 
         var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
-        assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"error\"")));
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"event\":\"error\"")));
         assertTrue(messages.stream().anyMatch(m -> m.contains("Invalid API key")));
     }
 
@@ -277,7 +277,7 @@ public class OpenAiCompatibleClientTest {
         verify(httpClient, times(1)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
         var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, atLeast(1)).broadcast(captor.capture(), any(Set.class));
-        assertTrue(captor.getAllValues().stream().map(m -> raw(m)).anyMatch(m -> m.contains("\"type\":\"error\"")));
+        assertTrue(captor.getAllValues().stream().map(m -> raw(m)).anyMatch(m -> m.contains("\"event\":\"error\"")));
     }
 
     @Test
@@ -305,7 +305,7 @@ public class OpenAiCompatibleClientTest {
         verify(httpClient, times(3)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
         var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, atLeast(1)).broadcast(captor.capture(), any(Set.class));
-        assertTrue(captor.getAllValues().stream().map(m -> raw(m)).anyMatch(m -> m.contains("\"type\":\"error\"")));
+        assertTrue(captor.getAllValues().stream().map(m -> raw(m)).anyMatch(m -> m.contains("\"event\":\"error\"")));
     }
 
     @Test
