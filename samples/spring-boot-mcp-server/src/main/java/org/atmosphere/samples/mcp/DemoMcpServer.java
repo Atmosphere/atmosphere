@@ -133,7 +133,7 @@ public class DemoMcpServer {
             name = "Server Status",
             description = "Current server status and uptime",
             mimeType = "application/json")
-    public String serverStatus() {
+    public String serverStatus() throws Exception {
         var status = new LinkedHashMap<String, Object>();
         status.put("status", "running");
         status.put("framework", "Atmosphere " + Version.getRawVersion());
@@ -141,7 +141,7 @@ public class DemoMcpServer {
         status.put("javaVersion", System.getProperty("java.version"));
         status.put("timestamp", Instant.now().toString());
         status.put("connectedUsers", config.resourcesFactory().findAll().size());
-        return status.toString();
+        return mapper.writeValueAsString(status);
     }
 
     @McpResource(uri = "atmosphere://server/capabilities",
