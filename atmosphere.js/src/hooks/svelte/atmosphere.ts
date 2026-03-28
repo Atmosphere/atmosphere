@@ -108,7 +108,7 @@ export function createAtmosphereStore<T = unknown>(
   const store: Readable<AtmosphereStoreState<T>> = {
     subscribe(run) {
       subscribers.add(run);
-      if (subscribers.size === 1) connect();
+      if (subscribers.size === 1) await connect();
       run(current);
       return () => {
         subscribers.delete(run);
