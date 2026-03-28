@@ -15,9 +15,10 @@
  */
 package org.atmosphere.ai;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,8 +46,9 @@ import java.util.Set;
 public class JacksonStructuredOutputParser implements StructuredOutputParser {
 
     private static final Logger logger = LoggerFactory.getLogger(JacksonStructuredOutputParser.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper()
-            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+    private static final ObjectMapper MAPPER = JsonMapper.builder()
+            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+            .build();
 
     private static final Map<Class<?>, String> JSON_TYPE_MAP = Map.ofEntries(
             Map.entry(String.class, "string"),
@@ -92,9 +94,9 @@ public class JacksonStructuredOutputParser implements StructuredOutputParser {
                 return Optional.empty();
             }
             var node = MAPPER.readTree("{" + trimmed + "}");
-            var fields = node.fields();
-            if (fields.hasNext()) {
-                var field = fields.next();
+            var fieldSet = node.properties();
+            if (!fieldSet.isEmpty()) {
+                var field = fieldSet.iterator().next();
                 var value = nodeToValue(field.getValue());
                 return Optional.of(new AbstractMap.SimpleImmutableEntry<>(
                         field.getKey(), value));
@@ -108,7 +110,7 @@ public class JacksonStructuredOutputParser implements StructuredOutputParser {
     @Override
     public boolean isAvailable() {
         try {
-            Class.forName("com.fasterxml.jackson.databind.ObjectMapper");
+            Class.forName("tools.jackson.databind.ObjectMapper");
             return true;
         } catch (ClassNotFoundException e) {
             return false;
@@ -192,8 +194,8 @@ public class JacksonStructuredOutputParser implements StructuredOutputParser {
     }
 
     private static Object nodeToValue(JsonNode node) {
-        if (node.isTextual()) {
-            return node.textValue();
+        if (node.isString()) {
+            return node.stringValue();
         }
         if (node.isNumber()) {
             return node.numberValue();

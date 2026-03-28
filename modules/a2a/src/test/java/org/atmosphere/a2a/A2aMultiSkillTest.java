@@ -15,8 +15,8 @@
  */
 package org.atmosphere.a2a;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.a2a.annotation.AgentSkill;
 import org.atmosphere.a2a.annotation.AgentSkillHandler;
@@ -90,8 +90,8 @@ class A2aMultiSkillTest {
 
         assertNotNull(node.get("result"));
         var task = node.get("result");
-        assertEquals("COMPLETED", task.get("status").get("state").asText());
-        assertEquals("Greeted", task.get("status").get("message").asText());
+        assertEquals("COMPLETED", task.get("status").get("state").stringValue());
+        assertEquals("Greeted", task.get("status").get("message").stringValue());
 
         // Verify artifact contains the greeting
         assertTrue(task.has("artifacts"));
@@ -99,7 +99,7 @@ class A2aMultiSkillTest {
         assertTrue(artifacts.isArray());
         assertEquals(1, artifacts.size());
         var parts = artifacts.get(0).get("parts");
-        assertEquals("Hello, Alice!", parts.get(0).get("text").asText());
+        assertEquals("Hello, Alice!", parts.get(0).get("text").stringValue());
     }
 
     @Test
@@ -116,9 +116,9 @@ class A2aMultiSkillTest {
         var node = mapper.readTree(response);
 
         var task = node.get("result");
-        assertEquals("COMPLETED", task.get("status").get("state").asText());
+        assertEquals("COMPLETED", task.get("status").get("state").stringValue());
         var parts = task.get("artifacts").get(0).get("parts");
-        assertEquals("Sum: 42", parts.get(0).get("text").asText());
+        assertEquals("Sum: 42", parts.get(0).get("text").stringValue());
     }
 
     @Test
@@ -134,8 +134,8 @@ class A2aMultiSkillTest {
         var node = mapper.readTree(response);
 
         var task = node.get("result");
-        assertEquals("FAILED", task.get("status").get("state").asText());
-        assertEquals("Intentional failure", task.get("status").get("message").asText());
+        assertEquals("FAILED", task.get("status").get("state").stringValue());
+        assertEquals("Intentional failure", task.get("status").get("message").stringValue());
     }
 
     @Test
@@ -156,7 +156,7 @@ class A2aMultiSkillTest {
         var task = node.get("result");
         assertNotNull(task.get("id"), "Task should be created");
         assertNotNull(task.get("status"), "Task should have a status");
-        var statusMsg = task.get("status").get("message").asText();
+        var statusMsg = task.get("status").get("message").stringValue();
         // The key assertion: it should NOT fail with "No skills registered"
         assertFalse(statusMsg.contains("No skills registered"),
                 "A default skill should be selected when no skillId is specified");
@@ -172,7 +172,7 @@ class A2aMultiSkillTest {
 
         var card = node.get("result");
         assertNotNull(card);
-        assertEquals("multi-skill-agent", card.get("name").asText());
+        assertEquals("multi-skill-agent", card.get("name").stringValue());
 
         var skills = card.get("skills");
         assertTrue(skills.isArray());
@@ -244,7 +244,7 @@ class A2aMultiSkillTest {
                 "metadata":{"skillId":"greet"}},\
                 "arguments":{"name":"Alice"}}}""";
         var sendResp = handler.handleMessage(sendReq);
-        var taskId = mapper.readTree(sendResp).get("result").get("id").asText();
+        var taskId = mapper.readTree(sendResp).get("result").get("id").stringValue();
 
         // Try to cancel it - since it's already COMPLETED, cancel should fail
         var cancelReq = """
@@ -255,7 +255,7 @@ class A2aMultiSkillTest {
 
         // Cancel should return error for already completed task
         assertNotNull(cancelNode.get("error"));
-        assertTrue(cancelNode.get("error").get("message").asText().contains("not cancellable"));
+        assertTrue(cancelNode.get("error").get("message").stringValue().contains("not cancellable"));
     }
 
     @Test
@@ -269,7 +269,7 @@ class A2aMultiSkillTest {
                 "metadata":{"skillId":"greet"}},\
                 "arguments":{"name":"Charlie"}}}""";
         var sendResp = handler.handleMessage(sendReq);
-        var taskId = mapper.readTree(sendResp).get("result").get("id").asText();
+        var taskId = mapper.readTree(sendResp).get("result").get("id").stringValue();
 
         // Get it by ID
         var getReq = """
@@ -279,8 +279,8 @@ class A2aMultiSkillTest {
         var node = mapper.readTree(getResp);
 
         var task = node.get("result");
-        assertEquals(taskId, task.get("id").asText());
-        assertEquals("COMPLETED", task.get("status").get("state").asText());
+        assertEquals(taskId, task.get("id").stringValue());
+        assertEquals("COMPLETED", task.get("status").get("state").stringValue());
         assertTrue(task.get("artifacts").size() > 0);
     }
 
@@ -294,7 +294,7 @@ class A2aMultiSkillTest {
 
         assertNotNull(node.get("error"));
         assertEquals(JsonRpc.METHOD_NOT_FOUND, node.get("error").get("code").asInt());
-        assertTrue(node.get("error").get("message").asText().contains("Unknown method"));
+        assertTrue(node.get("error").get("message").stringValue().contains("Unknown method"));
     }
 
     @Test
@@ -308,7 +308,7 @@ class A2aMultiSkillTest {
 
         assertNotNull(node.get("error"));
         assertEquals(JsonRpc.METHOD_NOT_FOUND, node.get("error").get("code").asInt());
-        assertTrue(node.get("error").get("message").asText().contains("Unknown task"));
+        assertTrue(node.get("error").get("message").stringValue().contains("Unknown task"));
     }
 
     @Test
@@ -321,7 +321,7 @@ class A2aMultiSkillTest {
 
         assertNotNull(node.get("error"));
         assertEquals(JsonRpc.INVALID_PARAMS, node.get("error").get("code").asInt());
-        assertTrue(node.get("error").get("message").asText().contains("Missing params"));
+        assertTrue(node.get("error").get("message").stringValue().contains("Missing params"));
     }
 
     @Test
@@ -389,7 +389,7 @@ class A2aMultiSkillTest {
         assertTrue(tasks.isArray());
         assertEquals(2, tasks.size());
         for (JsonNode task : tasks) {
-            assertEquals("ctx-alpha", task.get("contextId").asText());
+            assertEquals("ctx-alpha", task.get("contextId").stringValue());
         }
     }
 
@@ -406,8 +406,8 @@ class A2aMultiSkillTest {
         var node = mapper.readTree(response);
 
         var task = node.get("result");
-        assertEquals("FAILED", task.get("status").get("state").asText());
-        assertTrue(task.get("status").get("message").asText().contains("Unknown skill"));
+        assertEquals("FAILED", task.get("status").get("state").stringValue());
+        assertTrue(task.get("status").get("message").stringValue().contains("Unknown skill"));
     }
 
     @Test
@@ -429,7 +429,7 @@ class A2aMultiSkillTest {
 
         assertNotNull(node.get("error"));
         assertEquals(JsonRpc.INVALID_REQUEST, node.get("error").get("code").asInt());
-        assertTrue(node.get("error").get("message").asText().contains("Missing method"));
+        assertTrue(node.get("error").get("message").stringValue().contains("Missing method"));
     }
 
     @Test
@@ -452,7 +452,7 @@ class A2aMultiSkillTest {
         var response = handler.handleMessage(request);
         var node = mapper.readTree(response);
 
-        assertEquals("req-abc", node.get("id").asText());
+        assertEquals("req-abc", node.get("id").stringValue());
         assertNotNull(node.get("result"));
     }
 
@@ -475,6 +475,6 @@ class A2aMultiSkillTest {
 
         // The user message should be included in the task
         var firstMessage = messages.get(0);
-        assertEquals("user", firstMessage.get("role").asText());
+        assertEquals("user", firstMessage.get("role").stringValue());
     }
 }

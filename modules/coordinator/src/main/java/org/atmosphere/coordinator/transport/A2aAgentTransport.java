@@ -15,7 +15,7 @@
  */
 package org.atmosphere.coordinator.transport;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.coordinator.fleet.AgentResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,7 +77,7 @@ public class A2aAgentTransport implements AgentTransport {
                 if (json.has("error")) {
                     var errorNode = json.get("error");
                     var errorMsg = errorNode.has("message")
-                            ? errorNode.get("message").asText()
+                            ? errorNode.get("message").stringValue()
                             : errorNode.toString();
                     logger.warn("A2A dispatch to '{}' skill '{}' returned error: {}",
                             agentName, skill, errorMsg);
@@ -88,10 +88,10 @@ public class A2aAgentTransport implements AgentTransport {
                 var result = json.get("result");
                 if (result != null && result.has("status")) {
                     var state = result.get("status").has("state")
-                            ? result.get("status").get("state").asText() : "";
+                            ? result.get("status").get("state").stringValue() : "";
                     if ("failed".equalsIgnoreCase(state) || "canceled".equalsIgnoreCase(state)) {
                         var statusMsg = result.get("status").has("message")
-                                ? result.get("status").get("message").asText()
+                                ? result.get("status").get("message").stringValue()
                                 : "Task " + state;
                         return AgentResult.failure(agentName, skill, statusMsg, duration);
                     }
@@ -168,16 +168,16 @@ public class A2aAgentTransport implements AgentTransport {
                 var parts = json.get("artifact").get("parts");
                 if (parts != null && parts.isArray() && !parts.isEmpty()
                         && parts.get(0).has("text")) {
-                    return parts.get(0).get("text").asText();
+                    return parts.get(0).get("text").stringValue();
                 }
             }
             // Status update with message
             if (json.has("status") && json.get("status").has("message")) {
-                return json.get("status").get("message").asText();
+                return json.get("status").get("message").stringValue();
             }
             // Plain text delta
             if (json.has("text")) {
-                return json.get("text").asText();
+                return json.get("text").stringValue();
             }
         } catch (Exception e) {
             logger.debug("Failed to parse SSE data: {}", data);
@@ -202,5 +202,4 @@ public class A2aAgentTransport implements AgentTransport {
             return false;
         }
     }
-
 }

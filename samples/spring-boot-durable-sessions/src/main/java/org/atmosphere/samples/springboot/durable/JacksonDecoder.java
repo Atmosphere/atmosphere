@@ -16,16 +16,14 @@
 package org.atmosphere.samples.springboot.durable;
 
 import tools.jackson.databind.ObjectMapper;
-import org.atmosphere.config.managed.Encoder;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.atmosphere.config.managed.Decoder;
 
-public class JacksonEncoder implements Encoder<Message, String> {
+public class JacksonDecoder implements Decoder<String, Message> {
 
-    @Autowired
-    private ObjectMapper mapper;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
-    public String encode(Message m) {
-        return mapper.writeValueAsString(m);
+    public Message decode(String s) {
+        return mapper.readValue(s, Message.class);
     }
 }

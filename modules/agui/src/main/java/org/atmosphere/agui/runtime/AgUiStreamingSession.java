@@ -15,8 +15,8 @@
  */
 package org.atmosphere.agui.runtime;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.agui.event.AgUiEvent;
 import org.atmosphere.agui.event.AgUiEventMapper;
 import org.atmosphere.ai.AiEvent;
@@ -151,7 +151,7 @@ public final class AgUiStreamingSession implements StreamingSession {
             } finally {
                 writeLock.unlock();
             }
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             logger.warn("Failed to serialize AG-UI event: {}", event.type(), e);
         } catch (IOException e) {
             logger.debug("Failed to write AG-UI SSE frame", e);

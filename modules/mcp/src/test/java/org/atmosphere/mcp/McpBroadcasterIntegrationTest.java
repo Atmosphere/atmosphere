@@ -15,7 +15,7 @@
  */
 package org.atmosphere.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
@@ -173,7 +173,7 @@ public class McpBroadcasterIntegrationTest {
         // Tool returned success
         assertFalse(node.get("result").get("isError").asBoolean());
         assertEquals("sent: Hello from agent!",
-                node.get("result").get("content").get(0).get("text").asText());
+                node.get("result").get("content").get(0).get("text").stringValue());
 
         // Subscriber received the broadcast
         assertTrue(capture.latch.await(5, TimeUnit.SECONDS),
@@ -219,7 +219,7 @@ public class McpBroadcasterIntegrationTest {
         var response = handler.handleMessage(mcpResource, request);
         var node = mapper.readTree(response);
         assertEquals("sent via config: via config",
-                node.get("result").get("content").get(0).get("text").asText());
+                node.get("result").get("content").get(0).get("text").stringValue());
 
         assertTrue(capture.latch.await(5, TimeUnit.SECONDS));
         assertEquals("via config", capture.messages.get(0));

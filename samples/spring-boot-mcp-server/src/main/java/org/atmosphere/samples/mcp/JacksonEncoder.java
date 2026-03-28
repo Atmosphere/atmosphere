@@ -13,16 +13,14 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.samples.springboot.chat;
+package org.atmosphere.samples.mcp;
 
-import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.config.managed.Encoder;
-import org.springframework.beans.factory.annotation.Autowired;
+import tools.jackson.databind.ObjectMapper;
 
 public class JacksonEncoder implements Encoder<Message, String> {
 
-    @Autowired
-    private ObjectMapper mapper;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public String encode(Message m) {

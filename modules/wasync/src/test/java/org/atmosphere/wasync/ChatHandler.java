@@ -15,7 +15,7 @@
  */
 package org.atmosphere.wasync;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.config.managed.Encoder;
 import org.atmosphere.config.managed.Decoder;
 import org.atmosphere.config.service.Disconnect;
@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Inject;
-import java.io.IOException;
 import java.util.Date;
 
 /**
@@ -74,11 +73,7 @@ public class ChatHandler {
 
         @Override
         public String encode(ChatMessage m) {
-            try {
-                return mapper.writeValueAsString(m);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+            return mapper.writeValueAsString(m);
         }
     }
 
@@ -87,11 +82,7 @@ public class ChatHandler {
 
         @Override
         public ChatMessage decode(String s) {
-            try {
-                return mapper.readValue(s, ChatMessage.class);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+            return mapper.readValue(s, ChatMessage.class);
         }
     }
 }

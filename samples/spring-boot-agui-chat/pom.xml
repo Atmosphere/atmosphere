@@ -58,6 +58,12 @@
             <artifactId>jakarta.inject-api</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
         <!-- Parent POM restricts logback to test scope; override for runtime logging -->
         <dependency>
             <groupId>ch.qos.logback</groupId>

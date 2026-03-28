@@ -15,9 +15,9 @@
  */
 package org.atmosphere.mcp.runtime;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -95,7 +95,7 @@ public final class McpProtocolHandler {
             }
 
             return handleSingleMessage(resource, node);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             logger.warn("Failed to parse JSON-RPC message", e);
             return serialize(JsonRpc.Response.error(null, JsonRpc.PARSE_ERROR,
                     "Invalid JSON: " + e.getMessage()));
@@ -107,7 +107,7 @@ public final class McpProtocolHandler {
     }
 
     private String handleSingleMessage(AtmosphereResource resource, JsonNode node) {
-        var method = node.has("method") ? node.get("method").asText() : null;
+        var method = node.has("method") ? node.get("method").stringValue() : null;
         var id = node.has("id") ? node.get("id") : null;
 
         if (method == null) {
@@ -148,8 +148,8 @@ public final class McpProtocolHandler {
             var clientInfo = params.get("clientInfo");
             var capabilities = params.get("capabilities");
             session.setClientInfo(
-                    clientInfo != null && clientInfo.has("name") ? clientInfo.get("name").asText() : "unknown",
-                    clientInfo != null && clientInfo.has("version") ? clientInfo.get("version").asText() : "unknown",
+                    clientInfo != null && clientInfo.has("name") ? clientInfo.get("name").stringValue() : "unknown",
+                    clientInfo != null && clientInfo.has("version") ? clientInfo.get("version").stringValue() : "unknown",
                     capabilities != null ? mapper.convertValue(capabilities, Map.class) : Map.of()
             );
         }
@@ -190,7 +190,7 @@ public final class McpProtocolHandler {
             }
             case McpMethod.CANCELLED -> {
                 var requestId = params != null && params.has("requestId")
-                        ? params.get("requestId").asText() : "unknown";
+                        ? params.get("requestId").stringValue() : "unknown";
                 logger.debug("MCP client cancelled request {} for resource {}",
                         requestId, resource.uuid());
             }
@@ -218,7 +218,7 @@ public final class McpProtocolHandler {
         if (params == null || !params.has("name")) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing tool name");
         }
-        var toolName = params.get("name").asText();
+        var toolName = params.get("name").stringValue();
         var toolOpt = registry.tool(toolName);
         if (toolOpt.isEmpty()) {
             return JsonRpc.Response.error(id, JsonRpc.METHOD_NOT_FOUND,
@@ -300,7 +300,7 @@ public final class McpProtocolHandler {
         if (params == null || !params.has("uri")) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing resource URI");
         }
-        var uri = params.get("uri").asText();
+        var uri = params.get("uri").stringValue();
         var resOpt = registry.resource(uri);
         if (resOpt.isEmpty()) {
             return JsonRpc.Response.error(id, JsonRpc.METHOD_NOT_FOUND,
@@ -352,7 +352,7 @@ public final class McpProtocolHandler {
         if (params == null || !params.has("uri")) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing resource URI");
         }
-        var uri = params.get("uri").asText();
+        var uri = params.get("uri").stringValue();
         if (registry.resource(uri).isEmpty()) {
             return JsonRpc.Response.error(id, JsonRpc.METHOD_NOT_FOUND,
                     "Unknown resource: " + uri);
@@ -368,7 +368,7 @@ public final class McpProtocolHandler {
         if (params == null || !params.has("uri")) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing resource URI");
         }
-        var uri = params.get("uri").asText();
+        var uri = params.get("uri").stringValue();
         var session = getOrCreateSession(resource);
         session.removeSubscription(uri);
         logger.debug("Client unsubscribed from resource: {}", uri);
@@ -407,7 +407,7 @@ public final class McpProtocolHandler {
         if (params == null || !params.has("name")) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing prompt name");
         }
-        var promptName = params.get("name").asText();
+        var promptName = params.get("name").stringValue();
         var promptOpt = registry.prompt(promptName);
         if (promptOpt.isEmpty()) {
             return JsonRpc.Response.error(id, JsonRpc.METHOD_NOT_FOUND,
@@ -471,7 +471,7 @@ public final class McpProtocolHandler {
         // Resolve the topic from JSON arguments (used for Broadcaster/StreamingSession injection)
         String topic = null;
         if (arguments != null && arguments.has("topic")) {
-            topic = arguments.get("topic").asText();
+            topic = arguments.get("topic").stringValue();
         }
 
         for (int i = 0; i < methodParams.length; i++) {
@@ -554,9 +554,7 @@ public final class McpProtocolHandler {
         }
         // Also include any extra arguments not declared in params
         if (arguments != null) {
-            var it = arguments.fields();
-            while (it.hasNext()) {
-                var field = it.next();
+            for (var field : arguments.properties()) {
                 map.putIfAbsent(field.getKey(), mapper.convertValue(field.getValue(), Object.class));
             }
         }
@@ -565,7 +563,7 @@ public final class McpProtocolHandler {
 
     private Object convertParam(JsonNode node, Class<?> type) {
         if (node == null || node.isNull()) return defaultValue(type);
-        if (type == String.class) return node.asText();
+        if (type == String.class) return node.isString() ? node.stringValue() : node.toString();
         if (type == int.class || type == Integer.class) return node.asInt();
         if (type == long.class || type == Long.class) return node.asLong();
         if (type == double.class || type == Double.class) return node.asDouble();
@@ -587,7 +585,8 @@ public final class McpProtocolHandler {
     private Object idValue(JsonNode id) {
         if (id == null || id.isNull()) return null;
         if (id.isNumber()) return id.numberValue();
-        return id.asText();
+        if (id.isString()) return id.stringValue();
+        return id.toString();
     }
 
     private McpSession getOrCreateSession(AtmosphereResource resource) {
@@ -602,7 +601,7 @@ public final class McpProtocolHandler {
     private String serialize(Object obj) {
         try {
             return mapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             logger.error("Failed to serialize JSON-RPC response", e);
             return "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32603,\"message\":\"Serialization failed\"}}";
         }

@@ -15,7 +15,7 @@
  */
 package org.atmosphere.samples.springboot.agui;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.atmosphere.agui.event.AgUiEvent;
 import org.atmosphere.agui.event.AgUiEventMapper;

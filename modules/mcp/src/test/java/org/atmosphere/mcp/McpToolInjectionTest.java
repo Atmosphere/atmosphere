@@ -15,7 +15,7 @@
  */
 package org.atmosphere.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -144,7 +144,7 @@ public class McpToolInjectionTest {
 
         // Find broadcast_message tool
         for (var tool : tools) {
-            if ("broadcast_message".equals(tool.get("name").asText())) {
+            if ("broadcast_message".equals(tool.get("name").stringValue())) {
                 var schema = tool.get("inputSchema");
                 var props = schema.get("properties");
                 // Should have message and topic, but NOT broadcaster
@@ -166,7 +166,7 @@ public class McpToolInjectionTest {
         var tools = node.get("result").get("tools");
 
         for (var tool : tools) {
-            if ("with_config".equals(tool.get("name").asText())) {
+            if ("with_config".equals(tool.get("name").stringValue())) {
                 var props = tool.get("inputSchema").get("properties");
                 assertTrue(props.has("key"));
                 assertFalse(props.has("config"), "AtmosphereConfig should NOT be in schema");
@@ -189,7 +189,7 @@ public class McpToolInjectionTest {
         var node = mapper.readTree(handler.handleMessage(resource, request));
         var result = node.get("result");
         assertFalse(result.get("isError").asBoolean());
-        assertEquals("sent to /chat", result.get("content").get(0).get("text").asText());
+        assertEquals("sent to /chat", result.get("content").get(0).get("text").stringValue());
 
         assertNotNull(capturedBroadcaster, "Broadcaster should have been injected");
         verify(mockBroadcasterFactory).lookup("/chat", true);
@@ -206,7 +206,7 @@ public class McpToolInjectionTest {
                 }}""";
 
         var node = mapper.readTree(handler.handleMessage(resource, request));
-        assertEquals("config:test-key", node.get("result").get("content").get(0).get("text").asText());
+        assertEquals("config:test-key", node.get("result").get("content").get(0).get("text").stringValue());
         assertSame(mockConfig, capturedConfig, "AtmosphereConfig should be the mock");
     }
 
@@ -221,7 +221,7 @@ public class McpToolInjectionTest {
                 }}""";
 
         var node = mapper.readTree(handler.handleMessage(resource, request));
-        assertEquals("factory:test", node.get("result").get("content").get(0).get("text").asText());
+        assertEquals("factory:test", node.get("result").get("content").get(0).get("text").stringValue());
         assertSame(mockBroadcasterFactory, capturedBroadcasterFactory);
     }
 
@@ -236,7 +236,7 @@ public class McpToolInjectionTest {
                 }}""";
 
         var node = mapper.readTree(handler.handleMessage(resource, request));
-        assertEquals("framework:deploy", node.get("result").get("content").get(0).get("text").asText());
+        assertEquals("framework:deploy", node.get("result").get("content").get(0).get("text").stringValue());
         assertSame(mockFramework, capturedFramework);
     }
 

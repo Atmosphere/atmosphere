@@ -15,8 +15,8 @@
  */
 package org.atmosphere.agui.event;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.ai.AiEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,7 +78,7 @@ public final class AgUiEventMapper {
                 try {
                     var argsJson = MAPPER.writeValueAsString(start.arguments());
                     events.add(new AgUiEvent.ToolCallArgs(currentToolCallId, argsJson));
-                } catch (JsonProcessingException ex) {
+                } catch (JacksonException ex) {
                     logger.trace("Best-effort serialization failed for tool args", ex);
                 }
                 yield events;
@@ -154,7 +154,7 @@ public final class AgUiEventMapper {
     private String serializeQuietly(Object obj) {
         try {
             return MAPPER.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return String.valueOf(obj);
         }
     }

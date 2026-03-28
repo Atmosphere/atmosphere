@@ -15,9 +15,8 @@
  */
 package org.atmosphere.coordinator.transport;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,16 +35,14 @@ final class JsonRpcUtils {
     /**
      * Build a JSON-RPC 2.0 request for the A2A {@code message/send} method.
      */
-    static String buildSendRequest(String skill, Map<String, Object> args)
-            throws JsonProcessingException {
+    static String buildSendRequest(String skill, Map<String, Object> args) {
         return buildRequest("message/send", skill, args);
     }
 
     /**
      * Build a JSON-RPC 2.0 request for the A2A {@code message/stream} method.
      */
-    static String buildStreamRequest(String skill, Map<String, Object> args)
-            throws JsonProcessingException {
+    static String buildStreamRequest(String skill, Map<String, Object> args) {
         return buildRequest("message/stream", skill, args);
     }
 
@@ -61,19 +58,18 @@ final class JsonRpcUtils {
                 var parts = artifacts.get(0).get("parts");
                 if (parts != null && parts.isArray() && !parts.isEmpty()) {
                     if (parts.get(0).has("text")) {
-                        return parts.get(0).get("text").asText();
+                        return parts.get(0).get("text").stringValue();
                     }
                 }
             }
             if (result.has("status") && result.get("status").has("message")) {
-                return result.get("status").get("message").asText();
+                return result.get("status").get("message").stringValue();
             }
         }
         return json.toString();
     }
 
-    private static String buildRequest(String method, String skill, Map<String, Object> args)
-            throws JsonProcessingException {
+    private static String buildRequest(String method, String skill, Map<String, Object> args) {
         var firstValue = args.values().isEmpty()
                 ? "" : String.valueOf(args.values().iterator().next());
         var message = Map.of(

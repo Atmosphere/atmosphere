@@ -15,8 +15,8 @@
  */
 package org.atmosphere.agui.runtime;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.agui.event.AgUiEvent;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.Content;
@@ -95,7 +95,7 @@ public final class AgUiHandler implements AtmosphereHandler {
         RunContext runContext;
         try {
             runContext = MAPPER.readValue(sb.toString(), RunContext.class);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             response.setStatus(400);
             response.getWriter().write("{\"error\":\"Invalid request: " + e.getMessage() + "\"}");
             return;

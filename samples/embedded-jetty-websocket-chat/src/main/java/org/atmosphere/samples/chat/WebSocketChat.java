@@ -15,7 +15,7 @@
  */
 package org.atmosphere.samples.chat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.util.SimpleBroadcaster;

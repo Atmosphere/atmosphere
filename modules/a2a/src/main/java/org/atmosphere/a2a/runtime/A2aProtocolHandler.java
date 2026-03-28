@@ -15,9 +15,9 @@
  */
 package org.atmosphere.a2a.runtime;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.a2a.protocol.A2aMethod;
 import org.atmosphere.a2a.registry.A2aRegistry;
@@ -59,7 +59,7 @@ public final class A2aProtocolHandler {
     public String handleMessage(String message) {
         try {
             var node = mapper.readTree(message);
-            var method = node.has("method") ? node.get("method").asText() : null;
+            var method = node.has("method") ? node.get("method").stringValue() : null;
             var id = node.has("id") ? node.get("id") : null;
 
             if (method == null) {
@@ -88,7 +88,7 @@ public final class A2aProtocolHandler {
             }
 
             return serialize(response);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             logger.warn("Failed to parse A2A message", e);
             return serialize(JsonRpc.Response.error(null, JsonRpc.PARSE_ERROR,
                     "Invalid JSON: " + e.getMessage()));
@@ -119,7 +119,7 @@ public final class A2aProtocolHandler {
 
             var msg = extractMessage(params);
             var contextId = params.has("contextId")
-                    ? params.get("contextId").asText() : UUID.randomUUID().toString();
+                    ? params.get("contextId").stringValue() : UUID.randomUUID().toString();
             var skillId = resolveSkillId(msg);
 
             var taskCtx = taskManager.createTask(contextId);
@@ -169,7 +169,7 @@ public final class A2aProtocolHandler {
 
         var message = extractMessage(params);
         var contextId = params.has("contextId")
-                ? params.get("contextId").asText() : UUID.randomUUID().toString();
+                ? params.get("contextId").stringValue() : UUID.randomUUID().toString();
         var skillId = resolveSkillId(message);
 
         var taskCtx = taskManager.createTask(contextId);
@@ -197,7 +197,7 @@ public final class A2aProtocolHandler {
         if (params == null || !params.has("id")) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing task id");
         }
-        var taskId = params.get("id").asText();
+        var taskId = params.get("id").stringValue();
         var taskOpt = taskManager.getTask(taskId);
         if (taskOpt.isEmpty()) {
             return JsonRpc.Response.error(id, JsonRpc.METHOD_NOT_FOUND,
@@ -208,7 +208,7 @@ public final class A2aProtocolHandler {
 
     private JsonRpc.Response handleListTasks(Object id, JsonNode params) {
         var contextId = params != null && params.has("contextId")
-                ? params.get("contextId").asText() : null;
+                ? params.get("contextId").stringValue() : null;
         var tasks = taskManager.listTasks(contextId).stream()
                 .map(TaskContext::toTask).toList();
         return JsonRpc.Response.success(id, tasks);
@@ -218,7 +218,7 @@ public final class A2aProtocolHandler {
         if (params == null || !params.has("id")) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing task id");
         }
-        var taskId = params.get("id").asText();
+        var taskId = params.get("id").stringValue();
         var canceled = taskManager.cancelTask(taskId);
         if (!canceled) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS,
@@ -274,7 +274,7 @@ public final class A2aProtocolHandler {
      */
     private Object coerceArgument(JsonNode node, Class<?> targetType) {
         if (targetType == String.class) {
-            return node.isTextual() ? node.asText() : node.toString();
+            return node.isString() ? node.stringValue() : node.toString();
         }
         if (targetType == int.class || targetType == Integer.class) {
             return node.asInt();
@@ -296,7 +296,7 @@ public final class A2aProtocolHandler {
             return mapper.treeToValue(node, targetType);
         } catch (Exception e) {
             // Fall back to string representation
-            return node.isTextual() ? node.asText() : node.toString();
+            return node.isString() ? node.stringValue() : node.toString();
         }
     }
 
@@ -304,7 +304,7 @@ public final class A2aProtocolHandler {
         if (params.has("message")) {
             try {
                 return mapper.treeToValue(params.get("message"), Message.class);
-            } catch (JsonProcessingException e) {
+            } catch (JacksonException e) {
                 logger.warn("Failed to parse message from params", e);
             }
         }
@@ -325,13 +325,16 @@ public final class A2aProtocolHandler {
         if (id.isNumber()) {
             return id.numberValue();
         }
-        return id.asText();
+        if (id.isString()) {
+            return id.stringValue();
+        }
+        return id.toString();
     }
 
     private String serialize(Object obj) {
         try {
             return mapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             logger.error("Failed to serialize A2A response", e);
             return "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32603,\"message\":\"Serialization failed\"}}";
         }

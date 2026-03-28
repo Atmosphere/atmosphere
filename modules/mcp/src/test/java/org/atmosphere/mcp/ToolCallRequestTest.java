@@ -15,7 +15,7 @@
  */
 package org.atmosphere.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -35,10 +35,10 @@ class ToolCallRequestTest {
         var json = request.toJson();
         var node = MAPPER.readTree(json);
 
-        assertEquals("tool_call", node.get("type").asText());
-        assertEquals("call-1", node.get("id").asText());
-        assertEquals("getWeather", node.get("name").asText());
-        assertEquals("Montreal", node.get("args").get("city").asText());
+        assertEquals("tool_call", node.get("type").stringValue());
+        assertEquals("call-1", node.get("id").stringValue());
+        assertEquals("getWeather", node.get("name").stringValue());
+        assertEquals("Montreal", node.get("args").get("city").stringValue());
     }
 
     @Test
@@ -47,7 +47,7 @@ class ToolCallRequestTest {
         var json = request.toJson();
         var node = MAPPER.readTree(json);
 
-        assertEquals("ping", node.get("name").asText());
+        assertEquals("ping", node.get("name").stringValue());
         assertTrue(node.get("args").isEmpty());
     }
 
@@ -68,7 +68,7 @@ class ToolCallRequestTest {
         var json = request.toJson();
         var node = MAPPER.readTree(json);
 
-        assertEquals("hello \"world\" \n\ttab", node.get("args").get("msg").asText());
+        assertEquals("hello \"world\" \n\ttab", node.get("args").get("msg").stringValue());
     }
 
     @Test

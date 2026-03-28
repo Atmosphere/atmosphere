@@ -15,7 +15,8 @@
  */
 package org.atmosphere.a2a.runtime;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.a2a.protocol.A2aMethod;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.protocol.AbstractProtocolHandler;
@@ -149,7 +150,7 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
     private boolean isStreamingRequest(String body) {
         try {
             var node = mapper.readTree(body);
-            var method = node.has("method") ? node.get("method").asText() : null;
+            var method = node.has("method") ? node.get("method").stringValue() : null;
             return A2aMethod.SEND_STREAMING_MESSAGE.equals(method);
         } catch (Exception e) {
             logger.trace("Failed to parse body for streaming detection", e);
@@ -174,7 +175,7 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
                                                 java.util.List.of(java.util.Map.of("text", token)))))
                                 + "\n\n");
                         writer.flush();
-                    } catch (IOException e) {
+                    } catch (JacksonException e) {
                         logger.warn("Failed to write SSE token", e);
                     }
                 },

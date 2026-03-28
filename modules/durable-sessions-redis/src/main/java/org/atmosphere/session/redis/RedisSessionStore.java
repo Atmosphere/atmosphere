@@ -15,8 +15,8 @@
  */
 package org.atmosphere.session.redis;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -182,7 +182,7 @@ public class RedisSessionStore implements SessionStore {
 
     // --- JSON serialization ---
 
-    private String toJson(DurableSession session) throws JsonProcessingException {
+    private String toJson(DurableSession session) throws JacksonException {
         var map = Map.of(
                 "token", session.token(),
                 "resourceId", session.resourceId(),
@@ -196,7 +196,7 @@ public class RedisSessionStore implements SessionStore {
     }
 
     @SuppressWarnings("unchecked")
-    private DurableSession fromJson(String json) throws JsonProcessingException {
+    private DurableSession fromJson(String json) throws JacksonException {
         var map = mapper.readValue(json, Map.class);
         return new DurableSession(
                 (String) map.get("token"),

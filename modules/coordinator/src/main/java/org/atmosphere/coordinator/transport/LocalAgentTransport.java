@@ -15,7 +15,7 @@
  */
 package org.atmosphere.coordinator.transport;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.a2a.runtime.LocalDispatchable;
 import org.atmosphere.coordinator.fleet.AgentResult;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -72,7 +72,7 @@ public class LocalAgentTransport implements AgentTransport {
             if (json.has("error")) {
                 var errorNode = json.get("error");
                 var errorMsg = errorNode.has("message")
-                        ? errorNode.get("message").asText()
+                        ? errorNode.get("message").stringValue()
                         : errorNode.toString();
                 logger.warn("Local dispatch to '{}' skill '{}' returned error: {}",
                         agentName, skill, errorMsg);
@@ -83,10 +83,10 @@ public class LocalAgentTransport implements AgentTransport {
             var result = json.get("result");
             if (result != null && result.has("status")) {
                 var state = result.get("status").has("state")
-                        ? result.get("status").get("state").asText() : "";
+                        ? result.get("status").get("state").stringValue() : "";
                 if ("failed".equalsIgnoreCase(state) || "canceled".equalsIgnoreCase(state)) {
                     var statusMsg = result.get("status").has("message")
-                            ? result.get("status").get("message").asText()
+                            ? result.get("status").get("message").stringValue()
                             : "Task " + state;
                     return AgentResult.failure(agentName, skill, statusMsg, duration);
                 }
@@ -141,5 +141,4 @@ public class LocalAgentTransport implements AgentTransport {
     public boolean isAvailable() {
         return framework.getAtmosphereHandlers().containsKey(a2aPath);
     }
-
 }

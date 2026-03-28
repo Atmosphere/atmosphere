@@ -15,7 +15,7 @@
  */
 package org.atmosphere.a2a;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.a2a.annotation.AgentSkill;
 import org.atmosphere.a2a.annotation.AgentSkillHandler;
@@ -67,9 +67,9 @@ class A2aProtocolHandlerTest {
         var response = handler.handleMessage(request);
         assertNotNull(response);
         var node = mapper.readTree(response);
-        assertEquals("2.0", node.get("jsonrpc").asText());
+        assertEquals("2.0", node.get("jsonrpc").stringValue());
         assertNotNull(node.get("result"));
-        assertEquals("test-agent", node.get("result").get("name").asText());
+        assertEquals("test-agent", node.get("result").get("name").stringValue());
     }
 
     @Test
@@ -84,7 +84,7 @@ class A2aProtocolHandlerTest {
         assertNotNull(node.get("result"));
         var task = node.get("result");
         assertNotNull(task.get("id"));
-        assertEquals("COMPLETED", task.get("status").get("state").asText());
+        assertEquals("COMPLETED", task.get("status").get("state").stringValue());
     }
 
     @Test
@@ -95,14 +95,14 @@ class A2aProtocolHandlerTest {
                 + "\"parts\":[{\"type\":\"text\",\"text\":\"test\"}],"
                 + "\"messageId\":\"m1\"},\"arguments\":{\"name\":\"World\"}}}";
         var sendResp = handler.handleMessage(sendReq);
-        var taskId = mapper.readTree(sendResp).get("result").get("id").asText();
+        var taskId = mapper.readTree(sendResp).get("result").get("id").stringValue();
 
         // Then get it
         var getReq = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tasks/get\","
                 + "\"params\":{\"id\":\"" + taskId + "\"}}";
         var getResp = handler.handleMessage(getReq);
         var node = mapper.readTree(getResp);
-        assertEquals(taskId, node.get("result").get("id").asText());
+        assertEquals(taskId, node.get("result").get("id").stringValue());
     }
 
     @Test
@@ -149,7 +149,7 @@ class A2aProtocolHandlerTest {
         var node = mapper.readTree(response);
         // Should succeed (not METHOD_NOT_FOUND) — same behavior as message/send
         assertNotNull(node.get("result"));
-        assertEquals("COMPLETED", node.get("result").get("status").get("state").asText());
+        assertEquals("COMPLETED", node.get("result").get("status").get("state").stringValue());
     }
 
     @Test

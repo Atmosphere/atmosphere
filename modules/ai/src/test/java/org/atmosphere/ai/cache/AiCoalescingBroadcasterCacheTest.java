@@ -15,7 +15,7 @@
  */
 package org.atmosphere.ai.cache;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 import org.atmosphere.ai.filter.AiStreamMessage;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.RawMessage;
@@ -50,7 +50,7 @@ public class AiCoalescingBroadcasterCacheTest {
         return new AiCoalescingBroadcasterCache(delegate);
     }
 
-    private AiStreamMessage parse(Object message) throws JsonProcessingException {
+    private AiStreamMessage parse(Object message) throws JacksonException {
         var raw = (RawMessage) message;
         return AiStreamMessage.parse((String) raw.message());
     }
