@@ -121,7 +121,8 @@ user_extensible = [
     "Broadcaster",
     "BroadcasterCache",
     "CoalescedCacheEventListener",
-    "ToolExecutor"
+    "ToolExecutor",
+    "PostPromptHook"
 ]
 
 # ============================================================================
