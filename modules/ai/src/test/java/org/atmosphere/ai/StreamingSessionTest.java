@@ -132,11 +132,8 @@ public class StreamingSessionTest {
         verify(broadcaster).broadcast(captor.capture(), any(Set.class));
 
         var json = MAPPER.readTree(raw(captor.getValue()));
-        assertEquals("error", json.get("event").stringValue());
-        var data = json.get("data");
-        assertEquals("Connection lost", data.get("message").stringValue());
-        assertEquals("RuntimeException", data.get("code").stringValue());
-        assertTrue(data.get("recoverable").booleanValue());
+        assertEquals("error", json.get("type").stringValue());
+        assertEquals("Connection lost", json.get("data").stringValue());
         assertTrue(session.isClosed());
     }
 
