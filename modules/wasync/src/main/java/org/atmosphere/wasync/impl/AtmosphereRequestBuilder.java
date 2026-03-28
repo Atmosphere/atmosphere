@@ -76,16 +76,16 @@ public class AtmosphereRequestBuilder extends RequestBuilder<AtmosphereRequestBu
     /**
      * Set the heartbeat character.
      */
-    public AtmosphereRequestBuilder heartbeatChar(String heartbeatChar) {
-        this.heartbeatChar = heartbeatChar;
+    public AtmosphereRequestBuilder heartbeatChar(String newHeartbeatChar) {
+        this.heartbeatChar = newHeartbeatChar;
         return this;
     }
 
     /**
      * Set the padding size.
      */
-    public AtmosphereRequestBuilder paddingSize(int paddingSize) {
-        this.paddingSize = paddingSize;
+    public AtmosphereRequestBuilder paddingSize(int newPaddingSize) {
+        this.paddingSize = newPaddingSize;
         return this;
     }
 
@@ -133,8 +133,8 @@ public class AtmosphereRequestBuilder extends RequestBuilder<AtmosphereRequestBu
         return trackingId;
     }
 
-    void trackingId(String trackingId) {
-        this.trackingId = trackingId;
+    void trackingId(String newTrackingId) {
+        this.trackingId = newTrackingId;
     }
 
     /**

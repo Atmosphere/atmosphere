@@ -91,23 +91,23 @@ public class AtmosphereGrpcServer implements AutoCloseable {
         private boolean enableReflection = true;
         private final List<ServerInterceptor> interceptors = new ArrayList<>();
 
-        public Builder framework(AtmosphereFramework framework) {
-            this.framework = framework;
+        public Builder framework(AtmosphereFramework newFramework) {
+            this.framework = newFramework;
             return this;
         }
 
-        public Builder port(int port) {
-            this.port = port;
+        public Builder port(int newPort) {
+            this.port = newPort;
             return this;
         }
 
-        public Builder handler(GrpcHandler handler) {
-            this.handler = handler;
+        public Builder handler(GrpcHandler newHandler) {
+            this.handler = newHandler;
             return this;
         }
 
-        public Builder enableReflection(boolean enableReflection) {
-            this.enableReflection = enableReflection;
+        public Builder enableReflection(boolean newEnableReflection) {
+            this.enableReflection = newEnableReflection;
             return this;
         }
 

@@ -319,15 +319,15 @@ public class LangChain4jStreamingAdapterTest {
 
         // Reset to track only new writes
         reset(resource);
-        var broadcaster = mock(Broadcaster.class);
-        when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(any(), any(Set.class))).thenReturn(mock(Future.class));
+        var localBroadcaster = mock(Broadcaster.class);
+        when(resource.getBroadcaster()).thenReturn(localBroadcaster);
+        when(localBroadcaster.broadcast(any(), any(Set.class))).thenReturn(mock(Future.class));
 
         // Session is closed, so this send should be silently ignored
         handler.onPartialResponse("should be ignored");
 
         // No new writes because session is closed
-        verify(broadcaster, never()).broadcast(any(), any(Set.class));
+        verify(localBroadcaster, never()).broadcast(any(), any(Set.class));
     }
 
     @Test
@@ -338,14 +338,14 @@ public class LangChain4jStreamingAdapterTest {
 
         // Reset to track only new writes
         reset(resource);
-        var broadcaster = mock(Broadcaster.class);
-        when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(any(), any(Set.class))).thenReturn(mock(Future.class));
+        var localBroadcaster = mock(Broadcaster.class);
+        when(resource.getBroadcaster()).thenReturn(localBroadcaster);
+        when(localBroadcaster.broadcast(any(), any(Set.class))).thenReturn(mock(Future.class));
 
         // Session is closed after error
         handler.onPartialResponse("should be ignored");
 
-        verify(broadcaster, never()).broadcast(any(), any(Set.class));
+        verify(localBroadcaster, never()).broadcast(any(), any(Set.class));
     }
 
     @Test

@@ -52,24 +52,24 @@ public abstract class RequestBuilder<T extends RequestBuilder<T>> {
     /**
      * Set the target URI.
      */
-    public T uri(String uri) {
-        this.uri = uri;
+    public T uri(String newUri) {
+        this.uri = newUri;
         return self();
     }
 
     /**
      * Add a transport to attempt, in order of priority.
      */
-    public T transport(Request.TRANSPORT transport) {
-        transports.add(transport);
+    public T transport(Request.TRANSPORT newTransport) {
+        transports.add(newTransport);
         return self();
     }
 
     /**
      * Set the HTTP method.
      */
-    public T method(Request.METHOD method) {
-        this.method = method;
+    public T method(Request.METHOD newMethod) {
+        this.method = newMethod;
         return self();
     }
 
@@ -108,8 +108,8 @@ public abstract class RequestBuilder<T extends RequestBuilder<T>> {
     /**
      * Set the function resolver.
      */
-    public T resolver(FunctionResolver resolver) {
-        this.resolver = resolver;
+    public T resolver(FunctionResolver newResolver) {
+        this.resolver = newResolver;
         return self();
     }
 

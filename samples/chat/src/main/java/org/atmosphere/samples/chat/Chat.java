@@ -58,8 +58,8 @@ public class Chat {
     private AtmosphereResourceEvent event;
 
     @Heartbeat
-    public void onHeartbeat(final AtmosphereResourceEvent event) {
-        logger.trace("Heartbeat send by {}", event.getResource());
+    public void onHeartbeat(final AtmosphereResourceEvent heartbeatEvent) {
+        logger.trace("Heartbeat send by {}", heartbeatEvent.getResource());
     }
 
     /**

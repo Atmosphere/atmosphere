@@ -67,8 +67,8 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
     }
 
     @Override
-    public void configure(AtmosphereConfig config) {
-        this.config = config;
+    public void configure(AtmosphereConfig newConfig) {
+        this.config = newConfig;
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             var t = Thread.ofPlatform().daemon().unstarted(r);
             t.setName("atmosphere-durable-session-cleanup");

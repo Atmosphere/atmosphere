@@ -138,7 +138,7 @@ public class McpBroadcasterIntegrationTest {
 
     @SuppressWarnings("deprecation")
     private AtmosphereResource createSubscriber(Broadcaster broadcaster,
-                                                 MessageCapture handler) throws Exception {
+                                                 MessageCapture messageHandler) throws Exception {
         @SuppressWarnings("unchecked")
         var asyncSupport = (org.atmosphere.cpr.AsyncSupport<AtmosphereResourceImpl>) mock(org.atmosphere.cpr.AsyncSupport.class);
         var resource = new AtmosphereResourceImpl(
@@ -147,7 +147,7 @@ public class McpBroadcasterIntegrationTest {
                 AtmosphereRequestImpl.newInstance(),
                 AtmosphereResponseImpl.newInstance(),
                 asyncSupport,
-                handler
+                messageHandler
         );
         broadcaster.addAtmosphereResource(resource);
         return resource;

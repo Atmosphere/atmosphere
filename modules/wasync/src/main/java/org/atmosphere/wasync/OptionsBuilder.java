@@ -50,24 +50,24 @@ public abstract class OptionsBuilder<U extends Options, T extends OptionsBuilder
     /**
      * Set the request timeout in seconds.
      */
-    public T requestTimeoutInSeconds(int requestTimeout) {
-        this.requestTimeout = requestTimeout;
+    public T requestTimeoutInSeconds(int newRequestTimeout) {
+        this.requestTimeout = newRequestTimeout;
         return self();
     }
 
     /**
      * Register a custom transport implementation.
      */
-    public T registerTransport(Transport transport) {
-        this.transport = transport;
+    public T registerTransport(Transport newTransport) {
+        this.transport = newTransport;
         return self();
     }
 
     /**
      * Whether to reconnect on disconnect.
      */
-    public T reconnect(boolean reconnect) {
-        this.reconnect = reconnect;
+    public T reconnect(boolean newReconnect) {
+        this.reconnect = newReconnect;
         return self();
     }
 
@@ -90,32 +90,32 @@ public abstract class OptionsBuilder<U extends Options, T extends OptionsBuilder
     /**
      * Maximum number of reconnection attempts. {@code -1} means unlimited.
      */
-    public T reconnectAttempts(int reconnectAttempts) {
-        this.reconnectAttempts = reconnectAttempts;
+    public T reconnectAttempts(int newReconnectAttempts) {
+        this.reconnectAttempts = newReconnectAttempts;
         return self();
     }
 
     /**
      * Time in milliseconds to wait before unlocking the open() call.
      */
-    public T waitBeforeUnlocking(long waitBeforeUnlocking) {
-        this.waitBeforeUnlocking = waitBeforeUnlocking;
+    public T waitBeforeUnlocking(long newWaitBeforeUnlocking) {
+        this.waitBeforeUnlocking = newWaitBeforeUnlocking;
         return self();
     }
 
     /**
      * Set the {@link HttpClient} to use.
      */
-    public T httpClient(HttpClient httpClient) {
-        this.httpClient = httpClient;
+    public T httpClient(HttpClient newHttpClient) {
+        this.httpClient = newHttpClient;
         return self();
     }
 
     /**
      * Set the {@link HttpClient} and whether it is shared.
      */
-    public T httpClient(HttpClient httpClient, boolean shared) {
-        this.httpClient = httpClient;
+    public T httpClient(HttpClient newHttpClient, boolean shared) {
+        this.httpClient = newHttpClient;
         this.httpClientShared = shared;
         return self();
     }
@@ -123,8 +123,8 @@ public abstract class OptionsBuilder<U extends Options, T extends OptionsBuilder
     /**
      * Whether to send data as binary frames.
      */
-    public T binary(boolean binary) {
-        this.binary = binary;
+    public T binary(boolean newBinary) {
+        this.binary = newBinary;
         return self();
     }
 

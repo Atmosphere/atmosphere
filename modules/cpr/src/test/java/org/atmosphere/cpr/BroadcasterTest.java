@@ -218,17 +218,17 @@ public class BroadcasterTest {
 
     @Test
     public void testConcurrentSetBroadcast() throws InterruptedException {
-        AtmosphereConfig config = new AtmosphereFramework()
+        AtmosphereConfig localConfig = new AtmosphereFramework()
                 .addInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS, "true")
                 .getAtmosphereConfig();
 
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
-        factory.configure(DefaultBroadcaster.class, "NEVER", config);
-        config.framework().setBroadcasterFactory(factory);
+        factory.configure(DefaultBroadcaster.class, "NEVER", localConfig);
+        localConfig.framework().setBroadcasterFactory(factory);
         Broadcaster b = factory.get(DefaultBroadcaster.class, "concurrent-set");
 
         AtomicInteger deliveryCount = new AtomicInteger();
-        AtmosphereHandler handler = new AtmosphereHandler() {
+        AtmosphereHandler localHandler = new AtmosphereHandler() {
             @Override
             public void onRequest(AtmosphereResource e) throws IOException {
             }
@@ -243,12 +243,12 @@ public class BroadcasterTest {
             }
         };
 
-        AtmosphereResource r1 = new AtmosphereResourceImpl(config, b,
+        AtmosphereResource r1 = new AtmosphereResourceImpl(localConfig, b,
                 mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance(),
-                mock(BlockingIOCometSupport.class), handler);
-        AtmosphereResource r2 = new AtmosphereResourceImpl(config, b,
+                mock(BlockingIOCometSupport.class), localHandler);
+        AtmosphereResource r2 = new AtmosphereResourceImpl(localConfig, b,
                 mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance(),
-                mock(BlockingIOCometSupport.class), handler);
+                mock(BlockingIOCometSupport.class), localHandler);
 
         b.addAtmosphereResource(r1).addAtmosphereResource(r2);
 

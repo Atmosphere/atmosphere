@@ -78,13 +78,13 @@ public class DefaultSocket implements Socket {
     }
 
     @Override
-    public Socket open(Request request) {
-        return open(request, options.waitBeforeUnlocking(), TimeUnit.MILLISECONDS);
+    public Socket open(Request newRequest) {
+        return open(newRequest, options.waitBeforeUnlocking(), TimeUnit.MILLISECONDS);
     }
 
     @Override
-    public Socket open(Request request, long timeout, TimeUnit unit) {
-        this.request = request;
+    public Socket open(Request newRequest, long timeout, TimeUnit unit) {
+        this.request = newRequest;
         initHttpClient();
 
         var latch = new CountDownLatch(1);
@@ -287,9 +287,9 @@ public class DefaultSocket implements Socket {
         };
     }
 
-    protected URI buildUri(Request request) {
-        var uriStr = request.uri();
-        var qs = request.queryString();
+    protected URI buildUri(Request targetRequest) {
+        var uriStr = targetRequest.uri();
+        var qs = targetRequest.queryString();
         if (!qs.isEmpty()) {
             var sb = new StringBuilder(uriStr);
             sb.append(uriStr.contains("?") ? '&' : '?');

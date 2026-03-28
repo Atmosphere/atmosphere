@@ -52,8 +52,8 @@ public class GrpcChannel {
         return resource;
     }
 
-    public GrpcChannel resource(AtmosphereResource resource) {
-        this.resource = resource;
+    public GrpcChannel resource(AtmosphereResource newResource) {
+        this.resource = newResource;
         return this;
     }
 
@@ -61,8 +61,8 @@ public class GrpcChannel {
         return handler;
     }
 
-    public GrpcChannel handler(GrpcHandler handler) {
-        this.handler = handler;
+    public GrpcChannel handler(GrpcHandler newHandler) {
+        this.handler = newHandler;
         return this;
     }
 

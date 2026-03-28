@@ -53,25 +53,25 @@ public record DurableSession(
     /**
      * Return a copy with updated rooms.
      */
-    public DurableSession withRooms(Set<String> rooms) {
-        return new DurableSession(token, resourceId, Set.copyOf(rooms), broadcasters,
+    public DurableSession withRooms(Set<String> newRooms) {
+        return new DurableSession(token, resourceId, Set.copyOf(newRooms), broadcasters,
                 metadata, createdAt, Instant.now());
     }
 
     /**
      * Return a copy with updated broadcasters.
      */
-    public DurableSession withBroadcasters(Set<String> broadcasters) {
-        return new DurableSession(token, resourceId, rooms, Set.copyOf(broadcasters),
+    public DurableSession withBroadcasters(Set<String> newBroadcasters) {
+        return new DurableSession(token, resourceId, rooms, Set.copyOf(newBroadcasters),
                 metadata, createdAt, Instant.now());
     }
 
     /**
      * Return a copy with updated metadata.
      */
-    public DurableSession withMetadata(Map<String, String> metadata) {
+    public DurableSession withMetadata(Map<String, String> newMetadata) {
         return new DurableSession(token, resourceId, rooms, broadcasters,
-                Map.copyOf(metadata), createdAt, Instant.now());
+                Map.copyOf(newMetadata), createdAt, Instant.now());
     }
 
     /**

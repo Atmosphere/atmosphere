@@ -172,14 +172,14 @@ public class ConcurrentBroadcasterTest {
 
     @Test
     public void testMultipleNonOrderedConcurrentBroadcast() throws InterruptedException {
-        AtmosphereConfig config = new AtmosphereFramework()
+        AtmosphereConfig localConfig = new AtmosphereFramework()
                 .addInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS, "true")
                 .addInitParameter(ApplicationConfig.OUT_OF_ORDER_BROADCAST, "true")
                 .getAtmosphereConfig();
 
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
-        factory.configure(DefaultBroadcaster.class, "NEVER", config);
-        config.framework().setBroadcasterFactory(factory);
+        factory.configure(DefaultBroadcaster.class, "NEVER", localConfig);
+        localConfig.framework().setBroadcasterFactory(factory);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
 
         AR2 a = new AR2();
@@ -216,14 +216,14 @@ public class ConcurrentBroadcasterTest {
 
     @Test
     public void testMultipleNonOrderedSimpleBroadcast() throws InterruptedException {
-        AtmosphereConfig config = new AtmosphereFramework()
+        AtmosphereConfig localConfig = new AtmosphereFramework()
                 .addInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS, "true")
                 .addInitParameter(ApplicationConfig.OUT_OF_ORDER_BROADCAST, "true")
                 .getAtmosphereConfig();
 
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
-        factory.configure(SimpleBroadcaster.class, "NEVER", config);
-        config.framework().setBroadcasterFactory(factory);
+        factory.configure(SimpleBroadcaster.class, "NEVER", localConfig);
+        localConfig.framework().setBroadcasterFactory(factory);
         broadcaster = (DefaultBroadcaster) factory.get(SimpleBroadcaster.class, "test");
 
         AR2 a = new AR2();
@@ -260,11 +260,11 @@ public class ConcurrentBroadcasterTest {
 
     @Test
     public void testMultipleOrderedSimpleBroadcast() throws InterruptedException {
-        AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
+        AtmosphereConfig localConfig = new AtmosphereFramework().getAtmosphereConfig();
 
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
-        factory.configure(SimpleBroadcaster.class, "NEVER", config);
-        config.framework().setBroadcasterFactory(factory);
+        factory.configure(SimpleBroadcaster.class, "NEVER", localConfig);
+        localConfig.framework().setBroadcasterFactory(factory);
         broadcaster = (DefaultBroadcaster) factory.get(SimpleBroadcaster.class, "test");
 
         AR2 a = new AR2();
@@ -301,11 +301,11 @@ public class ConcurrentBroadcasterTest {
 
     @Test
     public void testOrderedSimpleBroadcast() throws InterruptedException {
-        AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
+        AtmosphereConfig localConfig = new AtmosphereFramework().getAtmosphereConfig();
 
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
-        factory.configure(SimpleBroadcaster.class, "NEVER", config);
-        config.framework().setBroadcasterFactory(factory);
+        factory.configure(SimpleBroadcaster.class, "NEVER", localConfig);
+        localConfig.framework().setBroadcasterFactory(factory);
         broadcaster = (DefaultBroadcaster) factory.get(SimpleBroadcaster.class, "test");
 
         atmosphereHandler = new AR();
@@ -345,14 +345,14 @@ public class ConcurrentBroadcasterTest {
 
     @Test
     public void testNonOrderedSetBroadcast() throws InterruptedException {
-        AtmosphereConfig config = new AtmosphereFramework()
+        AtmosphereConfig localConfig = new AtmosphereFramework()
                 .addInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS, "true")
                 .addInitParameter(ApplicationConfig.OUT_OF_ORDER_BROADCAST, "true")
                 .getAtmosphereConfig();
 
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
-        factory.configure(DefaultBroadcaster.class, "NEVER", config);
-        config.framework().setBroadcasterFactory(factory);
+        factory.configure(DefaultBroadcaster.class, "NEVER", localConfig);
+        localConfig.framework().setBroadcasterFactory(factory);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
 
         AR2 a = new AR2();
@@ -392,14 +392,14 @@ public class ConcurrentBroadcasterTest {
 
     @Test
     public void testNonOrderedDirectResourceBroadcast() throws InterruptedException {
-        AtmosphereConfig config = new AtmosphereFramework()
+        AtmosphereConfig localConfig = new AtmosphereFramework()
                 .addInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS, "true")
                 .addInitParameter(ApplicationConfig.OUT_OF_ORDER_BROADCAST, "true")
                 .getAtmosphereConfig();
 
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
-        factory.configure(DefaultBroadcaster.class, "NEVER", config);
-        config.framework().setBroadcasterFactory(factory);
+        factory.configure(DefaultBroadcaster.class, "NEVER", localConfig);
+        localConfig.framework().setBroadcasterFactory(factory);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
 
         AR2 target = new AR2();
