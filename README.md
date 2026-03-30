@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Real-time transport layer for Java AI agents.</strong><br/>
-  Build once with <code>@Agent</code> — deliver over WebSocket, SSE, gRPC, MCP, A2A, AG-UI, or any transport. Works with Spring AI, LangChain4j, Google ADK, Embabel, or the built-in OpenAI-compatible client.
+  Build once with <code>@Agent</code> — deliver over WebSocket, SSE, gRPC, MCP, A2A, AG-UI, or any transport. Works with Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, or the built-in OpenAI-compatible client.
 </p>
 
 <p align="center">
@@ -269,6 +269,7 @@ Write your agent once. The execution engine is determined by what's on the class
 | **Spring AI** | `atmosphere-spring-ai` | Spring AI's `ChatClient`, function calling, RAG advisors. Your Spring AI pipeline gets real-time WebSocket streaming and multi-protocol exposure. |
 | **Google ADK** | `atmosphere-adk` | Google's Agent Development Kit: `LlmAgent`, function tools, session management. ADK agents gain WebSocket visibility and A2A interop. |
 | **Embabel** | `atmosphere-embabel` | Embabel's goal-driven GOAP planning. Embabel agents stream through Atmosphere to every transport and channel. |
+| **JetBrains Koog** | `atmosphere-koog` | Koog's `AIAgent` with `chatAgentStrategy()`: graph-based orchestration, tool calling, RAG context injection, streaming via `PromptExecutor`. |
 
 Switching backends is one dependency change. Your `@Agent`, `@AiTool`, `@Command`, skill files, conversation memory, guardrails, and protocol exposure stay the same.
 

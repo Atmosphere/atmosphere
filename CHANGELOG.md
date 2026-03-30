@@ -31,8 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`spring-boot-dentist-agent`** sample — Dr. Molar emergency dental agent
   with `/firstaid`, `/urgency`, `/pain` commands, `assess_emergency` and
   `pain_relief` AI tools, and Slack + Telegram channel support.
-- **Unified `AgentRuntime` capabilities across all frameworks.** All five
-  runtimes (Built-in, LangChain4j, Spring AI, Google ADK, Embabel) now share
+- **JetBrains Koog adapter** (`atmosphere-koog`). Full `AgentRuntime` with
+  `AIAgent`/`chatAgentStrategy()` orchestration, tool calling via
+  `AtmosphereToolBridge`, RAG context injection, and real-time streaming
+  through Koog's `PromptExecutor`. Works with Gemini, OpenAI, and all Koog
+  providers.
+- **Unified `AgentRuntime` capabilities across all frameworks.** All six
+  runtimes (Built-in, LangChain4j, Spring AI, Google ADK, Embabel, Koog) now share
   a common capability baseline: tool calling, structured output, progress
   events, and usage metadata reporting. The built-in runtime gained full
   OpenAI-compatible tool calling (max 5 rounds), so `@AiTool` works with
