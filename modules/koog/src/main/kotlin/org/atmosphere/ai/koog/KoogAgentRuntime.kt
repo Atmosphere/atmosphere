@@ -94,6 +94,8 @@ class KoogAgentRuntime : AgentRuntime {
                     "Call KoogAgentRuntime.setPromptExecutor() or use Spring auto-configuration."
             )
 
+        session.progress("Connecting to koog...")
+
         val model = if (context.model() != null && context.model() != defaultModel.id) {
             LLModel(defaultModel.provider, context.model(),
                 defaultModel.capabilities, defaultModel.contextLength, defaultModel.maxOutputTokens)
