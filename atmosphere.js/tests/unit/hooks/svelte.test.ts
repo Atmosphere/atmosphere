@@ -154,6 +154,35 @@ describe('Svelte: createAtmosphereStore', () => {
     expect(mock.mockSub.close).toHaveBeenCalled();
   });
 
+  it('should close connection if unsubscribed during connect', async () => {
+    // Simulate a slow connection: subscribe() returns a promise that resolves
+    // after a delay, giving the subscriber time to unsubscribe.
+    const mockSub = createMockSubscription();
+    let resolveSubscribe: (sub: typeof mockSub) => void;
+    const slowAtmosphere = {
+      subscribe: vi.fn(() => new Promise<typeof mockSub>((resolve) => {
+        resolveSubscribe = resolve;
+      })),
+    } as unknown as Atmosphere;
+
+    const { store } = createAtmosphereStore(baseRequest, slowAtmosphere);
+
+    // Subscribe (triggers connect, which is now in-flight)
+    const unsub = store.subscribe(() => {});
+
+    // Immediately unsubscribe (triggers disconnect while connect is awaiting)
+    unsub();
+
+    // Now resolve the slow connection
+    resolveSubscribe!(mockSub);
+
+    // Give the async connect() a tick to finish
+    await vi.waitFor(() => expect(mockSub.close).toHaveBeenCalled());
+
+    // The subscription should have been closed because disconnect() was called
+    // while connect() was still awaiting atmosphere.subscribe()
+  });
+
   it('should push messages via push function', async () => {
     const { store, push } = createAtmosphereStore(baseRequest, mock.atmosphere);
     const unsub = store.subscribe(() => {});

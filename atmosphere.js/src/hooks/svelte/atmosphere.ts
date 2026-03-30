@@ -90,6 +90,13 @@ export function createAtmosphereStore<T = unknown>(
         error: (err) => update({ state: 'error', error: err }),
         reconnect: () => update({ state: 'reconnecting' }),
       });
+      // Guard: disconnect() may have been called while we were awaiting.
+      // If so, close the subscription we just created and bail out.
+      if (!connected) {
+        sub.close();
+        sub = null;
+        return;
+      }
       update({ subscription: sub, state: sub.state });
     } catch (err) {
       update({
