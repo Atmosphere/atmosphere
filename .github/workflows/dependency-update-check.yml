@@ -1,0 +1,162 @@
+name: AI Dependency Update Check
+
+on:
+  schedule:
+    # Every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-ai-dependencies:
+    name: Check AI Framework Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check for dependency updates
+      id: check
+      run: |
+        set -euo pipefail
+
+        # ──────────────────────────────────────────────────────────
+        # Dependency registry
+        # Each entry: "Display Name|groupId|artifactId|propertyName|file1|file2|..."
+        #
+        # To add a new dependency, append a line below.
+        # The artifactId is used to query Maven Central for the latest release.
+        # The propertyName is the <property> tag in each pom.xml that holds the version.
+        # ──────────────────────────────────────────────────────────
+        DEPS=(
+          "Spring AI|org.springframework.ai|spring-ai-client-chat|spring-ai.version|modules/spring-ai/pom.xml|modules/rag/pom.xml|samples/spring-boot-rag-chat/pom.xml"
+          "Embabel|com.embabel.agent|embabel-agent-api|embabel.version|modules/embabel/pom.xml|samples/spring-boot-multi-agent-startup-team/pom.xml"
+          "Google ADK|com.google.adk|google-adk|google-adk.version|modules/adk/pom.xml|samples/spring-boot-multi-agent-startup-team/pom.xml"
+          "Koog|ai.koog|koog-agents-jvm|koog.version|modules/koog/pom.xml|samples/spring-boot-koog-chat/pom.xml"
+          "LangChain4j|dev.langchain4j|langchain4j-core|langchain4j.version|modules/langchain4j/pom.xml|modules/rag/pom.xml|samples/spring-boot-ai-tools/pom.xml"
+        )
+
+        TABLE_ROWS=""
+        HAS_UPDATES=false
+        UPDATED_NAMES=""
+
+        for dep in "${DEPS[@]}"; do
+          IFS='|' read -ra PARTS <<< "$dep"
+          NAME="${PARTS[0]}"
+          GROUP_ID="${PARTS[1]}"
+          ARTIFACT_ID="${PARTS[2]}"
+          PROP_NAME="${PARTS[3]}"
+
+          # Collect all current versions across files (they may differ)
+          declare -A FILE_VERSIONS
+          CANONICAL_VERSION=""
+          for i in $(seq 4 $((${#PARTS[@]} - 1))); do
+            FILE="${PARTS[$i]}"
+            if [ -f "$FILE" ]; then
+              VER=$(grep -oP "<${PROP_NAME}>\K[^<]+" "$FILE" 2>/dev/null || echo "")
+              if [ -n "$VER" ]; then
+                FILE_VERSIONS["$FILE"]="$VER"
+                # Use the module version (first file) as the canonical one
+                [ -z "$CANONICAL_VERSION" ] && CANONICAL_VERSION="$VER"
+              fi
+            fi
+          done
+          unset -n FILE_VERSIONS 2>/dev/null || true
+
+          if [ -z "$CANONICAL_VERSION" ]; then
+            echo "⚠️  ${NAME}: Could not determine current version"
+            TABLE_ROWS="${TABLE_ROWS}| ${NAME} | \`unknown\` | — | ⚠️ Could not read current version |\n"
+            continue
+          fi
+
+          # Query Maven Central REST API
+          ENCODED_QUERY="g:\"${GROUP_ID}\"+AND+a:\"${ARTIFACT_ID}\""
+          RESPONSE=$(curl -sf --retry 3 --retry-delay 5 \
+            "https://search.maven.org/solrsearch/select?q=${ENCODED_QUERY}&rows=1&wt=json" 2>/dev/null || echo "")
+
+          if [ -z "$RESPONSE" ]; then
+            echo "⚠️  ${NAME}: Maven Central unreachable"
+            TABLE_ROWS="${TABLE_ROWS}| ${NAME} | \`${CANONICAL_VERSION}\` | — | ⚠️ Maven Central unreachable |\n"
+            continue
+          fi
+
+          LATEST=$(echo "$RESPONSE" | jq -r '.response.docs[0].latestVersion // empty')
+
+          if [ -z "$LATEST" ]; then
+            echo "⚠️  ${NAME} (${GROUP_ID}:${ARTIFACT_ID}): Not found on Maven Central"
+            TABLE_ROWS="${TABLE_ROWS}| ${NAME} | \`${CANONICAL_VERSION}\` | — | ⚠️ Not on Maven Central |\n"
+            continue
+          fi
+
+          echo "📦 ${NAME}: current=${CANONICAL_VERSION}  latest=${LATEST}"
+
+          if [ "$CANONICAL_VERSION" = "$LATEST" ]; then
+            TABLE_ROWS="${TABLE_ROWS}| ${NAME} | \`${CANONICAL_VERSION}\` | \`${LATEST}\` | ✅ Up to date |\n"
+            continue
+          fi
+
+          # Update every pom.xml that declares this property
+          HAS_UPDATES=true
+          UPDATED_NAMES="${UPDATED_NAMES}, ${NAME}"
+          FILES_CHANGED=""
+
+          for i in $(seq 4 $((${#PARTS[@]} - 1))); do
+            FILE="${PARTS[$i]}"
+            if [ -f "$FILE" ]; then
+              # Replace any version value inside the property tag
+              sed -i "s|<${PROP_NAME}>[^<]*</${PROP_NAME}>|<${PROP_NAME}>${LATEST}</${PROP_NAME}>|g" "$FILE"
+              FILES_CHANGED="${FILES_CHANGED}\n  - \`${FILE}\`"
+              echo "  ✏️  Updated ${FILE}"
+            fi
+          done
+
+          TABLE_ROWS="${TABLE_ROWS}| ${NAME} | \`${CANONICAL_VERSION}\` | **\`${LATEST}\`** | 🔄 Updated |${FILES_CHANGED}\n"
+        done
+
+        # Trim leading comma-space
+        UPDATED_NAMES="${UPDATED_NAMES#, }"
+
+        echo "has_updates=${HAS_UPDATES}" >> "$GITHUB_OUTPUT"
+
+        # Multi-line output for PR body
+        {
+          echo "table<<TABLEEOF"
+          echo -e "$TABLE_ROWS"
+          echo "TABLEEOF"
+        } >> "$GITHUB_OUTPUT"
+
+        {
+          echo "updated_names<<NAMESEOF"
+          echo "$UPDATED_NAMES"
+          echo "NAMESEOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Create Pull Request
+      if: steps.check.outputs.has_updates == 'true'
+      uses: peter-evans/create-pull-request@v7
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "chore(deps): update AI framework dependencies"
+        title: "chore(deps): update AI framework dependencies"
+        body: |
+          ## 🤖 AI Framework Dependency Updates
+
+          Automated check found newer versions on [Maven Central](https://search.maven.org/).
+
+          | Framework | Current | Latest | Status |
+          |-----------|---------|--------|--------|
+          ${{ steps.check.outputs.table }}
+
+          **Updated:** ${{ steps.check.outputs.updated_names }}
+
+          ### Review checklist
+          - [ ] Check release notes for breaking API changes
+          - [ ] Run `./mvnw compile` to verify compilation
+          - [ ] Run `./mvnw test` for affected modules
+          - [ ] Verify sample applications still compile
+        branch: deps/ai-framework-updates
+        labels: dependencies
+        delete-branch: true
