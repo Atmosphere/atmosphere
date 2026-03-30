@@ -51,7 +51,7 @@
 
         <dependency>
             <groupId>ai.koog</groupId>
-            <artifactId>koog-spring-boot-starter</artifactId>
+            <artifactId>koog-agents-jvm</artifactId>
             <version>${koog.version}</version>
         </dependency>
 

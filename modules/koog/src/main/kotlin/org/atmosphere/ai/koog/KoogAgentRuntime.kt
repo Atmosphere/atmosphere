@@ -90,8 +90,12 @@ class KoogAgentRuntime : AgentRuntime {
                     "Call KoogAgentRuntime.setPromptExecutor() or use Spring auto-configuration."
             )
 
-        val model = if (context.model() != null) {
-            LLModel(defaultModel.provider, context.model())
+        // Use the default model (which has proper capabilities and context length)
+        // unless the context specifies a different model name.
+        val model = if (context.model() != null && context.model() != defaultModel.id) {
+            // For an overridden model, copy capabilities from defaultModel
+            LLModel(defaultModel.provider, context.model(),
+                defaultModel.capabilities, defaultModel.contextLength, defaultModel.maxOutputTokens)
         } else {
             defaultModel
         }
