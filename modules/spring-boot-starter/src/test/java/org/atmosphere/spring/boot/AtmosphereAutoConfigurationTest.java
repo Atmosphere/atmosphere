@@ -21,6 +21,7 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -97,6 +98,62 @@ class AtmosphereAutoConfigurationTest {
         contextRunner.withBean("atmosphereServlet", AtmosphereServlet.class, AtmosphereServlet::new)
                 .run(context -> {
                     assertThat(context).hasSingleBean(AtmosphereServlet.class);
+                });
+    }
+
+    @Test
+    void consoleFilterBeanRegistered() {
+        contextRunner.run(context -> {
+            assertThat(context).hasBean("atmosphereConsoleFilter");
+            @SuppressWarnings("unchecked")
+            FilterRegistrationBean<jakarta.servlet.Filter> registration =
+                    (FilterRegistrationBean<jakarta.servlet.Filter>)
+                            context.getBean("atmosphereConsoleFilter");
+            assertThat(registration.getUrlPatterns()).containsExactly("/atmosphere/console/*");
+            assertThat(registration.getOrder()).isEqualTo(0);
+        });
+    }
+
+    @Test
+    void wellKnownFilterBeanRegistered() {
+        contextRunner.run(context -> {
+            assertThat(context).hasBean("atmosphereWellKnownFilter");
+            @SuppressWarnings("unchecked")
+            FilterRegistrationBean<jakarta.servlet.Filter> registration =
+                    (FilterRegistrationBean<jakarta.servlet.Filter>)
+                            context.getBean("atmosphereWellKnownFilter");
+            assertThat(registration.getUrlPatterns())
+                    .containsExactly("/.well-known/agent.json");
+            assertThat(registration.getOrder()).isEqualTo(-1);
+        });
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void customConsoleFilterBeanPreventsAutoConfig() {
+        contextRunner.withBean("atmosphereConsoleFilter",
+                        FilterRegistrationBean.class, FilterRegistrationBean::new)
+                .run(context -> {
+                    assertThat(context).hasBean("atmosphereConsoleFilter");
+                    // Verify it's our custom bean (no URL patterns set)
+                    FilterRegistrationBean<jakarta.servlet.Filter> registration =
+                            (FilterRegistrationBean<jakarta.servlet.Filter>)
+                                    context.getBean("atmosphereConsoleFilter");
+                    assertThat(registration.getUrlPatterns()).isEmpty();
+                });
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void customWellKnownFilterBeanPreventsAutoConfig() {
+        contextRunner.withBean("atmosphereWellKnownFilter",
+                        FilterRegistrationBean.class, FilterRegistrationBean::new)
+                .run(context -> {
+                    assertThat(context).hasBean("atmosphereWellKnownFilter");
+                    FilterRegistrationBean<jakarta.servlet.Filter> registration =
+                            (FilterRegistrationBean<jakarta.servlet.Filter>)
+                                    context.getBean("atmosphereWellKnownFilter");
+                    assertThat(registration.getUrlPatterns()).isEmpty();
                 });
     }
 }

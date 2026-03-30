@@ -265,6 +265,19 @@ export default defineConfig({
       name: 'durable-session-identity',
       testMatch: /durable-session-identity\.spec\.ts/,
     },
+    // ── SQE gist coverage ──
+    {
+      name: 'console-http-check',
+      testMatch: /console-http-check\.spec\.ts/,
+    },
+    {
+      name: 'a2a-discovery',
+      testMatch: /a2a-discovery\.spec\.ts/,
+    },
+    {
+      name: 'sample-matrix-smoke',
+      testMatch: /sample-matrix-smoke\.spec\.ts/,
+    },
     // ── Cross-browser (opt-in via E2E_ALL_BROWSERS=true) ──
     ...(process.env.E2E_ALL_BROWSERS ? [
       {

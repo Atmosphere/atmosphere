@@ -121,6 +121,21 @@ describe('Svelte: createAtmosphereStore', () => {
     unsub();
   });
 
+  it('should wrap subscribe failure in Error via catch block', async () => {
+    // When atmosphere.subscribe() rejects with a string, the catch block wraps it
+    const failingAtmosphere = {
+      subscribe: vi.fn(async () => { throw 'connection refused'; }),
+    } as unknown as Atmosphere;
+
+    const { store } = createAtmosphereStore(baseRequest, failingAtmosphere);
+    let latest: { state: string; error: Error | null } = { state: '', error: null };
+    const unsub = store.subscribe((v) => { latest = v as typeof latest; });
+    await vi.waitFor(() => expect(latest.state).toBe('error'));
+    expect(latest.error).toBeInstanceOf(Error);
+    expect(latest.error?.message).toBe('connection refused');
+    unsub();
+  });
+
   it('should set reconnecting state', async () => {
     const { store } = createAtmosphereStore(baseRequest, mock.atmosphere);
     let latest: { state: string } = { state: '' };

@@ -205,6 +205,61 @@ assert_not_contains "$out" "spring-boot-ai-chat" "category filter: chat excludes
 
 printf "\n"
 
+# ── 6b. CLI: list --tag + --category (combined filter, bug fix #1) ────────
+printf "${BOLD}atmosphere list --tag + --category (combined)${RESET}\n"
+
+tag_only=$("$CLI" list --tag ai 2>&1)
+cat_only=$("$CLI" list --category ai 2>&1)
+combined=$("$CLI" list --tag ai --category ai 2>&1)
+
+# Combined results should be a subset of both tag-only and category-only
+# Count sample rows (lines with a sample name, not header/decoration)
+tag_count=$(echo "$tag_only" | grep -c "spring-boot\|quarkus\|chat\|grpc" || true)
+cat_count=$(echo "$cat_only" | grep -c "spring-boot\|quarkus\|chat\|grpc" || true)
+combined_count=$(echo "$combined" | grep -c "spring-boot\|quarkus\|chat\|grpc" || true)
+
+if [ "$combined_count" -le "$tag_count" ] && [ "$combined_count" -le "$cat_count" ]; then
+    pass "combined filter: result count ($combined_count) <= tag-only ($tag_count) and category-only ($cat_count)"
+else
+    fail "combined filter: result count ($combined_count) not subset of tag ($tag_count) or category ($cat_count)"
+fi
+
+# Reversed flag order should produce same results
+reversed=$("$CLI" list --category ai --tag ai 2>&1)
+if [ "$combined" = "$reversed" ]; then
+    pass "combined filter: --tag --category same as --category --tag"
+else
+    fail "combined filter: reversed flag order produces different output"
+fi
+
+# Non-matching tag returns no samples (exit 0, empty table)
+out=$("$CLI" list --tag nonexistent-tag-zzz 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 0 "nonexistent tag exits cleanly"
+# Should show header but no sample rows
+sample_count=$(echo "$out" | grep -c "spring-boot\|quarkus\|chat\|grpc" || true)
+if [ "$sample_count" -eq 0 ]; then
+    pass "nonexistent tag: no sample rows returned"
+else
+    fail "nonexistent tag: expected 0 sample rows, got $sample_count"
+fi
+
+printf "\n"
+
+# ── 6c. CLI: info for all samples ─────────────────────────────────────────
+printf "${BOLD}atmosphere info (all samples)${RESET}\n"
+
+all_names=$(jq -r '.samples[].name' "$SAMPLES_JSON")
+for name in $all_names; do
+    out=$("$CLI" info "$name" 2>&1) && ec=0 || ec=$?
+    if [ "$ec" -eq 0 ]; then
+        pass "info $name: exits 0"
+    else
+        fail "info $name: exits $ec"
+    fi
+done
+
+printf "\n"
+
 # ── 7. CLI: info ───────────────────────────────────────────────────────────
 printf "${BOLD}atmosphere info${RESET}\n"
 

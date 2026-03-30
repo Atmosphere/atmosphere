@@ -172,6 +172,25 @@ describe('React: useAtmosphere (integration via subscribe)', () => {
     expect(error?.message).toBe('react-error');
   });
 
+  it('should extract Error.message for display, not produce [object Object]', async () => {
+    // Simulates the pattern used in streaming hook catch blocks:
+    //   err instanceof Error ? err.message : String(err)
+    const apiError = new Error('API returned 400: API key not valid.');
+    let errorValue: unknown = null;
+    await mock.atmosphere.subscribe(baseRequest, {
+      open: () => {},
+      message: () => {},
+      close: () => {},
+      error: (err: unknown) => {
+        errorValue = err instanceof Error ? err.message : String(err);
+      },
+      reconnect: () => {},
+    });
+    mock.triggerError(apiError);
+    expect(errorValue).toBe('API returned 400: API key not valid.');
+    expect(typeof errorValue).toBe('string');
+  });
+
   it('should trigger reconnect handler', async () => {
     let state = 'connected';
     await mock.atmosphere.subscribe(baseRequest, {

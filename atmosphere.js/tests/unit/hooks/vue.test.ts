@@ -118,6 +118,18 @@ describe('Vue: useAtmosphere', () => {
     expect(error.value?.message).toBe('oops');
   });
 
+  it('should wrap subscribe failure in Error via catch block', async () => {
+    // When atmosphere.subscribe() rejects with a string, the catch block wraps it
+    const failingAtmosphere = {
+      subscribe: vi.fn(async () => { throw 'connection refused'; }),
+    } as unknown as Atmosphere;
+
+    const { state, error } = useAtmosphere(baseRequest, failingAtmosphere);
+    await vi.waitFor(() => expect(state.value).toBe('error'));
+    expect(error.value).toBeInstanceOf(Error);
+    expect(error.value?.message).toBe('connection refused');
+  });
+
   it('should set reconnecting state', async () => {
     const { state } = useAtmosphere(baseRequest, mock.atmosphere);
     await vi.waitFor(() => expect(mock.atmosphere.subscribe).toHaveBeenCalled());
