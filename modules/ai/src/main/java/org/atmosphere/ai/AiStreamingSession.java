@@ -332,31 +332,28 @@ public class AiStreamingSession implements StreamingSession {
             memory.copyTo(fromId, toId);
         }
 
-        // Resolve the target agent's handler and dispatch through it.
-        // The target agent must be registered in the same AtmosphereFramework.
+        // Dispatch to the target agent via its handler. We look up the
+        // AtmosphereHandlerWrapper and invoke the handler's onStateChange
+        // with the message, so the target's @Prompt method runs — including
+        // demo mode, tool registration, and all pipeline hooks.
         var framework = resource.getAtmosphereConfig().framework();
         var targetPath = "/atmosphere/agent/" + agentName;
-        var handler = framework.getAtmosphereHandlers().get(targetPath);
-        if (handler == null) {
-            error(new IllegalArgumentException("Agent '" + agentName + "' not found at " + targetPath));
+        var handlerWrapper = framework.getAtmosphereHandlers().get(targetPath);
+        if (handlerWrapper == null) {
+            delegate.error(new IllegalArgumentException(
+                    "Agent '" + agentName + "' not found at " + targetPath));
+            handoffInProgress = false;
             return;
         }
 
-        // Build a new context with the message and stream through the delegate
-        var tools = toolRegistry != null
-                ? java.util.List.copyOf(toolRegistry.allTools())
-                : java.util.List.<org.atmosphere.ai.tool.ToolDefinition>of();
-        var history = memory != null
-                ? memory.getHistory(resource.uuid())
-                : java.util.List.<org.atmosphere.ai.llm.ChatMessage>of();
-        var context = new AgentExecutionContext(
-                message, systemPrompt, model, agentName,
-                resource.uuid(), extractAttribute(resource, "ai.userId"),
-                resource.uuid(), tools, null, memory, contextProviders,
-                Map.of(), history, responseType);
-
         try {
-            runtime.execute(context, delegate);
+            // Use the handler's public API: get the handler via the wrapper's
+            // accessor and call onStateChange with a crafted event.
+            var handler = handlerWrapper.atmosphereHandler();
+            var event = new org.atmosphere.cpr.AtmosphereResourceEventImpl(
+                    (org.atmosphere.cpr.AtmosphereResourceImpl) resource);
+            event.setMessage(message);
+            handler.onStateChange(event);
         } catch (Exception e) {
             logger.error("Handoff to '{}' failed", agentName, e);
             delegate.error(e);
