@@ -275,7 +275,7 @@ See [atmosphere-mcp README](../mcp/README.md) for injectable parameter details.
 
 ## Full Documentation
 
-See [docs/ai.md](../../docs/ai.md) for complete documentation.
+See [docs/agent-runtimes.md](../../docs/agent-runtimes.md) for the unified capability matrix across all runtimes.
 
 ## Requirements
 

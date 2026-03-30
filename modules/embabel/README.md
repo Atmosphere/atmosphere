@@ -49,7 +49,7 @@ embabelAdapter.stream(AgentRequest("assistant") { channel ->
 
 ## Full Documentation
 
-See [docs/embabel.md](../../docs/embabel.md) for complete documentation.
+See [docs/agent-runtimes.md](../../docs/agent-runtimes.md) for the unified capability matrix across all runtimes.
 
 ## Requirements
 
