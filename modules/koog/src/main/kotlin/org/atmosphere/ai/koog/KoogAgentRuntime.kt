@@ -91,7 +91,7 @@ class KoogAgentRuntime : AgentRuntime {
             )
 
         val model = if (context.model() != null) {
-            LLModel(LLMProvider.OpenAI, context.model())
+            LLModel(defaultModel.provider, context.model())
         } else {
             defaultModel
         }

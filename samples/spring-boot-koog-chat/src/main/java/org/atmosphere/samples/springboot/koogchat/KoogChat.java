@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.koogchat;
 
 import org.atmosphere.ai.AiCapability;
+import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
@@ -57,6 +58,13 @@ public class KoogChat {
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
         logger.info("Received prompt: {}", message);
+
+        var settings = AiConfig.get();
+        if (settings == null || settings.apiKey() == null || settings.apiKey().isBlank()) {
+            DemoResponseProducer.stream(message, session);
+            return;
+        }
+
         session.stream(message);
     }
 }

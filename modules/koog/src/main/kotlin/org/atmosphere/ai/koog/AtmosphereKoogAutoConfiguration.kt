@@ -19,6 +19,7 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.llm.LLMProvider
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -40,12 +41,21 @@ open class AtmosphereKoogAutoConfiguration {
     @org.springframework.context.annotation.Bean
     @ConditionalOnBean(PromptExecutor::class)
     open fun koogAgentRuntime(
-        executor: PromptExecutor,
+        @Qualifier("multiLLMPromptExecutor") executor: PromptExecutor,
         @Value("\${atmosphere.koog.model:gpt-4o}") modelName: String
     ): KoogAgentRuntime {
         KoogAgentRuntime.setPromptExecutor(executor)
-        KoogAgentRuntime.setDefaultModel(LLModel(LLMProvider.OpenAI, modelName))
-        logger.info("Koog runtime configured: default model '{}'", modelName)
+        val provider = inferProvider(modelName)
+        KoogAgentRuntime.setDefaultModel(LLModel(provider, modelName))
+        logger.info("Koog runtime configured: model '{}', provider '{}'", modelName, provider)
         return KoogAgentRuntime()
+    }
+
+    private fun inferProvider(modelName: String): LLMProvider = when {
+        modelName.startsWith("gemini") -> LLMProvider.Google
+        modelName.startsWith("claude") -> LLMProvider.Anthropic
+        modelName.startsWith("llama") || modelName.startsWith("mistral") -> LLMProvider.Ollama
+        modelName.startsWith("deepseek") -> LLMProvider.DeepSeek
+        else -> LLMProvider.OpenAI
     }
 }

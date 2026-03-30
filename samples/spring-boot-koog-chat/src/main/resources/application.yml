@@ -7,15 +7,25 @@ atmosphere:
 
 # Koog LLM provider configuration
 # The koog-spring-boot-starter auto-configures PromptExecutor beans.
-# Enable one or more providers below.
+# Enable the provider that matches your API key.
 ai:
   koog:
+    google:
+      enabled: ${KOOG_GOOGLE_ENABLED:true}
+      api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
     openai:
-      enabled: ${KOOG_OPENAI_ENABLED:true}
-      api-key: ${LLM_API_KEY:${OPENAI_API_KEY:}}
+      enabled: ${KOOG_OPENAI_ENABLED:false}
+      api-key: ${OPENAI_API_KEY:}
 
 # Atmosphere-level model override (optional)
 atmosphere.koog.model: ${LLM_MODEL:gpt-4o}
+
+# LLM config (used by AiConfig for demo-mode detection)
+llm:
+  mode: ${LLM_MODE:remote}
+  model: ${LLM_MODEL:gpt-4o}
+  base-url: ${LLM_BASE_URL:}
+  api-key: ${LLM_API_KEY:${OPENAI_API_KEY:}}
 
 server:
   port: 8097
