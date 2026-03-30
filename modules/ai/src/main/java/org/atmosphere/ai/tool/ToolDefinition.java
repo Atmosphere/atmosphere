@@ -26,19 +26,29 @@ import java.util.List;
  * <p>Created automatically by scanning {@link org.atmosphere.ai.annotation.AiTool}
  * annotations, or manually via the builder.</p>
  *
- * @param name        unique tool name (snake_case convention)
- * @param description human-readable description for the model
- * @param parameters  ordered list of parameter definitions
- * @param returnType  the JSON Schema type of the return value
- * @param executor    the function that executes the tool
+ * @param name            unique tool name (snake_case convention)
+ * @param description     human-readable description for the model
+ * @param parameters      ordered list of parameter definitions
+ * @param returnType      the JSON Schema type of the return value
+ * @param executor        the function that executes the tool
+ * @param approvalMessage if non-null, this tool requires human approval before execution
+ * @param approvalTimeout approval timeout in seconds (0 = use default)
  */
 public record ToolDefinition(
         String name,
         String description,
         List<ToolParameter> parameters,
         String returnType,
-        ToolExecutor executor
+        ToolExecutor executor,
+        String approvalMessage,
+        long approvalTimeout
 ) {
+    /** Backwards-compatible constructor without approval fields. */
+    public ToolDefinition(String name, String description, List<ToolParameter> parameters,
+                          String returnType, ToolExecutor executor) {
+        this(name, description, parameters, returnType, executor, null, 0);
+    }
+
     public ToolDefinition {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("tool name must not be null or blank");
@@ -56,12 +66,19 @@ public record ToolDefinition(
         return new Builder(name, description);
     }
 
+    /** Check if this tool requires human approval before execution. */
+    public boolean requiresApproval() {
+        return approvalMessage != null && !approvalMessage.isBlank();
+    }
+
     public static final class Builder {
         private final String name;
         private final String description;
         private final java.util.ArrayList<ToolParameter> parameters = new java.util.ArrayList<>();
         private String returnType = "string";
         private ToolExecutor executor;
+        private String approvalMessage;
+        private long approvalTimeout;
 
         private Builder(String name, String description) {
             this.name = name;
@@ -87,11 +104,23 @@ public record ToolDefinition(
             return this;
         }
 
+        public Builder requiresApproval(String message) {
+            this.approvalMessage = message;
+            return this;
+        }
+
+        public Builder requiresApproval(String message, long timeoutSeconds) {
+            this.approvalMessage = message;
+            this.approvalTimeout = timeoutSeconds;
+            return this;
+        }
+
         public ToolDefinition build() {
             if (executor == null) {
                 throw new IllegalStateException("executor must be set");
             }
-            return new ToolDefinition(name, description, parameters, returnType, executor);
+            return new ToolDefinition(name, description, parameters, returnType,
+                    executor, approvalMessage, approvalTimeout);
         }
     }
 }

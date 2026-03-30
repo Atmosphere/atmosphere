@@ -152,12 +152,24 @@ public class DefaultToolRegistry implements ToolRegistry {
             return method.invoke(instance, invokeArgs);
         };
 
+        // Check for @RequiresApproval on the method
+        var approvalAnnotation = method.getAnnotation(
+                org.atmosphere.ai.annotation.RequiresApproval.class);
+        String approvalMessage = null;
+        long approvalTimeout = 0;
+        if (approvalAnnotation != null) {
+            approvalMessage = approvalAnnotation.value();
+            approvalTimeout = approvalAnnotation.timeoutSeconds();
+        }
+
         return new ToolDefinition(
                 annotation.name(),
                 annotation.description(),
                 parameters,
                 returnType,
-                executor
+                executor,
+                approvalMessage,
+                approvalTimeout
         );
     }
 

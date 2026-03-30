@@ -15,9 +15,14 @@
  */
 package org.atmosphere.ai.tool;
 
+import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.approval.ApprovalRegistry;
+import org.atmosphere.ai.approval.ApprovalStrategy;
+import org.atmosphere.ai.approval.PendingApproval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +67,53 @@ public final class ToolExecutionHelper {
             logger.error("Tool {} execution failed", toolName, e);
             return "{\"error\":\"" + ToolBridgeUtils.escapeJson(e.getMessage()) + "\"}";
         }
+    }
+
+    /**
+     * Execute a tool with approval gate support. If the tool definition has
+     * {@link ToolDefinition#requiresApproval()}, the execution pauses (parks
+     * the virtual thread) until the client approves or denies.
+     *
+     * @param toolName the tool name
+     * @param tool     the tool definition
+     * @param args     the arguments
+     * @param session  the streaming session (for emitting approval events)
+     * @param strategy the approval strategy (may be null if no approval support)
+     * @return the result string, or a cancellation/timeout message
+     */
+    public static String executeWithApproval(String toolName, ToolDefinition tool,
+                                             Map<String, Object> args,
+                                             StreamingSession session,
+                                             ApprovalStrategy strategy) {
+        if (!tool.requiresApproval() || strategy == null) {
+            return executeAndFormat(toolName, tool.executor(), args);
+        }
+
+        var timeout = tool.approvalTimeout() > 0 ? tool.approvalTimeout() : 300;
+        var approval = new PendingApproval(
+                ApprovalRegistry.generateId(),
+                toolName,
+                args,
+                tool.approvalMessage(),
+                session.sessionId(),
+                Instant.now().plusSeconds(timeout)
+        );
+
+        var outcome = strategy.awaitApproval(approval, session);
+        return switch (outcome) {
+            case APPROVED -> {
+                logger.info("Tool {} approved, executing", toolName);
+                yield executeAndFormat(toolName, tool.executor(), args);
+            }
+            case DENIED -> {
+                logger.info("Tool {} denied by user", toolName);
+                yield "{\"status\":\"cancelled\",\"message\":\"Action cancelled by user\"}";
+            }
+            case TIMED_OUT -> {
+                logger.info("Tool {} approval timed out", toolName);
+                yield "{\"status\":\"timeout\",\"message\":\"Approval timed out\"}";
+            }
+        };
     }
 
     /**
