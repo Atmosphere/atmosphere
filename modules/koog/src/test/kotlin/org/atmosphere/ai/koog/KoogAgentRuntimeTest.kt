@@ -167,6 +167,7 @@ class KoogAgentRuntimeTest {
         assertTrue(caps.contains(AiCapability.TEXT_STREAMING))
         assertTrue(caps.contains(AiCapability.TOOL_CALLING))
         assertTrue(caps.contains(AiCapability.STRUCTURED_OUTPUT))
+        assertTrue(caps.contains(AiCapability.AGENT_ORCHESTRATION))
         assertTrue(caps.contains(AiCapability.CONVERSATION_MEMORY))
         assertTrue(caps.contains(AiCapability.SYSTEM_PROMPT))
     }
@@ -218,8 +219,11 @@ class KoogAgentRuntimeTest {
     }
 
     @Test
-    fun `ToolCallComplete frame triggers tool-start event`() {
+    fun `ToolCallComplete without tools in context is silently ignored`() {
+        // When no tools are in the context, the direct executor path is used.
+        // ToolCallComplete frames are ignored because there's nothing to execute.
         KoogAgentRuntime.setPromptExecutor(fakeExecutor(
+            StreamFrame.TextDelta("Hi"),
             StreamFrame.ToolCallComplete("call-1", "get_weather", "{\"city\":\"Montreal\"}"),
             StreamFrame.End()
         ))
@@ -228,7 +232,9 @@ class KoogAgentRuntimeTest {
         KoogAgentRuntime().execute(context(), session)
 
         val messages = capturedMessages()
-        assertTrue(messages.any { it.contains("\"event\":\"tool-start\"") && it.contains("get_weather") })
+        assertTrue(messages.any { it.contains("\"event\":\"text-delta\"") && it.contains("Hi") })
+        assertTrue(messages.none { it.contains("\"event\":\"tool-start\"") })
+        assertTrue(messages.last().contains("\"type\":\"complete\""))
     }
 
     @Test
