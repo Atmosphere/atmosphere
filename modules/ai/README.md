@@ -1,6 +1,6 @@
 # Atmosphere AI
 
-AI/LLM streaming module for Atmosphere. Provides `@AiEndpoint`, `@Prompt`, `StreamingSession`, the `AiSupport` SPI for auto-detected AI framework adapters, and a built-in `OpenAiCompatibleClient` that works with Gemini, OpenAI, Ollama, and any OpenAI-compatible API.
+AI/LLM streaming module for Atmosphere. Provides `@AiEndpoint`, `@Prompt`, `@AiTool`, `StreamingSession`, the `AgentRuntime` SPI for auto-detected AI framework adapters, and a built-in `OpenAiCompatibleClient` that works with Gemini, OpenAI, Ollama, and any OpenAI-compatible API — including tool calling, structured output, and usage metadata tracking.
 
 ## Maven Coordinates
 
@@ -30,17 +30,19 @@ The `@AiEndpoint` annotation replaces the boilerplate of `@ManagedService` + `@R
 
 `session.stream(message)` auto-detects the best available `AiSupport` implementation via `ServiceLoader` — drop an adapter JAR on the classpath and it just works, analogous to `AsyncSupport` for transports.
 
-## AiSupport SPI
+## AgentRuntime SPI
 
-The `AiSupport` interface is the AI-layer equivalent of `AsyncSupport`. Implementations are discovered via `ServiceLoader`, filtered by `isAvailable()`, and the highest `priority()` wins.
+The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Implementations are discovered via `ServiceLoader`, filtered by `isAvailable()`, and the highest `priority()` wins.
 
-| Adapter JAR | `AiSupport` implementation | Priority |
-|-------------|---------------------------|----------|
-| `atmosphere-ai` (built-in) | `BuiltInAiSupport` (OpenAI-compatible) | 0 |
-| `atmosphere-spring-ai` | `SpringAiSupport` | 100 |
-| `atmosphere-langchain4j` | `LangChain4jAiSupport` | 100 |
-| `atmosphere-adk` | `AdkAiSupport` | 100 |
-| `atmosphere-embabel` | `EmbabelAiSupport` | 100 |
+| Adapter JAR | `AgentRuntime` implementation | Priority | Capabilities |
+|-------------|-------------------------------|----------|-------------|
+| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT |
+| `atmosphere-spring-ai` | `SpringAiAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT |
+| `atmosphere-langchain4j` | `LangChain4jAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT |
+| `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT |
+| `atmosphere-embabel` | `EmbabelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, SYSTEM_PROMPT |
+
+All runtimes report usage metadata (`ai.tokens.input`, `ai.tokens.output`, `ai.tokens.total`) when the underlying API provides it, feeding into `MetricsCapturingSession` and `MicrometerAiMetrics` automatically.
 
 ### AiInterceptor
 

@@ -31,6 +31,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`spring-boot-dentist-agent`** sample — Dr. Molar emergency dental agent
   with `/firstaid`, `/urgency`, `/pain` commands, `assess_emergency` and
   `pain_relief` AI tools, and Slack + Telegram channel support.
+- **Unified `AgentRuntime` capabilities across all frameworks.** All five
+  runtimes (Built-in, LangChain4j, Spring AI, Google ADK, Embabel) now share
+  a common capability baseline: tool calling, structured output, progress
+  events, and usage metadata reporting. The built-in runtime gained full
+  OpenAI-compatible tool calling (max 5 rounds), so `@AiTool` works with
+  zero framework dependencies. Usage metadata (`ai.tokens.input`,
+  `ai.tokens.output`, `ai.tokens.total`) is reported by all runtimes that
+  receive it from their underlying API, feeding into `MicrometerAiMetrics`.
 
 ## [4.0.11] - 2026-03-11
 

@@ -499,6 +499,207 @@ public class OpenAiCompatibleClientTest {
     }
 
     @Test
+    public void testMultipleSimultaneousToolCalls() throws Exception {
+        // Model requests 2 tool calls in a single response
+        var toolCallResponse = """
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"get_weather","arguments":""}},{"index":1,"id":"call_2","type":"function","function":{"name":"get_city_time","arguments":""}}]},"finish_reason":null}]}
+
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\\"city\\\":\\\"Paris\\\"}"}},{"index":1,"function":{"arguments":"{\\\"city\\\":\\\"Tokyo\\\"}"}}]},"finish_reason":null}]}
+
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+                data: [DONE]
+
+                """;
+
+        var textResponse = """
+                data: {"id":"chatcmpl-2","choices":[{"index":0,"delta":{"content":"Paris: cloudy. Tokyo: 3am."},"finish_reason":null}]}
+
+                data: {"id":"chatcmpl-2","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+                data: [DONE]
+
+                """;
+
+        var httpClient = mockHttpClientSequence(
+                new MockResponse(200, toolCallResponse),
+                new MockResponse(200, textResponse)
+        );
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(httpClient)
+                .build();
+
+        var weatherTool = org.atmosphere.ai.tool.ToolDefinition.builder("get_weather", "Weather")
+                .parameter("city", "City", "string")
+                .executor(args -> "Cloudy in " + args.get("city"))
+                .build();
+        var timeTool = org.atmosphere.ai.tool.ToolDefinition.builder("get_city_time", "Time")
+                .parameter("city", "City", "string")
+                .executor(args -> "3:00 AM in " + args.get("city"))
+                .build();
+
+        var request = ChatCompletionRequest.builder("test")
+                .user("Weather and time?")
+                .tools(java.util.List.of(weatherTool, timeTool))
+                .build();
+
+        var session = StreamingSessions.start("test-multi-tools", resource);
+        client.streamChatCompletion(request, session);
+
+        // 2 HTTP calls: initial + re-submit
+        verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
+        verify(broadcaster, atLeast(4)).broadcast(captor.capture(), any(Set.class));
+
+        var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
+
+        // Both tools should have been called
+        assertTrue(messages.stream().anyMatch(m -> m.contains("tool-start") && m.contains("get_weather")),
+                "Expected get_weather tool-start");
+        assertTrue(messages.stream().anyMatch(m -> m.contains("tool-start") && m.contains("get_city_time")),
+                "Expected get_city_time tool-start");
+        assertTrue(messages.stream().anyMatch(m -> m.contains("tool-result") && m.contains("get_weather")),
+                "Expected get_weather tool-result");
+        assertTrue(messages.stream().anyMatch(m -> m.contains("tool-result") && m.contains("get_city_time")),
+                "Expected get_city_time tool-result");
+    }
+
+    @Test
+    public void testToolResultSerializedWithToolCallId() throws Exception {
+        // Verify that the re-submitted request includes tool messages with tool_call_id
+        var toolCallResponse = """
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_xyz","type":"function","function":{"name":"echo","arguments":"{\\\"msg\\\":\\\"hi\\\"}"}}]},"finish_reason":null}]}
+
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+                data: [DONE]
+
+                """;
+
+        var textResponse = """
+                data: {"id":"chatcmpl-2","choices":[{"index":0,"delta":{"content":"OK"},"finish_reason":"stop"}]}
+
+                data: [DONE]
+
+                """;
+
+        var httpClient = mockHttpClientSequence(
+                new MockResponse(200, toolCallResponse),
+                new MockResponse(200, textResponse)
+        );
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(httpClient)
+                .build();
+
+        var tool = org.atmosphere.ai.tool.ToolDefinition.builder("echo", "Echo")
+                .parameter("msg", "Message", "string")
+                .executor(args -> "echoed: " + args.get("msg"))
+                .build();
+
+        var request = ChatCompletionRequest.builder("test")
+                .user("echo hi")
+                .tools(java.util.List.of(tool))
+                .build();
+
+        var session = StreamingSessions.start("test-tool-id", resource);
+        client.streamChatCompletion(request, session);
+
+        // Capture the second HTTP request to verify tool_call_id is in the body
+        var reqCaptor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(httpClient, times(2)).send(reqCaptor.capture(), any(HttpResponse.BodyHandler.class));
+
+        // The second request should contain the tool result with tool_call_id
+        var secondRequest = reqCaptor.getAllValues().get(1);
+        assertNotNull(secondRequest, "Expected a second HTTP request for tool result re-submission");
+    }
+
+    @Test
+    public void testNoToolCallsWhenNoToolsProvided() throws Exception {
+        // Even if model returns tool_calls, if no tools were provided, should complete normally
+        var sseResponse = """
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}
+
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+                data: [DONE]
+
+                """;
+
+        var httpClient = mockHttpClient(200, sseResponse);
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(httpClient)
+                .build();
+
+        // No tools in request
+        var request = ChatCompletionRequest.of("test", "Hi");
+        var session = StreamingSessions.start("test-no-tools", resource);
+        client.streamChatCompletion(request, session);
+
+        // Only 1 HTTP call
+        verify(httpClient, times(1)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
+        verify(broadcaster, atLeast(2)).broadcast(captor.capture(), any(Set.class));
+        var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\"Hello\"")));
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"complete\"")));
+    }
+
+    @Test
+    public void testToolNotFoundHandledGracefully() throws Exception {
+        // Model requests a tool that doesn't exist in our registry
+        var toolCallResponse = """
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"unknown_tool","arguments":"{}"}}]},"finish_reason":null}]}
+
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+                data: [DONE]
+
+                """;
+
+        var textResponse = """
+                data: {"id":"chatcmpl-2","choices":[{"index":0,"delta":{"content":"Sorry"},"finish_reason":"stop"}]}
+
+                data: [DONE]
+
+                """;
+
+        var httpClient = mockHttpClientSequence(
+                new MockResponse(200, toolCallResponse),
+                new MockResponse(200, textResponse)
+        );
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(httpClient)
+                .build();
+
+        // Register a different tool than what the model requests
+        var tool = org.atmosphere.ai.tool.ToolDefinition.builder("existing_tool", "Exists")
+                .executor(args -> "result")
+                .build();
+
+        var request = ChatCompletionRequest.builder("test")
+                .user("call unknown")
+                .tools(java.util.List.of(tool))
+                .build();
+
+        var session = StreamingSessions.start("test-unknown-tool", resource);
+        client.streamChatCompletion(request, session);
+
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
+        verify(broadcaster, atLeast(2)).broadcast(captor.capture(), any(Set.class));
+        var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
+
+        // Should emit tool-error for the unknown tool
+        assertTrue(messages.stream().anyMatch(m -> m.contains("tool-error") && m.contains("unknown_tool")),
+                "Expected tool-error event for unknown tool");
+    }
+
+    @Test
     public void testAdapterName() {
         var client = OpenAiCompatibleClient.builder().build();
         var adapter = new LlmStreamingAdapter(client);

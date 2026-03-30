@@ -104,7 +104,7 @@ A coordinator manages a fleet of agents. Declare the fleet, inject `AgentFleet` 
 
 ```java
 @Coordinator(name = "ceo", 
-             skillFile = "prompts/ceo-skill.md"
+             skillFile = "prompts/ceo-skill.md",
              responseAs = MarketAssessment.class,
              journalFormat = JournalFormat.Markdown.class)
 @Fleet({
@@ -264,13 +264,15 @@ Write your agent once. The execution engine is determined by what's on the class
 
 | Runtime | Dependency | What Your Agent Gets |
 |---------|-----------|-------------|
-| **Built-in** | `atmosphere-ai` | OpenAI-compatible client (Gemini, OpenAI, Ollama). Zero framework overhead. Good starting point. |
+| **Built-in** | `atmosphere-ai` | OpenAI-compatible client (Gemini, OpenAI, Ollama) with tool calling, structured output, and usage tracking. Zero framework overhead. |
 | **LangChain4j** | `atmosphere-langchain4j` | LangChain4j's full agentic pipeline: ReAct tool loops, `StreamingChatModel`, automatic retries. `@AiTool` methods are bridged to LangChain4j tools automatically. |
 | **Spring AI** | `atmosphere-spring-ai` | Spring AI's `ChatClient`, function calling, RAG advisors. Your Spring AI pipeline gets real-time WebSocket streaming and multi-protocol exposure. |
 | **Google ADK** | `atmosphere-adk` | Google's Agent Development Kit: `LlmAgent`, function tools, session management. ADK agents gain WebSocket visibility and A2A interop. |
 | **Embabel** | `atmosphere-embabel` | Embabel's goal-driven GOAP planning. Embabel agents stream through Atmosphere to every transport and channel. |
 
 Switching backends is one dependency change. Your `@Agent`, `@AiTool`, `@Command`, skill files, conversation memory, guardrails, and protocol exposure stay the same.
+
+All runtimes share a common capability baseline: text streaming, tool calling, structured output, system prompts, progress events, and usage metadata reporting (`ai.tokens.input`, `ai.tokens.output`). Runtime-specific features (ADK orchestration, Embabel GOAP planning) are additive.
 
 ### What Atmosphere adds to an AI framework
 
