@@ -243,4 +243,32 @@ public sealed interface AiEvent {
             return "complete";
         }
     }
+
+    /**
+     * A tool execution requires human approval before proceeding.
+     * The client should render an approve/deny UI and respond with
+     * {@code /__approval/<approvalId>/approve} or {@code /__approval/<approvalId>/deny}.
+     *
+     * @param approvalId unique identifier for this approval request
+     * @param toolName   the tool awaiting approval
+     * @param arguments  the arguments the LLM wants to pass to the tool
+     * @param message    the approval prompt to display to the user
+     * @param expiresIn  seconds until this approval expires
+     */
+    record ApprovalRequired(
+            String approvalId,
+            String toolName,
+            Map<String, Object> arguments,
+            String message,
+            long expiresIn
+    ) implements AiEvent {
+        public ApprovalRequired {
+            arguments = arguments != null ? Map.copyOf(arguments) : Map.of();
+        }
+
+        @Override
+        public String eventType() {
+            return "approval-required";
+        }
+    }
 }
