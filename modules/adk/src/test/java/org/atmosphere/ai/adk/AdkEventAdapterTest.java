@@ -28,7 +28,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -248,36 +247,8 @@ class AdkEventAdapterTest {
     }
 
     @Test
-    void usageMetadataContractMatchesAdkApi() {
-        // Verify that our UsageMetadata test record implements the same method
-        // signatures that the reflection code in extractUsageMetadata expects.
-        // This ensures the reflection will work on ADK 0.9.0+ when the real
-        // GenerateContentResponseUsageMetadata is present.
-        var usage = new UsageMetadata(100, 50, 150);
-
-        assertEquals(Optional.of(100), usage.promptTokenCount());
-        assertEquals(Optional.of(50), usage.candidatesTokenCount());
-        assertEquals(Optional.of(150), usage.totalTokenCount());
-
-        // Verify the methods are accessible via reflection (same as extractUsageMetadata does)
-        try {
-            var cls = usage.getClass();
-            var promptMethod = cls.getMethod("promptTokenCount");
-            var candidatesMethod = cls.getMethod("candidatesTokenCount");
-            var totalMethod = cls.getMethod("totalTokenCount");
-
-            assertEquals(Optional.of(100), promptMethod.invoke(usage));
-            assertEquals(Optional.of(50), candidatesMethod.invoke(usage));
-            assertEquals(Optional.of(150), totalMethod.invoke(usage));
-        } catch (Exception e) {
-            fail("Reflection on UsageMetadata should work: " + e.getMessage());
-        }
-    }
-
-    @Test
-    void usageMetadataSkippedGracefullyOnStandardEvent() throws Exception {
-        // Standard ADK 0.2.0 Event has no usageMetadata() method.
-        // Verify it doesn't throw and still completes normally.
+    void usageMetadataNotEmittedWhenAbsent() throws Exception {
+        // Turn-complete event without usageMetadata should not emit token metadata.
         var event = createTurnCompleteEvent("done");
         var latch = new CountDownLatch(1);
 
@@ -291,20 +262,12 @@ class AdkEventAdapterTest {
         AdkEventAdapter.bridge(Flowable.just(event), mockSession);
         assertTrue(latch.await(2, TimeUnit.SECONDS));
 
-        // No usage metadata calls — standard Event lacks the method
         verify(mockSession, never()).sendMetadata(eq("ai.tokens.input"), any());
         verify(mockSession, never()).sendMetadata(eq("ai.tokens.output"), any());
         verify(mockSession, never()).sendMetadata(eq("ai.tokens.total"), any());
     }
 
     // --- Helpers ---
-
-    /** Minimal usage metadata class with the same method signatures as ADK 0.9.0+. */
-    record UsageMetadata(int promptTokens, int candidatesTokens, int totalTokens) {
-        public Optional<Integer> promptTokenCount() { return Optional.of(promptTokens); }
-        public Optional<Integer> candidatesTokenCount() { return Optional.of(candidatesTokens); }
-        public Optional<Integer> totalTokenCount() { return Optional.of(totalTokens); }
-    }
 
     private Event createPartialEvent(String text) {
         return Event.builder()

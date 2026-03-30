@@ -19,7 +19,6 @@ import com.google.adk.agents.LlmAgent;
 import com.google.adk.models.Gemini;
 import com.google.adk.runner.InMemoryRunner;
 import com.google.adk.runner.Runner;
-import com.google.adk.tools.BaseTool;
 import com.google.genai.types.Content;
 import com.google.genai.types.Part;
 import org.atmosphere.ai.AbstractAgentRuntime;
@@ -32,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -145,7 +145,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 .instruction("You are a helpful assistant.");
 
         if (!adkTools.isEmpty()) {
-            agentBuilder.tools((Object[]) adkTools.toArray(new BaseTool[0]));
+            agentBuilder.tools(adkTools);
         }
 
         staticRunner = new InMemoryRunner(agentBuilder.build(), "atmosphere");
@@ -180,7 +180,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                     .instruction(instruction);
 
             if (!adkTools.isEmpty()) {
-                agentBuilder.tools((Object[]) adkTools.toArray(new BaseTool[0]));
+                agentBuilder.tools(adkTools);
             }
 
             var runner = new InMemoryRunner(agentBuilder.build(), "atmosphere");
@@ -217,7 +217,6 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         AdkEventAdapter.bridge(events, session);
     }
 
-    @SuppressWarnings("deprecation") // ADK 0.2.0 createSession API; updated in later versions
     private static void ensureSession(Runner adkRunner, String userId, String sessionId) {
         var key = userId + ":" + sessionId;
         if (knownSessions.contains(key)) {
@@ -229,7 +228,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 .blockingGet();
         if (existing == null) {
             adkRunner.sessionService()
-                    .createSession(adkRunner.appName(), userId, new ConcurrentHashMap<>(), sessionId)
+                    .createSession(adkRunner.appName(), userId, Map.of(), sessionId)
                     .blockingGet();
             logger.debug("Created ADK session: userId={}, sessionId={}", userId, sessionId);
         }

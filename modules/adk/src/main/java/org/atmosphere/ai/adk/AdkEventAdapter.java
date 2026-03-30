@@ -206,41 +206,16 @@ public final class AdkEventAdapter {
     }
 
     /**
-     * Extract usage metadata from an ADK event using reflection, so this
-     * works on ADK 0.2.0 (no usageMetadata) and 0.9.0+ (has usageMetadata).
+     * Extract usage metadata from an ADK event and forward token counts to the session.
      */
-    @SuppressWarnings("unchecked")
     private static void extractUsageMetadata(Event event, StreamingSession session) {
-        try {
-            var method = event.getClass().getMethod("usageMetadata");
-            var optUsage = (Optional<Object>) method.invoke(event);
-            optUsage.ifPresent(usage -> {
-                try {
-                    var cls = usage.getClass();
-                    extractOptionalInt(cls, usage, "promptTokenCount")
-                            .ifPresent(v -> session.sendMetadata("ai.tokens.input", v));
-                    extractOptionalInt(cls, usage, "candidatesTokenCount")
-                            .ifPresent(v -> session.sendMetadata("ai.tokens.output", v));
-                    extractOptionalInt(cls, usage, "totalTokenCount")
-                            .ifPresent(v -> session.sendMetadata("ai.tokens.total", v));
-                } catch (Exception e) {
-                    logger.trace("Failed to extract usage metadata fields", e);
-                }
-            });
-        } catch (NoSuchMethodException e) {
-            // ADK < 0.9.0, usageMetadata() not available — silently skip
-        } catch (Exception e) {
-            logger.trace("Failed to extract ADK usage metadata", e);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Optional<Integer> extractOptionalInt(Class<?> cls, Object obj, String methodName) {
-        try {
-            var m = cls.getMethod(methodName);
-            return (Optional<Integer>) m.invoke(obj);
-        } catch (Exception e) {
-            return Optional.empty();
-        }
+        event.usageMetadata().ifPresent(usage -> {
+            usage.promptTokenCount()
+                    .ifPresent(v -> session.sendMetadata("ai.tokens.input", v));
+            usage.candidatesTokenCount()
+                    .ifPresent(v -> session.sendMetadata("ai.tokens.output", v));
+            usage.totalTokenCount()
+                    .ifPresent(v -> session.sendMetadata("ai.tokens.total", v));
+        });
     }
 }
