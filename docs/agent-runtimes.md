@@ -71,3 +71,15 @@ All runtimes emit these via `session.sendMetadata()` when the underlying API pro
 | `ai.tokens.output` | `int` | Completion/output token count |
 | `ai.tokens.total` | `int` | Total token count |
 | `ai.model` | `String` | Model name used for the request |
+
+## Orchestration Primitives
+
+These features work across all runtimes — they operate at the pipeline level, not inside the runtime.
+
+| Feature | SPI | Default Behavior |
+|---------|-----|-----------------|
+| **Agent Handoffs** | `StreamingSession.handoff()` | Transparent routing through target agent's `@Prompt` handler |
+| **Approval Gates** | `@RequiresApproval` + `ApprovalGateExecutor` | Parks VT on `CompletableFuture`, `/__approval/` prefix protocol |
+| **Conditional Routing** | `AgentFleet.route()` + `RoutingSpec` | First-match evaluation, recorded in `CoordinationJournal` |
+| **Long-Term Memory** | `LongTermMemoryInterceptor` + `MemoryExtractionStrategy` | Fact extraction on session close, injected into system prompt |
+| **Eval Assertions** | `LlmJudge` + `AiAssertions` | `meetsIntent()`, `isGroundedIn()`, `hasQuality()` with configurable judge runtime |

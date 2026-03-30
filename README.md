@@ -178,6 +178,92 @@ See [coordinator module](modules/coordinator/) for full documentation.
 
 See [multi-agent sample](samples/spring-boot-multi-agent-startup-team/) for a working 5-agent team.
 
+## Orchestration Primitives
+
+Production features for multi-agent governance: handoffs, approval gates, conditional routing, long-term memory, and eval assertions.
+
+### Agent Handoffs
+
+An agent transfers the conversation — with full history — to another agent. One method call.
+
+```java
+@Prompt
+public void onPrompt(String message, StreamingSession session) {
+    if (message.toLowerCase().contains("billing")) {
+        session.handoff("billing", message);  // conversation history travels with it
+        return;
+    }
+    session.stream(message);
+}
+```
+
+The client receives a `handoff` event before the target agent responds. Nested handoffs are blocked (cycle guard). See [orchestration demo](samples/spring-boot-orchestration-demo/).
+
+### Approval Gates
+
+`@RequiresApproval` pauses tool execution until the client approves. The virtual thread parks cheaply — no carrier thread consumed.
+
+```java
+@AiTool(name = "delete_account", description = "Permanently delete a user account")
+@RequiresApproval("This will permanently delete the account. Are you sure?")
+public String deleteAccount(@Param("accountId") String accountId) {
+    return accountService.delete(accountId);
+}
+```
+
+The client receives an `approval-required` event with the tool name, arguments, and a prompt message. Respond with `/__approval/<id>/approve` or `/__approval/<id>/deny`. Default timeout: 5 minutes.
+
+### Conditional Routing
+
+Route based on agent results — first match wins, with an optional fallback.
+
+```java
+var weather = fleet.agent("weather").call("forecast", Map.of("city", city));
+
+var result = fleet.route(weather, route -> route
+    .when(r -> r.success() && r.text().contains("sunny"),
+          f -> f.agent("outdoor").call("plan", Map.of()))
+    .when(r -> r.success(),
+          f -> f.agent("indoor").call("suggest", Map.of()))
+    .otherwise(f -> AgentResult.failure("router", "route",
+          "Weather unavailable", Duration.ZERO))
+);
+```
+
+Every routing decision is recorded in the `CoordinationJournal`.
+
+### Long-Term Memory
+
+Agents remember users across sessions. Configuration-only — no code changes in `@Agent` classes.
+
+```java
+// LongTermMemoryInterceptor (pre): injects stored facts into system prompt
+// LongTermMemoryInterceptor (post): extracts new facts via LLM
+
+// Extraction strategies:
+MemoryExtractionStrategy.onSessionClose()  // default — batch, cost-efficient
+MemoryExtractionStrategy.perMessage()       // real-time, expensive
+MemoryExtractionStrategy.periodic(5)        // every 5 messages
+```
+
+Backed by `InMemoryLongTermMemory` (dev) or any `SessionStore` implementation (Redis, SQLite).
+
+### Eval Assertions
+
+LLM-as-judge for testing agent quality. Uses any `AgentRuntime` as the judge model.
+
+```java
+var judge = new LlmJudge(cheapRuntime, "gpt-4o-mini");
+var response = client.prompt("Should I bring an umbrella to Tokyo?");
+
+assertThat(response)
+    .withJudge(judge)
+    .forPrompt("Should I bring an umbrella to Tokyo?")
+    .meetsIntent("Recommends whether to bring an umbrella based on weather data")
+    .isGroundedIn("get_weather")
+    .hasQuality(q -> q.relevance(0.8).coherence(0.7).safety(0.9));
+```
+
 ## Skills
 
 A skill file is a Markdown document with YAML frontmatter that becomes the agent's system prompt. Sections like `## Tools`, `## Skills`, and `## Guardrails` are also parsed for protocol metadata.

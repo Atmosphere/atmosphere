@@ -44,6 +44,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   zero framework dependencies. Usage metadata (`ai.tokens.input`,
   `ai.tokens.output`, `ai.tokens.total`) is reported by all runtimes that
   receive it from their underlying API, feeding into `MicrometerAiMetrics`.
+- **Orchestration primitives.** Five production features for multi-agent
+  governance:
+  - **Agent Handoffs** — `session.handoff("billing", message)` transfers
+    conversations with full history, cycle guard, `AiEvent.Handoff` emitted
+  - **Approval Gates** — `@RequiresApproval` annotation parks the virtual
+    thread until client approves/denies via `/__approval/` protocol
+  - **Conditional Routing** — `fleet.route(result, spec)` with first-match
+    evaluation and journal recording
+  - **Long-Term Memory** — `LongTermMemoryInterceptor` with pluggable
+    extraction strategies (on-session-close, per-message, periodic)
+  - **Eval Assertions** — `LlmJudge` with `meetsIntent()`,
+    `isGroundedIn()`, `hasQuality()` for LLM-as-judge testing
+- **`spring-boot-orchestration-demo`** sample — support desk with two agents
+  (support + billing), live handoff on billing keywords, `@RequiresApproval`
+  on `cancel_account`, `/status` and `/hours` commands.
 
 ## [4.0.11] - 2026-03-11
 
