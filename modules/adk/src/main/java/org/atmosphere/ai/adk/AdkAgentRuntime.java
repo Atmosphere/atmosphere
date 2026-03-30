@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * {@link org.atmosphere.ai.AiSupport} implementation backed by Google ADK's {@link Runner}.
@@ -51,6 +52,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
     private static volatile String defaultSessionId = "atmosphere-session";
     private static final Set<String> knownSessions = ConcurrentHashMap.newKeySet();
     private volatile boolean toolsRegistered;
+    private final ReentrantLock toolsLock = new ReentrantLock();
 
     @Override
     public String name() {
@@ -155,36 +157,41 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
      * first request that contains tool definitions. The runner is replaced in-place
      * and used for all subsequent requests.
      */
-    private synchronized void rebuildRunnerWithTools(AgentExecutionContext context) {
-        if (toolsRegistered) {
-            return;
+    private void rebuildRunnerWithTools(AgentExecutionContext context) {
+        toolsLock.lock();
+        try {
+            if (toolsRegistered) {
+                return;
+            }
+            var settings = AiConfig.get();
+            if (settings == null) {
+                settings = AiConfig.fromEnvironment();
+            }
+            var apiKey = settings.apiKey();
+            var gemini = new Gemini(settings.model(), apiKey);
+
+            var adkTools = AdkToolBridge.toAdkTools(context.tools());
+            var instruction = context.systemPrompt() != null && !context.systemPrompt().isEmpty()
+                    ? context.systemPrompt() : "You are a helpful assistant.";
+
+            var agentBuilder = LlmAgent.builder()
+                    .name("atmosphere-agent")
+                    .model(gemini)
+                    .instruction(instruction);
+
+            if (!adkTools.isEmpty()) {
+                agentBuilder.tools((Object[]) adkTools.toArray(new BaseTool[0]));
+            }
+
+            var runner = new InMemoryRunner(agentBuilder.build(), "atmosphere");
+            setNativeClient(runner);
+            knownSessions.clear();
+            toolsRegistered = true;
+            logger.info("ADK rebuilt with {} tools and system prompt ({} chars)",
+                    adkTools.size(), instruction.length());
+        } finally {
+            toolsLock.unlock();
         }
-        var settings = AiConfig.get();
-        if (settings == null) {
-            settings = AiConfig.fromEnvironment();
-        }
-        var apiKey = settings.apiKey();
-        var gemini = new Gemini(settings.model(), apiKey);
-
-        var adkTools = AdkToolBridge.toAdkTools(context.tools());
-        var instruction = context.systemPrompt() != null && !context.systemPrompt().isEmpty()
-                ? context.systemPrompt() : "You are a helpful assistant.";
-
-        var agentBuilder = LlmAgent.builder()
-                .name("atmosphere-agent")
-                .model(gemini)
-                .instruction(instruction);
-
-        if (!adkTools.isEmpty()) {
-            agentBuilder.tools((Object[]) adkTools.toArray(new BaseTool[0]));
-        }
-
-        var runner = new InMemoryRunner(agentBuilder.build(), "atmosphere");
-        setNativeClient(runner);
-        knownSessions.clear();
-        toolsRegistered = true;
-        logger.info("ADK rebuilt with {} tools and system prompt ({} chars)",
-                adkTools.size(), instruction.length());
     }
 
     @Override

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Tracks per-connection MCP session state (initialization, client capabilities).
@@ -57,7 +58,9 @@ public final class McpSession {
     private volatile long lastAccessedAt = System.currentTimeMillis();
     private final int maxPending;
     private final Deque<String> pendingNotifications;
+    private final ReentrantLock pendingLock = new ReentrantLock();
     private final Set<String> subscriptions = new HashSet<>();
+    private final ReentrantLock subscriptionLock = new ReentrantLock();
 
     public McpSession() {
         this(DEFAULT_MAX_PENDING);
@@ -130,46 +133,81 @@ public final class McpSession {
      * Enqueue a notification for later replay. If the queue is full,
      * the oldest notification is dropped.
      */
-    public synchronized void addPendingNotification(String notification) {
-        if (pendingNotifications.size() >= maxPending) {
-            pendingNotifications.pollFirst();
+    public void addPendingNotification(String notification) {
+        pendingLock.lock();
+        try {
+            if (pendingNotifications.size() >= maxPending) {
+                pendingNotifications.pollFirst();
+            }
+            pendingNotifications.addLast(notification);
+        } finally {
+            pendingLock.unlock();
         }
-        pendingNotifications.addLast(notification);
     }
 
     /**
      * Drain and return all pending notifications, clearing the queue.
      */
-    public synchronized List<String> drainPendingNotifications() {
-        var list = new ArrayList<>(pendingNotifications);
-        pendingNotifications.clear();
-        return list;
+    public List<String> drainPendingNotifications() {
+        pendingLock.lock();
+        try {
+            var list = new ArrayList<>(pendingNotifications);
+            pendingNotifications.clear();
+            return list;
+        } finally {
+            pendingLock.unlock();
+        }
     }
 
     /** Returns the number of buffered pending notifications. */
-    public synchronized int pendingCount() {
-        return pendingNotifications.size();
+    public int pendingCount() {
+        pendingLock.lock();
+        try {
+            return pendingNotifications.size();
+        } finally {
+            pendingLock.unlock();
+        }
     }
 
     // ── Resource subscriptions ──────────────────────────────────────────
 
     /** Subscribe to notifications for the given resource URI. */
-    public synchronized void addSubscription(String uri) {
-        subscriptions.add(uri);
+    public void addSubscription(String uri) {
+        subscriptionLock.lock();
+        try {
+            subscriptions.add(uri);
+        } finally {
+            subscriptionLock.unlock();
+        }
     }
 
     /** Unsubscribe from notifications for the given resource URI. */
-    public synchronized void removeSubscription(String uri) {
-        subscriptions.remove(uri);
+    public void removeSubscription(String uri) {
+        subscriptionLock.lock();
+        try {
+            subscriptions.remove(uri);
+        } finally {
+            subscriptionLock.unlock();
+        }
     }
 
     /** Returns true if this session is subscribed to the given resource URI. */
-    public synchronized boolean isSubscribed(String uri) {
-        return subscriptions.contains(uri);
+    public boolean isSubscribed(String uri) {
+        subscriptionLock.lock();
+        try {
+            return subscriptions.contains(uri);
+        } finally {
+            subscriptionLock.unlock();
+        }
     }
 
     /** Returns an unmodifiable view of all subscribed resource URIs. */
-    public synchronized Set<String> subscriptions() {
-        return Collections.unmodifiableSet(new HashSet<>(subscriptions));
+    public Set<String> subscriptions() {
+        subscriptionLock.lock();
+        try {
+            return Collections.unmodifiableSet(new HashSet<>(subscriptions));
+        } finally {
+            subscriptionLock.unlock();
+        }
     }
 }

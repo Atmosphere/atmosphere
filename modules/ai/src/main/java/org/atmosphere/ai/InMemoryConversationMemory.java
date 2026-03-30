@@ -18,10 +18,10 @@ package org.atmosphere.ai;
 import org.atmosphere.ai.llm.ChatMessage;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Default in-memory implementation of {@link AiConversationMemory}.
@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentMap;
 public class InMemoryConversationMemory implements AiConversationMemory {
 
     private final ConcurrentMap<String, List<ChatMessage>> store = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ReentrantLock> locks = new ConcurrentHashMap<>();
     private final int maxMessages;
 
     public InMemoryConversationMemory() {
@@ -51,16 +52,24 @@ public class InMemoryConversationMemory implements AiConversationMemory {
         if (messages == null) {
             return List.of();
         }
-        synchronized (messages) {
+        var lock = locks.get(conversationId);
+        if (lock == null) {
+            return List.of();
+        }
+        lock.lock();
+        try {
             return List.copyOf(messages);
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
     public void addMessage(String conversationId, ChatMessage message) {
-        var messages = store.computeIfAbsent(conversationId, k ->
-                Collections.synchronizedList(new ArrayList<>()));
-        synchronized (messages) {
+        var lock = locks.computeIfAbsent(conversationId, k -> new ReentrantLock());
+        var messages = store.computeIfAbsent(conversationId, k -> new ArrayList<>());
+        lock.lock();
+        try {
             messages.add(message);
             // Evict oldest non-system messages when over limit
             while (messages.size() > maxMessages) {
@@ -76,12 +85,15 @@ public class InMemoryConversationMemory implements AiConversationMemory {
                 }
                 messages.remove(oldestNonSystem);
             }
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
     public void clear(String conversationId) {
         store.remove(conversationId);
+        locks.remove(conversationId);
     }
 
     @Override

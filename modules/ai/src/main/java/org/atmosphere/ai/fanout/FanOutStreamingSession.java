@@ -23,10 +23,10 @@ import org.atmosphere.cpr.Broadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -46,7 +46,7 @@ public final class FanOutStreamingSession implements AutoCloseable {
     private final FanOutStrategy strategy;
     private final AtmosphereResource resource;
     private final Broadcaster broadcaster;
-    private final List<Thread> threads = Collections.synchronizedList(new ArrayList<>());
+    private final List<Thread> threads = new CopyOnWriteArrayList<>();
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final ConcurrentHashMap<String, FanOutResult> results = new ConcurrentHashMap<>();
 

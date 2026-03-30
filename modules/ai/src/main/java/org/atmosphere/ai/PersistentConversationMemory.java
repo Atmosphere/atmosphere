@@ -20,10 +20,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * {@link AiConversationMemory} implementation backed by a
@@ -46,6 +46,7 @@ public class PersistentConversationMemory implements AiConversationMemory {
     private final ConversationPersistence persistence;
     private final int maxMessages;
     private final ConcurrentMap<String, List<ChatMessage>> cache = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ReentrantLock> locks = new ConcurrentHashMap<>();
 
     public PersistentConversationMemory(ConversationPersistence persistence) {
         this(persistence, 20);
@@ -63,8 +64,12 @@ public class PersistentConversationMemory implements AiConversationMemory {
     public List<ChatMessage> getHistory(String conversationId) {
         var messages = cache.get(conversationId);
         if (messages != null) {
-            synchronized (messages) {
+            var lock = locks.computeIfAbsent(conversationId, k -> new ReentrantLock());
+            lock.lock();
+            try {
                 return List.copyOf(messages);
+            } finally {
+                lock.unlock();
             }
         }
 
@@ -75,22 +80,24 @@ public class PersistentConversationMemory implements AiConversationMemory {
         }
 
         var loaded = deserialize(stored.get());
-        var synced = Collections.synchronizedList(new ArrayList<>(loaded));
-        cache.put(conversationId, synced);
+        cache.put(conversationId, new ArrayList<>(loaded));
+        locks.computeIfAbsent(conversationId, k -> new ReentrantLock());
         return List.copyOf(loaded);
     }
 
     @Override
     public void addMessage(String conversationId, ChatMessage message) {
+        var lock = locks.computeIfAbsent(conversationId, k -> new ReentrantLock());
         var messages = cache.computeIfAbsent(conversationId, k -> {
             var stored = persistence.load(k);
             if (stored.isPresent()) {
-                return Collections.synchronizedList(new ArrayList<>(deserialize(stored.get())));
+                return new ArrayList<>(deserialize(stored.get()));
             }
-            return Collections.synchronizedList(new ArrayList<>());
+            return new ArrayList<>();
         });
 
-        synchronized (messages) {
+        lock.lock();
+        try {
             messages.add(message);
             while (messages.size() > maxMessages) {
                 boolean removed = false;
@@ -106,12 +113,15 @@ public class PersistentConversationMemory implements AiConversationMemory {
                 }
             }
             persist(conversationId, messages);
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
     public void clear(String conversationId) {
         cache.remove(conversationId);
+        locks.remove(conversationId);
         persistence.remove(conversationId);
     }
 

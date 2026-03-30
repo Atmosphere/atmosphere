@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Per-client rate-limiting interceptor using a token-bucket algorithm.
@@ -185,6 +186,7 @@ public class RateLimitingInterceptor extends AtmosphereInterceptorAdapter {
     static final class TokenBucket {
         private final int maxTokens;
         private final long windowNanos;
+        private final ReentrantLock lock = new ReentrantLock();
         private double tokens;
         private long lastRefillNanos;
 
@@ -195,13 +197,18 @@ public class RateLimitingInterceptor extends AtmosphereInterceptorAdapter {
             this.lastRefillNanos = System.nanoTime();
         }
 
-        synchronized boolean tryConsume() {
-            refill();
-            if (tokens >= 1.0) {
-                tokens -= 1.0;
-                return true;
+        boolean tryConsume() {
+            lock.lock();
+            try {
+                refill();
+                if (tokens >= 1.0) {
+                    tokens -= 1.0;
+                    return true;
+                }
+                return false;
+            } finally {
+                lock.unlock();
             }
-            return false;
         }
 
         private void refill() {

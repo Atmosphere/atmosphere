@@ -285,6 +285,7 @@ public class ChannelAiBridge {
     private static class CollectingSession implements StreamingSession {
 
         private final StringBuilder buffer = new StringBuilder();
+        private final java.util.concurrent.locks.ReentrantLock bufferLock = new java.util.concurrent.locks.ReentrantLock();
         private final CountDownLatch latch = new CountDownLatch(1);
         private final String id = UUID.randomUUID().toString();
         private volatile boolean closed;
@@ -292,7 +293,8 @@ public class ChannelAiBridge {
         @Override public String sessionId() { return id; }
 
         @Override public void send(String text) {
-            synchronized (buffer) { buffer.append(text); }
+            bufferLock.lock();
+            try { buffer.append(text); } finally { bufferLock.unlock(); }
         }
 
         @Override public void sendMetadata(String key, Object value) {}
@@ -303,7 +305,8 @@ public class ChannelAiBridge {
         @Override
         public void complete(String summary) {
             if (summary != null && !summary.isBlank()) {
-                synchronized (buffer) { buffer.setLength(0); buffer.append(summary); }
+                bufferLock.lock();
+                try { buffer.setLength(0); buffer.append(summary); } finally { bufferLock.unlock(); }
             }
             closed = true;
             latch.countDown();
@@ -311,11 +314,14 @@ public class ChannelAiBridge {
 
         @Override
         public void error(Throwable t) {
-            synchronized (buffer) {
+            bufferLock.lock();
+            try {
                 if (buffer.isEmpty()) {
                     buffer.append("Error: ").append(
                             t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName());
                 }
+            } finally {
+                bufferLock.unlock();
             }
             closed = true;
             latch.countDown();
@@ -325,7 +331,8 @@ public class ChannelAiBridge {
         String getResponse() {
             try { latch.await(120, TimeUnit.SECONDS); }
             catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-            synchronized (buffer) { return buffer.toString(); }
+            bufferLock.lock();
+            try { return buffer.toString(); } finally { bufferLock.unlock(); }
         }
     }
 }

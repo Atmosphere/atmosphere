@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * {@link AtmosphereHandler} implementation for the AG-UI protocol. Handles
@@ -184,18 +185,22 @@ public final class AgUiHandler implements AtmosphereHandler {
      */
     static final class SseWriter {
         private final java.io.PrintWriter writer;
+        private final ReentrantLock lock = new ReentrantLock();
 
         SseWriter(java.io.PrintWriter writer) {
             this.writer = writer;
         }
 
-        synchronized void write(AgUiEvent event) {
+        void write(AgUiEvent event) {
+            lock.lock();
             try {
                 var json = MAPPER.writeValueAsString(event);
                 writer.write("event: " + event.type() + "\ndata: " + json + "\n\n");
                 writer.flush();
             } catch (Exception e) {
                 logger.debug("Failed to write AG-UI SSE event: {}", event.type(), e);
+            } finally {
+                lock.unlock();
             }
         }
     }
