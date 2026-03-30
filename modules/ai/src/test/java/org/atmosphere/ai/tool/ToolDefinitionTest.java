@@ -55,19 +55,19 @@ public class ToolDefinitionTest {
     @Test
     public void testNullNameThrows() {
         assertThrows(IllegalArgumentException.class,
-                () -> new ToolDefinition(null, "desc", List.of(), "string", args -> null));
+                () -> new ToolDefinition(null, "desc", List.of(), "string", args -> null, null, 0));
     }
 
     @Test
     public void testBlankNameThrows() {
         assertThrows(IllegalArgumentException.class,
-                () -> new ToolDefinition("  ", "desc", List.of(), "string", args -> null));
+                () -> new ToolDefinition("  ", "desc", List.of(), "string", args -> null, null, 0));
     }
 
     @Test
     public void testNullDescriptionThrows() {
         assertThrows(IllegalArgumentException.class,
-                () -> new ToolDefinition("tool", null, List.of(), "string", args -> null));
+                () -> new ToolDefinition("tool", null, List.of(), "string", args -> null, null, 0));
     }
 
     @Test

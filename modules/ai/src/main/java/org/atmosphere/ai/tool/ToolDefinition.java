@@ -43,12 +43,6 @@ public record ToolDefinition(
         String approvalMessage,
         long approvalTimeout
 ) {
-    /** Backwards-compatible constructor without approval fields. */
-    public ToolDefinition(String name, String description, List<ToolParameter> parameters,
-                          String returnType, ToolExecutor executor) {
-        this(name, description, parameters, returnType, executor, null, 0);
-    }
-
     public ToolDefinition {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("tool name must not be null or blank");
