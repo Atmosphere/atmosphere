@@ -15,6 +15,8 @@
  */
 package org.atmosphere.ai.llm;
 
+import org.atmosphere.ai.tool.ToolDefinition;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,13 +29,19 @@ public record ChatCompletionRequest(
         List<ChatMessage> messages,
         double temperature,
         int maxStreamingTexts,
-        boolean jsonMode
+        boolean jsonMode,
+        List<ToolDefinition> tools
 ) {
+    public ChatCompletionRequest {
+        tools = tools != null ? List.copyOf(tools) : List.of();
+    }
+
     /**
      * Create a simple single-prompt request.
      */
     public static ChatCompletionRequest of(String model, String userPrompt) {
-        return new ChatCompletionRequest(model, List.of(ChatMessage.user(userPrompt)), 0.7, 2048, false);
+        return new ChatCompletionRequest(model, List.of(ChatMessage.user(userPrompt)),
+                0.7, 2048, false, List.of());
     }
 
     /**
@@ -46,6 +54,7 @@ public record ChatCompletionRequest(
     public static final class Builder {
         private final String model;
         private final List<ChatMessage> messages = new ArrayList<>();
+        private List<ToolDefinition> tools = List.of();
         private double temperature = 0.7;
         private int maxStreamingTexts = 2048;
         private boolean jsonMode = false;
@@ -74,6 +83,11 @@ public record ChatCompletionRequest(
             return this;
         }
 
+        public Builder tools(List<ToolDefinition> tools) {
+            this.tools = tools;
+            return this;
+        }
+
         public Builder temperature(double temperature) {
             this.temperature = temperature;
             return this;
@@ -90,7 +104,8 @@ public record ChatCompletionRequest(
         }
 
         public ChatCompletionRequest build() {
-            return new ChatCompletionRequest(model, List.copyOf(messages), temperature, maxStreamingTexts, jsonMode);
+            return new ChatCompletionRequest(model, List.copyOf(messages),
+                    temperature, maxStreamingTexts, jsonMode, tools);
         }
     }
 }

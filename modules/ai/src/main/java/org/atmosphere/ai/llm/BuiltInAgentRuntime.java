@@ -21,7 +21,6 @@ import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 
-import java.util.ArrayList;
 import java.util.Set;
 
 /**
@@ -66,28 +65,21 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
     @Override
     protected void doExecute(LlmClient client,
                              AgentExecutionContext context, StreamingSession session) {
-        var messages = new ArrayList<ChatMessage>();
-        if (context.systemPrompt() != null && !context.systemPrompt().isEmpty()) {
-            messages.add(ChatMessage.system(context.systemPrompt()));
-        }
-        for (var h : context.history()) {
-            messages.add(new ChatMessage(h.role(), h.content()));
-        }
-        messages.add(ChatMessage.user(context.message()));
-
         var builder = ChatCompletionRequest.builder(context.model());
-        for (var msg : messages) {
+        for (var msg : assembleMessages(context)) {
             builder.message(msg);
         }
         if (context.responseType() != null) {
             builder.jsonMode(true);
         }
-        var request = builder.build();
-        client.streamChatCompletion(request, session);
+        if (!context.tools().isEmpty()) {
+            builder.tools(context.tools());
+        }
+        client.streamChatCompletion(builder.build(), session);
     }
 
     @Override
     public Set<AiCapability> capabilities() {
-        return Set.of(AiCapability.TEXT_STREAMING, AiCapability.SYSTEM_PROMPT);
+        return Set.of(AiCapability.TEXT_STREAMING, AiCapability.TOOL_CALLING, AiCapability.SYSTEM_PROMPT);
     }
 }

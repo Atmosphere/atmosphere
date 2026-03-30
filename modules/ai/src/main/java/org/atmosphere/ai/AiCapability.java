@@ -36,7 +36,11 @@ public enum AiCapability {
     /** Model can call tools/functions and process their results. */
     TOOL_CALLING,
 
-    /** Model can return structured output (JSON schema conformance). */
+    /**
+     * Runtime participates in structured output handling (JSON schema conformance).
+     * The pipeline's {@code StructuredOutputCapturingSession} does the actual
+     * parsing/validation — this flag indicates the runtime cooperates with it.
+     */
     STRUCTURED_OUTPUT,
 
     /** Model can process image inputs. */

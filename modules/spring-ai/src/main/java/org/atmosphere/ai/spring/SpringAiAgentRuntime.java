@@ -85,10 +85,9 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
             promptSpec = promptSpec.system(context.systemPrompt());
         }
         if (!context.history().isEmpty()) {
-            var historyMessages = new ArrayList<Message>();
-            for (var historyMsg : context.history()) {
-                historyMessages.add(toSpringMessage(historyMsg));
-            }
+            var historyMessages = context.history().stream()
+                    .map(SpringAiAgentRuntime::toSpringMessage)
+                    .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
             promptSpec = promptSpec.messages(historyMessages);
         }
         promptSpec = promptSpec.user(context.message());
@@ -116,6 +115,20 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                             for (var word : text.split("(?<=\\s)")) {
                                 session.send(word);
                             }
+                        }
+                    }
+                    // Report usage metadata if present
+                    var metadata = response.getMetadata();
+                    if (metadata != null && metadata.getUsage() != null) {
+                        var usage = metadata.getUsage();
+                        if (usage.getPromptTokens() > 0) {
+                            session.sendMetadata("ai.tokens.input", usage.getPromptTokens());
+                        }
+                        if (usage.getCompletionTokens() > 0) {
+                            session.sendMetadata("ai.tokens.output", usage.getCompletionTokens());
+                        }
+                        if (usage.getTotalTokens() > 0) {
+                            session.sendMetadata("ai.tokens.total", usage.getTotalTokens());
                         }
                     }
                 })

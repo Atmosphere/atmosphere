@@ -174,10 +174,8 @@ public final class AdkEventAdapter {
 
     private void onError(Throwable t) {
         logger.error("ADK event stream error", t);
-        if (completed.compareAndSet(false, true)) {
-            session.emit(new AiEvent.Error(
-                    t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName(),
-                    "adk_stream_error", false));
+        if (completed.compareAndSet(false, true) && !session.isClosed()) {
+            session.error(t);
         }
     }
 

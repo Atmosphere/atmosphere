@@ -17,8 +17,12 @@ package org.atmosphere.ai.llm;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
+import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.RetryPolicy;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.tool.ToolBridgeUtils;
+import org.atmosphere.ai.tool.ToolDefinition;
+import org.atmosphere.ai.tool.ToolExecutionHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +34,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * LLM client that speaks the OpenAI-compatible chat completions API.
@@ -53,6 +61,7 @@ public class OpenAiCompatibleClient implements LlmClient {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String DATA_PREFIX = "data: ";
     private static final String DONE_MARKER = "[DONE]";
+    private static final int MAX_TOOL_ROUNDS = 5;
 
     private final String baseUrl;
     private final String apiKey;
@@ -115,86 +124,7 @@ public class OpenAiCompatibleClient implements LlmClient {
     @Override
     public void streamChatCompletion(ChatCompletionRequest request, StreamingSession session) {
         try {
-            session.progress("Connecting to AI model...");
-
-            var requestBody = buildRequestBody(request);
-
-            logger.debug("Streaming chat completion: model={}, messages={}", request.model(), request.messages().size());
-
-            HttpResponse<java.io.InputStream> response = null;
-            Exception lastException = null;
-
-            var maxRetries = retryPolicy.maxRetries();
-            for (int attempt = 0; attempt <= maxRetries; attempt++) {
-                try {
-                    var httpRequest = buildHttpRequest(requestBody);
-                    response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
-
-                    if (response.statusCode() == 200) {
-                        break;
-                    }
-
-                    String errorBody;
-                    try (var errorStream = response.body()) {
-                        errorBody = new String(errorStream.readAllBytes(), StandardCharsets.UTF_8);
-                    }
-
-                    if (!isRetryable(response.statusCode()) || attempt == maxRetries) {
-                        logger.error("LLM API error ({}): {}", response.statusCode(), errorBody);
-                        session.error(new LlmException("API returned " + response.statusCode()
-                                + ": " + extractErrorMessage(errorBody)));
-                        return;
-                    }
-
-                    var delay = computeRetryDelay(attempt, response);
-                    logger.warn("LLM API error ({}), retrying in {}ms (attempt {}/{})",
-                            response.statusCode(), delay.toMillis(), attempt + 1, maxRetries);
-                    Thread.sleep(delay.toMillis());
-                    response = null;
-                } catch (java.net.http.HttpTimeoutException e) {
-                    lastException = e;
-                    if (attempt == maxRetries) {
-                        break;
-                    }
-                    var delay = computeRetryDelay(attempt, null);
-                    logger.warn("LLM request timeout, retrying in {}ms (attempt {}/{}): {}",
-                            delay.toMillis(), attempt + 1, maxRetries, e.getMessage());
-                    Thread.sleep(delay.toMillis());
-                } catch (java.io.IOException e) {
-                    lastException = e;
-                    if (attempt == maxRetries) {
-                        break;
-                    }
-                    var delay = computeRetryDelay(attempt, null);
-                    logger.warn("LLM connection error, retrying in {}ms (attempt {}/{}): {}",
-                            delay.toMillis(), attempt + 1, maxRetries, e.getMessage());
-                    Thread.sleep(delay.toMillis());
-                }
-            }
-
-            if (response == null || response.statusCode() != 200) {
-                var cause = lastException != null ? lastException
-                        : new LlmException("Failed after " + (maxRetries + 1) + " attempts");
-                logger.error("LLM API failed after {} retries", maxRetries, cause);
-                if (!session.isClosed()) {
-                    session.error(cause);
-                }
-                return;
-            }
-
-            try (var reader = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (session.isClosed()) {
-                        break;
-                    }
-                    processSSELine(line, session);
-                }
-            }
-
-            if (!session.isClosed()) {
-                session.complete();
-            }
+            doStreamWithToolLoop(request, session, 0);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             session.error(e);
@@ -204,6 +134,158 @@ public class OpenAiCompatibleClient implements LlmClient {
                 session.error(e);
             }
         }
+    }
+
+    private void doStreamWithToolLoop(ChatCompletionRequest request,
+                                      StreamingSession session, int toolRound)
+            throws InterruptedException {
+
+        var requestBody = buildRequestBody(request);
+        logger.debug("Streaming chat completion: model={}, messages={}, tools={}, round={}",
+                request.model(), request.messages().size(), request.tools().size(), toolRound);
+
+        var response = sendWithRetry(requestBody, session);
+        if (response == null) {
+            return;
+        }
+
+        var accumulators = new HashMap<Integer, ToolCallAccumulator>();
+        var toolCallsRequested = new boolean[]{false};
+
+        try (var reader = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (session.isClosed()) {
+                    break;
+                }
+                processSSELine(line, session, accumulators, toolCallsRequested);
+            }
+        } catch (java.io.IOException e) {
+            logger.error("Error reading SSE stream", e);
+            if (!session.isClosed()) {
+                session.error(e);
+            }
+            return;
+        }
+
+        // If the model requested tool calls, execute them and re-submit
+        if (toolCallsRequested[0] && !accumulators.isEmpty() && !request.tools().isEmpty()) {
+            if (toolRound >= MAX_TOOL_ROUNDS) {
+                logger.warn("Max tool rounds ({}) reached, completing response", MAX_TOOL_ROUNDS);
+                if (!session.isClosed()) {
+                    session.complete();
+                }
+                return;
+            }
+
+            var toolMap = ToolExecutionHelper.toToolMap(request.tools());
+            var updatedMessages = new ArrayList<>(request.messages());
+
+            // Build assistant message with tool_calls reference (no text content)
+            var toolCallIds = new ArrayList<String>();
+            for (var entry : accumulators.entrySet()) {
+                var acc = entry.getValue();
+                toolCallIds.add(acc.id());
+            }
+            // Add an assistant message placeholder for the tool call turn
+            updatedMessages.add(new ChatMessage("assistant", null));
+
+            // Execute each tool call and add result messages
+            for (var entry : accumulators.entrySet()) {
+                var acc = entry.getValue();
+                var toolName = acc.functionName();
+                var args = ToolBridgeUtils.parseJsonArgs(acc.arguments());
+
+                session.emit(new AiEvent.ToolStart(toolName, args));
+
+                var tool = toolMap.get(toolName);
+                if (tool == null) {
+                    logger.warn("Tool not found: {}", toolName);
+                    var errorResult = "{\"error\":\"Tool not found: " + toolName + "\"}";
+                    session.emit(new AiEvent.ToolError(toolName, "Tool not found"));
+                    updatedMessages.add(ChatMessage.tool(errorResult, acc.id()));
+                    continue;
+                }
+
+                var resultStr = ToolExecutionHelper.executeAndFormat(toolName, tool.executor(), args);
+                session.emit(new AiEvent.ToolResult(toolName, resultStr));
+                updatedMessages.add(ChatMessage.tool(resultStr, acc.id()));
+            }
+
+            logger.debug("Tool round {}: executed {} tool calls, re-submitting",
+                    toolRound + 1, accumulators.size());
+
+            var followUp = new ChatCompletionRequest(
+                    request.model(), List.copyOf(updatedMessages),
+                    request.temperature(), request.maxStreamingTexts(),
+                    request.jsonMode(), request.tools());
+            doStreamWithToolLoop(followUp, session, toolRound + 1);
+        } else if (!session.isClosed()) {
+            session.complete();
+        }
+    }
+
+    private HttpResponse<java.io.InputStream> sendWithRetry(String requestBody,
+                                                             StreamingSession session)
+            throws InterruptedException {
+        HttpResponse<java.io.InputStream> response = null;
+        Exception lastException = null;
+
+        var maxRetries = retryPolicy.maxRetries();
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                var httpRequest = buildHttpRequest(requestBody);
+                response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+
+                if (response.statusCode() == 200) {
+                    return response;
+                }
+
+                String errorBody;
+                try (var errorStream = response.body()) {
+                    errorBody = new String(errorStream.readAllBytes(), StandardCharsets.UTF_8);
+                }
+
+                if (!isRetryable(response.statusCode()) || attempt == maxRetries) {
+                    logger.error("LLM API error ({}): {}", response.statusCode(), errorBody);
+                    session.error(new LlmException("API returned " + response.statusCode()
+                            + ": " + extractErrorMessage(errorBody)));
+                    return null;
+                }
+
+                var delay = computeRetryDelay(attempt, response);
+                logger.warn("LLM API error ({}), retrying in {}ms (attempt {}/{})",
+                        response.statusCode(), delay.toMillis(), attempt + 1, maxRetries);
+                Thread.sleep(delay.toMillis());
+                response = null;
+            } catch (java.net.http.HttpTimeoutException e) {
+                lastException = e;
+                if (attempt == maxRetries) {
+                    break;
+                }
+                var delay = computeRetryDelay(attempt, null);
+                logger.warn("LLM request timeout, retrying in {}ms (attempt {}/{}): {}",
+                        delay.toMillis(), attempt + 1, maxRetries, e.getMessage());
+                Thread.sleep(delay.toMillis());
+            } catch (java.io.IOException e) {
+                lastException = e;
+                if (attempt == maxRetries) {
+                    break;
+                }
+                var delay = computeRetryDelay(attempt, null);
+                logger.warn("LLM connection error, retrying in {}ms (attempt {}/{}): {}",
+                        delay.toMillis(), attempt + 1, maxRetries, e.getMessage());
+                Thread.sleep(delay.toMillis());
+            }
+        }
+
+        var cause = lastException != null ? lastException
+                : new LlmException("Failed after " + (maxRetries + 1) + " attempts");
+        logger.error("LLM API failed after {} retries", maxRetries, cause);
+        if (!session.isClosed()) {
+            session.error(cause);
+        }
+        return null;
     }
 
     private static boolean isRetryable(int statusCode) {
@@ -226,7 +308,9 @@ public class OpenAiCompatibleClient implements LlmClient {
         return retryPolicy.delayForAttempt(attempt);
     }
 
-    private void processSSELine(String line, StreamingSession session) {
+    private void processSSELine(String line, StreamingSession session,
+                                Map<Integer, ToolCallAccumulator> accumulators,
+                                boolean[] toolCallsRequested) {
         if (line.isBlank() || !line.startsWith(DATA_PREFIX)) {
             return;
         }
@@ -258,10 +342,35 @@ public class OpenAiCompatibleClient implements LlmClient {
                 }
             }
 
+            // Accumulate tool call fragments
+            var toolCallsNode = delta.get("tool_calls");
+            if (toolCallsNode != null && toolCallsNode.isArray()) {
+                for (var tcNode : toolCallsNode) {
+                    var index = tcNode.has("index") ? tcNode.get("index").asInt() : 0;
+                    var acc = accumulators.computeIfAbsent(index, k -> new ToolCallAccumulator());
+
+                    if (tcNode.has("id")) {
+                        acc.setId(tcNode.get("id").stringValue());
+                    }
+                    var fnNode = tcNode.get("function");
+                    if (fnNode != null) {
+                        if (fnNode.has("name") && !fnNode.get("name").isNull()) {
+                            acc.setFunctionName(fnNode.get("name").stringValue());
+                        }
+                        if (fnNode.has("arguments") && !fnNode.get("arguments").isNull()) {
+                            acc.appendArguments(fnNode.get("arguments").stringValue());
+                        }
+                    }
+                }
+            }
+
             // Check for finish reason
             var finishNode = firstChoice.get("finish_reason");
             if (finishNode != null && !finishNode.isNull()) {
                 var reason = finishNode.stringValue();
+                if ("tool_calls".equals(reason)) {
+                    toolCallsRequested[0] = true;
+                }
                 if (!"null".equals(reason)) {
                     logger.debug("Stream finished: reason={}", reason);
                 }
@@ -270,24 +379,29 @@ public class OpenAiCompatibleClient implements LlmClient {
             // Forward usage metadata if present
             var usageNode = node.get("usage");
             if (usageNode != null && !usageNode.isNull()) {
-                if (usageNode.has("total_tokens")) {
-                    session.sendMetadata("usage.totalStreamingTexts", usageNode.get("total_tokens").asInt());
-                }
-                if (usageNode.has("prompt_tokens")) {
-                    session.sendMetadata("usage.promptStreamingTexts", usageNode.get("prompt_tokens").asInt());
-                }
-                if (usageNode.has("completion_tokens")) {
-                    session.sendMetadata("usage.completionStreamingTexts", usageNode.get("completion_tokens").asInt());
-                }
+                forwardUsageMetadata(usageNode, session);
             }
 
             // Forward model metadata
             var modelNode = node.get("model");
             if (modelNode != null && !modelNode.isNull()) {
-                session.sendMetadata("model", modelNode.stringValue());
+                session.sendMetadata("ai.model", modelNode.stringValue());
             }
         } catch (JacksonException e) {
             logger.warn("Failed to parse SSE data: {}", data, e);
+        }
+    }
+
+    private static void forwardUsageMetadata(tools.jackson.databind.JsonNode usageNode,
+                                             StreamingSession session) {
+        if (usageNode.has("prompt_tokens")) {
+            session.sendMetadata("ai.tokens.input", usageNode.get("prompt_tokens").asInt());
+        }
+        if (usageNode.has("completion_tokens")) {
+            session.sendMetadata("ai.tokens.output", usageNode.get("completion_tokens").asInt());
+        }
+        if (usageNode.has("total_tokens")) {
+            session.sendMetadata("ai.tokens.total", usageNode.get("total_tokens").asInt());
         }
     }
 
@@ -295,12 +409,7 @@ public class OpenAiCompatibleClient implements LlmClient {
         var body = new LinkedHashMap<String, Object>();
         body.put("model", request.model());
         body.put("messages", request.messages().stream()
-                .map(m -> {
-                    var msg = new LinkedHashMap<String, String>();
-                    msg.put("role", m.role());
-                    msg.put("content", m.content());
-                    return msg;
-                })
+                .map(OpenAiCompatibleClient::serializeMessage)
                 .toList());
         body.put("stream", true);
         body.put("temperature", request.temperature());
@@ -308,9 +417,56 @@ public class OpenAiCompatibleClient implements LlmClient {
             body.put("max_tokens", request.maxStreamingTexts());
         }
         if (request.jsonMode()) {
-            body.put("response_format", java.util.Map.of("type", "json_object"));
+            body.put("response_format", Map.of("type", "json_object"));
+        }
+        if (!request.tools().isEmpty()) {
+            body.put("tools", serializeTools(request.tools()));
         }
         return MAPPER.writeValueAsString(body);
+    }
+
+    private static Map<String, Object> serializeMessage(ChatMessage m) {
+        var msg = new LinkedHashMap<String, Object>();
+        msg.put("role", m.role());
+        if (m.content() != null) {
+            msg.put("content", m.content());
+        }
+        if (m.toolCallId() != null) {
+            msg.put("tool_call_id", m.toolCallId());
+        }
+        return msg;
+    }
+
+    private static List<Map<String, Object>> serializeTools(List<ToolDefinition> tools) {
+        return tools.stream().map(tool -> {
+            var fn = new LinkedHashMap<String, Object>();
+            fn.put("name", tool.name());
+            fn.put("description", tool.description());
+            fn.put("parameters", buildParametersObject(tool));
+            var wrapper = new LinkedHashMap<String, Object>();
+            wrapper.put("type", "function");
+            wrapper.put("function", fn);
+            return (Map<String, Object>) wrapper;
+        }).toList();
+    }
+
+    private static Map<String, Object> buildParametersObject(ToolDefinition tool) {
+        var params = new LinkedHashMap<String, Object>();
+        params.put("type", "object");
+        var properties = new LinkedHashMap<String, Object>();
+        var required = new ArrayList<String>();
+        for (var p : tool.parameters()) {
+            var prop = new LinkedHashMap<String, String>();
+            prop.put("type", p.type());
+            prop.put("description", p.description());
+            properties.put(p.name(), prop);
+            if (p.required()) {
+                required.add(p.name());
+            }
+        }
+        params.put("properties", properties);
+        params.put("required", required);
+        return params;
     }
 
     private HttpRequest buildHttpRequest(String requestBody) {

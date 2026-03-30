@@ -18,10 +18,15 @@ package org.atmosphere.ai.llm;
 /**
  * A chat message with a role and content, following the OpenAI chat completions format.
  *
- * @param role    the message role ("system", "user", "assistant")
- * @param content the message text
+ * @param role       the message role ("system", "user", "assistant", "tool")
+ * @param content    the message text
+ * @param toolCallId the tool call ID this message responds to (only for role "tool")
  */
-public record ChatMessage(String role, String content) {
+public record ChatMessage(String role, String content, String toolCallId) {
+
+    public ChatMessage(String role, String content) {
+        this(role, content, null);
+    }
 
     public static ChatMessage system(String content) {
         return new ChatMessage("system", content);
@@ -33,5 +38,9 @@ public record ChatMessage(String role, String content) {
 
     public static ChatMessage assistant(String content) {
         return new ChatMessage("assistant", content);
+    }
+
+    public static ChatMessage tool(String content, String toolCallId) {
+        return new ChatMessage("tool", content, toolCallId);
     }
 }

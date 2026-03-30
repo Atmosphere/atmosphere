@@ -189,8 +189,6 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
 
     @Override
     protected void doExecute(Runner adkRunner, AgentExecutionContext context, StreamingSession session) {
-        session.progress("Starting ADK agent...");
-
         // ADK requires tools at agent construction time. If the AgentExecutionContext contains
         // tools that haven't been registered yet, rebuild the runner with those tools.
         var tools = context.tools();
@@ -235,6 +233,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         return Set.of(
                 AiCapability.TEXT_STREAMING,
                 AiCapability.TOOL_CALLING,
+                AiCapability.STRUCTURED_OUTPUT,
                 AiCapability.AGENT_ORCHESTRATION,
                 AiCapability.CONVERSATION_MEMORY,
                 AiCapability.SYSTEM_PROMPT

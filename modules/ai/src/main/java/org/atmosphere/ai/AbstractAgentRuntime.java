@@ -15,6 +15,11 @@
  */
 package org.atmosphere.ai;
 
+import org.atmosphere.ai.llm.ChatMessage;
+
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Base class for {@link AgentRuntime} implementations. Provides classpath-based
  * availability detection, lazy client initialization, and a template method
@@ -105,6 +110,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
                     name() + ": " + clientDescription() + " not configured. "
                             + configurationHint());
         }
+        session.progress("Connecting to " + name() + "...");
         doExecute(client, context, session);
     }
 
@@ -114,5 +120,28 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
      */
     protected String configurationHint() {
         return "Check your classpath and configuration.";
+    }
+
+    /**
+     * Assemble the canonical message list from an execution context:
+     * system prompt (if present) + conversation history + current user message.
+     *
+     * <p>Runtimes that need framework-specific message types can call this
+     * method first and then translate each {@link ChatMessage} to their
+     * native type.</p>
+     *
+     * @param context the execution context
+     * @return an unmodifiable list of messages in conversation order
+     */
+    protected static List<ChatMessage> assembleMessages(AgentExecutionContext context) {
+        var messages = new ArrayList<ChatMessage>();
+        if (context.systemPrompt() != null && !context.systemPrompt().isEmpty()) {
+            messages.add(ChatMessage.system(context.systemPrompt()));
+        }
+        for (var h : context.history()) {
+            messages.add(new ChatMessage(h.role(), h.content()));
+        }
+        messages.add(ChatMessage.user(context.message()));
+        return List.copyOf(messages);
     }
 }

@@ -79,11 +79,31 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
 
     @Override
     public void onPartialResponse(String partialResponse) {
-        session.send(partialResponse);
+        if (!session.isClosed()) {
+            session.send(partialResponse);
+        }
     }
 
     @Override
     public void onCompleteResponse(ChatResponse completeResponse) {
+        if (session.isClosed()) {
+            return;
+        }
+
+        // Report usage metadata if available
+        var tokenUsage = completeResponse.tokenUsage();
+        if (tokenUsage != null) {
+            if (tokenUsage.inputTokenCount() != null) {
+                session.sendMetadata("ai.tokens.input", tokenUsage.inputTokenCount());
+            }
+            if (tokenUsage.outputTokenCount() != null) {
+                session.sendMetadata("ai.tokens.output", tokenUsage.outputTokenCount());
+            }
+            if (tokenUsage.totalTokenCount() != null) {
+                session.sendMetadata("ai.tokens.total", tokenUsage.totalTokenCount());
+            }
+        }
+
         var aiMessage = completeResponse.aiMessage();
         if (aiMessage == null) {
             session.complete();
@@ -134,6 +154,8 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
 
     @Override
     public void onError(Throwable error) {
-        session.error(error);
+        if (!session.isClosed()) {
+            session.error(error);
+        }
     }
 }

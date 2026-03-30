@@ -156,7 +156,8 @@ public final class RoutingLlmClient implements LlmClient {
                         session.sendMetadata("routing.model", recommended.get());
                         var fallback = new ChatCompletionRequest(
                                 recommended.get(), request.messages(),
-                                request.temperature(), request.maxStreamingTexts(), request.jsonMode());
+                                request.temperature(), request.maxStreamingTexts(), request.jsonMode(),
+                                request.tools());
                         defaultClient.streamChatCompletion(fallback, session);
                         return;
                     }
@@ -180,7 +181,8 @@ public final class RoutingLlmClient implements LlmClient {
                     if (matcher.test(userMessage)) {
                         logger.debug("Routing to model {} based on content", model);
                         var routed = new ChatCompletionRequest(model, request.messages(),
-                                request.temperature(), request.maxStreamingTexts(), request.jsonMode());
+                                request.temperature(), request.maxStreamingTexts(), request.jsonMode(),
+                                request.tools());
                         session.sendMetadata("routing.model", model);
                         target.streamChatCompletion(routed, session);
                         return;
@@ -202,7 +204,8 @@ public final class RoutingLlmClient implements LlmClient {
                         var opt = selected.get();
                         logger.debug("Routing to model {} based on cost (budget: {})", opt.model(), maxCost);
                         var routed = new ChatCompletionRequest(opt.model(), request.messages(),
-                                request.temperature(), request.maxStreamingTexts(), request.jsonMode());
+                                request.temperature(), request.maxStreamingTexts(), request.jsonMode(),
+                                request.tools());
                         session.sendMetadata("routing.model", opt.model());
                         session.sendMetadata("routing.cost",
                                 opt.costPerStreamingText() * request.maxStreamingTexts());
@@ -219,7 +222,8 @@ public final class RoutingLlmClient implements LlmClient {
                         logger.debug("Routing to model {} based on latency (max: {}ms)",
                                 opt.model(), maxLatencyMs);
                         var routed = new ChatCompletionRequest(opt.model(), request.messages(),
-                                request.temperature(), request.maxStreamingTexts(), request.jsonMode());
+                                request.temperature(), request.maxStreamingTexts(), request.jsonMode(),
+                                request.tools());
                         session.sendMetadata("routing.model", opt.model());
                         session.sendMetadata("routing.latency", opt.averageLatencyMs());
                         opt.client().streamChatCompletion(routed, session);
@@ -232,7 +236,8 @@ public final class RoutingLlmClient implements LlmClient {
         // No rule matched — use default
         logger.debug("No routing rule matched, using default model {}", defaultModel);
         var defaultRequest = new ChatCompletionRequest(defaultModel, request.messages(),
-                request.temperature(), request.maxStreamingTexts(), request.jsonMode());
+                request.temperature(), request.maxStreamingTexts(), request.jsonMode(),
+                request.tools());
         session.sendMetadata("routing.model", defaultModel);
         defaultClient.streamChatCompletion(defaultRequest, session);
     }

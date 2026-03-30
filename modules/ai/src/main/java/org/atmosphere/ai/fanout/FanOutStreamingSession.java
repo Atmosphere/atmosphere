@@ -116,7 +116,8 @@ public final class FanOutStreamingSession implements AutoCloseable {
                     latch, firstComplete, streamingTextCounts);
 
             var finalRequest = new ChatCompletionRequest(endpoint.model(), baseRequest.messages(),
-                    baseRequest.temperature(), baseRequest.maxStreamingTexts(), baseRequest.jsonMode());
+                    baseRequest.temperature(), baseRequest.maxStreamingTexts(), baseRequest.jsonMode(),
+                    baseRequest.tools());
             var thread = Thread.ofVirtual().name("fanout-" + endpoint.id()).start(() -> {
                 try {
                     endpoint.client().streamChatCompletion(finalRequest, tracker);

@@ -110,22 +110,9 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
     @Override
     protected void doExecute(StreamingChatModel streamingModel,
                             AgentExecutionContext context, StreamingSession session) {
-        session.progress("Connecting to AI model...");
-
-        var messages = new ArrayList<dev.langchain4j.data.message.ChatMessage>();
-        if (context.systemPrompt() != null && !context.systemPrompt().isEmpty()) {
-            messages.add(SystemMessage.from(context.systemPrompt()));
-        }
-        // Insert conversation history between system prompt and current user message
-        for (var historyMsg : context.history()) {
-            switch (historyMsg.role()) {
-                case "user" -> messages.add(UserMessage.from(historyMsg.content()));
-                case "assistant" -> messages.add(AiMessage.from(historyMsg.content()));
-                case "system" -> messages.add(SystemMessage.from(historyMsg.content()));
-                default -> messages.add(UserMessage.from(historyMsg.content()));
-            }
-        }
-        messages.add(UserMessage.from(context.message()));
+        var messages = assembleMessages(context).stream()
+                .map(LangChain4jAgentRuntime::toLangChainMessage)
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
 
         // Add tool specifications if tools are present
         var tools = context.tools();
@@ -157,7 +144,17 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         return Set.of(
                 AiCapability.TEXT_STREAMING,
                 AiCapability.TOOL_CALLING,
+                AiCapability.STRUCTURED_OUTPUT,
                 AiCapability.SYSTEM_PROMPT
         );
+    }
+
+    private static dev.langchain4j.data.message.ChatMessage toLangChainMessage(
+            org.atmosphere.ai.llm.ChatMessage msg) {
+        return switch (msg.role()) {
+            case "assistant" -> AiMessage.from(msg.content());
+            case "system" -> SystemMessage.from(msg.content());
+            default -> UserMessage.from(msg.content());
+        };
     }
 }
