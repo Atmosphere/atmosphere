@@ -131,6 +131,11 @@
             </dependency>
             <dependency>
                 <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-spring-boot3-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-quarkus-extension</artifactId>
                 <version>${project.version}</version>
             </dependency>

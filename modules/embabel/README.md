@@ -57,3 +57,4 @@ See [docs/embabel.md](../../docs/embabel.md) for complete documentation.
 - `atmosphere-ai` (transitive)
 - Embabel Agent API 0.3.4+
 - Kotlin runtime
+- **Spring Boot 3.5** — Embabel framework does not yet support Spring Boot 4. Use `atmosphere-spring-boot3-starter` and the `-Pspring-boot3` Maven profile.

@@ -538,7 +538,7 @@
         <module>samples/spring-boot-channels-chat</module>
         <module>samples/spring-boot-dentist-agent</module>
         <module>samples/spring-boot-multi-agent-startup-team</module>
-        <!-- <module>samples/spring-boot-embabel-chat</module> --> <!-- Embabel requires Spring Boot 3.5; will be supported when SB 3.5 module lands -->
+        <!-- <module>samples/spring-boot-embabel-chat</module> --> <!-- Embabel framework requires Spring Boot 3.5; use -Pspring-boot3 profile -->
         <module>modules/integration-tests</module>
     </modules>
     <reporting>
