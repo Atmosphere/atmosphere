@@ -18,6 +18,8 @@ package org.atmosphere.ai.test;
 import org.atmosphere.ai.AiEvent;
 
 import java.time.Duration;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -38,6 +40,8 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class AiAssertions {
 
     private final AiResponse response;
+    private LlmJudge judge;
+    private String userMessage;
 
     private AiAssertions(AiResponse response) {
         this.response = response;
@@ -117,6 +121,112 @@ public class AiAssertions {
                 "Expected metadata key '" + key + "' but keys were: "
                         + response.metadata().keySet());
         return this;
+    }
+
+    /**
+     * Configure an LLM judge for eval assertions. Required before calling
+     * {@link #meetsIntent}, {@link #isGroundedIn}, or {@link #hasQuality}.
+     *
+     * @param judge the LLM judge to use for evaluation
+     * @return this assertion chain
+     */
+    public AiAssertions withJudge(LlmJudge judge) {
+        this.judge = judge;
+        return this;
+    }
+
+    /**
+     * Set the original user message for context in eval assertions.
+     *
+     * @param message the user's prompt
+     * @return this assertion chain
+     */
+    public AiAssertions forPrompt(String message) {
+        this.userMessage = message;
+        return this;
+    }
+
+    /**
+     * Assert that the response meets the stated intent, as judged by an LLM.
+     * Requires {@link #withJudge} and {@link #forPrompt} to be called first.
+     *
+     * @param intent what the response should accomplish
+     * @return this assertion chain
+     */
+    public AiAssertions meetsIntent(String intent) {
+        requireJudge("meetsIntent");
+        assertTrue(judge.meetsIntent(
+                        userMessage != null ? userMessage : "", response.text(), intent),
+                "LLM judge determined response does not meet intent: '" + intent
+                        + "'\nResponse: " + truncate(response.text(), 300));
+        return this;
+    }
+
+    /**
+     * Assert that the response is grounded in the outputs of the named tools
+     * (i.e., the response cites tool data rather than hallucinating).
+     * Requires {@link #withJudge} to be called first.
+     *
+     * @param toolNames the tools whose outputs the response should be grounded in
+     * @return this assertion chain
+     */
+    public AiAssertions isGroundedIn(String... toolNames) {
+        requireJudge("isGroundedIn");
+        var toolOutputs = response.eventsOfType(AiEvent.ToolResult.class).stream()
+                .filter(tr -> {
+                    for (var name : toolNames) {
+                        if (name.equals(tr.toolName())) {
+                            return true;
+                        }
+                    }
+                    return false;
+                })
+                .map(tr -> tr.toolName() + ": " + tr.result())
+                .collect(Collectors.joining("\n"));
+
+        assertFalse(toolOutputs.isBlank(),
+                "No tool results found for: " + String.join(", ", toolNames));
+
+        assertTrue(judge.isGrounded(response.text(), toolOutputs),
+                "LLM judge determined response is NOT grounded in tool outputs."
+                        + "\nResponse: " + truncate(response.text(), 200)
+                        + "\nTool outputs: " + truncate(toolOutputs, 200));
+        return this;
+    }
+
+    /**
+     * Assert that the response meets quality thresholds on relevance,
+     * coherence, and safety, as scored by an LLM judge.
+     * Requires {@link #withJudge} and {@link #forPrompt} to be called first.
+     *
+     * @param spec consumer that sets quality thresholds
+     * @return this assertion chain
+     */
+    public AiAssertions hasQuality(Consumer<QualitySpec> spec) {
+        requireJudge("hasQuality");
+        var qualitySpec = new QualitySpec();
+        spec.accept(qualitySpec);
+
+        var scores = judge.scoreQuality(
+                userMessage != null ? userMessage : "", response.text());
+
+        assertTrue(scores.relevance() >= qualitySpec.relevanceThreshold(),
+                "Relevance score " + scores.relevance()
+                        + " below threshold " + qualitySpec.relevanceThreshold());
+        assertTrue(scores.coherence() >= qualitySpec.coherenceThreshold(),
+                "Coherence score " + scores.coherence()
+                        + " below threshold " + qualitySpec.coherenceThreshold());
+        assertTrue(scores.safety() >= qualitySpec.safetyThreshold(),
+                "Safety score " + scores.safety()
+                        + " below threshold " + qualitySpec.safetyThreshold());
+        return this;
+    }
+
+    private void requireJudge(String method) {
+        if (judge == null) {
+            throw new IllegalStateException(
+                    method + "() requires an LLM judge. Call withJudge() first.");
+        }
     }
 
     /**
