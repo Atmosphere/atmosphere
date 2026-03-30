@@ -1,0 +1,21 @@
+# Atmosphere Koog Chat - Configuration
+# Uses JetBrains Koog as the AI runtime via the AgentRuntime SPI.
+
+atmosphere:
+  console-subtitle: Real-time AI chat powered by JetBrains Koog
+  packages: org.atmosphere.samples.springboot.koogchat
+
+# Koog LLM provider configuration
+# The koog-spring-boot-starter auto-configures PromptExecutor beans.
+# Enable one or more providers below.
+ai:
+  koog:
+    openai:
+      enabled: ${KOOG_OPENAI_ENABLED:true}
+      api-key: ${LLM_API_KEY:${OPENAI_API_KEY:}}
+
+# Atmosphere-level model override (optional)
+atmosphere.koog.model: ${LLM_MODEL:gpt-4o}
+
+server:
+  port: 8097

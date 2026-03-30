@@ -538,6 +538,7 @@
         <module>samples/spring-boot-channels-chat</module>
         <module>samples/spring-boot-dentist-agent</module>
         <module>samples/spring-boot-multi-agent-startup-team</module>
+        <module>samples/spring-boot-koog-chat</module>
         <!-- <module>samples/spring-boot-embabel-chat</module> --> <!-- Embabel framework requires Spring Boot 3.5; use -Pspring-boot3 profile -->
         <module>modules/integration-tests</module>
     </modules>
@@ -642,6 +643,11 @@
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-adk</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-koog</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

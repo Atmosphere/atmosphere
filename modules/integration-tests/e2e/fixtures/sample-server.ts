@@ -135,6 +135,13 @@ export const SAMPLES: Record<string, SampleConfig> = {
     type: 'spring-boot',
     readyPath: '/atmosphere/ai-chat',
   },
+  'spring-boot-koog-chat': {
+    name: 'spring-boot-koog-chat',
+    dir: 'spring-boot-koog-chat',
+    port: 8097,
+    type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
+  },
 };
 
 /**

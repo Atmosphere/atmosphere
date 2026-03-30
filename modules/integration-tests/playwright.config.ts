@@ -278,6 +278,10 @@ export default defineConfig({
       name: 'sample-matrix-smoke',
       testMatch: /sample-matrix-smoke\.spec\.ts/,
     },
+    {
+      name: 'koog-chat',
+      testMatch: /koog-chat\.spec\.ts/,
+    },
     // ── Cross-browser (opt-in via E2E_ALL_BROWSERS=true) ──
     ...(process.env.E2E_ALL_BROWSERS ? [
       {
