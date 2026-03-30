@@ -118,6 +118,42 @@ public class LongTermMemoryInterceptor implements AiInterceptor {
         }
     }
 
+    /**
+     * Trigger fact extraction on session disconnect. Called by the handler
+     * when the client disconnects. This is where {@link OnSessionCloseStrategy}
+     * does its work — it returns false from {@code shouldExtract()} (per-message)
+     * but extraction happens here at session end.
+     *
+     * @param userId         the user identifier
+     * @param conversationId the conversation that just ended
+     * @param history        the full conversation history
+     */
+    public void onDisconnect(String userId, String conversationId,
+                             java.util.List<org.atmosphere.ai.llm.ChatMessage> history) {
+        if (userId == null || userId.isBlank() || history.isEmpty()) {
+            return;
+        }
+
+        var sb = new StringBuilder();
+        for (var msg : history) {
+            sb.append(msg.role()).append(": ").append(msg.content()).append('\n');
+        }
+        var conversationText = sb.toString();
+
+        try {
+            var facts = strategy.extractFacts(conversationText, extractionRuntime);
+            if (!facts.isEmpty()) {
+                memory.saveFacts(userId, facts);
+                logger.info("Extracted {} facts for user {} on disconnect",
+                        facts.size(), userId);
+            }
+        } catch (Exception e) {
+            logger.warn("Fact extraction on disconnect failed for user {}: {}",
+                    userId, e.getMessage());
+        }
+        messageCounts.remove(conversationId);
+    }
+
     private static String buildConversationText(AiRequest request) {
         var sb = new StringBuilder();
         for (var msg : request.history()) {

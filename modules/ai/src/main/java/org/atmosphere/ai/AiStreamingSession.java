@@ -15,6 +15,10 @@
  */
 package org.atmosphere.ai;
 
+import org.atmosphere.ai.approval.ApprovalGateExecutor;
+import org.atmosphere.ai.approval.ApprovalRegistry;
+import org.atmosphere.ai.approval.ApprovalStrategy;
+import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
@@ -68,6 +72,7 @@ public class AiStreamingSession implements StreamingSession {
     private final Class<?> responseType;
     private volatile PostPromptHook preStreamHook;
     private volatile boolean handoffInProgress;
+    private final ApprovalRegistry approvalRegistry = new ApprovalRegistry();
 
     /**
      * @param delegate     the underlying streaming session
@@ -272,8 +277,11 @@ public class AiStreamingSession implements StreamingSession {
 
         // Build execution context and delegate to runtime
         var finalRequest = request;
-        var tools = toolRegistry != null ? toolRegistry.allTools()
+        var rawTools = toolRegistry != null ? toolRegistry.allTools()
                 : java.util.List.<org.atmosphere.ai.tool.ToolDefinition>of();
+        // Wrap tools that require approval with ApprovalGateExecutor.
+        // The wrapper parks the VT when the tool is called by any runtime.
+        var tools = wrapApprovalGates(rawTools, target);
         var context = new AgentExecutionContext(
                 request.message(), request.systemPrompt(), request.model(),
                 request.agentId(), request.sessionId(), request.userId(),
@@ -352,7 +360,44 @@ public class AiStreamingSession implements StreamingSession {
         } catch (Exception e) {
             logger.error("Handoff to '{}' failed", agentName, e);
             delegate.error(e);
+        } finally {
+            handoffInProgress = false;
         }
+    }
+
+    /**
+     * Check if an incoming message is an approval response and route it
+     * to the approval registry. Called by the handler before dispatching to @Prompt.
+     *
+     * @param message the incoming message
+     * @return true if the message was consumed as an approval response
+     */
+    public boolean tryResolveApproval(String message) {
+        return approvalRegistry.tryResolve(message);
+    }
+
+    /**
+     * Wrap tools that have {@code requiresApproval()} with an
+     * {@link ApprovalGateExecutor} so ALL runtimes get approval gates.
+     */
+    private java.util.Collection<ToolDefinition> wrapApprovalGates(
+            java.util.Collection<ToolDefinition> tools, StreamingSession session) {
+        var strategy = ApprovalStrategy.virtualThread(approvalRegistry);
+        var wrapped = new java.util.ArrayList<ToolDefinition>();
+        for (var tool : tools) {
+            if (tool.requiresApproval()) {
+                var gatedExecutor = new ApprovalGateExecutor(
+                        tool.executor(), tool.name(), tool.approvalMessage(),
+                        tool.approvalTimeout(), strategy, session);
+                wrapped.add(new ToolDefinition(
+                        tool.name(), tool.description(), tool.parameters(),
+                        tool.returnType(), gatedExecutor,
+                        tool.approvalMessage(), tool.approvalTimeout()));
+            } else {
+                wrapped.add(tool);
+            }
+        }
+        return wrapped;
     }
 
     // -- Delegate all StreamingSession methods --
