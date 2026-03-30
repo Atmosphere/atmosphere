@@ -24,7 +24,7 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.streaming.StreamFrame
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.runBlocking
 import org.atmosphere.ai.AiCapability
 import org.atmosphere.ai.AiConfig
@@ -115,11 +115,11 @@ class KoogAgentRuntime : AgentRuntime {
                 var toolRound = 0
 
                 while (toolRound <= MAX_TOOL_ROUNDS) {
-                    val frames = executor.executeStreaming(currentPrompt, model, koogTools).toList()
                     val toolCalls = mutableListOf<StreamFrame.ToolCallComplete>()
 
-                    for (frame in frames) {
-                        if (session.isClosed) return@runBlocking
+                    // Stream frames in real-time — text deltas are emitted as they arrive
+                    executor.executeStreaming(currentPrompt, model, koogTools).collect { frame ->
+                        if (session.isClosed) return@collect
 
                         when (frame) {
                             is StreamFrame.TextDelta ->
@@ -254,7 +254,6 @@ class KoogAgentRuntime : AgentRuntime {
         AiCapability.TEXT_STREAMING,
         AiCapability.TOOL_CALLING,
         AiCapability.STRUCTURED_OUTPUT,
-        AiCapability.AGENT_ORCHESTRATION,
         AiCapability.CONVERSATION_MEMORY,
         AiCapability.SYSTEM_PROMPT
     )

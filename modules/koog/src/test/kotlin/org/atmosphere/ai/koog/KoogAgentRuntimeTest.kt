@@ -167,7 +167,6 @@ class KoogAgentRuntimeTest {
         assertTrue(caps.contains(AiCapability.TEXT_STREAMING))
         assertTrue(caps.contains(AiCapability.TOOL_CALLING))
         assertTrue(caps.contains(AiCapability.STRUCTURED_OUTPUT))
-        assertTrue(caps.contains(AiCapability.AGENT_ORCHESTRATION))
         assertTrue(caps.contains(AiCapability.CONVERSATION_MEMORY))
         assertTrue(caps.contains(AiCapability.SYSTEM_PROMPT))
     }
