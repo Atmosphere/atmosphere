@@ -219,7 +219,7 @@ class KoogAgentRuntimeTest {
     }
 
     @Test
-    fun `ToolCallComplete frame is forwarded as agent-step AiEvent`() {
+    fun `ToolCallComplete frame triggers tool-start event`() {
         KoogAgentRuntime.setPromptExecutor(fakeExecutor(
             StreamFrame.ToolCallComplete("call-1", "get_weather", "{\"city\":\"Montreal\"}"),
             StreamFrame.End()
@@ -229,7 +229,7 @@ class KoogAgentRuntimeTest {
         KoogAgentRuntime().execute(context(), session)
 
         val messages = capturedMessages()
-        assertTrue(messages.any { it.contains("\"event\":\"agent-step\"") && it.contains("get_weather") })
+        assertTrue(messages.any { it.contains("\"event\":\"tool-start\"") && it.contains("get_weather") })
     }
 
     @Test
@@ -305,7 +305,6 @@ class KoogAgentRuntimeTest {
             StreamFrame.ReasoningDelta("Let me think..."),
             StreamFrame.TextDelta("Hello, "),
             StreamFrame.TextDelta("world!"),
-            StreamFrame.ToolCallComplete("call-1", "get_time", "{}"),
             StreamFrame.TextDelta(" The time is 3pm."),
             StreamFrame.End()
         ))
@@ -314,11 +313,9 @@ class KoogAgentRuntimeTest {
         KoogAgentRuntime().execute(context("What time is it?"), session)
 
         val messages = capturedMessages()
-        assertTrue(messages.any { it.contains("Streaming with Koog") })
         assertTrue(messages.any { it.contains("Let me think") })
         assertTrue(messages.any { it.contains("Hello, ") })
         assertTrue(messages.any { it.contains("world!") })
-        assertTrue(messages.any { it.contains("get_time") })
         assertTrue(messages.any { it.contains("The time is 3pm") })
         assertTrue(messages.last().contains("\"type\":\"complete\""))
     }

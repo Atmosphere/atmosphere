@@ -15,12 +15,16 @@
  */
 package org.atmosphere.ai.koog
 
+import ai.koog.agents.core.tools.ToolDescriptor
+import ai.koog.agents.core.tools.ToolParameterDescriptor
+import ai.koog.agents.core.tools.ToolParameterType
+import ai.koog.prompt.dsl.Prompt
+import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
-import ai.koog.prompt.streaming.StreamFrame
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.llm.LLMProvider
-import ai.koog.prompt.dsl.prompt
-import kotlinx.coroutines.flow.collect
+import ai.koog.prompt.streaming.StreamFrame
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.atmosphere.ai.AiCapability
 import org.atmosphere.ai.AiConfig
@@ -28,19 +32,20 @@ import org.atmosphere.ai.AiEvent
 import org.atmosphere.ai.AgentExecutionContext
 import org.atmosphere.ai.AgentRuntime
 import org.atmosphere.ai.StreamingSession
+import org.atmosphere.ai.tool.ToolDefinition
 import org.slf4j.LoggerFactory
 
 /**
  * [AgentRuntime] implementation backed by JetBrains Koog.
  *
- * Auto-detected when `koog-agents` is on the classpath. The [PromptExecutor]
- * must be configured via [setPromptExecutor] — typically done by Spring
- * auto-configuration or application code.
+ * Supports tool calling (with automatic tool loop), RAG context injection,
+ * structured output via JSON schema, and conversation memory.
  */
 class KoogAgentRuntime : AgentRuntime {
 
     companion object {
         private val logger = LoggerFactory.getLogger(KoogAgentRuntime::class.java)
+        private const val MAX_TOOL_ROUNDS = 5
 
         @Volatile
         private var promptExecutor: PromptExecutor? = null
@@ -90,69 +95,86 @@ class KoogAgentRuntime : AgentRuntime {
                     "Call KoogAgentRuntime.setPromptExecutor() or use Spring auto-configuration."
             )
 
-        // Use the default model (which has proper capabilities and context length)
-        // unless the context specifies a different model name.
         val model = if (context.model() != null && context.model() != defaultModel.id) {
-            // For an overridden model, copy capabilities from defaultModel
             LLModel(defaultModel.provider, context.model(),
                 defaultModel.capabilities, defaultModel.contextLength, defaultModel.maxOutputTokens)
         } else {
             defaultModel
         }
 
-        val koogPrompt = prompt("atmosphere") {
-            if (context.systemPrompt() != null) {
-                system(context.systemPrompt())
-            }
-            // Include conversation history
-            for (msg in context.history()) {
-                when (msg.role()) {
-                    "user" -> user(msg.content())
-                    "assistant" -> assistant(msg.content())
-                    "system" -> system(msg.content())
-                    else -> user(msg.content())
-                }
-            }
-            user(context.message())
-        }
+        // Convert Atmosphere tools to Koog ToolDescriptors
+        val koogTools = context.tools().map { toKoogTool(it) }
+        val toolMap = context.tools().associateBy { it.name() }
 
-        session.emit(AiEvent.Progress("Streaming with Koog...", null))
+        // Build initial prompt with system prompt, RAG context, history, and user message
+        val koogPrompt = buildPrompt(context)
 
         try {
             runBlocking {
-                executor.executeStreaming(koogPrompt, model).collect { frame ->
-                    if (session.isClosed) return@collect
+                var currentPrompt = koogPrompt
+                var toolRound = 0
 
-                    when (frame) {
-                        is StreamFrame.TextDelta -> {
-                            session.emit(AiEvent.TextDelta(frame.text))
-                        }
-                        is StreamFrame.TextComplete -> {
-                            session.emit(AiEvent.TextComplete(frame.text))
-                        }
-                        is StreamFrame.ToolCallDelta -> {
-                            // Accumulated during streaming; handled on ToolCallComplete
-                        }
-                        is StreamFrame.ToolCallComplete -> {
-                            session.emit(
-                                AiEvent.AgentStep(
-                                    frame.name,
-                                    "Tool call: ${frame.name}",
-                                    emptyMap()
-                                )
-                            )
-                        }
-                        is StreamFrame.ReasoningDelta -> {
-                            val text = frame.text
-                            if (text != null) {
-                                session.emit(AiEvent.Progress(text, null))
+                while (toolRound <= MAX_TOOL_ROUNDS) {
+                    val frames = executor.executeStreaming(currentPrompt, model, koogTools).toList()
+                    val toolCalls = mutableListOf<StreamFrame.ToolCallComplete>()
+
+                    for (frame in frames) {
+                        if (session.isClosed) return@runBlocking
+
+                        when (frame) {
+                            is StreamFrame.TextDelta ->
+                                session.emit(AiEvent.TextDelta(frame.text))
+                            is StreamFrame.TextComplete ->
+                                session.emit(AiEvent.TextComplete(frame.text))
+                            is StreamFrame.ToolCallDelta -> { /* accumulated by Koog */ }
+                            is StreamFrame.ToolCallComplete ->
+                                toolCalls.add(frame)
+                            is StreamFrame.ReasoningDelta -> {
+                                val text = frame.text
+                                if (text != null) session.emit(AiEvent.Progress(text, null))
                             }
+                            is StreamFrame.ReasoningComplete -> { }
+                            is StreamFrame.End -> { }
                         }
-                        is StreamFrame.ReasoningComplete -> {
-                            // Final reasoning summary; already streamed via deltas
-                        }
-                        is StreamFrame.End -> {
-                            // Stream complete; session.complete() called below
+                    }
+
+                    // If no tool calls, we're done
+                    if (toolCalls.isEmpty()) break
+
+                    // Execute tools and build follow-up prompt
+                    toolRound++
+                    logger.debug("Tool round {}: executing {} tool(s)", toolRound, toolCalls.size)
+
+                    currentPrompt = prompt(currentPrompt) {
+                        for (call in toolCalls) {
+                            session.emit(AiEvent.ToolStart(call.name, emptyMap()))
+
+                            val tool = toolMap[call.name]
+                            if (tool == null) {
+                                session.emit(AiEvent.ToolError(call.name, "Unknown tool: ${call.name}"))
+                                logger.warn("Unknown tool: {}", call.name)
+                                toolCall(call.id, call.name, call.content)
+                                    .toolResult(call.id, call.name, """{"error":"Unknown tool: ${call.name}"}""")
+                                continue
+                            }
+
+                            try {
+                                val args = parseJsonArgs(call.content)
+                                val result = tool.executor().execute(args)
+                                val resultJson = result?.toString() ?: "null"
+
+                                session.emit(AiEvent.ToolResult(call.name, result))
+
+                                toolCall(call.id, call.name, call.content)
+                                    .toolResult(call.id, call.name, resultJson)
+                            } catch (e: Exception) {
+                                val errorMsg = e.message ?: "Tool execution failed"
+                                session.emit(AiEvent.ToolError(call.name, errorMsg))
+                                logger.warn("Tool {} failed: {}", call.name, errorMsg)
+
+                                toolCall(call.id, call.name, call.content)
+                                    .toolResult(call.id, call.name, """{"error":"$errorMsg"}""")
+                            }
                         }
                     }
                 }
@@ -164,6 +186,70 @@ class KoogAgentRuntime : AgentRuntime {
         }
     }
 
+    /**
+     * Builds the Koog prompt from the execution context, including:
+     * - System prompt (with RAG context appended if available)
+     * - Structured output JSON schema instructions
+     * - Conversation history
+     * - Current user message
+     */
+    private fun buildPrompt(context: AgentExecutionContext): Prompt {
+        return prompt("atmosphere") {
+            // System prompt with optional RAG context
+            val systemParts = mutableListOf<String>()
+            if (context.systemPrompt() != null) {
+                systemParts.add(context.systemPrompt())
+            }
+
+            // RAG: retrieve relevant documents and inject into system prompt
+            if (context.contextProviders().isNotEmpty()) {
+                val ragContext = StringBuilder()
+                for (provider in context.contextProviders()) {
+                    if (!provider.isAvailable) continue
+                    val query = provider.transformQuery(context.message())
+                    val docs = provider.retrieve(query, 5)
+                    val reranked = provider.rerank(query, docs)
+                    for (doc in reranked) {
+                        ragContext.append("\n---\n").append(doc.content())
+                        if (doc.source() != null) {
+                            ragContext.append("\n[Source: ").append(doc.source()).append("]")
+                        }
+                    }
+                }
+                if (ragContext.isNotEmpty()) {
+                    systemParts.add(
+                        "Use the following retrieved context to inform your answer:" +
+                            ragContext.toString()
+                    )
+                }
+            }
+
+            // Structured output: append JSON schema instructions
+            if (context.responseType() != null) {
+                systemParts.add(
+                    "Respond with valid JSON conforming to the schema for: ${context.responseType().simpleName}. " +
+                        "Do not include any text outside the JSON object."
+                )
+            }
+
+            if (systemParts.isNotEmpty()) {
+                system(systemParts.joinToString("\n\n"))
+            }
+
+            // Conversation history
+            for (msg in context.history()) {
+                when (msg.role()) {
+                    "user" -> user(msg.content())
+                    "assistant" -> assistant(msg.content())
+                    "system" -> system(msg.content())
+                    else -> user(msg.content())
+                }
+            }
+
+            user(context.message())
+        }
+    }
+
     override fun capabilities(): Set<AiCapability> = setOf(
         AiCapability.TEXT_STREAMING,
         AiCapability.TOOL_CALLING,
@@ -172,4 +258,45 @@ class KoogAgentRuntime : AgentRuntime {
         AiCapability.CONVERSATION_MEMORY,
         AiCapability.SYSTEM_PROMPT
     )
+}
+
+/** Convert an Atmosphere [ToolDefinition] to a Koog [ToolDescriptor]. */
+private fun toKoogTool(tool: ToolDefinition): ToolDescriptor {
+    val required = mutableListOf<ToolParameterDescriptor>()
+    val optional = mutableListOf<ToolParameterDescriptor>()
+
+    for (param in tool.parameters()) {
+        val koogType = when (param.type().lowercase()) {
+            "string" -> ToolParameterType.String
+            "integer", "int", "long" -> ToolParameterType.Integer
+            "number", "float", "double" -> ToolParameterType.Float
+            "boolean", "bool" -> ToolParameterType.Boolean
+            else -> ToolParameterType.String
+        }
+        val descriptor = ToolParameterDescriptor(param.name(), param.description(), koogType)
+        if (param.required()) required.add(descriptor) else optional.add(descriptor)
+    }
+
+    return ToolDescriptor(tool.name(), tool.description(), required, optional, null)
+}
+
+/** Minimal JSON argument parser — extracts top-level string/number/boolean values. */
+private fun parseJsonArgs(json: String?): Map<String, Any> {
+    if (json.isNullOrBlank() || json == "{}") return emptyMap()
+    val result = mutableMapOf<String, Any>()
+    // Simple regex-based extraction for {"key":"value", "key2": 123}
+    val pattern = Regex(""""(\w+)"\s*:\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|(\d+(?:\.\d+)?)|(\btrue\b|\bfalse\b))""")
+    for (match in pattern.findAll(json)) {
+        val key = match.groupValues[1]
+        val strVal = match.groupValues[2]
+        val numVal = match.groupValues[3]
+        val boolVal = match.groupValues[4]
+        result[key] = when {
+            strVal.isNotEmpty() -> strVal
+            numVal.isNotEmpty() -> if (numVal.contains('.')) numVal.toDouble() else numVal.toLong()
+            boolVal.isNotEmpty() -> boolVal.toBoolean()
+            else -> strVal
+        }
+    }
+    return result
 }
