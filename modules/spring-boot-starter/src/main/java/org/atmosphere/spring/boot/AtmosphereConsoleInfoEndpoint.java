@@ -80,6 +80,10 @@ public class AtmosphereConsoleInfoEndpoint {
      */
     private String detectEndpoint() {
         var configuredPath = properties.getAi().getPath();
+        // If explicitly configured to an agent path, respect it
+        if (configuredPath != null && configuredPath.startsWith("/atmosphere/agent/")) {
+            return configuredPath;
+        }
         try {
             var handlers = framework.getAtmosphereHandlers();
             // Look for @Agent handler (AgentHandler at /atmosphere/agent/*)

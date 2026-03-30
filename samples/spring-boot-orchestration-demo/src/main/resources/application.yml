@@ -2,3 +2,6 @@ server:
   port: 8080
 atmosphere:
   packages: org.atmosphere.samples.springboot.orchestration
+  console-subtitle: "Support Desk — handoffs, approval gates, commands"
+  ai:
+    path: /atmosphere/agent/support
