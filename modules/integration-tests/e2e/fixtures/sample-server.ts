@@ -128,6 +128,13 @@ export const SAMPLES: Record<string, SampleConfig> = {
     type: 'spring-boot',
     readyPath: '/atmosphere/agent/dentist',
   },
+  'spring-boot-orchestration-demo': {
+    name: 'spring-boot-orchestration-demo',
+    dir: 'spring-boot-orchestration-demo',
+    port: 8097,
+    type: 'spring-boot',
+    readyPath: '/atmosphere/agent/support',
+  },
   'spring-boot-channels-chat': {
     name: 'spring-boot-channels-chat',
     dir: 'spring-boot-channels-chat',
