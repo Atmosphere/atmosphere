@@ -67,6 +67,7 @@ public class AiStreamingSession implements StreamingSession {
     private final AiMetrics metrics;
     private final Class<?> responseType;
     private volatile PostPromptHook preStreamHook;
+    private volatile boolean handoffInProgress;
 
     /**
      * @param delegate     the underlying streaming session
@@ -300,6 +301,57 @@ public class AiStreamingSession implements StreamingSession {
                             interceptors.get(i).getClass().getName(), e);
                 }
             }
+        }
+    }
+
+    @Override
+    public void handoff(String agentName, String message) {
+        if (handoffInProgress) {
+            throw new IllegalStateException("Nested handoffs not supported");
+        }
+        handoffInProgress = true;
+
+        logger.info("Handoff from {} to agent '{}'", resource.uuid(), agentName);
+        emit(new AiEvent.Handoff(
+                extractAttribute(resource, "ai.agentId"),
+                agentName,
+                "User request routed to " + agentName));
+
+        // Copy conversation history to the target agent's memory
+        if (memory != null) {
+            var fromId = resource.uuid();
+            var toId = agentName + ":" + fromId;
+            memory.copyTo(fromId, toId);
+        }
+
+        // Resolve the target agent's handler and dispatch through it.
+        // The target agent must be registered in the same AtmosphereFramework.
+        var framework = resource.getAtmosphereConfig().framework();
+        var targetPath = "/atmosphere/agent/" + agentName;
+        var handler = framework.getAtmosphereHandlers().get(targetPath);
+        if (handler == null) {
+            error(new IllegalArgumentException("Agent '" + agentName + "' not found at " + targetPath));
+            return;
+        }
+
+        // Build a new context with the message and stream through the delegate
+        var tools = toolRegistry != null
+                ? java.util.List.copyOf(toolRegistry.allTools())
+                : java.util.List.<org.atmosphere.ai.tool.ToolDefinition>of();
+        var history = memory != null
+                ? memory.getHistory(resource.uuid())
+                : java.util.List.<org.atmosphere.ai.llm.ChatMessage>of();
+        var context = new AgentExecutionContext(
+                message, systemPrompt, model, agentName,
+                resource.uuid(), extractAttribute(resource, "ai.userId"),
+                resource.uuid(), tools, null, memory, contextProviders,
+                Map.of(), history, responseType);
+
+        try {
+            runtime.execute(context, delegate);
+        } catch (Exception e) {
+            logger.error("Handoff to '{}' failed", agentName, e);
+            delegate.error(e);
         }
     }
 
