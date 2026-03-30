@@ -129,6 +129,10 @@ public final class InMemoryCoordinationJournal implements CoordinationJournal {
             case CoordinationEvent.AgentCompleted e -> agentName.equals(e.agentName());
             case CoordinationEvent.AgentFailed e -> agentName.equals(e.agentName());
             case CoordinationEvent.AgentEvaluated e -> agentName.equals(e.agentName());
+            case CoordinationEvent.AgentHandoff e -> agentName.equals(e.fromAgent())
+                    || agentName.equals(e.toAgent());
+            case CoordinationEvent.RouteEvaluated e -> agentName.equals(e.inputAgent())
+                    || agentName.equals(e.selectedAgent());
             case CoordinationEvent.CoordinationStarted ignored -> false;
             case CoordinationEvent.CoordinationCompleted ignored -> false;
         };

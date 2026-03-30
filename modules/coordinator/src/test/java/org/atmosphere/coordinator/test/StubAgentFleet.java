@@ -21,10 +21,12 @@ import org.atmosphere.coordinator.fleet.AgentProxy;
 import org.atmosphere.coordinator.fleet.AgentResult;
 import org.atmosphere.coordinator.fleet.DefaultAgentFleet;
 import org.atmosphere.coordinator.fleet.DefaultAgentProxy;
+import org.atmosphere.coordinator.fleet.RoutingSpec;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Stub {@link AgentFleet} for testing coordinator {@code @Prompt} methods
@@ -75,6 +77,11 @@ public final class StubAgentFleet implements AgentFleet {
     @Override
     public AgentResult pipeline(AgentCall... calls) {
         return delegate.pipeline(calls);
+    }
+
+    @Override
+    public AgentResult route(AgentResult input, Consumer<RoutingSpec> spec) {
+        return delegate.route(input, spec);
     }
 
     public static Builder builder() {

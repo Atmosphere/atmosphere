@@ -98,6 +98,8 @@ class CoordinationEventTest {
             case CoordinationEvent.AgentCompleted ignored -> false;
             case CoordinationEvent.AgentFailed ignored -> false;
             case CoordinationEvent.AgentEvaluated ignored -> false;
+            case CoordinationEvent.AgentHandoff ignored -> false;
+            case CoordinationEvent.RouteEvaluated ignored -> false;
             case CoordinationEvent.CoordinationCompleted ignored -> false;
         };
         assertTrue(matched);

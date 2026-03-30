@@ -16,7 +16,7 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.adk</atmosphere.module.name>
-        <google-adk.version>0.2.0</google-adk.version>
+        <google-adk.version>1.0.0</google-adk.version>
     </properties>
 
     <dependencies>

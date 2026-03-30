@@ -67,6 +67,15 @@ public interface JournalFormat {
                                     e.duration().toMillis() + "ms");
                     case CoordinationEvent.AgentEvaluated e ->
                             row(sb, "EVAL", e.agentName(), "score=" + e.score(), "\u2014");
+                    case CoordinationEvent.AgentHandoff e ->
+                            row(sb, "HANDOFF", e.fromAgent(),
+                                    e.toAgent() + " (" + e.reason() + ")", "\u2014");
+                    case CoordinationEvent.RouteEvaluated e ->
+                            row(sb, "ROUTE", e.inputAgent(),
+                                    e.matched()
+                                            ? "route[" + e.matchedRouteIndex() + "] -> " + e.selectedAgent()
+                                            : "no match",
+                                    "\u2014");
                     case CoordinationEvent.CoordinationCompleted e ->
                             row(sb, "COMPLETE", "\u2014", e.agentCallCount() + " calls",
                                     e.totalDuration().toMillis() + "ms");

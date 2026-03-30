@@ -204,10 +204,10 @@ class AdkEventAdapterTest {
                 .invocationId("inv-1")
                 .author("model")
                 .actions(EventActions.builder().build())
-                .content(Optional.of(Content.fromParts(
+                .content(Content.fromParts(
                         Part.fromText("Hello"),
                         Part.fromText(" world")
-                )))
+                ))
                 .build();
 
         var text = AdkEventAdapter.extractText(event);
@@ -312,8 +312,8 @@ class AdkEventAdapterTest {
                 .invocationId("inv-1")
                 .author("model")
                 .actions(EventActions.builder().build())
-                .partial(Optional.of(true))
-                .content(Optional.of(Content.fromParts(Part.fromText(text))))
+                .partial(true)
+                .content(Content.fromParts(Part.fromText(text)))
                 .build();
     }
 
@@ -323,9 +323,9 @@ class AdkEventAdapterTest {
                 .invocationId("inv-1")
                 .author("model")
                 .actions(EventActions.builder().build())
-                .turnComplete(Optional.of(true));
+                .turnComplete(true);
         if (text != null) {
-            builder.content(Optional.of(Content.fromParts(Part.fromText(text))));
+            builder.content(Content.fromParts(Part.fromText(text)));
         }
         return builder.build();
     }
@@ -336,7 +336,7 @@ class AdkEventAdapterTest {
                 .invocationId("inv-1")
                 .author("model")
                 .actions(EventActions.builder().build())
-                .errorMessage(Optional.of(message))
+                .errorMessage(message)
                 .build();
     }
 }

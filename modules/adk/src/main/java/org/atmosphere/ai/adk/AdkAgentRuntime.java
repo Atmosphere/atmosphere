@@ -143,7 +143,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 .instruction("You are a helpful assistant.");
 
         if (!adkTools.isEmpty()) {
-            agentBuilder.tools(adkTools.toArray(new BaseTool[0]));
+            agentBuilder.tools((Object[]) adkTools.toArray(new BaseTool[0]));
         }
 
         staticRunner = new InMemoryRunner(agentBuilder.build(), "atmosphere");
@@ -176,7 +176,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 .instruction(instruction);
 
         if (!adkTools.isEmpty()) {
-            agentBuilder.tools(adkTools.toArray(new BaseTool[0]));
+            agentBuilder.tools((Object[]) adkTools.toArray(new BaseTool[0]));
         }
 
         var runner = new InMemoryRunner(agentBuilder.build(), "atmosphere");
@@ -210,6 +210,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         AdkEventAdapter.bridge(events, session);
     }
 
+    @SuppressWarnings("deprecation") // ADK 0.2.0 createSession API; updated in later versions
     private static void ensureSession(Runner adkRunner, String userId, String sessionId) {
         var key = userId + ":" + sessionId;
         if (knownSessions.contains(key)) {
