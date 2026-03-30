@@ -17,7 +17,6 @@
     <properties>
         <atmosphere.module.name>org.atmosphere.embabel</atmosphere.module.name>
         <kotlin.version>2.1.10</kotlin.version>
-        <embabel.version>0.3.4</embabel.version>
     </properties>
 
     <dependencies>

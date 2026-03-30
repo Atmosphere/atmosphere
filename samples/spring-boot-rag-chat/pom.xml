@@ -18,7 +18,6 @@
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
         <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
-        <spring-ai.version>2.0.0-M2</spring-ai.version>
     </properties>
 
     <dependencyManagement>

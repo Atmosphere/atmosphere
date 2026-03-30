@@ -16,7 +16,6 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.langchain4j</atmosphere.module.name>
-        <langchain4j.version>1.12.2</langchain4j.version>
     </properties>
 
     <dependencies>

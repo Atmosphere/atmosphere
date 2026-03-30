@@ -17,7 +17,6 @@
     <properties>
         <atmosphere.module.name>org.atmosphere.koog</atmosphere.module.name>
         <kotlin.version>2.3.10</kotlin.version>
-        <koog.version>0.7.3</koog.version>
     </properties>
 
     <dependencies>

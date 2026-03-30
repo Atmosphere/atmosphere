@@ -18,7 +18,6 @@
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
         <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
-        <koog.version>0.7.3</koog.version>
     </properties>
 
     <dependencyManagement>

@@ -16,7 +16,6 @@
     <description>True multi-agent: 5 independent A2A agents collaborate via Agent Cards and JSON-RPC</description>
 
     <properties>
-        <google-adk.version>1.0.0</google-adk.version>
         <embabel.version>0.3.5-SNAPSHOT</embabel.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>

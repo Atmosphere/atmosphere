@@ -16,8 +16,6 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.rag</atmosphere.module.name>
-        <spring-ai.version>2.0.0-M2</spring-ai.version>
-        <langchain4j.version>1.0.0-beta3</langchain4j.version>
     </properties>
 
     <dependencies>
