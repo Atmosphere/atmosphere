@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
 /**
  * Default {@link AgentFleet} implementation. Holds a map of agent proxies and
@@ -149,6 +150,21 @@ public final class DefaultAgentFleet implements AgentFleet {
             }
         }
         return last;
+    }
+
+    @Override
+    public AgentResult route(AgentResult input, Consumer<RoutingSpec> spec) {
+        logger.debug("Evaluating route for input from '{}'", input.agentName());
+        var routing = new RoutingSpec();
+        spec.accept(routing);
+        var outcome = routing.evaluate(input, this);
+        if (outcome.matched()) {
+            logger.debug("Route matched (index={}), result from '{}'",
+                    outcome.matchedIndex(), outcome.result().agentName());
+        } else {
+            logger.debug("No route matched for input from '{}'", input.agentName());
+        }
+        return outcome.result();
     }
 
     @Override

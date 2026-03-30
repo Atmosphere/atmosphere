@@ -21,6 +21,7 @@ import org.atmosphere.coordinator.journal.CoordinationJournal;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Fleet abstraction injected into {@code @Prompt} methods of {@code @Coordinator}
@@ -45,6 +46,30 @@ public interface AgentFleet {
 
     /** Execute calls sequentially. Returns the final result. */
     AgentResult pipeline(AgentCall... calls);
+
+    /**
+     * Route based on a previous agent result. Evaluates conditions in the
+     * routing spec in order; the first match wins. If no condition matches,
+     * the {@code otherwise} fallback runs, or a failure result is returned.
+     *
+     * <pre>{@code
+     * var weather = fleet.agent("weather").call("forecast", Map.of("city", city));
+     * var result = fleet.route(weather,
+     *     route -> route
+     *         .when(r -> r.success() && r.text().contains("sunny"),
+     *               then -> then.agent("activity").call("outdoor", Map.of()))
+     *         .when(r -> r.success(),
+     *               then -> then.agent("indoor").call("suggest", Map.of()))
+     *         .otherwise(then -> AgentResult.failure("router", "route",
+     *               "Weather unavailable", Duration.ZERO))
+     * );
+     * }</pre>
+     *
+     * @param input the result to route on
+     * @param spec  consumer that builds the routing conditions
+     * @return the result from the matched route
+     */
+    AgentResult route(AgentResult input, Consumer<RoutingSpec> spec);
 
     /**
      * Evaluate an agent result using all registered {@link ResultEvaluator}s.

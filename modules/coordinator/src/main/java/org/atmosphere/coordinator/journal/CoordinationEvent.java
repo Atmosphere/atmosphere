@@ -102,6 +102,36 @@ public sealed interface CoordinationEvent {
         }
     }
 
+    record AgentHandoff(
+            String coordinationId,
+            String fromAgent,
+            String toAgent,
+            String reason,
+            Instant timestamp
+    ) implements CoordinationEvent {
+        @Override
+        public String toLogLine() {
+            return "HANDOFF  " + fromAgent + " -> " + toAgent
+                    + (reason != null ? " (" + reason + ")" : "");
+        }
+    }
+
+    record RouteEvaluated(
+            String coordinationId,
+            String inputAgent,
+            int matchedRouteIndex,
+            String selectedAgent,
+            boolean matched,
+            Instant timestamp
+    ) implements CoordinationEvent {
+        @Override
+        public String toLogLine() {
+            return matched
+                    ? "ROUTE  " + inputAgent + " -> route[" + matchedRouteIndex + "] -> " + selectedAgent
+                    : "ROUTE  " + inputAgent + " -> no match (fallback)";
+        }
+    }
+
     record CoordinationCompleted(
             String coordinationId,
             Duration totalDuration,

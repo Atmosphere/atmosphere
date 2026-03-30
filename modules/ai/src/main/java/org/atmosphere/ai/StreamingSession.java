@@ -140,6 +140,25 @@ public interface StreamingSession extends AutoCloseable {
     }
 
     /**
+     * Hand off the current conversation to another agent. The target agent
+     * receives the message along with the conversation history from this session.
+     *
+     * <p>Only supported on sessions created by the {@code @Agent} infrastructure,
+     * where the agent transport and memory are available. Emits an
+     * {@link AiEvent.Handoff} event to the client before routing.</p>
+     *
+     * @param agentName the target agent to hand off to
+     * @param message   the message to forward to the target agent
+     * @throws UnsupportedOperationException if this session does not support handoffs
+     * @throws IllegalStateException if a handoff is already in progress (cycle guard)
+     */
+    default void handoff(String agentName, String message) {
+        throw new UnsupportedOperationException(
+                "handoff() is only supported on agent-backed sessions. "
+                        + "Use @Agent to enable handoff support.");
+    }
+
+    /**
      * Send a user message to the resolved {@link AiSupport} and stream the
      * response back through this session. Only supported on sessions created
      * by the {@code @AiEndpoint} infrastructure (i.e., {@link AiStreamingSession}).

@@ -20,6 +20,7 @@ import org.atmosphere.coordinator.fleet.AgentCall;
 import org.atmosphere.coordinator.fleet.AgentFleet;
 import org.atmosphere.coordinator.fleet.AgentProxy;
 import org.atmosphere.coordinator.fleet.AgentResult;
+import org.atmosphere.coordinator.fleet.RoutingSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -164,6 +165,24 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
         } finally {
             activeCoordinationId.remove();
         }
+    }
+
+    @Override
+    public AgentResult route(AgentResult input, Consumer<RoutingSpec> spec) {
+        var coordId = coordinationId();
+        var routing = new RoutingSpec();
+        spec.accept(routing);
+        var outcome = routing.evaluate(input, this);
+
+        journal.record(new CoordinationEvent.RouteEvaluated(
+                coordId,
+                input.agentName(),
+                outcome.matchedIndex(),
+                outcome.result().agentName(),
+                outcome.matched(),
+                Instant.now()));
+
+        return outcome.result();
     }
 
     @Override

@@ -59,4 +59,20 @@ public interface AiConversationMemory {
      * @return the sliding window size
      */
     int maxMessages();
+
+    /**
+     * Deep copy conversation history from one conversation to another.
+     * Used during agent handoffs to transfer context to the target agent.
+     *
+     * <p>The default implementation reads the source history and appends
+     * each message to the target. Implementations may override for efficiency.</p>
+     *
+     * @param fromConversationId source conversation
+     * @param toConversationId   target conversation
+     */
+    default void copyTo(String fromConversationId, String toConversationId) {
+        for (var message : getHistory(fromConversationId)) {
+            addMessage(toConversationId, message);
+        }
+    }
 }

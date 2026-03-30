@@ -199,6 +199,21 @@ public sealed interface AiEvent {
     }
 
     /**
+     * An agent handoff is in progress. Emitted to the client so the UI can
+     * display a transition message (e.g., "Transferring to billing...").
+     *
+     * @param fromAgent  the agent initiating the handoff
+     * @param toAgent    the target agent name
+     * @param reason     human-readable reason for the handoff (may be null)
+     */
+    record Handoff(String fromAgent, String toAgent, String reason) implements AiEvent {
+        @Override
+        public String eventType() {
+            return "handoff";
+        }
+    }
+
+    /**
      * An error occurred during streaming.
      *
      * @param message     human-readable error message
