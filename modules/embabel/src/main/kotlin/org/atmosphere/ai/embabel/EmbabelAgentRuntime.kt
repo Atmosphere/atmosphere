@@ -87,7 +87,7 @@ class EmbabelAgentRuntime : AgentRuntime {
 
         val targetAgent = context.agentId() ?: agentName
 
-        session.progress("Starting agent: $targetAgent...")
+        session.progress("Connecting to embabel...")
 
         val agent = platform.agents().firstOrNull { it.name == targetAgent }
             ?: throw IllegalStateException(
@@ -120,11 +120,14 @@ class EmbabelAgentRuntime : AgentRuntime {
                 }
             }
         }
-        session.complete()
+        if (!session.isClosed) {
+            session.complete()
+        }
     }
 
     override fun capabilities(): Set<AiCapability> = setOf(
         AiCapability.TEXT_STREAMING,
+        AiCapability.STRUCTURED_OUTPUT,
         AiCapability.AGENT_ORCHESTRATION,
         AiCapability.SYSTEM_PROMPT
     )
