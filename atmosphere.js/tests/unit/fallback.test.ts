@@ -100,6 +100,36 @@ describe('Atmosphere Transport Fallback', () => {
     await sub.close();
   });
 
+  it('should fallback from webtransport to websocket', async () => {
+    // WebTransport will fail — ready never resolves but closed does
+    (global as any).WebTransport = function () {
+      return {
+        ready: new Promise(() => {}),
+        closed: Promise.resolve({ closeCode: 0, reason: 'Failed' }),
+        close: vi.fn(),
+        createBidirectionalStream: vi.fn(),
+        datagrams: { readable: {}, writable: {} },
+        incomingBidirectionalStreams: {},
+      };
+    };
+
+    // WebSocket will succeed
+    global.WebSocket = function () {
+      setTimeout(() => { if (mockWs.onopen) mockWs.onopen({ type: 'open' }); }, 0);
+      return mockWs;
+    } as any;
+
+    const atmosphere = new Atmosphere();
+    const sub = await atmosphere.subscribe({
+      url: 'https://localhost/test',
+      transport: 'webtransport',
+      fallbackTransport: 'websocket',
+    });
+
+    expect(sub.state).toBe('connected');
+    await sub.close();
+  });
+
   it('should use config-level fallback transport', async () => {
     global.WebSocket = function () {
       setTimeout(() => { if (mockWs.onerror) mockWs.onerror({ type: 'error' }); }, 0);

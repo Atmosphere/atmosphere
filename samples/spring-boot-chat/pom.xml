@@ -65,6 +65,13 @@
             <artifactId>json</artifactId>
         </dependency>
 
+        <!-- WebTransport over HTTP/3 — enables the Atmosphere HTTP/3 sidecar server.
+             Activate with atmosphere.web-transport.enabled=true in application.yml -->
+        <dependency>
+            <groupId>io.projectreactor.netty</groupId>
+            <artifactId>reactor-netty-http</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>

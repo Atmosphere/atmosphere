@@ -17,7 +17,7 @@
 /**
  * Transport types supported by Atmosphere
  */
-export type TransportType = 'websocket' | 'sse' | 'long-polling' | 'streaming';
+export type TransportType = 'websocket' | 'sse' | 'long-polling' | 'streaming' | 'webtransport';
 
 /**
  * Connection lifecycle states
@@ -77,6 +77,21 @@ export interface AtmosphereRequest {
    */
   authToken?: string;
   withCredentials?: boolean;
+  /**
+   * Explicit URL for WebTransport connections. When set, the WebTransport
+   * transport uses this URL instead of deriving one from {@link url}.
+   * Useful in development where the HTTP/3 server runs on a different port
+   * than the servlet container (e.g., {@code https://localhost:4443/atmosphere/chat}).
+   */
+  webTransportUrl?: string;
+  /**
+   * SHA-256 certificate hashes for WebTransport connections with self-signed
+   * certificates. Each entry is a base64-encoded SHA-256 hash of the DER-encoded
+   * certificate. Required for local development with self-signed certs (max 14 days).
+   *
+   * Generate with: {@code openssl x509 -in cert.crt -outform DER | openssl dgst -sha256 -binary | base64}
+   */
+  serverCertificateHashes?: string[];
   maxWebsocketErrorRetries?: number;
   pollingInterval?: number;
   closed?: boolean;

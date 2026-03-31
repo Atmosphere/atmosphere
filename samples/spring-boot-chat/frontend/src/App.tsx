@@ -339,26 +339,49 @@ function ObservabilityPanel() {
 
 const ROOM = 'lobby';
 
+/** Fetch WebTransport server config (port + cert hash) from the server. */
+async function fetchWebTransportInfo(): Promise<{port?: number; certificateHash?: string}> {
+  try {
+    const res = await fetch('/api/webtransport-info');
+    if (res.ok) return res.json();
+  } catch { /* server may not have WebTransport enabled */ }
+  return {};
+}
+
 export function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [name, setName] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('chat');
+  const [wtInfo, setWtInfo] = useState<{port?: number; certificateHash?: string}>({});
+  const [wtLoaded, setWtLoaded] = useState(false);
+
+  useEffect(() => {
+    fetchWebTransportInfo().then((info) => {
+      setWtInfo(info);
+      setWtLoaded(true);
+    });
+  }, []);
 
   const request = useMemo(
     () => ({
       url: `${window.location.protocol}//${window.location.host}/atmosphere/chat`,
-      transport: 'websocket' as const,
-      fallbackTransport: 'long-polling' as const,
+      // Prefer WebTransport (HTTP/3) with WebSocket fallback.
+      transport: 'webtransport' as const,
+      fallbackTransport: 'websocket' as const,
+      // Point to the HTTP/3 sidecar port (fetched from server)
+      ...(wtInfo.port ? { webTransportUrl: `https://${window.location.hostname}:${wtInfo.port}/atmosphere/chat` } : {}),
+      // Self-signed cert hash for dev (fetched from server)
+      ...(wtInfo.certificateHash ? { serverCertificateHashes: [wtInfo.certificateHash] } : {}),
       reconnect: true,
       reconnectInterval: 5000,
       maxReconnectOnClose: 10,
       trackMessageLength: true,
       contentType: 'application/json',
     }),
-    [],
+    [wtInfo],
   );
 
-  const { data, state, push } = useAtmosphere<unknown>({ request });
+  const { data, state, push } = useAtmosphere<unknown>({ request, enabled: wtLoaded });
 
   useEffect(() => {
     if (!data) return;
@@ -431,7 +454,7 @@ export function App() {
   return (
     <ChatLayout
       title="Atmosphere 4.0 Chat"
-      subtitle="Spring Boot • Room Protocol • Presence • Message History • Health Check"
+      subtitle="Spring Boot • WebTransport/HTTP3 • Room Protocol • Presence • Health Check"
       theme="ai"
       state={state}
     >

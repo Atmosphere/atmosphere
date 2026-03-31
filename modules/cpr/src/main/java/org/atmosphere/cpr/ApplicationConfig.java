@@ -475,6 +475,55 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.websocket.suppressJSR356
      */
     String WEBSOCKET_SUPPRESS_JSR356 = "org.atmosphere.websocket.suppressJSR356";
+
+    /**
+     * Enable or disable WebTransport over HTTP/3 support.
+     * <p/>
+     * Default: false<br>
+     * Value: org.atmosphere.useWebTransport
+     */
+    String WEBTRANSPORT_SUPPORT = "org.atmosphere.useWebTransport";
+    /**
+     * The {@link org.atmosphere.webtransport.WebTransportProcessor} implementation class.
+     * <p/>
+     * Value: org.atmosphere.webtransport.WebTransportProcessor
+     */
+    String WEBTRANSPORT_PROCESSOR = "org.atmosphere.webtransport.WebTransportProcessor";
+    /**
+     * The {@link org.atmosphere.webtransport.WebTransportProtocol} implementation class.
+     * <p/>
+     * Value: org.atmosphere.webtransport.WebTransportProtocol
+     */
+    String WEBTRANSPORT_PROTOCOL = "org.atmosphere.webtransport.WebTransportProtocol";
+    /**
+     * The content-type to use when dispatching WebTransport messages as AtmosphereRequests.
+     * <p/>
+     * Default: "application/json"<br>
+     * Value: org.atmosphere.webtransport.messageContentType
+     */
+    String WEBTRANSPORT_CONTENT_TYPE = "org.atmosphere.webtransport.messageContentType";
+    /**
+     * The HTTP method to use when dispatching WebTransport messages as AtmosphereRequests.
+     * <p/>
+     * Default: "POST"<br>
+     * Value: org.atmosphere.webtransport.messageMethod
+     */
+    String WEBTRANSPORT_METHOD = "org.atmosphere.webtransport.messageMethod";
+    /**
+     * The write buffer size for WebTransport sessions.
+     * <p/>
+     * Default: 8192<br>
+     * Value: org.atmosphere.webtransport.bufferSize
+     */
+    String WEBTRANSPORT_BUFFER_SIZE = "org.atmosphere.webtransport.bufferSize";
+    /**
+     * Use binary write mode for WebTransport sessions.
+     * <p/>
+     * Default: false<br>
+     * Value: org.atmosphere.webtransport.binaryWrite
+     */
+    String WEBTRANSPORT_BINARY_WRITE = "org.atmosphere.webtransport.binaryWrite";
+
     /**
      * The default content-type value used when Atmosphere requires one.
      * <p/>

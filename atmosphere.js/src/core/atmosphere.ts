@@ -28,6 +28,7 @@ import { WebSocketTransport } from '../transports/websocket';
 import { SSETransport } from '../transports/sse';
 import { LongPollingTransport } from '../transports/long-polling';
 import { StreamingTransport } from '../transports/streaming';
+import { WebTransportTransport } from '../transports/webtransport';
 import { BaseTransport } from '../transports/base';
 import { logger } from '../utils/logger';
 import { VERSION } from '../version';
@@ -232,6 +233,8 @@ export class Atmosphere {
         return new LongPollingTransport<T>(request, handlers, interceptors);
       case 'streaming':
         return new StreamingTransport<T>(request, handlers, interceptors);
+      case 'webtransport':
+        return new WebTransportTransport<T>(request, handlers, interceptors);
       default:
         throw new Error(`Unsupported transport: ${transport}`);
     }

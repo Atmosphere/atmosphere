@@ -57,6 +57,8 @@ public class AtmosphereProperties {
 
     private AiProperties ai = new AiProperties();
 
+    private WebTransportProperties webTransport = new WebTransportProperties();
+
     public String getServletPath() {
         return servletPath;
     }
@@ -151,6 +153,14 @@ public class AtmosphereProperties {
 
     public void setAi(AiProperties ai) {
         this.ai = ai;
+    }
+
+    public WebTransportProperties getWebTransport() {
+        return webTransport;
+    }
+
+    public void setWebTransport(WebTransportProperties webTransport) {
+        this.webTransport = webTransport;
     }
 
     public static class GrpcProperties {
@@ -341,6 +351,96 @@ public class AtmosphereProperties {
 
         public void setTimeout(long timeout) {
             this.timeout = timeout;
+        }
+    }
+
+    /**
+     * Configuration properties for WebTransport over HTTP/3, bound to
+     * {@code atmosphere.web-transport.*}.
+     */
+    public static class WebTransportProperties {
+
+        private boolean enabled = false;
+
+        private int port = 4443;
+
+        private String host = "0.0.0.0";
+
+        private boolean addAltSvc = true;
+
+        private SslProperties ssl = new SslProperties();
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getPort() {
+            return port;
+        }
+
+        public void setPort(int port) {
+            this.port = port;
+        }
+
+        public String getHost() {
+            return host;
+        }
+
+        public void setHost(String host) {
+            this.host = host;
+        }
+
+        public boolean isAddAltSvc() {
+            return addAltSvc;
+        }
+
+        public void setAddAltSvc(boolean addAltSvc) {
+            this.addAltSvc = addAltSvc;
+        }
+
+        public SslProperties getSsl() {
+            return ssl;
+        }
+
+        public void setSsl(SslProperties ssl) {
+            this.ssl = ssl;
+        }
+
+        public static class SslProperties {
+
+            private String certificate;
+
+            private String privateKey;
+
+            private String privateKeyPassword;
+
+            public String getCertificate() {
+                return certificate;
+            }
+
+            public void setCertificate(String certificate) {
+                this.certificate = certificate;
+            }
+
+            public String getPrivateKey() {
+                return privateKey;
+            }
+
+            public void setPrivateKey(String privateKey) {
+                this.privateKey = privateKey;
+            }
+
+            public String getPrivateKeyPassword() {
+                return privateKeyPassword;
+            }
+
+            public void setPrivateKeyPassword(String privateKeyPassword) {
+                this.privateKeyPassword = privateKeyPassword;
+            }
         }
     }
 }

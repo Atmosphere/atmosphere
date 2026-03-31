@@ -1,6 +1,13 @@
 atmosphere:
   packages: org.atmosphere.samples.springboot.chat
 
+  # WebTransport over HTTP/3 sidecar server.
+  # Self-signed certificate is used automatically for development.
+  # For production, set ssl.certificate and ssl.private-key.
+  web-transport:
+    enabled: true
+    port: 4443
+
 # Expose Atmosphere health and metrics via Actuator
 management:
   endpoints:

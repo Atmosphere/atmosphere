@@ -27,6 +27,7 @@ export { WebSocketTransport } from './transports/websocket';
 export { SSETransport } from './transports/sse';
 export { LongPollingTransport } from './transports/long-polling';
 export { StreamingTransport } from './transports/streaming';
+export { WebTransportTransport } from './transports/webtransport';
 export { BaseTransport } from './transports/base';
 
 // Export protocol utilities

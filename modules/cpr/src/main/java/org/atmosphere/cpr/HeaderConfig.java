@@ -42,6 +42,8 @@ public interface HeaderConfig {
 
     String GRPC_TRANSPORT = "grpc";
 
+    String WEBTRANSPORT_TRANSPORT = "webtransport";
+
     String DISCONNECT_TRANSPORT_MESSAGE = "close";
 
     String WEBSOCKET_X_ATMOSPHERE_TRANSPORT= X_ATMOSPHERE_TRANSPORT + "=" + WEBSOCKET_TRANSPORT;

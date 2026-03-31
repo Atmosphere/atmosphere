@@ -136,6 +136,13 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- WebTransport over HTTP/3 (optional — activated by atmosphere.web-transport.enabled) -->
+        <dependency>
+            <groupId>io.projectreactor.netty</groupId>
+            <artifactId>reactor-netty-http</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
