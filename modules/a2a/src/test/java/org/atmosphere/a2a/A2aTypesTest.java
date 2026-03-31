@@ -81,8 +81,8 @@ class A2aTypesTest {
     @Test
     void partSealedInterface() {
         Part text = new Part.TextPart("hello");
-        Part file = new Part.FilePart("doc.txt", "text/plain", "file:///doc.txt");
-        Part data = new Part.DataPart(Map.of("key", "value"), Map.of());
+        assertNotNull(new Part.FilePart("doc.txt", "text/plain", "file:///doc.txt").name());
+        assertNotNull(new Part.DataPart(Map.of("key", "value"), Map.of()).data());
 
         switch (text) {
             case Part.TextPart t -> assertEquals("hello", t.text());
