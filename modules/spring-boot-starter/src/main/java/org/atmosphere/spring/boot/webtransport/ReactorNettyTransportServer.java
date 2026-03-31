@@ -94,14 +94,15 @@ public class ReactorNettyTransportServer {
             // - ENABLE_CONNECT_PROTOCOL (0x08) = 1  (RFC 9220)
             // - H3_DATAGRAM (0x33) = 1              (RFC 9297)
             // - WEBTRANSPORT_MAX_SESSIONS (0xc671706a) = 1 (draft-ietf-webtrans-http3)
-            // Use a permissive validator to allow the non-standard WEBTRANSPORT_MAX_SESSIONS setting
+            // Use a permissive validator for non-standard WebTransport settings
             var settings = new Http3Settings((id, value) -> true)
-                    .enableConnectProtocol(true)
-                    .enableH3Datagram(true);
-            settings.put(0xc671706aL, 1L); // WEBTRANSPORT_MAX_SESSIONS
+                    .enableConnectProtocol(true)       // 0x08 = 1 (RFC 9220)
+                    .enableH3Datagram(true)            // 0x33 = 1 (RFC 9297)
+                    .qpackMaxTableCapacity(0)          // Disable QPACK dynamic table
+                    .qpackBlockedStreams(0);
+            settings.put(0x2b603742L, 1L);   // SETTINGS_WEBTRANS_DRAFT00 (draft-02)
+            settings.put(0xc671706aL, 256L); // SETTINGS_WEBTRANS_MAX_SESSIONS (draft-07)
             var settingsFrame = new DefaultHttp3SettingsFrame(settings);
-            logger.info("HTTP/3 SETTINGS entries: CONNECT={}, H3_DATAGRAM={}, WT_MAX_SESSIONS={}",
-                    settings.get(0x08L), settings.get(0x33L), settings.get(0xc671706aL));
             logger.info("HTTP/3 SETTINGS frame: {}", settingsFrame);
 
             var codec = Http3.newQuicServerCodecBuilder()
@@ -112,7 +113,7 @@ public class ReactorNettyTransportServer {
                     .initialMaxStreamDataBidirectionalRemote(1_000_000)
                     .initialMaxStreamsBidirectional(100)
                     .initialMaxStreamDataUnidirectional(1_000_000)
-                    .initialMaxStreamsUnidirectional(16)
+                    .initialMaxStreamsUnidirectional(100)
                     .datagram(65536, 65536)
                     .tokenHandler(io.netty.handler.codec.quic.InsecureQuicTokenHandler.INSTANCE)
                     .handler(new ChannelInitializer<>() {
@@ -130,7 +131,7 @@ public class ReactorNettyTransportServer {
                                             }
                                         },
                                         new io.netty.channel.ChannelInboundHandlerAdapter(),
-                                        null, settingsFrame, false,
+                                        null, settingsFrame, true,
                                         (id, value) -> true);
                                 ch.pipeline().addLast(connHandler);
                                 logger.info("Http3ServerConnectionHandler installed, pipeline: {}",
@@ -267,9 +268,10 @@ public class ReactorNettyTransportServer {
                 isWebTransport = true;
                 logger.info("WebTransport session opened: {}", headers.path());
 
-                // Send 200 to accept the WebTransport session
+                // Send 200 to accept the WebTransport session (draft-02 negotiation)
                 var responseHeaders = new DefaultHttp3HeadersFrame();
                 responseHeaders.headers().status("200");
+                responseHeaders.headers().add("sec-webtransport-http3-draft", "draft02");
                 ctx.write(responseHeaders);
                 ctx.flush();
             } else {
