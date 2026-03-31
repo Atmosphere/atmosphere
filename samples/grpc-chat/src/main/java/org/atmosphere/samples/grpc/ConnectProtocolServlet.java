@@ -247,7 +247,7 @@ public class ConnectProtocolServlet extends HttpServlet {
     private void sendConnectError(HttpServletResponse resp, int httpStatus, String code,
                                   String message, boolean json) throws IOException {
         resp.setStatus(httpStatus);
-        resp.setContentType(CONTENT_TYPE_JSON);
+        resp.setContentType(json ? CONTENT_TYPE_JSON : CONTENT_TYPE_PROTO);
         addCorsHeaders(resp);
         var errorJson = "{\"code\":\"" + code + "\",\"message\":\""
                 + message.replace("\"", "\\\"") + "\"}";
