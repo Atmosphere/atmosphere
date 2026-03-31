@@ -90,10 +90,19 @@ public class ReactorNettyTransportServer {
             var sslContext = buildQuicSslContext();
 
             // HTTP/3 settings with ENABLE_CONNECT_PROTOCOL for WebTransport (RFC 9220)
-            var settings = new Http3Settings().enableConnectProtocol(true);
+            // WebTransport over HTTP/3 requires these settings in the SETTINGS frame:
+            // - ENABLE_CONNECT_PROTOCOL (0x08) = 1  (RFC 9220)
+            // - H3_DATAGRAM (0x33) = 1              (RFC 9297)
+            // - WEBTRANSPORT_MAX_SESSIONS (0xc671706a) = 1 (draft-ietf-webtrans-http3)
+            // Use a permissive validator to allow the non-standard WEBTRANSPORT_MAX_SESSIONS setting
+            var settings = new Http3Settings((id, value) -> true)
+                    .enableConnectProtocol(true)
+                    .enableH3Datagram(true);
+            settings.put(0xc671706aL, 1L); // WEBTRANSPORT_MAX_SESSIONS
             var settingsFrame = new DefaultHttp3SettingsFrame(settings);
+            logger.info("HTTP/3 SETTINGS entries: CONNECT={}, H3_DATAGRAM={}, WT_MAX_SESSIONS={}",
+                    settings.get(0x08L), settings.get(0x33L), settings.get(0xc671706aL));
             logger.info("HTTP/3 SETTINGS frame: {}", settingsFrame);
-            logger.info("CONNECT protocol enabled: {}", settings.connectProtocolEnabled());
 
             var codec = Http3.newQuicServerCodecBuilder()
                     .sslContext(sslContext)
@@ -119,7 +128,9 @@ public class ReactorNettyTransportServer {
                                                         new AtmosphereHttp3Handler(framework));
                                             }
                                         },
-                                        null, null, settingsFrame, true);
+                                        new io.netty.channel.ChannelInboundHandlerAdapter(),
+                                        null, settingsFrame, false,
+                                        (id, value) -> true);
                                 ch.pipeline().addLast(connHandler);
                                 logger.info("Http3ServerConnectionHandler installed, pipeline: {}",
                                         ch.pipeline().names());
