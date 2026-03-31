@@ -24,7 +24,7 @@ Atmosphere is a transport-agnostic runtime for Java. Your application code decla
 ## Quick Start
 
 ```bash
-brew install Atmosphere/tap/atmosphere    
+brew install Atmosphere/tap/atmosphere
 
 # or
 
@@ -36,9 +36,8 @@ atmosphere run spring-boot-multi-agent-startup-team
 # Or scaffold your own project from a sample
 atmosphere new my-agent --template ai-chat
 
-# Import a skill from skills repositories like Claude, Github, Antigravrity etc. and run it
+# Import a skill from GitHub and run it
 atmosphere import https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
-
 cd frontend-design && LLM_API_KEY=your-key ./mvnw spring-boot:run
 ```
 
@@ -76,380 +75,69 @@ What this registers depends on which modules are on the classpath:
 | `atmosphere-a2a` | A2A endpoint at `/atmosphere/agent/my-agent/a2a` with Agent Card discovery |
 | `atmosphere-agui` | AG-UI endpoint at `/atmosphere/agent/my-agent/agui` |
 | `atmosphere-channels` + bot token | Same agent responds on Slack, Telegram, Discord, WhatsApp, Messenger |
-| (built-in) | Console UI at `/atmosphere/console/` — auto-detects the agent |
+| (built-in) | Console UI at `/atmosphere/console/` |
 
-### Full-Stack vs. Headless
+## Key Features
 
-An `@Agent` with a `@Prompt` method gets a WebSocket UI. An `@Agent` with only `@AgentSkill` methods runs headless — A2A and MCP only, no browser endpoint. The framework detects the mode automatically.
+**[Multi-Agent Orchestration](https://atmosphere.github.io/docs/agents/coordinator/)** — `@Coordinator` manages a fleet of agents with parallel fan-out, sequential pipelines, conditional routing, coordination journal, and result evaluation. Test with `StubAgentFleet` — no infrastructure needed.
 
-```java
-// Headless: A2A/MCP only
-@Agent(name = "research", description = "Web research agent")
-public class ResearchAgent {
+**[Agent Handoffs & Approval Gates](https://atmosphere.github.io/docs/reference/ai/)** — Transfer conversations between agents with `session.handoff()`. Pause tool execution with `@RequiresApproval` — the virtual thread parks cheaply until the client approves or denies.
 
-    @AgentSkill(id = "search", name = "Search", description = "Search the web")
-    @AgentSkillHandler
-    public void search(TaskContext task, @AgentSkillParam(name = "query") String query) {
-        task.addArtifact(Artifact.text(doSearch(query)));
-        task.complete("Done");
-    }
-}
-```
+**[6 AI Runtimes](https://atmosphere.github.io/docs/reference/ai/)** — Built-in, LangChain4j, Spring AI, Google ADK, Embabel, JetBrains Koog. Switch backends by changing one Maven dependency. All share tool calling, structured output, conversation memory, and usage tracking.
 
-Full-stack and headless agents can collaborate via A2A — full-stack agents delegate to headless specialists using Agent Card discovery and JSON-RPC task delegation.
+**[3 Agent Protocols](https://atmosphere.github.io/docs/agents/a2a/)** — MCP (tools for Claude, Copilot, Cursor), A2A (agent-to-agent via JSON-RPC), AG-UI (streaming state to frontends). Auto-registered from classpath.
 
-## `@Coordinator` — Multi-Agent Orchestration
+**[6 Channels](https://atmosphere.github.io/docs/tutorial/23-channels/)** — Web, Slack, Telegram, Discord, WhatsApp, Messenger. Set a bot token and the same `@Command` + AI pipeline works everywhere.
 
-A coordinator manages a fleet of agents. Declare the fleet, inject `AgentFleet` into your `@Prompt` method, and orchestrate with plain Java — sequential, parallel, pipeline, or any pattern.
+**[Skill Files](https://atmosphere.github.io/docs/agents/skills/)** — Markdown system prompts with YAML frontmatter. Auto-discovered from classpath. Import 1,200+ skills from GitHub with `atmosphere import`.
 
-```java
-@Coordinator(name = "ceo", 
-             skillFile = "prompts/ceo-skill.md",
-             responseAs = MarketAssessment.class,
-             journalFormat = JournalFormat.Markdown.class)
-@Fleet({
-    @AgentRef(type = ResearchAgent.class),
-    @AgentRef(type = StrategyAgent.class),
-    @AgentRef(type = FinanceAgent.class),
-    @AgentRef(type = WriterAgent.class)
-})
-public class CeoCoordinator {
+**[Conversation Memory](https://atmosphere.github.io/docs/reference/ai/)** — Pluggable compaction strategies (sliding window, LLM summarization). Durable sessions via SQLite or Redis survive server restarts.
 
-    @Prompt
-    public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
-        // Sequential: research first
-        var research = fleet.agent("research").call("web_search", Map.of("query", message));
+**[Artifact Persistence](https://atmosphere.github.io/docs/reference/ai/)** — `ArtifactStore` SPI for binary artifacts (reports, images, code) shared across agent runs. In-memory default, ADK bridge included.
 
-        // Parallel: strategy + finance concurrently
-        var results = fleet.parallel(
-            fleet.call("strategy", "analyze", Map.of("data", research.text())),
-            fleet.call("finance", "model", Map.of("market", message))
-        );
+**[4 Transports](https://atmosphere.github.io/docs/tutorial/04-transports/)** — WebSocket, SSE, Long-Polling, gRPC. Automatic fallback, reconnection, heartbeats, message caching.
 
-        // CEO synthesizes via LLM
-        session.stream("Synthesize: " + research.text() + results.get("strategy").text());
-    }
-}
-```
+**[Observability](https://atmosphere.github.io/docs/reference/observability/)** — OpenTelemetry tracing, Micrometer metrics, AI token usage tracking. Auto-configured with Spring Boot.
 
-The fleet handles transport automatically — local agents are invoked directly (no HTTP), remote agents use A2A JSON-RPC. `@AgentRef(type = ...)` gives you compile-safe references with IDE navigation. Specialist agents are plain `@Agent` classes — they don't know they're in a fleet.
-
-**Fleet features:** parallel fan-out, sequential pipeline, optional agents (`required = false`), advisory versioning, weight-based routing metadata, circular dependency detection at startup, fleet topology logging.
-
-### Coordination Journal
-
-Every coordination is automatically journaled — which agents were called, what they returned, timing, success/failure. The journal is a pluggable SPI (`CoordinationJournal`) with an in-memory default, discovered via `ServiceLoader`. Query events from your `@Prompt` code:
-
-```java
-// After parallel execution, query the journal
-var events = fleet.journal().retrieve(coordinationId);
-var failed = fleet.journal().query(CoordinationQuery.forAgent("weather"));
-```
-
-### Result Evaluation
-
-Plug in quality assessment via the `ResultEvaluator` SPI. Evaluators run automatically (async, non-blocking, recorded in journal) after each agent call, and can be invoked explicitly:
-
-```java
-var result = fleet.agent("writer").call("draft", Map.of("topic", "AI"));
-var evals = fleet.evaluate(result, call);
-if (evals.stream().allMatch(Evaluation::passed)) {
-    session.stream(result.text());
-}
-```
-
-### Test Support
-
-The coordinator module includes test stubs for exercising `@Prompt` methods without infrastructure:
-
-```java
-var fleet = StubAgentFleet.builder()
-    .agent("weather", "Sunny, 72F in Madrid")
-    .agent("activities", "Visit Retiro Park, Prado Museum")
-    .build();
-
-coordinator.onPrompt("What to do in Madrid?", fleet, session);
-
-CoordinatorAssertions.assertThat(result)
-    .succeeded().containsText("Madrid").completedWithin(Duration.ofSeconds(5));
-```
-
-See [coordinator module](modules/coordinator/) for full documentation.
-
-See [multi-agent sample](samples/spring-boot-multi-agent-startup-team/) for a working 5-agent team.
-
-## Orchestration Primitives
-
-Production features for multi-agent governance: handoffs, approval gates, conditional routing, long-term memory, and eval assertions.
-
-### Agent Handoffs
-
-An agent transfers the conversation — with full history — to another agent. One method call.
-
-```java
-@Prompt
-public void onPrompt(String message, StreamingSession session) {
-    if (message.toLowerCase().contains("billing")) {
-        session.handoff("billing", message);  // conversation history travels with it
-        return;
-    }
-    session.stream(message);
-}
-```
-
-The client receives a `handoff` event before the target agent responds. Nested handoffs are blocked (cycle guard). See [orchestration demo](samples/spring-boot-orchestration-demo/).
-
-### Approval Gates
-
-`@RequiresApproval` pauses tool execution until the client approves. The virtual thread parks cheaply — no carrier thread consumed.
-
-```java
-@AiTool(name = "delete_account", description = "Permanently delete a user account")
-@RequiresApproval("This will permanently delete the account. Are you sure?")
-public String deleteAccount(@Param("accountId") String accountId) {
-    return accountService.delete(accountId);
-}
-```
-
-The client receives an `approval-required` event with the tool name, arguments, and a prompt message. Respond with `/__approval/<id>/approve` or `/__approval/<id>/deny`. Default timeout: 5 minutes.
-
-### Conditional Routing
-
-Route based on agent results — first match wins, with an optional fallback.
-
-```java
-var weather = fleet.agent("weather").call("forecast", Map.of("city", city));
-
-var result = fleet.route(weather, route -> route
-    .when(r -> r.success() && r.text().contains("sunny"),
-          f -> f.agent("outdoor").call("plan", Map.of()))
-    .when(r -> r.success(),
-          f -> f.agent("indoor").call("suggest", Map.of()))
-    .otherwise(f -> AgentResult.failure("router", "route",
-          "Weather unavailable", Duration.ZERO))
-);
-```
-
-Every routing decision is recorded in the `CoordinationJournal`.
-
-### Long-Term Memory
-
-Agents remember users across sessions. Configuration-only — no code changes in `@Agent` classes.
-
-```java
-// LongTermMemoryInterceptor (pre): injects stored facts into system prompt
-// LongTermMemoryInterceptor (post): extracts new facts via LLM
-
-// Extraction strategies:
-MemoryExtractionStrategy.onSessionClose()  // default — batch, cost-efficient
-MemoryExtractionStrategy.perMessage()       // real-time, expensive
-MemoryExtractionStrategy.periodic(5)        // every 5 messages
-```
-
-Backed by `InMemoryLongTermMemory` (dev) or any `SessionStore` implementation (Redis, SQLite).
-
-### Eval Assertions
-
-LLM-as-judge for testing agent quality. Uses any `AgentRuntime` as the judge model.
-
-```java
-var judge = new LlmJudge(cheapRuntime, "gpt-4o-mini");
-var response = client.prompt("Should I bring an umbrella to Tokyo?");
-
-assertThat(response)
-    .withJudge(judge)
-    .forPrompt("Should I bring an umbrella to Tokyo?")
-    .meetsIntent("Recommends whether to bring an umbrella based on weather data")
-    .isGroundedIn("get_weather")
-    .hasQuality(q -> q.relevance(0.8).coherence(0.7).safety(0.9));
-```
-
-## Skills
-
-A skill file is a Markdown document with YAML frontmatter that becomes the agent's system prompt. Sections like `## Tools`, `## Skills`, and `## Guardrails` are also parsed for protocol metadata.
-
-```markdown
----
-name: my-agent
-description: "What this agent does"
----
-# My Agent
-You are a helpful assistant.
-
-## Tools
-- lookup: Search the knowledge base
-- calculate: Perform calculations
-
-## Guardrails
-- Never execute destructive operations without confirmation
-```
-
-### Auto-Discovery
-
-Drop a skill file at `META-INF/skills/{agent-name}/SKILL.md` on the classpath and `@Agent` picks it up automatically — no `skillFile` attribute needed. This means skills can be distributed as Maven JARs.
-
-The framework also checks `prompts/{agent-name}.md` and `prompts/skill.md` as fallbacks.
-
-### Import from GitHub
-
-Point the CLI at any skill file on GitHub. Atmosphere generates the `@Agent` class, wires the Spring Boot project, and the built-in console UI is ready to use — one command to a running agent:
-
-```bash
-atmosphere import https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
-cd frontend-design && LLM_API_KEY=your-key ./mvnw spring-boot:run
-# Open http://localhost:8080/atmosphere/console/ — chat with your agent
-```
-
-The import command parses YAML frontmatter into `@Agent` annotations, extracts `## Tools` into `@AiTool` method stubs, and places the skill file at `META-INF/skills/` for auto-discovery. The generated project compiles and runs immediately — WebSocket streaming, MCP, A2A, AG-UI, gRPC, and the Atmosphere AI Console are all wired automatically.
-
-Compatible with [Anthropic](https://github.com/anthropics/skills), [Antigravity](https://github.com/sickn33/antigravity-awesome-skills) (1,200+ skills), [K-Dense AI](https://github.com/K-Dense-AI/claude-scientific-skills), and any repository following the [Agent Skills](https://agentskills.io/specification) format.
-
-Remote imports are restricted to [trusted sources](cli/README.md) by default. Use `--trust` for other URLs.
-
-## Transports
-
-Your code never changes. Atmosphere picks the best transport, handles fallback, reconnection, heartbeats, and message caching.
-
-| Transport | Direction | Use Case |
-|-----------|-----------|----------|
-| **WebSocket** | Full-duplex | Default for browsers and agents |
-| **SSE** | Server → Client | Fallback when WebSocket is unavailable |
-| **Long-Polling** | Request/Response | Universal fallback for restrictive networks |
-| **gRPC** | Full-duplex | Service-to-service binary streaming |
-
-## Agent Protocols
-
-Auto-registered based on classpath — add the module, the endpoint appears. No configuration.
-
-| Protocol | Direction | Purpose | Annotations |
-|----------|-----------|---------|-------------|
-| **MCP** | Agent &#8596; Tools | Expose tools to any MCP client | `@McpTool`, `@McpResource`, `@McpPrompt` |
-| **A2A** | Agent &#8596; Agent | Agent Card discovery and task delegation over JSON-RPC | `@AgentSkill`, `@AgentSkillHandler` |
-| **AG-UI** | Agent &#8596; Frontend | Stream agent state (steps, tool calls, text deltas) via SSE | `@AgUiEndpoint`, `@AgUiAction` |
-
-## Channels
-
-Set a bot token — interact with your agent from any messaging platform. Same `@Command` methods and AI pipeline, every channel.
-
-| Channel | Activation |
-|---------|-----------|
-| Web (WebSocket/SSE) | Built-in |
-| Slack | `SLACK_BOT_TOKEN` |
-| Telegram | `TELEGRAM_BOT_TOKEN` |
-| Discord | `DISCORD_BOT_TOKEN` |
-| WhatsApp | `WHATSAPP_ACCESS_TOKEN` |
-| Messenger | `MESSENGER_PAGE_TOKEN` |
-
-See [docs/protocols.md](docs/protocols.md) and [docs/channels.md](docs/channels.md).
-
-## AgentRuntime — The Servlet Model for AI Agents
-
-Write your agent once. The execution engine is determined by what's on the classpath — like Servlets run on Tomcat or Jetty without code changes.
-
-`AgentRuntime` is the single SPI that dispatches the entire agent loop — tool calling, memory, RAG, retries — to the AI framework on the classpath. Drop in one dependency and your `@Agent` gets the full power of that framework's agentic runtime.
-
-| Runtime | Dependency | What Your Agent Gets |
-|---------|-----------|-------------|
-| **Built-in** | `atmosphere-ai` | OpenAI-compatible client (Gemini, OpenAI, Ollama) with tool calling, structured output, and usage tracking. Zero framework overhead. |
-| **LangChain4j** | `atmosphere-langchain4j` | LangChain4j's full agentic pipeline: ReAct tool loops, `StreamingChatModel`, automatic retries. `@AiTool` methods are bridged to LangChain4j tools automatically. |
-| **Spring AI** | `atmosphere-spring-ai` | Spring AI's `ChatClient`, function calling, RAG advisors. Your Spring AI pipeline gets real-time WebSocket streaming and multi-protocol exposure. |
-| **Google ADK** | `atmosphere-adk` | Google's Agent Development Kit: `LlmAgent`, function tools, session management. ADK agents gain WebSocket visibility and A2A interop. |
-| **Embabel** | `atmosphere-embabel` | Embabel's goal-driven GOAP planning. Embabel agents stream through Atmosphere to every transport and channel. |
-| **JetBrains Koog** | `atmosphere-koog` | Koog's `AIAgent` with `chatAgentStrategy()`: graph-based orchestration, tool calling, RAG context injection, streaming via `PromptExecutor`. |
-
-Switching backends is one dependency change. Your `@Agent`, `@AiTool`, `@Command`, skill files, conversation memory, guardrails, and protocol exposure stay the same.
-
-All runtimes share a common capability baseline: text streaming, tool calling, structured output, system prompts, progress events, and usage metadata reporting (`ai.tokens.input`, `ai.tokens.output`). Runtime-specific features (ADK orchestration, Embabel GOAP planning) are additive.
-
-### What Atmosphere adds to an AI framework
-
-Spring AI, LangChain4j, and ADK handle inference. Atmosphere handles delivery — getting the LLM response to the client over the right transport and protocol.
-
-| Concern | Without Atmosphere | With Atmosphere |
-|---------|-------------------|-----------------|
-| LLM streaming to browser | HTTP response buffering | WebSocket/SSE real-time token streaming |
-| Protocol exposure | Manual endpoint per protocol | Auto-registered MCP, A2A, AG-UI from classpath |
-| Multi-channel | One integration per platform | Same agent on Web, Slack, Telegram, Discord |
-| Conversation memory | Per-backend implementation | Framework-managed, backend-independent (SQLite, Redis) |
-| Tool portability | Backend-specific annotations | `@AiTool` works across all backends |
-| Agent composition | Custom HTTP plumbing | Headless agents collaborate via A2A, any backend mix |
-| Backend switching | Rewrite integration code | Change one Maven dependency |
-
-## Annotation Compatibility
-
-Atmosphere 4.x is fully backward-compatible with 3.x annotations. All `@ManagedService` lifecycle annotations (`@Ready`, `@Message`, `@Disconnect`, `@Heartbeat`, `@PathParam`, `Broadcaster` injection) work in `@Agent`. Protocol annotations (`@McpTool`, `@AgentSkill`) can be added directly to existing `@ManagedService` classes — no migration required.
-
-See the [full annotation reference](docs/annotations.md) for all supported annotations, parameters, and usage examples.
-
-| Annotation | `@Agent` | `@ManagedService` | Purpose |
-|-----------|:--------:|:-----------------:|---------|
-| `@Prompt` | yes | — | LLM streaming entry point |
-| `@Command` | yes | — | Slash commands (no LLM cost) |
-| `@AiTool` / `@Param` | yes | — | LLM-callable tool methods |
-| `@McpTool` / `@McpResource` / `@McpPrompt` | yes | yes | MCP protocol exposure |
-| `@AgentSkill` / `@AgentSkillHandler` | yes | yes | A2A protocol exposure |
-| `@Ready` | yes | yes | Connection established |
-| `@Disconnect` | yes | yes | Connection closed |
-| `@Heartbeat` | yes | yes | Keep-alive received |
-| `@Message` (encoders/decoders) | yes | yes | Raw message handling |
-| `@Inject @Named("...")` `Broadcaster` | yes | yes | Pub/sub to Kafka, Redis, etc. |
-| `@PathParam` | yes | yes | URL path parameter injection |
-| `@DeliverTo` | — | yes | Message delivery scope |
-| `@Singleton` | — | yes | Single instance per path |
-| `@Get` / `@Post` / `@Put` / `@Delete` | — | yes | HTTP method handlers |
+**[Cross-Runtime TCK](https://atmosphere.github.io/docs/reference/testing/)** — Contract tests enforced across all runtime adapters. `AbstractAgentRuntimeContractTest` validates capabilities, streaming, tool calls, and error handling.
 
 ## Client — atmosphere.js
 
 ```bash
-npm install atmosphere.js                                    # add to existing project
-npx create-atmosphere-app my-app --template ai-chat          # scaffold a new React app
+npm install atmosphere.js
 ```
 
 ```tsx
-import { AtmosphereProvider, useStreaming } from 'atmosphere.js/react';
+import { useStreaming } from 'atmosphere.js/react';
 
 function Chat() {
   const { fullText, isStreaming, send } = useStreaming({
     request: { url: '/atmosphere/agent/my-agent', transport: 'websocket' },
   });
-  return (
-    <div>
-      <button onClick={() => send('Hello')}>Send</button>
-      <p>{fullText}</p>
-    </div>
-  );
+  return <p>{fullText}</p>;
 }
 ```
 
-[Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svelte), and [React Native](atmosphere.js/README.md#react-native) bindings also available. See [atmosphere.js](atmosphere.js/README.md).
+React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svelte), and [React Native](atmosphere.js/README.md#react-native) bindings available.
 
 ## Samples
 
-| Category | Sample | Description |
-|----------|--------|-------------|
-| Multi-Agent | [startup team](samples/spring-boot-multi-agent-startup-team/) | `@Coordinator` with fleet of 4 specialist agents — parallel delegation, real-time tool cards |
-| Agent | [dentist agent](samples/spring-boot-dentist-agent/) | Commands, tools, skill file, Slack and Telegram |
-| AI Streaming | [ai-chat](samples/spring-boot-ai-chat/) | Swap backend via one dependency |
-| AI Streaming | [ai-tools](samples/spring-boot-ai-tools/) | Framework-agnostic tool calling |
-| Agent | [rag-agent](samples/spring-boot-rag-chat/) | RAG agent with AI tools for knowledge base search |
-| AI Streaming | [ai-classroom](samples/spring-boot-ai-classroom/) | Multi-room, multi-persona streaming |
-| Protocol | [mcp-server](samples/spring-boot-mcp-server/) | MCP tools, resources, and prompts |
-| Protocol | [a2a-agent](samples/spring-boot-a2a-agent/) | Headless A2A agent |
-| Protocol | [agui-chat](samples/spring-boot-agui-chat/) | AG-UI streaming via SSE |
-| Infrastructure | [channels](samples/spring-boot-channels-chat/) | Slack, Telegram, Discord, WhatsApp, Messenger |
-| Infrastructure | [durable-sessions](samples/spring-boot-durable-sessions/) | Survive server restarts with SQLite |
-| Infrastructure | [otel-chat](samples/spring-boot-otel-chat/) | OpenTelemetry tracing |
-| Chat | [spring-boot-chat](samples/spring-boot-chat/) | WebSocket chat with Spring Boot |
-| Chat | [quarkus-chat](samples/quarkus-chat/) | WebSocket chat with Quarkus |
-| Chat | [grpc-chat](samples/grpc-chat/) | Chat over gRPC transport |
-| Chat | [embedded-jetty](samples/embedded-jetty-websocket-chat/) | Embedded Jetty, no framework |
+| Sample | Description |
+|--------|-------------|
+| [startup team](samples/spring-boot-multi-agent-startup-team/) | `@Coordinator` with 4 specialist agents |
+| [dentist agent](samples/spring-boot-dentist-agent/) | Commands, tools, skill file, Slack + Telegram |
+| [ai-tools](samples/spring-boot-ai-tools/) | Framework-agnostic tool calling + approval gates |
+| [orchestration-demo](samples/spring-boot-orchestration-demo/) | Agent handoffs and approval gates |
+| [mcp-server](samples/spring-boot-mcp-server/) | MCP tools, resources, prompts |
+| [rag-agent](samples/spring-boot-rag-chat/) | RAG with knowledge base search tools |
+| [durable-sessions](samples/spring-boot-durable-sessions/) | SQLite/Redis session persistence |
 
-[All 18 samples](samples/) · `atmosphere install` for interactive picker · [CLI reference](cli/README.md)
+[All 18 samples](samples/) &middot; `atmosphere install` for interactive picker &middot; [CLI reference](cli/README.md)
 
-## Maven Coordinates
+## Getting Started
 
 ```xml
-<!-- Spring Boot 4.0 starter (includes atmosphere-runtime + auto-configuration) -->
+<!-- Spring Boot 4.0 starter -->
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-boot-starter</artifactId>
@@ -464,15 +152,13 @@ function Chat() {
 </dependency>
 ```
 
-Optional modules: `atmosphere-ai`, `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`, `atmosphere-channels`, `atmosphere-coordinator`. Add them to the classpath and the corresponding features auto-register.
+Optional: `atmosphere-ai`, `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`, `atmosphere-channels`, `atmosphere-coordinator`. Add to classpath and features auto-register.
 
-## Requirements
-
-Java 21+ · Spring Boot 4.0+ · Quarkus 3.21+ · Virtual threads enabled by default.
+**Requirements:** Java 21+ &middot; Spring Boot 4.0+ or Quarkus 3.21+
 
 ## Documentation
 
-[Tutorial](https://atmosphere.github.io/docs/tutorial/01-introduction/) · [Full docs](https://atmosphere.github.io/docs/) · [CLI](cli/README.md) · [Samples](samples/) · [Javadoc](https://atmosphere.github.io/apidocs/)
+[Tutorial](https://atmosphere.github.io/docs/tutorial/01-introduction/) &middot; [Full docs](https://atmosphere.github.io/docs/) &middot; [CLI](cli/README.md) &middot; [Javadoc](https://atmosphere.github.io/apidocs/) &middot; [Samples](samples/)
 
 ## Support
 
@@ -482,7 +168,7 @@ Commercial support and consulting available through [Async-IO.org](https://async
 
 | Project | Description |
 |---------|-------------|
-| [javaclaw-atmosphere](https://github.com/Atmosphere/javaclaw-atmosphere) | Atmosphere chat transport plugin for JavaClaw — drop-in replacement for Spring WebSocket with multi-client support, transport fallback, and auto-reconnection |
+| [javaclaw-atmosphere](https://github.com/Atmosphere/javaclaw-atmosphere) | Atmosphere chat transport plugin for JavaClaw |
 
 ## License
 
