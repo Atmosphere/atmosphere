@@ -59,6 +59,12 @@ public class MyAgent {
         return "All systems operational";  // Executes instantly, no LLM cost
     }
 
+    @Command(value = "/reset", description = "Reset data",
+             confirm = "This will delete all data. Are you sure?")
+    public String reset() {
+        return dataService.resetAll();  // Requires user confirmation first
+    }
+
     @AiTool(name = "lookup", description = "Look up data")
     public String lookup(@Param("query") String query) {
         return dataService.find(query);  // Callable by the LLM during inference
@@ -89,17 +95,19 @@ What this registers depends on which modules are on the classpath:
 
 **[6 Channels](https://atmosphere.github.io/docs/tutorial/23-channels/)** — Web, Slack, Telegram, Discord, WhatsApp, Messenger. Set a bot token and the same `@Command` + AI pipeline works everywhere.
 
-**[Skill Files](https://atmosphere.github.io/docs/agents/skills/)** — Markdown system prompts with YAML frontmatter. Auto-discovered from classpath. Import 1,200+ skills from GitHub with `atmosphere import`.
+**[Skill Files](https://atmosphere.github.io/docs/agents/skills/)** — Markdown system prompts with sections for tools, guardrails, and channels. Auto-discovered from classpath. Import 1,200+ skills from GitHub with `atmosphere import`.
+
+**[Long-Term Memory](https://atmosphere.github.io/docs/agents/coordinator/)** — Agents remember users across sessions. `LongTermMemoryInterceptor` extracts facts via LLM and injects them into future system prompts. Three strategies: on session close, per message, or periodic.
 
 **[Conversation Memory](https://atmosphere.github.io/docs/reference/ai/)** — Pluggable compaction strategies (sliding window, LLM summarization). Durable sessions via SQLite or Redis survive server restarts.
 
-**[Artifact Persistence](https://atmosphere.github.io/docs/reference/ai/)** — `ArtifactStore` SPI for binary artifacts (reports, images, code) shared across agent runs. In-memory default, ADK bridge included.
+**[Eval Assertions](https://atmosphere.github.io/docs/reference/testing/)** — `LlmJudge` tests agent quality with `meetsIntent()`, `isGroundedIn()`, and `hasQuality()`. `StubAgentFleet` and `CoordinatorAssertions` for testing coordinators without infrastructure.
+
+**[15 Event Types](https://atmosphere.github.io/docs/reference/ai/)** — `AiEvent` sealed interface: text deltas, tool start/result/error, agent steps, handoffs, approval prompts, structured output, routing decisions. Normalized across all runtimes.
 
 **[4 Transports](https://atmosphere.github.io/docs/tutorial/04-transports/)** — WebSocket, SSE, Long-Polling, gRPC. Automatic fallback, reconnection, heartbeats, message caching.
 
 **[Observability](https://atmosphere.github.io/docs/reference/observability/)** — OpenTelemetry tracing, Micrometer metrics, AI token usage tracking. Auto-configured with Spring Boot.
-
-**[Cross-Runtime TCK](https://atmosphere.github.io/docs/reference/testing/)** — Contract tests enforced across all runtime adapters. `AbstractAgentRuntimeContractTest` validates capabilities, streaming, tool calls, and error handling.
 
 ## Client — atmosphere.js
 

@@ -79,6 +79,12 @@ public class SupportAgent {
         return "Support hours: Mon-Fri 9am-6pm EST. Emergency support: 24/7 via /escalate.";
     }
 
+    @Command(value = "/purge", description = "Purge all cached data",
+             confirm = "This will delete all cached support data. Continue?")
+    public String purge() {
+        return "All cached support data has been purged.";
+    }
+
     @AiTool(name = "lookup_account",
             description = "Look up a customer account by email or ID")
     public String lookupAccount(

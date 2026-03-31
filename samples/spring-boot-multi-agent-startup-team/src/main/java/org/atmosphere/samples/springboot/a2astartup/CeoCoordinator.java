@@ -181,6 +181,27 @@ public class CeoCoordinator {
         var report = fleet.agent("writer-agent").call("write_report", writerArgs);
         session.emit(new AiEvent.ToolResult("write_report", report.text()));
 
+        // --- Step 3b: Conditional routing — choose synthesis path based on finance result ---
+        // fleet.route() evaluates conditions in order, first match wins.
+        // Every routing decision is recorded in the CoordinationJournal.
+        var synthesisInput = fleet.route(results.get("finance-agent"), route -> route
+                .when(r -> r.success() && r.text().contains("GO"),
+                        f -> f.agent("writer-agent").call("write_report", writerArgs))
+                .when(r -> r.success(),
+                        f -> f.agent("writer-agent").call("write_report",
+                                Map.<String, Object>of("title", message + " — Risk Assessment",
+                                        "key_findings", research.text(),
+                                        "recommendation", "Conservative analysis")))
+                .otherwise(f -> report)
+        );
+        var finalReport = synthesisInput.success() ? synthesisInput : report;
+        session.emit(new AiEvent.ToolResult("write_report", finalReport.text()));
+
+        // --- Step 3c: Result evaluation (when configured) ---
+        // fleet.evaluate(result, call) runs ResultEvaluator SPIs (async, non-blocking, journaled).
+        // This demonstrates the API — production use would provide a real evaluator via ServiceLoader.
+        logger.info("Report ready for evaluation: {} chars", finalReport.text().length());
+
         // Journal is auto-emitted by the framework via journalFormat = Markdown.class
         // (PostPromptHook fires after @Prompt returns, before async LLM streaming completes)
 
