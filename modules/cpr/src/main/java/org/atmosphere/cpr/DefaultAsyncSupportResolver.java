@@ -166,10 +166,10 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         AsyncSupport<?> cs = null;
 
         // Validate the value for old Servlet Container.
-        useServlet30Async = testClassExists(SERVLET_30);
+        boolean hasServlet30 = testClassExists(SERVLET_30);
 
         if (!defaultToBlocking) {
-            List<Class<? extends AsyncSupport<?>>> l = detectWebSocketPresent(useNativeIfPossible, useServlet30Async);
+            List<Class<? extends AsyncSupport<?>>> l = detectWebSocketPresent(useNativeIfPossible, hasServlet30);
 
             if (!l.isEmpty()) {
                 cs = resolveWebSocket(l);

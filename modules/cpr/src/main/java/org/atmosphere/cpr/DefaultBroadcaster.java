@@ -438,7 +438,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected Runnable getBroadcastHandler() {
         return () -> {
             while (!isDestroyed()) {
-                Deliver msg = null;
+                Deliver msg;
                 try {
                     msg = messages.poll(waitTime, TimeUnit.MILLISECONDS);
                     if (msg == null) {

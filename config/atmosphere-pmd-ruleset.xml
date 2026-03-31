@@ -12,5 +12,12 @@
     <rule ref="category/java/bestpractices.xml/UseCollectionIsEmpty"/>
     <rule ref="category/java/multithreading.xml/AvoidThreadGroup"/>
     <rule ref="category/java/multithreading.xml/DontCallThreadRun"/>
- 
+
+    <!-- Unused code detection -->
+    <rule ref="category/java/bestpractices.xml/UnusedLocalVariable"/>
+    <rule ref="category/java/bestpractices.xml/UnusedPrivateField"/>
+    <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod"/>
+    <rule ref="category/java/bestpractices.xml/UnusedFormalParameter"/>
+    <rule ref="category/java/bestpractices.xml/UnusedAssignment"/>
+
 </ruleset>

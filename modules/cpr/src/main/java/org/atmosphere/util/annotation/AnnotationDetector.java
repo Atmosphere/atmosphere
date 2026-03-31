@@ -417,7 +417,7 @@ public final class AnnotationDetector {
     /**
      * Inspect the given (Java) class file in streaming mode.
      */
-    private void detect(final DataInput di) throws IOException {
+    private void detect(final DataInput di) throws IOException { // NOPMD — called via overloaded detect(ClassFileIterator)
         readVersion(di);
         readConstantPoolEntries(di);
         readAccessFlags(di);

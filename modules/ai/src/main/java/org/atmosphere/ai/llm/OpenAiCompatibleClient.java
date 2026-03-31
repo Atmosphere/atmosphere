@@ -228,7 +228,7 @@ public class OpenAiCompatibleClient implements LlmClient {
     private HttpResponse<java.io.InputStream> sendWithRetry(String requestBody,
                                                              StreamingSession session)
             throws InterruptedException {
-        HttpResponse<java.io.InputStream> response = null;
+        HttpResponse<java.io.InputStream> response = null; // NOPMD — null fallback needed if all retries throw
         Exception lastException = null;
 
         var maxRetries = retryPolicy.maxRetries();
@@ -257,7 +257,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                 logger.warn("LLM API error ({}), retrying in {}ms (attempt {}/{})",
                         response.statusCode(), delay.toMillis(), attempt + 1, maxRetries);
                 Thread.sleep(delay.toMillis());
-                response = null;
+                response = null; // NOPMD — clear before retry to avoid stale reference
             } catch (java.net.http.HttpTimeoutException e) {
                 lastException = e;
                 if (attempt == maxRetries) {

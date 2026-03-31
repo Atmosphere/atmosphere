@@ -41,7 +41,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class GrpcTransport extends AbstractTransport {
 
-    private final Options options;
     private volatile ManagedChannel channel;
     private volatile StreamObserver<AtmosphereMessage> requestObserver;
     private volatile String topic;
@@ -49,7 +48,6 @@ public class GrpcTransport extends AbstractTransport {
     private FunctionResolver resolver = FunctionResolver.DEFAULT;
 
     public GrpcTransport(Options options) {
-        this.options = options;
     }
 
     @Override

@@ -39,7 +39,6 @@ class ConsoleResourceFilterTest {
     private HttpServletResponse response;
     private FilterChain chain;
     private ByteArrayOutputStream capturedOutput;
-    private String capturedContentType;
 
     @BeforeEach
     void setUp() throws IOException {
@@ -49,7 +48,6 @@ class ConsoleResourceFilterTest {
         chain = mock(FilterChain.class);
 
         capturedOutput = new ByteArrayOutputStream();
-        capturedContentType = null;
 
         var servletOutputStream = new ServletOutputStream() {
             @Override

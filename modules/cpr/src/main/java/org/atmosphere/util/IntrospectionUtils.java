@@ -63,11 +63,10 @@ public final class IntrospectionUtils {
      */
     @SuppressWarnings("rawtypes")
     public static void execute(Object proxy, String method) throws Exception {
-        Method executeM = null;
         Class<?> c = proxy.getClass();
         Class<?> params[] = new Class[0];
         //    params[0]=args.getClass();
-        executeM = findMethod(c, method, params);
+        Method executeM = findMethod(c, method, params);
         if (executeM == null) {
             throw new RuntimeException("No execute in " + proxy.getClass());
         }
@@ -85,12 +84,11 @@ public final class IntrospectionUtils {
             return;
         }
 
-        Method executeM = null;
         Class<?> c = proxy.getClass();
         Class<?> params[] = new Class[2];
         params[0] = String.class;
         params[1] = Object.class;
-        executeM = findMethod(c, "setAttribute", params);
+        Method executeM = findMethod(c, "setAttribute", params);
         if (executeM == null) {
             logger.debug("No setAttribute in {}", proxy.getClass());
             return;
@@ -760,8 +758,7 @@ public final class IntrospectionUtils {
 
     public static Object callMethodN(Object target, String methodN,
                                      Object params[], Class<?> typeParams[]) throws Exception {
-        Method m = null;
-        m = findMethod(target.getClass(), methodN, typeParams);
+        Method m = findMethod(target.getClass(), methodN, typeParams);
         if (m == null) {
             debug("Can't find method " + methodN + " in " + target + " CLASS " + target.getClass());
             return null;

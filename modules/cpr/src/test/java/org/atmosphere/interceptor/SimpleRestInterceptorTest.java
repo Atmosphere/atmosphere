@@ -237,7 +237,7 @@ public class SimpleRestInterceptorTest {
 
     private AtmosphereResource createAtmosphereResource(String method, String path, Map<String, String> headers, String data) {
         AtmosphereRequest.Builder b = new AtmosphereRequestImpl.Builder();
-        AtmosphereRequest request = b.method("POST").pathInfo(path).headers(headers).body(data).build();
+        AtmosphereRequest request = b.method(method).pathInfo(path).headers(headers).body(data).build();
         AtmosphereResponse response = AtmosphereResponseImpl.newInstance(request);
         response.request(request);
         AtmosphereResourceImpl resource = new AtmosphereResourceImpl();

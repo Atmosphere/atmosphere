@@ -83,7 +83,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         ClassLoader urlC = url == null ? getClass().getClassLoader() : new URLClassLoader(new URL[]{url},
                 Thread.currentThread().getContextClassLoader());
 
-        loadServlet(sc, urlC);
+        loadServlet(urlC);
         if (!filters.isEmpty()) {
             loadFilterInstances(sc);
         } else {
@@ -92,7 +92,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     }
 
     @SuppressWarnings("unchecked")
-    private void loadServlet(ServletConfig sc, ClassLoader urlC) throws Exception {
+    private void loadServlet(ClassLoader urlC) throws Exception {
         if (servletClassName != null && servlet == null) {
             try {
                 servlet = config.framework().newClassInstance(Servlet.class, (Class<Servlet>) urlC.loadClass(servletClassName));

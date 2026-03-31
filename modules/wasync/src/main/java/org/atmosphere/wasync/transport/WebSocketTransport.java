@@ -36,7 +36,6 @@ import java.util.concurrent.CompletionStage;
 public class WebSocketTransport extends AbstractTransport implements WebSocket.Listener {
 
     private final HttpClient httpClient;
-    private final Options options;
     private volatile WebSocket webSocket;
     private volatile StringBuilder textBuffer = new StringBuilder();
     private volatile ByteBuffer binaryBuffer = ByteBuffer.allocate(0);
@@ -45,7 +44,6 @@ public class WebSocketTransport extends AbstractTransport implements WebSocket.L
 
     public WebSocketTransport(HttpClient httpClient, Options options) {
         this.httpClient = httpClient;
-        this.options = options;
     }
 
     @Override

@@ -196,8 +196,8 @@ public class CoordinatorProcessor implements Processor<Object> {
             }
             var guardrails = skillFile != null ? skillFile.listItems("Guardrails") : List.<String>of();
             var channels = skillFile != null ? skillFile.listItems("Channels") : List.<String>of();
-            registerA2a(framework, annotation, commandRegistry, toolRegistry,
-                    commandRouter, promptTarget, promptMethod, fleet,
+            registerA2a(framework, annotation,
+                    promptTarget, promptMethod, fleet,
                     pipeline, path, guardrails, protocols);
             registerMcp(framework, annotation, toolRegistry, path, guardrails, protocols);
             registerAgUi(framework, promptTarget, promptMethod, path,
@@ -557,8 +557,7 @@ public class CoordinatorProcessor implements Processor<Object> {
     // --- Protocol bridge registration ---
 
     private void registerA2a(AtmosphereFramework framework, Coordinator annotation,
-                             CommandRegistry commandRegistry, ToolRegistry toolRegistry,
-                             CommandRouter commandRouter, Object promptTarget,
+                             Object promptTarget,
                              Method promptMethod, AgentFleet fleet,
                              AiPipeline pipeline, String basePath,
                              List<String> guardrails, List<String> protocols) {

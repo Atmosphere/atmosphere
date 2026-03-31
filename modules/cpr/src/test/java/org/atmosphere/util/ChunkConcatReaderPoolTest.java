@@ -118,7 +118,7 @@ public class ChunkConcatReaderPoolTest {
                 }
             }
         }).start();
-        String data = readAll(reader, 5, false);
+        String data = readAll(reader, limit, false);
         assertEquals(data, TEST_MESSAGES_CONCATENATED);
     }
 

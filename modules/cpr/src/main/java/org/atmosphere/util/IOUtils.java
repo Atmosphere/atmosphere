@@ -139,7 +139,7 @@ public class IOUtils {
 
                 if (bufferedReader != null) {
                     char[] charBuffer = new char[8192];
-                    int bytesRead = -1;
+                    int bytesRead;
                     try {
                         while ((bytesRead = bufferedReader.read(charBuffer)) > 0) {
                             stringBuilder.append(charBuffer, 0, bytesRead);
@@ -239,13 +239,10 @@ public class IOUtils {
     }
 
     public static String guestServletPath(AtmosphereConfig config) {
-        String servletPath = "";
-        if (config.getServletConfig() != null) {
-            servletPath = getCleanedServletPath(guestRawServletPath(config));
-        } else {
+        if (config.getServletConfig() == null) {
             throw new IllegalStateException("Unable to configure jsr356 at that stage");
         }
-        return servletPath;
+        return getCleanedServletPath(guestRawServletPath(config));
     }
 
     public static String guestRawServletPath(AtmosphereConfig config) {

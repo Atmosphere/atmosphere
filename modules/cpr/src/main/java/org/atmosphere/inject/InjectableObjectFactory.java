@@ -135,7 +135,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         // dependency between Injectable, e.g one depend on other, or if the Injectable is not defined at the right place
         // in META-INF/services/org/atmosphere/inject.Injectable
         var fields = new HashSet<Field>();
-        Object instance = null;
+        Object instance;
         final var postponedMethodExecution = new LinkedHashSet<Object>(pushBackInjection);
         while (!pushBackInjection.isEmpty() & maxTryPerCycle-- > 0) {
             Iterator<Object> t = new LinkedList<>(pushBackInjection).iterator();

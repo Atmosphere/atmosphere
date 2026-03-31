@@ -113,6 +113,7 @@ public class ReactorNettyTransportServer {
                     .initialMaxStreamsBidirectional(100)
                     .initialMaxStreamDataUnidirectional(1_000_000)
                     .initialMaxStreamsUnidirectional(16)
+                    .datagram(65536, 65536)
                     .tokenHandler(io.netty.handler.codec.quic.InsecureQuicTokenHandler.INSTANCE)
                     .handler(new ChannelInitializer<>() {
                         @Override
@@ -239,9 +240,9 @@ public class ReactorNettyTransportServer {
      */
     private static class AtmosphereHttp3Handler extends Http3RequestStreamInboundHandler {
 
-        private final AtmosphereFramework framework;
+        private final AtmosphereFramework framework; // NOPMD — used when HTTP/3 bridge is wired
         private boolean isWebTransport;
-        private Http3HeadersFrame requestHeaders;
+        private Http3HeadersFrame requestHeaders; // NOPMD — used when HTTP/3 bridge is wired
 
         AtmosphereHttp3Handler(AtmosphereFramework framework) {
             this.framework = framework;

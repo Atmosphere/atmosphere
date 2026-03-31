@@ -46,7 +46,7 @@ public class AtmosphereRequestBuilder extends RequestBuilder<AtmosphereRequestBu
     private boolean trackMessageLength;
     private String trackMessageLengthDelimiter = "|";
     private String heartbeatChar = "X";
-    private int paddingSize = 4098;
+    private int paddingSize = 4098; // NOPMD — public API setter exists; value consumed in future protocol negotiation
     private String trackingId = UUID.randomUUID().toString();
 
     /**

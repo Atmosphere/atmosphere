@@ -82,7 +82,7 @@ public class AiStreamBroadcastFilterTest {
         var filter = new PassThroughFilter();
         var json = "{\"type\":\"streaming-text\",\"data\":\"Hello\",\"sessionId\":\"s1\",\"seq\":1}";
         var raw = new RawMessage(json);
-        var result = filter.filter("b1", raw, raw);
+        filter.filter("b1", raw, raw);
 
         assertNotNull(filter.lastMessage);
         assertTrue(filter.lastMessage.isStreamingText());

@@ -40,13 +40,11 @@ import java.util.concurrent.CompletableFuture;
 public class LongPollingTransport extends AbstractTransport {
 
     private final HttpClient httpClient;
-    private final Options options;
     private volatile boolean running;
     private volatile Thread pollThread;
 
     public LongPollingTransport(HttpClient httpClient, Options options) {
         this.httpClient = httpClient;
-        this.options = options;
     }
 
     @Override

@@ -185,9 +185,9 @@ final class ResponseWriter {
         if (forceAsyncIOWriter || !delegateToNativeResponse) {
             response.setStatus(sc);
 
-            // Prevent StackOverflow
+            // Prevent StackOverflow — temporarily clear field; restored after write
             boolean b = forceAsyncIOWriter;
-            forceAsyncIOWriter = false;
+            forceAsyncIOWriter = false; // NOPMD — read by asyncIOWriter.writeError()
             asyncIOWriter.writeError(response, sc, msg);
             forceAsyncIOWriter = b;
         } else {
@@ -202,9 +202,9 @@ final class ResponseWriter {
     void sendErrorNoMessage(AtmosphereResponseImpl response, HttpServletResponse nativeResponse, int sc) throws IOException {
         if (forceAsyncIOWriter || !delegateToNativeResponse) {
             response.setStatus(sc);
-            // Prevent StackOverflow
+            // Prevent StackOverflow — temporarily clear field; restored after write
             boolean b = forceAsyncIOWriter;
-            forceAsyncIOWriter = false;
+            forceAsyncIOWriter = false; // NOPMD — read by asyncIOWriter.writeError()
             asyncIOWriter.writeError(response, sc, "");
             forceAsyncIOWriter = b;
         } else {
@@ -218,9 +218,9 @@ final class ResponseWriter {
 
     void sendRedirect(AtmosphereResponseImpl response, HttpServletResponse nativeResponse, String location) throws IOException {
         if (forceAsyncIOWriter || !delegateToNativeResponse) {
-            // Prevent StackOverflow
+            // Prevent StackOverflow — temporarily clear field; restored after write
             boolean b = forceAsyncIOWriter;
-            forceAsyncIOWriter = false;
+            forceAsyncIOWriter = false; // NOPMD — read by asyncIOWriter.redirect()
             asyncIOWriter.redirect(response, location);
             forceAsyncIOWriter = b;
         } else {

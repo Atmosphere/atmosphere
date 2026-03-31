@@ -66,7 +66,7 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
             return new BroadcastAction(BroadcastAction.ACTION.ABORT, rawMessage);
         }
 
-        var sessionCount = sessionStreamingTextCounts
+        sessionStreamingTextCounts
                 .computeIfAbsent(msg.sessionId(), k -> new AtomicLong())
                 .incrementAndGet();
 
