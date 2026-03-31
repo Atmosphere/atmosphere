@@ -15,10 +15,12 @@
  */
 package org.atmosphere.ai.budget;
 
+import org.atmosphere.ai.AiException;
+
 /**
  * Thrown when a streaming text budget has been exhausted.
  */
-public class BudgetExceededException extends RuntimeException {
+public class BudgetExceededException extends AiException {
 
     private final String ownerId;
     private final long budget;

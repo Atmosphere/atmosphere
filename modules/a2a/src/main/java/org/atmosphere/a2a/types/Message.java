@@ -22,6 +22,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Immutable representation of an A2A message exchanged between a user and an agent,
+ * carrying a role, content parts, and contextual identifiers.
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record Message(
     String role,

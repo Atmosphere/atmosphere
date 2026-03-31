@@ -18,6 +18,10 @@ package org.atmosphere.a2a.types;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Immutable event representing a change in a task's status. The {@code isFinal} flag
+ * indicates whether the task has reached a terminal state.
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record TaskStatusUpdateEvent(
     String id,

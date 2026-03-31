@@ -20,6 +20,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Immutable description of an A2A skill, including its identifier, human-readable name,
+ * classification tags, and optional JSON schemas for input and output validation.
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record Skill(
     String id,

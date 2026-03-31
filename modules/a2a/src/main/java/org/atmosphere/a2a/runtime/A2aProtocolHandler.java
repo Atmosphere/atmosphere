@@ -32,6 +32,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.UUID;
 import java.util.function.Consumer;
 
+/**
+ * Routes incoming A2A JSON-RPC requests to the appropriate task management and skill
+ * execution logic. Supports {@code message/send}, {@code message/stream}, {@code tasks/get},
+ * {@code tasks/list}, {@code tasks/cancel}, and {@code agent/card} methods.
+ */
 public final class A2aProtocolHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(A2aProtocolHandler.class);

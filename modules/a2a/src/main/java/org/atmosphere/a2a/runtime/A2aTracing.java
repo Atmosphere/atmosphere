@@ -18,6 +18,10 @@ package org.atmosphere.a2a.runtime;
 import io.opentelemetry.api.OpenTelemetry;
 import org.atmosphere.protocol.ProtocolTracing;
 
+/**
+ * Wraps an OpenTelemetry instance to provide pre-configured tracing for the A2A protocol.
+ * Delegates to {@link ProtocolTracing} with the {@code atmosphere-a2a} instrumentation scope.
+ */
 public final class A2aTracing {
 
     private final ProtocolTracing delegate;

@@ -504,7 +504,7 @@ public class OpenAiCompatibleClient implements LlmClient {
     /**
      * Exception for LLM API errors.
      */
-    public static class LlmException extends RuntimeException {
+    public static class LlmException extends org.atmosphere.ai.AiException {
         public LlmException(String message) {
             super(message);
         }

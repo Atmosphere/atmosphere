@@ -492,11 +492,27 @@ public class AtmosphereFramework {
         FrameworkDiagnostics.info(this);
     }
 
+    /**
+     * Well-known {@link jakarta.servlet.ServletContext} attribute under which the
+     * framework instance is stored. Preferred over {@link Universe} for internal lookups.
+     */
+    public static final String FRAMEWORK_ATTRIBUTE = "org.atmosphere.cpr.AtmosphereFramework";
+
+    @SuppressWarnings("removal") // Universe population kept for backward compatibility
     protected void universe() {
         Universe.broadcasterFactory(broadcasterSetup.broadcasterFactory());
         Universe.resourceFactory(broadcasterSetup.arFactory());
         Universe.sessionResourceFactory(broadcasterSetup.getSessionFactory());
         Universe.framework(this);
+
+        try {
+            var ctx = getServletContext();
+            if (ctx != null) {
+                ctx.setAttribute(FRAMEWORK_ATTRIBUTE, this);
+            }
+        } catch (Exception ignored) {
+            // Embedded or test environments may not have a servlet context
+        }
     }
 
     void configureAnnotationPackages() {

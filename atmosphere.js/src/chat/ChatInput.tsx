@@ -15,7 +15,7 @@
  */
 
 import { createElement, useState, useCallback } from 'react';
-import type { KeyboardEvent } from 'react';
+import type { ChangeEvent, KeyboardEvent } from 'react';
 import type { ChatTheme } from './types';
 import { themes } from './types';
 import { inputBarStyle, inputStyle, sendButtonStyle } from './styles';
@@ -63,7 +63,7 @@ export function ChatInput({
       type: 'text',
       'data-testid': 'chat-input',
       value: text,
-      onChange: (e: any) => setText(e.target.value),
+      onChange: (e: ChangeEvent<HTMLInputElement>) => setText(e.target.value),
       onKeyDown: handleKey,
       placeholder,
       disabled,

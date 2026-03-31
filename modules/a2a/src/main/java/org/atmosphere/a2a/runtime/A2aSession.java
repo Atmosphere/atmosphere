@@ -21,6 +21,10 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Per-connection A2A session state, extending {@link ProtocolSession} with tracking of
+ * active task identifiers associated with the session.
+ */
 public final class A2aSession extends ProtocolSession {
 
     public static final String ATTRIBUTE_KEY = "org.atmosphere.a2a.session";

@@ -32,14 +32,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Scans objects for methods annotated with {@link AgentSkill} and {@link AgentSkillHandler},
+ * registers them as executable skill entries, and builds an {@link AgentCard} from the
+ * collected skill metadata. Also supports programmatic registration for cross-protocol bridges.
+ */
 public final class A2aRegistry {
 
     private static final Logger logger = LoggerFactory.getLogger(A2aRegistry.class);
 
+    /** A registered skill entry binding metadata, the reflective method handle, and its parameters. */
     public record SkillEntry(String id, String name, String description, List<String> tags,
                              Method method, Object instance, List<ParamEntry> params) {
     }
 
+    /** Metadata for a single parameter of a skill handler method. */
     public record ParamEntry(String name, String description, boolean required, Class<?> type) {
     }
 

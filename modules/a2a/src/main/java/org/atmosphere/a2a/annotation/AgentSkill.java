@@ -20,6 +20,11 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Marks a method as an A2A skill handler, providing metadata such as a unique identifier,
+ * human-readable name, description, and classification tags. Must be used together with
+ * {@link AgentSkillHandler} on the same method.
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface AgentSkill {

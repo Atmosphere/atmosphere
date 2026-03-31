@@ -21,6 +21,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Immutable description of an A2A agent, published at {@code /.well-known/agent.json}.
+ * Contains the agent's identity, supported capabilities, registered skills,
+ * security schemes, and default I/O modes.
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AgentCard(
     String name,
@@ -44,6 +49,7 @@ public record AgentCard(
         guardrails = guardrails != null ? List.copyOf(guardrails) : null;
     }
 
+    /** Declares the transport-level capabilities supported by the agent. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record AgentCapabilities(
         boolean streaming,

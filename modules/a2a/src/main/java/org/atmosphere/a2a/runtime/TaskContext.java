@@ -27,6 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * Mutable, thread-safe representation of an in-flight A2A task. Accumulates messages
+ * and artifacts, tracks the current {@link TaskState}, and notifies the owning
+ * {@link TaskManager} on status and artifact changes.
+ */
 public final class TaskContext {
 
     private final String taskId;

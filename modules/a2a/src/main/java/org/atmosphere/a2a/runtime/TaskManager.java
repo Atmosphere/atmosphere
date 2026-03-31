@@ -34,6 +34,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+/**
+ * Manages the lifecycle of A2A tasks, including creation, lookup, cancellation,
+ * and automatic eviction of completed tasks after a configurable TTL. Broadcasts
+ * status and artifact update events to registered listeners.
+ */
 public final class TaskManager {
 
     private static final Logger logger = LoggerFactory.getLogger(TaskManager.class);

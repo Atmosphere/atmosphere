@@ -114,6 +114,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private AsynchronousProcessor asynchronousProcessor;
     private /* final */ boolean invokeInterceptors;
 
+    /**
+     * Create a new, unconfigured processor. Callers must invoke {@link #configure(AtmosphereConfig)}
+     * before this processor can handle WebSocket events.
+     */
     public DefaultWebSocketProcessor() {
     }
 
@@ -690,6 +694,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
     }
 
+    /**
+     * Perform the actual close of the given WebSocket by ending the associated
+     * {@link AtmosphereResource} request and notifying {@link WebSocketEventListener}s.
+     * This method is separated from {@link #close(WebSocket, int)} to allow deferred
+     * invocation (e.g. Firefox delayed-close workaround).
+     *
+     * @param webSocket the WebSocket being closed
+     * @param closeCode the WebSocket close status code
+     */
     public void executeClose(WebSocket webSocket, int closeCode) {
         AtmosphereResource r = webSocket.resource();
 
@@ -767,6 +780,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         ((WebSocketEventListener) l).onDisconnect(event);
     }
 
+    /**
+     * Build a header map from the given request's parameters and inject the
+     * {@link HeaderConfig#X_ATMOSPHERE_TRANSPORT} header set to
+     * {@link HeaderConfig#WEBSOCKET_TRANSPORT}. The resulting map is typically
+     * applied to the request via {@link AtmosphereRequest#headers(Map)}.
+     *
+     * @param request the incoming atmosphere request whose parameters are copied as headers
+     * @return a mutable map of header name/value pairs
+     */
     public static Map<String, String> configureHeader(AtmosphereRequest request) {
         var headers = new HashMap<String, String>();
 
@@ -867,53 +889,131 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
     }
 
+    /**
+     * Return whether wildcard URI-template mapping (paths containing {@code {param}}) is enabled.
+     *
+     * @return {@code true} if at least one registered handler path contains URI-template variables
+     */
     public boolean wildcardMapping() {
         return wildcardMapping;
     }
 
+    /**
+     * Enable or disable wildcard URI-template mapping.
+     *
+     * @param wildcardMapping {@code true} to enable wildcard mapping
+     * @return this processor for method chaining
+     */
     public DefaultWebSocketProcessor wildcardMapping(boolean wildcardMapping) {
         this.wildcardMapping = wildcardMapping;
         return this;
     }
 
+    /**
+     * Return the registered {@link WebSocketHandlerProxy} instances keyed by their mapped path.
+     *
+     * @return an unmodifiable view is not guaranteed; callers should treat the returned map as read-only
+     */
     public Map<String, WebSocketHandlerProxy> handlers() {
         return handlers;
     }
 
+    /**
+     * Return whether WebSocket protocol messages are dispatched asynchronously
+     * via the async executor. Controlled by the
+     * {@link ApplicationConfig#WEBSOCKET_PROTOCOL_EXECUTION} init parameter.
+     *
+     * @return {@code true} if async dispatch is enabled
+     */
     public boolean executeAsync() {
         return executeAsync;
     }
 
+    /**
+     * Return whether the processor recycles {@link AtmosphereRequest} and
+     * {@link AtmosphereResponse} instances after use. Controlled by the
+     * {@link ApplicationConfig#RECYCLE_ATMOSPHERE_REQUEST_RESPONSE} init parameter.
+     *
+     * @return {@code true} if request/response recycling is enabled
+     */
     public boolean destroyable() {
         return destroyable;
     }
 
+    /**
+     * Return the maximum size in bytes for the internal {@link java.nio.ByteBuffer}
+     * used when buffering binary WebSocket streams. Defaults to 2 MB.
+     *
+     * @return the byte buffer max size
+     */
     public int byteBufferMaxSize() {
         return byteBufferMaxSize;
     }
 
+    /**
+     * Set the maximum size in bytes for the internal {@link java.nio.ByteBuffer}
+     * used when buffering binary WebSocket streams.
+     *
+     * @param byteBufferMaxSize the new max size in bytes
+     * @return this processor for method chaining
+     */
     public DefaultWebSocketProcessor byteBufferMaxSize(int byteBufferMaxSize) {
         this.byteBufferMaxSize = byteBufferMaxSize;
         return this;
     }
 
+    /**
+     * Return the maximum size in characters for the internal {@link java.nio.CharBuffer}
+     * used when buffering text WebSocket streams. Defaults to 2 MB.
+     *
+     * @return the char buffer max size
+     */
     public int charBufferMaxSize() {
         return charBufferMaxSize;
     }
 
+    /**
+     * Set the maximum size in characters for the internal {@link java.nio.CharBuffer}
+     * used when buffering text WebSocket streams.
+     *
+     * @param charBufferMaxSize the new max size in characters
+     * @return this processor for method chaining
+     */
     public DefaultWebSocketProcessor charBufferMaxSize(int charBufferMaxSize) {
         this.charBufferMaxSize = charBufferMaxSize;
         return this;
     }
 
+    /**
+     * Return the delay in milliseconds before a WebSocket close is finalized.
+     * A non-zero value enables delayed-close behavior, used as a workaround for
+     * Firefox reconnection issues. Controlled by the
+     * {@link ApplicationConfig#CLOSED_ATMOSPHERE_THINK_TIME} init parameter.
+     *
+     * @return the closing delay in milliseconds, or 0 for immediate close
+     */
     public long closingTime() {
         return closingTime;
     }
 
+    /**
+     * Return the {@link EndpointMapper} used to resolve incoming WebSocket requests
+     * to their registered {@link WebSocketHandlerProxy}.
+     *
+     * @return the endpoint mapper
+     */
     public EndpointMapper<WebSocketHandlerProxy> mapper() {
         return mapper;
     }
 
+    /**
+     * Return whether {@link AtmosphereInterceptor}s are invoked for incoming WebSocket
+     * messages. Controlled by the
+     * {@link ApplicationConfig#INVOKE_ATMOSPHERE_INTERCEPTOR_ON_WEBSOCKET_MESSAGE} init parameter.
+     * Defaults to {@code true}.
+     *
+     * @return {@code true} if interceptors are invoked on each WebSocket message
+     */
     public boolean invokeInterceptors() {
         return invokeInterceptors;
     }

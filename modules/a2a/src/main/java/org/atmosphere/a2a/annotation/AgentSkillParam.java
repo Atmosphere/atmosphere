@@ -20,6 +20,11 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Annotates a parameter of an {@link AgentSkill} handler method with its name,
+ * description, and whether it is required. The annotation drives JSON-RPC argument
+ * binding and input schema generation.
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.PARAMETER)
 public @interface AgentSkillParam {

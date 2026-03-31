@@ -20,6 +20,11 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Marker annotation indicating that a method is an A2A skill handler eligible for
+ * discovery by {@link org.atmosphere.a2a.registry.A2aRegistry}. Used in conjunction
+ * with {@link AgentSkill} to provide skill metadata.
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface AgentSkillHandler {

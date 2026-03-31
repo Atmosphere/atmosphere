@@ -47,7 +47,7 @@ public class SessionSupport implements HttpSessionListener {
         logger.trace("Session destroyed");
         try {
             HttpSession s = se.getSession();
-            BroadcasterFactory f = Universe.broadcasterFactory();
+            BroadcasterFactory f = lookupBroadcasterFactory(s);
             if (f != null) {
                 for (Broadcaster b : f.lookupAll()) {
                     for (AtmosphereResource r : b.getAtmosphereResources()) {
@@ -55,10 +55,28 @@ public class SessionSupport implements HttpSessionListener {
                             ((AtmosphereResourceImpl) r).session(null);
                         }
                     }
-                } 
+                }
             }
         } catch (Throwable t) {
             logger.warn("", t);
         }
+    }
+
+    private static BroadcasterFactory lookupBroadcasterFactory(HttpSession session) {
+        try {
+            var ctx = session.getServletContext();
+            if (ctx != null) {
+                var fw = (AtmosphereFramework) ctx.getAttribute(AtmosphereFramework.FRAMEWORK_ATTRIBUTE);
+                if (fw != null) {
+                    return fw.getBroadcasterFactory();
+                }
+            }
+        } catch (Exception e) {
+            // Fall through to deprecated path
+        }
+        // Backward compatibility for environments that don't store the framework attribute
+        @SuppressWarnings("removal")
+        BroadcasterFactory fallback = Universe.broadcasterFactory();
+        return fallback;
     }
 }

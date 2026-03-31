@@ -101,7 +101,7 @@ public interface StructuredOutputParser {
     /**
      * Exception thrown when structured output parsing fails.
      */
-    class StructuredOutputException extends RuntimeException {
+    class StructuredOutputException extends AiException {
         public StructuredOutputException(String message) {
             super(message);
         }

@@ -20,6 +20,11 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import java.util.Map;
 
+/**
+ * Sealed interface representing the content part of an A2A message or artifact.
+ * Permitted implementations are {@link TextPart} for plain text, {@link FilePart}
+ * for file references, and {@link DataPart} for arbitrary structured data.
+ */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
     @JsonSubTypes.Type(value = Part.TextPart.class, name = "text"),
@@ -28,12 +33,14 @@ import java.util.Map;
 })
 public sealed interface Part {
 
+    /** A content part carrying plain text and optional metadata. */
     record TextPart(String text, Map<String, Object> metadata) implements Part {
         public TextPart(String text) {
             this(text, Map.of());
         }
     }
 
+    /** A content part referencing a file by URI or inline bytes, with an associated MIME type. */
     record FilePart(String name, String mimeType, String uri,
                     byte[] bytes, Map<String, Object> metadata) implements Part {
         public FilePart(String name, String mimeType, String uri) {
@@ -41,6 +48,7 @@ public sealed interface Part {
         }
     }
 
+    /** A content part carrying arbitrary structured data as a key-value map. */
     record DataPart(Map<String, Object> data, Map<String, Object> metadata) implements Part {
         public DataPart {
             data = data != null ? Map.copyOf(data) : Map.of();

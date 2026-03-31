@@ -16,17 +16,28 @@
 package org.atmosphere.cpr;
 
 /**
- * Universe contains static reference to Atmosphere's Factories.
- * </p>
- * PLEASE DO NOT USE THIS CLASS IF YOUR APPLICATION CONTAINS WEBFRAGMENTS OR
- * MORE THAN ONCE ATMOSPHERE SERVLET DEFINED AS THIS CLASS IS USING STATIC
- * INSTANCE.
- * </p>
- * <p/>
- * This is ugly, only here to save your buts, Atmosphere users!
+ * Static reference holder for Atmosphere's core factories.
+ *
+ * @deprecated This class relies on static state and breaks in applications that contain
+ * web-fragments or define more than one Atmosphere servlet. Use the instance-scoped
+ * alternatives instead:
+ * <ul>
+ *   <li>{@link AtmosphereFramework#getBroadcasterFactory()}</li>
+ *   <li>{@link AtmosphereFramework#atmosphereFactory()}</li>
+ *   <li>{@link AtmosphereFramework#sessionFactory()}</li>
+ *   <li>{@link AtmosphereFramework#metaBroadcaster()}</li>
+ * </ul>
+ * Or equivalently via {@link AtmosphereConfig}:
+ * <ul>
+ *   <li>{@link AtmosphereConfig#getBroadcasterFactory()}</li>
+ *   <li>{@link AtmosphereConfig#resourcesFactory()}</li>
+ *   <li>{@link AtmosphereConfig#sessionFactory()}</li>
+ *   <li>{@link AtmosphereConfig#metaBroadcaster()}</li>
+ * </ul>
  *
  * @author Jeanfrancois Arcand
  */
+@Deprecated(forRemoval = true)
 public class Universe {
 
     private static BroadcasterFactory factory;
@@ -41,10 +52,12 @@ public class Universe {
     private static boolean metaBroadcasterDuplicate = false;
 
     /**
-     * Set the must be unique {@link DefaultMetaBroadcaster}
+     * Set the {@link DefaultMetaBroadcaster}.
      *
-     * @param a {@link DefaultMetaBroadcaster}
+     * @param a the meta-broadcaster
+     * @deprecated Use {@link AtmosphereFramework#metaBroadcaster()} instead.
      */
+    @Deprecated(forRemoval = true)
     public static void metaBroadcaster(DefaultMetaBroadcaster a) {
         if (metaBroadcaster != null) {
             metaBroadcasterDuplicate = true;
@@ -53,10 +66,12 @@ public class Universe {
     }
 
     /**
-     * Set the must be unique {@link org.atmosphere.cpr.BroadcasterFactory}
+     * Set the {@link BroadcasterFactory}.
      *
-     * @param a {@link org.atmosphere.cpr.BroadcasterFactory} Throw exception if Universe methods are used when they are not reliable:modules/runtime/src/main/java/org/atmosphere/runtime/Universe.java
+     * @param a the broadcaster factory
+     * @deprecated Use {@link AtmosphereFramework#getBroadcasterFactory()} instead.
      */
+    @Deprecated(forRemoval = true)
     public static void broadcasterFactory(BroadcasterFactory a) {
         if (factory != null) {
             factoryDuplicate = true;
@@ -65,10 +80,12 @@ public class Universe {
     }
 
     /**
-     * Set the must be unique {@link org.atmosphere.cpr.AtmosphereFramework}
+     * Set the {@link AtmosphereFramework}.
      *
-     * @param a {@link org.atmosphere.cpr.AtmosphereFramework}hrow exception if Universe methods are used when they are not reliable:modules/runtime/src/main/java/org/atmosphere/runtime/Universe.java
+     * @param a the framework instance
+     * @deprecated Inject the framework directly or retrieve via servlet context.
      */
+    @Deprecated(forRemoval = true)
     public static void framework(AtmosphereFramework a) {
         if (framework != null) {
             frameworkDuplicate = true;
@@ -77,10 +94,12 @@ public class Universe {
     }
 
     /**
-     * Set the must be unique {@link AtmosphereResourceFactory}
+     * Set the {@link AtmosphereResourceFactory}.
      *
-     * @param a {@link AtmosphereResourceFactory}
+     * @param a the resource factory
+     * @deprecated Use {@link AtmosphereFramework#atmosphereFactory()} instead.
      */
+    @Deprecated(forRemoval = true)
     public static void resourceFactory(AtmosphereResourceFactory a) {
         if (resourceFactory != null) {
             resourceFactoryDuplicate = true;
@@ -89,11 +108,12 @@ public class Universe {
     }
 
     /**
-     * <<<<<<< HEAD:modules/cpr/src/main/java/org/atmosphere/cpr/Universe.java
-     * Set the must be unique {@link org.atmosphere.cpr.AtmosphereResourceSessionFactory}
+     * Set the {@link AtmosphereResourceSessionFactory}.
      *
-     * @param a {@link org.atmosphere.cpr.AtmosphereResourceSessionFactory} Throw exception if Universe methods are used when they are not reliable:modules/runtime/src/main/java/org/atmosphere/runtime/Universe.java
+     * @param a the session factory
+     * @deprecated Use {@link AtmosphereFramework#sessionFactory()} instead.
      */
+    @Deprecated(forRemoval = true)
     public static void sessionResourceFactory(
             AtmosphereResourceSessionFactory a) {
         if (sessionFactory != null) {
@@ -103,10 +123,12 @@ public class Universe {
     }
 
     /**
-     * Return the {@link org.atmosphere.cpr.BroadcasterFactory}
+     * Return the {@link BroadcasterFactory}.
      *
-     * @return the {@link org.atmosphere.cpr.BroadcasterFactory}
+     * @return the broadcaster factory
+     * @deprecated Use {@link AtmosphereFramework#getBroadcasterFactory()} instead.
      */
+    @Deprecated(forRemoval = true)
     public static BroadcasterFactory broadcasterFactory() {
         if (factoryDuplicate) {
             throw new IllegalStateException(
@@ -116,10 +138,12 @@ public class Universe {
     }
 
     /**
-     * Return the {@link org.atmosphere.cpr.AtmosphereFramework}
+     * Return the {@link AtmosphereFramework}.
      *
-     * @return the {@link org.atmosphere.cpr.AtmosphereFramework}
+     * @return the framework instance
+     * @deprecated Inject the framework directly or retrieve via servlet context.
      */
+    @Deprecated(forRemoval = true)
     public static AtmosphereFramework framework() {
         if (frameworkDuplicate) {
             throw new IllegalStateException(
@@ -129,10 +153,12 @@ public class Universe {
     }
 
     /**
-     * Return the {@link AtmosphereResourceFactory}
+     * Return the {@link AtmosphereResourceFactory}.
      *
-     * @return the {@link AtmosphereResourceFactory}
+     * @return the resource factory
+     * @deprecated Use {@link AtmosphereFramework#atmosphereFactory()} instead.
      */
+    @Deprecated(forRemoval = true)
     public static AtmosphereResourceFactory resourceFactory() {
         if (resourceFactoryDuplicate) {
             throw new IllegalStateException(
@@ -142,10 +168,12 @@ public class Universe {
     }
 
     /**
-     * <<<<<<< HEAD:modules/cpr/src/main/java/org/atmosphere/cpr/Universe.java
-     * Return the {@link org.atmosphere.cpr.AtmosphereResourceSessionFactory}
-     * Throw exception if Universe methods are used when they are not reliable:modules/runtime/src/main/java/org/atmosphere/runtime/Universe.java
+     * Return the {@link AtmosphereResourceSessionFactory}.
+     *
+     * @return the session factory
+     * @deprecated Use {@link AtmosphereFramework#sessionFactory()} instead.
      */
+    @Deprecated(forRemoval = true)
     public static AtmosphereResourceSessionFactory sessionFactory() {
         if (sessionFactoryDuplicate) {
             throw new IllegalStateException(
@@ -155,10 +183,12 @@ public class Universe {
     }
 
     /**
-     * Return the {@link DefaultMetaBroadcaster}
+     * Return the {@link DefaultMetaBroadcaster}.
      *
-     * @return the {@link DefaultMetaBroadcaster}
+     * @return the meta-broadcaster
+     * @deprecated Use {@link AtmosphereFramework#metaBroadcaster()} instead.
      */
+    @Deprecated(forRemoval = true)
     public static DefaultMetaBroadcaster metaBroadcaster() {
         if (metaBroadcasterDuplicate) {
             throw new IllegalStateException(

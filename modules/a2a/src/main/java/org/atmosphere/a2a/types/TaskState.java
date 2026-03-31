@@ -15,6 +15,9 @@
  */
 package org.atmosphere.a2a.types;
 
+/**
+ * Enumeration of the possible lifecycle states for an A2A task.
+ */
 public enum TaskState {
     WORKING, COMPLETED, FAILED, CANCELED, REJECTED, INPUT_REQUIRED, AUTH_REQUIRED
 }

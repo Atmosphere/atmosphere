@@ -21,6 +21,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Immutable snapshot of an A2A task, including its current status, accumulated messages,
+ * produced artifacts, and metadata.
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record Task(
     String id,
@@ -36,6 +40,7 @@ public record Task(
         metadata = metadata != null ? Map.copyOf(metadata) : Map.of();
     }
 
+    /** The current status of a task, pairing a {@link TaskState} with an optional message. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record TaskStatus(TaskState state, String message) {
     }

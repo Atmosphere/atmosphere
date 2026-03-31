@@ -24,6 +24,12 @@ import org.atmosphere.protocol.AbstractProtocolHandler;
 import java.io.IOException;
 import java.util.function.Consumer;
 
+/**
+ * Atmosphere handler for the A2A protocol. Processes HTTP POST (JSON-RPC), GET (agent
+ * card and SSE subscriptions), and DELETE (session teardown) requests, delegating
+ * JSON-RPC dispatch to {@link A2aProtocolHandler}. Also implements
+ * {@link LocalDispatchable} for in-process transports.
+ */
 public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
         implements LocalDispatchable {
 

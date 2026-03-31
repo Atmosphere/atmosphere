@@ -99,8 +99,7 @@ public final class ApprovalRegistry {
      * @return true if approved, false if denied
      * @throws ApprovalTimeoutException if the approval expires
      */
-    public boolean awaitApproval(PendingApproval approval, CompletableFuture<Boolean> future)
-            throws ApprovalTimeoutException {
+    public boolean awaitApproval(PendingApproval approval, CompletableFuture<Boolean> future) {
         var timeout = Duration.between(Instant.now(), approval.expiresAt());
         if (timeout.isNegative() || timeout.isZero()) {
             pending.remove(approval.approvalId());
@@ -137,7 +136,7 @@ public final class ApprovalRegistry {
     /**
      * Thrown when an approval request times out.
      */
-    public static class ApprovalTimeoutException extends Exception {
+    public static class ApprovalTimeoutException extends org.atmosphere.ai.AiException {
         private final PendingApproval approval;
 
         public ApprovalTimeoutException(PendingApproval approval) {

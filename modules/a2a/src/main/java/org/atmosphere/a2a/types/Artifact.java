@@ -22,6 +22,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Immutable representation of an A2A artifact — a reusable output produced by a skill,
+ * consisting of one or more {@link Part} instances and optional metadata.
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record Artifact(
     @JsonProperty("artifactId") String artifactId,

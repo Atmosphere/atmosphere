@@ -17,6 +17,10 @@ package org.atmosphere.a2a.types;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+/**
+ * Immutable event representing a new or updated {@link Artifact} on a task,
+ * emitted to SSE and listener subscribers.
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record TaskArtifactUpdateEvent(
     String id,
