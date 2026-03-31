@@ -16,7 +16,7 @@
 package org.atmosphere.ai.test;
 
 import org.atmosphere.ai.AiEvent;
-import org.atmosphere.ai.AiRequest;
+
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.StreamingSession;
@@ -68,7 +68,6 @@ public class AiTestClient {
      * Send a prompt with a system prompt and capture the full response.
      */
     public AiResponse prompt(String message, String systemPrompt) {
-        var request = new AiRequest(message, systemPrompt);
         var session = new CapturingSession();
 
         var start = Instant.now();
