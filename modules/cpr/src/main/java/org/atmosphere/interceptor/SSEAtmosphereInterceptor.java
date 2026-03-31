@@ -187,6 +187,13 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                             r.resume();
                         }
                     }
+
+                    @Override
+                    public byte[] error(AtmosphereResponse response, int statusCode, String reasonPhrase) {
+                        // Wrap error in SSE data framing so clients receive the full error body
+                        String errorBody = "event:error\ndata:" + statusCode + " " + reasonPhrase + "\n\n";
+                        return errorBody.getBytes();
+                    }
                 });
             } else {
                 logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());

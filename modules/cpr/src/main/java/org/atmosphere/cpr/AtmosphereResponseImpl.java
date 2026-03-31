@@ -67,7 +67,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereResponseImpl.class);
 
     // -- Response metadata (state) --
-    private final List<Cookie> cookies = new ArrayList<>();
+    private List<Cookie> cookies;
     private final Map<String, String> headers;
     private int status = 200;
     private String statusMessage = "OK";
@@ -98,7 +98,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         super(dsr);
         response = dsr;
         this.atmosphereRequest = atmosphereRequest;
-        this.headers = new HashMap<>();
+        this.headers = new HashMap<>(8);
         this.destroyable = destroyable;
         this.writer = new ResponseWriter(asyncIOWriter, false);
         this.writer.setContentTypeForSanitization(contentType);
@@ -108,7 +108,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         super(r);
         response = r;
         this.atmosphereRequest = atmosphereRequest;
-        this.headers = new HashMap<>();
+        this.headers = new HashMap<>(8);
         this.destroyable = destroyable;
         this.writer = new ResponseWriter(asyncIOWriter, false);
         this.writer.setContentTypeForSanitization(contentType);
@@ -134,7 +134,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         private AtmosphereRequest atmosphereRequest;
         private HttpServletResponse atmosphereResponse = dsr;
         private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
-        private final Map<String, String> headers = new HashMap<>();
+        private final Map<String, String> headers = new HashMap<>(8);
         private boolean destroyable = true;
 
         public Builder() {
@@ -214,7 +214,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     public void destroy(boolean force) {
         if (!force) return;
         logger.trace("{} destroyed", uuid);
-        cookies.clear();
+        if (cookies != null) cookies.clear();
         headers.clear();
         atmosphereRequest = null;
         writer.destroy();
@@ -234,6 +234,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         if (writer.isDelegateToNativeResponse()) {
             _r().addCookie(cookie);
         } else {
+            if (cookies == null) cookies = new ArrayList<>(2);
             cookies.add(cookie);
         }
     }
@@ -367,8 +368,10 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     @Override
     public Map<String, String> headers() {
         if (!headerHandled) {
-            for (Cookie c : cookies) {
-                headers.put("Set-Cookie", CookieUtil.toString(c));
+            if (cookies != null) {
+                for (Cookie c : cookies) {
+                    headers.put("Set-Cookie", CookieUtil.toString(c));
+                }
             }
             headerHandled = true;
         }

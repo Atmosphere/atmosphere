@@ -29,6 +29,7 @@ import java.util.Collection;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY;
@@ -44,11 +45,14 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
 public class LifecycleHandler {
     private static final Logger logger = LoggerFactory.getLogger(LifecycleHandler.class);
 
+    // Matches URI template variables like {room} or {id:regex} — not arbitrary literal braces
+    private static final Pattern URI_TEMPLATE_VAR = Pattern.compile("\\{[a-zA-Z_][a-zA-Z0-9_]*(:[^}]+)?\\}");
+
     public LifecycleHandler on(final DefaultBroadcaster broadcaster) {
         final BroadcasterLifeCyclePolicy lifeCyclePolicy = broadcaster.getBroadcasterLifeCyclePolicy();
         final Collection<AtmosphereResource>  resources = broadcaster.getAtmosphereResources();
-        if (broadcaster.getID().contains("{") && broadcaster.getID().contains("}")) {
-            logger.trace("Ignoring wildcard {} with lifecycle policy: {}", broadcaster.getID(), lifeCyclePolicy.getLifeCyclePolicy().name());
+        if (URI_TEMPLATE_VAR.matcher(broadcaster.getID()).find()) {
+            logger.trace("Ignoring URI template {} with lifecycle policy: {}", broadcaster.getID(), lifeCyclePolicy.getLifeCyclePolicy().name());
             return this;
         }
 
