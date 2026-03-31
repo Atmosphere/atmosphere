@@ -2,8 +2,11 @@
 # Supports any OpenAI-compatible API: Gemini, Ollama, OpenAI, Azure, etc.
 
 atmosphere:
-  console-subtitle: Real-time AI chat with Gemini, OpenAI, or Ollama
+  console-subtitle: Real-time AI chat with Gemini, OpenAI, or Ollama — WebTransport/HTTP3
   packages: org.atmosphere.samples.springboot.aichat
+  web-transport:
+    enabled: true
+    port: 4443
   auth:
     demo-token: ${ATMOSPHERE_AUTH_TOKEN:demo-token}
   cache:

@@ -275,16 +275,25 @@ public class ReactorNettyTransportServer {
                 ctx.write(responseHeaders);
                 ctx.flush();
 
-                // Bridge into Atmosphere: register as a suspended resource
+                // Bridge into Atmosphere: register as a suspended resource.
+                // Extract servlet-relative pathInfo (e.g. /atmosphere/ai-chat → /ai-chat)
+                var servletPath = org.atmosphere.util.IOUtils.guestServletPath(
+                        framework.getAtmosphereConfig());
+                var pathInfo = path;
+                if (!servletPath.isEmpty() && path.startsWith(servletPath)) {
+                    pathInfo = path.substring(servletPath.length());
+                }
+                if (pathInfo.isEmpty()) {
+                    pathInfo = "/";
+                }
                 try {
                     var atmosRequest = new org.atmosphere.cpr.AtmosphereRequestImpl.Builder()
                             .requestURI(path)
-                            .pathInfo(path)
+                            .pathInfo(pathInfo)
+                            .servletPath(servletPath)
                             .method("GET")
                             .headers(java.util.Map.of(
-                                    "Connection", "Upgrade",
-                                    "Upgrade", "webtransport",
-                                    "X-Atmosphere-Transport", "webtransport"))
+                                    "X-Atmosphere-Transport", "streaming"))
                             .session(new org.atmosphere.util.FakeHttpSession(
                                     java.util.UUID.randomUUID().toString(), null,
                                     System.currentTimeMillis(), -1))
@@ -342,9 +351,12 @@ public class ReactorNettyTransportServer {
                         }
                     });
 
-                    framework.doCometSupport(atmosRequest, atmosResponse);
+                    logger.info("WebTransport bridge: servletPath={}, pathInfo={}, requestURI={}",
+                            servletPath, pathInfo, path);
+                    var action = framework.doCometSupport(atmosRequest, atmosResponse);
+                    logger.info("WebTransport doCometSupport action: {}", action);
                     atmosphereResource = (org.atmosphere.cpr.AtmosphereResource)
-                            atmosRequest.getAttribute("org.atmosphere.cpr.AtmosphereResource");
+                            atmosRequest.getAttribute(org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE);
                     logger.info("WebTransport bridged to Atmosphere: resource={}", atmosphereResource);
                 } catch (Exception e) {
                     logger.error("Failed to bridge WebTransport to Atmosphere", e);
@@ -363,9 +375,17 @@ public class ReactorNettyTransportServer {
 
                 // Dispatch message through Atmosphere as a POST request
                 try {
+                    var sPath = org.atmosphere.util.IOUtils.guestServletPath(
+                            framework.getAtmosphereConfig());
+                    var pInfo = path;
+                    if (!sPath.isEmpty() && path.startsWith(sPath)) {
+                        pInfo = path.substring(sPath.length());
+                    }
+                    if (pInfo.isEmpty()) pInfo = "/";
                     var msgRequest = new org.atmosphere.cpr.AtmosphereRequestImpl.Builder()
                             .requestURI(path)
-                            .pathInfo(path)
+                            .pathInfo(pInfo)
+                            .servletPath(sPath)
                             .method("POST")
                             .body(message)
                             .headers(java.util.Map.of(

@@ -15,15 +15,31 @@ interface AssistantMessage {
 
 type Message = UserMessage | AssistantMessage;
 
+async function fetchWebTransportInfo(): Promise<{port?: number; certificateHash?: string}> {
+  try {
+    const res = await fetch('/api/webtransport-info');
+    if (res.ok) return res.json();
+  } catch { /* WebTransport not enabled */ }
+  return {};
+}
+
 export function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
+  const [wtInfo, setWtInfo] = useState<{port?: number; certificateHash?: string}>({});
+  const [wtLoaded, setWtLoaded] = useState(false);
+
+  useEffect(() => {
+    fetchWebTransportInfo().then((info) => { setWtInfo(info); setWtLoaded(true); });
+  }, []);
 
   const request = useMemo(
     () => ({
       url: `${window.location.protocol}//${window.location.host}/atmosphere/ai-chat`,
-      transport: 'websocket' as const,
-      fallbackTransport: 'long-polling' as const,
+      transport: 'webtransport' as const,
+      fallbackTransport: 'websocket' as const,
+      ...(wtInfo.port ? { webTransportUrl: `https://${window.location.hostname}:${wtInfo.port}/atmosphere/ai-chat` } : {}),
+      ...(wtInfo.certificateHash ? { serverCertificateHashes: [wtInfo.certificateHash] } : {}),
       reconnect: true,
       maxReconnectOnClose: 10,
       reconnectInterval: 5000,
@@ -32,11 +48,11 @@ export function App() {
       contentType: 'application/json',
       authToken: 'demo-token',
     }),
-    [],
+    [wtInfo],
   );
 
   const { fullText, isStreaming, progress, metadata, stats, routing, error, send, reset } =
-    useStreaming({ request });
+    useStreaming({ request, enabled: wtLoaded });
 
   // When streaming text updates, update/append the assistant message
   useEffect(() => {
