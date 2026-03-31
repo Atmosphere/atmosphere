@@ -41,12 +41,10 @@ import java.util.List;
 public class MemoryStrategyTestHandler implements AtmosphereHandler {
 
     private final InMemoryConversationMemory memory;
-    private final MemoryStrategy strategy;
     private final AgentRuntime echoingRuntime;
 
     public MemoryStrategyTestHandler(MemoryStrategy strategy) {
         this.memory = new InMemoryConversationMemory(100);
-        this.strategy = strategy;
         this.echoingRuntime = new StrategyEchoingRuntime(strategy);
     }
 

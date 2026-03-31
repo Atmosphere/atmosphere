@@ -35,46 +35,8 @@ import java.util.List;
  */
 public class CostLatencyRoutingTestHandler implements AtmosphereHandler {
 
-    private final RoutingLlmClient costRouter;
-    private final RoutingLlmClient latencyRouter;
-
     public CostLatencyRoutingTestHandler() {
-        var cheapClient = FakeLlmClient.withTexts("cheap-model",
-                "CHEAP:", " budget", " response.");
-        var midClient = FakeLlmClient.withTexts("mid-model",
-                "MID:", " balanced", " response.");
-        var premiumClient = FakeLlmClient.withTexts("premium-model",
-                "PREMIUM:", " high-quality", " response.");
-        var defaultClient = FakeLlmClient.withTexts("default-model",
-                "DEFAULT:", " fallback", " response.");
-
-        // Cost-based routing: models with different cost profiles
-        costRouter = RoutingLlmClient.builder(defaultClient, "default-model")
-                .route(RoutingRule.costBased(Double.MAX_VALUE, List.of(
-                        // costPerStreamingText=0.01, capability=10 (best)
-                        new ModelOption(premiumClient, "premium-model", 0.01, 200, 10),
-                        // costPerStreamingText=0.005, capability=7
-                        new ModelOption(midClient, "mid-model", 0.005, 100, 7),
-                        // costPerStreamingText=0.001, capability=3 (cheapest)
-                        new ModelOption(cheapClient, "cheap-model", 0.001, 50, 3)
-                )))
-                .build();
-
-        // Latency-based routing: models with different latency profiles
-        var fastClient = FakeLlmClient.withTexts("fast-model",
-                "FAST:", " quick", " response.");
-        var mediumClient = FakeLlmClient.withTexts("medium-model",
-                "MEDIUM:", " moderate", " response.");
-        var slowClient = FakeLlmClient.withTexts("slow-model",
-                "SLOW:", " thorough", " response.");
-
-        latencyRouter = RoutingLlmClient.builder(defaultClient, "default-model")
-                .route(RoutingRule.latencyBased(Long.MAX_VALUE, List.of(
-                        new ModelOption(slowClient, "slow-model", 0.001, 500, 10),
-                        new ModelOption(mediumClient, "medium-model", 0.005, 150, 7),
-                        new ModelOption(fastClient, "fast-model", 0.01, 30, 3)
-                )))
-                .build();
+        // Routers are created per-request in routeRequest() with specific budgets/latencies
     }
 
     @Override
@@ -87,14 +49,13 @@ public class CostLatencyRoutingTestHandler implements AtmosphereHandler {
             var trimmed = prompt.trim();
             Thread.ofVirtual().name("cost-routing-handler").start(() -> {
                 var session = StreamingSessions.start(resource);
-                routeRequest(trimmed, session, resource);
+                routeRequest(trimmed, session);
             });
         }
     }
 
     private void routeRequest(String prompt,
-                              org.atmosphere.ai.StreamingSession session,
-                              AtmosphereResource resource) {
+                              org.atmosphere.ai.StreamingSession session) {
         if (prompt.startsWith("cost:")) {
             // Format: "cost:<budget> <text>"
             var rest = prompt.substring(5);
