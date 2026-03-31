@@ -81,7 +81,7 @@ What this registers depends on which modules are on the classpath:
 
 **[Multi-Agent Orchestration](https://atmosphere.github.io/docs/agents/coordinator/)** — `@Coordinator` manages a fleet of agents with parallel fan-out, sequential pipelines, conditional routing, coordination journal, and result evaluation. Test with `StubAgentFleet` — no infrastructure needed.
 
-**[Agent Handoffs & Approval Gates](https://atmosphere.github.io/docs/reference/ai/)** — Transfer conversations between agents with `session.handoff()`. Pause tool execution with `@RequiresApproval` — the virtual thread parks cheaply until the client approves or denies.
+**[Agent Handoffs & Human-in-the-Loop](https://atmosphere.github.io/docs/reference/ai/)** — Transfer conversations between agents with `session.handoff()`. Pause tool execution with `@RequiresApproval` for human-in-the-loop approval — the virtual thread parks cheaply until the client approves or denies.
 
 **[6 AI Runtimes](https://atmosphere.github.io/docs/reference/ai/)** — Built-in, LangChain4j, Spring AI, Google ADK, Embabel, JetBrains Koog. Switch backends by changing one Maven dependency. All share tool calling, structured output, conversation memory, and usage tracking.
 
