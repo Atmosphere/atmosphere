@@ -35,6 +35,7 @@ import io.netty.handler.codec.http3.Http3ServerConnectionHandler;
 import io.netty.handler.codec.http3.Http3Settings;
 import io.netty.handler.codec.quic.QuicSslContext;
 import io.netty.handler.codec.quic.QuicSslContextBuilder;
+import io.netty.handler.codec.quic.QuicStreamChannel;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.spring.boot.AtmosphereProperties.WebTransportProperties;
@@ -91,6 +92,8 @@ public class ReactorNettyTransportServer {
             // HTTP/3 settings with ENABLE_CONNECT_PROTOCOL for WebTransport (RFC 9220)
             var settings = new Http3Settings().enableConnectProtocol(true);
             var settingsFrame = new DefaultHttp3SettingsFrame(settings);
+            logger.info("HTTP/3 SETTINGS frame: {}", settingsFrame);
+            logger.info("CONNECT protocol enabled: {}", settings.connectProtocolEnabled());
 
             var codec = Http3.newQuicServerCodecBuilder()
                     .sslContext(sslContext)
@@ -99,12 +102,30 @@ public class ReactorNettyTransportServer {
                     .initialMaxStreamDataBidirectionalLocal(1_000_000)
                     .initialMaxStreamDataBidirectionalRemote(1_000_000)
                     .initialMaxStreamsBidirectional(100)
+                    .initialMaxStreamDataUnidirectional(1_000_000)
+                    .initialMaxStreamsUnidirectional(16)
+                    .tokenHandler(io.netty.handler.codec.quic.InsecureQuicTokenHandler.INSTANCE)
                     .handler(new ChannelInitializer<>() {
                         @Override
                         protected void initChannel(Channel ch) {
-                            ch.pipeline().addLast(new Http3ServerConnectionHandler(
-                                    new AtmosphereHttp3Handler(framework),
-                                    null, null, settingsFrame, true));
+                            logger.info("QUIC connection established: {}", ch);
+                            try {
+                                var connHandler = new Http3ServerConnectionHandler(
+                                        new ChannelInitializer<QuicStreamChannel>() {
+                                            @Override
+                                            protected void initChannel(QuicStreamChannel streamCh) {
+                                                logger.info("HTTP/3 request stream opened: {}", streamCh);
+                                                streamCh.pipeline().addLast(
+                                                        new AtmosphereHttp3Handler(framework));
+                                            }
+                                        },
+                                        null, null, settingsFrame, true);
+                                ch.pipeline().addLast(connHandler);
+                                logger.info("Http3ServerConnectionHandler installed, pipeline: {}",
+                                        ch.pipeline().names());
+                            } catch (Exception e) {
+                                logger.error("Failed to install Http3ServerConnectionHandler", e);
+                            }
                         }
                     })
                     .build();
@@ -213,6 +234,12 @@ public class ReactorNettyTransportServer {
 
         AtmosphereHttp3Handler(AtmosphereFramework framework) {
             this.framework = framework;
+        }
+
+        @Override
+        public void channelActive(ChannelHandlerContext ctx) throws Exception {
+            logger.info("HTTP/3 stream active: {}", ctx.channel());
+            super.channelActive(ctx);
         }
 
         @Override
