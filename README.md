@@ -118,7 +118,7 @@ function Chat() {
 }
 ```
 
-React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svelte), and [React Native](atmosphere.js/README.md#react-native) bindings available.
+React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svelte), and [React Native](atmosphere.js/README.md#react-native) bindings available. For Java/Kotlin clients, see [wAsync](https://github.com/Atmosphere/wasync) — async WebSocket, SSE, long-polling, and gRPC client.
 
 ## Samples
 
