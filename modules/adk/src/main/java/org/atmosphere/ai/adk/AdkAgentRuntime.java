@@ -243,7 +243,8 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 AiCapability.STRUCTURED_OUTPUT,
                 AiCapability.AGENT_ORCHESTRATION,
                 AiCapability.CONVERSATION_MEMORY,
-                AiCapability.SYSTEM_PROMPT
+                AiCapability.SYSTEM_PROMPT,
+                AiCapability.TOOL_APPROVAL
         );
     }
 }

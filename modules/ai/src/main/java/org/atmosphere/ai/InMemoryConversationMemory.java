@@ -34,16 +34,22 @@ public class InMemoryConversationMemory implements AiConversationMemory {
     private final ConcurrentMap<String, List<ChatMessage>> store = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, ReentrantLock> locks = new ConcurrentHashMap<>();
     private final int maxMessages;
+    private final AiCompactionStrategy compactionStrategy;
 
     public InMemoryConversationMemory() {
         this(20);
     }
 
     public InMemoryConversationMemory(int maxMessages) {
+        this(maxMessages, new SlidingWindowCompaction());
+    }
+
+    public InMemoryConversationMemory(int maxMessages, AiCompactionStrategy compactionStrategy) {
         if (maxMessages < 2) {
             throw new IllegalArgumentException("maxMessages must be >= 2, got " + maxMessages);
         }
         this.maxMessages = maxMessages;
+        this.compactionStrategy = compactionStrategy;
     }
 
     @Override
@@ -71,19 +77,10 @@ public class InMemoryConversationMemory implements AiConversationMemory {
         lock.lock();
         try {
             messages.add(message);
-            // Evict oldest non-system messages when over limit
-            while (messages.size() > maxMessages) {
-                int oldestNonSystem = -1;
-                for (int i = 0; i < messages.size(); i++) {
-                    if (!"system".equals(messages.get(i).role())) {
-                        oldestNonSystem = i;
-                        break;
-                    }
-                }
-                if (oldestNonSystem < 0) {
-                    break; // All remaining messages are system — cannot evict further
-                }
-                messages.remove(oldestNonSystem);
+            if (messages.size() > maxMessages) {
+                var compacted = compactionStrategy.compact(messages, maxMessages);
+                messages.clear();
+                messages.addAll(compacted);
             }
         } finally {
             lock.unlock();

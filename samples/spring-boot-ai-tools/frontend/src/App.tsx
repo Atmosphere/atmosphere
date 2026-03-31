@@ -29,7 +29,7 @@ interface ToolEvent {
   data: Record<string, unknown>;
 }
 
-function ToolActivity({ events }: { events: ToolEvent[] }) {
+function ToolActivity({ events, onApproval }: { events: ToolEvent[]; onApproval?: (id: string, approved: boolean) => void }) {
   if (events.length === 0) return null;
   return createElement('div', {
     'data-testid': 'tool-activity',
@@ -44,11 +44,45 @@ function ToolActivity({ events }: { events: ToolEvent[] }) {
       color: '#ccc',
     },
   }, events.map((ev, i) =>
-    createElement('div', { key: i, style: { marginBottom: 2 } },
+    createElement('div', { key: i, style: { marginBottom: 4 } },
       ev.event === 'tool-start'
         ? `\u{1F527} Calling ${ev.data.toolName}(${JSON.stringify(ev.data.arguments ?? {})})`
         : ev.event === 'tool-result'
         ? `\u2705 ${ev.data.toolName} returned`
+        : ev.event === 'approval-required'
+        ? createElement('div', {
+            'data-testid': 'approval-prompt',
+            style: {
+              background: 'rgba(255,193,7,0.15)',
+              border: '1px solid rgba(255,193,7,0.4)',
+              borderRadius: 8,
+              padding: '8px 12px',
+              marginTop: 4,
+            },
+          }, [
+            createElement('div', { key: 'msg', style: { marginBottom: 6, color: '#ffc107' } },
+              `\u26A0\uFE0F ${ev.data.message || 'Approval required for ' + ev.data.toolName}`),
+            createElement('div', { key: 'btns', style: { display: 'flex', gap: 8 } }, [
+              createElement('button', {
+                key: 'approve',
+                'data-testid': 'approve-btn',
+                onClick: () => onApproval?.(String(ev.data.approvalId), true),
+                style: {
+                  background: '#4caf50', color: '#fff', border: 'none',
+                  borderRadius: 6, padding: '4px 16px', cursor: 'pointer',
+                },
+              }, 'Approve'),
+              createElement('button', {
+                key: 'deny',
+                'data-testid': 'deny-btn',
+                onClick: () => onApproval?.(String(ev.data.approvalId), false),
+                style: {
+                  background: '#f44336', color: '#fff', border: 'none',
+                  borderRadius: 6, padding: '4px 16px', cursor: 'pointer',
+                },
+              }, 'Deny'),
+            ]),
+          ])
         : `${ev.event}: ${JSON.stringify(ev.data)}`,
     ),
   ));
@@ -84,7 +118,7 @@ export function App() {
 
   const request = useMemo(
     () => ({
-      url: `${window.location.protocol}//${window.location.host}/atmosphere/langchain4j-tools/lobby`,
+      url: `${window.location.protocol}//${window.location.host}/atmosphere/ai-chat`,
       transport: 'websocket' as const,
       fallbackTransport: 'long-polling' as const,
       reconnect: true,
@@ -134,6 +168,11 @@ export function App() {
     setMessages((prev) => [...prev, { role: 'user', text }]);
     reset();
     send(text);
+  };
+
+  const handleApproval = (approvalId: string, approved: boolean) => {
+    const action = approved ? 'approve' : 'deny';
+    send(`/__approval/${approvalId}/${action}`);
   };
 
   const modelBadge = metadata.model
@@ -191,7 +230,7 @@ export function App() {
                   : null,
               ]),
         )}
-        {aiEvents.length > 0 && createElement(ToolActivity, { events: aiEvents })}
+        {aiEvents.length > 0 && createElement(ToolActivity, { events: aiEvents, onApproval: handleApproval })}
         {progress && createElement(StreamingProgress, { message: progress })}
         {error && createElement(StreamingError, { message: error })}
         <div ref={endRef} />

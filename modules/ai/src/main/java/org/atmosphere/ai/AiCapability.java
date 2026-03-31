@@ -59,5 +59,8 @@ public enum AiCapability {
     SYSTEM_PROMPT,
 
     /** Adapter supports agent/multi-step orchestration (e.g., Embabel, ADK). */
-    AGENT_ORCHESTRATION
+    AGENT_ORCHESTRATION,
+
+    /** Adapter supports human-in-the-loop tool approval (e.g., ADK ToolConfirmation). */
+    TOOL_APPROVAL
 }

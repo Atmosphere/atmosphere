@@ -53,4 +53,19 @@ public interface AiInterceptor {
      */
     default void postProcess(AiRequest request, AtmosphereResource resource) {
     }
+
+    /**
+     * Called when a client disconnects, BEFORE conversation memory is cleared.
+     * Interceptors can use this to extract facts, persist summaries, or perform
+     * other cleanup that requires access to the conversation history.
+     *
+     * <p>Called in FIFO order (declaration order).</p>
+     *
+     * @param userId         the user identifier (may be null)
+     * @param conversationId the conversation identifier (resource UUID)
+     * @param history        the conversation history (unmodifiable, may be empty)
+     */
+    default void onDisconnect(String userId, String conversationId,
+                              java.util.List<org.atmosphere.ai.llm.ChatMessage> history) {
+    }
 }

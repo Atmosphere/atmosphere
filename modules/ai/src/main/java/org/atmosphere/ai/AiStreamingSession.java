@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A {@link StreamingSession} wrapper that adds {@link #stream(String)} support.
@@ -51,6 +52,15 @@ import java.util.Map;
 public class AiStreamingSession implements StreamingSession {
 
     private static final Logger logger = LoggerFactory.getLogger(AiStreamingSession.class);
+
+    /**
+     * Active sessions keyed by {@link AtmosphereResource#uuid()}.
+     * Used by {@link org.atmosphere.ai.processor.AiEndpointHandler} to route
+     * approval responses ({@code /__approval/...}) to the session whose virtual
+     * thread is parked waiting for the approval outcome.
+     */
+    private static final ConcurrentHashMap<String, AiStreamingSession> ACTIVE_SESSIONS =
+            new ConcurrentHashMap<>();
 
     /**
      * Request attribute key under which the active {@link StreamingSession} is stored,
@@ -148,6 +158,41 @@ public class AiStreamingSession implements StreamingSession {
         this.contextProviders = contextProviders != null ? contextProviders : List.of();
         this.metrics = metrics != null ? metrics : AiMetrics.NOOP;
         this.responseType = responseType;
+    }
+
+    /**
+     * Register a session as the active session for its resource. Called by the
+     * handler after construction so approval responses can be routed to it.
+     *
+     * @param session the session to register
+     */
+    public static void registerActive(AiStreamingSession session) {
+        var uuid = session.resource.uuid();
+        if (uuid != null) {
+            ACTIVE_SESSIONS.put(uuid, session);
+        }
+    }
+
+    /**
+     * Look up the active session for a given resource. Used by the handler
+     * to route approval responses to the session whose VT is parked.
+     *
+     * @param resourceUuid the atmosphere resource UUID
+     * @return the active session, or {@code null} if none
+     */
+    public static AiStreamingSession activeSession(String resourceUuid) {
+        return resourceUuid != null ? ACTIVE_SESSIONS.get(resourceUuid) : null;
+    }
+
+    /**
+     * Remove the active session for a disconnecting or completed resource.
+     *
+     * @param resourceUuid the atmosphere resource UUID (may be null)
+     */
+    public static void removeActiveSession(String resourceUuid) {
+        if (resourceUuid != null) {
+            ACTIVE_SESSIONS.remove(resourceUuid);
+        }
     }
 
     /** Sets a hook to fire once at the start of the first {@code stream()} call. */
@@ -421,16 +466,19 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void complete() {
+        removeActiveSession(resource.uuid());
         delegate.complete();
     }
 
     @Override
     public void complete(String summary) {
+        removeActiveSession(resource.uuid());
         delegate.complete(summary);
     }
 
     @Override
     public void error(Throwable t) {
+        removeActiveSession(resource.uuid());
         delegate.error(t);
     }
 

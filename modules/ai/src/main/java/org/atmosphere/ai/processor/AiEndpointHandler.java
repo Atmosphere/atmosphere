@@ -28,6 +28,7 @@ import org.atmosphere.ai.PostPromptHook;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.ai.TracingCapturingSession;
+import org.atmosphere.ai.approval.ApprovalRegistry;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
@@ -275,22 +276,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var resource = event.getResource();
 
         if (event.isClosedByClient() || event.isClosedByApplication()) {
-            if (memory != null) {
-                memory.clear(resource.uuid());
-            }
-            DefaultStreamingSession.cleanupResource(resource);
-            lifecycle.onDisconnect(target, event);
-            logger.info("Client {} disconnected from AI endpoint", resource.uuid());
+            handleDisconnect(resource, event, "Client {} disconnected from AI endpoint");
             return;
         }
 
         if (event.isCancelled()) {
-            if (memory != null) {
-                memory.clear(resource.uuid());
-            }
-            DefaultStreamingSession.cleanupResource(resource);
-            lifecycle.onDisconnect(target, event);
-            logger.info("Client {} unexpectedly disconnected from AI endpoint", resource.uuid());
+            handleDisconnect(resource, event, "Client {} unexpectedly disconnected from AI endpoint");
             return;
         }
 
@@ -323,6 +314,19 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // Plain String = user prompt (broadcast from onRequest POST handler).
         // Dispatch to the @Prompt method on a virtual thread.
         var userMessage = message.toString();
+
+        // Fast-path: route approval responses to the existing session's registry
+        // instead of creating a new session and dispatching to @Prompt.
+        if (ApprovalRegistry.isApprovalMessage(userMessage)) {
+            var existingSession = AiStreamingSession.activeSession(resource.uuid());
+            if (existingSession != null && existingSession.tryResolveApproval(userMessage)) {
+                logger.debug("Approval response routed for resource {}", resource.uuid());
+                return;
+            }
+            logger.warn("Approval message with no pending approval for resource {}", resource.uuid());
+            return;
+        }
+
         logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
 
         var delegate = StreamingSessions.start(resource);
@@ -341,6 +345,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var session = new AiStreamingSession(traced, runtime,
                 systemPrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, metrics, responseType);
+        AiStreamingSession.registerActive(session);
 
         // Set pre-stream hook so journal cards emit before LLM starts
         if (injectables.get(PostPromptHook.class) instanceof PostPromptHook hook) {
@@ -380,6 +385,42 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     Thread.currentThread().interrupt();
                 }
             });
+        }
+    }
+
+    private void handleDisconnect(AtmosphereResource resource, AtmosphereResourceEvent event,
+                                   String logMessage) {
+        notifyInterceptorsOnDisconnect(resource);
+        if (memory != null) {
+            memory.clear(resource.uuid());
+        }
+        DefaultStreamingSession.cleanupResource(resource);
+        AiStreamingSession.removeActiveSession(resource.uuid());
+        lifecycle.onDisconnect(target, event);
+        logger.info(logMessage, resource.uuid());
+    }
+
+    /**
+     * Notify interceptors of disconnect BEFORE memory is cleared so they can
+     * extract facts from conversation history.
+     */
+    private void notifyInterceptorsOnDisconnect(AtmosphereResource resource) {
+        if (interceptors.isEmpty()) {
+            return;
+        }
+        var history = memory != null
+                ? memory.getHistory(resource.uuid())
+                : List.<org.atmosphere.ai.llm.ChatMessage>of();
+        var userId = resource.getRequest().getAttribute("ai.userId");
+        var userIdStr = userId != null ? userId.toString() : null;
+        var conversationId = resource.uuid();
+        for (var interceptor : interceptors) {
+            try {
+                interceptor.onDisconnect(userIdStr, conversationId, history);
+            } catch (Exception e) {
+                logger.error("AiInterceptor.onDisconnect failed: {}",
+                        interceptor.getClass().getName(), e);
+            }
         }
     }
 

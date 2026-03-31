@@ -17,6 +17,7 @@ package org.atmosphere.samples.springboot.aitools;
 
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;
+import org.atmosphere.ai.annotation.RequiresApproval;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -80,6 +81,15 @@ public class AssistantTools {
             case "los angeles", "la" -> "Los Angeles: Sunny, 30°C / 86°F, 30% humidity";
             default -> city + ": Clear, 22°C / 72°F, 50% humidity";
         };
+    }
+
+    @AiTool(name = "reset_city_data",
+            description = "Reset all cached weather and time data for a city. This is a destructive operation.")
+    @RequiresApproval("This will reset all cached data for the city. Are you sure?")
+    public String resetCityData(
+            @Param(value = "city", description = "City name to reset data for")
+            String city) {
+        return "All cached data for " + city + " has been reset successfully.";
     }
 
     @AiTool(name = "convert_temperature",

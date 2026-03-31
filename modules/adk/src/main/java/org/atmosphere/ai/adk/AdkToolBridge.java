@@ -102,6 +102,19 @@ public final class AdkToolBridge {
         public Single<Map<String, Object>> runAsync(
                 Map<String, Object> args, ToolContext toolContext) {
             try {
+                // Bridge ADK's native ToolConfirmation for @RequiresApproval tools.
+                // If ADK already resolved a confirmation (re-entrant call) and it was
+                // denied, short-circuit without calling the executor.
+                if (atmosphereTool.requiresApproval() && toolContext != null) {
+                    var confirmation = toolContext.toolConfirmation();
+                    if (confirmation.isPresent() && !confirmation.get().confirmed()) {
+                        logger.info("Tool {} denied via ADK ToolConfirmation", name());
+                        return Single.just(Map.of(
+                                "status", "cancelled",
+                                "message", "Action denied via ADK confirmation"));
+                    }
+                }
+
                 var result = atmosphereTool.executor().execute(args != null ? args : Map.of());
                 logger.debug("Tool {} executed: {}", name(), result);
 

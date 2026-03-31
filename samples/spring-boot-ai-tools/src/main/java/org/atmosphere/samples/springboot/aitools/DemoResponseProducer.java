@@ -46,6 +46,18 @@ public final class DemoResponseProducer {
                 var toolArgs = buildToolArgs(toolName, userMessage);
                 session.emit(new AiEvent.ToolStart(toolName, toolArgs));
                 Thread.sleep(100);
+
+                // Simulate approval gate for reset_city_data
+                if ("reset_city_data".equals(toolName)) {
+                    session.emit(new AiEvent.ApprovalRequired(
+                            "apr_demo_" + System.currentTimeMillis(),
+                            toolName, toolArgs,
+                            "This will reset all cached data for the city. Are you sure?",
+                            60));
+                    // In demo mode, auto-approve after a short delay
+                    Thread.sleep(2000);
+                }
+
                 session.emit(new AiEvent.ToolResult(toolName, Map.of("status", "success")));
             }
 
@@ -85,6 +97,10 @@ public final class DemoResponseProducer {
         if (lower.contains("convert") && lower.contains("temperature")
                 || lower.contains("celsius") || lower.contains("fahrenheit")) {
             return simulateToolCall("convert_temperature", "100 C");
+        }
+        if (lower.contains("reset")) {
+            var city = extractCity(lower);
+            return simulateToolCall("reset_city_data", city != null ? city : "unknown");
         }
         if (lower.contains("hello") || lower.contains("hi")) {
             return "Hello! I'm an Atmosphere-powered assistant with framework-agnostic tools. "
@@ -139,6 +155,9 @@ public final class DemoResponseProducer {
             case "convert_temperature" ->
                     "[Tool: convert_temperature] 100.0°C = 212.0°F. "
                         + "This tool was registered with @AiTool and runs on any backend.";
+            case "reset_city_data" ->
+                    "[Tool: reset_city_data] All cached data for " + arg + " has been reset. "
+                        + "This tool uses @RequiresApproval — the user must approve before execution.";
             default -> "Unknown tool: " + toolName;
         };
     }
@@ -183,6 +202,7 @@ public final class DemoResponseProducer {
 
     private static String detectTool(String userMessage) {
         var lower = userMessage.toLowerCase();
+        if (lower.contains("reset")) return "reset_city_data";
         if (lower.contains("time") && containsCity(lower)) return "get_city_time";
         if (lower.contains("time")) return "get_current_time";
         if (lower.contains("weather")) return "get_weather";
@@ -203,6 +223,10 @@ public final class DemoResponseProducer {
                 yield Map.of("city", (Object) (city != null ? city : "New York"));
             }
             case "convert_temperature" -> Map.of("value", (Object) "100", "fromUnit", "C");
+            case "reset_city_data" -> {
+                var city = extractCity(lower);
+                yield Map.of("city", (Object) (city != null ? city : "unknown"));
+            }
             default -> Map.of();
         };
     }
