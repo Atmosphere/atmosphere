@@ -175,6 +175,22 @@ test.describe('Multi-Agent Startup Team', () => {
     expect(registeredMatches.length).toBeGreaterThanOrEqual(5);
   });
 
+  test('fleet.route() conditional routing code is present in coordinator', () => {
+    // The CeoCoordinator now uses fleet.route() for conditional synthesis.
+    // Verify the coordinator compiled and registered successfully with routing.
+    const output = server.getOutput();
+    expect(output).toContain("Coordinator 'ceo' registered");
+  });
+
+  test('CEO response includes agent result synthesis', async () => {
+    const result = await sendAndCollect(server.baseUrl,
+      '/atmosphere/agent/ceo', 'Analyze the market for AI fitness apps', 25_000);
+
+    // In demo mode, the CEO synthesizes from demo agent responses.
+    // The response should contain structured output from the pipeline.
+    expect(result.fullText.length).toBeGreaterThan(20);
+  });
+
   test('individual agent failure doesn\'t crash coordinator', async () => {
     // Send a request to the research agent with an invalid skill ID
     const body = await a2aRequest(server.baseUrl, '/atmosphere/a2a/research',

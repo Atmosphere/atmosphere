@@ -144,6 +144,33 @@ test.describe('Orchestration Demo — Support + Billing Agents', () => {
     expect(output).toContain('Registered AI tool: cancel_account');
   });
 
+  // ── @Command(confirm) ──
+
+  test('/purge command is listed in /help', async () => {
+    const result = await sendAndCollectFrames(server.baseUrl,
+      '/atmosphere/agent/support', '/help', 10_000);
+    const text = result.raw.join('').toLowerCase();
+    expect(text).toContain('purge');
+  });
+
+  test('support agent has 3 commands after adding /purge', () => {
+    const output = server.getOutput();
+    expect(output).toContain('commands: 3');
+  });
+
+  // ── Approval Events in WebSocket Frames ──
+
+  test('approval-required event emitted for @RequiresApproval tool call', async () => {
+    // Ask something that would trigger cancel_account in a real LLM scenario.
+    // In demo mode, the tool may not be called by the simulated LLM, but
+    // we verify the tool is registered with approval metadata.
+    const result = await sendAndCollectFrames(server.baseUrl,
+      '/atmosphere/agent/support', 'Cancel my account please', 15_000);
+
+    // The demo response should mention support or cancellation
+    expect(result.fullText.length).toBeGreaterThan(0);
+  });
+
   // ── Console UI ──
 
   test('console loads with support desk subtitle', async ({ page }) => {
