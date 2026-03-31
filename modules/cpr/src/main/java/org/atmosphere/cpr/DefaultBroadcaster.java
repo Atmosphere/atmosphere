@@ -511,7 +511,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 // Shield us from https://github.com/Atmosphere/atmosphere/issues/1187
-                if (token != null) {
+                if (token != null && token.resource != null) {
                     ReentrantLock rLock = resourceLocks.computeIfAbsent(token.resource, k -> new ReentrantLock());
                     rLock.lock();
                     try {
@@ -891,7 +891,10 @@ public class DefaultBroadcaster implements Broadcaster {
         boolean notifyListeners = true;
         boolean lostCandidate = false;
 
-        if (token.resource == null) throw new NullPointerException();
+        if (token.resource == null) {
+            logger.trace("AsyncWriteToken has null resource — token already destroyed. Skipping write.");
+            return;
+        }
 
         final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) token.resource.getAtmosphereResourceEvent();
         final AtmosphereResourceImpl r = (AtmosphereResourceImpl) token.resource;
@@ -1554,7 +1557,16 @@ public class DefaultBroadcaster implements Broadcaster {
         if (!removed) return this;
 
         logger.trace("Removing AtmosphereResource {} for Broadcaster {}", r.uuid(), name);
-        writeQueues.remove(r.uuid());
+
+        // Drain any pending tokens before removing the queue to prevent orphaned message accumulation
+        WriteQueue removedQueue = writeQueues.remove(r.uuid());
+        if (removedQueue != null) {
+            var drained = new ArrayList<AsyncWriteToken>();
+            removedQueue.queue.drainTo(drained);
+            if (!drained.isEmpty()) {
+                logger.trace("Drained {} pending write tokens for removed AtmosphereResource {}", drained.size(), r.uuid());
+            }
+        }
         resourceLocks.remove(r);
 
         // Here we need to make sure we aren't in the process of broadcasting and unlock the Future.
@@ -1599,9 +1611,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
         final var future = new BroadcasterFuture<>(msg);
         final var e = new Deliver(msg, future, o);
-        Future<Object> f;
         if (delay > 0) {
-            f = bc.getScheduledExecutorService().schedule(() -> {
+            bc.getScheduledExecutorService().schedule(() -> {
                 delayedBroadcast.remove(e);
                 if (o instanceof Callable<?> c) {
                     try {
@@ -1622,8 +1633,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 push(e12);
                 return msg1;
             }, delay, t);
-
-            e.future = new BroadcasterFuture<>(f, msg);
         }
         delayedBroadcast.offer(e);
         return future;
