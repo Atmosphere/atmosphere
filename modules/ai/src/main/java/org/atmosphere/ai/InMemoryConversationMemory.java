@@ -81,6 +81,20 @@ public class InMemoryConversationMemory implements AiConversationMemory {
                 var compacted = compactionStrategy.compact(messages, maxMessages);
                 messages.clear();
                 messages.addAll(compacted);
+                // Defense-in-depth: if the strategy still exceeded the cap, drop oldest non-system
+                while (messages.size() > maxMessages) {
+                    int oldest = -1;
+                    for (int i = 0; i < messages.size(); i++) {
+                        if (!"system".equals(messages.get(i).role())) {
+                            oldest = i;
+                            break;
+                        }
+                    }
+                    if (oldest < 0) {
+                        break;
+                    }
+                    messages.remove(oldest);
+                }
             }
         } finally {
             lock.unlock();

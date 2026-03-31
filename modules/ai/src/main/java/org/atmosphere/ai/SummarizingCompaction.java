@@ -51,10 +51,26 @@ public class SummarizingCompaction implements AiCompactionStrategy {
                 nonSystem.add(msg);
             }
         }
-        if (nonSystem.size() <= recentWindowSize) {
-            return new ArrayList<>(messages);
+        // Budget for recent messages: maxMessages minus system messages minus 1 for the summary
+        int recentBudget = maxMessages - systemMessages.size() - 1;
+        int effectiveWindow = Math.min(recentWindowSize, Math.max(recentBudget, 0));
+
+        if (nonSystem.size() <= effectiveWindow) {
+            // Already within budget (system + non-system + summary won't exceed max)
+            if (messages.size() <= maxMessages) {
+                return new ArrayList<>(messages);
+            }
+            effectiveWindow = Math.max(recentBudget, 0);
         }
-        var splitPoint = nonSystem.size() - recentWindowSize;
+        if (effectiveWindow <= 0 || nonSystem.isEmpty()) {
+            // No room for recent messages; keep system messages only, within cap
+            var result = new ArrayList<>(systemMessages);
+            while (result.size() > maxMessages) {
+                result.removeLast();
+            }
+            return result;
+        }
+        var splitPoint = nonSystem.size() - effectiveWindow;
         var oldMessages = nonSystem.subList(0, splitPoint);
         var recentMessages = nonSystem.subList(splitPoint, nonSystem.size());
 

@@ -187,4 +187,44 @@ class CompactionStrategyTest {
     void summarizingCompactionName() {
         assertEquals("summarizing", new SummarizingCompaction().name());
     }
+
+    @Test
+    void summarizingCompactionRespectsMaxMessages() {
+        // Regression: recentWindowSize=6 (default) with maxMessages=4
+        // used to return 5+ messages, exceeding the cap
+        var strategy = new SummarizingCompaction();  // recentWindowSize=6
+        var messages = new ArrayList<>(List.of(
+                ChatMessage.system("sys"),
+                ChatMessage.user("m1"),
+                ChatMessage.assistant("r1"),
+                ChatMessage.user("m2"),
+                ChatMessage.assistant("r2"),
+                ChatMessage.user("m3"),
+                ChatMessage.assistant("r3"),
+                ChatMessage.user("m4")
+        ));
+
+        var compacted = strategy.compact(messages, 4);
+
+        assertTrue(compacted.size() <= 4,
+                "compact() must respect maxMessages, got " + compacted.size());
+        assertEquals("system", compacted.get(0).role());
+    }
+
+    @Test
+    void summarizingCompactionMemoryCapEnforced() {
+        // Exact scenario from the bug report: maxMessages=4, history-size was 5
+        var strategy = new SummarizingCompaction(2);
+        var memory = new InMemoryConversationMemory(4, strategy);
+
+        memory.addMessage("c1", ChatMessage.system("sys"));
+        memory.addMessage("c1", ChatMessage.user("m1"));
+        memory.addMessage("c1", ChatMessage.assistant("r1"));
+        memory.addMessage("c1", ChatMessage.user("m2"));
+        memory.addMessage("c1", ChatMessage.assistant("r2"));
+
+        var history = memory.getHistory("c1");
+        assertTrue(history.size() <= 4,
+                "memory cap must be enforced, got " + history.size());
+    }
 }
