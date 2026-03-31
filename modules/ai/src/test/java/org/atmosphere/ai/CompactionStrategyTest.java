@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CompactionStrategyTest {
@@ -144,6 +145,37 @@ class CompactionStrategyTest {
         // System + summary + 2 recent messages
         assertTrue(history.stream().anyMatch(m ->
                 m.content() != null && m.content().contains("[Conversation summary")));
+    }
+
+    @Test
+    void compactionDoesNotReturnSameListReference() {
+        // Regression: if compact() returns the same List reference as the input,
+        // InMemoryConversationMemory.addMessage() does clear()+addAll() on it,
+        // wiping the history to size 0.
+        var sliding = new SlidingWindowCompaction();
+        var messages = new ArrayList<>(List.of(ChatMessage.user("msg1")));
+        var compacted = sliding.compact(messages, 10);
+        assertTrue(compacted != messages, "SlidingWindowCompaction must not return same reference");
+
+        var summarizing = new SummarizingCompaction(6);
+        var compacted2 = summarizing.compact(messages, 10);
+        assertTrue(compacted2 != messages, "SummarizingCompaction must not return same reference");
+    }
+
+    @Test
+    void compactionClearAddAllDoesNotWipeHistory() {
+        // Regression: simulate InMemoryConversationMemory's clear+addAll pattern
+        var strategy = new SummarizingCompaction(2);
+        var memory = new InMemoryConversationMemory(3, strategy);
+
+        memory.addMessage("conv1", ChatMessage.user("m1"));
+        memory.addMessage("conv1", ChatMessage.assistant("r1"));
+        memory.addMessage("conv1", ChatMessage.user("m2"));
+        // This 4th message triggers compaction
+        memory.addMessage("conv1", ChatMessage.assistant("r2"));
+
+        var history = memory.getHistory("conv1");
+        assertFalse(history.isEmpty(), "History must not be wiped by compaction");
     }
 
     @Test

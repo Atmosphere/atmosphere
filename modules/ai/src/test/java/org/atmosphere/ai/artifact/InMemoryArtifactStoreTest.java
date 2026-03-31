@@ -161,4 +161,40 @@ class InMemoryArtifactStoreTest {
         var a = new Artifact("id", "ns", "f", "t/p", "hello".getBytes(), 1, Map.of(), Instant.now());
         assertEquals(5, a.size());
     }
+
+    @Test
+    void artifactBytesDefensivelyCopiedOnConstruction() {
+        var original = "secret".getBytes();
+        var a = new Artifact("id", "ns", "f", "t/p", original, 1, Map.of(), Instant.now());
+
+        // Mutating the original array must NOT affect the artifact
+        original[0] = 'X';
+        assertArrayEquals("secret".getBytes(), a.data());
+    }
+
+    @Test
+    void artifactBytesDefensivelyCopiedOnAccess() {
+        var a = new Artifact("id", "ns", "f", "t/p", "secret".getBytes(), 1, Map.of(), Instant.now());
+
+        // Mutating the returned array must NOT affect the artifact
+        var data = a.data();
+        data[0] = 'X';
+        assertArrayEquals("secret".getBytes(), a.data());
+    }
+
+    @Test
+    void storeSaveAndLoadDefensivelyCopied() {
+        var original = "data".getBytes();
+        var artifact = new Artifact("doc1", "ns", "f.txt", "text/plain",
+                original, 0, Map.of(), Instant.now());
+        store.save(artifact);
+
+        // Mutate original
+        original[0] = 'X';
+
+        // Load should return unmodified data
+        var loaded = store.load("ns", "doc1");
+        assertTrue(loaded.isPresent());
+        assertArrayEquals("data".getBytes(), loaded.get().data());
+    }
 }

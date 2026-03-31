@@ -30,7 +30,7 @@ public class SlidingWindowCompaction implements AiCompactionStrategy {
     @Override
     public List<ChatMessage> compact(List<ChatMessage> messages, int maxMessages) {
         if (messages.size() <= maxMessages) {
-            return messages;
+            return new ArrayList<>(messages);
         }
         var result = new ArrayList<>(messages);
         while (result.size() > maxMessages) {

@@ -323,6 +323,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 logger.debug("Approval response routed for resource {}", resource.uuid());
                 return;
             }
+            // Reconnect fallback: resource UUID may have changed after transport
+            // reconnect. Scan all active sessions for a matching pending approval.
+            if (AiStreamingSession.tryResolveAnySession(userMessage)) {
+                logger.debug("Approval response routed via reconnect fallback");
+                return;
+            }
             logger.warn("Approval message with no pending approval for resource {}", resource.uuid());
             return;
         }

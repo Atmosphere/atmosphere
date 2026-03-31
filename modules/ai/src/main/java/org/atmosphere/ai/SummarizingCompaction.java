@@ -52,7 +52,7 @@ public class SummarizingCompaction implements AiCompactionStrategy {
             }
         }
         if (nonSystem.size() <= recentWindowSize) {
-            return messages;
+            return new ArrayList<>(messages);
         }
         var splitPoint = nonSystem.size() - recentWindowSize;
         var oldMessages = nonSystem.subList(0, splitPoint);

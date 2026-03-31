@@ -103,15 +103,22 @@ public final class AdkToolBridge {
                 Map<String, Object> args, ToolContext toolContext) {
             try {
                 // Bridge ADK's native ToolConfirmation for @RequiresApproval tools.
-                // If ADK already resolved a confirmation (re-entrant call) and it was
-                // denied, short-circuit without calling the executor.
                 if (atmosphereTool.requiresApproval() && toolContext != null) {
                     var confirmation = toolContext.toolConfirmation();
                     if (confirmation.isPresent() && !confirmation.get().confirmed()) {
+                        // ADK already resolved a confirmation and it was denied.
                         logger.info("Tool {} denied via ADK ToolConfirmation", name());
                         return Single.just(Map.of(
                                 "status", "cancelled",
                                 "message", "Action denied via ADK confirmation"));
+                    }
+                    if (confirmation.isEmpty()) {
+                        // First call: request native ADK confirmation so the Runner
+                        // emits a proper confirmation event in its event stream.
+                        var hint = atmosphereTool.approvalMessage();
+                        toolContext.requestConfirmation(
+                                hint != null ? hint : "Approve tool execution?",
+                                args != null ? args : Map.of());
                     }
                 }
 

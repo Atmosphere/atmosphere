@@ -48,7 +48,9 @@ function ToolActivity({ events, onApproval }: { events: ToolEvent[]; onApproval?
       ev.event === 'tool-start'
         ? `\u{1F527} Calling ${ev.data.toolName}(${JSON.stringify(ev.data.arguments ?? {})})`
         : ev.event === 'tool-result'
-        ? `\u2705 ${ev.data.toolName} returned`
+        ? ev.data.status === 'cancelled' || ev.data.status === 'timeout'
+          ? `\u274C ${ev.data.toolName}: ${ev.data.message || ev.data.status}`
+          : `\u2705 ${ev.data.toolName} returned`
         : ev.event === 'approval-required'
         ? createElement('div', {
             'data-testid': 'approval-prompt',

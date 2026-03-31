@@ -60,10 +60,17 @@ public record Artifact(
         if (data == null) {
             throw new IllegalArgumentException("data must not be null");
         }
+        data = data.clone();
         metadata = metadata != null ? Map.copyOf(metadata) : Map.of();
         if (createdAt == null) {
             createdAt = Instant.now();
         }
+    }
+
+    /** Returns a defensive copy of the binary content. */
+    @Override
+    public byte[] data() {
+        return data.clone();
     }
 
     /** Convenience: data size in bytes. */

@@ -185,6 +185,23 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     /**
+     * Reconnect fallback: try to resolve an approval message against ALL active
+     * sessions. Used when the resource UUID changed due to transport reconnect
+     * and the primary lookup by UUID returns null.
+     *
+     * @param message the incoming approval message
+     * @return {@code true} if any active session consumed the message
+     */
+    public static boolean tryResolveAnySession(String message) {
+        for (var session : ACTIVE_SESSIONS.values()) {
+            if (session.tryResolveApproval(message)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Remove the active session for a disconnecting or completed resource.
      *
      * @param resourceUuid the atmosphere resource UUID (may be null)

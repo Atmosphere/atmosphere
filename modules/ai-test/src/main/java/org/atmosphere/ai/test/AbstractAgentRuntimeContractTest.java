@@ -74,7 +74,7 @@ public abstract class AbstractAgentRuntimeContractTest {
     protected abstract AgentExecutionContext createErrorContext();
 
     @Test
-    void runtimeDeclaresMinimumCapabilities() {
+    protected void runtimeDeclaresMinimumCapabilities() {
         var runtime = createRuntime();
         var caps = runtime.capabilities();
         assertTrue(caps.contains(AiCapability.TEXT_STREAMING),
@@ -82,19 +82,19 @@ public abstract class AbstractAgentRuntimeContractTest {
     }
 
     @Test
-    void runtimeHasNonBlankName() {
+    protected void runtimeHasNonBlankName() {
         var runtime = createRuntime();
         assertNotNull(runtime.name());
         assertFalse(runtime.name().isBlank());
     }
 
     @Test
-    void runtimeIsAvailable() {
+    protected void runtimeIsAvailable() {
         assertTrue(createRuntime().isAvailable());
     }
 
     @Test
-    void textStreamingCompletesSession() throws Exception {
+    protected void textStreamingCompletesSession() throws Exception {
         var runtime = createRuntime();
         var context = createTextContext();
         var session = new RecordingSession();
@@ -110,7 +110,7 @@ public abstract class AbstractAgentRuntimeContractTest {
     }
 
     @Test
-    void toolCallExecutesIfSupported() throws Exception {
+    protected void toolCallExecutesIfSupported() throws Exception {
         var runtime = createRuntime();
         if (!runtime.capabilities().contains(AiCapability.TOOL_CALLING)) {
             return;
@@ -128,7 +128,7 @@ public abstract class AbstractAgentRuntimeContractTest {
     }
 
     @Test
-    void errorContextTriggersSessionError() throws Exception {
+    protected void errorContextTriggersSessionError() throws Exception {
         var context = createErrorContext();
         if (context == null) {
             return;
