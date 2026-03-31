@@ -274,7 +274,7 @@ final class ResponseWriter {
             }
         } catch (Exception ex) {
             handleException(response, ex);
-            throw new RuntimeException(ex);
+            throw new RuntimeException("I/O write failure", ex);
         }
     }
 
@@ -303,7 +303,7 @@ final class ResponseWriter {
             }
         } catch (Exception ex) {
             handleException(response, ex);
-            throw new RuntimeException(ex);
+            throw new RuntimeException("I/O write failure", ex);
         }
     }
 
@@ -332,7 +332,7 @@ final class ResponseWriter {
             }
         } catch (Exception ex) {
             handleException(response, ex);
-            throw new RuntimeException(ex);
+            throw new RuntimeException("I/O write failure", ex);
         }
     }
 
@@ -621,7 +621,7 @@ final class ResponseWriter {
                 asyncIOWriter.write(response, new String(chars, offset, lenght));
             } catch (IOException e) {
                 handleException(response, e);
-                throw new RuntimeException(e);
+                throw new RuntimeException("I/O write failure", e);
             } finally {
                 forceAsyncIOWriter = b;
             }
@@ -639,7 +639,7 @@ final class ResponseWriter {
                 asyncIOWriter.write(response, new String(chars));
             } catch (IOException e) {
                 handleException(response, e);
-                throw new RuntimeException(e);
+                throw new RuntimeException("I/O write failure", e);
             } finally {
                 forceAsyncIOWriter = b;
             }
@@ -658,7 +658,7 @@ final class ResponseWriter {
                 asyncIOWriter.write(response, s.substring(offset, lenght));
             } catch (IOException e) {
                 handleException(response, e);
-                throw new RuntimeException(e);
+                throw new RuntimeException("I/O write failure", e);
             } finally {
                 forceAsyncIOWriter = b;
             }
@@ -677,7 +677,7 @@ final class ResponseWriter {
                 asyncIOWriter.write(response, s);
             } catch (IOException e) {
                 handleException(response, e);
-                throw new RuntimeException(e);
+                throw new RuntimeException("I/O write failure", e);
             } finally {
                 forceAsyncIOWriter = b;
             }

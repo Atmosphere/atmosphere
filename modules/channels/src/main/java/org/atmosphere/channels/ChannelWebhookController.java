@@ -161,7 +161,7 @@ public class ChannelWebhookController {
         } catch (ChannelException e) {
             log.warn("Webhook error for {}: {}", channel, e.getMessage());
             return ResponseEntity.status(e.isRetryable() ? 500 : 400)
-                    .body(e.getMessage());
+                    .body(e.isRetryable() ? "Internal server error" : "Bad request");
         }
     }
 

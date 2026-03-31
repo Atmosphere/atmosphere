@@ -192,7 +192,7 @@ public class ConnectProtocolServlet extends HttpServlet {
             resp.getOutputStream().flush();
         } catch (Exception e) {
             logger.error("Error processing Connect send for channel {}", trackingId, e);
-            sendConnectError(resp, 500, "internal", e.getMessage(), json);
+            sendConnectError(resp, 500, "internal", "Internal server error", json);
         }
     }
 
@@ -249,8 +249,8 @@ public class ConnectProtocolServlet extends HttpServlet {
         resp.setStatus(httpStatus);
         resp.setContentType(json ? CONTENT_TYPE_JSON : CONTENT_TYPE_PROTO);
         addCorsHeaders(resp);
-        var errorJson = "{\"code\":\"" + code + "\",\"message\":\""
-                + message.replace("\"", "\\\"") + "\"}";
+        var errorJson = "{\"code\":\"" + escapeJson(code) + "\",\"message\":\""
+                + escapeJson(message) + "\"}";
         resp.getOutputStream().write(errorJson.getBytes(StandardCharsets.UTF_8));
         resp.getOutputStream().flush();
     }
@@ -262,6 +262,31 @@ public class ConnectProtocolServlet extends HttpServlet {
                 "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, Connect-Accept-Encoding");
         resp.setHeader("Access-Control-Expose-Headers",
                 "Connect-Content-Encoding, Connect-Protocol-Version");
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) {
+            return "";
+        }
+        var sb = new StringBuilder(s.length() + 16);
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '"' -> sb.append("\\\"");
+                case '\\' -> sb.append("\\\\");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\t' -> sb.append("\\t");
+                default -> {
+                    if (c < 0x20) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+                }
+            }
+        }
+        return sb.toString();
     }
 
     /**
@@ -314,8 +339,9 @@ public class ConnectProtocolServlet extends HttpServlet {
             }
             lock.lock();
             try {
+                logger.error("Stream observer error", t);
                 var errorJson = "{\"error\":{\"code\":\"internal\",\"message\":\""
-                        + t.getMessage().replace("\"", "\\\"") + "\"}}";
+                        + escapeJson("Internal server error") + "\"}}";
                 writeEnvelope((byte) 2, errorJson.getBytes(StandardCharsets.UTF_8));
                 out.flush();
             } catch (IOException e) {
