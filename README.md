@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Real-time transport layer for Java AI agents.</strong><br/>
-  Build once with <code>@Agent</code> — deliver over WebSocket, SSE, gRPC, MCP, A2A, AG-UI, or any transport. Works with Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, or the built-in OpenAI-compatible client.
+  Build once with <code>@Agent</code> — deliver over WebTransport/HTTP3, WebSocket, SSE, gRPC, MCP, A2A, AG-UI, or any transport. Works with Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, or the built-in OpenAI-compatible client.
 </p>
 
 <p align="center">
@@ -105,7 +105,7 @@ What this registers depends on which modules are on the classpath:
 
 **[15 Event Types](https://atmosphere.github.io/docs/reference/ai/)** — `AiEvent` sealed interface: text deltas, tool start/result/error, agent steps, handoffs, approval prompts, structured output, routing decisions. Normalized across all runtimes.
 
-**[4 Transports](https://atmosphere.github.io/docs/tutorial/04-transports/)** — WebSocket, SSE, Long-Polling, gRPC. Automatic fallback, reconnection, heartbeats, message caching.
+**[5 Transports](https://atmosphere.github.io/docs/tutorial/04-transports/)** — WebTransport/HTTP3, WebSocket, SSE, Long-Polling, gRPC. Automatic fallback, reconnection, heartbeats, message caching. First Java framework with [WebTransport over HTTP/3](https://atmosphere.github.io/docs/webtransport/).
 
 **[Observability](https://atmosphere.github.io/docs/reference/observability/)** — OpenTelemetry tracing, Micrometer metrics, AI token usage tracking. Auto-configured with Spring Boot.
 
