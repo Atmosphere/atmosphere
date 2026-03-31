@@ -148,6 +148,24 @@ public final class AdkEventAdapter {
                     author, "ADK agent step from " + author, java.util.Map.of()));
         }
 
+        // Emit tool call events (function calls and responses)
+        var functionCalls = event.functionCalls();
+        if (functionCalls != null && !functionCalls.isEmpty()) {
+            for (var fc : functionCalls) {
+                var toolName = fc.name().orElse("unknown");
+                var args = fc.args().orElse(java.util.Map.of());
+                session.emit(new AiEvent.ToolStart(toolName, args));
+            }
+        }
+        var functionResponses = event.functionResponses();
+        if (functionResponses != null && !functionResponses.isEmpty()) {
+            for (var fr : functionResponses) {
+                var toolName = fr.name().orElse("unknown");
+                var result = fr.response().orElse(java.util.Map.of());
+                session.emit(new AiEvent.ToolResult(toolName, result));
+            }
+        }
+
         // Extract text from partial streaming chunks
         if (event.partial().orElse(false)) {
             extractText(event).ifPresent(text ->
