@@ -7,8 +7,9 @@ atmosphere:
   web-transport:
     enabled: true
     port: 4443
-  auth:
-    demo-token: ${ATMOSPHERE_AUTH_TOKEN:demo-token}
+  # Auth disabled for WebTransport demo (Chrome strips query params from CONNECT :path)
+  # auth:
+  #   demo-token: ${ATMOSPHERE_AUTH_TOKEN:demo-token}
   cache:
     enabled: true
 

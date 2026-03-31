@@ -135,6 +135,33 @@ public class ReactorNettyTransportServer {
                                         new io.netty.channel.ChannelInboundHandlerAdapter(),
                                         null, settingsFrame, true,
                                         (id, value) -> true);
+                                // Intercept child streams BEFORE Http3ServerConnectionHandler
+                                // to catch WebTransport bidi streams (frame type 0x41)
+                                ch.pipeline().addLast(new io.netty.channel.ChannelInboundHandlerAdapter() {
+                                    @Override
+                                    public void channelRead(ChannelHandlerContext connCtx, Object msg) throws Exception {
+                                        if (msg instanceof QuicStreamChannel streamCh
+                                                && streamCh.type() == io.netty.handler.codec.quic.QuicStreamType.BIDIRECTIONAL
+                                                && wtSessions.containsKey(ch)) {
+                                            // This is a WT bidi data stream — handle directly, bypass HTTP/3 codec
+                                            streamCh.pipeline().addLast(
+                                                    new WebTransportBidiStreamHandler(framework, wtSessions));
+                                            // Register and start reading
+                                            streamCh.config().setAutoRead(true);
+                                            ch.eventLoop().register(streamCh).addListener(f -> {
+                                                if (f.isSuccess()) {
+                                                    streamCh.read();
+                                                    logger.info("WT bidi stream registered OK, reading: {}", streamCh);
+                                                } else {
+                                                    logger.error("WT bidi stream register failed", f.cause());
+                                                }
+                                            });
+                                            logger.info("WT bidi stream intercepted: {}", streamCh);
+                                            return; // DON'T pass to Http3ServerConnectionHandler
+                                        }
+                                        super.channelRead(connCtx, msg);
+                                    }
+                                });
                                 ch.pipeline().addLast(connHandler);
                                 logger.info("Http3ServerConnectionHandler installed, pipeline: {}",
                                         ch.pipeline().names());
@@ -299,6 +326,128 @@ public class ReactorNettyTransportServer {
     }
 
     /**
+     * Intercepts raw bytes on bidirectional streams to handle WebTransport
+     * frame type 0x41 (WT_BIDI_STREAM). The Netty HTTP/3 codec doesn't
+     * recognize this frame type, so we intercept before it reaches the codec,
+     * strip the WT header, and pass data directly to the Atmosphere bridge.
+     */
+    private static class WebTransportBidiStreamHandler extends io.netty.channel.ChannelInboundHandlerAdapter {
+
+        private final AtmosphereFramework framework;
+        private final java.util.concurrent.ConcurrentMap<Channel, WebTransportConnectionState> sessions;
+        private boolean isWtStream;
+        private boolean headerParsed;
+        private WebTransportConnectionState state;
+
+        WebTransportBidiStreamHandler(AtmosphereFramework framework,
+                                       java.util.concurrent.ConcurrentMap<Channel, WebTransportConnectionState> sessions) {
+            this.framework = framework;
+            this.sessions = sessions;
+        }
+
+        @Override
+        public void channelActive(ChannelHandlerContext ctx) throws Exception {
+            logger.info("WT bidi handler channelActive: {}", ctx.channel());
+            super.channelActive(ctx);
+        }
+
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+            if (msg instanceof io.netty.buffer.ByteBuf buf) {
+                logger.info("WT bidi handler data: {} bytes, hex={}", buf.readableBytes(),
+                        io.netty.buffer.ByteBufUtil.hexDump(buf, buf.readerIndex(),
+                                Math.min(buf.readableBytes(), 32)));
+                if (!headerParsed) {
+                    headerParsed = true;
+                    // WebTransport bidi stream starts with: type_varint(0x41) + session_id_varint
+                    // Just skip the entire header — it's always the first read on this stream
+                    isWtStream = true;
+                    // Skip all varint bytes: high bit set = more bytes follow
+                    // First varint: stream type (0x41, encoded as 0x40 0x41 in 2-byte varint)
+                    skipVarint(buf);
+                    // Second varint: session ID
+                    skipVarint(buf);
+                    if (true) {
+
+                        // Set up Atmosphere bridge
+                        var parentChannel = ctx.channel().parent();
+                        state = parentChannel != null ? sessions.get(parentChannel) : null;
+                        if (state != null && state.webSocket != null) {
+                            state.webSocket.setDataChannel(ctx);
+                            if (!state.opened) {
+                                state.opened = true;
+                                var processor = org.atmosphere.cpr.WebSocketProcessorFactory.getDefault()
+                                        .getWebSocketProcessor(framework);
+                                // Build path + query from the CONNECT path
+                                var connectPath = state.path;
+                                var qIdx = connectPath.indexOf('?');
+                                var pInfo = qIdx >= 0 ? connectPath.substring(0, qIdx) : connectPath;
+                                var qs = qIdx >= 0 ? connectPath.substring(qIdx + 1) : "";
+                                // Pass query string from CONNECT :path (includes auth tokens, tracking IDs)
+                                var request = org.atmosphere.cpr.AtmosphereRequestImpl.newInstance()
+                                        .header("Connection", "Upgrade")
+                                        .header("Upgrade", "websocket")
+                                        .pathInfo(pInfo);
+                                if (!qs.isEmpty()) {
+                                    request.queryString(qs);
+                                }
+                                var response = org.atmosphere.cpr.AtmosphereResponseImpl.newInstance(
+                                        framework.getAtmosphereConfig(), request, state.webSocket);
+                                response.delegateToNativeResponse(false);
+                                processor.open(state.webSocket, request, response);
+                                state.webSocket.markReady();
+                                logger.info("WebTransport bidi stream bridged for {}", state.path);
+                            }
+                        }
+
+                        // Process remaining data in this buffer
+                        if (buf.readableBytes() > 0) {
+                            processData(buf);
+                        }
+                        return; // Don't pass to HTTP/3 codec
+                    }
+                }
+                if (isWtStream) {
+                    processData(buf);
+                    return; // Don't pass to HTTP/3 codec
+                }
+            }
+            // Not a WT stream — pass to HTTP/3 codec
+            super.channelRead(ctx, msg);
+        }
+
+        /** Skip a QUIC varint (1, 2, 4, or 8 bytes based on the 2 MSBs). */
+        private static void skipVarint(io.netty.buffer.ByteBuf buf) {
+            if (buf.readableBytes() == 0) return;
+            int first = buf.readByte() & 0xFF;
+            int len = 1 << (first >> 6); // 00→1, 01→2, 10→4, 11→8
+            buf.skipBytes(len - 1);
+        }
+
+        private void processData(io.netty.buffer.ByteBuf buf) {
+            if (state != null && state.webSocket != null) {
+                var message = buf.toString(StandardCharsets.UTF_8);
+                logger.info("WebTransport bidi data: {}", message);
+                var processor = org.atmosphere.cpr.WebSocketProcessorFactory.getDefault()
+                        .getWebSocketProcessor(framework);
+                processor.invokeWebSocketProtocol(state.webSocket, message);
+            }
+            buf.release();
+        }
+
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            if (isWtStream && state != null && state.webSocket != null) {
+                logger.info("WebTransport bidi stream closed");
+                var processor = org.atmosphere.cpr.WebSocketProcessorFactory.getDefault()
+                        .getWebSocketProcessor(framework);
+                processor.close(state.webSocket, 1000);
+            }
+            super.channelInactive(ctx);
+        }
+    }
+
+    /**
      * Shared state per QUIC connection: the WebSocket bridge and processor,
      * set by the CONNECT handler and used by data stream handlers.
      */
@@ -386,8 +535,11 @@ public class ReactorNettyTransportServer {
 
         @Override
         protected void channelRead(ChannelHandlerContext ctx, Http3DataFrame dataFrame) {
-            logger.info("HTTP/3 DATA frame on {}: {} bytes, isDataStream={}",
-                    ctx.channel(), dataFrame.content().readableBytes(), isDataStream);
+            var rawBytes = new byte[dataFrame.content().readableBytes()];
+            dataFrame.content().getBytes(dataFrame.content().readerIndex(), rawBytes);
+            logger.info("HTTP/3 DATA frame on {}: {} bytes, hex={}, isDataStream={}",
+                    ctx.channel(), rawBytes.length,
+                    io.netty.buffer.ByteBufUtil.hexDump(rawBytes), isDataStream);
             // If we haven't set up as data stream yet, try to find state from parent
             if (!isDataStream && state == null) {
                 var parentChannel = ctx.channel().parent();

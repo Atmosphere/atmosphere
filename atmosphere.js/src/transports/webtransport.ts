@@ -137,8 +137,19 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
     // If an explicit WebTransport URL is configured, use it directly
     // (useful when the HTTP/3 server runs on a different port than the servlet container)
     if (this.request.webTransportUrl) {
+      // Merge Atmosphere protocol params (auth, tracking ID, etc.) into the explicit URL
+      const builtUrl = this.protocol.buildUrl(this.request);
+      let base: string | undefined;
+      if (typeof window !== 'undefined' && window.location?.href) {
+        base = window.location.href;
+      }
+      const paramsUrl = new URL(builtUrl, base || this.request.webTransportUrl);
       const explicit = new URL(this.request.webTransportUrl);
       explicit.protocol = 'https:';
+      // Copy query params from the protocol-built URL
+      paramsUrl.searchParams.forEach((value, key) => {
+        explicit.searchParams.set(key, value);
+      });
       return explicit.toString();
     }
 
