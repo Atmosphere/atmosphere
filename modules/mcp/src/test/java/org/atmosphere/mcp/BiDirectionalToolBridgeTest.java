@@ -84,7 +84,6 @@ class BiDirectionalToolBridgeTest {
 
         for (int i = 0; i < 5; i++) {
             var resource = mockResource();
-            var sizeBefore = bridge.pendingCount();
             var future = bridge.callClientTool(resource, "tool-" + i, Map.of());
             // Find the newly added call ID
             for (var id : bridge.pendingCalls().keySet()) {
