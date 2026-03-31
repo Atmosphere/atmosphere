@@ -24,7 +24,6 @@ import io.netty.channel.IoEventLoopGroup;
 import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioDatagramChannel;
-import io.netty.handler.codec.http3.DefaultHttp3DataFrame;
 import io.netty.handler.codec.http3.DefaultHttp3HeadersFrame;
 import io.netty.handler.codec.http3.DefaultHttp3SettingsFrame;
 import io.netty.handler.codec.http3.Http3;
@@ -298,22 +297,21 @@ public class ReactorNettyTransportServer {
 
         @Override
         public org.atmosphere.websocket.WebSocket write(String s) {
-            if (!ready) return this; // Suppress handshake writes
+            if (!ready) return this;
             var ctx = dataCtx;
             if (ctx != null && ctx.channel().isActive()) {
-                ctx.writeAndFlush(new DefaultHttp3DataFrame(
-                        Unpooled.copiedBuffer(s, StandardCharsets.UTF_8)));
+                // Write raw bytes — the bidi data stream has no HTTP/3 codec
+                ctx.writeAndFlush(Unpooled.copiedBuffer(s, StandardCharsets.UTF_8));
             }
             return this;
         }
 
         @Override
         public org.atmosphere.websocket.WebSocket write(byte[] b, int offset, int length) {
-            if (!ready) return this; // Suppress handshake writes
+            if (!ready) return this;
             var ctx = dataCtx;
             if (ctx != null && ctx.channel().isActive()) {
-                ctx.writeAndFlush(new DefaultHttp3DataFrame(
-                        Unpooled.wrappedBuffer(b, offset, length)));
+                ctx.writeAndFlush(Unpooled.wrappedBuffer(b, offset, length));
             }
             return this;
         }
