@@ -241,9 +241,10 @@ public class ReactorNettyTransportServer {
      */
     private static class AtmosphereHttp3Handler extends Http3RequestStreamInboundHandler {
 
-        private final AtmosphereFramework framework; // NOPMD — used when HTTP/3 bridge is wired
+        private final AtmosphereFramework framework;
         private boolean isWebTransport;
-        private Http3HeadersFrame requestHeaders; // NOPMD — used when HTTP/3 bridge is wired
+        private String path;
+        private org.atmosphere.cpr.AtmosphereResource atmosphereResource;
 
         AtmosphereHttp3Handler(AtmosphereFramework framework) {
             this.framework = framework;
@@ -257,41 +258,127 @@ public class ReactorNettyTransportServer {
 
         @Override
         protected void channelRead(ChannelHandlerContext ctx, Http3HeadersFrame headersFrame) {
-            requestHeaders = headersFrame;
             var headers = headersFrame.headers();
             var method = headers.method();
             var protocol = headers.protocol();
 
             if ("CONNECT".contentEquals(method) && protocol != null
                     && "webtransport".contentEquals(protocol)) {
-                // WebTransport extended CONNECT — accept the session
                 isWebTransport = true;
-                logger.info("WebTransport session opened: {}", headers.path());
+                path = headers.path() != null ? headers.path().toString() : "/";
+                logger.info("WebTransport session opened: {}", path);
 
-                // Send 200 to accept the WebTransport session (draft-02 negotiation)
+                // Accept the WebTransport session (draft-02 negotiation)
                 var responseHeaders = new DefaultHttp3HeadersFrame();
                 responseHeaders.headers().status("200");
                 responseHeaders.headers().add("sec-webtransport-http3-draft", "draft02");
                 ctx.write(responseHeaders);
                 ctx.flush();
+
+                // Bridge into Atmosphere: register as a suspended resource
+                try {
+                    var atmosRequest = new org.atmosphere.cpr.AtmosphereRequestImpl.Builder()
+                            .requestURI(path)
+                            .pathInfo(path)
+                            .method("GET")
+                            .headers(java.util.Map.of(
+                                    "Connection", "Upgrade",
+                                    "Upgrade", "webtransport",
+                                    "X-Atmosphere-Transport", "webtransport"))
+                            .session(new org.atmosphere.util.FakeHttpSession(
+                                    java.util.UUID.randomUUID().toString(), null,
+                                    System.currentTimeMillis(), -1))
+                            .build();
+
+                    var atmosResponse = org.atmosphere.cpr.AtmosphereResponseImpl.newInstance();
+                    atmosResponse.delegateToNativeResponse(false);
+                    // Custom AsyncIOWriter that writes to the QUIC stream
+                    atmosResponse.asyncIOWriter(new org.atmosphere.cpr.AsyncIOWriter() {
+                        @Override
+                        public org.atmosphere.cpr.AsyncIOWriter redirect(
+                                org.atmosphere.cpr.AtmosphereResponse r, String location) {
+                            return this;
+                        }
+                        @Override
+                        public org.atmosphere.cpr.AsyncIOWriter writeError(
+                                org.atmosphere.cpr.AtmosphereResponse r, int errorCode, String message) {
+                            return this;
+                        }
+                        @Override
+                        public org.atmosphere.cpr.AsyncIOWriter write(
+                                org.atmosphere.cpr.AtmosphereResponse r, String data) {
+                            if (ctx.channel().isActive()) {
+                                ctx.writeAndFlush(new DefaultHttp3DataFrame(
+                                        Unpooled.copiedBuffer(data, StandardCharsets.UTF_8)));
+                            }
+                            return this;
+                        }
+                        @Override
+                        public org.atmosphere.cpr.AsyncIOWriter write(
+                                org.atmosphere.cpr.AtmosphereResponse r, byte[] data) {
+                            if (ctx.channel().isActive()) {
+                                ctx.writeAndFlush(new DefaultHttp3DataFrame(
+                                        Unpooled.wrappedBuffer(data)));
+                            }
+                            return this;
+                        }
+                        @Override
+                        public org.atmosphere.cpr.AsyncIOWriter write(
+                                org.atmosphere.cpr.AtmosphereResponse r, byte[] data, int offset, int length) {
+                            if (ctx.channel().isActive()) {
+                                ctx.writeAndFlush(new DefaultHttp3DataFrame(
+                                        Unpooled.wrappedBuffer(data, offset, length)));
+                            }
+                            return this;
+                        }
+                        @Override
+                        public void close(org.atmosphere.cpr.AtmosphereResponse r) {
+                            // keep-open: WebTransport session stays open
+                        }
+                        @Override
+                        public org.atmosphere.cpr.AsyncIOWriter flush(
+                                org.atmosphere.cpr.AtmosphereResponse r) {
+                            return this;
+                        }
+                    });
+
+                    framework.doCometSupport(atmosRequest, atmosResponse);
+                    atmosphereResource = (org.atmosphere.cpr.AtmosphereResource)
+                            atmosRequest.getAttribute("org.atmosphere.cpr.AtmosphereResource");
+                    logger.info("WebTransport bridged to Atmosphere: resource={}", atmosphereResource);
+                } catch (Exception e) {
+                    logger.error("Failed to bridge WebTransport to Atmosphere", e);
+                }
             } else {
-                // Regular HTTP/3 request — bridge to Atmosphere
                 logger.trace("HTTP/3 request: {} {}", method, headers.path());
             }
         }
 
         @Override
         protected void channelRead(ChannelHandlerContext ctx, Http3DataFrame dataFrame) {
-            if (isWebTransport) {
-                // WebTransport bidirectional stream data
+            if (isWebTransport && atmosphereResource != null) {
                 var data = dataFrame.content();
                 var message = data.toString(StandardCharsets.UTF_8);
                 logger.trace("WebTransport message: {}", message);
 
-                // Echo back for now — full Atmosphere bridge will dispatch to handlers
-                ctx.write(new DefaultHttp3DataFrame(
-                        Unpooled.copiedBuffer(message, StandardCharsets.UTF_8)));
-                ctx.flush();
+                // Dispatch message through Atmosphere as a POST request
+                try {
+                    var msgRequest = new org.atmosphere.cpr.AtmosphereRequestImpl.Builder()
+                            .requestURI(path)
+                            .pathInfo(path)
+                            .method("POST")
+                            .body(message)
+                            .headers(java.util.Map.of(
+                                    "Content-Type", "application/json",
+                                    "X-Atmosphere-Transport", "webtransport"))
+                            .build();
+
+                    var msgResponse = org.atmosphere.cpr.AtmosphereResponseImpl.newInstance();
+                    msgResponse.delegateToNativeResponse(false);
+                    framework.doCometSupport(msgRequest, msgResponse);
+                } catch (Exception e) {
+                    logger.error("Failed to dispatch WebTransport message", e);
+                }
             }
             dataFrame.release();
         }
@@ -300,6 +387,13 @@ public class ReactorNettyTransportServer {
         protected void channelInputClosed(ChannelHandlerContext ctx) {
             if (isWebTransport) {
                 logger.info("WebTransport session closed");
+                if (atmosphereResource != null) {
+                    try {
+                        atmosphereResource.close();
+                    } catch (java.io.IOException e) {
+                        logger.trace("Error closing AtmosphereResource", e);
+                    }
+                }
             }
             ctx.close();
         }
