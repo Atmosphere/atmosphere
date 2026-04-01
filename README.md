@@ -95,7 +95,7 @@ What this registers depends on which modules are on the classpath:
 
 **[6 Channels](https://atmosphere.github.io/docs/tutorial/23-channels/)** — Web, Slack, Telegram, Discord, WhatsApp, Messenger. Set a bot token and the same `@Command` + AI pipeline works everywhere.
 
-**[Skill Files](https://atmosphere.github.io/docs/agents/skills/)** — Markdown system prompts with sections for tools, guardrails, and channels. Auto-discovered from classpath. Import 1,200+ skills from GitHub with `atmosphere import`.
+**[Skill Files](https://atmosphere.github.io/docs/agents/skills/)** — Markdown system prompts with sections for tools, guardrails, and channels. Auto-discovered from classpath. Browse curated skills in the [Atmosphere Skills](https://github.com/Atmosphere/atmosphere-skills) registry.
 
 **[Long-Term Memory](https://atmosphere.github.io/docs/agents/coordinator/)** — Agents remember users across sessions. `LongTermMemoryInterceptor` extracts facts via LLM and injects them into future system prompts. Three strategies: on session close, per message, or periodic.
 
@@ -176,6 +176,7 @@ Commercial support and consulting available through [Async-IO.org](https://async
 
 | Project | Description |
 |---------|-------------|
+| [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills) | Curated agent skill files — personality, tools, guardrails |
 | [javaclaw-atmosphere](https://github.com/Atmosphere/javaclaw-atmosphere) | Atmosphere chat transport plugin for JavaClaw |
 
 ## License
