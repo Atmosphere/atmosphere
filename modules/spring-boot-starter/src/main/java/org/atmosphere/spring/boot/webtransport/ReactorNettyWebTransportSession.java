@@ -65,7 +65,12 @@ public class ReactorNettyWebTransportSession extends WebTransportSession {
         if (!isOpen()) {
             throw new IOException("WebTransport session is closed for " + uuid());
         }
-        channel.writeAndFlush(Unpooled.wrappedBuffer(b, offset, length));
+        // Append newline delimiter — same as write(String) — so the client
+        // can split on \n regardless of whether the server writes text or bytes.
+        var buf = channel.alloc().buffer(length + 1);
+        buf.writeBytes(b, offset, length);
+        buf.writeByte('\n');
+        channel.writeAndFlush(buf);
         lastWrite = System.currentTimeMillis();
         return this;
     }
