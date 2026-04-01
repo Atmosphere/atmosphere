@@ -16,8 +16,13 @@
 package org.atmosphere.spring.boot.webtransport;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.CompositeByteBuf;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.IoEventLoopGroup;
 import io.netty.channel.MultiThreadIoEventLoopGroup;
@@ -34,6 +39,7 @@ import io.netty.handler.codec.http3.Http3Settings;
 import io.netty.handler.codec.quic.QuicSslContext;
 import io.netty.handler.codec.quic.QuicSslContextBuilder;
 import io.netty.handler.codec.quic.QuicStreamChannel;
+import io.netty.handler.codec.quic.QuicStreamType;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.spring.boot.AtmosphereProperties.WebTransportProperties;
@@ -142,17 +148,33 @@ public class ReactorNettyTransportServer {
                                                         new AtmosphereHttp3Handler(framework, wtSessions));
                                             }
                                         },
-                                        new io.netty.channel.ChannelInboundHandlerAdapter(),
+                                        new ChannelInboundHandlerAdapter(),
                                         null, settingsFrame, true,
                                         (id, value) -> true);
                                 // Intercept child streams BEFORE Http3ServerConnectionHandler
                                 // to catch WebTransport bidi streams (frame type 0x41)
-                                ch.pipeline().addLast(new io.netty.channel.ChannelInboundHandlerAdapter() {
+                                ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
                                     @Override
                                     public void channelRead(ChannelHandlerContext connCtx, Object msg) throws Exception {
                                         if (msg instanceof QuicStreamChannel streamCh
-                                                && streamCh.type() == io.netty.handler.codec.quic.QuicStreamType.BIDIRECTIONAL
-                                                && wtSessions.containsKey(ch)) {
+                                                && streamCh.type() == QuicStreamType.BIDIRECTIONAL) {
+                                            var connState = wtSessions.get(ch);
+                                            if (connState == null) {
+                                                super.channelRead(connCtx, msg);
+                                                return;
+                                            }
+                                            // Enforce single bidi stream per WT session (v1)
+                                            if (connState.bidiStreamActive) {
+                                                logger.warn("Rejecting additional bidi stream on WT session {}",
+                                                        connState.path);
+                                                ch.eventLoop().register(streamCh).addListener(f -> {
+                                                    if (f.isSuccess()) {
+                                                        streamCh.close();
+                                                    }
+                                                });
+                                                return;
+                                            }
+                                            connState.bidiStreamActive = true;
                                             // This is a WT bidi data stream — handle directly, bypass HTTP/3 codec
                                             streamCh.pipeline().addLast(
                                                     new WebTransportBidiStreamHandler(framework, wtSessions));
@@ -290,15 +312,35 @@ public class ReactorNettyTransportServer {
      * frame type 0x41 (WT_BIDI_STREAM). The Netty HTTP/3 codec doesn't
      * recognize this frame type, so we intercept before it reaches the codec,
      * strip the WT header, and pass data directly to the Atmosphere bridge.
+     *
+     * <h3>Framing</h3>
+     * <p>QUIC streams are byte streams with no inherent message boundaries.
+     * This handler uses newline ({@code \n}) as a message delimiter: the
+     * client appends {@code \n} after each logical message, and this handler
+     * buffers incoming data, splits on {@code \n}, and delivers each
+     * complete line as a separate message to the Atmosphere protocol handler.
+     * Incomplete trailing data is buffered until the next read.</p>
+     *
+     * <h3>Varint header parsing</h3>
+     * <p>The first bytes on a WT bidi stream are two QUIC varints
+     * (frame type 0x41 + session ID). This handler accumulates bytes
+     * across reads until both varints are fully available, making the
+     * parsing safe against QUIC packet fragmentation.</p>
+     *
+     * <p><strong>v1 limitation:</strong> only text (UTF-8) messages are
+     * supported. Binary payloads are not handled; a future version may
+     * add a content-type framing byte to distinguish text from binary.</p>
      */
-    private static class WebTransportBidiStreamHandler extends io.netty.channel.ChannelInboundHandlerAdapter {
+    private static class WebTransportBidiStreamHandler extends ChannelInboundHandlerAdapter {
 
         private final AtmosphereFramework framework;
         private final java.util.concurrent.ConcurrentMap<Channel, WebTransportConnectionState> sessions;
-        private boolean isWtStream;
         private boolean headerParsed;
         private WebTransportConnectionState state;
-        private byte[] trailingBytes = new byte[0];
+        /** Accumulates header bytes across reads until both varints are complete. */
+        private CompositeByteBuf headerBuf;
+        /** Accumulates incomplete message data between newline delimiters. */
+        private final StringBuilder lineBuffer = new StringBuilder();
 
         WebTransportBidiStreamHandler(AtmosphereFramework framework,
                                        java.util.concurrent.ConcurrentMap<Channel, WebTransportConnectionState> sessions) {
@@ -307,155 +349,194 @@ public class ReactorNettyTransportServer {
         }
 
         @Override
-        public void channelActive(ChannelHandlerContext ctx) throws Exception {
-            logger.trace("WT bidi handler channelActive: {}", ctx.channel());
-            super.channelActive(ctx);
-        }
-
-        @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-            if (msg instanceof io.netty.buffer.ByteBuf buf) {
-                if (logger.isTraceEnabled()) {
-                    logger.trace("WT bidi handler data: {} bytes, hex={}", buf.readableBytes(),
-                            io.netty.buffer.ByteBufUtil.hexDump(buf, buf.readerIndex(),
-                                    Math.min(buf.readableBytes(), 32)));
-                }
-                if (!headerParsed) {
-                    headerParsed = true;
-                    isWtStream = true;
-                    // WebTransport bidi stream starts with: type_varint(0x41) + session_id_varint
-                    skipVarint(buf);
-                    skipVarint(buf);
-
-                    // Set up Atmosphere bridge via WebTransport SPI
-                    var parentChannel = ctx.channel().parent();
-                    state = parentChannel != null ? sessions.get(parentChannel) : null;
-                    if (state != null && !state.opened) {
-                        state.opened = true;
-                        // Create the session now that we have the data channel
-                        state.session = new ReactorNettyWebTransportSession(
-                                framework.getAtmosphereConfig(), ctx.channel());
-                        var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
-                                .getWebTransportProcessor(framework);
-                        var request = org.atmosphere.cpr.AtmosphereRequestImpl.newInstance()
-                                .header("Connection", "Upgrade")
-                                .header("Upgrade", "websocket");
-                        applyPathAndQuery(request, state.path);
-                        processor.open(state.session, request,
-                                org.atmosphere.cpr.AtmosphereResponseImpl.newInstance(request));
-                        logger.debug("WebTransport bidi stream bridged for {}", state.path);
-                    }
-
-                    // Process remaining data in this buffer
-                    if (buf.readableBytes() > 0) {
-                        processData(buf);
-                    } else {
-                        buf.release();
-                    }
-                    return;
-                }
-                if (isWtStream) {
-                    processData(buf);
-                    return;
-                }
+            if (!(msg instanceof ByteBuf buf)) {
+                super.channelRead(ctx, msg);
+                return;
             }
-            super.channelRead(ctx, msg);
+            if (logger.isTraceEnabled()) {
+                logger.trace("WT bidi handler data: {} bytes, hex={}", buf.readableBytes(),
+                        ByteBufUtil.hexDump(buf, buf.readerIndex(),
+                                Math.min(buf.readableBytes(), 32)));
+            }
+            if (!headerParsed) {
+                if (!parseHeader(ctx, buf)) {
+                    // Need more bytes for the header; buf ownership transferred to headerBuf
+                    return;
+                }
+                // Header parsed — set up Atmosphere bridge
+                var parentChannel = ctx.channel().parent();
+                state = parentChannel != null ? sessions.get(parentChannel) : null;
+                if (state != null && !state.opened) {
+                    state.opened = true;
+                    state.session = new ReactorNettyWebTransportSession(
+                            framework.getAtmosphereConfig(), ctx.channel());
+                    var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
+                            .getWebTransportProcessor(framework);
+                    var request = org.atmosphere.cpr.AtmosphereRequestImpl.newInstance()
+                            .header("Connection", "Upgrade")
+                            .header("Upgrade", "websocket");
+                    applyPathAndQuery(request, state.path);
+                    processor.open(state.session, request,
+                            org.atmosphere.cpr.AtmosphereResponseImpl.newInstance(request));
+                    logger.debug("WebTransport bidi stream bridged for {}", state.path);
+                }
+                // Process remaining data after the header
+                if (buf.readableBytes() > 0) {
+                    processData(buf);
+                } else {
+                    buf.release();
+                }
+                return;
+            }
+            processData(buf);
         }
 
-        /** Skip a QUIC varint (1, 2, 4, or 8 bytes based on the 2 MSBs). */
-        private static void skipVarint(io.netty.buffer.ByteBuf buf) {
-            if (buf.readableBytes() == 0) return;
+        /**
+         * Parse the WT bidi stream header (type varint + session_id varint).
+         * Accumulates bytes across reads. Returns {@code true} when both varints
+         * are fully parsed, leaving {@code buf} positioned after the header.
+         * Returns {@code false} if more bytes are needed.
+         */
+        private boolean parseHeader(ChannelHandlerContext ctx, ByteBuf buf) {
+            if (headerBuf == null) {
+                headerBuf = ctx.alloc().compositeBuffer();
+            }
+            headerBuf.addComponent(true, buf.retain());
+
+            // Try to skip both varints; need at least 2 bytes minimum (1+1)
+            if (headerBuf.readableBytes() < 2) {
+                return false;
+            }
+            int saved = headerBuf.readerIndex();
+            int needed = varintLength(headerBuf);
+            if (headerBuf.readableBytes() < needed - 1) {
+                headerBuf.readerIndex(saved);
+                return false;
+            }
+            headerBuf.skipBytes(needed - 1);
+
+            if (headerBuf.readableBytes() == 0) {
+                headerBuf.readerIndex(saved);
+                return false;
+            }
+            int needed2 = varintLength(headerBuf);
+            if (headerBuf.readableBytes() < needed2 - 1) {
+                headerBuf.readerIndex(saved);
+                return false;
+            }
+            headerBuf.skipBytes(needed2 - 1);
+
+            // Header fully parsed. Copy remaining bytes back to buf for processing.
+            int remaining = headerBuf.readableBytes();
+            if (remaining > 0) {
+                var leftover = headerBuf.readBytes(remaining);
+                // Put leftover data at the beginning of buf
+                buf.readerIndex(buf.writerIndex());
+                buf.discardReadBytes();
+                buf.writeBytes(leftover);
+                leftover.release();
+            } else {
+                buf.readerIndex(buf.writerIndex());
+            }
+            headerBuf.release();
+            headerBuf = null;
+            headerParsed = true;
+            return true;
+        }
+
+        /**
+         * Read the first byte of a QUIC varint and return its total length
+         * (1, 2, 4, or 8 bytes based on the 2 MSBs). Advances the reader
+         * index by 1.
+         */
+        private static int varintLength(ByteBuf buf) {
             int first = buf.readByte() & 0xFF;
-            int len = 1 << (first >> 6); // 00→1, 01→2, 10→4, 11→8
-            buf.skipBytes(len - 1);
+            return 1 << (first >> 6); // 00→1, 01→2, 10→4, 11→8
         }
 
-        private void processData(io.netty.buffer.ByteBuf buf) {
+        /**
+         * Process incoming data using newline-delimited framing.
+         * Buffers partial lines and delivers each complete {@code \n}-terminated
+         * line as a separate message to the Atmosphere protocol handler.
+         */
+        private void processData(ByteBuf buf) {
             if (state == null || state.session == null) {
                 buf.release();
                 return;
             }
-            // Combine any leftover trailing bytes with new data
-            byte[] data;
-            int readable = buf.readableBytes();
-            if (trailingBytes.length > 0) {
-                data = new byte[trailingBytes.length + readable];
-                System.arraycopy(trailingBytes, 0, data, 0, trailingBytes.length);
-                buf.readBytes(data, trailingBytes.length, readable);
-            } else {
-                data = new byte[readable];
-                buf.readBytes(data);
-            }
+            var text = buf.toString(StandardCharsets.UTF_8);
             buf.release();
+            lineBuffer.append(text);
 
-            // Find the last complete UTF-8 character boundary
-            int boundary = findUtf8Boundary(data);
-            if (boundary < data.length) {
-                trailingBytes = java.util.Arrays.copyOfRange(data, boundary, data.length);
-            } else {
-                trailingBytes = new byte[0];
-            }
-
-            if (boundary > 0) {
-                var message = new String(data, 0, boundary, StandardCharsets.UTF_8);
-                logger.trace("WebTransport bidi data: {}", message);
+            // Deliver each complete newline-delimited message
+            int nlIdx;
+            while ((nlIdx = lineBuffer.indexOf("\n")) >= 0) {
+                var message = lineBuffer.substring(0, nlIdx);
+                lineBuffer.delete(0, nlIdx + 1);
+                if (message.isEmpty()) {
+                    continue;
+                }
+                logger.trace("WebTransport bidi message: {}", message);
                 var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
                         .getWebTransportProcessor(framework);
                 processor.invokeWebTransportProtocol(state.session, message);
             }
         }
 
-        /**
-         * Find the last complete UTF-8 character boundary in a byte array.
-         * Scans backwards from the end to detect incomplete multi-byte sequences.
-         *
-         * @return index up to which the bytes form complete UTF-8 characters
-         */
-        static int findUtf8Boundary(byte[] data) {
-            int len = data.length;
-            if (len == 0) return 0;
-            // Check up to 3 bytes from the end for an incomplete sequence
-            for (int i = 1; i <= Math.min(3, len); i++) {
-                int b = data[len - i] & 0xFF;
-                if (b < 0x80) {
-                    return len;
-                }
-                if (b >= 0xC0) {
-                    int expected;
-                    if (b < 0xE0) expected = 2;
-                    else if (b < 0xF0) expected = 3;
-                    else expected = 4;
-                    return i >= expected ? len : len - i;
-                }
-            }
-            return len;
-        }
-
         @Override
         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-            if (isWtStream && state != null && state.session != null) {
+            // Flush any remaining buffered data as a final message
+            if (state != null && state.session != null && !lineBuffer.isEmpty()) {
+                var message = lineBuffer.toString();
+                lineBuffer.setLength(0);
+                logger.trace("WebTransport bidi final message: {}", message);
+                var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
+                        .getWebTransportProcessor(framework);
+                processor.invokeWebTransportProtocol(state.session, message);
+            }
+            if (state != null && state.session != null) {
                 logger.debug("WebTransport bidi stream closed");
                 var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
                         .getWebTransportProcessor(framework);
                 processor.close(state.session, 1000);
             }
+            if (headerBuf != null) {
+                headerBuf.release();
+                headerBuf = null;
+            }
             super.channelInactive(ctx);
+        }
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+            logger.error("WebTransport bidi stream error", cause);
+            ctx.close();
         }
     }
 
     /**
      * Shared state per QUIC connection: the session and path,
      * set by the CONNECT handler and used by data stream handlers.
+     *
+     * <p>All fields are accessed exclusively on the QUIC connection's
+     * event loop thread (Netty I/O thread), so no additional
+     * synchronization is needed beyond {@code volatile}.</p>
      */
     private static class WebTransportConnectionState {
         volatile ReactorNettyWebTransportSession session;
         volatile boolean opened;
+        /** Enforces single bidi stream per WT session (v1). */
+        volatile boolean bidiStreamActive;
         String path;
     }
 
     /**
      * HTTP/3 request stream handler. Dispatches CONNECT + :protocol=webtransport
      * to the WebTransport SPI; returns 501 for all other HTTP/3 methods (v1).
+     *
+     * <p>Like {@link WebTransportBidiStreamHandler}, data frames use
+     * newline-delimited framing to preserve message boundaries.</p>
      */
     private static class AtmosphereHttp3Handler extends Http3RequestStreamInboundHandler {
 
@@ -463,6 +544,7 @@ public class ReactorNettyTransportServer {
         private final java.util.concurrent.ConcurrentMap<Channel, WebTransportConnectionState> sessions;
         private boolean isDataStream;
         private WebTransportConnectionState state;
+        private final StringBuilder lineBuffer = new StringBuilder();
 
         AtmosphereHttp3Handler(AtmosphereFramework framework,
                                java.util.concurrent.ConcurrentMap<Channel, WebTransportConnectionState> sessions) {
@@ -505,25 +587,7 @@ public class ReactorNettyTransportServer {
                 if (state != null) {
                     isDataStream = true;
                     logger.debug("WebTransport data stream opened: {}", ctx.channel());
-
-                    if (!state.opened) {
-                        state.opened = true;
-                        try {
-                            state.session = new ReactorNettyWebTransportSession(
-                                    framework.getAtmosphereConfig(), ctx.channel());
-                            var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
-                                    .getWebTransportProcessor(framework);
-                            var request = org.atmosphere.cpr.AtmosphereRequestImpl.newInstance()
-                                    .header("Connection", "Upgrade")
-                                    .header("Upgrade", "websocket");
-                            applyPathAndQuery(request, state.path);
-                            processor.open(state.session, request,
-                                    org.atmosphere.cpr.AtmosphereResponseImpl.newInstance(request));
-                            logger.debug("WebTransport bridged via processor for {}", state.path);
-                        } catch (Exception e) {
-                            logger.error("Failed to bridge WebTransport to Atmosphere", e);
-                        }
-                    }
+                    openSessionIfNeeded(ctx);
                 } else {
                     // v1: only WebTransport is supported on this sidecar
                     logger.debug("Non-WebTransport HTTP/3 request: {} {} — returning 501",
@@ -531,7 +595,7 @@ public class ReactorNettyTransportServer {
                     var reject = new DefaultHttp3HeadersFrame();
                     reject.headers().status("501");
                     ctx.writeAndFlush(reject)
-                            .addListener(io.netty.channel.ChannelFutureListener.CLOSE);
+                            .addListener(ChannelFutureListener.CLOSE);
                 }
             }
         }
@@ -548,40 +612,64 @@ public class ReactorNettyTransportServer {
                 state = parentChannel != null ? sessions.get(parentChannel) : null;
                 if (state != null) {
                     isDataStream = true;
-                    if (!state.opened) {
-                        state.opened = true;
-                        try {
-                            state.session = new ReactorNettyWebTransportSession(
-                                    framework.getAtmosphereConfig(), ctx.channel());
-                            var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
-                                    .getWebTransportProcessor(framework);
-                            var request = org.atmosphere.cpr.AtmosphereRequestImpl.newInstance()
-                                    .header("Connection", "Upgrade")
-                                    .header("Upgrade", "websocket");
-                            applyPathAndQuery(request, state.path);
-                            processor.open(state.session, request,
-                                    org.atmosphere.cpr.AtmosphereResponseImpl.newInstance(request));
-                            logger.debug("WebTransport bridged via processor (from DATA)");
-                        } catch (Exception e) {
-                            logger.error("Failed to bridge WebTransport", e);
-                        }
-                    }
+                    openSessionIfNeeded(ctx);
                 }
             }
             if (isDataStream && state != null && state.session != null) {
                 var data = dataFrame.content();
-                var message = data.toString(StandardCharsets.UTF_8);
-                logger.trace("WebTransport message received: {}", message);
+                var text = data.toString(StandardCharsets.UTF_8);
+                lineBuffer.append(text);
 
-                var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
-                        .getWebTransportProcessor(framework);
-                processor.invokeWebTransportProtocol(state.session, message);
+                // Deliver each complete newline-delimited message
+                int nlIdx;
+                while ((nlIdx = lineBuffer.indexOf("\n")) >= 0) {
+                    var message = lineBuffer.substring(0, nlIdx);
+                    lineBuffer.delete(0, nlIdx + 1);
+                    if (message.isEmpty()) {
+                        continue;
+                    }
+                    logger.trace("WebTransport message received: {}", message);
+                    var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
+                            .getWebTransportProcessor(framework);
+                    processor.invokeWebTransportProtocol(state.session, message);
+                }
             }
             dataFrame.release();
         }
 
+        /** Open the Atmosphere session if this is the first data stream. */
+        private void openSessionIfNeeded(ChannelHandlerContext ctx) {
+            if (state != null && !state.opened) {
+                state.opened = true;
+                try {
+                    state.session = new ReactorNettyWebTransportSession(
+                            framework.getAtmosphereConfig(), ctx.channel());
+                    var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
+                            .getWebTransportProcessor(framework);
+                    var request = org.atmosphere.cpr.AtmosphereRequestImpl.newInstance()
+                            .header("Connection", "Upgrade")
+                            .header("Upgrade", "websocket");
+                    applyPathAndQuery(request, state.path);
+                    processor.open(state.session, request,
+                            org.atmosphere.cpr.AtmosphereResponseImpl.newInstance(request));
+                    logger.debug("WebTransport bridged via processor for {}", state.path);
+                } catch (Exception e) {
+                    logger.error("Failed to bridge WebTransport to Atmosphere", e);
+                }
+            }
+        }
+
         @Override
         protected void channelInputClosed(ChannelHandlerContext ctx) {
+            // Flush any remaining buffered data as a final message
+            if (isDataStream && state != null && state.session != null && !lineBuffer.isEmpty()) {
+                var message = lineBuffer.toString();
+                lineBuffer.setLength(0);
+                logger.trace("WebTransport final message: {}", message);
+                var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
+                        .getWebTransportProcessor(framework);
+                processor.invokeWebTransportProtocol(state.session, message);
+            }
             if (isDataStream && state != null && state.session != null) {
                 logger.debug("WebTransport data stream closed");
                 var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()

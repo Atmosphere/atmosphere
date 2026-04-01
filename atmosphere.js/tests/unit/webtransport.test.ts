@@ -267,7 +267,7 @@ describe('WebTransportTransport', () => {
       transport.send('Hello World');
 
       expect(mockWriter.write).toHaveBeenCalledWith(
-        new TextEncoder().encode('Hello World'),
+        new TextEncoder().encode('Hello World\n'),
       );
     });
 
@@ -307,7 +307,7 @@ describe('WebTransportTransport', () => {
       transport.send('hello');
 
       expect(mockWriter.write).toHaveBeenCalledWith(
-        new TextEncoder().encode('[prefix]hello'),
+        new TextEncoder().encode('[prefix]hello\n'),
       );
     });
 
@@ -317,7 +317,7 @@ describe('WebTransportTransport', () => {
       transport.send('');
 
       expect(mockWriter.write).toHaveBeenCalledWith(
-        new TextEncoder().encode(''),
+        new TextEncoder().encode('\n'),
       );
     });
   });

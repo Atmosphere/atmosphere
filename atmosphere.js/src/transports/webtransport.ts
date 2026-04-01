@@ -126,10 +126,14 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
       throw new Error('WebTransport is not connected');
     }
     const outgoing = this.applyOutgoing(message);
+    // Append newline delimiter — QUIC streams don't preserve message
+    // boundaries, so the server splits on \n to reconstruct messages.
+    const delimited =
+      typeof outgoing === 'string' ? outgoing + '\n' : outgoing;
     const bytes =
-      typeof outgoing === 'string'
-        ? this.textEncoder.encode(outgoing)
-        : new Uint8Array(outgoing);
+      typeof delimited === 'string'
+        ? this.textEncoder.encode(delimited)
+        : new Uint8Array(delimited);
     this.writer.write(bytes).catch((error: Error) => {
       logger.error('WebTransport write failed:', error);
       this.handleError(error);

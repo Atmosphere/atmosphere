@@ -15,90 +15,51 @@
  */
 package org.atmosphere.spring.boot.webtransport;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Tests for the WebTransport findings fixes: UTF-8 boundary detection
- * and query string parsing.
+ * Tests for WebTransport helper methods: query string parsing
+ * and varint length calculation.
  */
 class WebTransportFindingsTest {
 
-    // ── findUtf8Boundary tests ──────────────────────────────────────────
+    // ── varintLength tests ──────────────────────────────────────────────
 
     @Test
-    void findUtf8Boundary_emptyArray() {
-        assertEquals(0, findUtf8Boundary(new byte[0]));
+    void varintLength_1byte() {
+        // 0x41 = 0b01_000001 → MSBs 01 → length 2 (wait, 01 means 2-byte varint)
+        // Actually: 0x41 has MSBs 01, so 1 << 1 = 2 bytes total
+        // But 0x00-0x3F have MSBs 00, so 1 << 0 = 1 byte
+        ByteBuf buf = Unpooled.buffer().writeByte(0x25); // MSBs 00 → 1 byte
+        assertEquals(1, invokeVarintLength(buf));
+        buf.release();
     }
 
     @Test
-    void findUtf8Boundary_asciiOnly() {
-        assertEquals(5, findUtf8Boundary("hello".getBytes(StandardCharsets.UTF_8)));
+    void varintLength_2bytes() {
+        ByteBuf buf = Unpooled.buffer().writeByte(0x41); // MSBs 01 → 2 bytes
+        assertEquals(2, invokeVarintLength(buf));
+        buf.release();
     }
 
     @Test
-    void findUtf8Boundary_complete2ByteChar() {
-        // "é" = 0xC3 0xA9 (2-byte UTF-8)
-        byte[] data = "café".getBytes(StandardCharsets.UTF_8);
-        assertEquals(data.length, findUtf8Boundary(data));
+    void varintLength_4bytes() {
+        ByteBuf buf = Unpooled.buffer().writeByte(0x80); // MSBs 10 → 4 bytes
+        assertEquals(4, invokeVarintLength(buf));
+        buf.release();
     }
 
     @Test
-    void findUtf8Boundary_incomplete2ByteChar() {
-        // Simulate a split: "caf" + first byte of "é" (0xC3)
-        byte[] full = "café".getBytes(StandardCharsets.UTF_8);
-        // "caf" = 3 bytes, "é" = 0xC3 0xA9, so full[3] = 0xC3
-        byte[] truncated = new byte[4]; // "caf" + 0xC3 (missing 0xA9)
-        System.arraycopy(full, 0, truncated, 0, 4);
-        // Should return 3 — everything before the incomplete "é"
-        assertEquals(3, findUtf8Boundary(truncated));
-    }
-
-    @Test
-    void findUtf8Boundary_complete3ByteChar() {
-        // "€" = 0xE2 0x82 0xAC (3-byte UTF-8)
-        byte[] data = "€".getBytes(StandardCharsets.UTF_8);
-        assertEquals(3, findUtf8Boundary(data));
-    }
-
-    @Test
-    void findUtf8Boundary_incomplete3ByteChar_1of3() {
-        // Just the lead byte of a 3-byte sequence
-        byte[] data = {(byte) 0xE2};
-        assertEquals(0, findUtf8Boundary(data));
-    }
-
-    @Test
-    void findUtf8Boundary_incomplete3ByteChar_2of3() {
-        // Lead + 1 continuation of a 3-byte sequence
-        byte[] data = {(byte) 0xE2, (byte) 0x82};
-        assertEquals(0, findUtf8Boundary(data));
-    }
-
-    @Test
-    void findUtf8Boundary_complete4ByteEmoji() {
-        // "😀" = 0xF0 0x9F 0x98 0x80 (4-byte UTF-8)
-        byte[] data = "😀".getBytes(StandardCharsets.UTF_8);
-        assertEquals(4, findUtf8Boundary(data));
-    }
-
-    @Test
-    void findUtf8Boundary_incomplete4ByteEmoji() {
-        // "hi" + first 2 bytes of emoji
-        byte[] data = {'h', 'i', (byte) 0xF0, (byte) 0x9F};
-        // Should return 2 — everything before the incomplete emoji
-        assertEquals(2, findUtf8Boundary(data));
-    }
-
-    @Test
-    void findUtf8Boundary_mixedWithTrailingAscii() {
-        // Complete multi-byte followed by ASCII
-        byte[] data = "€x".getBytes(StandardCharsets.UTF_8);
-        assertEquals(data.length, findUtf8Boundary(data));
+    void varintLength_8bytes() {
+        ByteBuf buf = Unpooled.buffer().writeByte(0xC0); // MSBs 11 → 8 bytes
+        assertEquals(8, invokeVarintLength(buf));
+        buf.release();
     }
 
     // ── applyPathAndQuery tests ─────────────────────────────────────────
@@ -130,14 +91,13 @@ class WebTransportFindingsTest {
 
     // ── Reflective access to package-private/static methods ─────────────
 
-    private static int findUtf8Boundary(byte[] data) {
+    private static int invokeVarintLength(ByteBuf buf) {
         try {
-            // Access the package-private static method via reflection
             Method method = Class.forName(
                     "org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer$WebTransportBidiStreamHandler")
-                    .getDeclaredMethod("findUtf8Boundary", byte[].class);
+                    .getDeclaredMethod("varintLength", ByteBuf.class);
             method.setAccessible(true);
-            return (int) method.invoke(null, data);
+            return (int) method.invoke(null, buf);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
