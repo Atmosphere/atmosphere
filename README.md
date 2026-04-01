@@ -105,7 +105,9 @@ What this registers depends on which modules are on the classpath:
 
 **[15 Event Types](https://atmosphere.github.io/docs/reference/ai/)** — `AiEvent` sealed interface: text deltas, tool start/result/error, agent steps, handoffs, approval prompts, structured output, routing decisions. Normalized across all runtimes.
 
-**[5 Transports](https://atmosphere.github.io/docs/tutorial/04-transports/)** — WebTransport/HTTP3, WebSocket, SSE, Long-Polling, gRPC. Automatic fallback, reconnection, heartbeats, message caching. First Java framework with [WebTransport over HTTP/3](https://atmosphere.github.io/docs/webtransport/).
+**[5 Transports](https://atmosphere.github.io/docs/tutorial/04-transports/)** — WebTransport/HTTP3, WebSocket, SSE, Long-Polling, gRPC. Automatic fallback, reconnection, heartbeats, message caching. First Java framework with [WebTransport over HTTP/3](https://atmosphere.github.io/docs/webtransport/) — a Reactor Netty HTTP/3 sidecar runs alongside the servlet container with self-signed cert support for dev (`/api/webtransport-info`), `Alt-Svc` header advertisement, and transparent fallback to WebSocket.
+
+**[Authentication](modules/spring-boot-starter/README.md#webtransport-over-http3)** — `TokenValidator` + `TokenRefresher` SPIs with `AuthInterceptor`. Define a validator bean and connections without valid tokens are rejected at the WebSocket/HTTP upgrade. Auto-configured via Spring Boot.
 
 **[Observability](https://atmosphere.github.io/docs/reference/observability/)** — OpenTelemetry tracing, Micrometer metrics, AI token usage tracking. Auto-configured with Spring Boot.
 
@@ -120,7 +122,11 @@ import { useStreaming } from 'atmosphere.js/react';
 
 function Chat() {
   const { fullText, isStreaming, send } = useStreaming({
-    request: { url: '/atmosphere/agent/my-agent', transport: 'websocket' },
+    request: {
+      url: '/atmosphere/agent/my-agent',
+      transport: 'webtransport',         // HTTP/3 over QUIC
+      fallbackTransport: 'websocket',    // auto-fallback
+    },
   });
   return <p>{fullText}</p>;
 }
@@ -132,15 +138,21 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 
 | Sample | Description |
 |--------|-------------|
-| [startup team](samples/spring-boot-multi-agent-startup-team/) | `@Coordinator` with 4 specialist agents |
+| [startup team](samples/spring-boot-multi-agent-startup-team/) | `@Coordinator` with 4 A2A specialist agents |
 | [dentist agent](samples/spring-boot-dentist-agent/) | Commands, tools, skill file, Slack + Telegram |
 | [ai-tools](samples/spring-boot-ai-tools/) | Framework-agnostic tool calling + approval gates |
 | [orchestration-demo](samples/spring-boot-orchestration-demo/) | Agent handoffs and approval gates |
+| [chat](samples/spring-boot-chat/) | Room protocol, presence, WebTransport/HTTP3 |
+| [ai-chat](samples/spring-boot-ai-chat/) | AI chat with auth, WebTransport, caching |
 | [mcp-server](samples/spring-boot-mcp-server/) | MCP tools, resources, prompts |
-| [rag-agent](samples/spring-boot-rag-chat/) | RAG with knowledge base search tools |
+| [rag-chat](samples/spring-boot-rag-chat/) | RAG with knowledge base search tools |
+| [a2a-agent](samples/spring-boot-a2a-agent/) | A2A assistant with weather/time tools |
+| [agui-chat](samples/spring-boot-agui-chat/) | AG-UI framework integration |
 | [durable-sessions](samples/spring-boot-durable-sessions/) | SQLite/Redis session persistence |
+| [ai-classroom](samples/spring-boot-ai-classroom/) | Multi-room collaborative AI |
+| [channels-chat](samples/spring-boot-channels-chat/) | Slack, Telegram, WhatsApp, Messenger |
 
-[All 18 samples](samples/) &middot; `atmosphere install` for interactive picker &middot; [CLI reference](cli/README.md)
+[All 20 samples](samples/) &middot; `atmosphere install` for interactive picker &middot; `atmosphere compose` to scaffold multi-agent projects &middot; [CLI reference](cli/README.md)
 
 ## Getting Started
 
