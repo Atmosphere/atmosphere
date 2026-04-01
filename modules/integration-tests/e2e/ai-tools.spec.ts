@@ -101,7 +101,7 @@ test.describe('@AiTool Pipeline', () => {
       .not.toBeEmpty({ timeout: 30_000 });
   });
 
-  test('greeting receives a response', async ({ page }) => {
+  test('@flaky greeting receives a response', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 

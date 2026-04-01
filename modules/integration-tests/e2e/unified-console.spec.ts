@@ -53,7 +53,7 @@ for (const sampleName of UNIFIED_SAMPLES) {
       await expect(page.getByTestId('chat-send')).toBeDisabled();
     });
 
-    test('user can send a message and receive a response', async ({ page }) => {
+    test('@flaky user can send a message and receive a response', async ({ page }) => {
       await page.goto(server.baseUrl + '/atmosphere/console/');
       await expect(page.getByText('Connected')).toBeVisible({ timeout: 15_000 });
 

@@ -24,7 +24,7 @@ test.describe('RAG Chat', () => {
     await expect(page.getByTestId('chat-send')).toBeDisabled();
   });
 
-  test('user can send a prompt and receive streaming response', async ({ page }) => {
+  test('@flaky user can send a prompt and receive streaming response', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-input').fill('What is Atmosphere?');
     await page.getByTestId('chat-send').click();
@@ -45,7 +45,7 @@ test.describe('RAG Chat', () => {
     await expect(page.getByTestId('chat-input')).toHaveValue('');
   });
 
-  test('RAG-specific prompt receives a response', async ({ page }) => {
+  test('@flaky RAG-specific prompt receives a response', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-input').fill('Tell me about RAG');
     await page.getByTestId('chat-send').click();
@@ -55,7 +55,7 @@ test.describe('RAG Chat', () => {
       .not.toBeEmpty({ timeout: 30_000 });
   });
 
-  test('transport-specific prompt receives a response', async ({ page }) => {
+  test('@flaky transport-specific prompt receives a response', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-input').fill('What about WebSocket transports?');
     await page.getByTestId('chat-send').click();

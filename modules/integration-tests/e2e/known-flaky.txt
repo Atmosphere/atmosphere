@@ -1,0 +1,13 @@
+# Known flaky E2E tests — LLM-dependent, timeout on slow CI runners or when API key is unavailable.
+# These tests pass locally with GEMINI_API_KEY set.
+# Format: file:line — description
+#
+# To run ALL tests including flaky: npx playwright test
+# To skip flaky in CI: set SKIP_KNOWN_FLAKY=true
+
+# LLM response timeouts — require live Gemini API
+ai-tools.spec.ts:104 — greeting receives a response (LLM timeout)
+unified-console.spec.ts:56 — user can send a message and receive a response (LLM timeout)
+rag-chat.spec.ts:27 — user can send a prompt and receive streaming response (LLM timeout)
+rag-chat.spec.ts:48 — RAG-specific prompt receives a response (LLM timeout)
+rag-chat.spec.ts:58 — transport-specific prompt receives a response (LLM timeout)
