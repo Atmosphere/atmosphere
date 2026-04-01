@@ -85,6 +85,59 @@ All properties are under the `atmosphere.*` prefix:
 - `RoomManager` -- the room API for presence and message history
 - `AtmosphereHealthIndicator` -- Actuator health check (when `spring-boot-health` is on the classpath)
 
+## WebTransport over HTTP/3
+
+The starter includes auto-configuration for a WebTransport sidecar server using Reactor Netty and the Netty HTTP/3 codec. When enabled, a secondary HTTP/3 server runs alongside the servlet container on a separate UDP port.
+
+### Dependencies
+
+Add `reactor-netty-http` (which transitively brings `netty-codec-http3`):
+
+```xml
+<dependency>
+    <groupId>io.projectreactor.netty</groupId>
+    <artifactId>reactor-netty-http</artifactId>
+</dependency>
+```
+
+### Configuration
+
+```yaml
+atmosphere:
+  web-transport:
+    enabled: true
+    port: 4443           # UDP port for HTTP/3
+    host: 0.0.0.0
+    add-alt-svc: true    # Advertise HTTP/3 via Alt-Svc header
+    ssl:
+      certificate: /path/to/cert.pem    # Optional — self-signed generated for dev
+      private-key: /path/to/key.pem
+```
+
+### Auto-Configured Beans
+
+- `ReactorNettyTransportServer` -- the HTTP/3 + WebTransport sidecar
+- `SmartLifecycle` -- starts/stops the sidecar alongside the application
+- `AltSvcFilter` -- adds `Alt-Svc: h3=":4443"; ma=86400` to HTTP responses
+- `WebTransportInfoController` -- `GET /api/webtransport-info` returns port, enabled flag, and certificate hash
+
+### Client Configuration
+
+```typescript
+const info = await fetch('/api/webtransport-info').then(r => r.json());
+const request = {
+  url: '/atmosphere/chat',
+  transport: 'webtransport',
+  fallbackTransport: 'websocket',
+  webTransportUrl: `https://${location.hostname}:${info.port}/atmosphere/chat`,
+  serverCertificateHashes: [info.certificateHash],
+};
+```
+
+### Auth Note
+
+Chrome strips query parameters from the WebTransport CONNECT `:path`. Auth tokens must use post-connection authentication (e.g., first message after connect), not query parameters.
+
 ## Zero-Code AI Chat
 
 Add `atmosphere-ai` to your classpath, set an API key, and get a working AI chat with no Java code and no frontend code.

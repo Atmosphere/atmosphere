@@ -32,6 +32,27 @@ Key characteristics:
 - More server resources per connection
 - Useful as a fallback when other transports are blocked
 
+## WebTransport over HTTP/3
+
+WebTransport provides full-duplex, bidirectional communication over HTTP/3 (QUIC). It runs as a sidecar server alongside the servlet container, using a separate UDP port. The atmosphere.js client connects via the browser's WebTransport API with automatic fallback to WebSocket.
+
+Key characteristics:
+- HTTP/3 over QUIC — multiplexed streams without head-of-line blocking
+- Lower latency than WebSocket on lossy networks
+- Built-in TLS 1.3 (QUIC requires encryption)
+- Self-signed certificate support via `serverCertificateHashes` for development
+- Auth tokens must use post-connection authentication (Chrome strips query params from the CONNECT `:path`)
+
+Configuration (Spring Boot):
+```yaml
+atmosphere:
+  web-transport:
+    enabled: true
+    port: 4443
+```
+
+Requires `reactor-netty-http` on the classpath. The `/api/webtransport-info` endpoint exposes the port and certificate hash for the client.
+
 ## gRPC
 
 gRPC transport enables bidirectional streaming over HTTP/2 using Protocol Buffers. The `atmosphere-grpc` module provides gRPC server and client support.
@@ -45,8 +66,9 @@ Key characteristics:
 ## Transport Negotiation
 
 The atmosphere.js client library automatically negotiates transports in this order:
-1. WebSocket (preferred)
-2. SSE
-3. Long-polling (fallback)
+1. WebTransport (if configured and available)
+2. WebSocket (preferred fallback)
+3. SSE
+4. Long-polling (fallback)
 
 Server-side, the `AtmosphereFramework` detects the transport from the incoming request headers and dispatches to the appropriate `AsyncSupport` implementation.
