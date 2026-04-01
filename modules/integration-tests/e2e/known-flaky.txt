@@ -11,3 +11,4 @@ unified-console.spec.ts:56 — user can send a message and receive a response (L
 rag-chat.spec.ts:27 — user can send a prompt and receive streaming response (LLM timeout)
 rag-chat.spec.ts:48 — RAG-specific prompt receives a response (LLM timeout)
 rag-chat.spec.ts:58 — transport-specific prompt receives a response (LLM timeout)
+rag-chat.spec.ts:68 — multi-turn conversation preserves history (LLM timeout)

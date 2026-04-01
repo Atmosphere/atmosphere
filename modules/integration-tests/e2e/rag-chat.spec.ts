@@ -65,7 +65,7 @@ test.describe('RAG Chat', () => {
       .not.toBeEmpty({ timeout: 30_000 });
   });
 
-  test('multi-turn conversation preserves history', async ({ page }) => {
+  test('@flaky multi-turn conversation preserves history', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
 
     // First message
