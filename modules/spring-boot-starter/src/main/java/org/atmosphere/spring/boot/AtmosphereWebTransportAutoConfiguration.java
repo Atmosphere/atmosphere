@@ -27,7 +27,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -104,19 +104,33 @@ public class AtmosphereWebTransportAutoConfiguration {
      * REST endpoint exposing the WebTransport server configuration for the
      * browser client. Returns the HTTP/3 port and certificate hash needed
      * for {@code serverCertificateHashes} (self-signed dev certs).
+     *
+     * <p>Registered as a {@code @Bean} rather than {@code @RestController}
+     * so that the outer class's {@code @ConditionalOnProperty} guard
+     * applies. A {@code @RestController} inner class gets picked up by
+     * component scan independently, bypassing the auto-configuration
+     * conditions.</p>
      */
-    @RestController
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereWebTransportInfoController")
+    public WebTransportInfoController atmosphereWebTransportInfoController(
+            ReactorNettyTransportServer server,
+            AtmosphereProperties properties) {
+        return new WebTransportInfoController(server, properties);
+    }
+
     public static class WebTransportInfoController {
 
         private final ReactorNettyTransportServer server;
         private final AtmosphereProperties properties;
 
-        public WebTransportInfoController(ReactorNettyTransportServer server, AtmosphereProperties properties) {
+        WebTransportInfoController(ReactorNettyTransportServer server, AtmosphereProperties properties) {
             this.server = server;
             this.properties = properties;
         }
 
         @GetMapping("/api/webtransport-info")
+        @ResponseBody
         public Map<String, Object> info() {
             var result = new LinkedHashMap<String, Object>();
             result.put("port", properties.getWebTransport().getPort());
