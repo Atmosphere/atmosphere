@@ -142,6 +142,7 @@ ${BOLD}Commands:${RESET}
   ${GREEN}new${RESET}  <name>       Scaffold a new Atmosphere project
   ${GREEN}info${RESET} <sample>     Show details about a sample
   ${GREEN}import${RESET} <url>      Import a skill file and scaffold a project
+  ${GREEN}compose${RESET} <dir>     Generate a multi-agent project from skill files
   ${GREEN}skills${RESET}            Browse and run skills from the registry
   ${GREEN}plugins${RESET}           List installed import plugins (--target)
   ${GREEN}version${RESET}           Print version
@@ -1568,6 +1569,136 @@ POMEOF
     printf "\n"
 }
 
+# ── Compose (multi-agent project generator) ────────────────────────────────
+
+cmd_compose() {
+    local compose_name=""
+    local compose_group="com.example"
+    local compose_protocol=""
+    local compose_transport=""
+    local compose_frontend=""
+    local compose_ai=""
+    local compose_deploy=""
+    local compose_skills=""
+    local compose_output=""
+    local skill_args=""
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --help|-h)
+                cat <<COMPOSEEOF
+${BOLD}Usage:${RESET} atmosphere compose [options] [skill-files...]
+
+Generate a multi-agent Atmosphere project from skill files.
+
+${BOLD}Options:${RESET}
+  --name, -n <name>         Project name
+  --group, -g <id>          Group ID (default: com.example)
+  --protocol <a2a|local>    Agent communication protocol
+  --transport <websocket|sse> Client transport
+  --frontend <react|none>   Frontend type
+  --ai <builtin|langchain4j|spring-ai|adk> AI framework
+  --deploy <docker-compose|single-jar> Deployment mode
+  --skills <paths>          Comma-separated skill file paths
+  --output, -o <dir>        Output directory
+
+${BOLD}Examples:${RESET}
+  atmosphere compose skills/research/ skills/writer/
+  atmosphere compose --name my-fleet --protocol a2a research.md writer.md
+  atmosphere compose --skills skills/coordinator.md,skills/analyst.md
+
+COMPOSEEOF
+                return 0
+                ;;
+            --name|-n)    shift; compose_name="$1"; shift ;;
+            --group|-g)   shift; compose_group="$1"; shift ;;
+            --protocol)   shift; compose_protocol="$1"; shift ;;
+            --transport)  shift; compose_transport="$1"; shift ;;
+            --frontend)   shift; compose_frontend="$1"; shift ;;
+            --ai)         shift; compose_ai="$1"; shift ;;
+            --deploy)     shift; compose_deploy="$1"; shift ;;
+            --skills)     shift; compose_skills="$1"; shift ;;
+            --output|-o)  shift; compose_output="$1"; shift ;;
+            -*)           die "Unknown option: $1" ;;
+            *)
+                # Positional: skill file, directory, URL, or registry ID
+                local src="$1"; shift
+
+                if [ -d "$src" ]; then
+                    # Directory: look for nested */SKILL.md first, then flat *.md
+                    local found_nested=false
+                    for nested in "$src"/*/SKILL.md; do
+                        [ -f "$nested" ] && { skill_args="$skill_args $nested"; found_nested=true; }
+                    done
+                    if [ "$found_nested" = false ]; then
+                        for flat in "$src"/*.md; do
+                            [ -f "$flat" ] && skill_args="$skill_args $flat"
+                        done
+                    fi
+                elif [ -f "$src" ]; then
+                    skill_args="$skill_args $src"
+                elif echo "$src" | grep -qE '^https?://'; then
+                    # URL: download to temp, normalize GitHub URLs
+                    if echo "$src" | grep -qE 'github\.com/[^/]+/[^/]+/blob/'; then
+                        src=$(echo "$src" | sed 's|github\.com/\([^/]*/[^/]*\)/blob/|raw.githubusercontent.com/\1/|')
+                    fi
+                    ensure_cache_dir
+                    local tmp_skill="$CACHE_DIR/compose-skill-$(printf '%s' "$src" | sha256sum_portable /dev/stdin 2>/dev/null | cut -c1-8).md"
+                    download "$src" "$tmp_skill"
+                    skill_args="$skill_args $tmp_skill"
+                else
+                    # Treat as registry skill ID
+                    info "Looking up skill '$src' in registry..."
+                    ensure_cache_dir
+                    download "$SKILLS_REGISTRY_URL" "$CACHE_DIR/skills-registry.json"
+                    if has_jq; then
+                        local skill_path
+                        skill_path=$(jq -r ".skills[] | select(.id == \"$src\") | .path" "$CACHE_DIR/skills-registry.json")
+                        [ -z "$skill_path" ] || [ "$skill_path" = "null" ] && die "Skill not found: $src"
+                        local skill_url="$SKILLS_BASE_URL/$skill_path"
+                        local tmp_skill="$CACHE_DIR/compose-skill-$src.md"
+                        download "$skill_url" "$tmp_skill"
+                        skill_args="$skill_args $tmp_skill"
+                    else
+                        die "jq is required for registry lookups. Install with: brew install jq"
+                    fi
+                fi
+                ;;
+        esac
+    done
+
+    # Build jbang args
+    local jbang_args=""
+    [ -n "$compose_name" ]      && jbang_args="$jbang_args --name $compose_name"
+    [ -n "$compose_group" ]     && jbang_args="$jbang_args --group $compose_group"
+    [ -n "$compose_protocol" ]  && jbang_args="$jbang_args --protocol $compose_protocol"
+    [ -n "$compose_transport" ] && jbang_args="$jbang_args --transport $compose_transport"
+    [ -n "$compose_frontend" ]  && jbang_args="$jbang_args --frontend $compose_frontend"
+    [ -n "$compose_ai" ]        && jbang_args="$jbang_args --ai $compose_ai"
+    [ -n "$compose_deploy" ]    && jbang_args="$jbang_args --deploy $compose_deploy"
+    [ -n "$compose_skills" ]    && jbang_args="$jbang_args --skills $compose_skills"
+    [ -n "$compose_output" ]    && jbang_args="$jbang_args --output $compose_output"
+
+    # Pass the CLI version so the generator uses the same Atmosphere version as the framework
+    jbang_args="$jbang_args --atmosphere-version $VERSION"
+
+    need_cmd jbang
+
+    # Resolve the ComposeGenerator.java script
+    local script_dir
+    script_dir="$(cd "$(dirname "$0")" && pwd)"
+    local generator_script=""
+    if [ -f "$script_dir/../generator/ComposeGenerator.java" ]; then
+        generator_script="$script_dir/../generator/ComposeGenerator.java"
+    else
+        generator_script="https://raw.githubusercontent.com/Atmosphere/atmosphere/main/generator/ComposeGenerator.java"
+    fi
+
+    info "Generating multi-agent project..."
+    # shellcheck disable=SC2086
+    jbang "$generator_script" $jbang_args $skill_args
+}
+
 cmd_skills() {
     local subcmd="${1:-list}"
     shift 2>/dev/null || true
@@ -1674,6 +1805,7 @@ case "${1:-help}" in
     new|init|create)      shift; cmd_new "$@" ;;
     info|show)            shift; cmd_info "$@" ;;
     import)               shift; cmd_import "$@" ;;
+    compose)              shift; cmd_compose "$@" ;;
     skills)               shift; cmd_skills "$@" ;;
     plugins)              shift; cmd_plugins "$@" ;;
     *)                    die "Unknown command: $1. Run 'atmosphere help' for usage." ;;

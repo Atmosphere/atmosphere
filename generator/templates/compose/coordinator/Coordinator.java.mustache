@@ -1,0 +1,96 @@
+/*
+ * Copyright 2008-2026 Async-IO.org
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package {{agent.packageName}};
+
+import org.atmosphere.ai.AiEvent;
+import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.config.service.Disconnect;
+import org.atmosphere.config.service.Ready;
+import org.atmosphere.coordinator.annotation.AgentRef;
+import org.atmosphere.coordinator.annotation.Coordinator;
+import org.atmosphere.coordinator.annotation.Fleet;
+import org.atmosphere.coordinator.fleet.AgentFleet;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Map;
+
+@Coordinator(name = "{{agent.name}}",
+        skillFile = "prompts/skill.md",
+        description = "{{agent.description}}")
+@Fleet({
+{{#agents}}
+        @AgentRef(value = "{{name}}"){{^-last}},{{/-last}}
+{{/agents}}
+})
+public class {{agent.className}} {
+
+    private static final Logger logger = LoggerFactory.getLogger({{agent.className}}.class);
+
+    @Ready
+    public void onReady(AtmosphereResource resource) {
+        logger.info("Client {} connected to coordinator", resource.uuid());
+    }
+
+    @Disconnect
+    public void onDisconnect(AtmosphereResourceEvent event) {
+        logger.info("Client {} disconnected", event.getResource().uuid());
+    }
+
+    @Prompt
+    public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
+        logger.info("Coordinator received: {}", message);
+
+{{#workflowSteps}}
+        // --- Step {{stepNumber}} ---
+{{#isSequential}}
+{{#agents}}
+        session.emit(new AiEvent.ToolStart("{{name}}", Map.<String, Object>of("input", message)));
+        var {{varName}}Result = fleet.agent("{{name}}").call("execute", Map.<String, Object>of("input", {{#hasPreviousVars}}buildInput(message{{#previousVars}}, {{.}}.text(){{/previousVars}}){{/hasPreviousVars}}{{^hasPreviousVars}}message{{/hasPreviousVars}}));
+        session.emit(new AiEvent.ToolResult("{{name}}", {{varName}}Result.text()));
+{{/agents}}
+{{/isSequential}}
+{{#isParallel}}
+{{#agents}}
+        session.emit(new AiEvent.ToolStart("{{name}}", Map.<String, Object>of("input", message)));
+{{/agents}}
+        var step{{stepNumber}}Results = fleet.parallel(
+{{#agents}}
+                fleet.call("{{name}}", "execute", Map.<String, Object>of("input", {{#hasPreviousVars}}buildInput(message{{#previousVars}}, {{.}}.text(){{/previousVars}}){{/hasPreviousVars}}{{^hasPreviousVars}}message{{/hasPreviousVars}})){{^-last}},{{/-last}}
+{{/agents}}
+        );
+{{#agents}}
+        var {{varName}}Result = step{{stepNumber}}Results.get("{{name}}");
+        session.emit(new AiEvent.ToolResult("{{name}}", {{varName}}Result.text()));
+{{/agents}}
+{{/isParallel}}
+
+{{/workflowSteps}}
+        // Synthesize all agent results via LLM
+        session.stream(message);
+    }
+
+    private static String buildInput(String original, String... results) {
+        var sb = new StringBuilder(original);
+        for (var r : results) {
+            if (r != null) sb.append("\n\n---\n\n").append(r);
+        }
+        return sb.toString();
+    }
+}

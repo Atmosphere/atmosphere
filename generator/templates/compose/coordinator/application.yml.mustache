@@ -1,0 +1,37 @@
+server:
+  port: {{coordinator.port}}
+
+atmosphere:
+  packages:
+    - {{agent.packageName}}
+{{#isA2a}}
+  coordinator:
+    agents:
+{{#agents}}
+      {{name}}:
+        url: http://localhost:{{port}}
+{{/agents}}
+{{/isA2a}}
+
+{{#isBuiltin}}
+atmosphere.ai:
+  provider: openai
+  api-key: ${LLM_API_KEY:}
+  model: ${LLM_MODEL:gpt-4o}
+{{/isBuiltin}}
+{{#isLangchain4j}}
+langchain4j:
+  open-ai:
+    streaming-chat-model:
+      api-key: ${LLM_API_KEY:}
+      model-name: ${LLM_MODEL:gpt-4o}
+{{/isLangchain4j}}
+{{#isSpringAi}}
+spring:
+  ai:
+    openai:
+      api-key: ${LLM_API_KEY:}
+      chat:
+        options:
+          model: ${LLM_MODEL:gpt-4o}
+{{/isSpringAi}}

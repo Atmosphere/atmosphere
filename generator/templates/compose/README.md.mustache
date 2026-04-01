@@ -1,0 +1,99 @@
+# {{name}}
+
+A multi-agent Atmosphere project.
+
+## Architecture
+
+This project uses the Atmosphere framework to orchestrate multiple AI agents:
+
+- **Coordinator** (port {{coordinator.port}}): Routes requests to the agent fleet
+{{#agents}}
+- **{{name}}** (port {{port}}): {{description}}
+{{/agents}}
+
+## Workflow
+
+{{#workflowSteps}}
+{{#isSequential}}
+{{stepNumber}}. {{#agents}}**{{name}}**{{/agents}} (sequential)
+{{/isSequential}}
+{{#isParallel}}
+{{stepNumber}}. {{#agents}}**{{name}}** {{/agents}} (parallel)
+{{/isParallel}}
+{{/workflowSteps}}
+
+## Running
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LLM_API_KEY` | API key for the LLM provider | (required) |
+| `LLM_MODEL` | Model name | `gpt-4o` |
+
+{{#isDockerCompose}}
+### Docker Compose
+
+```bash
+export LLM_API_KEY=your-api-key
+docker-compose up --build
+```
+
+Open http://localhost:8080 in your browser.
+{{/isDockerCompose}}
+
+{{#isSingleJar}}
+### Single JAR
+
+```bash
+./mvnw install
+LLM_API_KEY=your-api-key java -jar coordinator/target/*.jar
+```
+
+Open http://localhost:8080 in your browser.
+{{/isSingleJar}}
+
+{{^isSingleJar}}
+{{^isDockerCompose}}
+### Running Locally
+
+Start each agent in a separate terminal:
+
+{{#agents}}
+```bash
+cd agents/{{name}}
+LLM_API_KEY=your-api-key ../../mvnw spring-boot:run
+```
+
+{{/agents}}
+
+Then start the coordinator:
+
+```bash
+cd coordinator
+LLM_API_KEY=your-api-key ../mvnw spring-boot:run
+```
+
+Open http://localhost:8080 in your browser.
+{{/isDockerCompose}}
+{{/isSingleJar}}
+
+## Project Structure
+
+```
+{{name}}/
+├── pom.xml                    (parent POM)
+├── coordinator/               (coordinator module)
+│   ├── pom.xml
+│   └── src/main/java/...
+{{#agents}}
+├── agents/{{name}}/           ({{name}} agent)
+│   ├── pom.xml
+│   └── src/main/java/...
+{{/agents}}
+{{#isDockerCompose}}
+├── docker-compose.yml
+├── Dockerfile
+{{/isDockerCompose}}
+└── README.md
+```

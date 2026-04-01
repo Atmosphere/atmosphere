@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  coordinator:
+    build:
+      context: coordinator
+      dockerfile: ../Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o}
+      {{#agents}}
+      - {{envName}}_URL=http://{{name}}:{{port}}
+      {{/agents}}
+    depends_on:
+      {{#agents}}
+      - {{name}}
+      {{/agents}}
+
+  {{#agents}}
+  {{name}}:
+    build:
+      context: agents/{{name}}
+      dockerfile: ../../Dockerfile
+    ports:
+      - "{{port}}:{{port}}"
+    environment:
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o}
+      - SERVER_PORT={{port}}
+
+  {{/agents}}
