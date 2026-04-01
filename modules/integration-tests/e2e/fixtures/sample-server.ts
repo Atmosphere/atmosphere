@@ -58,6 +58,7 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8080,
     type: 'spring-boot',
     readyPath: '/atmosphere/ai-chat',
+    env: { ATMOSPHERE_AUTH_TOKEN: 'demo-token' },
   },
   'spring-boot-mcp-server': {
     name: 'spring-boot-mcp-server',

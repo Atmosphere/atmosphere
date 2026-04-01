@@ -8,7 +8,7 @@ atmosphere:
     enabled: true
     port: 4443
   auth:
-    demo-token: ${ATMOSPHERE_AUTH_TOKEN:demo-token}
+    demo-token: ${ATMOSPHERE_AUTH_TOKEN:}
   cache:
     enabled: true
 

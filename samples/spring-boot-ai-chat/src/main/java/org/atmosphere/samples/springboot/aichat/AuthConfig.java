@@ -52,7 +52,7 @@ public class AuthConfig {
             if (demoToken.equals(token)) {
                 return new TokenValidator.Valid("demo-user");
             }
-            if (token != null && token.startsWith("expired-")) {
+            if (token.startsWith("expired-")) {
                 return new TokenValidator.Expired("Token expired");
             }
             return new TokenValidator.Invalid("Invalid token");
