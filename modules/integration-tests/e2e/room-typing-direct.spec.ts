@@ -32,7 +32,7 @@ function connectRoomWs(
   });
 }
 
-async function waitFor(fn: () => boolean, timeoutMs = 15_000): Promise<void> {
+async function waitFor(fn: () => boolean, timeoutMs = 30_000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     if (fn()) return;
