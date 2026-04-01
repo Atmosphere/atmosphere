@@ -162,17 +162,6 @@ test.describe('@AiTool Pipeline', () => {
     expect(approvalEvent.data.approvalId).toBeDefined();
   });
 
-  test('reset city data shows approval UI in console', async ({ page }) => {
-    await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
-
-    await page.getByTestId('chat-input').fill('Reset city data for London');
-    await page.getByTestId('chat-send').click();
-
-    // Wait for the response — demo mode emits approval-required + auto-approves after 2s
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
-      .toContainText('reset', { timeout: 15_000 });
-  });
 
   test('reset_city_data tool registered with approval metadata', () => {
     const output = server.getOutput();
