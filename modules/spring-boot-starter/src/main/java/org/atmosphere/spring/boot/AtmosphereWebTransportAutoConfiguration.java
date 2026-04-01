@@ -61,8 +61,16 @@ public class AtmosphereWebTransportAutoConfiguration {
 
             @Override
             public void start() {
-                server.start();
-                running = true;
+                try {
+                    server.start();
+                    running = true;
+                } catch (Exception e) {
+                    // Don't crash the app — WebTransport is optional.
+                    // Self-signed cert generation fails in GraalVM native image.
+                    org.slf4j.LoggerFactory.getLogger(AtmosphereWebTransportAutoConfiguration.class)
+                            .warn("WebTransport server failed to start (app continues without HTTP/3): {}",
+                                    e.getMessage());
+                }
             }
 
             @Override
