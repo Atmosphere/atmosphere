@@ -3,91 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Atmosphere A2A Agent Demo</title>
+  <title>Atmosphere A2A Agent</title>
+  <style>
+    @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+  </style>
+  <script type="module" crossorigin src="/assets/index-DR5SK2gn.js"></script>
 </head>
-<body style="margin:0; background:#0f172a; color:#e2e8f0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-<div style="max-width:900px; margin:0 auto; padding:20px;">
-  <h1 style="color:#a5b4fc; margin-bottom:4px;">Atmosphere A2A Agent</h1>
-  <p style="color:rgba(255,255,255,0.5); margin-top:0;">Agent-to-Agent protocol — real Gemini AI backend</p>
-  <div id="output"><div style="color:#fbbf24;">Loading agent...</div></div>
-</div>
-<script>
-(async () => {
-  const output = document.getElementById('output');
-  const BASE = '/atmosphere/a2a';
-
-  function addCard(title, content, color) {
-    const d = document.createElement('div');
-    d.style.cssText = 'background:rgba(255,255,255,0.05); border:1px solid ' + color + '40; border-radius:12px; padding:16px; border-left:4px solid ' + color + '; margin-bottom:16px;';
-    d.innerHTML = '<div style="font-weight:700;color:' + color + ';margin-bottom:8px;font-size:14px;">' + title + '</div><div style="font-size:13px;line-height:1.6;">' + content + '</div>';
-    output.appendChild(d);
-  }
-
-  async function rpc(method, params) {
-    const res = await fetch(BASE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: method, params: params })
-    });
-    return res.json();
-  }
-
-  // 1. Agent Card
-  const cardRes = await rpc('agent/authenticatedExtendedCard');
-  const card = cardRes.result;
-  output.innerHTML = '';
-
-  const skillsHtml = card.skills.map(function(s) {
-    return '<div style="background:rgba(99,102,241,0.1);padding:8px 12px;border-radius:8px;margin-top:6px;">'
-      + '<strong style="color:#a5b4fc;">' + s.name + '</strong> <span style="color:rgba(255,255,255,0.4);font-size:11px;">(' + s.id + ')</span>'
-      + '<div style="color:rgba(255,255,255,0.6);font-size:12px;margin-top:2px;">' + s.description + '</div>'
-      + '<div style="margin-top:4px;">' + s.tags.map(function(t) { return '<span style="background:rgba(99,102,241,0.2);color:#c4b5fd;padding:1px 8px;border-radius:10px;font-size:10px;margin-right:4px;">' + t + '</span>'; }).join('') + '</div>'
-      + '</div>';
-  }).join('');
-  addCard('Agent Card: ' + card.name + ' v' + card.version, '<div style="color:rgba(255,255,255,0.6);">' + card.description + '</div>' + skillsHtml, '#6366f1');
-
-  // 2. Ask AI
-  addCard('Skill: ask', '<span style="color:#fbbf24;">Calling Gemini AI...</span>', '#10b981');
-  const askRes = await rpc('message/send', {
-    message: { role: 'user', parts: [{ type: 'text', text: 'What is Atmosphere Framework?' }], messageId: 'q1', metadata: { skillId: 'ask' } },
-    arguments: { message: 'What is the Atmosphere Framework? Answer in 2 sentences.' }
-  });
-  const askTask = askRes.result;
-  const askText = (askTask.artifacts && askTask.artifacts[0] && askTask.artifacts[0].parts && askTask.artifacts[0].parts[0]) ? askTask.artifacts[0].parts[0].text : 'No response';
-  output.lastChild.remove();
-  addCard('AI Response (' + askTask.status.state + ')', '<div style="color:#6ee7b7;font-style:italic;">"' + askText + '"</div><div style="color:rgba(255,255,255,0.3);font-size:11px;margin-top:6px;">Task: ' + askTask.id.substring(0,8) + '... | ' + askTask.status.message + '</div>', '#10b981');
-
-  // 3. Weather
-  addCard('Skill: get-weather', '<span style="color:#fbbf24;">Calling Gemini for weather in Montreal...</span>', '#f59e0b');
-  const weatherRes = await rpc('message/send', {
-    message: { role: 'user', parts: [{ type: 'text', text: 'weather' }], messageId: 'q2', metadata: { skillId: 'get-weather' } },
-    arguments: { location: 'Montreal, Canada' }
-  });
-  const wTask = weatherRes.result;
-  const wText = (wTask.artifacts && wTask.artifacts[0] && wTask.artifacts[0].parts && wTask.artifacts[0].parts[0]) ? wTask.artifacts[0].parts[0].text : 'No response';
-  output.lastChild.remove();
-  addCard('Weather Report (' + wTask.status.state + ')', '<div>' + wText + '</div><div style="color:rgba(255,255,255,0.3);font-size:11px;margin-top:6px;">Task: ' + wTask.id.substring(0,8) + '...</div>', '#f59e0b');
-
-  // 4. Time
-  const timeRes = await rpc('message/send', {
-    message: { role: 'user', parts: [{ type: 'text', text: 'time' }], messageId: 'q3', metadata: { skillId: 'get-time' } },
-    arguments: { timezone: 'America/Montreal' }
-  });
-  const tTask = timeRes.result;
-  const tText = (tTask.artifacts && tTask.artifacts[0] && tTask.artifacts[0].parts && tTask.artifacts[0].parts[0]) ? tTask.artifacts[0].parts[0].text : 'No response';
-  addCard('Time (' + tTask.status.state + ')', '<div style="font-size:18px;color:#67e8f9;">' + tText + '</div><div style="color:rgba(255,255,255,0.3);font-size:11px;margin-top:6px;">Task: ' + tTask.id.substring(0,8) + '...</div>', '#06b6d4');
-
-  // 5. Task history
-  const listRes = await rpc('tasks/list', {});
-  const tasks = listRes.result;
-  addCard('Task History (' + tasks.length + ' tasks)', tasks.map(function(t) {
-    var c = t.status.state === 'COMPLETED' ? '#6ee7b7' : '#fca5a5';
-    return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);">'
-      + '<span style="color:rgba(255,255,255,0.5);font-size:11px;font-family:monospace;">' + t.id.substring(0,8) + '...</span>'
-      + '<span style="color:' + c + ';font-size:12px;">' + t.status.state + '</span>'
-      + '<span style="color:rgba(255,255,255,0.4);font-size:11px;">' + (t.status.message || '') + '</span></div>';
-  }).join(''), '#8b5cf6');
-})();
-</script>
+<body>
+  <div id="root"></div>
 </body>
 </html>

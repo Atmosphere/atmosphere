@@ -7,12 +7,12 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
   },
   build: {
-    outDir: '../src/main/webapp',
-    emptyOutDir: true,
+    outDir: '../src/main/resources/static/',
+    emptyOutDir: false,
   },
   server: {
     proxy: {
-      '/org.atmosphere.grpc.AtmosphereService': 'http://localhost:8080',
+      '/atmosphere': 'http://localhost:8084',
     },
   },
 });
