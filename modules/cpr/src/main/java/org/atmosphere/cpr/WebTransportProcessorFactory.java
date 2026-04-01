@@ -92,10 +92,15 @@ public class WebTransportProcessorFactory {
         }
     }
 
+    /** Default processor class in the Spring Boot starter module. */
+    private static final String DEFAULT_PROCESSOR =
+            "org.atmosphere.spring.boot.webtransport.DefaultWebTransportProcessor";
+
     @SuppressWarnings("unchecked")
     private WebTransportProcessor createProcessor(AtmosphereFramework framework) {
         WebTransportProcessor processor = null;
 
+        // 1. Explicit configuration takes priority
         String processorName = framework.getAtmosphereConfig()
                 .getInitParameter(ApplicationConfig.WEBTRANSPORT_PROCESSOR);
         if (processorName != null && !processorName.isEmpty()) {
@@ -107,6 +112,18 @@ public class WebTransportProcessorFactory {
             }
         }
 
+        // 2. Try the default implementation from the Spring Boot starter
+        if (processor == null) {
+            try {
+                processor = framework.newClassInstance(WebTransportProcessor.class,
+                        (Class<WebTransportProcessor>) IOUtils.loadClass(getClass(), DEFAULT_PROCESSOR));
+                logger.debug("Using {} as WebTransportProcessor", DEFAULT_PROCESSOR);
+            } catch (Exception ex) {
+                logger.trace("DefaultWebTransportProcessor not on classpath, using no-op adapter");
+            }
+        }
+
+        // 3. Fall back to no-op adapter
         if (processor == null) {
             processor = new WebTransportProcessorAdapter();
         }

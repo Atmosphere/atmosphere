@@ -16,7 +16,6 @@
 package org.atmosphere.spring.boot.webtransport;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
@@ -61,9 +60,14 @@ import java.util.concurrent.TimeUnit;
  * <p>Neither is exposed by Reactor Netty's high-level API.</p>
  *
  * <p>The server listens on a separate UDP port and runs alongside the
- * servlet container. Regular HTTP/3 requests are bridged to
- * {@link AtmosphereFramework#doCometSupport}, while WebTransport extended
- * CONNECT requests create bidirectional stream sessions.</p>
+ * servlet container. In v1, only WebTransport extended CONNECT requests
+ * are supported — regular HTTP/3 requests receive a 501 response.
+ * WebTransport sessions create bidirectional QUIC streams bridged into
+ * Atmosphere via the {@link org.atmosphere.webtransport.WebTransportProcessor} SPI.</p>
+ *
+ * <p><strong>Auth note:</strong> Chrome strips query parameters from the
+ * WebTransport CONNECT {@code :path}. Auth tokens must use post-connection
+ * authentication (e.g., first message), not query parameters.</p>
  */
 public class ReactorNettyTransportServer {
 
@@ -102,7 +106,7 @@ public class ReactorNettyTransportServer {
             settings.put(0x2b603742L, 1L);   // SETTINGS_WEBTRANS_DRAFT00 (draft-02)
             settings.put(0xc671706aL, 256L); // SETTINGS_WEBTRANS_MAX_SESSIONS (draft-07)
             var settingsFrame = new DefaultHttp3SettingsFrame(settings);
-            logger.info("HTTP/3 SETTINGS frame: {}", settingsFrame);
+            logger.debug("HTTP/3 SETTINGS frame: {}", settingsFrame);
 
             var wtSessions = new java.util.concurrent.ConcurrentHashMap<Channel, WebTransportConnectionState>();
 
@@ -120,13 +124,20 @@ public class ReactorNettyTransportServer {
                     .handler(new ChannelInitializer<>() {
                         @Override
                         protected void initChannel(Channel ch) {
-                            logger.info("QUIC connection established: {}", ch);
+                            logger.debug("QUIC connection established: {}", ch);
+                            // Clean up session state when the QUIC connection closes
+                            ch.closeFuture().addListener(f -> {
+                                var removed = wtSessions.remove(ch);
+                                if (removed != null) {
+                                    logger.debug("QUIC connection closed, cleaned up WT session: {}", ch);
+                                }
+                            });
                             try {
                                 var connHandler = new Http3ServerConnectionHandler(
                                         new ChannelInitializer<QuicStreamChannel>() {
                                             @Override
                                             protected void initChannel(QuicStreamChannel streamCh) {
-                                                logger.info("HTTP/3 request stream opened: {}", streamCh);
+                                                logger.debug("HTTP/3 request stream opened: {}", streamCh);
                                                 streamCh.pipeline().addLast(
                                                         new AtmosphereHttp3Handler(framework, wtSessions));
                                             }
@@ -150,19 +161,19 @@ public class ReactorNettyTransportServer {
                                             ch.eventLoop().register(streamCh).addListener(f -> {
                                                 if (f.isSuccess()) {
                                                     streamCh.read();
-                                                    logger.info("WT bidi stream registered OK, reading: {}", streamCh);
+                                                    logger.debug("WT bidi stream registered OK, reading: {}", streamCh);
                                                 } else {
                                                     logger.error("WT bidi stream register failed", f.cause());
                                                 }
                                             });
-                                            logger.info("WT bidi stream intercepted: {}", streamCh);
+                                            logger.debug("WT bidi stream intercepted: {}", streamCh);
                                             return; // DON'T pass to Http3ServerConnectionHandler
                                         }
                                         super.channelRead(connCtx, msg);
                                     }
                                 });
                                 ch.pipeline().addLast(connHandler);
-                                logger.info("Http3ServerConnectionHandler installed, pipeline: {}",
+                                logger.debug("Http3ServerConnectionHandler installed, pipeline: {}",
                                         ch.pipeline().names());
                             } catch (Exception e) {
                                 logger.error("Failed to install Http3ServerConnectionHandler", e);
@@ -257,6 +268,21 @@ public class ReactorNettyTransportServer {
         }
     }
 
+    // ── Shared helpers ────────────────────────────────────────────────────
+
+    /**
+     * Split a CONNECT {@code :path} into pathInfo and queryString on the
+     * request builder. Handles paths with or without query parameters.
+     */
+    private static void applyPathAndQuery(
+            org.atmosphere.cpr.AtmosphereRequest request, String connectPath) {
+        int qIdx = connectPath.indexOf('?');
+        request.pathInfo(qIdx >= 0 ? connectPath.substring(0, qIdx) : connectPath);
+        if (qIdx >= 0) {
+            request.queryString(connectPath.substring(qIdx + 1));
+        }
+    }
+
     // ── HTTP/3 request handler ───────────────────────────────────────────
 
     /**
@@ -264,64 +290,9 @@ public class ReactorNettyTransportServer {
      * dispatches them:
      * <ul>
      *   <li>CONNECT + :protocol=webtransport → WebTransport session</li>
-     *   <li>Other methods → bridge to AtmosphereFramework.doCometSupport()</li>
+     *   <li>Other methods → 501 Not Implemented (v1)</li>
      * </ul>
      */
-    /**
-     * WebSocket adapter that writes to a QUIC bidirectional stream via HTTP/3 DATA frames.
-     * The write target starts as the CONNECT stream (stream 0) but can be redirected
-     * to a data stream (stream 4+) when the client creates one.
-     */
-    private static class QuicWebSocket extends org.atmosphere.websocket.WebSocket {
-
-        private volatile ChannelHandlerContext dataCtx;
-        private volatile boolean ready;
-
-        QuicWebSocket(AtmosphereFramework framework) {
-            super(framework.getAtmosphereConfig());
-        }
-
-        void setDataChannel(ChannelHandlerContext ctx) {
-            this.dataCtx = ctx;
-        }
-
-        /** Mark the WebSocket as ready to send — suppresses writes during handshake. */
-        void markReady() {
-            this.ready = true;
-        }
-
-        @Override
-        public boolean isOpen() {
-            return dataCtx != null && dataCtx.channel().isActive();
-        }
-
-        @Override
-        public org.atmosphere.websocket.WebSocket write(String s) {
-            if (!ready) return this;
-            var ctx = dataCtx;
-            if (ctx != null && ctx.channel().isActive()) {
-                // Write raw bytes — the bidi data stream has no HTTP/3 codec
-                ctx.writeAndFlush(Unpooled.copiedBuffer(s, StandardCharsets.UTF_8));
-            }
-            return this;
-        }
-
-        @Override
-        public org.atmosphere.websocket.WebSocket write(byte[] b, int offset, int length) {
-            if (!ready) return this;
-            var ctx = dataCtx;
-            if (ctx != null && ctx.channel().isActive()) {
-                ctx.writeAndFlush(Unpooled.wrappedBuffer(b, offset, length));
-            }
-            return this;
-        }
-
-        @Override
-        public void close() {
-            var ctx = dataCtx;
-            if (ctx != null) ctx.close();
-        }
-    }
 
     /**
      * Intercepts raw bytes on bidirectional streams to handle WebTransport
@@ -336,6 +307,7 @@ public class ReactorNettyTransportServer {
         private boolean isWtStream;
         private boolean headerParsed;
         private WebTransportConnectionState state;
+        private byte[] trailingBytes = new byte[0];
 
         WebTransportBidiStreamHandler(AtmosphereFramework framework,
                                        java.util.concurrent.ConcurrentMap<Channel, WebTransportConnectionState> sessions) {
@@ -345,72 +317,57 @@ public class ReactorNettyTransportServer {
 
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
-            logger.info("WT bidi handler channelActive: {}", ctx.channel());
+            logger.trace("WT bidi handler channelActive: {}", ctx.channel());
             super.channelActive(ctx);
         }
 
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             if (msg instanceof io.netty.buffer.ByteBuf buf) {
-                logger.info("WT bidi handler data: {} bytes, hex={}", buf.readableBytes(),
-                        io.netty.buffer.ByteBufUtil.hexDump(buf, buf.readerIndex(),
-                                Math.min(buf.readableBytes(), 32)));
+                if (logger.isTraceEnabled()) {
+                    logger.trace("WT bidi handler data: {} bytes, hex={}", buf.readableBytes(),
+                            io.netty.buffer.ByteBufUtil.hexDump(buf, buf.readerIndex(),
+                                    Math.min(buf.readableBytes(), 32)));
+                }
                 if (!headerParsed) {
                     headerParsed = true;
-                    // WebTransport bidi stream starts with: type_varint(0x41) + session_id_varint
-                    // Just skip the entire header — it's always the first read on this stream
                     isWtStream = true;
-                    // Skip all varint bytes: high bit set = more bytes follow
-                    // First varint: stream type (0x41, encoded as 0x40 0x41 in 2-byte varint)
+                    // WebTransport bidi stream starts with: type_varint(0x41) + session_id_varint
                     skipVarint(buf);
-                    // Second varint: session ID
                     skipVarint(buf);
-                    if (true) {
 
-                        // Set up Atmosphere bridge
-                        var parentChannel = ctx.channel().parent();
-                        state = parentChannel != null ? sessions.get(parentChannel) : null;
-                        if (state != null && state.webSocket != null) {
-                            state.webSocket.setDataChannel(ctx);
-                            if (!state.opened) {
-                                state.opened = true;
-                                var processor = org.atmosphere.cpr.WebSocketProcessorFactory.getDefault()
-                                        .getWebSocketProcessor(framework);
-                                // Build path + query from the CONNECT path
-                                var connectPath = state.path;
-                                var qIdx = connectPath.indexOf('?');
-                                var pInfo = qIdx >= 0 ? connectPath.substring(0, qIdx) : connectPath;
-                                var qs = qIdx >= 0 ? connectPath.substring(qIdx + 1) : "";
-                                // Pass query string from CONNECT :path (includes auth tokens, tracking IDs)
-                                var request = org.atmosphere.cpr.AtmosphereRequestImpl.newInstance()
-                                        .header("Connection", "Upgrade")
-                                        .header("Upgrade", "websocket")
-                                        .pathInfo(pInfo);
-                                if (!qs.isEmpty()) {
-                                    request.queryString(qs);
-                                }
-                                var response = org.atmosphere.cpr.AtmosphereResponseImpl.newInstance(
-                                        framework.getAtmosphereConfig(), request, state.webSocket);
-                                response.delegateToNativeResponse(false);
-                                processor.open(state.webSocket, request, response);
-                                state.webSocket.markReady();
-                                logger.info("WebTransport bidi stream bridged for {}", state.path);
-                            }
-                        }
-
-                        // Process remaining data in this buffer
-                        if (buf.readableBytes() > 0) {
-                            processData(buf);
-                        }
-                        return; // Don't pass to HTTP/3 codec
+                    // Set up Atmosphere bridge via WebTransport SPI
+                    var parentChannel = ctx.channel().parent();
+                    state = parentChannel != null ? sessions.get(parentChannel) : null;
+                    if (state != null && !state.opened) {
+                        state.opened = true;
+                        // Create the session now that we have the data channel
+                        state.session = new ReactorNettyWebTransportSession(
+                                framework.getAtmosphereConfig(), ctx.channel());
+                        var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
+                                .getWebTransportProcessor(framework);
+                        var request = org.atmosphere.cpr.AtmosphereRequestImpl.newInstance()
+                                .header("Connection", "Upgrade")
+                                .header("Upgrade", "websocket");
+                        applyPathAndQuery(request, state.path);
+                        processor.open(state.session, request,
+                                org.atmosphere.cpr.AtmosphereResponseImpl.newInstance(request));
+                        logger.debug("WebTransport bidi stream bridged for {}", state.path);
                     }
+
+                    // Process remaining data in this buffer
+                    if (buf.readableBytes() > 0) {
+                        processData(buf);
+                    } else {
+                        buf.release();
+                    }
+                    return;
                 }
                 if (isWtStream) {
                     processData(buf);
-                    return; // Don't pass to HTTP/3 codec
+                    return;
                 }
             }
-            // Not a WT stream — pass to HTTP/3 codec
             super.channelRead(ctx, msg);
         }
 
@@ -423,34 +380,84 @@ public class ReactorNettyTransportServer {
         }
 
         private void processData(io.netty.buffer.ByteBuf buf) {
-            if (state != null && state.webSocket != null) {
-                var message = buf.toString(StandardCharsets.UTF_8);
-                logger.info("WebTransport bidi data: {}", message);
-                var processor = org.atmosphere.cpr.WebSocketProcessorFactory.getDefault()
-                        .getWebSocketProcessor(framework);
-                processor.invokeWebSocketProtocol(state.webSocket, message);
+            if (state == null || state.session == null) {
+                buf.release();
+                return;
+            }
+            // Combine any leftover trailing bytes with new data
+            byte[] data;
+            int readable = buf.readableBytes();
+            if (trailingBytes.length > 0) {
+                data = new byte[trailingBytes.length + readable];
+                System.arraycopy(trailingBytes, 0, data, 0, trailingBytes.length);
+                buf.readBytes(data, trailingBytes.length, readable);
+            } else {
+                data = new byte[readable];
+                buf.readBytes(data);
             }
             buf.release();
+
+            // Find the last complete UTF-8 character boundary
+            int boundary = findUtf8Boundary(data);
+            if (boundary < data.length) {
+                trailingBytes = java.util.Arrays.copyOfRange(data, boundary, data.length);
+            } else {
+                trailingBytes = new byte[0];
+            }
+
+            if (boundary > 0) {
+                var message = new String(data, 0, boundary, StandardCharsets.UTF_8);
+                logger.trace("WebTransport bidi data: {}", message);
+                var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
+                        .getWebTransportProcessor(framework);
+                processor.invokeWebTransportProtocol(state.session, message);
+            }
+        }
+
+        /**
+         * Find the last complete UTF-8 character boundary in a byte array.
+         * Scans backwards from the end to detect incomplete multi-byte sequences.
+         *
+         * @return index up to which the bytes form complete UTF-8 characters
+         */
+        static int findUtf8Boundary(byte[] data) {
+            int len = data.length;
+            if (len == 0) return 0;
+            // Check up to 3 bytes from the end for an incomplete sequence
+            for (int i = 1; i <= Math.min(3, len); i++) {
+                int b = data[len - i] & 0xFF;
+                if (b < 0x80) {
+                    return len;
+                }
+                if (b >= 0xC0) {
+                    int expected;
+                    if (b < 0xE0) expected = 2;
+                    else if (b < 0xF0) expected = 3;
+                    else expected = 4;
+                    return i >= expected ? len : len - i;
+                }
+            }
+            return len;
         }
 
         @Override
         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-            if (isWtStream && state != null && state.webSocket != null) {
-                logger.info("WebTransport bidi stream closed");
-                var processor = org.atmosphere.cpr.WebSocketProcessorFactory.getDefault()
-                        .getWebSocketProcessor(framework);
-                processor.close(state.webSocket, 1000);
+            if (isWtStream && state != null && state.session != null) {
+                logger.debug("WebTransport bidi stream closed");
+                var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
+                        .getWebTransportProcessor(framework);
+                processor.close(state.session, 1000);
             }
             super.channelInactive(ctx);
         }
     }
 
     /**
-     * Shared state per QUIC connection: the WebSocket bridge and processor,
+     * Shared state per QUIC connection: the session and path,
      * set by the CONNECT handler and used by data stream handlers.
      */
     private static class WebTransportConnectionState {
-        volatile QuicWebSocket webSocket;
+        volatile ReactorNettyWebTransportSession session;
         volatile boolean opened;
         String path;
     }
@@ -477,7 +484,7 @@ public class ReactorNettyTransportServer {
             if ("CONNECT".contentEquals(method) && protocol != null
                     && "webtransport".contentEquals(protocol)) {
                 var path = headers.path() != null ? headers.path().toString() : "/";
-                logger.info("WebTransport CONNECT on stream {}: {}", ctx.channel(), path);
+                logger.debug("WebTransport CONNECT on stream {}: {}", ctx.channel(), path);
 
                 // Accept the WebTransport session (draft-02 negotiation)
                 var responseHeaders = new DefaultHttp3HeadersFrame();
@@ -486,12 +493,10 @@ public class ReactorNettyTransportServer {
                 ctx.write(responseHeaders);
                 ctx.flush();
 
-                // Prepare state — defer processor.open() until first DATA frame
-                // to avoid writing handshake bytes on the CONNECT stream
+                // Prepare state — defer session creation until bidi stream arrives
+                // (we need the data channel for the session)
                 state = new WebTransportConnectionState();
                 state.path = path;
-                state.webSocket = new QuicWebSocket(framework);
-                state.webSocket.setDataChannel(ctx);
                 isDataStream = true;
 
                 var parentChannel = ctx.channel().parent();
@@ -499,91 +504,94 @@ public class ReactorNettyTransportServer {
                     sessions.put(parentChannel, state);
                 }
             } else {
-                // This is a data stream — find the connection's WebTransport state
+                // Check if this is a data stream for an existing WT connection
                 var parentChannel = ctx.channel().parent();
                 state = parentChannel != null ? sessions.get(parentChannel) : null;
-                if (state != null && state.webSocket != null) {
+                if (state != null) {
                     isDataStream = true;
-                    state.webSocket.setDataChannel(ctx);
-                    logger.info("WebTransport data stream opened: {}", ctx.channel());
+                    logger.debug("WebTransport data stream opened: {}", ctx.channel());
 
-                    // Now that we have a data channel, open the WebSocket bridge
                     if (!state.opened) {
                         state.opened = true;
                         try {
-                            var processor = org.atmosphere.cpr.WebSocketProcessorFactory.getDefault()
-                                    .getWebSocketProcessor(framework);
+                            state.session = new ReactorNettyWebTransportSession(
+                                    framework.getAtmosphereConfig(), ctx.channel());
+                            var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
+                                    .getWebTransportProcessor(framework);
                             var request = org.atmosphere.cpr.AtmosphereRequestImpl.newInstance()
                                     .header("Connection", "Upgrade")
-                                    .header("Upgrade", "websocket")
-                                    .pathInfo(state.path);
-                            var response = org.atmosphere.cpr.AtmosphereResponseImpl.newInstance(
-                                    framework.getAtmosphereConfig(), request, state.webSocket);
-                            processor.open(state.webSocket, request, response);
-                            logger.info("WebTransport bridged via WebSocketProcessor for {}", state.path);
+                                    .header("Upgrade", "websocket");
+                            applyPathAndQuery(request, state.path);
+                            processor.open(state.session, request,
+                                    org.atmosphere.cpr.AtmosphereResponseImpl.newInstance(request));
+                            logger.debug("WebTransport bridged via processor for {}", state.path);
                         } catch (Exception e) {
                             logger.error("Failed to bridge WebTransport to Atmosphere", e);
                         }
                     }
                 } else {
-                    logger.trace("HTTP/3 request: {} {}", method, headers.path());
+                    // v1: only WebTransport is supported on this sidecar
+                    logger.debug("Non-WebTransport HTTP/3 request: {} {} — returning 501",
+                            method, headers.path());
+                    var reject = new DefaultHttp3HeadersFrame();
+                    reject.headers().status("501");
+                    ctx.writeAndFlush(reject)
+                            .addListener(io.netty.channel.ChannelFutureListener.CLOSE);
                 }
             }
         }
 
         @Override
         protected void channelRead(ChannelHandlerContext ctx, Http3DataFrame dataFrame) {
-            var rawBytes = new byte[dataFrame.content().readableBytes()];
-            dataFrame.content().getBytes(dataFrame.content().readerIndex(), rawBytes);
-            logger.info("HTTP/3 DATA frame on {}: {} bytes, hex={}, isDataStream={}",
-                    ctx.channel(), rawBytes.length,
-                    io.netty.buffer.ByteBufUtil.hexDump(rawBytes), isDataStream);
-            // If we haven't set up as data stream yet, try to find state from parent
+            if (logger.isTraceEnabled()) {
+                logger.trace("HTTP/3 DATA frame on {}: {} bytes, isDataStream={}",
+                        ctx.channel(), dataFrame.content().readableBytes(), isDataStream);
+            }
+            // Late-arriving data stream — try to find state from parent
             if (!isDataStream && state == null) {
                 var parentChannel = ctx.channel().parent();
                 state = parentChannel != null ? sessions.get(parentChannel) : null;
-                if (state != null && state.webSocket != null) {
+                if (state != null) {
                     isDataStream = true;
-                    state.webSocket.setDataChannel(ctx);
                     if (!state.opened) {
                         state.opened = true;
                         try {
-                            var processor = org.atmosphere.cpr.WebSocketProcessorFactory.getDefault()
-                                    .getWebSocketProcessor(framework);
+                            state.session = new ReactorNettyWebTransportSession(
+                                    framework.getAtmosphereConfig(), ctx.channel());
+                            var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
+                                    .getWebTransportProcessor(framework);
                             var request = org.atmosphere.cpr.AtmosphereRequestImpl.newInstance()
                                     .header("Connection", "Upgrade")
-                                    .header("Upgrade", "websocket")
-                                    .pathInfo(state.path);
-                            var response = org.atmosphere.cpr.AtmosphereResponseImpl.newInstance(
-                                    framework.getAtmosphereConfig(), request, state.webSocket);
-                            processor.open(state.webSocket, request, response);
-                            logger.info("WebTransport bridged via WebSocketProcessor (from DATA)");
+                                    .header("Upgrade", "websocket");
+                            applyPathAndQuery(request, state.path);
+                            processor.open(state.session, request,
+                                    org.atmosphere.cpr.AtmosphereResponseImpl.newInstance(request));
+                            logger.debug("WebTransport bridged via processor (from DATA)");
                         } catch (Exception e) {
                             logger.error("Failed to bridge WebTransport", e);
                         }
                     }
                 }
             }
-            if (isDataStream && state != null && state.webSocket != null) {
-                state.webSocket.markReady();
+            if (isDataStream && state != null && state.session != null) {
                 var data = dataFrame.content();
                 var message = data.toString(StandardCharsets.UTF_8);
-                logger.info("WebTransport message received: {}", message);
+                logger.trace("WebTransport message received: {}", message);
 
-                var processor = org.atmosphere.cpr.WebSocketProcessorFactory.getDefault()
-                        .getWebSocketProcessor(framework);
-                processor.invokeWebSocketProtocol(state.webSocket, message);
+                var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
+                        .getWebTransportProcessor(framework);
+                processor.invokeWebTransportProtocol(state.session, message);
             }
             dataFrame.release();
         }
 
         @Override
         protected void channelInputClosed(ChannelHandlerContext ctx) {
-            if (isDataStream && state != null && state.webSocket != null) {
-                logger.info("WebTransport data stream closed");
-                var processor = org.atmosphere.cpr.WebSocketProcessorFactory.getDefault()
-                        .getWebSocketProcessor(framework);
-                processor.close(state.webSocket, 1000);
+            if (isDataStream && state != null && state.session != null) {
+                logger.debug("WebTransport data stream closed");
+                var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
+                        .getWebTransportProcessor(framework);
+                processor.close(state.session, 1000);
             }
             ctx.close();
         }

@@ -42,7 +42,10 @@ import java.util.Map;
  * browsers.</p>
  */
 @AutoConfiguration(after = AtmosphereAutoConfiguration.class)
-@ConditionalOnClass(name = "reactor.netty.http.server.HttpServer")
+@ConditionalOnClass(name = {
+        "reactor.netty.http.server.HttpServer",
+        "io.netty.handler.codec.http3.Http3"
+})
 @ConditionalOnProperty(name = "atmosphere.web-transport.enabled", havingValue = "true")
 @EnableConfigurationProperties(AtmosphereProperties.class)
 public class AtmosphereWebTransportAutoConfiguration {

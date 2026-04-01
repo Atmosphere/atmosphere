@@ -45,16 +45,11 @@ public final class A2aProtocolHandler {
     private final A2aRegistry registry;
     private final TaskManager taskManager;
     private final AgentCard agentCard;
-    private volatile A2aTracing tracing;
 
     public A2aProtocolHandler(A2aRegistry registry, TaskManager taskManager, AgentCard agentCard) {
         this.registry = registry;
         this.taskManager = taskManager;
         this.agentCard = agentCard;
-    }
-
-    public void setTracing(A2aTracing tracing) {
-        this.tracing = tracing;
     }
 
     public AgentCard agentCard() {

@@ -35,9 +35,6 @@ import org.atmosphere.channels.DeliveryReceipt;
 import org.atmosphere.channels.IncomingMessage;
 import org.atmosphere.channels.MessagingChannel;
 import org.atmosphere.channels.OutgoingMessage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -50,7 +47,6 @@ import tools.jackson.databind.node.ObjectNode;
  */
 public class MessengerChannel implements MessagingChannel {
 
-    private static final Logger log = LoggerFactory.getLogger(MessengerChannel.class);
     private static final String GRAPH_API = "https://graph.facebook.com/v21.0/me/messages";
 
     private final String pageAccessToken;

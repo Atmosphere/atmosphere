@@ -130,7 +130,10 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
       typeof outgoing === 'string'
         ? this.textEncoder.encode(outgoing)
         : new Uint8Array(outgoing);
-    this.writer.write(bytes);
+    this.writer.write(bytes).catch((error: Error) => {
+      logger.error('WebTransport write failed:', error);
+      this.handleError(error);
+    });
   }
 
   private buildWebTransportUrl(_url: string): string {
@@ -213,9 +216,11 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
         if (done || this.readLoopAborted) {
           break;
         }
-        const data = this.textDecoder.decode(value);
+        const data = this.textDecoder.decode(value, { stream: true });
         this.handleMessage(data);
       }
+      // Flush any remaining decoder state
+      this.textDecoder.decode(new Uint8Array(), { stream: false });
     } catch (error) {
       if (!this.readLoopAborted) {
         this.handleError(error as Error);

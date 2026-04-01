@@ -102,7 +102,7 @@ public class AgentProcessor implements Processor<Object> {
             var settings = resolveSettings();
             var runtime = resolveRuntime(settings);
             AiConversationMemory memory = resolveMemory(DEFAULT_MAX_HISTORY);
-            var toolRegistry = registerTools(instance, framework);
+            var toolRegistry = registerTools(instance);
 
             // Warn on tool mismatch with skill file
             crossReferenceTools(skillFile, toolRegistry);
@@ -136,7 +136,7 @@ public class AgentProcessor implements Processor<Object> {
             var pipeline = new org.atmosphere.ai.AiPipeline(
                     runtime, systemPrompt, settings.model(), memory,
                     toolRegistry, List.of(), List.of(), metrics);
-            registerA2a(framework, annotation, skillFile, commandRegistry, toolRegistry,
+            registerA2a(framework, annotation, skillFile, commandRegistry,
                     commandRouter, promptTarget, promptMethod, pipeline,
                     path, protocols);
             registerMcp(framework, annotation, skillFile, toolRegistry, path, protocols);
@@ -199,7 +199,7 @@ public class AgentProcessor implements Processor<Object> {
         var basePath = "/atmosphere/agent/" + agentName;
 
         try {
-            var toolRegistry = registerTools(instance, framework);
+            var toolRegistry = registerTools(instance);
 
             // Register A2A if on classpath and agent has @AgentSkill methods
             if (ClasspathDetector.hasA2a()) {
@@ -337,7 +337,7 @@ public class AgentProcessor implements Processor<Object> {
         return new InMemoryConversationMemory(maxHistory);
     }
 
-    private ToolRegistry registerTools(Object instance, AtmosphereFramework framework) {
+    private ToolRegistry registerTools(Object instance) {
         var registry = new DefaultToolRegistry();
         // Scan the agent class itself for @AiTool methods
         var hasTools = false;
@@ -385,7 +385,7 @@ public class AgentProcessor implements Processor<Object> {
 
     private void registerA2a(AtmosphereFramework framework, Agent annotation,
                              SkillFileParser skillFile, CommandRegistry commandRegistry,
-                             ToolRegistry toolRegistry, CommandRouter commandRouter,
+                             CommandRouter commandRouter,
                              Object promptTarget, Method promptMethod,
                              org.atmosphere.ai.AiPipeline pipeline,
                              String basePath, List<String> protocols) {

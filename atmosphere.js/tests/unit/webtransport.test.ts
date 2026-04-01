@@ -155,6 +155,7 @@ describe('WebTransportTransport', () => {
 
       expect((globalThis as any).WebTransport).toHaveBeenCalledWith(
         expect.stringContaining('https://localhost:8080/chat'),
+        expect.any(Object),
       );
     });
 
@@ -849,6 +850,7 @@ describe('WebTransportTransport', () => {
 
       expect((globalThis as any).WebTransport).toHaveBeenCalledWith(
         expect.stringContaining('https://example.com/chat'),
+        expect.any(Object),
       );
     });
 
@@ -863,6 +865,7 @@ describe('WebTransportTransport', () => {
 
       expect((globalThis as any).WebTransport).toHaveBeenCalledWith(
         expect.stringContaining('https://example.com/chat'),
+        expect.any(Object),
       );
     });
 
@@ -920,6 +923,7 @@ describe('WebTransportTransport', () => {
 
       expect((globalThis as any).WebTransport).toHaveBeenCalledWith(
         expect.stringContaining('https://example.com/chat'),
+        expect.any(Object),
       );
     });
 
