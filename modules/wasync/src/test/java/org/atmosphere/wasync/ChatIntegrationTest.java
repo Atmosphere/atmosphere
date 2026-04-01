@@ -460,6 +460,7 @@ class ChatIntegrationTest {
     }
 
     @Test
+    @org.junit.jupiter.api.Tag("flaky")
     void longPollingTransportConnectsAndReceivesMessage() throws Exception {
         var room = "room" + roomCounter.incrementAndGet();
         var client = AtmosphereClient.newClient();

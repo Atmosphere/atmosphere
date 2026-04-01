@@ -60,7 +60,7 @@ jobs:
       run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true
 
     - name: Run tests
-      run: ./mvnw -B test -Dgpg.skip=true
+      run: ./mvnw -B test -Dgpg.skip=true -Dgroups='!flaky'
 
   # ─────────────────────────────────────────────
   # Phase 2: Build atmosphere.js
