@@ -34,6 +34,8 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private textDecoder = new TextDecoder();
   private textEncoder = new TextEncoder();
+  /** Buffers partial lines from server between newline delimiters. */
+  private incomingBuffer = '';
 
   get name(): string {
     return 'webtransport';
@@ -221,10 +223,23 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
           break;
         }
         const data = this.textDecoder.decode(value, { stream: true });
-        this.handleMessage(data);
+        // Server sends newline-delimited messages — buffer and split
+        this.incomingBuffer += data;
+        let nlIdx: number;
+        while ((nlIdx = this.incomingBuffer.indexOf('\n')) >= 0) {
+          const message = this.incomingBuffer.slice(0, nlIdx);
+          this.incomingBuffer = this.incomingBuffer.slice(nlIdx + 1);
+          if (message.length > 0) {
+            this.handleMessage(message);
+          }
+        }
       }
-      // Flush any remaining decoder state
+      // Flush any remaining decoder and buffer state
       this.textDecoder.decode(new Uint8Array(), { stream: false });
+      if (this.incomingBuffer.length > 0) {
+        this.handleMessage(this.incomingBuffer);
+        this.incomingBuffer = '';
+      }
     } catch (error) {
       if (!this.readLoopAborted) {
         this.handleError(error as Error);
@@ -339,6 +354,7 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
 
     this.reconnectTimer = setTimeout(() => {
       this.protocol.reset();
+      this.incomingBuffer = '';
       this.connect().catch((error) => {
         logger.error('Reconnection failed:', error);
       });

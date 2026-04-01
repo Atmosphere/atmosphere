@@ -53,9 +53,10 @@ function createMockReader() {
     cancel: vi.fn().mockResolvedValue(undefined),
     releaseLock: vi.fn(),
     closed: new Promise<undefined>(() => {}),
-    // Test helper to push data into the read stream
+    // Test helper to push data into the read stream.
+    // Appends \n to match the server's newline-delimited framing.
     pushData(data: string) {
-      const encoded = new TextEncoder().encode(data);
+      const encoded = new TextEncoder().encode(data + '\n');
       const result = { value: encoded, done: false };
       if (waitingResolve) {
         const resolve = waitingResolve;

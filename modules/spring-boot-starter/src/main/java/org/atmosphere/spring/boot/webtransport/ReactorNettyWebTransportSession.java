@@ -53,7 +53,9 @@ public class ReactorNettyWebTransportSession extends WebTransportSession {
         if (!isOpen()) {
             throw new IOException("WebTransport session is closed for " + uuid());
         }
-        channel.writeAndFlush(Unpooled.copiedBuffer(s, StandardCharsets.UTF_8));
+        // Append newline delimiter — QUIC streams don't preserve message
+        // boundaries, so the client splits on \n to reconstruct messages.
+        channel.writeAndFlush(Unpooled.copiedBuffer(s + "\n", StandardCharsets.UTF_8));
         lastWrite = System.currentTimeMillis();
         return this;
     }
