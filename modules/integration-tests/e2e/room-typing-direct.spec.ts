@@ -46,7 +46,7 @@ function parsed(messages: string[]): unknown[] {
 }
 
 test.describe('Room Typing & Direct Messages', () => {
-  test('typing indicator is broadcast to other room members', async () => {
+  test('@flaky typing indicator is broadcast to other room members', async () => {
     const conn1 = await connectRoomWs(server.baseUrl);
     const conn2 = await connectRoomWs(server.baseUrl);
 
@@ -76,7 +76,7 @@ test.describe('Room Typing & Direct Messages', () => {
     conn2.close();
   });
 
-  test('typing indicator is NOT echoed back to sender', async () => {
+  test('@flaky typing indicator is NOT echoed back to sender', async () => {
     const conn = await connectRoomWs(server.baseUrl);
 
     conn.ws.send(JSON.stringify({ type: 'join', room: 'lobby', memberId: 'SoloTyper' }));
@@ -97,7 +97,7 @@ test.describe('Room Typing & Direct Messages', () => {
     conn.close();
   });
 
-  test('direct message reaches only the target member', async () => {
+  test('@flaky direct message reaches only the target member', async () => {
     const conn1 = await connectRoomWs(server.baseUrl);
     const conn2 = await connectRoomWs(server.baseUrl);
     const conn3 = await connectRoomWs(server.baseUrl);
@@ -143,7 +143,7 @@ test.describe('Room Typing & Direct Messages', () => {
     conn3.close();
   });
 
-  test('direct message to non-existent member returns error', async () => {
+  test('@flaky direct message to non-existent member returns error', async () => {
     const conn = await connectRoomWs(server.baseUrl);
 
     conn.ws.send(JSON.stringify({ type: 'join', room: 'lobby', memberId: 'ErrorSender' }));
