@@ -365,13 +365,10 @@ export function App() {
   const request = useMemo(
     () => ({
       url: `${window.location.protocol}//${window.location.host}/atmosphere/chat`,
-      // Prefer WebTransport (HTTP/3) with WebSocket fallback.
-      transport: 'webtransport' as const,
-      fallbackTransport: 'websocket' as const,
-      // Point to the HTTP/3 sidecar port (fetched from server)
-      ...(wtInfo.enabled && wtInfo.port ? { webTransportUrl: `https://${window.location.hostname}:${wtInfo.port}/atmosphere/chat` } : {}),
-      // Self-signed cert hash for dev (fetched from server)
-      ...(wtInfo.certificateHash ? { serverCertificateHashes: [wtInfo.certificateHash] } : {}),
+      // Default to WebSocket — WebTransport broadcast across clients is still experimental.
+      // To test WebTransport, change transport to 'webtransport' below.
+      transport: 'websocket' as const,
+      fallbackTransport: 'long-polling' as const,
       reconnect: true,
       reconnectInterval: 5000,
       maxReconnectOnClose: 10,
