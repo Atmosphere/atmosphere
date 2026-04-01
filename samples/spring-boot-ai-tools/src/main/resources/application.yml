@@ -4,6 +4,9 @@
 atmosphere:
   console-subtitle: AI chat with tool calling visualization
   packages: org.atmosphere.samples.springboot.aitools
+  web-transport:
+    enabled: true
+    port: 4445
 
 llm:
   mode: ${LLM_MODE:remote}

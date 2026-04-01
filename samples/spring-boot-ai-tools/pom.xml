@@ -64,6 +64,12 @@
             <artifactId>jakarta.inject-api</artifactId>
         </dependency>
 
+        <!-- WebTransport over HTTP/3 sidecar -->
+        <dependency>
+            <groupId>io.projectreactor.netty</groupId>
+            <artifactId>reactor-netty-http</artifactId>
+        </dependency>
+
         <!-- Parent POM restricts logback to test scope; override for runtime logging -->
         <dependency>
             <groupId>ch.qos.logback</groupId>

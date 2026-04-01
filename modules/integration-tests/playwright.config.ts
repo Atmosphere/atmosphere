@@ -200,6 +200,10 @@ export default defineConfig({
     },
     // ── Transport tests ──
     {
+      name: 'webtransport',
+      testMatch: /webtransport\.spec\.ts/,
+    },
+    {
       name: 'sse-transport',
       testMatch: /sse-transport\.spec\.ts/,
     },

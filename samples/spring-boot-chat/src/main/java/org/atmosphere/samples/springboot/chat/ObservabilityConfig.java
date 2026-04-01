@@ -45,6 +45,10 @@ public class ObservabilityConfig {
 
     @EventListener(ApplicationReadyEvent.class)
     public void installMetrics() {
+        if (framework.getBroadcasterFactory() == null) {
+            logger.warn("BroadcasterFactory not yet initialized — skipping metrics installation");
+            return;
+        }
         AtmosphereMetrics.install(framework, meterRegistry);
         logger.info("Atmosphere Micrometer metrics installed — see /actuator/metrics/atmosphere.*");
     }

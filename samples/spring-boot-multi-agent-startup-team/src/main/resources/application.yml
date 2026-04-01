@@ -1,5 +1,8 @@
 atmosphere:
   packages: org.atmosphere.samples.springboot.a2astartup
+  web-transport:
+    enabled: true
+    port: 4446
   # Embabel config (only active when atmosphere-embabel is on the classpath):
   embabel:
     agent-name: ceo

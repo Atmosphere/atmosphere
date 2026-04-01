@@ -27,27 +27,48 @@ interface ToolCallState {
   done: boolean;
 }
 
+/* ── WebTransport discovery ── */
+
+async function fetchWebTransportInfo(): Promise<{port?: number; certificateHash?: string}> {
+  try {
+    const res = await fetch('/api/webtransport-info');
+    if (res.ok) return res.json();
+  } catch { /* server may not have WebTransport enabled */ }
+  return {};
+}
+
 /* ── Component ── */
 
 export function App() {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [toolCalls, setToolCalls] = useState<ToolCallState[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
+  const [wtInfo, setWtInfo] = useState<{port?: number; certificateHash?: string}>({});
+  const [wtLoaded, setWtLoaded] = useState(false);
+
+  useEffect(() => {
+    fetchWebTransportInfo().then((info) => {
+      setWtInfo(info);
+      setWtLoaded(true);
+    });
+  }, []);
 
   const request = useMemo(() => ({
     url: `${window.location.protocol}//${window.location.host}/atmosphere/agent/ceo`,
-    transport: 'websocket' as const,
-    fallbackTransport: 'long-polling' as const,
+    transport: 'webtransport' as const,
+    fallbackTransport: 'websocket' as const,
+    ...(wtInfo.port ? { webTransportUrl: `https://${window.location.hostname}:${wtInfo.port}/atmosphere/agent/ceo` } : {}),
+    ...(wtInfo.certificateHash ? { serverCertificateHashes: [wtInfo.certificateHash] } : {}),
     reconnect: true,
     maxReconnectOnClose: 10,
     reconnectInterval: 5000,
     trackMessageLength: true,
     enableProtocol: false,
     contentType: 'application/json',
-  }), []);
+  }), [wtInfo]);
 
   const { fullText, isStreaming, progress, aiEvents, error, send, reset } =
-    useStreaming({ request });
+    useStreaming({ request, enabled: wtLoaded });
 
   // Track tool calls from AI events
   useEffect(() => {
