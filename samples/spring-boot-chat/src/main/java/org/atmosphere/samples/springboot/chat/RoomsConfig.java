@@ -50,14 +50,21 @@ public class RoomsConfig {
         return RoomManager.getOrCreate(framework);
     }
 
-    @EventListener(ApplicationReadyEvent.class)
-    public void setupRooms() {
-        // Register the protocol interceptor so clients can send
-        // join/leave/broadcast/direct JSON messages
+    /**
+     * Register the room interceptor as a bean so it's installed during
+     * framework init (not after). Using {@code @EventListener(ApplicationReadyEvent)}
+     * is too late for fat-JAR execution where the servlet is already initialized.
+     */
+    @Bean
+    public RoomProtocolInterceptor roomProtocolInterceptor() {
         var interceptor = new RoomProtocolInterceptor();
         interceptor.configure(framework.getAtmosphereConfig());
         framework.interceptor(interceptor);
+        return interceptor;
+    }
 
+    @EventListener(ApplicationReadyEvent.class)
+    public void setupRooms() {
         RoomManager manager = roomManager();
         Room lobby = manager.room("lobby");
 

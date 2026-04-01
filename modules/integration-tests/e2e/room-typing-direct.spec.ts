@@ -32,7 +32,7 @@ function connectRoomWs(
   });
 }
 
-async function waitFor(fn: () => boolean, timeoutMs = 30_000): Promise<void> {
+async function waitFor(fn: () => boolean, timeoutMs = 15_000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     if (fn()) return;
@@ -45,10 +45,8 @@ function parsed(messages: string[]): unknown[] {
   return messages.map(m => { try { return JSON.parse(m); } catch { return null; } }).filter(Boolean);
 }
 
-// Room typing/direct tests require the room protocol to handle typing/direct message types.
-// These are consistently timing out on CI — skip until room protocol is fixed.
-test.describe.skip('Room Typing & Direct Messages', () => {
-  test('@flaky typing indicator is broadcast to other room members', async () => {
+test.describe('Room Typing & Direct Messages', () => {
+  test('typing indicator is broadcast to other room members', async () => {
     const conn1 = await connectRoomWs(server.baseUrl);
     const conn2 = await connectRoomWs(server.baseUrl);
 
@@ -78,7 +76,7 @@ test.describe.skip('Room Typing & Direct Messages', () => {
     conn2.close();
   });
 
-  test('@flaky typing indicator is NOT echoed back to sender', async () => {
+  test('typing indicator is NOT echoed back to sender', async () => {
     const conn = await connectRoomWs(server.baseUrl);
 
     conn.ws.send(JSON.stringify({ type: 'join', room: 'lobby', memberId: 'SoloTyper' }));
@@ -99,7 +97,7 @@ test.describe.skip('Room Typing & Direct Messages', () => {
     conn.close();
   });
 
-  test('@flaky direct message reaches only the target member', async () => {
+  test('direct message reaches only the target member', async () => {
     const conn1 = await connectRoomWs(server.baseUrl);
     const conn2 = await connectRoomWs(server.baseUrl);
     const conn3 = await connectRoomWs(server.baseUrl);
@@ -145,7 +143,7 @@ test.describe.skip('Room Typing & Direct Messages', () => {
     conn3.close();
   });
 
-  test('@flaky direct message to non-existent member returns error', async () => {
+  test('direct message to non-existent member returns error', async () => {
     const conn = await connectRoomWs(server.baseUrl);
 
     conn.ws.send(JSON.stringify({ type: 'join', room: 'lobby', memberId: 'ErrorSender' }));

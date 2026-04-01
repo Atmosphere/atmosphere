@@ -170,9 +170,8 @@ test.describe('@AiTool Pipeline', () => {
     await page.getByTestId('chat-send').click();
 
     // Wait for the response — demo mode emits approval-required + auto-approves after 2s
-    // Use getByText for case-insensitive match since the response format varies
-    await expect(page.getByText(/reset/i).first())
-      .toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+      .toContainText('reset', { timeout: 15_000 });
   });
 
   test('reset_city_data tool registered with approval metadata', () => {
