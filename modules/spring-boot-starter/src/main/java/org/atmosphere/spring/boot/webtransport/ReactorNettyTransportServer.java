@@ -381,11 +381,17 @@ public class ReactorNettyTransportServer {
                             org.atmosphere.cpr.AtmosphereResponseImpl.newInstance(request));
                     logger.debug("WebTransport bidi stream bridged for {}", state.path);
                 }
-                // Process remaining data after the header
-                if (buf.readableBytes() > 0) {
-                    processData(buf);
+                // Process remaining data after the header (from headerBuf, not buf —
+                // buf's ownership was transferred to headerBuf in parseHeader)
+                if (headerBuf.readableBytes() > 0) {
+                    // Copy remaining bytes to a standalone buffer before releasing headerBuf
+                    var remaining = headerBuf.readBytes(headerBuf.readableBytes());
+                    headerBuf.release();
+                    headerBuf = null;
+                    processData(remaining);
                 } else {
-                    buf.release();
+                    headerBuf.release();
+                    headerBuf = null;
                 }
                 return;
             }
@@ -402,7 +408,9 @@ public class ReactorNettyTransportServer {
             if (headerBuf == null) {
                 headerBuf = ctx.alloc().compositeBuffer();
             }
-            headerBuf.addComponent(true, buf.retain());
+            // addComponent takes ownership of buf — no retain() needed.
+            // The caller must NOT release buf after this point.
+            headerBuf.addComponent(true, buf);
 
             // Try to skip both varints; need at least 2 bytes minimum (1+1)
             if (headerBuf.readableBytes() < 2) {
@@ -427,20 +435,7 @@ public class ReactorNettyTransportServer {
             }
             headerBuf.skipBytes(needed2 - 1);
 
-            // Header fully parsed. Copy remaining bytes back to buf for processing.
-            int remaining = headerBuf.readableBytes();
-            if (remaining > 0) {
-                var leftover = headerBuf.readBytes(remaining);
-                // Put leftover data at the beginning of buf
-                buf.readerIndex(buf.writerIndex());
-                buf.discardReadBytes();
-                buf.writeBytes(leftover);
-                leftover.release();
-            } else {
-                buf.readerIndex(buf.writerIndex());
-            }
-            headerBuf.release();
-            headerBuf = null;
+            // Header fully parsed. Extract any remaining data after the varints.
             headerParsed = true;
             return true;
         }
