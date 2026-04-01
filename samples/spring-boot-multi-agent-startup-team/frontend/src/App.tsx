@@ -57,7 +57,7 @@ export function App() {
     url: `${window.location.protocol}//${window.location.host}/atmosphere/agent/ceo`,
     transport: 'webtransport' as const,
     fallbackTransport: 'websocket' as const,
-    ...(wtInfo.port ? { webTransportUrl: `https://${window.location.hostname}:${wtInfo.port}/atmosphere/agent/ceo` } : {}),
+    ...(wtInfo.enabled && wtInfo.port ? { webTransportUrl: `https://${window.location.hostname}:${wtInfo.port}/atmosphere/agent/ceo` } : {}),
     ...(wtInfo.certificateHash ? { serverCertificateHashes: [wtInfo.certificateHash] } : {}),
     reconnect: true,
     maxReconnectOnClose: 10,

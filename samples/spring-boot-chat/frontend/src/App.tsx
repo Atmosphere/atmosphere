@@ -369,7 +369,7 @@ export function App() {
       transport: 'webtransport' as const,
       fallbackTransport: 'websocket' as const,
       // Point to the HTTP/3 sidecar port (fetched from server)
-      ...(wtInfo.port ? { webTransportUrl: `https://${window.location.hostname}:${wtInfo.port}/atmosphere/chat` } : {}),
+      ...(wtInfo.enabled && wtInfo.port ? { webTransportUrl: `https://${window.location.hostname}:${wtInfo.port}/atmosphere/chat` } : {}),
       // Self-signed cert hash for dev (fetched from server)
       ...(wtInfo.certificateHash ? { serverCertificateHashes: [wtInfo.certificateHash] } : {}),
       reconnect: true,
