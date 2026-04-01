@@ -636,7 +636,7 @@ describe('WebTransportTransport', () => {
       await new Promise((r) => setTimeout(r, 0));
 
       mockReader.pushDone();
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 200));
 
       // With maxReconnectOnClose=0, reconnectAttempts (0) < 0 is false,
       // so reconnect should NOT be scheduled.
@@ -664,7 +664,7 @@ describe('WebTransportTransport', () => {
       await new Promise((r) => setTimeout(r, 0));
 
       mockReader.pushDone();
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 200));
 
       // close handler should fire, but reconnect should NOT
       expect(mockHandlers.close).toHaveBeenCalled();
