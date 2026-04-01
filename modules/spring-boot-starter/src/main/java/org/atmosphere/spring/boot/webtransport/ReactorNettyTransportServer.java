@@ -286,15 +286,6 @@ public class ReactorNettyTransportServer {
     // ── HTTP/3 request handler ───────────────────────────────────────────
 
     /**
-     * Netty HTTP/3 request stream handler. Receives raw HTTP/3 frames and
-     * dispatches them:
-     * <ul>
-     *   <li>CONNECT + :protocol=webtransport → WebTransport session</li>
-     *   <li>Other methods → 501 Not Implemented (v1)</li>
-     * </ul>
-     */
-
-    /**
      * Intercepts raw bytes on bidirectional streams to handle WebTransport
      * frame type 0x41 (WT_BIDI_STREAM). The Netty HTTP/3 codec doesn't
      * recognize this frame type, so we intercept before it reaches the codec,
@@ -462,6 +453,10 @@ public class ReactorNettyTransportServer {
         String path;
     }
 
+    /**
+     * HTTP/3 request stream handler. Dispatches CONNECT + :protocol=webtransport
+     * to the WebTransport SPI; returns 501 for all other HTTP/3 methods (v1).
+     */
     private static class AtmosphereHttp3Handler extends Http3RequestStreamInboundHandler {
 
         private final AtmosphereFramework framework;
