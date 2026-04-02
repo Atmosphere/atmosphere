@@ -24,7 +24,9 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -36,6 +38,7 @@ public class LocalAgentTransport implements AgentTransport {
 
     private static final Logger logger = LoggerFactory.getLogger(LocalAgentTransport.class);
     private static final ObjectMapper mapper = new ObjectMapper();
+    private static final ThreadLocal<Set<String>> dispatchChain = ThreadLocal.withInitial(HashSet::new);
 
     private final AtmosphereFramework framework;
     private final String a2aPath;
@@ -47,6 +50,11 @@ public class LocalAgentTransport implements AgentTransport {
 
     @Override
     public AgentResult send(String agentName, String skill, Map<String, Object> args) {
+        var chain = dispatchChain.get();
+        if (!chain.add(agentName)) {
+            throw new IllegalStateException(
+                    "Circular local dispatch detected: agent '" + agentName + "' is already in the dispatch chain");
+        }
         var start = Instant.now();
         try {
             var requestBody = JsonRpcUtils.buildSendRequest(skill, args);
@@ -103,6 +111,8 @@ public class LocalAgentTransport implements AgentTransport {
             return AgentResult.failure(agentName, skill,
                     "Local dispatch failed: " + e.getMessage(),
                     Duration.between(start, Instant.now()));
+        } finally {
+            chain.remove(agentName);
         }
     }
 

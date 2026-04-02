@@ -99,7 +99,7 @@ public class CoordinatorProcessor implements Processor<Object> {
     private static final Logger logger = LoggerFactory.getLogger(CoordinatorProcessor.class);
     private static final int DEFAULT_MAX_HISTORY = 20;
 
-    private static final Map<String, Set<String>> dependencyGraph = new ConcurrentHashMap<>();
+    private final Map<String, Set<String>> dependencyGraph = new ConcurrentHashMap<>();
 
     @Override
     public void handle(AtmosphereFramework framework, Class<Object> annotatedClass) {
@@ -781,7 +781,7 @@ public class CoordinatorProcessor implements Processor<Object> {
     static class A2aCoordinatorCollector implements StreamingSession {
         private final org.atmosphere.a2a.runtime.TaskContext taskCtx;
         private final AiPipeline pipeline;
-        private final StringBuilder buffer = new StringBuilder();
+        private final StringBuffer buffer = new StringBuffer();
         private final java.util.concurrent.CountDownLatch completionLatch =
                 new java.util.concurrent.CountDownLatch(1);
         private volatile boolean finalized;
