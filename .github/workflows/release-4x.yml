@@ -138,7 +138,7 @@ jobs:
 
     - name: Build and publish to Maven Central
       if: inputs.dry_run == false
-      run: ./mvnw -B clean deploy -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-ai-classroom,!samples/spring-boot-otel-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-ai-tools,!samples/spring-boot-rag-chat,!samples/grpc-chat,!samples/spring-boot-a2a-agent,!samples/spring-boot-agui-chat,!samples/spring-boot-channels-chat,!samples/spring-boot-dentist-agent,!samples/spring-boot-multi-agent-startup-team,!samples/spring-boot-koog-chat,!samples/spring-boot-orchestration-demo,!samples/shared-resources,!modules/embabel,!modules/integration-tests'
+      run: ./mvnw -B clean deploy -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-ai-classroom,!samples/spring-boot-otel-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-ai-tools,!samples/spring-boot-rag-chat,!samples/grpc-chat,!samples/spring-boot-a2a-agent,!samples/spring-boot-agui-chat,!samples/spring-boot-channels-chat,!samples/spring-boot-dentist-agent,!samples/spring-boot-multi-agent-startup-team,!samples/spring-boot-koog-chat,!samples/spring-boot-orchestration-demo,!modules/embabel,!modules/integration-tests'
       env:
         GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
@@ -146,7 +146,7 @@ jobs:
 
     - name: Dry run — build only
       if: inputs.dry_run
-      run: ./mvnw -B clean verify -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-ai-classroom,!samples/spring-boot-otel-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-ai-tools,!samples/spring-boot-rag-chat,!samples/grpc-chat,!samples/spring-boot-a2a-agent,!samples/spring-boot-agui-chat,!samples/spring-boot-channels-chat,!samples/spring-boot-dentist-agent,!samples/spring-boot-multi-agent-startup-team,!samples/spring-boot-koog-chat,!samples/spring-boot-orchestration-demo,!samples/shared-resources,!modules/embabel,!modules/integration-tests' -Dgpg.skip=true
+      run: ./mvnw -B clean verify -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-ai-classroom,!samples/spring-boot-otel-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-ai-tools,!samples/spring-boot-rag-chat,!samples/grpc-chat,!samples/spring-boot-a2a-agent,!samples/spring-boot-agui-chat,!samples/spring-boot-channels-chat,!samples/spring-boot-dentist-agent,!samples/spring-boot-multi-agent-startup-team,!samples/spring-boot-koog-chat,!samples/spring-boot-orchestration-demo,!modules/embabel,!modules/integration-tests' -Dgpg.skip=true
 
     - name: Commit release version
       if: inputs.dry_run == false
