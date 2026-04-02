@@ -78,10 +78,15 @@ public class SqliteConversationPersistence implements ConversationPersistence {
         this.ownsConnection = ownsConnection;
         try {
             this.connection = DriverManager.getConnection(jdbcUrl);
-            try (var stmt = connection.createStatement()) {
-                stmt.execute("PRAGMA journal_mode=WAL");
+            try {
+                try (var stmt = connection.createStatement()) {
+                    stmt.execute("PRAGMA journal_mode=WAL");
+                }
+                createTable();
+            } catch (SQLException e) {
+                try { connection.close(); } catch (SQLException ex) { e.addSuppressed(ex); }
+                throw e;
             }
-            createTable();
             logger.info("SQLite conversation persistence initialized: {}", jdbcUrl);
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to initialize SQLite conversation persistence", e);

@@ -90,10 +90,15 @@ public class SqliteSessionStore implements SessionStore {
     private SqliteSessionStore(String jdbcUrl) {
         try {
             this.connection = DriverManager.getConnection(jdbcUrl);
-            try (var stmt = connection.createStatement()) {
-                stmt.execute("PRAGMA journal_mode=WAL");
+            try {
+                try (var stmt = connection.createStatement()) {
+                    stmt.execute("PRAGMA journal_mode=WAL");
+                }
+                createTable();
+            } catch (SQLException e) {
+                try { connection.close(); } catch (SQLException ex) { e.addSuppressed(ex); }
+                throw e;
             }
-            createTable();
             logger.info("SQLite session store initialized: {}", jdbcUrl);
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to initialize SQLite session store", e);
@@ -211,33 +216,41 @@ public class SqliteSessionStore implements SessionStore {
             var cutoff = Instant.now().minus(ttl).toEpochMilli();
             var expired = new ArrayList<DurableSession>();
 
-            try (var select = connection.prepareStatement(
-                    "SELECT * FROM durable_sessions WHERE last_seen < ?")) {
-                select.setLong(1, cutoff);
-                try (var rs = select.executeQuery()) {
-                    while (rs.next()) {
-                        expired.add(new DurableSession(
-                                rs.getString("token"),
-                                rs.getString("resource_id"),
-                                fromJsonSet(rs.getString("rooms")),
-                                fromJsonSet(rs.getString("broadcasters")),
-                                fromJsonMap(rs.getString("metadata")),
-                                Instant.ofEpochMilli(rs.getLong("created_at")),
-                                Instant.ofEpochMilli(rs.getLong("last_seen"))
-                        ));
+            try {
+                connection.setAutoCommit(false);
+                try (var select = connection.prepareStatement(
+                        "SELECT * FROM durable_sessions WHERE last_seen < ?")) {
+                    select.setLong(1, cutoff);
+                    try (var rs = select.executeQuery()) {
+                        while (rs.next()) {
+                            expired.add(new DurableSession(
+                                    rs.getString("token"),
+                                    rs.getString("resource_id"),
+                                    fromJsonSet(rs.getString("rooms")),
+                                    fromJsonSet(rs.getString("broadcasters")),
+                                    fromJsonMap(rs.getString("metadata")),
+                                    Instant.ofEpochMilli(rs.getLong("created_at")),
+                                    Instant.ofEpochMilli(rs.getLong("last_seen"))
+                            ));
+                        }
                     }
                 }
-            } catch (SQLException e) {
-                logger.error("Failed to query expired sessions", e);
-            }
 
-            if (!expired.isEmpty()) {
-                try (var delete = connection.prepareStatement(
-                        "DELETE FROM durable_sessions WHERE last_seen < ?")) {
-                    delete.setLong(1, cutoff);
-                    delete.executeUpdate();
-                } catch (SQLException e) {
-                    logger.error("Failed to delete expired sessions", e);
+                if (!expired.isEmpty()) {
+                    try (var delete = connection.prepareStatement(
+                            "DELETE FROM durable_sessions WHERE last_seen < ?")) {
+                        delete.setLong(1, cutoff);
+                        delete.executeUpdate();
+                    }
+                }
+
+                connection.commit();
+            } catch (SQLException e) {
+                try { connection.rollback(); } catch (SQLException ex) { e.addSuppressed(ex); }
+                logger.error("Failed to remove expired sessions", e);
+            } finally {
+                try { connection.setAutoCommit(true); } catch (SQLException e) {
+                    logger.warn("Failed to restore auto-commit", e);
                 }
             }
 
