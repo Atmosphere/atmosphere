@@ -34,7 +34,7 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
  */
 public class BroadcasterLifecycle {
 
-    private BroadcasterLifeCyclePolicy lifeCyclePolicy = new BroadcasterLifeCyclePolicy.Builder()
+    private volatile BroadcasterLifeCyclePolicy lifeCyclePolicy = new BroadcasterLifeCyclePolicy.Builder()
             .policy(NEVER).build();
 
     private final ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener> lifeCycleListeners =
@@ -42,9 +42,9 @@ public class BroadcasterLifecycle {
 
     private final AtomicBoolean recentActivity = new AtomicBoolean(false);
 
-    private LifecycleHandler lifecycleHandler;
+    private volatile LifecycleHandler lifecycleHandler;
 
-    private Future<?> currentLifecycleTask;
+    private volatile Future<?> currentLifecycleTask;
 
     /**
      * Return the current {@link BroadcasterLifeCyclePolicy}.

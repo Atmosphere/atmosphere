@@ -18,9 +18,8 @@ package org.atmosphere.cpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 /**
@@ -32,9 +31,9 @@ public class FrameworkEventDispatcher {
 
     private static final Logger logger = LoggerFactory.getLogger(FrameworkEventDispatcher.class);
 
-    private final List<AsyncSupportListener> asyncSupportListeners = new ArrayList<>();
-    private final List<AtmosphereResourceListener> atmosphereResourceListeners = new ArrayList<>();
-    private final List<AtmosphereFrameworkListener> frameworkListeners = new LinkedList<>();
+    private final List<AsyncSupportListener> asyncSupportListeners = new CopyOnWriteArrayList<>();
+    private final List<AtmosphereResourceListener> atmosphereResourceListeners = new CopyOnWriteArrayList<>();
+    private final List<AtmosphereFrameworkListener> frameworkListeners = new CopyOnWriteArrayList<>();
 
     public FrameworkEventDispatcher() {
     }

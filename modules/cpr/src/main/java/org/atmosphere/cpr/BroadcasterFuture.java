@@ -31,8 +31,8 @@ import java.util.concurrent.TimeoutException;
 public class BroadcasterFuture<E> implements Future<E> {
 
     private final CountDownLatch latch;
-    private boolean isCancelled;
-    private boolean isDone;
+    private volatile boolean isCancelled;
+    private volatile boolean isDone;
     private final E msg;
     private final Future<?> innerFuture;
 

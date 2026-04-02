@@ -57,13 +57,13 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     public final static String CLEAN_CLOSE = "Clean_Close";
 
     private AtmosphereResource r;
-    protected long lastWrite;
+    protected volatile long lastWrite;
     protected boolean binaryWrite;
     private final AtomicBoolean firstWrite = new AtomicBoolean(false);
     private final AtmosphereConfig config;
     private WebSocketHandler webSocketHandler;
-    protected ByteBuffer bb;
-    protected CharBuffer cb;
+    protected volatile ByteBuffer bb;
+    protected volatile CharBuffer cb;
     protected String uuid = "NUll";
     private final ReentrantLock shiftAttributesLock = new ReentrantLock();
     private Map<String, Object> attributesAtWebSocketOpen;

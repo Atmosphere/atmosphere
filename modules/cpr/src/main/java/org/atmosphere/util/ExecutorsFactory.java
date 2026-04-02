@@ -211,6 +211,14 @@ public class ExecutorsFactory {
         ExecutorService service = (ExecutorService) config.properties().get(poolName);
         if (service != null) {
             service.shutdown();
+            try {
+                if (!service.awaitTermination(5, TimeUnit.SECONDS)) {
+                    service.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                service.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
         }
         config.properties().remove(poolName);
     }

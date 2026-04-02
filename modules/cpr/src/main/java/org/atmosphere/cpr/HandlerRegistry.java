@@ -81,9 +81,7 @@ public class HandlerRegistry {
         }
         createWrapperAndConfigureHandler(h, mapping, l);
 
-        if (!config.framework().isInit) {
-            logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
-            logger.info("Installed the following AtmosphereInterceptor mapped to AtmosphereHandler {}", h.getClass().getName());
+        if (!config.framework().isInit.get()) {
             if (!l.isEmpty()) {
                 for (AtmosphereInterceptor s : l) {
                     logger.info("\t{} : {}", s.getClass().getName(), s);
@@ -102,8 +100,7 @@ public class HandlerRegistry {
 
         createWrapperAndConfigureHandler(h, mapping, l).setBroadcaster(broadcaster);
 
-        if (!config.framework().isInit) {
-            logger.info("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}", h.getClass().getName(), mapping, broadcaster.getClass().getName());
+        if (!config.framework().isInit.get()) {
         } else {
             logger.debug("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
                     h.getClass().getName(), mapping, broadcaster.getClass().getName());
@@ -175,7 +172,7 @@ public class HandlerRegistry {
     }
 
     private void initServletProcessor(AtmosphereHandler h) {
-        if (!config.framework().isInit) return;
+        if (!config.framework().isInit.get()) return;
 
         try {
             if (h instanceof AtmosphereServletProcessor asp) {

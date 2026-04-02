@@ -248,7 +248,7 @@ public class AtmosphereConfig {
      * @return this
      */
     public AtmosphereConfig startupHook(StartupHook s) {
-        if (framework().isInit) {
+        if (framework().isInit.get()) {
             s.started(framework);
         } else {
             startUpHook.add(s);
