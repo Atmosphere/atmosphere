@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -41,6 +43,7 @@ public class BiDirectionalToolBridge {
             new ConcurrentHashMap<>();
 
     private final Duration timeout;
+    private final ScheduledExecutorService cleanupScheduler;
 
     /**
      * Creates a bridge with the default timeout (30 seconds).
@@ -56,6 +59,13 @@ public class BiDirectionalToolBridge {
      */
     public BiDirectionalToolBridge(Duration timeout) {
         this.timeout = timeout;
+        this.cleanupScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = Thread.ofPlatform().daemon().name("tool-bridge-cleanup").unstarted(r);
+            return t;
+        });
+        long intervalMs = Math.max(timeout.toMillis(), 30_000L);
+        this.cleanupScheduler.scheduleAtFixedRate(this::cleanupOrphanedCalls,
+                intervalMs, intervalMs, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -109,14 +119,20 @@ public class BiDirectionalToolBridge {
             return;
         }
 
-        var future = pendingCalls.get(response.id());
+        var id = response.id();
+        if (id == null) {
+            logger.warn("Tool response missing 'id' field, discarding");
+            return;
+        }
+
+        var future = pendingCalls.get(id);
         if (future == null) {
-            logger.debug("No pending call for id {}, discarding response", response.id());
+            logger.debug("No pending call for id {}, discarding response", id);
             return;
         }
 
         if (response.isError()) {
-            future.completeExceptionally(new ToolCallException(response.id(), response.error()));
+            future.completeExceptionally(new ToolCallException(id, response.error()));
         } else {
             future.complete(response.result());
         }
@@ -134,6 +150,21 @@ public class BiDirectionalToolBridge {
      */
     public Map<String, CompletableFuture<String>> pendingCalls() {
         return java.util.Collections.unmodifiableMap(pendingCalls);
+    }
+
+    /**
+     * Shuts down the background cleanup scheduler.
+     */
+    public void close() {
+        cleanupScheduler.shutdownNow();
+    }
+
+    private void cleanupOrphanedCalls() {
+        pendingCalls.forEach((id, future) -> {
+            if (future.isDone()) {
+                pendingCalls.remove(id);
+            }
+        });
     }
 
     /**

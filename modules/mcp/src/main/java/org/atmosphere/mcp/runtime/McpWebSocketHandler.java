@@ -82,7 +82,11 @@ public final class McpWebSocketHandler implements WebSocketHandler {
                     // Replay any pending notifications
                     var pending = session.drainPendingNotifications();
                     for (var notification : pending) {
-                        webSocket.write(notification);
+                        try {
+                            webSocket.write(notification);
+                        } catch (IOException e) {
+                            logger.warn("Failed to replay notification on WebSocket for session {}", sessionId, e);
+                        }
                     }
                     if (!pending.isEmpty()) {
                         logger.debug("Replayed {} pending notifications on WebSocket reconnect for session {}",
