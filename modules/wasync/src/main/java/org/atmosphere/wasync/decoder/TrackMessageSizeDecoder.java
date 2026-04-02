@@ -24,6 +24,10 @@ import org.atmosphere.wasync.Event;
  * <p>When {@code trackMessageLength} is enabled on the server, messages are sent in the
  * format: {@code <length><delimiter><message>}. This decoder parses the length prefix,
  * buffers partial messages, and emits complete messages.</p>
+ *
+ * <p><strong>Thread safety:</strong> This class is <em>not</em> thread-safe. Each instance
+ * maintains mutable buffering state ({@code buffer}, {@code expectedLength}) and must be
+ * confined to a single thread — typically the transport's read thread.</p>
  */
 public class TrackMessageSizeDecoder implements Decoder<String, String> {
 
