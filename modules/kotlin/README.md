@@ -8,7 +8,7 @@ Builder API and coroutine extensions for Atmosphere.
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-kotlin</artifactId>
-    <version>4.0.28</version>
+    <version>4.0.29</version>
 </dependency>
 ```
 
