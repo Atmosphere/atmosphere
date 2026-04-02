@@ -25,6 +25,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -75,11 +76,12 @@ public class DiscordGateway implements WebSocket.Listener {
 
     private final AtomicLong lastSequence = new AtomicLong(-1);
     private final AtomicReference<String> botUserId = new AtomicReference<>();
-    private final StringBuilder messageBuffer = new StringBuilder();
+    private volatile StringBuilder messageBuffer = new StringBuilder();
 
+    private final AtomicBoolean reconnecting = new AtomicBoolean();
+    private final AtomicBoolean heartbeatAckPending = new AtomicBoolean();
     private volatile WebSocket webSocket;
     private volatile ScheduledFuture<?> heartbeatTask;
-    private volatile boolean heartbeatAckPending;
     private volatile boolean running;
 
     public DiscordGateway(String botToken, ObjectMapper objectMapper,
@@ -109,6 +111,14 @@ public class DiscordGateway implements WebSocket.Listener {
             webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "shutdown");
         }
         scheduler.shutdown();
+        try {
+            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                scheduler.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            scheduler.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void connect(int attempt) {
@@ -130,14 +140,19 @@ public class DiscordGateway implements WebSocket.Listener {
 
     private void doConnect(int attempt) {
         try {
-            heartbeatAckPending = false;
-            messageBuffer.setLength(0);
+            heartbeatAckPending.set(false);
+            messageBuffer = new StringBuilder();
 
             ChannelHttpClient.get().newWebSocketBuilder()
                     .connectTimeout(Duration.ofSeconds(10))
                     .buildAsync(URI.create(GATEWAY_URL), this)
                     .thenAccept(ws -> {
+                        var old = this.webSocket;
                         this.webSocket = ws;
+                        if (old != null) {
+                            try { old.sendClose(WebSocket.NORMAL_CLOSURE, "replaced"); }
+                            catch (Exception e) { log.trace("Error closing previous WebSocket", e); }
+                        }
                         log.info("Discord Gateway: connected");
                     })
                     .exceptionally(e -> {
@@ -174,8 +189,12 @@ public class DiscordGateway implements WebSocket.Listener {
     @Override
     public CompletionStage<?> onClose(WebSocket ws, int statusCode, String reason) {
         log.warn("Discord Gateway: closed (code={}, reason={})", statusCode, reason);
-        if (running) {
-            connect(1);
+        if (running && reconnecting.compareAndSet(false, true)) {
+            try {
+                connect(1);
+            } finally {
+                reconnecting.set(false);
+            }
         }
         return null;
     }
@@ -183,8 +202,12 @@ public class DiscordGateway implements WebSocket.Listener {
     @Override
     public void onError(WebSocket ws, Throwable error) {
         log.error("Discord Gateway: error: {}", error.getMessage());
-        if (running) {
-            connect(1);
+        if (running && reconnecting.compareAndSet(false, true)) {
+            try {
+                connect(1);
+            } finally {
+                reconnecting.set(false);
+            }
         }
     }
 
@@ -203,7 +226,7 @@ public class DiscordGateway implements WebSocket.Listener {
             switch (op) {
                 case OP_HELLO -> handleHello(ws, payload);
                 case OP_DISPATCH -> handleDispatch(payload);
-                case OP_HEARTBEAT_ACK -> heartbeatAckPending = false;
+                case OP_HEARTBEAT_ACK -> heartbeatAckPending.set(false);
                 case OP_HEARTBEAT -> sendHeartbeat(ws);
                 case OP_RECONNECT -> {
                     log.info("Discord Gateway: server requested reconnect");
@@ -230,13 +253,12 @@ public class DiscordGateway implements WebSocket.Listener {
         }
         heartbeatTask = scheduler.scheduleAtFixedRate(
                 () -> {
-                    if (heartbeatAckPending) {
+                    if (!heartbeatAckPending.compareAndSet(false, true)) {
                         log.warn("Discord Gateway: missed heartbeat ACK, reconnecting");
                         ws.sendClose(WebSocket.NORMAL_CLOSURE, "missed heartbeat");
                         return;
                     }
                     sendHeartbeat(ws);
-                    heartbeatAckPending = true;
                 },
                 intervalMs, intervalMs, TimeUnit.MILLISECONDS);
 

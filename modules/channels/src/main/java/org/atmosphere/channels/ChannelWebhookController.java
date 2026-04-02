@@ -74,7 +74,7 @@ public class ChannelWebhookController {
      *             clears all existing handlers and replaces them with the given one.
      */
     @Deprecated
-    public void onMessage(Consumer<IncomingMessage> handler) {
+    public synchronized void onMessage(Consumer<IncomingMessage> handler) {
         handlers.clear();
         handlers.add(handler);
     }
