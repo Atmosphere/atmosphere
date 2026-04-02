@@ -36,7 +36,7 @@ class MemoryCapturingSession implements StreamingSession {
     private final AiConversationMemory memory;
     private final String conversationId;
     private final String userMessage;
-    private final StringBuilder accumulated = new StringBuilder();
+    private final StringBuffer accumulated = new StringBuffer();
 
     MemoryCapturingSession(StreamingSession delegate, AiConversationMemory memory,
                            String conversationId, String userMessage) {

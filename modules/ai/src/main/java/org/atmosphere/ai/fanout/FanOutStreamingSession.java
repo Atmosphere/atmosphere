@@ -30,6 +30,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -220,8 +221,8 @@ public final class FanOutStreamingSession implements AutoCloseable {
         private final ConcurrentHashMap<String, AtomicInteger> streamingTextCounts;
 
         private final long startTime = System.currentTimeMillis();
-        private volatile long firstStreamingTextTime = -1;
-        private final StringBuilder responseBuilder = new StringBuilder();
+        private final AtomicLong firstStreamingTextTime = new AtomicLong(-1);
+        private final StringBuffer responseBuilder = new StringBuffer();
         private final AtomicInteger localStreamingTextCount = new AtomicInteger(0);
         private final AtomicBoolean done = new AtomicBoolean(false);
 
@@ -246,8 +247,8 @@ public final class FanOutStreamingSession implements AutoCloseable {
             if (closed.get() && !modelId.equals(firstComplete.get())) {
                 return; // cancelled
             }
-            if (firstStreamingTextTime < 0) {
-                firstStreamingTextTime = System.currentTimeMillis();
+            if (firstStreamingTextTime.get() < 0) {
+                firstStreamingTextTime.compareAndSet(-1, System.currentTimeMillis());
             }
             localStreamingTextCount.incrementAndGet();
             streamingTextCounts.get(modelId).incrementAndGet();
@@ -300,7 +301,7 @@ public final class FanOutStreamingSession implements AutoCloseable {
 
         private void recordResult(String summary) {
             var elapsed = System.currentTimeMillis() - startTime;
-            var ttft = firstStreamingTextTime > 0 ? firstStreamingTextTime - startTime : elapsed;
+            var ttft = firstStreamingTextTime.get() > 0 ? firstStreamingTextTime.get() - startTime : elapsed;
             var response = summary != null ? summary : responseBuilder.toString();
             results.put(modelId, new FanOutResult(modelId, response, ttft, elapsed, localStreamingTextCount.get()));
         }

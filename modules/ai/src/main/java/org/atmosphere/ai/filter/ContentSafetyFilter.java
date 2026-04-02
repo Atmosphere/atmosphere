@@ -35,7 +35,7 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
     private static final Pattern SENTENCE_BOUNDARY = Pattern.compile("[.!?\\n]");
 
     private final SafetyChecker checker;
-    private final ConcurrentHashMap<String, StringBuilder> buffers = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, StringBuffer> buffers = new ConcurrentHashMap<>();
 
     /**
      * Create a content safety filter with the given checker.
@@ -135,7 +135,7 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
     }
 
     private BroadcastAction handleStreamingText(AiStreamMessage msg) {
-        var buffer = buffers.computeIfAbsent(msg.sessionId(), k -> new StringBuilder());
+        var buffer = buffers.computeIfAbsent(msg.sessionId(), k -> new StringBuffer());
         buffer.append(msg.data());
 
         if (SENTENCE_BOUNDARY.matcher(msg.data()).find()) {
