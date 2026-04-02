@@ -84,7 +84,7 @@ public class KafkaResourceLifecycleTest {
         broadcaster.releaseExternalResources();
 
         verify(mockConsumer).wakeup();
-        verify(mockConsumer).close(any(Duration.class));
+        verify(mockConsumer).close();
         verify(mockProducer).close(any(Duration.class));
     }
 
@@ -98,7 +98,7 @@ public class KafkaResourceLifecycleTest {
                 .thenReturn(new ConsumerRecords<>(java.util.Collections.emptyMap()))
                 .thenThrow(new WakeupException());
 
-        doThrow(new RuntimeException("Consumer close failed")).when(mockConsumer).close(any(Duration.class));
+        doThrow(new RuntimeException("Consumer close failed")).when(mockConsumer).close();
 
         factory.configure(MockableKafkaBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
