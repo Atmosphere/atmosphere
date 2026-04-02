@@ -39,8 +39,8 @@ public class GrpcChannel {
     private final ReentrantLock observerLock = new ReentrantLock();
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final String uuid;
-    private AtmosphereResource resource;
-    private GrpcHandler handler;
+    private volatile AtmosphereResource resource;
+    private volatile GrpcHandler handler;
     private volatile long lastWrite;
 
     public GrpcChannel(StreamObserver<AtmosphereMessage> responseObserver, String uuid) {
@@ -75,7 +75,6 @@ public class GrpcChannel {
     }
 
     public void write(String data) throws IOException {
-        checkOpen();
         var msg = AtmosphereMessage.newBuilder()
                 .setType(MessageType.MESSAGE)
                 .setPayload(data)
@@ -84,7 +83,6 @@ public class GrpcChannel {
     }
 
     public void write(byte[] data) throws IOException {
-        checkOpen();
         var msg = AtmosphereMessage.newBuilder()
                 .setType(MessageType.MESSAGE)
                 .setBinaryPayload(ByteString.copyFrom(data))
@@ -93,7 +91,6 @@ public class GrpcChannel {
     }
 
     public void write(String topic, String data) throws IOException {
-        checkOpen();
         var msg = AtmosphereMessage.newBuilder()
                 .setType(MessageType.MESSAGE)
                 .setTopic(topic)
@@ -103,7 +100,6 @@ public class GrpcChannel {
     }
 
     public void write(String topic, byte[] data) throws IOException {
-        checkOpen();
         var msg = AtmosphereMessage.newBuilder()
                 .setType(MessageType.MESSAGE)
                 .setTopic(topic)
@@ -133,7 +129,6 @@ public class GrpcChannel {
      * Send a raw pre-built {@link AtmosphereMessage} directly to the stream observer.
      */
     void sendRaw(AtmosphereMessage message) throws IOException {
-        checkOpen();
         send(message);
     }
 
@@ -143,9 +138,10 @@ public class GrpcChannel {
         }
     }
 
-    private void send(AtmosphereMessage message) {
+    private void send(AtmosphereMessage message) throws IOException {
         observerLock.lock();
         try {
+            checkOpen();
             responseObserver.onNext(message);
             lastWrite = System.currentTimeMillis();
         } finally {

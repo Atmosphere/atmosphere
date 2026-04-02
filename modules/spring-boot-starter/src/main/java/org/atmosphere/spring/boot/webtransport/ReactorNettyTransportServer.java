@@ -81,8 +81,8 @@ public class ReactorNettyTransportServer {
 
     private final AtmosphereFramework framework;
     private final WebTransportProperties properties;
-    private Channel serverChannel;
-    private IoEventLoopGroup group;
+    private volatile Channel serverChannel;
+    private volatile IoEventLoopGroup group;
     private String certificateHashBase64;
 
     public ReactorNettyTransportServer(AtmosphereFramework framework,

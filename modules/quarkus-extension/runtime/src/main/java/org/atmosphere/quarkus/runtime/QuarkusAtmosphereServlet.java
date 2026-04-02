@@ -39,7 +39,7 @@ public class QuarkusAtmosphereServlet extends AtmosphereServlet {
     private static volatile QuarkusAtmosphereServlet instance;
 
     private Map<Class<? extends Annotation>, Set<Class<?>>> annotationMap;
-    private transient ServletConfig deferredConfig;
+    private transient volatile ServletConfig deferredConfig;
 
     public QuarkusAtmosphereServlet() {
         instance = this;

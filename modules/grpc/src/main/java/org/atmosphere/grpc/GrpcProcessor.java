@@ -77,6 +77,12 @@ public class GrpcProcessor {
         try {
             var resource = framework.atmosphereFactory().create(
                     config, request, response, framework.getAsyncSupport());
+            if (resource == null) {
+                logger.error("AtmosphereResource creation returned null for gRPC channel {}", uuid);
+                channels.put(uuid, channel);
+                handler.onOpen(channel);
+                return channel;
+            }
             if (resource instanceof AtmosphereResourceImpl impl) {
                 impl.transport(TRANSPORT.GRPC);
                 impl.atmosphereHandler(new AbstractReflectorAtmosphereHandler.Default());

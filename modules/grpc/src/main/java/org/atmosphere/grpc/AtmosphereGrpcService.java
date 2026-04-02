@@ -91,6 +91,7 @@ public class AtmosphereGrpcService extends AtmosphereServiceGrpc.AtmosphereServi
                     channel.uuid(), request.getTopic());
         } catch (Exception e) {
             logger.error("Error processing subscribe on channel {}", channel.uuid(), e);
+            processor.close(channel);
             responseObserver.onError(io.grpc.Status.INTERNAL
                     .withDescription(e.getMessage()).asRuntimeException());
         }
