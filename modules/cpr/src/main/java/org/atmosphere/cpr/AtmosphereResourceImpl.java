@@ -688,8 +688,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         Action.TYPE previousType = action.type();
         try {
-            if (event instanceof HeartbeatAtmosphereResourceEvent) {
-                onHeartbeat(event);
+            if (event instanceof HeartbeatAtmosphereResourceEvent heartbeat) {
+                onHeartbeat(heartbeat);
             } else if (event.isClosedByApplication()) {
                 onClose(event);
             } else if (event.isCancelled() || event.isClosedByClient()) {
@@ -858,16 +858,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 action = new Action(Action.TYPE.CANCELLED, action.timeout());
                 if (asyncSupport != null) asyncSupport.action(this);
                 // We must close the underlying WebSocket as well.
-                if (response instanceof AtmosphereResponseImpl) {
+                if (response instanceof AtmosphereResponseImpl ari) {
                     if (closeOnCancel) {
-                        response.close();
+                        ari.close();
                     }
-                    response.destroy();
+                    ari.destroy();
                 }
 
-                if (req instanceof AtmosphereRequestImpl) {
+                if (req instanceof AtmosphereRequestImpl ari) {
                     if (closeOnCancel) {
-                        req.destroy();
+                        ari.destroy();
                     }
                 }
                 event.destroy();

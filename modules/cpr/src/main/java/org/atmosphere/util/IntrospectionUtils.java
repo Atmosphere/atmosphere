@@ -61,10 +61,9 @@ public final class IntrospectionUtils {
     /**
      * Call execute() - any ant-like task should work
      */
-    @SuppressWarnings("rawtypes")
     public static void execute(Object proxy, String method) throws Exception {
         Class<?> c = proxy.getClass();
-        Class<?> params[] = new Class[0];
+        Class<?>[] params = new Class<?>[0];
         //    params[0]=args.getClass();
         Method executeM = findMethod(c, method, params);
         if (executeM == null) {
@@ -76,7 +75,6 @@ public final class IntrospectionUtils {
     /**
      * Call void setAttribute( String ,Object )
      */
-    @SuppressWarnings("rawtypes")
     public static void setAttribute(Object proxy, String name, Object value)
             throws Exception {
         if (proxy instanceof AttributeHolder ah) {
@@ -85,7 +83,7 @@ public final class IntrospectionUtils {
         }
 
         Class<?> c = proxy.getClass();
-        Class<?> params[] = new Class[2];
+        Class<?>[] params = new Class<?>[2];
         params[0] = String.class;
         params[1] = Object.class;
         Method executeM = findMethod(c, "setAttribute", params);
@@ -102,10 +100,9 @@ public final class IntrospectionUtils {
     /**
      * Call void getAttribute( String )
      */
-    @SuppressWarnings("rawtypes")
     public static Object getAttribute(Object proxy, String name) throws Exception {
         Class<?> c = proxy.getClass();
-        Class<?> params[] = new Class[1];
+        Class<?>[] params = new Class<?>[1];
         params[0] = String.class;
         Method executeM = findMethod(c, "getAttribute", params);
         if (executeM == null) {
@@ -713,21 +710,19 @@ public final class IntrospectionUtils {
         return false;
     }
 
-    @SuppressWarnings("rawtypes")
-    public static void callMain(Class<?> c, String args[]) throws Exception {
-        Class<?> p[] = new Class[1];
+    public static void callMain(Class<?> c, String[] args) throws Exception {
+        Class<?>[] p = new Class<?>[1];
         p[0] = args.getClass();
         Method m = c.getMethod("main", p);
         m.invoke(c, new Object[]{args});
     }
 
-    @SuppressWarnings("rawtypes")
     public static Object callMethod1(Object target, String methodN,
                                      Object param1, String typeParam1, ClassLoader cl) throws Exception {
         if (target == null || param1 == null) {
             debug("Assert: Illegal params " + target + " " + param1);
         }
-        Class<?> params[] = new Class[1];
+        Class<?>[] params = new Class<?>[1];
         if (typeParam1 == null) {
             params[0] = param1.getClass();
         } else {

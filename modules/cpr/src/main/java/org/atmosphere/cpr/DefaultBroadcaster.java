@@ -633,9 +633,9 @@ public class DefaultBroadcaster implements Broadcaster {
                 e.future.cancel(true);
                 try {
                     // Append so we do a single flush
-                    if (e.message instanceof String
+                    if (e.message instanceof String msg
                             && deliver.message instanceof String) {
-                        b.append(e.message);
+                        b.append(msg);
                     } else {
                         deliverPush(e, false);
                     }
@@ -1758,8 +1758,8 @@ public class DefaultBroadcaster implements Broadcaster {
             try {
                 b.onPreDestroy(this);
             } catch (RuntimeException ex) {
-                if (ex instanceof BroadcasterListener.BroadcastListenerException) {
-                    logger.trace("onPreDestroy", ex);
+                if (ex instanceof BroadcasterListener.BroadcastListenerException ble) {
+                    logger.trace("onPreDestroy", ble);
                     return true;
                 }
                 logger.warn("onPreDestroy", ex);

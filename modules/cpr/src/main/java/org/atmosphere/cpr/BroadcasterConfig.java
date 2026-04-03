@@ -386,8 +386,8 @@ public class BroadcasterConfig {
             lifecycle.destroy();
         }
 
-        if (filter instanceof PerRequestBroadcastFilter) {
-            perRequestFilters.remove(filter);
+        if (filter instanceof PerRequestBroadcastFilter prf) {
+            perRequestFilters.remove(prf);
         }
 
         return filters.remove(filter);
