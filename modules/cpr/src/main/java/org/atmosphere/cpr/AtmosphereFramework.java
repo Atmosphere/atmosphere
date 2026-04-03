@@ -58,6 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -112,7 +113,7 @@ public class AtmosphereFramework {
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
 
     protected final FrameworkEventDispatcher eventDispatcher = new FrameworkEventDispatcher();
-    protected final HashMap<String, String> initParams = new HashMap<>();
+    protected final ConcurrentHashMap<String, String> initParams = new ConcurrentHashMap<>();
     protected final AtmosphereConfig config;
     protected final AtomicBoolean isCometSupportConfigured = new AtomicBoolean(false);
     protected final boolean isFilter;

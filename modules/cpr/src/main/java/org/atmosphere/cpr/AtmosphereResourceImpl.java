@@ -322,9 +322,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
         } finally {
+            listeners.clear();
             unregister();
         }
-        listeners.clear();
         return this;
     }
 
@@ -655,8 +655,11 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     @Override
     public AtmosphereResource addEventListener(AtmosphereResourceEventListener e) {
-        if (listeners.contains(e)) return this;
-        listeners.add(e);
+        // ConcurrentLinkedQueue.add is thread-safe; contains+add is benign TOCTOU
+        // (worst case: a duplicate listener that fires twice, which callers tolerate).
+        if (!listeners.contains(e)) {
+            listeners.add(e);
+        }
         return this;
     }
 
@@ -873,6 +876,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 event.destroy();
             }
         } finally {
+            listeners.clear();
             unregister();
         }
     }

@@ -308,9 +308,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
             broadcasterListeners.add(l);
         }
 
-        for (Broadcaster b : store.values()) {
-            b.addBroadcasterListener(l);
-        }
+        store.values().forEach(b -> b.addBroadcasterListener(l));
         return this;
     }
 

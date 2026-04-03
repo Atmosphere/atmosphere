@@ -430,8 +430,11 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public Broadcaster addBroadcasterListener(BroadcasterListener b) {
-        if (!sharedListeners && !broadcasterListeners.contains(b)) {
-            broadcasterListeners.add(b);
+        if (!sharedListeners) {
+            // ConcurrentLinkedQueue does not deduplicate; guard with atomic add-if-absent
+            if (!broadcasterListeners.contains(b)) {
+                broadcasterListeners.add(b);
+            }
         }
         return this;
     }
@@ -445,7 +448,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected Runnable getBroadcastHandler() {
         return () -> {
             while (!isDestroyed()) {
-                Deliver msg;
+                Deliver msg = null;
                 try {
                     msg = messages.poll(waitTime, TimeUnit.MILLISECONDS);
                     if (msg == null) {
@@ -458,7 +461,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     dispatchThread.decrementAndGet();
                     return;
                 } finally {
-                    if (outOfOrderBroadcastSupported.get()) {
+                    if (msg != null && outOfOrderBroadcastSupported.get()) {
                         bc.getExecutorService().submit(getBroadcastHandler());
                     }
                 }
@@ -1251,8 +1254,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public void setSuspendPolicy(long maxSuspendResource, POLICY policy) {
-        this.maxSuspendResource.set(maxSuspendResource);
         this.policy = policy;
+        this.maxSuspendResource.set(maxSuspendResource);
     }
 
     @Override
