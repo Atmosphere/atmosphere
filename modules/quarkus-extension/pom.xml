@@ -14,27 +14,6 @@
     <description>Quarkus extension for Atmosphere Framework</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
 
-    <licenses>
-        <license>
-            <name>Apache License 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
-            <distribution>repo</distribution>
-        </license>
-    </licenses>
-    <scm>
-        <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
-        <developerConnection>scm:git:git@github.com:Atmosphere/atmosphere.git</developerConnection>
-        <url>https://github.com/Atmosphere/atmosphere</url>
-        <tag>HEAD</tag>
-    </scm>
-    <developers>
-        <developer>
-            <id>jfarcand</id>
-            <name>Jeanfrancois Arcand</name>
-            <email>jfarcand@apache.org</email>
-        </developer>
-    </developers>
-
     <properties>
         <quarkus.version>3.31.3</quarkus.version>
         <!-- Quarkus 3.31 uses Netty 4.1.x — reset the root POM's 4.2.11 override -->
@@ -57,36 +36,4 @@
         <module>runtime</module>
         <module>deployment</module>
     </modules>
-
-    <build>
-        <plugins>
-            <!-- Flatten the POM so deployed artifacts have explicit dependency
-                 versions instead of relying on parent/BOM inheritance.
-                 Maven Central validates the raw POM, not the effective POM. -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>flatten-maven-plugin</artifactId>
-                <version>1.7.0</version>
-                <configuration>
-                    <flattenMode>ossrh</flattenMode>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>flatten</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>flatten</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>flatten-clean</id>
-                        <phase>clean</phase>
-                        <goals>
-                            <goal>clean</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
 </project>
