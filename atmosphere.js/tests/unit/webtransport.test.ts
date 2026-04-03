@@ -636,20 +636,21 @@ describe('WebTransportTransport', () => {
       await new Promise((r) => setTimeout(r, 0));
 
       mockReader.pushDone();
-      await new Promise((r) => setTimeout(r, 200));
+
+      // Wait for the async read loop to process done and call handleClose
+      await vi.waitFor(() => {
+        expect(mockHandlers.failureToReconnect).toHaveBeenCalledWith(
+          request,
+          expect.objectContaining({
+            state: 'closed',
+            transport: 'webtransport',
+          }),
+        );
+      });
 
       // With maxReconnectOnClose=0, reconnectAttempts (0) < 0 is false,
       // so reconnect should NOT be scheduled.
       expect(mockHandlers.reconnect).not.toHaveBeenCalled();
-
-      // failureToReconnect should be called because reconnect=true but max=0
-      expect(mockHandlers.failureToReconnect).toHaveBeenCalledWith(
-        request,
-        expect.objectContaining({
-          state: 'closed',
-          transport: 'webtransport',
-        }),
-      );
     });
 
     it('should not reconnect when reconnect is false', async () => {
@@ -664,10 +665,12 @@ describe('WebTransportTransport', () => {
       await new Promise((r) => setTimeout(r, 0));
 
       mockReader.pushDone();
-      await new Promise((r) => setTimeout(r, 200));
 
-      // close handler should fire, but reconnect should NOT
-      expect(mockHandlers.close).toHaveBeenCalled();
+      // Wait for close handler to fire
+      await vi.waitFor(() => {
+        expect(mockHandlers.close).toHaveBeenCalled();
+      });
+
       expect(mockHandlers.reconnect).not.toHaveBeenCalled();
     });
 
@@ -710,10 +713,9 @@ describe('WebTransportTransport', () => {
       await transport.connect();
 
       // Wait for reconnect to fire
-      await new Promise((r) => setTimeout(r, 200));
-
-      // The reconnect should have happened
-      expect(connectCount).toBeGreaterThanOrEqual(2);
+      await vi.waitFor(() => {
+        expect(connectCount).toBeGreaterThanOrEqual(2);
+      });
 
       await transport.disconnect();
     });
@@ -750,9 +752,10 @@ describe('WebTransportTransport', () => {
       expect(mockHandlers.open).toHaveBeenCalledTimes(1);
 
       // Wait for reconnect to succeed
-      await new Promise((r) => setTimeout(r, 200));
+      await vi.waitFor(() => {
+        expect(mockHandlers.reopen).toHaveBeenCalled();
+      });
 
-      // Second open should call reopen handler (not open again)
       expect(mockHandlers.reopen).toHaveBeenCalledWith(
         expect.objectContaining({
           status: 200,
