@@ -33,7 +33,7 @@ jobs:
     name: Validate & Test
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: main
         fetch-depth: 0
@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     if: inputs.publish_js
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: main
 
@@ -106,7 +106,7 @@ jobs:
     permissions:
       contents: write
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: main
         fetch-depth: 0
@@ -194,7 +194,7 @@ jobs:
       contents: read
       packages: write
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: atmosphere-${{ inputs.release_version }}
 
@@ -251,7 +251,7 @@ jobs:
       contents: write
       id-token: write
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: main
         fetch-depth: 0
@@ -347,7 +347,7 @@ jobs:
     permissions:
       contents: write
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: main
         fetch-depth: 0
@@ -440,7 +440,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: main
         fetch-depth: 0
