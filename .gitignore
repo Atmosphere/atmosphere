@@ -34,3 +34,4 @@ website-astro/
 claude_docs/
 .copilot/
 .envrc
+.flattened-pom.xml
