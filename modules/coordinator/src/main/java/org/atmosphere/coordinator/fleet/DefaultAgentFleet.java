@@ -111,10 +111,12 @@ public final class DefaultAgentFleet implements AgentFleet {
         }
 
         var results = new LinkedHashMap<String, AgentResult>();
+        var failed = false;
         for (var entry : futures.entrySet()) {
             try {
                 results.put(entry.getKey(), entry.getValue().join());
             } catch (Exception e) {
+                failed = true;
                 var cause = e.getCause();
                 var msg = cause instanceof TimeoutException
                         ? "Agent timed out after " + parallelTimeoutMs + "ms"
@@ -123,6 +125,10 @@ public final class DefaultAgentFleet implements AgentFleet {
                 results.put(entry.getKey(), AgentResult.failure(
                         entry.getKey(), "", msg, Duration.ZERO));
             }
+        }
+
+        if (failed) {
+            futures.values().forEach(f -> f.cancel(true));
         }
 
         vtExecutor.close();

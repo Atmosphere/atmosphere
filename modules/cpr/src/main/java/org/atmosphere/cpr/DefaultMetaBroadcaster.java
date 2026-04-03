@@ -204,7 +204,7 @@ public class DefaultMetaBroadcaster implements MetaBroadcaster {
 
         private final CountDownLatch latch;
         private final List<Broadcaster> l;
-        private boolean isCancelled;
+        private volatile boolean isCancelled;
         private final List<Future<?>> outerFuture = new ArrayList<>();
 
         private MetaBroadcasterFuture(List<Broadcaster> l) {

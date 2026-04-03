@@ -33,7 +33,7 @@ import java.util.function.Consumer;
 /**
  * Transport for remote agents via A2A JSON-RPC 2.0 over HTTP.
  */
-public class A2aAgentTransport implements AgentTransport {
+public class A2aAgentTransport implements AgentTransport, AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(A2aAgentTransport.class);
     private static final ObjectMapper mapper = new ObjectMapper();
@@ -201,5 +201,10 @@ public class A2aAgentTransport implements AgentTransport {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    @Override
+    public void close() {
+        httpClient.close();
     }
 }

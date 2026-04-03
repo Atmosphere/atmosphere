@@ -49,6 +49,7 @@ public class RedisSessionStore implements SessionStore {
     private final RedisCommands<String, String> commands;
     private final ObjectMapper mapper;
     private final Duration defaultTtl;
+    private final boolean ownsConnection;
 
     /**
      * Create a store connected to the given Redis URI.
@@ -73,6 +74,7 @@ public class RedisSessionStore implements SessionStore {
         this.commands = connection.sync();
         this.mapper = new ObjectMapper();
         this.defaultTtl = defaultTtl;
+        this.ownsConnection = true;
         logger.info("Redis session store connected to {}", maskPassword(redisUri));
     }
 
@@ -86,15 +88,30 @@ public class RedisSessionStore implements SessionStore {
         this.commands = connection.sync();
         this.mapper = new ObjectMapper();
         this.defaultTtl = defaultTtl;
+        this.ownsConnection = false;
     }
+
+    /**
+     * Lua script for atomic save: SET the session key with TTL and add the token
+     * to the index set — all in a single atomic operation.
+     *
+     * <p>KEYS[1] = session key, KEYS[2] = index key,
+     * ARGV[1] = TTL in seconds, ARGV[2] = JSON, ARGV[3] = token</p>
+     */
+    private static final String SAVE_SCRIPT = """
+            redis.call('SETEX', KEYS[1], tonumber(ARGV[1]), ARGV[2])
+            redis.call('SADD', KEYS[2], ARGV[3])
+            return 1
+            """;
 
     @Override
     public void save(DurableSession session) {
         try {
             var key = KEY_PREFIX + session.token();
             var json = toJson(session);
-            commands.setex(key, defaultTtl.toSeconds(), json);
-            commands.sadd(INDEX_KEY, session.token());
+            commands.eval(SAVE_SCRIPT, ScriptOutputType.INTEGER,
+                    new String[]{key, INDEX_KEY},
+                    String.valueOf(defaultTtl.toSeconds()), json, session.token());
             logger.debug("Saved session {} to Redis", session.token());
         } catch (Exception e) {
             logger.error("Failed to save session {} to Redis", session.token(), e);
@@ -127,6 +144,9 @@ public class RedisSessionStore implements SessionStore {
      * Lua script for atomic touch: GET the value, update lastSeen in the JSON,
      * and SETEX it back — all in a single atomic operation to avoid TOCTOU races.
      *
+     * <p>The gsub pattern assumes compact JSON with no whitespace around colons,
+     * which matches the output of Jackson's default ObjectMapper serialization.</p>
+     *
      * <p>KEYS[1] = session key, ARGV[1] = TTL in seconds, ARGV[2] = new lastSeen millis</p>
      */
     private static final String TOUCH_SCRIPT = """
@@ -158,6 +178,8 @@ public class RedisSessionStore implements SessionStore {
         // Clean up the index set by removing tokens whose keys no longer exist.
         // The key data is already gone (expired by Redis), so we return stub
         // sessions with the token so callers can perform any cleanup.
+        // N+1 Redis queries are acceptable here: this is a periodic maintenance
+        // operation on a typically small index set, not a hot path.
         var expired = new ArrayList<DurableSession>();
         var tokens = commands.smembers(INDEX_KEY);
         for (var token : tokens) {
@@ -171,7 +193,7 @@ public class RedisSessionStore implements SessionStore {
 
     @Override
     public void close() {
-        if (connection != null) {
+        if (ownsConnection && connection != null) {
             connection.close();
         }
         if (client != null) {

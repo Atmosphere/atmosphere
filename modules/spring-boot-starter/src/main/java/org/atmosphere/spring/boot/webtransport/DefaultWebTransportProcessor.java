@@ -49,8 +49,8 @@ public class DefaultWebTransportProcessor implements WebTransportProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultWebTransportProcessor.class);
 
-    private AtmosphereConfig config;
-    private WebSocketProcessor wsProcessor;
+    private volatile AtmosphereConfig config;
+    private volatile WebSocketProcessor wsProcessor;
     private final Map<WebTransportSession, WebTransportBridgeWebSocket> bridges = new ConcurrentHashMap<>();
 
     @Override

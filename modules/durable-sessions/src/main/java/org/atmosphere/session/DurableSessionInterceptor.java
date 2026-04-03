@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Interceptor that saves and restores session state across server restarts.
@@ -53,6 +54,7 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
     private final Duration sessionTtl;
     private final Duration saveInterval;
     private final Set<String> savedOnDisconnect = ConcurrentHashMap.newKeySet();
+    private final ConcurrentHashMap<String, ReentrantLock> sessionLocks = new ConcurrentHashMap<>();
     private ScheduledExecutorService scheduler;
     private AtmosphereConfig config;
 
@@ -102,6 +104,8 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
 
         if (token != null) {
             // Attempt to restore a previous session
+            var lock = sessionLocks.computeIfAbsent(token, k -> new ReentrantLock());
+            lock.lock();
             try {
                 var restored = store.restore(token);
                 if (restored.isPresent()) {
@@ -119,6 +123,8 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
                 }
             } catch (Exception e) {
                 logger.warn("Failed to restore durable session {}, creating new session", token, e);
+            } finally {
+                lock.unlock();
             }
             logger.debug("Session token {} not found or expired, creating new session", token);
         }
@@ -194,6 +200,8 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         if (!savedOnDisconnect.add(r.uuid())) {
             return;
         }
+        var lock = sessionLocks.computeIfAbsent(token, k -> new ReentrantLock());
+        lock.lock();
         try {
             var session = store.restore(token);
             if (session.isEmpty()) {
@@ -230,7 +238,7 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         } catch (Exception e) {
             logger.warn("Failed to save durable session state for {}", token, e);
         } finally {
-            savedOnDisconnect.remove(r.uuid());
+            lock.unlock();
         }
     }
 

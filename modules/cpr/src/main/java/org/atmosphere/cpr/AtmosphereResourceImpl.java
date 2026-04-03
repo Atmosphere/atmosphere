@@ -82,13 +82,13 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final Set<String> broadcasterIdIndex = ConcurrentHashMap.newKeySet();
     protected volatile Broadcaster broadcaster;
     private volatile AtmosphereConfig config;
-    protected AsyncSupport<AtmosphereResourceImpl> asyncSupport;
+    protected volatile AsyncSupport<AtmosphereResourceImpl> asyncSupport;
     private Serializer serializer;
     private final AtomicReference<LifecycleState> state = new AtomicReference<>(LifecycleState.CREATED);
     private volatile AtmosphereResourceEventImpl event;
     private final AtomicBoolean resumeOnBroadcast = new AtomicBoolean();
     private volatile Object writeOnTimeout;
-    private boolean disableSuspend;
+    private volatile boolean disableSuspend;
     private final AtomicBoolean disconnected = new AtomicBoolean();
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
@@ -557,6 +557,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         isSuspendEvent.set(false);
         disconnected.set(false);
         listeners.clear();
+        broadcasters.clear();
         broadcasterIdIndex.clear();
         action = new Action(Action.TYPE.CREATED, action.timeout());
     }
@@ -939,8 +940,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         event.setCloseByApplication(true);
         notifyListeners();
         cancel();
-        if (webSocket != null && webSocket.isOpen()) {
-            webSocket.close();
+        var ws = webSocket;
+        if (ws != null && ws.isOpen()) {
+            ws.close();
         }
     }
 
@@ -949,8 +951,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             event.setCancelled(true);
             notifyListeners();
             cancel();
-            if (webSocket != null) {
-                webSocket.close();
+            var ws = webSocket;
+            if (ws != null) {
+                ws.close();
             }
         } catch (IOException ex) {
             logger.trace("", ex);

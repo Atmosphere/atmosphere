@@ -52,7 +52,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
             Pattern.compile("\\b(?:\\d[\\s-]?){13,19}\\b");
 
     private final Map<String, Pattern> patterns = new LinkedHashMap<>();
-    private final ConcurrentHashMap<String, StringBuilder> buffers = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, StringBuffer> buffers = new ConcurrentHashMap<>();
     private final String replacement;
 
     /**
@@ -115,7 +115,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
     }
 
     private BroadcastAction handleStreamingText(AiStreamMessage msg) {
-        var buffer = buffers.computeIfAbsent(msg.sessionId(), k -> new StringBuilder());
+        var buffer = buffers.computeIfAbsent(msg.sessionId(), k -> new StringBuffer());
         buffer.append(msg.data());
 
         // Check for sentence boundary

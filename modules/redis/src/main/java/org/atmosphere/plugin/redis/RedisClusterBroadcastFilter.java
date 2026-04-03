@@ -53,10 +53,10 @@ public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
 
     private final String nodeId = UUID.randomUUID().toString();
 
-    private RedisClient redisClient;
-    private StatefulRedisPubSubConnection<String, String> pubConnection;
-    private StatefulRedisPubSubConnection<String, String> subConnection;
-    private Broadcaster broadcaster;
+    private volatile RedisClient redisClient;
+    private volatile StatefulRedisPubSubConnection<String, String> pubConnection;
+    private volatile StatefulRedisPubSubConnection<String, String> subConnection;
+    private volatile Broadcaster broadcaster;
 
     @Override
     public void init(AtmosphereConfig config) {
@@ -84,9 +84,22 @@ public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
         if (password != null && !password.isEmpty()) {
             redisUri.setPassword(password.toCharArray());
         }
-        redisClient = RedisClient.create(redisUri);
-        pubConnection = redisClient.connectPubSub();
-        subConnection = redisClient.connectPubSub();
+        RedisClient client = RedisClient.create(redisUri);
+        try {
+            var pub = client.connectPubSub();
+            try {
+                var sub = client.connectPubSub();
+                this.redisClient = client;
+                this.pubConnection = pub;
+                this.subConnection = sub;
+            } catch (Exception e) {
+                try { pub.close(); } catch (Exception ex) { logger.trace("Error closing pub connection", ex); }
+                throw e;
+            }
+        } catch (Exception e) {
+            try { client.shutdown(); } catch (Exception ex) { logger.trace("Error shutting down client", ex); }
+            throw e;
+        }
     }
 
     @Override
@@ -132,8 +145,9 @@ public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
     @Override
     public void setBroadcaster(Broadcaster bc) {
         this.broadcaster = bc;
-        if (subConnection != null && subConnection.isOpen()) {
-            subConnection.sync().subscribe(bc.getID());
+        var conn = this.subConnection;
+        if (conn != null && conn.isOpen()) {
+            conn.sync().subscribe(bc.getID());
             logger.info("RedisClusterBroadcastFilter {} subscribed to channel '{}'", nodeId, bc.getID());
         }
     }
@@ -148,14 +162,17 @@ public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
     }
 
     private void publishToRedis(Object msg) {
-        if (broadcaster == null) return;
+        var bc = this.broadcaster;
+        if (bc == null) return;
+        var conn = this.pubConnection;
+        if (conn == null || !conn.isOpen()) return;
         try {
             var payload = serializeMessage(msg);
             var envelope = nodeId + SEPARATOR + payload;
-            pubConnection.sync().publish(broadcaster.getID(), envelope);
+            conn.sync().publish(bc.getID(), envelope);
         } catch (Exception e) {
             logger.warn("Failed to publish message to Redis channel '{}'",
-                    broadcaster != null ? broadcaster.getID() : "unknown", e);
+                    bc.getID(), e);
         }
     }
 
@@ -172,9 +189,10 @@ public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
         }
 
         var payload = envelope.substring(separatorIndex + SEPARATOR.length());
-        if (broadcaster != null) {
-            logger.trace("Received remote message from node {} for broadcaster '{}'", senderId, broadcaster.getID());
-            broadcaster.broadcast(payload);
+        var bc = this.broadcaster;
+        if (bc != null) {
+            logger.trace("Received remote message from node {} for broadcaster '{}'", senderId, bc.getID());
+            bc.broadcast(payload);
         }
     }
 

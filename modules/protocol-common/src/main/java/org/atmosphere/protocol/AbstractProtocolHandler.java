@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -135,7 +136,7 @@ public abstract class AbstractProtocolHandler<S extends ProtocolSession>
 
     /** Get the session store. */
     public Map<String, S> sessions() {
-        return sessions;
+        return Collections.unmodifiableMap(sessions);
     }
 
     /** Restore a session from the request header, setting it as a request attribute. */

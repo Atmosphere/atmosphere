@@ -33,11 +33,12 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.http.HttpClient;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -48,7 +49,8 @@ public class DefaultSocket implements Socket {
     private static final Logger logger = LoggerFactory.getLogger(DefaultSocket.class);
 
     private final Options options;
-    private final List<FunctionBinding> functions = new ArrayList<>();
+    private final CopyOnWriteArrayList<FunctionBinding> functions = new CopyOnWriteArrayList<>();
+    private final AtomicBoolean reconnecting = new AtomicBoolean();
     private volatile Transport activeTransport;
     private volatile Request request;
     private volatile STATUS status = STATUS.INIT;
@@ -61,19 +63,19 @@ public class DefaultSocket implements Socket {
 
     @Override
     public Socket on(Event event, Function<?> function) {
-        functions.add(new FunctionBinding(event.name(), function));
+        functions.addIfAbsent(new FunctionBinding(event.name(), function));
         return this;
     }
 
     @Override
     public Socket on(String functionMessage, Function<?> function) {
-        functions.add(new FunctionBinding(functionMessage, function));
+        functions.addIfAbsent(new FunctionBinding(functionMessage, function));
         return this;
     }
 
     @Override
     public Socket on(Function<?> function) {
-        functions.add(new FunctionBinding(Event.MESSAGE.name(), function));
+        functions.addIfAbsent(new FunctionBinding(Event.MESSAGE.name(), function));
         return this;
     }
 
@@ -134,7 +136,11 @@ public class DefaultSocket implements Socket {
             }));
         }
 
+        Transport old = activeTransport;
         activeTransport = transport;
+        if (old != null) {
+            try { old.close(); } catch (Exception e) { logger.trace("", e); }
+        }
         status = STATUS.INIT;
 
         // Sync socket status when the transport fires OPEN
@@ -165,27 +171,35 @@ public class DefaultSocket implements Socket {
                 return;
             }
 
+            if (!reconnecting.compareAndSet(false, true)) {
+                return;
+            }
+
             var maxAttempts = options.reconnectAttempts();
             var attempt = new AtomicInteger(0);
 
             Thread.ofVirtual().name("wasync-reconnect").start(() -> {
-                while (status != STATUS.CLOSE
-                        && (maxAttempts == -1 || attempt.get() < maxAttempts)) {
-                    try {
-                        Thread.sleep(options.reconnectTimeoutInMilliseconds());
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        return;
-                    }
+                try {
+                    while (status != STATUS.CLOSE
+                            && (maxAttempts == -1 || attempt.get() < maxAttempts)) {
+                        try {
+                            Thread.sleep(options.reconnectTimeoutInMilliseconds());
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            return;
+                        }
 
-                    logger.info("Reconnection attempt {}", attempt.incrementAndGet());
-                    connectWithFallback(transports, index);
+                        logger.info("Reconnection attempt {}", attempt.incrementAndGet());
+                        connectWithFallback(transports, index);
 
-                    if (activeTransport.status() == STATUS.OPEN) {
-                        status = STATUS.REOPENED;
-                        dispatchReopened();
-                        return;
+                        if (activeTransport.status() == STATUS.OPEN) {
+                            status = STATUS.REOPENED;
+                            dispatchReopened();
+                            return;
+                        }
                     }
+                } finally {
+                    reconnecting.set(false);
                 }
             });
         }));
@@ -212,7 +226,8 @@ public class DefaultSocket implements Socket {
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
     public CompletableFuture<Void> fire(Object data) {
-        if (activeTransport == null || status == STATUS.CLOSE) {
+        Transport t = activeTransport;
+        if (t == null || status == STATUS.CLOSE) {
             return CompletableFuture.failedFuture(new IllegalStateException("Socket not open"));
         }
 
@@ -231,18 +246,18 @@ public class DefaultSocket implements Socket {
 
         var uri = buildUri(request);
 
-        if (encoded instanceof byte[] bytes && activeTransport instanceof WebSocketTransport ws) {
+        if (encoded instanceof byte[] bytes && t instanceof WebSocketTransport ws) {
             return ws.sendBinary(bytes);
         }
 
         var text = encoded.toString();
-        return switch (activeTransport) {
+        return switch (t) {
             case WebSocketTransport ws -> ws.sendText(text);
             case StreamTransport stream -> stream.sendText(text, uri, request);
             case LongPollingTransport lp -> lp.sendText(text, uri, request);
             case GrpcTransport grpc -> grpc.sendText(text);
             default -> CompletableFuture.failedFuture(
-                    new UnsupportedOperationException("Cannot fire on " + activeTransport.name()));
+                    new UnsupportedOperationException("Cannot fire on " + t.name()));
         };
     }
 

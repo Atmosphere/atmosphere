@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
@@ -60,6 +61,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
     protected int defaultPolicyInteger = -1;
 
     private final ReentrantLock lock = new ReentrantLock();
+    private final AtomicBoolean destroyed = new AtomicBoolean();
 
     protected AtmosphereConfig config;
     protected final BroadcasterListener lifeCycleListener = new BroadcasterLifecyclePolicyHandler();
@@ -169,6 +171,9 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
 
     @Override
     public boolean add(Broadcaster b, Object id) {
+        if (destroyed.get()) {
+            throw new IllegalStateException("BroadcasterFactory has been destroyed");
+        }
         return (store.put(id, b) == null);
     }
 
@@ -205,6 +210,11 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
 
     @SuppressWarnings("unchecked")
     public <T extends Broadcaster> T lookup(Class<T> c, Object id, boolean createIfNull, boolean unique) {
+        if (destroyed.get()) {
+            logger.debug("BroadcasterFactory has been destroyed, lookup for {} returning null", id);
+            return null;
+        }
+
         logger.trace("About to create {}", id);
         T b = (T) store.get(id);
         if (b != null) {
@@ -246,6 +256,8 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
 
     @Override
     public void destroy() {
+        if (!destroyed.compareAndSet(false, true)) return;
+
         lock.lock();
         try {
             // Invalid state

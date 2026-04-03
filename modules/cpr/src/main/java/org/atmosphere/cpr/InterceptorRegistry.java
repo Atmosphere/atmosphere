@@ -164,7 +164,7 @@ public class InterceptorRegistry {
                 try {
                     AtmosphereInterceptor ai = config.framework().newClassInstance(AtmosphereInterceptor.class,
                             (Class<AtmosphereInterceptor>) IOUtils.loadClass(config.framework().getClass(), a.trim()));
-                    addInterceptor(ai, config.framework().isInit);
+                    addInterceptor(ai, config.framework().isInit.get());
                 } catch (Exception e) {
                     logger.warn("", e);
                 }

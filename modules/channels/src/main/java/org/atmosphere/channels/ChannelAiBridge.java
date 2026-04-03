@@ -23,6 +23,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import org.atmosphere.ai.AiConfig;
@@ -50,7 +51,9 @@ public class ChannelAiBridge {
 
     // Registered agents, set by AgentProcessor via reflection at startup
     private static final CopyOnWriteArrayList<AgentBinding> agentBindings = new CopyOnWriteArrayList<>();
+    private static final int MAX_CONCURRENT_MESSAGES = 64;
 
+    private final Semaphore messageSemaphore = new Semaphore(MAX_CONCURRENT_MESSAGES);
     private final Map<String, MessagingChannel> channelsByType;
     private final ChannelFilterChain filterChain;
 
@@ -134,7 +137,18 @@ public class ChannelAiBridge {
      * under load from busy Slack/Telegram bots.
      */
     public void handleMessage(IncomingMessage incoming) {
-        Thread.startVirtualThread(() -> handleMessageAsync(incoming));
+        if (!messageSemaphore.tryAcquire()) {
+            logger.warn("Message backpressure: dropping message from {} (>{} concurrent)",
+                    incoming.channelType().id(), MAX_CONCURRENT_MESSAGES);
+            return;
+        }
+        Thread.startVirtualThread(() -> {
+            try {
+                handleMessageAsync(incoming);
+            } finally {
+                messageSemaphore.release();
+            }
+        });
     }
 
     private void handleMessageAsync(IncomingMessage incoming) {

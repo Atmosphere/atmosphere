@@ -30,10 +30,10 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     private final AtomicBoolean isCancelled = new AtomicBoolean(false);
     // Is Resumed on Timeout?
     private final AtomicBoolean isResumedOnTimeout = new AtomicBoolean(false);
-    private Throwable throwable;
+    private volatile Throwable throwable;
     // The current message
-    protected Object message;
-    protected AtmosphereResourceImpl resource;
+    protected volatile Object message;
+    protected volatile AtmosphereResourceImpl resource;
     private final AtomicBoolean isClosedByClient = new AtomicBoolean(false);
     private final String uuid;
     private final AtomicBoolean isClosedByApplication = new AtomicBoolean(false);
@@ -78,12 +78,14 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
     @Override
     public boolean isResuming() {
-        return resource == null || resource.isResumed();
+        var r = resource;
+        return r == null || r.isResumed();
     }
 
     @Override
     public boolean isSuspended() {
-        return resource != null && resource.isSuspended();
+        var r = resource;
+        return r != null && r.isSuspended();
     }
 
     @Override
@@ -128,16 +130,18 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     }
 
     public AtmosphereResourceEventImpl setCancelled(boolean isCancelled) {
-        if (check()) {
-            resource.setAction(new Action(Action.TYPE.CANCELLED, resource.action().timeout()));
+        var r = resource;
+        if (r != null) {
+            r.setAction(new Action(Action.TYPE.CANCELLED, r.action().timeout()));
             this.isCancelled.set(isCancelled);
         }
         return this;
     }
 
     protected AtmosphereResourceEventImpl setIsResumedOnTimeout(boolean isResumedOnTimeout) {
-        if (check()) {
-            resource.setAction(new Action(Action.TYPE.TIMEOUT, resource.action().timeout()));
+        var r = resource;
+        if (r != null) {
+            r.setAction(new Action(Action.TYPE.TIMEOUT, r.action().timeout()));
             this.isResumedOnTimeout.set(isResumedOnTimeout);
         }
         return this;
@@ -177,16 +181,13 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
     @Override
     public Broadcaster broadcaster() {
-        return resource.getBroadcaster();
+        var r = resource;
+        return r != null ? r.getBroadcaster() : null;
     }
 
     @Override
     public AtmosphereResource getResource() {
         return resource;
-    }
-
-    private boolean check() {
-        return resource != null;
     }
 
     public AtmosphereResourceEvent setThrowable(Throwable t) {

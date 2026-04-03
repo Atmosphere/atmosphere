@@ -23,6 +23,8 @@ import org.springframework.boot.availability.ReadinessState;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.SmartLifecycle;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Participates in Spring Boot's graceful shutdown lifecycle to ensure the
  * {@link AtmosphereFramework} is properly destroyed before the servlet
@@ -39,7 +41,7 @@ public class AtmosphereLifecycle implements SmartLifecycle {
 
     private final AtmosphereFramework framework;
     private final ApplicationContext applicationContext;
-    private volatile boolean running = true;
+    private final AtomicBoolean running = new AtomicBoolean(true);
 
     public AtmosphereLifecycle(AtmosphereFramework framework,
                                ApplicationContext applicationContext) {
@@ -49,22 +51,21 @@ public class AtmosphereLifecycle implements SmartLifecycle {
 
     @Override
     public void start() {
-        running = true;
+        running.set(true);
     }
 
     @Override
     public void stop() {
-        if (running && !framework.isDestroyed()) {
+        if (running.compareAndSet(true, false) && !framework.isDestroyed()) {
             logger.info("Graceful shutdown: signaling readiness probe and destroying Atmosphere framework");
             AvailabilityChangeEvent.publish(applicationContext, ReadinessState.REFUSING_TRAFFIC);
             framework.destroy();
-            running = false;
         }
     }
 
     @Override
     public boolean isRunning() {
-        return running;
+        return running.get();
     }
 
     @Override

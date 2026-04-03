@@ -89,7 +89,7 @@ final class FrameworkBootstrap {
             throw new ServletException(t);
         }
 
-        framework.isInit = true;
+        framework.isInit.set(true);
         framework.config.initComplete();
         framework.onPostInit();
     }

@@ -27,6 +27,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A {@link StreamingSession} wrapper that adds {@link #stream(String)} support.
@@ -80,8 +82,8 @@ public class AiStreamingSession implements StreamingSession {
     private final List<ContextProvider> contextProviders;
     private final AiMetrics metrics;
     private final Class<?> responseType;
-    private volatile PostPromptHook preStreamHook;
-    private volatile boolean handoffInProgress;
+    private final AtomicReference<PostPromptHook> preStreamHook = new AtomicReference<>();
+    private final AtomicBoolean handoffInProgress = new AtomicBoolean();
     private final ApprovalRegistry approvalRegistry = new ApprovalRegistry();
 
     /**
@@ -214,16 +216,15 @@ public class AiStreamingSession implements StreamingSession {
 
     /** Sets a hook to fire once at the start of the first {@code stream()} call. */
     public void setPreStreamHook(PostPromptHook hook) {
-        this.preStreamHook = hook;
+        this.preStreamHook.set(hook);
     }
 
     @Override
     public void stream(String message) {
         // Fire pre-stream hook (e.g., journal emit) before LLM call starts.
         // By the time stream() is called, all coordinator/agent work is done.
-        var hook = preStreamHook;
+        var hook = preStreamHook.getAndSet(null);
         if (hook != null) {
-            preStreamHook = null; // fire once
             hook.afterPrompt(this);
         }
 
@@ -376,10 +377,9 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void handoff(String agentName, String message) {
-        if (handoffInProgress) {
+        if (!handoffInProgress.compareAndSet(false, true)) {
             throw new IllegalStateException("Nested handoffs not supported");
         }
-        handoffInProgress = true;
 
         logger.info("Handoff from {} to agent '{}'", resource.uuid(), agentName);
         emit(new AiEvent.Handoff(
@@ -404,7 +404,7 @@ public class AiStreamingSession implements StreamingSession {
         if (handlerWrapper == null) {
             delegate.error(new IllegalArgumentException(
                     "Agent '" + agentName + "' not found at " + targetPath));
-            handoffInProgress = false;
+            handoffInProgress.set(false);
             return;
         }
 
@@ -420,7 +420,7 @@ public class AiStreamingSession implements StreamingSession {
             logger.error("Handoff to '{}' failed", agentName, e);
             delegate.error(e);
         } finally {
-            handoffInProgress = false;
+            handoffInProgress.set(false);
         }
     }
 

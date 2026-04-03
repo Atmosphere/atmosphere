@@ -95,11 +95,11 @@ public final class TaskContext {
         try {
             this.state = state;
             this.statusMessage = message;
-            if (taskManager != null) {
-                taskManager.notifyStatusUpdate(this);
-            }
         } finally {
             statusLock.unlock();
+        }
+        if (taskManager != null) {
+            taskManager.notifyStatusUpdate(this);
         }
     }
 

@@ -90,8 +90,13 @@ class GuardrailCapturingSession implements StreamingSession {
 
     @Override
     public void complete() {
-        if (!blocked) {
-            checkGuardrails(); // Final check on complete response
+        lock.lock();
+        try {
+            if (!blocked) {
+                checkGuardrails(); // Final check on complete response
+            }
+        } finally {
+            lock.unlock();
         }
         if (!blocked) {
             delegate.complete();
@@ -100,11 +105,16 @@ class GuardrailCapturingSession implements StreamingSession {
 
     @Override
     public void complete(String summary) {
-        if (!blocked) {
-            // Check the summary (which is the full response)
-            accumulated.setLength(0);
-            accumulated.append(summary);
-            checkGuardrails();
+        lock.lock();
+        try {
+            if (!blocked) {
+                // Check the summary (which is the full response)
+                accumulated.setLength(0);
+                accumulated.append(summary);
+                checkGuardrails();
+            }
+        } finally {
+            lock.unlock();
         }
         if (!blocked) {
             delegate.complete(summary);
@@ -118,17 +128,22 @@ class GuardrailCapturingSession implements StreamingSession {
 
     @Override
     public void emit(AiEvent event) {
-        if (blocked) {
-            return;
-        }
-        if (event instanceof AiEvent.TextDelta delta) {
-            accumulated.append(delta.text());
-            if (accumulated.length() - lastCheckedLength >= checkInterval) {
-                lastCheckedLength = accumulated.length();
-                if (checkGuardrails()) {
-                    return;
+        lock.lock();
+        try {
+            if (blocked) {
+                return;
+            }
+            if (event instanceof AiEvent.TextDelta delta) {
+                accumulated.append(delta.text());
+                if (accumulated.length() - lastCheckedLength >= checkInterval) {
+                    lastCheckedLength = accumulated.length();
+                    if (checkGuardrails()) {
+                        return;
+                    }
                 }
             }
+        } finally {
+            lock.unlock();
         }
         delegate.emit(event);
     }

@@ -103,16 +103,17 @@ public class DefaultBroadcaster implements Broadcaster {
      * Subclasses (e.g. {@link org.atmosphere.util.ExcludeSessionBroadcaster}) may access this directly.
      */
     protected final ConcurrentLinkedQueue<AtmosphereResource> resources = membership.queue();
-    protected BroadcasterConfig bc;
-    protected final BlockingQueue<Deliver> messages = new LinkedBlockingQueue<>();
+    protected volatile BroadcasterConfig bc;
+    private static final int MAX_QUEUE_SIZE = 1_048_576;
+    protected final BlockingQueue<Deliver> messages = new LinkedBlockingQueue<>(MAX_QUEUE_SIZE);
     protected Collection<BroadcasterListener> broadcasterListeners;
 
     protected final AtomicBoolean started = new AtomicBoolean(false);
     protected final AtomicBoolean initialized = new AtomicBoolean(false);
     protected final AtomicBoolean destroyed = new AtomicBoolean(false);
 
-    protected SCOPE scope = SCOPE.APPLICATION;
-    protected String name = DefaultBroadcaster.class.getSimpleName();
+    protected volatile SCOPE scope = SCOPE.APPLICATION;
+    protected volatile String name = DefaultBroadcaster.class.getSimpleName();
     protected final ConcurrentLinkedQueue<Deliver> delayedBroadcast = new ConcurrentLinkedQueue<>();
     protected final ConcurrentLinkedQueue<Deliver> broadcastOnResume = new ConcurrentLinkedQueue<>();
     protected final ConcurrentHashMap<String, WriteQueue> writeQueues = new ConcurrentHashMap<>();
@@ -126,19 +127,19 @@ public class DefaultBroadcaster implements Broadcaster {
     private final ReentrantLock resourcesLock = new ReentrantLock();
     private final ConcurrentHashMap<AtmosphereResource, ReentrantLock> resourceLocks = new ConcurrentHashMap<>();
 
-    protected Future<?>[] notifierFuture;
-    protected Future<?>[] asyncWriteFuture;
+    protected volatile Future<?>[] notifierFuture;
+    protected volatile Future<?>[] asyncWriteFuture;
 
-    private POLICY policy = POLICY.FIFO;
+    private volatile POLICY policy = POLICY.FIFO;
     private final AtomicLong maxSuspendResource = new AtomicLong(-1);
     private final AtomicBoolean requestScoped = new AtomicBoolean(false);
-    protected URI uri;
-    protected AtmosphereConfig config;
+    protected volatile URI uri;
+    protected volatile AtmosphereConfig config;
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
-    protected int writeTimeoutInSecond = -1;
-    protected int waitTime = POLLING_DEFAULT;
-    private boolean backwardCompatible;
-    private boolean cacheOnIOFlushException = true;
+    protected volatile int writeTimeoutInSecond = -1;
+    protected volatile int waitTime = POLLING_DEFAULT;
+    private volatile boolean backwardCompatible;
+    private volatile boolean cacheOnIOFlushException = true;
     protected boolean sharedListeners;
     protected boolean candidateForPoolable;
     protected final String usingTokenIdForAttribute = UUID.randomUUID().toString();
@@ -224,6 +225,12 @@ public class DefaultBroadcaster implements Broadcaster {
                 if (bc != null) {
                     bc.destroy();
                 }
+
+                var lifecycleTask = lifecycle.currentLifecycleTask();
+                if (lifecycleTask != null) {
+                    lifecycleTask.cancel(false);
+                }
+
                 lifecycle.clearListeners();
                 delayedBroadcast.clear();
                 if (!sharedListeners) {
@@ -550,6 +557,8 @@ public class DefaultBroadcaster implements Broadcaster {
             logger.warn("Broadcaster {} not initialized", getID());
         }
 
+        if (destroyed.get()) return;
+
         if (!started.getAndSet(true)) {
             bc.getBroadcasterCache().start();
 
@@ -804,11 +813,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
             var w = new AsyncWriteToken(r, deliver.message, deliver.future, deliver.originalMessage, deliver.cache, count);
             if (!outOfOrderBroadcastSupported.get()) {
-                WriteQueue writeQueue = writeQueues.get(r.uuid());
-                if (writeQueue == null) {
-                    writeQueue = new WriteQueue(r.uuid());
-                    writeQueues.put(r.uuid(), writeQueue);
-                }
+                WriteQueue writeQueue = writeQueues.computeIfAbsent(r.uuid(), k -> new WriteQueue(r.uuid()));
 
                 writeQueue.queue.put(w);
                 writeQueue.lock.lock();
@@ -1282,7 +1287,12 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (dispatchThread.get() == 0) {
             dispatchThread.incrementAndGet();
-            getBroadcasterConfig().getExecutorService().submit(getBroadcastHandler());
+            try {
+                getBroadcasterConfig().getExecutorService().submit(getBroadcastHandler());
+            } catch (RejectedExecutionException ex) {
+                dispatchThread.decrementAndGet();
+                logger.warn("Failed to dispatch message for Broadcaster {}: executor rejected task", getID());
+            }
         }
     }
 
@@ -1337,8 +1347,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void broadcastOnResume(AtmosphereResource r) {
         for (Deliver e : broadcastOnResume) {
-            e.async = false;
-            push(new Deliver(r, e));
+            var copy = new Deliver(r, e);
+            copy.async = false;
+            push(copy);
         }
 
         if (resources.isEmpty()) {

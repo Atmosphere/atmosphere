@@ -74,6 +74,7 @@ public class StreamTransport extends AbstractTransport {
                     dispatchEvent(Event.HEADERS, response.headers().map());
 
                     if (statusCode != 200) {
+                        try { response.body().close(); } catch (Exception ignored) {}
                         onThrowable(new RuntimeException("HTTP " + statusCode));
                         return;
                     }

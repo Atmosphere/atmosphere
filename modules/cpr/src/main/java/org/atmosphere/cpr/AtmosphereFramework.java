@@ -129,7 +129,7 @@ public class AtmosphereFramework {
     protected boolean autoDetectHandlers = true;
     protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
     protected String metaServicePath = META_SERVICE;
-    protected boolean isInit;
+    protected final AtomicBoolean isInit = new AtomicBoolean();
     protected boolean sharedThreadPools = true;
     protected boolean executeFirstSet;
     protected AtmosphereObjectFactory<?> objectFactory = new DefaultAtmosphereObjectFactory();
@@ -424,7 +424,7 @@ public class AtmosphereFramework {
      * @param sc the {@link ServletContext}
      */
     public AtmosphereFramework init(final ServletConfig sc, boolean wrap) throws ServletException {
-        if (isInit) return this;
+        if (isInit.get()) return this;
 
         new FrameworkBootstrap(this).bootstrap(sc, wrap);
 
@@ -807,7 +807,7 @@ public class AtmosphereFramework {
     }
 
     public AtmosphereFramework resetStates() {
-        isInit = false;
+        isInit.set(false);
         executeFirstSet = false;
 
         broadcasterSetup.clear();
@@ -1416,7 +1416,7 @@ public class AtmosphereFramework {
      * @return this
      */
     public AtmosphereFramework interceptor(AtmosphereInterceptor c) {
-        interceptorRegistry.addInterceptor(c, isInit);
+        interceptorRegistry.addInterceptor(c, isInit.get());
         return this;
     }
 
@@ -1749,7 +1749,7 @@ public class AtmosphereFramework {
      * @return true if the {@link #init()} has been sucessfully executed.
      */
     public boolean initialized() {
-        return isInit;
+        return isInit.get();
     }
 
     public List<String> packages() {

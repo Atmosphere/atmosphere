@@ -103,7 +103,8 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
         consumer.subscribe(List.of(topicName));
         consuming.set(true);
 
-        consumerThread = Thread.ofVirtual()
+        consumerThread = Thread.ofPlatform()
+                .daemon()
                 .name("atmosphere-kafka-consumer-" + getID())
                 .start(this::consumeLoop);
 
@@ -146,8 +147,10 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
     public void releaseExternalResources() {
         consuming.set(false);
 
+        if (consumer != null) {
+            consumer.wakeup();
+        }
         if (consumerThread != null) {
-            consumerThread.interrupt();
             try {
                 consumerThread.join(5000);
             } catch (InterruptedException e) {
@@ -155,14 +158,6 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
             }
         }
 
-        try {
-            if (consumer != null) {
-                consumer.wakeup();
-                consumer.close(Duration.ofSeconds(5));
-            }
-        } catch (Exception e) {
-            logger.trace("Error closing Kafka consumer", e);
-        }
         try {
             if (producer != null) {
                 producer.close(Duration.ofSeconds(5));
@@ -212,10 +207,21 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
                 } catch (Exception e) {
                     if (consuming.get()) {
                         logger.warn("Error polling Kafka topic '{}', retrying...", topicName, e);
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
                     }
                 }
             }
         } finally {
+            try {
+                consumer.close();
+            } catch (Exception e) {
+                logger.trace("Error closing Kafka consumer", e);
+            }
             logger.trace("Kafka consumer loop terminated for topic '{}'", topicName);
         }
     }

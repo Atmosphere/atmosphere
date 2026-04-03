@@ -39,6 +39,7 @@ public class RedisConversationPersistence implements ConversationPersistence {
     private final StatefulRedisConnection<String, String> connection;
     private final RedisCommands<String, String> commands;
     private final Duration ttl;
+    private final boolean ownsConnection;
 
     /**
      * No-arg constructor for {@link java.util.ServiceLoader} auto-detection.
@@ -48,16 +49,24 @@ public class RedisConversationPersistence implements ConversationPersistence {
     public RedisConversationPersistence() {
         var redisUrl = System.getenv("REDIS_URL");
         if (redisUrl != null && !redisUrl.isBlank()) {
-            this.client = RedisClient.create(redisUrl);
-            this.connection = client.connect();
+            RedisClient c = RedisClient.create(redisUrl);
+            try {
+                this.connection = c.connect();
+            } catch (Exception e) {
+                try { c.shutdown(); } catch (Exception ex) { /* already failing */ }
+                throw e;
+            }
+            this.client = c;
             this.commands = connection.sync();
             this.ttl = Duration.ofHours(24);
+            this.ownsConnection = true;
             logger.info("Redis conversation persistence auto-configured from REDIS_URL");
         } else {
             this.client = null;
             this.connection = null;
             this.commands = null;
             this.ttl = Duration.ofHours(24);
+            this.ownsConnection = false;
         }
     }
 
@@ -77,10 +86,17 @@ public class RedisConversationPersistence implements ConversationPersistence {
      * Create a persistence layer with a custom TTL.
      */
     public RedisConversationPersistence(String redisUri, Duration ttl) {
-        this.client = RedisClient.create(redisUri);
-        this.connection = client.connect();
+        RedisClient c = RedisClient.create(redisUri);
+        try {
+            this.connection = c.connect();
+        } catch (Exception e) {
+            try { c.shutdown(); } catch (Exception ex) { /* already failing */ }
+            throw e;
+        }
+        this.client = c;
         this.commands = connection.sync();
         this.ttl = ttl;
+        this.ownsConnection = true;
         logger.info("Redis conversation persistence connected");
     }
 
@@ -93,6 +109,7 @@ public class RedisConversationPersistence implements ConversationPersistence {
         this.connection = connection;
         this.commands = connection.sync();
         this.ttl = ttl;
+        this.ownsConnection = false;
     }
 
     @Override
@@ -129,7 +146,7 @@ public class RedisConversationPersistence implements ConversationPersistence {
      * (i.e., was created with a Redis URI, not a shared connection).
      */
     public void close() {
-        if (connection != null) {
+        if (ownsConnection && connection != null) {
             connection.close();
         }
         if (client != null) {

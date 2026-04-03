@@ -32,6 +32,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * {@link org.atmosphere.wasync.Transport} implementation using gRPC bidirectional streaming.
@@ -43,6 +44,7 @@ public class GrpcTransport extends AbstractTransport {
 
     private volatile ManagedChannel channel;
     private volatile StreamObserver<AtmosphereMessage> requestObserver;
+    private final ReentrantLock observerLock = new ReentrantLock();
     private volatile String topic;
     private List<Decoder<?, ?>> decoders = List.of();
     private FunctionResolver resolver = FunctionResolver.DEFAULT;
@@ -66,68 +68,80 @@ public class GrpcTransport extends AbstractTransport {
         var port = uri.getPort() > 0 ? uri.getPort() : 443;
         this.topic = uri.getPath() != null ? uri.getPath() : "/";
 
-        channel = ManagedChannelBuilder.forAddress(host, port)
+        ManagedChannel ch = ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext()
                 .build();
 
-        var stub = AtmosphereServiceGrpc.newStub(channel);
+        try {
+            var stub = AtmosphereServiceGrpc.newStub(ch);
 
-        var future = new CompletableFuture<Void>();
+            var future = new CompletableFuture<Void>();
 
-        requestObserver = stub.stream(new StreamObserver<>() {
-            @Override
-            public void onNext(AtmosphereMessage message) {
-                switch (message.getType()) {
-                    case ACK -> {
-                        if (status == Socket.STATUS.INIT) {
-                            status = Socket.STATUS.OPEN;
-                            dispatchEvent(Event.OPEN, message.getTrackingId());
-                            future.complete(null);
-                            if (connectFuture != null) {
-                                connectFuture.complete(null);
+            requestObserver = stub.stream(new StreamObserver<>() {
+                @Override
+                public void onNext(AtmosphereMessage message) {
+                    switch (message.getType()) {
+                        case ACK -> {
+                            if (status == Socket.STATUS.INIT) {
+                                status = Socket.STATUS.OPEN;
+                                dispatchEvent(Event.OPEN, message.getTrackingId());
+                                future.complete(null);
+                                if (connectFuture != null) {
+                                    connectFuture.complete(null);
+                                }
                             }
                         }
-                    }
-                    case MESSAGE -> {
-                        var payload = message.getPayload();
-                        if (!payload.isEmpty()) {
-                            dispatchMessage(Event.MESSAGE, payload, decoders, resolver);
-                        } else if (!message.getBinaryPayload().isEmpty()) {
-                            dispatchMessage(Event.MESSAGE_BYTES,
-                                    message.getBinaryPayload().toByteArray(), decoders, resolver);
+                        case MESSAGE -> {
+                            var payload = message.getPayload();
+                            if (!payload.isEmpty()) {
+                                dispatchMessage(Event.MESSAGE, payload, decoders, resolver);
+                            } else if (!message.getBinaryPayload().isEmpty()) {
+                                dispatchMessage(Event.MESSAGE_BYTES,
+                                        message.getBinaryPayload().toByteArray(), decoders, resolver);
+                            }
                         }
+                        case ERROR -> {
+                            var err = new RuntimeException(message.getPayload());
+                            onThrowable(err);
+                        }
+                        case HEARTBEAT -> logger.trace("Heartbeat received");
+                        default -> logger.debug("Unhandled message type: {}", message.getType());
                     }
-                    case ERROR -> {
-                        var err = new RuntimeException(message.getPayload());
-                        onThrowable(err);
-                    }
-                    case HEARTBEAT -> logger.trace("Heartbeat received");
-                    default -> logger.debug("Unhandled message type: {}", message.getType());
                 }
+
+                @Override
+                public void onError(Throwable t) {
+                    onThrowable(t);
+                    future.completeExceptionally(t);
+                }
+
+                @Override
+                public void onCompleted() {
+                    logger.debug("gRPC stream completed by server");
+                    status = Socket.STATUS.CLOSE;
+                    dispatchEvent(Event.CLOSE, "server completed stream");
+                }
+            });
+
+            this.channel = ch;
+
+            // Send SUBSCRIBE message with the request URI path as topic
+            var subscribe = AtmosphereMessage.newBuilder()
+                    .setType(MessageType.SUBSCRIBE)
+                    .setTopic(topic)
+                    .build();
+            observerLock.lock();
+            try {
+                requestObserver.onNext(subscribe);
+            } finally {
+                observerLock.unlock();
             }
 
-            @Override
-            public void onError(Throwable t) {
-                onThrowable(t);
-                future.completeExceptionally(t);
-            }
-
-            @Override
-            public void onCompleted() {
-                logger.debug("gRPC stream completed by server");
-                status = Socket.STATUS.CLOSE;
-                dispatchEvent(Event.CLOSE, "server completed stream");
-            }
-        });
-
-        // Send SUBSCRIBE message with the request URI path as topic
-        var subscribe = AtmosphereMessage.newBuilder()
-                .setType(MessageType.SUBSCRIBE)
-                .setTopic(topic)
-                .build();
-        requestObserver.onNext(subscribe);
-
-        return future;
+            return future;
+        } catch (Exception e) {
+            ch.shutdownNow();
+            throw e;
+        }
     }
 
     /**
@@ -137,6 +151,7 @@ public class GrpcTransport extends AbstractTransport {
         if (requestObserver == null) {
             return CompletableFuture.failedFuture(new IllegalStateException("gRPC stream not connected"));
         }
+        observerLock.lock();
         try {
             var builder = AtmosphereMessage.newBuilder()
                     .setType(MessageType.MESSAGE)
@@ -149,6 +164,8 @@ public class GrpcTransport extends AbstractTransport {
             return CompletableFuture.completedFuture(null);
         } catch (Exception e) {
             return CompletableFuture.failedFuture(e);
+        } finally {
+            observerLock.unlock();
         }
     }
 
@@ -156,10 +173,13 @@ public class GrpcTransport extends AbstractTransport {
     public void close() {
         status = Socket.STATUS.CLOSE;
         if (requestObserver != null) {
+            observerLock.lock();
             try {
                 requestObserver.onCompleted();
             } catch (Exception e) {
                 logger.debug("Error completing gRPC stream", e);
+            } finally {
+                observerLock.unlock();
             }
         }
         if (channel != null) {

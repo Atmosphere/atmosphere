@@ -55,6 +55,7 @@ public final class DefaultStreamingSession implements StreamingSession {
     private static final Logger logger = LoggerFactory.getLogger(DefaultStreamingSession.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final ConcurrentHashMap<String, AtmosphereResource> SESSION_RESOURCES = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, DefaultStreamingSession> SESSION_INSTANCES = new ConcurrentHashMap<>();
 
     private final String sessionId;
     private final AtmosphereResource resource;
@@ -65,6 +66,7 @@ public final class DefaultStreamingSession implements StreamingSession {
         this.sessionId = sessionId;
         this.resource = resource;
         SESSION_RESOURCES.put(sessionId, resource);
+        SESSION_INSTANCES.put(sessionId, this);
     }
 
     /**
@@ -84,7 +86,16 @@ public final class DefaultStreamingSession implements StreamingSession {
      * before the streaming session completes.
      */
     public static void cleanupResource(AtmosphereResource resource) {
-        SESSION_RESOURCES.entrySet().removeIf(e -> e.getValue().uuid().equals(resource.uuid()));
+        SESSION_RESOURCES.entrySet().removeIf(e -> {
+            if (e.getValue().uuid().equals(resource.uuid())) {
+                var session = SESSION_INSTANCES.remove(e.getKey());
+                if (session != null) {
+                    session.closed.set(true);
+                }
+                return true;
+            }
+            return false;
+        });
     }
 
     @Override
@@ -127,6 +138,7 @@ public final class DefaultStreamingSession implements StreamingSession {
     public void complete() {
         if (closed.compareAndSet(false, true)) {
             SESSION_RESOURCES.remove(sessionId);
+            SESSION_INSTANCES.remove(sessionId);
             broadcast(buildMessage("complete", null));
         }
     }
@@ -135,6 +147,7 @@ public final class DefaultStreamingSession implements StreamingSession {
     public void complete(String summary) {
         if (closed.compareAndSet(false, true)) {
             SESSION_RESOURCES.remove(sessionId);
+            SESSION_INSTANCES.remove(sessionId);
             broadcast(buildMessage("complete", summary));
         }
     }
@@ -143,6 +156,7 @@ public final class DefaultStreamingSession implements StreamingSession {
     public void error(Throwable t) {
         if (closed.compareAndSet(false, true)) {
             SESSION_RESOURCES.remove(sessionId);
+            SESSION_INSTANCES.remove(sessionId);
             logger.error("Streaming session {} error", sessionId, t);
             var message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
             broadcast(buildMessage("error", message));
@@ -166,6 +180,7 @@ public final class DefaultStreamingSession implements StreamingSession {
             case AiEvent.Complete c -> {
                 if (closed.compareAndSet(false, true)) {
                     SESSION_RESOURCES.remove(sessionId);
+                    SESSION_INSTANCES.remove(sessionId);
                     broadcast(buildEventMessage(event));
                 }
                 return;
@@ -173,6 +188,7 @@ public final class DefaultStreamingSession implements StreamingSession {
             case AiEvent.Error err -> {
                 if (closed.compareAndSet(false, true)) {
                     SESSION_RESOURCES.remove(sessionId);
+                    SESSION_INSTANCES.remove(sessionId);
                     logger.error("Streaming session {} error: {}", sessionId, err.message());
                     broadcast(buildMessage("error", err.message()));
                 }

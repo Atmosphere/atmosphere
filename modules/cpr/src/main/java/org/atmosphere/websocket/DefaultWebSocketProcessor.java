@@ -650,7 +650,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                         }
                     } else {
                         logger.debug("Timeout {}", resource.uuid());
-                        asynchronousProcessor.endRequest((AtmosphereResourceImpl) webSocket.resource(), false);
+                        asynchronousProcessor.endRequest(resource, false);
                     }
                 } else {
                     logger.trace("Unable to properly complete {}", resource.uuid());

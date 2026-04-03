@@ -50,6 +50,7 @@ public final class McpHandler implements AtmosphereHandler {
     private static final String APPLICATION_JSON = "application/json";
     private static final String TEXT_EVENT_STREAM = "text/event-stream";
     private static final int DEFAULT_MAX_SESSIONS = 10_000;
+    private static final int MAX_BODY_SIZE = 10 * 1024 * 1024;
 
     private final McpProtocolHandler protocolHandler;
     private final Map<String, McpSession> sessions = new ConcurrentHashMap<>();
@@ -99,12 +100,39 @@ public final class McpHandler implements AtmosphereHandler {
         var request = resource.getRequest();
         var response = resource.getResponse();
 
-        // Read request body
+        // Reject oversized bodies early via Content-Length
+        var contentLengthStr = request.getHeader("Content-Length");
+        if (contentLengthStr != null) {
+            try {
+                long contentLength = Long.parseLong(contentLengthStr);
+                if (contentLength > MAX_BODY_SIZE) {
+                    response.setStatus(413);
+                    response.setContentType(APPLICATION_JSON);
+                    response.getWriter().write(
+                            "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32600,\"message\":\"Request body too large\"}}");
+                    return;
+                }
+            } catch (NumberFormatException ignored) {
+                // Malformed Content-Length; bounded read below will protect
+            }
+        }
+
+        // Read request body with size limit
         var reader = request.getReader();
         var sb = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            sb.append(line);
+        var buf = new char[4096];
+        int totalRead = 0;
+        int n;
+        while ((n = reader.read(buf)) != -1) {
+            totalRead += n;
+            if (totalRead > MAX_BODY_SIZE) {
+                response.setStatus(413);
+                response.setContentType(APPLICATION_JSON);
+                response.getWriter().write(
+                        "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32600,\"message\":\"Request body too large\"}}");
+                return;
+            }
+            sb.append(buf, 0, n);
         }
 
         if (sb.isEmpty()) {
@@ -128,14 +156,21 @@ public final class McpHandler implements AtmosphereHandler {
         // After handleMessage, check if a new session was created (initialize)
         var session = (McpSession) request.getAttribute(McpSession.ATTRIBUTE_KEY);
         if (session != null) {
-            if (!sessions.containsKey(session.sessionId()) && sessions.size() >= maxSessions) {
+            try {
+                sessions.compute(session.sessionId(), (id, existing) -> {
+                    if (existing != null) return existing;
+                    if (sessions.size() >= maxSessions) {
+                        throw new IllegalStateException("Too many sessions");
+                    }
+                    return session;
+                });
+            } catch (IllegalStateException e) {
                 response.setStatus(503);
                 response.setContentType(APPLICATION_JSON);
                 response.getWriter().write(
                         "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32000,\"message\":\"Too many sessions\"}}");
                 return;
             }
-            sessions.putIfAbsent(session.sessionId(), session);
             session.touch();
             response.setHeader(McpSession.SESSION_ID_HEADER, session.sessionId());
         }
