@@ -286,6 +286,85 @@ export default defineConfig({
       name: 'koog-chat',
       testMatch: /koog-chat\.spec\.ts/,
     },
+    // ── P0: Gap analysis coverage ──
+    {
+      name: 'redis-clustering',
+      testMatch: /redis-clustering\.spec\.ts/,
+    },
+    {
+      name: 'kafka-clustering',
+      testMatch: /kafka-clustering\.spec\.ts/,
+    },
+    {
+      name: 'kotlin-dsl',
+      testMatch: /kotlin-dsl\.spec\.ts/,
+    },
+    {
+      name: 'wasync-client',
+      testMatch: /wasync-client\.spec\.ts/,
+    },
+    {
+      name: 'cross-transport-interop',
+      testMatch: /cross-transport-interop\.spec\.ts/,
+    },
+    // ── P1: Gap analysis coverage ──
+    {
+      name: 'mcp-bidirectional',
+      testMatch: /mcp-bidirectional\.spec\.ts/,
+    },
+    {
+      name: 'a2a-multi-hop',
+      testMatch: /a2a-multi-hop\.spec\.ts/,
+    },
+    {
+      name: 'coordinator-remote',
+      testMatch: /coordinator-remote\.spec\.ts/,
+    },
+    {
+      name: 'durable-session-restart',
+      testMatch: /durable-session-restart\.spec\.ts/,
+    },
+    {
+      name: 'agui-sse-lifecycle',
+      testMatch: /agui-sse-lifecycle\.spec\.ts/,
+    },
+    {
+      name: 'spring-boot3-parity',
+      testMatch: /spring-boot3-parity\.spec\.ts/,
+    },
+    // ── P2: Gap analysis coverage ──
+    {
+      name: 'concurrent-protocol-access',
+      testMatch: /concurrent-protocol-access\.spec\.ts/,
+    },
+    {
+      name: 'coordinator-journal',
+      testMatch: /coordinator-journal\.spec\.ts/,
+    },
+    {
+      name: 'auth-oauth-jwt',
+      testMatch: /auth-oauth-jwt\.spec\.ts/,
+    },
+    {
+      name: 'otel-span-correlation',
+      testMatch: /otel-span-correlation\.spec\.ts/,
+    },
+    {
+      name: 'channel-gateway',
+      testMatch: /channel-gateway\.spec\.ts/,
+    },
+    {
+      name: 'backpressure-bounded-queue',
+      testMatch: /backpressure-bounded-queue\.spec\.ts/,
+    },
+    {
+      name: 'webtransport-raw',
+      testMatch: /webtransport-raw\.spec\.ts/,
+    },
+    {
+      name: 'session-token-expiry',
+      testMatch: /session-token-expiry\.spec\.ts/,
+    },
     // ── Cross-browser (opt-in via E2E_ALL_BROWSERS=true) ──
     ...(process.env.E2E_ALL_BROWSERS ? [
       {
