@@ -121,7 +121,7 @@ jobs:
         INCLUDE_FLAKY: 'false'
       run: |
         PROJECTS=$(echo "${{ matrix.group.projects }}" | sed 's/,/ --project=/g')
-        npx playwright test --project=$PROJECTS
+        npx playwright test --project=$PROJECTS --reporter=list,github
 
     - name: Upload Playwright Report
       if: failure()
