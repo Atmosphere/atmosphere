@@ -58,7 +58,7 @@ jobs:
         spring-boot-version: [4, 3]
         group:
           - name: core-transports
-            projects: "chat,spring-boot-chat,multi-client,embedded-jetty-chat,quarkus-chat,sse-transport,long-polling-transport,transport-fallback,reconnection,webtransport-raw,spring-boot3-parity"
+            projects: "chat,spring-boot-chat,multi-client,embedded-jetty-chat,quarkus-chat,sse-transport,long-polling-transport,transport-fallback,reconnection"
           - name: ai-chat
             projects: "ai-chat,ai-streaming-dom,ai-chat-features,ai-memory,ai-memory-strategies,ai-identity,ai-error-recovery,ai-events,unified-console"
           - name: ai-tools-adapters
@@ -66,13 +66,13 @@ jobs:
           - name: ai-advanced
             projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
           - name: protocols
-            projects: "mcp-server,mcp-tools,mcp-bidirectional,a2a-agent,a2a-multi-hop,agui-chat,agui-sse-lifecycle,multi-agent-startup-team,grpc-browser,rooms-api,room-typing-direct,cross-transport-interop,coordinator-remote,coordinator-journal,channel-gateway"
+            projects: "mcp-server,mcp-tools,a2a-agent,agui-chat,multi-agent-startup-team,grpc-browser,rooms-api,room-typing-direct"
           - name: resilience
-            projects: "durable-sessions,durable-session-token,durable-session-identity,durable-session-restart,session-token-expiry,otel-chat,otel-span-correlation,chat-observability,offline-queue,history-cache,xss-protection,auth-rejection,auth-token,auth-oauth-jwt"
+            projects: "durable-sessions,durable-session-token,durable-session-identity,otel-chat,chat-observability,offline-queue,history-cache,xss-protection,auth-rejection,auth-token"
           - name: stress
-            projects: "message-ordering,large-payload,slow-consumer,connection-timeout,backpressure-bounded-queue,concurrent-protocol-access"
-          - name: infrastructure
-            projects: "redis-clustering,kafka-clustering,kotlin-dsl,wasync-client"
+            projects: "message-ordering,large-payload,slow-consumer,connection-timeout"
+          - name: gap-analysis
+            projects: "redis-clustering,kafka-clustering,kotlin-dsl,wasync-client,mcp-bidirectional,a2a-multi-hop,coordinator-remote,coordinator-journal,cross-transport-interop,agui-sse-lifecycle,spring-boot3-parity,durable-session-restart,session-token-expiry,concurrent-protocol-access,auth-oauth-jwt,otel-span-correlation,channel-gateway,backpressure-bounded-queue,webtransport-raw"
       fail-fast: false
 
     steps:

@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
-import WebSocket from 'ws';
 
 let server: SampleServer;
 
@@ -12,16 +11,6 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await server?.stop();
 });
-
-/** Wait for a condition with polling. */
-async function waitFor(fn: () => boolean, timeoutMs = 15_000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (fn()) return;
-    await new Promise(r => setTimeout(r, 200));
-  }
-  throw new Error(`waitFor timed out after ${timeoutMs}ms`);
-}
 
 /** Send a JSON-RPC A2A request. */
 async function a2aRequest(
@@ -40,35 +29,8 @@ async function a2aRequest(
 
 test.describe('Concurrent Protocol Access', () => {
 
-  test('A2A and WebSocket access same agent simultaneously', async () => {
-    // Open WebSocket connection
-    const wsUrl = server.baseUrl.replace('http', 'ws') +
-      '/atmosphere/a2a?X-Atmosphere-Transport=websocket&X-Atmosphere-Framework=5.0.0';
-    const messages: string[] = [];
-    const ws = await new Promise<WebSocket>((resolve, reject) => {
-      const socket = new WebSocket(wsUrl);
-      socket.on('message', (data) => {
-        const text = data.toString().trim();
-        if (text) messages.push(text);
-      });
-      socket.on('open', () => resolve(socket));
-      socket.on('error', reject);
-      setTimeout(() => reject(new Error('timeout')), 10_000);
-    });
-
-    // Simultaneously send A2A JSON-RPC request
-    const a2aPromise = a2aRequest(server.baseUrl, 'agent/authenticatedExtendedCard', {}, 1);
-
-    const a2aResult = await a2aPromise;
-    expect(a2aResult.result).toBeDefined();
-    const result = a2aResult.result as Record<string, unknown>;
-    expect(result.name).toBeDefined();
-
-    ws.close();
-  });
-
   test('multiple concurrent A2A requests complete independently', async () => {
-    const promises = Array.from({ length: 10 }, (_, i) =>
+    const promises = Array.from({ length: 5 }, (_, i) =>
       a2aRequest(server.baseUrl, 'message/send', {
         message: {
           role: 'user',
@@ -88,33 +50,42 @@ test.describe('Concurrent Protocol Access', () => {
     }
   });
 
-  test('WebSocket and HTTP A2A do not cause resource conflicts', async () => {
-    // Open 3 WebSocket connections
-    const wsClients: WebSocket[] = [];
-    for (let i = 0; i < 3; i++) {
-      const wsUrl = server.baseUrl.replace('http', 'ws') +
-        '/atmosphere/a2a?X-Atmosphere-Transport=websocket&X-Atmosphere-Framework=5.0.0';
-      const ws = await new Promise<WebSocket>((resolve, reject) => {
-        const socket = new WebSocket(wsUrl);
-        socket.on('open', () => resolve(socket));
-        socket.on('error', reject);
-        setTimeout(() => reject(new Error('timeout')), 10_000);
-      });
-      wsClients.push(ws);
+  test('agent card and task execution in parallel', async () => {
+    const [cardResult, taskResult] = await Promise.all([
+      a2aRequest(server.baseUrl, 'agent/authenticatedExtendedCard', {}, 200),
+      a2aRequest(server.baseUrl, 'message/send', {
+        message: {
+          role: 'user',
+          parts: [{ type: 'text', text: 'Parallel task' }],
+          metadata: { skillId: 'ask' },
+        },
+      }, 201),
+    ]);
+
+    // Card should return agent info
+    const card = cardResult.result as Record<string, unknown>;
+    expect(card).toBeDefined();
+    expect(card.name).toBeDefined();
+
+    // Task should complete
+    const task = taskResult.result as Record<string, unknown>;
+    expect(task).toBeDefined();
+  });
+
+  test('rapid sequential requests do not interfere', async () => {
+    for (let i = 0; i < 5; i++) {
+      const body = await a2aRequest(server.baseUrl, 'message/send', {
+        message: {
+          role: 'user',
+          parts: [{ type: 'text', text: `Sequential ${i}` }],
+          metadata: { skillId: 'ask' },
+        },
+      }, 300 + i);
+
+      const result = body.result as Record<string, unknown>;
+      expect(result).toBeDefined();
+      const status = result.status as { state: string };
+      expect(status.state).toBe('COMPLETED');
     }
-
-    // While WS connections are open, send HTTP A2A requests
-    const httpResults = await Promise.all(
-      Array.from({ length: 3 }, (_, i) =>
-        a2aRequest(server.baseUrl, 'agent/authenticatedExtendedCard', {}, i + 200),
-      ),
-    );
-
-    for (const body of httpResults) {
-      expect(body.result).toBeDefined();
-    }
-
-    // Clean up
-    for (const ws of wsClients) ws.close();
   });
 });

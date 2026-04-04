@@ -1,12 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
-import { fetchWebTransportInfo, waitForConsoleMessage } from './helpers/webtransport-helper';
+import { fetchWebTransportInfo } from './helpers/webtransport-helper';
+import { connectWebSocket, waitFor } from './helpers/transport-helper';
 
 /**
- * WebTransport raw transport E2E tests — verifies HTTP/3 CONNECT,
- * bidirectional streams, and fallback behavior.
+ * WebTransport raw transport E2E tests — verifies HTTP/3 endpoint info,
+ * certificate hash exposure, and WebSocket fallback behavior.
  *
- * These tests use the Spring Boot chat sample which supports WebTransport.
+ * These tests complement the existing webtransport.spec.ts by focusing
+ * on the transport info API and fallback mechanics.
  */
 
 test.describe('WebTransport Raw Streams', () => {
@@ -34,70 +36,28 @@ test.describe('WebTransport Raw Streams', () => {
     expect(info!.certificateHash!.length).toBeGreaterThan(0);
   });
 
-  test('browser connects via WebTransport when available', async ({ page }) => {
-    const consolePromise = waitForConsoleMessage(page, /via webtransport/i);
-    await page.goto(server.baseUrl);
+  test('WebSocket fallback works when WebTransport unavailable', async () => {
+    // Even if WebTransport is unavailable, WebSocket should work
+    const client = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
+    expect(client.ws.readyState).toBe(1); // OPEN
 
-    try {
-      const msg = await consolePromise;
-      expect(msg).toContain('webtransport');
-    } catch {
-      // WebTransport may not be available in all browser versions —
-      // verify fallback to WebSocket instead
-      const output = server.getOutput();
-      // Server should still function (fallback to WS)
-      expect(output.length).toBeGreaterThan(0);
-    }
+    client.ws.send(JSON.stringify({ author: 'WTFallback', message: 'fallback-test' }));
+    await waitFor(() => client.messages.some(m => m.includes('fallback-test')));
+
+    client.close();
   });
 
-  test('WebTransport fallback to WebSocket works', async ({ page }) => {
-    // Navigate to chat — if WebTransport is unavailable, should fall back to WS
-    await page.goto(server.baseUrl);
+  test('multiple transports can connect sequentially', async () => {
+    // First via WebSocket
+    const ws1 = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
+    ws1.ws.send(JSON.stringify({ author: 'First', message: 'ws-first' }));
+    await waitFor(() => ws1.messages.some(m => m.includes('ws-first')));
+    ws1.close();
 
-    // Wait for connection (either WebTransport or WebSocket)
-    await page.waitForFunction(() => {
-      return document.querySelector('[class*="status"]')?.textContent?.includes('Connected') ||
-        document.querySelector('[class*="connected"]') !== null ||
-        (window as any).__atmosphereConnected === true;
-    }, null, { timeout: 15_000 }).catch(() => {
-      // If no visible status indicator, just verify the page loaded
-    });
-
-    // Page should at least load without errors
-    const errors: string[] = [];
-    page.on('console', (msg) => {
-      if (msg.type() === 'error' && !msg.text().includes('404')) {
-        errors.push(msg.text());
-      }
-    });
-
-    // Verify no critical errors
-    await page.waitForTimeout(2000);
-    // Filter out expected WebTransport errors (browser may not support it)
-    const criticalErrors = errors.filter(e =>
-      !e.includes('WebTransport') && !e.includes('webtransport'),
-    );
-    expect(criticalErrors).toEqual([]);
-  });
-
-  test('chat works regardless of transport used', async ({ page }) => {
-    await page.goto(server.baseUrl);
-    await page.waitForTimeout(3000);
-
-    // Try to interact with the chat
-    const input = page.locator('[data-testid="chat-input"], input[type="text"], #input, #m');
-    if (await input.count() > 0) {
-      await input.fill('WebTransport test');
-      const sendBtn = page.locator('[data-testid="chat-send"], button[type="submit"], #send');
-      if (await sendBtn.count() > 0) {
-        await sendBtn.click();
-        await page.waitForTimeout(2000);
-      }
-    }
-
-    // No server errors
-    const output = server.getRecentOutput(100);
-    expect(output).not.toContain('FATAL');
-    expect(output).not.toContain('OutOfMemory');
+    // Then another WebSocket
+    const ws2 = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
+    ws2.ws.send(JSON.stringify({ author: 'Second', message: 'ws-second' }));
+    await waitFor(() => ws2.messages.some(m => m.includes('ws-second')));
+    ws2.close();
   });
 });
