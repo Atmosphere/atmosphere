@@ -8,7 +8,7 @@
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-embabel</artifactId>
-    <version>4.0.29</version>
+    <version>4.0.30</version>
 </dependency>
 ```
 
