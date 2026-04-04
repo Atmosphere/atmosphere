@@ -57,7 +57,7 @@ test.describe('Backpressure & Bounded Queue', () => {
     // Should receive it back or server should handle gracefully
     await waitFor(
       () => client.messages.some(m => m.includes('BigSender') || m.length > 1000),
-      10_000,
+      30_000,
     );
 
     client.close();

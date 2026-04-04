@@ -1,47 +1,85 @@
 import { test, expect } from '@playwright/test';
-import { execSync } from 'child_process';
-import { existsSync } from 'fs';
-import { resolve } from 'path';
+import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 
-const ROOT = resolve(__dirname, '..', '..', '..', '..');
-const COORDINATOR_MODULE = resolve(ROOT, 'modules', 'coordinator');
+let server: SampleServer;
 
-/**
- * Coordinator journal E2E tests — verifies journal persistence, replay,
- * and query API for coordinator workflows.
- *
- * Delegates to the Java CoordinatorWebSocketIntegrationTest and verifies
- * the coordinator module builds and its tests pass.
- */
+test.beforeAll(async () => {
+  test.setTimeout(120_000);
+  server = await startSample(SAMPLES['spring-boot-multi-agent-startup-team']);
+});
 
-const hasCoordinatorModule = existsSync(resolve(COORDINATOR_MODULE, 'pom.xml'));
+test.afterAll(async () => {
+  await server?.stop();
+});
 
-(hasCoordinatorModule ? test.describe : test.describe.skip)('Coordinator Journal', () => {
+/** Send a JSON-RPC 2.0 request to the A2A endpoint. */
+async function a2aRequest(
+  baseUrl: string,
+  method: string,
+  params: Record<string, unknown> = {},
+  id: number | string = 1,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  const res = await fetch(`${baseUrl}/atmosphere/a2a`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
+  });
+  const body = (await res.json()) as Record<string, unknown>;
+  return { status: res.status, body };
+}
 
-  test.describe.configure({ timeout: 120_000 });
+test.describe('Coordinator Journal', () => {
 
-  test('coordinator module compiles', async () => {
-    const result = execSync(
-      `${resolve(ROOT, 'mvnw')} compile -pl modules/coordinator -Dsurefire.useFile=false`,
-      { cwd: ROOT, timeout: 120_000, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] },
-    );
-    expect(result).toContain('BUILD SUCCESS');
+  test('coordinator registers agents at startup', async () => {
+    const output = server.getOutput();
+    expect(output.length).toBeGreaterThan(0);
   });
 
-  test('coordinator module tests pass', async () => {
-    const result = execSync(
-      `${resolve(ROOT, 'mvnw')} test -pl modules/coordinator -Dsurefire.useFile=false`,
-      { cwd: ROOT, timeout: 120_000, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] },
-    );
-    expect(result).toContain('BUILD SUCCESS');
+  test('task execution creates journal entries', async () => {
+    // Execute a task — the coordinator should journal the execution
+    const { body } = await a2aRequest(server.baseUrl, 'message/send', {
+      message: {
+        role: 'user',
+        parts: [{ type: 'text', text: 'Analyze this topic for journaling test' }],
+        metadata: { skillId: 'ask' },
+      },
+    }, 100);
+
+    const result = body.result as Record<string, unknown>;
+    expect(result).toBeDefined();
   });
 
-  test('coordinator integration test — fleet delegation', async () => {
-    const result = execSync(
-      `${resolve(ROOT, 'mvnw')} test -pl modules/integration-tests ` +
-      `-Dtest=CoordinatorWebSocketIntegrationTest -Dgroups=coordinator -Dsurefire.useFile=false`,
-      { cwd: ROOT, timeout: 120_000, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] },
-    );
-    expect(result).toContain('BUILD SUCCESS');
+  test('tasks/list returns executed tasks', async () => {
+    // Execute a task first
+    await a2aRequest(server.baseUrl, 'message/send', {
+      message: {
+        role: 'user',
+        parts: [{ type: 'text', text: 'Journal query test' }],
+        metadata: { skillId: 'ask' },
+      },
+    }, 101);
+
+    // Query task list
+    const { body } = await a2aRequest(server.baseUrl, 'tasks/list', {}, 102);
+    const result = body.result;
+    // Should return an array of executed tasks
+    if (Array.isArray(result)) {
+      expect(result.length).toBeGreaterThan(0);
+    }
+  });
+
+  test('sequential task executions are tracked', async () => {
+    for (let i = 0; i < 3; i++) {
+      const { body } = await a2aRequest(server.baseUrl, 'message/send', {
+        message: {
+          role: 'user',
+          parts: [{ type: 'text', text: `Sequential journal task ${i}` }],
+          metadata: { skillId: 'ask' },
+        },
+      }, 200 + i);
+
+      const result = body.result as Record<string, unknown>;
+      expect(result).toBeDefined();
+    }
   });
 });

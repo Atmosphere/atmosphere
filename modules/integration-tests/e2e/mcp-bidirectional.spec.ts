@@ -53,7 +53,7 @@ function connectMcpWebSocket(): Promise<{
 }> {
   return new Promise((resolve, reject) => {
     const wsUrl = server.baseUrl.replace('http', 'ws') +
-      '/mcp?X-Atmosphere-Transport=websocket&X-Atmosphere-Framework=5.0.0';
+      '/atmosphere/mcp?X-Atmosphere-Transport=websocket&X-Atmosphere-Framework=5.0.0';
     const ws = new WebSocket(wsUrl);
     const messages: string[] = [];
 
