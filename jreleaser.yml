@@ -1,0 +1,70 @@
+#
+# JReleaser configuration for Atmosphere Framework
+# https://jreleaser.org
+#
+# Used to deploy artifacts staged locally to Maven Central and to create
+# GitHub Releases. Replaces the central-publishing-maven-plugin which had
+# strict POM validation that blocked the Quarkus extension modules
+# (intermediate parent POMs with BOM-managed dependency versions).
+#
+project:
+  name: atmosphere
+  description: Asynchronous framework for building reactive applications
+  longDescription: |
+    Atmosphere is the most popular asynchronous framework for the JVM.
+    It supports WebSocket, SSE, Long-Polling, Streaming, WebTransport/HTTP3,
+    and gRPC transports with automatic fallback.
+  links:
+    homepage: https://github.com/Atmosphere/atmosphere
+    documentation: https://github.com/Atmosphere/atmosphere/wiki
+  authors:
+    - Jeanfrancois Arcand
+  license: Apache-2.0
+  inceptionYear: '2008'
+  stereotype: NONE
+  java:
+    groupId: org.atmosphere
+    version: '21'
+
+release:
+  github:
+    owner: Atmosphere
+    name: atmosphere
+    # The release workflow creates tags as `atmosphere-X.Y.Z`
+    tagName: 'atmosphere-{{projectVersion}}'
+    releaseName: 'Atmosphere {{projectVersion}}'
+    # The release workflow creates the GitHub Release itself; JReleaser is
+    # only used for Maven Central deploy. Set skipRelease=true to avoid
+    # duplicate release creation.
+    skipRelease: true
+    skipTag: true
+
+signing:
+  active: ALWAYS
+  armored: true
+  mode: MEMORY
+
+deploy:
+  maven:
+    mavenCentral:
+      sonatype:
+        active: ALWAYS
+        url: https://central.sonatype.com/api/v1/publisher
+        # Upload from the local staging directory populated by
+        # `mvn deploy -DaltDeploymentRepository=local::file://target/staging-deploy`
+        stagingRepositories:
+          - target/staging-deploy
+        # Relax POM validation to tolerate intermediate parent POMs and
+        # BOM-managed dependency versions (the Quarkus extension pattern).
+        # Central will still enforce its own server-side validation but
+        # this avoids JReleaser's stricter client-side pomchecker blocking
+        # the upload for warnings that Central tolerates.
+        applyMavenCentralRules: true
+        verifyPom: false
+        # These modules have intermediate parents and/or BOM-managed deps
+        # that trigger strict POM validation warnings. They are still
+        # uploaded and validated server-side by Central.
+        snapshotSupported: false
+        # 5-minute timeout for Central's validation step
+        connectTimeout: 120
+        readTimeout: 300

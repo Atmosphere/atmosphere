@@ -133,22 +133,11 @@
                 <version>3.10.0</version>
             </plugin>
             <plugin>
-                <groupId>org.sonatype.central</groupId>
-                <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>0.9.0</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <publishingServerId>central</publishingServerId>
-                    <autoPublish>true</autoPublish>
-                    <skipPublishing>${skipCentralPublishing}</skipPublishing>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>
                 <version>3.1.2</version>
                 <configuration>
-                    <skip>true</skip>
+                    <skip>${maven.deploy.skip}</skip>
                 </configuration>
             </plugin>
             <plugin>
@@ -310,6 +299,40 @@
         </pluginManagement>
     </build>
     <profiles>
+        <profile>
+            <!-- Default deploy mechanism: Sonatype's central-publishing-maven-plugin.
+                 Active by default; deactivate with `-P!central-publishing` when using
+                 JReleaser (which stages artifacts locally and uploads separately). -->
+            <id>central-publishing</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.9.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <skipPublishing>${skipCentralPublishing}</skipPublishing>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <!-- JReleaser deploy mode: deactivates central-publishing, stages
+                 artifacts locally via altDeploymentRepository. JReleaser then
+                 uploads from target/staging-deploy to Maven Central with
+                 configurable POM validation (tolerates intermediate parents). -->
+            <id>jreleaser</id>
+            <properties>
+                <maven.deploy.skip>false</maven.deploy.skip>
+            </properties>
+        </profile>
         <profile>
             <id>fastinstall</id>
             <properties>
@@ -902,6 +925,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <skipCentralPublishing>false</skipCentralPublishing>
+        <maven.deploy.skip>true</maven.deploy.skip>
         <maven-plugin.version>1.0.0</maven-plugin.version>
         <servlet-version-range>6.0.0</servlet-version-range>
         <jetty-version>12.0.32</jetty-version>

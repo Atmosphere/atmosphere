@@ -136,17 +136,63 @@ jobs:
     - name: Update documentation versions
       run: ./scripts/update-doc-versions.sh ${{ inputs.release_version }}
 
-    - name: Build and publish to Maven Central
-      if: inputs.dry_run == false
-      run: ./mvnw -B clean deploy -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-ai-classroom,!samples/spring-boot-otel-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-ai-tools,!samples/spring-boot-rag-chat,!samples/grpc-chat,!samples/spring-boot-a2a-agent,!samples/spring-boot-agui-chat,!samples/spring-boot-channels-chat,!samples/spring-boot-dentist-agent,!samples/spring-boot-multi-agent-startup-team,!samples/spring-boot-koog-chat,!samples/spring-boot-orchestration-demo,!modules/integration-tests,!modules/quarkus-extension,!modules/quarkus-extension/runtime,!modules/quarkus-extension/deployment'
+    - name: Build and stage artifacts locally
+      run: ./mvnw -B clean deploy -DskipTests '-P!central-publishing,jreleaser,release-profile'
+        -DaltDeploymentRepository=local::file://${{ github.workspace }}/target/staging-deploy
+        -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-ai-classroom,!samples/spring-boot-otel-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-ai-tools,!samples/spring-boot-rag-chat,!samples/grpc-chat,!samples/spring-boot-a2a-agent,!samples/spring-boot-agui-chat,!samples/spring-boot-channels-chat,!samples/spring-boot-dentist-agent,!samples/spring-boot-multi-agent-startup-team,!samples/spring-boot-koog-chat,!samples/spring-boot-orchestration-demo,!modules/integration-tests'
       env:
         GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
-        CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
 
-    - name: Dry run — build only
+    - name: Derive GPG public key from private key
+      id: gpg
+      env:
+        GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      run: |
+        echo "$GPG_PRIVATE_KEY" | gpg --batch --import 2>&1 | head -5 || true
+        KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep -m1 '^sec' | awk '{print $2}' | cut -d'/' -f2)
+        {
+          echo 'public_key<<GPG_PUBLIC_KEY_EOF'
+          gpg --armor --export "$KEY_ID"
+          echo 'GPG_PUBLIC_KEY_EOF'
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Publish to Maven Central via JReleaser
+      if: inputs.dry_run == false
+      uses: jreleaser/release-action@v2
+      with:
+        arguments: 'deploy'
+      env:
+        JRELEASER_PROJECT_VERSION: ${{ inputs.release_version }}
+        JRELEASER_GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+        JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+        JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+        JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        JRELEASER_GPG_PUBLIC_KEY: ${{ steps.gpg.outputs.public_key }}
+        JRELEASER_GPG_SECRET_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+
+    - name: Dry run — stage only (JReleaser dry-run)
       if: inputs.dry_run
-      run: ./mvnw -B clean verify -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-ai-classroom,!samples/spring-boot-otel-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-ai-tools,!samples/spring-boot-rag-chat,!samples/grpc-chat,!samples/spring-boot-a2a-agent,!samples/spring-boot-agui-chat,!samples/spring-boot-channels-chat,!samples/spring-boot-dentist-agent,!samples/spring-boot-multi-agent-startup-team,!samples/spring-boot-koog-chat,!samples/spring-boot-orchestration-demo,!modules/integration-tests,!modules/quarkus-extension,!modules/quarkus-extension/runtime,!modules/quarkus-extension/deployment' -Dgpg.skip=true
+      uses: jreleaser/release-action@v2
+      with:
+        arguments: 'deploy --dry-run'
+      env:
+        JRELEASER_PROJECT_VERSION: ${{ inputs.release_version }}
+        JRELEASER_GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+        JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+        JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+        JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        JRELEASER_GPG_PUBLIC_KEY: ${{ steps.gpg.outputs.public_key }}
+        JRELEASER_GPG_SECRET_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+
+    - name: Upload JReleaser logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: jreleaser-logs-${{ inputs.release_version }}
+        path: |
+          out/jreleaser/trace.log
+          out/jreleaser/output.properties
+        retention-days: 14
 
     - name: Commit release version
       if: inputs.dry_run == false
