@@ -35,3 +35,15 @@ claude_docs/
 .copilot/
 .envrc
 .flattened-pom.xml
+
+# Runtime-generated SQLite databases (durable-sessions sample)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Local test scaffolds from `atmosphere new` CLI
+/test-*/
+
+# Generated self-signed certs for WebTransport/TLS testing
+samples/*/src/main/resources/certs/
