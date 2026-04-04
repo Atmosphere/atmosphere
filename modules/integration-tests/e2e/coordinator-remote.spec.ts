@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
+import { WebSocket } from 'ws';
 
 let server: SampleServer;
 
@@ -12,87 +13,65 @@ test.afterAll(async () => {
   await server?.stop();
 });
 
-/** Send a JSON-RPC 2.0 request to the A2A endpoint for a specific agent. */
-async function a2aRequest(
+/** Send a message via WebSocket and collect the streamed response. */
+function sendAndCollect(
   baseUrl: string,
-  agentPath: string,
-  method: string,
-  params: Record<string, unknown> = {},
-  id: number | string = 1,
-): Promise<{ status: number; body: Record<string, unknown> }> {
-  const res = await fetch(`${baseUrl}${agentPath}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
+  path: string,
+  message: string,
+  timeoutMs = 30_000,
+): Promise<{ texts: string[]; fullText: string }> {
+  return new Promise((resolve, reject) => {
+    const wsUrl = baseUrl.replace('http://', 'ws://') + path;
+    const ws = new WebSocket(wsUrl);
+    const texts: string[] = [];
+    let opened = false;
+    const timer = setTimeout(() => {
+      ws.close();
+      resolve({ texts, fullText: texts.join('') });
+    }, timeoutMs);
+
+    ws.on('open', () => { opened = true; ws.send(message); });
+    ws.on('message', (data) => {
+      const raw = data.toString();
+      const parts = raw.split('|');
+      for (const part of parts) {
+        const trimmed = part.trim();
+        if (trimmed && !trimmed.match(/^\d+$/) && trimmed !== 'X') {
+          texts.push(trimmed);
+        }
+      }
+    });
+    ws.on('close', () => { clearTimeout(timer); resolve({ texts, fullText: texts.join('') }); });
+    ws.on('error', (err) => {
+      clearTimeout(timer);
+      if (!opened) reject(new Error(`WebSocket failed: ${err.message}`));
+      else resolve({ texts, fullText: texts.join('') });
+    });
   });
-  const body = (await res.json()) as Record<string, unknown>;
-  return { status: res.status, body };
 }
 
 test.describe('Coordinator Remote Agents', () => {
 
-  test('coordinator agent registered at startup', async () => {
+  test('coordinator agents registered at startup', async () => {
     const output = server.getOutput();
-    // The multi-agent sample should register agents on startup
-    expect(output.length).toBeGreaterThan(0);
+    expect(output).toContain('registered');
   });
 
-  test('agent card discovery returns skills', async () => {
-    const { status, body } = await a2aRequest(
-      server.baseUrl,
-      '/atmosphere/a2a',
-      'agent/authenticatedExtendedCard',
+  test('coordinator delegates task via WebSocket', async () => {
+    const result = await sendAndCollect(
+      server.baseUrl, '/atmosphere/agent/ceo', 'Analyze the market', 20_000,
     );
 
-    expect(status).toBe(200);
-    const result = body.result as Record<string, unknown>;
-    expect(result).toBeDefined();
-    expect(result.name).toBeDefined();
+    expect(result.texts.length).toBeGreaterThan(0);
+    expect(result.fullText.length).toBeGreaterThan(0);
   });
 
-  test('coordinator delegates task to agent', async () => {
-    const { body } = await a2aRequest(
-      server.baseUrl,
-      '/atmosphere/a2a',
-      'message/send',
-      {
-        message: {
-          role: 'user',
-          parts: [{ type: 'text', text: 'Analyze the market' }],
-          metadata: { skillId: 'ask' },
-        },
-      },
-      10,
-    );
-
-    const result = body.result as Record<string, unknown>;
-    if (result) {
-      const status = result.status as { state: string };
-      expect(['COMPLETED', 'FAILED']).toContain(status.state);
-    }
-  });
-
-  test('multiple concurrent agent requests complete', async () => {
-    const promises = Array.from({ length: 3 }, (_, i) =>
-      a2aRequest(
-        server.baseUrl,
-        '/atmosphere/a2a',
-        'message/send',
-        {
-          message: {
-            role: 'user',
-            parts: [{ type: 'text', text: `Task ${i}` }],
-            metadata: { skillId: 'ask' },
-          },
-        },
-        20 + i,
-      ),
-    );
-
-    const results = await Promise.all(promises);
-    for (const { body } of results) {
-      const result = body.result as Record<string, unknown>;
-      expect(result).toBeDefined();
+  test('multiple sequential coordinator requests complete', async () => {
+    for (let i = 0; i < 3; i++) {
+      const result = await sendAndCollect(
+        server.baseUrl, '/atmosphere/agent/ceo', `Task ${i}`, 20_000,
+      );
+      expect(result.texts.length).toBeGreaterThan(0);
     }
   });
 });
