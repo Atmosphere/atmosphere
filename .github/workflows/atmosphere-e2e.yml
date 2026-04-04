@@ -72,7 +72,7 @@ jobs:
           - name: stress
             projects: "message-ordering,large-payload,slow-consumer,connection-timeout"
           - name: gap-analysis
-            projects: "redis-clustering,kafka-clustering,kotlin-dsl,wasync-client,mcp-bidirectional,a2a-multi-hop,coordinator-remote,coordinator-journal,cross-transport-interop,agui-sse-lifecycle,spring-boot3-parity,durable-session-restart,session-token-expiry,concurrent-protocol-access,auth-oauth-jwt,otel-span-correlation,channel-gateway,backpressure-bounded-queue,webtransport-raw"
+            projects: "redis-clustering,kafka-clustering,kotlin-dsl,wasync-client,mcp-bidirectional,cross-transport-interop,agui-sse-lifecycle,channel-gateway,otel-span-correlation,a2a-multi-hop,concurrent-protocol-access,coordinator-remote,coordinator-journal,durable-session-restart,session-token-expiry,auth-oauth-jwt,spring-boot3-parity,backpressure-bounded-queue,webtransport-raw"
       fail-fast: false
 
     steps:
