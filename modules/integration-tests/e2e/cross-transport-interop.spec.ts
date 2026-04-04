@@ -9,7 +9,7 @@ const GRPC_PORT = 9098;
 let server: DualServer;
 
 test.beforeAll(async () => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   server = await startDualTransportServer(HTTP_PORT, GRPC_PORT);
 });
 

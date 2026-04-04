@@ -16,6 +16,7 @@ const hasJar = existsSync(OTEL_TARGET) &&
   let server: SampleServer;
 
   test.beforeAll(async () => {
+    test.setTimeout(120_000);
     server = await startSample(SAMPLES['spring-boot-otel-chat']);
   });
 

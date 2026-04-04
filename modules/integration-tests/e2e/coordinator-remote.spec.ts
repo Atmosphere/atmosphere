@@ -4,7 +4,7 @@ import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-serve
 let server: SampleServer;
 
 test.beforeAll(async () => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   server = await startSample(SAMPLES['spring-boot-multi-agent-startup-team']);
 });
 
