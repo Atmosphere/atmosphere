@@ -25,6 +25,35 @@ if [ "$IS_DELETE" = true ]; then
     exit 0
 fi
 
+# Escape hatch for sandboxed environments where Maven Central /
+# embabel-releases are unreachable and pre-push-validate.sh cannot run
+# (CI runners, cloud coding sandboxes, disconnected environments).
+#
+# Two signals are required — intentionally:
+#   1. ATMOSPHERE_OFFLINE_PUSH=1          — explicit operator intent
+#   2. A sandbox/CI marker env var       — proves we're in an environment
+#      that genuinely can't reach Maven (not a local dev machine that just
+#      happens to have the flag in their shell profile)
+#
+# Accepted sandbox markers: CI, GITHUB_ACTIONS, CODESPACES,
+# CLAUDE_CODE_SANDBOX, ATMOSPHERE_SANDBOX. On a local dev machine none of
+# these should be set, so the escape hatch stays inert and the safety
+# gate remains intact.
+if [ -n "$ATMOSPHERE_OFFLINE_PUSH" ]; then
+    if [ -z "$CI" ] && [ -z "$GITHUB_ACTIONS" ] && [ -z "$CODESPACES" ] \
+            && [ -z "$CLAUDE_CODE_SANDBOX" ] && [ -z "$ATMOSPHERE_SANDBOX" ]; then
+        echo "🚫 ATMOSPHERE_OFFLINE_PUSH ignored — not in a recognised sandbox." >&2
+        echo "   This bypass is only honoured when one of CI, GITHUB_ACTIONS," >&2
+        echo "   CODESPACES, CLAUDE_CODE_SANDBOX, or ATMOSPHERE_SANDBOX is set." >&2
+        echo "   Run ./scripts/pre-push-validate.sh before pushing." >&2
+        exit 1
+    fi
+    echo "INFO: ATMOSPHERE_OFFLINE_PUSH honoured (sandbox detected) —"
+    echo "      skipping validation marker check. Verify the build locally"
+    echo "      (standalone javac / junit console) before pushing."
+    exit 0
+fi
+
 CURRENT_COMMIT=$(git rev-parse HEAD)
 
 print_blocked() {

@@ -89,6 +89,8 @@ What this registers depends on which modules are on the classpath:
 
 **[Agent Handoffs & Human-in-the-Loop](https://atmosphere.github.io/docs/reference/ai/)** — Transfer conversations between agents with `session.handoff()`. Pause tool execution with `@RequiresApproval` for human-in-the-loop approval — the virtual thread parks cheaply until the client approves or denies.
 
+**[Durable HITL Workflows](https://atmosphere.github.io/docs/reference/checkpoint/)** — `CheckpointStore` SPI persists agent workflow state as parent-chained snapshots with fork semantics. Pause workflows without holding a live thread; resume via REST or programmatic replay. Pairs with `atmosphere-durable-sessions` for streaming reconnect + workflow continuation.
+
 **[6 AI Runtimes](https://atmosphere.github.io/docs/reference/ai/)** — Built-in, LangChain4j, Spring AI, Google ADK, Embabel, JetBrains Koog. Switch backends by changing one Maven dependency. All share tool calling, structured output, conversation memory, and usage tracking.
 
 **[3 Agent Protocols](https://atmosphere.github.io/docs/agents/a2a/)** — MCP (tools for Claude, Copilot, Cursor), A2A (agent-to-agent via JSON-RPC), AG-UI (streaming state to frontends). Auto-registered from classpath.
@@ -149,6 +151,7 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 | [a2a-agent](samples/spring-boot-a2a-agent/) | A2A assistant with weather/time tools |
 | [agui-chat](samples/spring-boot-agui-chat/) | AG-UI framework integration |
 | [durable-sessions](samples/spring-boot-durable-sessions/) | SQLite/Redis session persistence |
+| [checkpoint-agent](samples/spring-boot-checkpoint-agent/) | Durable HITL workflow — @Coordinator + CheckpointStore + REST approval |
 | [ai-classroom](samples/spring-boot-ai-classroom/) | Multi-room collaborative AI |
 | [channels-chat](samples/spring-boot-channels-chat/) | Slack, Telegram, WhatsApp, Messenger |
 

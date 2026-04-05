@@ -2,6 +2,24 @@
   "version": "4.0.31",
   "samples": [
     {
+      "name": "spring-boot-checkpoint-agent",
+      "description": "Durable agent execution \u2014 @Coordinator + CheckpointStore + HITL approval via REST",
+      "category": "agent",
+      "tags": [
+        "spring-boot",
+        "ai",
+        "checkpoint",
+        "durable-execution",
+        "hitl",
+        "coordinator"
+      ],
+      "port": 8095,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {}
+    },
+    {
       "name": "spring-boot-multi-agent-startup-team",
       "description": "True multi-agent: 5 independent @Agent classes collaborate via A2A protocol",
       "category": "agent",

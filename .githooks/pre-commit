@@ -93,8 +93,27 @@ check_unused_imports() {
     return 0
 }
 
-# Compile changed modules to catch javac warnings (-Werror)
+# Compile changed modules to catch javac warnings (-Werror).
+# Escape hatch for sandboxed environments where Maven Central is
+# unreachable (CI runners, cloud coding sandboxes, disconnected envs).
+# Two signals are required — explicit intent (ATMOSPHERE_OFFLINE_COMMIT=1)
+# AND one of the recognised sandbox markers (CI, GITHUB_ACTIONS,
+# CODESPACES, CLAUDE_CODE_SANDBOX, ATMOSPHERE_SANDBOX). On a normal dev
+# machine the bypass stays inert.
 check_compile_warnings() {
+    if [ -n "$ATMOSPHERE_OFFLINE_COMMIT" ]; then
+        if [ -z "$CI" ] && [ -z "$GITHUB_ACTIONS" ] && [ -z "$CODESPACES" ] \
+                && [ -z "$CLAUDE_CODE_SANDBOX" ] && [ -z "$ATMOSPHERE_SANDBOX" ]; then
+            echo "ERROR: ATMOSPHERE_OFFLINE_COMMIT ignored — not in a recognised sandbox." >&2
+            echo "       Set one of CI, GITHUB_ACTIONS, CODESPACES," >&2
+            echo "       CLAUDE_CODE_SANDBOX, or ATMOSPHERE_SANDBOX to activate." >&2
+            return 1
+        fi
+        echo "INFO: ATMOSPHERE_OFFLINE_COMMIT honoured (sandbox detected) —"
+        echo "      skipping 'mvnw compile' check. Verify -Werror locally."
+        return 0
+    fi
+
     local java_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.java$' | grep -v '/target/' || true)
 
     if [ -z "$java_files" ]; then

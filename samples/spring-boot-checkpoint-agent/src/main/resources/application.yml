@@ -1,0 +1,15 @@
+server:
+  port: ${SERVER_PORT:8095}
+
+spring:
+  application:
+    name: atmosphere-checkpoint-agent
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.checkpoint
+
+logging:
+  level:
+    org.atmosphere.samples.springboot.checkpoint: INFO
+    org.atmosphere.checkpoint: DEBUG
+    org.atmosphere.coordinator.journal: INFO

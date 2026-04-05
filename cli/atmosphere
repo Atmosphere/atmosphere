@@ -145,6 +145,7 @@ ${BOLD}Commands:${RESET}
   ${GREEN}compose${RESET} <dir>     Generate a multi-agent project from skill files
   ${GREEN}skills${RESET}            Browse and run skills from the registry
   ${GREEN}plugins${RESET}           List installed import plugins (--target)
+  ${GREEN}checkpoint${RESET}        Inspect a running agent's CheckpointStore (list/show/fork/approve/delete)
   ${GREEN}version${RESET}           Print version
   ${GREEN}help${RESET}              Show this help
 
@@ -156,10 +157,13 @@ ${BOLD}Examples:${RESET}
   atmosphere run spring-boot-ai-chat --env LLM_API_KEY=sk-xxx
   atmosphere new my-chat-app
   atmosphere new my-ai-app --template ai-chat
+  atmosphere checkpoint list --coordination dispatch
+  atmosphere checkpoint approve abc-123 --by alice
 
 ${BOLD}Environment:${RESET}
-  ATMOSPHERE_HOME    Cache directory (default: ~/.atmosphere)
-  JAVA_OPTS          Extra JVM options passed to samples
+  ATMOSPHERE_HOME              Cache directory (default: ~/.atmosphere)
+  ATMOSPHERE_CHECKPOINT_URL    Base URL for 'atmosphere checkpoint' (default: http://localhost:8095)
+  JAVA_OPTS                    Extra JVM options passed to samples
 
 EOF
 }
@@ -1794,6 +1798,130 @@ cmd_plugins() {
     esac
 }
 
+# ── checkpoint ──────────────────────────────────────────────────────────────
+# Inspect and operate on the CheckpointStore of a running agent application
+# (sample or user app) that exposes the /api/checkpoints REST surface from
+# atmosphere-checkpoint. Default base URL: http://localhost:8095
+cmd_checkpoint() {
+    local base="${ATMOSPHERE_CHECKPOINT_URL:-http://localhost:8095}"
+    local subcmd="${1:-list}"
+    shift || true
+
+    # Parse --base-url flag (overrides env var)
+    local rest=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --base-url) base="$2"; shift 2 ;;
+            --base-url=*) base="${1#--base-url=}"; shift ;;
+            *) rest="$rest $1"; shift ;;
+        esac
+    done
+    # shellcheck disable=SC2086
+    set -- $rest
+
+    # Curl with sane defaults: fail on HTTP errors, silent, show errors.
+    ac_curl() { curl -sSf "$@"; }
+
+    case "$subcmd" in
+        list|ls)
+            local qs=""
+            local coordination="" agent="" limit=""
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    --coordination) coordination="$2"; shift 2 ;;
+                    --agent)        agent="$2";        shift 2 ;;
+                    --limit)        limit="$2";        shift 2 ;;
+                    *) shift ;;
+                esac
+            done
+            [ -n "$coordination" ] && qs="${qs}&coordination=${coordination}"
+            [ -n "$agent" ]        && qs="${qs}&agent=${agent}"
+            [ -n "$limit" ]        && qs="${qs}&limit=${limit}"
+            qs="${qs#&}"
+            local url="${base}/api/checkpoints${qs:+?$qs}"
+            info "GET $url"
+            ac_curl "$url" || die "Failed to list checkpoints at $url"
+            printf "\n"
+            ;;
+        show)
+            local id="$1"
+            [ -z "$id" ] && die "Usage: atmosphere checkpoint show <id>"
+            ac_curl "${base}/api/checkpoints/${id}" \
+                || die "Checkpoint $id not found"
+            printf "\n"
+            ;;
+        fork)
+            local id="$1"; shift || true
+            [ -z "$id" ] && die "Usage: atmosphere checkpoint fork <id> [--state ...]"
+            local state=""
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    --state) state="$2"; shift 2 ;;
+                    *) shift ;;
+                esac
+            done
+            local url="${base}/api/checkpoints/${id}/fork${state:+?state=$state}"
+            ac_curl -X POST "$url" \
+                || die "Failed to fork $id"
+            printf "\n"
+            ;;
+        approve)
+            local id="$1"; shift || true
+            [ -z "$id" ] && die "Usage: atmosphere checkpoint approve <id> [--by NAME]"
+            local by="operator"
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    --by) by="$2"; shift 2 ;;
+                    *) shift ;;
+                esac
+            done
+            ac_curl -X POST "${base}/api/checkpoints/${id}/approve?by=${by}" \
+                || die "Failed to approve $id"
+            printf "\n"
+            ;;
+        delete|rm)
+            local id="$1"
+            [ -z "$id" ] && die "Usage: atmosphere checkpoint delete <id>"
+            ac_curl -X DELETE -o /dev/null -w "%{http_code}\n" \
+                "${base}/api/checkpoints/${id}" \
+                || die "Failed to delete $id"
+            ;;
+        help|--help|-h|"")
+            cat <<EOF
+
+${BOLD}Atmosphere Checkpoint CLI${RESET}
+
+Inspect and operate on a running agent's CheckpointStore via its
+/api/checkpoints REST endpoint (provided by atmosphere-checkpoint).
+
+${BOLD}Usage${RESET}
+  atmosphere checkpoint <subcommand> [options]
+
+${BOLD}Subcommands${RESET}
+  list                         List snapshots (filter by --coordination/--agent)
+  show <id>                    Show a single snapshot
+  fork <id> [--state S]        Fork from a snapshot with new state
+  approve <id> [--by NAME]     Approve a snapshot (appends a child snapshot)
+  delete <id>                  Delete a snapshot
+
+${BOLD}Global options${RESET}
+  --base-url URL               Base URL of the running agent (default: \$ATMOSPHERE_CHECKPOINT_URL or http://localhost:8095)
+
+${BOLD}Examples${RESET}
+  atmosphere checkpoint list --coordination dispatch
+  atmosphere checkpoint show abc-123
+  atmosphere checkpoint approve abc-123 --by alice
+  atmosphere checkpoint fork abc-123 --state reverted
+  ATMOSPHERE_CHECKPOINT_URL=http://prod:8080 atmosphere checkpoint list
+
+EOF
+            ;;
+        *)
+            die "Unknown checkpoint subcommand: $subcmd. Run 'atmosphere checkpoint help'."
+            ;;
+    esac
+}
+
 # ── Dispatch ────────────────────────────────────────────────────────────────
 
 case "${1:-help}" in
@@ -1808,5 +1936,6 @@ case "${1:-help}" in
     compose)              shift; cmd_compose "$@" ;;
     skills)               shift; cmd_skills "$@" ;;
     plugins)              shift; cmd_plugins "$@" ;;
+    checkpoint)           shift; cmd_checkpoint "$@" ;;
     *)                    die "Unknown command: $1. Run 'atmosphere help' for usage." ;;
 esac

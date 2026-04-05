@@ -64,6 +64,13 @@
             <artifactId>atmosphere-coordinator</artifactId>
         </dependency>
 
+        <!-- Atmosphere Checkpoint (for durable execution E2E tests) -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-checkpoint</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Atmosphere A2A (for headless agents in coordinator tests) -->
         <dependency>
             <groupId>org.atmosphere</groupId>
