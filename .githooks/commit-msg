@@ -30,6 +30,24 @@ if echo "$commit_msg" | grep -qiE "Generated with \[Claude|Co-Authored-By: Claud
     exit 1
 fi
 
+# Check for AI-attributed author field (complements the trailer check above).
+# Setting git config user.name/user.email to an AI identity bypasses the
+# trailer check since no "Co-authored-by:" line is needed. Block specific
+# known AI identities; do not block legitimate human names or CI bots.
+AUTHOR_NAME=$(git var GIT_AUTHOR_IDENT | sed -E 's/ <.*//')
+AUTHOR_EMAIL=$(git var GIT_AUTHOR_IDENT | sed -E 's/.*<([^>]+)>.*/\1/')
+if echo "$AUTHOR_NAME" | grep -qiE '^(claude|claude code|copilot|github copilot)$' \
+        || echo "$AUTHOR_EMAIL" | grep -qiE '(noreply@anthropic\.com|Copilot@users\.noreply\.github\.com)$'; then
+    echo "ERROR: AI-attributed author field detected: $AUTHOR_NAME <$AUTHOR_EMAIL>"
+    echo ""
+    echo "Commits must be attributed to a human contributor. Set your git identity:"
+    echo "  git config user.name \"Your Name\""
+    echo "  git config user.email \"your-email@example.com\""
+    echo ""
+    echo "Then re-commit (the message itself is fine, only the author field needs fixing)."
+    exit 1
+fi
+
 # Validate format: must be 1-2 non-empty lines only
 if [ "$line_count" -eq 0 ]; then
     echo "ERROR: Empty commit message!"
