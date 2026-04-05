@@ -200,9 +200,18 @@ class WAsyncChatIntegrationTest {
         assertThat(senderOpen.await(10, TimeUnit.SECONDS))
                 .as("Sender should connect").isTrue();
 
-        senderSocket.fire(mapper.writeValueAsString(new Message("Charlie", "Hello via LP!")));
-
-        assertThat(messageLatch.await(45, TimeUnit.SECONDS))
+        // Long-polling has a race between Event.OPEN (first poll request
+        // dispatched locally) and server-side AtmosphereResource registration
+        // in the broadcaster. If the broadcast fires before the LP client is
+        // actually subscribed, the message is lost. Re-fire on a short retry
+        // loop until the LP client picks it up — duplicates carry identical
+        // content so the subsequent payload assertions remain valid.
+        boolean delivered = false;
+        for (int i = 0; i < 10 && !delivered; i++) {
+            senderSocket.fire(mapper.writeValueAsString(new Message("Charlie", "Hello via LP!")));
+            delivered = messageLatch.await(3, TimeUnit.SECONDS);
+        }
+        assertThat(delivered)
                 .as("Long-polling client should receive broadcast").isTrue();
 
         var received = mapper.readValue(messages.getFirst(), Message.class);
