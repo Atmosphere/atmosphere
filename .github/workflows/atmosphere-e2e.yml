@@ -19,7 +19,7 @@ jobs:
     - uses: actions/checkout@v6
 
     - name: Set up JDK 21
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: 21
         distribution: 'temurin'
@@ -42,7 +42,7 @@ jobs:
           -C "$HOME" .m2/repository/org/atmosphere
 
     - name: Upload build output
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: build-targets-sb${{ matrix.spring-boot-version }}
         path: /tmp/build-targets-sb${{ matrix.spring-boot-version }}.tar.gz
@@ -79,7 +79,7 @@ jobs:
     - uses: actions/checkout@v6
 
     - name: Set up JDK 21
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: 21
         distribution: 'temurin'
@@ -125,7 +125,7 @@ jobs:
 
     - name: Upload Playwright Report
       if: failure()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: playwright-report-${{ matrix.group.name }}-sb${{ matrix.spring-boot-version }}
         path: modules/integration-tests/playwright-report/

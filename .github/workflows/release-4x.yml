@@ -50,7 +50,7 @@ jobs:
         fi
 
     - name: Set up JDK 21
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: 21
         distribution: 'temurin'
@@ -90,7 +90,7 @@ jobs:
         npm run build
 
     - name: Upload JS dist
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: atmosphere-js-dist
         path: atmosphere.js/dist/
@@ -113,7 +113,7 @@ jobs:
         token: ${{ secrets.RELEASE_TOKEN || github.token }}
 
     - name: Set up JDK 21
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: 21
         distribution: 'temurin'
@@ -186,7 +186,7 @@ jobs:
 
     - name: Upload JReleaser logs
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: jreleaser-logs-${{ inputs.release_version }}
         path: |
@@ -245,7 +245,7 @@ jobs:
         ref: atmosphere-${{ inputs.release_version }}
 
     - name: Set up JDK 21
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: 21
         distribution: 'temurin'
