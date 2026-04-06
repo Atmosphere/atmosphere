@@ -54,9 +54,9 @@
     }
   },
   "peerDependencies": {
+    "@react-native-community/netinfo": ">=9.0.0",
     "react": ">=18.0.0",
     "react-native": ">=0.70.0",
-    "@react-native-community/netinfo": ">=9.0.0",
     "svelte": ">=4.0.0",
     "vue": ">=3.3.0"
   },
@@ -136,7 +136,7 @@
     "react-dom": "^19.2.4",
     "svelte": "^5.55.0",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.2",
     "vitest": "^2.1.9",
     "vue": "^3.5.31"
   },
