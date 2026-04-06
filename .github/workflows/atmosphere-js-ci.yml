@@ -19,7 +19,7 @@ jobs:
     
     strategy:
       matrix:
-        node-version: [18, 20, 22]
+        node-version: [20, 22]
       fail-fast: false
     
     defaults:
