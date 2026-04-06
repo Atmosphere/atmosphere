@@ -360,10 +360,11 @@ final class ResponseWriter {
     // -- Sanitization --
 
     /**
-     * Sanitize string output to prevent XSS when the response content type is HTML.
-     * For non-HTML content types (JSON, plain text, etc.), data passes through unchanged.
-     * WebSocket frames are consumed by JavaScript, not rendered as HTML, so they are
-     * never sanitized regardless of the content type.
+     * Sanitize string output to prevent XSS. Encoding is applied when the content type
+     * is HTML or when no content type has been set (secure by default — prevents content
+     * sniffing attacks). For explicitly non-HTML content types (JSON, plain text, etc.),
+     * data passes through unchanged. WebSocket frames are consumed by JavaScript, not
+     * rendered as HTML, so they are never sanitized regardless of the content type.
      */
     String sanitizeForOutput(String data) {
         if (data == null) {
@@ -374,7 +375,7 @@ final class ResponseWriter {
             return data;
         }
         String ct = getContentTypeForSanitization();
-        if (ct != null && ct.contains("html")) {
+        if (ct == null || ct.contains("html")) {
             return HtmlEncoder.encode(data);
         }
         return data;
