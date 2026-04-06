@@ -57,6 +57,11 @@ jobs:
           tool: 'jmh'
           output-file-path: target/jmh-results.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Store history on a dedicated branch (not gh-pages, which
+          # serves async-io.org). The benchmark-data branch is data-only;
+          # the dashboard HTML is viewable locally via gh-pages or from
+          # the atmosphere.github.io docs site if linked.
+          gh-pages-branch: benchmark-data
           auto-push: ${{ github.ref == 'refs/heads/main' }}
           alert-threshold: '115%'
           comment-on-alert: true
