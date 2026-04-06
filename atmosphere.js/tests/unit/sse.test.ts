@@ -23,7 +23,7 @@ describe('SSETransport', () => {
       onerror: null as ((ev: Event) => void) | null,
     };
 
-    global.EventSource = vi.fn(() => mockEventSource) as any;
+    global.EventSource = vi.fn(function() { return mockEventSource; }) as any;
 
     originalFetch = global.fetch;
     global.fetch = vi.fn().mockResolvedValue({

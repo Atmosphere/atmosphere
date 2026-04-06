@@ -28,7 +28,7 @@ describe('WebSocketTransport', () => {
       binaryType: 'arraybuffer',
     };
 
-    global.WebSocket = vi.fn(() => mockWebSocket) as any;
+    global.WebSocket = vi.fn(function() { return mockWebSocket; }) as any;
 
     const request: AtmosphereRequest = {
       url: 'ws://localhost:8080/chat',

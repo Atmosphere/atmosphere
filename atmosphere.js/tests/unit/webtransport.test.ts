@@ -129,7 +129,7 @@ describe('WebTransportTransport', () => {
 
     mockTransportInstance = createMockTransportInstance(mockReader, mockWriter);
 
-    (globalThis as any).WebTransport = vi.fn(() => mockTransportInstance);
+    (globalThis as any).WebTransport = vi.fn(function() { return mockTransportInstance; });
 
     const request: AtmosphereRequest = {
       url: 'https://localhost:8080/chat',
@@ -194,7 +194,7 @@ describe('WebTransportTransport', () => {
 
     it('should reject connect when WebTransport constructor throws', async () => {
       const constructorError = new Error('Invalid URL');
-      (globalThis as any).WebTransport = vi.fn(() => {
+      (globalThis as any).WebTransport = vi.fn(function() {
         throw constructorError;
       });
 
@@ -592,7 +592,7 @@ describe('WebTransportTransport', () => {
 
       // Track how many times WebTransport is constructed
       let constructCount = 0;
-      (globalThis as any).WebTransport = vi.fn(() => {
+      (globalThis as any).WebTransport = vi.fn(function() {
         constructCount++;
         const w = createMockWriter();
         const r = createMockReader();
@@ -687,7 +687,7 @@ describe('WebTransportTransport', () => {
 
       let connectCount = 0;
       const capturedUrls: string[] = [];
-      (globalThis as any).WebTransport = vi.fn((url: string) => {
+      (globalThis as any).WebTransport = vi.fn(function(url: string) {
         capturedUrls.push(url);
         connectCount++;
         const w = createMockWriter();
@@ -730,7 +730,7 @@ describe('WebTransportTransport', () => {
       };
 
       let connectCount = 0;
-      (globalThis as any).WebTransport = vi.fn(() => {
+      (globalThis as any).WebTransport = vi.fn(function() {
         connectCount++;
         const w = createMockWriter();
         const r = createMockReader();
@@ -1009,7 +1009,7 @@ describe('WebTransportTransport', () => {
 
       let connectCount = 0;
       let secondWriter: ReturnType<typeof createMockWriter> | null = null;
-      (globalThis as any).WebTransport = vi.fn(() => {
+      (globalThis as any).WebTransport = vi.fn(function() {
         connectCount++;
         const w = createMockWriter();
         const r = createMockReader();
