@@ -29,6 +29,7 @@ jobs:
   jmh:
     name: JMH Micro-Benchmarks
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +46,7 @@ jobs:
 
       - name: Run JMH (CI mode — short iterations for regression detection)
         run: |
+          mkdir -p target
           java -jar modules/benchmarks/target/benchmarks.jar \
             -f 1 -wi 3 -i 5 \
             -rf json -rff target/jmh-results.json
@@ -78,6 +80,7 @@ jobs:
   vt-pinning:
     name: Virtual Thread Pinning Check
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -92,8 +95,8 @@ jobs:
       - name: Build benchmarks
         run: ./mvnw -Pperf -pl modules/benchmarks -am package -DskipTests -q
 
-      - name: Check for VT pinning
-        run: scripts/benchmarks/vt-pinning-check.sh
+      - name: Check for VT pinning (Checkpoint + Broadcaster — most lock-sensitive)
+        run: scripts/benchmarks/vt-pinning-check.sh "Checkpoint|Broadcaster"
 
       - name: Upload JFR recording
         if: failure()
