@@ -1,0 +1,98 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'modules/cpr/**'
+      - 'modules/ai/**'
+      - 'modules/checkpoint/**'
+      - 'modules/coordinator/**'
+      - 'modules/benchmarks/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'modules/cpr/**'
+      - 'modules/ai/**'
+      - 'modules/checkpoint/**'
+      - 'modules/coordinator/**'
+      - 'modules/benchmarks/**'
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  jmh:
+    name: JMH Micro-Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build benchmarks
+        run: ./mvnw -Pperf -pl modules/benchmarks -am package -DskipTests -q
+
+      - name: Run JMH (CI mode — short iterations for regression detection)
+        run: |
+          java -jar modules/benchmarks/target/benchmarks.jar \
+            -f 1 -wi 3 -i 5 \
+            -rf json -rff target/jmh-results.json
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        with:
+          name: 'Atmosphere JMH Benchmarks'
+          tool: 'jmh'
+          output-file-path: target/jmh-results.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: ${{ github.ref == 'refs/heads/main' }}
+          alert-threshold: '115%'
+          comment-on-alert: true
+          fail-on-alert: false
+          benchmark-data-dir-path: 'dev/bench'
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jmh-results
+          path: target/jmh-results.json
+
+  vt-pinning:
+    name: Virtual Thread Pinning Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build benchmarks
+        run: ./mvnw -Pperf -pl modules/benchmarks -am package -DskipTests -q
+
+      - name: Check for VT pinning
+        run: scripts/benchmarks/vt-pinning-check.sh
+
+      - name: Upload JFR recording
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vt-pinning-jfr
+          path: target/jmh-results/vt-pinning-*.jfr

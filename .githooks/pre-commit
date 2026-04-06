@@ -143,6 +143,36 @@ check_compile_warnings() {
         return 0
     fi
 
+    # Profile-gated modules need special handling: they are not part of
+    # the default reactor and would cause "Could not find the selected
+    # project" errors. Compile them with their profile, then remove them
+    # from the standard compile set.
+    local profile_modules=""
+    local standard_modules=""
+    for mod in $(echo "$modules" | tr ',' '\n'); do
+        case "$mod" in
+            modules/benchmarks) profile_modules="$profile_modules $mod" ;;
+            *)                  standard_modules="$standard_modules $mod" ;;
+        esac
+    done
+    standard_modules=$(echo "$standard_modules" | tr ' ' '\n' | sed '/^$/d' | tr '\n' ',' | sed 's/,$//')
+    profile_modules=$(echo "$profile_modules" | tr ' ' '\n' | sed '/^$/d' | tr '\n' ',' | sed 's/,$//')
+
+    # Compile profile-gated modules with their profile
+    if [ -n "$profile_modules" ]; then
+        echo "Compiling profile-gated modules: $profile_modules (-Pperf)"
+        if ! ./mvnw compile test-compile -Pperf -pl "$profile_modules" -am -DskipTests -q 2>&1; then
+            echo ""
+            echo "ERROR: Profile-gated module compilation failed."
+            return 1
+        fi
+    fi
+
+    if [ -z "$standard_modules" ]; then
+        return 0
+    fi
+    modules="$standard_modules"
+
     echo "Compiling changed modules: $modules"
     if ! ./mvnw clean compile test-compile -pl "$modules" -DskipTests -q 2>&1; then
         echo ""

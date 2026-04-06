@@ -44,4 +44,13 @@
         <module>quarkus-extension</module>
         <module>wasync</module>
     </modules>
+
+    <profiles>
+        <profile>
+            <id>perf</id>
+            <modules>
+                <module>benchmarks</module>
+            </modules>
+        </profile>
+    </profiles>
 </project>
