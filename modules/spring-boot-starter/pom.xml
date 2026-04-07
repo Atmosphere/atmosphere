@@ -120,6 +120,18 @@
 
         <dependency>
             <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-coordinator</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-admin</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-mcp</artifactId>
             <optional>true</optional>
         </dependency>

@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atmosphere Admin</title>
+  <style>
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
+      --text: #e1e4ed; --muted: #8b8fa3; --accent: #6366f1;
+      --green: #22c55e; --red: #ef4444; --yellow: #eab308;
+      --radius: 8px; --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+    .header { display: flex; align-items: center; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--border); }
+    .header h1 { font-size: 18px; font-weight: 600; }
+    .header .badge { font-size: 11px; background: var(--accent); padding: 2px 8px; border-radius: 10px; }
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); padding: 0 24px; }
+    .tab { padding: 12px 20px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; font-size: 13px; font-weight: 500; transition: all .15s; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .content { padding: 24px; max-width: 1200px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+    .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+    .stat .value { font-size: 28px; font-weight: 700; }
+    .stat .value.up { color: var(--green); }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; }
+    .card-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+    .card-body { padding: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 8px 12px; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--border); }
+    td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    .badge-sm { font-size: 11px; padding: 2px 6px; border-radius: 4px; }
+    .badge-green { background: #16a34a22; color: var(--green); }
+    .badge-red { background: #dc262622; color: var(--red); }
+    .badge-blue { background: #6366f122; color: var(--accent); }
+    .badge-yellow { background: #eab30822; color: var(--yellow); }
+    .event-feed { max-height: 400px; overflow-y: auto; font-family: 'SF Mono', monospace; font-size: 12px; }
+    .event-item { padding: 6px 12px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; }
+    .event-item .time { color: var(--muted); white-space: nowrap; }
+    .event-item .type { font-weight: 600; min-width: 160px; }
+    .btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-size: 12px; font-weight: 500; transition: all .15s; }
+    .btn:hover { border-color: var(--accent); }
+    .btn-danger { border-color: var(--red); color: var(--red); }
+    .btn-danger:hover { background: #dc262622; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+    input, textarea { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 13px; width: 100%; }
+    .form-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .form-row label { font-size: 12px; color: var(--muted); min-width: 100px; }
+    .hidden { display: none; }
+    .empty { color: var(--muted); font-size: 13px; padding: 24px; text-align: center; }
+    .refresh-btn { font-size: 11px; cursor: pointer; color: var(--muted); }
+    .refresh-btn:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Atmosphere Admin</h1>
+    <span class="badge">Control Plane</span>
+    <span id="status-indicator" style="margin-left:auto; font-size:12px; color:var(--muted)"></span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" data-tab="dashboard">Dashboard</div>
+    <div class="tab" data-tab="agents">Agents</div>
+    <div class="tab" data-tab="observability">Observability</div>
+    <div class="tab" data-tab="journal">Journal</div>
+    <div class="tab" data-tab="control">Control</div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="content" id="tab-dashboard">
+    <div class="grid" id="stats-grid"></div>
+    <div class="card">
+      <div class="card-header">Live Events <span class="refresh-btn" onclick="clearEvents()">clear</span></div>
+      <div class="card-body event-feed" id="event-feed">
+        <div class="empty">Connecting to event stream...</div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+      <div class="card">
+        <div class="card-header">Broadcasters</div>
+        <div class="card-body" id="broadcasters-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Connected Resources</div>
+        <div class="card-body" id="resources-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agents -->
+  <div class="content hidden" id="tab-agents">
+    <div class="card">
+      <div class="card-header">Registered Agents <span class="refresh-btn" onclick="loadAgents()">refresh</span></div>
+      <div class="card-body" id="agents-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">AI Runtimes</div>
+      <div class="card-body" id="runtimes-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">MCP Tools</div>
+      <div class="card-body" id="mcp-tools-list"></div>
+    </div>
+  </div>
+
+  <!-- Observability -->
+  <div class="content hidden" id="tab-observability">
+    <div class="grid" id="metrics-grid"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+      <div class="card">
+        <div class="card-header">Connections & Messages</div>
+        <div class="card-body" id="metrics-connections"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Broadcast Latency</div>
+        <div class="card-body" id="metrics-latency"></div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+      <div class="card">
+        <div class="card-header">Cache</div>
+        <div class="card-body" id="metrics-cache"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Backpressure</div>
+        <div class="card-body" id="metrics-backpressure"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-header">AI / LLM Metrics</div>
+      <div class="card-body" id="metrics-ai"></div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-header">All Atmosphere Meters <span class="refresh-btn" onclick="loadMetrics()">refresh</span></div>
+      <div class="card-body" id="metrics-all"></div>
+    </div>
+  </div>
+
+  <!-- Journal -->
+  <div class="content hidden" id="tab-journal">
+    <div class="form-row" style="margin-bottom:16px;">
+      <label>Coordination ID</label>
+      <input id="journal-coord-id" placeholder="Filter by coordination ID..." style="max-width:300px;" />
+      <label style="min-width:60px;">Agent</label>
+      <input id="journal-agent" placeholder="Filter by agent..." style="max-width:200px;" />
+      <button class="btn btn-primary" onclick="loadJournal()">Query</button>
+    </div>
+    <div class="card">
+      <div class="card-header">Coordination Events</div>
+      <div class="card-body" id="journal-list"></div>
+    </div>
+  </div>
+
+  <!-- Control -->
+  <div class="content hidden" id="tab-control">
+    <div class="card">
+      <div class="card-header">Broadcast Message</div>
+      <div class="card-body">
+        <div class="form-row">
+          <label>Broadcaster ID</label>
+          <input id="ctrl-broadcaster-id" placeholder="e.g. /atmosphere/agent/myagent" />
+        </div>
+        <div class="form-row">
+          <label>Message</label>
+          <input id="ctrl-message" placeholder="Message to broadcast" />
+        </div>
+        <button class="btn btn-primary" onclick="doBroadcast()">Send Broadcast</button>
+        <span id="ctrl-broadcast-result" style="margin-left:12px; font-size:12px;"></span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Disconnect Resource</div>
+      <div class="card-body">
+        <div class="form-row">
+          <label>Resource UUID</label>
+          <input id="ctrl-disconnect-uuid" placeholder="UUID of the resource to disconnect" />
+        </div>
+        <button class="btn btn-danger" onclick="doDisconnect()">Disconnect</button>
+        <span id="ctrl-disconnect-result" style="margin-left:12px; font-size:12px;"></span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Cancel A2A Task</div>
+      <div class="card-body">
+        <div class="form-row">
+          <label>Task ID</label>
+          <input id="ctrl-task-id" placeholder="UUID of the task to cancel" />
+        </div>
+        <button class="btn btn-danger" onclick="doCancelTask()">Cancel Task</button>
+        <span id="ctrl-cancel-result" style="margin-left:12px; font-size:12px;"></span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Audit Log <span class="refresh-btn" onclick="loadAudit()">refresh</span></div>
+      <div class="card-body" id="audit-list"></div>
+    </div>
+  </div>
+
+<script>
+const API = '/api/admin';
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.content').forEach(c => c.classList.add('hidden'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.remove('hidden');
+    if (tab.dataset.tab === 'agents') loadAgents();
+    if (tab.dataset.tab === 'observability') loadMetrics();
+    if (tab.dataset.tab === 'journal') loadJournal();
+    if (tab.dataset.tab === 'control') loadAudit();
+  });
+});
+
+// Fetch helper
+async function api(path) {
+  const r = await fetch(API + path);
+  return r.ok ? r.json() : null;
+}
+
+// Dashboard
+async function loadDashboard() {
+  const ov = await api('/overview');
+  if (!ov) return;
+  const grid = document.getElementById('stats-grid');
+  grid.innerHTML = [
+    stat('Status', ov.status, ov.status === 'UP' ? 'up' : ''),
+    stat('Connections', ov.connections),
+    stat('Broadcasters', ov.broadcasters),
+    stat('Agents', ov.agentCount),
+    stat('Sessions', ov.activeSessions || 0),
+    stat('Tasks', ov.taskCount || 0),
+    stat('AI Runtime', ov.aiRuntime || 'none', '', true),
+  ].join('');
+
+  const bc = await api('/broadcasters');
+  document.getElementById('broadcasters-list').innerHTML = bc && bc.length
+    ? tbl(['ID', 'Class', 'Resources'], bc.map(b => [b.id, b.className, b.resourceCount]))
+    : '<div class="empty">No broadcasters</div>';
+
+  const res = await api('/resources');
+  document.getElementById('resources-list').innerHTML = res && res.length
+    ? tbl(['UUID', 'Transport', 'Broadcaster'], res.map(r => [
+        r.uuid.substring(0,12) + '...', badge(r.transport, 'blue'), r.broadcaster]))
+    : '<div class="empty">No connected resources</div>';
+}
+
+function stat(label, value, cls, small) {
+  return `<div class="stat"><div class="label">${label}</div><div class="value ${cls||''}" ${small?'style="font-size:16px"':''}>${value}</div></div>`;
+}
+
+// Agents tab
+async function loadAgents() {
+  const agents = await api('/agents');
+  document.getElementById('agents-list').innerHTML = agents && agents.length
+    ? tbl(['Name', 'Version', 'Path', 'Headless', 'Protocols'],
+        agents.map(a => [a.name||'', a.version||'', a.path, a.headless ? badge('headless','yellow') : '',
+          a.protocols ? a.protocols.map(p => badge(p,'blue')).join(' ') : '']))
+    : '<div class="empty">No agents registered</div>';
+
+  const rt = await api('/runtimes');
+  document.getElementById('runtimes-list').innerHTML = rt && rt.length
+    ? tbl(['Name', 'Priority', 'Available', 'Capabilities'],
+        rt.map(r => [r.name, r.priority, r.isAvailable ? badge('yes','green') : badge('no','red'),
+          r.capabilities ? r.capabilities.map(c => badge(c,'blue')).join(' ') : '']))
+    : '<div class="empty">No AI runtimes</div>';
+
+  const tools = await api('/mcp/tools');
+  document.getElementById('mcp-tools-list').innerHTML = tools && tools.length
+    ? tbl(['Name', 'Description', 'Params'],
+        tools.map(t => [t.name, t.description || '', t.params ? t.params.length : 0]))
+    : '<div class="empty">No MCP tools</div>';
+}
+
+// Observability tab
+async function loadMetrics() {
+  const m = await api('/metrics');
+  if (!m || m.error) {
+    document.getElementById('metrics-grid').innerHTML =
+      '<div class="empty" style="grid-column:1/-1">Micrometer not on classpath — add micrometer-core to enable metrics</div>';
+    return;
+  }
+
+  // Top-level gauges
+  const grid = document.getElementById('metrics-grid');
+  grid.innerHTML = [
+    stat('Active Connections', m.connections?.active || 0),
+    stat('Total Connections', m.connections?.total || 0),
+    stat('Messages Broadcast', m.messages?.broadcast || 0),
+    stat('Messages Delivered', m.messages?.delivered || 0),
+    stat('Disconnects', m.connections?.disconnects || 0),
+    stat('Active Broadcasters', m.activeBroadcasters || 0),
+    stat('AI Sessions', m.ai?.activeSessions || 0),
+    stat('AI Prompts', m.ai?.promptsTotal || 0),
+  ].join('');
+
+  // Connections & Messages detail
+  document.getElementById('metrics-connections').innerHTML = tbl(
+    ['Metric', 'Value'],
+    [
+      ['Active Connections', m.connections?.active || 0],
+      ['Total Connections', m.connections?.total || 0],
+      ['Disconnects', m.connections?.disconnects || 0],
+      ['Messages Broadcast', m.messages?.broadcast || 0],
+      ['Messages Delivered', m.messages?.delivered || 0],
+      ['Active Rooms', m.rooms?.active || 0],
+    ]);
+
+  // Broadcast Latency
+  const lat = m.broadcastLatency || {};
+  document.getElementById('metrics-latency').innerHTML = lat.count != null
+    ? tbl(['Metric', 'Value'], [
+        ['Broadcast Count', lat.count],
+        ['Mean (ms)', lat.meanMs],
+        ['Max (ms)', lat.maxMs],
+        ['Total Time (ms)', lat.totalTimeMs],
+      ])
+    : '<div class="empty">No broadcast latency data yet</div>';
+
+  // Cache
+  const c = m.cache || {};
+  document.getElementById('metrics-cache').innerHTML = tbl(
+    ['Metric', 'Value'],
+    [
+      ['Cache Size', c.size || 0],
+      ['Cache Hits', c.hits || 0],
+      ['Cache Misses', c.misses || 0],
+      ['Cache Evictions', c.evictions || 0],
+    ]);
+
+  // Backpressure
+  const bp = m.backpressure || {};
+  const bpDrops = bp.drops || 0;
+  const bpDisc = bp.disconnects || 0;
+  document.getElementById('metrics-backpressure').innerHTML = tbl(
+    ['Metric', 'Value'],
+    [
+      ['Drops', bpDrops === 0 ? badge('0', 'green') : badge(String(bpDrops), 'red')],
+      ['Disconnects', bpDisc === 0 ? badge('0', 'green') : badge(String(bpDisc), 'red')],
+    ]);
+
+  // AI Metrics
+  const ai = m.ai || {};
+  document.getElementById('metrics-ai').innerHTML = tbl(
+    ['Metric', 'Value'],
+    [
+      ['Active Sessions', ai.activeSessions || 0],
+      ['Total Prompts', ai.promptsTotal || 0],
+      ['Streaming Texts', ai.streamingTextsTotal || 0],
+      ['Errors', ai.errorsTotal === 0 || !ai.errorsTotal ? badge('0', 'green') : badge(String(ai.errorsTotal), 'red')],
+      ['Prompt Latency (mean ms)', ai.promptLatencyMeanMs || '-'],
+      ['Response Latency (mean ms)', ai.responseLatencyMeanMs || '-'],
+    ]);
+
+  // All meters
+  const all = await api('/metrics/all');
+  document.getElementById('metrics-all').innerHTML = all && all.length
+    ? tbl(['Name', 'Type', 'Value'],
+        all.map(m => [m.name, badge(m.type, 'blue'),
+          m.value != null ? m.value : (m.count != null ? `count=${m.count}, mean=${m.meanMs}ms` : '-')]))
+    : '<div class="empty">No Atmosphere meters registered</div>';
+}
+
+// Journal tab
+async function loadJournal() {
+  const coordId = document.getElementById('journal-coord-id').value || undefined;
+  const agent = document.getElementById('journal-agent').value || undefined;
+  let qs = '?limit=200';
+  if (coordId) qs += '&coordinationId=' + encodeURIComponent(coordId);
+  if (agent) qs += '&agent=' + encodeURIComponent(agent);
+
+  const events = await api('/journal' + qs);
+  document.getElementById('journal-list').innerHTML = events && events.length
+    ? tbl(['Type', 'Coordination', 'Agent', 'Skill', 'Duration', 'Time'],
+        events.map(e => [badge(e.type, typeColor(e.type)), (e.coordinationId||'').substring(0,8),
+          e.agentName||e.coordinatorName||'', e.skill||'', e.duration||e.totalDuration||'', e.timestamp]))
+    : '<div class="empty">No journal events</div>';
+}
+
+function typeColor(t) {
+  if (t?.includes('Failed')) return 'red';
+  if (t?.includes('Completed')) return 'green';
+  if (t?.includes('Dispatched') || t?.includes('Started')) return 'blue';
+  return 'yellow';
+}
+
+// Control tab
+async function doBroadcast() {
+  const id = document.getElementById('ctrl-broadcaster-id').value;
+  const msg = document.getElementById('ctrl-message').value;
+  const r = await fetch(API + '/broadcasters/broadcast',
+    { method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({broadcasterId:id, message:msg}) });
+  const j = await r.json();
+  document.getElementById('ctrl-broadcast-result').textContent = r.ok ? 'Sent' : (j.error || 'Not found');
+}
+
+async function doDisconnect() {
+  const uuid = document.getElementById('ctrl-disconnect-uuid').value;
+  const r = await fetch(API + '/resources/' + encodeURIComponent(uuid), { method: 'DELETE' });
+  document.getElementById('ctrl-disconnect-result').textContent = r.ok ? 'Disconnected' : 'Not found';
+}
+
+async function doCancelTask() {
+  const id = document.getElementById('ctrl-task-id').value;
+  const r = await fetch(API + '/tasks/' + encodeURIComponent(id) + '/cancel', { method: 'POST' });
+  document.getElementById('ctrl-cancel-result').textContent = r.ok ? 'Canceled' : 'Not found';
+}
+
+async function loadAudit() {
+  const entries = await api('/audit?limit=50');
+  document.getElementById('audit-list').innerHTML = entries && entries.length
+    ? tbl(['Time', 'Action', 'Target', 'Principal', 'Success'],
+        entries.map(e => [new Date(e.timestamp).toLocaleTimeString(), badge(e.action,'blue'),
+          e.target, e.principal, e.success ? badge('yes','green') : badge('no','red')]))
+    : '<div class="empty">No audit entries</div>';
+}
+
+// Event stream via WebSocket (eating our own dog food)
+function connectEventStream() {
+  const indicator = document.getElementById('status-indicator');
+  const feed = document.getElementById('event-feed');
+  let ws;
+  try {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(proto + '//' + location.host + '/atmosphere/admin/events');
+  } catch(e) {
+    indicator.textContent = 'Event stream: connection failed';
+    return;
+  }
+  ws.onopen = () => { indicator.textContent = 'Event stream: connected'; feed.innerHTML = ''; };
+  ws.onmessage = (e) => {
+    try {
+      const ev = JSON.parse(e.data);
+      const time = new Date().toLocaleTimeString();
+      const item = document.createElement('div');
+      item.className = 'event-item';
+      item.innerHTML = `<span class="time">${time}</span><span class="type">${ev.type}</span><span>${formatEvent(ev)}</span>`;
+      feed.prepend(item);
+      while (feed.children.length > 200) feed.removeChild(feed.lastChild);
+      loadDashboard();
+    } catch(err) { /* ignore non-JSON */ }
+  };
+  ws.onclose = () => {
+    indicator.textContent = 'Event stream: disconnected (reconnecting...)';
+    setTimeout(connectEventStream, 3000);
+  };
+}
+
+function formatEvent(ev) {
+  switch (ev.type) {
+    case 'ResourceConnected': return `${ev.uuid?.substring(0,12)}... via ${ev.transport} on ${ev.broadcaster}`;
+    case 'ResourceDisconnected': return `${ev.uuid?.substring(0,12)}... (${ev.reason})`;
+    case 'BroadcasterCreated': return ev.id;
+    case 'BroadcasterDestroyed': return ev.id;
+    case 'MessageBroadcast': return `${ev.broadcasterId} to ${ev.resourceCount} resources`;
+    case 'TaskStateChanged': return `${ev.taskId?.substring(0,12)}... ${ev.oldState} -> ${ev.newState}`;
+    case 'AgentDispatched': return `${ev.agentName} / ${ev.skill}`;
+    case 'AgentCompleted': return `${ev.agentName} in ${ev.duration}`;
+    case 'ControlActionExecuted': return `${ev.action} on ${ev.target}`;
+    default: return JSON.stringify(ev);
+  }
+}
+
+function clearEvents() { document.getElementById('event-feed').innerHTML = ''; }
+
+// Helpers
+function tbl(headers, rows) {
+  return `<table><thead><tr>${headers.map(h=>'<th>'+h+'</th>').join('')}</tr></thead><tbody>${rows.map(r=>'<tr>'+r.map(c=>'<td>'+(c??'')+'</td>').join('')+'</tr>').join('')}</tbody></table>`;
+}
+function badge(text, color) {
+  return `<span class="badge-sm badge-${color}">${text}</span>`;
+}
+
+// Init
+loadDashboard();
+connectEventStream();
+setInterval(loadDashboard, 15000);
+</script>
+</body>
+</html>
