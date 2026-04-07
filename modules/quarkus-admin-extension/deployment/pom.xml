@@ -2,21 +2,26 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
         <groupId>org.atmosphere</groupId>
-        <artifactId>atmosphere-quarkus-extension-parent</artifactId>
+        <artifactId>atmosphere-quarkus-admin-extension-parent</artifactId>
         <version>4.0.32-SNAPSHOT</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>atmosphere-quarkus-extension-deployment</artifactId>
+    <artifactId>atmosphere-quarkus-admin-extension-deployment</artifactId>
     <packaging>jar</packaging>
-    <name>atmosphere-quarkus-extension-deployment</name>
-    <description>Quarkus extension for Atmosphere Framework - Deployment</description>
+    <name>atmosphere-quarkus-admin-extension-deployment</name>
+    <description>Quarkus extension for Atmosphere Admin Control Plane - Deployment</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-quarkus-extension</artifactId>
+            <artifactId>atmosphere-quarkus-admin-extension</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-quarkus-extension-deployment</artifactId>
         </dependency>
 
         <dependency>
@@ -24,27 +29,11 @@
             <artifactId>quarkus-arc-deployment</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-undertow-deployment</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-websockets-client-deployment</artifactId>
-        </dependency>
-
         <!-- Override parent's SLF4J 1.x with Quarkus-compatible version -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>2.0.17</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-junit-internal</artifactId>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -61,15 +50,6 @@
                             <version>${quarkus.version}</version>
                         </path>
                     </annotationProcessorPaths>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <systemPropertyVariables>
-                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
-                    </systemPropertyVariables>
                 </configuration>
             </plugin>
         </plugins>

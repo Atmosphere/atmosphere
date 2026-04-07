@@ -75,15 +75,6 @@ class AtmosphereProcessor {
         return new IndexDependencyBuildItem("org.atmosphere", "atmosphere-runtime");
     }
 
-    @BuildStep
-    IndexDependencyBuildItem indexAtmosphereAdmin() {
-        return new IndexDependencyBuildItem("org.atmosphere", "atmosphere-admin");
-    }
-
-    @BuildStep
-    IndexDependencyBuildItem indexAtmosphereQuarkusRuntime() {
-        return new IndexDependencyBuildItem("org.atmosphere", "atmosphere-quarkus-extension");
-    }
 
     @BuildStep
     void ignoreAtmosphereScis(BuildProducer<IgnoredServletContainerInitializerBuildItem> ignored) {
@@ -336,27 +327,4 @@ class AtmosphereProcessor {
      * Registers admin control plane classes for reflection and CDI discovery
      * when {@code atmosphere-admin} is on the classpath.
      */
-    @BuildStep
-    void registerAdminBeans(BuildProducer<ReflectiveClassBuildItem> reflectiveClasses,
-                             BuildProducer<io.quarkus.arc.deployment.AdditionalBeanBuildItem> additionalBeans) {
-        // Register admin CDI beans by class name — deployment module may not
-        // have JAX-RS API on classpath, so string references avoid warnings
-        additionalBeans.produce(
-                io.quarkus.arc.deployment.AdditionalBeanBuildItem.unremovableOf(
-                        "org.atmosphere.quarkus.runtime.admin.AdminProducer"));
-        additionalBeans.produce(
-                io.quarkus.arc.deployment.AdditionalBeanBuildItem.unremovableOf(
-                        "org.atmosphere.quarkus.runtime.admin.AdminResource"));
-
-        // Register admin classes for reflection (native image)
-        reflectiveClasses.produce(
-                ReflectiveClassBuildItem.builder(
-                                "org.atmosphere.quarkus.runtime.admin.AdminResource",
-                                "org.atmosphere.quarkus.runtime.admin.AdminProducer")
-                        .constructors()
-                        .methods()
-                        .fields()
-                        .reason("Atmosphere Admin control plane")
-                        .build());
-    }
 }

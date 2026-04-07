@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.quarkus.runtime.admin;
+package org.atmosphere.quarkus.admin.runtime;
 
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;

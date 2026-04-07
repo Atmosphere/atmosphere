@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.quarkus.runtime.admin;
+package org.atmosphere.quarkus.admin.runtime;
 
 import io.quarkus.runtime.Startup;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -94,7 +94,7 @@ public class AdminProducer {
         }
 
         logger.info("Atmosphere Admin control plane enabled at /api/admin/*");
-        logger.info("Atmosphere Admin dashboard at /atmosphere/admin/");
+        logger.info("Atmosphere Admin dashboard at /admin/");
         return admin;
     }
 }

@@ -757,6 +757,21 @@
             </dependency>
             <dependency>
                 <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-quarkus-extension-deployment</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-quarkus-admin-extension</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-quarkus-admin-extension-deployment</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-wasync</artifactId>
                 <version>${project.version}</version>
             </dependency>

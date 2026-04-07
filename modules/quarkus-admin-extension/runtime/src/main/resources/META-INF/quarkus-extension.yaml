@@ -1,0 +1,12 @@
+name: Atmosphere Admin
+description: Management and control plane for Atmosphere — real-time dashboard, REST API, WebSocket event stream, and MCP tools
+metadata:
+  keywords:
+    - atmosphere
+    - admin
+    - control-plane
+    - dashboard
+    - observability
+  categories:
+    - "web"
+    - "observability"

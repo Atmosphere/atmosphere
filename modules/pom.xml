@@ -43,6 +43,7 @@
         <module>checkpoint</module>
         <module>channels</module>
         <module>quarkus-extension</module>
+        <module>quarkus-admin-extension</module>
         <module>wasync</module>
     </modules>
 
