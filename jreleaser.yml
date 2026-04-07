@@ -9,14 +9,14 @@
 #
 project:
   name: atmosphere
-  description: Asynchronous framework for building reactive applications
+  description: Real-time transport layer for Java AI agents
   longDescription: |
-    Atmosphere is the most popular asynchronous framework for the JVM.
-    It supports WebSocket, SSE, Long-Polling, Streaming, WebTransport/HTTP3,
-    and gRPC transports with automatic fallback.
+    Build once with @Agent — deliver over WebTransport/HTTP3, WebSocket, SSE,
+    gRPC, MCP, A2A, AG-UI, or any transport. Works with Spring AI, LangChain4j,
+    Google ADK, Embabel, JetBrains Koog, or the built-in OpenAI-compatible client.
   links:
     homepage: https://github.com/Atmosphere/atmosphere
-    documentation: https://github.com/Atmosphere/atmosphere/wiki
+    documentation: https://atmosphere.github.io/docs/
   authors:
     - Jeanfrancois Arcand
   license: Apache-2.0
