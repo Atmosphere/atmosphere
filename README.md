@@ -81,6 +81,7 @@ What this registers depends on which modules are on the classpath:
 | `atmosphere-a2a` | A2A endpoint at `/atmosphere/agent/my-agent/a2a` with Agent Card discovery |
 | `atmosphere-agui` | AG-UI endpoint at `/atmosphere/agent/my-agent/agui` |
 | `atmosphere-channels` + bot token | Same agent responds on Slack, Telegram, Discord, WhatsApp, Messenger |
+| `atmosphere-admin` | Admin dashboard at `/atmosphere/admin/` with live event stream |
 | (built-in) | Console UI at `/atmosphere/console/` |
 
 ## Key Features
@@ -112,6 +113,8 @@ What this registers depends on which modules are on the classpath:
 **[Authentication](modules/spring-boot-starter/README.md#webtransport-over-http3)** — `TokenValidator` + `TokenRefresher` SPIs with `AuthInterceptor`. Define a validator bean and connections without valid tokens are rejected at the WebSocket/HTTP upgrade. Auto-configured via Spring Boot.
 
 **[Observability](https://atmosphere.github.io/docs/reference/observability/)** — OpenTelemetry tracing, Micrometer metrics, AI token usage tracking. Auto-configured with Spring Boot.
+
+**[Admin Control Plane](https://atmosphere.github.io/docs/reference/admin/)** — Real-time dashboard at `/atmosphere/admin/`, 25 REST endpoints, WebSocket event stream, and MCP tools for managing agents, broadcasters, tasks, and runtimes. AI-manages-AI via MCP tool registration.
 
 ## Client — atmosphere.js
 
@@ -175,7 +178,7 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 </dependency>
 ```
 
-Optional: `atmosphere-ai`, `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`, `atmosphere-channels`, `atmosphere-coordinator`. Add to classpath and features auto-register.
+Optional: `atmosphere-ai`, `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`, `atmosphere-channels`, `atmosphere-coordinator`, `atmosphere-admin`. Add to classpath and features auto-register.
 
 **Requirements:** Java 21+ &middot; Spring Boot 4.0+ or Quarkus 3.21+
 

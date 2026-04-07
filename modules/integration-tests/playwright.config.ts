@@ -219,6 +219,11 @@ export default defineConfig({
       name: 'reconnection',
       testMatch: /reconnection\.spec\.ts/,
     },
+    // ── Admin Control Plane ──
+    {
+      name: 'admin-dashboard',
+      testMatch: /admin-dashboard\.spec\.ts/,
+    },
     // ── P1: Coverage gaps ──
     {
       name: 'otel-chat',
