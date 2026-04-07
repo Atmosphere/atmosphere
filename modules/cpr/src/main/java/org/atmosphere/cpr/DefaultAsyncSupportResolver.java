@@ -18,7 +18,6 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.JSR356AsyncSupport;
-import org.atmosphere.container.JettyHttp3AsyncSupport;
 import org.atmosphere.container.Servlet30CometSupport;
 import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
@@ -39,6 +38,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public final static String SERVLET_30 = "jakarta.servlet.AsyncListener";
     public final static String JSR356_WEBSOCKET = "jakarta.websocket.Endpoint";
     public final static String JETTY_HTTP3 = "org.eclipse.jetty.http3.server.HTTP3ServerConnector";
+    public final static String JETTY_HTTP3_SUPPORT = "org.atmosphere.container.JettyHttp3AsyncSupport";
     public final static String REACTOR_NETTY_HTTP3 = "io.netty.handler.codec.http3.Http3";
     public final static String REACTOR_NETTY_HTTP3_SUPPORT =
             "org.atmosphere.spring.boot.webtransport.ReactorNettyHttp3AsyncSupport";
@@ -84,9 +84,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         if (useServlet30Async && !useNativeIfPossible) {
             if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
                 if (testClassExists(JETTY_HTTP3)) {
-                    result.add(JettyHttp3AsyncSupport.class);
+                    result.add(resolveByName(JETTY_HTTP3_SUPPORT));
                 } else if (testClassExists(REACTOR_NETTY_HTTP3) && testClassExists(REACTOR_NETTY_HTTP3_SUPPORT)) {
-                    result.add(resolveReactorNettyHttp3Support());
+                    result.add(resolveByName(REACTOR_NETTY_HTTP3_SUPPORT));
                 } else {
                     result.add(JSR356AsyncSupport.class);
                 }
@@ -94,9 +94,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         } else {
             if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
                 if (testClassExists(JETTY_HTTP3)) {
-                    result.add(JettyHttp3AsyncSupport.class);
+                    result.add(resolveByName(JETTY_HTTP3_SUPPORT));
                 } else if (testClassExists(REACTOR_NETTY_HTTP3) && testClassExists(REACTOR_NETTY_HTTP3_SUPPORT)) {
-                    result.add(resolveReactorNettyHttp3Support());
+                    result.add(resolveByName(REACTOR_NETTY_HTTP3_SUPPORT));
                 } else {
                     result.add(JSR356AsyncSupport.class);
                 }
@@ -219,11 +219,11 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     }
 
     @SuppressWarnings("unchecked")
-    private Class<? extends AsyncSupport<?>> resolveReactorNettyHttp3Support() {
+    private Class<? extends AsyncSupport<?>> resolveByName(String fqcn) {
         try {
-            return (Class<? extends AsyncSupport<?>>) Class.forName(REACTOR_NETTY_HTTP3_SUPPORT);
+            return (Class<? extends AsyncSupport<?>>) Class.forName(fqcn);
         } catch (ClassNotFoundException e) {
-            logger.debug("ReactorNettyHttp3AsyncSupport not loadable: {}", e.getMessage());
+            logger.debug("AsyncSupport {} not loadable, falling back to JSR356: {}", fqcn, e.getMessage());
             return JSR356AsyncSupport.class;
         }
     }
