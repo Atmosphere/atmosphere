@@ -65,6 +65,7 @@
   <div class="tabs">
     <div class="tab active" data-tab="dashboard">Dashboard</div>
     <div class="tab" data-tab="agents">Agents</div>
+    <div class="tab" data-tab="observability">Observability</div>
     <div class="tab" data-tab="journal">Journal</div>
     <div class="tab" data-tab="control">Control</div>
   </div>
@@ -103,6 +104,39 @@
     <div class="card">
       <div class="card-header">MCP Tools</div>
       <div class="card-body" id="mcp-tools-list"></div>
+    </div>
+  </div>
+
+  <!-- Observability -->
+  <div class="content hidden" id="tab-observability">
+    <div class="grid" id="metrics-grid"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+      <div class="card">
+        <div class="card-header">Connections & Messages</div>
+        <div class="card-body" id="metrics-connections"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Broadcast Latency</div>
+        <div class="card-body" id="metrics-latency"></div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+      <div class="card">
+        <div class="card-header">Cache</div>
+        <div class="card-body" id="metrics-cache"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Backpressure</div>
+        <div class="card-body" id="metrics-backpressure"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-header">AI / LLM Metrics</div>
+      <div class="card-body" id="metrics-ai"></div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-header">All Atmosphere Meters <span class="refresh-btn" onclick="loadMetrics()">refresh</span></div>
+      <div class="card-body" id="metrics-all"></div>
     </div>
   </div>
 
@@ -177,6 +211,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     document.getElementById('tab-' + tab.dataset.tab).classList.remove('hidden');
     if (tab.dataset.tab === 'agents') loadAgents();
+    if (tab.dataset.tab === 'observability') loadMetrics();
     if (tab.dataset.tab === 'journal') loadJournal();
     if (tab.dataset.tab === 'control') loadAudit();
   });
@@ -240,6 +275,95 @@ async function loadAgents() {
     ? tbl(['Name', 'Description', 'Params'],
         tools.map(t => [t.name, t.description || '', t.params ? t.params.length : 0]))
     : '<div class="empty">No MCP tools</div>';
+}
+
+// Observability tab
+async function loadMetrics() {
+  const m = await api('/metrics');
+  if (!m || m.error) {
+    document.getElementById('metrics-grid').innerHTML =
+      '<div class="empty" style="grid-column:1/-1">Micrometer not on classpath — add micrometer-core to enable metrics</div>';
+    return;
+  }
+
+  // Top-level gauges
+  const grid = document.getElementById('metrics-grid');
+  grid.innerHTML = [
+    stat('Active Connections', m.connections?.active || 0),
+    stat('Total Connections', m.connections?.total || 0),
+    stat('Messages Broadcast', m.messages?.broadcast || 0),
+    stat('Messages Delivered', m.messages?.delivered || 0),
+    stat('Disconnects', m.connections?.disconnects || 0),
+    stat('Active Broadcasters', m.activeBroadcasters || 0),
+    stat('AI Sessions', m.ai?.activeSessions || 0),
+    stat('AI Prompts', m.ai?.promptsTotal || 0),
+  ].join('');
+
+  // Connections & Messages detail
+  document.getElementById('metrics-connections').innerHTML = tbl(
+    ['Metric', 'Value'],
+    [
+      ['Active Connections', m.connections?.active || 0],
+      ['Total Connections', m.connections?.total || 0],
+      ['Disconnects', m.connections?.disconnects || 0],
+      ['Messages Broadcast', m.messages?.broadcast || 0],
+      ['Messages Delivered', m.messages?.delivered || 0],
+      ['Active Rooms', m.rooms?.active || 0],
+    ]);
+
+  // Broadcast Latency
+  const lat = m.broadcastLatency || {};
+  document.getElementById('metrics-latency').innerHTML = lat.count != null
+    ? tbl(['Metric', 'Value'], [
+        ['Broadcast Count', lat.count],
+        ['Mean (ms)', lat.meanMs],
+        ['Max (ms)', lat.maxMs],
+        ['Total Time (ms)', lat.totalTimeMs],
+      ])
+    : '<div class="empty">No broadcast latency data yet</div>';
+
+  // Cache
+  const c = m.cache || {};
+  document.getElementById('metrics-cache').innerHTML = tbl(
+    ['Metric', 'Value'],
+    [
+      ['Cache Size', c.size || 0],
+      ['Cache Hits', c.hits || 0],
+      ['Cache Misses', c.misses || 0],
+      ['Cache Evictions', c.evictions || 0],
+    ]);
+
+  // Backpressure
+  const bp = m.backpressure || {};
+  const bpDrops = bp.drops || 0;
+  const bpDisc = bp.disconnects || 0;
+  document.getElementById('metrics-backpressure').innerHTML = tbl(
+    ['Metric', 'Value'],
+    [
+      ['Drops', bpDrops === 0 ? badge('0', 'green') : badge(String(bpDrops), 'red')],
+      ['Disconnects', bpDisc === 0 ? badge('0', 'green') : badge(String(bpDisc), 'red')],
+    ]);
+
+  // AI Metrics
+  const ai = m.ai || {};
+  document.getElementById('metrics-ai').innerHTML = tbl(
+    ['Metric', 'Value'],
+    [
+      ['Active Sessions', ai.activeSessions || 0],
+      ['Total Prompts', ai.promptsTotal || 0],
+      ['Streaming Texts', ai.streamingTextsTotal || 0],
+      ['Errors', ai.errorsTotal === 0 || !ai.errorsTotal ? badge('0', 'green') : badge(String(ai.errorsTotal), 'red')],
+      ['Prompt Latency (mean ms)', ai.promptLatencyMeanMs || '-'],
+      ['Response Latency (mean ms)', ai.responseLatencyMeanMs || '-'],
+    ]);
+
+  // All meters
+  const all = await api('/metrics/all');
+  document.getElementById('metrics-all').innerHTML = all && all.length
+    ? tbl(['Name', 'Type', 'Value'],
+        all.map(m => [m.name, badge(m.type, 'blue'),
+          m.value != null ? m.value : (m.count != null ? `count=${m.count}, mean=${m.meanMs}ms` : '-')]))
+    : '<div class="empty">No Atmosphere meters registered</div>';
 }
 
 // Journal tab

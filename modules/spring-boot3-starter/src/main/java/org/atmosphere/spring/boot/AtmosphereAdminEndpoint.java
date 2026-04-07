@@ -20,6 +20,7 @@ import org.atmosphere.admin.a2a.TaskController;
 import org.atmosphere.admin.ai.AiRuntimeController;
 import org.atmosphere.admin.coordinator.CoordinatorController;
 import org.atmosphere.admin.mcp.McpController;
+import org.atmosphere.admin.metrics.MetricsController;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.ResponseEntity;
@@ -325,6 +326,26 @@ public class AtmosphereAdminEndpoint {
             return ResponseEntity.ok(List.of());
         }
         return ResponseEntity.ok(controller.listPrompts());
+    }
+
+    // ── Metrics / Observability ──
+
+    @GetMapping("/metrics")
+    public ResponseEntity<Map<String, Object>> metricsSnapshot() {
+        MetricsController controller = admin.metricsController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of("error", "Micrometer not on classpath"));
+        }
+        return ResponseEntity.ok(controller.snapshot());
+    }
+
+    @GetMapping("/metrics/all")
+    public ResponseEntity<List<Map<String, Object>>> allMeters() {
+        MetricsController controller = admin.metricsController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(controller.listMeters());
     }
 
     // ── Audit Log ──

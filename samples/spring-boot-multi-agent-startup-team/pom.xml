@@ -155,6 +155,12 @@
             <artifactId>atmosphere-admin</artifactId>
         </dependency>
 
+        <!-- Observability: actuator + micrometer for admin metrics tab -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
         <!-- Web scraping for Research Agent -->
         <dependency>
             <groupId>org.jsoup</groupId>

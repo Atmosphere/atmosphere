@@ -49,6 +49,7 @@ public final class AtmosphereAdmin {
     private Object taskController;
     private Object aiRuntimeController;
     private Object mcpController;
+    private Object metricsController;
 
     public AtmosphereAdmin(AtmosphereFramework framework, int auditLogSize) {
         this.frameworkController = new FrameworkController(framework);
@@ -162,5 +163,14 @@ public final class AtmosphereAdmin {
     @SuppressWarnings("unchecked")
     public <T> T mcpController() {
         return (T) mcpController;
+    }
+
+    public void setMetricsController(Object controller) {
+        this.metricsController = controller;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T metricsController() {
+        return (T) metricsController;
     }
 }

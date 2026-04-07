@@ -23,6 +23,7 @@ import org.atmosphere.admin.ControlAuthorizer;
 import org.atmosphere.admin.a2a.TaskController;
 import org.atmosphere.admin.ai.AiRuntimeController;
 import org.atmosphere.admin.coordinator.CoordinatorController;
+import org.atmosphere.admin.metrics.MetricsController;
 import org.atmosphere.admin.mcp.McpController;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
@@ -68,8 +69,17 @@ public class AtmosphereAdminAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public AtmosphereAdmin atmosphereAdmin(AtmosphereFramework framework) {
+    public AtmosphereAdmin atmosphereAdmin(
+            AtmosphereFramework framework,
+            org.springframework.beans.factory.ObjectProvider<io.micrometer.core.instrument.MeterRegistry> meterRegistryProvider) {
         var admin = new AtmosphereAdmin(framework, 1000);
+
+        // Wire metrics controller if Micrometer is available
+        var meterRegistry = meterRegistryProvider.getIfAvailable();
+        if (meterRegistry != null) {
+            admin.setMetricsController(new MetricsController(meterRegistry));
+            logger.debug("Atmosphere Admin: Metrics controller wired (Micrometer)");
+        }
 
         // Register the admin event WebSocket handler and install the event producer
         var handler = new AdminEventHandler();
