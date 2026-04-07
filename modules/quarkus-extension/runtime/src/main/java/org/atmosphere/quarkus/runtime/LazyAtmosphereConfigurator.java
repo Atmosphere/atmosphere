@@ -76,6 +76,13 @@ public class LazyAtmosphereConfigurator extends ServerEndpointConfig.Configurato
     private final ThreadLocal<HandshakeRequest> hRequest = new ThreadLocal<>();
 
     /**
+     * Returns the framework if it has been initialized, or {@code null}.
+     */
+    public static AtmosphereFramework getFramework() {
+        return holder.get().ref.get();
+    }
+
+    /**
      * Called by {@link QuarkusAtmosphereServlet#init} after the framework is initialized.
      */
     static void setFramework(AtmosphereFramework framework) {
