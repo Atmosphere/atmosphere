@@ -60,11 +60,13 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- compile scope (not provided) so the servlet API is bundled in
+             the uber JAR — the Broadcaster benchmark needs it at runtime.
+             The benchmarks module is never deployed so this is safe. -->
         <dependency>
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>
             <version>${jakarta-servlet-api.version}</version>
-            <scope>provided</scope>
         </dependency>
     </dependencies>
 
