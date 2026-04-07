@@ -36,6 +36,12 @@ public final class AgentRuntimeResolver {
 
     private static final Logger logger = LoggerFactory.getLogger(AgentRuntimeResolver.class);
 
+    // Cached after first resolution. ServiceLoader results don't change at
+    // runtime, so resolve once and return the immutable snapshot thereafter.
+    // Volatile ensures visibility; benign double-init on first access is
+    // acceptable (both threads produce the same ServiceLoader result).
+    private static volatile List<AgentRuntime> cachedAll;
+
     private AgentRuntimeResolver() {}
 
     /**
@@ -43,16 +49,23 @@ public final class AgentRuntimeResolver {
      * {@link BuiltInAgentRuntime} as fallback.
      */
     public static AgentRuntime resolve() {
-        var all = resolveAll();
-        return all.isEmpty() ? new BuiltInAgentRuntime() : all.getFirst();
+        return resolveAll().getFirst();
     }
 
     /**
      * Returns all available runtimes sorted by priority (highest first).
      * Falls back to a singleton list with {@link BuiltInAgentRuntime} if
      * no implementations are discovered.
+     *
+     * <p>Results are cached after first resolution — the classpath does not
+     * change at runtime so the discovered runtimes are stable.</p>
      */
     public static List<AgentRuntime> resolveAll() {
+        var result = cachedAll;
+        if (result != null) {
+            return result;
+        }
+
         var all = new ArrayList<AgentRuntime>();
 
         try {
@@ -79,6 +92,8 @@ public final class AgentRuntimeResolver {
             logger.debug("No AgentRuntime on classpath, using built-in");
         }
 
-        return all;
+        result = List.copyOf(all);
+        cachedAll = result;
+        return result;
     }
 }
