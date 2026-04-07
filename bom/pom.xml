@@ -104,6 +104,13 @@
                 <version>${project.version}</version>
             </dependency>
 
+            <!-- Admin (Management Control Plane) -->
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-admin</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <!-- Checkpoint (Durable Agent Execution) -->
             <dependency>
                 <groupId>org.atmosphere</groupId>

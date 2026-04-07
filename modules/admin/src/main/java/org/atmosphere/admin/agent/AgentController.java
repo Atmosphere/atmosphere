@@ -1,0 +1,163 @@
+/*
+ * Copyright 2008-2026 Async-IO.org
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package org.atmosphere.admin.agent;
+
+import org.atmosphere.cpr.AtmosphereFramework;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * Read operations for {@code @Agent}-annotated endpoints. Discovers agents
+ * by scanning the framework's handler registry for paths matching
+ * {@code /atmosphere/agent/*}.
+ *
+ * <p>Agent metadata is extracted from the {@code @Agent} annotation on the
+ * handler's backing class at runtime via reflection.</p>
+ *
+ * @since 4.0
+ */
+public final class AgentController {
+
+    private static final Logger logger = LoggerFactory.getLogger(AgentController.class);
+    private static final String AGENT_PATH_PREFIX = "/atmosphere/agent/";
+    private static final String AGENT_ANNOTATION = "org.atmosphere.agent.annotation.Agent";
+
+    private final AtmosphereFramework framework;
+
+    public AgentController(AtmosphereFramework framework) {
+        this.framework = framework;
+    }
+
+    /**
+     * List all registered agents with metadata extracted from their
+     * {@code @Agent} annotation.
+     */
+    public List<Map<String, Object>> listAgents() {
+        var result = new ArrayList<Map<String, Object>>();
+        for (var entry : framework.getAtmosphereHandlers().entrySet()) {
+            var path = entry.getKey();
+            // Only top-level agent paths, not protocol sub-paths
+            if (!path.startsWith(AGENT_PATH_PREFIX)
+                    || path.contains("/a2a") || path.contains("/mcp") || path.contains("/agui")) {
+                continue;
+            }
+
+            var handler = entry.getValue().atmosphereHandler();
+            var info = new LinkedHashMap<String, Object>();
+            info.put("path", path);
+            info.put("handlerClass", handler.getClass().getSimpleName());
+
+            // Extract @Agent annotation metadata from the handler's backing class
+            extractAgentMetadata(handler, info);
+            result.add(info);
+        }
+        return result;
+    }
+
+    /**
+     * Get detail for a specific agent by name.
+     */
+    public Optional<Map<String, Object>> getAgent(String name) {
+        var path = AGENT_PATH_PREFIX + name;
+        var wrapper = framework.getAtmosphereHandlers().get(path);
+        if (wrapper == null) {
+            return Optional.empty();
+        }
+
+        var handler = wrapper.atmosphereHandler();
+        var info = new LinkedHashMap<String, Object>();
+        info.put("path", path);
+        info.put("handlerClass", handler.getClass().getSimpleName());
+        extractAgentMetadata(handler, info);
+
+        // Check for protocol sub-endpoints
+        var protocols = new ArrayList<String>();
+        if (framework.getAtmosphereHandlers().containsKey(path + "/a2a")) {
+            protocols.add("a2a");
+        }
+        if (framework.getAtmosphereHandlers().containsKey(path + "/mcp")) {
+            protocols.add("mcp");
+        }
+        if (framework.getAtmosphereHandlers().containsKey(path + "/agui")) {
+            protocols.add("agui");
+        }
+        info.put("protocols", protocols);
+
+        return Optional.of(info);
+    }
+
+    /**
+     * Extract metadata from the {@code @Agent} annotation via reflection.
+     * This avoids a compile-time dependency on the agent module.
+     */
+    private void extractAgentMetadata(Object handler, Map<String, Object> info) {
+        try {
+            // The AgentHandler wraps the original annotated class. Try to find
+            // the @Agent annotation on the handler itself or its delegate.
+            var agentAnnotation = findAgentAnnotation(handler);
+            if (agentAnnotation != null) {
+                info.put("name", invokeAnnotationMethod(agentAnnotation, "name"));
+                info.put("version", invokeAnnotationMethod(agentAnnotation, "version"));
+                info.put("description", invokeAnnotationMethod(agentAnnotation, "description"));
+                info.put("headless", invokeAnnotationMethod(agentAnnotation, "headless"));
+            }
+        } catch (Exception e) {
+            logger.trace("Could not extract @Agent metadata", e);
+        }
+    }
+
+    private Object findAgentAnnotation(Object handler) {
+        // Check the handler class itself
+        for (var annotation : handler.getClass().getAnnotations()) {
+            if (annotation.annotationType().getName().equals(AGENT_ANNOTATION)) {
+                return annotation;
+            }
+        }
+        // AgentHandler may hold a reference to the original annotated instance.
+        // Try to find a field that holds an object with @Agent.
+        for (var field : handler.getClass().getDeclaredFields()) {
+            try {
+                field.setAccessible(true);
+                var value = field.get(handler);
+                if (value != null) {
+                    for (var annotation : value.getClass().getAnnotations()) {
+                        if (annotation.annotationType().getName().equals(AGENT_ANNOTATION)) {
+                            return annotation;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // skip inaccessible fields
+            }
+        }
+        return null;
+    }
+
+    private Object invokeAnnotationMethod(Object annotation, String methodName) {
+        try {
+            var method = annotation.getClass().getMethod(methodName);
+            return method.invoke(annotation);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+}

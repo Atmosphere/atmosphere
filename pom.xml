@@ -737,6 +737,11 @@
             </dependency>
             <dependency>
                 <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-admin</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-checkpoint</artifactId>
                 <version>${project.version}</version>
             </dependency>

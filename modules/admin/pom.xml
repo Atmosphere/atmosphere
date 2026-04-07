@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-project</artifactId>
+        <version>4.0.32-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>atmosphere-admin</artifactId>
+    <packaging>jar</packaging>
+    <name>atmosphere-admin</name>
+    <description>Management and control plane for Atmosphere Framework — inspect and control broadcasters, agents, coordinators, tasks, and AI runtimes at runtime</description>
+    <url>https://github.com/Atmosphere/atmosphere</url>
+
+    <properties>
+        <atmosphere.module.name>org.atmosphere.admin</atmosphere.module.name>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-runtime</artifactId>
+        </dependency>
+
+        <!-- Optional modules — detected at runtime -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-agent</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-coordinator</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-a2a</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-mcp</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <version>${jakarta-servlet-api.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback-version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
