@@ -108,7 +108,7 @@ What this registers depends on which modules are on the classpath:
 
 **[15 Event Types](https://atmosphere.github.io/docs/reference/ai/)** — `AiEvent` sealed interface: text deltas, tool start/result/error, agent steps, handoffs, approval prompts, structured output, routing decisions. Normalized across all runtimes.
 
-**[5 Transports](https://atmosphere.github.io/docs/tutorial/04-transports/)** — WebTransport/HTTP3, WebSocket, SSE, Long-Polling, gRPC. Automatic fallback, reconnection, heartbeats, message caching. First Java framework with [WebTransport over HTTP/3](https://atmosphere.github.io/docs/webtransport/) — a Reactor Netty HTTP/3 sidecar runs alongside the servlet container with self-signed cert support for dev (`/api/webtransport-info`), `Alt-Svc` header advertisement, and transparent fallback to WebSocket.
+**[5 Transports](https://atmosphere.github.io/docs/tutorial/04-transports/)** — WebTransport/HTTP3, WebSocket, SSE, Long-Polling, gRPC. Automatic fallback, reconnection, heartbeats, message caching. First Java framework with [WebTransport over HTTP/3](https://atmosphere.github.io/docs/webtransport/) — auto-detected via `AsyncSupport`: native Jetty 12 QUIC connector (zero-config, no sidecar) or Reactor Netty HTTP/3 sidecar for Tomcat/Undertow. Self-signed cert for dev, `Alt-Svc` header advertisement, transparent fallback to WebSocket.
 
 **[Authentication](modules/spring-boot-starter/README.md#webtransport-over-http3)** — `TokenValidator` + `TokenRefresher` SPIs with `AuthInterceptor`. Define a validator bean and connections without valid tokens are rejected at the WebSocket/HTTP upgrade. Auto-configured via Spring Boot.
 
