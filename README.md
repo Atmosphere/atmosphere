@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Real-time transport layer for Java AI agents.</strong><br/>
-  Build once with <code>@Agent</code> — deliver over WebTransport/HTTP3, WebSocket, SSE, gRPC, MCP, A2A, AG-UI, or any transport. Works with Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, or the built-in OpenAI-compatible client.
+  Build once with <code>@Agent</code> — deliver over any transport (WebSocket, SSE, WebTransport/HTTP3) and any protocol (gRPC, MCP, A2A, AG-UI). Works with Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, or the built-in OpenAI-compatible client.
 </p>
 
 <p align="center">
@@ -36,7 +36,7 @@ atmosphere run spring-boot-multi-agent-startup-team
 # Or scaffold your own project from a sample
 atmosphere new my-agent --template ai-chat
 
-# Import a skill from GitHub and run it
+# Import a skill from an allowed skills repo
 atmosphere import https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
 cd frontend-design && LLM_API_KEY=your-key ./mvnw spring-boot:run
 ```
@@ -46,28 +46,40 @@ cd frontend-design && LLM_API_KEY=your-key ./mvnw spring-boot:run
 One annotation. The framework wires everything based on what's in the class and what's on the classpath.
 
 ```java
+// Registers this class as an agent — auto-discovered at startup.
+// Endpoints are created based on which modules are on the classpath:
+// WebSocket, MCP, A2A, AG-UI, Slack, Telegram, etc.
 @Agent(name = "my-agent", description = "What this agent does")
 public class MyAgent {
 
+    // Handles user messages. The message is forwarded to whichever AI runtime
+    // is on the classpath (Spring AI, LangChain4j, ADK, etc.) and the LLM
+    // response is streamed back token-by-token through the session.
     @Prompt
     public void onMessage(String message, StreamingSession session) {
-        session.stream(message);  // LLM streaming via configured backend
+        session.stream(message);
     }
 
+    // Slash command — executed directly, no LLM call.
+    // Auto-listed in /help. Works on every channel (web, Slack, Telegram…).
     @Command(value = "/status", description = "Show status")
     public String status() {
-        return "All systems operational";  // Executes instantly, no LLM cost
+        return "All systems operational";
     }
 
+    // confirm = "..." enables human-in-the-loop: the client must approve
+    // before the method body runs. The virtual thread parks until approval.
     @Command(value = "/reset", description = "Reset data",
              confirm = "This will delete all data. Are you sure?")
     public String reset() {
-        return dataService.resetAll();  // Requires user confirmation first
+        return dataService.resetAll();
     }
 
+    // Registered as a tool the LLM can invoke during inference.
+    // Also exposed as an MCP tool if atmosphere-mcp is on the classpath.
     @AiTool(name = "lookup", description = "Look up data")
     public String lookup(@Param("query") String query) {
-        return dataService.find(query);  // Callable by the LLM during inference
+        return dataService.find(query);
     }
 }
 ```
@@ -195,6 +207,7 @@ Commercial support and consulting available through [Async-IO.org](https://async
 | Project | Description |
 |---------|-------------|
 | [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills) | Curated agent skill files — personality, tools, guardrails |
+| [homebrew-tap](https://github.com/Atmosphere/homebrew-tap) | Homebrew formulae for the Atmosphere CLI |
 | [javaclaw-atmosphere](https://github.com/Atmosphere/javaclaw-atmosphere) | Atmosphere chat transport plugin for JavaClaw |
 
 ## License
