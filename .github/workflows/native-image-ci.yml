@@ -91,7 +91,7 @@ jobs:
         cache: 'maven'
 
     - name: Install Atmosphere Modules
-      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl modules -am
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true
 
     - name: Build Quarkus Native Image (container build)
       run: ./mvnw -B -Dnative -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21 package -DskipTests -Dgpg.skip=true -pl samples/quarkus-chat

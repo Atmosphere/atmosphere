@@ -58,13 +58,34 @@
             <artifactId>quarkus-jackson</artifactId>
         </dependency>
 
-        <!-- Admin control plane dashboard (separate extension) -->
+        <!-- Admin control plane dashboard (separate extension).
+             The admin module has optional deps on ai, agent, coordinator, a2a,
+             mcp, and micrometer. GraalVM native image links ALL classes on the
+             classpath, so these must be present to avoid NoClassDefFoundError. -->
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-quarkus-admin-extension</artifactId>
         </dependency>
-
-        <!-- Micrometer — required by admin MetricsController at native image link time -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-agent</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-coordinator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-a2a</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-mcp</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-micrometer</artifactId>
