@@ -20,6 +20,10 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -35,6 +39,7 @@ import java.util.Optional;
  */
 public final class FrameworkController {
 
+    private static final Logger logger = LoggerFactory.getLogger(FrameworkController.class);
     private final AtmosphereFramework framework;
 
     public FrameworkController(AtmosphereFramework framework) {
@@ -133,6 +138,113 @@ public final class FrameworkController {
             result.add(info);
         }
         return result;
+    }
+
+    // ── Write operations ──
+
+    /**
+     * Broadcast a message to all subscribers of a broadcaster.
+     *
+     * @return true if the broadcast was initiated
+     */
+    public boolean broadcast(String broadcasterId, String message) {
+        BroadcasterFactory factory = framework.getBroadcasterFactory();
+        if (factory == null) {
+            return false;
+        }
+        Broadcaster b = factory.lookup(broadcasterId, false);
+        if (b == null || b.isDestroyed()) {
+            return false;
+        }
+        b.broadcast(message);
+        return true;
+    }
+
+    /**
+     * Unicast a message to a specific resource within a broadcaster.
+     *
+     * @return true if the unicast was initiated
+     */
+    public boolean unicast(String broadcasterId, String resourceUuid, String message) {
+        BroadcasterFactory factory = framework.getBroadcasterFactory();
+        if (factory == null) {
+            return false;
+        }
+        Broadcaster b = factory.lookup(broadcasterId, false);
+        if (b == null || b.isDestroyed()) {
+            return false;
+        }
+        for (AtmosphereResource r : b.getAtmosphereResources()) {
+            if (r.uuid().equals(resourceUuid)) {
+                b.broadcast(message, r);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Destroy a specific broadcaster.
+     *
+     * @return true if the broadcaster was found and destroyed
+     */
+    public boolean destroyBroadcaster(String broadcasterId) {
+        BroadcasterFactory factory = framework.getBroadcasterFactory();
+        if (factory == null) {
+            return false;
+        }
+        Broadcaster b = factory.lookup(broadcasterId, false);
+        if (b == null || b.isDestroyed()) {
+            return false;
+        }
+        b.destroy();
+        return true;
+    }
+
+    /**
+     * Disconnect a specific resource by UUID.
+     *
+     * @return true if the resource was found and closed
+     */
+    public boolean disconnectResource(String resourceUuid) {
+        BroadcasterFactory factory = framework.getBroadcasterFactory();
+        if (factory == null) {
+            return false;
+        }
+        for (Broadcaster b : factory.lookupAll()) {
+            for (AtmosphereResource r : b.getAtmosphereResources()) {
+                if (r.uuid().equals(resourceUuid)) {
+                    try {
+                        r.close();
+                    } catch (IOException e) {
+                        logger.trace("Error closing resource {}", resourceUuid, e);
+                    }
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Resume a suspended resource by UUID.
+     *
+     * @return true if the resource was found and resumed
+     */
+    public boolean resumeResource(String resourceUuid) {
+        BroadcasterFactory factory = framework.getBroadcasterFactory();
+        if (factory == null) {
+            return false;
+        }
+        for (Broadcaster b : factory.lookupAll()) {
+            for (AtmosphereResource r : b.getAtmosphereResources()) {
+                if (r.uuid().equals(resourceUuid)) {
+                    r.resume();
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private Map<String, Object> resourceSummary(AtmosphereResource r) {

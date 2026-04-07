@@ -19,12 +19,14 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.agent.command.CommandResult;
 import org.atmosphere.agent.command.CommandRouter;
+import org.atmosphere.agent.session.AgentSessionRegistry;
 import org.atmosphere.ai.processor.AiEndpointHandler;
 import org.atmosphere.config.managed.Invoker;
 import org.atmosphere.config.service.Message;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.config.managed.Decoder;
@@ -57,6 +59,7 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
     private final Object messageTarget;
     private final List<Encoder<?, ?>> messageEncoders;
     private final List<Decoder<?, ?>> messageDecoders;
+    private String agentName;
 
     /**
      * @param aiDelegate    the AI endpoint handler for LLM pipeline
@@ -118,6 +121,28 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
     @Override
     public void onRequest(AtmosphereResource resource) throws IOException {
         var method = resource.getRequest().getMethod();
+
+        // Session tracking: register on first request, track messages on POST
+        if (agentName != null) {
+            var registry = AgentSessionRegistry.instance();
+            var uuid = resource.uuid();
+            if ("GET".equalsIgnoreCase(method)) {
+                registry.sessionStarted(uuid, agentName, resource.transport().name());
+                resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                    @Override
+                    public void onDisconnect(AtmosphereResourceEvent event) {
+                        registry.sessionEnded(uuid);
+                    }
+
+                    @Override
+                    public void onClose(AtmosphereResourceEvent event) {
+                        registry.sessionEnded(uuid);
+                    }
+                });
+            } else if ("POST".equalsIgnoreCase(method)) {
+                registry.messageReceived(uuid);
+            }
+        }
 
         if ("POST".equalsIgnoreCase(method)) {
             AtmosphereRequestImpl.Body body = resource.getRequest().body();
@@ -225,6 +250,14 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
             logger.error("@Message handler failed: {}", e.getMessage(), e);
         }
         return false;
+    }
+
+    /**
+     * Set the agent name for session tracking. Called by the processor
+     * after construction.
+     */
+    public void setAgentName(String agentName) {
+        this.agentName = agentName;
     }
 
     // visible for testing

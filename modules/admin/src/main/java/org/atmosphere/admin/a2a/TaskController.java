@@ -56,6 +56,15 @@ public final class TaskController {
         return taskManager.getTask(taskId).map(this::taskDetail);
     }
 
+    /**
+     * Cancel an in-flight task.
+     *
+     * @return true if the task was found in WORKING state and canceled
+     */
+    public boolean cancelTask(String taskId) {
+        return taskManager.cancelTask(taskId);
+    }
+
     private Map<String, Object> taskSummary(TaskContext task) {
         var info = new LinkedHashMap<String, Object>();
         info.put("taskId", task.taskId());

@@ -67,9 +67,10 @@ public final class AtmosphereAdmin {
         // Health snapshot
         result.putAll(health.check());
 
-        // Agent count
+        // Agent count and session count
         var agents = agentController.listAgents();
         result.put("agentCount", agents.size());
+        result.put("activeSessions", agentController.totalSessionCount());
 
         // Optional: coordinator count
         if (coordinatorController != null) {

@@ -125,6 +125,7 @@ public class AgentProcessor implements Processor<Object> {
             var commandRouter = new CommandRouter(commandRegistry, instance);
             var handler = new AgentHandler(aiHandler, commandRouter,
                     instance, framework.getAtmosphereConfig());
+            handler.setAgentName(agentName);
 
             // Step 7: Register handler at /atmosphere/agent/{name}
             List<AtmosphereInterceptor> interceptors = new LinkedList<>();

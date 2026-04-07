@@ -177,6 +177,7 @@ public class CoordinatorProcessor implements Processor<Object> {
             var commandRouter = new CommandRouter(commandRegistry, instance);
             var handler = new AgentHandler(aiHandler, commandRouter,
                     instance, framework.getAtmosphereConfig());
+            handler.setAgentName(coordinatorName);
 
             List<AtmosphereInterceptor> interceptors = new LinkedList<>();
             AnnotationUtil.defaultManagedServiceInterceptors(framework, interceptors);

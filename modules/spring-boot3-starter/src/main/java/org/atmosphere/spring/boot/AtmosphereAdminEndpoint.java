@@ -23,8 +23,11 @@ import org.atmosphere.admin.mcp.McpController;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -87,6 +90,87 @@ public class AtmosphereAdminEndpoint {
         return admin.framework().listInterceptors();
     }
 
+    // ── Framework Write Operations ──
+
+    @PostMapping("/broadcasters/{id}/broadcast")
+    public ResponseEntity<Map<String, Object>> broadcast(
+            @PathVariable("id") String id,
+            @RequestBody Map<String, String> body) {
+        var message = body.get("message");
+        if (message == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "missing 'message' field"));
+        }
+        var success = admin.framework().broadcast(id, message);
+        admin.auditLog().record(null, "broadcast", id, success, message);
+        if (success) {
+            return ResponseEntity.ok(Map.of("status", "broadcast sent"));
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PostMapping("/broadcasters/{id}/broadcast/{uuid}")
+    public ResponseEntity<Map<String, Object>> unicast(
+            @PathVariable("id") String id,
+            @PathVariable("uuid") String uuid,
+            @RequestBody Map<String, String> body) {
+        var message = body.get("message");
+        if (message == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "missing 'message' field"));
+        }
+        var success = admin.framework().unicast(id, uuid, message);
+        admin.auditLog().record(null, "unicast", id + "/" + uuid, success, message);
+        if (success) {
+            return ResponseEntity.ok(Map.of("status", "unicast sent"));
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @DeleteMapping("/broadcasters/{id}")
+    public ResponseEntity<Map<String, Object>> destroyBroadcaster(@PathVariable("id") String id) {
+        var success = admin.framework().destroyBroadcaster(id);
+        admin.auditLog().record(null, "destroy_broadcaster", id, success, null);
+        if (success) {
+            return ResponseEntity.ok(Map.of("status", "broadcaster destroyed"));
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @DeleteMapping("/resources/{uuid}")
+    public ResponseEntity<Map<String, Object>> disconnectResource(@PathVariable("uuid") String uuid) {
+        var success = admin.framework().disconnectResource(uuid);
+        admin.auditLog().record(null, "disconnect", uuid, success, null);
+        if (success) {
+            return ResponseEntity.ok(Map.of("status", "resource disconnected"));
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PostMapping("/resources/{uuid}/resume")
+    public ResponseEntity<Map<String, Object>> resumeResource(@PathVariable("uuid") String uuid) {
+        var success = admin.framework().resumeResource(uuid);
+        admin.auditLog().record(null, "resume", uuid, success, null);
+        if (success) {
+            return ResponseEntity.ok(Map.of("status", "resource resumed"));
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    // ── A2A Task Write Operations ──
+
+    @PostMapping("/tasks/{taskId}/cancel")
+    public ResponseEntity<Map<String, Object>> cancelTask(@PathVariable("taskId") String taskId) {
+        TaskController controller = admin.taskController();
+        if (controller == null) {
+            return ResponseEntity.notFound().build();
+        }
+        var success = controller.cancelTask(taskId);
+        admin.auditLog().record(null, "cancel_task", taskId, success, null);
+        if (success) {
+            return ResponseEntity.ok(Map.of("status", "task canceled"));
+        }
+        return ResponseEntity.notFound().build();
+    }
+
     // ── Agents ──
 
     @GetMapping("/agents")
@@ -99,6 +183,11 @@ public class AtmosphereAdminEndpoint {
         return admin.agents().getAgent(name)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/agents/{name}/sessions")
+    public List<Map<String, Object>> listAgentSessions(@PathVariable("name") String name) {
+        return admin.agents().listSessions(name);
     }
 
     // ── Coordinators ──

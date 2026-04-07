@@ -19,6 +19,7 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -103,6 +104,64 @@ public final class AgentController {
         info.put("protocols", protocols);
 
         return Optional.of(info);
+    }
+
+    /**
+     * List active sessions for a specific agent. Uses reflection to access
+     * {@code AgentSessionRegistry} to avoid compile-time dependency.
+     */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> listSessions(String agentName) {
+        try {
+            var registryClass = Class.forName("org.atmosphere.agent.session.AgentSessionRegistry");
+            var instanceMethod = registryClass.getMethod("instance");
+            var registry = instanceMethod.invoke(null);
+            var sessionsMethod = registryClass.getMethod("sessionsForAgent", String.class);
+            var sessions = (List<?>) sessionsMethod.invoke(registry, agentName);
+
+            var result = new ArrayList<Map<String, Object>>();
+            for (var session : sessions) {
+                var info = new LinkedHashMap<String, Object>();
+                info.put("sessionId", invokeGetter(session, "sessionId"));
+                info.put("agentName", invokeGetter(session, "agentName"));
+                info.put("transport", invokeGetter(session, "transport"));
+                info.put("startTime", String.valueOf(invokeGetter(session, "startTime")));
+                info.put("lastActivity", String.valueOf(invokeGetter(session, "lastActivity")));
+                info.put("messageCount", invokeGetter(session, "messageCount"));
+                result.add(info);
+            }
+            return result;
+        } catch (ClassNotFoundException e) {
+            logger.trace("AgentSessionRegistry not on classpath", e);
+            return List.of();
+        } catch (Exception e) {
+            logger.trace("Could not query agent sessions", e);
+            return List.of();
+        }
+    }
+
+    /**
+     * Get the total active session count across all agents.
+     */
+    public int totalSessionCount() {
+        try {
+            var registryClass = Class.forName("org.atmosphere.agent.session.AgentSessionRegistry");
+            var instanceMethod = registryClass.getMethod("instance");
+            var registry = instanceMethod.invoke(null);
+            var countMethod = registryClass.getMethod("totalSessionCount");
+            return (int) countMethod.invoke(registry);
+        } catch (Exception e) {
+            logger.trace("Could not query total session count", e);
+            return 0;
+        }
+    }
+
+    private Object invokeGetter(Object target, String methodName) {
+        try {
+            return target.getClass().getMethod(methodName).invoke(target);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            return null;
+        }
     }
 
     /**
