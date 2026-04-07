@@ -64,7 +64,7 @@ jobs:
         cache: 'maven'
 
     - name: Install Atmosphere Modules
-      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl modules/cpr,modules/ai,modules/rag,modules/spring-ai,modules/langchain4j,modules/embabel,modules/adk,modules/spring-boot-starter,modules/spring-boot3-starter,modules/quarkus-extension/runtime,modules/quarkus-extension/deployment,modules/wasync -am
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl modules/cpr,modules/ai,modules/rag,modules/spring-ai,modules/langchain4j,modules/embabel,modules/adk,modules/spring-boot-starter,modules/spring-boot3-starter,modules/quarkus-extension/runtime,modules/quarkus-extension/deployment,modules/quarkus-admin-extension/runtime,modules/quarkus-admin-extension/deployment,modules/wasync -am
 
     - name: Build Sample - ${{ matrix.sample }}
       run: ./mvnw -B package -DskipTests -Dgpg.skip=true -pl samples/${{ matrix.sample }} ${{ matrix.spring-boot-version == 3 && '-Pspring-boot3' || '' }}

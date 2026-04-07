@@ -64,6 +64,12 @@
             <artifactId>atmosphere-quarkus-admin-extension</artifactId>
         </dependency>
 
+        <!-- Micrometer — required by admin MetricsController at native image link time -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-micrometer</artifactId>
+        </dependency>
+
         <!-- REST implementation for admin endpoints -->
         <dependency>
             <groupId>io.quarkus</groupId>
