@@ -90,9 +90,13 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-micrometer</artifactId>
         </dependency>
+        <!-- OTel API only (not the full SDK) — satisfies MCP/A2A link-time
+             references without pulling in the SDK autoconfigure that has its
+             own GraalVM native image issues. -->
         <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-opentelemetry</artifactId>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api</artifactId>
+            <version>1.45.0</version>
         </dependency>
 
         <!-- REST implementation for admin endpoints -->
