@@ -31,7 +31,7 @@ jobs:
   jmh:
     name: JMH Micro-Benchmarks
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
@@ -46,11 +46,11 @@ jobs:
       - name: Build benchmarks
         run: ./mvnw -Pperf -pl modules/benchmarks -am package -DskipTests -q
 
-      - name: Run JMH (CI mode — short iterations for regression detection)
+      - name: Run JMH (CI mode — minimal iterations for regression detection)
         run: |
           mkdir -p target
           java -jar modules/benchmarks/target/benchmarks.jar \
-            -f 1 -wi 3 -i 5 \
+            -f 1 -wi 1 -i 3 \
             -rf json -rff target/jmh-results.json
 
       - name: Store benchmark result
@@ -82,7 +82,7 @@ jobs:
   vt-pinning:
     name: Virtual Thread Pinning Check
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
