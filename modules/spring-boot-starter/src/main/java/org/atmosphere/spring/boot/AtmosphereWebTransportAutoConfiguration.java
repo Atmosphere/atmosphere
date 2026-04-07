@@ -17,24 +17,25 @@ package org.atmosphere.spring.boot;
 
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.spring.boot.webtransport.AltSvcFilter;
-import org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.Bean;
 
 /**
  * Auto-configuration for the Atmosphere WebTransport over HTTP/3 transport.
- * Activates when Reactor Netty is on the classpath and
+ * Activates when Reactor Netty HTTP/3 is on the classpath and
  * {@code atmosphere.web-transport.enabled=true} is set.
  *
- * <p>Starts a secondary Reactor Netty HTTP/3 server alongside the servlet
- * container and registers an {@link AltSvcFilter} to advertise it to
- * browsers.</p>
+ * <p>The HTTP/3 sidecar is now managed by
+ * {@link org.atmosphere.spring.boot.webtransport.ReactorNettyHttp3AsyncSupport}
+ * (detected via {@link org.atmosphere.cpr.DefaultAsyncSupportResolver}), so this
+ * auto-configuration only bridges Spring Boot properties to Atmosphere init
+ * parameters and registers the {@link AltSvcFilter} for Alt-Svc header
+ * advertisement.</p>
  */
 @AutoConfiguration(after = AtmosphereAutoConfiguration.class)
 @ConditionalOnClass(name = {
@@ -45,51 +46,30 @@ import org.springframework.context.annotation.Bean;
 @EnableConfigurationProperties(AtmosphereProperties.class)
 public class AtmosphereWebTransportAutoConfiguration {
 
+    /**
+     * Bridge Spring Boot WebTransport properties to Atmosphere init parameters
+     * so the {@code ReactorNettyHttp3AsyncSupport} (resolved by the framework)
+     * picks them up during initialization.
+     */
     @Bean
-    @ConditionalOnMissingBean
-    public ReactorNettyTransportServer reactorNettyTransportServer(
+    @ConditionalOnMissingBean(name = "atmosphereWebTransportInitParamBridge")
+    public Object atmosphereWebTransportInitParamBridge(
             AtmosphereFramework framework,
             AtmosphereProperties properties) {
-        return new ReactorNettyTransportServer(framework, properties.getWebTransport());
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(name = "atmosphereWebTransportLifecycle")
-    public SmartLifecycle atmosphereWebTransportLifecycle(ReactorNettyTransportServer server) {
-        return new SmartLifecycle() {
-            private volatile boolean running;
-
-            @Override
-            public void start() {
-                try {
-                    server.start();
-                    running = true;
-                } catch (Exception e) {
-                    // Don't crash the app — WebTransport is optional.
-                    // Self-signed cert generation fails in GraalVM native image.
-                    org.slf4j.LoggerFactory.getLogger(AtmosphereWebTransportAutoConfiguration.class)
-                            .warn("WebTransport server failed to start (app continues without HTTP/3): {}",
-                                    e.getMessage());
-                }
-            }
-
-            @Override
-            public void stop() {
-                server.stop();
-                running = false;
-            }
-
-            @Override
-            public boolean isRunning() {
-                return running;
-            }
-
-            @Override
-            public int getPhase() {
-                // Start after the servlet container (default phase 0)
-                return Integer.MAX_VALUE - 1;
-            }
-        };
+        var wt = properties.getWebTransport();
+        framework.addInitParameter("atmosphere.http3.port", String.valueOf(wt.getPort()));
+        framework.addInitParameter("atmosphere.http3.host", wt.getHost());
+        if (wt.getSsl().getCertificate() != null) {
+            framework.addInitParameter("atmosphere.http3.ssl.certificate", wt.getSsl().getCertificate());
+        }
+        if (wt.getSsl().getPrivateKey() != null) {
+            framework.addInitParameter("atmosphere.http3.ssl.private-key", wt.getSsl().getPrivateKey());
+        }
+        if (wt.getSsl().getPrivateKeyPassword() != null) {
+            framework.addInitParameter("atmosphere.http3.ssl.private-key-password",
+                    wt.getSsl().getPrivateKeyPassword());
+        }
+        return Boolean.TRUE; // Sentinel bean — actual value unused
     }
 
     @Bean
