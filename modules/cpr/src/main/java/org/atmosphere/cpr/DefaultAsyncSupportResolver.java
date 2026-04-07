@@ -18,6 +18,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.JSR356AsyncSupport;
+import org.atmosphere.container.JettyHttp3AsyncSupport;
 import org.atmosphere.container.Servlet30CometSupport;
 import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
@@ -37,6 +38,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
     public final static String SERVLET_30 = "jakarta.servlet.AsyncListener";
     public final static String JSR356_WEBSOCKET = "jakarta.websocket.Endpoint";
+    public final static String JETTY_HTTP3 = "org.eclipse.jetty.http3.server.HTTP3ServerConnector";
 
     private final AtmosphereConfig config;
 
@@ -78,11 +80,19 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         var result = new ArrayList<Class<? extends AsyncSupport<?>>>();
         if (useServlet30Async && !useNativeIfPossible) {
             if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
-                result.add(JSR356AsyncSupport.class);
+                if (testClassExists(JETTY_HTTP3)) {
+                    result.add(JettyHttp3AsyncSupport.class);
+                } else {
+                    result.add(JSR356AsyncSupport.class);
+                }
             }
         } else {
             if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
-                result.add(JSR356AsyncSupport.class);
+                if (testClassExists(JETTY_HTTP3)) {
+                    result.add(JettyHttp3AsyncSupport.class);
+                } else {
+                    result.add(JSR356AsyncSupport.class);
+                }
             }
         }
         return result;

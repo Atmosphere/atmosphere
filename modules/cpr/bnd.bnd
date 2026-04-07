@@ -26,6 +26,7 @@ Import-Package: \
     jakarta.inject*;resolution:=optional,\
     io.quarkus.runtime*;resolution:=optional,\
     org.atmosphere.jersey.util*;resolution:=optional,\
+    org.eclipse.jetty*;resolution:=optional,\
     *
 
 Require-Capability: \

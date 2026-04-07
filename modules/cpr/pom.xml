@@ -115,6 +115,15 @@
             <artifactId>opentelemetry-api</artifactId>
             <optional>true</optional>
         </dependency>
+
+        <!-- Optional: Jetty 12 HTTP/3 support. When present, JettyHttp3AsyncSupport
+             adds an HTTP/3 connector to the embedded Jetty server automatically. -->
+        <dependency>
+            <groupId>org.eclipse.jetty.http3</groupId>
+            <artifactId>jetty-http3-server</artifactId>
+            <version>${jetty-version}</version>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 </project>
 
