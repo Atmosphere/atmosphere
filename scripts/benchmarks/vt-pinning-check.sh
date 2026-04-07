@@ -22,6 +22,8 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 FILTER="${1:-}"
+shift 2>/dev/null || true
+EXTRA_JMH_ARGS="$*"
 OUT_DIR="target/jmh-results"
 mkdir -p "${OUT_DIR}"
 
@@ -45,7 +47,8 @@ java \
     -Djdk.tracePinnedThreads=short \
     -jar "${JAR}" \
     ${FILTER:+"${FILTER}"} \
-    -f 1 -wi 2 -i 3 \
+    ${EXTRA_JMH_ARGS} \
+    -f 1 -wi 1 -i 1 \
     -rf text \
     -rff "${OUT_DIR}/vt-pinning-${TIMESTAMP}.txt" \
     2>&1 | tee "${OUT_DIR}/vt-pinning-${TIMESTAMP}.log"

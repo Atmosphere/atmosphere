@@ -98,7 +98,9 @@ jobs:
         run: ./mvnw -Pperf -pl modules/benchmarks -am package -DskipTests -q
 
       - name: Check for VT pinning (Checkpoint + Broadcaster — most lock-sensitive)
-        run: scripts/benchmarks/vt-pinning-check.sh "Checkpoint|Broadcaster"
+        run: |
+          scripts/benchmarks/vt-pinning-check.sh "Checkpoint|Broadcaster" \
+            -p snapshotCount=1000 -p subscriberCount=10
 
       - name: Upload JFR recording
         if: failure()
