@@ -15,7 +15,11 @@
  */
 package org.atmosphere.spring.boot;
 
+import org.atmosphere.admin.AdminEventHandler;
+import org.atmosphere.admin.AdminEventProducer;
+import org.atmosphere.admin.AdminMcpBridge;
 import org.atmosphere.admin.AtmosphereAdmin;
+import org.atmosphere.admin.ControlAuthorizer;
 import org.atmosphere.admin.a2a.TaskController;
 import org.atmosphere.admin.ai.AiRuntimeController;
 import org.atmosphere.admin.coordinator.CoordinatorController;
@@ -55,8 +59,44 @@ public class AtmosphereAdminAutoConfiguration {
     @ConditionalOnMissingBean
     public AtmosphereAdmin atmosphereAdmin(AtmosphereFramework framework) {
         var admin = new AtmosphereAdmin(framework, 1000);
+
+        // Register the admin event WebSocket handler and install the event producer
+        var handler = new AdminEventHandler();
+        java.util.List<org.atmosphere.cpr.AtmosphereInterceptor> interceptors =
+                new java.util.LinkedList<>();
+        org.atmosphere.annotation.AnnotationUtil
+                .defaultManagedServiceInterceptors(framework, interceptors);
+        framework.addAtmosphereHandler(
+                AdminEventHandler.ADMIN_BROADCASTER_ID, handler, interceptors);
+        var producer = new AdminEventProducer(framework);
+        producer.install();
+
         logger.info("Atmosphere Admin control plane enabled at /api/admin/*");
+        logger.info("Atmosphere Admin event stream at {}", AdminEventHandler.ADMIN_BROADCASTER_ID);
         return admin;
+    }
+
+    /**
+     * Registers admin operations as MCP tools when the MCP module is available.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.atmosphere.mcp.registry.McpRegistry")
+    @ConditionalOnProperty(name = "atmosphere.admin.mcp-tools", matchIfMissing = true)
+    static class AdminMcpBridgeConfiguration {
+
+        @Bean
+        AdminMcpBridge atmosphereAdminMcpBridge(
+                AtmosphereAdmin admin,
+                org.atmosphere.mcp.registry.McpRegistry registry,
+                AtmosphereProperties properties) {
+            var bridge = new AdminMcpBridge(admin, registry, ControlAuthorizer.ALLOW_ALL);
+            bridge.registerReadTools();
+            if (Boolean.TRUE.toString().equalsIgnoreCase(
+                    properties.getAdminMcpWriteTools())) {
+                bridge.registerWriteTools();
+            }
+            return bridge;
+        }
     }
 
     /**

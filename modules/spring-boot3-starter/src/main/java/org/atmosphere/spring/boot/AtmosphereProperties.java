@@ -223,12 +223,23 @@ public class AtmosphereProperties {
 
     private String consoleSubtitle = "";
 
+    /** Whether to register admin write tools as MCP tools (default false). */
+    private String adminMcpWriteTools = "false";
+
     public String getConsoleSubtitle() {
         return consoleSubtitle;
     }
 
     public void setConsoleSubtitle(String consoleSubtitle) {
         this.consoleSubtitle = consoleSubtitle;
+    }
+
+    public String getAdminMcpWriteTools() {
+        return adminMcpWriteTools;
+    }
+
+    public void setAdminMcpWriteTools(String adminMcpWriteTools) {
+        this.adminMcpWriteTools = adminMcpWriteTools;
     }
 
     public static class AiProperties {
