@@ -15,39 +15,62 @@
  */
 package org.atmosphere.quarkus.runtime.admin;
 
+import io.quarkus.runtime.Startup;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Singleton;
 import org.atmosphere.admin.AdminEventHandler;
 import org.atmosphere.admin.AdminEventProducer;
 import org.atmosphere.admin.AtmosphereAdmin;
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.quarkus.runtime.LazyAtmosphereConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * CDI producer for the {@link AtmosphereAdmin} facade in Quarkus.
- * Creates the admin bean lazily when first injected, after the
- * Atmosphere framework is initialized.
+ * Eagerly initialized at startup via {@link Startup} to ensure the
+ * Atmosphere framework is available.
  *
  * @since 4.0
  */
+@Startup
 @ApplicationScoped
 public class AdminProducer {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminProducer.class);
 
+    private volatile AtmosphereAdmin admin;
+
     @Produces
     @Singleton
     public AtmosphereAdmin atmosphereAdmin() {
-        var framework = LazyAtmosphereConfigurator.getFramework();
-        if (framework == null) {
-            throw new IllegalStateException(
-                    "AtmosphereFramework not initialized yet — "
-                            + "ensure quarkus.atmosphere.load-on-startup > 0");
+        if (admin != null) {
+            return admin;
         }
 
-        var admin = new AtmosphereAdmin(framework, 1000);
+        // Wait for framework — it may not be ready yet at first call
+        AtmosphereFramework framework = null;
+        for (int i = 0; i < 50; i++) {
+            framework = LazyAtmosphereConfigurator.getFramework();
+            if (framework != null) {
+                break;
+            }
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        if (framework == null) {
+            logger.warn("Atmosphere Admin: framework not available — admin disabled");
+            admin = new AtmosphereAdmin(null, 1000);
+            return admin;
+        }
+
+        admin = new AtmosphereAdmin(framework, 1000);
 
         // Register the admin event WebSocket handler
         var handler = new AdminEventHandler();

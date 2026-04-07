@@ -57,6 +57,18 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-jackson</artifactId>
         </dependency>
+
+        <!-- Admin control plane dashboard -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-admin</artifactId>
+        </dependency>
+
+        <!-- REST implementation for admin endpoints -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-jackson</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

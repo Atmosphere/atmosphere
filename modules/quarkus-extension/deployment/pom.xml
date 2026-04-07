@@ -34,6 +34,14 @@
             <artifactId>quarkus-websockets-client-deployment</artifactId>
         </dependency>
 
+        <!-- Admin control plane — must be here (not just runtime) for
+             Quarkus dev mode classloading to find admin classes -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-admin</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Override parent's SLF4J 1.x with Quarkus-compatible version -->
         <dependency>
             <groupId>org.slf4j</groupId>

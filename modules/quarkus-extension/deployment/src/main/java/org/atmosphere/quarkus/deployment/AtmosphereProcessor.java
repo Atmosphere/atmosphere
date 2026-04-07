@@ -76,6 +76,16 @@ class AtmosphereProcessor {
     }
 
     @BuildStep
+    IndexDependencyBuildItem indexAtmosphereAdmin() {
+        return new IndexDependencyBuildItem("org.atmosphere", "atmosphere-admin");
+    }
+
+    @BuildStep
+    IndexDependencyBuildItem indexAtmosphereQuarkusRuntime() {
+        return new IndexDependencyBuildItem("org.atmosphere", "atmosphere-quarkus-extension");
+    }
+
+    @BuildStep
     void ignoreAtmosphereScis(BuildProducer<IgnoredServletContainerInitializerBuildItem> ignored) {
         // Suppress both Atmosphere SCIs. We manage annotation scanning at build time
         // via Jandex, and framework initialization via QuarkusAtmosphereServlet.
@@ -327,40 +337,26 @@ class AtmosphereProcessor {
      * when {@code atmosphere-admin} is on the classpath.
      */
     @BuildStep
-    void registerAdminReflection(BuildProducer<ReflectiveClassBuildItem> reflectiveClasses,
-                                  BuildProducer<io.quarkus.arc.deployment.AdditionalBeanBuildItem> additionalBeans) {
-        try {
-            Class.forName("org.atmosphere.admin.AtmosphereAdmin", false,
-                    Thread.currentThread().getContextClassLoader());
-        } catch (ClassNotFoundException e) {
-            return;
-        }
+    void registerAdminBeans(BuildProducer<ReflectiveClassBuildItem> reflectiveClasses,
+                             BuildProducer<io.quarkus.arc.deployment.AdditionalBeanBuildItem> additionalBeans) {
+        // Register admin CDI beans by class name — deployment module may not
+        // have JAX-RS API on classpath, so string references avoid warnings
+        additionalBeans.produce(
+                io.quarkus.arc.deployment.AdditionalBeanBuildItem.unremovableOf(
+                        "org.atmosphere.quarkus.runtime.admin.AdminProducer"));
+        additionalBeans.produce(
+                io.quarkus.arc.deployment.AdditionalBeanBuildItem.unremovableOf(
+                        "org.atmosphere.quarkus.runtime.admin.AdminResource"));
 
         // Register admin classes for reflection (native image)
         reflectiveClasses.produce(
                 ReflectiveClassBuildItem.builder(
-                                "org.atmosphere.admin.AtmosphereAdmin",
-                                "org.atmosphere.admin.AdminEventHandler",
-                                "org.atmosphere.admin.AdminEventProducer",
-                                "org.atmosphere.admin.ControlAuditLog",
-                                "org.atmosphere.admin.ControlAuditLog$AuditEntry",
-                                "org.atmosphere.admin.framework.FrameworkController",
-                                "org.atmosphere.admin.agent.AgentController",
                                 "org.atmosphere.quarkus.runtime.admin.AdminResource",
                                 "org.atmosphere.quarkus.runtime.admin.AdminProducer")
                         .constructors()
                         .methods()
                         .fields()
                         .reason("Atmosphere Admin control plane")
-                        .build());
-
-        // Register CDI beans for the admin producer and REST resource
-        additionalBeans.produce(
-                io.quarkus.arc.deployment.AdditionalBeanBuildItem.builder()
-                        .addBeanClasses(
-                                "org.atmosphere.quarkus.runtime.admin.AdminProducer",
-                                "org.atmosphere.quarkus.runtime.admin.AdminResource")
-                        .setUnremovable()
                         .build());
     }
 }

@@ -38,11 +38,10 @@
             <artifactId>quarkus-websockets-client</artifactId>
         </dependency>
 
-        <!-- Admin control plane (optional — enables /api/admin/* when present) -->
+        <!-- Admin control plane — auto-enables /api/admin/* dashboard -->
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-admin</artifactId>
-            <optional>true</optional>
         </dependency>
 
         <!-- Jakarta REST API for admin REST endpoints (provided — user brings implementation) -->
