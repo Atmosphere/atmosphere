@@ -81,21 +81,54 @@ public class AtmosphereAdminAutoConfiguration {
             logger.debug("Atmosphere Admin: Metrics controller wired (Micrometer)");
         }
 
-        // Register the admin event WebSocket handler and install the event producer
-        var handler = new AdminEventHandler();
-        java.util.List<org.atmosphere.cpr.AtmosphereInterceptor> interceptors =
-                new java.util.LinkedList<>();
-        org.atmosphere.annotation.AnnotationUtil
-                .defaultManagedServiceInterceptors(framework, interceptors);
-        framework.addAtmosphereHandler(
-                AdminEventHandler.ADMIN_BROADCASTER_ID, handler, interceptors);
-        var producer = new AdminEventProducer(framework);
-        producer.install();
-
-        logger.info("Atmosphere Admin dashboard at /atmosphere/admin/");
-        logger.info("Atmosphere Admin REST API at /api/admin/*");
-        logger.info("Atmosphere Admin event stream at {}", AdminEventHandler.ADMIN_BROADCASTER_ID);
+        // Handler + event producer registration is deferred to
+        // atmosphereAdminLifecycle (below) — the framework's BroadcasterFactory
+        // is not available yet at bean-creation time.
         return admin;
+    }
+
+    /**
+     * Deferred admin setup: registers the event WebSocket handler and installs
+     * the event producer AFTER the servlet container starts (and therefore after
+     * {@code AtmosphereServlet.init()} creates the {@code BroadcasterFactory}).
+     */
+    @Bean
+    @ConditionalOnBean(AtmosphereAdmin.class)
+    public org.springframework.context.SmartLifecycle atmosphereAdminLifecycle(
+            AtmosphereFramework framework) {
+        return new org.springframework.context.SmartLifecycle() {
+            private volatile boolean running;
+
+            @Override
+            public void start() {
+                try {
+                    var handler = new AdminEventHandler();
+                    java.util.List<org.atmosphere.cpr.AtmosphereInterceptor> interceptors =
+                            new java.util.LinkedList<>();
+                    org.atmosphere.annotation.AnnotationUtil
+                            .defaultManagedServiceInterceptors(framework, interceptors);
+                    framework.addAtmosphereHandler(
+                            AdminEventHandler.ADMIN_BROADCASTER_ID, handler, interceptors);
+                    var producer = new AdminEventProducer(framework);
+                    producer.install();
+                    running = true;
+                    logger.info("Atmosphere Admin dashboard at /atmosphere/admin/");
+                    logger.info("Atmosphere Admin REST API at /api/admin/*");
+                } catch (Exception e) {
+                    logger.warn("Admin event setup failed (app continues without admin events): {}",
+                            e.getMessage());
+                }
+            }
+
+            @Override
+            public void stop() { running = false; }
+
+            @Override
+            public boolean isRunning() { return running; }
+
+            @Override
+            public int getPhase() { return Integer.MAX_VALUE - 2; }
+        };
     }
 
     @Bean
