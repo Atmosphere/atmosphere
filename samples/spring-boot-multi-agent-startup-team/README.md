@@ -10,6 +10,7 @@ This sample demonstrates:
 - **`AgentFleet`** API for sequential and parallel agent dispatch
 - **`@Agent`** + **`@AgentSkill`** for headless specialist agents
 - **Coordination Journal** for execution observability
+- **Admin Control Plane** — live dashboard at `/atmosphere/admin/` with event stream, agent inspection, and operational controls
 - **4 swappable AI runtimes**: ADK (default), Embabel, Spring AI, LangChain4j
 - **Skill files** (`prompts/*.md`) defining agent personas and capabilities
 
@@ -27,6 +28,9 @@ export GEMINI_API_KEY=your-key-here
 
 Open [http://localhost:8080/atmosphere/console](http://localhost:8080/atmosphere/console)
 and type a prompt like: *"Analyze the market for AI developer tools"*
+
+Open [http://localhost:8080/atmosphere/admin/](http://localhost:8080/atmosphere/admin/)
+to see the admin dashboard with live event stream, all 5 agents, fleet topology, and operational controls.
 
 ## The Team
 
@@ -219,6 +223,24 @@ journal and displays it as a tool card in the console:
   COMPLETE  2 calls in 5ms
   DISPATCH  writer-agent -> write_report
   DONE      writer-agent (1ms)
+```
+
+## Admin Dashboard
+
+The `atmosphere-admin` dependency enables a real-time management dashboard at `/atmosphere/admin/`:
+
+- **Dashboard** — live counters (5 agents, 12 broadcasters), WebSocket event feed, connected resources
+- **Agents** — all 5 agents listed: CEO coordinator (v1.0.0) + 4 headless specialists with a2a/mcp protocol badges
+- **Journal** — query coordination events by coordination ID or agent name
+- **Control** — broadcast messages to any agent, disconnect clients, cancel A2A tasks, with full audit trail
+
+The event stream uses Atmosphere's own WebSocket transport — the admin dashboard eats its own dog food.
+
+```bash
+# REST API
+curl http://localhost:8080/api/admin/overview     # system snapshot
+curl http://localhost:8080/api/admin/agents        # all 5 agents
+curl http://localhost:8080/api/admin/broadcasters   # 12 active broadcasters
 ```
 
 ## Console Output
