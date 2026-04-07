@@ -149,6 +149,12 @@
             <artifactId>atmosphere-mcp</artifactId>
         </dependency>
 
+        <!-- Admin control plane dashboard -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-admin</artifactId>
+        </dependency>
+
         <!-- Web scraping for Research Agent -->
         <dependency>
             <groupId>org.jsoup</groupId>
