@@ -52,9 +52,9 @@ public final class AtmosphereAdmin {
     private Object metricsController;
 
     public AtmosphereAdmin(AtmosphereFramework framework, int auditLogSize) {
-        this.frameworkController = new FrameworkController(framework);
-        this.agentController = new AgentController(framework);
-        this.health = new AtmosphereHealth(framework);
+        this.frameworkController = framework != null ? new FrameworkController(framework) : null;
+        this.agentController = framework != null ? new AgentController(framework) : null;
+        this.health = framework != null ? new AtmosphereHealth(framework) : null;
         this.auditLog = new ControlAuditLog(auditLogSize);
     }
 
@@ -64,6 +64,12 @@ public final class AtmosphereAdmin {
      */
     public Map<String, Object> overview() {
         var result = new LinkedHashMap<String, Object>();
+
+        if (health == null) {
+            result.put("status", "DOWN");
+            result.put("error", "Framework not initialized");
+            return result;
+        }
 
         // Health snapshot
         result.putAll(health.check());
