@@ -25,14 +25,8 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.KeyPairGenerator;
-import java.security.KeyStore;
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
-import java.util.Date;
 
 /**
  * Jetty 12 HTTP/3 {@link org.atmosphere.cpr.AsyncSupport} implementation.
@@ -139,91 +133,48 @@ public class JettyHttp3AsyncSupport extends JSR356AsyncSupport {
             return sslContextFactory;
         }
 
-        // Generate a self-signed certificate for development use
-        logger.warn("No SSL keystore configured for HTTP/3 — generating self-signed certificate (dev only)");
-        var keyStore = generateSelfSignedKeyStore();
-        sslContextFactory.setKeyStore(keyStore);
+        // Generate a self-signed keystore for development using keytool (JDK tool).
+        // We use keytool as a subprocess instead of sun.security.x509 internals
+        // because the JDK module system restricts access to those classes.
+        logger.warn("No SSL keystore configured for HTTP/3 — generating self-signed certificate via keytool (dev only)");
+        var tempKeystore = generateSelfSignedKeystore();
+        sslContextFactory.setKeyStorePath(tempKeystore.toString());
         sslContextFactory.setKeyStorePassword("changeit");
-        sslContextFactory.setKeyManagerPassword("changeit");
+        sslContextFactory.setKeyStoreType("PKCS12");
         return sslContextFactory;
     }
 
     /**
-     * Generate a PKCS12 keystore with a self-signed RSA certificate.
+     * Generate a temporary PKCS12 keystore with a self-signed ECDSA certificate
+     * using the JDK's {@code keytool} command. The keystore file is marked for
+     * deletion on JVM exit.
      */
-    private KeyStore generateSelfSignedKeyStore() throws Exception {
-        var keyPairGen = KeyPairGenerator.getInstance("RSA");
-        keyPairGen.initialize(2048);
-        var keyPair = keyPairGen.generateKeyPair();
+    private Path generateSelfSignedKeystore() throws Exception {
+        var keystorePath = Files.createTempFile("jetty-http3-", ".p12");
+        keystorePath.toFile().deleteOnExit();
+        // Delete the empty file first — keytool refuses to overwrite
+        Files.delete(keystorePath);
 
-        // Build a self-signed X.509 certificate using sun.security.x509 internals
-        // (available in JDK 21+)
-        var cert = buildSelfSignedCert(keyPair);
+        var keytool = Path.of(System.getProperty("java.home"), "bin", "keytool").toString();
+        var process = new ProcessBuilder(
+                keytool,
+                "-genkeypair", "-keyalg", "EC", "-groupname", "secp256r1",
+                "-alias", "jetty-http3",
+                "-dname", "CN=localhost,O=Atmosphere Dev",
+                "-validity", "14",
+                "-keystore", keystorePath.toString(),
+                "-storetype", "PKCS12",
+                "-storepass", "changeit"
+        ).redirectErrorStream(true).start();
 
-        var keyStore = KeyStore.getInstance("PKCS12");
-        keyStore.load(null, "changeit".toCharArray());
-        keyStore.setKeyEntry("jetty-http3", keyPair.getPrivate(), "changeit".toCharArray(),
-                new Certificate[]{cert});
-        return keyStore;
-    }
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            var output = new String(process.getInputStream().readAllBytes());
+            throw new IllegalStateException("keytool failed (exit " + exitCode + "): " + output);
+        }
 
-    /**
-     * Build a self-signed X.509 certificate valid for 14 days using JDK internal APIs.
-     * Uses reflection to access {@code sun.security.x509} classes, which are
-     * available in all standard JDK distributions (OpenJDK, Oracle, etc.).
-     */
-    private X509Certificate buildSelfSignedCert(java.security.KeyPair keyPair) throws Exception {
-        var now = new Date();
-        var expiry = new Date(now.getTime() + 14L * 24 * 60 * 60 * 1000);
-
-        // Use JDK internal X509CertImpl to create a self-signed certificate
-        var certInfoClass = Class.forName("sun.security.x509.X509CertInfo");
-        var certInfo = certInfoClass.getDeclaredConstructor().newInstance();
-
-        // Version
-        var certVersionClass = Class.forName("sun.security.x509.CertificateVersion");
-        var version = certVersionClass.getDeclaredConstructor(int.class).newInstance(2); // V3
-        certInfoClass.getMethod("set", String.class, Object.class).invoke(certInfo, "version", version);
-
-        // Serial number
-        var certSerialClass = Class.forName("sun.security.x509.CertificateSerialNumber");
-        var serialNum = certSerialClass.getDeclaredConstructor(BigInteger.class)
-                .newInstance(BigInteger.valueOf(System.currentTimeMillis()));
-        certInfoClass.getMethod("set", String.class, Object.class).invoke(certInfo, "serialNumber", serialNum);
-
-        // Subject and Issuer (self-signed, so same)
-        var x500NameClass = Class.forName("sun.security.x509.X500Name");
-        var x500Name = x500NameClass.getDeclaredConstructor(String.class)
-                .newInstance("CN=localhost, O=Atmosphere Dev, L=dev");
-        certInfoClass.getMethod("set", String.class, Object.class).invoke(certInfo, "subject", x500Name);
-        certInfoClass.getMethod("set", String.class, Object.class).invoke(certInfo, "issuer", x500Name);
-
-        // Validity
-        var certValidityClass = Class.forName("sun.security.x509.CertificateValidity");
-        var validity = certValidityClass.getDeclaredConstructor(Date.class, Date.class)
-                .newInstance(now, expiry);
-        certInfoClass.getMethod("set", String.class, Object.class).invoke(certInfo, "validity", validity);
-
-        // Key
-        var certKeyClass = Class.forName("sun.security.x509.CertificateX509Key");
-        var certKey = certKeyClass.getDeclaredConstructor(java.security.PublicKey.class)
-                .newInstance(keyPair.getPublic());
-        certInfoClass.getMethod("set", String.class, Object.class).invoke(certInfo, "key", certKey);
-
-        // Algorithm ID
-        var algIdClass = Class.forName("sun.security.x509.AlgorithmId");
-        var algId = algIdClass.getMethod("get", String.class).invoke(null, "SHA256withRSA");
-        var certAlgClass = Class.forName("sun.security.x509.CertificateAlgorithmId");
-        var certAlg = certAlgClass.getDeclaredConstructor(algIdClass).newInstance(algId);
-        certInfoClass.getMethod("set", String.class, Object.class).invoke(certInfo, "algorithmID", certAlg);
-
-        // Create and sign the certificate
-        var x509CertImplClass = Class.forName("sun.security.x509.X509CertImpl");
-        var cert = x509CertImplClass.getDeclaredConstructor(certInfoClass).newInstance(certInfo);
-        x509CertImplClass.getMethod("sign", java.security.PrivateKey.class, String.class)
-                .invoke(cert, keyPair.getPrivate(), "SHA256withRSA");
-
-        return (X509Certificate) cert;
+        logger.info("Generated self-signed HTTP/3 keystore: {}", keystorePath);
+        return keystorePath;
     }
 
     private int resolveHttp3Port(AtmosphereConfig config) {

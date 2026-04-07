@@ -61,6 +61,12 @@
                 <artifactId>jackson-databind</artifactId>
                 <version>${jackson.version}</version>
             </dependency>
+            <!-- Jetty HTTP/3: auto-detected by JettyHttp3AsyncSupport -->
+            <dependency>
+                <groupId>org.eclipse.jetty.http3</groupId>
+                <artifactId>jetty-http3-server</artifactId>
+                <version>${jetty-version}</version>
+            </dependency>
     </dependencies>
     <profiles>
         <profile>
