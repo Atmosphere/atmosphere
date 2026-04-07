@@ -41,6 +41,7 @@ public final class AgentController {
     private static final Logger logger = LoggerFactory.getLogger(AgentController.class);
     private static final String AGENT_PATH_PREFIX = "/atmosphere/agent/";
     private static final String AGENT_ANNOTATION = "org.atmosphere.agent.annotation.Agent";
+    private static final String COORDINATOR_ANNOTATION = "org.atmosphere.coordinator.annotation.Coordinator";
 
     private final AtmosphereFramework framework;
 
@@ -50,25 +51,73 @@ public final class AgentController {
 
     /**
      * List all registered agents with metadata extracted from their
-     * {@code @Agent} annotation.
+     * {@code @Agent} or {@code @Coordinator} annotation. Discovers both
+     * non-headless agents (registered at {@code /atmosphere/agent/{name}})
+     * and headless agents (only MCP/A2A sub-paths exist).
      */
     public List<Map<String, Object>> listAgents() {
+        var handlers = framework.getAtmosphereHandlers();
         var result = new ArrayList<Map<String, Object>>();
-        for (var entry : framework.getAtmosphereHandlers().entrySet()) {
+        var seen = new java.util.HashSet<String>();
+
+        for (var entry : handlers.entrySet()) {
             var path = entry.getKey();
-            // Only top-level agent paths, not protocol sub-paths
-            if (!path.startsWith(AGENT_PATH_PREFIX)
-                    || path.contains("/a2a") || path.contains("/mcp") || path.contains("/agui")) {
+            if (!path.startsWith(AGENT_PATH_PREFIX)) {
                 continue;
             }
 
-            var handler = entry.getValue().atmosphereHandler();
-            var info = new LinkedHashMap<String, Object>();
-            info.put("path", path);
-            info.put("handlerClass", handler.getClass().getSimpleName());
+            // Determine the agent name from the path
+            var suffix = path.substring(AGENT_PATH_PREFIX.length());
+            String agentName;
+            boolean headless = false;
 
-            // Extract @Agent annotation metadata from the handler's backing class
-            extractAgentMetadata(handler, info);
+            if (suffix.contains("/")) {
+                // This is a sub-path like {name}/mcp or {name}/a2a
+                agentName = suffix.substring(0, suffix.indexOf('/'));
+                headless = !handlers.containsKey(AGENT_PATH_PREFIX + agentName);
+            } else {
+                // This is the base path: {name}
+                agentName = suffix;
+            }
+
+            if (agentName.isEmpty() || !seen.add(agentName)) {
+                continue;
+            }
+
+            var info = new LinkedHashMap<String, Object>();
+            info.put("name", agentName);
+            info.put("path", AGENT_PATH_PREFIX + agentName);
+
+            // Get the handler for metadata extraction (prefer base, fallback to MCP)
+            var baseWrapper = handlers.get(AGENT_PATH_PREFIX + agentName);
+            var mcpWrapper = handlers.get(AGENT_PATH_PREFIX + agentName + "/mcp");
+            var handler = baseWrapper != null
+                    ? baseWrapper.atmosphereHandler() : null;
+
+            if (handler != null) {
+                info.put("handlerClass", handler.getClass().getSimpleName());
+                extractAgentMetadata(handler, info);
+            }
+
+            // Override headless if detected from annotation
+            if (headless) {
+                info.put("headless", true);
+            }
+
+            // Detect protocols
+            var protocols = new ArrayList<String>();
+            if (handlers.containsKey(AGENT_PATH_PREFIX + agentName + "/a2a")
+                    || handlers.containsKey("/atmosphere/a2a/" + agentName.replace("-agent", ""))) {
+                protocols.add("a2a");
+            }
+            if (mcpWrapper != null) {
+                protocols.add("mcp");
+            }
+            if (handlers.containsKey(AGENT_PATH_PREFIX + agentName + "/agui")) {
+                protocols.add("agui");
+            }
+            info.put("protocols", protocols);
+
             result.add(info);
         }
         return result;
@@ -78,32 +127,10 @@ public final class AgentController {
      * Get detail for a specific agent by name.
      */
     public Optional<Map<String, Object>> getAgent(String name) {
-        var path = AGENT_PATH_PREFIX + name;
-        var wrapper = framework.getAtmosphereHandlers().get(path);
-        if (wrapper == null) {
-            return Optional.empty();
-        }
-
-        var handler = wrapper.atmosphereHandler();
-        var info = new LinkedHashMap<String, Object>();
-        info.put("path", path);
-        info.put("handlerClass", handler.getClass().getSimpleName());
-        extractAgentMetadata(handler, info);
-
-        // Check for protocol sub-endpoints
-        var protocols = new ArrayList<String>();
-        if (framework.getAtmosphereHandlers().containsKey(path + "/a2a")) {
-            protocols.add("a2a");
-        }
-        if (framework.getAtmosphereHandlers().containsKey(path + "/mcp")) {
-            protocols.add("mcp");
-        }
-        if (framework.getAtmosphereHandlers().containsKey(path + "/agui")) {
-            protocols.add("agui");
-        }
-        info.put("protocols", protocols);
-
-        return Optional.of(info);
+        // Find this agent in the full list (uses the same discovery logic)
+        return listAgents().stream()
+                .filter(a -> name.equals(a.get("name")))
+                .findFirst();
     }
 
     /**
@@ -185,21 +212,23 @@ public final class AgentController {
     }
 
     private Object findAgentAnnotation(Object handler) {
-        // Check the handler class itself
+        // Check the handler class itself for @Agent or @Coordinator
         for (var annotation : handler.getClass().getAnnotations()) {
-            if (annotation.annotationType().getName().equals(AGENT_ANNOTATION)) {
+            var name = annotation.annotationType().getName();
+            if (name.equals(AGENT_ANNOTATION) || name.equals(COORDINATOR_ANNOTATION)) {
                 return annotation;
             }
         }
         // AgentHandler may hold a reference to the original annotated instance.
-        // Try to find a field that holds an object with @Agent.
+        // Try to find a field that holds an object with @Agent or @Coordinator.
         for (var field : handler.getClass().getDeclaredFields()) {
             try {
                 field.setAccessible(true);
                 var value = field.get(handler);
                 if (value != null) {
                     for (var annotation : value.getClass().getAnnotations()) {
-                        if (annotation.annotationType().getName().equals(AGENT_ANNOTATION)) {
+                        var name = annotation.annotationType().getName();
+                        if (name.equals(AGENT_ANNOTATION) || name.equals(COORDINATOR_ANNOTATION)) {
                             return annotation;
                         }
                     }
