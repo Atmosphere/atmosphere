@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
@@ -43,6 +44,7 @@ public final class InMemoryCheckpointStore implements CheckpointStore {
 
     private final int maxSnapshots;
     private final ConcurrentHashMap<CheckpointId, WorkflowSnapshot<?>> snapshots = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Set<CheckpointId>> coordIndex = new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<CheckpointListener> listeners = new CopyOnWriteArrayList<>();
 
     public InMemoryCheckpointStore() {
@@ -64,6 +66,7 @@ public final class InMemoryCheckpointStore implements CheckpointStore {
     @Override
     public void stop() {
         snapshots.clear();
+        coordIndex.clear();
         listeners.clear();
     }
 
@@ -71,6 +74,7 @@ public final class InMemoryCheckpointStore implements CheckpointStore {
     public <S> WorkflowSnapshot<S> save(WorkflowSnapshot<S> snapshot) {
         Objects.requireNonNull(snapshot, "snapshot must not be null");
         snapshots.put(snapshot.id(), snapshot);
+        indexByCoordination(snapshot.id(), snapshot.coordinationId());
         evictIfNeeded();
         dispatch(new CheckpointEvent.Saved(snapshot.id(), snapshot.coordinationId(), Instant.now()));
         return snapshot;
@@ -105,6 +109,7 @@ public final class InMemoryCheckpointStore implements CheckpointStore {
                 .createdAt(Instant.now())
                 .build();
         snapshots.put(forked.id(), forked);
+        indexByCoordination(forked.id(), forked.coordinationId());
         evictIfNeeded();
         dispatch(new CheckpointEvent.Forked(forked.id(), sourceId, forked.coordinationId(), Instant.now()));
         return forked;
@@ -113,10 +118,17 @@ public final class InMemoryCheckpointStore implements CheckpointStore {
     @Override
     public List<WorkflowSnapshot<?>> list(CheckpointQuery query) {
         Objects.requireNonNull(query, "query must not be null");
-        Stream<WorkflowSnapshot<?>> stream = snapshots.values().stream();
 
+        // Use the secondary index for coordinationId queries (O(K) instead
+        // of O(N) where K = snapshots for that coordination).
+        Stream<WorkflowSnapshot<?>> stream;
         if (query.coordinationId() != null) {
-            stream = stream.filter(s -> query.coordinationId().equals(s.coordinationId()));
+            var ids = coordIndex.getOrDefault(query.coordinationId(), Set.of());
+            stream = ids.stream()
+                    .map(snapshots::get)
+                    .filter(Objects::nonNull);
+        } else {
+            stream = snapshots.values().stream();
         }
         if (query.agentName() != null) {
             stream = stream.filter(s -> query.agentName().equals(s.agentName()));
@@ -144,6 +156,7 @@ public final class InMemoryCheckpointStore implements CheckpointStore {
         Objects.requireNonNull(id, "id must not be null");
         var removed = snapshots.remove(id);
         if (removed != null) {
+            removeFromIndex(id, removed.coordinationId());
             dispatch(new CheckpointEvent.Deleted(id, removed.coordinationId(), Instant.now()));
             return true;
         }
@@ -153,11 +166,17 @@ public final class InMemoryCheckpointStore implements CheckpointStore {
     @Override
     public int deleteCoordination(String coordinationId) {
         Objects.requireNonNull(coordinationId, "coordinationId must not be null");
+        // Use the index to find all snapshots for this coordination (O(K)
+        // instead of scanning the full store).
+        var ids = coordIndex.remove(coordinationId);
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
         int removed = 0;
-        for (var entry : snapshots.entrySet()) {
-            if (coordinationId.equals(entry.getValue().coordinationId())
-                    && snapshots.remove(entry.getKey(), entry.getValue())) {
-                dispatch(new CheckpointEvent.Deleted(entry.getKey(), coordinationId, Instant.now()));
+        for (var id : ids) {
+            var snapshot = snapshots.remove(id);
+            if (snapshot != null) {
+                dispatch(new CheckpointEvent.Deleted(id, coordinationId, Instant.now()));
                 removed++;
             }
         }
@@ -191,6 +210,21 @@ public final class InMemoryCheckpointStore implements CheckpointStore {
         }
     }
 
+    private void indexByCoordination(CheckpointId id, String coordinationId) {
+        if (coordinationId != null) {
+            coordIndex.computeIfAbsent(coordinationId, k -> ConcurrentHashMap.newKeySet()).add(id);
+        }
+    }
+
+    private void removeFromIndex(CheckpointId id, String coordinationId) {
+        if (coordinationId != null) {
+            coordIndex.computeIfPresent(coordinationId, (k, set) -> {
+                set.remove(id);
+                return set.isEmpty() ? null : set;
+            });
+        }
+    }
+
     private void evictIfNeeded() {
         if (snapshots.size() <= maxSnapshots) {
             return;
@@ -209,6 +243,7 @@ public final class InMemoryCheckpointStore implements CheckpointStore {
                 break;
             }
             if (snapshots.remove(entry.getKey(), entry.getValue())) {
+                removeFromIndex(entry.getKey(), entry.getValue().coordinationId());
                 overflow--;
             }
         }
