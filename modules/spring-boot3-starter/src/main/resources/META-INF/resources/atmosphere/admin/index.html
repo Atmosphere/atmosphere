@@ -269,8 +269,9 @@ function typeColor(t) {
 async function doBroadcast() {
   const id = document.getElementById('ctrl-broadcaster-id').value;
   const msg = document.getElementById('ctrl-message').value;
-  const r = await fetch(API + '/broadcasters/' + encodeURIComponent(id) + '/broadcast',
-    { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({message:msg}) });
+  const r = await fetch(API + '/broadcasters/broadcast',
+    { method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({broadcasterId:id, message:msg}) });
   const j = await r.json();
   document.getElementById('ctrl-broadcast-result').textContent = r.ok ? 'Sent' : (j.error || 'Not found');
 }

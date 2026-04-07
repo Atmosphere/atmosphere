@@ -159,19 +159,19 @@ public class AtmosphereAdminAutoConfiguration {
     }
 
     /**
-     * Registers admin operations as MCP tools when the MCP module is available.
+     * Registers admin operations as MCP tools when an McpRegistry bean is available.
      */
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = "org.atmosphere.mcp.registry.McpRegistry")
+    @ConditionalOnBean(name = "mcpRegistry")
     @ConditionalOnProperty(name = "atmosphere.admin.mcp-tools", matchIfMissing = true)
     static class AdminMcpBridgeConfiguration {
 
         @Bean
         AdminMcpBridge atmosphereAdminMcpBridge(
                 AtmosphereAdmin admin,
-                org.atmosphere.mcp.registry.McpRegistry registry,
+                org.atmosphere.mcp.registry.McpRegistry mcpRegistry,
                 AtmosphereProperties properties) {
-            var bridge = new AdminMcpBridge(admin, registry, ControlAuthorizer.ALLOW_ALL);
+            var bridge = new AdminMcpBridge(admin, mcpRegistry, ControlAuthorizer.ALLOW_ALL);
             bridge.registerReadTools();
             if (Boolean.TRUE.toString().equalsIgnoreCase(
                     properties.getAdminMcpWriteTools())) {
@@ -198,16 +198,16 @@ public class AtmosphereAdminAutoConfiguration {
     }
 
     /**
-     * Wires the MCP controller when the MCP module is available.
+     * Wires the MCP controller when an McpRegistry bean is available.
      */
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = "org.atmosphere.mcp.registry.McpRegistry")
+    @ConditionalOnBean(name = "mcpRegistry")
     static class McpAdminConfiguration {
 
         @Bean
         McpController atmosphereAdminMcpController(AtmosphereAdmin admin,
-                                                    org.atmosphere.mcp.registry.McpRegistry registry) {
-            var controller = new McpController(registry);
+                                                    org.atmosphere.mcp.registry.McpRegistry mcpRegistry) {
+            var controller = new McpController(mcpRegistry);
             admin.setMcpController(controller);
             logger.debug("Atmosphere Admin: MCP controller wired");
             return controller;
@@ -215,10 +215,10 @@ public class AtmosphereAdminAutoConfiguration {
     }
 
     /**
-     * Wires the A2A task controller when the A2A module is available.
+     * Wires the A2A task controller when a TaskManager bean is available.
      */
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = "org.atmosphere.a2a.runtime.TaskManager")
+    @ConditionalOnBean(name = "taskManager")
     static class A2aAdminConfiguration {
 
         @Bean

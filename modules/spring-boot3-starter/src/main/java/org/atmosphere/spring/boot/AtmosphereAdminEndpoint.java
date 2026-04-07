@@ -68,8 +68,8 @@ public class AtmosphereAdminEndpoint {
         return admin.framework().listBroadcasters();
     }
 
-    @GetMapping("/broadcasters/{id}")
-    public ResponseEntity<Map<String, Object>> getBroadcaster(@PathVariable("id") String id) {
+    @GetMapping("/broadcasters/detail")
+    public ResponseEntity<Map<String, Object>> getBroadcaster(@RequestParam("id") String id) {
         return admin.framework().getBroadcaster(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -92,13 +92,14 @@ public class AtmosphereAdminEndpoint {
 
     // ── Framework Write Operations ──
 
-    @PostMapping("/broadcasters/{id}/broadcast")
+    @PostMapping("/broadcasters/broadcast")
     public ResponseEntity<Map<String, Object>> broadcast(
-            @PathVariable("id") String id,
             @RequestBody Map<String, String> body) {
+        var id = body.get("broadcasterId");
         var message = body.get("message");
-        if (message == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "missing 'message' field"));
+        if (id == null || message == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "missing 'broadcasterId' or 'message' field"));
         }
         var success = admin.framework().broadcast(id, message);
         admin.auditLog().record(null, "broadcast", id, success, message);
@@ -108,14 +109,15 @@ public class AtmosphereAdminEndpoint {
         return ResponseEntity.notFound().build();
     }
 
-    @PostMapping("/broadcasters/{id}/broadcast/{uuid}")
+    @PostMapping("/broadcasters/unicast")
     public ResponseEntity<Map<String, Object>> unicast(
-            @PathVariable("id") String id,
-            @PathVariable("uuid") String uuid,
             @RequestBody Map<String, String> body) {
+        var id = body.get("broadcasterId");
+        var uuid = body.get("uuid");
         var message = body.get("message");
-        if (message == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "missing 'message' field"));
+        if (id == null || uuid == null || message == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "missing 'broadcasterId', 'uuid', or 'message' field"));
         }
         var success = admin.framework().unicast(id, uuid, message);
         admin.auditLog().record(null, "unicast", id + "/" + uuid, success, message);
@@ -125,8 +127,9 @@ public class AtmosphereAdminEndpoint {
         return ResponseEntity.notFound().build();
     }
 
-    @DeleteMapping("/broadcasters/{id}")
-    public ResponseEntity<Map<String, Object>> destroyBroadcaster(@PathVariable("id") String id) {
+    @DeleteMapping("/broadcasters/destroy")
+    public ResponseEntity<Map<String, Object>> destroyBroadcaster(
+            @RequestParam("id") String id) {
         var success = admin.framework().destroyBroadcaster(id);
         admin.auditLog().record(null, "destroy_broadcaster", id, success, null);
         if (success) {
