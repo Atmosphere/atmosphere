@@ -34,8 +34,19 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Auto-configuration that wires the Atmosphere Admin control plane when
@@ -71,9 +82,80 @@ public class AtmosphereAdminAutoConfiguration {
         var producer = new AdminEventProducer(framework);
         producer.install();
 
-        logger.info("Atmosphere Admin control plane enabled at /api/admin/*");
+        logger.info("Atmosphere Admin dashboard at /atmosphere/admin/");
+        logger.info("Atmosphere Admin REST API at /api/admin/*");
         logger.info("Atmosphere Admin event stream at {}", AdminEventHandler.ADMIN_BROADCASTER_ID);
         return admin;
+    }
+
+    @Bean
+    public FilterRegistrationBean<AdminResourceFilter> adminResourceFilter() {
+        var reg = new FilterRegistrationBean<>(new AdminResourceFilter());
+        reg.addUrlPatterns("/atmosphere/admin/*");
+        reg.setOrder(-1);
+        return reg;
+    }
+
+    /**
+     * Serves admin dashboard static assets from
+     * {@code META-INF/resources/atmosphere/admin/}.
+     */
+    static class AdminResourceFilter implements Filter {
+
+        private static final String PREFIX = "/atmosphere/admin";
+        private static final String RESOURCE_BASE = "META-INF/resources/atmosphere/admin/";
+
+        @Override
+        public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+                throws IOException, ServletException {
+            var httpReq = (HttpServletRequest) request;
+            var httpRes = (HttpServletResponse) response;
+            var path = httpReq.getRequestURI();
+
+            if (!path.startsWith(PREFIX)) {
+                chain.doFilter(request, response);
+                return;
+            }
+
+            var relativePath = path.substring(PREFIX.length());
+            if (relativePath.isEmpty() || relativePath.equals("/")) {
+                relativePath = "/index.html";
+            }
+
+            if (relativePath.contains("..")) {
+                httpRes.sendError(HttpServletResponse.SC_BAD_REQUEST);
+                return;
+            }
+
+            // Don't intercept the event stream WebSocket or REST API paths
+            if (relativePath.startsWith("/events")) {
+                chain.doFilter(request, response);
+                return;
+            }
+
+            var resourceName = relativePath.startsWith("/")
+                    ? relativePath.substring(1) : relativePath;
+            var resourcePath = RESOURCE_BASE + resourceName;
+
+            InputStream resource = Thread.currentThread().getContextClassLoader()
+                    .getResourceAsStream(resourcePath);
+            if (resource != null) {
+                try (resource) {
+                    httpRes.setContentType(guessContentType(resourceName));
+                    resource.transferTo(httpRes.getOutputStream());
+                }
+                return;
+            }
+
+            chain.doFilter(request, response);
+        }
+
+        private String guessContentType(String path) {
+            if (path.endsWith(".html")) return "text/html; charset=utf-8";
+            if (path.endsWith(".js")) return "application/javascript; charset=utf-8";
+            if (path.endsWith(".css")) return "text/css; charset=utf-8";
+            return "application/octet-stream";
+        }
     }
 
     /**
