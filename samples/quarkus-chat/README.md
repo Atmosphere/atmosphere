@@ -9,6 +9,7 @@ A real-time chat application on Quarkus with native image support. Uses `@Manage
 - **GraalVM Native Image** — works out of the box with the `native` profile
 - **WebSocket** with transparent long-polling fallback
 - **Zero configuration** — the extension auto-registers the servlet
+- **Admin Control Plane** — live dashboard at `/admin/` with event stream, agent inspection, and operational controls
 
 ## Server Side
 
@@ -82,6 +83,8 @@ mvn clean package -Pnative -Dquarkus.native.container-build=true
 ```
 
 Open http://localhost:8080/ in multiple browser tabs to chat.
+
+Open http://localhost:8080/admin/ for the admin dashboard with live event stream and operational controls.
 
 ## Project Structure
 

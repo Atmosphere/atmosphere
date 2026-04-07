@@ -224,6 +224,10 @@ export default defineConfig({
       name: 'admin-dashboard',
       testMatch: /admin-dashboard\.spec\.ts/,
     },
+    {
+      name: 'admin-quarkus',
+      testMatch: /admin-quarkus\.spec\.ts/,
+    },
     // ── P1: Coverage gaps ──
     {
       name: 'otel-chat',
