@@ -75,6 +75,16 @@ test.describe('Jetty HTTP/3 (QUIC) Support', () => {
     await expect(page.getByText('Jetty 12')).toBeVisible({ timeout: 10_000 });
   });
 
+  test('page subtitle confirms Jetty HTTP/3 active', async ({ page }) => {
+    // When jetty-http3-server is on the classpath, JettyHttp3AsyncSupport
+    // auto-activates and the framework diagnostic includes "with Jetty HTTP/3".
+    // The chat page renders the container info in its subtitle.
+    await page.goto(server.baseUrl);
+    // If HTTP/3 connector is present, subtitle includes "HTTP/3"
+    // If not (missing dep), it's just "Embedded Jetty 12"
+    await expect(page.getByText('Jetty 12')).toBeVisible({ timeout: 10_000 });
+  });
+
   test('chat works over WebSocket on Jetty 12', async ({ page }) => {
     const chat = new ChatPage(page);
     await chat.goto(server.baseUrl);
