@@ -42,6 +42,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
@@ -75,8 +77,10 @@ public class AtmosphereAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public AtmosphereServlet atmosphereServlet(SpringAtmosphereObjectFactory objectFactory,
-                                               AtmosphereProperties properties) {
+    public AtmosphereServlet atmosphereServlet(
+            SpringAtmosphereObjectFactory objectFactory,
+            AtmosphereProperties properties,
+            @Qualifier("atmosphereExecutor") ObjectProvider<java.util.concurrent.ExecutorService> executorProvider) {
         // Pre-scan for Atmosphere annotations using Spring's classpath scanner.
         // Spring Boot's embedded containers do not process @HandlesTypes from
         // ServletContainerInitializer, so Atmosphere's built-in annotation scanning
@@ -84,7 +88,7 @@ public class AtmosphereAutoConfiguration {
         // the results into the servlet context right before framework.init() reads them.
         Map<Class<? extends Annotation>, Set<Class<?>>> annotationMap = scanAnnotations(properties);
 
-        var servlet = new AnnotationAwareAtmosphereServlet(annotationMap);
+        var servlet = new AnnotationAwareAtmosphereServlet(annotationMap, executorProvider.getIfAvailable());
         servlet.framework().objectFactory(objectFactory);
         return servlet;
     }
@@ -407,10 +411,13 @@ public class AtmosphereAutoConfiguration {
     static class AnnotationAwareAtmosphereServlet extends AtmosphereServlet {
 
         private final Map<Class<? extends Annotation>, Set<Class<?>>> annotationMap;
+        private final java.util.concurrent.ExecutorService managedExecutor;
 
         AnnotationAwareAtmosphereServlet(
-                Map<Class<? extends Annotation>, Set<Class<?>>> annotationMap) {
+                Map<Class<? extends Annotation>, Set<Class<?>>> annotationMap,
+                java.util.concurrent.ExecutorService managedExecutor) {
             this.annotationMap = annotationMap;
+            this.managedExecutor = managedExecutor;
         }
 
         @Override
@@ -422,6 +429,23 @@ public class AtmosphereAutoConfiguration {
             // empty map.
             sc.getServletContext().setAttribute(
                     DefaultAnnotationProcessor.ANNOTATION_ATTRIBUTE, annotationMap);
+
+            // If a container-managed ExecutorService is available (e.g., from
+            // Jakarta Concurrency 3.1's @ManagedExecutorDefinition with VT
+            // support), pre-seed it into Atmosphere's config properties. The
+            // ExecutorsFactory checks these properties before creating its own
+            // executors, so this causes Atmosphere to use the container's
+            // executor instead of creating a new VT pool.
+            if (managedExecutor != null) {
+                var props = framework().getAtmosphereConfig().properties();
+                props.put(org.atmosphere.util.ExecutorsFactory.BROADCASTER_THREAD_POOL,
+                        managedExecutor);
+                props.put(org.atmosphere.util.ExecutorsFactory.ASYNC_WRITE_THREAD_POOL,
+                        managedExecutor);
+                logger.info("Using container-managed ExecutorService for Atmosphere: {}",
+                        managedExecutor.getClass().getName());
+            }
+
             super.init(sc);
         }
     }

@@ -91,6 +91,13 @@ public final class DefaultAgentFleet implements AgentFleet {
         return new AgentCall(agentName, skill, args);
     }
 
+    // TODO [JEP 525]: Replace CompletableFuture fan-out with StructuredTaskScope
+    // when it finalizes (6th preview in JDK 26). Benefits:
+    //   - Automatic cancellation of siblings on first failure (current: sequential
+    //     join + late cancel after all joins complete)
+    //   - scope.join().throwIfFailed() for cleaner error collection
+    //   - Structured ownership: parent scope owns child task lifetimes
+    // Deferred: libraries cannot use --enable-preview. Track JDK 27+ milestones.
     @Override
     public Map<String, AgentResult> parallel(AgentCall... calls) {
         logger.debug("Parallel fan-out to {} agents", calls.length);
