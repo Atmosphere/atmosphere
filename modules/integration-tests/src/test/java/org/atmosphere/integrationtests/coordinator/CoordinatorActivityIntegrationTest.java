@@ -79,10 +79,12 @@ public class CoordinatorActivityIntegrationTest {
         var ws = connect("/atmosphere/agent/activity-coordinator",
                 received, openLatch, synthesisLatch);
         assertTrue(openLatch.await(5, TimeUnit.SECONDS), "WebSocket should connect");
-        Thread.sleep(500);
+        // JDK 25/26 virtual thread scheduling can delay WebSocket suspension.
+        // Wait longer to ensure the AtmosphereResource is suspended before sending.
+        Thread.sleep(2000);
 
         ws.sendText("quantum computing", true).join();
-        assertTrue(synthesisLatch.await(15, TimeUnit.SECONDS),
+        assertTrue(synthesisLatch.await(25, TimeUnit.SECONDS),
                 "Should receive synthesis but got: " + received);
 
         // Verify agent-step events were streamed BEFORE the synthesis
@@ -152,7 +154,7 @@ public class CoordinatorActivityIntegrationTest {
 
         // Send first message
         ws.sendText("topic one", true).join();
-        assertTrue(messageLatch.await(15, TimeUnit.SECONDS),
+        assertTrue(messageLatch.await(25, TimeUnit.SECONDS),
                 "Should receive first synthesis");
 
         // Verify we got more than just the synthesis (activity events + synthesis)
