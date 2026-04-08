@@ -80,9 +80,9 @@ jobs:
           - name: ai-routing
             projects: "ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
           - name: protocols
-            projects: "mcp-server,mcp-tools,a2a-agent,agui-chat,multi-agent-startup-team"
+            projects: "mcp-server,mcp-tools,a2a-agent,a2a-discovery,agui-chat,multi-agent-startup-team"
           - name: protocols-extra
-            projects: "grpc-browser,rooms-api,room-typing-direct"
+            projects: "grpc-browser,rooms-api,room-typing-direct,channels-chat"
           - name: resilience
             projects: "durable-sessions,durable-session-token,durable-session-identity,otel-chat,chat-observability"
           - name: resilience-extra
@@ -94,9 +94,13 @@ jobs:
           - name: gap-protocols
             projects: "agui-sse-lifecycle,channel-gateway,otel-span-correlation,a2a-multi-hop,concurrent-protocol-access"
           - name: gap-coordinator
-            projects: "coordinator-remote,coordinator-journal,durable-session-restart,session-token-expiry,auth-oauth-jwt"
+            projects: "coordinator-remote,coordinator-journal,coordinator-activity,durable-session-restart,session-token-expiry,auth-oauth-jwt"
           - name: gap-compat
-            projects: "spring-boot3-parity,backpressure-bounded-queue,webtransport-raw"
+            projects: "spring-boot3-parity,backpressure-bounded-queue,webtransport-raw,webtransport"
+          - name: gap-admin
+            projects: "admin-dashboard,admin-quarkus,console-http-check,sample-matrix-smoke"
+          - name: gap-agents
+            projects: "dentist-agent,koog-chat,orchestration-primitives,spring-boot-ai-chat"
       fail-fast: false
 
     steps:
