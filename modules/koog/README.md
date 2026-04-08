@@ -8,7 +8,7 @@
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-koog</artifactId>
-    <version>4.0.32</version>
+    <version>4.0.33</version>
 </dependency>
 ```
 
@@ -31,7 +31,7 @@ Add `koog-spring-boot-starter` to auto-configure the `PromptExecutor`:
 <dependency>
     <groupId>ai.koog</groupId>
     <artifactId>koog-spring-boot-starter</artifactId>
-    <version>4.0.32</version>
+    <version>4.0.33</version>
 </dependency>
 ```
 

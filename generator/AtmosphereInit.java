@@ -394,7 +394,7 @@ public class AtmosphereInit implements Runnable {
                         .log(System.Logger.Level.TRACE, "Failed to read Atmosphere version from POM", ex);
             }
         }
-        return "4.0.32";
+        return "4.0.33";
     }
 
     private Path resolveScriptDir() {
