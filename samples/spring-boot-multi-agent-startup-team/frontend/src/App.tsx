@@ -14,6 +14,14 @@ const AGENTS: Record<string, { label: string; icon: string; color: string; bg: s
 
 const CEO = { label: 'CEO', icon: '\uD83D\uDC54', color: '#3b82f6', backend: 'Gemini via Google ADK' };
 
+/* Map agent names from agent-step events to tool names used by the status bar */
+const AGENT_TO_TOOL: Record<string, string> = {
+  'research-agent': 'web_search',
+  'strategy-agent': 'analyze_strategy',
+  'finance-agent':  'financial_model',
+  'writer-agent':   'write_report',
+};
+
 /* ── Types ── */
 
 interface UserMessage { role: 'user'; text: string }
@@ -42,6 +50,7 @@ async function fetchWebTransportInfo(): Promise<{port?: number; certificateHash?
 export function App() {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [toolCalls, setToolCalls] = useState<ToolCallState[]>([]);
+  const [agentActivity, setAgentActivity] = useState<Record<string, string>>({});
   const endRef = useRef<HTMLDivElement>(null);
   const [wtInfo, setWtInfo] = useState<{port?: number; certificateHash?: string}>({});
   const [wtLoaded, setWtLoaded] = useState(false);
@@ -93,6 +102,20 @@ export function App() {
       }
       return updated;
     });
+
+    // Track agent-step events for real-time activity status
+    for (const ev of aiEvents) {
+      if (ev.event === 'agent-step') {
+        const agentName = ev.data.agent as string | undefined;
+        const stepName = ev.data.stepName as string | undefined;
+        if (agentName && stepName) {
+          const toolKey = AGENT_TO_TOOL[agentName];
+          if (toolKey) {
+            setAgentActivity(prev => ({ ...prev, [toolKey]: stepName }));
+          }
+        }
+      }
+    }
   }, [aiEvents]);
 
   // Update assistant message from streaming
@@ -127,6 +150,7 @@ export function App() {
   const handleSend = (text: string) => {
     setMessages(prev => [...prev, { role: 'user', text }]);
     setToolCalls([]);
+    setAgentActivity({});
     reset();
     send(text);
   };
@@ -326,7 +350,7 @@ export function App() {
                 createElement('span', { style: { color: '#d1d5db' } }, String(v)),
               )
             )),
-            /* Tool result */
+            /* Tool result — render as markdown so journal tables display correctly */
             tc.result && createElement('div', {
               style: {
                 fontSize: 12,
@@ -336,10 +360,14 @@ export function App() {
                 padding: '8px 12px',
                 maxHeight: 200,
                 overflowY: 'auto' as const,
-                whiteSpace: 'pre-wrap' as const,
                 lineHeight: 1.5,
               },
-            }, tc.result.length > 500 ? tc.result.slice(0, 500) + '...' : tc.result),
+            }, createElement(StreamingMessage, {
+              text: tc.result,
+              isStreaming: false,
+              dark: true,
+              markdown: true,
+            })),
           );
         })}
 
@@ -422,7 +450,7 @@ export function App() {
                   animation: isActive ? 'pulse 1.5s ease infinite' : 'none',
                 },
               }),
-              `${agent.icon} ${isDone ? '\u2713' : isActive ? '...' : '\u2013'}`,
+              `${agent.icon} ${isDone ? '\u2713' : isActive ? (agentActivity[key] ?? '...') : '\u2013'}`,
             );
           })}
         </div>

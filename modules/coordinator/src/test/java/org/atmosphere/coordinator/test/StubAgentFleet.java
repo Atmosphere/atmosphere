@@ -15,6 +15,7 @@
  */
 package org.atmosphere.coordinator.test;
 
+import org.atmosphere.coordinator.fleet.AgentActivityListener;
 import org.atmosphere.coordinator.fleet.AgentCall;
 import org.atmosphere.coordinator.fleet.AgentFleet;
 import org.atmosphere.coordinator.fleet.AgentProxy;
@@ -82,6 +83,12 @@ public final class StubAgentFleet implements AgentFleet {
     @Override
     public AgentResult route(AgentResult input, Consumer<RoutingSpec> spec) {
         return delegate.route(input, spec);
+    }
+
+    @Override
+    public AgentFleet withActivityListener(AgentActivityListener listener) {
+        return new StubAgentFleet(
+                (DefaultAgentFleet) delegate.withActivityListener(listener));
     }
 
     public static Builder builder() {

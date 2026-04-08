@@ -86,4 +86,25 @@ public interface AgentFleet {
     default CoordinationJournal journal() {
         return CoordinationJournal.NOOP;
     }
+
+    /**
+     * Returns a new fleet instance with an additional {@link AgentActivityListener}.
+     * Use this in {@code @Prompt} methods to wire per-session streaming:
+     *
+     * <pre>{@code
+     * @Prompt
+     * public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
+     *     var liveFleet = fleet.withActivityListener(new StreamingActivityListener(session));
+     *     var result = liveFleet.agent("weather").call("forecast", Map.of("city", "Montreal"));
+     *     session.send(result.text());
+     *     session.complete();
+     * }
+     * }</pre>
+     *
+     * @param listener the additional listener for this scope
+     * @return a new fleet instance with the listener added
+     */
+    default AgentFleet withActivityListener(AgentActivityListener listener) {
+        return this;
+    }
 }

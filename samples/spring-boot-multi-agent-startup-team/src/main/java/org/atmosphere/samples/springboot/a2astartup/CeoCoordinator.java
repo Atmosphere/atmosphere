@@ -25,6 +25,7 @@ import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
 import org.atmosphere.coordinator.fleet.AgentFleet;
+import org.atmosphere.coordinator.fleet.StreamingActivityListener;
 import org.atmosphere.coordinator.journal.JournalFormat;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -135,13 +136,15 @@ public class CeoCoordinator {
     public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
         logger.info("CEO received: {}", message);
 
-        // Fall back to demo mode if no LLM API key is configured
+        // Wire per-session activity streaming — clients see agent-step events in real time
+        fleet = fleet.withActivityListener(new StreamingActivityListener(session));
+
+        // Fall back to demo mode if no LLM API key is configured.
+        // In demo mode, we still call the fleet agents (so activity events stream
+        // to the browser) but skip the final LLM synthesis.
         var settings = AiConfig.get();
-        if (settings == null || settings.apiKey() == null
-                || settings.apiKey().isBlank()) {
-            DemoResponseProducer.stream(message, session);
-            return;
-        }
+        var demoMode = settings == null || settings.apiKey() == null
+                || settings.apiKey().isBlank();
 
         // --- Step 1: Research (sequential — other agents need these results) ---
         // ToolStart/ToolResult events render as expandable cards in the console.
@@ -206,6 +209,12 @@ public class CeoCoordinator {
         // (PostPromptHook fires after @Prompt returns, before async LLM streaming completes)
 
         // --- Step 4: CEO synthesis via LLM ---
+        if (demoMode) {
+            // In demo mode, stream a summary of fleet results without calling the LLM
+            DemoResponseProducer.stream(message, session);
+            return;
+        }
+
         // Trim agent results to fit within the LLM context window, then stream
         // the executive briefing to the browser in real-time via session.stream().
         // This call delegates to whichever AgentRuntime is on the classpath

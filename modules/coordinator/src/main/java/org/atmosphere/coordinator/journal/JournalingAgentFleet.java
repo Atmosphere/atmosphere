@@ -16,6 +16,7 @@
 package org.atmosphere.coordinator.journal;
 
 import org.atmosphere.coordinator.evaluation.Evaluation;
+import org.atmosphere.coordinator.fleet.AgentActivityListener;
 import org.atmosphere.coordinator.fleet.AgentCall;
 import org.atmosphere.coordinator.fleet.AgentFleet;
 import org.atmosphere.coordinator.fleet.AgentProxy;
@@ -193,6 +194,12 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
     @Override
     public CoordinationJournal journal() {
         return journal;
+    }
+
+    @Override
+    public AgentFleet withActivityListener(AgentActivityListener listener) {
+        return new JournalingAgentFleet(
+                delegate.withActivityListener(listener), journal, coordinatorName);
     }
 
     private String coordinationId() {

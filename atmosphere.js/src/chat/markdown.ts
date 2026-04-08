@@ -22,6 +22,11 @@
  * This normalizes it to proper line-separated markdown before rendering.
  */
 export function normalizeBlockElements(text: string): string {
+  // Skip normalization for content that contains markdown tables (they already
+  // have correct newlines and the regex rules break separator rows like |-------|)
+  if (/\|[-:]+\|/.test(text)) {
+    return text;
+  }
   let s = text;
   // Insert newline before/after code fence markers (```) when adjacent to text
   s = s.replace(/([^\n])(```)/g, '$1\n$2');
@@ -39,8 +44,9 @@ export function normalizeBlockElements(text: string): string {
   s = s.replace(/([^\n|\s])(\|[^|])/g, '$1\n$2');
   // Insert newline before blockquotes: "text> quote" → "text\n> quote"
   s = s.replace(/([^\n])(>\s)/g, '$1\n$2');
-  // Insert newline before/after horizontal rules (---) when adjacent to text
-  s = s.replace(/([^\n])(---)/g, '$1\n$2');
-  s = s.replace(/(---)([^\n-])/g, '$1\n$2');
+  // Insert newline before/after horizontal rules (---) when adjacent to text.
+  // Exclude | to avoid breaking table separator rows like |-------|-------|
+  s = s.replace(/([^\n|])(---)/g, '$1\n$2');
+  s = s.replace(/(---)([^\n\-|])/g, '$1\n$2');
   return s;
 }

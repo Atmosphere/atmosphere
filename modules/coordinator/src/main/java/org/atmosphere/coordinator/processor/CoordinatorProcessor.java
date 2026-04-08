@@ -44,6 +44,7 @@ import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
 import org.atmosphere.coordinator.evaluation.ResultEvaluator;
+import org.atmosphere.coordinator.fleet.AgentActivityListener;
 import org.atmosphere.coordinator.fleet.AgentFleet;
 import org.atmosphere.coordinator.fleet.AgentProxy;
 import org.atmosphere.coordinator.fleet.DefaultAgentFleet;
@@ -143,7 +144,9 @@ public class CoordinatorProcessor implements Processor<Object> {
                 throw new IllegalStateException(
                         "@Coordinator '" + coordinatorName + "' must also have @Fleet");
             }
-            var proxies = resolveFleet(framework, fleetAnnotation, coordinatorName);
+            var activityListeners = resolveActivityListeners();
+            var proxies = resolveFleet(framework, fleetAnnotation, coordinatorName,
+                    activityListeners);
 
             // Step 7: Validate fleet
             detectCircularDependencies(coordinatorName, proxies.keySet());
@@ -151,7 +154,8 @@ public class CoordinatorProcessor implements Processor<Object> {
             // Step 8: Create AgentFleet and AiEndpointHandler with injectable
             var evaluators = resolveEvaluators();
             var journal = resolveJournal();
-            AgentFleet fleet = new DefaultAgentFleet(proxies, evaluators);
+            AgentFleet fleet = new DefaultAgentFleet(proxies, evaluators,
+                    DefaultAgentFleet.DEFAULT_PARALLEL_TIMEOUT_MS, activityListeners);
             if (journal != CoordinationJournal.NOOP) {
                 journal.start();
                 fleet = new JournalingAgentFleet(fleet, journal, coordinatorName);
@@ -222,7 +226,7 @@ public class CoordinatorProcessor implements Processor<Object> {
 
     private LinkedHashMap<String, AgentProxy> resolveFleet(
             AtmosphereFramework framework, Fleet fleetAnnotation,
-            String coordinatorName) {
+            String coordinatorName, List<AgentActivityListener> activityListeners) {
         var proxies = new LinkedHashMap<String, AgentProxy>();
         var seenNames = new HashSet<String>();
 
@@ -239,7 +243,7 @@ public class CoordinatorProcessor implements Processor<Object> {
 
             proxies.put(agentName, new DefaultAgentProxy(
                     agentName, version, ref.weight(), isLocal,
-                    ref.maxRetries(), transport));
+                    ref.maxRetries(), transport, activityListeners));
 
             if (!transport.isAvailable() && ref.required()) {
                 logger.warn("Coordinator '{}': required agent '{}' not yet available",
@@ -480,6 +484,16 @@ public class CoordinatorProcessor implements Processor<Object> {
             logger.debug("No ResultEvaluator providers: {}", e.getMessage());
         }
         return evaluators;
+    }
+
+    private List<AgentActivityListener> resolveActivityListeners() {
+        var listeners = new ArrayList<AgentActivityListener>();
+        try {
+            ServiceLoader.load(AgentActivityListener.class).forEach(listeners::add);
+        } catch (Exception | ServiceConfigurationError e) {
+            logger.debug("No AgentActivityListener providers: {}", e.getMessage());
+        }
+        return listeners;
     }
 
     // --- Prompt method resolution ---

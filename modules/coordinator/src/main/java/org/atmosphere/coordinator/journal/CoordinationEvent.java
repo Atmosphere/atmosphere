@@ -143,4 +143,22 @@ public sealed interface CoordinationEvent {
             return "COMPLETE  " + agentCallCount + " calls in " + totalDuration.toMillis() + "ms";
         }
     }
+
+    /**
+     * An agent's activity state changed (e.g., thinking, executing, retrying).
+     * Provides observability into what agents are doing during a coordination.
+     */
+    record AgentActivityChanged(
+            String coordinationId,
+            String agentName,
+            String activityType,
+            String detail,
+            Instant timestamp
+    ) implements CoordinationEvent {
+        @Override
+        public String toLogLine() {
+            return "ACTIVITY  " + agentName + " -> " + activityType
+                    + (detail != null && !detail.isEmpty() ? " (" + detail + ")" : "");
+        }
+    }
 }

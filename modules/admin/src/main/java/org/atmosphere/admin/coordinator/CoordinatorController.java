@@ -183,6 +183,11 @@ public final class CoordinatorController {
                 info.put("totalDuration", e.totalDuration().toString());
                 info.put("agentCallCount", e.agentCallCount());
             }
+            case CoordinationEvent.AgentActivityChanged e -> {
+                info.put("agentName", e.agentName());
+                info.put("activityType", e.activityType());
+                info.put("detail", e.detail());
+            }
         }
         return info;
     }

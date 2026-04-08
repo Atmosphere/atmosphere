@@ -100,6 +100,7 @@ public void onPrompt(String message, AgentFleet fleet, StreamingSession session)
 | `AgentCompleted` | coordinationId, agentName, skill, resultText, duration, timestamp |
 | `AgentFailed` | coordinationId, agentName, skill, error, duration, timestamp |
 | `AgentEvaluated` | coordinationId, agentName, evaluatorName, score, passed, timestamp |
+| `AgentActivityChanged` | coordinationId, agentName, activityType, detail, timestamp |
 | `CoordinationCompleted` | coordinationId, totalDuration, agentCallCount, timestamp |
 
 `CoordinationQuery` factory methods: `CoordinationQuery.all()`, `CoordinationQuery.forCoordination(id)`, `CoordinationQuery.forAgent(agentName)`. Null fields in a query are wildcards. Set `limit` to cap result count; `0` means unlimited.
@@ -114,6 +115,52 @@ journal.inspector(event ->
 ```
 
 The `JournalingAgentFleet` decorator wraps the fleet transparently — all `parallel()`, `pipeline()`, and individual `agent().call()` paths record events automatically.
+
+## Agent Activity Streaming
+
+`AgentActivity` is a sealed interface that models what an agent is doing right now. `DefaultAgentProxy` emits activity transitions at key lifecycle points — `Thinking` before dispatch, `Executing` during tool calls, `Retrying` during backoff, and `Completed`/`Failed` after the call resolves. Listeners receive these transitions in real time on the calling thread.
+
+`StreamingActivityListener` converts each `AgentActivity` variant into an `AiEvent.AgentStep` event and delivers it to the client via `StreamingSession.emit()`. This means clients receive live agent progress over the same WebSocket/SSE connection without any additional wiring — the existing event pipeline (interceptors, filters, AG-UI bridge) processes activity events automatically.
+
+Wire per-session streaming by calling `fleet.withActivityListener()` at the top of a `@Prompt` method:
+
+```java
+@Prompt
+public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
+    var liveFleet = fleet.withActivityListener(new StreamingActivityListener(session));
+
+    var results = liveFleet.parallel(
+        liveFleet.call("research", "web_search", Map.of("query", message)),
+        liveFleet.call("analyst",  "analyze",    Map.of("query", message))
+    );
+
+    session.stream(results.get("analyst").textOr("no result"));
+}
+```
+
+`withActivityListener()` returns a new fleet instance scoped to this call — the original fleet is unchanged and other concurrent sessions are unaffected.
+
+Clients receive `agent-step` JSON events as agents progress:
+
+```json
+{"event":"agent-step","data":{"stepName":"thinking","description":"Agent 'research' is thinking...","data":{"agent":"research","skill":"web_search"}},"sessionId":"...","seq":1}
+{"event":"agent-step","data":{"stepName":"completed","description":"Agent 'research' completed in 62ms","data":{"agent":"research","durationMs":62,"skill":"web_search"}},"sessionId":"...","seq":2}
+```
+
+### AgentActivity variants
+
+| Variant | Fields | stepName on wire |
+|---------|--------|-----------------|
+| `Idle` | agentName, since | (not emitted) |
+| `Thinking` | agentName, skill, since | `thinking` |
+| `Executing` | agentName, skill, detail, since | `executing` |
+| `WaitingForInput` | agentName, reason, since | `waiting-for-input` |
+| `Retrying` | agentName, skill, attempt, maxAttempts, nextAttemptAt | `retrying` |
+| `CircuitOpen` | agentName, reason, cooldownUntil | `circuit-open` |
+| `Completed` | agentName, skill, elapsed | `completed` |
+| `Failed` | agentName, skill, error, elapsed | `failed` |
+
+`AgentActivityListener` is a `@FunctionalInterface` and is also discoverable via `ServiceLoader` — add it to `META-INF/services/org.atmosphere.coordinator.fleet.AgentActivityListener` to attach a global listener to all fleet instances. Per-session listeners registered via `withActivityListener()` stack on top of any ServiceLoader-discovered listeners.
 
 ## Result Evaluation
 
@@ -221,6 +268,9 @@ Circular fleet dependencies (coordinator A manages coordinator B which manages A
 | `JournalingAgentFleet` | Transparent `AgentFleet` decorator; records events and triggers auto-evaluation |
 | `ResultEvaluator` | SPI for quality assessment; ServiceLoader-discovered |
 | `Evaluation` | Record: `score` (0.0–1.0), `passed`, `reason`, `metadata`; `pass()` and `fail()` factories |
+| `AgentActivity` | Sealed interface modeling an agent's current state; 8 record variants: `Idle`, `Thinking`, `Executing`, `WaitingForInput`, `Retrying`, `CircuitOpen`, `Completed`, `Failed` |
+| `AgentActivityListener` | `@FunctionalInterface` SPI callback for activity state transitions; ServiceLoader-discoverable |
+| `StreamingActivityListener` | Bridges `AgentActivity` transitions to `AiEvent.AgentStep` events via `StreamingSession.emit()` |
 | `AgentTransport` | SPI for agent-to-agent communication |
 | `LocalAgentTransport` | In-JVM transport via reflection on the A2A protocol handler |
 | `A2aAgentTransport` | Remote transport: JSON-RPC 2.0 over HTTP, SSE streaming with sync fallback |
@@ -306,6 +356,21 @@ var runtime = StubAgentRuntime.builder()
     .defaultResponse("I don't understand")
     .build();
 ```
+
+### StubActivityListener
+
+Captures `AgentActivity` events during a test for assertion:
+
+```java
+var listener = new StubActivityListener();
+var proxy = new DefaultAgentProxy("weather", "1.0.0", 1, true, 2,
+                                   transport, List.of(listener));
+proxy.call("search", Map.of());
+
+listener.assertTransition("weather", "Thinking", "Completed");
+```
+
+`assertTransition(agentName, expectedTypes...)` asserts that the named agent went through exactly the listed variant simple names, in order. `activitiesFor(agentName)` returns the raw list for custom assertions. `clear()` resets state between test cases.
 
 ### CoordinatorAssertions
 

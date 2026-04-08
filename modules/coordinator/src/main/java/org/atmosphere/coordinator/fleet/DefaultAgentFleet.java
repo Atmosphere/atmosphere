@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,11 +42,12 @@ public final class DefaultAgentFleet implements AgentFleet {
     private static final Logger logger = LoggerFactory.getLogger(DefaultAgentFleet.class);
 
     /** Default per-agent timeout for parallel calls: 2 minutes. */
-    static final long DEFAULT_PARALLEL_TIMEOUT_MS = 120_000L;
+    public static final long DEFAULT_PARALLEL_TIMEOUT_MS = 120_000L;
 
     private final Map<String, AgentProxy> proxies;
     private final List<ResultEvaluator> evaluators;
     private final long parallelTimeoutMs;
+    private final List<AgentActivityListener> activityListeners;
 
     public DefaultAgentFleet(Map<String, AgentProxy> proxies) {
         this(proxies, List.of());
@@ -59,9 +61,42 @@ public final class DefaultAgentFleet implements AgentFleet {
     public DefaultAgentFleet(Map<String, AgentProxy> proxies,
                              List<ResultEvaluator> evaluators,
                              long parallelTimeoutMs) {
+        this(proxies, evaluators, parallelTimeoutMs, List.of());
+    }
+
+    public DefaultAgentFleet(Map<String, AgentProxy> proxies,
+                             List<ResultEvaluator> evaluators,
+                             long parallelTimeoutMs,
+                             List<AgentActivityListener> activityListeners) {
         this.proxies = Map.copyOf(proxies);
         this.evaluators = List.copyOf(evaluators);
         this.parallelTimeoutMs = parallelTimeoutMs;
+        this.activityListeners = List.copyOf(activityListeners);
+    }
+
+    /**
+     * Returns the activity listeners configured for this fleet.
+     * Used by the processor to thread listeners through to proxies.
+     */
+    public List<AgentActivityListener> activityListeners() {
+        return activityListeners;
+    }
+
+    @Override
+    public AgentFleet withActivityListener(AgentActivityListener listener) {
+        var extra = List.of(listener);
+        var combined = new ArrayList<>(this.activityListeners);
+        combined.add(listener);
+        var newProxies = new LinkedHashMap<String, AgentProxy>();
+        for (var entry : proxies.entrySet()) {
+            var proxy = entry.getValue();
+            if (proxy instanceof DefaultAgentProxy dap) {
+                newProxies.put(entry.getKey(), dap.withAdditionalListeners(extra));
+            } else {
+                newProxies.put(entry.getKey(), proxy);
+            }
+        }
+        return new DefaultAgentFleet(newProxies, evaluators, parallelTimeoutMs, combined);
     }
 
     @Override

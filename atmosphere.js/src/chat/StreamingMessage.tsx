@@ -16,6 +16,7 @@
 
 import { createElement } from 'react';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { cursorStyle, progressStyle, errorStyle } from './styles';
 import { normalizeBlockElements } from './markdown';
 
@@ -53,6 +54,7 @@ export function StreamingMessage({ text, isStreaming, dark, markdown = true }: S
       'div',
       { style: containerStyle },
       createElement(Markdown, {
+        remarkPlugins: [remarkGfm],
         components: {
           p: ({ children }) => createElement('p', {
             style: { margin: '4px 0' },

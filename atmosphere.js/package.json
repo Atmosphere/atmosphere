@@ -141,6 +141,7 @@
     "vue": "^3.5.31"
   },
   "dependencies": {
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   }
 }

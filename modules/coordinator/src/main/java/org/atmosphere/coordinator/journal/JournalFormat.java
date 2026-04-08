@@ -79,6 +79,9 @@ public interface JournalFormat {
                     case CoordinationEvent.CoordinationCompleted e ->
                             row(sb, "COMPLETE", "\u2014", e.agentCallCount() + " calls",
                                     e.totalDuration().toMillis() + "ms");
+                    case CoordinationEvent.AgentActivityChanged e ->
+                            row(sb, "ACTIVITY", e.agentName(), e.activityType()
+                                    + (e.detail() != null ? ": " + e.detail() : ""), "\u2014");
                 }
             }
             return sb.toString();
