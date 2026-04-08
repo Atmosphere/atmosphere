@@ -17,7 +17,6 @@ package org.atmosphere.spring.boot.webtransport;
 
 import org.atmosphere.container.JSR356AsyncSupport;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.spring.boot.AtmosphereProperties.WebTransportProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,63 +46,25 @@ public class ReactorNettyHttp3AsyncSupport extends JSR356AsyncSupport {
     private static final Logger logger = LoggerFactory.getLogger(ReactorNettyHttp3AsyncSupport.class);
 
     private ReactorNettyTransportServer server;
+    private boolean sidecarEnabled;
 
     public ReactorNettyHttp3AsyncSupport(AtmosphereConfig config) {
         super(config);
-
-        // Only start the sidecar when explicitly enabled via init parameter.
-        // The Spring Boot auto-config bridges atmosphere.web-transport.enabled
-        // to this init param. Without it, the sidecar stays dormant — plain
-        // JSR356 WebSocket support is used instead.
+        // Sidecar startup is deferred to SmartLifecycle (managed by
+        // AtmosphereWebTransportAutoConfiguration) to avoid blocking
+        // framework init. This constructor only establishes the AsyncSupport
+        // detection — the actual HTTP/3 server starts after the servlet
+        // container is ready.
         String enabled = config.getInitParameter("atmosphere.http3.enabled");
-        if (!"true".equalsIgnoreCase(enabled)) {
-            logger.debug("Reactor Netty HTTP/3 sidecar not enabled (set atmosphere.http3.enabled=true)");
-            return;
+        if ("true".equalsIgnoreCase(enabled)) {
+            logger.info("Reactor Netty HTTP/3 sidecar enabled — will start via SmartLifecycle");
+            this.sidecarEnabled = true;
         }
-
-        try {
-            var properties = buildProperties(config);
-            server = new ReactorNettyTransportServer(config.framework(), properties);
-            server.start();
-            logger.info("Reactor Netty HTTP/3 sidecar started on port {} (QUIC/UDP)",
-                    properties.getPort());
-        } catch (Exception e) {
-            logger.warn("Failed to start Reactor Netty HTTP/3 sidecar: {}", e.getMessage());
-            logger.trace("Reactor Netty HTTP/3 init error", e);
-            server = null;
-        }
-    }
-
-    private WebTransportProperties buildProperties(AtmosphereConfig config) {
-        var props = new WebTransportProperties();
-        props.setEnabled(true);
-
-        String port = config.getInitParameter("atmosphere.http3.port");
-        if (port != null) {
-            props.setPort(Integer.parseInt(port));
-        }
-        String host = config.getInitParameter("atmosphere.http3.host");
-        if (host != null) {
-            props.setHost(host);
-        }
-
-        String cert = config.getInitParameter("atmosphere.http3.ssl.certificate");
-        String key = config.getInitParameter("atmosphere.http3.ssl.private-key");
-        if (cert != null && key != null) {
-            props.getSsl().setCertificate(cert);
-            props.getSsl().setPrivateKey(key);
-            String keyPassword = config.getInitParameter("atmosphere.http3.ssl.private-key-password");
-            if (keyPassword != null) {
-                props.getSsl().setPrivateKeyPassword(keyPassword);
-            }
-        }
-
-        return props;
     }
 
     @Override
     public boolean supportWebTransport() {
-        return server != null && server.isRunning();
+        return sidecarEnabled;
     }
 
     @Override

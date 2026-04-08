@@ -73,6 +73,45 @@ public class AtmosphereWebTransportAutoConfiguration {
         return Boolean.TRUE; // Sentinel bean — actual value unused
     }
 
+    /**
+     * Start the Reactor Netty HTTP/3 sidecar AFTER the servlet container is
+     * fully started. This avoids blocking framework init and ensures the
+     * BroadcasterFactory and WebSocket endpoints are ready.
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereWebTransportLifecycle")
+    public org.springframework.context.SmartLifecycle atmosphereWebTransportLifecycle(
+            AtmosphereFramework framework,
+            AtmosphereProperties properties) {
+        return new org.springframework.context.SmartLifecycle() {
+            private volatile boolean running;
+
+            @Override
+            public void start() {
+                try {
+                    var wt = properties.getWebTransport();
+                    var server = new org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer(
+                            framework, wt);
+                    server.start();
+                    running = true;
+                } catch (Exception e) {
+                    org.slf4j.LoggerFactory.getLogger(AtmosphereWebTransportAutoConfiguration.class)
+                            .warn("WebTransport server failed to start (app continues without HTTP/3): {}",
+                                    e.getMessage());
+                }
+            }
+
+            @Override
+            public void stop() { running = false; }
+
+            @Override
+            public boolean isRunning() { return running; }
+
+            @Override
+            public int getPhase() { return Integer.MAX_VALUE - 1; }
+        };
+    }
+
     @Bean
     @ConditionalOnMissingBean(name = "atmosphereAltSvcFilter")
     @ConditionalOnProperty(name = "atmosphere.web-transport.add-alt-svc", matchIfMissing = true)
