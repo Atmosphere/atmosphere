@@ -299,6 +299,9 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
 
             var result = delegate.call(skill, args);
             recordResult(coordId, result);
+            autoEvaluate(coordId, result,
+                    new org.atmosphere.coordinator.fleet.AgentCall(
+                            delegate.name(), skill, args));
             return result;
         }
 

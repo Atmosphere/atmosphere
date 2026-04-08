@@ -488,10 +488,14 @@ public class CoordinatorProcessor implements Processor<Object> {
 
     private CoordinationJournal resolveJournal() {
         try {
-            return ServiceLoader.load(CoordinationJournal.class)
+            var journal = ServiceLoader.load(CoordinationJournal.class)
                     .findFirst().orElse(CoordinationJournal.NOOP);
+            if (journal != CoordinationJournal.NOOP) {
+                logger.info("CoordinationJournal: {}", journal.getClass().getName());
+            }
+            return journal;
         } catch (Exception | ServiceConfigurationError e) {
-            logger.debug("No CoordinationJournal provider: {}", e.getMessage());
+            logger.warn("Failed to load CoordinationJournal provider: {}", e.getMessage(), e);
             return CoordinationJournal.NOOP;
         }
     }
