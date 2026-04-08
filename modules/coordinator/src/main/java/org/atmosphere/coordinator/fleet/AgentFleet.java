@@ -88,6 +88,24 @@ public interface AgentFleet {
     }
 
     /**
+     * Execute calls in parallel and return cancellable execution handles.
+     * Unlike {@link #parallel}, this does not block — callers control when
+     * to join and can cancel individual executions.
+     *
+     * @param calls the calls to dispatch
+     * @return map of agent name to execution handle
+     */
+    default Map<String, AgentExecution> parallelCancellable(AgentCall... calls) {
+        var results = new java.util.LinkedHashMap<String, AgentExecution>();
+        for (var agentCall : calls) {
+            var proxy = agent(agentCall.agentName());
+            results.put(agentCall.agentName(),
+                    proxy.callWithHandle(agentCall.skill(), agentCall.args()));
+        }
+        return results;
+    }
+
+    /**
      * Returns a new fleet instance with an additional {@link AgentActivityListener}.
      * Use this in {@code @Prompt} methods to wire per-session streaming:
      *

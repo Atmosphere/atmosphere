@@ -145,11 +145,16 @@ public final class DefaultAgentFleet implements AgentFleet {
             var count = nameCount.merge(name, 1, Integer::sum);
             var key = count == 1 ? name : name + "#" + count;
             var proxy = agent(name);
+            // Use per-agent timeout if configured, otherwise fleet default
+            var agentTimeoutMs = proxy instanceof DefaultAgentProxy dap
+                    && !dap.limits().isDefaultTimeout()
+                    ? dap.limits().timeout().toMillis()
+                    : parallelTimeoutMs;
             futures.put(key,
                     CompletableFuture.supplyAsync(
                             () -> proxy.call(agentCall.skill(), agentCall.args()),
                             vtExecutor)
-                            .orTimeout(parallelTimeoutMs, TimeUnit.MILLISECONDS));
+                            .orTimeout(agentTimeoutMs, TimeUnit.MILLISECONDS));
         }
 
         var results = new LinkedHashMap<String, AgentResult>();

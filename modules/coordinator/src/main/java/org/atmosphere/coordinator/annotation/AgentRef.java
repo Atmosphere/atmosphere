@@ -72,4 +72,15 @@ public @interface AgentRef {
      * Uses exponential backoff starting at 100ms (100ms, 200ms, 400ms, ...).
      */
     int maxRetries() default 0;
+
+    /**
+     * Per-agent call timeout in milliseconds. Default 0 means "use fleet default"
+     * (120 seconds). Overrides the global parallel timeout for this specific agent.
+     *
+     * <pre>{@code
+     * @AgentRef(value = "research", timeoutMs = 30000)  // 30s timeout
+     * @AgentRef(value = "writer", timeoutMs = 60000)    // 60s timeout
+     * }</pre>
+     */
+    long timeoutMs() default 0;
 }

@@ -46,6 +46,7 @@ import org.atmosphere.coordinator.annotation.Fleet;
 import org.atmosphere.coordinator.evaluation.ResultEvaluator;
 import org.atmosphere.coordinator.fleet.AgentActivityListener;
 import org.atmosphere.coordinator.fleet.AgentFleet;
+import org.atmosphere.coordinator.fleet.AgentLimits;
 import org.atmosphere.coordinator.fleet.AgentProxy;
 import org.atmosphere.coordinator.fleet.DefaultAgentFleet;
 import org.atmosphere.coordinator.fleet.DefaultAgentProxy;
@@ -240,10 +241,13 @@ public class CoordinatorProcessor implements Processor<Object> {
             var transport = resolveTransport(framework, agentName, ref);
             var version = ref.version().isEmpty() ? "1.0.0" : ref.version();
             var isLocal = transport instanceof LocalAgentTransport;
+            var limits = ref.timeoutMs() > 0
+                    ? AgentLimits.withTimeout(java.time.Duration.ofMillis(ref.timeoutMs()))
+                    : AgentLimits.DEFAULT;
 
             proxies.put(agentName, new DefaultAgentProxy(
                     agentName, version, ref.weight(), isLocal,
-                    ref.maxRetries(), transport, activityListeners));
+                    ref.maxRetries(), transport, activityListeners, limits));
 
             if (!transport.isAvailable() && ref.required()) {
                 logger.warn("Coordinator '{}': required agent '{}' not yet available",

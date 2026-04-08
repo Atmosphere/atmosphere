@@ -46,4 +46,18 @@ public interface AgentProxy {
 
     void stream(String skill, Map<String, Object> args,
                 Consumer<String> onToken, Runnable onComplete);
+
+    /**
+     * Start an agent call and return a cancellable execution handle.
+     * The call runs asynchronously on a virtual thread.
+     *
+     * @param skill the skill to invoke
+     * @param args  arguments for the skill
+     * @return a running execution that can be cancelled or joined
+     */
+    default AgentExecution callWithHandle(String skill, Map<String, Object> args) {
+        var future = callAsync(skill, args);
+        return new AgentExecution.Running(name(), skill,
+                java.time.Instant.now(), future);
+    }
 }

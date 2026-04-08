@@ -41,20 +41,29 @@ public final class DefaultAgentProxy implements AgentProxy {
     private final int maxRetries;
     private final AgentTransport transport;
     private final List<AgentActivityListener> activityListeners;
+    private final AgentLimits limits;
 
     public DefaultAgentProxy(String name, String version, int weight,
                              boolean local, AgentTransport transport) {
-        this(name, version, weight, local, 0, transport, List.of());
+        this(name, version, weight, local, 0, transport, List.of(), AgentLimits.DEFAULT);
     }
 
     public DefaultAgentProxy(String name, String version, int weight,
                              boolean local, int maxRetries, AgentTransport transport) {
-        this(name, version, weight, local, maxRetries, transport, List.of());
+        this(name, version, weight, local, maxRetries, transport, List.of(), AgentLimits.DEFAULT);
     }
 
     public DefaultAgentProxy(String name, String version, int weight,
                              boolean local, int maxRetries, AgentTransport transport,
                              List<AgentActivityListener> activityListeners) {
+        this(name, version, weight, local, maxRetries, transport, activityListeners,
+                AgentLimits.DEFAULT);
+    }
+
+    public DefaultAgentProxy(String name, String version, int weight,
+                             boolean local, int maxRetries, AgentTransport transport,
+                             List<AgentActivityListener> activityListeners,
+                             AgentLimits limits) {
         this.name = name;
         this.version = version;
         this.weight = weight;
@@ -62,7 +71,11 @@ public final class DefaultAgentProxy implements AgentProxy {
         this.maxRetries = maxRetries;
         this.transport = transport;
         this.activityListeners = List.copyOf(activityListeners);
+        this.limits = limits;
     }
+
+    /** Returns the per-agent limits configured for this proxy. */
+    public AgentLimits limits() { return limits; }
 
     @Override
     public String name() { return name; }
@@ -147,6 +160,13 @@ public final class DefaultAgentProxy implements AgentProxy {
     }
 
     @Override
+    public AgentExecution callWithHandle(String skill, Map<String, Object> args) {
+        var start = Instant.now();
+        var future = callAsync(skill, args);
+        return new AgentExecution.Running(name, skill, start, future);
+    }
+
+    @Override
     public void stream(String skill, Map<String, Object> args,
                        Consumer<String> onToken, Runnable onComplete) {
         transport.stream(name, skill, args, onToken, onComplete);
@@ -161,6 +181,6 @@ public final class DefaultAgentProxy implements AgentProxy {
         var combined = new java.util.ArrayList<>(this.activityListeners);
         combined.addAll(extra);
         return new DefaultAgentProxy(name, version, weight, local, maxRetries,
-                transport, combined);
+                transport, combined, limits);
     }
 }
