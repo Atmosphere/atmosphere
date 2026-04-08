@@ -153,6 +153,13 @@
             <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- Required at link time by admin MetricsController (compile-time MeterRegistry import) -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <version>${micrometer.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
