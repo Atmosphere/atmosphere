@@ -32,13 +32,12 @@ import java.util.function.Consumer;
 public final class DefaultAgentProxy implements AgentProxy {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultAgentProxy.class);
-    private static final long BASE_BACKOFF_MS = 100L;
 
     private final String name;
     private final String version;
     private final int weight;
     private final boolean local;
-    private final int maxRetries;
+    private final RetryPolicy retryPolicy;
     private final AgentTransport transport;
     private final List<AgentActivityListener> activityListeners;
     private final AgentLimits limits;
@@ -64,11 +63,19 @@ public final class DefaultAgentProxy implements AgentProxy {
                              boolean local, int maxRetries, AgentTransport transport,
                              List<AgentActivityListener> activityListeners,
                              AgentLimits limits) {
+        this(name, version, weight, local, RetryPolicy.fromMaxRetries(maxRetries),
+                transport, activityListeners, limits);
+    }
+
+    public DefaultAgentProxy(String name, String version, int weight,
+                             boolean local, RetryPolicy retryPolicy, AgentTransport transport,
+                             List<AgentActivityListener> activityListeners,
+                             AgentLimits limits) {
         this.name = name;
         this.version = version;
         this.weight = weight;
         this.local = local;
-        this.maxRetries = maxRetries;
+        this.retryPolicy = retryPolicy;
         this.transport = transport;
         this.activityListeners = List.copyOf(activityListeners);
         this.limits = limits;
@@ -98,19 +105,25 @@ public final class DefaultAgentProxy implements AgentProxy {
         emitActivity(new AgentActivity.Thinking(name, skill, start));
 
         var result = transport.send(name, skill, args);
-        if (result.success() || maxRetries <= 0) {
+        var maxAttempts = retryPolicy.maxRetries();
+        if (result.success() || maxAttempts <= 0) {
             emitTerminal(skill, result, start);
             return result;
         }
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            var backoffMs = BASE_BACKOFF_MS * (1L << (attempt - 1));
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            if (Thread.interrupted()) {
+                Thread.currentThread().interrupt();
+                emitTerminal(skill, result, start);
+                return result;
+            }
+            var delay = retryPolicy.delayForAttempt(attempt);
             logger.debug("Agent '{}' call failed, retry {}/{} after {}ms",
-                    name, attempt, maxRetries, backoffMs);
+                    name, attempt, maxAttempts, delay.toMillis());
             emitActivity(new AgentActivity.Retrying(
-                    name, skill, attempt, maxRetries,
-                    Instant.now().plusMillis(backoffMs)));
+                    name, skill, attempt, maxAttempts,
+                    Instant.now().plus(delay)));
             try {
-                Thread.sleep(backoffMs);
+                Thread.sleep(delay);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 emitTerminal(skill, result, start);
@@ -180,7 +193,7 @@ public final class DefaultAgentProxy implements AgentProxy {
     DefaultAgentProxy withAdditionalListeners(List<AgentActivityListener> extra) {
         var combined = new java.util.ArrayList<>(this.activityListeners);
         combined.addAll(extra);
-        return new DefaultAgentProxy(name, version, weight, local, maxRetries,
+        return new DefaultAgentProxy(name, version, weight, local, retryPolicy,
                 transport, combined, limits);
     }
 }
