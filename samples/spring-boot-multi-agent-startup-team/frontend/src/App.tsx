@@ -162,7 +162,7 @@ export function App() {
   return (
     <ChatLayout
       title="Atmosphere A2A Multi-Agent Team"
-      subtitle="5 independent A2A agents collaborating via JSON-RPC"
+      subtitle="WebTransport/HTTP3 + A2A JSON-RPC multi-agent orchestration"
       theme="ai"
     >
       <div style={{
