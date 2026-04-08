@@ -412,7 +412,7 @@ export function App() {
         )}
 
         {progress && createElement(StreamingProgress, { message: progress })}
-        {error && createElement(StreamingError, { message: error })}
+        {error && !error.includes('handshake') && createElement(StreamingError, { message: error })}
         <div ref={endRef} />
       </div>
 

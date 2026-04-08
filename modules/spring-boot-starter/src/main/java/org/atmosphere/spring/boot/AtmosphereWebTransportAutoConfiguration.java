@@ -74,6 +74,20 @@ public class AtmosphereWebTransportAutoConfiguration {
     }
 
     /**
+     * The {@link org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer}
+     * bean — exposed so that {@link WebTransportInfoController} can inject it
+     * and serve the certificate hash + port to the browser.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer
+    reactorNettyTransportServer(AtmosphereFramework framework,
+                                AtmosphereProperties properties) {
+        return new org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer(
+                framework, properties.getWebTransport());
+    }
+
+    /**
      * Start the Reactor Netty HTTP/3 sidecar AFTER the servlet container is
      * fully started. This avoids blocking framework init and ensures the
      * BroadcasterFactory and WebSocket endpoints are ready.
@@ -81,17 +95,13 @@ public class AtmosphereWebTransportAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(name = "atmosphereWebTransportLifecycle")
     public org.springframework.context.SmartLifecycle atmosphereWebTransportLifecycle(
-            AtmosphereFramework framework,
-            AtmosphereProperties properties) {
+            org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer server) {
         return new org.springframework.context.SmartLifecycle() {
             private volatile boolean running;
 
             @Override
             public void start() {
                 try {
-                    var wt = properties.getWebTransport();
-                    var server = new org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer(
-                            framework, wt);
                     server.start();
                     running = true;
                 } catch (Exception e) {
