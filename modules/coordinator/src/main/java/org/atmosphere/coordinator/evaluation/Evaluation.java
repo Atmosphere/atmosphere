@@ -45,8 +45,18 @@ public record Evaluation(
         return new Evaluation(score, true, reason, Map.of());
     }
 
+    /** Create a passing evaluation with the given score, reason, and metadata. */
+    public static Evaluation pass(double score, String reason, Map<String, Object> metadata) {
+        return new Evaluation(score, true, reason, metadata);
+    }
+
     /** Create a failing evaluation with the given score and reason. */
     public static Evaluation fail(double score, String reason) {
         return new Evaluation(score, false, reason, Map.of());
+    }
+
+    /** Create a failing evaluation with the given score, reason, and metadata. */
+    public static Evaluation fail(double score, String reason, Map<String, Object> metadata) {
+        return new Evaluation(score, false, reason, metadata);
     }
 }
