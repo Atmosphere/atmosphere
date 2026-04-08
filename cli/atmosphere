@@ -6,7 +6,7 @@
 
 set -e
 
-VERSION="4.0.31"
+VERSION="4.0.32"
 ATMOSPHERE_HOME="${ATMOSPHERE_HOME:-$HOME/.atmosphere}"
 CACHE_DIR="$ATMOSPHERE_HOME/cache"
 SAMPLES_JSON_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/samples.json"
