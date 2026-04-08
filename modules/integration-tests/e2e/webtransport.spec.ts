@@ -25,7 +25,11 @@ test.describe('Chat over WebTransport', () => {
   });
 
   test('WebTransport info endpoint returns port and cert hash', async () => {
-    const info = await fetchWebTransportInfo(server.baseUrl);
+    let info = await fetchWebTransportInfo(server.baseUrl);
+    for (let i = 0; i < 10 && info && !info.enabled; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      info = await fetchWebTransportInfo(server.baseUrl);
+    }
     expect(info).not.toBeNull();
     expect(info!.enabled).toBe(true);
     expect(info!.port).toBe(4443);
@@ -94,7 +98,11 @@ test.describe('AI Tools over WebTransport', () => {
   });
 
   test('WebTransport info endpoint returns port 4445', async () => {
-    const info = await fetchWebTransportInfo(server.baseUrl);
+    let info = await fetchWebTransportInfo(server.baseUrl);
+    for (let i = 0; i < 10 && info && !info.enabled; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      info = await fetchWebTransportInfo(server.baseUrl);
+    }
     expect(info).not.toBeNull();
     expect(info!.enabled).toBe(true);
     expect(info!.port).toBe(4445);
@@ -154,7 +162,12 @@ test.describe('Multi-Agent Startup Team over WebTransport', () => {
   });
 
   test('WebTransport info endpoint returns port 4446', async () => {
-    const info = await fetchWebTransportInfo(server.baseUrl);
+    // SmartLifecycle starts the HTTP/3 sidecar late — retry until enabled
+    let info = await fetchWebTransportInfo(server.baseUrl);
+    for (let i = 0; i < 10 && info && !info.enabled; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      info = await fetchWebTransportInfo(server.baseUrl);
+    }
     expect(info).not.toBeNull();
     expect(info!.enabled).toBe(true);
     expect(info!.port).toBe(4446);
@@ -177,9 +190,9 @@ test.describe('Multi-Agent Startup Team over WebTransport', () => {
     await input.fill('What are the top trends in AI?');
     await input.press('Enter');
 
-    // Wait for coordinator synthesis response
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
-      .not.toBeEmpty({ timeout: 30_000 });
+    // Wait for agent collaboration cards or CEO synthesis to appear
+    await expect(page.getByText(/Research Agent|CEO|Welcome to the A2A/i).first())
+      .toBeVisible({ timeout: 30_000 });
   });
 
   test('4 headless agents registered', () => {

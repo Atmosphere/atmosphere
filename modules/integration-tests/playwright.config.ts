@@ -202,6 +202,11 @@ export default defineConfig({
     {
       name: 'webtransport',
       testMatch: /webtransport\.spec\.ts/,
+      use: {
+        // WebTransport with self-signed certs requires serverCertificateHashes
+        // which is only supported in real Chrome, not Playwright's bundled Chromium
+        channel: 'chrome',
+      },
     },
     {
       name: 'sse-transport',
@@ -349,6 +354,10 @@ export default defineConfig({
     {
       name: 'coordinator-journal',
       testMatch: /coordinator-journal\.spec\.ts/,
+    },
+    {
+      name: 'coordinator-activity',
+      testMatch: /coordinator-activity\.spec\.ts/,
     },
     {
       name: 'auth-oauth-jwt',
