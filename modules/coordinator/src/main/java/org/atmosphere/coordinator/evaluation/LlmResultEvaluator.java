@@ -49,7 +49,12 @@ public final class LlmResultEvaluator implements ResultEvaluator {
     private static final Pattern SCORE_PATTERN = Pattern.compile("(?:score|rating)[\":\\s]*(\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
     private static final Pattern BARE_NUMBER = Pattern.compile("^\\s*(\\d+(?:\\.\\d+)?)\\s*(?:/\\s*10)?\\s*$", Pattern.MULTILINE);
 
-    private static final String SKILL_FILE = "META-INF/skills/llm-judge/SKILL.md";
+    /** Skill file paths searched in order (same convention as @Agent/@Coordinator). */
+    private static final String[] SKILL_PATHS = {
+            "META-INF/skills/llm-judge/SKILL.md",
+            "prompts/llm-judge-skill.md",
+            "prompts/llm-judge.md"
+    };
 
     private volatile AgentRuntime runtime;
     private volatile String systemPrompt;
@@ -68,15 +73,20 @@ public final class LlmResultEvaluator implements ResultEvaluator {
         if (systemPrompt != null) {
             return systemPrompt;
         }
-        try (var is = Thread.currentThread().getContextClassLoader()
-                .getResourceAsStream(SKILL_FILE)) {
-            if (is != null) {
-                systemPrompt = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-                return systemPrompt;
+        var cl = Thread.currentThread().getContextClassLoader();
+        for (var path : SKILL_PATHS) {
+            try (var is = cl.getResourceAsStream(path)) {
+                if (is != null) {
+                    systemPrompt = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                    logger.info("LLM judge prompt loaded from {}", path);
+                    return systemPrompt;
+                }
+            } catch (Exception e) {
+                logger.trace("Skill file {} not found: {}", path, e.getMessage());
             }
-        } catch (Exception e) {
-            logger.debug("Failed to load judge skill file: {}", e.getMessage());
         }
+        logger.warn("No llm-judge skill file found on classpath — using minimal fallback. "
+                + "Add the skill from https://github.com/Atmosphere/atmosphere-skills");
         systemPrompt = "You are an AI quality judge. Score the response 0-10. "
                 + "Respond with JSON: {\"score\": N, \"reason\": \"explanation\"}";
         return systemPrompt;
