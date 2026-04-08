@@ -100,7 +100,7 @@ jobs:
           - name: gap-admin
             projects: "admin-dashboard,admin-quarkus,console-http-check,sample-matrix-smoke"
           - name: gap-agents
-            projects: "dentist-agent,koog-chat,orchestration-primitives,spring-boot-ai-chat"
+            projects: "dentist-agent,koog-chat,a2a-discovery"
       fail-fast: false
 
     steps:

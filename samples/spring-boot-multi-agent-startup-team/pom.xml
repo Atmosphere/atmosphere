@@ -62,6 +62,12 @@
             <artifactId>atmosphere-coordinator</artifactId>
         </dependency>
 
+        <!-- Durable checkpoints (SQLite-backed) -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-checkpoint</artifactId>
+        </dependency>
+
         <!-- @Agent for specialist agents -->
         <dependency>
             <groupId>org.atmosphere</groupId>

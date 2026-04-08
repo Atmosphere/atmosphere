@@ -300,10 +300,16 @@ public class CoordinatorProcessor implements Processor<Object> {
             }
         }
 
-        // Check for explicit remote URL FIRST — env var, system property, or init
-        // parameter. When set, the URL overrides local transport even if the agent
-        // is in the same JVM. This lets samples demonstrate A2A protocol while
-        // keeping agents co-located for convenience.
+        // Check for local handler FIRST (in-JVM, zero overhead, always preferred)
+        for (var path : new String[]{customEndpoint, defaultPath, altPath}) {
+            if (path != null && framework.getAtmosphereHandlers().containsKey(path)) {
+                return new LocalAgentTransport(framework, agentName, path);
+            }
+        }
+
+        // No local handler found — check for remote URL via env var, system
+        // property, or init parameter. Spring Boot bridges atmosphere.init-params.*
+        // from YAML to init params.
         var envKey = "AGENT_" + agentName.toUpperCase().replace('-', '_') + "_URL";
         var remoteUrl = System.getenv(envKey);
         if (remoteUrl == null) {
@@ -315,14 +321,10 @@ public class CoordinatorProcessor implements Processor<Object> {
                     "atmosphere.fleet.agents." + agentName + ".url");
         }
         if (remoteUrl != null && !remoteUrl.isBlank()) {
-            return new A2aAgentTransport(agentName, remoteUrl);
-        }
-
-        // No explicit URL — check for local handler (in-JVM transport)
-        for (var path : new String[]{customEndpoint, defaultPath, altPath}) {
-            if (path != null && framework.getAtmosphereHandlers().containsKey(path)) {
-                return new LocalAgentTransport(framework, agentName, path);
-            }
+            var timeouts = remoteUrl.contains("localhost") || remoteUrl.contains("127.0.0.1")
+                    ? A2aAgentTransport.Timeouts.CO_LOCATED
+                    : A2aAgentTransport.Timeouts.DEFAULT;
+            return new A2aAgentTransport(agentName, remoteUrl, timeouts);
         }
 
         // Deferred: prefer custom endpoint if known, else default

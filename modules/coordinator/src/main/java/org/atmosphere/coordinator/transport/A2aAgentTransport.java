@@ -38,20 +38,60 @@ public class A2aAgentTransport implements AgentTransport, AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(A2aAgentTransport.class);
     private static final ObjectMapper mapper = new ObjectMapper();
 
+    /**
+     * Configurable timeouts for A2A HTTP transport.
+     *
+     * @param connect       TCP connect timeout
+     * @param send          synchronous message/send timeout
+     * @param stream        streaming message/stream timeout
+     * @param availability  isAvailable() health check timeout
+     */
+    public record Timeouts(
+            Duration connect,
+            Duration send,
+            Duration stream,
+            Duration availability
+    ) {
+        /** Default timeouts. Override via constructor for custom values. */
+        public static final Timeouts DEFAULT = new Timeouts(
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(30),
+                Duration.ofSeconds(60),
+                Duration.ofSeconds(5));
+
+        /** Fast availability check for co-located agents (same host). */
+        public static final Timeouts CO_LOCATED = new Timeouts(
+                Duration.ofSeconds(2),
+                Duration.ofSeconds(30),
+                Duration.ofSeconds(60),
+                Duration.ofSeconds(1));
+    }
+
     private final String baseUrl;
     private final HttpClient httpClient;
+    private final Timeouts timeouts;
 
     public A2aAgentTransport(String agentName, String baseUrl) {
+        this(agentName, baseUrl, Timeouts.DEFAULT);
+    }
+
+    public A2aAgentTransport(String agentName, String baseUrl, Timeouts timeouts) {
         this(agentName, baseUrl, HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
-                .connectTimeout(Duration.ofSeconds(10))
-                .build());
+                .connectTimeout(timeouts.connect())
+                .build(), timeouts);
     }
 
     /** Constructor with injectable HttpClient for testing. */
     public A2aAgentTransport(String agentName, String baseUrl, HttpClient httpClient) {
+        this(agentName, baseUrl, httpClient, Timeouts.DEFAULT);
+    }
+
+    public A2aAgentTransport(String agentName, String baseUrl, HttpClient httpClient,
+                             Timeouts timeouts) {
         this.baseUrl = baseUrl;
         this.httpClient = httpClient;
+        this.timeouts = timeouts;
     }
 
     @Override
@@ -63,7 +103,7 @@ public class A2aAgentTransport implements AgentTransport, AutoCloseable {
                     .uri(URI.create(baseUrl))
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .header("Content-Type", "application/json")
-                    .timeout(Duration.ofSeconds(30))
+                    .timeout(timeouts.send())
                     .build();
 
             logger.debug("A2A dispatch to '{}' skill '{}' at {}", agentName, skill, baseUrl);
@@ -121,7 +161,7 @@ public class A2aAgentTransport implements AgentTransport, AutoCloseable {
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .header("Content-Type", "application/json")
                     .header("Accept", "text/event-stream")
-                    .timeout(Duration.ofSeconds(60))
+                    .timeout(timeouts.stream())
                     .build();
 
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofLines());
@@ -194,7 +234,7 @@ public class A2aAgentTransport implements AgentTransport, AutoCloseable {
                     .uri(URI.create(baseUrl))
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(rpc)))
                     .header("Content-Type", "application/json")
-                    .timeout(Duration.ofSeconds(5))
+                    .timeout(timeouts.availability())
                     .build();
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
             return response.statusCode() == 200;
