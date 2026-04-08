@@ -130,6 +130,11 @@ class AtmosphereProcessor {
         // builds don't fail on missing Jetty classes.
         runtimeInit.produce(new RuntimeInitializedClassBuildItem(
                 "org.atmosphere.container.JettyHttp3AsyncSupport"));
+        // MetricsController has compile-time Micrometer imports. The admin
+        // module is optional — on standard JVM the class is only loaded when
+        // Micrometer is present. GraalVM/JDK 25+ eagerly links it.
+        runtimeInit.produce(new RuntimeInitializedClassBuildItem(
+                "org.atmosphere.admin.metrics.MetricsController"));
     }
 
     /**
