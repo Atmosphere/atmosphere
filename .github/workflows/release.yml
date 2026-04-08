@@ -1,4 +1,4 @@
-name: Release Atmosphere 4.x
+name: "Release: Maven Central"
 
 on:
   workflow_dispatch:

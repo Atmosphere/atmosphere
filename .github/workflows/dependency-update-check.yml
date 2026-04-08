@@ -1,4 +1,4 @@
-name: AI Dependency Update Check
+name: "Security: Dependency Check"
 
 on:
   schedule:

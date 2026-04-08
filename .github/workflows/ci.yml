@@ -1,4 +1,4 @@
-name: Atmosphere CI
+name: "CI: Core (JDK 21/23/25/26)"
 
 on:
   push:
@@ -113,5 +113,5 @@ jobs:
           **/target/surefire-reports/
           **/target/failsafe-reports/
 
-  # E2E tests run in a separate workflow (atmosphere-e2e.yml) so failures
+  # E2E tests run in a separate workflow (e2e.yml) so failures
   # don't block build results and individual groups can be re-run independently.

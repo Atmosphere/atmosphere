@@ -1,4 +1,4 @@
-name: Samples CI
+name: "CI: Samples"
 
 on:
   push:

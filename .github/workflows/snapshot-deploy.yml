@@ -1,4 +1,4 @@
-name: Deploy SNAPSHOT
+name: "Deploy: SNAPSHOT"
 
 on:
   push:

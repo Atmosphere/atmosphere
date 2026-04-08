@@ -1,4 +1,4 @@
-name: CLI Tests
+name: "CI: CLI"
 
 on:
   push:

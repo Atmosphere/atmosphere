@@ -1,16 +1,16 @@
-name: Atmosphere.js CI
+name: "CI: atmosphere.js"
 
 on:
   push:
     branches: [ main ]
     paths:
       - 'atmosphere.js/**'
-      - '.github/workflows/atmosphere-js-ci.yml'
+      - '.github/workflows/ci-js.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'atmosphere.js/**'
-      - '.github/workflows/atmosphere-js-ci.yml'
+      - '.github/workflows/ci-js.yml'
 
 jobs:
   build-and-test:

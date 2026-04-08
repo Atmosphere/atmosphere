@@ -1,4 +1,4 @@
-name: Generator CI
+name: "CI: Generator"
 
 on:
   push:

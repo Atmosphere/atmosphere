@@ -1,4 +1,4 @@
-name: E2E Tests
+name: "CI: E2E (Playwright)"
 
 on:
   push:

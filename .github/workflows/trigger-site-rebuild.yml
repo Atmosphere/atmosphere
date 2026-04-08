@@ -1,4 +1,4 @@
-name: Trigger website rebuild
+name: "Publish: Website"
 
 on:
   push:

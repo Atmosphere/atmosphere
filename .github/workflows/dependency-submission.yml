@@ -1,4 +1,4 @@
-name: Dependency Submission (Maven)
+name: "CI: Dependency Graph"
 
 on:
   push:
