@@ -123,6 +123,13 @@ class AtmosphereProcessor {
         // These threads must not start during native image build.
         runtimeInit.produce(new RuntimeInitializedClassBuildItem(
                 "org.atmosphere.util.ExecutorsFactory"));
+        // JettyHttp3AsyncSupport has compile-time Jetty imports (the Atmosphere
+        // pattern for auto-discovered transports). On standard JVM the resolver
+        // only loads the class when Jetty is present. GraalVM native image
+        // eagerly verifies all classes — defer to runtime so Quarkus/Undertow
+        // builds don't fail on missing Jetty classes.
+        runtimeInit.produce(new RuntimeInitializedClassBuildItem(
+                "org.atmosphere.container.JettyHttp3AsyncSupport"));
     }
 
     /**
