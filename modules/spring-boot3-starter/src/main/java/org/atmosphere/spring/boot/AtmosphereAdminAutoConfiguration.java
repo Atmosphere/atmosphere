@@ -69,22 +69,35 @@ public class AtmosphereAdminAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public AtmosphereAdmin atmosphereAdmin(
-            AtmosphereFramework framework,
-            org.springframework.beans.factory.ObjectProvider<io.micrometer.core.instrument.MeterRegistry> meterRegistryProvider) {
-        var admin = new AtmosphereAdmin(framework, 1000);
+    public AtmosphereAdmin atmosphereAdmin(AtmosphereFramework framework) {
+        // Micrometer wiring is in MicrometerAdminConfiguration (below) —
+        // keeping it in a separate @ConditionalOnClass class avoids
+        // TypeNotPresentException when Micrometer is not on the classpath.
+        return new AtmosphereAdmin(framework, 1000);
+    }
 
-        // Wire metrics controller if Micrometer is available
-        var meterRegistry = meterRegistryProvider.getIfAvailable();
-        if (meterRegistry != null) {
-            admin.setMetricsController(new MetricsController(meterRegistry));
-            logger.debug("Atmosphere Admin: Metrics controller wired (Micrometer)");
+    /** Wires Micrometer metrics into admin — only loaded when Micrometer is on the classpath. */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "io.micrometer.core.instrument.MeterRegistry")
+    @ConditionalOnBean(AtmosphereAdmin.class)
+    static class MicrometerAdminConfiguration implements org.springframework.beans.factory.SmartInitializingSingleton {
+        private final AtmosphereAdmin admin;
+        private final org.springframework.beans.factory.ObjectProvider<io.micrometer.core.instrument.MeterRegistry> meterRegistryProvider;
+
+        MicrometerAdminConfiguration(AtmosphereAdmin admin,
+                org.springframework.beans.factory.ObjectProvider<io.micrometer.core.instrument.MeterRegistry> meterRegistryProvider) {
+            this.admin = admin;
+            this.meterRegistryProvider = meterRegistryProvider;
         }
 
-        // Handler + event producer registration is deferred to
-        // atmosphereAdminLifecycle (below) — the framework's BroadcasterFactory
-        // is not available yet at bean-creation time.
-        return admin;
+        @Override
+        public void afterSingletonsInstantiated() {
+            var meterRegistry = meterRegistryProvider.getIfAvailable();
+            if (meterRegistry != null) {
+                admin.setMetricsController(new MetricsController(meterRegistry));
+                logger.debug("Atmosphere Admin: Metrics controller wired (Micrometer)");
+            }
+        }
     }
 
     /**
