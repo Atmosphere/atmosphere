@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * refine its query, and search again before composing an answer.</p>
  */
 @Agent(name = "rag-assistant",
-        skillFile = "prompts/rag-agent-skill.md",
+        skillFile = "skill:rag-assistant",
         description = "Knowledge base assistant — answers questions about the Atmosphere Framework using RAG retrieval")
 public class RagAgent {
 

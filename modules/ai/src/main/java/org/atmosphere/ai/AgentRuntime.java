@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai;
 
+import java.time.Duration;
 import java.util.Set;
 
 /**
@@ -82,4 +83,33 @@ public interface AgentRuntime {
      * @param session the streaming session to push results through
      */
     void execute(AgentExecutionContext context, StreamingSession session);
+
+    /**
+     * Synchronous convenience: execute a prompt and return the full response
+     * as a string. Uses a {@link CollectingSession} internally with a 30-second
+     * default timeout.
+     *
+     * <p>Framework runtimes can override this with native synchronous calls
+     * (e.g., LangChain4j's {@code ChatLanguageModel.generate()}).</p>
+     *
+     * @param context the execution context
+     * @return the collected response text
+     */
+    default String generate(AgentExecutionContext context) {
+        return generate(context, Duration.ofSeconds(30));
+    }
+
+    /**
+     * Synchronous convenience with a custom timeout.
+     *
+     * @param context the execution context
+     * @param timeout maximum wait time
+     * @return the collected response text, or empty string if timed out
+     */
+    default String generate(AgentExecutionContext context, Duration timeout) {
+        var collector = new CollectingSession();
+        execute(context, collector);
+        collector.await(timeout);
+        return collector.text();
+    }
 }

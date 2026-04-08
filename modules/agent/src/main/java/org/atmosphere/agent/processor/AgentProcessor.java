@@ -280,7 +280,12 @@ public class AgentProcessor implements Processor<Object> {
     private SkillFileParser parseSkillFile(Agent annotation) {
         var skillPath = annotation.skillFile();
         if (skillPath != null && !skillPath.isEmpty()) {
-            var content = PromptLoader.load(skillPath);
+            // skill: prefix loads from atmosphere-skills repo (classpath -> cache -> GitHub)
+            var content = PromptLoader.resolve(skillPath);
+            if (content == null) {
+                logger.warn("Skill '{}' not found for agent '{}'", skillPath, annotation.name());
+                return SkillFileParser.parse("");
+            }
             return SkillFileParser.parse(content);
         }
         // Auto-discover skill file from classpath conventions

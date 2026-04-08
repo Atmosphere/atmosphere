@@ -20,16 +20,15 @@ import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.InMemoryConversationMemory;
-import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.coordinator.fleet.AgentCall;
 import org.atmosphere.coordinator.fleet.AgentResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
@@ -49,52 +48,41 @@ public final class LlmResultEvaluator implements ResultEvaluator {
     private static final Pattern SCORE_PATTERN = Pattern.compile("(?:score|rating)[\":\\s]*(\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
     private static final Pattern BARE_NUMBER = Pattern.compile("^\\s*(\\d+(?:\\.\\d+)?)\\s*(?:/\\s*10)?\\s*$", Pattern.MULTILINE);
 
-    /** Skill file paths searched in order (same convention as @Agent/@Coordinator). */
-    private static final String[] SKILL_PATHS = {
-            "META-INF/skills/llm-judge/SKILL.md",
-            "prompts/llm-judge-skill.md",
-            "prompts/llm-judge.md"
-    };
+    private static final String DEFAULT_SKILL_NAME = "llm-judge";
+    private static final String FALLBACK_PROMPT = "You are an AI quality judge. "
+            + "Score the response 0-10. Respond with JSON: {\"score\": N, \"reason\": \"explanation\"}";
 
     private volatile AgentRuntime runtime;
     private volatile String systemPrompt;
-    private final long timeoutMs;
+    private final Duration timeout;
+    private final String skillName;
 
-    /** Default: 15-second timeout for judge calls. */
+    /** Default: 15-second timeout for judge calls, skill name "llm-judge". */
     public LlmResultEvaluator() {
-        this(15_000L);
+        this(Duration.ofSeconds(15));
     }
 
-    public LlmResultEvaluator(long timeoutMs) {
-        this.timeoutMs = timeoutMs;
+    public LlmResultEvaluator(Duration timeout) {
+        this(timeout, DEFAULT_SKILL_NAME);
+    }
+
+    public LlmResultEvaluator(Duration timeout, String skillName) {
+        this.timeout = timeout;
+        this.skillName = skillName;
     }
 
     private String systemPrompt() {
         if (systemPrompt != null) {
             return systemPrompt;
         }
-        var cl = Thread.currentThread().getContextClassLoader();
-        for (var path : SKILL_PATHS) {
-            try (var is = cl.getResourceAsStream(path)) {
-                if (is != null) {
-                    systemPrompt = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-                    logger.info("LLM judge prompt loaded from {}", path);
-                    return systemPrompt;
-                }
-            } catch (Exception e) {
-                logger.trace("Skill file {} not found: {}", path, e.getMessage());
-            }
-        }
-        logger.warn("No llm-judge skill file found on classpath — using minimal fallback. "
-                + "Add the skill from https://github.com/Atmosphere/atmosphere-skills");
-        systemPrompt = "You are an AI quality judge. Score the response 0-10. "
-                + "Respond with JSON: {\"score\": N, \"reason\": \"explanation\"}";
+        var loaded = PromptLoader.loadSkill(skillName);
+        systemPrompt = loaded != null ? loaded : FALLBACK_PROMPT;
         return systemPrompt;
     }
 
     @Override
     public String name() {
-        return "llm-judge";
+        return skillName;
     }
 
     @Override
@@ -127,17 +115,13 @@ public final class LlmResultEvaluator implements ResultEvaluator {
         }
     }
 
-    private String callLlm(AgentRuntime runtime, String message) {
-        var collector = new CollectingSession();
+    private String callLlm(AgentRuntime rt, String message) {
         var context = new AgentExecutionContext(
-                message, systemPrompt(), null, "llm-judge",
+                message, systemPrompt(), null, skillName,
                 "eval-" + System.nanoTime(), null, null,
                 List.of(), null, new InMemoryConversationMemory(1),
                 List.of(), Map.of(), List.of(), null);
-
-        runtime.execute(context, collector);
-        collector.await(timeoutMs);
-        return collector.text();
+        return rt.generate(context, timeout);
     }
 
     private Evaluation parseScore(String response, String agentName) {
@@ -206,42 +190,4 @@ public final class LlmResultEvaluator implements ResultEvaluator {
                 ? text.substring(0, maxLen) + "..." : (text != null ? text : "");
     }
 
-    /** Minimal session that collects text synchronously. */
-    private static final class CollectingSession implements StreamingSession {
-        private final StringBuilder buffer = new StringBuilder();
-        private final CountDownLatch latch = new CountDownLatch(1);
-        private volatile boolean closed;
-
-        @Override public String sessionId() { return "eval"; }
-        @Override public void send(String text) { buffer.append(text); }
-        @Override public void sendMetadata(String key, Object value) { }
-        @Override public void progress(String message) { }
-
-        @Override public void complete() {
-            closed = true;
-            latch.countDown();
-        }
-
-        @Override public void complete(String summary) {
-            if (summary != null) buffer.append(summary);
-            complete();
-        }
-
-        @Override public void error(Throwable t) {
-            closed = true;
-            latch.countDown();
-        }
-
-        @Override public boolean isClosed() { return closed; }
-
-        void await(long timeoutMs) {
-            try {
-                latch.await(timeoutMs, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-
-        String text() { return buffer.toString(); }
-    }
 }

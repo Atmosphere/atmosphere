@@ -80,7 +80,7 @@ import java.util.Map;
  * This file becomes the system prompt for the coordinator's LLM calls.</p>
  */
 @Coordinator(name = "ceo",
-        skillFile = "prompts/ceo-skill.md",
+        skillFile = "skill:startup-ceo",
         description = "Startup CEO that coordinates specialist A2A agents for market analysis",
         // Uncomment to get structured JSON output parsed into MarketAssessment fields:
         // responseAs = MarketAssessment.class,

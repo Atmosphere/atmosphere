@@ -561,7 +561,8 @@ public class CoordinatorProcessor implements Processor<Object> {
             }
             return null;
         }
-        var content = loadClasspathResource(skillFilePath);
+        // skill: prefix loads from atmosphere-skills repo (classpath -> cache -> GitHub)
+        var content = org.atmosphere.ai.PromptLoader.resolve(skillFilePath);
         if (content == null) {
             logger.warn("Skill file '{}' not found for coordinator '{}'",
                     skillFilePath, coordinatorName);

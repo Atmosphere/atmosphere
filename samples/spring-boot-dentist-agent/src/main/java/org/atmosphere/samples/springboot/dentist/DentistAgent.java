@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  */
 @Agent(name = "dentist",
-        skillFile = "prompts/dentist-skill.md",
+        skillFile = "skill:dentist-agent",
         description = "Emergency dental assistant — helps with broken teeth and dental emergencies")
 public class DentistAgent {
 
