@@ -12,7 +12,7 @@ First, import the Atmosphere BOM in your `<dependencyManagement>` to align all m
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-bom</artifactId>
-            <version>4.0.31</version>
+            <version>4.0.32</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>

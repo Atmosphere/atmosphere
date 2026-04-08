@@ -179,14 +179,14 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-boot-starter</artifactId>
-    <version>4.0.31</version>
+    <version>4.0.32</version>
 </dependency>
 
 <!-- Agent module (required for @Agent, @Coordinator) -->
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-agent</artifactId>
-    <version>4.0.31</version>
+    <version>4.0.32</version>
 </dependency>
 ```
 

@@ -10,7 +10,7 @@ Add the runtime artifact to your application:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-quarkus-extension</artifactId>
-    <version>4.0.31</version>
+    <version>4.0.32</version>
 </dependency>
 ```
 
