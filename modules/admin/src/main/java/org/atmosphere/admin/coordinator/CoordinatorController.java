@@ -188,6 +188,11 @@ public final class CoordinatorController {
                 info.put("activityType", e.activityType());
                 info.put("detail", e.detail());
             }
+            case CoordinationEvent.CircuitStateChanged e -> {
+                info.put("agentName", e.agentName());
+                info.put("fromState", e.fromState());
+                info.put("toState", e.toState());
+            }
         }
         return info;
     }

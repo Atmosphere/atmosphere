@@ -106,6 +106,23 @@ public interface AgentFleet {
     }
 
     /**
+     * Returns a snapshot of fleet health — agent availability, circuit breaker
+     * state, and recent failure counts. Streamable to clients for live dashboards.
+     *
+     * @return current fleet health snapshot
+     */
+    default FleetHealth health() {
+        var agents = new java.util.LinkedHashMap<String, FleetHealth.AgentHealth>();
+        for (var proxy : agents()) {
+            var circuitState = proxy instanceof ResilientAgentProxy rp
+                    ? rp.circuitBreaker().state() : null;
+            agents.put(proxy.name(), new FleetHealth.AgentHealth(
+                    proxy.name(), proxy.isAvailable(), circuitState, 0));
+        }
+        return new FleetHealth(agents, java.time.Instant.now());
+    }
+
+    /**
      * Returns a new fleet instance with an additional {@link AgentActivityListener}.
      * Use this in {@code @Prompt} methods to wire per-session streaming:
      *

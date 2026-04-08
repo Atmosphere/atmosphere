@@ -699,6 +699,301 @@ public class OpenAiCompatibleClientTest {
                 "Expected tool-error event for unknown tool");
     }
 
+    // -- OpenAI Responses API tests --
+
+    @Test
+    public void testResponsesApiFirstTurnCachesResponseId() throws Exception {
+        // Simulate a Responses API SSE stream on the first turn
+        var responsesApiStream = """
+                data: {"type":"response.output_text.delta","delta":"Hello"}
+
+                data: {"type":"response.output_text.delta","delta":" there"}
+
+                data: {"type":"response.completed","response":{"id":"resp_abc123","model":"gpt-4o","usage":{"input_tokens":10,"output_tokens":5}}}
+
+                data: [DONE]
+
+                """;
+
+        var httpClient = mockHttpClient(200, responsesApiStream);
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("https://api.openai.com/v1")
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+
+        var request = ChatCompletionRequest.builder("gpt-4o")
+                .system("You are helpful")
+                .user("Hello!")
+                .conversationId("conv-1")
+                .build();
+
+        var session = StreamingSessions.start("test-resp-api", resource);
+        client.streamChatCompletion(request, session);
+
+        // Verify text was streamed
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
+        verify(broadcaster, atLeast(2)).broadcast(captor.capture(), any(Set.class));
+        var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\"Hello\"")),
+                "Expected 'Hello' text chunk");
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\" there\"")),
+                "Expected ' there' text chunk");
+
+        // Verify response ID was cached
+        assertEquals("resp_abc123", client.responseIdCache().get("conv-1"),
+                "Response ID should be cached for conversation");
+    }
+
+    @Test
+    public void testResponsesApiContinuationWithPreviousId() throws Exception {
+        // First turn response
+        var firstResponse = """
+                data: {"type":"response.output_text.delta","delta":"Hi"}
+
+                data: {"type":"response.completed","response":{"id":"resp_first","model":"gpt-4o","usage":{"input_tokens":5,"output_tokens":2}}}
+
+                data: [DONE]
+
+                """;
+
+        // Second turn response
+        var secondResponse = """
+                data: {"type":"response.output_text.delta","delta":"Sure"}
+
+                data: {"type":"response.completed","response":{"id":"resp_second","model":"gpt-4o","usage":{"input_tokens":3,"output_tokens":2}}}
+
+                data: [DONE]
+
+                """;
+
+        var httpClient = mockHttpClientSequence(
+                new MockResponse(200, firstResponse),
+                new MockResponse(200, secondResponse)
+        );
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("https://api.openai.com/v1")
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+
+        // First turn
+        var request1 = ChatCompletionRequest.builder("gpt-4o")
+                .user("Hello")
+                .conversationId("conv-2")
+                .build();
+        var session1 = StreamingSessions.start("test-resp-1", resource);
+        client.streamChatCompletion(request1, session1);
+
+        // Verify first response cached
+        assertEquals("resp_first", client.responseIdCache().get("conv-2"));
+
+        // Second turn — should use previous_response_id
+        var request2 = ChatCompletionRequest.builder("gpt-4o")
+                .user("Tell me more")
+                .conversationId("conv-2")
+                .build();
+        var session2 = StreamingSessions.start("test-resp-2", resource);
+        client.streamChatCompletion(request2, session2);
+
+        // Verify response ID updated
+        assertEquals("resp_second", client.responseIdCache().get("conv-2"));
+
+        // Verify both turns made HTTP calls
+        verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+
+        // Verify the second request went to /responses endpoint
+        var reqCaptor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(httpClient, times(2)).send(reqCaptor.capture(), any(HttpResponse.BodyHandler.class));
+        var secondReq = reqCaptor.getAllValues().get(1);
+        assertTrue(secondReq.uri().getPath().endsWith("/responses"),
+                "Second request should use /responses endpoint");
+    }
+
+    @Test
+    public void testResponsesApiNotUsedForNonOpenAi() throws Exception {
+        // Non-OpenAI endpoints should not use the Responses API
+        var sseResponse = """
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"content":"OK"},"finish_reason":"stop"}]}
+
+                data: [DONE]
+
+                """;
+
+        var httpClient = mockHttpClient(200, sseResponse);
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(httpClient)
+                .build();
+
+        var request = ChatCompletionRequest.builder("test")
+                .user("Hello")
+                .conversationId("conv-3")
+                .build();
+        var session = StreamingSessions.start("test-non-openai", resource);
+        client.streamChatCompletion(request, session);
+
+        // Should use /chat/completions, not /responses
+        var reqCaptor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(httpClient, times(1)).send(reqCaptor.capture(), any(HttpResponse.BodyHandler.class));
+        assertTrue(reqCaptor.getValue().uri().getPath().endsWith("/chat/completions"),
+                "Non-OpenAI endpoint should use /chat/completions");
+
+        // Response ID cache should be empty
+        assertTrue(client.responseIdCache().isEmpty(),
+                "No response ID should be cached for non-OpenAI endpoints");
+    }
+
+    @Test
+    public void testResponsesApiNotUsedWithoutConversationId() throws Exception {
+        var sseResponse = """
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"content":"OK"},"finish_reason":"stop"}]}
+
+                data: [DONE]
+
+                """;
+
+        var httpClient = mockHttpClient(200, sseResponse);
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("https://api.openai.com/v1")
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+
+        // No conversationId
+        var request = ChatCompletionRequest.of("gpt-4o", "Hello");
+        var session = StreamingSessions.start("test-no-convid", resource);
+        client.streamChatCompletion(request, session);
+
+        // Should use /chat/completions
+        var reqCaptor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(httpClient, times(1)).send(reqCaptor.capture(), any(HttpResponse.BodyHandler.class));
+        assertTrue(reqCaptor.getValue().uri().getPath().endsWith("/chat/completions"),
+                "Requests without conversationId should use /chat/completions");
+    }
+
+    @Test
+    public void testResponsesApi404FallsBackToChatCompletions() throws Exception {
+        // Simulate a 404 from Responses API (cache miss) followed by Chat Completions success
+        var notFoundBody = """
+                {"error":{"message":"Response not found","type":"not_found"}}
+                """;
+        var chatCompletionsResponse = """
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"content":"Fallback OK"},"finish_reason":"stop"}]}
+
+                data: [DONE]
+
+                """;
+
+        var httpClient = mockHttpClientSequence(
+                new MockResponse(404, notFoundBody),
+                new MockResponse(200, chatCompletionsResponse)
+        );
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("https://api.openai.com/v1")
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+
+        // Seed a stale response ID
+        client.seedResponseId("conv-404", "resp_stale");
+
+        var request = ChatCompletionRequest.builder("gpt-4o")
+                .user("Hello")
+                .conversationId("conv-404")
+                .build();
+        var session = StreamingSessions.start("test-404-fallback", resource);
+        client.streamChatCompletion(request, session);
+
+        // Should have made 2 requests: Responses API (404) + Chat Completions (200)
+        verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+
+        // Stale response ID should have been evicted
+        assertNull(client.responseIdCache().get("conv-404"),
+                "Stale response ID should be evicted after 404");
+
+        // Should have received the fallback text
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
+        verify(broadcaster, atLeast(2)).broadcast(captor.capture(), any(Set.class));
+        var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\"Fallback OK\"")),
+                "Expected fallback text from Chat Completions");
+    }
+
+    @Test
+    public void testResponsesApiUsageMetadata() throws Exception {
+        var responsesApiStream = """
+                data: {"type":"response.output_text.delta","delta":"Hi"}
+
+                data: {"type":"response.completed","response":{"id":"resp_usage","model":"gpt-4o","usage":{"input_tokens":12,"output_tokens":8}}}
+
+                data: [DONE]
+
+                """;
+
+        var httpClient = mockHttpClient(200, responsesApiStream);
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("https://api.openai.com/v1")
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+
+        var request = ChatCompletionRequest.builder("gpt-4o")
+                .user("Hi")
+                .conversationId("conv-usage")
+                .build();
+        var session = StreamingSessions.start("test-resp-usage", resource);
+        client.streamChatCompletion(request, session);
+
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
+        verify(broadcaster, atLeast(3)).broadcast(captor.capture(), any(Set.class));
+        var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
+        assertTrue(messages.stream().anyMatch(m ->
+                        m.contains("\"type\":\"metadata\"") && m.contains("ai.tokens.total")),
+                "Expected usage metadata with token counts");
+    }
+
+    @Test
+    public void testSeedAndEvictResponseId() {
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("https://api.openai.com/v1")
+                .apiKey("test-key")
+                .build();
+
+        assertNull(client.responseIdCache().get("conv-x"));
+
+        client.seedResponseId("conv-x", "resp_123");
+        assertEquals("resp_123", client.responseIdCache().get("conv-x"));
+
+        client.evictResponseId("conv-x");
+        assertNull(client.responseIdCache().get("conv-x"));
+    }
+
+    @Test
+    public void testConversationIdInRequestBuilder() {
+        var request = ChatCompletionRequest.builder("gpt-4o")
+                .user("Hello")
+                .conversationId("conv-test")
+                .build();
+        assertEquals("conv-test", request.conversationId());
+    }
+
+    @Test
+    public void testConversationIdNullByDefault() {
+        var request = ChatCompletionRequest.of("gpt-4o", "Hello");
+        assertNull(request.conversationId());
+    }
+
+    @Test
+    public void testBackwardsCompatibleConstructor() {
+        // The 6-arg constructor (without conversationId) should still work
+        var request = new ChatCompletionRequest("gpt-4o",
+                java.util.List.of(ChatMessage.user("Hi")),
+                0.7, 2048, false, java.util.List.of());
+        assertNull(request.conversationId());
+        assertEquals("gpt-4o", request.model());
+    }
+
     @Test
     public void testAdapterName() {
         var client = OpenAiCompatibleClient.builder().build();

@@ -74,6 +74,13 @@ public @interface AgentRef {
     int maxRetries() default 0;
 
     /**
+     * Enable circuit breaker protection for this agent. When true, the proxy
+     * is wrapped with {@code ResilientAgentProxy} that fast-fails when the
+     * circuit is open after repeated failures.
+     */
+    boolean circuitBreaker() default false;
+
+    /**
      * Per-agent call timeout in milliseconds. Default 0 means "use fleet default"
      * (120 seconds). Overrides the global parallel timeout for this specific agent.
      *

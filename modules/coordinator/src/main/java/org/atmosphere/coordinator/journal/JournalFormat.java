@@ -82,6 +82,9 @@ public interface JournalFormat {
                     case CoordinationEvent.AgentActivityChanged e ->
                             row(sb, "ACTIVITY", e.agentName(), e.activityType()
                                     + (e.detail() != null ? ": " + e.detail() : ""), "\u2014");
+                    case CoordinationEvent.CircuitStateChanged e ->
+                            row(sb, "CIRCUIT", e.agentName(),
+                                    e.fromState() + " -> " + e.toState(), "\u2014");
                 }
             }
             return sb.toString();

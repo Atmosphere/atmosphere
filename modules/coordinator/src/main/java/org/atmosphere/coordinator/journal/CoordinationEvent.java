@@ -161,4 +161,20 @@ public sealed interface CoordinationEvent {
                     + (detail != null && !detail.isEmpty() ? " (" + detail + ")" : "");
         }
     }
+
+    /**
+     * An agent's circuit breaker state changed (e.g., CLOSED to OPEN).
+     */
+    record CircuitStateChanged(
+            String coordinationId,
+            String agentName,
+            String fromState,
+            String toState,
+            Instant timestamp
+    ) implements CoordinationEvent {
+        @Override
+        public String toLogLine() {
+            return "CIRCUIT  " + agentName + " " + fromState + " -> " + toState;
+        }
+    }
 }

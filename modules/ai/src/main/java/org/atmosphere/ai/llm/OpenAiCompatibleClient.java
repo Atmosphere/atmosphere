@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * LLM client that speaks the OpenAI-compatible chat completions API.
@@ -68,6 +69,13 @@ public class OpenAiCompatibleClient implements LlmClient {
     private final HttpClient httpClient;
     private final Duration timeout;
     private final RetryPolicy retryPolicy;
+
+    /**
+     * Cache mapping conversationId to the last OpenAI Responses API response ID.
+     * Used for stateful continuation: subsequent turns send only
+     * {@code previous_response_id} instead of the full conversation history.
+     */
+    private final ConcurrentHashMap<String, String> responseIdCache = new ConcurrentHashMap<>();
 
     private OpenAiCompatibleClient(String baseUrl, String apiKey, HttpClient httpClient,
                                    Duration timeout, RetryPolicy retryPolicy) {
@@ -140,17 +148,51 @@ public class OpenAiCompatibleClient implements LlmClient {
                                       StreamingSession session, int toolRound)
             throws InterruptedException {
 
-        var requestBody = buildRequestBody(request);
-        logger.debug("Streaming chat completion: model={}, messages={}, tools={}, round={}",
-                request.model(), request.messages().size(), request.tools().size(), toolRound);
+        var conversationId = request.conversationId();
+        var useResponsesApi = isResponsesApiApplicable(conversationId);
+        String requestBody;
+        String endpoint;
 
-        var response = sendWithRetry(requestBody, session);
+        if (useResponsesApi) {
+            var previousId = responseIdCache.get(conversationId);
+            requestBody = buildResponsesApiBody(request, previousId);
+            endpoint = baseUrl + "/responses";
+            logger.debug("Streaming via Responses API: model={}, previousResponseId={}, round={}",
+                    request.model(), previousId, toolRound);
+        } else {
+            requestBody = buildRequestBody(request);
+            endpoint = baseUrl + "/chat/completions";
+            logger.debug("Streaming chat completion: model={}, messages={}, tools={}, round={}",
+                    request.model(), request.messages().size(), request.tools().size(), toolRound);
+        }
+
+        var response = sendWithRetry(requestBody, endpoint, session);
         if (response == null) {
             return;
         }
 
+        // If the Responses API returned 404 (cache miss), fall back to Chat Completions
+        if (useResponsesApi && response.statusCode() == 404) {
+            logger.info("Responses API cache miss for conversation {}, falling back to Chat Completions",
+                    conversationId);
+            // Drain the 404 response body before retrying
+            try (var errorStream = response.body()) {
+                errorStream.readAllBytes();
+            } catch (java.io.IOException ignored) {
+                logger.trace("Failed to drain 404 response body", ignored);
+            }
+            responseIdCache.remove(conversationId);
+            var fallbackBody = buildRequestBody(request);
+            response = sendWithRetry(fallbackBody, baseUrl + "/chat/completions", session);
+            if (response == null) {
+                return;
+            }
+            useResponsesApi = false;
+        }
+
         var accumulators = new HashMap<Integer, ToolCallAccumulator>();
         var toolCallsRequested = new boolean[]{false};
+        var capturedResponseId = new String[]{null};
 
         try (var reader = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
             String line;
@@ -158,7 +200,12 @@ public class OpenAiCompatibleClient implements LlmClient {
                 if (session.isClosed()) {
                     break;
                 }
-                processSSELine(line, session, accumulators, toolCallsRequested);
+                if (useResponsesApi) {
+                    processResponsesApiSSELine(line, session, accumulators,
+                            toolCallsRequested, capturedResponseId);
+                } else {
+                    processSSELine(line, session, accumulators, toolCallsRequested);
+                }
             }
         } catch (java.io.IOException e) {
             logger.error("Error reading SSE stream", e);
@@ -166,6 +213,12 @@ public class OpenAiCompatibleClient implements LlmClient {
                 session.error(e);
             }
             return;
+        }
+
+        // Cache the response ID for next turn if we got one
+        if (conversationId != null && capturedResponseId[0] != null) {
+            responseIdCache.put(conversationId, capturedResponseId[0]);
+            logger.debug("Cached response ID {} for conversation {}", capturedResponseId[0], conversationId);
         }
 
         // If the model requested tool calls, execute them and re-submit
@@ -218,7 +271,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             var followUp = new ChatCompletionRequest(
                     request.model(), List.copyOf(updatedMessages),
                     request.temperature(), request.maxStreamingTexts(),
-                    request.jsonMode(), request.tools());
+                    request.jsonMode(), request.tools(), request.conversationId());
             doStreamWithToolLoop(followUp, session, toolRound + 1);
         } else if (!session.isClosed()) {
             session.complete();
@@ -226,18 +279,25 @@ public class OpenAiCompatibleClient implements LlmClient {
     }
 
     private HttpResponse<java.io.InputStream> sendWithRetry(String requestBody,
+                                                             String endpoint,
                                                              StreamingSession session)
             throws InterruptedException {
+        var isResponsesEndpoint = endpoint.endsWith("/responses");
         HttpResponse<java.io.InputStream> response = null; // NOPMD — null fallback needed if all retries throw
         Exception lastException = null;
 
         var maxRetries = retryPolicy.maxRetries();
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
             try {
-                var httpRequest = buildHttpRequest(requestBody);
+                var httpRequest = buildHttpRequest(requestBody, endpoint);
                 response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
 
                 if (response.statusCode() == 200) {
+                    return response;
+                }
+
+                // Return 404 from Responses API as-is so caller can fall back
+                if (isResponsesEndpoint && response.statusCode() == 404) {
                     return response;
                 }
 
@@ -469,9 +529,9 @@ public class OpenAiCompatibleClient implements LlmClient {
         return params;
     }
 
-    private HttpRequest buildHttpRequest(String requestBody) {
+    private HttpRequest buildHttpRequest(String requestBody, String endpoint) {
         var builder = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/chat/completions"))
+                .uri(URI.create(endpoint))
                 .header("Content-Type", "application/json")
                 .header("Accept", "text/event-stream")
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -499,6 +559,261 @@ public class OpenAiCompatibleClient implements LlmClient {
             logger.trace("Failed to parse error response JSON", ex);
         }
         return errorBody.length() > 200 ? errorBody.substring(0, 200) + "..." : errorBody;
+    }
+
+    // -- OpenAI Responses API support --
+
+    /**
+     * Checks whether the Responses API path should be used for this request.
+     * The Responses API is used when: (a) the endpoint is OpenAI, and
+     * (b) a conversationId is present. On the first turn (no cached response ID),
+     * the request omits {@code previous_response_id} to establish the cache.
+     */
+    private boolean isResponsesApiApplicable(String conversationId) {
+        return conversationId != null && isOpenAiResponsesApiCapable();
+    }
+
+    /**
+     * Returns {@code true} if the configured endpoint is OpenAI's API,
+     * which supports the Responses API at {@code /v1/responses}.
+     */
+    private boolean isOpenAiResponsesApiCapable() {
+        return baseUrl.contains("api.openai.com");
+    }
+
+    /**
+     * Build a request body for the OpenAI Responses API.
+     * When a previousResponseId is available, only the new user input is sent
+     * (stateful continuation). On the first turn (no previousResponseId),
+     * the full message history is included via the {@code input} array and
+     * the system prompt via {@code instructions}.
+     */
+    private String buildResponsesApiBody(ChatCompletionRequest request, String previousResponseId) {
+        var body = new LinkedHashMap<String, Object>();
+        body.put("model", request.model());
+        if (previousResponseId != null) {
+            body.put("previous_response_id", previousResponseId);
+        }
+        body.put("stream", true);
+        body.put("store", true);
+
+        if (previousResponseId != null) {
+            // Continuation: only send the new user message
+            var lastUserMessage = request.messages().stream()
+                    .filter(m -> "user".equals(m.role()))
+                    .reduce((a, b) -> b)
+                    .orElse(null);
+            if (lastUserMessage != null) {
+                body.put("input", lastUserMessage.content());
+            }
+        } else {
+            // First turn: send all messages as input items
+            var inputItems = new ArrayList<Map<String, Object>>();
+            for (var msg : request.messages()) {
+                if ("system".equals(msg.role())) {
+                    // System messages go into "instructions" field
+                    body.put("instructions", msg.content());
+                } else {
+                    var item = new LinkedHashMap<String, Object>();
+                    item.put("role", msg.role());
+                    item.put("content", msg.content());
+                    inputItems.add(item);
+                }
+            }
+            if (!inputItems.isEmpty()) {
+                body.put("input", inputItems);
+            }
+        }
+
+        if (request.maxStreamingTexts() > 0) {
+            body.put("max_output_tokens", request.maxStreamingTexts());
+        }
+        if (request.temperature() >= 0) {
+            body.put("temperature", request.temperature());
+        }
+        if (!request.tools().isEmpty()) {
+            body.put("tools", buildResponsesApiTools(request.tools()));
+        }
+
+        try {
+            return MAPPER.writeValueAsString(body);
+        } catch (JacksonException e) {
+            // Should not happen with simple map structures
+            throw new IllegalStateException("Failed to serialize Responses API body", e);
+        }
+    }
+
+    /**
+     * Build tools array in Responses API format.
+     * The Responses API uses the same function tool format as Chat Completions.
+     */
+    private static List<Map<String, Object>> buildResponsesApiTools(List<ToolDefinition> tools) {
+        return serializeTools(tools);
+    }
+
+    /**
+     * Process an SSE line from the OpenAI Responses API stream.
+     * The Responses API SSE format uses typed events like {@code response.output_text.delta}
+     * and {@code response.completed}.
+     */
+    private void processResponsesApiSSELine(String line, StreamingSession session,
+                                            Map<Integer, ToolCallAccumulator> accumulators,
+                                            boolean[] toolCallsRequested,
+                                            String[] capturedResponseId) {
+        if (line.isBlank() || !line.startsWith(DATA_PREFIX)) {
+            return;
+        }
+
+        var data = line.substring(DATA_PREFIX.length()).trim();
+        if (DONE_MARKER.equals(data)) {
+            return;
+        }
+
+        try {
+            var node = MAPPER.readTree(data);
+            var type = node.has("type") ? node.get("type").stringValue() : null;
+
+            if (type == null) {
+                // Fallback: treat as Chat Completions format (shouldn't happen normally)
+                processSSELine(line, session, accumulators, toolCallsRequested);
+                return;
+            }
+
+            switch (type) {
+                case "response.output_text.delta" -> {
+                    var delta = node.get("delta");
+                    if (delta != null && delta.isString()) {
+                        var text = delta.stringValue();
+                        if (!text.isEmpty()) {
+                            session.send(text);
+                        }
+                    }
+                }
+                case "response.function_call_arguments.delta" -> {
+                    var index = node.has("output_index") ? node.get("output_index").asInt() : 0;
+                    var acc = accumulators.computeIfAbsent(index, k -> new ToolCallAccumulator());
+                    var delta = node.get("delta");
+                    if (delta != null && delta.isString()) {
+                        acc.appendArguments(delta.stringValue());
+                    }
+                }
+                case "response.function_call_arguments.done" -> {
+                    var index = node.has("output_index") ? node.get("output_index").asInt() : 0;
+                    var acc = accumulators.computeIfAbsent(index, k -> new ToolCallAccumulator());
+                    // The call ID and function name come from the output_item.added event
+                    if (node.has("call_id")) {
+                        acc.setId(node.get("call_id").stringValue());
+                    }
+                    if (node.has("name")) {
+                        acc.setFunctionName(node.get("name").stringValue());
+                    }
+                    toolCallsRequested[0] = true;
+                }
+                case "response.output_item.added" -> {
+                    // Capture function call metadata
+                    var item = node.get("item");
+                    if (item != null && "function_call".equals(
+                            item.has("type") ? item.get("type").stringValue() : null)) {
+                        var index = node.has("output_index") ? node.get("output_index").asInt() : 0;
+                        var acc = accumulators.computeIfAbsent(index, k -> new ToolCallAccumulator());
+                        if (item.has("call_id")) {
+                            acc.setId(item.get("call_id").stringValue());
+                        }
+                        if (item.has("name")) {
+                            acc.setFunctionName(item.get("name").stringValue());
+                        }
+                    }
+                }
+                case "response.completed" -> {
+                    var responseNode = node.get("response");
+                    if (responseNode != null) {
+                        // Capture the response ID for stateful continuation
+                        if (responseNode.has("id")) {
+                            capturedResponseId[0] = responseNode.get("id").stringValue();
+                        }
+                        // Forward usage metadata
+                        var usageNode = responseNode.get("usage");
+                        if (usageNode != null && !usageNode.isNull()) {
+                            forwardResponsesApiUsage(usageNode, session);
+                        }
+                        // Forward model metadata
+                        var modelNode = responseNode.get("model");
+                        if (modelNode != null && !modelNode.isNull()) {
+                            session.sendMetadata("ai.model", modelNode.stringValue());
+                        }
+                    }
+                }
+                default -> logger.trace("Ignoring Responses API event type: {}", type);
+            }
+        } catch (JacksonException e) {
+            logger.warn("Failed to parse Responses API SSE data: {}", data, e);
+        }
+    }
+
+    /**
+     * Forward usage metadata from the Responses API format.
+     * The Responses API reports usage in a slightly different structure.
+     */
+    private static void forwardResponsesApiUsage(tools.jackson.databind.JsonNode usageNode,
+                                                  StreamingSession session) {
+        if (usageNode.has("input_tokens")) {
+            session.sendMetadata("ai.tokens.input", usageNode.get("input_tokens").asInt());
+        }
+        if (usageNode.has("output_tokens")) {
+            session.sendMetadata("ai.tokens.output", usageNode.get("output_tokens").asInt());
+        }
+        var total = 0;
+        if (usageNode.has("input_tokens")) {
+            total += usageNode.get("input_tokens").asInt();
+        }
+        if (usageNode.has("output_tokens")) {
+            total += usageNode.get("output_tokens").asInt();
+        }
+        if (total > 0) {
+            session.sendMetadata("ai.tokens.total", total);
+        }
+    }
+
+    /**
+     * Cache a response ID for the first turn of a conversation.
+     * Called from {@link #processSSELine} when the endpoint is OpenAI and
+     * a conversationId is present but no previous response ID exists yet
+     * (i.e., first turn via Chat Completions that should seed the cache
+     * for future Responses API turns).
+     *
+     * <p>Note: The Chat Completions API does not return a response ID
+     * compatible with the Responses API. The cache is seeded only when
+     * using the Responses API (second turn onwards), or on the first
+     * Responses API call with no previous_response_id.</p>
+     */
+    // visible for testing
+    ConcurrentHashMap<String, String> responseIdCache() {
+        return responseIdCache;
+    }
+
+    /**
+     * Seed the response ID cache for a conversation. This allows the first
+     * turn to use Chat Completions, then subsequent turns to use the
+     * Responses API if a response ID is provided.
+     *
+     * @param conversationId the conversation identifier
+     * @param responseId     the OpenAI response ID (e.g. {@code resp_abc123})
+     */
+    public void seedResponseId(String conversationId, String responseId) {
+        if (conversationId != null && responseId != null) {
+            responseIdCache.put(conversationId, responseId);
+        }
+    }
+
+    /**
+     * Evict a cached response ID for a conversation.
+     *
+     * @param conversationId the conversation identifier
+     */
+    public void evictResponseId(String conversationId) {
+        if (conversationId != null) {
+            responseIdCache.remove(conversationId);
+        }
     }
 
     /**

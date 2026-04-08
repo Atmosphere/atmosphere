@@ -23,6 +23,9 @@ import java.util.List;
 /**
  * A chat completion request following the OpenAI-compatible format.
  * Works with OpenAI, Gemini, Ollama, Azure OpenAI, and any compatible endpoint.
+ *
+ * @param conversationId optional conversation identifier for stateful continuation
+ *                       (e.g. OpenAI Responses API {@code previous_response_id}). May be null.
  */
 public record ChatCompletionRequest(
         String model,
@@ -30,10 +33,23 @@ public record ChatCompletionRequest(
         double temperature,
         int maxStreamingTexts,
         boolean jsonMode,
-        List<ToolDefinition> tools
+        List<ToolDefinition> tools,
+        String conversationId
 ) {
+    /**
+     * Canonical constructor.
+     */
     public ChatCompletionRequest {
         tools = tools != null ? List.copyOf(tools) : List.of();
+    }
+
+    /**
+     * Backwards-compatible constructor without conversationId.
+     */
+    public ChatCompletionRequest(String model, List<ChatMessage> messages,
+                                 double temperature, int maxStreamingTexts,
+                                 boolean jsonMode, List<ToolDefinition> tools) {
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, null);
     }
 
     /**
@@ -41,7 +57,7 @@ public record ChatCompletionRequest(
      */
     public static ChatCompletionRequest of(String model, String userPrompt) {
         return new ChatCompletionRequest(model, List.of(ChatMessage.user(userPrompt)),
-                0.7, 2048, false, List.of());
+                0.7, 2048, false, List.of(), null);
     }
 
     /**
@@ -58,6 +74,7 @@ public record ChatCompletionRequest(
         private double temperature = 0.7;
         private int maxStreamingTexts = 2048;
         private boolean jsonMode = false;
+        private String conversationId;
 
         private Builder(String model) {
             this.model = model;
@@ -103,9 +120,14 @@ public record ChatCompletionRequest(
             return this;
         }
 
+        public Builder conversationId(String conversationId) {
+            this.conversationId = conversationId;
+            return this;
+        }
+
         public ChatCompletionRequest build() {
             return new ChatCompletionRequest(model, List.copyOf(messages),
-                    temperature, maxStreamingTexts, jsonMode, tools);
+                    temperature, maxStreamingTexts, jsonMode, tools, conversationId);
         }
     }
 }
