@@ -26,9 +26,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class QualityResultEvaluatorTest {
+class SanityCheckEvaluatorTest {
 
-    private final QualityResultEvaluator evaluator = new QualityResultEvaluator();
+    private final SanityCheckEvaluator evaluator = new SanityCheckEvaluator();
     private final AgentCall call = new AgentCall("agent", "skill", Map.of());
 
     @Test
@@ -104,7 +104,7 @@ class QualityResultEvaluatorTest {
 
     @Test
     void customMinWords() {
-        var strict = new QualityResultEvaluator(50, 0.3);
+        var strict = new SanityCheckEvaluator(50, 0.3);
         var result = new AgentResult("agent", "skill",
                 "Short but valid response for normal evaluator.",
                 Map.of(), Duration.ZERO, true);
@@ -115,6 +115,6 @@ class QualityResultEvaluatorTest {
 
     @Test
     void nameReturnsQuality() {
-        assertEquals("quality", evaluator.name());
+        assertEquals("sanity-check", evaluator.name());
     }
 }

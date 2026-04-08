@@ -35,7 +35,7 @@ import java.util.Set;
  * <p>Register via {@code META-INF/services/org.atmosphere.coordinator.evaluation.ResultEvaluator}
  * or configure programmatically.</p>
  */
-public final class QualityResultEvaluator implements ResultEvaluator {
+public final class SanityCheckEvaluator implements ResultEvaluator {
 
     private static final Set<String> ERROR_INDICATORS = Set.of(
             "error", "failed", "timeout", "exception", "unavailable",
@@ -46,7 +46,7 @@ public final class QualityResultEvaluator implements ResultEvaluator {
     private final double errorPenalty;
 
     /** Default: minimum 5 words, 0.3 penalty per error indicator. */
-    public QualityResultEvaluator() {
+    public SanityCheckEvaluator() {
         this(5, 0.3);
     }
 
@@ -54,14 +54,14 @@ public final class QualityResultEvaluator implements ResultEvaluator {
      * @param minWords     minimum word count for a passing result
      * @param errorPenalty score deduction per error indicator found (0.0-1.0)
      */
-    public QualityResultEvaluator(int minWords, double errorPenalty) {
+    public SanityCheckEvaluator(int minWords, double errorPenalty) {
         this.minWords = minWords;
         this.errorPenalty = errorPenalty;
     }
 
     @Override
     public String name() {
-        return "quality";
+        return "sanity-check";
     }
 
     @Override

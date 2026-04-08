@@ -1,1 +1,2 @@
-org.atmosphere.coordinator.evaluation.QualityResultEvaluator
+org.atmosphere.coordinator.evaluation.SanityCheckEvaluator
+org.atmosphere.coordinator.evaluation.LlmResultEvaluator
