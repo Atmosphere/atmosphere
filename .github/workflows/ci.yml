@@ -1,4 +1,4 @@
-name: "CI: Core (JDK 21/23/25/26)"
+name: "CI: Core (JDK 21/26)"
 
 on:
   push:
@@ -77,10 +77,6 @@ jobs:
       matrix:
         include:
           - java-version: 21
-            distribution: temurin
-          - java-version: 23
-            distribution: temurin
-          - java-version: 25
             distribution: temurin
           - java-version: 26
             distribution: oracle
