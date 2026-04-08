@@ -57,6 +57,7 @@ public class AtmosphereWebTransportAutoConfiguration {
             AtmosphereFramework framework,
             AtmosphereProperties properties) {
         var wt = properties.getWebTransport();
+        framework.addInitParameter("atmosphere.http3.enabled", "true");
         framework.addInitParameter("atmosphere.http3.port", String.valueOf(wt.getPort()));
         framework.addInitParameter("atmosphere.http3.host", wt.getHost());
         if (wt.getSsl().getCertificate() != null) {

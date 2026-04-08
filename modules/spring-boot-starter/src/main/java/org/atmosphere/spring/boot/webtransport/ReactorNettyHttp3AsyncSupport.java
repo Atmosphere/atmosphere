@@ -51,6 +51,16 @@ public class ReactorNettyHttp3AsyncSupport extends JSR356AsyncSupport {
     public ReactorNettyHttp3AsyncSupport(AtmosphereConfig config) {
         super(config);
 
+        // Only start the sidecar when explicitly enabled via init parameter.
+        // The Spring Boot auto-config bridges atmosphere.web-transport.enabled
+        // to this init param. Without it, the sidecar stays dormant — plain
+        // JSR356 WebSocket support is used instead.
+        String enabled = config.getInitParameter("atmosphere.http3.enabled");
+        if (!"true".equalsIgnoreCase(enabled)) {
+            logger.debug("Reactor Netty HTTP/3 sidecar not enabled (set atmosphere.http3.enabled=true)");
+            return;
+        }
+
         try {
             var properties = buildProperties(config);
             server = new ReactorNettyTransportServer(config.framework(), properties);
