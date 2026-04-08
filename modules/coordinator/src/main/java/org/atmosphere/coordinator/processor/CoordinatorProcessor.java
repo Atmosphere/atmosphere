@@ -300,22 +300,29 @@ public class CoordinatorProcessor implements Processor<Object> {
             }
         }
 
-        // Check all candidate paths (already registered or deferred)
-        for (var path : new String[]{customEndpoint, defaultPath, altPath}) {
-            if (path != null && framework.getAtmosphereHandlers().containsKey(path)) {
-                return new LocalAgentTransport(framework, agentName, path);
-            }
-        }
-
-        // Check for remote URL via environment or system property
+        // Check for explicit remote URL FIRST — env var, system property, or init
+        // parameter. When set, the URL overrides local transport even if the agent
+        // is in the same JVM. This lets samples demonstrate A2A protocol while
+        // keeping agents co-located for convenience.
         var envKey = "AGENT_" + agentName.toUpperCase().replace('-', '_') + "_URL";
         var remoteUrl = System.getenv(envKey);
         if (remoteUrl == null) {
             remoteUrl = System.getProperty(
                     "atmosphere.fleet.agents." + agentName + ".url");
         }
+        if (remoteUrl == null) {
+            remoteUrl = framework.getAtmosphereConfig().getInitParameter(
+                    "atmosphere.fleet.agents." + agentName + ".url");
+        }
         if (remoteUrl != null && !remoteUrl.isBlank()) {
             return new A2aAgentTransport(agentName, remoteUrl);
+        }
+
+        // No explicit URL — check for local handler (in-JVM transport)
+        for (var path : new String[]{customEndpoint, defaultPath, altPath}) {
+            if (path != null && framework.getAtmosphereHandlers().containsKey(path)) {
+                return new LocalAgentTransport(framework, agentName, path);
+            }
         }
 
         // Deferred: prefer custom endpoint if known, else default

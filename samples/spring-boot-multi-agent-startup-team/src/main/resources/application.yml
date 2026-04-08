@@ -3,6 +3,13 @@ atmosphere:
   web-transport:
     enabled: true
     port: 4446
+  # Fleet agents called via A2A (JSON-RPC over HTTP) — same JVM, real protocol.
+  # Demonstrates that agents work identically whether local or remote.
+  init-params:
+    atmosphere.fleet.agents.research-agent.url: http://localhost:${SERVER_PORT:8080}/atmosphere/agent/research-agent/a2a
+    atmosphere.fleet.agents.strategy-agent.url: http://localhost:${SERVER_PORT:8080}/atmosphere/agent/strategy-agent/a2a
+    atmosphere.fleet.agents.finance-agent.url: http://localhost:${SERVER_PORT:8080}/atmosphere/agent/finance-agent/a2a
+    atmosphere.fleet.agents.writer-agent.url: http://localhost:${SERVER_PORT:8080}/atmosphere/agent/writer-agent/a2a
   # Embabel config (only active when atmosphere-embabel is on the classpath):
   embabel:
     agent-name: ceo
