@@ -72,6 +72,12 @@ class AtmosphereAiEndpointRegistrar {
         var aiProps = properties.getAi();
         var path = aiProps.getPath();
 
+        // Skip if another handler (e.g. @ManagedService) already occupies the target path
+        if (framework.getAtmosphereHandlers().containsKey(path)) {
+            logger.info("Handler already registered at {}, skipping default AI endpoint", path);
+            return;
+        }
+
         // Resolve system prompt
         var systemPrompt = aiProps.getSystemPrompt();
         if (aiProps.getSystemPromptResource() != null && !aiProps.getSystemPromptResource().isEmpty()) {
