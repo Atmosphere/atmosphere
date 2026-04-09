@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 import { connectWebSocket } from './helpers/transport-helper';
 
+/** The demo auth token configured in the spring-boot-ai-chat sample fixture. */
+const AUTH_TOKEN = 'demo-token';
+
 let server: SampleServer;
 
 test.beforeAll(async () => {
@@ -12,6 +15,29 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await server?.stop();
 });
+
+/**
+ * Inject an init-script that patches the browser WebSocket constructor to
+ * append the Atmosphere auth token as a query parameter.  The admin
+ * dashboard HTML connects to /atmosphere/admin/events without any auth
+ * token, so the AuthInterceptor would reject the connection.
+ */
+async function injectAuthToken(page: import('@playwright/test').Page) {
+  await page.addInitScript((token: string) => {
+    const Orig = window.WebSocket;
+    // @ts-ignore — patching the global constructor
+    window.WebSocket = function PatchedWebSocket(url: string | URL, protocols?: string | string[]) {
+      const urlStr = typeof url === 'string' ? url : url.toString();
+      if (urlStr.includes('/atmosphere/admin/events')) {
+        const sep = urlStr.includes('?') ? '&' : '?';
+        return new Orig(urlStr + sep + 'X-Atmosphere-Auth=' + encodeURIComponent(token), protocols);
+      }
+      return new Orig(url, protocols);
+    } as unknown as typeof WebSocket;
+    Object.assign(window.WebSocket, Orig);
+    window.WebSocket.prototype = Orig.prototype;
+  }, AUTH_TOKEN);
+}
 
 test.describe('Admin REST API', () => {
   test('overview returns UP with agent and broadcaster counts', async ({ request }) => {
@@ -197,13 +223,16 @@ test.describe('Admin Dashboard UI', () => {
   });
 
   test('event stream indicator shows connected', async ({ page }) => {
+    await injectAuthToken(page);
     await page.goto(`${server.baseUrl}/atmosphere/admin/`);
-    await expect(page.getByText('Event stream: connected')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('Event stream: connected')).toBeVisible({ timeout: 15_000 });
   });
 
   test('agents tab shows AI runtimes and MCP tools sections', async ({ page }) => {
+    await injectAuthToken(page);
     await page.goto(`${server.baseUrl}/atmosphere/admin/`);
-    await page.getByText('Agents').click();
+    // Use the tab selector to avoid ambiguity with "Registered Agents" card header
+    await page.locator('.tab', { hasText: 'Agents' }).click();
 
     // Should show agents section
     await expect(page.getByText('Registered Agents')).toBeVisible({ timeout: 10_000 });
@@ -248,6 +277,7 @@ test.describe('Admin Dashboard UI', () => {
   });
 
   test('broadcast from UI shows Sent confirmation and updates audit log', async ({ page }) => {
+    await injectAuthToken(page);
     await page.goto(`${server.baseUrl}/atmosphere/admin/`);
     await page.getByText('Control', { exact: true }).click();
 
@@ -257,22 +287,20 @@ test.describe('Admin Dashboard UI', () => {
     await page.getByRole('button', { name: 'Send Broadcast' }).click();
 
     // Wait for "Sent" confirmation
-    await expect(page.getByText('Sent')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('#ctrl-broadcast-result')).toContainText('Sent', { timeout: 5_000 });
 
-    // Refresh audit log
-    await page.getByText('refresh').click();
+    // Refresh audit log — target the refresh link inside the Audit Log card
+    // (the Dashboard tab's Live Events card also has a "clear" link)
+    await page.locator('#tab-control .refresh-btn').click();
     await expect(page.getByText('broadcast').last()).toBeVisible({ timeout: 5_000 });
   });
 });
 
 test.describe('Admin Event Stream', () => {
   test('WebSocket event stream delivers broadcast events', async ({ request }) => {
-    // Connect to the event stream
-    const messages: string[] = [];
-    const ws = await connectWebSocket(server.baseUrl, '/atmosphere/admin/events');
-
-    ws.on('message', (data: any) => {
-      messages.push(data.toString());
+    // Connect to the event stream with auth token
+    const conn = await connectWebSocket(server.baseUrl, '/atmosphere/admin/events', {
+      headers: { 'X-Atmosphere-Auth': AUTH_TOKEN },
     });
 
     // Wait for connection to stabilize
@@ -289,10 +317,11 @@ test.describe('Admin Event Stream', () => {
     // Wait for the event to arrive
     await new Promise(r => setTimeout(r, 3000));
 
-    ws.close();
+    conn.close();
 
     // Should have received at least one MessageBroadcast event
-    const broadcastEvents = messages.filter(m => m.includes('MessageBroadcast'));
+    // The messages array is populated by the connectWebSocket helper
+    const broadcastEvents = conn.messages.filter(m => m.includes('MessageBroadcast'));
     expect(broadcastEvents.length).toBeGreaterThanOrEqual(1);
 
     const event = JSON.parse(broadcastEvents[0]);
