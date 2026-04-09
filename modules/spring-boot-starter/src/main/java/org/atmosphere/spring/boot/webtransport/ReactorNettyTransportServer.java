@@ -109,7 +109,10 @@ public class ReactorNettyTransportServer {
                     .enableH3Datagram(true)            // 0x33 = 1 (RFC 9297)
                     .qpackMaxTableCapacity(0)          // Disable QPACK dynamic table
                     .qpackBlockedStreams(0);
-            settings.put(0x2b603742L, 1L);   // SETTINGS_WEBTRANS_DRAFT00 (draft-02)
+            // WebTransport draft version — configurable for interop with evolving specs
+            var draftId = Long.parseLong(System.getProperty(
+                    "atmosphere.http3.webtransport.draft-setting", "0x2b603742"), 16);
+            settings.put(draftId, 1L);       // SETTINGS_WEBTRANS_DRAFT (default: draft-02)
             settings.put(0xc671706aL, 256L); // SETTINGS_WEBTRANS_MAX_SESSIONS (draft-07)
             var settingsFrame = new DefaultHttp3SettingsFrame(settings);
             logger.debug("HTTP/3 SETTINGS frame: {}", settingsFrame);
@@ -126,7 +129,7 @@ public class ReactorNettyTransportServer {
                     .initialMaxStreamDataUnidirectional(1_000_000)
                     .initialMaxStreamsUnidirectional(100)
                     .datagram(65536, 65536)
-                    .tokenHandler(io.netty.handler.codec.quic.InsecureQuicTokenHandler.INSTANCE)
+                    .tokenHandler(resolveQuicTokenHandler())
                     .handler(new ChannelInitializer<>() {
                         @Override
                         protected void initChannel(Channel ch) {
@@ -232,6 +235,18 @@ public class ReactorNettyTransportServer {
         }
         org.atmosphere.cpr.WebTransportProcessorFactory.getDefault().destroy();
         logger.info("Atmosphere HTTP/3 + WebTransport server stopped");
+    }
+
+    private io.netty.handler.codec.quic.QuicTokenHandler resolveQuicTokenHandler() {
+        // InsecureQuicTokenHandler skips source-address validation.
+        // Netty does not yet provide a SecureQuicTokenHandler, so we always use
+        // insecure for now but log a warning for production awareness.
+        if (!"true".equalsIgnoreCase(
+                System.getProperty("atmosphere.http3.insecure-token-acknowledged"))) {
+            logger.info("Using InsecureQuicTokenHandler (Netty default). "
+                    + "Set -Datmosphere.http3.insecure-token-acknowledged=true to suppress.");
+        }
+        return io.netty.handler.codec.quic.InsecureQuicTokenHandler.INSTANCE;
     }
 
     public boolean isRunning() {
@@ -601,7 +616,11 @@ public class ReactorNettyTransportServer {
                 // Accept the WebTransport session (draft-02 negotiation)
                 var responseHeaders = new DefaultHttp3HeadersFrame();
                 responseHeaders.headers().status("200");
-                responseHeaders.headers().add("sec-webtransport-http3-draft", "draft02");
+                // Mirror the draft version from the client request, or use configured default
+                var clientDraft = headers.get("sec-webtransport-http3-draft");
+                var draftVersion = clientDraft != null ? clientDraft.toString()
+                        : System.getProperty("atmosphere.http3.webtransport.draft-version", "draft02");
+                responseHeaders.headers().add("sec-webtransport-http3-draft", draftVersion);
                 ctx.write(responseHeaders);
                 ctx.flush();
 
