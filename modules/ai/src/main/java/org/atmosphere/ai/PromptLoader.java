@@ -155,7 +155,9 @@ public final class PromptLoader {
                     logger.debug("Skill '{}' loaded from classpath: {}", name, cp);
                     return content;
                 }
-            } catch (Exception ignored) { }
+            } catch (Exception e) {
+                logger.trace("Failed to read classpath resource '{}' for skill '{}'", cp, name, e);
+            }
         }
 
         // 2. Local disk cache

@@ -50,9 +50,23 @@ import java.util.Map;
 public class AtmosphereAdminEndpoint {
 
     private final AtmosphereAdmin admin;
+    private final boolean writeEnabled;
 
-    public AtmosphereAdminEndpoint(AtmosphereAdmin admin) {
+    public AtmosphereAdminEndpoint(
+            AtmosphereAdmin admin,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.admin.http-write-enabled:false}") boolean writeEnabled) {
         this.admin = admin;
+        this.writeEnabled = writeEnabled;
+    }
+
+    private ResponseEntity<Map<String, Object>> guardWrite() {
+        if (!writeEnabled) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "error", "Admin write operations disabled",
+                    "hint", "Set atmosphere.admin.http-write-enabled=true to enable"));
+        }
+        return null;
     }
 
     // ── System Overview ──
@@ -96,6 +110,7 @@ public class AtmosphereAdminEndpoint {
     @PostMapping("/broadcasters/broadcast")
     public ResponseEntity<Map<String, Object>> broadcast(
             @RequestBody Map<String, String> body) {
+        var denied = guardWrite(); if (denied != null) return denied;
         var id = body.get("broadcasterId");
         var message = body.get("message");
         if (id == null || message == null) {
@@ -113,6 +128,7 @@ public class AtmosphereAdminEndpoint {
     @PostMapping("/broadcasters/unicast")
     public ResponseEntity<Map<String, Object>> unicast(
             @RequestBody Map<String, String> body) {
+        var denied = guardWrite(); if (denied != null) return denied;
         var id = body.get("broadcasterId");
         var uuid = body.get("uuid");
         var message = body.get("message");
@@ -131,6 +147,7 @@ public class AtmosphereAdminEndpoint {
     @DeleteMapping("/broadcasters/destroy")
     public ResponseEntity<Map<String, Object>> destroyBroadcaster(
             @RequestParam("id") String id) {
+        var denied = guardWrite(); if (denied != null) return denied;
         var success = admin.framework().destroyBroadcaster(id);
         admin.auditLog().record(null, "destroy_broadcaster", id, success, null);
         if (success) {
@@ -141,6 +158,7 @@ public class AtmosphereAdminEndpoint {
 
     @DeleteMapping("/resources/{uuid}")
     public ResponseEntity<Map<String, Object>> disconnectResource(@PathVariable("uuid") String uuid) {
+        var denied = guardWrite(); if (denied != null) return denied;
         var success = admin.framework().disconnectResource(uuid);
         admin.auditLog().record(null, "disconnect", uuid, success, null);
         if (success) {
@@ -151,6 +169,7 @@ public class AtmosphereAdminEndpoint {
 
     @PostMapping("/resources/{uuid}/resume")
     public ResponseEntity<Map<String, Object>> resumeResource(@PathVariable("uuid") String uuid) {
+        var denied = guardWrite(); if (denied != null) return denied;
         var success = admin.framework().resumeResource(uuid);
         admin.auditLog().record(null, "resume", uuid, success, null);
         if (success) {
@@ -163,6 +182,7 @@ public class AtmosphereAdminEndpoint {
 
     @PostMapping("/tasks/{taskId}/cancel")
     public ResponseEntity<Map<String, Object>> cancelTask(@PathVariable("taskId") String taskId) {
+        var denied = guardWrite(); if (denied != null) return denied;
         TaskController controller = admin.taskController();
         if (controller == null) {
             return ResponseEntity.notFound().build();
@@ -227,8 +247,15 @@ public class AtmosphereAdminEndpoint {
         if (controller == null) {
             return ResponseEntity.ok(List.of());
         }
-        Instant sinceInstant = since != null ? Instant.parse(since) : null;
-        Instant untilInstant = until != null ? Instant.parse(until) : null;
+        Instant sinceInstant = null;
+        Instant untilInstant = null;
+        try {
+            if (since != null) sinceInstant = Instant.parse(since);
+            if (until != null) untilInstant = Instant.parse(until);
+        } catch (java.time.format.DateTimeParseException e) {
+            return ResponseEntity.badRequest().body(List.of(Map.of(
+                    "error", "Invalid timestamp: " + e.getMessage())));
+        }
         return ResponseEntity.ok(
                 controller.queryJournal(coordinationId, agentName, sinceInstant, untilInstant, limit));
     }

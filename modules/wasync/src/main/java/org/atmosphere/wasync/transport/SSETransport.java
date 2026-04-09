@@ -60,7 +60,9 @@ public class SSETransport extends StreamTransport {
                     dispatchEvent(Event.STATUS, statusCode);
 
                     if (statusCode != 200) {
-                        try { response.body().close(); } catch (Exception ignored) {}
+                        try { response.body().close(); } catch (Exception e) {
+                            logger.trace("Failed to close error response body", e);
+                        }
                         onThrowable(new RuntimeException("HTTP " + statusCode));
                         return;
                     }

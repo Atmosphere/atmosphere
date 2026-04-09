@@ -132,7 +132,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
                 JSR356Endpoint e = new JSR356Endpoint(framework, WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework));
                 if (hRequest.get() != null) {
                     e.handshakeRequest(hRequest.get());
-                    hRequest.set(null);
+                    hRequest.remove();
                 } else {
                     endPoint.set(e);
                 }
@@ -210,7 +210,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
                 hRequest.set(request);
             } else {
                 endPoint.get().handshakeRequest(request);
-                endPoint.set(null);
+                endPoint.remove();
             }
         }
     }
