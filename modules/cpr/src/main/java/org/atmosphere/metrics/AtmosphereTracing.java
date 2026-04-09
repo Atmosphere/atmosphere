@@ -112,6 +112,9 @@ public class AtmosphereTracing extends AtmosphereInterceptorAdapter {
 
     @Override
     public void postInspect(AtmosphereResource r) {
+        if (r.isCancelled()) {
+            return;
+        }
         Span span = (Span) r.getRequest().getAttribute(SPAN_KEY);
         if (span != null) {
             String action = r.getAtmosphereResourceEvent() != null && r.getAtmosphereResourceEvent().isSuspended()
@@ -127,6 +130,9 @@ public class AtmosphereTracing extends AtmosphereInterceptorAdapter {
     }
 
     private void endSpan(AtmosphereResource r) {
+        if (r.isCancelled()) {
+            return;
+        }
         Scope scope = (Scope) r.getRequest().getAttribute(SCOPE_KEY);
         Span span = (Span) r.getRequest().getAttribute(SPAN_KEY);
 
