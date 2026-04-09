@@ -92,6 +92,12 @@ public class AtmosphereConsoleInfoEndpoint {
                     return path;
                 }
             }
+            // Fall back to any registered handler (e.g. @ManagedService)
+            for (var path : handlers.keySet()) {
+                if (path.startsWith("/atmosphere/") && !path.contains("/admin")) {
+                    return path;
+                }
+            }
         } catch (Exception e) {
             logger.debug("Framework not initialized yet, using configured default", e);
         }
