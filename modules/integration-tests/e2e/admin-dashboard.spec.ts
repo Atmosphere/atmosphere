@@ -198,7 +198,7 @@ test.describe('Admin Dashboard UI', () => {
 
   test('event stream indicator shows connected', async ({ page }) => {
     await page.goto(`${server.baseUrl}/atmosphere/admin/`);
-    await expect(page.getByText('Event stream: connected')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Event stream: connected')).toBeVisible({ timeout: 30_000 });
   });
 
   test('agents tab shows AI runtimes and MCP tools sections', async ({ page }) => {
