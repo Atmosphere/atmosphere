@@ -3,16 +3,20 @@
 5 AI agents collaborate in real-time via the `@Coordinator` fleet abstraction.
 A CEO coordinator manages 4 specialist agents, delegating tasks via the A2A
 protocol and synthesizing results into an executive briefing streamed to the
-browser over WebSocket.
+browser over WebTransport/HTTP3.
 
 This sample demonstrates:
 - **`@Coordinator`** + **`@Fleet`** for multi-agent orchestration
 - **`AgentFleet`** API for sequential and parallel agent dispatch
 - **`@Agent`** + **`@AgentSkill`** for headless specialist agents
-- **Coordination Journal** for execution observability
-- **Admin Control Plane** — live dashboard at `/atmosphere/admin/` with event stream, agent inspection, and operational controls
+- **Agent Activity Streaming** — real-time `agent-step` events (thinking/completed) streamed to the browser via `StreamingActivityListener`
+- **Coordination Journal** with rendered markdown tables showing the full execution graph
+- **Result Evaluation** — dual evaluators (`SanityCheckEvaluator` + `LlmResultEvaluator`) auto-score agent responses with EVAL rows in the journal
+- **SQLite Checkpoints** — `CheckpointingCoordinationJournal` persists coordination state to `atmosphere-checkpoints.db`
+- **Skill files from GitHub** — `skill:` prefix loads prompts from [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills) with SHA-256 integrity verification
+- **WebTransport over HTTP/3** — self-signed cert auto-discovery via `/api/webtransport-info`
+- **Admin Control Plane** — live dashboard at `/atmosphere/admin/`
 - **4 swappable AI runtimes**: ADK (default), Embabel, Spring AI, LangChain4j
-- **Skill files** (`prompts/*.md`) defining agent personas and capabilities
 
 ## Prerequisites
 
@@ -78,18 +82,20 @@ src/main/java/.../a2astartup/
   StrategyAgent.java               # @Agent: SWOT analysis
   FinanceAgent.java                # @Agent: financial modeling
   WriterAgent.java                 # @Agent: report synthesis
+  CheckpointConfig.java            # SQLite-backed CoordinationJournal via ServiceLoader
   DemoResponseProducer.java        # Fallback when no API key
   LlmConfig.java                   # LLM settings from env vars
 
 src/main/resources/
   application.yml                  # Atmosphere + LLM config
-  prompts/
-    ceo-skill.md                   # CEO persona and guardrails
-    research-skill.md              # Research agent skill definition
-    strategy-skill.md              # Strategy agent skill definition
-    finance-skill.md               # Finance agent skill definition
-    writer-skill.md                # Writer agent skill definition
+  META-INF/services/
+    ...ResultEvaluator             # SanityCheckEvaluator + LlmResultEvaluator
+    ...CoordinationJournal         # CheckpointConfig (SQLite-backed journal)
 ```
+
+Skill files are loaded from [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills)
+at runtime via `skill:startup-ceo`, `skill:startup-research`, etc. No local prompt
+files — the `PromptLoader` fetches from GitHub on first run and caches to `~/.atmosphere/skills/`.
 
 ## Key Code
 
@@ -97,11 +103,12 @@ src/main/resources/
 
 The `@Coordinator` annotation registers this class as a fleet manager.
 `@Fleet` declares which agents belong to the fleet. The `AgentFleet` is
-injected into the `@Prompt` method automatically.
+injected into the `@Prompt` method automatically. The `skill:` prefix
+loads the CEO persona from the `atmosphere-skills` GitHub repo.
 
 ```java
 @Coordinator(name = "ceo",
-    skillFile = "prompts/ceo-skill.md",
+    skillFile = "skill:startup-ceo",
     description = "Startup CEO that coordinates specialist A2A agents")
 @Fleet({
     @AgentRef(type = ResearchAgent.class),
@@ -113,6 +120,9 @@ public class CeoCoordinator {
 
     @Prompt
     public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
+        // Wire per-session activity streaming — clients see agent-step events in real time
+        fleet = fleet.withActivityListener(new StreamingActivityListener(session));
+
         // Step 1: Research (sequential)
         var research = fleet.agent("research-agent").call("web_search",
                 Map.of("query", message, "num_results", "3"));
@@ -128,15 +138,18 @@ public class CeoCoordinator {
         var report = fleet.agent("writer-agent").call("write_report",
                 Map.of("title", message, "key_findings", research.text()));
 
-        // Step 4: Coordination Journal (observability)
-        session.emit(new AiEvent.ToolResult("coordination_journal",
-                fleet.journal().formatLog(JournalFormat.MARKDOWN)));
-
-        // Step 5: CEO LLM synthesis
+        // Step 4: CEO LLM synthesis
         session.stream("Write an executive briefing based on: " + report.text());
     }
 }
 ```
+
+The `StreamingActivityListener` emits `agent-step` events to the WebSocket as each
+agent transitions through Thinking -> Completed states. The `JournalingAgentFleet`
+(wired via `CheckpointConfig`) auto-evaluates each result with both
+`SanityCheckEvaluator` (word count, structure) and `LlmResultEvaluator` (Gemini
+judge via `AgentRuntime.generate()`). EVAL rows appear in the coordination journal
+with evaluator name, score, reason, and PASS/FAIL status.
 
 ### A Specialist Agent (ResearchAgent.java)
 
@@ -165,26 +178,26 @@ public class ResearchAgent {
 }
 ```
 
-### Skill Files (prompts/*.md)
+### Skill Files (atmosphere-skills repo)
 
-Each agent has a skill file that defines its persona, capabilities, and
-guardrails. The file becomes the agent's system prompt.
+Agent personas are loaded from the [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills)
+GitHub repo via the `skill:` prefix. On first run, `PromptLoader.loadSkill()` fetches each
+skill file from GitHub, verifies its SHA-256 hash against `registry.json` (supply chain
+protection), and caches it to `~/.atmosphere/skills/`.
 
-```markdown
-# Research Agent
-
-You are a market research specialist. You search the web for market data,
-competitor intelligence, and industry reports.
-
-## Skills
-- Search the web for market data, news, and competitor information
-- Extract and summarize relevant findings from search results
-
-## Guardrails
-- Always cite sources with URLs
-- Clearly label cached/fallback data as such
-- Do not fabricate statistics
+```java
+@Agent(name = "research-agent",
+    skillFile = "skill:startup-research",  // loaded from GitHub
+    endpoint = "/atmosphere/a2a/research")
 ```
+
+To use a local skill file instead, drop the `skill:` prefix:
+```java
+@Agent(name = "custom", skillFile = "prompts/custom.md")  // classpath only
+```
+
+The search order: classpath -> disk cache (`~/.atmosphere/skills/`) -> GitHub raw.
+Set `atmosphere.skills.offline=true` for air-gapped environments.
 
 ## Switching AI Runtimes
 
@@ -205,24 +218,45 @@ To switch to Embabel:
 
 The console will show `Runtime: embabel` (or whichever runtime is active).
 
-## Coordination Journal
+## Coordination Journal + Result Evaluation
 
-The `CoordinationJournal` records every dispatch, completion, and failure
-in the fleet execution. After all agents complete, the CEO queries the
-journal and displays it as a tool card in the console:
+The `CoordinationJournal` records every dispatch, completion, evaluation, and
+routing decision. It renders as a markdown table in the browser via `remark-gfm`:
 
-```
-10 events:
-  DISPATCH  research-agent -> web_search
-  DONE      research-agent (732ms)
-  START     ceo
-  DISPATCH  strategy-agent -> analyze_strategy
-  DISPATCH  finance-agent -> financial_model
-  DONE      strategy-agent (3ms)
-  DONE      finance-agent (3ms)
-  COMPLETE  2 calls in 5ms
-  DISPATCH  writer-agent -> write_report
-  DONE      writer-agent (1ms)
+| Event | Agent | Detail | Duration |
+|-------|-------|--------|----------|
+| DISPATCH | research-agent | web_search | -- |
+| DONE | research-agent | web_search | 336ms |
+| START | -- | ceo | -- |
+| DISPATCH | strategy-agent | analyze_strategy | -- |
+| DISPATCH | finance-agent | financial_model | -- |
+| DONE | strategy-agent | analyze_strategy | 3ms |
+| DONE | finance-agent | financial_model | 3ms |
+| COMPLETE | -- | 2 calls | 6ms |
+| EVAL | research-agent | [sanity-check] 1.0 -- 64 words, structured | PASS |
+| EVAL | research-agent | [llm-judge] 0.8 -- comprehensive research | PASS |
+
+Two evaluators run automatically via ServiceLoader:
+
+- **`SanityCheckEvaluator`** — hardcoded baseline (word count, error keywords, structure).
+  No API key needed. Works in CI.
+- **`LlmResultEvaluator`** — calls the active `AgentRuntime` (Gemini, etc.) as an
+  LLM-as-judge. Prompt loaded from `atmosphere-skills/llm-judge/SKILL.md`.
+  Uses `AgentRuntime.generate()` for synchronous one-shot evaluation.
+
+Evaluations run asynchronously on a serialized virtual thread executor to avoid
+rate-limiting LLM APIs. Results stream to the client in real time via
+`AgentActivity.Evaluated` -> `StreamingActivityListener` -> `AiEvent.AgentStep("eval", ...)`.
+
+## SQLite Checkpoints
+
+The `CheckpointConfig` class wires `CheckpointingCoordinationJournal` with
+`SqliteCheckpointStore`. Coordination state persists to `atmosphere-checkpoints.db`
+and survives JVM restarts.
+
+```bash
+# After a request, verify checkpoints on disk:
+sqlite3 atmosphere-checkpoints.db "SELECT COUNT(*) FROM checkpoints;"
 ```
 
 ## Admin Dashboard
@@ -243,9 +277,18 @@ curl http://localhost:8080/api/admin/agents        # all 5 agents
 curl http://localhost:8080/api/admin/broadcasters   # 12 active broadcasters
 ```
 
+## WebTransport over HTTP/3
+
+The sample starts a Reactor Netty HTTP/3 sidecar on port 4446 with a self-signed
+ECDSA certificate. The frontend auto-discovers the transport via
+`/api/webtransport-info` (returns port + SHA-256 certificate hash) and connects
+with `serverCertificateHashes`. Falls back to WebSocket if WebTransport is unavailable.
+
 ## Console Output
 
 When you send a prompt, the console shows:
-1. **AGENT COLLABORATION** — tool cards for each agent (Web Search, Analyze Strategy, Financial Model, Write Report)
-2. **Coordination Journal** — the full execution trace
-3. **CEO Briefing** — the LLM-generated executive summary with GO/NO-GO recommendation, key risks, and next steps
+1. **Agent Activity Events** — `agent-step` frames stream in real time: "Agent 'research-agent' is thinking...", "completed in 336ms"
+2. **AGENT COLLABORATION** — tool cards for each agent with expandable results (rendered as markdown via `remark-gfm`)
+3. **Coordination Journal** — full execution table with EVAL rows showing evaluator name, score, reason, and PASS/FAIL
+4. **CEO Briefing** — the LLM-generated executive summary with GO/NO-GO recommendation, key risks, and next steps
+5. **Agent Status Bar** — bottom bar with per-agent status (thinking/completed) and green checkmarks
