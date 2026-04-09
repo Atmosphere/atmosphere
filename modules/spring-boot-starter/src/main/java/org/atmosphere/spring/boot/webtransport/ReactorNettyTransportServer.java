@@ -472,7 +472,11 @@ public class ReactorNettyTransportServer {
             // DoS protection: reject oversized frames
             if (byteAccumulator.readableBytes() > MAX_FRAME_BYTES) {
                 logger.warn("WebTransport frame exceeds {} bytes, dropping", MAX_FRAME_BYTES);
-                byteAccumulator.clear();
+                // Release all component buffers, not just reset indices
+                while (byteAccumulator.numComponents() > 0) {
+                    byteAccumulator.removeComponent(0);
+                }
+                byteAccumulator.discardReadBytes();
                 return;
             }
 
@@ -526,12 +530,22 @@ public class ReactorNettyTransportServer {
                 headerBuf.release();
                 headerBuf = null;
             }
+            if (byteAccumulator.refCnt() > 0) {
+                byteAccumulator.release();
+            }
+            // Reset bidi flag so the session can open a new bidi stream
+            if (state != null) {
+                state.bidiStreamActive = false;
+            }
             super.channelInactive(ctx);
         }
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             logger.error("WebTransport bidi stream error", cause);
+            if (byteAccumulator.refCnt() > 0) {
+                byteAccumulator.release();
+            }
             ctx.close();
         }
     }

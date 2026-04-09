@@ -42,7 +42,9 @@ public class SlidingWindowCompaction implements AiCompactionStrategy {
                 }
             }
             if (oldestNonSystem < 0) {
-                break;
+                // All remaining messages are system — hard-cap by trimming oldest
+                result.removeFirst();
+                continue;
             }
             result.remove(oldestNonSystem);
         }
