@@ -383,6 +383,11 @@ export default defineConfig({
       name: 'session-token-expiry',
       testMatch: /session-token-expiry\.spec\.ts/,
     },
+    // ── CLI runtime (verifies `atmosphere run` launches working console) ──
+    {
+      name: 'cli-runtime',
+      testMatch: /cli-runtime\.spec\.ts/,
+    },
     // ── Cross-browser (opt-in via E2E_ALL_BROWSERS=true) ──
     ...(process.env.E2E_ALL_BROWSERS ? [
       {
