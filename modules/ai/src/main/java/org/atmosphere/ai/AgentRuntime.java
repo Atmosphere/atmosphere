@@ -109,11 +109,15 @@ public interface AgentRuntime {
     default String generate(AgentExecutionContext context, Duration timeout) {
         var collector = new CollectingSession();
         execute(context, collector);
-        // Some runtimes don't call session.complete() — signal it ourselves
+        // Wait for the runtime to signal completion (async runtimes stream on
+        // background threads). If the runtime doesn't call complete() within
+        // the timeout, force-close as a safety net — but NEVER before awaiting.
+        if (!collector.isClosed()) {
+            collector.await(timeout);
+        }
         if (!collector.isClosed()) {
             collector.complete();
         }
-        collector.await(timeout);
         return collector.text();
     }
 }

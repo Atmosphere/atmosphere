@@ -103,8 +103,14 @@ public final class PromptLoader {
      * @param skillName the skill name (e.g. {@code "llm-judge"}, {@code "startup-ceo"})
      * @return the skill file content, or {@code null} if not found anywhere
      */
+    private static final String NOT_FOUND_SENTINEL = "\0__NOT_FOUND__";
+
     public static String loadSkill(String skillName) {
-        return CACHE.computeIfAbsent("skill:" + skillName, k -> resolveSkill(skillName));
+        var cached = CACHE.computeIfAbsent("skill:" + skillName, k -> {
+            var result = resolveSkill(skillName);
+            return result != null ? result : NOT_FOUND_SENTINEL;
+        });
+        return NOT_FOUND_SENTINEL.equals(cached) ? null : cached;
     }
 
     /**
@@ -233,6 +239,9 @@ public final class PromptLoader {
                         return null;
                     }
                     logger.debug("Skill '{}' integrity verified (SHA-256: {})", name, actualHash);
+                } else {
+                    logger.warn("No SHA-256 hash in registry for skill '{}' — "
+                            + "integrity unverified (registry.json may be unavailable)", name);
                 }
                 return content;
             }

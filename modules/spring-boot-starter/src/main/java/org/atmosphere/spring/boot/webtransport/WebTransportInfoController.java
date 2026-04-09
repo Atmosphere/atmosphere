@@ -52,11 +52,16 @@ public class WebTransportInfoController {
     @GetMapping("/api/webtransport-info")
     public Map<String, Object> info() {
         var result = new LinkedHashMap<String, Object>();
+        var running = server.isRunning();
         result.put("port", properties.getWebTransport().getPort());
-        result.put("enabled", server.isRunning());
-        var hash = server.certificateHash();
-        if (hash != null) {
-            result.put("certificateHash", hash);
+        result.put("enabled", running);
+        // Only expose cert hash when the HTTP/3 server is actually running —
+        // prevents clients from attempting connections to a dead sidecar
+        if (running) {
+            var hash = server.certificateHash();
+            if (hash != null) {
+                result.put("certificateHash", hash);
+            }
         }
         return result;
     }

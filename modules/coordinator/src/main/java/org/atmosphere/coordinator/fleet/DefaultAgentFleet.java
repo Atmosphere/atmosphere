@@ -139,6 +139,7 @@ public final class DefaultAgentFleet implements AgentFleet {
 
         ExecutorService vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
         var futures = new LinkedHashMap<String, CompletableFuture<AgentResult>>();
+        var timeouts = new HashMap<String, Long>();
         var nameCount = new HashMap<String, Integer>();
         for (var agentCall : calls) {
             var name = agentCall.agentName();
@@ -150,6 +151,7 @@ public final class DefaultAgentFleet implements AgentFleet {
                     && !dap.limits().isDefaultTimeout()
                     ? dap.limits().timeout().toMillis()
                     : parallelTimeoutMs;
+            timeouts.put(key, agentTimeoutMs);
             futures.put(key,
                     CompletableFuture.supplyAsync(
                             () -> proxy.call(agentCall.skill(), agentCall.args()),
@@ -165,8 +167,9 @@ public final class DefaultAgentFleet implements AgentFleet {
             } catch (Exception e) {
                 failed = true;
                 var cause = e.getCause();
+                var actualTimeout = timeouts.getOrDefault(entry.getKey(), parallelTimeoutMs);
                 var msg = cause instanceof TimeoutException
-                        ? "Agent timed out after " + parallelTimeoutMs + "ms"
+                        ? "Agent timed out after " + actualTimeout + "ms"
                         : "Parallel call failed: " + e.getMessage();
                 logger.error("Parallel call to '{}' failed: {}", entry.getKey(), msg);
                 results.put(entry.getKey(), AgentResult.failure(

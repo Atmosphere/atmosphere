@@ -53,15 +53,26 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
     private final CoordinationJournal journal;
     private final String coordinatorName;
     // Single-threaded: serialize eval calls to avoid rate-limiting LLM APIs
-    private final ExecutorService evalExecutor = Executors.newSingleThreadExecutor(
-            Thread.ofVirtual().name("eval-", 0).factory());
+    private final ExecutorService evalExecutor;
+    private final boolean ownsExecutor;
     private final ThreadLocal<String> activeCoordinationId = new ThreadLocal<>();
 
     public JournalingAgentFleet(AgentFleet delegate, CoordinationJournal journal,
                                 String coordinatorName) {
+        this(delegate, journal, coordinatorName,
+                Executors.newSingleThreadExecutor(
+                        Thread.ofVirtual().name("eval-", 0).factory()),
+                true);
+    }
+
+    private JournalingAgentFleet(AgentFleet delegate, CoordinationJournal journal,
+                                 String coordinatorName, ExecutorService evalExecutor,
+                                 boolean ownsExecutor) {
         this.delegate = delegate;
         this.journal = journal;
         this.coordinatorName = coordinatorName;
+        this.evalExecutor = evalExecutor;
+        this.ownsExecutor = ownsExecutor;
     }
 
     /**
@@ -70,7 +81,9 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
      */
     @Override
     public void close() {
-        evalExecutor.close();
+        if (ownsExecutor) {
+            evalExecutor.close();
+        }
     }
 
     @Override
@@ -202,8 +215,10 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
 
     @Override
     public AgentFleet withActivityListener(AgentActivityListener listener) {
+        // Share the parent's executor — don't create a new one per session
         return new JournalingAgentFleet(
-                delegate.withActivityListener(listener), journal, coordinatorName);
+                delegate.withActivityListener(listener), journal, coordinatorName,
+                evalExecutor, false);
     }
 
     private String coordinationId() {

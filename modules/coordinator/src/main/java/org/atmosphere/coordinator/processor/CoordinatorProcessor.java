@@ -300,16 +300,9 @@ public class CoordinatorProcessor implements Processor<Object> {
             }
         }
 
-        // Check for local handler FIRST (in-JVM, zero overhead, always preferred)
-        for (var path : new String[]{customEndpoint, defaultPath, altPath}) {
-            if (path != null && framework.getAtmosphereHandlers().containsKey(path)) {
-                return new LocalAgentTransport(framework, agentName, path);
-            }
-        }
-
-        // No local handler found — check for remote URL via env var, system
-        // property, or init parameter. Spring Boot bridges atmosphere.init-params.*
-        // from YAML to init params.
+        // Check for explicit remote URL FIRST — env var, system property, or
+        // init parameter. When set, the URL overrides local transport even if
+        // the agent is in the same JVM. This lets deployments force A2A protocol.
         var envKey = "AGENT_" + agentName.toUpperCase().replace('-', '_') + "_URL";
         var remoteUrl = System.getenv(envKey);
         if (remoteUrl == null) {
@@ -325,6 +318,13 @@ public class CoordinatorProcessor implements Processor<Object> {
                     ? A2aAgentTransport.Timeouts.CO_LOCATED
                     : A2aAgentTransport.Timeouts.DEFAULT;
             return new A2aAgentTransport(agentName, remoteUrl, timeouts);
+        }
+
+        // No explicit URL — check for local handler (in-JVM, zero overhead)
+        for (var path : new String[]{customEndpoint, defaultPath, altPath}) {
+            if (path != null && framework.getAtmosphereHandlers().containsKey(path)) {
+                return new LocalAgentTransport(framework, agentName, path);
+            }
         }
 
         // Deferred: prefer custom endpoint if known, else default
