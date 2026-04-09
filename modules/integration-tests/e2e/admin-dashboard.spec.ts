@@ -24,18 +24,22 @@ test.afterAll(async () => {
  */
 async function injectAuthToken(page: import('@playwright/test').Page) {
   await page.addInitScript((token: string) => {
-    const Orig = window.WebSocket;
-    // @ts-ignore — patching the global constructor
-    window.WebSocket = function PatchedWebSocket(url: string | URL, protocols?: string | string[]) {
+    const OrigWS = window.WebSocket;
+    // Patch WebSocket to inject the auth token into admin event stream connections.
+    // The admin dashboard HTML connects without auth, which the AuthInterceptor rejects.
+    (window as any).WebSocket = function (url: string | URL, protocols?: string | string[]) {
       const urlStr = typeof url === 'string' ? url : url.toString();
       if (urlStr.includes('/atmosphere/admin/events')) {
         const sep = urlStr.includes('?') ? '&' : '?';
-        return new Orig(urlStr + sep + 'X-Atmosphere-Auth=' + encodeURIComponent(token), protocols);
+        return new OrigWS(urlStr + sep + 'X-Atmosphere-Auth=' + encodeURIComponent(token), protocols);
       }
-      return new Orig(url, protocols);
-    } as unknown as typeof WebSocket;
-    Object.assign(window.WebSocket, Orig);
-    window.WebSocket.prototype = Orig.prototype;
+      return new OrigWS(url, protocols);
+    };
+    (window as any).WebSocket.CONNECTING = OrigWS.CONNECTING;
+    (window as any).WebSocket.OPEN = OrigWS.OPEN;
+    (window as any).WebSocket.CLOSING = OrigWS.CLOSING;
+    (window as any).WebSocket.CLOSED = OrigWS.CLOSED;
+    (window as any).WebSocket.prototype = OrigWS.prototype;
   }, AUTH_TOKEN);
 }
 
