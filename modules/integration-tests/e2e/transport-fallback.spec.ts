@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { ChatPage } from './helpers/chat-page';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 
 let server: SampleServer;
@@ -25,16 +24,16 @@ test.describe('Transport Fallback', () => {
       }
     });
 
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
 
-    // The app should fall back to long-polling and still connect
-    await chat.waitForConnected();
+    // The console should fall back to SSE/long-polling and still connect
+    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
 
-    // Verify the chat still works
-    await chat.joinAs('FallbackUser');
-    await chat.sendMessage('Fallback works!');
-    await chat.expectMessage('Fallback works!');
+    // Verify the chat still works — send a message and check it appears
+    await page.getByTestId('chat-input').fill('Fallback works!');
+    await page.getByTestId('chat-send').click();
+
+    await expect(page.getByTestId('message-list')).toContainText('Fallback works!', { timeout: 10_000 });
   });
 
   test('chat functions normally over fallback transport', async ({ page }) => {
@@ -49,19 +48,19 @@ test.describe('Transport Fallback', () => {
       }
     });
 
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
-    await chat.waitForConnected();
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
 
     // Send multiple messages
-    await chat.joinAs('Alice');
-    await chat.sendMessage('First message');
-    await chat.expectMessage('First message');
+    await page.getByTestId('chat-input').fill('First message');
+    await page.getByTestId('chat-send').click();
+    await expect(page.getByTestId('message-list')).toContainText('First message', { timeout: 10_000 });
 
-    await chat.sendMessage('Second message');
-    await chat.expectMessage('Second message');
+    await page.getByTestId('chat-input').fill('Second message');
+    await page.getByTestId('chat-send').click();
+    await expect(page.getByTestId('message-list')).toContainText('Second message', { timeout: 10_000 });
 
-    // Verify input clears
-    await expect(chat.input).toHaveValue('');
+    // Verify input clears after sending
+    await expect(page.getByTestId('chat-input')).toHaveValue('');
   });
 });

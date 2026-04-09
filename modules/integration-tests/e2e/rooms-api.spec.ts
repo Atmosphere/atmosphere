@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
-import { ChatPage } from './helpers/chat-page';
 import WebSocket from 'ws';
 
 let server: SampleServer;
@@ -188,14 +187,14 @@ test.describe('Room API & Protocol', () => {
     conn.close();
   });
 
-  test('rooms tab in browser shows room list', async ({ page }) => {
-    await page.goto(server.baseUrl);
-    await page.getByTestId('chat-layout').waitFor({ state: 'visible' });
+  test('console connects and can send a message', async ({ page }) => {
+    // Verify the console UI works — replaces the old "rooms tab" browser test
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
 
-    // Click the Rooms tab
-    await page.getByText('Rooms').click();
+    await page.getByTestId('chat-input').fill('room test message');
+    await page.getByTestId('chat-send').click();
 
-    // The rooms panel fetches /api/rooms — should show "lobby"
-    await expect(page.getByText('lobby')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('message-list')).toContainText('room test message', { timeout: 10_000 });
   });
 });

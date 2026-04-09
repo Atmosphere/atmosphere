@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 import { connectWebSocket, waitFor } from './helpers/transport-helper';
-import { ChatPage } from './helpers/chat-page';
 
 let server: SampleServer;
 
@@ -67,17 +66,15 @@ test.describe('Large Payload', () => {
     receiver.close();
   });
 
-  test('large message in browser renders without crashing', async ({ page }) => {
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
-    await chat.waitForConnected();
+  test('large message in console renders without crashing', async ({ page }) => {
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
 
-    await chat.joinAs('LargeUser');
-
-    // Send a 5KB message through the UI
+    // Send a 5KB message through the console UI
     const largeMsg = 'Test_' + 'B'.repeat(5_000);
-    await chat.sendMessage(largeMsg);
+    await page.getByTestId('chat-input').fill(largeMsg);
+    await page.getByTestId('chat-send').click();
 
-    await chat.expectMessage('Test_', { timeout: 10_000 });
+    await expect(page.getByTestId('message-list')).toContainText('Test_', { timeout: 10_000 });
   });
 });

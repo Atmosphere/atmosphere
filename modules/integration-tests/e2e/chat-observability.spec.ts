@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
-import { ChatPage } from './helpers/chat-page';
 
 let server: SampleServer;
 
@@ -55,41 +54,51 @@ test.describe('Chat Observability & Actuator', () => {
     expect(metric.measurements.length).toBeGreaterThan(0);
   });
 
-  test('observability tab loads health and metrics', async ({ page }) => {
-    // First, connect as a user to generate some metrics
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
-    await chat.waitForConnected();
-    await chat.joinAs('MetricsUser');
-    await chat.sendMessage('hello for metrics');
+  test('health endpoint returns UP after client activity', async ({ page, request }) => {
+    // First, connect a client via the console to generate some activity
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
 
-    // Switch to Observability tab
-    await page.getByText('Observability').click();
+    await page.getByTestId('chat-input').fill('hello for metrics');
+    await page.getByTestId('chat-send').click();
 
-    // Health status should show "UP"
-    await expect(page.getByText('Health Status')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('UP').first()).toBeVisible({ timeout: 10_000 });
+    // Verify health endpoint still reports UP after activity
+    const res = await request.get(`${server.baseUrl}/actuator/health`);
+    expect(res.ok()).toBeTruthy();
+
+    const health = await res.json();
+    expect(health.status).toBe('UP');
   });
 
-  test('observability tab shows atmosphere metrics after activity', async ({ page }) => {
-    // Generate activity first
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
-    await chat.waitForConnected();
-    await chat.joinAs('MetricsViewer');
-    await chat.sendMessage('metric trigger');
+  test('atmosphere metrics reflect activity after console usage', async ({ page, request }) => {
+    // Generate activity via the console
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
+
+    await page.getByTestId('chat-input').fill('metric trigger');
+    await page.getByTestId('chat-send').click();
 
     // Wait a moment for metrics to be recorded
     await page.waitForTimeout(2_000);
 
-    // Switch to Observability tab
-    await page.getByText('Observability').click();
+    // Query the metrics index and verify atmosphere metrics are present
+    const metricsRes = await request.get(`${server.baseUrl}/actuator/metrics`);
+    expect(metricsRes.ok()).toBeTruthy();
 
-    // Should show Atmosphere Metrics heading
-    await expect(page.getByText('Atmosphere Metrics')).toBeVisible({ timeout: 10_000 });
+    const metrics = await metricsRes.json();
+    const atmosphereMetrics = metrics.names.filter(
+      (n: string) => n.startsWith('atmosphere.'),
+    );
+    expect(atmosphereMetrics.length).toBeGreaterThan(0);
 
-    // At least one atmosphere metric should be visible
-    await expect(page.getByText('atmosphere.', { exact: false }).first())
-      .toBeVisible({ timeout: 10_000 });
+    // Query at least one atmosphere metric directly to verify it has measurements
+    const metricName = atmosphereMetrics[0];
+    const detailRes = await request.get(`${server.baseUrl}/actuator/metrics/${metricName}`);
+    expect(detailRes.ok()).toBeTruthy();
+
+    const detail = await detailRes.json();
+    expect(detail.name).toBe(metricName);
+    expect(detail.measurements).toBeDefined();
+    expect(detail.measurements.length).toBeGreaterThan(0);
   });
 });
