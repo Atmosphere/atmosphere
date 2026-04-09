@@ -45,7 +45,7 @@ class AtmosphereAiEndpointRegistrar {
     AtmosphereAiEndpointRegistrar(AtmosphereFramework framework,
                                   AtmosphereProperties properties) {
         framework.getAtmosphereConfig().startupHook(f -> {
-            if (hasUserDefinedAiEndpoint(f)) {
+            if (hasUserDefinedAiEndpoint(f, properties)) {
                 logger.info("User-defined @AiEndpoint detected, skipping default AI endpoint registration");
                 return;
             }
@@ -53,7 +53,8 @@ class AtmosphereAiEndpointRegistrar {
         });
     }
 
-    private boolean hasUserDefinedAiEndpoint(AtmosphereFramework framework) {
+    private boolean hasUserDefinedAiEndpoint(AtmosphereFramework framework,
+                                              AtmosphereProperties properties) {
         for (var entry : framework.getAtmosphereHandlers().values()) {
             var handler = entry.atmosphereHandler();
             if (handler instanceof AiEndpointHandler) {
@@ -64,6 +65,11 @@ class AtmosphereAiEndpointRegistrar {
                 return true;
             }
         }
+        // Another handler (e.g. @ManagedService) already occupies the target path
+        var path = properties.getAi().getPath();
+        if (framework.getAtmosphereHandlers().containsKey(path)) {
+            return true;
+        }
         return false;
     }
 
@@ -71,12 +77,6 @@ class AtmosphereAiEndpointRegistrar {
                                          AtmosphereProperties properties) {
         var aiProps = properties.getAi();
         var path = aiProps.getPath();
-
-        // Skip if another handler (e.g. @ManagedService) already occupies the target path
-        if (framework.getAtmosphereHandlers().containsKey(path)) {
-            logger.info("Handler already registered at {}, skipping default AI endpoint", path);
-            return;
-        }
 
         // Resolve system prompt
         var systemPrompt = aiProps.getSystemPrompt();
