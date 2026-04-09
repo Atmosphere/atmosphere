@@ -47,6 +47,11 @@
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-ai</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-skills</artifactId>
+            <scope>runtime</scope>
+        </dependency>
 
         <dependency>
             <groupId>dev.langchain4j</groupId>

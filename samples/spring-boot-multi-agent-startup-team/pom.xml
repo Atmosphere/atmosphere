@@ -166,6 +166,11 @@
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-admin</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-skills</artifactId>
+            <scope>runtime</scope>
+        </dependency>
 
         <!-- Observability: actuator + micrometer for admin metrics tab -->
         <dependency>

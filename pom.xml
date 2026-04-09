@@ -785,6 +785,11 @@
                 <artifactId>atmosphere-protocol-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-skills</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- Third-party -->
             <dependency>

@@ -89,6 +89,11 @@
             <artifactId>atmosphere-wasync</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-skills</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <!-- gRPC dependencies for client-side -->
         <dependency>

@@ -170,6 +170,13 @@
                 <artifactId>atmosphere-wasync</artifactId>
                 <version>${project.version}</version>
             </dependency>
+
+            <!-- Skills (bundled prompts for AI agents) -->
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-skills</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 </project>

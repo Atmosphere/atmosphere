@@ -45,6 +45,7 @@
         <module>quarkus-extension</module>
         <module>quarkus-admin-extension</module>
         <module>wasync</module>
+        <module>skills</module>
     </modules>
 
     <profiles>

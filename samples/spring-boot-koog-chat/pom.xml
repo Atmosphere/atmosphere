@@ -47,6 +47,11 @@
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-koog</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-skills</artifactId>
+            <scope>runtime</scope>
+        </dependency>
 
         <dependency>
             <groupId>ai.koog</groupId>
