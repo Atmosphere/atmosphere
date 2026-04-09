@@ -1356,7 +1356,10 @@ public class DefaultBroadcaster implements Broadcaster {
         if (newMsg == null) return futureDone(msg);
 
         var f = new BroadcasterFuture<>(newMsg, resources.size());
-        broadcastOnResume.offer(new Deliver(newMsg, f, msg));
+        if (!broadcastOnResume.offer(new Deliver(newMsg, f, msg))) {
+            logger.warn("broadcastOnResume queue full for Broadcaster {}", getID());
+            f.cancel(true);
+        }
         return f;
     }
 
@@ -1660,7 +1663,10 @@ public class DefaultBroadcaster implements Broadcaster {
                 return msg1;
             }, delay, t);
         }
-        delayedBroadcast.offer(e);
+        if (!delayedBroadcast.offer(e)) {
+            logger.warn("delayedBroadcast queue full for Broadcaster {}", getID());
+            future.cancel(true);
+        }
         return future;
     }
 

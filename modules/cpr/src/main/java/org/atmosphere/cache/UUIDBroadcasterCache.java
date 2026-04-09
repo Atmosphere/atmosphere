@@ -241,7 +241,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
                 }
             }
             notifyAddCache(broadcasterId, message);
-            clientQueue.offer(message);
+            clientQueue.add(message);
 
             // Enforce max-per-client by evicting oldest messages
             while (clientQueue.size() > maxPerClient) {

@@ -275,6 +275,28 @@ else
 fi
 
 if [ "$FAST_MODE" = true ]; then
+    # ── Unchecked Return Values (fast mode) ──
+    echo ""
+    echo -e "${BLUE}--- Unchecked Return Values ---${NC}"
+    UNCHECKED=$(rg '^\s+\w+\.offer\(' $SOURCE_DIRS --type java -l 2>/dev/null | \
+        grep -v "StubAgentTransport\|Test\.java\|InMemoryCheckpointStore" || true)
+    if [ -n "$UNCHECKED" ]; then
+        fail_validation "Unchecked offer() return values in: $(echo "$UNCHECKED" | tr '\n' ' ')"
+    else
+        pass_validation "No unchecked offer() calls in production code"
+    fi
+
+    # ── Test Quality (fast mode) ──
+    echo ""
+    echo -e "${BLUE}--- Test Quality ---${NC}"
+    NOOP_TESTS=$(rg 'expect\(true\)\.toBe\(true\)|expect\(1\)\.toBe\(1\)|assertTrue\(true\)' \
+        modules/integration-tests/e2e/ modules/*/src/test/ --type ts --type java 2>/dev/null || true)
+    if [ -n "$NOOP_TESTS" ]; then
+        fail_validation "Found no-op test assertions (expect(true).toBe(true))"
+    else
+        pass_validation "No no-op test assertions found"
+    fi
+
     echo ""
     echo -e "${BLUE}--- Fast mode: skipping extended checks ---${NC}"
     echo ""

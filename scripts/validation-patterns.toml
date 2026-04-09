@@ -175,6 +175,68 @@ ai_module = [
 ]
 
 # ============================================================================
+# UNCHECKED RETURN VALUES — silent failures from concurrent operations
+# ============================================================================
+
+[unchecked_returns]
+# Patterns where discarding the return value is almost always a bug.
+# These methods return boolean/object to indicate success/failure.
+# Ignoring the return silently drops data or misses state transitions.
+patterns = [
+    "^\\s+\\w+\\.offer\\(",              # BlockingQueue.offer() — false means queue full
+    "^\\s+messages\\.offer\\(",          # Broadcaster queue specifically
+]
+# Files where these patterns are acceptable (e.g., test utilities, stubs)
+allowlist_files = [
+    "StubAgentTransport.java",
+    "InMemoryCheckpointStore.java"
+]
+
+# ============================================================================
+# SECURITY PATTERNS — detect common security anti-patterns
+# ============================================================================
+
+[security]
+# Warn when write endpoints (@PostMapping, @DeleteMapping, @PutMapping) appear
+# in staged files without a visible auth/guard check nearby.
+# This is advisory (warning), not blocking — some endpoints are intentionally open.
+warn_unguarded_write_endpoints = true
+
+# Warn when Path.resolve() or File constructor uses string concatenation with
+# method parameters (potential path traversal).
+warn_unsanitized_paths = true
+
+# ============================================================================
+# TEST QUALITY — detect tests that don't actually test anything
+# ============================================================================
+
+[test_quality]
+# No-op assertions that inflate coverage without testing behavior
+noop_assertions = [
+    "expect(true).toBe(true)",
+    "expect(1).toBe(1)",
+    "expect(false).toBe(false)",
+    "assertTrue(true)",
+    "assertEquals(1, 1)"
+]
+# Maximum percentage of skipped/fixme tests before warning
+max_skip_percentage = 5
+
+# ============================================================================
+# ASYNC PARITY — ensure async paths are tested alongside sync
+# ============================================================================
+
+[async_parity]
+# Interfaces where every method should have test coverage for all variants.
+# Advisory only — logged as info, not enforced.
+proxy_interfaces = [
+    "AgentProxy",
+    "ResilientAgentProxy"
+]
+# Methods that must have async test variants
+methods = ["call", "callAsync", "stream"]
+
+# ============================================================================
 # THRESHOLD CONFIGURATION
 # ============================================================================
 

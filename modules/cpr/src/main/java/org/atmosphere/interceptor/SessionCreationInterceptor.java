@@ -44,7 +44,7 @@ public class SessionCreationInterceptor extends AtmosphereInterceptorAdapter {
                 && !ids.remove(r.uuid())
                 && r.getRequest().getMethod().equalsIgnoreCase("GET")) {
             r.session(true);
-            ids.offer(r.uuid());
+            ids.add(r.uuid());
             return Action.CANCELLED;
         }
         return Action.CONTINUE;
