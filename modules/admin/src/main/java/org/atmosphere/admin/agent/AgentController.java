@@ -92,7 +92,8 @@ public final class AgentController {
             var baseWrapper = handlers.get(AGENT_PATH_PREFIX + agentName);
             var mcpWrapper = handlers.get(AGENT_PATH_PREFIX + agentName + "/mcp");
             var handler = baseWrapper != null
-                    ? baseWrapper.atmosphereHandler() : null;
+                    ? baseWrapper.atmosphereHandler()
+                    : (mcpWrapper != null ? mcpWrapper.atmosphereHandler() : null);
 
             if (handler != null) {
                 info.put("handlerClass", handler.getClass().getSimpleName());

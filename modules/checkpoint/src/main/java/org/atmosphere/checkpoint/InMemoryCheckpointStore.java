@@ -73,7 +73,11 @@ public final class InMemoryCheckpointStore implements CheckpointStore {
     @Override
     public <S> WorkflowSnapshot<S> save(WorkflowSnapshot<S> snapshot) {
         Objects.requireNonNull(snapshot, "snapshot must not be null");
-        snapshots.put(snapshot.id(), snapshot);
+        // Remove stale index entry if overwriting with different coordinationId
+        var previous = snapshots.put(snapshot.id(), snapshot);
+        if (previous != null && !previous.coordinationId().equals(snapshot.coordinationId())) {
+            removeFromIndex(snapshot.id(), previous.coordinationId());
+        }
         indexByCoordination(snapshot.id(), snapshot.coordinationId());
         evictIfNeeded();
         dispatch(new CheckpointEvent.Saved(snapshot.id(), snapshot.coordinationId(), Instant.now()));

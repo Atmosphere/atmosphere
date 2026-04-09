@@ -113,6 +113,9 @@ public class LocalAgentTransport implements AgentTransport {
                     Duration.between(start, Instant.now()));
         } finally {
             chain.remove(agentName);
+            if (chain.isEmpty()) {
+                dispatchChain.remove();
+            }
         }
     }
 

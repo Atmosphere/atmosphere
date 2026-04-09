@@ -16,6 +16,7 @@
 package org.atmosphere.checkpoint.coordinator;
 
 import org.atmosphere.checkpoint.CheckpointId;
+import org.atmosphere.checkpoint.CheckpointQuery;
 import org.atmosphere.checkpoint.CheckpointStore;
 import org.atmosphere.checkpoint.WorkflowSnapshot;
 import org.atmosphere.coordinator.journal.CoordinationEvent;
@@ -116,7 +117,16 @@ public final class CheckpointingCoordinationJournal<S> implements CoordinationJo
         }
         try {
             var coordinationId = event.coordinationId();
+            // Hydrate from persistent store on cache miss (e.g., after JVM restart)
             var parentId = lastSnapshotPerCoordination.get(coordinationId);
+            if (parentId == null) {
+                var latest = store.list(CheckpointQuery.builder()
+                        .coordinationId(coordinationId).limit(1).build());
+                if (!latest.isEmpty()) {
+                    parentId = latest.getLast().id();
+                    lastSnapshotPerCoordination.put(coordinationId, parentId);
+                }
+            }
             var snapshot = WorkflowSnapshot.<S>builder()
                     .id(CheckpointId.random())
                     .parentId(parentId)

@@ -1286,7 +1286,14 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void dispatchMessages(Deliver e) {
-        messages.offer(e);
+        if (!messages.offer(e)) {
+            logger.warn("Broadcast queue full for Broadcaster {} (capacity {}). Message dropped.",
+                    getID(), MAX_QUEUE_SIZE);
+            if (e.future != null) {
+                e.future.cancel(true);
+            }
+            return;
+        }
 
         if (dispatchThread.get() == 0) {
             dispatchThread.incrementAndGet();
@@ -1294,6 +1301,11 @@ public class DefaultBroadcaster implements Broadcaster {
                 getBroadcasterConfig().getExecutorService().submit(getBroadcastHandler());
             } catch (RejectedExecutionException ex) {
                 dispatchThread.decrementAndGet();
+                // Remove the enqueued message so callers don't block indefinitely
+                messages.remove(e);
+                if (e.future != null) {
+                    e.future.cancel(true);
+                }
                 logger.warn("Failed to dispatch message for Broadcaster {}: executor rejected task", getID());
             }
         }

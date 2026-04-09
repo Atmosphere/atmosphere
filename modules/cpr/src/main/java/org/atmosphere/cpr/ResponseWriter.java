@@ -375,7 +375,7 @@ final class ResponseWriter {
             return data;
         }
         String ct = getContentTypeForSanitization();
-        if (ct == null || ct.contains("html")) {
+        if (ct == null || ct.toLowerCase(java.util.Locale.ROOT).contains("html")) {
             return HtmlEncoder.encode(data);
         }
         return data;

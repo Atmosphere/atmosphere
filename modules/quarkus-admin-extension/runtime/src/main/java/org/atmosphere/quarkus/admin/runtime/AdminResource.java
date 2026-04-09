@@ -175,8 +175,15 @@ public class AdminResource {
         if (controller == null) {
             return List.of();
         }
-        Instant sinceInstant = since != null ? Instant.parse(since) : null;
-        Instant untilInstant = until != null ? Instant.parse(until) : null;
+        Instant sinceInstant = null;
+        Instant untilInstant = null;
+        try {
+            if (since != null) sinceInstant = Instant.parse(since);
+            if (until != null) untilInstant = Instant.parse(until);
+        } catch (java.time.format.DateTimeParseException e) {
+            return java.util.List.of(java.util.Map.of(
+                    "error", "Invalid timestamp: " + e.getMessage()));
+        }
         return controller.queryJournal(coordinationId, agentName,
                 sinceInstant, untilInstant, limit != null ? limit : 100);
     }

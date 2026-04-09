@@ -126,6 +126,7 @@ public class DiscordGateway implements WebSocket.Listener {
             if (attempt > MAX_RECONNECT_ATTEMPTS) {
                 log.error("Discord Gateway: max reconnect attempts exhausted");
             }
+            reconnecting.set(false);
             return;
         }
 
@@ -153,10 +154,12 @@ public class DiscordGateway implements WebSocket.Listener {
                             try { old.sendClose(WebSocket.NORMAL_CLOSURE, "replaced"); }
                             catch (Exception e) { log.trace("Error closing previous WebSocket", e); }
                         }
+                        reconnecting.set(false);
                         log.info("Discord Gateway: connected");
                     })
                     .exceptionally(e -> {
                         log.error("Discord Gateway: connection failed: {}", e.getMessage());
+                        // Don't reset reconnecting — connect() will retry or exhaust attempts
                         connect(attempt + 1);
                         return null;
                     });
@@ -190,11 +193,9 @@ public class DiscordGateway implements WebSocket.Listener {
     public CompletionStage<?> onClose(WebSocket ws, int statusCode, String reason) {
         log.warn("Discord Gateway: closed (code={}, reason={})", statusCode, reason);
         if (running && reconnecting.compareAndSet(false, true)) {
-            try {
-                connect(1);
-            } finally {
-                reconnecting.set(false);
-            }
+            // Don't reset reconnecting here — connect() is async. The flag is
+            // reset in doConnect's thenAccept/exceptionally handlers.
+            connect(1);
         }
         return null;
     }
@@ -203,11 +204,7 @@ public class DiscordGateway implements WebSocket.Listener {
     public void onError(WebSocket ws, Throwable error) {
         log.error("Discord Gateway: error: {}", error.getMessage());
         if (running && reconnecting.compareAndSet(false, true)) {
-            try {
-                connect(1);
-            } finally {
-                reconnecting.set(false);
-            }
+            connect(1);
         }
     }
 
