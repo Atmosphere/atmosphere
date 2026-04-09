@@ -121,10 +121,14 @@ public final class PromptLoader {
             var skillName = path.substring(6);
             var content = loadSkill(skillName);
             if (content == null) {
-                throw new IllegalStateException(
-                        "Skill '" + skillName + "' not found on classpath, disk cache, or GitHub. "
-                        + "Add it to https://github.com/" + repo() + " or set "
-                        + "atmosphere.skills.offline=false to enable GitHub fetch.");
+                // Don't crash the app — an agent without a custom prompt still works
+                // (the LLM uses its default behavior). This is critical for CI
+                // environments where GitHub may be rate-limited or unreachable.
+                logger.warn("Skill '{}' not found on classpath, disk cache, or GitHub. "
+                        + "Agent will use default LLM behavior. Add the skill to "
+                        + "https://github.com/{}/tree/{}/skills/{}",
+                        skillName, repo(), branch(), skillName);
+                return "You are a helpful assistant.";
             }
             return content;
         }
@@ -155,16 +159,23 @@ public final class PromptLoader {
             return cached;
         }
 
-        // 3. GitHub (unless offline)
+        // 3. GitHub with retry (unless offline)
         if ("true".equalsIgnoreCase(System.getProperty("atmosphere.skills.offline"))) {
             logger.debug("Skill '{}' not found (offline mode)", name);
             return null;
         }
-        var fetched = fetchFromGitHub(name);
-        if (fetched != null) {
-            writeDiskCache(name, fetched);
-            logger.info("Skill '{}' fetched from GitHub and cached locally", name);
-            return fetched;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            var fetched = fetchFromGitHub(name);
+            if (fetched != null) {
+                writeDiskCache(name, fetched);
+                logger.info("Skill '{}' fetched from GitHub and cached locally", name);
+                return fetched;
+            }
+            if (attempt == 0) {
+                try { Thread.sleep(500); } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
+            }
         }
 
         logger.warn("Skill '{}' not found. Add it to https://github.com/{}/tree/{}/skills/{}",
