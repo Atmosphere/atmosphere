@@ -70,11 +70,10 @@ public class OpenAiCompatibleClient implements LlmClient {
     private final RetryPolicy retryPolicy;
 
     /**
-     * Cache mapping conversationId to the last OpenAI Responses API response ID.
-     * Used for stateful continuation: subsequent turns send only
-     * {@code previous_response_id} instead of the full conversation history.
+     * Max cached conversation IDs for Responses API stateful continuation.
+     * Subsequent turns send only {@code previous_response_id} instead of
+     * the full conversation history.
      */
-    /** Max cached conversation IDs for Responses API continuation. */
     private static final int MAX_RESPONSE_CACHE_SIZE = 1000;
     private final Map<String, String> responseIdCache = java.util.Collections.synchronizedMap(
             new java.util.LinkedHashMap<>(16, 0.75f, true) {
