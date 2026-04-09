@@ -124,7 +124,7 @@ test.describe('AG-UI Chat UI', () => {
     await page.goto(server.baseUrl);
     await expect(page.getByTestId('chat-layout')).toBeVisible();
     await expect(page.getByTestId('chat-input')).toBeVisible();
-    await expect(page.getByText('AG-UI Protocol Demo')).toBeVisible();
+    await expect(page.getByText('AG-UI Protocol Demo', { exact: false })).toBeVisible();
   });
 
   test('send message and receive streamed response', async ({ page }) => {

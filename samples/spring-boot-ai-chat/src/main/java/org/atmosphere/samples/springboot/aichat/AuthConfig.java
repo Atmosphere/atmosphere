@@ -30,7 +30,8 @@ import java.util.Optional;
 
 /**
  * Demo authentication for the AI chat sample.
- * Activated when {@code atmosphere.auth.demo-token} is set.
+ * Auth is <strong>enabled by default</strong> (fail-closed, per Invariant #6).
+ * Set {@code atmosphere.auth.enabled=false} to disable explicitly.
  *
  * <p>Supports three token states for E2E testing:</p>
  * <ul>
@@ -40,10 +41,10 @@ import java.util.Optional;
  * </ul>
  */
 @Configuration
-@ConditionalOnProperty("atmosphere.auth.demo-token")
+@ConditionalOnProperty(name = "atmosphere.auth.enabled", matchIfMissing = true)
 public class AuthConfig {
 
-    @Value("${atmosphere.auth.demo-token}")
+    @Value("${atmosphere.auth.demo-token:demo-token}")
     private String demoToken;
 
     @Bean

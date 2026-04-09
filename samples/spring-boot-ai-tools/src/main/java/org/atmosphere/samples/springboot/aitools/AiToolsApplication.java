@@ -17,6 +17,9 @@ package org.atmosphere.samples.springboot.aitools;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * Sample demonstrating Atmosphere's framework-agnostic {@code @AiTool} pipeline.
@@ -36,5 +39,13 @@ public class AiToolsApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(AiToolsApplication.class, args);
+    }
+
+    @Configuration
+    static class ConsoleRedirect implements WebMvcConfigurer {
+        @Override
+        public void addViewControllers(ViewControllerRegistry registry) {
+            registry.addRedirectViewController("/", "/atmosphere/console/");
+        }
     }
 }

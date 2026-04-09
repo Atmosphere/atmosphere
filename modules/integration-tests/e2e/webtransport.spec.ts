@@ -65,15 +65,9 @@ test.describe('Chat over WebTransport', () => {
     await page.goto(server.baseUrl);
     await connected;
 
-    const input = page.locator('input[placeholder*="name" i], input[placeholder*="join" i]');
-    await input.fill('WTUser');
-    await input.press('Enter');
-
-    await expect(page.getByText(/Joined room/i)).toBeVisible({ timeout: 10_000 });
-
-    const msgInput = page.locator('input[placeholder*="message" i]');
-    await msgInput.fill('Hello over HTTP/3!');
-    await msgInput.press('Enter');
+    const input = page.getByTestId('chat-input');
+    await input.fill('Hello over HTTP/3!');
+    await page.getByTestId('chat-send').click();
 
     await expect(page.getByText('Hello over HTTP/3!')).toBeVisible({ timeout: 10_000 });
   });
@@ -123,9 +117,9 @@ test.describe('AI Tools over WebTransport', () => {
     await page.goto(server.baseUrl);
     await connected;
 
-    const input = page.locator('input[type="text"], textarea').first();
+    const input = page.getByTestId('chat-input');
     await input.fill('What time is it?');
-    await input.press('Enter');
+    await page.getByTestId('chat-send').click();
 
     // Wait for any response to appear in the chat
     await expect(page.locator('body')).toContainText(/\d{1,2}:\d{2}|time|AM|PM/i, { timeout: 30_000 });

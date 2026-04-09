@@ -2,6 +2,7 @@ server:
   port: 8084
 
 atmosphere:
+  console-subtitle: A2A Agent — weather and time via Agent-to-Agent protocol
   packages: org.atmosphere.samples.springboot.a2a
 
 llm:

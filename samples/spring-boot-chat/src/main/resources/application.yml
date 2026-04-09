@@ -1,4 +1,5 @@
 atmosphere:
+  console-subtitle: Real-time chat with WebTransport/HTTP3 and WebSocket fallback
   packages: org.atmosphere.samples.springboot.chat
 
   # WebTransport over HTTP/3 sidecar server.

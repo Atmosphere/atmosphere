@@ -7,10 +7,13 @@ atmosphere:
   web-transport:
     enabled: true
     port: 4443
-  # Auth is disabled by default. Set ATMOSPHERE_AUTH_TOKEN to enable:
+  # Auth is enabled by default (fail-closed). Override token via env var:
   #   export ATMOSPHERE_AUTH_TOKEN=my-secret-token
+  # To disable auth entirely:
+  #   atmosphere.auth.enabled=false
   auth:
-    demo-token: ${ATMOSPHERE_AUTH_TOKEN:#{null}}
+    enabled: true
+    demo-token: ${ATMOSPHERE_AUTH_TOKEN:demo-token}
   cache:
     enabled: true
 

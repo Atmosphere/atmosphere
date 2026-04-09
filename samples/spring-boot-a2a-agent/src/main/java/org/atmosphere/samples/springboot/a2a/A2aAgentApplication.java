@@ -17,11 +17,22 @@ package org.atmosphere.samples.springboot.a2a;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @SpringBootApplication
 public class A2aAgentApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(A2aAgentApplication.class, args);
+    }
+
+    @Configuration
+    static class ConsoleRedirect implements WebMvcConfigurer {
+        @Override
+        public void addViewControllers(ViewControllerRegistry registry) {
+            registry.addRedirectViewController("/", "/atmosphere/console/");
+        }
     }
 }
