@@ -67,7 +67,7 @@ public final class DefaultCircuitBreaker implements CircuitBreaker {
                 }
                 yield false;
             }
-            case HALF_OPEN -> halfOpenAttempts.get() < config.halfOpenAttempts();
+            case HALF_OPEN -> halfOpenAttempts.getAndIncrement() < config.halfOpenAttempts();
         };
     }
 

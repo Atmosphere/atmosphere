@@ -222,7 +222,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     private Class<? extends AsyncSupport<?>> resolveByName(String fqcn) {
         try {
             return (Class<? extends AsyncSupport<?>>) Class.forName(fqcn);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | LinkageError e) {
             logger.debug("AsyncSupport {} not loadable, falling back to JSR356: {}", fqcn, e.getMessage());
             return JSR356AsyncSupport.class;
         }

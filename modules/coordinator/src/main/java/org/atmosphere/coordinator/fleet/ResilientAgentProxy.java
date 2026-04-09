@@ -98,6 +98,9 @@ public final class ResilientAgentProxy implements AgentProxy {
     public CompletableFuture<AgentResult> callAsync(String skill,
                                                      Map<String, Object> args) {
         if (!circuitBreaker.allowRequest()) {
+            emitActivity(new AgentActivity.CircuitOpen(
+                    name(), "Circuit open after repeated failures",
+                    Instant.now().plusSeconds(30)));
             return CompletableFuture.completedFuture(
                     AgentResult.failure(name(), skill,
                             "Circuit breaker open", Duration.ZERO));
@@ -116,6 +119,9 @@ public final class ResilientAgentProxy implements AgentProxy {
     public void stream(String skill, Map<String, Object> args,
                        Consumer<String> onToken, Runnable onComplete) {
         if (!circuitBreaker.allowRequest()) {
+            emitActivity(new AgentActivity.CircuitOpen(
+                    name(), "Circuit open after repeated failures",
+                    Instant.now().plusSeconds(30)));
             onComplete.run();
             return;
         }

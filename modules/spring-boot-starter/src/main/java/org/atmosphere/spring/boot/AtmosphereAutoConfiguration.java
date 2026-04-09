@@ -442,6 +442,11 @@ public class AtmosphereAutoConfiguration {
                         managedExecutor);
                 props.put(org.atmosphere.util.ExecutorsFactory.ASYNC_WRITE_THREAD_POOL,
                         managedExecutor);
+                // Mark as external so ExecutorsFactory.shutdown() doesn't terminate them
+                props.put(org.atmosphere.util.ExecutorsFactory.BROADCASTER_THREAD_POOL
+                        + org.atmosphere.util.ExecutorsFactory.EXTERNAL_MARKER, Boolean.TRUE);
+                props.put(org.atmosphere.util.ExecutorsFactory.ASYNC_WRITE_THREAD_POOL
+                        + org.atmosphere.util.ExecutorsFactory.EXTERNAL_MARKER, Boolean.TRUE);
                 logger.info("Using container-managed ExecutorService for Atmosphere: {}",
                         managedExecutor.getClass().getName());
             }

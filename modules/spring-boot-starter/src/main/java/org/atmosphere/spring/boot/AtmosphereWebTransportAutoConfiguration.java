@@ -112,7 +112,15 @@ public class AtmosphereWebTransportAutoConfiguration {
             }
 
             @Override
-            public void stop() { running = false; }
+            public void stop() {
+                running = false;
+                try {
+                    server.stop();
+                } catch (Exception e) {
+                    org.slf4j.LoggerFactory.getLogger(AtmosphereWebTransportAutoConfiguration.class)
+                            .debug("Error stopping WebTransport server: {}", e.getMessage());
+                }
+            }
 
             @Override
             public boolean isRunning() { return running; }

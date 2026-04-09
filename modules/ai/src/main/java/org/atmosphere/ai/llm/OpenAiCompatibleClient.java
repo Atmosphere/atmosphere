@@ -39,7 +39,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * LLM client that speaks the OpenAI-compatible chat completions API.
@@ -75,7 +74,15 @@ public class OpenAiCompatibleClient implements LlmClient {
      * Used for stateful continuation: subsequent turns send only
      * {@code previous_response_id} instead of the full conversation history.
      */
-    private final ConcurrentHashMap<String, String> responseIdCache = new ConcurrentHashMap<>();
+    /** Max cached conversation IDs for Responses API continuation. */
+    private static final int MAX_RESPONSE_CACHE_SIZE = 1000;
+    private final Map<String, String> responseIdCache = java.util.Collections.synchronizedMap(
+            new java.util.LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+                    return size() > MAX_RESPONSE_CACHE_SIZE;
+                }
+            });
 
     private OpenAiCompatibleClient(String baseUrl, String apiKey, HttpClient httpClient,
                                    Duration timeout, RetryPolicy retryPolicy) {
@@ -598,13 +605,25 @@ public class OpenAiCompatibleClient implements LlmClient {
         body.put("store", true);
 
         if (previousResponseId != null) {
-            // Continuation: only send the new user message
-            var lastUserMessage = request.messages().stream()
-                    .filter(m -> "user".equals(m.role()))
-                    .reduce((a, b) -> b)
-                    .orElse(null);
-            if (lastUserMessage != null) {
-                body.put("input", lastUserMessage.content());
+            // Continuation: send tool results + new user message as input items
+            var inputItems = new ArrayList<Map<String, Object>>();
+            for (var msg : request.messages()) {
+                if ("tool".equals(msg.role()) && msg.toolCallId() != null) {
+                    // Tool results must be sent as function_call_output items
+                    var item = new LinkedHashMap<String, Object>();
+                    item.put("type", "function_call_output");
+                    item.put("call_id", msg.toolCallId());
+                    item.put("output", msg.content());
+                    inputItems.add(item);
+                } else if ("user".equals(msg.role())) {
+                    var item = new LinkedHashMap<String, Object>();
+                    item.put("role", "user");
+                    item.put("content", msg.content());
+                    inputItems.add(item);
+                }
+            }
+            if (!inputItems.isEmpty()) {
+                body.put("input", inputItems);
             }
         } else {
             // First turn: send all messages as input items
@@ -787,7 +806,7 @@ public class OpenAiCompatibleClient implements LlmClient {
      * Responses API call with no previous_response_id.</p>
      */
     // visible for testing
-    ConcurrentHashMap<String, String> responseIdCache() {
+    Map<String, String> responseIdCache() {
         return responseIdCache;
     }
 

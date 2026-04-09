@@ -207,19 +207,29 @@ public class ExecutorsFactory {
         shutdown(config, BROADCASTER_THREAD_POOL);
     }
     
+    /** Property suffix marking a pool as externally owned (skip shutdown). */
+    public static final String EXTERNAL_MARKER = ".external";
+
     private static void shutdown(AtmosphereConfig config, String poolName) {
         ExecutorService service = (ExecutorService) config.properties().get(poolName);
         if (service != null) {
-            service.shutdown();
-            try {
-                if (!service.awaitTermination(5, TimeUnit.SECONDS)) {
+            // Skip shutdown for externally-owned pools (container-managed executors)
+            var external = config.properties().get(poolName + EXTERNAL_MARKER);
+            if (Boolean.TRUE.equals(external)) {
+                logger.debug("Skipping shutdown of external executor for {}", poolName);
+            } else {
+                service.shutdown();
+                try {
+                    if (!service.awaitTermination(5, TimeUnit.SECONDS)) {
+                        service.shutdownNow();
+                    }
+                } catch (InterruptedException e) {
                     service.shutdownNow();
+                    Thread.currentThread().interrupt();
                 }
-            } catch (InterruptedException e) {
-                service.shutdownNow();
-                Thread.currentThread().interrupt();
             }
         }
         config.properties().remove(poolName);
+        config.properties().remove(poolName + EXTERNAL_MARKER);
     }
 }

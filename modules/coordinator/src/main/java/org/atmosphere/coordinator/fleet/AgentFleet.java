@@ -97,10 +97,13 @@ public interface AgentFleet {
      */
     default Map<String, AgentExecution> parallelCancellable(AgentCall... calls) {
         var results = new java.util.LinkedHashMap<String, AgentExecution>();
+        var nameCount = new java.util.HashMap<String, Integer>();
         for (var agentCall : calls) {
-            var proxy = agent(agentCall.agentName());
-            results.put(agentCall.agentName(),
-                    proxy.callWithHandle(agentCall.skill(), agentCall.args()));
+            var name = agentCall.agentName();
+            var count = nameCount.merge(name, 1, Integer::sum);
+            var key = count == 1 ? name : name + "#" + count;
+            var proxy = agent(name);
+            results.put(key, proxy.callWithHandle(agentCall.skill(), agentCall.args()));
         }
         return results;
     }
