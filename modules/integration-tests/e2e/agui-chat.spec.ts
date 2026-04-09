@@ -142,7 +142,7 @@ test.describe('AG-UI Chat UI', () => {
       .toBeVisible({ timeout: 30_000 });
   });
 
-  // Requires live LLM — AG-UI handler delegates to AI runtime for tool dispatch
+  // Tool dispatch requires real LLM — demo provider echoes but doesn't call tools
   test.skip('weather query shows tool name in UI', async ({ page }) => {
     await page.goto(server.baseUrl);
     await expect(page.getByTestId('chat-input')).toBeVisible();
@@ -155,7 +155,7 @@ test.describe('AG-UI Chat UI', () => {
       .toBeVisible({ timeout: 30_000 });
   });
 
-  // Requires live LLM — streaming response needed to observe disable/enable cycle
+  // Demo AG-UI handler responds instantly — input disable/enable cycle too fast to observe
   test.skip('input disabled while streaming, re-enabled after', async ({ page }) => {
     await page.goto(server.baseUrl);
     await expect(page.getByTestId('chat-input')).toBeVisible();

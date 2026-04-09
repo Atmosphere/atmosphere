@@ -132,7 +132,7 @@ test.describe('@AiTool Pipeline', () => {
       .not.toBeEmpty({ timeout: 30_000 });
   });
 
-  // Known issue: tool-activity testid not visible with real API responses in CI
+  // Built-in demo runtime echoes responses but doesn't dispatch tool call events to console
   test.skip('tool activity panel shows tool events after query', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
@@ -140,12 +140,11 @@ test.describe('@AiTool Pipeline', () => {
     await page.getByTestId('chat-input').fill('What is the weather in Tokyo?');
     await page.getByTestId('chat-send').click();
 
-    // The ToolActivity component should appear with tool events
+    // The tool-activity section should appear with tool cards
     await expect(page.getByTestId('tool-activity'))
       .toBeVisible({ timeout: 30_000 });
-    // Text response should also appear
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
-      .not.toBeEmpty({ timeout: 30_000 });
+    await expect(page.getByTestId('tool-card').first())
+      .toBeVisible({ timeout: 30_000 });
   });
 
   // ── @RequiresApproval / Human-in-the-Loop ──

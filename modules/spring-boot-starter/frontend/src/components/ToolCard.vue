@@ -40,7 +40,7 @@ const argEntries = computed(() =>
 </script>
 
 <template>
-  <div class="tool-card" :class="{ 'tool-card--done': tool.done }">
+  <div class="tool-card" :class="{ 'tool-card--done': tool.done }" data-testid="tool-card">
     <div class="tool-header">
       <div class="tool-label">
         <span class="tool-icon">{{ tool.done ? '\u2713' : '\u25CF' }}</span>

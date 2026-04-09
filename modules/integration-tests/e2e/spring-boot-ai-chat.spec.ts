@@ -18,31 +18,31 @@ test.describe('Spring Boot AI Chat', () => {
     await expect(page.getByTestId('chat-input')).toBeVisible();
   });
 
-  // Known issue: browser console WebSocket never connects in CI — skip
+  test('send button is disabled when input is empty', async ({ page }) => {
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByTestId('chat-send')).toBeDisabled();
+  });
+
+  // Auth-gated sample: console WebSocket blocked without token.
+  // Full auth flow tested in auth-token.spec.ts (raw WebSocket with X-Atmosphere-Auth).
   test.skip('user receives a response after sending a message', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-input').fill('Hello');
     await page.getByTestId('chat-send').click();
 
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
-      .not.toBeEmpty({ timeout: 30_000 });
+    await expect(page.getByTestId('message-list')).toContainText('demo mode', { timeout: 30_000 });
   });
 
-  // Known issue: browser console WebSocket never connects in CI — skip
+  // Auth-gated: console can't connect without token
   test.skip('user can send a prompt and receive streaming response', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
-
     await page.getByTestId('chat-input').fill('What is Atmosphere?');
     await page.getByTestId('chat-send').click();
 
-    await expect(page.getByText('What is Atmosphere?')).toBeVisible();
-
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
-      .not.toBeEmpty({ timeout: 30_000 });
+    await expect(page.getByTestId('message-list')).toContainText('Atmosphere', { timeout: 30_000 });
   });
 
-  // Known issue: browser console WebSocket never connects in CI — skip
+  // Auth-gated: console can't connect without token
   test.skip('input clears after sending', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-input').fill('Test message');
@@ -51,32 +51,17 @@ test.describe('Spring Boot AI Chat', () => {
     await expect(page.getByTestId('chat-input')).toHaveValue('');
   });
 
-  test('send button is disabled when input is empty', async ({ page }) => {
-    await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-send')).toBeDisabled();
-  });
-
-  // Known issue: browser console WebSocket never connects in CI — skip
+  // Auth-gated: console can't connect without token
   test.skip('multi-turn conversation preserves history', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
 
-    // First message
     await page.getByTestId('chat-input').fill('Hello');
     await page.getByTestId('chat-send').click();
-    await expect(page.locator('[class*="assistant"], [class*="message"]').first())
-      .not.toBeEmpty({ timeout: 30_000 });
+    await expect(page.getByTestId('message-list')).toContainText('demo mode', { timeout: 30_000 });
 
-    // Wait for streaming to finish
-    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
-
-    // Second message
     await page.getByTestId('chat-input').fill('What is Atmosphere?');
     await page.getByTestId('chat-send').click();
 
-    // Wait for second response
-    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
-
-    // Both user messages should still be visible
     await expect(page.getByText('Hello', { exact: true })).toBeVisible();
     await expect(page.getByText('What is Atmosphere?')).toBeVisible();
   });
