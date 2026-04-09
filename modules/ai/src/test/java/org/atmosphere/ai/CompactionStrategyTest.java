@@ -131,6 +131,20 @@ class CompactionStrategyTest {
     }
 
     @Test
+    void slidingWindowHardCapsWhenAllSystemMessages() {
+        // Regression: when all messages are system role, the compaction loop
+        // would break early without enforcing the cap (review Window 9 P2)
+        var strategy = new SlidingWindowCompaction();
+        var messages = new java.util.ArrayList<ChatMessage>();
+        for (int i = 0; i < 10; i++) {
+            messages.add(ChatMessage.system("system-" + i));
+        }
+        var compacted = strategy.compact(messages, 3);
+        assertTrue(compacted.size() <= 3,
+                "Hard cap must be enforced even with only system messages, got " + compacted.size());
+    }
+
+    @Test
     void memoryWithSummarizingCompaction() {
         var strategy = new SummarizingCompaction(2);
         var memory = new InMemoryConversationMemory(4, strategy);
