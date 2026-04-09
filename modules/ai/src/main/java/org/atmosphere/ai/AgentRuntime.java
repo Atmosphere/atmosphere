@@ -109,6 +109,10 @@ public interface AgentRuntime {
     default String generate(AgentExecutionContext context, Duration timeout) {
         var collector = new CollectingSession();
         execute(context, collector);
+        // Some runtimes don't call session.complete() — signal it ourselves
+        if (!collector.isClosed()) {
+            collector.complete();
+        }
         collector.await(timeout);
         return collector.text();
     }

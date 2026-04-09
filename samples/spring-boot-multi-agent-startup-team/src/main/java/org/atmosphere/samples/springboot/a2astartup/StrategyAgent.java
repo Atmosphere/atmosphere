@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  */
 @Agent(
         name = "strategy-agent",
-        skillFile = "prompts/strategy-skill.md",
+        skillFile = "skill:strategy-agent",
         description = "Market strategy agent that provides SWOT analysis, competitive positioning, and go/no-go recommendations",
         version = "1.0.0",
         endpoint = "/atmosphere/a2a/strategy"

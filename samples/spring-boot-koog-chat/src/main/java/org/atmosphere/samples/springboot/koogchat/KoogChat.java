@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * {@code ai.koog.*} prefix.</p>
  */
 @AiEndpoint(path = "/atmosphere/ai-chat",
-        systemPromptResource = "prompts/system-prompt.md",
+        systemPromptResource = "skill:koog-assistant",
         requires = {AiCapability.TEXT_STREAMING, AiCapability.SYSTEM_PROMPT},
         conversationMemory = true)
 public class KoogChat {

@@ -75,7 +75,7 @@ class CoordinationEventTest {
     @Test
     void agentEvaluatedHoldsScore() {
         var event = new CoordinationEvent.AgentEvaluated(
-                "c1", "weather", "quality", 0.85, true, Instant.now());
+                "c1", "weather", "quality", 0.85, true, "good response", Instant.now());
 
         assertEquals(0.85, event.score());
         assertTrue(event.passed());

@@ -47,6 +47,7 @@ class AgentActivityTest {
             case AgentActivity.CircuitOpen ignored -> false;
             case AgentActivity.Completed ignored -> false;
             case AgentActivity.Failed ignored -> false;
+            case AgentActivity.Evaluated ignored -> false;
         };
         assertTrue(matched);
     }
@@ -62,7 +63,8 @@ class AgentActivityTest {
                 new AgentActivity.Retrying("a", "s", 1, 3, now),
                 new AgentActivity.CircuitOpen("a", "reason", now),
                 new AgentActivity.Completed("a", "s", Duration.ZERO),
-                new AgentActivity.Failed("a", "s", "err", Duration.ZERO)
+                new AgentActivity.Failed("a", "s", "err", Duration.ZERO),
+                new AgentActivity.Evaluated("a", "quality", 0.9, true, "good")
         );
         for (var activity : activities) {
             assertEquals("a", activity.agentName(),

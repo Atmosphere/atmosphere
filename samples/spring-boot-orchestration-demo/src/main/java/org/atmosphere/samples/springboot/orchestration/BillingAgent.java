@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  * billing-related questions.
  */
 @Agent(name = "billing",
-        skillFile = "prompts/billing-skill.md",
+        skillFile = "skill:billing-agent",
         description = "Billing specialist — handles invoices, payments, and refunds")
 public class BillingAgent {
 

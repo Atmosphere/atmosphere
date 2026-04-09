@@ -16,11 +16,13 @@
 package org.atmosphere.coordinator.journal;
 
 import org.atmosphere.coordinator.evaluation.Evaluation;
+import org.atmosphere.coordinator.fleet.AgentActivity;
 import org.atmosphere.coordinator.fleet.AgentActivityListener;
 import org.atmosphere.coordinator.fleet.AgentCall;
 import org.atmosphere.coordinator.fleet.AgentFleet;
 import org.atmosphere.coordinator.fleet.AgentProxy;
 import org.atmosphere.coordinator.fleet.AgentResult;
+import org.atmosphere.coordinator.fleet.DefaultAgentFleet;
 import org.atmosphere.coordinator.fleet.RoutingSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -231,15 +233,36 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
             try {
                 var evaluations = delegate.evaluate(result, call);
                 for (var eval : evaluations) {
+                    var evalName = eval.metadata().getOrDefault("evaluator",
+                            "auto").toString();
                     journal.record(new CoordinationEvent.AgentEvaluated(
-                            coordId, result.agentName(), "auto",
-                            eval.score(), eval.passed(), Instant.now()));
+                            coordId, result.agentName(), evalName,
+                            eval.score(), eval.passed(), eval.reason(),
+                            Instant.now()));
+                    emitEvalActivity(result.agentName(), evalName, eval);
                 }
             } catch (Exception e) {
                 logger.debug("Auto-evaluation failed for agent '{}'",
                         result.agentName(), e);
             }
         }, evalExecutor);
+    }
+
+    private void emitEvalActivity(String agentName, String evaluatorName,
+                                   Evaluation eval) {
+        var activity = new AgentActivity.Evaluated(
+                agentName, evaluatorName, eval.score(),
+                eval.passed(), eval.reason());
+        // Get activity listeners from the delegate fleet
+        if (delegate instanceof DefaultAgentFleet daf) {
+            for (var listener : daf.activityListeners()) {
+                try {
+                    listener.onActivity(activity);
+                } catch (Exception e) {
+                    logger.trace("Activity listener failed for eval of '{}'", agentName, e);
+                }
+            }
+        }
     }
 
     private static long results(AgentCall[] calls, AgentResult last) {

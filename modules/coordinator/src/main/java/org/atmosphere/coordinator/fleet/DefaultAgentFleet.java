@@ -225,12 +225,18 @@ public final class DefaultAgentFleet implements AgentFleet {
         return evaluators.stream()
                 .map(e -> {
                     try {
-                        return e.evaluate(result, originalCall);
+                        var eval = e.evaluate(result, originalCall);
+                        // Tag with evaluator name for journal/activity tracking
+                        var meta = new LinkedHashMap<>(eval.metadata());
+                        meta.put("evaluator", e.name());
+                        return new Evaluation(eval.score(), eval.passed(),
+                                eval.reason(), meta);
                     } catch (Exception ex) {
                         logger.warn("Evaluator '{}' failed for agent '{}'",
                                 e.name(), result.agentName(), ex);
                         return Evaluation.fail(0.0,
-                                "Evaluator error: " + ex.getMessage());
+                                "Evaluator error: " + ex.getMessage(),
+                                Map.of("evaluator", e.name()));
                     }
                 })
                 .toList();

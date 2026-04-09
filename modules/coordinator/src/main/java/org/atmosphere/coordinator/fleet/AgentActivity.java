@@ -67,4 +67,8 @@ public sealed interface AgentActivity {
     /** Agent failed its task. */
     record Failed(String agentName, String skill, String error,
                   Duration elapsed) implements AgentActivity {}
+
+    /** Agent result was evaluated by a quality judge. */
+    record Evaluated(String agentName, String evaluatorName, double score,
+                     boolean passed, String reason) implements AgentActivity {}
 }

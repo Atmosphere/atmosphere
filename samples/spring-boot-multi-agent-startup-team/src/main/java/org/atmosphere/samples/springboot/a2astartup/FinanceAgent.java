@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  */
 @Agent(
         name = "finance-agent",
-        skillFile = "prompts/finance-skill.md",
+        skillFile = "skill:finance-agent",
         description = "Financial modeling agent that builds TAM/SAM/SOM analysis, revenue projections, and funding requirements",
         version = "1.0.0",
         endpoint = "/atmosphere/a2a/finance"

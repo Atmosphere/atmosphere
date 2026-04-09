@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * science educator).</p>
  */
 @AiEndpoint(path = "/atmosphere/classroom/{room}",
-        systemPromptResource = "prompts/classroom-prompt.md",
+        systemPromptResource = "skill:classroom",
         interceptors = { RoomContextInterceptor.class })
 public class AiClassroom {
 

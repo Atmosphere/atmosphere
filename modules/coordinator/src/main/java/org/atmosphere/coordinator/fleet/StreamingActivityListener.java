@@ -91,6 +91,15 @@ public final class StreamingActivityListener implements AgentActivityListener {
                     "Agent '" + a.agentName() + "' waiting: " + a.reason(),
                     Map.of("agent", a.agentName(), "reason", a.reason()));
 
+            case AgentActivity.Evaluated a -> new AiEvent.AgentStep(
+                    "eval",
+                    String.format("Agent '%s' scored %.1f by %s: %s",
+                            a.agentName(), a.score(), a.evaluatorName(),
+                            a.reason() != null ? a.reason() : ""),
+                    Map.of("agent", a.agentName(), "evaluator", a.evaluatorName(),
+                            "score", a.score(), "passed", a.passed(),
+                            "reason", a.reason() != null ? a.reason() : ""));
+
             case AgentActivity.Idle ignored -> null;
         };
     }

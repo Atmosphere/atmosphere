@@ -145,7 +145,7 @@ class InMemoryCoordinationJournalTest {
     @Test
     void agentEvaluatedMatchesAgentQuery() {
         journal.record(new CoordinationEvent.AgentEvaluated(
-                "c1", "weather", "quality", 0.9, true, Instant.now()));
+                "c1", "weather", "quality", 0.9, true, "solid", Instant.now()));
 
         var results = journal.query(CoordinationQuery.forAgent("weather"));
         assertEquals(1, results.size());

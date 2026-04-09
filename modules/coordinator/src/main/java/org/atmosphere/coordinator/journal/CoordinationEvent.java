@@ -94,11 +94,17 @@ public sealed interface CoordinationEvent {
             String evaluatorName,
             double score,
             boolean passed,
+            String reason,
             Instant timestamp
     ) implements CoordinationEvent {
         @Override
         public String toLogLine() {
-            return "EVAL  " + agentName + " score=" + score;
+            var detail = String.format("%.1f", score);
+            if (reason != null && !reason.isEmpty()) {
+                detail += " — " + (reason.length() > 60
+                        ? reason.substring(0, 60) + "..." : reason);
+            }
+            return "EVAL  " + agentName + " [" + evaluatorName + "] " + detail;
         }
     }
 

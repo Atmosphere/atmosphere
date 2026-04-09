@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * as backend-portable tools.
  */
 @AiEndpoint(path = "/atmosphere/ai-chat",
-        systemPromptResource = "prompts/system-prompt.md",
+        systemPromptResource = "skill:tool-assistant",
         conversationMemory = true,
         maxHistoryMessages = 30,
         tools = AssistantTools.class,

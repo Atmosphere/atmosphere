@@ -28,8 +28,6 @@ import org.atmosphere.util.Version;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,8 +42,8 @@ import java.util.Map;
 public class DemoMcpServer {
 
     private static final String CHAT_PATH = "/atmosphere/chat";
-    private static final String CHAT_SUMMARY_SYSTEM_PROMPT = loadPrompt("prompts/chat-summary-system.md");
-    private static final String ANALYZE_TOPIC_SYSTEM_PROMPT = loadPrompt("prompts/analyze-topic-system.md");
+    private static final String CHAT_SUMMARY_SYSTEM_PROMPT = org.atmosphere.ai.PromptLoader.resolve("skill:mcp-chat-summary");
+    private static final String ANALYZE_TOPIC_SYSTEM_PROMPT = org.atmosphere.ai.PromptLoader.resolve("skill:mcp-analyze-topic");
 
     @Inject
     private AtmosphereConfig config;
@@ -192,14 +190,4 @@ public class DemoMcpServer {
         }
     }
 
-    private static String loadPrompt(String resourcePath) {
-        try (var stream = DemoMcpServer.class.getClassLoader().getResourceAsStream(resourcePath)) {
-            if (stream == null) {
-                throw new IllegalArgumentException("Prompt resource not found: " + resourcePath);
-            }
-            return new String(stream.readAllBytes(), StandardCharsets.UTF_8).trim();
-        } catch (IOException e) {
-            throw new UncheckedIOException("Failed to read prompt: " + resourcePath, e);
-        }
-    }
 }

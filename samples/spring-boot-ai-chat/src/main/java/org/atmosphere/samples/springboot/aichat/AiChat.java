@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
  * <p>In demo mode (no API key configured), falls back to simulated streaming.</p>
  */
 @AiEndpoint(path = "/atmosphere/ai-chat",
-        systemPromptResource = "prompts/system-prompt.md",
+        systemPromptResource = "skill:ai-assistant",
         requires = {AiCapability.TEXT_STREAMING, AiCapability.SYSTEM_PROMPT},
         conversationMemory = true)
 public class AiChat {

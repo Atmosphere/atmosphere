@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  */
 @Agent(name = "support",
-        skillFile = "prompts/support-skill.md",
+        skillFile = "skill:support-agent",
         description = "Support desk agent — handles general queries, hands off billing questions")
 public class SupportAgent {
 

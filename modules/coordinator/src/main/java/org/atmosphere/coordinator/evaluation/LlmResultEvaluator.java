@@ -49,6 +49,9 @@ public final class LlmResultEvaluator implements ResultEvaluator {
     private static final Pattern BARE_NUMBER = Pattern.compile("^\\s*(\\d+(?:\\.\\d+)?)\\s*(?:/\\s*10)?\\s*$", Pattern.MULTILINE);
 
     private static final String DEFAULT_SKILL_NAME = "llm-judge";
+    /** Minimum history for the runtime: system prompt + user message. */
+    private static final int JUDGE_HISTORY_SIZE = 2;
+
     private static final String FALLBACK_PROMPT = "You are an AI quality judge. "
             + "Score the response 0-10. Respond with JSON: {\"score\": N, \"reason\": \"explanation\"}";
 
@@ -116,10 +119,12 @@ public final class LlmResultEvaluator implements ResultEvaluator {
     }
 
     private String callLlm(AgentRuntime rt, String message) {
+        var settings = AiConfig.get();
+        var model = settings != null ? settings.model() : null;
         var context = new AgentExecutionContext(
-                message, systemPrompt(), null, skillName,
+                message, systemPrompt(), model, skillName,
                 "eval-" + System.nanoTime(), null, null,
-                List.of(), null, new InMemoryConversationMemory(1),
+                List.of(), null, new InMemoryConversationMemory(JUDGE_HISTORY_SIZE),
                 List.of(), Map.of(), List.of(), null);
         return rt.generate(context, timeout);
     }
