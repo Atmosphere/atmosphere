@@ -39,7 +39,7 @@ function handleSend(text: string) {
         Clear
       </button>
     </div>
-    <div ref="messagesContainer" class="messages-area">
+    <div ref="messagesContainer" class="messages-area" data-testid="message-list">
       <div v-if="messages.length === 0" class="empty-state">
         <div class="empty-icon">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">

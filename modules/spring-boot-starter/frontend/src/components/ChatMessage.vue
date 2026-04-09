@@ -22,7 +22,7 @@ const timeString = computed(() => {
 </script>
 
 <template>
-  <div class="message" :class="{ 'message--user': isUser, 'message--assistant': !isUser }">
+  <div class="message" :class="{ 'message--user': isUser, 'message--assistant': !isUser }" data-testid="message-bubble">
     <div class="message-avatar">
       <span v-if="isUser" class="avatar avatar--user">U</span>
       <span v-else class="avatar avatar--assistant">

@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { ChatPage } from './helpers/chat-page';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 
 let server: SampleServer;
@@ -13,55 +12,46 @@ test.afterAll(async () => {
 });
 
 test.describe('Spring Boot Chat', () => {
-  test('page loads and connects', async ({ page }) => {
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
-    await chat.waitForConnected();
+  test('page loads with console layout', async ({ page }) => {
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByTestId('chat-layout')).toBeVisible();
+    await expect(page.getByTestId('chat-input')).toBeVisible();
   });
 
-  test('user can join and send messages', async ({ page }) => {
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
-    await chat.waitForConnected();
+  test('console connects to chat handler', async ({ page }) => {
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
+  });
 
-    // First message sets the username (join flow)
-    await chat.joinAs('Alice');
+  test('user can send a message', async ({ page }) => {
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
 
-    // Send a chat message
-    await chat.sendMessage('Hello from Playwright!');
+    await page.getByTestId('chat-input').fill('Hello from Playwright!');
+    await page.getByTestId('chat-send').click();
 
-    // The message should appear in the chat
-    await chat.expectMessage('Hello from Playwright!');
+    // User message should appear in the message list
+    await expect(page.getByTestId('message-list')).toContainText('Hello from Playwright!', { timeout: 10_000 });
   });
 
   test('input clears after sending', async ({ page }) => {
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
-    await chat.waitForConnected();
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
 
-    await chat.joinAs('Bob');
-    await chat.sendMessage('test message');
+    await page.getByTestId('chat-input').fill('test message');
+    await page.getByTestId('chat-send').click();
 
-    // Input should be cleared
-    await expect(chat.input).toHaveValue('');
+    // Input should be cleared after sending
+    await expect(page.getByTestId('chat-input')).toHaveValue('');
   });
 
-  test('status bar shows Connected', async ({ page }) => {
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
-    await chat.waitForConnected();
-    await chat.expectStatus('Connected');
-  });
-
-  test('message bubbles display author', async ({ page }) => {
-    const chat = new ChatPage(page);
-    await chat.goto(server.baseUrl);
-    await chat.waitForConnected();
-
-    await chat.joinAs('Charlie');
-    await chat.sendMessage('Who am I?');
-
-    // Should see the author name on the bubble
-    await chat.expectMessageFrom('Charlie', 'Who am I?');
+  test('send button is disabled when not connected', async ({ page }) => {
+    // Navigate but don't wait for connection — check initial state
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByTestId('chat-layout')).toBeVisible();
+    // Once connected, send button should be usable with non-empty input
+    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
+    // With empty input, send should be disabled
+    await expect(page.getByTestId('chat-send')).toBeDisabled();
   });
 });

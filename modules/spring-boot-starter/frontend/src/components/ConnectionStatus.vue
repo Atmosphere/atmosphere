@@ -21,7 +21,7 @@ const statusClass = computed(() => `status--${props.state}`)
 <template>
   <div class="connection-status" :class="statusClass">
     <span class="status-dot"></span>
-    <span class="status-label">{{ statusLabel }}</span>
+    <span class="status-label" data-testid="status-label">{{ statusLabel }}</span>
   </div>
 </template>
 
