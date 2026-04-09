@@ -233,6 +233,10 @@ public class AtmosphereProperties {
 
     private String consoleSubtitle = "";
 
+    /** Override the Atmosphere endpoint the console connects to.
+     *  When set, the console uses this path instead of auto-detecting. */
+    private String consoleEndpoint = "";
+
     /** Whether to register admin write tools as MCP tools (default false). */
     private String adminMcpWriteTools = "false";
 
@@ -242,6 +246,14 @@ public class AtmosphereProperties {
 
     public void setConsoleSubtitle(String consoleSubtitle) {
         this.consoleSubtitle = consoleSubtitle;
+    }
+
+    public String getConsoleEndpoint() {
+        return consoleEndpoint;
+    }
+
+    public void setConsoleEndpoint(String consoleEndpoint) {
+        this.consoleEndpoint = consoleEndpoint;
     }
 
     public String getAdminMcpWriteTools() {

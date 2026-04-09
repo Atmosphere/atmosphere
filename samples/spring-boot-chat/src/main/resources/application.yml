@@ -1,8 +1,7 @@
 atmosphere:
   console-subtitle: Real-time chat with WebTransport/HTTP3 and WebSocket fallback
+  console-endpoint: /atmosphere/chat
   packages: org.atmosphere.samples.springboot.chat
-  ai:
-    path: /atmosphere/chat
 
   # WebTransport over HTTP/3 sidecar server.
   # Self-signed certificate is used automatically for development.

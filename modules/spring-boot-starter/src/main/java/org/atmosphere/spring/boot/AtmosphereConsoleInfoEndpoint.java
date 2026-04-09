@@ -79,6 +79,11 @@ public class AtmosphereConsoleInfoEndpoint {
      * default {@code /atmosphere/ai-chat}.
      */
     private String detectEndpoint() {
+        // Explicit console endpoint override takes priority
+        var consoleEndpoint = properties.getConsoleEndpoint();
+        if (consoleEndpoint != null && !consoleEndpoint.isBlank()) {
+            return consoleEndpoint;
+        }
         var configuredPath = properties.getAi().getPath();
         // If explicitly configured to an agent path, respect it
         if (configuredPath != null && configuredPath.startsWith("/atmosphere/agent/")) {
