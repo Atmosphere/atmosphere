@@ -11,7 +11,9 @@ import { test, expect } from '@playwright/test';
 import { type ChildProcess, spawn } from 'child_process';
 import { resolve } from 'path';
 
-const ROOT = resolve(__dirname, '..', '..', '..', '..');
+// ROOT must resolve to the Atmosphere repo root regardless of working directory.
+// __dirname = <repo>/modules/integration-tests/e2e/ — go up 3 to modules/, then 1 more to repo root.
+const ROOT = resolve(__dirname, '..', '..', '..');
 const CLI = resolve(ROOT, 'cli', 'atmosphere');
 
 interface CliServer {
