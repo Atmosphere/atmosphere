@@ -176,7 +176,7 @@ public class AiEndpointProcessor implements Processor<Object> {
     private String resolveSystemPrompt(AiEndpoint annotation) {
         var resource = annotation.systemPromptResource();
         if (resource != null && !resource.isEmpty()) {
-            return PromptLoader.load(resource);
+            return PromptLoader.resolve(resource);
         }
         return annotation.systemPrompt();
     }

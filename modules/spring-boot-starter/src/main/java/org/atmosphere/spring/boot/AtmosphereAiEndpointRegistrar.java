@@ -75,7 +75,7 @@ class AtmosphereAiEndpointRegistrar {
         // Resolve system prompt
         var systemPrompt = aiProps.getSystemPrompt();
         if (aiProps.getSystemPromptResource() != null && !aiProps.getSystemPromptResource().isEmpty()) {
-            systemPrompt = PromptLoader.load(aiProps.getSystemPromptResource());
+            systemPrompt = PromptLoader.resolve(aiProps.getSystemPromptResource());
         }
 
         // Resolve AI support
