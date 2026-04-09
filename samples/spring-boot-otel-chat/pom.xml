@@ -39,6 +39,10 @@
             <groupId>org.atmosphere</groupId>
             <artifactId>${atmosphere.starter}</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
