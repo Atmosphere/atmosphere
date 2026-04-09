@@ -7,8 +7,10 @@ atmosphere:
   web-transport:
     enabled: true
     port: 4443
+  # Auth is disabled by default. Set ATMOSPHERE_AUTH_TOKEN to enable:
+  #   export ATMOSPHERE_AUTH_TOKEN=my-secret-token
   auth:
-    demo-token: ${ATMOSPHERE_AUTH_TOKEN:}
+    demo-token: ${ATMOSPHERE_AUTH_TOKEN:#{null}}
   cache:
     enabled: true
 

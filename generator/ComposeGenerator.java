@@ -52,6 +52,17 @@ import java.util.stream.Collectors;
         description = "Generate a multi-agent Atmosphere project from skill files")
 public class ComposeGenerator implements Runnable {
 
+    /** Sanitize a name for safe use as a filesystem path component. */
+    static String sanitizeName(String raw) {
+        if (raw == null || raw.isBlank()) return "unnamed";
+        // Strip path traversal, separators, and control chars
+        return raw.replaceAll("[/\\\\]", "-")
+                  .replace("..", "")
+                  .replaceAll("[^a-zA-Z0-9._-]", "-")
+                  .replaceAll("-{2,}", "-")
+                  .replaceAll("^-|-$", "");
+    }
+
     @Option(names = {"-n", "--name"}, description = "Project name (e.g. my-multi-agent)")
     String name;
 
@@ -236,8 +247,10 @@ public class ComposeGenerator implements Runnable {
         // Fallback name from filename
         if (desc.name == null || desc.name.isBlank()) {
             var fileName = path.getFileName().toString();
+            var parentName = path.getParent() != null && path.getParent().getFileName() != null
+                    ? path.getParent().getFileName().toString() : "skill";
             desc.name = fileName.replaceAll("\\.(md|yaml|yml)$", "")
-                    .replaceAll("^SKILL$", path.getParent().getFileName().toString());
+                    .replaceAll("^SKILL$", parentName);
         }
 
         if (desc.description == null || desc.description.isBlank()) {
@@ -569,7 +582,7 @@ public class ComposeGenerator implements Runnable {
 
         // Agent modules
         for (var agent : agents) {
-            generateModule(model, agent, outputDir.resolve("agents/" + agent.name), false);
+            generateModule(model, agent, outputDir.resolve("agents/" + sanitizeName(agent.name)), false);
         }
 
         // Docker Compose (if applicable)
@@ -618,7 +631,7 @@ public class ComposeGenerator implements Runnable {
             // Copy resources/ directory if it exists alongside the skill file
             var skillResources = desc.sourcePath.getParent().resolve("resources");
             if (Files.isDirectory(skillResources)) {
-                var targetResDir = resDir.resolve("skill-resources/" + desc.name);
+                var targetResDir = resDir.resolve("skill-resources/" + sanitizeName(desc.name));
                 copyDirectory(skillResources, targetResDir);
             }
         }
