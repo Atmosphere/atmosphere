@@ -465,15 +465,15 @@ public class ReactorNettyTransportServer {
             return 1 << (first >> 6); // 00→1, 01→2, 10→4, 11→8
         }
 
+        // Byte-level accumulator to avoid corrupting multi-byte UTF-8 split across frames
+        private final io.netty.buffer.CompositeByteBuf byteAccumulator =
+                io.netty.buffer.Unpooled.compositeBuffer();
+
         /**
          * Process incoming data using newline-delimited framing.
          * Buffers partial lines and delivers each complete {@code \n}-terminated
          * line as a separate message to the Atmosphere protocol handler.
          */
-        /** Byte-level accumulator to avoid corrupting multi-byte UTF-8 split across frames. */
-        private final io.netty.buffer.CompositeByteBuf byteAccumulator =
-                io.netty.buffer.Unpooled.compositeBuffer();
-
         private void processData(ByteBuf buf) {
             if (state == null || state.session == null) {
                 buf.release();

@@ -154,6 +154,77 @@ All Java source files must start with:
 - All checks can be skipped with `-Pfastinstall` for local iteration, but **you MUST run a full `./mvnw compile` (without `-Pfastinstall`) before committing** to verify zero warnings.
 - **Do NOT introduce new `@SuppressWarnings` annotations** without justification. If a suppression is necessary (e.g., unavoidable raw type from a third-party API), add a comment explaining why.
 
+## Correctness Invariants (Blocking)
+
+Violations of these rules are **release-blocking** regardless of feature scope. These invariants exist because ~45 bugs (2 P0, 15 P1) were traced to their absence during a 2-week review.
+
+### 1. Ownership: Only the creator of a resource may release/close/shutdown it
+- **Do not destroy, release, or shut down resources you did not create.** Track ownership explicitly.
+- When accepting external resources (executors, pools, connections), wrap them to prevent lifecycle operations.
+- Every `start()` must have a symmetric `stop()` that undoes all registrations.
+- Registration actions (listeners/handlers/hooks) MUST have explicit uninstall/removal on stop.
+- Netty/direct buffers MUST be released on all terminal/error/removal paths.
+
+### 2. Terminal Path Completeness: Every exit path must complete/release/reset
+- **Every terminal path (success, failure, cancel, timeout, reject) must leave the system in a completed state.**
+- Futures must be resolved. Flags must be reset. Buffers must be released.
+- Close must be idempotent (CAS or close-once pattern).
+- If a guard checks a counter, the counter must actually be incremented somewhere.
+
+### 3. Backpressure: Never ignore rejection or capacity signals
+- **Never ignore backpressure or rejection signals.** Check return values of `offer()`, handle `RejectedExecutionException`.
+- Every cache and buffer must declare a size bound or eviction policy.
+- Unbounded data structures fed by external input are a DoS vector.
+
+### 4. Boundary Safety: Validate/encode/frame at every boundary
+- **At every boundary (wire, filesystem, shell, URL, HTTP), validate and encode before interpretation.**
+- Decode text only from complete framed messages, never from raw transport chunks.
+- Do not mutate binary payloads (no appending delimiters to byte arrays).
+- Normalize and validate all filesystem paths (`resolve().normalize()` + `startsWith()` check).
+- Use shell arrays for argument lists; never expand unquoted variables.
+- URL-encode all dynamic query/path components.
+- Content-type matching must be case-insensitive.
+- Return 400 (not 500) for malformed user input; catch parse exceptions at the boundary.
+
+### 5. Runtime Truth: Advertise only confirmed runtime state
+- **Advertise and report only confirmed runtime state, never configuration intent or classpath presence.**
+- Capability flags must reflect actual running state.
+- Info/discovery endpoints must return runtime-resolved values.
+- Feature advertisement (Alt-Svc, transport support) must be suppressed when startup fails.
+- Classpath detection must be gated on runtime evidence, not just `Class.forName()` success.
+
+### 6. Security: Every mutating surface requires explicit authorization
+- **Every mutating/admin endpoint requires explicit authentication and authorization.** Default deny.
+- Security/integrity verification MUST fail closed by default; any fail-open mode must be explicit and non-default.
+- All filesystem paths derived from user/content metadata MUST use strict input validation (reject `..`, separators, empty segments).
+- Never ship insecure defaults in production code paths — gate behind explicit opt-in with startup warnings.
+- Samples must not regress auth posture — if auth exists, it must work out-of-box or be explicitly disabled with documentation.
+
+### 7. Mode Parity: Sync/async/stream variants must behave identically
+- **If a feature exists in multiple invocation modes (sync/async/stream), semantics must match across all modes.**
+- Error handling, lifecycle events, observability, and completion behavior must be consistent.
+- If a mode has intentionally different behavior, document it explicitly and test it.
+- When adding a feature to one path, verify it works in all paths.
+
+### Testing & CI Quality Gates
+- Every P0/P1 bugfix MUST include a regression test reproducing the failing scenario.
+- No placeholder/no-op tests are allowed in required CI matrices.
+- Flaky-test quarantine requires owner + expiry + tracking issue; quarantined tests must run in a scheduled lane.
+- Workflow path filters MUST include all behavior-affecting scripts/config locations for the feature area.
+- E2E tests MUST assert the specific feature under test, not just "server started".
+- Tests must assert the specific behavior they claim to verify — `expect(true).toBe(true)` is forbidden.
+
+### Correctness Review Checklist
+Before committing, verify these for every changed file:
+
+1. **Ownership** — Does this code close/release/shutdown only resources it created?
+2. **Terminal paths** — Are success/failure/cancel/timeout/reject all handled symmetrically?
+3. **Backpressure** — Are queue-full, rejected-execution, and partial-write signals handled (not ignored)?
+4. **Boundaries** — Are path/URL/shell/wire/content-type inputs validated, encoded, and framed correctly?
+5. **Runtime truth** — Are capabilities and info based on confirmed runtime state (not config/classpath)?
+6. **Authorization** — Do all mutating/admin endpoints require authn/authz?
+7. **Mode parity** — If sync/async/stream variants exist, do they behave consistently?
+
 ## Testing
 
 ### Running Tests
