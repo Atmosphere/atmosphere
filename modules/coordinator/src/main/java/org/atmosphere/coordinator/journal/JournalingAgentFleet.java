@@ -52,7 +52,9 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
     private final AgentFleet delegate;
     private final CoordinationJournal journal;
     private final String coordinatorName;
-    private final ExecutorService evalExecutor = Executors.newVirtualThreadPerTaskExecutor();
+    // Single-threaded: serialize eval calls to avoid rate-limiting LLM APIs
+    private final ExecutorService evalExecutor = Executors.newSingleThreadExecutor(
+            Thread.ofVirtual().name("eval-", 0).factory());
     private final ThreadLocal<String> activeCoordinationId = new ThreadLocal<>();
 
     public JournalingAgentFleet(AgentFleet delegate, CoordinationJournal journal,
@@ -229,6 +231,7 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
         if (!result.success() || call == null) {
             return;
         }
+        // Run on a single virtual thread (not parallel) to avoid rate-limiting LLM APIs
         CompletableFuture.runAsync(() -> {
             try {
                 var evaluations = delegate.evaluate(result, call);
