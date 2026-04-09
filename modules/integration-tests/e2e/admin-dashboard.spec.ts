@@ -228,7 +228,7 @@ test.describe('Admin Dashboard UI', () => {
 
   test('control tab has broadcast, disconnect, and cancel forms', async ({ page }) => {
     await page.goto(`${server.baseUrl}/atmosphere/admin/`);
-    await page.getByText('Control').click();
+    await page.getByText('Control', { exact: true }).click();
 
     // Broadcast section
     await expect(page.getByText('Broadcast Message')).toBeVisible({ timeout: 10_000 });
@@ -249,7 +249,7 @@ test.describe('Admin Dashboard UI', () => {
 
   test('broadcast from UI shows Sent confirmation and updates audit log', async ({ page }) => {
     await page.goto(`${server.baseUrl}/atmosphere/admin/`);
-    await page.getByText('Control').click();
+    await page.getByText('Control', { exact: true }).click();
 
     // Fill in broadcast form
     await page.getByPlaceholder('e.g. /atmosphere/agent/myagent').fill('/atmosphere/ai-chat');

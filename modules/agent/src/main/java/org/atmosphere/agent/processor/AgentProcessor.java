@@ -536,7 +536,7 @@ public class AgentProcessor implements Processor<Object> {
             var handler = new org.atmosphere.mcp.runtime.McpHandler(protocolHandler);
             framework.addAtmosphereHandler(mcpPath, handler, new java.util.ArrayList<>());
             protocols.add("mcp");
-            logger.debug("MCP endpoint registered at {} with {} tools",
+            logger.info("MCP endpoint registered at {} with {} tools",
                     mcpPath, mcpRegistry.tools().size());
         } catch (Exception e) {
             logger.warn("Failed to register MCP endpoint for agent: {}", e.getMessage());
