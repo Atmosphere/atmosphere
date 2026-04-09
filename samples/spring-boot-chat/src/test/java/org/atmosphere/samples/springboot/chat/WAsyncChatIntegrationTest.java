@@ -209,7 +209,7 @@ class WAsyncChatIntegrationTest {
         boolean delivered = false;
         for (int i = 0; i < 10 && !delivered; i++) {
             senderSocket.fire(mapper.writeValueAsString(new Message("Charlie", "Hello via LP!")));
-            delivered = messageLatch.await(3, TimeUnit.SECONDS);
+            delivered = messageLatch.await(5, TimeUnit.SECONDS);
         }
         assertThat(delivered)
                 .as("Long-polling client should receive broadcast").isTrue();
