@@ -53,7 +53,10 @@ public class WebTransportInfoController {
     public Map<String, Object> info() {
         var result = new LinkedHashMap<String, Object>();
         var running = server.isRunning();
-        result.put("port", properties.getWebTransport().getPort());
+        // Report actual bound port (may differ from configured if port=0 was used)
+        var actualPort = running ? server.port() : properties.getWebTransport().getPort();
+        result.put("port", actualPort);
+        result.put("configuredPort", properties.getWebTransport().getPort());
         result.put("enabled", running);
         // Only expose cert hash when the HTTP/3 server is actually running —
         // prevents clients from attempting connections to a dead sidecar

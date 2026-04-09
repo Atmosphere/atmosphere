@@ -133,9 +133,11 @@ public class AtmosphereWebTransportAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(name = "atmosphereAltSvcFilter")
     @ConditionalOnProperty(name = "atmosphere.web-transport.add-alt-svc", matchIfMissing = true)
-    public FilterRegistrationBean<AltSvcFilter> atmosphereAltSvcFilter(AtmosphereProperties properties) {
+    public FilterRegistrationBean<AltSvcFilter> atmosphereAltSvcFilter(
+            AtmosphereProperties properties,
+            org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer server) {
         var registration = new FilterRegistrationBean<>(
-                new AltSvcFilter(properties.getWebTransport().getPort()));
+                new AltSvcFilter(properties.getWebTransport().getPort(), server));
         registration.addUrlPatterns("/*");
         registration.setOrder(Integer.MIN_VALUE);
         return registration;

@@ -35,14 +35,23 @@ public class AltSvcFilter implements Filter {
 
     private final String altSvcValue;
 
+    private final ReactorNettyTransportServer server;
+
     public AltSvcFilter(int h3Port) {
+        this(h3Port, null);
+    }
+
+    public AltSvcFilter(int h3Port, ReactorNettyTransportServer server) {
         this.altSvcValue = "h3=\":" + h3Port + "\"; ma=86400";
+        this.server = server;
     }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        if (response instanceof HttpServletResponse httpResponse) {
+        // Only advertise HTTP/3 when the sidecar is actually running
+        if (response instanceof HttpServletResponse httpResponse
+                && (server == null || server.isRunning())) {
             httpResponse.addHeader("Alt-Svc", altSvcValue);
         }
         chain.doFilter(request, response);

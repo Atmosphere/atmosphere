@@ -339,8 +339,8 @@ public class ReactorNettyTransportServer {
         private WebTransportConnectionState state;
         /** Accumulates header bytes across reads until both varints are complete. */
         private CompositeByteBuf headerBuf;
-        /** Accumulates incomplete message data between newline delimiters. */
-        private final StringBuilder lineBuffer = new StringBuilder();
+        /** Max frame size to prevent unbounded buffer growth (DoS protection). */
+        private static final int MAX_FRAME_BYTES = 1_048_576; // 1 MB
 
         WebTransportBidiStreamHandler(AtmosphereFramework framework,
                                        java.util.concurrent.ConcurrentMap<Channel, WebTransportConnectionState> sessions) {
@@ -455,20 +455,36 @@ public class ReactorNettyTransportServer {
          * Buffers partial lines and delivers each complete {@code \n}-terminated
          * line as a separate message to the Atmosphere protocol handler.
          */
+        /** Byte-level accumulator to avoid corrupting multi-byte UTF-8 split across frames. */
+        private final io.netty.buffer.CompositeByteBuf byteAccumulator =
+                io.netty.buffer.Unpooled.compositeBuffer();
+
         private void processData(ByteBuf buf) {
             if (state == null || state.session == null) {
                 buf.release();
                 return;
             }
-            var text = buf.toString(StandardCharsets.UTF_8);
-            buf.release();
-            lineBuffer.append(text);
 
-            // Deliver each complete newline-delimited message
+            // Accumulate raw bytes first, then scan for newline delimiter
+            byteAccumulator.addComponent(true, buf.retain());
+            buf.release();
+
+            // DoS protection: reject oversized frames
+            if (byteAccumulator.readableBytes() > MAX_FRAME_BYTES) {
+                logger.warn("WebTransport frame exceeds {} bytes, dropping", MAX_FRAME_BYTES);
+                byteAccumulator.clear();
+                return;
+            }
+
+            // Extract complete newline-delimited frames from the byte accumulator
             int nlIdx;
-            while ((nlIdx = lineBuffer.indexOf("\n")) >= 0) {
-                var message = lineBuffer.substring(0, nlIdx);
-                lineBuffer.delete(0, nlIdx + 1);
+            while ((nlIdx = findNewline(byteAccumulator)) >= 0) {
+                var frameBytes = new byte[nlIdx];
+                byteAccumulator.readBytes(frameBytes);
+                byteAccumulator.readByte(); // consume the newline
+                byteAccumulator.discardReadBytes();
+
+                var message = new String(frameBytes, StandardCharsets.UTF_8);
                 if (message.isEmpty()) {
                     continue;
                 }
@@ -479,12 +495,22 @@ public class ReactorNettyTransportServer {
             }
         }
 
+        private static int findNewline(ByteBuf buf) {
+            for (int i = buf.readerIndex(); i < buf.writerIndex(); i++) {
+                if (buf.getByte(i) == '\n') {
+                    return i - buf.readerIndex();
+                }
+            }
+            return -1;
+        }
+
         @Override
         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
             // Flush any remaining buffered data as a final message
-            if (state != null && state.session != null && !lineBuffer.isEmpty()) {
-                var message = lineBuffer.toString();
-                lineBuffer.setLength(0);
+            if (state != null && state.session != null && byteAccumulator.isReadable()) {
+                var remaining = new byte[byteAccumulator.readableBytes()];
+                byteAccumulator.readBytes(remaining);
+                var message = new String(remaining, StandardCharsets.UTF_8);
                 logger.trace("WebTransport bidi final message: {}", message);
                 var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
                         .getWebTransportProcessor(framework);
