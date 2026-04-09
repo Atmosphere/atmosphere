@@ -43,6 +43,7 @@ public final class AdminEventProducer {
     private static final Logger logger = LoggerFactory.getLogger(AdminEventProducer.class);
 
     private final AtmosphereFramework framework;
+    private volatile AdminBroadcasterListener listener;
 
     public AdminEventProducer(AtmosphereFramework framework) {
         this.framework = framework;
@@ -50,10 +51,27 @@ public final class AdminEventProducer {
 
     /**
      * Install the event producer by registering listeners on the framework.
+     * Idempotent — calling install() multiple times is safe.
      */
     public void install() {
-        framework.addBroadcasterListener(new AdminBroadcasterListener());
+        if (listener != null) {
+            return;
+        }
+        listener = new AdminBroadcasterListener();
+        framework.addBroadcasterListener(listener);
         logger.debug("Admin event producer installed");
+    }
+
+    /**
+     * Uninstall the event producer, removing all listeners. Safe to call
+     * even if not installed.
+     */
+    public void uninstall() {
+        if (listener != null) {
+            framework.removeBroadcasterListener(listener);
+            listener = null;
+            logger.debug("Admin event producer uninstalled");
+        }
     }
 
     private void emit(AdminEvent event) {

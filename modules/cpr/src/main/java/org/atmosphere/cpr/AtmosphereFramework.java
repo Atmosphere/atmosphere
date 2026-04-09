@@ -1536,6 +1536,15 @@ public class AtmosphereFramework {
     }
 
     /**
+     * Remove a previously added {@link BroadcasterListener}.
+     */
+    public AtmosphereFramework removeBroadcasterListener(BroadcasterListener b) {
+        broadcasterSetup.broadcasterFactory().removeBroadcasterListener(b);
+        broadcasterSetup.broadcasterListeners().remove(b);
+        return this;
+    }
+
+    /**
      * Add {@link BroadcasterCacheListener} to the {@link BroadcasterCache}.
      */
     public AtmosphereFramework addBroadcasterCacheListener(BroadcasterCacheListener b) {

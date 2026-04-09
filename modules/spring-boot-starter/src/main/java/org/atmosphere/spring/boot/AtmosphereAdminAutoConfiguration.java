@@ -111,9 +111,11 @@ public class AtmosphereAdminAutoConfiguration {
             AtmosphereFramework framework) {
         return new org.springframework.context.SmartLifecycle() {
             private volatile boolean running;
+            private volatile AdminEventProducer producer;
 
             @Override
             public void start() {
+                if (running) return; // idempotent
                 try {
                     var handler = new AdminEventHandler();
                     java.util.List<org.atmosphere.cpr.AtmosphereInterceptor> interceptors =
@@ -122,7 +124,7 @@ public class AtmosphereAdminAutoConfiguration {
                             .defaultManagedServiceInterceptors(framework, interceptors);
                     framework.addAtmosphereHandler(
                             AdminEventHandler.ADMIN_BROADCASTER_ID, handler, interceptors);
-                    var producer = new AdminEventProducer(framework);
+                    producer = new AdminEventProducer(framework);
                     producer.install();
                     running = true;
                     logger.info("Atmosphere Admin dashboard at /atmosphere/admin/");
@@ -134,7 +136,14 @@ public class AtmosphereAdminAutoConfiguration {
             }
 
             @Override
-            public void stop() { running = false; }
+            public void stop() {
+                running = false;
+                if (producer != null) {
+                    producer.uninstall();
+                    producer = null;
+                }
+                framework.removeAtmosphereHandler(AdminEventHandler.ADMIN_BROADCASTER_ID);
+            }
 
             @Override
             public boolean isRunning() { return running; }
