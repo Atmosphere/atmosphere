@@ -89,6 +89,89 @@ class WebTransportFindingsTest {
         assertEquals("", request.getQueryString());
     }
 
+    // ── findNewline tests ────────────────────────────────────────────────
+
+    @Test
+    void findNewline_present() {
+        ByteBuf buf = Unpooled.copiedBuffer("hello\nworld", java.nio.charset.StandardCharsets.UTF_8);
+        assertEquals(5, invokeFindNewline(buf));
+        buf.release();
+    }
+
+    @Test
+    void findNewline_absent() {
+        ByteBuf buf = Unpooled.copiedBuffer("no newline here", java.nio.charset.StandardCharsets.UTF_8);
+        assertEquals(-1, invokeFindNewline(buf));
+        buf.release();
+    }
+
+    @Test
+    void findNewline_atStart() {
+        ByteBuf buf = Unpooled.copiedBuffer("\nhello", java.nio.charset.StandardCharsets.UTF_8);
+        assertEquals(0, invokeFindNewline(buf));
+        buf.release();
+    }
+
+    // ── UTF-8 multibyte safety test ────────────────────────────────────
+
+    @Test
+    void multibyte_utf8_not_corrupted_across_chunks() {
+        // The emoji 😀 is 4 bytes: F0 9F 98 80
+        // If split across two chunks and decoded per-chunk, it corrupts.
+        // The byte accumulator should handle this correctly.
+        var emoji = "😀";
+        var bytes = emoji.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertEquals(4, bytes.length, "Emoji should be 4 UTF-8 bytes");
+
+        // Simulate framed message: emoji + newline
+        var framed = (emoji + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        // Split into two chunks at byte boundary inside the emoji
+        var chunk1 = new byte[2]; // first 2 bytes of 4-byte emoji
+        var chunk2 = new byte[framed.length - 2]; // remaining bytes + newline
+        System.arraycopy(framed, 0, chunk1, 0, 2);
+        System.arraycopy(framed, 2, chunk2, 0, chunk2.length);
+
+        // Accumulate in a CompositeByteBuf (same as production code)
+        var accumulator = Unpooled.compositeBuffer();
+        accumulator.addComponent(true, Unpooled.copiedBuffer(chunk1));
+        accumulator.addComponent(true, Unpooled.copiedBuffer(chunk2));
+
+        // Find newline and extract frame
+        int nlIdx = invokeFindNewline(accumulator);
+        assertEquals(4, nlIdx, "Newline should be at position 4 (after 4-byte emoji)");
+
+        var frameBytes = new byte[nlIdx];
+        accumulator.readBytes(frameBytes);
+        var decoded = new String(frameBytes, java.nio.charset.StandardCharsets.UTF_8);
+        assertEquals(emoji, decoded, "Emoji should survive split across chunks");
+
+        accumulator.release();
+    }
+
+    // ── AltSvcFilter tests ─────────────────────────────────────────────
+
+    @Test
+    void altSvcFilter_emitsHeader_whenServerRunning() throws Exception {
+        var filter = new AltSvcFilter(4446, null); // null server = always emit
+        var response = new org.springframework.mock.web.MockHttpServletResponse();
+        var request = new org.springframework.mock.web.MockHttpServletRequest();
+        filter.doFilter(request, response, (req, res) -> {});
+        assertEquals("h3=\":4446\"; ma=86400", response.getHeader("Alt-Svc"));
+    }
+
+    @Test
+    void altSvcFilter_skipsHeader_whenServerNotRunning() throws Exception {
+        var server = org.mockito.Mockito.mock(ReactorNettyTransportServer.class);
+        org.mockito.Mockito.when(server.isRunning()).thenReturn(false);
+        var filter = new AltSvcFilter(4446, server);
+        var response = new org.springframework.mock.web.MockHttpServletResponse();
+        var request = new org.springframework.mock.web.MockHttpServletRequest();
+        filter.doFilter(request, response, (req, res) -> {});
+        assertEquals(null, response.getHeader("Alt-Svc"),
+                "Alt-Svc should NOT be emitted when server is not running");
+    }
+
     // ── Reflective access to package-private/static methods ─────────────
 
     private static int invokeVarintLength(ByteBuf buf) {
@@ -96,6 +179,18 @@ class WebTransportFindingsTest {
             Method method = Class.forName(
                     "org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer$WebTransportBidiStreamHandler")
                     .getDeclaredMethod("varintLength", ByteBuf.class);
+            method.setAccessible(true);
+            return (int) method.invoke(null, buf);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static int invokeFindNewline(ByteBuf buf) {
+        try {
+            Method method = Class.forName(
+                    "org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer$WebTransportBidiStreamHandler")
+                    .getDeclaredMethod("findNewline", ByteBuf.class);
             method.setAccessible(true);
             return (int) method.invoke(null, buf);
         } catch (Exception e) {
