@@ -69,7 +69,7 @@ public class AtmosphereAiAutoConfiguration {
             return aiProps.getMode();
         }
         var envMode = env("LLM_MODE");
-        return envMode != null ? envMode : "remote";
+        return envMode != null ? envMode : AiConfig.DEFAULT_MODE;
     }
 
     private String resolveModel(AtmosphereProperties.AiProperties aiProps) {
@@ -77,7 +77,7 @@ public class AtmosphereAiAutoConfiguration {
             return aiProps.getModel();
         }
         var envModel = env("LLM_MODEL");
-        return envModel != null ? envModel : "gemini-2.5-flash";
+        return envModel != null ? envModel : AiConfig.DEFAULT_MODEL;
     }
 
     private String resolveBaseUrl(AtmosphereProperties.AiProperties aiProps) {
