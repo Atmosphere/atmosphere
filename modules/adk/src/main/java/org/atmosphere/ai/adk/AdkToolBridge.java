@@ -21,7 +21,10 @@ import com.google.genai.types.FunctionDeclaration;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Type;
 import io.reactivex.rxjava3.core.Single;
+import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.tool.ToolDefinition;
+import org.atmosphere.ai.tool.ToolExecutionHelper;
 import org.atmosphere.ai.tool.ToolParameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,20 +38,18 @@ import java.util.Optional;
 /**
  * Bridges Atmosphere {@link ToolDefinition} to ADK {@link BaseTool}.
  *
- * <p>ADK handles the tool call loop automatically — when the model
- * requests a tool call, ADK invokes {@link BaseTool#runAsync} and
- * feeds the result back. This bridge wraps our
- * {@link org.atmosphere.ai.tool.ToolExecutor} in ADK's tool contract.</p>
+ * <p>ADK handles the tool call loop automatically — when the model requests a tool call,
+ * ADK invokes {@link BaseTool#runAsync} and feeds the result back. This bridge wraps our
+ * {@link org.atmosphere.ai.tool.ToolExecutor} in ADK's tool contract and routes every
+ * invocation through the unified
+ * {@link ToolExecutionHelper#executeWithApproval} call site so {@code @RequiresApproval}
+ * tools park on Atmosphere's session-scoped HITL gate.</p>
  *
- * <p>Usage with agent builder:</p>
- * <pre>{@code
- * var adkTools = AdkToolBridge.toAdkTools(toolDefinitions);
- * var agent = LlmAgent.builder()
- *     .name("assistant")
- *     .model("gemini-2.0-flash")
- *     .tools(adkTools.toArray(new BaseTool[0]))
- *     .build();
- * }</pre>
+ * <p>ADK's native {@code ToolContext.requestConfirmation(...)} is still emitted as a
+ * fire-and-forget side effect so ADK runner listeners see a confirmation event, but the
+ * authoritative gate is {@code executeWithApproval}. Tools are built per-request in
+ * {@link AdkAgentRuntime#doExecute} so each invocation captures its own
+ * {@link StreamingSession} and {@link ApprovalStrategy}.</p>
  */
 public final class AdkToolBridge {
 
@@ -58,31 +59,35 @@ public final class AdkToolBridge {
     }
 
     /**
-     * Convert Atmosphere tool definitions to ADK BaseTool instances.
+     * Convert Atmosphere tool definitions to ADK BaseTool instances bound to the
+     * caller's streaming session and HITL strategy.
      *
-     * @param tools the framework-agnostic tool definitions
+     * @param tools    the framework-agnostic tool definitions
+     * @param session  the streaming session (for emitting approval events)
+     * @param strategy session-scoped HITL gate (may be null — falls back to direct execution)
      * @return ADK tools for registration with {@code LlmAgent.builder().tools(...)}
      */
-    public static List<BaseTool> toAdkTools(List<ToolDefinition> tools) {
+    public static List<BaseTool> toAdkTools(
+            List<ToolDefinition> tools, StreamingSession session, ApprovalStrategy strategy) {
         return tools.stream()
-                .map(AdkToolBridge::toAdkTool)
+                .map(tool -> (BaseTool) new AtmosphereAdkTool(tool, session, strategy))
                 .toList();
     }
 
-    private static BaseTool toAdkTool(ToolDefinition tool) {
-        return new AtmosphereAdkTool(tool);
-    }
-
     /**
-     * ADK BaseTool implementation that delegates to an Atmosphere ToolExecutor.
+     * ADK BaseTool implementation that delegates to Atmosphere's unified HITL call site.
      */
     private static final class AtmosphereAdkTool extends BaseTool {
 
         private final ToolDefinition atmosphereTool;
+        private final StreamingSession session;
+        private final ApprovalStrategy approvalStrategy;
 
-        AtmosphereAdkTool(ToolDefinition tool) {
+        AtmosphereAdkTool(ToolDefinition tool, StreamingSession session, ApprovalStrategy approvalStrategy) {
             super(tool.name(), tool.description());
             this.atmosphereTool = tool;
+            this.session = session;
+            this.approvalStrategy = approvalStrategy;
         }
 
         @Override
@@ -101,39 +106,35 @@ public final class AdkToolBridge {
         @Override
         public Single<Map<String, Object>> runAsync(
                 Map<String, Object> args, ToolContext toolContext) {
-            try {
-                // Bridge ADK's native ToolConfirmation for @RequiresApproval tools.
-                if (atmosphereTool.requiresApproval() && toolContext != null) {
-                    var confirmation = toolContext.toolConfirmation();
-                    if (confirmation.isPresent() && !confirmation.get().confirmed()) {
-                        // ADK already resolved a confirmation and it was denied.
-                        logger.info("Tool {} denied via ADK ToolConfirmation", name());
-                        return Single.just(Map.of(
-                                "status", "cancelled",
-                                "message", "Action denied via ADK confirmation"));
-                    }
-                    if (confirmation.isEmpty()) {
-                        // First call: request native ADK confirmation so the Runner
-                        // emits a proper confirmation event in its event stream.
-                        var hint = atmosphereTool.approvalMessage();
-                        toolContext.requestConfirmation(
-                                hint != null ? hint : "Approve tool execution?",
-                                args != null ? args : Map.of());
-                    }
-                }
+            var safeArgs = args != null ? args : Map.<String, Object>of();
 
-                var result = atmosphereTool.executor().execute(args != null ? args : Map.of());
-                logger.debug("Tool {} executed: {}", name(), result);
+            // Fire ADK's native confirmation event for listeners on the Runner's event stream.
+            // This is observability-only; the authoritative gate is executeWithApproval below,
+            // so ADK's two-step confirmation protocol is bypassed intentionally and we never
+            // wait on toolContext.toolConfirmation() — Atmosphere's ApprovalStrategy is the
+            // single source of truth for HITL decisions across all runtimes.
+            if (atmosphereTool.requiresApproval() && toolContext != null) {
+                try {
+                    var hint = atmosphereTool.approvalMessage();
+                    toolContext.requestConfirmation(
+                            hint != null ? hint : "Approve tool execution?",
+                            safeArgs);
+                } catch (Exception e) {
+                    // Native confirmation emission is best-effort; do not fail the tool call
+                    // if ADK's event path is not available.
+                    logger.trace("ADK requestConfirmation side-effect failed for {}: {}",
+                            name(), e.getMessage());
+                }
+            }
+
+            try {
+                var resultStr = ToolExecutionHelper.executeWithApproval(
+                        name(), atmosphereTool, safeArgs, session, approvalStrategy);
+                logger.debug("Tool {} executed: {}", name(), resultStr);
 
                 var response = new HashMap<String, Object>();
                 response.put("status", "success");
-                if (result instanceof Map) {
-                    @SuppressWarnings("unchecked")
-                    var mapResult = (Map<String, Object>) result;
-                    response.putAll(mapResult);
-                } else {
-                    response.put("result", result != null ? result.toString() : "null");
-                }
+                response.put("result", resultStr);
                 return Single.just(response);
             } catch (Exception e) {
                 logger.error("Tool {} execution failed", name(), e);

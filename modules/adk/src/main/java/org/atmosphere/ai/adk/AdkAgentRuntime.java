@@ -35,7 +35,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * {@link org.atmosphere.ai.AiSupport} implementation backed by Google ADK's {@link Runner}.
@@ -51,8 +50,6 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
     private static volatile String defaultUserId = "atmosphere-user";
     private static volatile String defaultSessionId = "atmosphere-session";
     private static final Set<String> knownSessions = ConcurrentHashMap.newKeySet();
-    private volatile boolean toolsRegistered;
-    private final ReentrantLock toolsLock = new ReentrantLock();
 
     @Override
     public String name() {
@@ -126,90 +123,78 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
     }
 
     /**
-     * Create and set a Runner with Atmosphere tool definitions bridged to ADK tools.
-     * ADK requires tools to be registered at agent construction time, so this must
-     * be called before streaming begins.
+     * Create and set a tool-less Runner from the given settings. Kept for
+     * Spring auto-configuration; tool-calling flows rebuild the runner per request
+     * inside {@link #doExecute} so each invocation captures its own
+     * {@link StreamingSession} and {@link org.atmosphere.ai.approval.ApprovalStrategy}.
      *
      * @param settings the LLM settings (model, API key, etc.)
-     * @param tools    Atmosphere tool definitions to bridge to ADK
+     * @param tools    ignored — tool registration is now per-request for HITL correctness
      */
     public static void configureWithTools(AiConfig.LlmSettings settings,
                                           List<ToolDefinition> tools) {
         var apiKey = settings.apiKey();
         var gemini = new Gemini(settings.model(), apiKey);
+        var agent = LlmAgent.builder()
+                .name("atmosphere-agent")
+                .model(gemini)
+                .instruction("You are a helpful assistant.")
+                .build();
+        staticRunner = new InMemoryRunner(agent, "atmosphere");
+        if (tools != null && !tools.isEmpty()) {
+            logger.info("ADK configured (model={}); {} tools will be registered per-request",
+                    settings.model(), tools.size());
+        } else {
+            logger.info("ADK configured: model={}", settings.model());
+        }
+    }
 
-        var adkTools = AdkToolBridge.toAdkTools(tools);
+    /**
+     * Build a per-request {@link Runner} whose tools capture the caller's
+     * {@link StreamingSession} and {@link org.atmosphere.ai.approval.ApprovalStrategy}.
+     * ADK requires tools at agent construction time, so each streaming request rebuilds
+     * the agent and runner — this is the only way to bind HITL context per invocation
+     * without a ThreadLocal that ADK's reactive scheduler would not propagate.
+     */
+    private Runner buildRequestRunner(AgentExecutionContext context, StreamingSession session) {
+        var settings = AiConfig.get();
+        if (settings == null) {
+            settings = AiConfig.fromEnvironment();
+        }
+        var gemini = new Gemini(settings.model(), settings.apiKey());
+
+        var adkTools = AdkToolBridge.toAdkTools(
+                context.tools(), session, context.approvalStrategy());
+        var instruction = context.systemPrompt() != null && !context.systemPrompt().isEmpty()
+                ? context.systemPrompt() : "You are a helpful assistant.";
+
         var agentBuilder = LlmAgent.builder()
                 .name("atmosphere-agent")
                 .model(gemini)
-                .instruction("You are a helpful assistant.");
+                .instruction(instruction);
 
         if (!adkTools.isEmpty()) {
             agentBuilder.tools(adkTools);
         }
 
-        staticRunner = new InMemoryRunner(agentBuilder.build(), "atmosphere");
-        logger.info("ADK configured with {} tools: model={}", adkTools.size(), settings.model());
-    }
-
-    /**
-     * Lazily rebuild the ADK runner with tools from the AgentExecutionContext. Called on the
-     * first request that contains tool definitions. The runner is replaced in-place
-     * and used for all subsequent requests.
-     */
-    private void rebuildRunnerWithTools(AgentExecutionContext context) {
-        toolsLock.lock();
-        try {
-            if (toolsRegistered) {
-                return;
-            }
-            var settings = AiConfig.get();
-            if (settings == null) {
-                settings = AiConfig.fromEnvironment();
-            }
-            var apiKey = settings.apiKey();
-            var gemini = new Gemini(settings.model(), apiKey);
-
-            var adkTools = AdkToolBridge.toAdkTools(context.tools());
-            var instruction = context.systemPrompt() != null && !context.systemPrompt().isEmpty()
-                    ? context.systemPrompt() : "You are a helpful assistant.";
-
-            var agentBuilder = LlmAgent.builder()
-                    .name("atmosphere-agent")
-                    .model(gemini)
-                    .instruction(instruction);
-
-            if (!adkTools.isEmpty()) {
-                agentBuilder.tools(adkTools);
-            }
-
-            var runner = new InMemoryRunner(agentBuilder.build(), "atmosphere");
-            setNativeClient(runner);
-            knownSessions.clear();
-            toolsRegistered = true;
-            logger.info("ADK rebuilt with {} tools and system prompt ({} chars)",
-                    adkTools.size(), instruction.length());
-        } finally {
-            toolsLock.unlock();
-        }
+        logger.debug("ADK per-request runner built with {} tools", adkTools.size());
+        return new InMemoryRunner(agentBuilder.build(), "atmosphere");
     }
 
     @Override
     protected void doExecute(Runner adkRunner, AgentExecutionContext context, StreamingSession session) {
-        // ADK requires tools at agent construction time. If the AgentExecutionContext contains
-        // tools that haven't been registered yet, rebuild the runner with those tools.
+        // For tool-calling requests, build a fresh runner whose tools capture this
+        // invocation's session + ApprovalStrategy. The tool-less fallback runner held in
+        // getNativeClient() is only used for prompts without tools.
         var tools = context.tools();
-        if (!tools.isEmpty() && !toolsRegistered) {
-            rebuildRunnerWithTools(context);
-            adkRunner = getNativeClient();
-        }
+        Runner requestRunner = tools.isEmpty() ? adkRunner : buildRequestRunner(context, session);
 
         var userId = context.userId() != null ? context.userId() : defaultUserId;
         var sessionId = context.sessionId() != null ? context.sessionId() : defaultSessionId;
 
-        ensureSession(adkRunner, userId, sessionId);
+        ensureSession(requestRunner, userId, sessionId);
 
-        var events = adkRunner.runAsync(
+        var events = requestRunner.runAsync(
                 userId,
                 sessionId,
                 Content.fromParts(Part.fromText(context.message()))
