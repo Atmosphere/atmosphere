@@ -2,6 +2,8 @@
 
 Shared static assets used by the sample applications.
 
+> **Not a Maven module.** This directory does not contain a `pom.xml` and is not listed in the root reactor. Do not try to build it with `./mvnw -pl samples/shared-resources` — just copy the files you need into your own sample.
+
 ## Contents
 
 ### css/
@@ -19,4 +21,4 @@ Common stylesheets shared across sample UIs.
 
 **To use:** Import the JSON file into Grafana (`Dashboards → Import → Upload JSON file`). Requires a Prometheus data source scraping your Atmosphere application's `/actuator/prometheus` endpoint.
 
-See [Observability](../../docs/observability.md) for setup details.
+See [Observability](https://atmosphere.github.io/docs/reference/observability/) for setup details.

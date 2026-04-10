@@ -149,7 +149,7 @@ function Chat() {
 }
 ```
 
-React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svelte), and [React Native](atmosphere.js/README.md#react-native) bindings available. For Java/Kotlin clients, see [wAsync](https://github.com/Atmosphere/wasync) — async WebSocket, SSE, long-polling, and gRPC client.
+React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svelte), and [React Native](atmosphere.js/README.md#react-native) bindings available. For Java/Kotlin clients, see [wAsync](modules/wasync/) — async WebSocket, SSE, long-polling, and gRPC client, shipped in-tree.
 
 ## Samples
 
@@ -170,7 +170,7 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 | [ai-classroom](samples/spring-boot-ai-classroom/) | Multi-room collaborative AI |
 | [channels-chat](samples/spring-boot-channels-chat/) | Slack, Telegram, WhatsApp, Messenger |
 
-[All 20 samples](samples/) &middot; `atmosphere install` for interactive picker &middot; `atmosphere compose` to scaffold multi-agent projects &middot; [CLI reference](cli/README.md)
+[All samples](samples/) &middot; `atmosphere install` for interactive picker &middot; `atmosphere compose` to scaffold multi-agent projects &middot; [CLI reference](cli/README.md)
 
 ## Getting Started
 
@@ -179,20 +179,20 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-boot-starter</artifactId>
-    <version>4.0.35</version>
+    <version>${atmosphere.version}</version>
 </dependency>
 
 <!-- Agent module (required for @Agent, @Coordinator) -->
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-agent</artifactId>
-    <version>4.0.35</version>
+    <version>${atmosphere.version}</version>
 </dependency>
 ```
 
 Optional: `atmosphere-ai`, `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`, `atmosphere-channels`, `atmosphere-coordinator`, `atmosphere-admin`. Add to classpath and features auto-register.
 
-**Requirements:** Java 21+ &middot; Spring Boot 4.0+ or Quarkus 3.21+
+**Requirements:** Java 21+ &middot; Spring Boot 4.0.5+ or Quarkus 3.31.3+ &middot; Current release: `4.0.36-SNAPSHOT`
 
 ## Documentation
 

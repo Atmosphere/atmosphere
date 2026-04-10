@@ -43,7 +43,7 @@ For Android emulator, `10.0.2.2` maps to the host. For iOS simulator, `localhost
 3. **Install and start:**
 
 ```bash
-cd samples/expo-classroom
+cd samples/spring-boot-ai-classroom/expo-client
 bun install
 bunx expo start
 ```
@@ -76,6 +76,7 @@ setupReactNative({ netInfo: NetInfo });
 function Classroom({ room }) {
   const { fullText, isStreaming, isConnected, send, reset } = useStreamingRN({
     request: {
+      // Each room is a path segment — the backend routes on {room}.
       url: `http://your-server:8080/atmosphere/classroom/${room}`,
       transport: 'websocket',
     },

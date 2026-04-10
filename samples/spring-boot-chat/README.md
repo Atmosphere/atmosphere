@@ -106,16 +106,9 @@ A tabbed UI with three panels:
 2. **🏠 Rooms** — Lists rooms, member counts, and member details (calls `GET /api/rooms`)
 3. **📊 Observability** — Live health check and Atmosphere metrics from Actuator
 
-### application-new.js
+### Bundled React app
 
-Vanilla JavaScript using atmosphere.js 5.0:
-
-```javascript
-subscription = await atmosphere.atmosphere.subscribe(
-    { url: '/atmosphere/chat', transport: 'websocket', fallbackTransport: 'long-polling' },
-    { open: ..., message: ..., close: ..., reconnect: ... }
-);
-```
+The UI is a pre-built React app bundled with Vite; the compiled assets live under `src/main/resources/static/assets/` and are loaded by `index.html` as a single ES module. The bundled app uses `atmosphere.js` (WebSocket + long-polling fallback) to subscribe to `/atmosphere/chat` and exchange JSON frames shaped like `{ author, message }`.
 
 ## Configuration
 
@@ -140,7 +133,7 @@ management:
 ```bash
 # JVM mode
 mvn clean package
-java -jar target/atmosphere-spring-boot-chat-4.0.35.jar
+java -jar target/atmosphere-spring-boot-chat-*.jar
 
 # Native image (requires GraalVM 25+)
 mvn clean package -Pnative
@@ -162,7 +155,7 @@ Open http://localhost:8080/ in multiple browser tabs to chat.
 
 ```
 spring-boot-chat/
-├── pom.xml                              # Spring Boot 4.0.2 parent
+├── pom.xml                              # Spring Boot 4.0.5 parent
 └── src/main/
     ├── java/org/atmosphere/samples/springboot/chat/
     │   ├── ChatApplication.java         # @SpringBootApplication entry point

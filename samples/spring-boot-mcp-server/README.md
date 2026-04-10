@@ -92,7 +92,7 @@ cd modules/mcp && mvn package -Pstdio-bridge -DskipTests
   "mcpServers": {
     "atmosphere-demo": {
       "command": "java",
-      "args": ["-jar", "path/to/atmosphere-mcp-4.0.35.jar",
+      "args": ["-jar", "path/to/atmosphere-mcp-*.jar",
                "http://localhost:8083/atmosphere/mcp"]
     }
   }
@@ -123,8 +123,11 @@ curl -s -X POST http://localhost:8083/atmosphere/mcp \
 
 The entire server is a single annotated class — see [DemoMcpServer.java](src/main/java/org/atmosphere/samples/mcp/DemoMcpServer.java).
 
+There is **no dedicated `@McpServer` annotation**. The class is marked with `@Agent(headless = true)` and the MCP module scans it for `@McpTool`, `@McpResource`, and `@McpPrompt` methods, wiring them onto the endpoint path declared on `@Agent`.
+
 ```java
-@McpServer(name = "atmosphere-demo", path = "/atmosphere/mcp")
+@Agent(name = "atmosphere-demo", version = "1.0.0",
+       endpoint = "/atmosphere/mcp", headless = true)
 public class DemoMcpServer {
 
     @McpTool(name = "list_users", description = "List all users connected to the chat")
@@ -158,14 +161,14 @@ const { data, state, push } = useAtmosphere<ChatMessage>({
 });
 ```
 
-See the [React, Vue, Svelte Hooks](../../docs/client-javascript.md) documentation for the full hooks API.
+See the [atmosphere.js client docs](https://atmosphere.github.io/docs/clients/javascript/) for the full hooks API.
 
 ## Key Concepts
 
-- **`@McpServer`** — marks the class and sets the endpoint path
+- **`@Agent(headless = true)`** — marks a class as an MCP-exposed agent and sets the endpoint path. There is no dedicated `@McpServer` annotation; the MCP module reuses `@Agent` and scans for MCP annotations below.
 - **`@McpTool`** — exposes a method as a callable tool
 - **`@McpResource`** — exposes a method as a read-only resource
 - **`@McpPrompt`** — exposes a method as a prompt template
 - **`@McpParam`** — annotates method parameters with metadata
 
-The MCP module uses Atmosphere's transport layer, so agents get automatic reconnection, heartbeats, and transport fallback for free.
+MCP is not a transport — it is a protocol that rides on top of Atmosphere transports (WebSocket, SSE, Streamable HTTP). That means agents get automatic reconnection, heartbeats, and transport fallback for free.

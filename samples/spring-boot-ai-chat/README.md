@@ -17,7 +17,7 @@ A real-time AI chat application that streams LLM responses text-by-text to the b
 An `@AiEndpoint` at `/atmosphere/ai-chat`:
 
 1. Client connects via WebSocket and sends a prompt
-2. The `@Prompt` handler calls `session.stream(message)` which routes through the `AiSupport` SPI
+2. The `@Prompt` handler calls `session.stream(message)` which routes through the `AgentRuntime` SPI
 3. The framework handles conversation memory, interceptors, guardrails, and streaming automatically
 4. Each streaming text is pushed to the client as a JSON frame
 

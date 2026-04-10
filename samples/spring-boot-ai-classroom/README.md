@@ -26,8 +26,8 @@ This sample demonstrates what makes Atmosphere unique: **broadcasting streamed L
            └────────┬────────┘
                     │
            ┌────────▼────────┐
-           │    AiSupport    │  Pluggable backend (built-in, Spring AI,
-           │   (auto-detect) │  LangChain4j, ADK — zero code change)
+           │  AgentRuntime   │  Pluggable backend (built-in, Spring AI,
+           │  (auto-detect)  │  LangChain4j, ADK, Embabel, Koog — zero code change)
            └─────────────────┘
 ```
 
@@ -36,17 +36,19 @@ This sample demonstrates what makes Atmosphere unique: **broadcasting streamed L
 **The endpoint (6 lines of meaningful code):**
 
 ```java
-@AiEndpoint(path = "/atmosphere/classroom",
-        systemPromptResource = "prompts/classroom-prompt.md",
+@AiEndpoint(path = "/atmosphere/classroom/{room}",
+        systemPromptResource = "skill:classroom",
         interceptors = { RoomContextInterceptor.class })
 public class AiClassroom {
 
     @Prompt
     public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
-        session.stream(message);  // Works with ANY AiSupport backend
+        session.stream(message);  // Works with ANY AgentRuntime backend
     }
 }
 ```
+
+The `{room}` path segment is extracted by `AiEndpointHandler` and each unique room path gets its own Atmosphere broadcaster, so messages in the math room are isolated from the code and science rooms. The `skill:classroom` prefix loads the system prompt from a skill file (classpath or `~/.atmosphere/skills/`).
 
 **The interceptor (sets persona per room):**
 
@@ -54,7 +56,10 @@ public class AiClassroom {
 public class RoomContextInterceptor implements AiInterceptor {
     @Override
     public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
-        var room = resource.getRequest().getParameter("room");
+        var room = AiEndpointHandler.pathParam(resource, "room");
+        if (room == null || room.isBlank()) {
+            room = "general";
+        }
         var systemPrompt = ROOM_PROMPTS.getOrDefault(room, DEFAULT_PROMPT);
         return request.withSystemPrompt(systemPrompt);
     }
@@ -100,12 +105,14 @@ Without any API key or Embacle, the sample runs in **demo mode** with simulated 
 
 ## Rooms
 
-| Room | Persona | Query Parameter |
-|------|---------|-----------------|
-| Math | Mathematics tutor | `?room=math` |
-| Code | Programming mentor | `?room=code` |
-| Science | Science educator | `?room=science` |
-| (default) | General assistant | `?room=` or omitted |
+Each room is a path segment — connect to a different URL to join a different room. Each path also gets its own Atmosphere broadcaster so messages stay isolated per room.
+
+| Room | Persona | URL |
+|------|---------|-----|
+| Math | Mathematics tutor | `/atmosphere/classroom/math` |
+| Code | Programming mentor | `/atmosphere/classroom/code` |
+| Science | Science educator | `/atmosphere/classroom/science` |
+| General | General assistant | `/atmosphere/classroom/general` |
 
 ## Portability
 
@@ -117,9 +124,11 @@ The `session.stream(message)` call is **framework-agnostic**. To switch AI backe
 | Spring AI | Add `atmosphere-spring-ai` dependency |
 | LangChain4j | Add `atmosphere-langchain4j` dependency |
 | Google ADK | Add `atmosphere-adk` dependency |
+| Embabel | Add `atmosphere-embabel` dependency |
+| JetBrains Koog | Add `atmosphere-koog` dependency |
 
-**Zero code changes.** The `AiSupport` SPI auto-detects the best available backend via `ServiceLoader`.
+**Zero code changes.** The `AgentRuntime` SPI auto-detects the best available backend via `ServiceLoader`.
 
 ## Mobile Client
 
-A React Native / Expo client is available at [expo-client](expo-client/). It connects to this backend via WebSocket, streams AI responses text-by-text with markdown rendering, and includes AppState/NetInfo lifecycle integration. See [React Native docs](../../docs/react-native.md) for details.
+A React Native / Expo client is available at [expo-client](expo-client/). It connects to this backend via WebSocket, streams AI responses text-by-text with markdown rendering, and includes AppState/NetInfo lifecycle integration. See the [React Native client docs](https://atmosphere.github.io/docs/clients/react-native/) for details.

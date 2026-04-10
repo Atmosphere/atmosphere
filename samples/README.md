@@ -2,13 +2,15 @@
 
 Example applications demonstrating Atmosphere 4.0 across different deployment targets.
 
+All samples inherit their Atmosphere version from the parent POM (currently `4.0.36-SNAPSHOT`). The target stack is Java 21, Spring Boot 4.0.5, Spring Framework 6.2.8, and Quarkus 3.31.3.
+
 ### Chat & Messaging
 
 | Sample | Stack | Packaging | Rooms | Metrics | Native Image |
 |--------|-------|-----------|-------|---------|-------------|
 | [chat](chat/) | Servlet (WAR) | WAR | — | — | — |
-| [spring-boot-chat](spring-boot-chat/) | Spring Boot 4.0 | JAR | ✅ | ✅ | ✅ |
-| [quarkus-chat](quarkus-chat/) | Quarkus 3.21+ | JAR | — | — | ✅ |
+| [spring-boot-chat](spring-boot-chat/) | Spring Boot 4.0.5 | JAR | ✅ | ✅ | ✅ |
+| [quarkus-chat](quarkus-chat/) | Quarkus 3.31.3 | JAR | — | — | ✅ |
 | [embedded-jetty-websocket-chat](embedded-jetty-websocket-chat/) | Embedded Jetty | JAR | — | — | — |
 | [grpc-chat](grpc-chat/) | gRPC + Spring Boot | JAR | — | — | — |
 
@@ -17,25 +19,22 @@ Example applications demonstrating Atmosphere 4.0 across different deployment ta
 | Sample | AI Backend | Tool Calling | Description |
 |--------|-----------|-------------|-------------|
 | [spring-boot-ai-chat](spring-boot-ai-chat/) | Built-in (Gemini/OpenAI/Ollama) | — | Basic AI streaming with `@AiEndpoint` |
-| [spring-boot-langchain4j-chat](spring-boot-langchain4j-chat/) | LangChain4j | — | LangChain4j adapter |
-| [spring-boot-spring-ai-chat](spring-boot-spring-ai-chat/) | Spring AI | — | Spring AI adapter |
-| [spring-boot-adk-chat](spring-boot-adk-chat/) | Google ADK | — | Google ADK adapter |
-| [spring-boot-embabel-chat](spring-boot-embabel-chat/) | Embabel | — | Embabel agent adapter |
-| [spring-boot-langchain4j-tools](spring-boot-langchain4j-tools/) | LangChain4j | `@Tool` (native) | LangChain4j-native tool calling |
-| [spring-boot-ai-tools](spring-boot-ai-tools/) | LangChain4j | `@AiTool` (portable) | Framework-agnostic tool calling pipeline |
-| [spring-boot-adk-tools](spring-boot-adk-tools/) | Google ADK | `@AiTool` (portable) | ADK with Atmosphere tool bridge |
-| [spring-boot-ai-classroom](spring-boot-ai-classroom/) | Built-in | — | Multi-persona AI classroom ([Expo client](spring-boot-ai-classroom/expo-client/)) |
-| [spring-boot-embabel-horoscope](spring-boot-embabel-horoscope/) | Embabel | — | Embabel agent orchestration |
+| [spring-boot-ai-tools](spring-boot-ai-tools/) | Built-in / any `AgentRuntime` | `@AiTool` (portable) | Framework-agnostic tool calling pipeline with live `AiEvent` tool activity |
+| [spring-boot-koog-chat](spring-boot-koog-chat/) | JetBrains Koog | — | Koog `PromptExecutor` via the `AgentRuntime` SPI |
+| [spring-boot-ai-classroom](spring-boot-ai-classroom/) | Built-in | — | Multi-room collaborative AI streaming ([Expo client](spring-boot-ai-classroom/expo-client/)) |
+| [spring-boot-rag-chat](spring-boot-rag-chat/) | Built-in + Spring AI VectorStore | `@AiTool` | RAG agent with knowledge base search tools |
 
 ### Agents (`@Agent` + `@Command`)
 
-One agent class — commands and AI work on Web, Slack, Telegram, Discord, WhatsApp, and Messenger simultaneously.
+One agent class — slash commands and AI work on Web, Slack, Telegram, Discord, WhatsApp, and Messenger simultaneously.
 
 | Sample | Features | Channels | Description |
 |--------|----------|----------|-------------|
-| [spring-boot-agent-chat](spring-boot-agent-chat/) | `@Agent`, `@Command`, `@AiTool`, skill.md | Web (+ any via `atmosphere-channels`) | DevOps assistant with slash commands and AI tools |
-| [spring-boot-dentist-agent](spring-boot-dentist-agent/) | `@Agent`, `@Command`, `@AiTool`, skill.md | Web + Slack + Telegram | Multi-channel dental emergency agent |
+| [spring-boot-dentist-agent](spring-boot-dentist-agent/) | `@Agent`, `@Command`, `@AiTool`, skill file | Web + Slack + Telegram | Multi-channel dental emergency agent |
+| [spring-boot-channels-chat](spring-boot-channels-chat/) | `@AiEndpoint`, channels | Web + Slack + Telegram + Discord + WhatsApp + Messenger | Omnichannel AI assistant |
 | [spring-boot-rag-chat](spring-boot-rag-chat/) | `@Agent`, `@Command`, `@AiTool`, RAG | Web | Knowledge base agent with document search tools |
+| [spring-boot-checkpoint-agent](spring-boot-checkpoint-agent/) | `@Coordinator`, `@Agent`, `CheckpointStore` | Web | Durable HITL workflow — approval-gated agent chaining |
+| [spring-boot-multi-agent-startup-team](spring-boot-multi-agent-startup-team/) | `@Coordinator`, `@Fleet`, A2A, SQLite checkpoints, WebTransport | Web | 5 collaborating agents (CEO + 4 specialists) with parallel/sequential dispatch |
 
 ### Agent Protocols
 
@@ -49,9 +48,9 @@ One agent class — commands and AI work on Web, Slack, Telegram, Discord, Whats
 
 | Sample | Stack | Description |
 |--------|-------|-------------|
-| [spring-boot-durable-sessions](spring-boot-durable-sessions/) | Spring Boot 4.0 | Persistent sessions with SQLite/Redis |
-| [spring-boot-otel-chat](spring-boot-otel-chat/) | Spring Boot 4.0 | OpenTelemetry observability |
-| [shared-resources](shared-resources/) | — | Shared frontend assets |
+| [spring-boot-durable-sessions](spring-boot-durable-sessions/) | Spring Boot 4.0.5 | Persistent sessions with SQLite/Redis |
+| [spring-boot-otel-chat](spring-boot-otel-chat/) | Spring Boot 4.0.5 | OpenTelemetry observability |
+| [shared-resources](shared-resources/) | — | Shared static assets (CSS, Grafana dashboard). Not a Maven module — no `pom.xml`. |
 
 ## Quick Start
 
@@ -113,11 +112,11 @@ cd quarkus-chat && mvn clean package && java -jar target/quarkus-app/quarkus-run
 cd embedded-jetty-websocket-chat && mvn clean install && mvn -Pserver
 ```
 
-Most samples run on **http://localhost:8080**. The AI samples use different ports to allow running them simultaneously: `spring-boot-langchain4j-chat` on 8081, `spring-boot-embabel-chat` on 8082.
+Most samples run on **http://localhost:8080**. A few AI samples use different ports so they can run simultaneously (for example `spring-boot-mcp-server` on 8083, `spring-boot-a2a-agent` on 8084, `spring-boot-agui-chat` on 8085, `spring-boot-ai-tools` on 8090). Check each sample's `application.yml` / `application.properties` for the exact port.
 
 ## The Same Handler Everywhere
 
-The core `Chat.java` handler is nearly identical across all samples:
+The core `Chat.java` handler is nearly identical across all chat samples:
 
 ```java
 @ManagedService(path = "/chat")
@@ -137,7 +136,7 @@ Only packaging and configuration differ — your business logic is portable acro
 
 ## Documentation
 
-- [Full Documentation](../docs/README.md)
-- [Getting Started with Spring Boot](../docs/spring-boot.md)
-- [Getting Started with Quarkus](../docs/quarkus.md)
-- [Core Runtime](../docs/core.md)
+- [Full Documentation](https://atmosphere.github.io/docs/)
+- [Getting Started with Spring Boot](https://atmosphere.github.io/docs/integrations/spring-boot/)
+- [Getting Started with Quarkus](https://atmosphere.github.io/docs/integrations/quarkus/)
+- [Core Runtime](https://atmosphere.github.io/docs/reference/core/)

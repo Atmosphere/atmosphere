@@ -39,20 +39,7 @@ public class Chat {
 
 ## Client Side
 
-### application.js
-
-Vanilla JavaScript using atmosphere.js 5.0 — same client code as the other samples:
-
-```javascript
-subscription = await atmosphere.atmosphere.subscribe(
-    { url: '/atmosphere/chat', transport: 'websocket', fallbackTransport: 'long-polling' },
-    { open: ..., message: ..., close: ..., reconnect: ... }
-);
-```
-
-1. Connects with WebSocket, falls back to long-polling automatically
-2. Prompts user for a name, then broadcasts JSON messages
-3. Displays messages with timestamps and author attribution
+The UI is a pre-built JavaScript bundle served from `src/main/resources/META-INF/resources/` (Quarkus's static resources directory). It uses `atmosphere.js` to subscribe to `/atmosphere/chat` with WebSocket transport and long-polling fallback, prompts the user for a name on first connect, and renders incoming JSON messages (`{ author, message }`) with timestamps.
 
 ## Configuration
 
@@ -62,7 +49,7 @@ subscription = await atmosphere.atmosphere.subscribe(
 quarkus.atmosphere.packages=org.atmosphere.samples.quarkus.chat
 ```
 
-The extension also supports `quarkus.atmosphere.servlet-path`, `quarkus.atmosphere.session-support`, `quarkus.atmosphere.broadcaster-class`, and other properties — see [Quarkus Integration](../../docs/quarkus.md) for details.
+The extension also supports `quarkus.atmosphere.servlet-path`, `quarkus.atmosphere.session-support`, `quarkus.atmosphere.broadcaster-class`, and other properties — see the [Quarkus integration docs](https://atmosphere.github.io/docs/integrations/quarkus/) for details.
 
 ## Build & Run
 
@@ -76,7 +63,7 @@ mvn quarkus:dev
 
 # Native image (requires GraalVM 21+ or Mandrel)
 mvn clean package -Pnative
-./target/atmosphere-quarkus-chat-4.0.35-runner
+./target/atmosphere-quarkus-chat-*-runner
 
 # Native via container build (no local GraalVM needed)
 mvn clean package -Pnative -Dquarkus.native.container-build=true
@@ -90,7 +77,7 @@ Open http://localhost:8080/admin/ for the admin dashboard with live event stream
 
 ```
 quarkus-chat/
-├── pom.xml                                  # Quarkus 3.21+ BOM
+├── pom.xml                                  # Quarkus 3.31.3 BOM
 └── src/main/
     ├── java/org/atmosphere/samples/quarkus/chat/
     │   ├── Chat.java                        # @ManagedService handler

@@ -57,27 +57,13 @@ Registers `AtmosphereServlet` with annotation scanning:
 
 ## Client Side
 
-### application.js
+The chat UI is a React app bundled with Vite. The build output is committed under `src/main/webapp/assets/` and loaded by `src/main/webapp/index.html` as a single `<script type="module">` import — no framework code lives in this directory in source form.
 
-Vanilla JavaScript using atmosphere.js 5.0 (no framework dependencies):
+- `index.html` boots a React root and loads the compiled bundle from `assets/index-*.js`
+- The bundled app uses the official `atmosphere.js` client (declared as a frontend dep) to subscribe to `/chat` with WebSocket + long-polling fallback
+- Messages flow as `{ author, message }` JSON frames encoded/decoded by the Jackson encoder/decoder on the server
 
-1. Subscribes to `/chat` with WebSocket transport and long-polling fallback
-2. On first connection, prompts the user for a name
-3. Sends JSON messages: `{ author, message }`
-4. Receives and displays messages with timestamps and author attribution
-
-```javascript
-subscription = await atmosphere.atmosphere.subscribe(
-    { url: '/chat', transport: 'websocket', fallbackTransport: 'long-polling' },
-    {
-        open:    (res) => { /* show connected status */ },
-        message: (res) => { /* parse JSON, display message */ },
-        close:   ()    => { /* show disconnected */ },
-    }
-);
-
-subscription.push(JSON.stringify({ author: 'Alice', message: 'Hello!' }));
-```
+The server POM pulls in the pre-built browser bundle via the WebJars-style dependency `org.atmosphere.client:javascript:4.0.1`, which is what previous versions of this sample used to wire a hand-written `application.js`. The current sample ships a pre-built React app instead — if you want to modify the UI, rebuild the bundle and drop the output into `src/main/webapp/assets/`.
 
 ## Build & Run
 
