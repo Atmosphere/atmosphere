@@ -16,9 +16,12 @@
 package org.atmosphere.ai;
 
 import org.atmosphere.ai.llm.ChatMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Base class for {@link AgentRuntime} implementations. Provides classpath-based
@@ -28,6 +31,8 @@ import java.util.List;
  * @param <C> the native client type (e.g. {@code ChatClient}, {@code StreamingChatModel})
  */
 public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
+
+    private static final Logger lifecycleLogger = LoggerFactory.getLogger(AbstractAgentRuntime.class);
 
     private volatile C nativeClient;
 
@@ -122,7 +127,14 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     public void execute(AgentExecutionContext context, StreamingSession session) {
         var client = resolveClient();
         session.progress("Connecting to " + name() + "...");
-        doExecute(client, context, session);
+        fireStart(context);
+        try {
+            doExecute(client, context, session);
+            fireCompletion(context);
+        } catch (RuntimeException e) {
+            fireError(context, e);
+            throw e;
+        }
     }
 
     @Override
@@ -130,7 +142,21 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
             AgentExecutionContext context, StreamingSession session) {
         var client = resolveClient();
         session.progress("Connecting to " + name() + "...");
-        return doExecuteWithHandle(client, context, session);
+        fireStart(context);
+        try {
+            var handle = doExecuteWithHandle(client, context, session);
+            handle.whenDone().whenComplete((ok, err) -> {
+                if (err != null) {
+                    fireError(context, err);
+                } else {
+                    fireCompletion(context);
+                }
+            });
+            return handle;
+        } catch (RuntimeException e) {
+            fireError(context, e);
+            throw e;
+        }
     }
 
     /**
@@ -162,6 +188,69 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
      */
     protected String configurationHint() {
         return "Check your classpath and configuration.";
+    }
+
+    /**
+     * Phase 3 helper: fire {@link AgentLifecycleListener#onStart} on every
+     * listener attached to the context. Runtime bridges call this once at the
+     * beginning of their execution path. Exceptions thrown by listeners are
+     * caught and logged at TRACE so one broken listener cannot abort the
+     * pipeline.
+     */
+    protected static void fireStart(AgentExecutionContext context) {
+        for (var listener : context.listeners()) {
+            try {
+                listener.onStart(context);
+            } catch (Exception e) {
+                lifecycleLogger.trace("AgentLifecycleListener.onStart failed: {}", e.getMessage(), e);
+            }
+        }
+    }
+
+    /** Phase 3 helper: fire {@link AgentLifecycleListener#onToolCall}. */
+    protected static void fireToolCall(AgentExecutionContext context, String toolName,
+                                        Map<String, Object> arguments) {
+        for (var listener : context.listeners()) {
+            try {
+                listener.onToolCall(toolName, arguments);
+            } catch (Exception e) {
+                lifecycleLogger.trace("AgentLifecycleListener.onToolCall failed: {}", e.getMessage(), e);
+            }
+        }
+    }
+
+    /** Phase 3 helper: fire {@link AgentLifecycleListener#onToolResult}. */
+    protected static void fireToolResult(AgentExecutionContext context, String toolName,
+                                          String resultPreview) {
+        for (var listener : context.listeners()) {
+            try {
+                listener.onToolResult(toolName, resultPreview);
+            } catch (Exception e) {
+                lifecycleLogger.trace("AgentLifecycleListener.onToolResult failed: {}", e.getMessage(), e);
+            }
+        }
+    }
+
+    /** Phase 3 helper: fire {@link AgentLifecycleListener#onCompletion}. */
+    protected static void fireCompletion(AgentExecutionContext context) {
+        for (var listener : context.listeners()) {
+            try {
+                listener.onCompletion(context);
+            } catch (Exception e) {
+                lifecycleLogger.trace("AgentLifecycleListener.onCompletion failed: {}", e.getMessage(), e);
+            }
+        }
+    }
+
+    /** Phase 3 helper: fire {@link AgentLifecycleListener#onError}. */
+    protected static void fireError(AgentExecutionContext context, Throwable error) {
+        for (var listener : context.listeners()) {
+            try {
+                listener.onError(context, error);
+            } catch (Exception e) {
+                lifecycleLogger.trace("AgentLifecycleListener.onError failed: {}", e.getMessage(), e);
+            }
+        }
     }
 
     /**

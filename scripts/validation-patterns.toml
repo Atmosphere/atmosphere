@@ -122,7 +122,8 @@ user_extensible = [
     "BroadcasterCache",
     "CoalescedCacheEventListener",
     "ToolExecutor",
-    "PostPromptHook"
+    "PostPromptHook",
+    "AgentLifecycleListener"
 ]
 
 # ============================================================================
