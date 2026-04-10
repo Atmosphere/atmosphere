@@ -103,6 +103,12 @@ public class GrpcWasyncTransportTest {
 
         try {
             assertTrue(openLatch.await(5, TimeUnit.SECONDS), "OPEN event should fire");
+            // wAsync sets Socket.status() slightly after the OPEN event fires on its
+            // dispatch thread; poll briefly to avoid a race under CI load.
+            var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+            while (socket.status() != Socket.STATUS.OPEN && System.nanoTime() < deadline) {
+                Thread.sleep(20);
+            }
             assertEquals(Socket.STATUS.OPEN, socket.status());
         } finally {
             socket.close();
@@ -235,6 +241,10 @@ public class GrpcWasyncTransportTest {
         socket.close();
 
         assertTrue(closeLatch.await(5, TimeUnit.SECONDS), "CLOSE event should fire");
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        while (socket.status() != Socket.STATUS.CLOSE && System.nanoTime() < deadline) {
+            Thread.sleep(20);
+        }
         assertEquals(Socket.STATUS.CLOSE, socket.status());
     }
 }
