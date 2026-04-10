@@ -52,17 +52,39 @@ public class AtmosphereAiAutoConfiguration {
     public AiConfig.LlmSettings atmosphereAiSettings(AtmosphereProperties properties) {
         var aiProps = properties.getAi();
         var apiKey = resolveApiKey(aiProps);
-        if (apiKey == null && !"local".equalsIgnoreCase(aiProps.getMode())) {
+        var model = resolveModel(aiProps);
+        var baseUrl = resolveBaseUrl(aiProps);
+        var mode = resolveMode(aiProps);
+        if (apiKey == null && !"local".equalsIgnoreCase(mode)) {
             logger.warn("No AI API key configured. Set atmosphere.ai.api-key, "
                     + "LLM_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY environment variable");
         }
-        var settings = AiConfig.configure(
-                aiProps.getMode(),
-                aiProps.getModel(),
-                apiKey,
-                aiProps.getBaseUrl());
-        logger.info("Atmosphere AI configured: mode={}, model={}", aiProps.getMode(), aiProps.getModel());
+        var settings = AiConfig.configure(mode, model, apiKey, baseUrl);
+        logger.info("Atmosphere AI configured: mode={}, model={}", mode, model);
         return settings;
+    }
+
+    private String resolveMode(AtmosphereProperties.AiProperties aiProps) {
+        if (aiProps.getMode() != null && !aiProps.getMode().isBlank()) {
+            return aiProps.getMode();
+        }
+        var envMode = env("LLM_MODE");
+        return envMode != null ? envMode : "remote";
+    }
+
+    private String resolveModel(AtmosphereProperties.AiProperties aiProps) {
+        if (aiProps.getModel() != null && !aiProps.getModel().isBlank()) {
+            return aiProps.getModel();
+        }
+        var envModel = env("LLM_MODEL");
+        return envModel != null ? envModel : "gemini-2.5-flash";
+    }
+
+    private String resolveBaseUrl(AtmosphereProperties.AiProperties aiProps) {
+        if (aiProps.getBaseUrl() != null && !aiProps.getBaseUrl().isBlank()) {
+            return aiProps.getBaseUrl();
+        }
+        return env("LLM_BASE_URL");
     }
 
     @Bean

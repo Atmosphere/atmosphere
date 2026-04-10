@@ -268,9 +268,11 @@ public class AtmosphereProperties {
 
         private boolean enabled = true;
 
-        private String mode = "remote";
+        // Null defaults so LLM_MODE / LLM_MODEL / LLM_BASE_URL env vars can win over
+        // framework fallbacks in AtmosphereAiAutoConfiguration.
+        private String mode;
 
-        private String model = "gemini-2.5-flash";
+        private String model;
 
         private String apiKey;
 
