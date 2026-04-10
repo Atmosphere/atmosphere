@@ -62,7 +62,7 @@ jobs:
     
     - name: Upload Build Artifacts
       if: matrix.node-version == 20
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v7
       with:
         name: atmosphere-js-dist
         path: atmosphere.js/dist/

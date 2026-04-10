@@ -72,7 +72,7 @@ jobs:
 
     - name: Upload Native Binary
       if: failure()
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v7
       with:
         name: spring-boot-native-artifacts
         path: samples/spring-boot-chat/target/
@@ -120,7 +120,7 @@ jobs:
 
     - name: Upload Native Binary
       if: failure()
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v7
       with:
         name: quarkus-native-artifacts
         path: samples/quarkus-chat/target/
