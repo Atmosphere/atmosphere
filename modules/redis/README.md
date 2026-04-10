@@ -8,14 +8,14 @@ Cross-node broadcasting via Redis pub/sub. Messages broadcast on one node are de
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-redis</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 
 ## Quick Start
 
 ```properties
-org.atmosphere.cpr.broadcasterClass=org.atmosphere.redis.RedisBroadcaster
+org.atmosphere.cpr.broadcasterClass=org.atmosphere.plugin.redis.RedisBroadcaster
 org.atmosphere.redis.url=redis://localhost:6379
 ```
 
@@ -30,12 +30,12 @@ org.atmosphere.redis.url=redis://localhost:6379
 
 | Class | Purpose |
 |-------|---------|
-| `RedisBroadcaster` | Broadcaster that publishes/subscribes via Redis pub/sub |
-| `RedisClusterBroadcastFilter` | `ClusterBroadcastFilter` for use with `DefaultBroadcaster` |
+| `org.atmosphere.plugin.redis.RedisBroadcaster` | Broadcaster that publishes/subscribes via Redis pub/sub |
+| `org.atmosphere.plugin.redis.RedisClusterBroadcastFilter` | `ClusterBroadcastFilter` for use with `DefaultBroadcaster` |
 
 ## Full Documentation
 
-See [docs/redis.md](../../docs/redis.md) for complete documentation.
+See <https://atmosphere.github.io/docs/infrastructure/redis/> for complete documentation.
 
 ## Requirements
 

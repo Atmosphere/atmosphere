@@ -10,7 +10,7 @@ Add the runtime artifact to your application:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-quarkus-extension</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 
@@ -82,7 +82,7 @@ The same `@ManagedService` handler works across WAR, Spring Boot, and Quarkus --
 
 ## Full Documentation
 
-See [docs/quarkus.md](../../docs/quarkus.md) for complete documentation.
+See <https://atmosphere.github.io/docs/integrations/quarkus/> for complete documentation.
 
 ## Requirements
 

@@ -8,7 +8,7 @@ Session persistence across server restarts. On reconnection, the client sends it
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-durable-sessions</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 
@@ -37,7 +37,7 @@ Three `SessionStore` implementations:
 
 ## Full Documentation
 
-See [docs/durable-sessions.md](../../docs/durable-sessions.md) for complete documentation.
+See <https://atmosphere.github.io/docs/reference/durable-sessions/> for complete documentation.
 
 ## Samples
 

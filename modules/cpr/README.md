@@ -8,13 +8,13 @@ The core framework for building real-time web applications in Java. Provides a p
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-runtime</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 
 ## Key Features
 
-- **WebSocket** with automatic fallback to SSE and long-polling
+- **Transports** — WebTransport/HTTP3, WebSocket, SSE, Long-Polling, and gRPC with automatic fallback negotiation
 - **`@ManagedService`** annotation-driven endpoints with `@Ready`, `@Disconnect`, `@Message`
 - **Rooms** -- `RoomManager`, `@RoomService`, presence tracking, message history
 - **Virtual threads** enabled by default (JDK 21+)
@@ -110,7 +110,7 @@ Registers `atmosphere.connections`, `atmosphere.messages`, and `atmosphere.broad
 
 ## Full Documentation
 
-See [docs/core.md](../../docs/core.md) for complete documentation.
+See <https://atmosphere.github.io/docs/reference/core/> for complete documentation.
 
 ## Building
 

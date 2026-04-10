@@ -8,7 +8,7 @@ Bidirectional streaming transport for Atmosphere using grpc-java. Clients can su
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-grpc</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 
@@ -49,7 +49,7 @@ atmosphere:
 
 ## Full Documentation
 
-See [docs/grpc.md](../../docs/grpc.md) for complete documentation.
+See <https://atmosphere.github.io/docs/reference/grpc/> for complete documentation.
 
 ## Samples
 

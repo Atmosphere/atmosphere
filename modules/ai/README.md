@@ -8,7 +8,7 @@ AI/LLM streaming module for Atmosphere. Provides `@AiEndpoint`, `@Prompt`, `@AiT
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-ai</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 
@@ -28,7 +28,7 @@ public class MyAiChat {
 
 The `@AiEndpoint` annotation replaces the boilerplate of `@ManagedService` + `@Ready` + `@Disconnect` + `@Message` for AI streaming use cases. The `@Prompt` method runs on a virtual thread, so blocking LLM API calls do not block Atmosphere's thread pool.
 
-`session.stream(message)` auto-detects the best available `AiSupport` implementation via `ServiceLoader` — drop an adapter JAR on the classpath and it just works, analogous to `AsyncSupport` for transports.
+`session.stream(message)` auto-detects the best available `AgentRuntime` implementation via `ServiceLoader` — drop an adapter JAR on the classpath and it just works, analogous to `AsyncSupport` for transports.
 
 ## AgentRuntime SPI
 
@@ -36,7 +36,7 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 
 | Adapter JAR | `AgentRuntime` implementation | Priority | Capabilities |
 |-------------|-------------------------------|----------|-------------|
-| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT |
+| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, SYSTEM_PROMPT |
 | `atmosphere-spring-ai` | `SpringAiAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT |
 | `atmosphere-langchain4j` | `LangChain4jAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT |
 | `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT |
@@ -105,7 +105,7 @@ public interface AiConversationMemory {
 |-------|-------------|
 | `@AiEndpoint` | Marks a class as an AI chat endpoint with a path, system prompt, and interceptors |
 | `@Prompt` | Marks the method that handles user messages |
-| `AiSupport` | SPI for AI framework backends (ServiceLoader-discovered) |
+| `AgentRuntime` | SPI for AI framework backends (ServiceLoader-discovered) |
 | `AiRequest` | Framework-agnostic request record (message, systemPrompt, model, hints) |
 | `AiInterceptor` | Pre/post processing hooks for RAG, guardrails, logging |
 | `AiConversationMemory` | SPI for conversation history storage |
@@ -273,9 +273,24 @@ The `BroadcasterStreamingSession` class wraps a `Broadcaster` and emits the same
 
 See [atmosphere-mcp README](../mcp/README.md) for injectable parameter details.
 
-## Full Documentation
+## Capability Matrix
 
-See [docs/agent-runtimes.md](../../docs/agent-runtimes.md) for the unified capability matrix across all runtimes.
+Unified view of the six `AgentRuntime` implementations shipped with Atmosphere.
+Legend: TS=TEXT_STREAMING, TC=TOOL_CALLING, SO=STRUCTURED_OUTPUT, SP=SYSTEM_PROMPT,
+AO=AGENT_ORCHESTRATION, CM=CONVERSATION_MEMORY.
+
+| Runtime | Priority | TS | TC | SO | SP | AO | CM |
+|---------|---------:|:--:|:--:|:--:|:--:|:--:|:--:|
+| `BuiltInAgentRuntime` (`atmosphere-ai`)       |   0 | yes | yes | —   | yes | —   | —   |
+| `SpringAiAgentRuntime` (`atmosphere-spring-ai`)   | 100 | yes | yes | yes | yes | —   | —   |
+| `LangChain4jAgentRuntime` (`atmosphere-langchain4j`) | 100 | yes | yes | yes | yes | —   | —   |
+| `AdkAgentRuntime` (`atmosphere-adk`)             | 100 | yes | yes | yes | yes | yes | yes |
+| `EmbabelAgentRuntime` (`atmosphere-embabel`)     | 100 | yes | —   | yes | yes | yes | —   |
+| `KoogAgentRuntime` (`atmosphere-koog`)           | 100 | yes | yes | yes | yes | yes | yes |
+
+All runtimes emit usage metadata (`ai.tokens.input`, `ai.tokens.output`, `ai.tokens.total`)
+when the underlying API reports token counts. See
+<https://atmosphere.github.io/docs/reference/ai/> for the Astro reference page.
 
 ## Requirements
 

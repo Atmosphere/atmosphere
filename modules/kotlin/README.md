@@ -8,7 +8,7 @@ Builder API and coroutine extensions for Atmosphere.
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-kotlin</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 
@@ -41,7 +41,7 @@ resource.writeSuspend("Direct message")    // suspends instead of blocking
 
 ## Full Documentation
 
-See [docs/kotlin.md](../../docs/kotlin.md) for complete documentation.
+See <https://atmosphere.github.io/docs/clients/kotlin/> for complete documentation.
 
 ## Requirements
 

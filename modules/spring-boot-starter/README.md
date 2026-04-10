@@ -12,7 +12,7 @@ First, import the Atmosphere BOM in your `<dependencyManagement>` to align all m
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-bom</artifactId>
-            <version>4.0.35</version>
+            <version>${project.version}</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -255,7 +255,7 @@ The starter includes `AtmosphereRuntimeHints` for native image support. Build wi
 
 ## Full Documentation
 
-See [docs/spring-boot.md](../../docs/spring-boot.md) for complete documentation.
+See <https://atmosphere.github.io/docs/integrations/spring-boot/> for complete documentation.
 
 ## Requirements
 

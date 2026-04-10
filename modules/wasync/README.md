@@ -12,7 +12,7 @@ wAsync supports **WebSocket**, **Server-Sent Events (SSE)**, **HTTP Streaming**,
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-wasync</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 
@@ -102,12 +102,12 @@ Connect to an Atmosphere gRPC server using bidirectional streaming. Requires `at
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-grpc</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 <dependency>
     <groupId>io.grpc</groupId>
     <artifactId>grpc-netty-shaded</artifactId>
-    <version>4.0.35</version>
+    <version>1.80.0</version>
 </dependency>
 ```
 
@@ -404,7 +404,7 @@ public class ChatClient {
 
 ## Full Documentation
 
-See [docs/client-java.md](../../docs/client-java.md) for complete documentation.
+See <https://atmosphere.github.io/docs/clients/java/> for complete documentation.
 
 ## Migration from wAsync 3.x
 

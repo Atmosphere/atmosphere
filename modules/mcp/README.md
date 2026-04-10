@@ -8,7 +8,7 @@ MCP (Model Context Protocol) server module for Atmosphere. Exposes annotation-dr
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-mcp</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 
@@ -226,7 +226,7 @@ With the Spring Boot starter, `McpTracing` is auto-configured when an `OpenTelem
 
 ## Full Documentation
 
-See [docs/mcp.md](../../docs/mcp.md) for complete documentation.
+See <https://atmosphere.github.io/docs/reference/mcp/> for complete documentation.
 
 ## Requirements
 

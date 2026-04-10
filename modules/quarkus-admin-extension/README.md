@@ -8,7 +8,7 @@ Quarkus extension for the Atmosphere Admin control plane. Adds a real-time dashb
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-quarkus-admin-extension</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 

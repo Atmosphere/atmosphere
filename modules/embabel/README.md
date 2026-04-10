@@ -8,7 +8,7 @@
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-embabel</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 
@@ -49,7 +49,9 @@ embabelAdapter.stream(AgentRequest("assistant") { channel ->
 
 ## Full Documentation
 
-See [docs/agent-runtimes.md](../../docs/agent-runtimes.md) for the unified capability matrix across all runtimes.
+See the [atmosphere-ai capability matrix](../ai/README.md#capability-matrix) and
+<https://atmosphere.github.io/docs/reference/ai/> for the unified capability matrix
+across all runtimes.
 
 ## Requirements
 

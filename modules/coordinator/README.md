@@ -8,7 +8,7 @@ Multi-agent orchestration module for Atmosphere. Provides `@Coordinator`, `@Flee
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-coordinator</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 
@@ -251,9 +251,9 @@ Circular fleet dependencies (coordinator A manages coordinator B which manages A
 
 | Class / Interface | Description |
 |-------------------|-------------|
-| `@Coordinator` | Marks a class as a coordinator; sets name, skill file, description, and version |
+| `@Coordinator` | Marks a class as a coordinator; attributes: `name`, `skillFile`, `description`, `version`, `responseAs` (structured-output type), `journalFormat` (auto-emit journal as tool card) |
 | `@Fleet` | Declares the set of agents this coordinator manages |
-| `@AgentRef` | Reference to a single agent by class (`type`) or name (`value`); carries version, required, weight |
+| `@AgentRef` | Reference to a single agent by class (`type`) or name (`value`); attributes: `version`, `required`, `weight`, `maxRetries`, `circuitBreaker`, `timeoutMs` |
 | `AgentFleet` | Injected into `@Prompt` methods; provides `agent()`, `agents()`, `available()`, `call()`, `parallel()`, `pipeline()`, `evaluate()`, `journal()` |
 | `AgentProxy` | Proxy to a single agent; exposes `call()`, `callAsync()`, `stream()`, `isAvailable()`, `isLocal()`, `weight()` |
 | `AgentCall` | Immutable record: pending call spec (`agentName`, `skill`, `args`) |

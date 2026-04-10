@@ -1,6 +1,6 @@
 # Atmosphere Spring AI Adapter
 
-`AiSupport` implementation backed by Spring AI `ChatClient`. When this JAR is on the classpath, `@AiEndpoint` automatically uses Spring AI for LLM streaming.
+`AgentRuntime` implementation backed by Spring AI `ChatClient`. When this JAR is on the classpath, `@AiEndpoint` automatically uses Spring AI for LLM streaming.
 
 ## Maven Coordinates
 
@@ -8,7 +8,7 @@
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-ai</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 
@@ -37,7 +37,7 @@ springAiAdapter.stream(chatClient, prompt, session);
 | Class | Purpose |
 |-------|---------|
 | `SpringAiStreamingAdapter` | Bridges Spring AI `ChatClient` to `StreamingSession` |
-| `SpringAiSupport` | `AiSupport` SPI implementation (priority 100) |
+| `SpringAiAgentRuntime` | `AgentRuntime` SPI implementation (priority 100) |
 | `AtmosphereSpringAiAutoConfiguration` | Spring Boot auto-configuration |
 
 ## Samples
@@ -46,7 +46,9 @@ springAiAdapter.stream(chatClient, prompt, session);
 
 ## Full Documentation
 
-See [docs/agent-runtimes.md](../../docs/agent-runtimes.md) for the unified capability matrix across all runtimes.
+See the [atmosphere-ai capability matrix](../ai/README.md#capability-matrix) and
+<https://atmosphere.github.io/docs/reference/ai/> for the unified capability matrix
+across all runtimes.
 
 ## Requirements
 

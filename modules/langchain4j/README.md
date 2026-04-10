@@ -1,6 +1,6 @@
 # Atmosphere LangChain4j Adapter
 
-`AiSupport` implementation backed by LangChain4j `StreamingChatLanguageModel`. When this JAR is on the classpath, `@AiEndpoint` automatically uses LangChain4j for LLM streaming.
+`AgentRuntime` implementation backed by LangChain4j `StreamingChatLanguageModel`. When this JAR is on the classpath, `@AiEndpoint` automatically uses LangChain4j for LLM streaming.
 
 ## Maven Coordinates
 
@@ -8,7 +8,7 @@
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-langchain4j</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 
@@ -39,7 +39,7 @@ model.chat(ChatMessage.userMessage(prompt),
 |-------|---------|
 | `LangChain4jStreamingAdapter` | Bridges LangChain4j models to `StreamingSession` |
 | `AtmosphereStreamingResponseHandler` | `StreamingChatResponseHandler` that forwards streaming texts to `StreamingSession` |
-| `LangChain4jAiSupport` | `AiSupport` SPI implementation (priority 100) |
+| `LangChain4jAgentRuntime` | `AgentRuntime` SPI implementation (priority 100) |
 | `AtmosphereLangChain4jAutoConfiguration` | Spring Boot auto-configuration |
 
 ## Samples
@@ -48,10 +48,12 @@ model.chat(ChatMessage.userMessage(prompt),
 
 ## Full Documentation
 
-See [docs/agent-runtimes.md](../../docs/agent-runtimes.md) for the unified capability matrix across all runtimes.
+See the [atmosphere-ai capability matrix](../ai/README.md#capability-matrix) and
+<https://atmosphere.github.io/docs/reference/ai/> for the unified capability matrix
+across all runtimes.
 
 ## Requirements
 
 - Java 21+
 - `atmosphere-ai` (transitive)
-- LangChain4j 1.0.0-beta3+
+- LangChain4j 1.12.2+

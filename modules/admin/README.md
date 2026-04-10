@@ -8,7 +8,7 @@ Management and control plane for Atmosphere. Provides a real-time dashboard, RES
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-admin</artifactId>
-    <version>4.0.35</version>
+    <version>${project.version}</version>
 </dependency>
 ```
 
