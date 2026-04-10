@@ -79,6 +79,15 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
             return null;
         }
 
+        // Eagerly link langchain4j HTTP response types from the main thread.
+        // JdkHttpClient.fromJdkResponse references SuccessfulHttpResponse only on the success
+        // branch — if the first request fails (e.g. upstream 503), the class never gets linked,
+        // then a later success on a ForkJoinPool worker thread hits NoClassDefFoundError because
+        // Spring Boot's nested-jar LaunchedClassLoader can't resolve it from that calling context.
+        eagerLoad("dev.langchain4j.http.client.SuccessfulHttpResponse");
+        eagerLoad("dev.langchain4j.http.client.SuccessfulHttpResponse$Builder");
+        eagerLoad("dev.langchain4j.http.client.HttpException");
+
         var model = dev.langchain4j.model.openai.OpenAiStreamingChatModel.builder()
                 .baseUrl(settings.baseUrl())
                 .apiKey(apiKey)
@@ -86,6 +95,14 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 .build();
         logger.info("LangChain4j auto-configured: model={}, endpoint={}", settings.model(), settings.baseUrl());
         return model;
+    }
+
+    private static void eagerLoad(String className) {
+        try {
+            Class.forName(className, true, LangChain4jAgentRuntime.class.getClassLoader());
+        } catch (ClassNotFoundException e) {
+            logger.debug("Eager class-load skipped for {}: {}", className, e.getMessage());
+        }
     }
 
     /**
