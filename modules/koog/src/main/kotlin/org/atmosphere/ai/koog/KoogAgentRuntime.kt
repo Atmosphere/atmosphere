@@ -32,6 +32,7 @@ import org.atmosphere.ai.AiEvent
 import org.atmosphere.ai.AgentExecutionContext
 import org.atmosphere.ai.AgentRuntime
 import org.atmosphere.ai.StreamingSession
+import org.atmosphere.ai.TokenUsage
 import org.slf4j.LoggerFactory
 
 /**
@@ -152,6 +153,20 @@ class KoogAgentRuntime : AgentRuntime {
                 }
                 onToolCallFailed { ctx ->
                     session.emit(AiEvent.ToolError(ctx.toolName, ctx.error?.message ?: "Tool failed"))
+                }
+                onLLMCallCompleted { ctx ->
+                    // Phase 1: report typed token usage once per LLM call. The default
+                    // StreamingSession.usage() sink re-emits legacy ai.tokens.* metadata keys
+                    // so existing Micrometer / budget consumers keep working.
+                    val responses = ctx.responses
+                    if (responses.isNotEmpty()) {
+                        val meta = responses.last().metaInfo
+                        val input = meta.inputTokensCount?.toLong() ?: 0L
+                        val output = meta.outputTokensCount?.toLong() ?: 0L
+                        val total = meta.totalTokensCount?.toLong() ?: (input + output)
+                        val usage = TokenUsage(input, output, 0L, total, null)
+                        if (usage.hasCounts()) session.usage(usage)
+                    }
                 }
             }
         }

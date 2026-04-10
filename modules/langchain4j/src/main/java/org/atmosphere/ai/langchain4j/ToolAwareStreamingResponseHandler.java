@@ -95,17 +95,18 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             return;
         }
 
-        // Report usage metadata if available
+        // Report typed token usage if the model reported it. The default
+        // StreamingSession.usage() sink re-emits legacy ai.tokens.* metadata keys
+        // so existing Micrometer / budget consumers keep working unchanged.
         var tokenUsage = completeResponse.tokenUsage();
         if (tokenUsage != null) {
-            if (tokenUsage.inputTokenCount() != null) {
-                session.sendMetadata("ai.tokens.input", tokenUsage.inputTokenCount());
-            }
-            if (tokenUsage.outputTokenCount() != null) {
-                session.sendMetadata("ai.tokens.output", tokenUsage.outputTokenCount());
-            }
-            if (tokenUsage.totalTokenCount() != null) {
-                session.sendMetadata("ai.tokens.total", tokenUsage.totalTokenCount());
+            long input = tokenUsage.inputTokenCount() != null ? tokenUsage.inputTokenCount() : 0L;
+            long output = tokenUsage.outputTokenCount() != null ? tokenUsage.outputTokenCount() : 0L;
+            long total = tokenUsage.totalTokenCount() != null
+                    ? tokenUsage.totalTokenCount() : input + output;
+            var usage = new org.atmosphere.ai.TokenUsage(input, output, 0L, total, null);
+            if (usage.hasCounts()) {
+                session.usage(usage);
             }
         }
 

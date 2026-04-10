@@ -462,14 +462,19 @@ public class OpenAiCompatibleClient implements LlmClient {
 
     private static void forwardUsageMetadata(tools.jackson.databind.JsonNode usageNode,
                                              StreamingSession session) {
-        if (usageNode.has("prompt_tokens")) {
-            session.sendMetadata("ai.tokens.input", usageNode.get("prompt_tokens").asInt());
+        long input = usageNode.has("prompt_tokens") ? usageNode.get("prompt_tokens").asLong() : 0L;
+        long output = usageNode.has("completion_tokens") ? usageNode.get("completion_tokens").asLong() : 0L;
+        long total = usageNode.has("total_tokens") ? usageNode.get("total_tokens").asLong() : input + output;
+        long cachedInput = 0L;
+        if (usageNode.has("prompt_tokens_details")) {
+            var details = usageNode.get("prompt_tokens_details");
+            if (details.has("cached_tokens")) {
+                cachedInput = details.get("cached_tokens").asLong();
+            }
         }
-        if (usageNode.has("completion_tokens")) {
-            session.sendMetadata("ai.tokens.output", usageNode.get("completion_tokens").asInt());
-        }
-        if (usageNode.has("total_tokens")) {
-            session.sendMetadata("ai.tokens.total", usageNode.get("total_tokens").asInt());
+        var usage = new org.atmosphere.ai.TokenUsage(input, output, cachedInput, total, null);
+        if (usage.hasCounts()) {
+            session.usage(usage);
         }
     }
 
@@ -772,25 +777,23 @@ public class OpenAiCompatibleClient implements LlmClient {
 
     /**
      * Forward usage metadata from the Responses API format.
-     * The Responses API reports usage in a slightly different structure.
+     * The Responses API reports usage in a slightly different structure
+     * ({@code input_tokens} / {@code output_tokens}) than Chat Completions.
      */
     private static void forwardResponsesApiUsage(tools.jackson.databind.JsonNode usageNode,
                                                   StreamingSession session) {
-        if (usageNode.has("input_tokens")) {
-            session.sendMetadata("ai.tokens.input", usageNode.get("input_tokens").asInt());
+        long input = usageNode.has("input_tokens") ? usageNode.get("input_tokens").asLong() : 0L;
+        long output = usageNode.has("output_tokens") ? usageNode.get("output_tokens").asLong() : 0L;
+        long cachedInput = 0L;
+        if (usageNode.has("input_tokens_details")) {
+            var details = usageNode.get("input_tokens_details");
+            if (details.has("cached_tokens")) {
+                cachedInput = details.get("cached_tokens").asLong();
+            }
         }
-        if (usageNode.has("output_tokens")) {
-            session.sendMetadata("ai.tokens.output", usageNode.get("output_tokens").asInt());
-        }
-        var total = 0;
-        if (usageNode.has("input_tokens")) {
-            total += usageNode.get("input_tokens").asInt();
-        }
-        if (usageNode.has("output_tokens")) {
-            total += usageNode.get("output_tokens").asInt();
-        }
-        if (total > 0) {
-            session.sendMetadata("ai.tokens.total", total);
+        var usage = new org.atmosphere.ai.TokenUsage(input, output, cachedInput, input + output, null);
+        if (usage.hasCounts()) {
+            session.usage(usage);
         }
     }
 

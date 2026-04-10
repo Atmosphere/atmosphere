@@ -224,16 +224,20 @@ public final class AdkEventAdapter {
     }
 
     /**
-     * Extract usage metadata from an ADK event and forward token counts to the session.
+     * Extract usage metadata from an ADK event and forward token counts to the
+     * session via the typed {@link org.atmosphere.ai.StreamingSession#usage}
+     * sink. The default sink re-emits the legacy {@code ai.tokens.*} metadata
+     * keys so existing consumers keep working unchanged.
      */
     private static void extractUsageMetadata(Event event, StreamingSession session) {
         event.usageMetadata().ifPresent(usage -> {
-            usage.promptTokenCount()
-                    .ifPresent(v -> session.sendMetadata("ai.tokens.input", v));
-            usage.candidatesTokenCount()
-                    .ifPresent(v -> session.sendMetadata("ai.tokens.output", v));
-            usage.totalTokenCount()
-                    .ifPresent(v -> session.sendMetadata("ai.tokens.total", v));
+            long input = usage.promptTokenCount().map(Integer::longValue).orElse(0L);
+            long output = usage.candidatesTokenCount().map(Integer::longValue).orElse(0L);
+            long total = usage.totalTokenCount().map(Integer::longValue).orElse(input + output);
+            var tokenUsage = new org.atmosphere.ai.TokenUsage(input, output, 0L, total, null);
+            if (tokenUsage.hasCounts()) {
+                session.usage(tokenUsage);
+            }
         });
     }
 }

@@ -118,18 +118,21 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                             }
                         }
                     }
-                    // Report usage metadata if present
+                    // Report typed token usage if Spring AI surfaced counts. The
+                    // default StreamingSession.usage() sink re-emits the legacy
+                    // ai.tokens.* metadata keys for existing Micrometer / budget
+                    // consumers, so this refactor is wire-compatible.
                     var metadata = response.getMetadata();
                     if (metadata != null && metadata.getUsage() != null) {
-                        var usage = metadata.getUsage();
-                        if (usage.getPromptTokens() > 0) {
-                            session.sendMetadata("ai.tokens.input", usage.getPromptTokens());
-                        }
-                        if (usage.getCompletionTokens() > 0) {
-                            session.sendMetadata("ai.tokens.output", usage.getCompletionTokens());
-                        }
-                        if (usage.getTotalTokens() > 0) {
-                            session.sendMetadata("ai.tokens.total", usage.getTotalTokens());
+                        var u = metadata.getUsage();
+                        var tokenUsage = new org.atmosphere.ai.TokenUsage(
+                                u.getPromptTokens() != null ? u.getPromptTokens() : 0L,
+                                u.getCompletionTokens() != null ? u.getCompletionTokens() : 0L,
+                                0L,
+                                u.getTotalTokens() != null ? u.getTotalTokens() : 0L,
+                                null);
+                        if (tokenUsage.hasCounts()) {
+                            session.usage(tokenUsage);
                         }
                     }
                 })

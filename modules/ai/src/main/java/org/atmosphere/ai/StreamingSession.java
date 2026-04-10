@@ -49,6 +49,45 @@ public interface StreamingSession extends AutoCloseable {
     void sendMetadata(String key, Object value);
 
     /**
+     * Report typed token usage for this chat completion. Promoted in Phase 1 of
+     * the unified {@code @Agent} API from three ad-hoc
+     * {@code sendMetadata("ai.tokens.input|output|total", ...)} calls into a
+     * single typed event.
+     *
+     * <p>The default implementation re-emits the legacy {@code ai.tokens.*}
+     * metadata keys so existing consumers ({@code MetricsCapturingSession},
+     * {@code MicrometerAiMetrics}, budget interceptors, cost dashboards) keep
+     * working without any change. Sessions that want to capture the typed
+     * record itself should override this method.</p>
+     *
+     * <p>Runtime bridges should call this exactly once per chat completion,
+     * after the model reports its usage, and should skip the call entirely
+     * when {@link TokenUsage#hasCounts()} returns {@code false}.</p>
+     *
+     * @param usage the typed token counts; ignored when {@code null}
+     */
+    default void usage(TokenUsage usage) {
+        if (usage == null) {
+            return;
+        }
+        if (usage.input() > 0) {
+            sendMetadata("ai.tokens.input", usage.input());
+        }
+        if (usage.output() > 0) {
+            sendMetadata("ai.tokens.output", usage.output());
+        }
+        if (usage.cachedInput() > 0) {
+            sendMetadata("ai.tokens.cached_input", usage.cachedInput());
+        }
+        if (usage.total() > 0) {
+            sendMetadata("ai.tokens.total", usage.total());
+        }
+        if (usage.model() != null && !usage.model().isBlank()) {
+            sendMetadata("ai.tokens.model", usage.model());
+        }
+    }
+
+    /**
      * Send a progress/status update (e.g., "Thinking...", "Searching documents...").
      *
      * @param message human-readable progress message

@@ -146,9 +146,12 @@ class RuntimeCapabilityParityTest {
         assertTrue(fullText.contains("3pm in Montreal"), "Expected final text, got: " + fullText);
 
         // --- Verify: Usage metadata ---
-        assertEquals(42, metadataMap.get("ai.tokens.input"));
-        assertEquals(8, metadataMap.get("ai.tokens.output"));
-        assertEquals(50, metadataMap.get("ai.tokens.total"));
+        // Phase 1 promoted ad-hoc sendMetadata("ai.tokens.*") to a typed
+        // StreamingSession.usage(TokenUsage) event; the default sink re-emits
+        // the legacy keys as Long (previously Integer).
+        assertEquals(42L, metadataMap.get("ai.tokens.input"));
+        assertEquals(8L, metadataMap.get("ai.tokens.output"));
+        assertEquals(50L, metadataMap.get("ai.tokens.total"));
         assertEquals("gpt-4", metadataMap.get("ai.model"));
 
         // --- Verify: 2 HTTP calls (initial + re-submit with tool result) ---
