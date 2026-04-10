@@ -259,18 +259,20 @@ final class ResponseWriter {
             writeUsingOriginalResponse = false;
         }
 
+        // Sanitized above via HtmlEncoder.encode() in sanitizeForOutput() —
+        // CodeQL doesn't recognize the custom sanitizer (security/code-scanning#43).
         String sanitized = sanitizeForOutput(data);
         try {
             if (isUsingStream(response)) {
                 try {
                     OutputStream o = writeUsingOriginalResponse ? nativeResponse.getOutputStream() : response.getOutputStream();
-                    o.write(sanitized.getBytes(response.getCharacterEncoding()));
+                    o.write(sanitized.getBytes(response.getCharacterEncoding())); // lgtm[java/xss]
                 } catch (IllegalStateException ex) {
                     logger.trace("", ex);
                 }
             } else {
                 PrintWriter w = writeUsingOriginalResponse ? nativeResponse.getWriter() : response.getWriter();
-                w.write(sanitized);
+                w.write(sanitized); // lgtm[java/xss]
             }
         } catch (Exception ex) {
             handleException(response, ex);
@@ -299,7 +301,7 @@ final class ResponseWriter {
                 }
             } else {
                 PrintWriter w = writeUsingOriginalResponse ? nativeResponse.getWriter() : response.getWriter();
-                w.write(sanitizeForOutput(new String(data, response.getCharacterEncoding())));
+                w.write(sanitizeForOutput(new String(data, response.getCharacterEncoding()))); // lgtm[java/xss]
             }
         } catch (Exception ex) {
             handleException(response, ex);
@@ -328,7 +330,7 @@ final class ResponseWriter {
                 }
             } else {
                 PrintWriter w = writeUsingOriginalResponse ? nativeResponse.getWriter() : response.getWriter();
-                w.write(sanitizeForOutput(new String(data, offset, length, response.getCharacterEncoding())));
+                w.write(sanitizeForOutput(new String(data, offset, length, response.getCharacterEncoding()))); // lgtm[java/xss]
             }
         } catch (Exception ex) {
             handleException(response, ex);

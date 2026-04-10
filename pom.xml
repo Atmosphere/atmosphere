@@ -92,6 +92,14 @@
                         <arg>-parameters</arg>
                     </compilerArgs>
                 </configuration>
+                <dependencies>
+                    <!-- Override vulnerable plexus-utils 4.0.2 from plexus-compiler-javac (CVE GHSA-4gpf-vj5f-4c6h) -->
+                    <dependency>
+                        <groupId>org.codehaus.plexus</groupId>
+                        <artifactId>plexus-utils</artifactId>
+                        <version>4.0.3</version>
+                    </dependency>
+                </dependencies>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -110,6 +118,14 @@
                         </configuration>
                     </execution>
                 </executions>
+                <dependencies>
+                    <!-- Override vulnerable plexus-utils 4.0.1 (CVE GHSA-4gpf-vj5f-4c6h) -->
+                    <dependency>
+                        <groupId>org.codehaus.plexus</groupId>
+                        <artifactId>plexus-utils</artifactId>
+                        <version>4.0.3</version>
+                    </dependency>
+                </dependencies>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -139,6 +155,14 @@
                 <configuration>
                     <skip>${maven.deploy.skip}</skip>
                 </configuration>
+                <dependencies>
+                    <!-- Override vulnerable plexus-utils 4.0.1 (CVE GHSA-4gpf-vj5f-4c6h) -->
+                    <dependency>
+                        <groupId>org.codehaus.plexus</groupId>
+                        <artifactId>plexus-utils</artifactId>
+                        <version>4.0.3</version>
+                    </dependency>
+                </dependencies>
             </plugin>
             <plugin>
                 <artifactId>maven-clean-plugin</artifactId>
@@ -165,6 +189,14 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
                 <version>3.2.0</version>
+                <dependencies>
+                    <!-- Override vulnerable plexus-utils 4.0.1 (CVE GHSA-4gpf-vj5f-4c6h) -->
+                    <dependency>
+                        <groupId>org.codehaus.plexus</groupId>
+                        <artifactId>plexus-utils</artifactId>
+                        <version>4.0.3</version>
+                    </dependency>
+                </dependencies>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -792,6 +824,14 @@
             </dependency>
 
             <!-- Third-party -->
+            <!-- Pin plexus-utils to patched version (CVE GHSA-4gpf-vj5f-4c6h, Dependabot #171).
+                 Plugins like maven-enforcer-plugin, maven-compiler-plugin transitively bring
+                 in 4.0.1/4.0.2 which have a directory traversal vulnerability in extractFile(). -->
+            <dependency>
+                <groupId>org.codehaus.plexus</groupId>
+                <artifactId>plexus-utils</artifactId>
+                <version>4.0.3</version>
+            </dependency>
             <dependency>
                 <groupId>org.apache.maven</groupId>
                 <artifactId>maven-plugin-tools-api</artifactId>
