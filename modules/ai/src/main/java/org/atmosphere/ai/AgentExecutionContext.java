@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai;
 
+import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.llm.ChatMessage;
 import org.atmosphere.ai.tool.ToolDefinition;
 
@@ -33,6 +34,10 @@ import java.util.Map;
  *   <li>{@code memory} — bridge to framework's chat memory or use Atmosphere's directly</li>
  *   <li>{@code contextProviders} — bridge to framework's RAG or apply as prompt augmentation</li>
  *   <li>{@code history} — pre-loaded conversation history (runtime may also load from memory)</li>
+ *   <li>{@code approvalStrategy} — HITL gate every runtime bridge must consult when a tool
+ *       has {@link ToolDefinition#requiresApproval()}. May be {@code null} when no session-scoped
+ *       strategy is available (e.g. ad-hoc tests, coordinator evaluation); runtimes fall back to
+ *       direct execution without gating in that case.</li>
  * </ul>
  */
 public record AgentExecutionContext(
@@ -49,7 +54,8 @@ public record AgentExecutionContext(
         List<ContextProvider> contextProviders,
         Map<String, Object> metadata,
         List<ChatMessage> history,
-        Class<?> responseType
+        Class<?> responseType,
+        ApprovalStrategy approvalStrategy
 ) {
 
     public AgentExecutionContext {
@@ -59,38 +65,62 @@ public record AgentExecutionContext(
         history = history != null ? List.copyOf(history) : List.of();
     }
 
+    /**
+     * Legacy 14-arg constructor preserved so existing call sites (tests, evaluators, pipelines)
+     * continue to compile without threading an {@link ApprovalStrategy} through every layer.
+     * Phase 6 of the unified @Agent roadmap replaces this with a {@code ToolApprovalPolicy}
+     * field and removes this shim.
+     */
+    public AgentExecutionContext(String message, String systemPrompt, String model,
+                                 String agentId, String sessionId, String userId,
+                                 String conversationId, List<ToolDefinition> tools,
+                                 Object toolTarget, AiConversationMemory memory,
+                                 List<ContextProvider> contextProviders,
+                                 Map<String, Object> metadata, List<ChatMessage> history,
+                                 Class<?> responseType) {
+        this(message, systemPrompt, model, agentId, sessionId, userId, conversationId,
+                tools, toolTarget, memory, contextProviders, metadata, history, responseType, null);
+    }
+
     /** Create a context with a different message. */
     public AgentExecutionContext withMessage(String message) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType);
+                contextProviders, metadata, history, responseType, approvalStrategy);
     }
 
     /** Create a context with a different system prompt. */
     public AgentExecutionContext withSystemPrompt(String systemPrompt) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType);
+                contextProviders, metadata, history, responseType, approvalStrategy);
     }
 
     /** Create a context with additional metadata. */
     public AgentExecutionContext withMetadata(Map<String, Object> metadata) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType);
+                contextProviders, metadata, history, responseType, approvalStrategy);
     }
 
     /** Create a context with conversation history. */
     public AgentExecutionContext withHistory(List<ChatMessage> history) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType);
+                contextProviders, metadata, history, responseType, approvalStrategy);
     }
 
     /** Create a context with a target response type for structured output. */
     public AgentExecutionContext withResponseType(Class<?> responseType) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType);
+                contextProviders, metadata, history, responseType, approvalStrategy);
+    }
+
+    /** Create a context bound to a session-scoped HITL strategy. */
+    public AgentExecutionContext withApprovalStrategy(ApprovalStrategy approvalStrategy) {
+        return new AgentExecutionContext(message, systemPrompt, model, agentId,
+                sessionId, userId, conversationId, tools, toolTarget, memory,
+                contextProviders, metadata, history, responseType, approvalStrategy);
     }
 }

@@ -93,7 +93,7 @@ public class SpringAiToolBridgeTest {
                         .build()
         );
 
-        var callbacks = SpringAiToolBridge.toToolCallbacks(tools);
+        var callbacks = SpringAiToolBridge.toToolCallbacks(tools, null, null);
         assertEquals(1, callbacks.size());
 
         var callback = callbacks.get(0);
@@ -113,7 +113,7 @@ public class SpringAiToolBridgeTest {
                         .build()
         );
 
-        var callbacks = SpringAiToolBridge.toToolCallbacks(tools);
+        var callbacks = SpringAiToolBridge.toToolCallbacks(tools, null, null);
         var result = callbacks.get(0).call("{}");
         assertTrue(result.contains("error"));
         assertTrue(result.contains("boom"));

@@ -15,10 +15,8 @@
  */
 package org.atmosphere.ai;
 
-import org.atmosphere.ai.approval.ApprovalGateExecutor;
 import org.atmosphere.ai.approval.ApprovalRegistry;
 import org.atmosphere.ai.approval.ApprovalStrategy;
-import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
@@ -338,20 +336,20 @@ public class AiStreamingSession implements StreamingSession {
         // Expose the session to interceptors via request attribute
         resource.getRequest().setAttribute(STREAMING_SESSION_ATTR, target);
 
-        // Build execution context and delegate to runtime
+        // Build execution context and delegate to runtime.
+        // The session-scoped ApprovalStrategy is carried on the context so every
+        // runtime bridge routes tool execution through ToolExecutionHelper.executeWithApproval().
         var finalRequest = request;
-        var rawTools = toolRegistry != null ? toolRegistry.allTools()
+        var tools = toolRegistry != null ? toolRegistry.allTools()
                 : java.util.List.<org.atmosphere.ai.tool.ToolDefinition>of();
-        // Wrap tools that require approval with ApprovalGateExecutor.
-        // The wrapper parks the VT when the tool is called by any runtime.
-        var tools = wrapApprovalGates(rawTools, target);
+        var strategy = ApprovalStrategy.virtualThread(approvalRegistry);
         var context = new AgentExecutionContext(
                 request.message(), request.systemPrompt(), request.model(),
                 request.agentId(), request.sessionId(), request.userId(),
                 request.conversationId(),
                 java.util.List.copyOf(tools), null, memory,
                 contextProviders, request.metadata(), request.history(),
-                effectiveResponseType);
+                effectiveResponseType, strategy);
         var streamingTarget = target;
         try {
             runtime.execute(context, streamingTarget);
@@ -435,28 +433,9 @@ public class AiStreamingSession implements StreamingSession {
         return approvalRegistry.tryResolve(message);
     }
 
-    /**
-     * Wrap tools that have {@code requiresApproval()} with an
-     * {@link ApprovalGateExecutor} so ALL runtimes get approval gates.
-     */
-    private java.util.Collection<ToolDefinition> wrapApprovalGates(
-            java.util.Collection<ToolDefinition> tools, StreamingSession session) {
-        var strategy = ApprovalStrategy.virtualThread(approvalRegistry);
-        var wrapped = new java.util.ArrayList<ToolDefinition>();
-        for (var tool : tools) {
-            if (tool.requiresApproval()) {
-                var gatedExecutor = new ApprovalGateExecutor(
-                        tool.executor(), tool.name(), tool.approvalMessage(),
-                        tool.approvalTimeout(), strategy, session);
-                wrapped.add(new ToolDefinition(
-                        tool.name(), tool.description(), tool.parameters(),
-                        tool.returnType(), gatedExecutor,
-                        tool.approvalMessage(), tool.approvalTimeout()));
-            } else {
-                wrapped.add(tool);
-            }
-        }
-        return wrapped;
+    /** The session-scoped approval registry, exposed for the endpoint handler to route responses. */
+    public ApprovalRegistry approvalRegistry() {
+        return approvalRegistry;
     }
 
     // -- Delegate all StreamingSession methods --

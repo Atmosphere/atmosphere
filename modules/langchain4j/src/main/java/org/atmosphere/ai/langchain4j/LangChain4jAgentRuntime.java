@@ -152,7 +152,7 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 : ToolExecutionHelper.toToolMap(tools);
 
         var handler = new ToolAwareStreamingResponseHandler(
-                session, streamingModel, messages, toolSpecs, toolMap);
+                session, streamingModel, messages, toolSpecs, toolMap, context.approvalStrategy());
         streamingModel.chat(chatRequestBuilder.build(), handler);
     }
 

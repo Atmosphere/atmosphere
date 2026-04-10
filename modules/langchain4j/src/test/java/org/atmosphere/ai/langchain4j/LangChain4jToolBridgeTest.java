@@ -100,7 +100,7 @@ public class LangChain4jToolBridgeTest {
                 .build();
         var aiMessage = AiMessage.from(List.of(request));
 
-        var results = LangChain4jToolBridge.executeToolCalls(aiMessage, toolMap);
+        var results = LangChain4jToolBridge.executeToolCalls(aiMessage, toolMap, null, null);
         assertEquals(1, results.size());
         assertEquals("10", results.get(0).text());
         assertEquals("add", results.get(0).toolName());
@@ -115,7 +115,7 @@ public class LangChain4jToolBridgeTest {
                 .build();
         var aiMessage = AiMessage.from(List.of(request));
 
-        var results = LangChain4jToolBridge.executeToolCalls(aiMessage, Map.of());
+        var results = LangChain4jToolBridge.executeToolCalls(aiMessage, Map.of(), null, null);
         assertEquals(1, results.size());
         assertTrue(results.get(0).text().contains("Tool not found"));
     }

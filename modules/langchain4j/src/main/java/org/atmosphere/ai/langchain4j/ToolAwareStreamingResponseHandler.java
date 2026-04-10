@@ -22,6 +22,7 @@ import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +52,7 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
     private final List<ChatMessage> conversationHistory;
     private final List<ToolSpecification> toolSpecifications;
     private final Map<String, ToolDefinition> toolMap;
+    private final ApprovalStrategy approvalStrategy;
     private int toolRound;
 
     ToolAwareStreamingResponseHandler(
@@ -58,8 +60,9 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             StreamingChatModel model,
             List<ChatMessage> conversationHistory,
             List<ToolSpecification> toolSpecifications,
-            Map<String, ToolDefinition> toolMap) {
-        this(session, model, conversationHistory, toolSpecifications, toolMap, 0);
+            Map<String, ToolDefinition> toolMap,
+            ApprovalStrategy approvalStrategy) {
+        this(session, model, conversationHistory, toolSpecifications, toolMap, approvalStrategy, 0);
     }
 
     private ToolAwareStreamingResponseHandler(
@@ -68,12 +71,14 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             List<ChatMessage> conversationHistory,
             List<ToolSpecification> toolSpecifications,
             Map<String, ToolDefinition> toolMap,
+            ApprovalStrategy approvalStrategy,
             int toolRound) {
         this.session = session;
         this.model = model;
         this.conversationHistory = new ArrayList<>(conversationHistory);
         this.toolSpecifications = toolSpecifications;
         this.toolMap = toolMap;
+        this.approvalStrategy = approvalStrategy;
         this.toolRound = toolRound;
     }
 
@@ -125,8 +130,9 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             logger.debug("Tool round {}: executing {} tool calls",
                     toolRound + 1, aiMessage.toolExecutionRequests().size());
 
-            // Execute the requested tools
-            var toolResults = LangChain4jToolBridge.executeToolCalls(aiMessage, toolMap);
+            // Execute the requested tools (HITL gate honored via approvalStrategy)
+            var toolResults = LangChain4jToolBridge.executeToolCalls(
+                    aiMessage, toolMap, session, approvalStrategy);
 
             // Build updated conversation with tool results
             var updatedMessages = new ArrayList<>(conversationHistory);
@@ -140,7 +146,8 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
                     .build();
 
             var nextHandler = new ToolAwareStreamingResponseHandler(
-                    session, model, updatedMessages, toolSpecifications, toolMap, toolRound + 1);
+                    session, model, updatedMessages, toolSpecifications, toolMap,
+                    approvalStrategy, toolRound + 1);
             model.chat(followUpRequest, nextHandler);
         } else {
             // No tool calls — deliver the final text response

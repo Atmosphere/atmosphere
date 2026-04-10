@@ -266,7 +266,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                     continue;
                 }
 
-                var resultStr = ToolExecutionHelper.executeAndFormat(toolName, tool.executor(), args);
+                var resultStr = ToolExecutionHelper.executeWithApproval(
+                        toolName, tool, args, session, request.approvalStrategy());
                 session.emit(new AiEvent.ToolResult(toolName, resultStr));
                 updatedMessages.add(ChatMessage.tool(resultStr, acc.id()));
             }
@@ -277,7 +278,8 @@ public class OpenAiCompatibleClient implements LlmClient {
             var followUp = new ChatCompletionRequest(
                     request.model(), List.copyOf(updatedMessages),
                     request.temperature(), request.maxStreamingTexts(),
-                    request.jsonMode(), request.tools(), request.conversationId());
+                    request.jsonMode(), request.tools(), request.conversationId(),
+                    request.approvalStrategy());
             doStreamWithToolLoop(followUp, session, toolRound + 1);
         } else if (!session.isClosed()) {
             session.complete();

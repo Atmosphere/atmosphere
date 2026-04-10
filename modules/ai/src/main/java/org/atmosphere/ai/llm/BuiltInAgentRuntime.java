@@ -78,6 +78,9 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
         if (context.conversationId() != null) {
             builder.conversationId(context.conversationId());
         }
+        if (context.approvalStrategy() != null) {
+            builder.approvalStrategy(context.approvalStrategy());
+        }
         client.streamChatCompletion(builder.build(), session);
     }
 

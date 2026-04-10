@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.llm;
 
+import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.tool.ToolDefinition;
 
 import java.util.ArrayList;
@@ -24,8 +25,10 @@ import java.util.List;
  * A chat completion request following the OpenAI-compatible format.
  * Works with OpenAI, Gemini, Ollama, Azure OpenAI, and any compatible endpoint.
  *
- * @param conversationId optional conversation identifier for stateful continuation
- *                       (e.g. OpenAI Responses API {@code previous_response_id}). May be null.
+ * @param conversationId   optional conversation identifier for stateful continuation
+ *                         (e.g. OpenAI Responses API {@code previous_response_id}). May be null.
+ * @param approvalStrategy optional session-scoped HITL gate used by the built-in tool loop
+ *                         when a tool has {@code requiresApproval()}. May be null.
  */
 public record ChatCompletionRequest(
         String model,
@@ -34,7 +37,8 @@ public record ChatCompletionRequest(
         int maxStreamingTexts,
         boolean jsonMode,
         List<ToolDefinition> tools,
-        String conversationId
+        String conversationId,
+        ApprovalStrategy approvalStrategy
 ) {
     /**
      * Canonical constructor.
@@ -44,12 +48,22 @@ public record ChatCompletionRequest(
     }
 
     /**
-     * Backwards-compatible constructor without conversationId.
+     * Backwards-compatible constructor without approvalStrategy.
+     */
+    public ChatCompletionRequest(String model, List<ChatMessage> messages,
+                                 double temperature, int maxStreamingTexts,
+                                 boolean jsonMode, List<ToolDefinition> tools,
+                                 String conversationId) {
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, conversationId, null);
+    }
+
+    /**
+     * Backwards-compatible constructor without conversationId or approvalStrategy.
      */
     public ChatCompletionRequest(String model, List<ChatMessage> messages,
                                  double temperature, int maxStreamingTexts,
                                  boolean jsonMode, List<ToolDefinition> tools) {
-        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, null);
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, null, null);
     }
 
     /**
@@ -57,7 +71,7 @@ public record ChatCompletionRequest(
      */
     public static ChatCompletionRequest of(String model, String userPrompt) {
         return new ChatCompletionRequest(model, List.of(ChatMessage.user(userPrompt)),
-                0.7, 2048, false, List.of(), null);
+                0.7, 2048, false, List.of(), null, null);
     }
 
     /**
@@ -75,6 +89,7 @@ public record ChatCompletionRequest(
         private int maxStreamingTexts = 2048;
         private boolean jsonMode = false;
         private String conversationId;
+        private ApprovalStrategy approvalStrategy;
 
         private Builder(String model) {
             this.model = model;
@@ -125,9 +140,14 @@ public record ChatCompletionRequest(
             return this;
         }
 
+        public Builder approvalStrategy(ApprovalStrategy approvalStrategy) {
+            this.approvalStrategy = approvalStrategy;
+            return this;
+        }
+
         public ChatCompletionRequest build() {
             return new ChatCompletionRequest(model, List.copyOf(messages),
-                    temperature, maxStreamingTexts, jsonMode, tools, conversationId);
+                    temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy);
         }
     }
 }

@@ -15,6 +15,8 @@
  */
 package org.atmosphere.ai.spring;
 
+import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.tool.ToolBridgeUtils;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolExecutionHelper;
@@ -30,8 +32,17 @@ import java.util.Map;
  *
  * <p>Spring AI handles the tool call loop automatically — when the model
  * requests a tool call, it invokes the callback and feeds the result back.
- * This bridge simply wraps our {@link org.atmosphere.ai.tool.ToolExecutor}
- * in Spring AI's callback contract.</p>
+ * This bridge wraps our {@link org.atmosphere.ai.tool.ToolExecutor} in Spring AI's
+ * callback contract and routes every invocation through
+ * {@link ToolExecutionHelper#executeWithApproval} so {@code @RequiresApproval}
+ * tools park the virtual thread on the session-scoped HITL gate.</p>
+ *
+ * <p>Callbacks are created per request (capturing the caller's
+ * {@link StreamingSession} and {@link ApprovalStrategy} in their fields) because
+ * Spring AI's {@code ToolCallback.call(String)} contract carries no context —
+ * threading the session via a ThreadLocal would be fragile across reactive
+ * publishers, so we just instantiate fresh callbacks inside
+ * {@code SpringAiAgentRuntime.doExecute()}.</p>
  */
 public final class SpringAiToolBridge {
 
@@ -39,25 +50,30 @@ public final class SpringAiToolBridge {
     }
 
     /**
-     * Convert Atmosphere tool definitions to Spring AI tool callbacks.
+     * Convert Atmosphere tool definitions to Spring AI tool callbacks bound to a
+     * session-scoped HITL gate.
      *
-     * @param tools the framework-agnostic tool definitions
+     * @param tools    the framework-agnostic tool definitions
+     * @param session  the streaming session (for emitting approval events)
+     * @param strategy session-scoped HITL gate (may be null — falls back to direct execution)
      * @return Spring AI callbacks ready for {@code promptSpec.toolCallbacks(...)}
      */
-    public static List<ToolCallback> toToolCallbacks(List<ToolDefinition> tools) {
+    public static List<ToolCallback> toToolCallbacks(
+            List<ToolDefinition> tools, StreamingSession session, ApprovalStrategy strategy) {
         return tools.stream()
-                .map(SpringAiToolBridge::toToolCallback)
+                .map(tool -> toToolCallback(tool, session, strategy))
                 .toList();
     }
 
-    private static ToolCallback toToolCallback(ToolDefinition tool) {
+    private static ToolCallback toToolCallback(
+            ToolDefinition tool, StreamingSession session, ApprovalStrategy strategy) {
         var springToolDef = DefaultToolDefinition.builder()
                 .name(tool.name())
                 .description(tool.description())
                 .inputSchema(buildInputSchema(tool.parameters()))
                 .build();
 
-        return new AtmosphereToolCallback(springToolDef, tool);
+        return new AtmosphereToolCallback(springToolDef, tool, session, strategy);
     }
 
     /**
@@ -81,18 +97,25 @@ public final class SpringAiToolBridge {
     }
 
     /**
-     * ToolCallback implementation that delegates to an Atmosphere ToolExecutor.
+     * ToolCallback implementation that delegates to an Atmosphere ToolExecutor,
+     * honouring the session-scoped HITL gate.
      */
     private static final class AtmosphereToolCallback implements ToolCallback {
 
         private final org.springframework.ai.tool.definition.ToolDefinition springToolDef;
         private final ToolDefinition atmosphereTool;
+        private final StreamingSession session;
+        private final ApprovalStrategy approvalStrategy;
 
         AtmosphereToolCallback(
                 org.springframework.ai.tool.definition.ToolDefinition springToolDef,
-                ToolDefinition atmosphereTool) {
+                ToolDefinition atmosphereTool,
+                StreamingSession session,
+                ApprovalStrategy approvalStrategy) {
             this.springToolDef = springToolDef;
             this.atmosphereTool = atmosphereTool;
+            this.session = session;
+            this.approvalStrategy = approvalStrategy;
         }
 
         @Override
@@ -103,8 +126,8 @@ public final class SpringAiToolBridge {
         @Override
         public String call(String toolInput) {
             Map<String, Object> args = ToolBridgeUtils.parseJsonArgs(toolInput);
-            return ToolExecutionHelper.executeAndFormat(
-                    atmosphereTool.name(), atmosphereTool.executor(), args);
+            return ToolExecutionHelper.executeWithApproval(
+                    atmosphereTool.name(), atmosphereTool, args, session, approvalStrategy);
         }
     }
 }

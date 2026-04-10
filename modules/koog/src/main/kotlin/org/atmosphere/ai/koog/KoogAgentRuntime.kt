@@ -119,7 +119,9 @@ class KoogAgentRuntime : AgentRuntime {
         executor: PromptExecutor, model: LLModel,
         context: AgentExecutionContext, session: StreamingSession
     ) {
-        val toolRegistry = AtmosphereToolBridge.buildRegistry(context.tools())
+        val toolRegistry = AtmosphereToolBridge.buildRegistry(
+            context.tools(), session, context.approvalStrategy()
+        )
         val systemPrompt = buildSystemPrompt(context)
 
         val agent = AIAgent(

@@ -25,6 +25,8 @@ import dev.langchain4j.model.chat.request.json.JsonNumberSchema;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.request.json.JsonSchemaElement;
 import dev.langchain4j.model.chat.request.json.JsonStringSchema;
+import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.tool.ToolBridgeUtils;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolExecutionHelper;
@@ -112,21 +114,28 @@ public final class LangChain4jToolBridge {
 
     /**
      * Execute tool calls requested by the model and return result messages.
+     * Routes every invocation through {@link ToolExecutionHelper#executeWithApproval}
+     * so tools marked with {@code @RequiresApproval} park the virtual thread on
+     * the session-scoped {@link ApprovalStrategy}.
      *
      * @param aiMessage the AI message containing tool execution requests
      * @param toolMap   map of tool name to Atmosphere ToolDefinition
+     * @param session   the streaming session (for emitting approval events)
+     * @param strategy  session-scoped HITL gate (may be null — falls back to direct execution)
      * @return list of tool execution result messages to feed back to the model
      */
     public static List<ToolExecutionResultMessage> executeToolCalls(
-            AiMessage aiMessage, Map<String, ToolDefinition> toolMap) {
+            AiMessage aiMessage, Map<String, ToolDefinition> toolMap,
+            StreamingSession session, ApprovalStrategy strategy) {
 
         return aiMessage.toolExecutionRequests().stream()
-                .map(request -> executeToolCall(request, toolMap))
+                .map(request -> executeToolCall(request, toolMap, session, strategy))
                 .toList();
     }
 
     private static ToolExecutionResultMessage executeToolCall(
-            ToolExecutionRequest request, Map<String, ToolDefinition> toolMap) {
+            ToolExecutionRequest request, Map<String, ToolDefinition> toolMap,
+            StreamingSession session, ApprovalStrategy strategy) {
 
         var tool = toolMap.get(request.name());
         if (tool == null) {
@@ -136,8 +145,8 @@ public final class LangChain4jToolBridge {
         }
 
         Map<String, Object> args = ToolBridgeUtils.parseJsonArgs(request.arguments());
-        var resultStr = ToolExecutionHelper.executeAndFormat(
-                request.name(), tool.executor(), args);
+        var resultStr = ToolExecutionHelper.executeWithApproval(
+                request.name(), tool, args, session, strategy);
         return ToolExecutionResultMessage.from(request, resultStr);
     }
 

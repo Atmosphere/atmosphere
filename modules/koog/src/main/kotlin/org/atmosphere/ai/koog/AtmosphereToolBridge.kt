@@ -25,24 +25,38 @@ import ai.koog.serialization.JSONObject
 import ai.koog.serialization.JSONPrimitive
 import ai.koog.serialization.JSONSerializer
 import ai.koog.serialization.TypeToken
+import org.atmosphere.ai.StreamingSession
+import org.atmosphere.ai.approval.ApprovalStrategy
 import org.atmosphere.ai.tool.ToolDefinition
+import org.atmosphere.ai.tool.ToolExecutionHelper
 import org.slf4j.LoggerFactory
 
 /**
  * Bridges Atmosphere [ToolDefinition] instances to Koog [Tool] instances
  * that can be registered in a [ToolRegistry] for use with [ai.koog.agents.core.agent.AIAgent].
+ *
+ * Tool invocation goes through [ToolExecutionHelper.executeWithApproval] so that
+ * Atmosphere's session-scoped HITL gate honours `@RequiresApproval` uniformly across
+ * every runtime — the suspend body parks on the underlying virtual thread when the
+ * strategy is waiting for the client to approve or deny.
  */
 object AtmosphereToolBridge {
 
     private val logger = LoggerFactory.getLogger(AtmosphereToolBridge::class.java)
 
     /**
-     * Build a [ToolRegistry] from Atmosphere tool definitions.
+     * Build a [ToolRegistry] from Atmosphere tool definitions bound to the current
+     * streaming session and HITL strategy. Callers should rebuild the registry per
+     * request so each tool invocation sees the session that requested it.
      */
-    fun buildRegistry(tools: List<ToolDefinition>): ToolRegistry {
+    fun buildRegistry(
+        tools: List<ToolDefinition>,
+        session: StreamingSession,
+        strategy: ApprovalStrategy?
+    ): ToolRegistry {
         val registry = ToolRegistry.builder().build()
         for (tool in tools) {
-            registry.add(wrap(tool))
+            registry.add(wrap(tool, session, strategy))
         }
         return registry
     }
@@ -50,7 +64,11 @@ object AtmosphereToolBridge {
     /**
      * Wrap a single Atmosphere [ToolDefinition] as a Koog [Tool].
      */
-    private fun wrap(tool: ToolDefinition): Tool<JSONObject, String> {
+    private fun wrap(
+        tool: ToolDefinition,
+        session: StreamingSession,
+        strategy: ApprovalStrategy?
+    ): Tool<JSONObject, String> {
         val descriptor = toDescriptor(tool)
 
         return object : Tool<JSONObject, String>(
@@ -61,8 +79,9 @@ object AtmosphereToolBridge {
             override suspend fun execute(args: JSONObject): String {
                 val argMap = jsonObjectToMap(args)
                 return try {
-                    val result = tool.executor().execute(argMap)
-                    result?.toString() ?: "null"
+                    ToolExecutionHelper.executeWithApproval(
+                        tool.name(), tool, argMap, session, strategy
+                    )
                 } catch (e: Exception) {
                     logger.warn("Tool {} execution failed: {}", tool.name(), e.message)
                     """{"error":"${e.message ?: "Tool execution failed"}"}"""
