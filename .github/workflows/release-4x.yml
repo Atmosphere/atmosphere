@@ -473,6 +473,35 @@ jobs:
           echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG}"
         } > /tmp/release-notes.md
 
+    - name: Build SDKMAN archive (well-formed atmosphere-${VERSION}.zip)
+      run: |
+        VERSION="${{ inputs.release_version }}"
+        STAGE=$(mktemp -d)
+        ARCHIVE_DIR="$STAGE/atmosphere-${VERSION}/bin"
+        mkdir -p "$ARCHIVE_DIR"
+
+        # Copy the CLI script and pin VERSION= to the release version
+        # (the cli/atmosphere file is still at the pre-release SNAPSHOT at this phase —
+        # Phase 6 update-cli bumps it afterwards, too late for this archive build)
+        cp cli/atmosphere "$ARCHIVE_DIR/atmosphere"
+        sed -i "s/^VERSION=\"[^\"]*\"/VERSION=\"$VERSION\"/" "$ARCHIVE_DIR/atmosphere"
+        chmod +x "$ARCHIVE_DIR/atmosphere"
+
+        # Windows launcher — SDKMAN UNIVERSAL archives should support Windows via .bat
+        cat > "$ARCHIVE_DIR/atmosphere.bat" <<'BAT'
+        @echo off
+        REM Atmosphere CLI launcher for Windows — requires bash (Git Bash or WSL)
+        bash "%~dp0atmosphere" %*
+        BAT
+
+        # Create the ZIP with the well-formed layout
+        cd "$STAGE" && zip -r "atmosphere-${VERSION}.zip" "atmosphere-${VERSION}/"
+        mv "$STAGE/atmosphere-${VERSION}.zip" "$GITHUB_WORKSPACE/atmosphere-${VERSION}.zip"
+
+        # Compute SHA256 for vendor API / verification
+        sha256sum "$GITHUB_WORKSPACE/atmosphere-${VERSION}.zip" | tee "$GITHUB_WORKSPACE/atmosphere-${VERSION}.zip.sha256"
+        ls -la "$GITHUB_WORKSPACE/atmosphere-${VERSION}.zip"
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
@@ -482,6 +511,9 @@ jobs:
         generate_release_notes: false
         draft: false
         prerelease: ${{ contains(inputs.release_version, '-') }}
+        files: |
+          atmosphere-${{ inputs.release_version }}.zip
+          atmosphere-${{ inputs.release_version }}.zip.sha256
       env:
         GITHUB_TOKEN: ${{ github.token }}
 
