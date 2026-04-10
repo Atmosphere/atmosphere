@@ -122,7 +122,7 @@ test.describe('Quarkus Admin Dashboard UI', () => {
     await expect(page.getByText('Atmosphere Admin')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Control Plane')).toBeVisible();
     await expect(page.getByText('UP')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Broadcasters')).toBeVisible();
+    await expect(page.getByText('Broadcasters').first()).toBeVisible();
   });
 
   test('event stream indicator shows connected', async ({ page }) => {
@@ -132,7 +132,7 @@ test.describe('Quarkus Admin Dashboard UI', () => {
 
   test('agents tab renders', async ({ page }) => {
     await page.goto(`${server.baseUrl}/admin/`);
-    await page.getByText('Agents').click();
+    await page.getByText('Agents', { exact: true }).click();
     await expect(page.getByText('Registered Agents')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('AI Runtimes')).toBeVisible();
   });

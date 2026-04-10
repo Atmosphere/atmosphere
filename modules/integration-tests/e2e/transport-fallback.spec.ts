@@ -4,7 +4,9 @@ import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-serve
 let server: SampleServer;
 
 test.beforeAll(async () => {
-  server = await startSample(SAMPLES['spring-boot-chat']);
+  // Use ai-chat sample — its @AiEndpoint accepts raw text natively,
+  // unlike spring-boot-chat's @ManagedService which expects {author,message} JSON.
+  server = await startSample(SAMPLES['spring-boot-ai-chat']);
 });
 
 test.afterAll(async () => {

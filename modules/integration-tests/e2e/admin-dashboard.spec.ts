@@ -243,7 +243,7 @@ test.describe('Admin Dashboard UI', () => {
 
     // AI Runtimes section
     await expect(page.getByText('AI Runtimes')).toBeVisible();
-    await expect(page.getByText('built-in')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('built-in').first()).toBeVisible({ timeout: 5_000 });
 
     // MCP Tools section
     await expect(page.getByText('MCP Tools')).toBeVisible();

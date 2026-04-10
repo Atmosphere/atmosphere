@@ -81,7 +81,8 @@ test.describe('CLI: spring-boot-chat', () => {
     const res = await fetch(`http://127.0.0.1:${server.port}/api/console/info`);
     expect(res.ok).toBeTruthy();
     const info = await res.json();
-    expect(info.endpoint).toBe('/atmosphere/chat');
+    // CLI builds from GitHub main — endpoint depends on sample config
+    expect(info.endpoint).toMatch(/\/atmosphere\/(chat|ai-chat)/);
   });
 
   test('console page loads and WebSocket connects', async ({ page }) => {
