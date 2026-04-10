@@ -5,8 +5,8 @@
 <h1 align="center">Atmosphere</h1>
 
 <p align="center">
-  <strong>Real-time transport layer for Java AI agents.</strong><br/>
-  Build once with <code>@Agent</code> — deliver over any transport (WebSocket, SSE, WebTransport/HTTP3) and any protocol (gRPC, MCP, A2A, AG-UI). Works with Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, or the built-in OpenAI-compatible client.
+  <strong>A portable layer across Java AI runtimes.</strong><br/>
+  Write <code>@Agent</code> once against a unified API (tool calling, memory, streaming, structured output); swap the runtime — Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, or built-in OpenAI — by changing one dependency. <code>@Coordinator</code> orchestrates multi-agent fleets with parallel, sequential, and conditional routing. Served over transports (WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC) and protocols (MCP, A2A, AG-UI). Built by Async-IO.
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@
 
 ---
 
-Atmosphere is a transport-agnostic runtime for Java. Your application code declares **what** it does — the framework handles **how** it's delivered. A single `@Agent` class can serve browsers over WebSocket, expose tools via MCP, accept tasks from other agents via A2A, stream state to frontends via AG-UI, and route messages to Slack, Telegram, or Discord — all without changing a line of code.
+Atmosphere is a portable layer across Java AI runtimes. Your application code declares **what** it does against a unified API — tool calling, memory, streaming, structured output — and the framework handles **which runtime** executes it (Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, or built-in OpenAI) and **how** it's delivered (WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC, MCP, A2A, AG-UI, Slack, Telegram, Discord). A single `@Agent` class runs on any runtime and serves any transport — swap either by changing one dependency.
 
 ## Quick Start
 

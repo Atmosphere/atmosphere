@@ -9,11 +9,14 @@
 #
 project:
   name: atmosphere
-  description: Real-time transport layer for Java AI agents
+  description: A portable layer across Java AI runtimes
   longDescription: |
-    Build once with @Agent — deliver over WebTransport/HTTP3, WebSocket, SSE,
-    gRPC, MCP, A2A, AG-UI, or any transport. Works with Spring AI, LangChain4j,
-    Google ADK, Embabel, JetBrains Koog, or the built-in OpenAI-compatible client.
+    Write @Agent once against a unified API (tool calling, memory, streaming,
+    structured output); swap the runtime — Spring AI, LangChain4j, Google ADK,
+    Embabel, JetBrains Koog, or built-in OpenAI — by changing one dependency.
+    @Coordinator orchestrates multi-agent fleets with parallel, sequential, and
+    conditional routing. Served over transports (WebTransport/HTTP3, WebSocket,
+    SSE, long-polling, gRPC) and protocols (MCP, A2A, AG-UI).
   links:
     homepage: https://github.com/Atmosphere/atmosphere
     documentation: https://atmosphere.github.io/docs/
