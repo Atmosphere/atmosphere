@@ -50,7 +50,7 @@ jobs:
           -C "$HOME" .m2/repository/org/atmosphere
 
     - name: Upload build output
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v7
       with:
         name: build-targets-sb${{ matrix.spring-boot-version }}
         path: /tmp/build-targets-sb${{ matrix.spring-boot-version }}.tar.gz
@@ -155,7 +155,7 @@ jobs:
 
     - name: Upload Playwright Report
       if: failure()
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v7
       with:
         name: playwright-report-${{ matrix.group.name }}-sb${{ matrix.spring-boot-version }}
         path: modules/integration-tests/playwright-report/

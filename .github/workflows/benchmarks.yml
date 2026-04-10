@@ -76,7 +76,7 @@ jobs:
 
       - name: Upload results artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jmh-results
           path: target/jmh-results.json
@@ -106,7 +106,7 @@ jobs:
 
       - name: Upload JFR recording
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vt-pinning-jfr
           path: target/jmh-results/vt-pinning-*.jfr

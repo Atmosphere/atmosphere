@@ -65,7 +65,7 @@ jobs:
 
     - name: Upload Artifacts on Failure
       if: failure()
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v7
       with:
         name: generator-${{ matrix.variant }}-artifacts
         path: /tmp/tmp.*
