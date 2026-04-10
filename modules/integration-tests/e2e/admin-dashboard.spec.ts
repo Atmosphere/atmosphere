@@ -241,9 +241,9 @@ test.describe('Admin Dashboard UI', () => {
     // Should show agents section
     await expect(page.getByText('Registered Agents')).toBeVisible({ timeout: 10_000 });
 
-    // AI Runtimes section
+    // AI Runtimes section — scope to the tab content to avoid stats-grid collision
     await expect(page.getByText('AI Runtimes')).toBeVisible();
-    await expect(page.getByText('built-in').first()).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('#tab-agents').getByText('built-in')).toBeVisible({ timeout: 5_000 });
 
     // MCP Tools section
     await expect(page.getByText('MCP Tools')).toBeVisible();

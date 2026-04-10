@@ -4,10 +4,10 @@ import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-serve
 let server: SampleServer;
 
 test.beforeAll(async () => {
-  // Use ai-chat sample (not spring-boot-chat) because the console sends raw text
-  // and the @ManagedService chat handler expects {author,message} JSON via JacksonDecoder.
-  // The ai-chat sample's @AiEndpoint accepts raw text prompts natively.
-  server = await startSample(SAMPLES['spring-boot-ai-chat']);
+  // Use dentist-agent — no auth required, @Agent accepts raw text natively.
+  // spring-boot-chat's @ManagedService expects {author,message} JSON,
+  // spring-boot-ai-chat requires auth token.
+  server = await startSample(SAMPLES['spring-boot-dentist-agent']);
 });
 
 test.afterAll(async () => {
