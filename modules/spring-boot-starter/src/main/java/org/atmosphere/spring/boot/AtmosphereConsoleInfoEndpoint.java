@@ -64,10 +64,12 @@ public class AtmosphereConsoleInfoEndpoint {
     }
 
     private String detectRuntime() {
+        // Catch LinkageError too — atmosphere-ai may be absent (NoClassDefFoundError
+        // on AgentRuntimeResolver), which would otherwise turn /api/console/info into a 500.
         try {
             var runtime = AgentRuntimeResolver.resolve();
             return runtime.name();
-        } catch (Exception e) {
+        } catch (LinkageError | Exception e) {
             logger.debug("Could not resolve AgentRuntime", e);
             return "unknown";
         }
