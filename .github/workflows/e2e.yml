@@ -151,7 +151,17 @@ jobs:
         INCLUDE_FLAKY: 'false'
       run: |
         PROJECTS=$(echo "${{ matrix.group.projects }}" | sed 's/,/ --project=/g')
-        npx playwright test --project=$PROJECTS --reporter=list,github
+        # Tolerate "No tests found" when SMOKE_ONLY filters out every test in a group.
+        # Playwright exits 1 with stderr "Error: No tests found" — treat as success on PRs.
+        set +e
+        output=$(npx playwright test --project=$PROJECTS --reporter=list,github 2>&1)
+        code=$?
+        echo "$output"
+        if [ "$code" -ne 0 ] && echo "$output" | grep -q "Error: No tests found"; then
+          echo "::notice::Group '${{ matrix.group.name }}' has no @smoke tests — skipping (PR CI)"
+          exit 0
+        fi
+        exit $code
 
     - name: Upload Playwright Report
       if: failure()
