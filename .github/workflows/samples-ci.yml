@@ -78,7 +78,7 @@ jobs:
     
     - name: Upload Build Artifacts
       if: failure()
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v7
       with:
         name: sample-${{ matrix.sample }}-artifacts
         path: samples/${{ matrix.sample }}/target/
