@@ -518,7 +518,7 @@ factory returns a Svelte-compatible readable store plus action functions.
 Import from `atmosphere.js/react-native`. Call `setupReactNative()` once at app startup.
 All hooks require an `<AtmosphereProvider>` ancestor.
 
-> **Full guide:** [docs/react-native.md](../docs/react-native.md)
+> **Full guide:** [React Native client](https://atmosphere.github.io/docs/clients/react-native/)
 
 #### Setup
 
@@ -777,7 +777,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## Links
 
 - [Atmosphere Framework](https://github.com/Atmosphere/atmosphere)
-- [Documentation](../docs/client-javascript.md)
+- [Documentation](https://atmosphere.github.io/docs/clients/javascript/)
 - [Issues](https://github.com/Atmosphere/atmosphere/issues)
 
 ---

@@ -125,7 +125,7 @@ and presence, native image compilation, and frontend framework bindings.
 This release succeeds the 2.x/3.x line (last release: 3.1.0 / 2.7.16). The
 `javax.servlet` namespace, Java 8 runtime, and legacy application server
 integrations have been removed. Applications migrating from 2.x or 3.x should
-consult the [Migration Guide](docs/core.md).
+consult the [Migration Guide](https://atmosphere.github.io/docs/tutorial/22-migration/).
 
 ### Added
 
