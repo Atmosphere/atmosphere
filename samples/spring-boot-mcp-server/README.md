@@ -92,7 +92,7 @@ cd modules/mcp && mvn package -Pstdio-bridge -DskipTests
   "mcpServers": {
     "atmosphere-demo": {
       "command": "java",
-      "args": ["-jar", "path/to/atmosphere-mcp-4.0.34.jar",
+      "args": ["-jar", "path/to/atmosphere-mcp-4.0.35.jar",
                "http://localhost:8083/atmosphere/mcp"]
     }
   }

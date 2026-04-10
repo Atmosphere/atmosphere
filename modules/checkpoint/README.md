@@ -16,7 +16,7 @@ not persist agent workflow state. This module fills that gap.
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-checkpoint</artifactId>
-    <version>4.0.34</version>
+    <version>4.0.35</version>
 </dependency>
 ```
 
