@@ -91,6 +91,12 @@ public class AtmosphereConsoleInfoEndpoint {
         }
         try {
             var handlers = framework.getAtmosphereHandlers();
+            // Prefer the configured path when it corresponds to a registered handler.
+            // Avoids picking the "wrong" @AiEndpoint in samples that declare multiple
+            // (e.g. a primary chat endpoint + a demo structured-output endpoint).
+            if (configuredPath != null && handlers.containsKey(configuredPath)) {
+                return configuredPath;
+            }
             // Look for @Agent handler (AgentHandler at /atmosphere/agent/*)
             for (var path : handlers.keySet()) {
                 if (path.startsWith("/atmosphere/agent/") && !path.contains("/a2a") && !path.contains("/mcp")) {
