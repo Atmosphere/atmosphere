@@ -52,7 +52,10 @@ Implementations include:
 
 ## Supported AI Providers
 
-Through `AiSupport` implementations:
+Through `AgentRuntime` implementations (the unified AI SPI — six runtimes share a common baseline: tool calling, structured output, progress events, usage metadata):
 - **Spring AI** (`atmosphere-spring-ai`) — integrates with Spring AI ChatClient
 - **LangChain4j** (`atmosphere-langchain4j`) — integrates with LangChain4j streaming models
-- **Built-in** — OpenAI-compatible client that works with Gemini, OpenAI, Ollama, etc.
+- **Google ADK** (`atmosphere-adk`) — Google Agent Development Kit
+- **Embabel** (`atmosphere-embabel`) — Embabel Agent Framework
+- **JetBrains Koog** (`atmosphere-koog`) — Koog multi-provider runtime
+- **Built-in** — OpenAI-compatible client that works with Gemini, OpenAI, Ollama, etc. (full tool calling)

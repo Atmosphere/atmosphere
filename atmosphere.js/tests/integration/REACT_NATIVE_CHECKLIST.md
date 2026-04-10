@@ -5,7 +5,7 @@ Mock-only unit tests don't catch real platform compatibility issues.
 
 ## Setup
 - Start the `spring-boot-ai-classroom` backend: `./mvnw spring-boot:run -pl samples/spring-boot-ai-classroom`
-- Start the Expo app: `cd samples/expo-classroom && bun install && bunx expo start`
+- Start the Expo app: `cd samples/spring-boot-ai-classroom/expo-client && bun install && bunx expo start`
 - Update `SERVER_URL` in `App.tsx` to point at your machine's LAN IP if using a physical device
 
 ## Transport Tests

@@ -25,9 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   automatically routed on Web (WebSocket), Slack, Telegram, Discord, WhatsApp,
   and Messenger when `atmosphere-channels` is on the classpath. Includes
   confirmation flow for destructive actions and auto-generated `/help`.
-- **`spring-boot-agent-chat`** sample — DevOps assistant with `/status`,
-  `/deploy`, `/uptime`, `/incidents` commands and `check_service`,
-  `get_metrics` AI tools.
 - **`spring-boot-dentist-agent`** sample — Dr. Molar emergency dental agent
   with `/firstaid`, `/urgency`, `/pain` commands, `assess_emergency` and
   `pain_relief` AI tools, and Slack + Telegram channel support.
@@ -144,8 +141,8 @@ consult the [Migration Guide](https://atmosphere.github.io/docs/tutorial/22-migr
   `ApplicationConfig.USE_VIRTUAL_THREADS=false`.
 - **GraalVM native image support.** Both the Spring Boot starter and Quarkus
   extension include reflection and resource hints for ahead-of-time
-  compilation. Spring Boot requires GraalVM 25+ (Spring Framework 7 baseline);
-  Quarkus works with GraalVM 21+ or Mandrel.
+  compilation. Spring Boot requires GraalVM 25+; Quarkus works with
+  GraalVM 21+ or Mandrel.
 
 #### New Modules
 
@@ -268,12 +265,14 @@ consult the [Migration Guide](https://atmosphere.github.io/docs/tutorial/22-migr
 #### Samples
 
 - `spring-boot-chat` -- Spring Boot 4 chat application with React frontend.
-- `quarkus-chat` -- Quarkus 3.21 chat application.
+- `quarkus-chat` -- Quarkus 3.21+ chat application.
 - `chat` -- Standalone Jetty embedded chat.
 - `embedded-jetty-websocket-chat` -- Embedded Jetty with WebSocket.
-- `spring-boot-ai-chat` -- Spring AI streaming chat with React.
-- `spring-boot-langchain4j-chat` -- LangChain4j streaming chat.
-- `spring-boot-embabel-chat` -- Embabel Agent Framework integration.
+- `grpc-chat` -- Standalone gRPC transport chat.
+- `spring-boot-ai-chat` -- Streaming AI chat via the `AgentRuntime` SPI.
+- `spring-boot-ai-tools` -- Portable `@AiTool` tool calling across runtimes.
+- `spring-boot-ai-classroom` -- Multi-room AI with a React Native / Expo client.
+- `spring-boot-rag-chat` -- RAG chat with `ContextProvider`.
 - `spring-boot-mcp-server` -- MCP server with annotation-driven tools.
 - `spring-boot-durable-sessions` -- Durable sessions with SQLite backend.
 
@@ -459,9 +458,9 @@ consult the [Migration Guide](https://atmosphere.github.io/docs/tutorial/22-migr
 |------------|----------------|--------------|
 | JDK | 21 | 25 |
 | Servlet API | 6.0 (Jakarta EE 10) | 6.1 |
-| Spring Boot | 4.0.2 | 4.0.2 |
-| Spring Framework | 7.0 | 7.0 |
-| Quarkus | 3.21 | 3.21+ |
+| Spring Boot | 4.0.5 | 4.0.5 |
+| Spring Framework | 6.2.8 | 6.2.8 |
+| Quarkus | 3.21 | 3.31.3 |
 | Jetty | 12.0 | 12.0.16 |
 | Tomcat | 11.0 | 11.0.18 |
 | Kotlin | 2.1 | 2.1+ |

@@ -300,13 +300,13 @@ This frees up runners for the new push. Without this, stale queued runs accumula
 ```
 
 ## Spring Boot Starter Notes
-- Target: Spring Boot 4.0.2, Spring Framework 7.0
+- Target: Spring Boot 4.0.5, Spring Framework 6.2.8
 - Set object factory BEFORE init()
 - Expose AtmosphereFramework bean but NOT BroadcasterFactory
 - Override parent POM's SLF4J/Logback versions for Spring Boot 4 compatibility
 
 ## Quarkus Extension Notes
-- Target: Quarkus 3.21+
+- Target: Quarkus 3.21+ (tested on 3.31.3)
 - Config prefix: `quarkus.atmosphere.*`
 - `loadOnStartup` must be > 0 (Quarkus skips if <=0)
 - Use `BUILD_AND_RUN_TIME_FIXED` for config used in `@BuildStep`
@@ -324,7 +324,7 @@ This frees up runners for the new push. Without this, stale queued runs accumula
 Samples in `samples/` are **the first thing users see** — they must be production-quality, not stubs.
 
 ### Rules for Samples
-- **Actually use the integration you claim to demonstrate.** If a sample is called `spring-boot-embabel-chat`, it MUST use the real Embabel `AgentPlatform` API — not fake it with a wrapper around a raw LLM client. If you can't make the real integration work, say so and ask for help.
+- **Actually use the integration you claim to demonstrate.** If a sample is called `spring-boot-koog-chat`, it MUST use the real Koog `AIAgent` / `chatAgentStrategy()` API — not fake it with a wrapper around a raw LLM client. If you can't make the real integration work, say so and ask for help.
 - **No mock/stub implementations disguised as real code.** Comments like "in a real app, you would call X" are a red flag — the sample should BE the real app.
 - **Read the third-party library's actual API** (use `javap`, inspect JARs, read source) before writing integration code. Do not guess at APIs.
 - **Each sample must compile.** Run `./mvnw compile -pl samples/<name>` before committing.
