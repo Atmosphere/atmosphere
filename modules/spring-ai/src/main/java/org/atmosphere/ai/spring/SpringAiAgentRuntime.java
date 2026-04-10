@@ -19,6 +19,7 @@ import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.ExecutionHandle;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.llm.ChatMessage;
 import org.slf4j.Logger;
@@ -79,6 +80,23 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
     @Override
     protected void doExecute(ChatClient client, AgentExecutionContext context,
                              StreamingSession session) {
+        // Legacy blocking path: delegate to the cancellation-aware variant and
+        // block on whenDone() so the contract (return after completion) holds.
+        var handle = doExecuteWithHandle(client, context, session);
+        try {
+            handle.whenDone().join();
+        } catch (Exception e) {
+            // whenDone() completes normally even on error (session.error fires),
+            // so any exception here is unexpected. Ensure the session closes.
+            if (!session.isClosed()) {
+                session.error(e);
+            }
+        }
+    }
+
+    @Override
+    protected ExecutionHandle doExecuteWithHandle(
+            ChatClient client, AgentExecutionContext context, StreamingSession session) {
         var promptSpec = client.prompt();
 
         if (context.systemPrompt() != null && !context.systemPrompt().isEmpty()) {
@@ -106,22 +124,24 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
         }
 
         var flux = promptSpec.stream().chatResponse();
-        flux.takeWhile(ignored -> !session.isClosed())
+
+        // Phase 2: wrap the Reactor Disposable in an ExecutionHandle so callers
+        // can cancel in-flight Spring AI completions. The Settable helper holds
+        // the CompletableFuture<Void> we complete on any terminal path (next,
+        // error, complete, cancel) so consumers can await release cleanly.
+        var completion = new java.util.concurrent.CompletableFuture<Void>();
+        var disposable = flux.takeWhile(ignored -> !session.isClosed())
                 .doOnNext(response -> {
                     if (response.getResult() != null
                             && response.getResult().getOutput() != null) {
                         var text = response.getResult().getOutput().getText();
                         if (text != null && !text.isEmpty()) {
-                            // Split large chunks into words for reliable console rendering
                             for (var word : text.split("(?<=\\s)")) {
                                 session.send(word);
                             }
                         }
                     }
-                    // Report typed token usage if Spring AI surfaced counts. The
-                    // default StreamingSession.usage() sink re-emits the legacy
-                    // ai.tokens.* metadata keys for existing Micrometer / budget
-                    // consumers, so this refactor is wire-compatible.
+                    // Phase 1: typed token usage event.
                     var metadata = response.getMetadata();
                     if (metadata != null && metadata.getUsage() != null) {
                         var u = metadata.getUsage();
@@ -136,12 +156,43 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                         }
                     }
                 })
-                .doOnComplete(session::complete)
+                .doOnComplete(() -> {
+                    session.complete();
+                    completion.complete(null);
+                })
                 .doOnError(error -> {
                     logger.error("Spring AI streaming error: {}", error.getMessage());
                     session.error(error);
+                    completion.complete(null);
                 })
-                .blockLast();
+                .doOnCancel(() -> completion.complete(null))
+                .subscribe();
+
+        return new ExecutionHandle() {
+            private final java.util.concurrent.atomic.AtomicBoolean cancelled =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+
+            @Override
+            public void cancel() {
+                if (cancelled.compareAndSet(false, true)) {
+                    disposable.dispose();
+                    if (!session.isClosed()) {
+                        session.complete();
+                    }
+                    completion.complete(null);
+                }
+            }
+
+            @Override
+            public boolean isDone() {
+                return completion.isDone();
+            }
+
+            @Override
+            public java.util.concurrent.CompletableFuture<Void> whenDone() {
+                return completion;
+            }
+        };
     }
 
     @Override

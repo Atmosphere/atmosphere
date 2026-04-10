@@ -67,6 +67,30 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
                                       StreamingSession session);
 
     /**
+     * Cancellation-aware variant of {@link #doExecute}. The default
+     * implementation blocks on {@link #doExecute} and returns an
+     * already-completed handle — runtimes with a native cancel primitive
+     * (Reactor {@code Disposable}, Koog {@code Job}, ADK {@code Runner.close},
+     * Built-in HttpClient request cancel) should override this to return a
+     * handle whose {@link ExecutionHandle#cancel()} fires the native
+     * primitive and whose {@link ExecutionHandle#whenDone()} completes when
+     * the native pipeline terminates.
+     *
+     * <p>Phase 2 of the unified {@code @Agent} API: the default keeps legacy
+     * runtimes wire-compatible, and subclasses opt in to real cancellation.</p>
+     *
+     * @param client  the non-null native client
+     * @param context the execution context
+     * @param session the streaming session
+     * @return a handle the caller can use to cancel or await termination
+     */
+    protected ExecutionHandle doExecuteWithHandle(
+            C client, AgentExecutionContext context, StreamingSession session) {
+        doExecute(client, context, session);
+        return ExecutionHandle.completed();
+    }
+
+    /**
      * Returns a human-readable description of the client type for error messages.
      */
     protected abstract String clientDescription();
@@ -96,6 +120,25 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
 
     @Override
     public void execute(AgentExecutionContext context, StreamingSession session) {
+        var client = resolveClient();
+        session.progress("Connecting to " + name() + "...");
+        doExecute(client, context, session);
+    }
+
+    @Override
+    public ExecutionHandle executeWithHandle(
+            AgentExecutionContext context, StreamingSession session) {
+        var client = resolveClient();
+        session.progress("Connecting to " + name() + "...");
+        return doExecuteWithHandle(client, context, session);
+    }
+
+    /**
+     * Resolve (or lazily create) the native client. Factored out so both
+     * {@link #execute} and {@link #executeWithHandle} share identical setup
+     * semantics and error messages.
+     */
+    private C resolveClient() {
         var client = nativeClient;
         if (client == null) {
             var settings = AiConfig.get();
@@ -110,8 +153,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
                     name() + ": " + clientDescription() + " not configured. "
                             + configurationHint());
         }
-        session.progress("Connecting to " + name() + "...");
-        doExecute(client, context, session);
+        return client;
     }
 
     /**

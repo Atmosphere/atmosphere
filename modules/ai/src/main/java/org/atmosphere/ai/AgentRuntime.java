@@ -85,6 +85,35 @@ public interface AgentRuntime {
     void execute(AgentExecutionContext context, StreamingSession session);
 
     /**
+     * Execute a prompt and return a cooperative cancellation handle. Phase 2
+     * of the unified {@code @Agent} API closes Correctness Invariant #2
+     * (Terminal Path Completeness) by letting callers abort in-flight
+     * completions via a uniform API that wraps each backend's native cancel
+     * primitive.
+     *
+     * <p>The default implementation delegates to
+     * {@link #execute(AgentExecutionContext, StreamingSession)} and returns
+     * {@link ExecutionHandle#completed()} — legacy runtimes keep working
+     * unchanged. Runtimes that support cancellation override this method to
+     * return a handle whose {@link ExecutionHandle#cancel()} fires the
+     * native primitive (Reactor {@code Disposable.dispose()}, Koog
+     * {@code Job.cancel()}, ADK {@code Runner.close()}, Built-in HttpClient
+     * request cancel, etc.).</p>
+     *
+     * <p>Callers that need cancellation call this method and keep the returned
+     * handle; callers that do not care keep using the void overload.</p>
+     *
+     * @param context the execution context (message, tools, memory, RAG, history)
+     * @param session the streaming session sink
+     * @return a handle the caller can use to cancel or await termination
+     */
+    default ExecutionHandle executeWithHandle(
+            AgentExecutionContext context, StreamingSession session) {
+        execute(context, session);
+        return ExecutionHandle.completed();
+    }
+
+    /**
      * Synchronous convenience: execute a prompt and return the full response
      * as a string. Uses a {@link CollectingSession} internally with a 30-second
      * default timeout.
