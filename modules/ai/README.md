@@ -36,7 +36,7 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 
 | Adapter JAR | `AgentRuntime` implementation | Priority | Capabilities |
 |-------------|-------------------------------|----------|-------------|
-| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, SYSTEM_PROMPT |
+| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT |
 | `atmosphere-spring-ai` | `SpringAiAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT |
 | `atmosphere-langchain4j` | `LangChain4jAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT |
 | `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT |
@@ -281,7 +281,7 @@ AO=AGENT_ORCHESTRATION, CM=CONVERSATION_MEMORY.
 
 | Runtime | Priority | TS | TC | SO | SP | AO | CM |
 |---------|---------:|:--:|:--:|:--:|:--:|:--:|:--:|
-| `BuiltInAgentRuntime` (`atmosphere-ai`)       |   0 | yes | yes | —   | yes | —   | —   |
+| `BuiltInAgentRuntime` (`atmosphere-ai`)       |   0 | yes | yes | yes | yes | —   | —   |
 | `SpringAiAgentRuntime` (`atmosphere-spring-ai`)   | 100 | yes | yes | yes | yes | —   | —   |
 | `LangChain4jAgentRuntime` (`atmosphere-langchain4j`) | 100 | yes | yes | yes | yes | —   | —   |
 | `AdkAgentRuntime` (`atmosphere-adk`)             | 100 | yes | yes | yes | yes | yes | yes |
