@@ -1,6 +1,6 @@
 {
   "name": "create-atmosphere-app",
-  "version": "4.0.33",
+  "version": "4.0.34",
   "description": "Create a new Atmosphere project — real-time Java framework for WebSocket, SSE, and AI streaming",
   "keywords": ["atmosphere", "websocket", "sse", "real-time", "java", "spring-boot", "ai", "streaming"],
   "license": "Apache-2.0",
