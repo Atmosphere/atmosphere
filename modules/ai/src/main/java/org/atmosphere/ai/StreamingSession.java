@@ -88,6 +88,30 @@ public interface StreamingSession extends AutoCloseable {
     }
 
     /**
+     * Progressive tool-argument streaming (Phase 5 of the unified {@code @Agent}
+     * API). Runtimes whose provider emits incremental JSON for tool arguments
+     * (Spring AI, LangChain4j {@code onPartialToolExecutionRequest}, ADK
+     * streaming events, Koog {@code StreamFrame.ToolCallDelta}) call this
+     * method for each chunk so browser UIs can render "typing" state on
+     * tool-argument fields before the final consolidated
+     * {@code AiEvent.ToolStart} fires.
+     *
+     * <p>The default implementation emits a structured {@code metadata} frame
+     * keyed by the tool-call id so existing wire-format consumers observe the
+     * delta without a new event type. Runtimes that want a richer wire
+     * representation can override this method.</p>
+     *
+     * @param toolCallId provider-assigned tool-call identifier; ignored when null
+     * @param argsChunk  incremental JSON fragment; ignored when null or empty
+     */
+    default void toolCallDelta(String toolCallId, String argsChunk) {
+        if (toolCallId == null || argsChunk == null || argsChunk.isEmpty()) {
+            return;
+        }
+        sendMetadata("ai.toolCall.delta." + toolCallId, argsChunk);
+    }
+
+    /**
      * Send a progress/status update (e.g., "Thinking...", "Searching documents...").
      *
      * @param message human-readable progress message

@@ -99,4 +99,20 @@ class TokenUsageTest {
         session.usage(null);
         assertTrue(session.metadata.isEmpty());
     }
+
+    @Test
+    void toolCallDeltaEmitsKeyedMetadata() {
+        var session = new RecordingSession();
+        session.toolCallDelta("tc-abc", "{\"city");
+        assertEquals("{\"city", session.metadata.get("ai.toolCall.delta.tc-abc"));
+    }
+
+    @Test
+    void toolCallDeltaIgnoresNullOrEmptyFragments() {
+        var session = new RecordingSession();
+        session.toolCallDelta(null, "{\"x");
+        session.toolCallDelta("tc-1", null);
+        session.toolCallDelta("tc-1", "");
+        assertTrue(session.metadata.isEmpty());
+    }
 }
