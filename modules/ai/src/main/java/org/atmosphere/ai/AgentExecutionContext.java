@@ -16,6 +16,7 @@
 package org.atmosphere.ai;
 
 import org.atmosphere.ai.approval.ApprovalStrategy;
+import org.atmosphere.ai.approval.ToolApprovalPolicy;
 import org.atmosphere.ai.llm.ChatMessage;
 import org.atmosphere.ai.tool.ToolDefinition;
 
@@ -57,7 +58,8 @@ public record AgentExecutionContext(
         Class<?> responseType,
         ApprovalStrategy approvalStrategy,
         List<AgentLifecycleListener> listeners,
-        List<Content> parts
+        List<Content> parts,
+        ToolApprovalPolicy approvalPolicy
 ) {
 
     public AgentExecutionContext {
@@ -67,12 +69,14 @@ public record AgentExecutionContext(
         history = history != null ? List.copyOf(history) : List.of();
         listeners = listeners != null ? List.copyOf(listeners) : List.of();
         parts = parts != null ? List.copyOf(parts) : List.of();
+        approvalPolicy = approvalPolicy != null ? approvalPolicy : ToolApprovalPolicy.annotated();
     }
 
     /**
      * Phase 3 16-arg constructor preserved for call sites that carry a listener
-     * list but not yet multi-modal input parts. Delegates to the canonical
-     * 17-arg constructor with an empty parts list.
+     * list but not yet multi-modal input parts or a custom
+     * {@link ToolApprovalPolicy}. Delegates to the canonical 18-arg constructor
+     * with an empty parts list and the annotation-driven default policy.
      */
     public AgentExecutionContext(String message, String systemPrompt, String model,
                                  String agentId, String sessionId, String userId,
@@ -84,13 +88,13 @@ public record AgentExecutionContext(
                                  List<AgentLifecycleListener> listeners) {
         this(message, systemPrompt, model, agentId, sessionId, userId, conversationId,
                 tools, toolTarget, memory, contextProviders, metadata, history, responseType,
-                approvalStrategy, listeners, List.of());
+                approvalStrategy, listeners, List.of(), ToolApprovalPolicy.annotated());
     }
 
     /**
      * Phase 2 15-arg constructor preserved for call sites that carry an
-     * {@link ApprovalStrategy} but not yet a listener list. Delegates to the
-     * canonical 16-arg constructor with an empty listener list.
+     * {@link ApprovalStrategy} but not yet a listener list, multi-modal parts,
+     * or a custom policy. Delegates to the canonical 18-arg constructor.
      */
     public AgentExecutionContext(String message, String systemPrompt, String model,
                                  String agentId, String sessionId, String userId,
@@ -101,62 +105,77 @@ public record AgentExecutionContext(
                                  Class<?> responseType, ApprovalStrategy approvalStrategy) {
         this(message, systemPrompt, model, agentId, sessionId, userId, conversationId,
                 tools, toolTarget, memory, contextProviders, metadata, history, responseType,
-                approvalStrategy, List.of());
+                approvalStrategy, List.of(), List.of(), ToolApprovalPolicy.annotated());
     }
 
     /** Create a context with a different message. */
     public AgentExecutionContext withMessage(String message) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
     }
 
     /** Create a context with a different system prompt. */
     public AgentExecutionContext withSystemPrompt(String systemPrompt) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
     }
 
     /** Create a context with additional metadata. */
     public AgentExecutionContext withMetadata(Map<String, Object> metadata) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
     }
 
     /** Create a context with conversation history. */
     public AgentExecutionContext withHistory(List<ChatMessage> history) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
     }
 
     /** Create a context with a target response type for structured output. */
     public AgentExecutionContext withResponseType(Class<?> responseType) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
     }
 
     /** Create a context bound to a session-scoped HITL strategy. */
     public AgentExecutionContext withApprovalStrategy(ApprovalStrategy approvalStrategy) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
     }
 
     /** Create a context with an additional lifecycle listener list (Phase 3). */
     public AgentExecutionContext withListeners(List<AgentLifecycleListener> listeners) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
     }
 
     /** Create a context with multi-modal input parts (Phase 4). */
     public AgentExecutionContext withParts(List<Content> parts) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
+    }
+
+    /**
+     * Create a context with a custom {@link ToolApprovalPolicy} (Phase 6).
+     * Use {@link ToolApprovalPolicy#allowAll()} for trusted test harnesses,
+     * {@link ToolApprovalPolicy#denyAll()} for shadow/preview mode, or
+     * {@link ToolApprovalPolicy#custom(java.util.function.Predicate)} for
+     * caller-driven decisions. The default is
+     * {@link ToolApprovalPolicy#annotated()} which honors
+     * {@code @RequiresApproval}.
+     */
+    public AgentExecutionContext withApprovalPolicy(ToolApprovalPolicy approvalPolicy) {
+        return new AgentExecutionContext(message, systemPrompt, model, agentId,
+                sessionId, userId, conversationId, tools, toolTarget, memory,
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
     }
 }

@@ -111,6 +111,19 @@ public final class ToolBridgeUtils {
             } else if (trimmed.charAt(i) == 'n') {
                 result.put(key, null);
                 i += 4;
+            } else if (trimmed.charAt(i) == '{' || trimmed.charAt(i) == '[') {
+                // Nested object or array: capture the raw matching-bracket span
+                // as a string value so downstream tool executors that need
+                // structured arguments can parse it with Jackson. Previously
+                // this branch fell through to numeric parsing and Long.parseLong
+                // crashed with NumberFormatException on the first '[' or '{'.
+                int spanEnd = findMatchingCloseBracket(trimmed, i);
+                if (spanEnd < 0) {
+                    // Malformed; stop parsing but keep what we already collected.
+                    break;
+                }
+                result.put(key, trimmed.substring(i, spanEnd + 1));
+                i = spanEnd + 1;
             } else {
                 // Number
                 int numStart = i;
@@ -118,14 +131,69 @@ public final class ToolBridgeUtils {
                     i++;
                 }
                 var numStr = trimmed.substring(numStart, i).trim();
-                if (numStr.contains(".")) {
-                    result.put(key, Double.parseDouble(numStr));
-                } else {
-                    result.put(key, Long.parseLong(numStr));
+                if (numStr.isEmpty()) {
+                    break;
+                }
+                try {
+                    if (numStr.contains(".")) {
+                        result.put(key, Double.parseDouble(numStr));
+                    } else {
+                        result.put(key, Long.parseLong(numStr));
+                    }
+                } catch (NumberFormatException nfe) {
+                    // Malformed numeric literal: store the raw token rather than
+                    // throwing out of the bridge. The tool executor or validator
+                    // surfaces a structured error downstream.
+                    result.put(key, numStr);
                 }
             }
         }
         return result;
+    }
+
+    /**
+     * Find the index of the matching close bracket for an open bracket at
+     * {@code from}. Tracks nesting depth for both {@code {}} and {@code []} and
+     * ignores brackets that appear inside quoted strings (respecting backslash
+     * escapes). Returns {@code -1} if the input is malformed.
+     *
+     * @param s    the string to search (must have an opening bracket at {@code from})
+     * @param from the index of the opening bracket
+     * @return the index of the matching close bracket, or {@code -1} if not found
+     */
+    public static int findMatchingCloseBracket(String s, int from) {
+        if (from >= s.length()) {
+            return -1;
+        }
+        char open = s.charAt(from);
+        char close;
+        if (open == '{') {
+            close = '}';
+        } else if (open == '[') {
+            close = ']';
+        } else {
+            return -1;
+        }
+        int depth = 0;
+        int i = from;
+        while (i < s.length()) {
+            char c = s.charAt(i);
+            if (c == '"') {
+                // Skip quoted string using the same escape rules as the value scanner
+                i = findUnescapedQuote(s, i + 1) + 1;
+                continue;
+            }
+            if (c == open) {
+                depth++;
+            } else if (c == close) {
+                depth--;
+                if (depth == 0) {
+                    return i;
+                }
+            }
+            i++;
+        }
+        return -1;
     }
 
     /**

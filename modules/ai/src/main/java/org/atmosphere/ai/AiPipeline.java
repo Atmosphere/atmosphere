@@ -164,11 +164,18 @@ public class AiPipeline {
         }
 
         // Build execution context from the (potentially guardrail-modified) request
-        // so that guardrail modifications to systemPrompt/model are honored.
+        // so that guardrail modifications to systemPrompt/model AND to the tool
+        // list are honored. Pulling tools from the request (not re-reading the
+        // registry) means a guardrail that narrows the tool set via
+        // {@code AiRequest#withTools} actually takes effect — without this,
+        // guardrails could only block the whole request, not drop specific
+        // sensitive tools.
         // Phase 0 HITL gap fix: derive a strategy from the pipeline's registry
         // and pass it into the 15-arg constructor so runtime bridges honor
         // @RequiresApproval on this execution path (Mode Parity Invariant #7).
-        var tools = toolRegistry != null ? toolRegistry.allTools() : List.<org.atmosphere.ai.tool.ToolDefinition>of();
+        var tools = request.tools() != null
+                ? request.tools()
+                : List.<org.atmosphere.ai.tool.ToolDefinition>of();
         var strategy = ApprovalStrategy.virtualThread(approvalRegistry);
         var context = new AgentExecutionContext(
                 request.message(), request.systemPrompt(), request.model(),

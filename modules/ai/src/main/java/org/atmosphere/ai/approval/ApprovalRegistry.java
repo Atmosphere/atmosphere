@@ -57,21 +57,38 @@ public final class ApprovalRegistry {
     }
 
     /**
+     * Outcome of attempting to resolve an incoming message as an approval response.
+     * Callers iterating across multiple registries (e.g. fallback routing) must
+     * short-circuit only on {@link #RESOLVED} so a stale/unknown ID in one
+     * registry does not swallow the message before a later registry that owns it
+     * gets a chance.
+     */
+    public enum ResolveResult {
+        /** Message did not match the approval protocol prefix at all. */
+        NOT_APPROVAL_MESSAGE,
+        /** Message was an approval protocol message but the ID is not in this registry. */
+        UNKNOWN_ID,
+        /** Message matched a pending approval in this registry and the future was completed. */
+        RESOLVED
+    }
+
+    /**
      * Try to resolve an incoming message as an approval response.
      * Messages must match the format: {@code /__approval/<id>/approve} or {@code /__approval/<id>/deny}.
      *
      * @param message the incoming message
-     * @return true if this message was an approval response and was handled
+     * @return a {@link ResolveResult} describing what happened; callers iterating
+     *     over multiple registries must short-circuit only on {@link ResolveResult#RESOLVED}
      */
-    public boolean tryResolve(String message) {
+    public ResolveResult resolve(String message) {
         if (message == null || !message.startsWith(APPROVAL_PREFIX)) {
-            return false;
+            return ResolveResult.NOT_APPROVAL_MESSAGE;
         }
 
         var path = message.substring(APPROVAL_PREFIX.length());
         var slashIdx = path.indexOf('/');
         if (slashIdx < 0) {
-            return false;
+            return ResolveResult.NOT_APPROVAL_MESSAGE;
         }
 
         var approvalId = path.substring(0, slashIdx);
@@ -79,15 +96,30 @@ public final class ApprovalRegistry {
 
         var entry = pending.remove(approvalId);
         if (entry == null) {
-            logger.debug("Approval {} not found (expired or already resolved)", approvalId);
-            return true; // consumed the message even though expired
+            logger.debug("Approval {} not found in this registry (expired, already resolved, or owned by another session)", approvalId);
+            return ResolveResult.UNKNOWN_ID;
         }
 
         var approved = "approve".equals(action) || "yes".equals(action);
         logger.debug("Approval {} resolved: {} (tool: {})",
                 approvalId, approved ? "APPROVED" : "DENIED", entry.approval.toolName());
         entry.future.complete(approved);
-        return true;
+        return ResolveResult.RESOLVED;
+    }
+
+    /**
+     * Single-registry adapter returning {@code true} iff the message was an approval
+     * protocol message (whether or not this registry owned the ID). Callers use this
+     * to short-circuit forwarding the message to the runtime as a user prompt.
+     *
+     * <p><b>Do not use this from a cross-registry fallback loop.</b> Use {@link #resolve(String)}
+     * directly and only stop iterating on {@link ResolveResult#RESOLVED}, otherwise the
+     * first registry will consume the message even when a later registry owns the
+     * pending approval.</p>
+     */
+    public boolean tryResolve(String message) {
+        var r = resolve(message);
+        return r == ResolveResult.RESOLVED || r == ResolveResult.UNKNOWN_ID;
     }
 
     /**

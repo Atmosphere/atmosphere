@@ -60,6 +60,7 @@ public final class DefaultStreamingSession implements StreamingSession {
     private final String sessionId;
     private final AtmosphereResource resource;
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final AtomicBoolean errored = new AtomicBoolean(false);
     private final AtomicLong sequence = new AtomicLong(0);
 
     DefaultStreamingSession(String sessionId, AtmosphereResource resource) {
@@ -154,6 +155,7 @@ public final class DefaultStreamingSession implements StreamingSession {
 
     @Override
     public void error(Throwable t) {
+        errored.set(true);
         if (closed.compareAndSet(false, true)) {
             SESSION_RESOURCES.remove(sessionId);
             SESSION_INSTANCES.remove(sessionId);
@@ -161,6 +163,11 @@ public final class DefaultStreamingSession implements StreamingSession {
             var message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
             broadcast(buildMessage("error", message));
         }
+    }
+
+    @Override
+    public boolean hasErrored() {
+        return errored.get();
     }
 
     @Override

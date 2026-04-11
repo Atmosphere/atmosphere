@@ -130,7 +130,16 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         fireStart(context);
         try {
             doExecute(client, context, session);
-            fireCompletion(context);
+            // If the bridge drained the stream but surfaced an error out-of-band
+            // via session.error(...) (Spring AI reactive, ADK async callbacks,
+            // LC4j onError, Koog error frames), honour that state instead of
+            // reporting completion to listeners.
+            if (session.hasErrored()) {
+                fireError(context, new java.util.concurrent.CancellationException(
+                        "stream reported error via session.error(...)"));
+            } else {
+                fireCompletion(context);
+            }
         } catch (RuntimeException e) {
             fireError(context, e);
             throw e;
@@ -146,8 +155,19 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         try {
             var handle = doExecuteWithHandle(client, context, session);
             handle.whenDone().whenComplete((ok, err) -> {
+                // Three outcomes map to two listener events:
+                //   1. future completed exceptionally  → fireError(err)
+                //   2. future completed normally, session errored out of band → fireError
+                //   3. future completed normally, session clean → fireCompletion
+                // Without the session.hasErrored() check, case 2 was silently
+                // misreported as onCompletion — Spring AI and ADK reactive
+                // bridges can drain a faulted stream while still resolving
+                // whenDone() with a null value.
                 if (err != null) {
                     fireError(context, err);
+                } else if (session.hasErrored()) {
+                    fireError(context, new java.util.concurrent.CancellationException(
+                            "stream reported error via session.error(...)"));
                 } else {
                     fireCompletion(context);
                 }

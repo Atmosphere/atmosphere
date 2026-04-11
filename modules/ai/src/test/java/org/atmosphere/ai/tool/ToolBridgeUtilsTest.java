@@ -91,6 +91,55 @@ public class ToolBridgeUtilsTest {
         assertNull(result.get("tag"));
     }
 
+    // --- nested JSON regression tests ---
+
+    @Test
+    public void testParseJsonArgsNestedArrayDoesNotThrow() {
+        // Regression: previously, an LLM passing {"items":[1,2,3]} fell into the
+        // numeric branch and Long.parseLong("[1,2,3") threw NumberFormatException,
+        // escaping the tool bridge before ToolExecutionHelper could return a
+        // structured error.
+        var result = ToolBridgeUtils.parseJsonArgs("{\"name\":\"alice\",\"items\":[1,2,3]}");
+        assertEquals("alice", result.get("name"));
+        assertEquals("[1,2,3]", result.get("items"));
+    }
+
+    @Test
+    public void testParseJsonArgsNestedObjectDoesNotThrow() {
+        var result = ToolBridgeUtils.parseJsonArgs("{\"filter\":{\"key\":\"value\",\"n\":42}}");
+        assertEquals("{\"key\":\"value\",\"n\":42}", result.get("filter"));
+    }
+
+    @Test
+    public void testParseJsonArgsDeeplyNestedArrayOfObjects() {
+        var result = ToolBridgeUtils.parseJsonArgs(
+                "{\"rows\":[{\"a\":1},{\"a\":2}],\"count\":2}");
+        assertEquals("[{\"a\":1},{\"a\":2}]", result.get("rows"));
+        assertEquals(2L, result.get("count"));
+    }
+
+    @Test
+    public void testParseJsonArgsNestedIgnoresBracketsInStrings() {
+        // A '}' inside a quoted string must not terminate the nested span.
+        var result = ToolBridgeUtils.parseJsonArgs("{\"payload\":{\"msg\":\"hello}world\"}}");
+        assertEquals("{\"msg\":\"hello}world\"}", result.get("payload"));
+    }
+
+    @Test
+    public void testParseJsonArgsMalformedNumberReturnsRawToken() {
+        // Previously this threw NumberFormatException; now the malformed token
+        // is stored as a raw string and the tool validator surfaces the error.
+        var result = ToolBridgeUtils.parseJsonArgs("{\"count\":abc123}");
+        assertEquals("abc123", result.get("count"));
+    }
+
+    @Test
+    public void testFindMatchingCloseBracketRespectsNesting() {
+        assertEquals(8, ToolBridgeUtils.findMatchingCloseBracket("[[1,2],3]", 0));
+        assertEquals(12, ToolBridgeUtils.findMatchingCloseBracket("{\"a\":{\"b\":1}}", 0));
+        assertEquals(-1, ToolBridgeUtils.findMatchingCloseBracket("[1,2,3", 0));
+    }
+
     // --- escapeJson tests ---
 
     @Test

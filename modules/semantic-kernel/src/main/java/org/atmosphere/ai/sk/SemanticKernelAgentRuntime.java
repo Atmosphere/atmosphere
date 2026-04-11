@@ -146,9 +146,16 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
     @Override
     public Set<AiCapability> capabilities() {
         // Phase 12 initial release — tool calling deferred, see class Javadoc.
+        // STRUCTURED_OUTPUT is declared because any runtime that honors
+        // SYSTEM_PROMPT gets pipeline-level structured output for free via
+        // {@code AiPipeline.StructuredOutputCapturingSession} + system-prompt
+        // schema injection. This is the same reasoning the Built-in runtime
+        // uses (Invariant #5 — Runtime Truth), enforced by the contract test
+        // {@code runtimeWithSystemPromptAlsoDeclaresStructuredOutput}.
         return Set.of(
                 AiCapability.TEXT_STREAMING,
                 AiCapability.SYSTEM_PROMPT,
+                AiCapability.STRUCTURED_OUTPUT,
                 AiCapability.CONVERSATION_MEMORY,
                 AiCapability.TOKEN_USAGE
         );

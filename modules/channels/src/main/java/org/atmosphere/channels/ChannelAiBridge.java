@@ -246,6 +246,32 @@ public class ChannelAiBridge {
     private String callAi(IncomingMessage incoming) {
         var clientId = incoming.channelType().id() + ":" + incoming.senderId();
         var channelId = incoming.channelType().id().toLowerCase();
+        var text = incoming.text();
+
+        // Fast-path: route @RequiresApproval protocol responses ("/__approval/<id>/approve")
+        // through the pipeline's ApprovalRegistry before treating them as new prompts.
+        // Without this, an approval message sent over a channel (Slack/Telegram/etc.)
+        // would be forwarded to the LLM as a literal user message, and the parked
+        // virtual thread waiting on the approval future would time out unused.
+        if (org.atmosphere.ai.approval.ApprovalRegistry.isApprovalMessage(text)) {
+            for (var binding : agentBindings) {
+                if (!binding.allowedChannels().isEmpty()
+                        && !binding.allowedChannels().contains(channelId)) {
+                    continue;
+                }
+                if (binding.aiPipeline() != null && binding.aiPipeline().tryResolveApproval(text)) {
+                    logger.debug("Approval response routed through agent '{}' on channel '{}'",
+                            binding.name(), channelId);
+                    // Return an empty acknowledgement; the original prompt's VT
+                    // is now unparked and will stream its continuation via the
+                    // channel's outgoing path.
+                    return "";
+                }
+            }
+            logger.debug("Approval-shaped message had no matching pending approval on channel '{}'",
+                    channelId);
+            return "";
+        }
 
         // First registered agent with a pipeline handles NL messages
         for (var binding : agentBindings) {
@@ -256,7 +282,7 @@ public class ChannelAiBridge {
             if (binding.aiPipeline() != null) {
                 var collector = new CollectingSession();
                 try {
-                    binding.aiPipeline().execute(clientId, incoming.text(), collector);
+                    binding.aiPipeline().execute(clientId, text, collector);
                     return collector.getResponse();
                 } catch (Exception e) {
                     logger.error("AI pipeline for agent '{}' failed: {}",
@@ -266,7 +292,7 @@ public class ChannelAiBridge {
         }
 
         // Fallback: raw LLM call when no agent pipeline is available
-        return callAiRaw(incoming.text());
+        return callAiRaw(text);
     }
 
     /**

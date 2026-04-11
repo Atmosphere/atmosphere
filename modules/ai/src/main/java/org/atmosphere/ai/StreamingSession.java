@@ -143,6 +143,24 @@ public interface StreamingSession extends AutoCloseable {
     boolean isClosed();
 
     /**
+     * Whether this session has been put into an error state via
+     * {@link #error(Throwable)}. Used by {@link AbstractAgentRuntime} to
+     * distinguish a normal {@code whenDone()} completion of the runtime's
+     * execution future from the case where the underlying stream emitted an
+     * error out-of-band via {@code session.error(t)} (Spring AI reactive,
+     * ADK async callbacks, etc.) but the runtime still resolved the done
+     * future normally. Without this flag, listener routing would misreport
+     * failures as {@code onCompletion} events.
+     *
+     * <p>Default returns {@code false}; implementations that track errors
+     * should override and flip the flag in their {@code error(Throwable)}
+     * override.</p>
+     */
+    default boolean hasErrored() {
+        return false;
+    }
+
+    /**
      * Send multi-modal content to the client. Default implementation handles
      * text content via {@link #send(String)} and throws for binary content.
      *

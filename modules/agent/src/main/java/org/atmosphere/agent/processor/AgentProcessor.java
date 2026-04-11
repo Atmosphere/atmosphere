@@ -668,6 +668,20 @@ public class AgentProcessor implements Processor<Object> {
                 taskCtx.fail("Empty message");
                 return;
             }
+
+            // Fast-path: if the incoming A2A message is an @RequiresApproval
+            // protocol response ("/__approval/<id>/approve"), route it through
+            // the pipeline's ApprovalRegistry to unpark the waiting virtual
+            // thread from a previous tool-gated invocation, rather than
+            // dispatching it as a new prompt. Without this, clients using A2A
+            // would see every tool-gated call time out.
+            if (pipeline != null
+                    && org.atmosphere.ai.approval.ApprovalRegistry.isApprovalMessage(message)
+                    && pipeline.tryResolveApproval(message)) {
+                taskCtx.complete("");
+                return;
+            }
+
             try {
                 bridgedPromptMethod.setAccessible(true);
                 // The @Prompt method signature is (String, StreamingSession). For A2A we
@@ -686,102 +700,18 @@ public class AgentProcessor implements Processor<Object> {
     }
 
     /**
-     * Minimal {@link org.atmosphere.ai.StreamingSession} adapter that collects
-     * streamed text and writes it as the A2A task result on completion.
+     * Thin nested alias over
+     * {@link org.atmosphere.a2a.runtime.A2aStreamCollector}, kept only so
+     * call sites inside this file can write {@code new A2aStreamCollector(...)}
+     * without importing the fully-qualified shared base. The real concurrency,
+     * finalization, and error semantics live in the shared base — previously
+     * this class and {@code CoordinatorProcessor.A2aCoordinatorCollector} were
+     * copy-paste clones with divergent thread-safety.
      */
-    static class A2aStreamCollector implements org.atmosphere.ai.StreamingSession {
-        private final org.atmosphere.a2a.runtime.TaskContext taskCtx;
-        private final org.atmosphere.ai.AiPipeline pipeline;
-        private final StringBuilder buffer = new StringBuilder();
-        private final java.util.concurrent.CountDownLatch completionLatch =
-                new java.util.concurrent.CountDownLatch(1);
-        private volatile boolean finalized;
-
+    static final class A2aStreamCollector extends org.atmosphere.a2a.runtime.A2aStreamCollector {
         A2aStreamCollector(org.atmosphere.a2a.runtime.TaskContext taskCtx,
                            org.atmosphere.ai.AiPipeline pipeline) {
-            this.taskCtx = taskCtx;
-            this.pipeline = pipeline;
-        }
-
-        @Override
-        public String sessionId() {
-            return taskCtx.taskId();
-        }
-
-        @Override
-        public void send(String text) {
-            buffer.append(text);
-        }
-
-        @Override
-        public void stream(String message) {
-            if (pipeline != null) {
-                // Delegate to the AI pipeline so the message is processed through
-                // the LLM and the response streams back through this collector
-                pipeline.execute(taskCtx.taskId(), message, this);
-            } else {
-                // Fallback: buffer the message as the response text when no
-                // pipeline is available
-                buffer.append(message);
-            }
-        }
-
-        @Override
-        public void sendMetadata(String key, Object value) {
-            // A2A tasks don't propagate metadata; silently ignore
-        }
-
-        @Override
-        public void progress(String message) {
-            taskCtx.updateStatus(org.atmosphere.a2a.types.TaskState.WORKING, message);
-        }
-
-        @Override
-        public void complete() {
-            if (!finalized) {
-                finalized = true;
-                taskCtx.complete(buffer.toString());
-                completionLatch.countDown();
-            }
-        }
-
-        @Override
-        public void complete(String summary) {
-            if (!finalized) {
-                finalized = true;
-                taskCtx.complete(summary != null ? summary : buffer.toString());
-                completionLatch.countDown();
-            }
-        }
-
-        @Override
-        public void error(Throwable t) {
-            if (!finalized) {
-                finalized = true;
-                taskCtx.fail(t.getMessage());
-                completionLatch.countDown();
-            }
-        }
-
-        @Override
-        public boolean isClosed() {
-            return finalized;
-        }
-
-        /**
-         * Waits for async completion, then finalizes if the prompt method
-         * returned without calling complete() (e.g., synchronous prompt).
-         */
-        void awaitAndFinalize(long timeoutMs) {
-            try {
-                completionLatch.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            if (!finalized) {
-                finalized = true;
-                taskCtx.complete(buffer.toString());
-            }
+            super(taskCtx, pipeline);
         }
     }
 

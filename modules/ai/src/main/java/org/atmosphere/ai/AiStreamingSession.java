@@ -54,12 +54,17 @@ public class AiStreamingSession implements StreamingSession {
     private static final Logger logger = LoggerFactory.getLogger(AiStreamingSession.class);
 
     /**
-     * Active sessions keyed by {@link AtmosphereResource#uuid()}.
-     * Used by {@link org.atmosphere.ai.processor.AiEndpointHandler} to route
-     * approval responses ({@code /__approval/...}) to the session whose virtual
-     * thread is parked waiting for the approval outcome.
+     * Active sessions keyed by {@link AtmosphereResource#uuid()}. The value is a
+     * {@link java.util.concurrent.CopyOnWriteArrayList} because Atmosphere
+     * explicitly allows overlapping prompts on a single resource (AG-UI,
+     * streaming-chat): two concurrent {@code @Prompt} invocations register two
+     * sessions under the same UUID, and registering the second must not clobber
+     * the first. Identity-checked removal on complete/error ensures prompt A
+     * finishing after prompt B started does not remove B's mapping. Approval
+     * routing walks every session in the list for the target UUID and
+     * short-circuits only on {@link ApprovalRegistry.ResolveResult#RESOLVED}.
      */
-    private static final ConcurrentHashMap<String, AiStreamingSession> ACTIVE_SESSIONS =
+    private static final ConcurrentHashMap<String, java.util.concurrent.CopyOnWriteArrayList<AiStreamingSession>> ACTIVE_SESSIONS =
             new ConcurrentHashMap<>();
 
     /**
@@ -161,40 +166,45 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     /**
-     * Register a session as the active session for its resource. Called by the
+     * Register a session as an active session for its resource. Called by the
      * handler after construction so approval responses can be routed to it.
+     * Multiple sessions may be registered under the same UUID (overlapping
+     * prompts on one resource); each registration appends to the list.
      *
      * @param session the session to register
      */
     public static void registerActive(AiStreamingSession session) {
         var uuid = session.resource.uuid();
         if (uuid != null) {
-            ACTIVE_SESSIONS.put(uuid, session);
+            ACTIVE_SESSIONS
+                    .computeIfAbsent(uuid, k -> new java.util.concurrent.CopyOnWriteArrayList<>())
+                    .add(session);
         }
     }
 
     /**
-     * Look up the active session for a given resource. Used by the handler
-     * to route approval responses to the session whose VT is parked.
+     * Try to resolve an approval message against every session currently
+     * registered for the given resource UUID. Walks the list in registration
+     * order and short-circuits only on
+     * {@link ApprovalRegistry.ResolveResult#RESOLVED} so a newer session whose
+     * registry does not own the pending ID cannot swallow the message before
+     * an older overlapping session has a chance to claim it.
      *
      * @param resourceUuid the atmosphere resource UUID
-     * @return the active session, or {@code null} if none
+     * @param message      the incoming approval message
+     * @return {@code true} iff some session's registry owned the pending ID and
+     *     completed the approval future
      */
-    public static AiStreamingSession activeSession(String resourceUuid) {
-        return resourceUuid != null ? ACTIVE_SESSIONS.get(resourceUuid) : null;
-    }
-
-    /**
-     * Reconnect fallback: try to resolve an approval message against ALL active
-     * sessions. Used when the resource UUID changed due to transport reconnect
-     * and the primary lookup by UUID returns null.
-     *
-     * @param message the incoming approval message
-     * @return {@code true} if any active session consumed the message
-     */
-    public static boolean tryResolveAnySession(String message) {
-        for (var session : ACTIVE_SESSIONS.values()) {
-            if (session.tryResolveApproval(message)) {
+    public static boolean tryResolveApprovalForResource(String resourceUuid, String message) {
+        if (resourceUuid == null) {
+            return false;
+        }
+        var sessions = ACTIVE_SESSIONS.get(resourceUuid);
+        if (sessions == null) {
+            return false;
+        }
+        for (var session : sessions) {
+            if (session.approvalRegistry.resolve(message) == ApprovalRegistry.ResolveResult.RESOLVED) {
                 return true;
             }
         }
@@ -202,13 +212,66 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     /**
-     * Remove the active session for a disconnecting or completed resource.
+     * Reconnect fallback: try to resolve an approval message against every
+     * active session across every resource UUID. Used when the resource UUID
+     * changed due to transport reconnect and the primary lookup returns null.
+     * Short-circuits only on {@link ApprovalRegistry.ResolveResult#RESOLVED};
+     * an {@link ApprovalRegistry.ResolveResult#UNKNOWN_ID} from one session is
+     * not allowed to consume the message — the next session may own it.
+     *
+     * @param message the incoming approval message
+     * @return {@code true} iff some session's registry owned the pending ID and
+     *     completed the approval future
+     */
+    public static boolean tryResolveAnySession(String message) {
+        for (var sessions : ACTIVE_SESSIONS.values()) {
+            for (var session : sessions) {
+                if (session.approvalRegistry.resolve(message) == ApprovalRegistry.ResolveResult.RESOLVED) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Remove every session registered for a given resource UUID. Called by
+     * {@code AiEndpointHandler#handleDisconnect} when the underlying socket
+     * is going away and all prompts on it are done.
      *
      * @param resourceUuid the atmosphere resource UUID (may be null)
      */
-    public static void removeActiveSession(String resourceUuid) {
+    public static void removeAllForResource(String resourceUuid) {
         if (resourceUuid != null) {
             ACTIVE_SESSIONS.remove(resourceUuid);
+        }
+    }
+
+    /**
+     * Remove a specific session from the active map on completion/error. Uses
+     * identity-checked removal so prompt A finishing after prompt B started on
+     * the same resource does not clobber B's mapping. When the list for a UUID
+     * becomes empty, the entry is removed from the outer map.
+     *
+     * @param session the session to remove (identity-checked)
+     */
+    public static void removeActiveSession(AiStreamingSession session) {
+        if (session == null || session.resource == null) {
+            return;
+        }
+        var uuid = session.resource.uuid();
+        if (uuid == null) {
+            return;
+        }
+        var sessions = ACTIVE_SESSIONS.get(uuid);
+        if (sessions == null) {
+            return;
+        }
+        sessions.remove(session);
+        if (sessions.isEmpty()) {
+            // Only remove the outer entry if the list is still empty — another
+            // thread may have appended between the isEmpty check and the remove.
+            ACTIVE_SESSIONS.remove(uuid, sessions);
         }
     }
 
@@ -339,8 +402,13 @@ public class AiStreamingSession implements StreamingSession {
         // Build execution context and delegate to runtime.
         // The session-scoped ApprovalStrategy is carried on the context so every
         // runtime bridge routes tool execution through ToolExecutionHelper.executeWithApproval().
+        // Tools come from the (potentially guardrail-modified) request, NOT from
+        // re-reading the registry, so a guardrail that narrows the tool set via
+        // {@code AiRequest#withTools} actually takes effect — without this,
+        // guardrails could only block the whole request, not drop specific tools.
         var finalRequest = request;
-        var tools = toolRegistry != null ? toolRegistry.allTools()
+        var tools = finalRequest.tools() != null
+                ? finalRequest.tools()
                 : java.util.List.<org.atmosphere.ai.tool.ToolDefinition>of();
         var strategy = ApprovalStrategy.virtualThread(approvalRegistry);
         var context = new AgentExecutionContext(
@@ -462,19 +530,19 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void complete() {
-        removeActiveSession(resource.uuid());
+        removeActiveSession(this);
         delegate.complete();
     }
 
     @Override
     public void complete(String summary) {
-        removeActiveSession(resource.uuid());
+        removeActiveSession(this);
         delegate.complete(summary);
     }
 
     @Override
     public void error(Throwable t) {
-        removeActiveSession(resource.uuid());
+        removeActiveSession(this);
         delegate.error(t);
     }
 
@@ -486,6 +554,11 @@ public class AiStreamingSession implements StreamingSession {
     @Override
     public boolean isClosed() {
         return delegate.isClosed();
+    }
+
+    @Override
+    public boolean hasErrored() {
+        return delegate.hasErrored();
     }
 
     // visible for testing

@@ -15,18 +15,19 @@
  */
 package org.atmosphere.ai;
 
+import org.atmosphere.ai.approval.ApprovalRegistry;
+import org.atmosphere.ai.approval.PendingApproval;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -46,65 +47,139 @@ class ApprovalRoutingTest {
 
     @AfterEach
     void tearDown() {
-        AiStreamingSession.removeActiveSession(RESOURCE_UUID);
+        AiStreamingSession.removeAllForResource(RESOURCE_UUID);
+    }
+
+    private AiStreamingSession newSession() {
+        return newSession(resource);
+    }
+
+    private AiStreamingSession newSession(AtmosphereResource r) {
+        var delegate = mock(StreamingSession.class);
+        var runtime = mock(AgentRuntime.class);
+        return new AiStreamingSession(delegate, runtime, "sys", null, List.of(), r);
+    }
+
+    private static PendingApproval pending(String id) {
+        return new PendingApproval(id, "tool", java.util.Map.of(),
+                "tool reason", "prompt", Instant.now().plusSeconds(30));
     }
 
     @Test
-    void registerAndLookupActiveSession() {
-        var delegate = mock(StreamingSession.class);
-        var runtime = mock(AgentRuntime.class);
-        var session = new AiStreamingSession(delegate, runtime, "sys", null,
-                List.of(), resource);
-
+    void registerAndResolveMatchingApproval() {
+        var session = newSession();
         AiStreamingSession.registerActive(session);
 
-        var found = AiStreamingSession.activeSession(RESOURCE_UUID);
-        assertNotNull(found);
-        assertEquals(session, found);
+        var approvalId = "apr_match";
+        session.approvalRegistry().register(pending(approvalId));
+
+        assertTrue(AiStreamingSession.tryResolveApprovalForResource(
+                RESOURCE_UUID, "/__approval/" + approvalId + "/approve"));
     }
 
     @Test
-    void completeRemovesActiveSession() {
-        var delegate = mock(StreamingSession.class);
-        var runtime = mock(AgentRuntime.class);
-        var session = new AiStreamingSession(delegate, runtime, "sys", null,
-                List.of(), resource);
-        AiStreamingSession.registerActive(session);
+    void completeRemovesOnlyThisSession() {
+        var a = newSession();
+        var b = newSession();
+        AiStreamingSession.registerActive(a);
+        AiStreamingSession.registerActive(b);
 
-        session.complete();
+        b.complete();
 
-        assertNull(AiStreamingSession.activeSession(RESOURCE_UUID));
+        // B is gone, A is still registered and can still own approvals on this UUID.
+        var approvalId = "apr_a_only";
+        a.approvalRegistry().register(pending(approvalId));
+        assertTrue(AiStreamingSession.tryResolveApprovalForResource(
+                RESOURCE_UUID, "/__approval/" + approvalId + "/approve"));
     }
 
     @Test
-    void completeWithSummaryRemovesActiveSession() {
-        var delegate = mock(StreamingSession.class);
-        var runtime = mock(AgentRuntime.class);
-        var session = new AiStreamingSession(delegate, runtime, "sys", null,
-                List.of(), resource);
-        AiStreamingSession.registerActive(session);
+    void errorRemovesOnlyThisSession() {
+        var a = newSession();
+        var b = newSession();
+        AiStreamingSession.registerActive(a);
+        AiStreamingSession.registerActive(b);
 
-        session.complete("done");
+        a.error(new RuntimeException("boom"));
 
-        assertNull(AiStreamingSession.activeSession(RESOURCE_UUID));
+        var approvalId = "apr_b_only";
+        b.approvalRegistry().register(pending(approvalId));
+        assertTrue(AiStreamingSession.tryResolveApprovalForResource(
+                RESOURCE_UUID, "/__approval/" + approvalId + "/approve"));
     }
 
     @Test
-    void errorRemovesActiveSession() {
-        var delegate = mock(StreamingSession.class);
-        var runtime = mock(AgentRuntime.class);
-        var session = new AiStreamingSession(delegate, runtime, "sys", null,
-                List.of(), resource);
-        AiStreamingSession.registerActive(session);
+    void overlappingPromptsOnSameResourceBothRouteApprovalsCorrectly() {
+        // Prompt A and Prompt B run concurrently on the same AtmosphereResource.
+        // A's registry owns apr_a, B's registry owns apr_b. Each approval message
+        // must route to the registry that actually owns the ID — walking the list
+        // of sessions registered for this UUID and short-circuiting only on
+        // RESOLVED (not on the UNKNOWN_ID returned by the other session).
+        var a = newSession();
+        var b = newSession();
+        AiStreamingSession.registerActive(a);
+        AiStreamingSession.registerActive(b);
 
-        session.error(new RuntimeException("test"));
+        a.approvalRegistry().register(pending("apr_a"));
+        b.approvalRegistry().register(pending("apr_b"));
 
-        assertNull(AiStreamingSession.activeSession(RESOURCE_UUID));
+        assertTrue(AiStreamingSession.tryResolveApprovalForResource(
+                RESOURCE_UUID, "/__approval/apr_a/approve"));
+        assertTrue(AiStreamingSession.tryResolveApprovalForResource(
+                RESOURCE_UUID, "/__approval/apr_b/approve"));
+    }
+
+    @Test
+    void unknownApprovalIdDoesNotConsumeLaterOwners() {
+        // Regression: previously, tryResolveAnySession short-circuited on tryResolve
+        // returning true for UNKNOWN_ID, so the first session scanned would swallow
+        // the message even when a later session owned the pending approval.
+        var resourceA = mock(AtmosphereResource.class);
+        when(resourceA.uuid()).thenReturn("uuid-a");
+        var resourceB = mock(AtmosphereResource.class);
+        when(resourceB.uuid()).thenReturn("uuid-b");
+
+        var sessionA = newSession(resourceA);
+        var sessionB = newSession(resourceB);
+        AiStreamingSession.registerActive(sessionA);
+        AiStreamingSession.registerActive(sessionB);
+
+        try {
+            sessionB.approvalRegistry().register(pending("apr_owned_by_b"));
+
+            assertTrue(AiStreamingSession.tryResolveAnySession(
+                    "/__approval/apr_owned_by_b/approve"));
+        } finally {
+            AiStreamingSession.removeAllForResource("uuid-a");
+            AiStreamingSession.removeAllForResource("uuid-b");
+        }
+    }
+
+    @Test
+    void resourceScopedLookupReturnsFalseForMissingUuid() {
+        assertFalse(AiStreamingSession.tryResolveApprovalForResource(
+                "nonexistent-uuid", "/__approval/any/approve"));
+    }
+
+    @Test
+    void tryResolveApprovalReturnsFalseForNonApprovalMessage() {
+        var session = newSession();
+        assertFalse(session.tryResolveApproval("Hello, world!"));
+    }
+
+    @Test
+    void tryResolveApprovalOnAdapterReturnsTrueForUnknownId() {
+        // The single-registry tryResolve adapter preserves the "consumed"
+        // semantics for the websocket fast-path: an approval-shaped message with
+        // an unknown ID still short-circuits so it isn't forwarded as a prompt.
+        var session = newSession();
+        assertTrue(session.tryResolveApproval("/__approval/apr_unknown/approve"));
     }
 
     @Test
     void removeActiveSessionNullSafe() {
         AiStreamingSession.removeActiveSession(null);
+        AiStreamingSession.removeAllForResource(null);
         // Should not throw
     }
 
@@ -114,58 +189,20 @@ class ApprovalRoutingTest {
         when(nullResource.uuid()).thenReturn(null);
         var request = mock(AtmosphereRequest.class);
         when(nullResource.getRequest()).thenReturn(request);
-        var delegate = mock(StreamingSession.class);
-        var runtime = mock(AgentRuntime.class);
-        var session = new AiStreamingSession(delegate, runtime, "sys", null,
-                List.of(), nullResource);
+        var session = newSession(nullResource);
 
         AiStreamingSession.registerActive(session);
         // Should not throw; no entry created
-        assertNull(AiStreamingSession.activeSession(null));
+        assertFalse(AiStreamingSession.tryResolveApprovalForResource(null, "/__approval/x/approve"));
     }
 
     @Test
-    void tryResolveApprovalRoutesToRegistry() throws Exception {
-        var delegate = mock(StreamingSession.class);
-        var runtime = mock(AgentRuntime.class);
-        var session = new AiStreamingSession(delegate, runtime, "sys", null,
-                List.of(), resource);
-        AiStreamingSession.registerActive(session);
-
-        // The approval registry is internal; we can't register a pending directly.
-        // But we can verify the tryResolveApproval path.
-        // A message with approval prefix but unknown ID should return true
-        // (expired/unknown ID handling in ApprovalRegistry).
-        assertTrue(session.tryResolveApproval("/__approval/apr_unknown/approve"));
-    }
-
-    @Test
-    void tryResolveApprovalReturnsFalseForNonApprovalMessage() {
-        var delegate = mock(StreamingSession.class);
-        var runtime = mock(AgentRuntime.class);
-        var session = new AiStreamingSession(delegate, runtime, "sys", null,
-                List.of(), resource);
-
-        assertFalse(session.tryResolveApproval("Hello, world!"));
-    }
-
-    @Test
-    void activeSessionReplacedOnNewRegistration() {
-        var delegate = mock(StreamingSession.class);
-        var runtime = mock(AgentRuntime.class);
-        var session1 = new AiStreamingSession(delegate, runtime, "sys", null,
-                List.of(), resource);
-        var session2 = new AiStreamingSession(delegate, runtime, "sys", null,
-                List.of(), resource);
-
-        AiStreamingSession.registerActive(session1);
-        AiStreamingSession.registerActive(session2);
-
-        assertEquals(session2, AiStreamingSession.activeSession(RESOURCE_UUID));
-    }
-
-    @Test
-    void noActiveSessionReturnsNull() {
-        assertNull(AiStreamingSession.activeSession("nonexistent-uuid"));
+    void cleanShutdownResolveTriStateEnumExposed() {
+        // Sanity: the new tri-state is reachable from tests and matches wire protocol.
+        var registry = new ApprovalRegistry();
+        assertEquals(ApprovalRegistry.ResolveResult.NOT_APPROVAL_MESSAGE,
+                registry.resolve("hello"));
+        assertEquals(ApprovalRegistry.ResolveResult.UNKNOWN_ID,
+                registry.resolve("/__approval/apr_ghost/approve"));
     }
 }

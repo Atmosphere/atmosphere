@@ -50,7 +50,21 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
 
     private static volatile String defaultUserId = "atmosphere-user";
     private static volatile String defaultSessionId = "atmosphere-session";
-    private static final Set<String> knownSessions = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Per-runner cache of initialized {@code userId:sessionId} keys. Weak-keyed
+     * so runners that go out of scope (e.g. the per-request tool-calling
+     * runners built by {@code buildRequestRunner} on every tool-bearing
+     * invocation) do not leak, and so the cache resets on a fresh runner
+     * instance. Previously this was a single global {@code Set<String>}, which
+     * meant the second tool-calling request with the same {@code userId} and
+     * {@code sessionId} on a freshly-built runner would skip session creation
+     * (because the global key was still set by the first runner), leaving the
+     * new runner's in-memory session service empty and its subsequent
+     * {@code runAsync} call stranded.
+     */
+    private static final Map<Runner, Set<String>> KNOWN_SESSIONS_BY_RUNNER =
+            java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
 
     @Override
     public String name() {
@@ -246,7 +260,9 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
 
     private static void ensureSession(Runner adkRunner, String userId, String sessionId) {
         var key = userId + ":" + sessionId;
-        if (knownSessions.contains(key)) {
+        var perRunnerCache = KNOWN_SESSIONS_BY_RUNNER.computeIfAbsent(
+                adkRunner, r -> ConcurrentHashMap.newKeySet());
+        if (perRunnerCache.contains(key)) {
             return;
         }
 
@@ -259,7 +275,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                     .blockingGet();
             logger.debug("Created ADK session: userId={}, sessionId={}", userId, sessionId);
         }
-        knownSessions.add(key);
+        perRunnerCache.add(key);
     }
 
     @Override

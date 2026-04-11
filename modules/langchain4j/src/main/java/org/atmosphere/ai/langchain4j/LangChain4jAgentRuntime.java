@@ -127,6 +127,13 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
     @Override
     protected void doExecute(StreamingChatModel streamingModel,
                             AgentExecutionContext context, StreamingSession session) {
+        doExecuteWithHandle(streamingModel, context, session);
+    }
+
+    @Override
+    protected org.atmosphere.ai.ExecutionHandle doExecuteWithHandle(
+            StreamingChatModel streamingModel,
+            AgentExecutionContext context, StreamingSession session) {
         var messages = assembleMessages(context).stream()
                 .map(LangChain4jAgentRuntime::toLangChainMessage)
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
@@ -151,9 +158,82 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 ? java.util.Map.<String, org.atmosphere.ai.tool.ToolDefinition>of()
                 : ToolExecutionHelper.toToolMap(tools);
 
-        var handler = new ToolAwareStreamingResponseHandler(
-                session, streamingModel, messages, toolSpecs, toolMap, context.approvalStrategy());
+        // D-6 LC4j native cancel: the StreamingChatResponseHandler has no
+        // direct HTTP cancel, so we thread a soft-cancel flag through the
+        // handler. cancel() flips the flag; onPartialResponse polls it on
+        // every token and stops forwarding once set. Cancellation takes
+        // effect at the next token boundary — not immediate, but avoids
+        // leaking completions into an abandoned session.
+        var cancelled = new java.util.concurrent.atomic.AtomicBoolean();
+        var done = new java.util.concurrent.CompletableFuture<Void>();
+
+        var handler = new CancelAwareStreamingHandler(
+                new ToolAwareStreamingResponseHandler(
+                        session, streamingModel, messages, toolSpecs, toolMap,
+                        context.approvalStrategy(), cancelled),
+                cancelled, done);
         streamingModel.chat(chatRequestBuilder.build(), handler);
+
+        return new org.atmosphere.ai.ExecutionHandle() {
+            @Override public void cancel() {
+                cancelled.set(true);
+                // Best-effort mark: if the handler is still polling, it will
+                // drop the next onPartialResponse; if the stream is already
+                // done, this is a no-op.
+                if (!done.isDone()) {
+                    done.complete(null);
+                }
+            }
+            @Override public boolean isDone() { return done.isDone(); }
+            @Override public java.util.concurrent.CompletableFuture<Void> whenDone() { return done; }
+        };
+    }
+
+    /**
+     * Wraps an inner {@link dev.langchain4j.model.chat.response.StreamingChatResponseHandler}
+     * so the done-future completes exactly once on terminal events
+     * ({@code onCompleteResponse} or {@code onError}), regardless of whether
+     * the inner handler chose to continue into a tool round or finalize.
+     */
+    private static final class CancelAwareStreamingHandler
+            implements dev.langchain4j.model.chat.response.StreamingChatResponseHandler {
+        private final dev.langchain4j.model.chat.response.StreamingChatResponseHandler inner;
+        private final java.util.concurrent.atomic.AtomicBoolean cancelled;
+        private final java.util.concurrent.CompletableFuture<Void> done;
+
+        CancelAwareStreamingHandler(
+                dev.langchain4j.model.chat.response.StreamingChatResponseHandler inner,
+                java.util.concurrent.atomic.AtomicBoolean cancelled,
+                java.util.concurrent.CompletableFuture<Void> done) {
+            this.inner = inner;
+            this.cancelled = cancelled;
+            this.done = done;
+        }
+
+        @Override public void onPartialResponse(String partial) {
+            if (!cancelled.get()) {
+                inner.onPartialResponse(partial);
+            }
+        }
+
+        @Override public void onCompleteResponse(
+                dev.langchain4j.model.chat.response.ChatResponse response) {
+            try {
+                if (!cancelled.get()) {
+                    inner.onCompleteResponse(response);
+                }
+            } finally {
+                done.complete(null);
+            }
+        }
+
+        @Override public void onError(Throwable error) {
+            try {
+                inner.onError(error);
+            } finally {
+                done.completeExceptionally(error);
+            }
+        }
     }
 
     @Override

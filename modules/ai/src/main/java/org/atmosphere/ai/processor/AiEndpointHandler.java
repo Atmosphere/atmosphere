@@ -316,10 +316,13 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var userMessage = message.toString();
 
         // Fast-path: route approval responses to the existing session's registry
-        // instead of creating a new session and dispatching to @Prompt.
+        // instead of creating a new session and dispatching to @Prompt. Walks
+        // every session registered for this resource (concurrent prompts on the
+        // same socket) and only short-circuits on RESOLVED; a stale/unknown ID
+        // in one overlapping session is not allowed to swallow the message
+        // before a sibling session that owns it gets a turn.
         if (ApprovalRegistry.isApprovalMessage(userMessage)) {
-            var existingSession = AiStreamingSession.activeSession(resource.uuid());
-            if (existingSession != null && existingSession.tryResolveApproval(userMessage)) {
+            if (AiStreamingSession.tryResolveApprovalForResource(resource.uuid(), userMessage)) {
                 logger.debug("Approval response routed for resource {}", resource.uuid());
                 return;
             }
@@ -401,7 +404,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             memory.clear(resource.uuid());
         }
         DefaultStreamingSession.cleanupResource(resource);
-        AiStreamingSession.removeActiveSession(resource.uuid());
+        AiStreamingSession.removeAllForResource(resource.uuid());
         lifecycle.onDisconnect(target, event);
         logger.info(logMessage, resource.uuid());
     }

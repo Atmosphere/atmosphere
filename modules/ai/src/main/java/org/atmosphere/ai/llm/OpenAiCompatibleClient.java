@@ -137,8 +137,17 @@ public class OpenAiCompatibleClient implements LlmClient {
 
     @Override
     public void streamChatCompletion(ChatCompletionRequest request, StreamingSession session) {
+        streamChatCompletion(request, session, null);
+    }
+
+    @Override
+    public void streamChatCompletion(ChatCompletionRequest request, StreamingSession session,
+                                     java.util.concurrent.atomic.AtomicBoolean cancelled) {
+        var effective = cancelled != null
+                ? cancelled
+                : new java.util.concurrent.atomic.AtomicBoolean();
         try {
-            doStreamWithToolLoop(request, session, 0);
+            doStreamWithToolLoop(request, session, 0, effective);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             session.error(e);
@@ -151,7 +160,8 @@ public class OpenAiCompatibleClient implements LlmClient {
     }
 
     private void doStreamWithToolLoop(ChatCompletionRequest request,
-                                      StreamingSession session, int toolRound)
+                                      StreamingSession session, int toolRound,
+                                      java.util.concurrent.atomic.AtomicBoolean cancelled)
             throws InterruptedException {
 
         var conversationId = request.conversationId();
@@ -203,7 +213,7 @@ public class OpenAiCompatibleClient implements LlmClient {
         try (var reader = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                if (session.isClosed()) {
+                if (cancelled.get() || session.isClosed()) {
                     break;
                 }
                 if (useResponsesApi) {
@@ -280,7 +290,10 @@ public class OpenAiCompatibleClient implements LlmClient {
                     request.temperature(), request.maxStreamingTexts(),
                     request.jsonMode(), request.tools(), request.conversationId(),
                     request.approvalStrategy());
-            doStreamWithToolLoop(followUp, session, toolRound + 1);
+            if (cancelled.get()) {
+                return;
+            }
+            doStreamWithToolLoop(followUp, session, toolRound + 1, cancelled);
         } else if (!session.isClosed()) {
             session.complete();
         }

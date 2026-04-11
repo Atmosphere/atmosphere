@@ -23,7 +23,6 @@ import org.atmosphere.ai.tool.ToolExecutionHelper;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -59,6 +58,13 @@ class AiPipelineHitlTest {
             // unified HITL helper exactly like the real runtime bridges do —
             // this is the path the gap regression has to prove still works.
             for (var tool : context.tools()) {
+                // Build args that satisfy the tool's declared parameter list so
+                // ToolArgumentValidator (Phase 10, wired into executeWithApproval)
+                // doesn't reject the call before the gate or the executor fires.
+                var args = new java.util.HashMap<String, Object>();
+                for (var p : tool.parameters()) {
+                    args.put(p.name(), sampleValue(p.type()));
+                }
                 var wrappedStrategy = context.approvalStrategy() == null ? null : new ApprovalStrategy() {
                     @Override
                     public ApprovalOutcome awaitApproval(PendingApproval approval, StreamingSession s) {
@@ -67,9 +73,19 @@ class AiPipelineHitlTest {
                     }
                 };
                 ToolExecutionHelper.executeWithApproval(
-                        tool.name(), tool, Map.of("userId", "u-test"), session, wrappedStrategy);
+                        tool.name(), tool, args, session, wrappedStrategy);
             }
             session.complete();
+        }
+
+        private static Object sampleValue(String jsonType) {
+            return switch (jsonType) {
+                case "string" -> "sample";
+                case "integer" -> 1L;
+                case "number" -> 1.0;
+                case "boolean" -> true;
+                default -> "sample";
+            };
         }
     }
 

@@ -65,6 +65,41 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
     @Override
     protected void doExecute(LlmClient client,
                              AgentExecutionContext context, StreamingSession session) {
+        client.streamChatCompletion(buildRequest(context), session);
+    }
+
+    /**
+     * D-6 Built-in native cancel: wires a soft-cancel {@link java.util.concurrent.atomic.AtomicBoolean}
+     * into {@link LlmClient#streamChatCompletion(ChatCompletionRequest, org.atmosphere.ai.StreamingSession, java.util.concurrent.atomic.AtomicBoolean)}
+     * and returns an {@link org.atmosphere.ai.ExecutionHandle} whose
+     * {@code cancel()} flips the flag. The SSE read loop in
+     * {@link OpenAiCompatibleClient#streamChatCompletion(ChatCompletionRequest, org.atmosphere.ai.StreamingSession, java.util.concurrent.atomic.AtomicBoolean)}
+     * polls the flag on every line and exits cleanly at the next SSE boundary.
+     * Cancellation is soft — the in-flight HTTP request is not aborted — but
+     * every subsequent SSE line is dropped and the session sees no additional
+     * tokens.
+     */
+    @Override
+    protected org.atmosphere.ai.ExecutionHandle doExecuteWithHandle(
+            LlmClient client, AgentExecutionContext context, StreamingSession session) {
+        var cancelled = new java.util.concurrent.atomic.AtomicBoolean();
+        var done = new java.util.concurrent.CompletableFuture<Void>();
+        Thread.startVirtualThread(() -> {
+            try {
+                client.streamChatCompletion(buildRequest(context), session, cancelled);
+                done.complete(null);
+            } catch (Throwable t) {
+                done.completeExceptionally(t);
+            }
+        });
+        return new org.atmosphere.ai.ExecutionHandle() {
+            @Override public void cancel() { cancelled.set(true); }
+            @Override public boolean isDone() { return done.isDone(); }
+            @Override public java.util.concurrent.CompletableFuture<Void> whenDone() { return done; }
+        };
+    }
+
+    private ChatCompletionRequest buildRequest(AgentExecutionContext context) {
         var builder = ChatCompletionRequest.builder(context.model());
         for (var msg : assembleMessages(context)) {
             builder.message(msg);
@@ -81,7 +116,7 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
         if (context.approvalStrategy() != null) {
             builder.approvalStrategy(context.approvalStrategy());
         }
-        client.streamChatCompletion(builder.build(), session);
+        return builder.build();
     }
 
     @Override

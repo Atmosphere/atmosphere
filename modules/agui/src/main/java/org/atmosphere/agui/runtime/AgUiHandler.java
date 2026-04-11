@@ -274,13 +274,23 @@ public final class AgUiHandler implements AtmosphereHandler {
 
         @Override
         public void stream(String message) {
-            if (pipeline != null) {
-                pipeline.execute(runContext.threadId(), message, this);
-            } else {
+            if (pipeline == null) {
                 throw new UnsupportedOperationException(
                         "stream(String) requires an AiPipeline. "
                                 + "Ensure the AG-UI handler is registered with a pipeline.");
             }
+            // Fast-path: route @RequiresApproval protocol responses
+            // ("/__approval/<id>/approve") through the pipeline's
+            // ApprovalRegistry before treating them as new prompts. AG-UI
+            // surfaces tool approval UIs via client state-deltas; the
+            // client sends the approval outcome back as a STREAM input
+            // message that must land on the parked VT rather than being
+            // dispatched to the LLM as a literal user prompt.
+            if (org.atmosphere.ai.approval.ApprovalRegistry.isApprovalMessage(message)
+                    && pipeline.tryResolveApproval(message)) {
+                return;
+            }
+            pipeline.execute(runContext.threadId(), message, this);
         }
     }
 

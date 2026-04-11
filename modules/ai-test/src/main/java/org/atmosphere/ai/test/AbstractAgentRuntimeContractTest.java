@@ -123,25 +123,65 @@ public abstract class AbstractAgentRuntimeContractTest {
     /**
      * Every runtime that declares {@link AiCapability#TOOL_CALLING} must route
      * {@code @RequiresApproval} tool invocations through
-     * {@link ToolExecutionHelper#executeWithApproval}, which in turn consults
-     * the session-scoped {@link ApprovalStrategy} and emits a
-     * {@link AiEvent.ApprovalRequired} frame via the session sink. This contract
-     * is the cross-runtime guarantee for Correctness Invariant #7 (Mode Parity)
-     * — the 2026-04-11 Phase 0 review found it missing even though the 5
+     * {@link ToolExecutionHelper#executeWithApproval}. This contract is the
+     * cross-runtime guarantee for Correctness Invariant #7 (Mode Parity) —
+     * the 2026-04-11 Phase 0 review found it missing even though the 5
      * per-runtime bridge tests covered the individual call sites.
      *
-     * <p>The base test exercises the helper directly with a fake
-     * {@link ApprovalStrategy} that captures the {@link PendingApproval} —
-     * concrete subclasses inherit this for free. Runtimes without tool calling
-     * (e.g. Embabel in the current tree) skip the assertion cleanly.</p>
+     * <p>Unlike the earlier version of this test, which only exercised the
+     * helper directly and therefore could not catch a bridge that bypassed
+     * it, this implementation drives the full runtime seam. Subclasses that
+     * can provide a context which causes {@code runtime.execute} to actually
+     * invoke a {@code @RequiresApproval} tool (typically by configuring a
+     * mock chat client to emit a tool-call for the known tool name) override
+     * {@link #createApprovalTriggerContext()} to return that context. The
+     * base class supplies a capturing strategy, calls {@code runtime.execute},
+     * and asserts the strategy was consulted — proving the bridge routed
+     * through {@code executeWithApproval}. Subclasses that cannot set up a
+     * tool-invoking mock return {@code null} and skip the assertion.</p>
      */
     @Test
-    protected void hitlPendingApprovalEmitsProtocolEvent() {
+    protected void hitlPendingApprovalEmitsProtocolEvent() throws Exception {
         var runtime = createRuntime();
         if (!runtime.capabilities().contains(AiCapability.TOOL_CALLING)) {
             return; // runtime does not advertise tool calling — HITL gate N/A
         }
 
+        var triggerContext = createApprovalTriggerContext();
+        if (triggerContext == null) {
+            // Subclass has not provided a bridge-driving context — fall back
+            // to the helper-level check so we at least verify the shared
+            // call site still works. This is a known gap for runtimes whose
+            // mock infrastructure cannot emit a synthetic tool-call.
+            assertHelperLevelHitl(runtime);
+            return;
+        }
+
+        var observed = new AtomicReference<PendingApproval>();
+        ApprovalStrategy capturing = (approval, session) -> {
+            observed.set(approval);
+            return ApprovalStrategy.ApprovalOutcome.DENIED;
+        };
+
+        var context = triggerContext.withApprovalStrategy(capturing);
+        var session = new RecordingSession();
+
+        runtime.execute(context, session);
+
+        assertNotNull(observed.get(),
+                runtime.name() + " runtime.execute did not consult the ApprovalStrategy on "
+                        + "a @RequiresApproval tool-call path — the runtime bridge is "
+                        + "bypassing the unified ToolExecutionHelper.executeWithApproval seam "
+                        + "(Correctness Invariant #7 — Mode Parity).");
+    }
+
+    /**
+     * Helper-level fallback assertion for runtimes whose subclass cannot yet
+     * emit a tool-call through its mock client. Kept so every
+     * {@code TOOL_CALLING} runtime still has <em>some</em> coverage of the
+     * shared HITL seam until a richer trigger context is plumbed.
+     */
+    private void assertHelperLevelHitl(AgentRuntime runtime) {
         var counter = new java.util.concurrent.atomic.AtomicInteger();
         var sensitive = ToolDefinition.builder("contract_delete", "test-only deletion")
                 .parameter("id", "row id", "string")
@@ -158,23 +198,35 @@ public abstract class AbstractAgentRuntimeContractTest {
             return ApprovalStrategy.ApprovalOutcome.DENIED;
         };
 
-        // Go through the unified helper with a no-op session. This is exactly
-        // the call every runtime bridge now makes. If a runtime declares
-        // TOOL_CALLING but hasn't wired executeWithApproval on its bridge, the
-        // capturing strategy never observes the PendingApproval and this test
-        // fires.
         var result = ToolExecutionHelper.executeWithApproval(
                 "contract_delete", sensitive, Map.of("id", "r-1"),
                 new NoopSession(), capturing);
 
         assertNotNull(observed.get(),
-                runtime.name() + " declares TOOL_CALLING but ToolExecutionHelper.executeWithApproval "
-                        + "did not consult the ApprovalStrategy — the runtime bridge is bypassing "
-                        + "the unified HITL call site (Correctness Invariant #7 — Mode Parity).");
+                runtime.name() + " ToolExecutionHelper.executeWithApproval did not "
+                        + "consult the ApprovalStrategy (shared helper regression).");
         assertTrue(result.contains("cancelled"),
                 "denied outcome must surface cancellation result from the unified helper");
         assertTrue(counter.get() == 0,
                 "denied @RequiresApproval tool must not execute its delegate");
+    }
+
+    /**
+     * Subclass hook: return an {@link AgentExecutionContext} whose
+     * {@code runtime.execute} call will cause the runtime to invoke a
+     * {@code @RequiresApproval} tool via its bridge. Typically the subclass
+     * configures its mock chat client to emit a tool-call response for a
+     * known tool name and builds a context containing that tool with
+     * {@code requiresApproval()}. The base class injects a capturing
+     * {@link ApprovalStrategy} via
+     * {@link AgentExecutionContext#withApprovalStrategy} before dispatch.
+     *
+     * <p>Return {@code null} if the subclass cannot set up such a context —
+     * the base test falls back to asserting the helper-level wiring still
+     * works (less informative, but preserves some coverage).</p>
+     */
+    protected AgentExecutionContext createApprovalTriggerContext() {
+        return null;
     }
 
     /** Minimal StreamingSession satisfying the helper's session.sessionId() call. */

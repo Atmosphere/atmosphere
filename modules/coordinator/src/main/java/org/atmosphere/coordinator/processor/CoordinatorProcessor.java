@@ -789,6 +789,19 @@ public class CoordinatorProcessor implements Processor<Object> {
                 taskCtx.fail("Empty message");
                 return;
             }
+
+            // Fast-path: A2A protocol approval responses ("/__approval/<id>/approve")
+            // route through the pipeline's ApprovalRegistry so the parked VT from
+            // a previous @RequiresApproval tool call resumes. Without this, every
+            // approval-shaped message on A2A would be dispatched as a new prompt
+            // and the waiting VT would time out.
+            if (pipeline != null
+                    && org.atmosphere.ai.approval.ApprovalRegistry.isApprovalMessage(message)
+                    && pipeline.tryResolveApproval(message)) {
+                taskCtx.complete("");
+                return;
+            }
+
             try {
                 bridgedPromptMethod.setAccessible(true);
                 var collector = new A2aCoordinatorCollector(taskCtx, pipeline);
@@ -815,85 +828,18 @@ public class CoordinatorProcessor implements Processor<Object> {
     }
 
     /**
-     * Minimal {@link StreamingSession} adapter for A2A coordinator invocations.
-     * Collects streamed text and writes it as the A2A task result on completion.
+     * Thin nested alias over
+     * {@link org.atmosphere.a2a.runtime.A2aStreamCollector}, kept only so
+     * call sites inside this file can write {@code new A2aCoordinatorCollector(...)}
+     * without importing the fully-qualified shared base. The real concurrency,
+     * finalization, and error semantics live in the shared base — previously
+     * this class and {@code AgentProcessor.A2aStreamCollector} were
+     * copy-paste clones with divergent thread-safety.
      */
-    static class A2aCoordinatorCollector implements StreamingSession {
-        private final org.atmosphere.a2a.runtime.TaskContext taskCtx;
-        private final AiPipeline pipeline;
-        private final StringBuffer buffer = new StringBuffer();
-        private final java.util.concurrent.CountDownLatch completionLatch =
-                new java.util.concurrent.CountDownLatch(1);
-        private volatile boolean finalized;
-
+    static final class A2aCoordinatorCollector extends org.atmosphere.a2a.runtime.A2aStreamCollector {
         A2aCoordinatorCollector(org.atmosphere.a2a.runtime.TaskContext taskCtx,
                                 AiPipeline pipeline) {
-            this.taskCtx = taskCtx;
-            this.pipeline = pipeline;
-        }
-
-        @Override public String sessionId() { return taskCtx.taskId(); }
-
-        @Override
-        public void send(String text) {
-            buffer.append(text);
-        }
-
-        @Override
-        public void stream(String message) {
-            if (pipeline != null) {
-                pipeline.execute(taskCtx.taskId(), message, this);
-            } else {
-                buffer.append(message);
-            }
-        }
-
-        @Override public void sendMetadata(String key, Object value) { }
-
-        @Override
-        public void progress(String message) {
-            taskCtx.updateStatus(org.atmosphere.a2a.types.TaskState.WORKING, message);
-        }
-
-        @Override
-        public void complete() {
-            if (!finalized) {
-                finalized = true;
-                taskCtx.complete(buffer.toString());
-                completionLatch.countDown();
-            }
-        }
-
-        @Override
-        public void complete(String summary) {
-            if (!finalized) {
-                finalized = true;
-                taskCtx.complete(summary != null ? summary : buffer.toString());
-                completionLatch.countDown();
-            }
-        }
-
-        @Override
-        public void error(Throwable t) {
-            if (!finalized) {
-                finalized = true;
-                taskCtx.fail(t.getMessage());
-                completionLatch.countDown();
-            }
-        }
-
-        @Override public boolean isClosed() { return finalized; }
-
-        void awaitAndFinalize(long timeoutMs) {
-            try {
-                completionLatch.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            if (!finalized) {
-                finalized = true;
-                taskCtx.complete(buffer.toString());
-            }
+            super(taskCtx, pipeline);
         }
     }
 
