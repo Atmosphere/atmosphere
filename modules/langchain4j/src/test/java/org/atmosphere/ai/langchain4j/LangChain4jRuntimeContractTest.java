@@ -74,6 +74,18 @@ class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
         return null;
     }
 
+    @Override
+    protected AgentExecutionContext createImageContext() {
+        var parts = List.<org.atmosphere.ai.Content>of(
+                new org.atmosphere.ai.Content.Image(TINY_PNG, "image/png"));
+        return new AgentExecutionContext(
+                "Describe this image.", "You are helpful", "gpt-4",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), parts,
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
+    }
+
     @Test
     void langChain4jDeclaresToolCalling() {
         assertTrue(createRuntime().capabilities().contains(AiCapability.TOOL_CALLING));

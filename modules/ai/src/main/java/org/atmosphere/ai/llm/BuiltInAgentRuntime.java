@@ -127,6 +127,13 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
         if (context.approvalStrategy() != null) {
             builder.approvalStrategy(context.approvalStrategy());
         }
+        if (!context.parts().isEmpty()) {
+            // Multi-modal parts ride the request as a separate field so
+            // OpenAiCompatibleClient.buildRequestBody can emit them as the
+            // OpenAI multi-content array on the last user message without
+            // disturbing the plain-text fast path.
+            builder.parts(context.parts());
+        }
         return builder.build();
     }
 
@@ -148,7 +155,17 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
                 AiCapability.TOOL_CALLING,
                 AiCapability.STRUCTURED_OUTPUT,
                 AiCapability.SYSTEM_PROMPT,
-                AiCapability.TOOL_APPROVAL);
+                AiCapability.TOOL_APPROVAL,
+                // VISION / MULTI_MODAL are honest: buildRequest threads
+                // Content.Image parts through ChatCompletionRequest.parts,
+                // and OpenAiCompatibleClient.buildRequestBody translates them
+                // into the OpenAI multi-content array format
+                // ({"type":"image_url","image_url":{"url":"data:<mime>;base64,..."}})
+                // on the last user message. AUDIO is excluded — the OpenAI
+                // chat completions API does not accept audio input on the
+                // text-model surface (Whisper is a separate endpoint).
+                AiCapability.VISION,
+                AiCapability.MULTI_MODAL);
     }
 
     @Override

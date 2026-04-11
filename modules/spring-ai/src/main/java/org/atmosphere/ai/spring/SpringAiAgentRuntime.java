@@ -108,7 +108,35 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                     .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
             promptSpec = promptSpec.messages(historyMessages);
         }
-        promptSpec = promptSpec.user(context.message());
+
+        // Translate any multi-modal Content.Image / Content.Audio parts on the
+        // context into Spring AI Media attached to the user message. Text-only
+        // paths keep the legacy fast path so existing callers don't pay the
+        // Consumer<PromptUserSpec> overhead. ByteArrayResource wraps the raw
+        // bytes because Spring AI 1.1's Media constructor takes a
+        // Resource, not a byte[].
+        var mediaList = new ArrayList<org.springframework.ai.content.Media>();
+        for (var part : context.parts()) {
+            if (part instanceof org.atmosphere.ai.Content.Image img) {
+                var mimeType = org.springframework.util.MimeType.valueOf(img.mimeType());
+                var resource = new org.springframework.core.io.ByteArrayResource(img.data());
+                mediaList.add(new org.springframework.ai.content.Media(mimeType, resource));
+            } else if (part instanceof org.atmosphere.ai.Content.Audio audio) {
+                var mimeType = org.springframework.util.MimeType.valueOf(audio.mimeType());
+                var resource = new org.springframework.core.io.ByteArrayResource(audio.data());
+                mediaList.add(new org.springframework.ai.content.Media(mimeType, resource));
+            }
+            // Content.Text is folded into the main message below; Content.File
+            // has no Spring AI equivalent on the user-message path (file inputs
+            // are typically attached via tool-calling, not as message media).
+        }
+        if (mediaList.isEmpty()) {
+            promptSpec = promptSpec.user(context.message());
+        } else {
+            var messageText = context.message();
+            var mediaArray = mediaList.toArray(new org.springframework.ai.content.Media[0]);
+            promptSpec = promptSpec.user(u -> u.text(messageText).media(mediaArray));
+        }
 
         if (context.model() != null && !context.model().isBlank()) {
             promptSpec = promptSpec.options(
@@ -206,7 +234,17 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                 // routes tool invocation through
                 // ToolExecutionHelper.executeWithApproval on every call, so
                 // @RequiresApproval gates fire uniformly across all runtimes.
-                AiCapability.TOOL_APPROVAL
+                AiCapability.TOOL_APPROVAL,
+                // VISION / AUDIO / MULTI_MODAL are honest: the doExecuteWithHandle
+                // message assembler translates Content.Image and Content.Audio
+                // parts on the context into Spring AI Media attached to the
+                // user message. Underlying model support depends on the
+                // configured ChatClient — admins who point Atmosphere at a
+                // text-only model will get a provider-level error at dispatch,
+                // not a silent drop.
+                AiCapability.VISION,
+                AiCapability.AUDIO,
+                AiCapability.MULTI_MODAL
         );
     }
 

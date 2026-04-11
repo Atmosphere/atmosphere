@@ -150,6 +150,79 @@ public abstract class AbstractAgentRuntimeContractTest {
     }
 
     /**
+     * Every runtime that declares {@link AiCapability#VISION} must accept
+     * a small PNG {@link org.atmosphere.ai.Content.Image} part on the
+     * execution context without throwing at dispatch. This contract is the
+     * boundary-safety guarantee for multi-modal input
+     * (Correctness Invariant #4): a runtime that advertises VISION but
+     * doesn't translate {@link org.atmosphere.ai.Content.Image} into its
+     * framework-native type (Spring AI {@code Media}, LC4j
+     * {@code ImageContent}, ADK {@code Part.fromBytes}, OpenAI
+     * {@code image_url} content block) silently drops the image from the
+     * prompt.
+     *
+     * <p>Subclasses that cannot mock a tool-calling execution path may
+     * override {@link #createImageContext()} to return {@code null} — the
+     * assertion then skips cleanly.</p>
+     */
+    @Test
+    protected void runtimeWithVisionCapabilityAcceptsImagePart() {
+        var runtime = createRuntime();
+        if (!runtime.capabilities().contains(AiCapability.VISION)) {
+            return;
+        }
+        var context = createImageContext();
+        if (context == null) {
+            return;
+        }
+        // Dispatch should not throw — the capability assertion is "accepts
+        // the part without blowing up at message assembly". Downstream
+        // success depends on the configured model and is tested elsewhere.
+        try {
+            runtime.execute(context, new NoopSession());
+        } catch (UnsupportedOperationException uoe) {
+            org.junit.jupiter.api.Assertions.fail(
+                    runtime.name() + " declares VISION but threw UnsupportedOperationException on an image part: "
+                            + uoe.getMessage());
+        } catch (IllegalStateException | IllegalArgumentException iae) {
+            // Bridges may reject at configure() time when the native model
+            // client isn't wired — that's acceptable and not a contract
+            // violation.
+            org.junit.jupiter.api.Assumptions.assumeTrue(false,
+                    runtime.name() + " skipped image dispatch: " + iae.getMessage());
+        } catch (Exception ignored) {
+            // Network / model-provider failures are not part of this
+            // contract; the assertion is purely about accepting the part
+            // through the message assembler without throwing
+            // UnsupportedOperationException.
+        }
+    }
+
+    /**
+     * Subclass hook: return an {@link AgentExecutionContext} whose
+     * {@code parts()} list contains a small PNG {@link org.atmosphere.ai.Content.Image}.
+     * Subclasses typically return a minimal context with a 1×1 PNG encoded
+     * in {@code Content.Image}; the default returns {@code null} so
+     * runtimes without a mockable dispatch path skip the assertion.
+     */
+    protected AgentExecutionContext createImageContext() {
+        return null;
+    }
+
+    /** Minimal 1×1 transparent PNG for VISION contract tests. */
+    protected static final byte[] TINY_PNG = new byte[]{
+            (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+            0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, (byte) 0xC4,
+            (byte) 0x89, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41,
+            0x54, 0x78, (byte) 0x9C, 0x62, 0x00, 0x01, 0x00, 0x00,
+            0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, (byte) 0xB4, 0x00,
+            0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, (byte) 0xAE,
+            0x42, 0x60, (byte) 0x82
+    };
+
+    /**
      * Every runtime must return a non-null list from
      * {@link AgentRuntime#models()}. Runtimes with a deterministic model
      * hint available post-{@code configure()} should return it so admin

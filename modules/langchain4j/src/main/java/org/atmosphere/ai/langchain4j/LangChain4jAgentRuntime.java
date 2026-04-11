@@ -138,6 +138,39 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 .map(LangChain4jAgentRuntime::toLangChainMessage)
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
 
+        // Translate any multi-modal Content.Image / Content.Audio parts on
+        // the context into LC4j-native Content instances and replace the
+        // trailing user message (which assembleMessages put there as plain
+        // text) with a rich UserMessage carrying text + media. LC4j's
+        // ImageContent has no direct byte[] factory, so binary inputs are
+        // base64-encoded and passed to ImageContent.from(String base64,
+        // String mimeType) — same pattern for AudioContent.
+        if (!context.parts().isEmpty()) {
+            var mediaContents = new ArrayList<dev.langchain4j.data.message.Content>();
+            mediaContents.add(dev.langchain4j.data.message.TextContent.from(context.message()));
+            for (var part : context.parts()) {
+                if (part instanceof org.atmosphere.ai.Content.Image img) {
+                    mediaContents.add(dev.langchain4j.data.message.ImageContent.from(
+                            img.dataBase64(), img.mimeType()));
+                } else if (part instanceof org.atmosphere.ai.Content.Audio audio) {
+                    mediaContents.add(dev.langchain4j.data.message.AudioContent.from(
+                            audio.dataBase64(), audio.mimeType()));
+                }
+                // Content.Text folded into the text block above; Content.File
+                // has no LC4j user-message equivalent (file inputs typically
+                // go through tool calling instead of message media).
+            }
+            if (mediaContents.size() > 1) {
+                // Replace the last assembled user message (plain text) with
+                // the multi-content variant. assembleMessages always puts the
+                // user message last, so messages.size()-1 is the right index.
+                if (!messages.isEmpty()) {
+                    messages.remove(messages.size() - 1);
+                }
+                messages.add(dev.langchain4j.data.message.UserMessage.from(mediaContents));
+            }
+        }
+
         // Add tool specifications if tools are present
         var tools = context.tools();
         var toolSpecs = tools.isEmpty()
@@ -247,7 +280,17 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 // routes tool invocation through
                 // ToolExecutionHelper.executeWithApproval, so @RequiresApproval
                 // gates fire uniformly with the other runtime bridges.
-                AiCapability.TOOL_APPROVAL
+                AiCapability.TOOL_APPROVAL,
+                // VISION / AUDIO / MULTI_MODAL are honest: doExecuteWithHandle
+                // translates Content.Image and Content.Audio parts into LC4j
+                // ImageContent / AudioContent attached to a multi-content
+                // UserMessage. Underlying model support depends on the
+                // configured StreamingChatModel — pointing Atmosphere at a
+                // text-only model will surface a provider-level error at
+                // dispatch, not a silent drop.
+                AiCapability.VISION,
+                AiCapability.AUDIO,
+                AiCapability.MULTI_MODAL
         );
     }
 

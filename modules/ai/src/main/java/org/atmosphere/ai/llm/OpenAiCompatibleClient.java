@@ -538,9 +538,31 @@ public class OpenAiCompatibleClient implements LlmClient {
     private String buildRequestBody(ChatCompletionRequest request) throws JacksonException {
         var body = new LinkedHashMap<String, Object>();
         body.put("model", request.model());
-        body.put("messages", request.messages().stream()
-                .map(OpenAiCompatibleClient::serializeMessage)
-                .toList());
+
+        // Serialize messages. If the request carries multi-modal parts, the
+        // last user message's {@code content} is replaced with the OpenAI
+        // multi-content array format: a list of {"type":"text"} and
+        // {"type":"image_url","image_url":{"url":"data:<mime>;base64,<b64>"}}
+        // entries. Non-user messages and all messages on text-only paths
+        // keep the legacy plain-string content.
+        var serialized = new ArrayList<Map<String, Object>>(request.messages().size());
+        var messages = request.messages();
+        var parts = request.parts();
+        var hasVisualParts = !parts.isEmpty()
+                && parts.stream().anyMatch(p ->
+                        p instanceof org.atmosphere.ai.Content.Image
+                                || p instanceof org.atmosphere.ai.Content.Audio);
+        var lastUserIndex = hasVisualParts ? findLastUserMessageIndex(messages) : -1;
+        for (int i = 0; i < messages.size(); i++) {
+            var m = messages.get(i);
+            if (i == lastUserIndex) {
+                serialized.add(serializeMultiContentUserMessage(m, parts));
+            } else {
+                serialized.add(serializeMessage(m));
+            }
+        }
+        body.put("messages", serialized);
+
         body.put("stream", true);
         body.put("temperature", request.temperature());
         if (request.maxStreamingTexts() > 0) {
@@ -553,6 +575,46 @@ public class OpenAiCompatibleClient implements LlmClient {
             body.put("tools", serializeTools(request.tools()));
         }
         return MAPPER.writeValueAsString(body);
+    }
+
+    private static int findLastUserMessageIndex(List<ChatMessage> messages) {
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            if ("user".equals(messages.get(i).role())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static Map<String, Object> serializeMultiContentUserMessage(
+            ChatMessage m, List<org.atmosphere.ai.Content> parts) {
+        var msg = new LinkedHashMap<String, Object>();
+        msg.put("role", m.role());
+        var contentArray = new ArrayList<Map<String, Object>>();
+        if (m.content() != null && !m.content().isEmpty()) {
+            contentArray.add(Map.of("type", "text", "text", m.content()));
+        }
+        for (var part : parts) {
+            if (part instanceof org.atmosphere.ai.Content.Image img) {
+                var dataUrl = "data:" + img.mimeType() + ";base64," + img.dataBase64();
+                contentArray.add(Map.of(
+                        "type", "image_url",
+                        "image_url", Map.of("url", dataUrl)));
+            } else if (part instanceof org.atmosphere.ai.Content.Audio audio) {
+                // OpenAI chat completions supports audio input on some models
+                // via the input_audio content type (gpt-4o-audio-preview). The
+                // format is {"type":"input_audio","input_audio":{"data":"<b64>","format":"mp3"}}.
+                var format = audio.mimeType().substring(audio.mimeType().indexOf('/') + 1);
+                contentArray.add(Map.of(
+                        "type", "input_audio",
+                        "input_audio", Map.of("data", audio.dataBase64(), "format", format)));
+            }
+        }
+        msg.put("content", contentArray);
+        if (m.toolCallId() != null) {
+            msg.put("tool_call_id", m.toolCallId());
+        }
+        return msg;
     }
 
     private static Map<String, Object> serializeMessage(ChatMessage m) {

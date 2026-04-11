@@ -225,10 +225,30 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
 
         ensureSession(requestRunner, userId, sessionId);
 
+        // Translate any multi-modal Content.Image / Content.Audio / Content.File
+        // parts on the context into ADK Part.fromBytes(byte[], mimeType) and
+        // attach them alongside the text prompt. ADK's Content.fromParts
+        // accepts a varargs Part[], so we assemble a list and splat it.
+        var partsList = new java.util.ArrayList<Part>();
+        partsList.add(Part.fromText(context.message()));
+        for (var p : context.parts()) {
+            if (p instanceof org.atmosphere.ai.Content.Image img) {
+                partsList.add(Part.fromBytes(img.data(), img.mimeType()));
+            } else if (p instanceof org.atmosphere.ai.Content.Audio audio) {
+                partsList.add(Part.fromBytes(audio.data(), audio.mimeType()));
+            } else if (p instanceof org.atmosphere.ai.Content.File file) {
+                // ADK also accepts generic binary blobs via fromBytes;
+                // file-name metadata is lost at this layer but Gemini's
+                // multi-modal input doesn't require it.
+                partsList.add(Part.fromBytes(file.data(), file.mimeType()));
+            }
+            // Content.Text is folded into the prompt text block above.
+        }
+
         var events = requestRunner.runAsync(
                 userId,
                 sessionId,
-                Content.fromParts(Part.fromText(context.message()))
+                Content.fromParts(partsList.toArray(new Part[0]))
         );
 
         // D-6 follow-up: wire the AdkEventAdapter's existing cancel() + whenDone()
@@ -287,7 +307,14 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 AiCapability.AGENT_ORCHESTRATION,
                 AiCapability.CONVERSATION_MEMORY,
                 AiCapability.SYSTEM_PROMPT,
-                AiCapability.TOOL_APPROVAL
+                AiCapability.TOOL_APPROVAL,
+                // VISION / AUDIO / MULTI_MODAL are honest: doExecute translates
+                // Content.Image / Audio / File parts into Gemini Part.fromBytes
+                // (byte[], mimeType) and attaches them to the runAsync input.
+                // Gemini models support all three input modalities natively.
+                AiCapability.VISION,
+                AiCapability.AUDIO,
+                AiCapability.MULTI_MODAL
         );
     }
 

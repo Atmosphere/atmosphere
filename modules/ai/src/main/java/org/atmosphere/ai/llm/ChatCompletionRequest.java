@@ -38,13 +38,29 @@ public record ChatCompletionRequest(
         boolean jsonMode,
         List<ToolDefinition> tools,
         String conversationId,
-        ApprovalStrategy approvalStrategy
+        ApprovalStrategy approvalStrategy,
+        List<org.atmosphere.ai.Content> parts
 ) {
     /**
      * Canonical constructor.
      */
     public ChatCompletionRequest {
         tools = tools != null ? List.copyOf(tools) : List.of();
+        parts = parts != null ? List.copyOf(parts) : List.of();
+    }
+
+    /**
+     * Shim constructor accepting the 8-arg form without multi-modal parts.
+     * Defaults {@code parts} to an empty list so existing callers (routing,
+     * fanout, tests) keep compiling unchanged. Callers that need multi-modal
+     * input use the canonical 9-arg constructor directly.
+     */
+    public ChatCompletionRequest(String model, List<ChatMessage> messages,
+                                 double temperature, int maxStreamingTexts,
+                                 boolean jsonMode, List<ToolDefinition> tools,
+                                 String conversationId, ApprovalStrategy approvalStrategy) {
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
+                conversationId, approvalStrategy, List.of());
     }
 
     /**
@@ -54,7 +70,7 @@ public record ChatCompletionRequest(
                                  double temperature, int maxStreamingTexts,
                                  boolean jsonMode, List<ToolDefinition> tools,
                                  String conversationId) {
-        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, conversationId, null);
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, conversationId, null, List.of());
     }
 
     /**
@@ -63,7 +79,7 @@ public record ChatCompletionRequest(
     public ChatCompletionRequest(String model, List<ChatMessage> messages,
                                  double temperature, int maxStreamingTexts,
                                  boolean jsonMode, List<ToolDefinition> tools) {
-        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, null, null);
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, null, null, List.of());
     }
 
     /**
@@ -71,7 +87,7 @@ public record ChatCompletionRequest(
      */
     public static ChatCompletionRequest of(String model, String userPrompt) {
         return new ChatCompletionRequest(model, List.of(ChatMessage.user(userPrompt)),
-                0.7, 2048, false, List.of(), null, null);
+                0.7, 2048, false, List.of(), null, null, List.of());
     }
 
     /**
@@ -90,6 +106,7 @@ public record ChatCompletionRequest(
         private boolean jsonMode = false;
         private String conversationId;
         private ApprovalStrategy approvalStrategy;
+        private List<org.atmosphere.ai.Content> parts = List.of();
 
         private Builder(String model) {
             this.model = model;
@@ -145,9 +162,21 @@ public record ChatCompletionRequest(
             return this;
         }
 
+        /**
+         * Attach multi-modal {@link org.atmosphere.ai.Content} parts
+         * (image, audio, file) to the request. The
+         * {@link org.atmosphere.ai.llm.OpenAiCompatibleClient} translates
+         * them into the OpenAI multi-content {@code content} array format
+         * on the last user message when the list is non-empty.
+         */
+        public Builder parts(List<org.atmosphere.ai.Content> parts) {
+            this.parts = parts != null ? parts : List.of();
+            return this;
+        }
+
         public ChatCompletionRequest build() {
             return new ChatCompletionRequest(model, List.copyOf(messages),
-                    temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy);
+                    temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy, parts);
         }
     }
 }
