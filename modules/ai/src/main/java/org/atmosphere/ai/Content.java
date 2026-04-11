@@ -63,6 +63,28 @@ public sealed interface Content {
     }
 
     /**
+     * Binary audio content (e.g. WAV/MP3/OGG uploaded by the user or produced
+     * by a model). Phase 4 of the unified {@code @Agent} API adds this variant
+     * so runtimes declaring {@link AiCapability#AUDIO} have a concrete input
+     * type to translate.
+     */
+    record Audio(byte[] data, String mimeType) implements Content {
+        public Audio {
+            if (data == null || data.length == 0) {
+                throw new IllegalArgumentException("audio data must not be null or empty");
+            }
+            if (mimeType == null || mimeType.isBlank()) {
+                throw new IllegalArgumentException("mimeType must not be null or blank");
+            }
+        }
+
+        /** Base64-encoded data for wire transfer. */
+        public String dataBase64() {
+            return Base64.getEncoder().encodeToString(data);
+        }
+    }
+
+    /**
      * Binary file content with a filename.
      */
     record File(byte[] data, String mimeType, String fileName) implements Content {
@@ -94,6 +116,11 @@ public sealed interface Content {
     /** Create image content. */
     static Content image(byte[] data, String mimeType) {
         return new Image(data, mimeType);
+    }
+
+    /** Create audio content. */
+    static Content audio(byte[] data, String mimeType) {
+        return new Audio(data, mimeType);
     }
 
     /** Create file content. */

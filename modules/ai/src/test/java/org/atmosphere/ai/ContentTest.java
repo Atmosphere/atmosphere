@@ -106,7 +106,24 @@ public class ContentTest {
             case Content.Text t -> "text: " + t.text();
             case Content.Image i -> "image: " + i.mimeType();
             case Content.File f -> "file: " + f.fileName();
+            case Content.Audio a -> "audio: " + a.mimeType();
         };
         assertEquals("text: hello", result);
+    }
+
+    @Test
+    public void testAudioContentRequiresDataAndMimeType() {
+        var audio = Content.audio(new byte[]{1, 2, 3}, "audio/wav");
+        assertTrue(audio instanceof Content.Audio);
+        var a = (Content.Audio) audio;
+        assertEquals("audio/wav", a.mimeType());
+        assertEquals(3, a.data().length);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> Content.audio(null, "audio/wav"));
+        assertThrows(IllegalArgumentException.class,
+                () -> Content.audio(new byte[0], "audio/wav"));
+        assertThrows(IllegalArgumentException.class,
+                () -> Content.audio(new byte[]{1}, null));
     }
 }

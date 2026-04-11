@@ -56,7 +56,8 @@ public record AgentExecutionContext(
         List<ChatMessage> history,
         Class<?> responseType,
         ApprovalStrategy approvalStrategy,
-        List<AgentLifecycleListener> listeners
+        List<AgentLifecycleListener> listeners,
+        List<Content> parts
 ) {
 
     public AgentExecutionContext {
@@ -65,6 +66,25 @@ public record AgentExecutionContext(
         metadata = metadata != null ? Map.copyOf(metadata) : Map.of();
         history = history != null ? List.copyOf(history) : List.of();
         listeners = listeners != null ? List.copyOf(listeners) : List.of();
+        parts = parts != null ? List.copyOf(parts) : List.of();
+    }
+
+    /**
+     * Phase 3 16-arg constructor preserved for call sites that carry a listener
+     * list but not yet multi-modal input parts. Delegates to the canonical
+     * 17-arg constructor with an empty parts list.
+     */
+    public AgentExecutionContext(String message, String systemPrompt, String model,
+                                 String agentId, String sessionId, String userId,
+                                 String conversationId, List<ToolDefinition> tools,
+                                 Object toolTarget, AiConversationMemory memory,
+                                 List<ContextProvider> contextProviders,
+                                 Map<String, Object> metadata, List<ChatMessage> history,
+                                 Class<?> responseType, ApprovalStrategy approvalStrategy,
+                                 List<AgentLifecycleListener> listeners) {
+        this(message, systemPrompt, model, agentId, sessionId, userId, conversationId,
+                tools, toolTarget, memory, contextProviders, metadata, history, responseType,
+                approvalStrategy, listeners, List.of());
     }
 
     /**
@@ -105,48 +125,55 @@ public record AgentExecutionContext(
     public AgentExecutionContext withMessage(String message) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
     }
 
     /** Create a context with a different system prompt. */
     public AgentExecutionContext withSystemPrompt(String systemPrompt) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
     }
 
     /** Create a context with additional metadata. */
     public AgentExecutionContext withMetadata(Map<String, Object> metadata) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
     }
 
     /** Create a context with conversation history. */
     public AgentExecutionContext withHistory(List<ChatMessage> history) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
     }
 
     /** Create a context with a target response type for structured output. */
     public AgentExecutionContext withResponseType(Class<?> responseType) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
     }
 
     /** Create a context bound to a session-scoped HITL strategy. */
     public AgentExecutionContext withApprovalStrategy(ApprovalStrategy approvalStrategy) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
     }
 
     /** Create a context with an additional lifecycle listener list (Phase 3). */
     public AgentExecutionContext withListeners(List<AgentLifecycleListener> listeners) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
+    }
+
+    /** Create a context with multi-modal input parts (Phase 4). */
+    public AgentExecutionContext withParts(List<Content> parts) {
+        return new AgentExecutionContext(message, systemPrompt, model, agentId,
+                sessionId, userId, conversationId, tools, toolTarget, memory,
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts);
     }
 }

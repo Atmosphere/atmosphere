@@ -164,6 +164,17 @@ final class BroadcasterStreamingSession implements StreamingSession {
                 msg.put("seq", sequence.incrementAndGet());
                 broadcast(toJson(msg));
             }
+            case Content.Audio audio -> {
+                // Phase 4: audio variant for multi-modal parts.
+                var msg = new LinkedHashMap<String, Object>();
+                msg.put("type", "content");
+                msg.put("contentType", "audio");
+                msg.put("mimeType", audio.mimeType());
+                msg.put("data", audio.dataBase64());
+                msg.put("sessionId", sessionId);
+                msg.put("seq", sequence.incrementAndGet());
+                broadcast(toJson(msg));
+            }
         }
     }
 
