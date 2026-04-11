@@ -134,6 +134,14 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
             // disturbing the plain-text fast path.
             builder.parts(context.parts());
         }
+        if (!context.listeners().isEmpty()) {
+            // Per-tool lifecycle events fire from the SSE tool loop inside
+            // OpenAiCompatibleClient, which only sees the ChatCompletionRequest.
+            // Thread the context's listeners through the request so the loop
+            // can call AgentLifecycleListener.fireToolCall / fireToolResult
+            // on every round.
+            builder.listeners(context.listeners());
+        }
         return builder.build();
     }
 

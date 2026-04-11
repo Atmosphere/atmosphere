@@ -86,7 +86,7 @@ class AdkToolBridgeApprovalTest {
         var strategy = new RecordingStrategy(ApprovalStrategy.ApprovalOutcome.APPROVED);
 
         var tools = AdkToolBridge.toAdkTools(
-                List.of(sensitive(counter)), new NoopSession(), strategy);
+                List.of(sensitive(counter)), new NoopSession(), strategy, List.of());
         assertEquals(1, tools.size());
 
         var result = tools.get(0).runAsync(Map.of("userId", "u1"), null).blockingGet();
@@ -104,7 +104,7 @@ class AdkToolBridgeApprovalTest {
         var strategy = new RecordingStrategy(ApprovalStrategy.ApprovalOutcome.DENIED);
 
         var tools = AdkToolBridge.toAdkTools(
-                List.of(sensitive(counter)), new NoopSession(), strategy);
+                List.of(sensitive(counter)), new NoopSession(), strategy, List.of());
 
         var result = tools.get(0).runAsync(Map.of("userId", "u1"), null).blockingGet();
 
@@ -121,7 +121,7 @@ class AdkToolBridgeApprovalTest {
         var strategy = new RecordingStrategy(ApprovalStrategy.ApprovalOutcome.TIMED_OUT);
 
         var tools = AdkToolBridge.toAdkTools(
-                List.of(sensitive(counter)), new NoopSession(), strategy);
+                List.of(sensitive(counter)), new NoopSession(), strategy, List.of());
 
         var result = tools.get(0).runAsync(Map.of("userId", "u1"), null).blockingGet();
 
@@ -142,7 +142,7 @@ class AdkToolBridgeApprovalTest {
                 .build();
 
         var tools = AdkToolBridge.toAdkTools(
-                List.of(tool), new NoopSession(), null);
+                List.of(tool), new NoopSession(), null, List.of());
 
         var result = tools.get(0).runAsync(Map.of("value", "hi"), null).blockingGet();
         assertEquals("success", result.get("status"));

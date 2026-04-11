@@ -77,7 +77,7 @@ class AtmosphereToolBridgeApprovalTest {
     fun `approved koog tool runs the delegate`() = runBlocking {
         val counter = AtomicInteger()
         val strategy = RecordingStrategy(ApprovalStrategy.ApprovalOutcome.APPROVED)
-        val registry = AtmosphereToolBridge.buildRegistry(listOf(sensitive(counter)), NoopSession(), strategy)
+        val registry = AtmosphereToolBridge.buildRegistry(listOf(sensitive(counter)), NoopSession(), strategy, emptyList())
 
         val tool = registry.tools.first()
         @Suppress("UNCHECKED_CAST")
@@ -94,7 +94,7 @@ class AtmosphereToolBridgeApprovalTest {
     fun `denied koog tool skips the delegate`() = runBlocking {
         val counter = AtomicInteger()
         val strategy = RecordingStrategy(ApprovalStrategy.ApprovalOutcome.DENIED)
-        val registry = AtmosphereToolBridge.buildRegistry(listOf(sensitive(counter)), NoopSession(), strategy)
+        val registry = AtmosphereToolBridge.buildRegistry(listOf(sensitive(counter)), NoopSession(), strategy, emptyList())
 
         val tool = registry.tools.first()
         @Suppress("UNCHECKED_CAST")
@@ -115,7 +115,7 @@ class AtmosphereToolBridgeApprovalTest {
                 "echo:${args["value"]}"
             }
             .build()
-        val registry = AtmosphereToolBridge.buildRegistry(listOf(tool), NoopSession(), null)
+        val registry = AtmosphereToolBridge.buildRegistry(listOf(tool), NoopSession(), null, emptyList())
 
         @Suppress("UNCHECKED_CAST")
         val echoTool = registry.tools.first() as ai.koog.agents.core.tools.Tool<JSONObject, String>

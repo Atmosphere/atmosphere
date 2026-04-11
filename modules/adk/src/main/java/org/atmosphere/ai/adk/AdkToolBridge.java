@@ -68,9 +68,10 @@ public final class AdkToolBridge {
      * @return ADK tools for registration with {@code LlmAgent.builder().tools(...)}
      */
     public static List<BaseTool> toAdkTools(
-            List<ToolDefinition> tools, StreamingSession session, ApprovalStrategy strategy) {
+            List<ToolDefinition> tools, StreamingSession session, ApprovalStrategy strategy,
+            List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
         return tools.stream()
-                .map(tool -> (BaseTool) new AtmosphereAdkTool(tool, session, strategy))
+                .map(tool -> (BaseTool) new AtmosphereAdkTool(tool, session, strategy, listeners))
                 .toList();
     }
 
@@ -82,12 +83,16 @@ public final class AdkToolBridge {
         private final ToolDefinition atmosphereTool;
         private final StreamingSession session;
         private final ApprovalStrategy approvalStrategy;
+        private final List<org.atmosphere.ai.AgentLifecycleListener> listeners;
 
-        AtmosphereAdkTool(ToolDefinition tool, StreamingSession session, ApprovalStrategy approvalStrategy) {
+        AtmosphereAdkTool(ToolDefinition tool, StreamingSession session,
+                          ApprovalStrategy approvalStrategy,
+                          List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
             super(tool.name(), tool.description());
             this.atmosphereTool = tool;
             this.session = session;
             this.approvalStrategy = approvalStrategy;
+            this.listeners = listeners != null ? listeners : List.of();
         }
 
         @Override
@@ -128,8 +133,10 @@ public final class AdkToolBridge {
             }
 
             try {
+                org.atmosphere.ai.AgentLifecycleListener.fireToolCall(listeners, name(), safeArgs);
                 var resultStr = ToolExecutionHelper.executeWithApproval(
                         name(), atmosphereTool, safeArgs, session, approvalStrategy);
+                org.atmosphere.ai.AgentLifecycleListener.fireToolResult(listeners, name(), resultStr);
                 logger.debug("Tool {} executed: {}", name(), resultStr);
 
                 var response = new HashMap<String, Object>();
@@ -138,6 +145,9 @@ public final class AdkToolBridge {
                 return Single.just(response);
             } catch (Exception e) {
                 logger.error("Tool {} execution failed", name(), e);
+                org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
+                        listeners, name(),
+                        "{\"error\":\"" + (e.getMessage() != null ? e.getMessage() : "Unknown error") + "\"}");
                 return Single.just(Map.of(
                         "status", "error",
                         "error", e.getMessage() != null ? e.getMessage() : "Unknown error"

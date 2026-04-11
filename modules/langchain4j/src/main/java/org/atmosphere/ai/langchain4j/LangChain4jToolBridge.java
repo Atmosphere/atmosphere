@@ -116,37 +116,47 @@ public final class LangChain4jToolBridge {
      * Execute tool calls requested by the model and return result messages.
      * Routes every invocation through {@link ToolExecutionHelper#executeWithApproval}
      * so tools marked with {@code @RequiresApproval} park the virtual thread on
-     * the session-scoped {@link ApprovalStrategy}.
+     * the session-scoped {@link ApprovalStrategy}. Fires
+     * {@link org.atmosphere.ai.AgentLifecycleListener#onToolCall} /
+     * {@link org.atmosphere.ai.AgentLifecycleListener#onToolResult} on every
+     * listener in {@code listeners} around each tool invocation.
      *
      * @param aiMessage the AI message containing tool execution requests
      * @param toolMap   map of tool name to Atmosphere ToolDefinition
      * @param session   the streaming session (for emitting approval events)
      * @param strategy  session-scoped HITL gate (may be null — falls back to direct execution)
+     * @param listeners lifecycle listeners that observe per-tool events (may be null or empty)
      * @return list of tool execution result messages to feed back to the model
      */
     public static List<ToolExecutionResultMessage> executeToolCalls(
             AiMessage aiMessage, Map<String, ToolDefinition> toolMap,
-            StreamingSession session, ApprovalStrategy strategy) {
+            StreamingSession session, ApprovalStrategy strategy,
+            List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
 
         return aiMessage.toolExecutionRequests().stream()
-                .map(request -> executeToolCall(request, toolMap, session, strategy))
+                .map(request -> executeToolCall(request, toolMap, session, strategy, listeners))
                 .toList();
     }
 
     private static ToolExecutionResultMessage executeToolCall(
             ToolExecutionRequest request, Map<String, ToolDefinition> toolMap,
-            StreamingSession session, ApprovalStrategy strategy) {
+            StreamingSession session, ApprovalStrategy strategy,
+            List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
 
         var tool = toolMap.get(request.name());
         if (tool == null) {
             logger.warn("Tool not found: {}", request.name());
-            return ToolExecutionResultMessage.from(
-                    request, "{\"error\":\"Tool not found: " + request.name() + "\"}");
+            var errorResult = "{\"error\":\"Tool not found: " + request.name() + "\"}";
+            org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
+                    listeners, request.name(), errorResult);
+            return ToolExecutionResultMessage.from(request, errorResult);
         }
 
         Map<String, Object> args = ToolBridgeUtils.parseJsonArgs(request.arguments());
+        org.atmosphere.ai.AgentLifecycleListener.fireToolCall(listeners, request.name(), args);
         var resultStr = ToolExecutionHelper.executeWithApproval(
                 request.name(), tool, args, session, strategy);
+        org.atmosphere.ai.AgentLifecycleListener.fireToolResult(listeners, request.name(), resultStr);
         return ToolExecutionResultMessage.from(request, resultStr);
     }
 

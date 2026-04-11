@@ -303,19 +303,26 @@ public class OpenAiCompatibleClient implements LlmClient {
             // Add an assistant message placeholder for the tool call turn
             updatedMessages.add(new ChatMessage("assistant", null));
 
-            // Execute each tool call and add result messages
+            // Execute each tool call and add result messages. For each call,
+            // fire the lifecycle listeners attached to the request so
+            // {@code @AgentLifecycleListener} consumers see onToolCall /
+            // onToolResult events in-order alongside the AiEvent wire frames.
             for (var entry : accumulators.entrySet()) {
                 var acc = entry.getValue();
                 var toolName = acc.functionName();
                 var args = ToolBridgeUtils.parseJsonArgs(acc.arguments());
 
                 session.emit(new AiEvent.ToolStart(toolName, args));
+                org.atmosphere.ai.AgentLifecycleListener.fireToolCall(
+                        request.listeners(), toolName, args);
 
                 var tool = toolMap.get(toolName);
                 if (tool == null) {
                     logger.warn("Tool not found: {}", toolName);
                     var errorResult = "{\"error\":\"Tool not found: " + toolName + "\"}";
                     session.emit(new AiEvent.ToolError(toolName, "Tool not found"));
+                    org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
+                            request.listeners(), toolName, errorResult);
                     updatedMessages.add(ChatMessage.tool(errorResult, acc.id()));
                     continue;
                 }
@@ -323,6 +330,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                 var resultStr = ToolExecutionHelper.executeWithApproval(
                         toolName, tool, args, session, request.approvalStrategy());
                 session.emit(new AiEvent.ToolResult(toolName, resultStr));
+                org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
+                        request.listeners(), toolName, resultStr);
                 updatedMessages.add(ChatMessage.tool(resultStr, acc.id()));
             }
 
@@ -333,7 +342,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                     request.model(), List.copyOf(updatedMessages),
                     request.temperature(), request.maxStreamingTexts(),
                     request.jsonMode(), request.tools(), request.conversationId(),
-                    request.approvalStrategy());
+                    request.approvalStrategy(), request.parts(), request.listeners());
             if (cancelled.get()) {
                 return;
             }
@@ -467,7 +476,11 @@ public class OpenAiCompatibleClient implements LlmClient {
                 }
             }
 
-            // Accumulate tool call fragments
+            // Accumulate tool call fragments. Each argument chunk is also
+            // forwarded to {@link StreamingSession#toolCallDelta} so browser
+            // UIs can render partial tool arguments as the model types them
+            // (before the consolidated {@code AiEvent.ToolStart} frame fires
+            // for the complete tool call).
             var toolCallsNode = delta.get("tool_calls");
             if (toolCallsNode != null && toolCallsNode.isArray()) {
                 for (var tcNode : toolCallsNode) {
@@ -483,7 +496,9 @@ public class OpenAiCompatibleClient implements LlmClient {
                             acc.setFunctionName(fnNode.get("name").stringValue());
                         }
                         if (fnNode.has("arguments") && !fnNode.get("arguments").isNull()) {
-                            acc.appendArguments(fnNode.get("arguments").stringValue());
+                            var argChunk = fnNode.get("arguments").stringValue();
+                            acc.appendArguments(argChunk);
+                            session.toolCallDelta(acc.id(), argChunk);
                         }
                     }
                 }
@@ -838,7 +853,9 @@ public class OpenAiCompatibleClient implements LlmClient {
                     var acc = accumulators.computeIfAbsent(index, k -> new ToolCallAccumulator());
                     var delta = node.get("delta");
                     if (delta != null && delta.isString()) {
-                        acc.appendArguments(delta.stringValue());
+                        var chunk = delta.stringValue();
+                        acc.appendArguments(chunk);
+                        session.toolCallDelta(acc.id(), chunk);
                     }
                 }
                 case "response.function_call_arguments.done" -> {

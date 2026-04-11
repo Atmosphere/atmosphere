@@ -52,11 +52,12 @@ object AtmosphereToolBridge {
     fun buildRegistry(
         tools: List<ToolDefinition>,
         session: StreamingSession,
-        strategy: ApprovalStrategy?
+        strategy: ApprovalStrategy?,
+        listeners: List<org.atmosphere.ai.AgentLifecycleListener>
     ): ToolRegistry {
         val registry = ToolRegistry.builder().build()
         for (tool in tools) {
-            registry.add(wrap(tool, session, strategy))
+            registry.add(wrap(tool, session, strategy, listeners))
         }
         return registry
     }
@@ -67,7 +68,8 @@ object AtmosphereToolBridge {
     private fun wrap(
         tool: ToolDefinition,
         session: StreamingSession,
-        strategy: ApprovalStrategy?
+        strategy: ApprovalStrategy?,
+        listeners: List<org.atmosphere.ai.AgentLifecycleListener>
     ): Tool<JSONObject, String> {
         val descriptor = toDescriptor(tool)
 
@@ -78,13 +80,18 @@ object AtmosphereToolBridge {
         ) {
             override suspend fun execute(args: JSONObject): String {
                 val argMap = jsonObjectToMap(args)
+                org.atmosphere.ai.AgentLifecycleListener.fireToolCall(listeners, tool.name(), argMap)
                 return try {
-                    ToolExecutionHelper.executeWithApproval(
+                    val result = ToolExecutionHelper.executeWithApproval(
                         tool.name(), tool, argMap, session, strategy
                     )
+                    org.atmosphere.ai.AgentLifecycleListener.fireToolResult(listeners, tool.name(), result)
+                    result
                 } catch (e: Exception) {
                     logger.warn("Tool {} execution failed: {}", tool.name(), e.message)
-                    """{"error":"${e.message ?: "Tool execution failed"}"}"""
+                    val errorResult = """{"error":"${e.message ?: "Tool execution failed"}"}"""
+                    org.atmosphere.ai.AgentLifecycleListener.fireToolResult(listeners, tool.name(), errorResult)
+                    errorResult
                 }
             }
 

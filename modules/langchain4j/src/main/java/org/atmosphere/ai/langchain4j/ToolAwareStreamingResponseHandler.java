@@ -54,16 +54,18 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
     private final List<ToolSpecification> toolSpecifications;
     private final Map<String, ToolDefinition> toolMap;
     private final ApprovalStrategy approvalStrategy;
+    private final List<org.atmosphere.ai.AgentLifecycleListener> listeners;
     /**
-     * D-6 LC4j soft-cancel flag. {@link StreamingChatResponseHandler} has no
-     * direct hook to abort the in-flight HTTP call, so the best we can do is
-     * poll this flag on every {@code onPartialResponse} and stop forwarding
-     * tokens to the session once it flips. The {@link ExecutionHandle}
-     * returned by {@code LangChain4jAgentRuntime#doExecuteWithHandle} holds
-     * a reference to the same {@code AtomicBoolean} and flips it on
-     * {@code cancel()}. Cancellation is therefore soft (takes effect at the
-     * next token boundary) but avoids leaking completions into a session
-     * that the caller has already abandoned.
+     * Soft-cancel flag polled by {@code onPartialResponse} every token and
+     * checked before starting a follow-up tool round. The
+     * {@link dev.langchain4j.model.chat.response.StreamingChatResponseHandler}
+     * API has no direct hook to abort the in-flight HTTP call, so cancellation
+     * takes effect at the next token boundary rather than immediately. The
+     * {@link ExecutionHandle} returned by
+     * {@code LangChain4jAgentRuntime#doExecuteWithHandle} holds a reference
+     * to the same {@code AtomicBoolean} and flips it on {@code cancel()},
+     * which avoids leaking completions into a session that the caller has
+     * already abandoned.
      */
     private final AtomicBoolean cancelled;
     private int toolRound;
@@ -75,8 +77,10 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             List<ToolSpecification> toolSpecifications,
             Map<String, ToolDefinition> toolMap,
             ApprovalStrategy approvalStrategy,
+            List<org.atmosphere.ai.AgentLifecycleListener> listeners,
             AtomicBoolean cancelled) {
-        this(session, model, conversationHistory, toolSpecifications, toolMap, approvalStrategy, cancelled, 0);
+        this(session, model, conversationHistory, toolSpecifications, toolMap,
+                approvalStrategy, listeners, cancelled, 0);
     }
 
     private ToolAwareStreamingResponseHandler(
@@ -86,6 +90,7 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             List<ToolSpecification> toolSpecifications,
             Map<String, ToolDefinition> toolMap,
             ApprovalStrategy approvalStrategy,
+            List<org.atmosphere.ai.AgentLifecycleListener> listeners,
             AtomicBoolean cancelled,
             int toolRound) {
         this.session = session;
@@ -94,6 +99,7 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
         this.toolSpecifications = toolSpecifications;
         this.toolMap = toolMap;
         this.approvalStrategy = approvalStrategy;
+        this.listeners = listeners != null ? listeners : List.of();
         this.cancelled = cancelled != null ? cancelled : new AtomicBoolean();
         this.toolRound = toolRound;
     }
@@ -148,9 +154,10 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             logger.debug("Tool round {}: executing {} tool calls",
                     toolRound + 1, aiMessage.toolExecutionRequests().size());
 
-            // Execute the requested tools (HITL gate honored via approvalStrategy)
+            // Execute the requested tools (HITL gate honored via approvalStrategy).
+            // Lifecycle listeners fire per-tool inside the bridge.
             var toolResults = LangChain4jToolBridge.executeToolCalls(
-                    aiMessage, toolMap, session, approvalStrategy);
+                    aiMessage, toolMap, session, approvalStrategy, listeners);
 
             // Build updated conversation with tool results
             var updatedMessages = new ArrayList<>(conversationHistory);
@@ -168,7 +175,7 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             }
             var nextHandler = new ToolAwareStreamingResponseHandler(
                     session, model, updatedMessages, toolSpecifications, toolMap,
-                    approvalStrategy, cancelled, toolRound + 1);
+                    approvalStrategy, listeners, cancelled, toolRound + 1);
             model.chat(followUpRequest, nextHandler);
         } else {
             // No tool calls — deliver the final text response

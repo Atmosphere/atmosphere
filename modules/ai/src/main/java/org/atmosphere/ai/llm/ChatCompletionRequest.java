@@ -39,7 +39,8 @@ public record ChatCompletionRequest(
         List<ToolDefinition> tools,
         String conversationId,
         ApprovalStrategy approvalStrategy,
-        List<org.atmosphere.ai.Content> parts
+        List<org.atmosphere.ai.Content> parts,
+        List<org.atmosphere.ai.AgentLifecycleListener> listeners
 ) {
     /**
      * Canonical constructor.
@@ -47,20 +48,33 @@ public record ChatCompletionRequest(
     public ChatCompletionRequest {
         tools = tools != null ? List.copyOf(tools) : List.of();
         parts = parts != null ? List.copyOf(parts) : List.of();
+        listeners = listeners != null ? List.copyOf(listeners) : List.of();
     }
 
     /**
-     * Shim constructor accepting the 8-arg form without multi-modal parts.
-     * Defaults {@code parts} to an empty list so existing callers (routing,
-     * fanout, tests) keep compiling unchanged. Callers that need multi-modal
-     * input use the canonical 9-arg constructor directly.
+     * Shim constructor accepting the 9-arg form (without listeners).
+     * Defaults {@code listeners} to an empty list so existing callers
+     * (routing, fanout, tests) keep compiling unchanged.
+     */
+    public ChatCompletionRequest(String model, List<ChatMessage> messages,
+                                 double temperature, int maxStreamingTexts,
+                                 boolean jsonMode, List<ToolDefinition> tools,
+                                 String conversationId, ApprovalStrategy approvalStrategy,
+                                 List<org.atmosphere.ai.Content> parts) {
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
+                conversationId, approvalStrategy, parts, List.of());
+    }
+
+    /**
+     * Shim constructor accepting the 8-arg form without multi-modal parts
+     * or listeners.
      */
     public ChatCompletionRequest(String model, List<ChatMessage> messages,
                                  double temperature, int maxStreamingTexts,
                                  boolean jsonMode, List<ToolDefinition> tools,
                                  String conversationId, ApprovalStrategy approvalStrategy) {
         this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
-                conversationId, approvalStrategy, List.of());
+                conversationId, approvalStrategy, List.of(), List.of());
     }
 
     /**
@@ -70,7 +84,7 @@ public record ChatCompletionRequest(
                                  double temperature, int maxStreamingTexts,
                                  boolean jsonMode, List<ToolDefinition> tools,
                                  String conversationId) {
-        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, conversationId, null, List.of());
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, conversationId, null, List.of(), List.of());
     }
 
     /**
@@ -79,7 +93,7 @@ public record ChatCompletionRequest(
     public ChatCompletionRequest(String model, List<ChatMessage> messages,
                                  double temperature, int maxStreamingTexts,
                                  boolean jsonMode, List<ToolDefinition> tools) {
-        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, null, null, List.of());
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, null, null, List.of(), List.of());
     }
 
     /**
@@ -87,7 +101,7 @@ public record ChatCompletionRequest(
      */
     public static ChatCompletionRequest of(String model, String userPrompt) {
         return new ChatCompletionRequest(model, List.of(ChatMessage.user(userPrompt)),
-                0.7, 2048, false, List.of(), null, null, List.of());
+                0.7, 2048, false, List.of(), null, null, List.of(), List.of());
     }
 
     /**
@@ -107,6 +121,7 @@ public record ChatCompletionRequest(
         private String conversationId;
         private ApprovalStrategy approvalStrategy;
         private List<org.atmosphere.ai.Content> parts = List.of();
+        private List<org.atmosphere.ai.AgentLifecycleListener> listeners = List.of();
 
         private Builder(String model) {
             this.model = model;
@@ -174,9 +189,20 @@ public record ChatCompletionRequest(
             return this;
         }
 
+        /**
+         * Attach {@link org.atmosphere.ai.AgentLifecycleListener} instances
+         * so {@link OpenAiCompatibleClient}'s tool-call loop fires per-tool
+         * {@code onToolCall} / {@code onToolResult} events on every round.
+         * Defaults to empty, which is equivalent to the pre-Phase-3 behavior.
+         */
+        public Builder listeners(List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
+            this.listeners = listeners != null ? listeners : List.of();
+            return this;
+        }
+
         public ChatCompletionRequest build() {
             return new ChatCompletionRequest(model, List.copyOf(messages),
-                    temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy, parts);
+                    temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy, parts, listeners);
         }
     }
 }

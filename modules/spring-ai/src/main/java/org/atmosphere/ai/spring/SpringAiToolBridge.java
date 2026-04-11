@@ -59,21 +59,23 @@ public final class SpringAiToolBridge {
      * @return Spring AI callbacks ready for {@code promptSpec.toolCallbacks(...)}
      */
     public static List<ToolCallback> toToolCallbacks(
-            List<ToolDefinition> tools, StreamingSession session, ApprovalStrategy strategy) {
+            List<ToolDefinition> tools, StreamingSession session, ApprovalStrategy strategy,
+            List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
         return tools.stream()
-                .map(tool -> toToolCallback(tool, session, strategy))
+                .map(tool -> toToolCallback(tool, session, strategy, listeners))
                 .toList();
     }
 
     private static ToolCallback toToolCallback(
-            ToolDefinition tool, StreamingSession session, ApprovalStrategy strategy) {
+            ToolDefinition tool, StreamingSession session, ApprovalStrategy strategy,
+            List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
         var springToolDef = DefaultToolDefinition.builder()
                 .name(tool.name())
                 .description(tool.description())
                 .inputSchema(buildInputSchema(tool.parameters()))
                 .build();
 
-        return new AtmosphereToolCallback(springToolDef, tool, session, strategy);
+        return new AtmosphereToolCallback(springToolDef, tool, session, strategy, listeners);
     }
 
     /**
@@ -106,16 +108,19 @@ public final class SpringAiToolBridge {
         private final ToolDefinition atmosphereTool;
         private final StreamingSession session;
         private final ApprovalStrategy approvalStrategy;
+        private final List<org.atmosphere.ai.AgentLifecycleListener> listeners;
 
         AtmosphereToolCallback(
                 org.springframework.ai.tool.definition.ToolDefinition springToolDef,
                 ToolDefinition atmosphereTool,
                 StreamingSession session,
-                ApprovalStrategy approvalStrategy) {
+                ApprovalStrategy approvalStrategy,
+                List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
             this.springToolDef = springToolDef;
             this.atmosphereTool = atmosphereTool;
             this.session = session;
             this.approvalStrategy = approvalStrategy;
+            this.listeners = listeners != null ? listeners : List.of();
         }
 
         @Override
@@ -126,8 +131,13 @@ public final class SpringAiToolBridge {
         @Override
         public String call(String toolInput) {
             Map<String, Object> args = ToolBridgeUtils.parseJsonArgs(toolInput);
-            return ToolExecutionHelper.executeWithApproval(
+            org.atmosphere.ai.AgentLifecycleListener.fireToolCall(
+                    listeners, atmosphereTool.name(), args);
+            var result = ToolExecutionHelper.executeWithApproval(
                     atmosphereTool.name(), atmosphereTool, args, session, approvalStrategy);
+            org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
+                    listeners, atmosphereTool.name(), result);
+            return result;
         }
     }
 }
