@@ -25,6 +25,7 @@ import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AgentExecutionContext;
+import org.atmosphere.ai.ExecutionHandle;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.slf4j.Logger;
@@ -183,9 +184,25 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
 
     @Override
     protected void doExecute(Runner adkRunner, AgentExecutionContext context, StreamingSession session) {
+        // Delegate to the cancellation-aware variant and block on whenDone() so the
+        // legacy void contract holds. This keeps the Flowable subscription logic in
+        // one place instead of drifting between execute and executeWithHandle.
+        var handle = doExecuteWithHandle(adkRunner, context, session);
+        try {
+            handle.whenDone().join();
+        } catch (Exception e) {
+            if (!session.isClosed()) {
+                session.error(e);
+            }
+        }
+    }
+
+    @Override
+    protected ExecutionHandle doExecuteWithHandle(
+            Runner adkRunner, AgentExecutionContext context, StreamingSession session) {
         // For tool-calling requests, build a fresh runner whose tools capture this
-        // invocation's session + ApprovalStrategy. The tool-less fallback runner held in
-        // getNativeClient() is only used for prompts without tools.
+        // invocation's session + ApprovalStrategy. The tool-less fallback runner held
+        // in getNativeClient() is only used for prompts without tools.
         var tools = context.tools();
         Runner requestRunner = tools.isEmpty() ? adkRunner : buildRequestRunner(context, session);
 
@@ -199,7 +216,32 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 sessionId,
                 Content.fromParts(Part.fromText(context.message()))
         );
-        AdkEventAdapter.bridge(events, session);
+
+        // D-6 follow-up: wire the AdkEventAdapter's existing cancel() + whenDone()
+        // into the Phase 2 ExecutionHandle SPI so external callers can abort an
+        // in-flight ADK run via the unified API.
+        var adapter = AdkEventAdapter.bridge(events, session);
+        return new ExecutionHandle() {
+            private final java.util.concurrent.atomic.AtomicBoolean cancelled =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+
+            @Override
+            public void cancel() {
+                if (cancelled.compareAndSet(false, true)) {
+                    adapter.cancel();
+                }
+            }
+
+            @Override
+            public boolean isDone() {
+                return adapter.whenDone().isDone();
+            }
+
+            @Override
+            public java.util.concurrent.CompletableFuture<Void> whenDone() {
+                return adapter.whenDone();
+            }
+        };
     }
 
     private static void ensureSession(Runner adkRunner, String userId, String sessionId) {

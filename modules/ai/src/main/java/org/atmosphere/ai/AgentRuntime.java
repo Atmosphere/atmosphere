@@ -129,6 +129,60 @@ public interface AgentRuntime {
     }
 
     /**
+     * Typed synchronous convenience (D-1 follow-up to Phase 1). Runs the
+     * runtime in a {@link CollectingSession} that captures any
+     * {@link StreamingSession#usage} events the runtime emits, then returns a
+     * typed {@link AgentExecutionResult} with text + usage + duration.
+     *
+     * <p>Implemented as a default so every runtime inherits it without
+     * breaking the existing {@link #generate} String API.</p>
+     */
+    default AgentExecutionResult generateResult(AgentExecutionContext context) {
+        return generateResult(context, Duration.ofSeconds(30));
+    }
+
+    /** Typed synchronous convenience with a custom timeout. */
+    default AgentExecutionResult generateResult(AgentExecutionContext context, Duration timeout) {
+        var collector = new CollectingSession();
+        var captured = new java.util.concurrent.atomic.AtomicReference<TokenUsage>();
+        // Wrap the collector so session.usage() events from the runtime are
+        // captured in addition to the text. The wrapper forwards everything
+        // else to the underlying CollectingSession.
+        StreamingSession usageCapturing = new StreamingSession() {
+            @Override public String sessionId() { return collector.sessionId(); }
+            @Override public void send(String text) { collector.send(text); }
+            @Override public void sendMetadata(String key, Object value) { collector.sendMetadata(key, value); }
+            @Override public void progress(String message) { collector.progress(message); }
+            @Override public void complete() { collector.complete(); }
+            @Override public void complete(String summary) { collector.complete(summary); }
+            @Override public void error(Throwable t) { collector.error(t); }
+            @Override public boolean isClosed() { return collector.isClosed(); }
+            @Override public void emit(AiEvent event) { collector.emit(event); }
+            @Override public void sendContent(Content content) { collector.sendContent(content); }
+            @Override public void usage(TokenUsage usage) {
+                collector.usage(usage);
+                if (usage != null && usage.hasCounts()) {
+                    captured.set(usage);
+                }
+            }
+        };
+        var start = java.time.Instant.now();
+        execute(context, usageCapturing);
+        if (!collector.isClosed()) {
+            collector.await(timeout);
+        }
+        if (!collector.isClosed()) {
+            collector.complete();
+        }
+        var elapsed = Duration.between(start, java.time.Instant.now());
+        return new AgentExecutionResult(
+                collector.text(),
+                java.util.Optional.ofNullable(captured.get()),
+                elapsed,
+                java.util.Optional.ofNullable(context.model()));
+    }
+
+    /**
      * Synchronous convenience: execute a prompt and return the full response
      * as a string. Uses a {@link CollectingSession} internally with a 30-second
      * default timeout.

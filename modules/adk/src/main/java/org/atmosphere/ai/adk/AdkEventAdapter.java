@@ -56,6 +56,7 @@ public final class AdkEventAdapter {
     private final StreamingSession session;
     private final AtomicReference<Disposable> subscription = new AtomicReference<>();
     private final java.util.concurrent.atomic.AtomicBoolean completed = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private final java.util.concurrent.CompletableFuture<Void> doneFuture = new java.util.concurrent.CompletableFuture<>();
 
     private AdkEventAdapter(StreamingSession session) {
         this.session = session;
@@ -111,6 +112,7 @@ public final class AdkEventAdapter {
         if (!session.isClosed()) {
             session.complete();
         }
+        doneFuture.complete(null);
     }
 
     /**
@@ -118,6 +120,17 @@ public final class AdkEventAdapter {
      */
     public StreamingSession session() {
         return session;
+    }
+
+    /**
+     * Future that completes when the ADK event stream terminates — normal
+     * completion, error, or cancel. Used by {@code AdkAgentRuntime}'s
+     * {@code doExecuteWithHandle} override to populate
+     * {@link org.atmosphere.ai.ExecutionHandle#whenDone()}. (D-6 ADK native
+     * cancel wiring.)
+     */
+    public java.util.concurrent.CompletableFuture<Void> whenDone() {
+        return doneFuture;
     }
 
     private void subscribe(Flowable<Event> events) {
@@ -198,12 +211,14 @@ public final class AdkEventAdapter {
         if (completed.compareAndSet(false, true) && !session.isClosed()) {
             session.error(t);
         }
+        doneFuture.complete(null);
     }
 
     private void onComplete() {
         if (completed.compareAndSet(false, true)) {
             session.emit(new AiEvent.Complete(null, java.util.Map.of()));
         }
+        doneFuture.complete(null);
     }
 
     /**
