@@ -104,35 +104,6 @@ public record AgentExecutionContext(
                 approvalStrategy, List.of());
     }
 
-    /**
-     * Legacy 14-arg constructor preserved so existing call sites (tests, evaluators, pipelines)
-     * continue to compile without threading an {@link ApprovalStrategy} through every layer.
-     * Phase 6 of the unified @Agent roadmap replaces this with a {@code ToolApprovalPolicy}
-     * field and removes this shim.
-     *
-     * <p><b>Do not use in new code.</b> Callers that bypass this shim silently disable
-     * HITL gating — {@link ToolDefinition#requiresApproval} tools will execute without
-     * a strategy. The 2026-04-11 Phase 0 review caught exactly this gap on the
-     * {@code AiPipeline} path used by A2A / @Coordinator / AG-UI / Slack / Telegram /
-     * Discord / WhatsApp dispatch, violating Correctness Invariant #7 (Mode Parity).
-     * Use the 15-arg constructor and supply an {@link ApprovalStrategy}, or inject one
-     * via {@link #withApprovalStrategy(ApprovalStrategy)}.</p>
-     *
-     * @deprecated Use the 15-arg constructor with an {@link ApprovalStrategy}. Scheduled
-     * for removal when Phase 6 promotes {@code ToolApprovalPolicy} into the canonical record.
-     */
-    @Deprecated(forRemoval = true, since = "4.0.36")
-    public AgentExecutionContext(String message, String systemPrompt, String model,
-                                 String agentId, String sessionId, String userId,
-                                 String conversationId, List<ToolDefinition> tools,
-                                 Object toolTarget, AiConversationMemory memory,
-                                 List<ContextProvider> contextProviders,
-                                 Map<String, Object> metadata, List<ChatMessage> history,
-                                 Class<?> responseType) {
-        this(message, systemPrompt, model, agentId, sessionId, userId, conversationId,
-                tools, toolTarget, memory, contextProviders, metadata, history, responseType, null);
-    }
-
     /** Create a context with a different message. */
     public AgentExecutionContext withMessage(String message) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,

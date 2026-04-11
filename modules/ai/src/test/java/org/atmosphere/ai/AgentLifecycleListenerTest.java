@@ -33,7 +33,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * operations, and the {@link AbstractAgentRuntime} fireXxx helpers iterate in
  * FIFO order swallowing listener exceptions per the Javadoc contract.
  */
-@SuppressWarnings({"deprecation", "removal"})
 class AgentLifecycleListenerTest {
 
     private static final class RecordingListener implements AgentLifecycleListener {
@@ -92,12 +91,11 @@ class AgentLifecycleListenerTest {
     }
 
     @Test
-    void fourteenArgConstructorDefaultsToEmptyListeners() {
-        // Legacy 14-arg path must not fail on the listener copy guard.
+    void fifteenArgConstructorDefaultsToEmptyListeners() {
         var context = new AgentExecutionContext(
                 "hi", null, null, null, null, null, null,
                 List.of(), null, null, List.of(), Map.of(),
-                List.<ChatMessage>of(), null);
+                List.<ChatMessage>of(), null, null);
         assertNotNull(context.listeners());
         assertTrue(context.listeners().isEmpty());
     }

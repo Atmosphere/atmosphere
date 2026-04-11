@@ -46,7 +46,6 @@ import java.util.concurrent.TimeUnit;
  * @see AiResponse
  * @see AiAssertions
  */
-@SuppressWarnings({"deprecation", "removal"})
 public class AiTestClient {
 
     private final AgentRuntime runtime;
@@ -74,7 +73,7 @@ public class AiTestClient {
         var start = Instant.now();
         var context = new AgentExecutionContext(
                 message, systemPrompt, null, null, null, null, null,
-                List.of(), null, null, List.of(), Map.of(), List.of(), null);
+                List.of(), null, null, List.of(), Map.of(), List.of(), null, null);
         runtime.execute(context, session);
         session.awaitCompletion(Duration.ofSeconds(30));
         var elapsed = Duration.between(start, Instant.now());

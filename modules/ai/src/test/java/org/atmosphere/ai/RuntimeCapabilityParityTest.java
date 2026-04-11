@@ -47,7 +47,6 @@ import static org.mockito.Mockito.*;
  * <p>This proves that an {@code @Agent} with {@code @AiTool} methods works
  * on the built-in runtime (zero framework dependencies).</p>
  */
-@SuppressWarnings({"deprecation", "removal"})
 class RuntimeCapabilityParityTest {
 
     @SuppressWarnings("unchecked")
@@ -107,6 +106,7 @@ class RuntimeCapabilityParityTest {
                 Map.of(),
                 List.of(new org.atmosphere.ai.llm.ChatMessage("user", "Hello"),
                         new org.atmosphere.ai.llm.ChatMessage("assistant", "Hi there!")),
+                null,
                 null
         );
 
@@ -192,6 +192,7 @@ class RuntimeCapabilityParityTest {
                         new org.atmosphere.ai.llm.ChatMessage("user", "q1"),
                         new org.atmosphere.ai.llm.ChatMessage("assistant", "a1")
                 ),
+                null,
                 null
         );
 

@@ -86,7 +86,11 @@ class KoogAgentRuntimeTest {
     private fun context(message: String = "hello"): AgentExecutionContext {
         return AgentExecutionContext(
             message, null, null, null, null, null, null,
-            emptyList(), null, null, emptyList(), emptyMap(), emptyList(), null
+            emptyList<org.atmosphere.ai.tool.ToolDefinition>(), null, null,
+            emptyList<org.atmosphere.ai.ContextProvider>(),
+            emptyMap<String, Any>(),
+            emptyList<org.atmosphere.ai.llm.ChatMessage>(),
+            null, null
         )
     }
 

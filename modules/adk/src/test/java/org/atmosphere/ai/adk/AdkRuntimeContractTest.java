@@ -31,7 +31,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * base class so capability and name tests are enforced. Execution tests are
  * skipped because ADK requires a live Gemini API key and configured Runner.
  */
-@SuppressWarnings({"deprecation", "removal"})
 class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
@@ -45,7 +44,7 @@ class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 "Hello", "You are helpful", "gemini-2.5-flash",
                 null, "session-1", "user-1", "conv-1",
                 List.of(), null, null, List.of(), Map.of(),
-                List.of(), null);
+                List.of(), null, null);
     }
 
     @Override

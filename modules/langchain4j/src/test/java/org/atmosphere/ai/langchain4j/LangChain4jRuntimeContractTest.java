@@ -37,7 +37,6 @@ import static org.mockito.Mockito.mock;
 /**
  * Concrete TCK test for {@link LangChain4jAgentRuntime}.
  */
-@SuppressWarnings({"deprecation", "removal"})
 class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
@@ -62,7 +61,7 @@ class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 "Hello", "You are helpful", "gpt-4",
                 null, "session-1", "user-1", "conv-1",
                 List.of(), null, null, List.of(), Map.of(),
-                List.of(), null);
+                List.of(), null, null);
     }
 
     @Override

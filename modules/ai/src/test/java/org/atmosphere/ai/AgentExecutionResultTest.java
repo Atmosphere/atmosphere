@@ -33,7 +33,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * any {@link TokenUsage} events the runtime emits, returning a typed
  * {@link AgentExecutionResult}.
  */
-@SuppressWarnings({"deprecation", "removal"})
 class AgentExecutionResultTest {
 
     /** Minimal runtime that emits one text chunk + one usage event. */
@@ -56,7 +55,7 @@ class AgentExecutionResultTest {
         return new AgentExecutionContext(
                 "say hi", null, "fake-model", null, null, null, null,
                 List.of(), null, null, List.of(), Map.of(),
-                List.<ChatMessage>of(), null);
+                List.<ChatMessage>of(), null, null);
     }
 
     @Test

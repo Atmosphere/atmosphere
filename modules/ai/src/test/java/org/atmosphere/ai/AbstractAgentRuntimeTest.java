@@ -23,7 +23,6 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SuppressWarnings({"deprecation", "removal"})
 class AbstractAgentRuntimeTest {
 
     /** Minimal concrete subclass for testing the base class. */
@@ -78,6 +77,7 @@ class AbstractAgentRuntimeTest {
                         new ChatMessage("user", "prev question"),
                         new ChatMessage("assistant", "prev answer")
                 ),
+                null,
                 null
         );
 
@@ -103,6 +103,7 @@ class AbstractAgentRuntimeTest {
                 List.of(), null, null, List.of(),
                 java.util.Map.of(),
                 List.of(),
+                null,
                 null
         );
 
@@ -122,6 +123,7 @@ class AbstractAgentRuntimeTest {
                 List.of(), null, null, List.of(),
                 java.util.Map.of(),
                 List.of(),
+                null,
                 null
         );
 
@@ -141,6 +143,7 @@ class AbstractAgentRuntimeTest {
                 List.of(), null, null, List.of(),
                 java.util.Map.of(),
                 List.of(),
+                null,
                 null
         );
 
@@ -197,7 +200,7 @@ class AbstractAgentRuntimeTest {
         var context = new AgentExecutionContext(
                 "hello", null, "gpt-4", null, null, null, null,
                 List.of(), null, null, List.of(),
-                java.util.Map.of(), List.of(), null
+                java.util.Map.of(), List.of(), null, null
         );
 
         runtime.execute(context, session);

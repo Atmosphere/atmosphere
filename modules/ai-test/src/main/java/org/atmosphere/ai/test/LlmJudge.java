@@ -36,7 +36,6 @@ import java.util.concurrent.TimeUnit;
  * assertions.meetsIntent("Recommends whether to bring an umbrella");
  * }</pre>
  */
-@SuppressWarnings({"deprecation", "removal"})
 public class LlmJudge {
 
     private final AgentRuntime judgeRuntime;
@@ -103,7 +102,7 @@ public class LlmJudge {
         var context = new AgentExecutionContext(
                 prompt, "You are an evaluation judge. Respond with JSON only.",
                 judgeModel, null, null, null, null,
-                List.of(), null, null, List.of(), Map.of(), List.of(), null);
+                List.of(), null, null, List.of(), Map.of(), List.of(), null, null);
 
         var session = new JudgeCapturingSession();
         try {
