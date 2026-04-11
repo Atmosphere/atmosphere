@@ -65,6 +65,52 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
     @Override
     protected void doExecute(LlmClient client,
                              AgentExecutionContext context, StreamingSession session) {
+        client.streamChatCompletion(buildRequest(context), session);
+    }
+
+    /**
+     * D-6 Built-in hard-cancel: returns an {@link org.atmosphere.ai.ExecutionHandle}
+     * whose {@code cancel()} closes the in-flight SSE {@link java.io.InputStream}
+     * from another thread, interrupting the blocked {@code BufferedReader.readLine()}
+     * immediately instead of waiting for the HTTP timeout or the next SSE frame.
+     * The cancelled flag is kept as a secondary safeguard for the gap between
+     * tool rounds when no stream is open.
+     */
+    @Override
+    protected org.atmosphere.ai.ExecutionHandle doExecuteWithHandle(
+            LlmClient client, AgentExecutionContext context, StreamingSession session) {
+        var cancelled = new java.util.concurrent.atomic.AtomicBoolean();
+        var inFlightStream = new java.util.concurrent.atomic.AtomicReference<java.io.Closeable>();
+        var done = new java.util.concurrent.CompletableFuture<Void>();
+        java.util.function.Consumer<java.io.Closeable> streamSink = inFlightStream::set;
+        Thread.startVirtualThread(() -> {
+            try {
+                client.streamChatCompletion(buildRequest(context), session, cancelled, streamSink);
+                done.complete(null);
+            } catch (Throwable t) {
+                done.completeExceptionally(t);
+            }
+        });
+        return new org.atmosphere.ai.ExecutionHandle() {
+            @Override public void cancel() {
+                cancelled.set(true);
+                var stream = inFlightStream.getAndSet(null);
+                if (stream != null) {
+                    try {
+                        stream.close();
+                    } catch (java.io.IOException ignored) {
+                        // Already closed or failed to close — the cancel flag
+                        // is the fallback and the read loop will exit at the
+                        // next boundary.
+                    }
+                }
+            }
+            @Override public boolean isDone() { return done.isDone(); }
+            @Override public java.util.concurrent.CompletableFuture<Void> whenDone() { return done; }
+        };
+    }
+
+    private ChatCompletionRequest buildRequest(AgentExecutionContext context) {
         var builder = ChatCompletionRequest.builder(context.model());
         for (var msg : assembleMessages(context)) {
             builder.message(msg);
@@ -81,7 +127,7 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
         if (context.approvalStrategy() != null) {
             builder.approvalStrategy(context.approvalStrategy());
         }
-        client.streamChatCompletion(builder.build(), session);
+        return builder.build();
     }
 
     @Override

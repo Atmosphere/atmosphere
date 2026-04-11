@@ -19,6 +19,7 @@ import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.approval.ApprovalRegistry;
 import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.approval.PendingApproval;
+import org.atmosphere.ai.approval.ToolApprovalPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +47,9 @@ public final class ToolExecutionHelper {
     }
 
     /**
-     * Execute a tool and return the result as a string.
+     * Execute a tool and return the result as a string, without argument
+     * validation. Prefer {@link #executeAndFormat(ToolDefinition, Map)} for
+     * new callers so {@link ToolArgumentValidator} runs at the boundary.
      *
      * <p>On success, returns the result's {@code toString()} representation
      * (or {@code "null"} if the result is null). On failure, returns a JSON
@@ -70,12 +73,16 @@ public final class ToolExecutionHelper {
     }
 
     /**
-     * Schema-validating overload: runs {@link ToolArgumentValidator} against the
-     * tool's declared parameter list before dispatch. On validation failure,
-     * returns a structured JSON error so the LLM can retry with corrected
-     * arguments instead of receiving a runtime exception. This closes
-     * Correctness Invariant #4 (Boundary Safety) at the shared seam so every
-     * runtime bridge catches malformed arguments uniformly.
+     * Execute a tool with schema validation against the declared
+     * {@link ToolDefinition#parameters()}. On validation failure, returns a
+     * structured JSON error so the LLM can retry with corrected arguments
+     * rather than receiving a runtime exception.
+     *
+     * <p>This is the uniform entry point for Phase 10 (Boundary Safety /
+     * Correctness Invariant #4). Runtime bridges should call this method
+     * rather than {@link #executeAndFormat(String, ToolExecutor, Map)} so
+     * malformed LLM-supplied arguments are caught once at the shared seam
+     * instead of varying per framework.</p>
      *
      * @param tool the tool definition (schema source)
      * @param args the arguments to pass to the executor
@@ -93,28 +100,59 @@ public final class ToolExecutionHelper {
     /**
      * Execute a tool with approval gate support. If the tool definition has
      * {@link ToolDefinition#requiresApproval()}, the execution pauses (parks
-     * the virtual thread) until the client approves or denies. Arguments are
-     * validated against the tool's declared parameter schema before the gate
-     * fires; a validation failure returns a structured JSON error without
-     * consulting the approval strategy or invoking the executor.
+     * the virtual thread) until the client approves or denies. Before the
+     * approval gate (and before any executor invocation) arguments are
+     * validated against the tool's declared parameter schema; a validation
+     * failure returns a structured JSON error without waking the approver
+     * or firing the executor.
      *
      * @param toolName the tool name
      * @param tool     the tool definition
      * @param args     the arguments
      * @param session  the streaming session (for emitting approval events)
      * @param strategy the approval strategy (may be null if no approval support)
-     * @return the result string, or a cancellation/timeout/validation error message
+     * @return the result string, or a cancellation/timeout/validation error JSON
      */
     public static String executeWithApproval(String toolName, ToolDefinition tool,
                                              Map<String, Object> args,
                                              StreamingSession session,
                                              ApprovalStrategy strategy) {
+        return executeWithApproval(toolName, tool, args, session, strategy, null);
+    }
+
+    /**
+     * Policy-aware variant of {@link #executeWithApproval(String, ToolDefinition, Map, StreamingSession, ApprovalStrategy)}.
+     * Phase 6 of the unified {@code @Agent} API: consult the session-scoped
+     * {@link ToolApprovalPolicy} before deciding whether to gate the invocation.
+     * The policy replaces the hardcoded {@code tool.requiresApproval()} check,
+     * so callers can force-allow trusted tools, force-deny every tool
+     * (shadow/preview mode), or supply a runtime predicate without touching
+     * the {@code @AiTool} annotations.
+     *
+     * <p>When {@code policy} is {@code null}, falls back to
+     * {@link ToolApprovalPolicy#annotated()} — identical behavior to the
+     * legacy 5-arg overload.</p>
+     *
+     * @param toolName the tool name
+     * @param tool     the tool definition
+     * @param args     the arguments
+     * @param session  the streaming session (for emitting approval events)
+     * @param strategy the approval strategy (may be null if no approval support)
+     * @param policy   the approval policy (may be null to default to annotated)
+     * @return the result string, or a cancellation/timeout/validation error JSON
+     */
+    public static String executeWithApproval(String toolName, ToolDefinition tool,
+                                             Map<String, Object> args,
+                                             StreamingSession session,
+                                             ApprovalStrategy strategy,
+                                             ToolApprovalPolicy policy) {
         var errors = ToolArgumentValidator.validate(tool, args);
         if (!errors.isEmpty()) {
             logger.info("Tool {} argument validation failed: {}", toolName, errors);
             return buildValidationErrorJson(toolName, errors);
         }
-        if (!tool.requiresApproval() || strategy == null) {
+        var effectivePolicy = policy != null ? policy : ToolApprovalPolicy.annotated();
+        if (!effectivePolicy.requiresApproval(tool) || strategy == null) {
             return executeAndFormat(toolName, tool.executor(), args);
         }
 

@@ -23,6 +23,7 @@ import org.atmosphere.ai.AiConfig
 import org.atmosphere.ai.AgentExecutionContext
 import org.atmosphere.ai.AgentRuntime
 import org.atmosphere.ai.StreamingSession
+import org.atmosphere.ai.TokenUsage
 import org.slf4j.LoggerFactory
 
 /**
@@ -120,6 +121,25 @@ class EmbabelAgentRuntime : AgentRuntime {
                 }
             }
         }
+
+        // D-3: Emit typed token usage. Embabel's AgentProcess implements
+        // LlmInvocationHistory.usage() which aggregates every LLM call made
+        // during this process into a single Usage record. Converting it to
+        // our TokenUsage record closes the 5/6 → 6/6 runtime parity gap on
+        // the ai.tokens.* telemetry surface.
+        try {
+            val usage = process.usage()
+            val input = usage.promptTokens?.toLong() ?: 0L
+            val output = usage.completionTokens?.toLong() ?: 0L
+            val total = usage.totalTokens?.toLong() ?: (input + output)
+            val tokenUsage = TokenUsage(input, output, 0L, total, null)
+            if (tokenUsage.hasCounts()) {
+                session.usage(tokenUsage)
+            }
+        } catch (t: Throwable) {
+            logger.debug("Failed to extract Embabel token usage (this is non-fatal)", t)
+        }
+
         if (!session.isClosed) {
             session.complete()
         }

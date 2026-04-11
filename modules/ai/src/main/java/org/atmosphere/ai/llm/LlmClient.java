@@ -42,4 +42,30 @@ public interface LlmClient {
      * @param session the streaming session to push streaming texts through
      */
     void streamChatCompletion(ChatCompletionRequest request, StreamingSession session);
+
+    /**
+     * Cancellation-aware variant of
+     * {@link #streamChatCompletion(ChatCompletionRequest, StreamingSession)}.
+     * Implementations that support hard-cancel hand the caller a reference
+     * to the in-flight network resource via {@code streamSink}. The caller
+     * can then close that resource from another thread to interrupt a
+     * blocked read. The {@code cancelled} flag is a secondary safeguard for
+     * tool-round re-submission loops and gaps between network reads.
+     *
+     * <p>Default implementation delegates to the 2-arg form; implementations
+     * that can't expose a closeable handle rely solely on the
+     * {@code cancelled} flag.</p>
+     *
+     * @param request    the chat completion request
+     * @param session    the streaming session to push streaming texts through
+     * @param cancelled  caller-managed cancel flag polled at loop boundaries
+     * @param streamSink callback that receives a reference to the in-flight
+     *                   {@link java.io.Closeable} (may be {@code null}); the
+     *                   caller closes this to interrupt a blocked read
+     */
+    default void streamChatCompletion(ChatCompletionRequest request, StreamingSession session,
+                                      java.util.concurrent.atomic.AtomicBoolean cancelled,
+                                      java.util.function.Consumer<java.io.Closeable> streamSink) {
+        streamChatCompletion(request, session);
+    }
 }
