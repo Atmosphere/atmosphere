@@ -62,5 +62,28 @@ public enum AiCapability {
     AGENT_ORCHESTRATION,
 
     /** Adapter supports human-in-the-loop tool approval (e.g., ADK ToolConfirmation). */
-    TOOL_APPROVAL
+    TOOL_APPROVAL,
+
+    /**
+     * Runtime honours prompt-cache hints (Anthropic cache_control, OpenAI
+     * prompt cache, Gemini context cache). Phase 7 of the unified
+     * {@code @Agent} roadmap.
+     */
+    PROMPT_CACHING,
+
+    /** Runtime participates in multi-agent handoff / delegation. */
+    MULTI_AGENT_HANDOFF,
+
+    /**
+     * Runtime exposes cooperative cancellation via
+     * {@link AgentRuntime#executeWithHandle(AgentExecutionContext, StreamingSession)}.
+     * Phase 2 of the unified {@code @Agent} roadmap.
+     */
+    CANCELLATION,
+
+    /** Runtime exposes configured / discovered model list via a model-enumeration API. */
+    MODEL_ENUMERATION,
+
+    /** Runtime emits typed token usage via {@link StreamingSession#usage}. Phase 1. */
+    TOKEN_USAGE
 }
