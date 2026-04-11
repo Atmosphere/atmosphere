@@ -290,4 +290,16 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 AiCapability.TOOL_APPROVAL
         );
     }
+
+    @Override
+    public java.util.List<String> models() {
+        // ADK only supports Gemini natively; the configured model name lives
+        // on AiConfig. Per-request overrides via context.model() take
+        // precedence when the request builds its per-request runner.
+        var settings = AiConfig.get();
+        if (settings == null || settings.model() == null || settings.model().isBlank()) {
+            return java.util.List.of();
+        }
+        return java.util.List.of(settings.model());
+    }
 }

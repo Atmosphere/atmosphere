@@ -242,8 +242,26 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 AiCapability.TEXT_STREAMING,
                 AiCapability.TOOL_CALLING,
                 AiCapability.STRUCTURED_OUTPUT,
-                AiCapability.SYSTEM_PROMPT
+                AiCapability.SYSTEM_PROMPT,
+                // TOOL_APPROVAL is honest: ToolAwareStreamingResponseHandler
+                // routes tool invocation through
+                // ToolExecutionHelper.executeWithApproval, so @RequiresApproval
+                // gates fire uniformly with the other runtime bridges.
+                AiCapability.TOOL_APPROVAL
         );
+    }
+
+    @Override
+    public java.util.List<String> models() {
+        // LC4j's StreamingChatModel hides the configured model name behind
+        // provider-specific builders. Report the runtime-resolved default
+        // from AiConfig; per-request overrides via context.model() take
+        // precedence when present.
+        var settings = AiConfig.get();
+        if (settings == null || settings.model() == null || settings.model().isBlank()) {
+            return java.util.List.of();
+        }
+        return java.util.List.of(settings.model());
     }
 
     private static dev.langchain4j.data.message.ChatMessage toLangChainMessage(

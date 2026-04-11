@@ -138,10 +138,25 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
         // additionally enables native OpenAI jsonMode on the underlying client when
         // responseType is present — see lines 72-74 above. Declaring it keeps the
         // SPI contract honest (Correctness Invariant #5 — Runtime Truth).
+        //
+        // TOOL_APPROVAL is honest because every tool invocation routes through
+        // ToolExecutionHelper.executeWithApproval — the OpenAiCompatibleClient
+        // tool-call loop at OpenAiCompatibleClient.java:~323 calls the shared
+        // helper on every tool call, so @RequiresApproval gates fire uniformly.
         return Set.of(
                 AiCapability.TEXT_STREAMING,
                 AiCapability.TOOL_CALLING,
                 AiCapability.STRUCTURED_OUTPUT,
-                AiCapability.SYSTEM_PROMPT);
+                AiCapability.SYSTEM_PROMPT,
+                AiCapability.TOOL_APPROVAL);
+    }
+
+    @Override
+    public java.util.List<String> models() {
+        var settings = AiConfig.get();
+        if (settings == null || settings.model() == null || settings.model().isBlank()) {
+            return java.util.List.of();
+        }
+        return java.util.List.of(settings.model());
     }
 }

@@ -152,6 +152,12 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         // schema injection. This is the same reasoning the Built-in runtime
         // uses (Invariant #5 — Runtime Truth), enforced by the contract test
         // {@code runtimeWithSystemPromptAlsoDeclaresStructuredOutput}.
+        //
+        // TOOL_APPROVAL is NOT declared yet — while the shared pipeline-level
+        // approval seam is in place, the SK tool bridge that would invoke it
+        // is still deferred (no SK-native tool dispatch), so declaring
+        // TOOL_APPROVAL would be dishonest until the tool bridge lands and
+        // begins routing through ToolExecutionHelper.executeWithApproval.
         return Set.of(
                 AiCapability.TEXT_STREAMING,
                 AiCapability.SYSTEM_PROMPT,
@@ -159,5 +165,19 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
                 AiCapability.CONVERSATION_MEMORY,
                 AiCapability.TOKEN_USAGE
         );
+    }
+
+    @Override
+    public java.util.List<String> models() {
+        // SK's ChatCompletionService carries the deployment / model name
+        // configured at client construction time. The 1.4.0 accessor surface
+        // varies between providers, so fall back to AiConfig's resolved
+        // default model. Per-request overrides via context.model() take
+        // precedence at dispatch time.
+        var settings = org.atmosphere.ai.AiConfig.get();
+        if (settings == null || settings.model() == null || settings.model().isBlank()) {
+            return java.util.List.of();
+        }
+        return java.util.List.of(settings.model());
     }
 }

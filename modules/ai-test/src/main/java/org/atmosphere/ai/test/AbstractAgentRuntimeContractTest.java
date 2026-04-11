@@ -121,6 +121,57 @@ public abstract class AbstractAgentRuntimeContractTest {
     }
 
     /**
+     * Every runtime that declares {@link AiCapability#TOOL_CALLING} must
+     * also declare {@link AiCapability#TOOL_APPROVAL}. Every tool bridge on
+     * the unified SPI routes through
+     * {@link ToolExecutionHelper#executeWithApproval}, so the approval gate
+     * is already firing on every tool invocation — a runtime that declares
+     * {@code TOOL_CALLING} without {@code TOOL_APPROVAL} is advertising
+     * dishonestly (Correctness Invariant #5 — Runtime Truth).
+     *
+     * <p>The converse is intentionally not asserted — a runtime may
+     * declare {@code TOOL_APPROVAL} without {@code TOOL_CALLING} when the
+     * shared pipeline-level approval seam fires on native hooks.</p>
+     */
+    @Test
+    protected void runtimeWithToolCallingAlsoDeclaresToolApproval() {
+        var runtime = createRuntime();
+        var caps = runtime.capabilities();
+        if (!caps.contains(AiCapability.TOOL_CALLING)) {
+            return;
+        }
+        assertTrue(caps.contains(AiCapability.TOOL_APPROVAL),
+                runtime.name() + " declares TOOL_CALLING but not TOOL_APPROVAL; "
+                        + "every runtime routes tool invocation through "
+                        + "ToolExecutionHelper.executeWithApproval, "
+                        + "so the approval gate already fires on every tool call. "
+                        + "Either declare TOOL_APPROVAL or override this method with "
+                        + "a Javadoc explaining why this runtime is a legitimate exception.");
+    }
+
+    /**
+     * Every runtime must return a non-null list from
+     * {@link AgentRuntime#models()}. Runtimes with a deterministic model
+     * hint available post-{@code configure()} should return it so admin
+     * UIs and routing decisions can enumerate the runtime-resolved state.
+     * Runtimes whose model selection is per-request only (e.g. ADK, Koog)
+     * may legitimately return an empty list — they override this method
+     * with a Javadoc explaining why.
+     */
+    @Test
+    protected void runtimeReportsConfiguredModelsAfterConfigure() {
+        var runtime = createRuntime();
+        try {
+            runtime.configure(org.atmosphere.ai.AiConfig.fromEnvironment());
+        } catch (Exception ignored) {
+            // Subclass test fixtures may not supply full LlmSettings; fall
+            // through and let the accessor return whatever it has.
+        }
+        assertNotNull(runtime.models(),
+                runtime.name() + " models() must return a non-null list (empty is fine)");
+    }
+
+    /**
      * Every runtime that declares {@link AiCapability#TOOL_CALLING} must route
      * {@code @RequiresApproval} tool invocations through
      * {@link ToolExecutionHelper#executeWithApproval}. This contract is the

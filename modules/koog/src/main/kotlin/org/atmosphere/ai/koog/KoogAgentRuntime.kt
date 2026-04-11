@@ -366,7 +366,19 @@ class KoogAgentRuntime : AgentRuntime {
         AiCapability.STRUCTURED_OUTPUT,
         AiCapability.AGENT_ORCHESTRATION,
         AiCapability.CONVERSATION_MEMORY,
-        AiCapability.SYSTEM_PROMPT
+        AiCapability.SYSTEM_PROMPT,
+        // TOOL_APPROVAL is honest: AtmosphereToolBridge wraps every
+        // Atmosphere ToolDefinition in a Koog-native tool whose suspend body
+        // captures the session + strategy and calls
+        // ToolExecutionHelper.executeWithApproval, so @RequiresApproval
+        // gates fire uniformly with the other runtimes.
+        AiCapability.TOOL_APPROVAL
     )
+
+    override fun models(): List<String> {
+        // Koog's LLModel carries an id; report the default plus any
+        // override. context.model() takes precedence at dispatch time.
+        return listOf(defaultModel.id)
+    }
 }
 

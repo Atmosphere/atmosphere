@@ -201,8 +201,26 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                 AiCapability.TEXT_STREAMING,
                 AiCapability.TOOL_CALLING,
                 AiCapability.STRUCTURED_OUTPUT,
-                AiCapability.SYSTEM_PROMPT
+                AiCapability.SYSTEM_PROMPT,
+                // TOOL_APPROVAL is honest: SpringAiToolBridge.AtmosphereToolCallback
+                // routes tool invocation through
+                // ToolExecutionHelper.executeWithApproval on every call, so
+                // @RequiresApproval gates fire uniformly across all runtimes.
+                AiCapability.TOOL_APPROVAL
         );
+    }
+
+    @Override
+    public java.util.List<String> models() {
+        // Spring AI's ChatClient options carry the configured model but the
+        // accessor surface differs across 1.0.x and 1.1.x. Report the
+        // runtime-resolved default from AiConfig; per-request overrides via
+        // context.model() still take precedence at dispatch time.
+        var settings = AiConfig.get();
+        if (settings == null || settings.model() == null || settings.model().isBlank()) {
+            return java.util.List.of();
+        }
+        return java.util.List.of(settings.model());
     }
 
     private static Message toSpringMessage(ChatMessage msg) {

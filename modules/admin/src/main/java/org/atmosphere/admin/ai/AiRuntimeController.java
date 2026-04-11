@@ -39,16 +39,7 @@ public final class AiRuntimeController {
         var runtimes = AgentRuntimeResolver.resolveAll();
         var result = new ArrayList<Map<String, Object>>(runtimes.size());
         for (AgentRuntime runtime : runtimes) {
-            var info = new LinkedHashMap<String, Object>();
-            info.put("name", runtime.name());
-            info.put("priority", runtime.priority());
-            info.put("isAvailable", runtime.isAvailable());
-            var capabilities = new ArrayList<String>();
-            for (AiCapability cap : runtime.capabilities()) {
-                capabilities.add(cap.name());
-            }
-            info.put("capabilities", capabilities);
-            result.add(info);
+            result.add(describe(runtime));
         }
         return result;
     }
@@ -57,7 +48,18 @@ public final class AiRuntimeController {
      * Get the currently active (highest-priority available) runtime.
      */
     public Map<String, Object> getActiveRuntime() {
-        var runtime = AgentRuntimeResolver.resolve();
+        return describe(AgentRuntimeResolver.resolve());
+    }
+
+    /**
+     * Shared runtime-description builder. Reports name, priority, availability,
+     * capabilities, and the list of configured models. The {@code models} list
+     * is whatever the runtime reports via {@link AgentRuntime#models()} —
+     * runtimes with deterministic model hints return their configured model;
+     * runtimes whose model selection is per-request (ADK, Koog) return an
+     * empty list, which is still honest.
+     */
+    private static Map<String, Object> describe(AgentRuntime runtime) {
         var info = new LinkedHashMap<String, Object>();
         info.put("name", runtime.name());
         info.put("priority", runtime.priority());
@@ -67,6 +69,7 @@ public final class AiRuntimeController {
             capabilities.add(cap.name());
         }
         info.put("capabilities", capabilities);
+        info.put("models", new ArrayList<>(runtime.models()));
         return info;
     }
 }
