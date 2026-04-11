@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Streaming response handler that supports tool calling with LangChain4j.
@@ -54,18 +53,6 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
     private final List<ToolSpecification> toolSpecifications;
     private final Map<String, ToolDefinition> toolMap;
     private final ApprovalStrategy approvalStrategy;
-    /**
-     * D-6 LC4j soft-cancel flag. {@link StreamingChatResponseHandler} has no
-     * direct hook to abort the in-flight HTTP call, so the best we can do is
-     * poll this flag on every {@code onPartialResponse} and stop forwarding
-     * tokens to the session once it flips. The {@link ExecutionHandle}
-     * returned by {@code LangChain4jAgentRuntime#doExecuteWithHandle} holds
-     * a reference to the same {@code AtomicBoolean} and flips it on
-     * {@code cancel()}. Cancellation is therefore soft (takes effect at the
-     * next token boundary) but avoids leaking completions into a session
-     * that the caller has already abandoned.
-     */
-    private final AtomicBoolean cancelled;
     private int toolRound;
 
     ToolAwareStreamingResponseHandler(
@@ -74,9 +61,8 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             List<ChatMessage> conversationHistory,
             List<ToolSpecification> toolSpecifications,
             Map<String, ToolDefinition> toolMap,
-            ApprovalStrategy approvalStrategy,
-            AtomicBoolean cancelled) {
-        this(session, model, conversationHistory, toolSpecifications, toolMap, approvalStrategy, cancelled, 0);
+            ApprovalStrategy approvalStrategy) {
+        this(session, model, conversationHistory, toolSpecifications, toolMap, approvalStrategy, 0);
     }
 
     private ToolAwareStreamingResponseHandler(
@@ -86,7 +72,6 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             List<ToolSpecification> toolSpecifications,
             Map<String, ToolDefinition> toolMap,
             ApprovalStrategy approvalStrategy,
-            AtomicBoolean cancelled,
             int toolRound) {
         this.session = session;
         this.model = model;
@@ -94,16 +79,14 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
         this.toolSpecifications = toolSpecifications;
         this.toolMap = toolMap;
         this.approvalStrategy = approvalStrategy;
-        this.cancelled = cancelled != null ? cancelled : new AtomicBoolean();
         this.toolRound = toolRound;
     }
 
     @Override
     public void onPartialResponse(String partialResponse) {
-        if (cancelled.get() || session.isClosed()) {
-            return;
+        if (!session.isClosed()) {
+            session.send(partialResponse);
         }
-        session.send(partialResponse);
     }
 
     @Override
@@ -163,12 +146,9 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
                     .toolSpecifications(toolSpecifications)
                     .build();
 
-            if (cancelled.get()) {
-                return;
-            }
             var nextHandler = new ToolAwareStreamingResponseHandler(
                     session, model, updatedMessages, toolSpecifications, toolMap,
-                    approvalStrategy, cancelled, toolRound + 1);
+                    approvalStrategy, toolRound + 1);
             model.chat(followUpRequest, nextHandler);
         } else {
             // No tool calls — deliver the final text response

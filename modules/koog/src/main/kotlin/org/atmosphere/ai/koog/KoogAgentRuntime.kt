@@ -31,12 +31,9 @@ import org.atmosphere.ai.AiConfig
 import org.atmosphere.ai.AiEvent
 import org.atmosphere.ai.AgentExecutionContext
 import org.atmosphere.ai.AgentRuntime
-import org.atmosphere.ai.ExecutionHandle
 import org.atmosphere.ai.StreamingSession
 import org.atmosphere.ai.TokenUsage
 import org.slf4j.LoggerFactory
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * [AgentRuntime] implementation backed by JetBrains Koog.
@@ -92,45 +89,6 @@ class KoogAgentRuntime : AgentRuntime {
     }
 
     override fun execute(context: AgentExecutionContext, session: StreamingSession) {
-        executeInternal(context, session, AtomicBoolean())
-    }
-
-    /**
-     * D-6 Koog soft-cancel: returns an [ExecutionHandle] whose [ExecutionHandle.cancel]
-     * flips an [AtomicBoolean] polled by every streaming event handler. Cancellation
-     * takes effect at the next frame boundary — the agent's in-flight LLM call is
-     * not hard-interrupted. True coroutine [kotlinx.coroutines.Job] cancel is a
-     * follow-up requiring the suspend path to thread a [kotlinx.coroutines.CoroutineScope]
-     * all the way through to [ai.koog.agents.core.agent.AIAgent.run]; that refactor
-     * is tracked separately.
-     */
-    override fun executeWithHandle(
-        context: AgentExecutionContext, session: StreamingSession
-    ): ExecutionHandle {
-        val cancelled = AtomicBoolean()
-        val done = CompletableFuture<Void>()
-        Thread.startVirtualThread {
-            try {
-                executeInternal(context, session, cancelled)
-                done.complete(null)
-            } catch (e: Throwable) {
-                done.completeExceptionally(e)
-            }
-        }
-        return object : ExecutionHandle {
-            override fun cancel() {
-                cancelled.set(true)
-            }
-            override fun isDone(): Boolean = done.isDone
-            override fun whenDone(): CompletableFuture<Void> = done
-        }
-    }
-
-    private fun executeInternal(
-        context: AgentExecutionContext,
-        session: StreamingSession,
-        cancelled: AtomicBoolean
-    ) {
         val executor = promptExecutor
             ?: throw IllegalStateException(
                 "KoogAgentRuntime: PromptExecutor not configured. " +
@@ -147,9 +105,9 @@ class KoogAgentRuntime : AgentRuntime {
         }
 
         if (context.tools().isNotEmpty()) {
-            executeWithAgent(executor, model, context, session, cancelled)
+            executeWithAgent(executor, model, context, session)
         } else {
-            executeWithExecutor(executor, model, context, session, cancelled)
+            executeWithExecutor(executor, model, context, session)
         }
     }
 
@@ -160,8 +118,7 @@ class KoogAgentRuntime : AgentRuntime {
      */
     private fun executeWithAgent(
         executor: PromptExecutor, model: LLModel,
-        context: AgentExecutionContext, session: StreamingSession,
-        cancelled: AtomicBoolean
+        context: AgentExecutionContext, session: StreamingSession
     ) {
         val toolRegistry = AtmosphereToolBridge.buildRegistry(
             context.tools(), session, context.approvalStrategy()
@@ -177,7 +134,7 @@ class KoogAgentRuntime : AgentRuntime {
         ) {
             handleEvents {
                 onLLMStreamingFrameReceived { ctx ->
-                    if (cancelled.get() || session.isClosed) return@onLLMStreamingFrameReceived
+                    if (session.isClosed) return@onLLMStreamingFrameReceived
                     when (val frame = ctx.streamFrame) {
                         is StreamFrame.TextDelta -> session.emit(AiEvent.TextDelta(frame.text))
                         is StreamFrame.TextComplete -> session.emit(AiEvent.TextComplete(frame.text))
@@ -235,15 +192,14 @@ class KoogAgentRuntime : AgentRuntime {
      */
     private fun executeWithExecutor(
         executor: PromptExecutor, model: LLModel,
-        context: AgentExecutionContext, session: StreamingSession,
-        cancelled: AtomicBoolean
+        context: AgentExecutionContext, session: StreamingSession
     ) {
         val koogPrompt = buildPrompt(context)
 
         try {
             runBlocking {
                 executor.executeStreaming(koogPrompt, model).collect { frame ->
-                    if (cancelled.get() || session.isClosed) return@collect
+                    if (session.isClosed) return@collect
                     when (frame) {
                         is StreamFrame.TextDelta -> session.emit(AiEvent.TextDelta(frame.text))
                         is StreamFrame.TextComplete -> session.emit(AiEvent.TextComplete(frame.text))

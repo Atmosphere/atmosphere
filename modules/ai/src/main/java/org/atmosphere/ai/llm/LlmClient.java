@@ -42,20 +42,4 @@ public interface LlmClient {
      * @param session the streaming session to push streaming texts through
      */
     void streamChatCompletion(ChatCompletionRequest request, StreamingSession session);
-
-    /**
-     * D-6 Built-in native cancel: variant of
-     * {@link #streamChatCompletion(ChatCompletionRequest, StreamingSession)} that
-     * also consults a caller-supplied cancel flag. Implementations should poll
-     * the flag inside the SSE read loop and exit cleanly when it flips. Default
-     * implementation delegates to the 2-arg form (no cancellation support).
-     *
-     * @param request  the chat completion request
-     * @param session  the streaming session to push streaming texts through
-     * @param cancelled caller-managed cancel flag (may be null)
-     */
-    default void streamChatCompletion(ChatCompletionRequest request, StreamingSession session,
-                                      java.util.concurrent.atomic.AtomicBoolean cancelled) {
-        streamChatCompletion(request, session);
-    }
 }
