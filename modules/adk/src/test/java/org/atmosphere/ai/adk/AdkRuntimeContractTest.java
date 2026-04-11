@@ -57,6 +57,33 @@ class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
         return null;
     }
 
+    /**
+     * Exercise the {@code runtimeWithVisionCapabilityAcceptsImagePart}
+     * contract assertion on the ADK runtime. ADK declares
+     * {@link AiCapability#VISION} and translates
+     * {@link org.atmosphere.ai.Content.Image} parts into
+     * {@code Part.fromBytes(byte[], mimeType)} before handing them to the
+     * Gemini runner. The assertion fires the runtime.execute path against
+     * an unconfigured Runner — the message-assembly layer runs before
+     * {@code resolveClient()} throws {@code IllegalStateException}, which
+     * the base assertion catches via {@code Assumptions.assumeTrue(false)}
+     * and marks the test as skipped-with-reason rather than failed.
+     * {@code UnsupportedOperationException} from the part translation
+     * would still surface as a hard failure, which is the contract the
+     * assertion is here to enforce.
+     */
+    @Override
+    protected AgentExecutionContext createImageContext() {
+        var parts = List.<org.atmosphere.ai.Content>of(
+                new org.atmosphere.ai.Content.Image(TINY_PNG, "image/png"));
+        return new AgentExecutionContext(
+                "Describe this image.", "You are helpful", "gemini-2.5-flash",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), parts,
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
+    }
+
     // ADK execution tests require a configured Runner with API key.
     // The inherited textStreamingCompletesSession() will fail because
     // no Runner is configured. Override to skip.

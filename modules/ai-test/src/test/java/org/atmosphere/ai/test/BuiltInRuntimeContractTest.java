@@ -59,6 +59,32 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
         return null;
     }
 
+    /**
+     * Exercise the {@code runtimeWithVisionCapabilityAcceptsImagePart}
+     * contract assertion on the Built-in runtime. Built-in declares
+     * {@link org.atmosphere.ai.AiCapability#VISION} and threads
+     * {@link org.atmosphere.ai.Content.Image} parts through
+     * {@code ChatCompletionRequest.parts()} into the OpenAI chat completions
+     * multi-content wire format. The assertion checks that
+     * {@code runtime.execute(...)} doesn't throw
+     * {@code UnsupportedOperationException} at the message-assembly layer;
+     * downstream network failures are caught and silently accepted per the
+     * base-class assertion contract. Actual wire-format correctness is
+     * validated at unit level by
+     * {@code OpenAiCompatibleClientMultiModalTest}.
+     */
+    @Override
+    protected AgentExecutionContext createImageContext() {
+        var parts = List.<org.atmosphere.ai.Content>of(
+                new org.atmosphere.ai.Content.Image(TINY_PNG, "image/png"));
+        return new AgentExecutionContext(
+                "Describe this image.", "You are helpful", "gpt-4o-mini",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), parts,
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
+    }
+
     // Built-in execution requires a configured OpenAI API key + remote endpoint.
     // Skip live streaming assertions; capability parity assertions still run.
     @Override
