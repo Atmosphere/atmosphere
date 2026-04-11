@@ -201,7 +201,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                     request.model(), request.messages().size(), request.tools().size(), toolRound);
         }
 
-        var response = sendWithRetry(requestBody, endpoint, session);
+        var response = sendWithRetry(requestBody, endpoint, session, request.retryPolicy());
         if (response == null) {
             return;
         }
@@ -218,7 +218,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             }
             responseIdCache.remove(conversationId);
             var fallbackBody = buildRequestBody(request);
-            response = sendWithRetry(fallbackBody, baseUrl + "/chat/completions", session);
+            response = sendWithRetry(fallbackBody, baseUrl + "/chat/completions", session, request.retryPolicy());
             if (response == null) {
                 return;
             }
@@ -343,7 +343,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                     request.temperature(), request.maxStreamingTexts(),
                     request.jsonMode(), request.tools(), request.conversationId(),
                     request.approvalStrategy(), request.parts(), request.listeners(),
-                    request.cacheHint());
+                    request.cacheHint(), request.retryPolicy());
             if (cancelled.get()) {
                 return;
             }
@@ -355,13 +355,19 @@ public class OpenAiCompatibleClient implements LlmClient {
 
     private HttpResponse<java.io.InputStream> sendWithRetry(String requestBody,
                                                              String endpoint,
-                                                             StreamingSession session)
+                                                             StreamingSession session,
+                                                             RetryPolicy override)
             throws InterruptedException {
         var isResponsesEndpoint = endpoint.endsWith("/responses");
         HttpResponse<java.io.InputStream> response = null; // NOPMD — null fallback needed if all retries throw
         Exception lastException = null;
 
-        var maxRetries = retryPolicy.maxRetries();
+        // Per-request override wins; otherwise inherit the client's
+        // constructor-time policy. Wave 6: callers thread their own
+        // RetryPolicy via ChatCompletionRequest.retryPolicy when they need
+        // tighter or looser semantics than the client default.
+        var effectivePolicy = override != null ? override : retryPolicy;
+        var maxRetries = effectivePolicy.maxRetries();
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
             try {
                 var httpRequest = buildHttpRequest(requestBody, endpoint);
@@ -388,7 +394,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                     return null;
                 }
 
-                var delay = computeRetryDelay(attempt, response);
+                var delay = computeRetryDelay(attempt, response, effectivePolicy);
                 logger.warn("LLM API error ({}), retrying in {}ms (attempt {}/{})",
                         response.statusCode(), delay.toMillis(), attempt + 1, maxRetries);
                 Thread.sleep(delay.toMillis());
@@ -398,7 +404,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                 if (attempt == maxRetries) {
                     break;
                 }
-                var delay = computeRetryDelay(attempt, null);
+                var delay = computeRetryDelay(attempt, null, effectivePolicy);
                 logger.warn("LLM request timeout, retrying in {}ms (attempt {}/{}): {}",
                         delay.toMillis(), attempt + 1, maxRetries, e.getMessage());
                 Thread.sleep(delay.toMillis());
@@ -407,7 +413,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                 if (attempt == maxRetries) {
                     break;
                 }
-                var delay = computeRetryDelay(attempt, null);
+                var delay = computeRetryDelay(attempt, null, effectivePolicy);
                 logger.warn("LLM connection error, retrying in {}ms (attempt {}/{}): {}",
                         delay.toMillis(), attempt + 1, maxRetries, e.getMessage());
                 Thread.sleep(delay.toMillis());
@@ -427,7 +433,7 @@ public class OpenAiCompatibleClient implements LlmClient {
         return statusCode == 429 || statusCode == 500 || statusCode == 502 || statusCode == 503;
     }
 
-    private Duration computeRetryDelay(int attempt, HttpResponse<?> response) {
+    private Duration computeRetryDelay(int attempt, HttpResponse<?> response, RetryPolicy policy) {
         // Respect Retry-After header on 429 responses
         if (response != null && response.statusCode() == 429) {
             var retryAfter = response.headers().firstValue("Retry-After");
@@ -440,7 +446,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                 }
             }
         }
-        return retryPolicy.delayForAttempt(attempt);
+        return policy.delayForAttempt(attempt);
     }
 
     private void processSSELine(String line, StreamingSession session,

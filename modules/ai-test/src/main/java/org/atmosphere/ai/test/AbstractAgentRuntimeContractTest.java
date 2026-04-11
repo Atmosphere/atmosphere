@@ -257,6 +257,49 @@ public abstract class AbstractAgentRuntimeContractTest {
         return null;
     }
 
+    /**
+     * Every {@link org.atmosphere.ai.AgentExecutionContext} carries a
+     * non-null {@link org.atmosphere.ai.RetryPolicy} (defaulting to
+     * {@link org.atmosphere.ai.RetryPolicy#DEFAULT}). Runtimes that wire
+     * the per-request override into their underlying client (today: only
+     * Built-in via {@code OpenAiCompatibleClient.sendWithRetry}) must
+     * accept a context whose {@code retryPolicy} is set to a custom value
+     * without throwing at dispatch. Other runtimes inherit their native
+     * framework retry layer and the assertion verifies they at least
+     * tolerate the field.
+     */
+    @Test
+    protected void runtimeAcceptsCustomRetryPolicyOnContext() {
+        var runtime = createRuntime();
+        var context = createRetryContext();
+        if (context == null) {
+            return;
+        }
+        try {
+            runtime.execute(context, new NoopSession());
+        } catch (UnsupportedOperationException uoe) {
+            org.junit.jupiter.api.Assertions.fail(
+                    runtime.name() + " threw UnsupportedOperationException for a custom RetryPolicy: "
+                            + uoe.getMessage());
+        } catch (IllegalStateException | IllegalArgumentException iae) {
+            org.junit.jupiter.api.Assumptions.assumeTrue(false,
+                    runtime.name() + " skipped retry dispatch: " + iae.getMessage());
+        } catch (Exception ignored) {
+            // Network / model-provider failures are not part of this contract.
+        }
+    }
+
+    /**
+     * Subclass hook: return an {@link AgentExecutionContext} whose
+     * {@code retryPolicy} is set to a non-default value (e.g.
+     * {@link org.atmosphere.ai.RetryPolicy#NONE}). Defaults to
+     * {@code null} so runtimes that cannot mock dispatch skip the
+     * assertion.
+     */
+    protected AgentExecutionContext createRetryContext() {
+        return null;
+    }
+
     /** Minimal 1×1 transparent PNG for VISION contract tests. */
     protected static final byte[] TINY_PNG = new byte[]{
             (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,

@@ -154,6 +154,13 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
                 builder.cacheHint(new CacheHint(hint.policy(), resolvedKey, hint.ttl()));
             }
         }
+        // Per-request RetryPolicy override flows from context into the
+        // request so OpenAiCompatibleClient.sendWithRetry uses it instead of
+        // the client's instance-level default. The context constructor
+        // defaults to RetryPolicy.DEFAULT, so this is always non-null.
+        if (context.retryPolicy() != null) {
+            builder.retryPolicy(context.retryPolicy());
+        }
         return builder.build();
     }
 

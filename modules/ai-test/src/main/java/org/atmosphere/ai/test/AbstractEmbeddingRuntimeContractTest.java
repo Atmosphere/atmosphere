@@ -43,12 +43,13 @@ public abstract class AbstractEmbeddingRuntimeContractTest {
     protected abstract EmbeddingRuntime createRuntime();
 
     /**
-     * Subclass hook: inject a deterministic fake implementation into the
+     * Subclass hook: inject a deterministic in-process embedder into the
      * runtime so the base assertions can call {@code embed()} /
-     * {@code embedAll()} without a live network. The fake must return a
-     * vector whose first element is the input text's length and the
-     * remaining elements are zeros — the base assertions check this
-     * invariant to prove the vector actually round-tripped.
+     * {@code embedAll()} without a live network. The injected embedder
+     * must return a vector whose first element is the input text's length
+     * and the remaining elements are zeros — the base assertions check
+     * this invariant to prove the vector actually round-tripped through
+     * the adapter wrap layer.
      */
     protected abstract void installFakeEmbedder(EmbeddingRuntime runtime);
 

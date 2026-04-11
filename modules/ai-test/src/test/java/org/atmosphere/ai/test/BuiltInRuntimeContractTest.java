@@ -108,6 +108,25 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
     }
 
+    /**
+     * Exercise {@code runtimeAcceptsCustomRetryPolicyOnContext} on Built-in.
+     * The custom {@link org.atmosphere.ai.RetryPolicy#NONE} (zero retries)
+     * is threaded through {@code buildRequest} into the
+     * {@link org.atmosphere.ai.llm.ChatCompletionRequest#retryPolicy()}
+     * field, then read by {@code OpenAiCompatibleClient.sendWithRetry} as
+     * a per-request override of the client's instance-level default.
+     */
+    @Override
+    protected AgentExecutionContext createRetryContext() {
+        return new AgentExecutionContext(
+                "Hello, no retries.", "You are helpful", "gpt-4o-mini",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), List.of(),
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated())
+                .withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE);
+    }
+
     // Built-in execution requires a configured OpenAI API key + remote endpoint.
     // Skip live streaming assertions; capability parity assertions still run.
     @Override

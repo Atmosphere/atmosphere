@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.llm;
 
+import org.atmosphere.ai.RetryPolicy;
 import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.tool.ToolDefinition;
 
@@ -41,16 +42,37 @@ public record ChatCompletionRequest(
         ApprovalStrategy approvalStrategy,
         List<org.atmosphere.ai.Content> parts,
         List<org.atmosphere.ai.AgentLifecycleListener> listeners,
-        CacheHint cacheHint
+        CacheHint cacheHint,
+        RetryPolicy retryPolicy
 ) {
     /**
-     * Canonical constructor.
+     * Canonical constructor. {@code retryPolicy} is a per-request override
+     * for {@link OpenAiCompatibleClient}'s instance-level retry default —
+     * when null, the client falls back to its constructor-time policy.
      */
     public ChatCompletionRequest {
         tools = tools != null ? List.copyOf(tools) : List.of();
         parts = parts != null ? List.copyOf(parts) : List.of();
         listeners = listeners != null ? List.copyOf(listeners) : List.of();
         cacheHint = cacheHint != null ? cacheHint : CacheHint.none();
+        // retryPolicy stays nullable: null means "inherit the client's
+        // configured default", non-null is an explicit per-request override.
+    }
+
+    /**
+     * Shim constructor accepting the 11-arg form (without retry policy
+     * override). Defaults {@code retryPolicy} to {@code null} so the
+     * client uses its instance-level default.
+     */
+    public ChatCompletionRequest(String model, List<ChatMessage> messages,
+                                 double temperature, int maxStreamingTexts,
+                                 boolean jsonMode, List<ToolDefinition> tools,
+                                 String conversationId, ApprovalStrategy approvalStrategy,
+                                 List<org.atmosphere.ai.Content> parts,
+                                 List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+                                 CacheHint cacheHint) {
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
+                conversationId, approvalStrategy, parts, listeners, cacheHint, null);
     }
 
     /**
@@ -66,7 +88,7 @@ public record ChatCompletionRequest(
                                  List<org.atmosphere.ai.Content> parts,
                                  List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
         this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
-                conversationId, approvalStrategy, parts, listeners, CacheHint.none());
+                conversationId, approvalStrategy, parts, listeners, CacheHint.none(), null);
     }
 
     /**
@@ -139,6 +161,7 @@ public record ChatCompletionRequest(
         private List<org.atmosphere.ai.Content> parts = List.of();
         private List<org.atmosphere.ai.AgentLifecycleListener> listeners = List.of();
         private CacheHint cacheHint = CacheHint.none();
+        private RetryPolicy retryPolicy;
 
         private Builder(String model) {
             this.model = model;
@@ -227,9 +250,20 @@ public record ChatCompletionRequest(
             return this;
         }
 
+        /**
+         * Attach a per-request {@link RetryPolicy} override. When set,
+         * {@link OpenAiCompatibleClient} uses this policy for the
+         * upstream HTTP retries instead of its instance-level default.
+         * Pass {@code null} to inherit the client's configured default.
+         */
+        public Builder retryPolicy(RetryPolicy retryPolicy) {
+            this.retryPolicy = retryPolicy;
+            return this;
+        }
+
         public ChatCompletionRequest build() {
             return new ChatCompletionRequest(model, List.copyOf(messages),
-                    temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy, parts, listeners, cacheHint);
+                    temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy, parts, listeners, cacheHint, retryPolicy);
         }
     }
 }

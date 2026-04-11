@@ -59,7 +59,8 @@ public record AgentExecutionContext(
         ApprovalStrategy approvalStrategy,
         List<AgentLifecycleListener> listeners,
         List<Content> parts,
-        ToolApprovalPolicy approvalPolicy
+        ToolApprovalPolicy approvalPolicy,
+        RetryPolicy retryPolicy
 ) {
 
     public AgentExecutionContext {
@@ -70,6 +71,26 @@ public record AgentExecutionContext(
         listeners = listeners != null ? List.copyOf(listeners) : List.of();
         parts = parts != null ? List.copyOf(parts) : List.of();
         approvalPolicy = approvalPolicy != null ? approvalPolicy : ToolApprovalPolicy.annotated();
+        retryPolicy = retryPolicy != null ? retryPolicy : RetryPolicy.DEFAULT;
+    }
+
+    /**
+     * 18-arg constructor preserved for callers that supply tool approval
+     * policy but not yet a per-request {@link RetryPolicy}. Defaults to
+     * {@link RetryPolicy#DEFAULT}.
+     */
+    public AgentExecutionContext(String message, String systemPrompt, String model,
+                                 String agentId, String sessionId, String userId,
+                                 String conversationId, List<ToolDefinition> tools,
+                                 Object toolTarget, AiConversationMemory memory,
+                                 List<ContextProvider> contextProviders,
+                                 Map<String, Object> metadata, List<ChatMessage> history,
+                                 Class<?> responseType, ApprovalStrategy approvalStrategy,
+                                 List<AgentLifecycleListener> listeners,
+                                 List<Content> parts, ToolApprovalPolicy approvalPolicy) {
+        this(message, systemPrompt, model, agentId, sessionId, userId, conversationId,
+                tools, toolTarget, memory, contextProviders, metadata, history, responseType,
+                approvalStrategy, listeners, parts, approvalPolicy, RetryPolicy.DEFAULT);
     }
 
     /**
@@ -112,56 +133,56 @@ public record AgentExecutionContext(
     public AgentExecutionContext withMessage(String message) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy, retryPolicy);
     }
 
     /** Create a context with a different system prompt. */
     public AgentExecutionContext withSystemPrompt(String systemPrompt) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy, retryPolicy);
     }
 
     /** Create a context with additional metadata. */
     public AgentExecutionContext withMetadata(Map<String, Object> metadata) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy, retryPolicy);
     }
 
     /** Create a context with conversation history. */
     public AgentExecutionContext withHistory(List<ChatMessage> history) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy, retryPolicy);
     }
 
     /** Create a context with a target response type for structured output. */
     public AgentExecutionContext withResponseType(Class<?> responseType) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy, retryPolicy);
     }
 
     /** Create a context bound to a session-scoped HITL strategy. */
     public AgentExecutionContext withApprovalStrategy(ApprovalStrategy approvalStrategy) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy, retryPolicy);
     }
 
     /** Create a context with an additional lifecycle listener list (Phase 3). */
     public AgentExecutionContext withListeners(List<AgentLifecycleListener> listeners) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy, retryPolicy);
     }
 
     /** Create a context with multi-modal input parts (Phase 4). */
     public AgentExecutionContext withParts(List<Content> parts) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy, retryPolicy);
     }
 
     /**
@@ -176,6 +197,19 @@ public record AgentExecutionContext(
     public AgentExecutionContext withApprovalPolicy(ToolApprovalPolicy approvalPolicy) {
         return new AgentExecutionContext(message, systemPrompt, model, agentId,
                 sessionId, userId, conversationId, tools, toolTarget, memory,
-                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy);
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy, retryPolicy);
+    }
+
+    /**
+     * Create a context with a custom {@link RetryPolicy}. The Built-in
+     * runtime threads this through {@code OpenAiCompatibleClient.sendWithRetry}
+     * as a per-request override; framework adapter runtimes (Spring AI,
+     * LC4j, ADK, Koog, Embabel) honor their own retry layers and ignore
+     * the per-request override unless explicitly wired upstream.
+     */
+    public AgentExecutionContext withRetryPolicy(RetryPolicy retryPolicy) {
+        return new AgentExecutionContext(message, systemPrompt, model, agentId,
+                sessionId, userId, conversationId, tools, toolTarget, memory,
+                contextProviders, metadata, history, responseType, approvalStrategy, listeners, parts, approvalPolicy, retryPolicy);
     }
 }
