@@ -123,7 +123,8 @@ user_extensible = [
     "CoalescedCacheEventListener",
     "ToolExecutor",
     "PostPromptHook",
-    "AgentLifecycleListener"
+    "AgentLifecycleListener",
+    "EmbeddingRuntime"
 ]
 
 # ============================================================================

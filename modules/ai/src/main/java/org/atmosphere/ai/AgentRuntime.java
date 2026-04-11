@@ -114,6 +114,21 @@ public interface AgentRuntime {
     }
 
     /**
+     * Phase 11 of the unified {@code @Agent} API: enumerate the models this
+     * runtime can serve. Used by the admin / discovery surface to display
+     * runtime-resolved model lists instead of advertising configuration
+     * intent (Correctness Invariant #5 — Runtime Truth).
+     *
+     * <p>The default implementation returns an empty list — runtimes that can
+     * answer without an extra network call should override.</p>
+     *
+     * @return immutable list of model identifiers; never null
+     */
+    default java.util.List<String> models() {
+        return java.util.List.of();
+    }
+
+    /**
      * Synchronous convenience: execute a prompt and return the full response
      * as a string. Uses a {@link CollectingSession} internally with a 30-second
      * default timeout.
