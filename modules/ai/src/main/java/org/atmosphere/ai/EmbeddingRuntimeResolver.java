@@ -94,8 +94,20 @@ public final class EmbeddingRuntimeResolver {
         return result;
     }
 
-    /** Test hook: clear the resolver cache. */
-    static void resetCache() {
+    /**
+     * Clear the resolver's cached {@code ServiceLoader} result so the next
+     * {@link #resolveAll()} call rescans the classpath. Public but test-only
+     * — production code MUST NOT call this because the classpath does not
+     * change at runtime and clearing the cache forces redundant
+     * {@code ServiceLoader.load()} work.
+     *
+     * <p>The intended callers are test harnesses that install or uninstall
+     * a runtime via a {@code ServiceLoader} stub between assertions. The
+     * method is public rather than package-private so tests in other modules
+     * (e.g. the cross-module TCK subclasses) can reach it without a
+     * module-info export hack.</p>
+     */
+    public static void resetCache() {
         cachedAll = null;
     }
 }

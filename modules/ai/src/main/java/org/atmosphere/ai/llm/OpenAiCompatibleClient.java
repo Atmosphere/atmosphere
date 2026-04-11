@@ -100,6 +100,17 @@ public class OpenAiCompatibleClient implements LlmClient {
     }
 
     /**
+     * Returns the instance-level {@link RetryPolicy} — the fallback used
+     * when a {@link ChatCompletionRequest} does not carry its own override.
+     * Package-private because callers should rely on the per-request
+     * override path for production use; the accessor exists so tests can
+     * verify the builder wiring without reaching into private state.
+     */
+    RetryPolicy retryPolicy() {
+        return retryPolicy;
+    }
+
+    /**
      * Create a new builder.
      */
     public static Builder builder() {

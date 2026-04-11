@@ -22,7 +22,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -129,10 +128,8 @@ public abstract class AbstractEmbeddingRuntimeContractTest {
      */
     @Test
     void runtimeDeclaresStablePriority() {
-        var runtime = createRuntime();
-        var p1 = runtime.priority();
+        var p1 = createRuntime().priority();
         var p2 = createRuntime().priority();
         assertEquals(p1, p2, "priority() must be stable across instances");
-        assertSame(Integer.class, Integer.valueOf(p1).getClass());
     }
 }

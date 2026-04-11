@@ -18,7 +18,6 @@ package org.atmosphere.ai.llm;
 import org.atmosphere.ai.RetryPolicy;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -82,16 +81,13 @@ class OpenAiCompatibleClientRetryPolicyTest {
     }
 
     @Test
-    void clientStillExposesItsInstanceLevelDefaultPolicy() throws Exception {
+    void clientStillExposesItsInstanceLevelDefaultPolicy() {
         var client = OpenAiCompatibleClient.builder()
                 .baseUrl("http://example.invalid")
                 .apiKey("test")
                 .retryPolicy(RetryPolicy.NONE)
                 .build();
-        Field f = OpenAiCompatibleClient.class.getDeclaredField("retryPolicy");
-        f.setAccessible(true);
-        var policy = (RetryPolicy) f.get(client);
-        assertEquals(0, policy.maxRetries(),
+        assertEquals(0, client.retryPolicy().maxRetries(),
                 "Client's instance-level retryPolicy must remain settable via builder");
     }
 }
