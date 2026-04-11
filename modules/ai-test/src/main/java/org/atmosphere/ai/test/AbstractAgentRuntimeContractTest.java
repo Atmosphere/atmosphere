@@ -209,6 +209,54 @@ public abstract class AbstractAgentRuntimeContractTest {
         return null;
     }
 
+    /**
+     * Runtimes declaring {@link AiCapability#PROMPT_CACHING} must accept a
+     * context whose {@code metadata()} carries a {@link org.atmosphere.ai.llm.CacheHint}
+     * without throwing at dispatch. The assertion is purely about message
+     * assembly: the runtime must read the hint, translate it to whatever
+     * framework-native API it supports, and reach the streaming layer — it
+     * may then fail downstream on missing credentials or unreachable
+     * endpoints, which the catch block treats as "skipped, not failed" in
+     * keeping with the VISION assertion's pattern.
+     *
+     * <p>Subclasses that cannot mock a caching dispatch path may override
+     * {@link #createCacheContext()} to return {@code null} — the assertion
+     * then skips cleanly.</p>
+     */
+    @Test
+    protected void runtimeWithPromptCachingAcceptsCacheHint() {
+        var runtime = createRuntime();
+        if (!runtime.capabilities().contains(AiCapability.PROMPT_CACHING)) {
+            return;
+        }
+        var context = createCacheContext();
+        if (context == null) {
+            return;
+        }
+        try {
+            runtime.execute(context, new NoopSession());
+        } catch (UnsupportedOperationException uoe) {
+            org.junit.jupiter.api.Assertions.fail(
+                    runtime.name() + " declares PROMPT_CACHING but threw UnsupportedOperationException on CacheHint: "
+                            + uoe.getMessage());
+        } catch (IllegalStateException | IllegalArgumentException iae) {
+            org.junit.jupiter.api.Assumptions.assumeTrue(false,
+                    runtime.name() + " skipped cache dispatch: " + iae.getMessage());
+        } catch (Exception ignored) {
+            // Network / model-provider failures are not part of this contract.
+        }
+    }
+
+    /**
+     * Subclass hook: return an {@link AgentExecutionContext} whose
+     * {@code metadata()} carries a {@link org.atmosphere.ai.llm.CacheHint}
+     * under the canonical key. Defaults to {@code null} so runtimes without
+     * a mockable dispatch path skip the assertion.
+     */
+    protected AgentExecutionContext createCacheContext() {
+        return null;
+    }
+
     /** Minimal 1×1 transparent PNG for VISION contract tests. */
     protected static final byte[] TINY_PNG = new byte[]{
             (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,

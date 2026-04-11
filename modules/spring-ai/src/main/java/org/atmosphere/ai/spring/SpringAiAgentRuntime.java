@@ -138,7 +138,26 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
             promptSpec = promptSpec.user(u -> u.text(messageText).media(mediaArray));
         }
 
-        if (context.model() != null && !context.model().isBlank()) {
+        // Prompt-caching: if the context carries a CacheHint, build
+        // OpenAiChatOptions instead so we can set both the model and
+        // promptCacheKey in one options instance. OpenAiChatOptions extends
+        // ChatOptions and is merged by Spring AI's ChatClient whenever the
+        // underlying ChatModel is OpenAI-backed; other providers ignore the
+        // OpenAI-specific fields. We only take this branch when a hint is
+        // enabled so text-only callers keep the generic ChatOptions path
+        // (keeping provider-portability intact for non-OpenAI models).
+        var cacheHint = org.atmosphere.ai.llm.CacheHint.from(context);
+        var cacheKey = cacheHint.resolvedKey(context);
+        if (cacheHint.enabled() && cacheKey.isPresent()) {
+            var openAiOpts = org.springframework.ai.openai.OpenAiChatOptions.builder()
+                    .promptCacheKey(cacheKey.get());
+            if (context.model() != null && !context.model().isBlank()) {
+                openAiOpts.model(context.model());
+            }
+            promptSpec = promptSpec.options(openAiOpts.build());
+            logger.debug("Applied prompt_cache_key={} (model={})",
+                    cacheKey.get(), context.model());
+        } else if (context.model() != null && !context.model().isBlank()) {
             promptSpec = promptSpec.options(
                     ChatOptions.builder().model(context.model()).build());
             logger.debug("Using per-request model override: {}", context.model());
@@ -244,7 +263,12 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                 // not a silent drop.
                 AiCapability.VISION,
                 AiCapability.AUDIO,
-                AiCapability.MULTI_MODAL
+                AiCapability.MULTI_MODAL,
+                // PROMPT_CACHING is honest on the OpenAI path: doExecuteWithHandle
+                // reads context.metadata()'s CacheHint and attaches an
+                // OpenAiChatOptions.promptCacheKey to the prompt spec.
+                // Non-OpenAI providers ignore the OpenAI-specific option.
+                AiCapability.PROMPT_CACHING
         );
     }
 

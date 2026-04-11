@@ -225,6 +225,20 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
 
         ensureSession(requestRunner, userId, sessionId);
 
+        // Prompt-caching: ADK's ContextCacheConfig wires at App.Builder level,
+        // not per-request. When Atmosphere caches the App+Runner, a
+        // per-request CacheHint cannot re-plumb the App cheaply — rebuilding
+        // the Runner for every invocation would churn memory and break the
+        // D-6 soft-cancel guarantees. We therefore log the hint at debug
+        // level and continue; configuring ADK prompt caching remains a
+        // runtime-bootstrap concern (see modules/adk/README for the recipe).
+        var adkHint = org.atmosphere.ai.llm.CacheHint.from(context);
+        if (adkHint.enabled() && logger.isDebugEnabled()) {
+            logger.debug("ADK: per-request CacheHint (policy={}) ignored; "
+                    + "ADK ContextCacheConfig is App-scoped and must be wired "
+                    + "at App.Builder construction time.", adkHint.policy());
+        }
+
         // Translate any multi-modal Content.Image / Content.Audio / Content.File
         // parts on the context into ADK Part.fromBytes(byte[], mimeType) and
         // attach them alongside the text prompt. ADK's Content.fromParts

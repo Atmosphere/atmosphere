@@ -40,7 +40,8 @@ public record ChatCompletionRequest(
         String conversationId,
         ApprovalStrategy approvalStrategy,
         List<org.atmosphere.ai.Content> parts,
-        List<org.atmosphere.ai.AgentLifecycleListener> listeners
+        List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+        CacheHint cacheHint
 ) {
     /**
      * Canonical constructor.
@@ -49,12 +50,27 @@ public record ChatCompletionRequest(
         tools = tools != null ? List.copyOf(tools) : List.of();
         parts = parts != null ? List.copyOf(parts) : List.of();
         listeners = listeners != null ? List.copyOf(listeners) : List.of();
+        cacheHint = cacheHint != null ? cacheHint : CacheHint.none();
     }
 
     /**
-     * Shim constructor accepting the 9-arg form (without listeners).
-     * Defaults {@code listeners} to an empty list so existing callers
-     * (routing, fanout, tests) keep compiling unchanged.
+     * Shim constructor accepting the 10-arg form (without cache hint).
+     * Defaults {@code cacheHint} to {@link CacheHint#none()} so existing
+     * callers (routing, fanout, Wave-3 built-in runtime) keep compiling
+     * unchanged.
+     */
+    public ChatCompletionRequest(String model, List<ChatMessage> messages,
+                                 double temperature, int maxStreamingTexts,
+                                 boolean jsonMode, List<ToolDefinition> tools,
+                                 String conversationId, ApprovalStrategy approvalStrategy,
+                                 List<org.atmosphere.ai.Content> parts,
+                                 List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
+                conversationId, approvalStrategy, parts, listeners, CacheHint.none());
+    }
+
+    /**
+     * Shim constructor accepting the 9-arg form (without listeners or cache hint).
      */
     public ChatCompletionRequest(String model, List<ChatMessage> messages,
                                  double temperature, int maxStreamingTexts,
@@ -62,19 +78,19 @@ public record ChatCompletionRequest(
                                  String conversationId, ApprovalStrategy approvalStrategy,
                                  List<org.atmosphere.ai.Content> parts) {
         this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
-                conversationId, approvalStrategy, parts, List.of());
+                conversationId, approvalStrategy, parts, List.of(), CacheHint.none());
     }
 
     /**
-     * Shim constructor accepting the 8-arg form without multi-modal parts
-     * or listeners.
+     * Shim constructor accepting the 8-arg form without multi-modal parts,
+     * listeners, or cache hint.
      */
     public ChatCompletionRequest(String model, List<ChatMessage> messages,
                                  double temperature, int maxStreamingTexts,
                                  boolean jsonMode, List<ToolDefinition> tools,
                                  String conversationId, ApprovalStrategy approvalStrategy) {
         this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
-                conversationId, approvalStrategy, List.of(), List.of());
+                conversationId, approvalStrategy, List.of(), List.of(), CacheHint.none());
     }
 
     /**
@@ -84,7 +100,7 @@ public record ChatCompletionRequest(
                                  double temperature, int maxStreamingTexts,
                                  boolean jsonMode, List<ToolDefinition> tools,
                                  String conversationId) {
-        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, conversationId, null, List.of(), List.of());
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, conversationId, null, List.of(), List.of(), CacheHint.none());
     }
 
     /**
@@ -93,7 +109,7 @@ public record ChatCompletionRequest(
     public ChatCompletionRequest(String model, List<ChatMessage> messages,
                                  double temperature, int maxStreamingTexts,
                                  boolean jsonMode, List<ToolDefinition> tools) {
-        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, null, null, List.of(), List.of());
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools, null, null, List.of(), List.of(), CacheHint.none());
     }
 
     /**
@@ -101,7 +117,7 @@ public record ChatCompletionRequest(
      */
     public static ChatCompletionRequest of(String model, String userPrompt) {
         return new ChatCompletionRequest(model, List.of(ChatMessage.user(userPrompt)),
-                0.7, 2048, false, List.of(), null, null, List.of(), List.of());
+                0.7, 2048, false, List.of(), null, null, List.of(), List.of(), CacheHint.none());
     }
 
     /**
@@ -122,6 +138,7 @@ public record ChatCompletionRequest(
         private ApprovalStrategy approvalStrategy;
         private List<org.atmosphere.ai.Content> parts = List.of();
         private List<org.atmosphere.ai.AgentLifecycleListener> listeners = List.of();
+        private CacheHint cacheHint = CacheHint.none();
 
         private Builder(String model) {
             this.model = model;
@@ -200,9 +217,19 @@ public record ChatCompletionRequest(
             return this;
         }
 
+        /**
+         * Attach a {@link CacheHint} so {@link OpenAiCompatibleClient} emits
+         * {@code prompt_cache_key} on the OpenAI chat-completions wire when
+         * the hint is opted in. Travels intact across tool-loop rounds.
+         */
+        public Builder cacheHint(CacheHint cacheHint) {
+            this.cacheHint = cacheHint != null ? cacheHint : CacheHint.none();
+            return this;
+        }
+
         public ChatCompletionRequest build() {
             return new ChatCompletionRequest(model, List.copyOf(messages),
-                    temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy, parts, listeners);
+                    temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy, parts, listeners, cacheHint);
         }
     }
 }

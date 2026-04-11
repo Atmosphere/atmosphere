@@ -77,6 +77,28 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
     }
 
+    /**
+     * Exercise the {@code runtimeWithPromptCachingAcceptsCacheHint} assertion
+     * on Spring AI. The context carries a {@link org.atmosphere.ai.llm.CacheHint#conservative()}
+     * under the canonical metadata key; {@code doExecuteWithHandle} reads it
+     * via {@code CacheHint.from(context)} and attaches an
+     * {@code OpenAiChatOptions.promptCacheKey} to the prompt spec. Dispatch
+     * continues through Spring AI's reactor pipeline; downstream network
+     * failures are caught and treated as a skip per the base contract.
+     */
+    @Override
+    protected AgentExecutionContext createCacheContext() {
+        var metadata = Map.<String, Object>of(
+                org.atmosphere.ai.llm.CacheHint.METADATA_KEY,
+                org.atmosphere.ai.llm.CacheHint.conservative("spring-ai-cache-test"));
+        return new AgentExecutionContext(
+                "Hello, cached.", "You are helpful", "gpt-4",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), metadata,
+                List.of(), null, null, List.of(), List.of(),
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
+    }
+
     @Test
     void springAiDeclaresToolCalling() {
         assertTrue(createRuntime().capabilities().contains(AiCapability.TOOL_CALLING));

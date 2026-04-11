@@ -86,6 +86,28 @@ class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
     }
 
+    /**
+     * Exercise the {@code runtimeWithPromptCachingAcceptsCacheHint} assertion
+     * on LangChain4j. The context carries a {@link org.atmosphere.ai.llm.CacheHint#conservative()}
+     * under the canonical metadata key; {@code doExecute} reads it and
+     * threads the key through an {@code OpenAiChatRequestParameters}
+     * builder. Dispatch continues until the unconfigured
+     * {@code StreamingChatModel} throws, which the base assertion catches as
+     * skip-not-fail.
+     */
+    @Override
+    protected AgentExecutionContext createCacheContext() {
+        var metadata = Map.<String, Object>of(
+                org.atmosphere.ai.llm.CacheHint.METADATA_KEY,
+                org.atmosphere.ai.llm.CacheHint.conservative("lc4j-cache-test"));
+        return new AgentExecutionContext(
+                "Hello, cached.", "You are helpful", "gpt-4",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), metadata,
+                List.of(), null, null, List.of(), List.of(),
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
+    }
+
     @Test
     void langChain4jDeclaresToolCalling() {
         assertTrue(createRuntime().capabilities().contains(AiCapability.TOOL_CALLING));

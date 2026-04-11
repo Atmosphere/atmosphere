@@ -142,6 +142,18 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
             // on every round.
             builder.listeners(context.listeners());
         }
+        // Prompt-caching: context metadata may carry a CacheHint which the
+        // OpenAiCompatibleClient translates into a {@code prompt_cache_key}
+        // field on the outgoing JSON. Falls back to the session id when the
+        // caller did not supply an explicit key — OpenAI's own recommendation
+        // for multi-turn reuse.
+        var hint = CacheHint.from(context);
+        if (hint.enabled()) {
+            var resolvedKey = hint.resolvedKey(context);
+            if (resolvedKey.isPresent()) {
+                builder.cacheHint(new CacheHint(hint.policy(), resolvedKey, hint.ttl()));
+            }
+        }
         return builder.build();
     }
 
@@ -173,7 +185,13 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
                 // chat completions API does not accept audio input on the
                 // text-model surface (Whisper is a separate endpoint).
                 AiCapability.VISION,
-                AiCapability.MULTI_MODAL);
+                AiCapability.MULTI_MODAL,
+                // PROMPT_CACHING is honest: a CacheHint in context.metadata()
+                // under key {@code ai.cache.hint} becomes a
+                // {@code prompt_cache_key} JSON field in the outgoing OpenAI
+                // chat-completions request body. See buildRequest() + the
+                // serializer in OpenAiCompatibleClient.buildRequestBody.
+                AiCapability.PROMPT_CACHING);
     }
 
     @Override

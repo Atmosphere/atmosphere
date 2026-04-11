@@ -342,7 +342,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                     request.model(), List.copyOf(updatedMessages),
                     request.temperature(), request.maxStreamingTexts(),
                     request.jsonMode(), request.tools(), request.conversationId(),
-                    request.approvalStrategy(), request.parts(), request.listeners());
+                    request.approvalStrategy(), request.parts(), request.listeners(),
+                    request.cacheHint());
             if (cancelled.get()) {
                 return;
             }
@@ -588,6 +589,11 @@ public class OpenAiCompatibleClient implements LlmClient {
         }
         if (!request.tools().isEmpty()) {
             body.put("tools", serializeTools(request.tools()));
+        }
+        var cacheHint = request.cacheHint();
+        if (cacheHint != null && cacheHint.enabled()) {
+            cacheHint.cacheKey().filter(k -> !k.isBlank())
+                    .ifPresent(k -> body.put("prompt_cache_key", k));
         }
         return MAPPER.writeValueAsString(body);
     }

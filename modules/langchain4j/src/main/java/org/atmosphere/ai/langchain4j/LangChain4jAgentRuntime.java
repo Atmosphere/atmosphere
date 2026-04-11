@@ -178,7 +178,24 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 : LangChain4jToolBridge.toToolSpecifications(tools);
 
         var chatRequestBuilder = ChatRequest.builder().messages(messages);
-        if (context.model() != null && !context.model().isBlank()) {
+
+        // Prompt-caching: the Atmosphere CacheHint translates to an
+        // OpenAI-path {@code prompt_cache_key} injected via LC4j's
+        // OpenAiChatRequestParameters.customParameters(Map) — LC4j's generic
+        // ChatRequest.Builder has no typed cache accessor, so we go through
+        // the OpenAI params surface. Non-OpenAI providers silently ignore
+        // the field.
+        var cacheHint = org.atmosphere.ai.llm.CacheHint.from(context);
+        var cacheKey = cacheHint.resolvedKey(context);
+        if (cacheHint.enabled() && cacheKey.isPresent()) {
+            var paramsBuilder = dev.langchain4j.model.openai.OpenAiChatRequestParameters.builder()
+                    .customParameters(java.util.Map.of("prompt_cache_key", cacheKey.get()));
+            if (context.model() != null && !context.model().isBlank()) {
+                paramsBuilder.modelName(context.model());
+            }
+            chatRequestBuilder.parameters(paramsBuilder.build());
+            logger.debug("Applied prompt_cache_key={} via OpenAiChatRequestParameters", cacheKey.get());
+        } else if (context.model() != null && !context.model().isBlank()) {
             chatRequestBuilder.modelName(context.model());
             logger.debug("Using per-request model override: {}", context.model());
         }
@@ -290,7 +307,13 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 // dispatch, not a silent drop.
                 AiCapability.VISION,
                 AiCapability.AUDIO,
-                AiCapability.MULTI_MODAL
+                AiCapability.MULTI_MODAL,
+                // PROMPT_CACHING is honest on the OpenAI path: doExecuteWithHandle
+                // reads a CacheHint from context.metadata() and attaches
+                // {@code prompt_cache_key} through
+                // OpenAiChatRequestParameters.customParameters. Non-OpenAI
+                // providers silently drop the key.
+                AiCapability.PROMPT_CACHING
         );
     }
 

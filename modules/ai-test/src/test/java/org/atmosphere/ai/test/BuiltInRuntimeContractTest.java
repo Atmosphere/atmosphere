@@ -85,6 +85,29 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
     }
 
+    /**
+     * Exercise the {@code runtimeWithPromptCachingAcceptsCacheHint} assertion
+     * on the Built-in runtime. {@code buildRequest} reads the hint from
+     * {@code context.metadata()} and threads it into
+     * {@link org.atmosphere.ai.llm.ChatCompletionRequest#cacheHint()} so
+     * {@link org.atmosphere.ai.llm.OpenAiCompatibleClient#buildRequestBody}
+     * can emit {@code prompt_cache_key} in the outgoing JSON. The dispatch
+     * path fails downstream on a 400 from the remote (no API key in CI) —
+     * caught and treated as a skip by the base contract.
+     */
+    @Override
+    protected AgentExecutionContext createCacheContext() {
+        var metadata = Map.<String, Object>of(
+                org.atmosphere.ai.llm.CacheHint.METADATA_KEY,
+                org.atmosphere.ai.llm.CacheHint.conservative("builtin-cache-test"));
+        return new AgentExecutionContext(
+                "Hello, cached.", "You are helpful", "gpt-4o-mini",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), metadata,
+                List.of(), null, null, List.of(), List.of(),
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
+    }
+
     // Built-in execution requires a configured OpenAI API key + remote endpoint.
     // Skip live streaming assertions; capability parity assertions still run.
     @Override
