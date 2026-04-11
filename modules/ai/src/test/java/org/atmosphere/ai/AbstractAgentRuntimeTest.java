@@ -23,6 +23,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@SuppressWarnings({"deprecation", "removal"})
 class AbstractAgentRuntimeTest {
 
     /** Minimal concrete subclass for testing the base class. */

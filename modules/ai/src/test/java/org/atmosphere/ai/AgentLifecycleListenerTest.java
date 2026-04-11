@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * operations, and the {@link AbstractAgentRuntime} fireXxx helpers iterate in
  * FIFO order swallowing listener exceptions per the Javadoc contract.
  */
+@SuppressWarnings({"deprecation", "removal"})
 class AgentLifecycleListenerTest {
 
     private static final class RecordingListener implements AgentLifecycleListener {

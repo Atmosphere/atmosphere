@@ -20,7 +20,12 @@ import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.approval.ApprovalStrategy;
+import org.atmosphere.ai.approval.PendingApproval;
+import org.atmosphere.ai.tool.ToolDefinition;
+import org.atmosphere.ai.tool.ToolExecutionHelper;
 import org.junit.jupiter.api.Test;
+import java.util.concurrent.atomic.AtomicReference;
 
 import java.util.List;
 import java.util.Map;
@@ -81,11 +86,107 @@ public abstract class AbstractAgentRuntimeContractTest {
                 runtime.name() + " must declare TEXT_STREAMING");
     }
 
+    /**
+     * Every runtime that honors {@link AiCapability#SYSTEM_PROMPT} automatically
+     * receives structured-output support via {@code AiPipeline}'s
+     * {@code StructuredOutputCapturingSession} wrapping — the pipeline augments the
+     * system prompt with schema instructions and captures the JSON response. A
+     * runtime that declares {@code SYSTEM_PROMPT} but not {@code STRUCTURED_OUTPUT}
+     * is almost always advertising incorrectly (Correctness Invariant #5 — Runtime
+     * Truth). Subclasses that have a legitimate reason to opt out (e.g. a runtime
+     * whose session sink cannot deliver the final text frame to the capturing
+     * wrapper) can override this method and explain why in the override's Javadoc.
+     */
+    @Test
+    protected void runtimeWithSystemPromptAlsoDeclaresStructuredOutput() {
+        var runtime = createRuntime();
+        var caps = runtime.capabilities();
+        if (!caps.contains(AiCapability.SYSTEM_PROMPT)) {
+            return;
+        }
+        assertTrue(caps.contains(AiCapability.STRUCTURED_OUTPUT),
+                runtime.name() + " declares SYSTEM_PROMPT but not STRUCTURED_OUTPUT; "
+                        + "AiPipeline wraps the session in StructuredOutputCapturingSession "
+                        + "and augments the system prompt with schema instructions for every "
+                        + "SYSTEM_PROMPT-capable runtime. Either declare STRUCTURED_OUTPUT or "
+                        + "override runtimeWithSystemPromptAlsoDeclaresStructuredOutput() with "
+                        + "a Javadoc explaining why this runtime is a legitimate exception.");
+    }
+
     @Test
     protected void runtimeHasNonBlankName() {
         var runtime = createRuntime();
         assertNotNull(runtime.name());
         assertFalse(runtime.name().isBlank());
+    }
+
+    /**
+     * Every runtime that declares {@link AiCapability#TOOL_CALLING} must route
+     * {@code @RequiresApproval} tool invocations through
+     * {@link ToolExecutionHelper#executeWithApproval}, which in turn consults
+     * the session-scoped {@link ApprovalStrategy} and emits a
+     * {@link AiEvent.ApprovalRequired} frame via the session sink. This contract
+     * is the cross-runtime guarantee for Correctness Invariant #7 (Mode Parity)
+     * — the 2026-04-11 Phase 0 review found it missing even though the 5
+     * per-runtime bridge tests covered the individual call sites.
+     *
+     * <p>The base test exercises the helper directly with a fake
+     * {@link ApprovalStrategy} that captures the {@link PendingApproval} —
+     * concrete subclasses inherit this for free. Runtimes without tool calling
+     * (e.g. Embabel in the current tree) skip the assertion cleanly.</p>
+     */
+    @Test
+    protected void hitlPendingApprovalEmitsProtocolEvent() {
+        var runtime = createRuntime();
+        if (!runtime.capabilities().contains(AiCapability.TOOL_CALLING)) {
+            return; // runtime does not advertise tool calling — HITL gate N/A
+        }
+
+        var counter = new java.util.concurrent.atomic.AtomicInteger();
+        var sensitive = ToolDefinition.builder("contract_delete", "test-only deletion")
+                .parameter("id", "row id", "string")
+                .executor(args -> {
+                    counter.incrementAndGet();
+                    return "deleted:" + args.get("id");
+                })
+                .requiresApproval("Approve contract deletion?", 60)
+                .build();
+
+        var observed = new AtomicReference<PendingApproval>();
+        ApprovalStrategy capturing = (approval, session) -> {
+            observed.set(approval);
+            return ApprovalStrategy.ApprovalOutcome.DENIED;
+        };
+
+        // Go through the unified helper with a no-op session. This is exactly
+        // the call every runtime bridge now makes. If a runtime declares
+        // TOOL_CALLING but hasn't wired executeWithApproval on its bridge, the
+        // capturing strategy never observes the PendingApproval and this test
+        // fires.
+        var result = ToolExecutionHelper.executeWithApproval(
+                "contract_delete", sensitive, Map.of("id", "r-1"),
+                new NoopSession(), capturing);
+
+        assertNotNull(observed.get(),
+                runtime.name() + " declares TOOL_CALLING but ToolExecutionHelper.executeWithApproval "
+                        + "did not consult the ApprovalStrategy — the runtime bridge is bypassing "
+                        + "the unified HITL call site (Correctness Invariant #7 — Mode Parity).");
+        assertTrue(result.contains("cancelled"),
+                "denied outcome must surface cancellation result from the unified helper");
+        assertTrue(counter.get() == 0,
+                "denied @RequiresApproval tool must not execute its delegate");
+    }
+
+    /** Minimal StreamingSession satisfying the helper's session.sessionId() call. */
+    private static final class NoopSession implements StreamingSession {
+        @Override public String sessionId() { return "contract-test"; }
+        @Override public void send(String text) { }
+        @Override public void sendMetadata(String key, Object value) { }
+        @Override public void progress(String message) { }
+        @Override public void complete() { }
+        @Override public void complete(String summary) { }
+        @Override public void error(Throwable t) { }
+        @Override public boolean isClosed() { return false; }
     }
 
     @Test

@@ -15,6 +15,8 @@
  */
 package org.atmosphere.ai;
 
+import org.atmosphere.ai.approval.ApprovalRegistry;
+import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +47,14 @@ public class AiPipeline {
     private final List<ContextProvider> contextProviders;
     private final AiMetrics metrics;
     private final Class<?> responseType;
+    // Phase 0 HITL gap fix: the pipeline owns its own ApprovalRegistry so
+    // @Agent / @Coordinator / AG-UI / channel paths honor @RequiresApproval
+    // tools identically to the @AiEndpoint websocket path. Each execute()
+    // call derives a strategy from this registry and threads it into the
+    // 15-arg AgentExecutionContext constructor so ToolExecutionHelper's
+    // unified gate actually fires. Callers can route protocol-specific
+    // approval messages through {@link #tryResolveApproval(String)}.
+    private final ApprovalRegistry approvalRegistry = new ApprovalRegistry();
 
     public AiPipeline(AgentRuntime runtime, String systemPrompt, String model,
                       AiConversationMemory memory, ToolRegistry toolRegistry,
@@ -67,6 +77,25 @@ public class AiPipeline {
         this.contextProviders = contextProviders != null ? contextProviders : List.of();
         this.metrics = metrics != null ? metrics : AiMetrics.NOOP;
         this.responseType = responseType;
+    }
+
+    /**
+     * Route a protocol-specific approval message ({@code /__approval/<id>/approve}
+     * or {@code /deny}) through the pipeline's approval registry so the parked
+     * virtual thread in {@code ToolExecutionHelper.executeWithApproval} resumes.
+     * Callers on A2A / @Coordinator / AG-UI / Slack / Telegram / Discord /
+     * WhatsApp wire their protocol's approval decision to this method.
+     *
+     * @param message the incoming approval-protocol message
+     * @return {@code true} if the message was consumed as an approval response
+     */
+    public boolean tryResolveApproval(String message) {
+        return approvalRegistry.tryResolve(message);
+    }
+
+    /** Exposed so callers can share the registry for cross-pipeline deduplication. */
+    public ApprovalRegistry approvalRegistry() {
+        return approvalRegistry;
     }
 
     /**
@@ -135,14 +164,18 @@ public class AiPipeline {
         }
 
         // Build execution context from the (potentially guardrail-modified) request
-        // so that guardrail modifications to systemPrompt/model are honored
+        // so that guardrail modifications to systemPrompt/model are honored.
+        // Phase 0 HITL gap fix: derive a strategy from the pipeline's registry
+        // and pass it into the 15-arg constructor so runtime bridges honor
+        // @RequiresApproval on this execution path (Mode Parity Invariant #7).
         var tools = toolRegistry != null ? toolRegistry.allTools() : List.<org.atmosphere.ai.tool.ToolDefinition>of();
+        var strategy = ApprovalStrategy.virtualThread(approvalRegistry);
         var context = new AgentExecutionContext(
                 request.message(), request.systemPrompt(), request.model(),
                 null, clientId, null, clientId,
                 List.copyOf(tools), null, memory,
                 contextProviders, request.metadata(), history,
-                effectiveResponseType);
+                effectiveResponseType, strategy);
 
         try {
             runtime.execute(context, target);

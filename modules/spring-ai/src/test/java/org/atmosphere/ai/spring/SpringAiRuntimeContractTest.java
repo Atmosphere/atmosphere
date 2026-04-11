@@ -37,6 +37,7 @@ import static org.mockito.Mockito.when;
 /**
  * Concrete TCK test for {@link SpringAiAgentRuntime}.
  */
+@SuppressWarnings({"deprecation", "removal"})
 class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override

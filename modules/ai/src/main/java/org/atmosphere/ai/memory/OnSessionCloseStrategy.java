@@ -53,12 +53,16 @@ final class OnSessionCloseStrategy implements MemoryExtractionStrategy {
             return List.of();
         }
 
+        // Fact extraction has no tool list so HITL gating is a no-op here; use the
+        // 15-arg form with a null ApprovalStrategy explicitly to stay off the
+        // deprecated 14-arg shim.
         var prompt = EXTRACTION_PROMPT.formatted(conversationText);
         var context = new AgentExecutionContext(
                 prompt,
                 "You are a fact extraction assistant. Respond with JSON only.",
                 null, null, null, null, null,
-                List.of(), null, null, List.of(), Map.of(), List.of(), null);
+                List.of(), null, null, List.of(), Map.of(), List.of(), null,
+                (org.atmosphere.ai.approval.ApprovalStrategy) null);
 
         var text = new StringBuilder();
         var latch = new CountDownLatch(1);

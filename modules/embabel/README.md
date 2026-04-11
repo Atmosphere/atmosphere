@@ -53,6 +53,21 @@ See the [atmosphere-ai capability matrix](../ai/README.md#capability-matrix) and
 <https://atmosphere.github.io/docs/reference/ai/> for the unified capability matrix
 across all runtimes.
 
+## Human-in-the-Loop (HITL) — not honored
+
+Embabel delegates tool / function execution to its own `AgentPlatform` on a
+separate runtime that Atmosphere does not control, so Atmosphere's
+`@RequiresApproval` annotation and the unified
+`ToolExecutionHelper.executeWithApproval` gate are **not** enforced on this
+runtime. Tools annotated with `@RequiresApproval` run without the approval
+parking/timeout flow that every other runtime (Built-in, LangChain4j, Spring AI,
+Koog, ADK) provides.
+
+If you need HITL gating on an Embabel-backed flow today, enforce it at the
+Embabel `@AgentAction` level (inside the Embabel agent itself) or route the
+sensitive tool through a different runtime. This gap is tracked for future work
+as part of the Phase 0.5 follow-ups.
+
 ## Requirements
 
 - Java 21+

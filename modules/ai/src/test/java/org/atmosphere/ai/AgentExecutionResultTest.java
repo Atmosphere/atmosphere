@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * any {@link TokenUsage} events the runtime emits, returning a typed
  * {@link AgentExecutionResult}.
  */
+@SuppressWarnings({"deprecation", "removal"})
 class AgentExecutionResultTest {
 
     /** Minimal runtime that emits one text chunk + one usage event. */

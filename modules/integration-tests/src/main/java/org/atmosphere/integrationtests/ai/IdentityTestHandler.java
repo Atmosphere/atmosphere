@@ -32,6 +32,7 @@ import java.io.IOException;
  * Creates an AiRequest with identity fields populated and uses a fake
  * AiSupport that echoes them back as metadata for Playwright verification.
  */
+@SuppressWarnings({"deprecation", "removal"})
 public class IdentityTestHandler implements AtmosphereHandler {
 
     @Override

@@ -46,6 +46,7 @@ import java.util.concurrent.TimeUnit;
  * @see AiResponse
  * @see AiAssertions
  */
+@SuppressWarnings({"deprecation", "removal"})
 public class AiTestClient {
 
     private final AgentRuntime runtime;

@@ -42,6 +42,10 @@ import java.util.regex.Pattern;
  * <p>Requires an LLM API key to be configured. Falls back to pass-through
  * (score 1.0) when no runtime is available or the API call fails.</p>
  */
+// LLM judge path: no tool list, so the legacy 14-arg AgentExecutionContext
+// constructor is a legitimate use — the forRemoval deprecation is here to
+// catch accidental bypass on HITL-relevant paths, not evaluation harnesses.
+@SuppressWarnings({"deprecation", "removal"})
 public final class LlmResultEvaluator implements ResultEvaluator {
 
     private static final Logger logger = LoggerFactory.getLogger(LlmResultEvaluator.class);

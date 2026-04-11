@@ -47,6 +47,7 @@ import static org.mockito.Mockito.*;
  * <p>This proves that an {@code @Agent} with {@code @AiTool} methods works
  * on the built-in runtime (zero framework dependencies).</p>
  */
+@SuppressWarnings({"deprecation", "removal"})
 class RuntimeCapabilityParityTest {
 
     @SuppressWarnings("unchecked")

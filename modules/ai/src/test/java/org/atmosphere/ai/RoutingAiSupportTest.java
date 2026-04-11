@@ -23,6 +23,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+@SuppressWarnings({"deprecation", "removal"})
 public class RoutingAiSupportTest {
 
     @Test

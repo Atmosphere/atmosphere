@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
  * assertions.meetsIntent("Recommends whether to bring an umbrella");
  * }</pre>
  */
+@SuppressWarnings({"deprecation", "removal"})
 public class LlmJudge {
 
     private final AgentRuntime judgeRuntime;

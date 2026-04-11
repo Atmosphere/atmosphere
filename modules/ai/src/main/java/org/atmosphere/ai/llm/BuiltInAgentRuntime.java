@@ -86,6 +86,16 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
 
     @Override
     public Set<AiCapability> capabilities() {
-        return Set.of(AiCapability.TEXT_STREAMING, AiCapability.TOOL_CALLING, AiCapability.SYSTEM_PROMPT);
+        // STRUCTURED_OUTPUT is honored two ways: (1) the AiPipeline wraps the session
+        // in StructuredOutputCapturingSession and augments the system prompt with schema
+        // instructions (same path every other runtime relies on), and (2) doExecute
+        // additionally enables native OpenAI jsonMode on the underlying client when
+        // responseType is present — see lines 72-74 above. Declaring it keeps the
+        // SPI contract honest (Correctness Invariant #5 — Runtime Truth).
+        return Set.of(
+                AiCapability.TEXT_STREAMING,
+                AiCapability.TOOL_CALLING,
+                AiCapability.STRUCTURED_OUTPUT,
+                AiCapability.SYSTEM_PROMPT);
     }
 }
