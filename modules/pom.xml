@@ -27,6 +27,7 @@
         <module>langchain4j</module>
         <module>embabel</module>
         <module>koog</module>
+        <module>semantic-kernel</module>
         <module>redis</module>
         <module>kafka</module>
         <module>grpc</module>
