@@ -134,6 +134,28 @@ public class Chat {
 
 Only packaging and configuration differ — your business logic is portable across Spring Boot, Quarkus, and plain Servlet containers.
 
+## Wave 1-6 Unified @Agent Feature Matrix
+
+| Sample | Tool calling | HITL approval | Prompt caching | Lifecycle listeners | Embeddings |
+|--------|:------------:|:-------------:|:--------------:|:-------------------:|:----------:|
+| [spring-boot-ai-chat](spring-boot-ai-chat/) | — | — | ✅ `promptCache = CONSERVATIVE` | — | startup log |
+| [spring-boot-ai-tools](spring-boot-ai-tools/) | ✅ | ✅ `@RequiresApproval` | — | ✅ `ToolAuditListener` | — |
+| [spring-boot-rag-chat](spring-boot-rag-chat/) | ✅ | — | — | — | ✅ via `ContextProvider` |
+| [spring-boot-multi-agent-startup-team](spring-boot-multi-agent-startup-team/) | ✅ | ✅ | — | — | — |
+| [spring-boot-dentist-agent](spring-boot-dentist-agent/) | ✅ | ✅ | — | — | — |
+| [spring-boot-checkpoint-agent](spring-boot-checkpoint-agent/) | ✅ | ✅ durable | — | — | — |
+| [spring-boot-orchestration-demo](spring-boot-orchestration-demo/) | ✅ | ✅ | — | — | — |
+
+**Feature reference:**
+- **Tool calling + HITL approval** (Phase 0 + Wave 1): `@AiTool` + `@RequiresApproval`; every runtime routes through `ToolExecutionHelper.executeWithApproval`.
+- **Multi-modal** (Wave 2): `Content.Image` / `Audio` / `File` on `context.parts()`; Spring AI `Media`, LC4j `ImageContent`, ADK `Part.fromBytes`, Built-in OpenAI `image_url`.
+- **Lifecycle listeners** (Wave 3): implement `AgentLifecycleListener` and attach via `context.withListeners(...)`. Bridges fire `onToolCall`/`onToolResult` on every round.
+- **Prompt caching** (Wave 4): `@AiEndpoint(promptCache = CachePolicy.CONSERVATIVE)` or `CacheHint` on context metadata. Spring AI/LC4j/Built-in emit OpenAI `prompt_cache_key`; pipeline-level `ResponseCache` also replays identical requests across all runtimes.
+- **Embeddings** (Wave 5): `EmbeddingRuntime` SPI auto-discovered via `ServiceLoader`. Ships for Spring AI, LangChain4j, Built-in OpenAI, Embabel, Semantic Kernel.
+- **Retry policy** (Wave 6): `@AiEndpoint(retry = @Retry(maxRetries = 5))` or programmatic `context.withRetryPolicy(...)`.
+
+See the [atmosphere-ai capability matrix](../modules/ai/README.md#capability-matrix) for the cross-runtime support view.
+
 ## Documentation
 
 - [Full Documentation](https://atmosphere.github.io/docs/)
