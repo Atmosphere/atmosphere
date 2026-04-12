@@ -67,6 +67,45 @@
       }
     },
     {
+      "name": "spring-boot-koog-chat",
+      "description": "Real-time AI chat powered by JetBrains Koog",
+      "category": "ai",
+      "tags": [
+        "spring-boot",
+        "ai",
+        "koog",
+        "jetbrains"
+      ],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "LLM_API_KEY": "API key for your LLM provider (optional \u2014 demo mode without)"
+      }
+    },
+    {
+      "name": "spring-boot-orchestration-demo",
+      "description": "Support Desk \u2014 handoffs, approval gates, commands",
+      "category": "agent",
+      "tags": [
+        "spring-boot",
+        "ai",
+        "orchestration",
+        "handoff",
+        "approval",
+        "commands",
+        "coordinator"
+      ],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "LLM_API_KEY": "API key for your LLM provider (optional \u2014 demo mode without)"
+      }
+    },
+    {
       "name": "spring-boot-channels-chat",
       "description": "Omnichannel AI chat \u2014 Web, Telegram, Slack, Discord, WhatsApp, Messenger",
       "category": "ai",
