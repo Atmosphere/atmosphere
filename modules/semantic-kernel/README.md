@@ -33,7 +33,7 @@ SK-specific: TEXT_STREAMING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, CONVERSATION_MEMO
 
 ## Known limitations
 
-- **Sync boundary**: both `AgentRuntime.execute()` and `EmbeddingRuntime.embed()` call Reactor `.block()` inside the SPI. On virtual threads (Atmosphere's default) this is safe; on platform threads with an old `reactor-core` (<3.6) it risks VT pinning. Atmosphere ships with Reactor 3.7+ where this is a non-issue.
+- **Sync boundary**: both `AgentRuntime.execute()` and `EmbeddingRuntime.embed()` call Reactor `.block()` inside the SPI. SK 1.4.0 transitively ships `reactor-core:3.4.38` which can pin carrier threads on virtual-thread runtimes. Atmosphere's Spring Boot starter overrides this to Reactor 3.7+ (VT-safe); standalone users without Spring Boot should force `reactor-core >= 3.6.0` via `dependencyManagement`.
 - **Tool calling deferred**: SK's native tool dispatch (`@DefineKernelFunction`) is not yet bridged. Tools declared via `@AiTool` are silently omitted when SK is the active runtime.
 - **Model selection**: `models()` returns the deployment name from the configured `OpenAIAsyncClient` when available, empty list otherwise.
 

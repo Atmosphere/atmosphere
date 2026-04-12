@@ -17,7 +17,6 @@ package org.atmosphere.ai.adk;
 
 import com.google.adk.agents.LlmAgent;
 import com.google.adk.models.Gemini;
-import com.google.adk.runner.InMemoryRunner;
 import com.google.adk.runner.Runner;
 import com.google.genai.types.Content;
 import com.google.genai.types.Part;
@@ -50,6 +49,28 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
 
     private static volatile String defaultUserId = "atmosphere-user";
     private static volatile String defaultSessionId = "atmosphere-session";
+
+    private static volatile com.google.adk.agents.ContextCacheConfig contextCacheConfig;
+
+    /**
+     * Configure ADK-level prompt caching. ADK's {@code ContextCacheConfig} is
+     * App-scoped (set at construction time, not per-request). Call once at
+     * startup — typically from Spring auto-configuration or programmatic setup.
+     *
+     * @param ttl        cache TTL (Gemini cached-content expiry)
+     * @param minTokens  minimum token count to trigger caching (Gemini threshold)
+     */
+    public static void setCacheConfig(java.time.Duration ttl, int minTokens) {
+        contextCacheConfig = new com.google.adk.agents.ContextCacheConfig(0, ttl, minTokens);
+        logger.info("ADK ContextCacheConfig set: ttl={}, minTokens={}", ttl, minTokens);
+    }
+
+    private static void applyCacheConfig(com.google.adk.apps.App.Builder appBuilder) {
+        var config = contextCacheConfig;
+        if (config != null) {
+            appBuilder.contextCacheConfig(config);
+        }
+    }
 
     /**
      * Per-runner cache of initialized {@code userId:sessionId} keys. Weak-keyed
@@ -105,7 +126,11 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 .model(gemini)
                 .instruction("You are a helpful assistant.")
                 .build();
-        var runner = new InMemoryRunner(agent, "atmosphere");
+        var appBuilder = com.google.adk.apps.App.builder()
+                .name("atmosphere")
+                .rootAgent(agent);
+        applyCacheConfig(appBuilder);
+        var runner = Runner.builder().app(appBuilder.build()).build();
         logger.info("ADK auto-configured: model={}", settings.model());
         return runner;
     }
@@ -155,7 +180,11 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 .model(gemini)
                 .instruction("You are a helpful assistant.")
                 .build();
-        staticRunner = new InMemoryRunner(agent, "atmosphere");
+        var appBuilder = com.google.adk.apps.App.builder()
+                .name("atmosphere")
+                .rootAgent(agent);
+        applyCacheConfig(appBuilder);
+        staticRunner = Runner.builder().app(appBuilder.build()).build();
         if (tools != null && !tools.isEmpty()) {
             logger.info("ADK configured (model={}); {} tools will be registered per-request",
                     settings.model(), tools.size());
@@ -195,8 +224,12 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
             agentBuilder.tools(adkTools);
         }
 
+        var appBuilder = com.google.adk.apps.App.builder()
+                .name("atmosphere")
+                .rootAgent(agentBuilder.build());
+        applyCacheConfig(appBuilder);
         logger.debug("ADK per-request runner built with {} tools", adkTools.size());
-        return new InMemoryRunner(agentBuilder.build(), "atmosphere");
+        return Runner.builder().app(appBuilder.build()).build();
     }
 
     @Override

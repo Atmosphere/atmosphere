@@ -95,23 +95,15 @@ class KoogAgentRuntime : AgentRuntime {
         executeInternal(context, session, AtomicBoolean())
     }
 
-    /**
-     * D-6 Koog soft-cancel: returns an [ExecutionHandle] whose [ExecutionHandle.cancel]
-     * flips an [AtomicBoolean] polled by every streaming event handler. Cancellation
-     * takes effect at the next frame boundary — the agent's in-flight LLM call is
-     * not hard-interrupted. True coroutine [kotlinx.coroutines.Job] cancel is a
-     * follow-up requiring the suspend path to thread a [kotlinx.coroutines.CoroutineScope]
-     * all the way through to [ai.koog.agents.core.agent.AIAgent.run]; that refactor
-     * is tracked separately.
-     */
     override fun executeWithHandle(
         context: AgentExecutionContext, session: StreamingSession
     ): ExecutionHandle {
         val cancelled = AtomicBoolean()
         val done = CompletableFuture<Void>()
+        val activeJob = java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?>()
         Thread.startVirtualThread {
             try {
-                executeInternal(context, session, cancelled)
+                executeInternal(context, session, cancelled, activeJob)
                 done.complete(null)
             } catch (e: Throwable) {
                 done.completeExceptionally(e)
@@ -120,6 +112,7 @@ class KoogAgentRuntime : AgentRuntime {
         return object : ExecutionHandle {
             override fun cancel() {
                 cancelled.set(true)
+                activeJob.get()?.cancel()
             }
             override fun isDone(): Boolean = done.isDone
             override fun whenDone(): CompletableFuture<Void> = done
@@ -129,7 +122,9 @@ class KoogAgentRuntime : AgentRuntime {
     private fun executeInternal(
         context: AgentExecutionContext,
         session: StreamingSession,
-        cancelled: AtomicBoolean
+        cancelled: AtomicBoolean,
+        activeJob: java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?> =
+            java.util.concurrent.atomic.AtomicReference()
     ) {
         val executor = promptExecutor
             ?: throw IllegalStateException(
@@ -147,9 +142,9 @@ class KoogAgentRuntime : AgentRuntime {
         }
 
         if (context.tools().isNotEmpty()) {
-            executeWithAgent(executor, model, context, session, cancelled)
+            executeWithAgent(executor, model, context, session, cancelled, activeJob)
         } else {
-            executeWithExecutor(executor, model, context, session, cancelled)
+            executeWithExecutor(executor, model, context, session, cancelled, activeJob)
         }
     }
 
@@ -161,7 +156,9 @@ class KoogAgentRuntime : AgentRuntime {
     private fun executeWithAgent(
         executor: PromptExecutor, model: LLModel,
         context: AgentExecutionContext, session: StreamingSession,
-        cancelled: AtomicBoolean
+        cancelled: AtomicBoolean,
+        activeJob: java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?> =
+            java.util.concurrent.atomic.AtomicReference()
     ) {
         val toolRegistry = AtmosphereToolBridge.buildRegistry(
             context.tools(), session, context.approvalStrategy(), context.listeners(),
@@ -217,6 +214,7 @@ class KoogAgentRuntime : AgentRuntime {
 
         try {
             runBlocking {
+                activeJob.set(coroutineContext[kotlinx.coroutines.Job])
                 val result = agent.run(context.message())
                 if (result != null && result.isNotBlank()) {
                     logger.debug("Agent completed with result length: {}", result.length)
@@ -237,12 +235,15 @@ class KoogAgentRuntime : AgentRuntime {
     private fun executeWithExecutor(
         executor: PromptExecutor, model: LLModel,
         context: AgentExecutionContext, session: StreamingSession,
-        cancelled: AtomicBoolean
+        cancelled: AtomicBoolean,
+        activeJob: java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?> =
+            java.util.concurrent.atomic.AtomicReference()
     ) {
         val koogPrompt = buildPrompt(context)
 
         try {
             runBlocking {
+                activeJob.set(coroutineContext[kotlinx.coroutines.Job])
                 executor.executeStreaming(koogPrompt, model).collect { frame ->
                     if (cancelled.get() || session.isClosed) return@collect
                     when (frame) {

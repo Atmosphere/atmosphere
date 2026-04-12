@@ -63,8 +63,12 @@ public final class EmbeddingRuntimeResolver {
      * {@link AiConfig} being configured.
      */
     public static List<EmbeddingRuntime> resolveAll() {
+        // No caching on empty results — if resolution fires before
+        // AiConfig.set() (startup-order race), Built-in reports unavailable
+        // and the result would be permanently empty. Re-scan on every call
+        // until at least one runtime is found, then cache.
         var result = cachedAll;
-        if (result != null) {
+        if (result != null && !result.isEmpty()) {
             return result;
         }
 
