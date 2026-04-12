@@ -399,7 +399,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                     errorBody = new String(errorStream.readAllBytes(), StandardCharsets.UTF_8);
                 }
 
-                if (!isRetryable(response.statusCode()) || attempt == maxRetries) {
+                if (!isRetryable(response.statusCode(), effectivePolicy) || attempt == maxRetries) {
                     logger.error("LLM API error ({}): {}", response.statusCode(), errorBody);
                     session.error(new LlmException("API returned " + response.statusCode()
                             + ": " + extractErrorMessage(errorBody)));
@@ -441,8 +441,18 @@ public class OpenAiCompatibleClient implements LlmClient {
         return null;
     }
 
-    private static boolean isRetryable(int statusCode) {
-        return statusCode == 429 || statusCode == 500 || statusCode == 502 || statusCode == 503;
+    private static boolean isRetryable(int statusCode, RetryPolicy policy) {
+        var errorType = switch (statusCode) {
+            case 429 -> "rate_limit";
+            case 500 -> "server_error";
+            case 502, 503 -> "unavailable";
+            case 408 -> "timeout";
+            default -> null;
+        };
+        if (errorType == null) {
+            return false;
+        }
+        return policy.retryableErrors().contains(errorType);
     }
 
     private Duration computeRetryDelay(int attempt, HttpResponse<?> response, RetryPolicy policy) {
