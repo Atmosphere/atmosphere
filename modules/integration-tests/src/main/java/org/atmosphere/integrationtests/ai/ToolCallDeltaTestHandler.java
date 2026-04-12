@@ -20,6 +20,7 @@ import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.RawMessage;
 
 import java.io.IOException;
 import java.util.Map;
@@ -68,6 +69,15 @@ public class ToolCallDeltaTestHandler implements AtmosphereHandler {
 
     @Override
     public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+        if (event.isCancelled() || event.isResumedOnTimeout()
+                || event.isClosedByClient() || event.isClosedByApplication()) {
+            return;
+        }
+        var message = event.getMessage();
+        if (message instanceof RawMessage raw && raw.message() instanceof String json) {
+            event.getResource().getResponse().write(json);
+            event.getResource().getResponse().flushBuffer();
+        }
     }
 
     @Override
