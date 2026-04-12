@@ -1,0 +1,87 @@
+name: "CI: E2E (Real LLM — Paid nightly)"
+
+# Wave 1-6 close-out Tier-2 real-LLM tier. Runs nightly against paid
+# OpenAI and Gemini endpoints so regressions in Spring AI / LC4j / Built-in
+# bridges are caught against production providers. Structural assertions
+# only — no content checks — so the test is stable across model updates.
+#
+# Cost ceiling: ≤$5 / run. Each matrix job uses a small model and a
+# single prompt; total expected spend < $1. Hard 10-minute timeout per
+# job to cap runaway costs.
+#
+# Secrets required: OPENAI_API_KEY, GEMINI_API_KEY
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # 03:00 UTC daily
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-real-llm-paid-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  paid-e2e:
+    name: Paid ${{ matrix.provider.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.repository == 'Atmosphere/atmosphere'
+    strategy:
+      fail-fast: false
+      matrix:
+        provider:
+          - { name: openai, base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', secret: OPENAI_API_KEY }
+          - { name: gemini, base_url: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash', secret: GEMINI_API_KEY }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build atmosphere-ai
+        run: ./mvnw -q install -pl modules/ai,modules/ai-test -am -DskipTests
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: modules/integration-tests/package-lock.json
+
+      - name: Install Playwright Dependencies
+        working-directory: modules/integration-tests
+        run: |
+          npm ci
+          for attempt in 1 2 3; do
+            if npx playwright install --with-deps chromium; then break; fi
+            [ "$attempt" = "3" ] && exit 1
+            sleep "${attempt}0"
+          done
+
+      - name: Run real-LLM E2E (${{ matrix.provider.name }})
+        working-directory: modules/integration-tests
+        env:
+          LLM_MODE: real-${{ matrix.provider.name }}
+          LLM_BASE_URL: ${{ matrix.provider.base_url }}
+          LLM_MODEL: ${{ matrix.provider.model }}
+          LLM_API_KEY: ${{ secrets[matrix.provider.secret] }}
+        run: |
+          if [ -z "$LLM_API_KEY" ]; then
+            echo "${{ matrix.provider.secret }} secret not set — skipping" >&2
+            exit 0
+          fi
+          npx playwright test --project=real-llm-chat --reporter=list
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paid-llm-${{ matrix.provider.name }}
+          path: |
+            modules/integration-tests/test-results/
+            modules/integration-tests/playwright-report/
+          retention-days: 14
