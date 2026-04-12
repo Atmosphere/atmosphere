@@ -61,12 +61,21 @@ public class AiFeatureTestServer {
                     new MemoryStrategyTestHandler(new TokenWindowStrategy(200)));
             framework.addAtmosphereHandler("/ai/memory-summarizing",
                     new MemoryStrategyTestHandler(new SummarizingStrategy(4)));
+            framework.addAtmosphereHandler("/ai/multimodal", new MultiModalTestHandler());
+            framework.addAtmosphereHandler("/ai/cache-hint", new CacheHintTestHandler());
+            framework.addAtmosphereHandler("/ai/embedding", new EmbeddingTestHandler());
+            framework.addAtmosphereHandler("/ai/retry-policy", new RetryPolicyTestHandler());
+            framework.addAtmosphereHandler("/ai/tool-call-delta", new ToolCallDeltaTestHandler());
+            framework.addAtmosphereHandler("/ai/lifecycle-listener", new LifecycleListenerTestHandler());
+            framework.addAtmosphereHandler("/ai/models", new ModelsTestHandler());
+            framework.addAtmosphereHandler("/ai/hitl-real", new HitlApprovalTestHandler());
 
             logger.info("AI Feature Test Server started on port {}", server.getPort());
             logger.info("Endpoints: /ai/filters, /ai/fanout, /ai/cache, /ai/routing, /ai/budget, "
                     + "/ai/cache-coalescing, /ai/cost-routing, /ai/combined-cost-cache, "
                     + "/ai/classroom/math, /ai/classroom/code, /ai/memory, /ai/error-recovery, "
-                    + "/ai/events, /ai/identity, /ai/memory-token-window, /ai/memory-summarizing");
+                    + "/ai/events, /ai/identity, /ai/memory-token-window, /ai/memory-summarizing, "
+                    + "/ai/multimodal, /ai/cache-hint, /ai/embedding");
 
             Thread.currentThread().join();
         }

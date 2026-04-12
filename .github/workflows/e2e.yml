@@ -72,11 +72,11 @@ jobs:
           - name: ai-chat
             projects: "ai-chat,ai-streaming-dom,ai-chat-features,ai-memory,ai-memory-strategies"
           - name: ai-ux
-            projects: "ai-identity,ai-error-recovery,ai-events,unified-console"
+            projects: "ai-identity,ai-error-recovery,ai-events,unified-console,ai-multimodal,ai-retry-policy,ai-lifecycle-listener,ai-models"
           - name: ai-tools
-            projects: "ai-tools,ai-session-stats,ai-hitl-approval"
+            projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow"
           - name: ai-advanced
-            projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget"
+            projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding"
           - name: ai-routing
             projects: "ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
           - name: protocols

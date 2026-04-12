@@ -198,6 +198,39 @@ export default defineConfig({
       name: 'room-typing-direct',
       testMatch: /room-typing-direct\.spec\.ts/,
     },
+    // ── Wave 1-6 feature tests ──
+    {
+      name: 'ai-multimodal',
+      testMatch: /ai-multimodal\.spec\.ts/,
+    },
+    {
+      name: 'ai-cache-hint',
+      testMatch: /ai-cache-hint\.spec\.ts/,
+    },
+    {
+      name: 'ai-embedding',
+      testMatch: /ai-embedding\.spec\.ts/,
+    },
+    {
+      name: 'ai-retry-policy',
+      testMatch: /ai-retry-policy\.spec\.ts/,
+    },
+    {
+      name: 'ai-tool-call-delta',
+      testMatch: /ai-tool-call-delta\.spec\.ts/,
+    },
+    {
+      name: 'ai-lifecycle-listener',
+      testMatch: /ai-lifecycle-listener\.spec\.ts/,
+    },
+    {
+      name: 'ai-models',
+      testMatch: /ai-models\.spec\.ts/,
+    },
+    {
+      name: 'ai-hitl-real-flow',
+      testMatch: /ai-hitl-real-flow\.spec\.ts/,
+    },
     // ── Transport tests ──
     {
       name: 'webtransport',
