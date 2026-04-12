@@ -235,11 +235,16 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         return new org.atmosphere.ai.ExecutionHandle() {
             @Override public void cancel() {
                 cancelled.set(true);
-                // Best-effort mark: if the handler is still polling, it will
-                // drop the next onPartialResponse; if the stream is already
-                // done, this is a no-op.
+                // Resolve the future as cancelled so doExecute()'s
+                // handle.whenDone().get() unblocks immediately. The LC4j
+                // handler's CancelAwareStreamingHandler drops remaining
+                // tokens via the cancelled flag; LC4j's internal HTTP
+                // thread drains naturally. On JDK HttpClient providers,
+                // the VT interrupt from get()'s CancellationException
+                // propagates to blocking I/O and kills the connection.
                 if (!done.isDone()) {
-                    done.complete(null);
+                    done.completeExceptionally(
+                            new java.util.concurrent.CancellationException("cancelled"));
                 }
             }
             @Override public boolean isDone() { return done.isDone(); }
