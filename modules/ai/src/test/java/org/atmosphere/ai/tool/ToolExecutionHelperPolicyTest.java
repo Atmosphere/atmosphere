@@ -83,25 +83,25 @@ class ToolExecutionHelperPolicyTest {
     }
 
     @Test
-    void denyAllPolicyGatesEvenUnannotatedTool() {
+    void denyAllPolicyBlocksWithoutConsultingStrategy() {
         var executorFired = new AtomicBoolean();
         var tool = unannotatedTool(executorFired);
-        var observed = new AtomicReference<PendingApproval>();
+        var strategyConsulted = new AtomicBoolean();
 
-        ApprovalStrategy capturing = (approval, session) -> {
-            observed.set(approval);
-            return ApprovalStrategy.ApprovalOutcome.DENIED;
+        ApprovalStrategy shouldNotBeCalled = (approval, session) -> {
+            strategyConsulted.set(true);
+            return ApprovalStrategy.ApprovalOutcome.APPROVED;
         };
 
         var result = ToolExecutionHelper.executeWithApproval(
                 "list_rows", tool, Map.of("table", "customers"),
-                new NoopSession(), capturing, ToolApprovalPolicy.denyAll());
+                new NoopSession(), shouldNotBeCalled, ToolApprovalPolicy.denyAll());
 
         assertFalse(executorFired.get(),
-                "DenyAll policy must gate every tool, even readonly ones without @RequiresApproval");
-        assertNotNull(observed.get(),
-                "DenyAll policy must consult the ApprovalStrategy for every tool");
-        assertTrue(result.contains("cancelled"), result);
+                "DenyAll policy must block every tool, even readonly ones without @RequiresApproval");
+        assertFalse(strategyConsulted.get(),
+                "DenyAll must short-circuit before the approval gate — strategy must not be consulted");
+        assertTrue(result.contains("denied by policy"), result);
     }
 
     @Test

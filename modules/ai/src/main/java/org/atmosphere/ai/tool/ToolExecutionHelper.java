@@ -155,6 +155,10 @@ public final class ToolExecutionHelper {
         if (!effectivePolicy.requiresApproval(tool) || strategy == null) {
             return executeAndFormat(toolName, tool.executor(), args);
         }
+        if (effectivePolicy instanceof ToolApprovalPolicy.DenyAll) {
+            logger.info("Tool {} blocked by DenyAll policy", toolName);
+            return "{\"status\":\"cancelled\",\"message\":\"Tool execution denied by policy\"}";
+        }
 
         var timeout = tool.approvalTimeout() > 0 ? tool.approvalTimeout() : 300;
         var approval = new PendingApproval(
