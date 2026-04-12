@@ -88,6 +88,10 @@ public class AiStreamingSession implements StreamingSession {
     private final AtomicReference<PostPromptHook> preStreamHook = new AtomicReference<>();
     private final AtomicBoolean handoffInProgress = new AtomicBoolean();
     private final ApprovalRegistry approvalRegistry = new ApprovalRegistry();
+    /** Endpoint-configured prompt cache policy from {@code @AiEndpoint.promptCache()}. */
+    private volatile org.atmosphere.ai.llm.CacheHint.CachePolicy cachePolicy;
+    /** Endpoint-configured per-request retry policy from {@code @AiEndpoint.retry()}. */
+    private volatile org.atmosphere.ai.RetryPolicy endpointRetryPolicy;
 
     /**
      * @param delegate     the underlying streaming session
@@ -280,6 +284,23 @@ public class AiStreamingSession implements StreamingSession {
         this.preStreamHook.set(hook);
     }
 
+    /**
+     * Set the endpoint-scoped prompt cache policy from {@code @AiEndpoint.promptCache()}.
+     * Every request built by this session attaches a {@link org.atmosphere.ai.llm.CacheHint}
+     * with the given policy to the context metadata.
+     */
+    public void setCachePolicy(org.atmosphere.ai.llm.CacheHint.CachePolicy policy) {
+        this.cachePolicy = policy;
+    }
+
+    /**
+     * Set the endpoint-scoped per-request retry policy from {@code @AiEndpoint.retry()}.
+     * Every context built by this session uses this policy instead of the client-level default.
+     */
+    public void setRetryPolicy(org.atmosphere.ai.RetryPolicy policy) {
+        this.endpointRetryPolicy = policy;
+    }
+
     @Override
     public void stream(String message) {
         // Fire pre-stream hook (e.g., journal emit) before LLM call starts.
@@ -411,13 +432,29 @@ public class AiStreamingSession implements StreamingSession {
                 ? finalRequest.tools()
                 : java.util.List.<org.atmosphere.ai.tool.ToolDefinition>of();
         var strategy = ApprovalStrategy.virtualThread(approvalRegistry);
+        // Merge endpoint-scoped CacheHint into request metadata if configured.
+        java.util.Map<String, Object> effectiveMetadata = request.metadata();
+        var policy = this.cachePolicy;
+        if (policy != null && policy != org.atmosphere.ai.llm.CacheHint.CachePolicy.NONE) {
+            var merged = new java.util.HashMap<String, Object>(
+                    effectiveMetadata != null ? effectiveMetadata : java.util.Map.of());
+            merged.putIfAbsent(org.atmosphere.ai.llm.CacheHint.METADATA_KEY,
+                    new org.atmosphere.ai.llm.CacheHint(policy,
+                            java.util.Optional.empty(), java.util.Optional.empty()));
+            effectiveMetadata = merged;
+        }
         var context = new AgentExecutionContext(
                 request.message(), request.systemPrompt(), request.model(),
                 request.agentId(), request.sessionId(), request.userId(),
                 request.conversationId(),
                 java.util.List.copyOf(tools), null, memory,
-                contextProviders, request.metadata(), request.history(),
+                contextProviders, effectiveMetadata, request.history(),
                 effectiveResponseType, strategy);
+        // Apply endpoint-scoped retry policy if configured.
+        var endpointRetry = this.endpointRetryPolicy;
+        if (endpointRetry != null) {
+            context = context.withRetryPolicy(endpointRetry);
+        }
         var streamingTarget = target;
         try {
             runtime.execute(context, streamingTarget);

@@ -238,4 +238,46 @@ public @interface AiEndpoint {
      * <p>Example: {@code @AiEndpoint(path = "/extract", responseAs = MovieReview.class)}</p>
      */
     Class<?> responseAs() default Void.class;
+
+    /**
+     * Prompt caching policy for this endpoint. When set to anything other
+     * than {@link org.atmosphere.ai.llm.CacheHint.CachePolicy#NONE}, the
+     * pipeline seeds every request's {@link org.atmosphere.ai.llm.CacheHint}
+     * with this policy before dispatching to the runtime. Runtimes that
+     * support provider-side caching (Spring AI / LC4j / Built-in OpenAI
+     * path) emit {@code prompt_cache_key}; the pipeline-level response
+     * cache also honors the hint regardless of runtime.
+     *
+     * <p>Example: {@code @AiEndpoint(path = "/chat", promptCache = CachePolicy.CONSERVATIVE)}</p>
+     */
+    org.atmosphere.ai.llm.CacheHint.CachePolicy promptCache()
+            default org.atmosphere.ai.llm.CacheHint.CachePolicy.NONE;
+
+    /**
+     * Per-request retry policy override. When set to anything other than
+     * the {@link Retry} default ({@code maxRetries = -1} sentinel), the
+     * pipeline threads a fresh {@link org.atmosphere.ai.RetryPolicy} into
+     * every request's context, overriding the client-level default. Useful
+     * for endpoints that need tighter or looser retry semantics than the
+     * global default.
+     *
+     * <p>Example: {@code @AiEndpoint(path = "/strict", retry = @Retry(maxRetries = 0))}</p>
+     */
+    Retry retry() default @Retry;
+
+    /**
+     * Inline retry-policy configuration for {@link AiEndpoint#retry()}.
+     * Default values match {@link org.atmosphere.ai.RetryPolicy#DEFAULT}
+     * except for the sentinel {@code maxRetries = -1} which signals "use
+     * the client-level default" at the pipeline layer.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({})
+    @interface Retry {
+        /** Sentinel {@code -1} means "inherit client default". */
+        int maxRetries() default -1;
+        long initialDelayMs() default 1000;
+        long maxDelayMs() default 30_000;
+        double backoffMultiplier() default 2.0;
+    }
 }

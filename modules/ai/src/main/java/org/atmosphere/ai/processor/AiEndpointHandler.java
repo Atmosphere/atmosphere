@@ -233,6 +233,24 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         this.promptMethod.setAccessible(true);
     }
 
+    /**
+     * Endpoint-scoped prompt caching policy from {@code @AiEndpoint.promptCache()}.
+     * Every session created by this handler applies the policy via
+     * {@link AiStreamingSession#setCachePolicy}.
+     */
+    private volatile org.atmosphere.ai.llm.CacheHint.CachePolicy cachePolicy;
+
+    /** Endpoint-scoped retry policy from {@code @AiEndpoint.retry()}. */
+    private volatile org.atmosphere.ai.RetryPolicy endpointRetryPolicy;
+
+    public void setCachePolicy(org.atmosphere.ai.llm.CacheHint.CachePolicy policy) {
+        this.cachePolicy = policy;
+    }
+
+    public void setRetryPolicy(org.atmosphere.ai.RetryPolicy policy) {
+        this.endpointRetryPolicy = policy;
+    }
+
     @Override
     public void onRequest(AtmosphereResource resource) throws IOException {
         var method = resource.getRequest().getMethod();
@@ -353,6 +371,14 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 systemPrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, metrics, responseType);
         AiStreamingSession.registerActive(session);
+
+        // Propagate endpoint-scoped cache / retry policies from @AiEndpoint.
+        if (cachePolicy != null) {
+            session.setCachePolicy(cachePolicy);
+        }
+        if (endpointRetryPolicy != null) {
+            session.setRetryPolicy(endpointRetryPolicy);
+        }
 
         // Set pre-stream hook so journal cards emit before LLM starts
         if (injectables.get(PostPromptHook.class) instanceof PostPromptHook hook) {

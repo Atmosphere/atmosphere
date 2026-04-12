@@ -129,6 +129,23 @@ public class AiEndpointProcessor implements Processor<Object> {
                     toolRegistry, guardrails, contextProviders, metrics,
                     broadcastFilters, endpointModel, injectables);
 
+            // Endpoint-scoped prompt cache policy.
+            var cachePolicy = annotation.promptCache();
+            if (cachePolicy != org.atmosphere.ai.llm.CacheHint.CachePolicy.NONE) {
+                handler.setCachePolicy(cachePolicy);
+            }
+            // Endpoint-scoped retry policy. maxRetries = -1 sentinel means
+            // "inherit client default" — do not thread anything.
+            var retry = annotation.retry();
+            if (retry.maxRetries() >= 0) {
+                handler.setRetryPolicy(new org.atmosphere.ai.RetryPolicy(
+                        retry.maxRetries(),
+                        java.time.Duration.ofMillis(retry.initialDelayMs()),
+                        java.time.Duration.ofMillis(retry.maxDelayMs()),
+                        retry.backoffMultiplier(),
+                        org.atmosphere.ai.RetryPolicy.DEFAULT.retryableErrors()));
+            }
+
             List<AtmosphereInterceptor> frameworkInterceptors = new LinkedList<>();
             AnnotationUtil.defaultManagedServiceInterceptors(framework, frameworkInterceptors);
             framework.addAtmosphereHandler(annotation.path(), handler, frameworkInterceptors);

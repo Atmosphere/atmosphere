@@ -140,6 +140,48 @@ class OpenAiCompatibleClientRetryBehaviorTest {
                 "Explicit per-request override must win (2 retries = 3 attempts)");
     }
 
+    @Test
+    void buildRequestSkipsDefaultPolicyLettingClientBuilderWin() throws Exception {
+        // Drive the retry loop through BuiltInAgentRuntime.buildRequest to
+        // verify the reference-equality fix (9cf4618394): when
+        // context.retryPolicy() is reference-equal to RetryPolicy.DEFAULT
+        // (i.e. the caller never touched it), buildRequest must NOT thread
+        // it into the ChatCompletionRequest, so the client-level
+        // builder-configured retryPolicy fires instead.
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://127.0.0.1:" + port)
+                .apiKey("test-key")
+                .retryPolicy(fastPolicy(2))
+                .build();
+
+        // Use reflection to invoke buildRequest with a default-policy context.
+        var runtime = new org.atmosphere.ai.llm.BuiltInAgentRuntime();
+        var buildRequestMethod = org.atmosphere.ai.llm.BuiltInAgentRuntime.class
+                .getDeclaredMethod("buildRequest", org.atmosphere.ai.AgentExecutionContext.class);
+        buildRequestMethod.setAccessible(true);
+
+        var defaultContext = new org.atmosphere.ai.AgentExecutionContext(
+                "hello", "You are helpful", "gpt-4",
+                null, "session-1", "user-1", "conv-1",
+                java.util.List.of(), null, null, java.util.List.of(), java.util.Map.of(),
+                java.util.List.of(), null, null, java.util.List.of(), java.util.List.of(),
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
+
+        var request = (ChatCompletionRequest) buildRequestMethod.invoke(runtime, defaultContext);
+
+        // buildRequest should NOT have threaded retryPolicy into the request —
+        // the context carries RetryPolicy.DEFAULT (reference-equal), so
+        // the pass-through branch fires and the client-level policy wins.
+        assertEquals(null, request.retryPolicy(),
+                "Default-policy context must leave request.retryPolicy() null so client builder wins");
+
+        client.streamChatCompletion(request, new SinkSession());
+
+        // Client-level policy has 2 retries = 3 attempts total.
+        assertEquals(3, invocationCount.get(),
+                "Client-level retryPolicy(2) must fire when context carries RetryPolicy.DEFAULT");
+    }
+
     private static RetryPolicy fastPolicy(int maxRetries) {
         return new RetryPolicy(maxRetries,
                 Duration.ofMillis(10),
