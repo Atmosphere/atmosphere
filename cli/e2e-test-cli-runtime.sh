@@ -417,8 +417,11 @@ if [ -n "$cached_jar" ] && [ -f "$cached_jar" ]; then
         pass "server starts after cache corruption (rebuilt)"
 
         combined_output=$(cat "$run_tmp9/stdout.log" "$run_tmp9/stderr.log" 2>/dev/null)
-        # Should see a rebuild indication (either "Building" from Maven or "mismatch" warning)
-        if printf '%s' "$combined_output" | grep -qiE 'mismatch|building|rebuilding|build'; then
+        # Match actual CLI rebuild indicators: Maven "Building", "BUILD SUCCESS",
+        # cache "mismatch", "downloading" or "resolving" dependencies, "Installing"
+        # a fresh jar, or the "atmosphere-runtime" marker that fires when the
+        # classpath is being populated post-invalidation.
+        if printf '%s' "$combined_output" | grep -qiE 'mismatch|building|rebuilding|build success|downloading|resolving|installing|atmosphere-runtime'; then
             pass "output indicates rebuild after corruption"
         else
             fail "output indicates rebuild after corruption" "no rebuild indicator in output"

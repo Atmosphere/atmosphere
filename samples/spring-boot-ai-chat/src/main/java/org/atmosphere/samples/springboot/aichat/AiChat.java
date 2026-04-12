@@ -20,6 +20,7 @@ import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.llm.CacheHint;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -42,7 +43,11 @@ import org.slf4j.LoggerFactory;
 @AiEndpoint(path = "/atmosphere/ai-chat",
         systemPromptResource = "skill:ai-assistant",
         requires = {AiCapability.TEXT_STREAMING, AiCapability.SYSTEM_PROMPT},
-        conversationMemory = true)
+        conversationMemory = true,
+        // Wave 4 prompt caching: emits OpenAI prompt_cache_key on providers that
+        // support it (Spring AI / LC4j / Built-in OpenAI path), and short-circuits
+        // at the pipeline level via ResponseCache on identical subsequent requests.
+        promptCache = CacheHint.CachePolicy.CONSERVATIVE)
 public class AiChat {
 
     private static final Logger logger = LoggerFactory.getLogger(AiChat.class);
