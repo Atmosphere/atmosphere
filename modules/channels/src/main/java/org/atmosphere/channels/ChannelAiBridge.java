@@ -259,13 +259,16 @@ public class ChannelAiBridge {
                         && !binding.allowedChannels().contains(channelId)) {
                     continue;
                 }
-                if (binding.aiPipeline() != null && binding.aiPipeline().tryResolveApproval(text)) {
-                    logger.debug("Approval response routed through agent '{}' on channel '{}'",
-                            binding.name(), channelId);
-                    // Return an empty acknowledgement; the original prompt's VT
-                    // is now unparked and will stream its continuation via the
-                    // channel's outgoing path.
-                    return "";
+                if (binding.aiPipeline() != null) {
+                    var result = binding.aiPipeline().approvalRegistry().resolve(text);
+                    if (result == org.atmosphere.ai.approval.ApprovalRegistry.ResolveResult.RESOLVED) {
+                        logger.debug("Approval response routed through agent '{}' on channel '{}'",
+                                binding.name(), channelId);
+                        return "";
+                    }
+                    // UNKNOWN_ID means this registry didn't own the approval —
+                    // continue to the next binding. NOT_APPROVAL_MESSAGE is
+                    // unreachable here because isApprovalMessage pre-filtered.
                 }
             }
             logger.debug("Approval-shaped message had no matching pending approval on channel '{}'",
