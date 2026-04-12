@@ -383,6 +383,11 @@ export default defineConfig({
       name: 'session-token-expiry',
       testMatch: /session-token-expiry\.spec\.ts/,
     },
+    // ── HITL approval wire protocol (Phase 0) ──
+    {
+      name: 'ai-hitl-approval',
+      testMatch: /ai-hitl-approval\.spec\.ts/,
+    },
     // ── CLI runtime (verifies `atmosphere run` launches working console) ──
     {
       name: 'cli-runtime',

@@ -74,7 +74,7 @@ jobs:
           - name: ai-ux
             projects: "ai-identity,ai-error-recovery,ai-events,unified-console"
           - name: ai-tools
-            projects: "ai-tools,ai-session-stats"
+            projects: "ai-tools,ai-session-stats,ai-hitl-approval"
           - name: ai-advanced
             projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget"
           - name: ai-routing
