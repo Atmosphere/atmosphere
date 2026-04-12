@@ -127,7 +127,14 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
     @Override
     protected void doExecute(StreamingChatModel streamingModel,
                             AgentExecutionContext context, StreamingSession session) {
-        doExecuteWithHandle(streamingModel, context, session);
+        var handle = doExecuteWithHandle(streamingModel, context, session);
+        try {
+            handle.whenDone().get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (java.util.concurrent.ExecutionException e) {
+            // Error already surfaced via session.error() from the handler
+        }
     }
 
     @Override

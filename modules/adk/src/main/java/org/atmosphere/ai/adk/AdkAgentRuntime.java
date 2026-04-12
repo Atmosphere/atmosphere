@@ -176,7 +176,9 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         if (settings == null) {
             settings = AiConfig.fromEnvironment();
         }
-        var gemini = new Gemini(settings.model(), settings.apiKey());
+        var modelName = (context.model() != null && !context.model().isBlank())
+                ? context.model() : settings.model();
+        var gemini = new Gemini(modelName, settings.apiKey());
 
         var adkTools = AdkToolBridge.toAdkTools(
                 context.tools(), session, context.approvalStrategy(), context.listeners(),
