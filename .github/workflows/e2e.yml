@@ -141,7 +141,23 @@ jobs:
       working-directory: modules/integration-tests
       run: |
         npm ci
-        npx playwright install --with-deps chromium
+        # Retry playwright install up to 3 times to tolerate transient
+        # packages.microsoft.com CDN flakes (observed 403 Forbidden from
+        # runner IPs 13.107.246.41 and 13.107.213.41 during Wave 1-6
+        # close-out polish pass). The apt step inside --with-deps is the
+        # only part that hits the Microsoft repo; retry with exponential
+        # backoff between attempts.
+        for attempt in 1 2 3; do
+          if npx playwright install --with-deps chromium; then
+            break
+          fi
+          if [ "$attempt" = "3" ]; then
+            echo "playwright install failed after 3 attempts" >&2
+            exit 1
+          fi
+          echo "playwright install attempt $attempt failed, retrying in ${attempt}0s..." >&2
+          sleep "${attempt}0"
+        done
 
     - name: Run E2E Tests
       working-directory: modules/integration-tests
