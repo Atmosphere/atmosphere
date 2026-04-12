@@ -38,8 +38,10 @@ model.chat(ChatMessage.userMessage(prompt),
 | Class | Purpose |
 |-------|---------|
 | `LangChain4jStreamingAdapter` | Bridges LangChain4j models to `StreamingSession` |
-| `AtmosphereStreamingResponseHandler` | `StreamingChatResponseHandler` that forwards streaming texts to `StreamingSession` |
+| `ToolAwareStreamingResponseHandler` | `StreamingChatResponseHandler` with multi-round tool calling + lifecycle events |
 | `LangChain4jAgentRuntime` | `AgentRuntime` SPI implementation (priority 100) |
+| `LangChain4jEmbeddingRuntime` | `EmbeddingRuntime` SPI wrapping LC4j `EmbeddingModel` (priority 190) |
+| `LangChain4jToolBridge` | Translates Atmosphere `ToolDefinition` to LC4j `ToolSpecification` with HITL approval gating |
 | `AtmosphereLangChain4jAutoConfiguration` | Spring Boot auto-configuration |
 
 ## Samples

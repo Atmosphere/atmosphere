@@ -23,8 +23,8 @@ import java.util.Optional;
 /**
  * Portable hint that asks a runtime bridge to enable prompt caching for the
  * current request. Travels on {@link AgentExecutionContext#metadata()} under
- * the canonical key {@link #METADATA_KEY} so the 18-arg context record does
- * not need to grow a 19th field.
+ * the canonical key {@link #METADATA_KEY} so the canonical context record
+ * does not need to grow a dedicated caching field.
  *
  * <p>The hint is advisory: each adapter translates it to whatever cache
  * mechanism the underlying framework exposes. Spring AI (OpenAI path),

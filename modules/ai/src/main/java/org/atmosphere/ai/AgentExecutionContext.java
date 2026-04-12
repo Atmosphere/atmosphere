@@ -35,10 +35,22 @@ import java.util.Map;
  *   <li>{@code memory} — bridge to framework's chat memory or use Atmosphere's directly</li>
  *   <li>{@code contextProviders} — bridge to framework's RAG or apply as prompt augmentation</li>
  *   <li>{@code history} — pre-loaded conversation history (runtime may also load from memory)</li>
+ *   <li>{@code metadata} — extensible key-value sidecar; carries {@link org.atmosphere.ai.llm.CacheHint}
+ *       under {@code ai.cache.hint} when prompt caching is opted in</li>
  *   <li>{@code approvalStrategy} — HITL gate every runtime bridge must consult when a tool
  *       has {@link ToolDefinition#requiresApproval()}. May be {@code null} when no session-scoped
  *       strategy is available (e.g. ad-hoc tests, coordinator evaluation); runtimes fall back to
  *       direct execution without gating in that case.</li>
+ *   <li>{@code listeners} — per-request {@link AgentLifecycleListener} list; bridges fire
+ *       {@code onToolCall}/{@code onToolResult} events on every tool round</li>
+ *   <li>{@code parts} — multi-modal {@link Content} input (image, audio, file); runtimes
+ *       translate to framework-native types (Spring AI {@code Media}, LC4j {@code ImageContent},
+ *       ADK {@code Part.fromBytes}, OpenAI multi-content array)</li>
+ *   <li>{@code approvalPolicy} — declarative {@link ToolApprovalPolicy} that controls which
+ *       tools require HITL approval; defaults to annotation-driven</li>
+ *   <li>{@code retryPolicy} — per-request {@link RetryPolicy} override; the Built-in runtime
+ *       threads it into {@code OpenAiCompatibleClient.sendWithRetry}; framework runtimes inherit
+ *       their native retry layers</li>
  * </ul>
  */
 public record AgentExecutionContext(
@@ -94,10 +106,11 @@ public record AgentExecutionContext(
     }
 
     /**
-     * Phase 3 16-arg constructor preserved for call sites that carry a listener
-     * list but not yet multi-modal input parts or a custom
-     * {@link ToolApprovalPolicy}. Delegates to the canonical 18-arg constructor
-     * with an empty parts list and the annotation-driven default policy.
+     * Phase 3 16-arg shim preserved for call sites that carry a listener
+     * list but not yet multi-modal input parts, a custom
+     * {@link ToolApprovalPolicy}, or a per-request {@link RetryPolicy}.
+     * Delegates to the 18-arg shim with an empty parts list and the
+     * annotation-driven default policy.
      */
     public AgentExecutionContext(String message, String systemPrompt, String model,
                                  String agentId, String sessionId, String userId,
@@ -113,9 +126,10 @@ public record AgentExecutionContext(
     }
 
     /**
-     * Phase 2 15-arg constructor preserved for call sites that carry an
+     * Phase 2 15-arg shim preserved for call sites that carry an
      * {@link ApprovalStrategy} but not yet a listener list, multi-modal parts,
-     * or a custom policy. Delegates to the canonical 18-arg constructor.
+     * a custom policy, or a per-request {@link RetryPolicy}. Delegates to the
+     * 18-arg shim.
      */
     public AgentExecutionContext(String message, String systemPrompt, String model,
                                  String agentId, String sessionId, String userId,

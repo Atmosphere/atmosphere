@@ -36,12 +36,13 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 
 | Adapter JAR | `AgentRuntime` implementation | Priority | Capabilities |
 |-------------|-------------------------------|----------|-------------|
-| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT |
-| `atmosphere-spring-ai` | `SpringAiAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT |
-| `atmosphere-langchain4j` | `LangChain4jAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT |
-| `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT |
+| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, MULTI_MODAL, PROMPT_CACHING |
+| `atmosphere-spring-ai` | `SpringAiAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING |
+| `atmosphere-langchain4j` | `LangChain4jAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING |
+| `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, VISION, AUDIO, MULTI_MODAL |
 | `atmosphere-embabel` | `EmbabelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, SYSTEM_PROMPT |
-| `atmosphere-koog` | `KoogAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT |
+| `atmosphere-koog` | `KoogAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, AGENT_ORCHESTRATION, CONVERSATION_MEMORY |
+| `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE |
 
 All runtimes report usage metadata (`ai.tokens.input`, `ai.tokens.output`, `ai.tokens.total`) when the underlying API provides it, feeding into `MetricsCapturingSession` and `MicrometerAiMetrics` automatically.
 
@@ -275,22 +276,37 @@ See [atmosphere-mcp README](../mcp/README.md) for injectable parameter details.
 
 ## Capability Matrix
 
-Unified view of the six `AgentRuntime` implementations shipped with Atmosphere.
+Unified view of the seven `AgentRuntime` implementations shipped with Atmosphere.
 Legend: TS=TEXT_STREAMING, TC=TOOL_CALLING, SO=STRUCTURED_OUTPUT, SP=SYSTEM_PROMPT,
-AO=AGENT_ORCHESTRATION, CM=CONVERSATION_MEMORY.
+AO=AGENT_ORCHESTRATION, CM=CONVERSATION_MEMORY, TA=TOOL_APPROVAL, V=VISION, MM=MULTI_MODAL, PC=PROMPT_CACHING.
 
-| Runtime | Priority | TS | TC | SO | SP | AO | CM |
-|---------|---------:|:--:|:--:|:--:|:--:|:--:|:--:|
-| `BuiltInAgentRuntime` (`atmosphere-ai`)       |   0 | yes | yes | yes | yes | —   | —   |
-| `SpringAiAgentRuntime` (`atmosphere-spring-ai`)   | 100 | yes | yes | yes | yes | —   | —   |
-| `LangChain4jAgentRuntime` (`atmosphere-langchain4j`) | 100 | yes | yes | yes | yes | —   | —   |
-| `AdkAgentRuntime` (`atmosphere-adk`)             | 100 | yes | yes | yes | yes | yes | yes |
-| `EmbabelAgentRuntime` (`atmosphere-embabel`)     | 100 | yes | —   | yes | yes | yes | —   |
-| `KoogAgentRuntime` (`atmosphere-koog`)           | 100 | yes | yes | yes | yes | yes | yes |
+| Runtime | Priority | TS | TC | SO | SP | AO | CM | TA | V | MM | PC |
+|---------|---------:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:-:|:--:|:--:|
+| `BuiltInAgentRuntime`    |   0 | yes | yes | yes | yes | —   | —   | yes | yes | yes | yes |
+| `SpringAiAgentRuntime`   | 100 | yes | yes | yes | yes | —   | —   | yes | yes | yes | yes |
+| `LangChain4jAgentRuntime`| 100 | yes | yes | yes | yes | —   | —   | yes | yes | yes | yes |
+| `AdkAgentRuntime`        | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   |
+| `EmbabelAgentRuntime`    | 100 | yes | —   | yes | yes | yes | —   | —   | —   | —   | —   |
+| `KoogAgentRuntime`       | 100 | yes | yes | yes | yes | yes | yes | yes | —   | —   | —   |
+| `SemanticKernelAgentRuntime` | 100 | yes | —   | yes | yes | —   | yes | —   | —   | —   | —   |
 
 All runtimes emit usage metadata (`ai.tokens.input`, `ai.tokens.output`, `ai.tokens.total`)
-when the underlying API reports token counts. See
-<https://atmosphere.github.io/docs/reference/ai/> for the Astro reference page.
+when the underlying API reports token counts.
+
+### EmbeddingRuntime SPI
+
+Five `EmbeddingRuntime` implementations are registered via `ServiceLoader`. The
+`EmbeddingRuntimeResolver` selects the highest-priority available runtime.
+
+| Runtime | Module | Priority | Notes |
+|---------|--------|----------|-------|
+| `SpringAiEmbeddingRuntime` | `atmosphere-spring-ai` | 200 | Wraps Spring AI `EmbeddingModel` |
+| `LangChain4jEmbeddingRuntime` | `atmosphere-langchain4j` | 190 | Wraps LC4j `EmbeddingModel`; unwraps `Response<Embedding>` |
+| `SemanticKernelEmbeddingRuntime` | `atmosphere-semantic-kernel` | 180 | Wraps SK `TextEmbeddingGenerationService`; `Mono.block()` sync boundary |
+| `EmbabelEmbeddingRuntime` | `atmosphere-embabel` | 170 | Wraps Embabel `EmbeddingService` (1:1 SPI map) |
+| `BuiltInEmbeddingRuntime` | `atmosphere-ai` | 50 | HTTP POST to `/v1/embeddings`; zero-dep fallback |
+
+See <https://atmosphere.github.io/docs/reference/ai/> for the Astro reference page (maintained in the `atmosphere.github.io` repo).
 
 ## Requirements
 

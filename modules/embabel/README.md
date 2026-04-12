@@ -41,6 +41,7 @@ embabelAdapter.stream(AgentRequest("assistant") { channel ->
 | `EmbabelStreamingAdapter` | Bridges Embabel agents to `StreamingSession` |
 | `AtmosphereOutputChannel` | Routes Embabel `OutputChannelEvent` to `StreamingSession` |
 | `EmbabelAgentRuntime` | `AgentRuntime` SPI implementation (priority 100) |
+| `EmbabelEmbeddingRuntime` | `EmbeddingRuntime` SPI wrapping Embabel `EmbeddingService` (priority 170) |
 | `AtmosphereEmbabelAutoConfiguration` | Spring Boot auto-configuration |
 
 ## Samples

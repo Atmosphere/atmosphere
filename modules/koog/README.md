@@ -50,16 +50,21 @@ ai:
 | Class | Purpose |
 |-------|---------|
 | `KoogAgentRuntime` | `AgentRuntime` SPI implementation (priority 100) |
+| `AtmosphereToolBridge` | Translates Atmosphere `ToolDefinition` to Koog `Tool` with HITL approval gating |
 | `AtmosphereKoogAutoConfiguration` | Spring Boot auto-configuration |
 
 ## Capabilities
 
+See the [capability matrix](../ai/README.md#capability-matrix) for the authoritative cross-runtime view.
+
 - Text streaming (token-by-token via `StreamFrame.TextDelta`)
 - Tool calling (via Koog's `@Tool` + `ToolRegistry`)
+- Tool approval (`@RequiresApproval` gated through `ToolExecutionHelper.executeWithApproval`)
 - Structured output
 - Agent orchestration (graph-based, functional, ReAct strategies)
 - Conversation memory
 - System prompt
+- Lifecycle listeners (`onToolCall`/`onToolResult` from bridge wrappers)
 
 ## Streaming Bridge
 

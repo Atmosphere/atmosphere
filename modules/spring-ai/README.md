@@ -38,6 +38,8 @@ springAiAdapter.stream(chatClient, prompt, session);
 |-------|---------|
 | `SpringAiStreamingAdapter` | Bridges Spring AI `ChatClient` to `StreamingSession` |
 | `SpringAiAgentRuntime` | `AgentRuntime` SPI implementation (priority 100) |
+| `SpringAiEmbeddingRuntime` | `EmbeddingRuntime` SPI wrapping Spring AI `EmbeddingModel` (priority 200) |
+| `SpringAiToolBridge` | Translates Atmosphere `ToolDefinition` to Spring AI `ToolCallback` with HITL approval gating |
 | `AtmosphereSpringAiAutoConfiguration` | Spring Boot auto-configuration |
 
 ## Samples

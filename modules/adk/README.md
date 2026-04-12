@@ -81,7 +81,9 @@ adapter.stream(new AdkRequest(runner, userId, sessionId, "Tell me about Java 25"
 
 | Class | Purpose |
 |-------|---------|
+| `AdkAgentRuntime` | `AgentRuntime` SPI implementation (priority 100); builds per-request `Runner` for tool-calling paths |
 | `AdkEventAdapter` | Subscribes to `Flowable<Event>` and forwards streaming texts to `StreamingSession` |
+| `AdkToolBridge` | Translates Atmosphere `ToolDefinition` to ADK `BaseTool` with HITL approval gating |
 | `AdkBroadcastTool` | ADK `BaseTool` that broadcasts messages via Atmosphere `Broadcaster` |
 | `AdkStreamingAdapter` | `AiStreamingAdapter` SPI impl bridging ADK Runner to StreamingSession |
 
