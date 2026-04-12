@@ -231,6 +231,11 @@ export default defineConfig({
       name: 'ai-hitl-real-flow',
       testMatch: /ai-hitl-real-flow\.spec\.ts/,
     },
+    // ── Real-LLM tier (Tier 1 Ollama / Tier 2 paid) ──
+    {
+      name: 'real-llm-chat',
+      testMatch: /real-llm-chat\.spec\.ts/,
+    },
     // ── Transport tests ──
     {
       name: 'webtransport',

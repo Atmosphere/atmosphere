@@ -69,6 +69,14 @@ public class AiFeatureTestServer {
             framework.addAtmosphereHandler("/ai/lifecycle-listener", new LifecycleListenerTestHandler());
             framework.addAtmosphereHandler("/ai/models", new ModelsTestHandler());
             framework.addAtmosphereHandler("/ai/hitl-real", new HitlApprovalTestHandler());
+            // Real-LLM tier: only wired when LLM_MODE indicates a live provider.
+            // Keeps the default fake-mode test matrix free of network dependencies.
+            var llmMode = System.getenv().getOrDefault("LLM_MODE", "fake");
+            if (llmMode.startsWith("real-")) {
+                framework.addAtmosphereHandler("/ai/real/chat",
+                        new org.atmosphere.integrationtests.ai.real.RealLlmChatTestHandler());
+                logger.info("Real-LLM handler registered at /ai/real/chat (LLM_MODE={})", llmMode);
+            }
 
             logger.info("AI Feature Test Server started on port {}", server.getPort());
             logger.info("Endpoints: /ai/filters, /ai/fanout, /ai/cache, /ai/routing, /ai/budget, "

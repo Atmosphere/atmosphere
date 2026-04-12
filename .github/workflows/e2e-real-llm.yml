@@ -1,0 +1,104 @@
+name: "CI: E2E (Real LLM — Ollama)"
+
+# Wave 1-6 close-out: real-LLM tier running against a local Ollama
+# service container with a small model (qwen2.5:0.5b). Fires on every
+# push to main so regressions in the Built-in / Spring AI / LC4j OpenAI
+# bridges are caught against a real provider, not just FakeLlmClient.
+#
+# Cost: $0 — Ollama is local to the runner.
+# Coverage: basic chat, structured output, embeddings across 3 runtimes.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'modules/ai/**'
+      - 'modules/spring-ai/**'
+      - 'modules/langchain4j/**'
+      - 'modules/integration-tests/**'
+      - '.github/workflows/e2e-real-llm.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-real-llm-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ollama-e2e:
+    name: Ollama ${{ matrix.group }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          - real-llm-chat
+          - real-llm-structured
+          - real-llm-embedding
+    services:
+      ollama:
+        image: ollama/ollama:latest
+        ports:
+          - 11434:11434
+        options: >-
+          --health-cmd "curl -f http://localhost:11434/api/tags || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Warm Ollama model
+        run: |
+          # Pull a small model for structural tests — qwen2.5:0.5b is ~400MB
+          # and responds to simple prompts quickly. Cost: $0.
+          curl -sSf http://localhost:11434/api/pull -d '{"name":"qwen2.5:0.5b"}' \
+            | tail -1
+          curl -sSf http://localhost:11434/api/tags | tee ollama-tags.json
+
+      - name: Build atmosphere-ai
+        run: ./mvnw -q install -pl modules/ai,modules/ai-test -am -DskipTests
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: modules/integration-tests/package-lock.json
+
+      - name: Install Playwright Dependencies
+        working-directory: modules/integration-tests
+        run: |
+          npm ci
+          for attempt in 1 2 3; do
+            if npx playwright install --with-deps chromium; then break; fi
+            [ "$attempt" = "3" ] && exit 1
+            sleep "${attempt}0"
+          done
+
+      - name: Run real-LLM E2E
+        working-directory: modules/integration-tests
+        env:
+          LLM_MODE: real-ollama
+          LLM_BASE_URL: http://localhost:11434/v1
+          LLM_MODEL: qwen2.5:0.5b
+          LLM_API_KEY: ollama-no-key-needed
+        run: |
+          npx playwright test --project=${{ matrix.group }} --reporter=list
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-llm-${{ matrix.group }}
+          path: |
+            modules/integration-tests/test-results/
+            modules/integration-tests/playwright-report/
+          retention-days: 7
