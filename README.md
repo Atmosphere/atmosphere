@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>A portable layer across Java AI runtimes.</strong><br/>
-  Write <code>@Agent</code> once against a unified API (tool calling, memory, streaming, structured output); swap the runtime — Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, or built-in OpenAI — by changing one dependency. <code>@Coordinator</code> orchestrates multi-agent fleets with parallel, sequential, and conditional routing. Served over transports (WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC) and protocols (MCP, A2A, AG-UI). Built by Async-IO.
+  Write <code>@Agent</code> once against a unified API (tool calling, memory, streaming, structured output); swap the runtime — Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, Microsoft Semantic Kernel, or built-in OpenAI — by changing one dependency. <code>@Coordinator</code> orchestrates multi-agent fleets with parallel, sequential, and conditional routing. Served over transports (WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC) and protocols (MCP, A2A, AG-UI). Built by Async-IO.
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@
 
 ---
 
-Atmosphere is a portable layer across Java AI runtimes. Your application code declares **what** it does against a unified API — tool calling, memory, streaming, structured output — and the framework handles **which runtime** executes it (Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, or built-in OpenAI) and **how** it's delivered (WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC, MCP, A2A, AG-UI, Slack, Telegram, Discord). A single `@Agent` class runs on any runtime and serves any transport — swap either by changing one dependency.
+Atmosphere is a portable layer across Java AI runtimes. Your application code declares **what** it does against a unified API — tool calling, memory, streaming, structured output — and the framework handles **which runtime** executes it (Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, Microsoft Semantic Kernel, or built-in OpenAI) and **how** it's delivered (WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC, MCP, A2A, AG-UI, Slack, Telegram, Discord). A single `@Agent` class runs on any runtime and serves any transport — swap either by changing one dependency.
 
 ## Quick Start
 
@@ -104,7 +104,7 @@ What this registers depends on which modules are on the classpath:
 
 **[Durable HITL Workflows](https://atmosphere.github.io/docs/reference/checkpoint/)** — `CheckpointStore` SPI persists agent workflow state as parent-chained snapshots with fork semantics. Pause workflows without holding a live thread; resume via REST or programmatic replay. Pairs with `atmosphere-durable-sessions` for streaming reconnect + workflow continuation.
 
-**[6 AI Runtimes](https://atmosphere.github.io/docs/reference/ai/)** — Built-in, LangChain4j, Spring AI, Google ADK, Embabel, JetBrains Koog. Switch backends by changing one Maven dependency. All share tool calling, structured output, conversation memory, and usage tracking.
+**[7 AI Runtimes](https://atmosphere.github.io/docs/reference/ai/)** — Built-in, LangChain4j, Spring AI, Google ADK, Embabel, JetBrains Koog, Microsoft Semantic Kernel. Switch backends by changing one Maven dependency. All share tool calling, structured output, conversation memory, usage tracking, human-in-the-loop approval, multi-modal input, prompt caching, and embeddings.
 
 **[3 Agent Protocols](https://atmosphere.github.io/docs/agents/a2a/)** — MCP (tools for Claude, Copilot, Cursor), A2A (agent-to-agent via JSON-RPC), AG-UI (streaming state to frontends). Auto-registered from classpath.
 
@@ -190,7 +190,7 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 </dependency>
 ```
 
-Optional: `atmosphere-ai`, `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`, `atmosphere-channels`, `atmosphere-coordinator`, `atmosphere-admin`. Add to classpath and features auto-register.
+Optional: `atmosphere-ai`, `atmosphere-spring-ai`, `atmosphere-langchain4j`, `atmosphere-adk`, `atmosphere-koog`, `atmosphere-embabel`, `atmosphere-semantic-kernel`, `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`, `atmosphere-channels`, `atmosphere-coordinator`, `atmosphere-admin`. Add to classpath and features auto-register.
 
 **Requirements:** Java 21+ &middot; Spring Boot 4.0.5+ or Quarkus 3.31.3+ &middot; Current release: `4.0.36-SNAPSHOT`
 
