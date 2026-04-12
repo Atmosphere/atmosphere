@@ -55,6 +55,9 @@ public class AiPipeline {
     // unified gate actually fires. Callers can route protocol-specific
     // approval messages through {@link #tryResolveApproval(String)}.
     private final ApprovalRegistry approvalRegistry = new ApprovalRegistry();
+    /** Pipeline-level response cache. Null by default (cache disabled). */
+    private volatile org.atmosphere.ai.cache.ResponseCache responseCache;
+    private volatile java.time.Duration responseCacheTtl = java.time.Duration.ofMinutes(5);
 
     public AiPipeline(AgentRuntime runtime, String systemPrompt, String model,
                       AiConversationMemory memory, ToolRegistry toolRegistry,
@@ -91,6 +94,30 @@ public class AiPipeline {
      */
     public boolean tryResolveApproval(String message) {
         return approvalRegistry.tryResolve(message);
+    }
+
+    /**
+     * Attach a pipeline-level {@link org.atmosphere.ai.cache.ResponseCache}.
+     * When set AND the request's {@link org.atmosphere.ai.llm.CacheHint} is
+     * opted in, the pipeline consults the cache before calling the runtime;
+     * on cache miss, it wraps the target session in a
+     * {@link org.atmosphere.ai.cache.CachingStreamingSession} to capture the
+     * response for later replay. Works across all runtimes because it lives
+     * at the pipeline layer, not the provider wire.
+     *
+     * @param cache cache instance, or {@code null} to disable
+     * @param ttl   entry TTL; defaults to 5 minutes when {@code null}
+     */
+    public void setResponseCache(org.atmosphere.ai.cache.ResponseCache cache,
+                                 java.time.Duration ttl) {
+        this.responseCache = cache;
+        if (ttl != null) {
+            this.responseCacheTtl = ttl;
+        }
+    }
+
+    public org.atmosphere.ai.cache.ResponseCache responseCache() {
+        return responseCache;
     }
 
     /** Exposed so callers can share the registry for cross-pipeline deduplication. */
@@ -184,8 +211,34 @@ public class AiPipeline {
                 contextProviders, request.metadata(), history,
                 effectiveResponseType, strategy);
 
+        // Pipeline-level response cache: when the request opts in via
+        // CacheHint and a ResponseCache is installed, check for a prior
+        // identical response first. On hit, replay through the session
+        // without touching the runtime. On miss, wrap the target session
+        // so send() calls are captured for storage on complete().
+        var cache = responseCache;
+        var cacheHint = org.atmosphere.ai.llm.CacheHint.from(context);
+        StreamingSession effectiveTarget = target;
+        if (cache != null && cacheHint.enabled()) {
+            var key = org.atmosphere.ai.cache.CacheKey.compute(context);
+            var hit = cache.get(key);
+            if (hit.isPresent()) {
+                logger.debug("Pipeline response-cache HIT: key={}", key);
+                var cached = hit.get();
+                target.send(cached.text());
+                if (cached.usage() != null) {
+                    target.usage(cached.usage());
+                }
+                target.complete();
+                return;
+            }
+            logger.debug("Pipeline response-cache MISS: key={}", key);
+            effectiveTarget = new org.atmosphere.ai.cache.CachingStreamingSession(
+                    target, key, responseCacheTtl, cache::put);
+        }
+
         try {
-            runtime.execute(context, target);
+            runtime.execute(context, effectiveTarget);
         } catch (Exception e) {
             metrics.recordError(model != null ? model : "unknown", "stream_error");
             throw e;
