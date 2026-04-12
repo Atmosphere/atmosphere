@@ -79,7 +79,7 @@
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
-      "hasFrontend": true,
+      "hasFrontend": false,
       "envVars": {
         "LLM_API_KEY": "API key for your LLM provider (optional \u2014 demo mode without)"
       }
@@ -100,7 +100,7 @@
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
-      "hasFrontend": true,
+      "hasFrontend": false,
       "envVars": {
         "LLM_API_KEY": "API key for your LLM provider (optional \u2014 demo mode without)"
       }
