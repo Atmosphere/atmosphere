@@ -43,11 +43,26 @@ class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     protected AgentRuntime createRuntime() {
         var model = mock(StreamingChatModel.class);
         doAnswer(inv -> {
+            ChatRequest req = inv.getArgument(0);
             StreamingChatResponseHandler handler = inv.getArgument(1);
-            handler.onPartialResponse("Hello world");
-            handler.onCompleteResponse(ChatResponse.builder()
-                    .aiMessage(AiMessage.from("Hello world"))
-                    .build());
+            var hasTools = req.toolSpecifications() != null && !req.toolSpecifications().isEmpty();
+            var hasToolResults = req.messages().stream()
+                    .anyMatch(m -> m instanceof dev.langchain4j.data.message.ToolExecutionResultMessage);
+            if (hasTools && !hasToolResults) {
+                var toolCall = dev.langchain4j.agent.tool.ToolExecutionRequest.builder()
+                        .id("call-contract-1")
+                        .name("contract_delete")
+                        .arguments("{\"id\":\"r-1\"}")
+                        .build();
+                handler.onCompleteResponse(ChatResponse.builder()
+                        .aiMessage(AiMessage.from(List.of(toolCall)))
+                        .build());
+            } else {
+                handler.onPartialResponse("Hello world");
+                handler.onCompleteResponse(ChatResponse.builder()
+                        .aiMessage(AiMessage.from("Hello world"))
+                        .build());
+            }
             return null;
         }).when(model).chat(any(ChatRequest.class), any(StreamingChatResponseHandler.class));
 
@@ -104,6 +119,22 @@ class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 "Hello, cached.", "You are helpful", "gpt-4",
                 null, "session-1", "user-1", "conv-1",
                 List.of(), null, null, List.of(), metadata,
+                List.of(), null, null, List.of(), List.of(),
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
+    }
+
+    @Override
+    protected AgentExecutionContext createApprovalTriggerContext() {
+        var sensitiveTool = org.atmosphere.ai.tool.ToolDefinition
+                .builder("contract_delete", "test-only deletion")
+                .parameter("id", "row id", "string")
+                .executor(args -> "deleted:" + args.get("id"))
+                .requiresApproval("Approve contract deletion?", 60)
+                .build();
+        return new AgentExecutionContext(
+                "Delete row r-1", "You are helpful", "gpt-4",
+                null, "session-1", "user-1", "conv-1",
+                List.of(sensitiveTool), null, null, List.of(), Map.of(),
                 List.of(), null, null, List.of(), List.of(),
                 org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
     }

@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -41,9 +40,7 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
     protected AgentRuntime createRuntime() {
-        var chatClient = mockChatClient();
-        var runtime = new TestableSpringAiRuntime(chatClient);
-        return runtime;
+        return new TestableSpringAiRuntime(mockToolAwareChatClient());
     }
 
     @Override
@@ -116,15 +113,16 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static ChatClient mockChatClient() {
+    private static ChatClient mockToolAwareChatClient() {
         var chatClient = mock(ChatClient.class);
-        var promptSpec = mock(ChatClient.ChatClientRequestSpec.class);
+        // RETURNS_SELF handles all fluent chain methods — unstubbed calls
+        // return the mock itself instead of null, avoiding NPEs on
+        // Spring AI's deeply chained promptSpec.system().user().options()...
+        var promptSpec = mock(ChatClient.ChatClientRequestSpec.class,
+                org.mockito.Answers.RETURNS_SELF);
         var streamSpec = mock(ChatClient.StreamResponseSpec.class);
 
         when(chatClient.prompt()).thenReturn(promptSpec);
-        when(promptSpec.system(any(String.class))).thenReturn(promptSpec);
-        when(promptSpec.user(any(String.class))).thenReturn(promptSpec);
-        when(promptSpec.options(any())).thenReturn(promptSpec);
         when(promptSpec.stream()).thenReturn(streamSpec);
 
         var generation = new Generation(new AssistantMessage("Hello world"));
@@ -133,4 +131,5 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
         return chatClient;
     }
+
 }
