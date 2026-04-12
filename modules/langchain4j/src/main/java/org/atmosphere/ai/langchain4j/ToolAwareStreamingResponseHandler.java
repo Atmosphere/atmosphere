@@ -68,6 +68,7 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
      * already abandoned.
      */
     private final AtomicBoolean cancelled;
+    private final org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy;
     private int toolRound;
 
     ToolAwareStreamingResponseHandler(
@@ -78,9 +79,10 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             Map<String, ToolDefinition> toolMap,
             ApprovalStrategy approvalStrategy,
             List<org.atmosphere.ai.AgentLifecycleListener> listeners,
-            AtomicBoolean cancelled) {
+            AtomicBoolean cancelled,
+            org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy) {
         this(session, model, conversationHistory, toolSpecifications, toolMap,
-                approvalStrategy, listeners, cancelled, 0);
+                approvalStrategy, listeners, cancelled, 0, approvalPolicy);
     }
 
     private ToolAwareStreamingResponseHandler(
@@ -92,7 +94,8 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             ApprovalStrategy approvalStrategy,
             List<org.atmosphere.ai.AgentLifecycleListener> listeners,
             AtomicBoolean cancelled,
-            int toolRound) {
+            int toolRound,
+            org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy) {
         this.session = session;
         this.model = model;
         this.conversationHistory = new ArrayList<>(conversationHistory);
@@ -102,6 +105,7 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
         this.listeners = listeners != null ? listeners : List.of();
         this.cancelled = cancelled != null ? cancelled : new AtomicBoolean();
         this.toolRound = toolRound;
+        this.approvalPolicy = approvalPolicy;
     }
 
     @Override
@@ -157,7 +161,7 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             // Execute the requested tools (HITL gate honored via approvalStrategy).
             // Lifecycle listeners fire per-tool inside the bridge.
             var toolResults = LangChain4jToolBridge.executeToolCalls(
-                    aiMessage, toolMap, session, approvalStrategy, listeners);
+                    aiMessage, toolMap, session, approvalStrategy, listeners, approvalPolicy);
 
             // Build updated conversation with tool results
             var updatedMessages = new ArrayList<>(conversationHistory);
@@ -175,7 +179,7 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             }
             var nextHandler = new ToolAwareStreamingResponseHandler(
                     session, model, updatedMessages, toolSpecifications, toolMap,
-                    approvalStrategy, listeners, cancelled, toolRound + 1);
+                    approvalStrategy, listeners, cancelled, toolRound + 1, approvalPolicy);
             model.chat(followUpRequest, nextHandler);
         } else {
             // No tool calls — deliver the final text response

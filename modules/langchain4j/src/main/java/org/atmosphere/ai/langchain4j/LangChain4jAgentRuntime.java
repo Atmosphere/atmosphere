@@ -220,7 +220,8 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         var handler = new CancelAwareStreamingHandler(
                 new ToolAwareStreamingResponseHandler(
                         session, streamingModel, messages, toolSpecs, toolMap,
-                        context.approvalStrategy(), context.listeners(), cancelled),
+                        context.approvalStrategy(), context.listeners(), cancelled,
+                        context.approvalPolicy()),
                 cancelled, done);
         streamingModel.chat(chatRequestBuilder.build(), handler);
 

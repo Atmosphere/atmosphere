@@ -60,22 +60,24 @@ public final class SpringAiToolBridge {
      */
     public static List<ToolCallback> toToolCallbacks(
             List<ToolDefinition> tools, StreamingSession session, ApprovalStrategy strategy,
-            List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
+            List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+            org.atmosphere.ai.approval.ToolApprovalPolicy policy) {
         return tools.stream()
-                .map(tool -> toToolCallback(tool, session, strategy, listeners))
+                .map(tool -> toToolCallback(tool, session, strategy, listeners, policy))
                 .toList();
     }
 
     private static ToolCallback toToolCallback(
             ToolDefinition tool, StreamingSession session, ApprovalStrategy strategy,
-            List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
+            List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+            org.atmosphere.ai.approval.ToolApprovalPolicy policy) {
         var springToolDef = DefaultToolDefinition.builder()
                 .name(tool.name())
                 .description(tool.description())
                 .inputSchema(buildInputSchema(tool.parameters()))
                 .build();
 
-        return new AtmosphereToolCallback(springToolDef, tool, session, strategy, listeners);
+        return new AtmosphereToolCallback(springToolDef, tool, session, strategy, listeners, policy);
     }
 
     /**
@@ -109,18 +111,21 @@ public final class SpringAiToolBridge {
         private final StreamingSession session;
         private final ApprovalStrategy approvalStrategy;
         private final List<org.atmosphere.ai.AgentLifecycleListener> listeners;
+        private final org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy;
 
         AtmosphereToolCallback(
                 org.springframework.ai.tool.definition.ToolDefinition springToolDef,
                 ToolDefinition atmosphereTool,
                 StreamingSession session,
                 ApprovalStrategy approvalStrategy,
-                List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
+                List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+                org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy) {
             this.springToolDef = springToolDef;
             this.atmosphereTool = atmosphereTool;
             this.session = session;
             this.approvalStrategy = approvalStrategy;
             this.listeners = listeners != null ? listeners : List.of();
+            this.approvalPolicy = approvalPolicy;
         }
 
         @Override
@@ -134,7 +139,8 @@ public final class SpringAiToolBridge {
             org.atmosphere.ai.AgentLifecycleListener.fireToolCall(
                     listeners, atmosphereTool.name(), args);
             var result = ToolExecutionHelper.executeWithApproval(
-                    atmosphereTool.name(), atmosphereTool, args, session, approvalStrategy);
+                    atmosphereTool.name(), atmosphereTool, args, session, approvalStrategy,
+                    approvalPolicy);
             org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
                     listeners, atmosphereTool.name(), result);
             return result;

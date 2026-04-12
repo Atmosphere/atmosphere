@@ -164,7 +164,8 @@ class KoogAgentRuntime : AgentRuntime {
         cancelled: AtomicBoolean
     ) {
         val toolRegistry = AtmosphereToolBridge.buildRegistry(
-            context.tools(), session, context.approvalStrategy(), context.listeners()
+            context.tools(), session, context.approvalStrategy(), context.listeners(),
+            context.approvalPolicy()
         )
         val systemPrompt = buildSystemPrompt(context)
 

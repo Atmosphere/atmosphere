@@ -69,9 +69,10 @@ public final class AdkToolBridge {
      */
     public static List<BaseTool> toAdkTools(
             List<ToolDefinition> tools, StreamingSession session, ApprovalStrategy strategy,
-            List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
+            List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+            org.atmosphere.ai.approval.ToolApprovalPolicy policy) {
         return tools.stream()
-                .map(tool -> (BaseTool) new AtmosphereAdkTool(tool, session, strategy, listeners))
+                .map(tool -> (BaseTool) new AtmosphereAdkTool(tool, session, strategy, listeners, policy))
                 .toList();
     }
 
@@ -84,15 +85,18 @@ public final class AdkToolBridge {
         private final StreamingSession session;
         private final ApprovalStrategy approvalStrategy;
         private final List<org.atmosphere.ai.AgentLifecycleListener> listeners;
+        private final org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy;
 
         AtmosphereAdkTool(ToolDefinition tool, StreamingSession session,
                           ApprovalStrategy approvalStrategy,
-                          List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
+                          List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+                          org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy) {
             super(tool.name(), tool.description());
             this.atmosphereTool = tool;
             this.session = session;
             this.approvalStrategy = approvalStrategy;
             this.listeners = listeners != null ? listeners : List.of();
+            this.approvalPolicy = approvalPolicy;
         }
 
         @Override
@@ -135,7 +139,8 @@ public final class AdkToolBridge {
             try {
                 org.atmosphere.ai.AgentLifecycleListener.fireToolCall(listeners, name(), safeArgs);
                 var resultStr = ToolExecutionHelper.executeWithApproval(
-                        name(), atmosphereTool, safeArgs, session, approvalStrategy);
+                        name(), atmosphereTool, safeArgs, session, approvalStrategy,
+                        approvalPolicy);
                 org.atmosphere.ai.AgentLifecycleListener.fireToolResult(listeners, name(), resultStr);
                 logger.debug("Tool {} executed: {}", name(), resultStr);
 

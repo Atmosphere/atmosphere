@@ -53,11 +53,12 @@ object AtmosphereToolBridge {
         tools: List<ToolDefinition>,
         session: StreamingSession,
         strategy: ApprovalStrategy?,
-        listeners: List<org.atmosphere.ai.AgentLifecycleListener>
+        listeners: List<org.atmosphere.ai.AgentLifecycleListener>,
+        policy: org.atmosphere.ai.approval.ToolApprovalPolicy? = null
     ): ToolRegistry {
         val registry = ToolRegistry.builder().build()
         for (tool in tools) {
-            registry.add(wrap(tool, session, strategy, listeners))
+            registry.add(wrap(tool, session, strategy, listeners, policy))
         }
         return registry
     }
@@ -69,7 +70,8 @@ object AtmosphereToolBridge {
         tool: ToolDefinition,
         session: StreamingSession,
         strategy: ApprovalStrategy?,
-        listeners: List<org.atmosphere.ai.AgentLifecycleListener>
+        listeners: List<org.atmosphere.ai.AgentLifecycleListener>,
+        policy: org.atmosphere.ai.approval.ToolApprovalPolicy?
     ): Tool<JSONObject, String> {
         val descriptor = toDescriptor(tool)
 
@@ -83,7 +85,7 @@ object AtmosphereToolBridge {
                 org.atmosphere.ai.AgentLifecycleListener.fireToolCall(listeners, tool.name(), argMap)
                 return try {
                     val result = ToolExecutionHelper.executeWithApproval(
-                        tool.name(), tool, argMap, session, strategy
+                        tool.name(), tool, argMap, session, strategy, policy
                     )
                     org.atmosphere.ai.AgentLifecycleListener.fireToolResult(listeners, tool.name(), result)
                     result

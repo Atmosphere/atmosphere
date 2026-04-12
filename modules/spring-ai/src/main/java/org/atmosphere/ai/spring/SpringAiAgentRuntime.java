@@ -166,7 +166,8 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
         var tools = context.tools();
         if (!tools.isEmpty()) {
             var callbacks = SpringAiToolBridge.toToolCallbacks(
-                    tools, session, context.approvalStrategy(), context.listeners());
+                    tools, session, context.approvalStrategy(), context.listeners(),
+                    context.approvalPolicy());
             promptSpec = promptSpec.toolCallbacks(callbacks);
         }
 

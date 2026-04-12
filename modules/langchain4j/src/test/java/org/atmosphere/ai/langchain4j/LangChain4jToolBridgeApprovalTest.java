@@ -86,7 +86,7 @@ class LangChain4jToolBridgeApprovalTest {
 
         var results = LangChain4jToolBridge.executeToolCalls(
                 aiMessage, ToolExecutionHelper.toToolMap(List.of(tool)),
-                new NoopSession(), strategy, List.of());
+                new NoopSession(), strategy, List.of(), null);
 
         assertEquals(1, results.size());
         assertEquals("deleted:u1", results.get(0).text());
@@ -116,7 +116,7 @@ class LangChain4jToolBridgeApprovalTest {
 
         var results = LangChain4jToolBridge.executeToolCalls(
                 aiMessage, ToolExecutionHelper.toToolMap(List.of(tool)),
-                new NoopSession(), strategy, List.of());
+                new NoopSession(), strategy, List.of(), null);
 
         assertEquals(1, results.size());
         assertTrue(results.get(0).text().contains("cancelled"));
@@ -143,7 +143,7 @@ class LangChain4jToolBridgeApprovalTest {
 
         var results = LangChain4jToolBridge.executeToolCalls(
                 aiMessage, ToolExecutionHelper.toToolMap(List.of(tool)),
-                null, null, List.of());
+                null, null, List.of(), null);
 
         assertEquals("echo:hi", results.get(0).text());
         assertEquals(1, counter.get());

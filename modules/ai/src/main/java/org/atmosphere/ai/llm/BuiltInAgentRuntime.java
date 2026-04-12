@@ -168,6 +168,9 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
         if (context.retryPolicy() != null && context.retryPolicy() != org.atmosphere.ai.RetryPolicy.DEFAULT) {
             builder.retryPolicy(context.retryPolicy());
         }
+        if (context.approvalPolicy() != null) {
+            builder.approvalPolicy(context.approvalPolicy());
+        }
         return builder.build();
     }
 

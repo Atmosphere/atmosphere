@@ -80,7 +80,7 @@ class SpringAiToolBridgeApprovalTest {
         var strategy = new RecordingStrategy(ApprovalStrategy.ApprovalOutcome.APPROVED);
 
         var callbacks = SpringAiToolBridge.toToolCallbacks(
-                List.of(sensitive(counter)), new NoopSession(), strategy, List.of());
+                List.of(sensitive(counter)), new NoopSession(), strategy, List.of(), null);
 
         var result = callbacks.get(0).call("{\"userId\":\"u1\"}");
 
@@ -96,7 +96,7 @@ class SpringAiToolBridgeApprovalTest {
         var strategy = new RecordingStrategy(ApprovalStrategy.ApprovalOutcome.DENIED);
 
         var callbacks = SpringAiToolBridge.toToolCallbacks(
-                List.of(sensitive(counter)), new NoopSession(), strategy, List.of());
+                List.of(sensitive(counter)), new NoopSession(), strategy, List.of(), null);
 
         var result = callbacks.get(0).call("{\"userId\":\"u1\"}");
 
@@ -115,7 +115,7 @@ class SpringAiToolBridgeApprovalTest {
                 })
                 .build();
 
-        var callbacks = SpringAiToolBridge.toToolCallbacks(List.of(tool), null, null, List.of());
+        var callbacks = SpringAiToolBridge.toToolCallbacks(List.of(tool), null, null, List.of(), null);
         assertEquals("echo:hi", callbacks.get(0).call("{\"value\":\"hi\"}"));
         assertEquals(1, counter.get());
     }

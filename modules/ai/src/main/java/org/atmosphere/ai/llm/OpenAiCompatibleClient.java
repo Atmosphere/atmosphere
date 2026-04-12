@@ -339,7 +339,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                 }
 
                 var resultStr = ToolExecutionHelper.executeWithApproval(
-                        toolName, tool, args, session, request.approvalStrategy());
+                        toolName, tool, args, session, request.approvalStrategy(),
+                        request.approvalPolicy());
                 session.emit(new AiEvent.ToolResult(toolName, resultStr));
                 org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
                         request.listeners(), toolName, resultStr);
@@ -354,7 +355,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                     request.temperature(), request.maxStreamingTexts(),
                     request.jsonMode(), request.tools(), request.conversationId(),
                     request.approvalStrategy(), request.parts(), request.listeners(),
-                    request.cacheHint(), request.retryPolicy());
+                    request.cacheHint(), request.retryPolicy(), request.approvalPolicy());
             if (cancelled.get()) {
                 return;
             }

@@ -179,7 +179,8 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         var gemini = new Gemini(settings.model(), settings.apiKey());
 
         var adkTools = AdkToolBridge.toAdkTools(
-                context.tools(), session, context.approvalStrategy(), context.listeners());
+                context.tools(), session, context.approvalStrategy(), context.listeners(),
+                context.approvalPolicy());
         var instruction = context.systemPrompt() != null && !context.systemPrompt().isEmpty()
                 ? context.systemPrompt() : "You are a helpful assistant.";
 

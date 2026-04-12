@@ -131,17 +131,19 @@ public final class LangChain4jToolBridge {
     public static List<ToolExecutionResultMessage> executeToolCalls(
             AiMessage aiMessage, Map<String, ToolDefinition> toolMap,
             StreamingSession session, ApprovalStrategy strategy,
-            List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
+            List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+            org.atmosphere.ai.approval.ToolApprovalPolicy policy) {
 
         return aiMessage.toolExecutionRequests().stream()
-                .map(request -> executeToolCall(request, toolMap, session, strategy, listeners))
+                .map(request -> executeToolCall(request, toolMap, session, strategy, listeners, policy))
                 .toList();
     }
 
     private static ToolExecutionResultMessage executeToolCall(
             ToolExecutionRequest request, Map<String, ToolDefinition> toolMap,
             StreamingSession session, ApprovalStrategy strategy,
-            List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
+            List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+            org.atmosphere.ai.approval.ToolApprovalPolicy policy) {
 
         var tool = toolMap.get(request.name());
         if (tool == null) {
@@ -155,7 +157,7 @@ public final class LangChain4jToolBridge {
         Map<String, Object> args = ToolBridgeUtils.parseJsonArgs(request.arguments());
         org.atmosphere.ai.AgentLifecycleListener.fireToolCall(listeners, request.name(), args);
         var resultStr = ToolExecutionHelper.executeWithApproval(
-                request.name(), tool, args, session, strategy);
+                request.name(), tool, args, session, strategy, policy);
         org.atmosphere.ai.AgentLifecycleListener.fireToolResult(listeners, request.name(), resultStr);
         return ToolExecutionResultMessage.from(request, resultStr);
     }

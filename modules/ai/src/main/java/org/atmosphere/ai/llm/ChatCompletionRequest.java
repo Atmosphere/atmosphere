@@ -17,6 +17,7 @@ package org.atmosphere.ai.llm;
 
 import org.atmosphere.ai.RetryPolicy;
 import org.atmosphere.ai.approval.ApprovalStrategy;
+import org.atmosphere.ai.approval.ToolApprovalPolicy;
 import org.atmosphere.ai.tool.ToolDefinition;
 
 import java.util.ArrayList;
@@ -43,7 +44,8 @@ public record ChatCompletionRequest(
         List<org.atmosphere.ai.Content> parts,
         List<org.atmosphere.ai.AgentLifecycleListener> listeners,
         CacheHint cacheHint,
-        RetryPolicy retryPolicy
+        RetryPolicy retryPolicy,
+        ToolApprovalPolicy approvalPolicy
 ) {
     /**
      * Canonical constructor. {@code retryPolicy} is a per-request override
@@ -60,9 +62,24 @@ public record ChatCompletionRequest(
     }
 
     /**
-     * Shim constructor accepting the 11-arg form (without retry policy
-     * override). Defaults {@code retryPolicy} to {@code null} so the
-     * client uses its instance-level default.
+     * Shim constructor accepting the 12-arg form (without approval policy).
+     * Defaults {@code approvalPolicy} to {@code null} so the helper falls
+     * back to annotation-driven approval.
+     */
+    public ChatCompletionRequest(String model, List<ChatMessage> messages,
+                                 double temperature, int maxStreamingTexts,
+                                 boolean jsonMode, List<ToolDefinition> tools,
+                                 String conversationId, ApprovalStrategy approvalStrategy,
+                                 List<org.atmosphere.ai.Content> parts,
+                                 List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+                                 CacheHint cacheHint, RetryPolicy retryPolicy) {
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
+                conversationId, approvalStrategy, parts, listeners, cacheHint, retryPolicy, null);
+    }
+
+    /**
+     * Shim constructor accepting the 11-arg form (without retry policy or
+     * approval policy).
      */
     public ChatCompletionRequest(String model, List<ChatMessage> messages,
                                  double temperature, int maxStreamingTexts,
@@ -72,7 +89,7 @@ public record ChatCompletionRequest(
                                  List<org.atmosphere.ai.AgentLifecycleListener> listeners,
                                  CacheHint cacheHint) {
         this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
-                conversationId, approvalStrategy, parts, listeners, cacheHint, null);
+                conversationId, approvalStrategy, parts, listeners, cacheHint, null, null);
     }
 
     /**
@@ -88,7 +105,7 @@ public record ChatCompletionRequest(
                                  List<org.atmosphere.ai.Content> parts,
                                  List<org.atmosphere.ai.AgentLifecycleListener> listeners) {
         this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
-                conversationId, approvalStrategy, parts, listeners, CacheHint.none(), null);
+                conversationId, approvalStrategy, parts, listeners, CacheHint.none(), null, null);
     }
 
     /**
@@ -162,6 +179,7 @@ public record ChatCompletionRequest(
         private List<org.atmosphere.ai.AgentLifecycleListener> listeners = List.of();
         private CacheHint cacheHint = CacheHint.none();
         private RetryPolicy retryPolicy;
+        private ToolApprovalPolicy approvalPolicy;
 
         private Builder(String model) {
             this.model = model;
@@ -261,9 +279,14 @@ public record ChatCompletionRequest(
             return this;
         }
 
+        public Builder approvalPolicy(ToolApprovalPolicy approvalPolicy) {
+            this.approvalPolicy = approvalPolicy;
+            return this;
+        }
+
         public ChatCompletionRequest build() {
             return new ChatCompletionRequest(model, List.copyOf(messages),
-                    temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy, parts, listeners, cacheHint, retryPolicy);
+                    temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy, parts, listeners, cacheHint, retryPolicy, approvalPolicy);
         }
     }
 }
