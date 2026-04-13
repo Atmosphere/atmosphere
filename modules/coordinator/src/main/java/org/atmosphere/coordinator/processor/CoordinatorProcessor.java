@@ -647,6 +647,12 @@ public class CoordinatorProcessor implements Processor<Object> {
     /**
      * Registers the coordinator's {@code @AiTool} methods as MCP tools.
      * The MCP endpoint is registered at {@code basePath + "/mcp"}.
+     *
+     * <p>All MCP type references live in {@code McpCoordinatorRegistration},
+     * which is loaded reflectively only when {@link ClasspathDetector#hasMcp()}
+     * succeeds — so samples that depend on {@code atmosphere-coordinator}
+     * without the optional {@code atmosphere-mcp} dependency never link any
+     * MCP symbols.</p>
      */
     private void registerMcp(AtmosphereFramework framework, Coordinator annotation,
                               ToolRegistry toolRegistry, String basePath,
@@ -655,33 +661,27 @@ public class CoordinatorProcessor implements Processor<Object> {
             return;
         }
         try {
-            var mcpRegistry = new org.atmosphere.mcp.registry.McpRegistry();
-
-            // Bridge @AiTool methods from the ToolRegistry
-            for (var tool : toolRegistry.allTools()) {
-                var params = tool.parameters().stream()
-                        .map(p -> new org.atmosphere.mcp.registry.McpRegistry.ParamEntry(
-                                p.name(), p.description(), p.required(),
-                                jsonSchemaTypeToClass(p.type())))
-                        .toList();
-                mcpRegistry.registerTool(tool.name(), tool.description(), params,
-                        args -> tool.executor().execute(args));
-            }
-
-            var version = annotation.version();
-            var protocolHandler = new org.atmosphere.mcp.runtime.McpProtocolHandler(
-                    annotation.name(), version, mcpRegistry,
-                    framework.getAtmosphereConfig(), guardrails);
-
-            var handler = new org.atmosphere.mcp.runtime.McpHandler(protocolHandler);
-            var mcpPath = basePath + "/mcp";
-            framework.addAtmosphereHandler(mcpPath, handler, new ArrayList<>());
-            protocols.add("mcp");
-            logger.debug("MCP endpoint registered at {} with {} tools",
-                    mcpPath, mcpRegistry.tools().size());
-        } catch (Exception e) {
+            // Load the MCP bridge reflectively so CoordinatorProcessor.class
+            // never carries symbolic references to org.atmosphere.mcp.* —
+            // otherwise linking this class would NoClassDefFoundError on
+            // samples that omit the optional atmosphere-mcp dependency.
+            var bridge = Class.forName(
+                    "org.atmosphere.coordinator.processor.McpCoordinatorRegistration",
+                    true, Thread.currentThread().getContextClassLoader());
+            var register = bridge.getDeclaredMethod("register",
+                    AtmosphereFramework.class, String.class, String.class,
+                    ToolRegistry.class, String.class,
+                    List.class, List.class);
+            register.setAccessible(true);
+            register.invoke(null, framework, annotation.name(), annotation.version(),
+                    toolRegistry, basePath + "/mcp", guardrails, protocols);
+        } catch (ClassNotFoundException e) {
+            logger.debug("MCP bridge class not loadable; skipping MCP registration for coordinator '{}'",
+                    annotation.name());
+        } catch (ReflectiveOperationException e) {
+            var cause = e.getCause() != null ? e.getCause() : e;
             logger.warn("Failed to register MCP endpoint for coordinator '{}': {}",
-                    annotation.name(), e.getMessage());
+                    annotation.name(), cause.getMessage());
         }
     }
 
@@ -841,17 +841,6 @@ public class CoordinatorProcessor implements Processor<Object> {
                                 AiPipeline pipeline) {
             super(taskCtx, pipeline);
         }
-    }
-
-    private static Class<?> jsonSchemaTypeToClass(String type) {
-        return switch (type) {
-            case "integer" -> int.class;
-            case "number" -> double.class;
-            case "boolean" -> boolean.class;
-            case "object" -> java.util.Map.class;
-            case "array" -> java.util.List.class;
-            default -> String.class;
-        };
     }
 
     private void wireChannelBridge(String coordinatorName,

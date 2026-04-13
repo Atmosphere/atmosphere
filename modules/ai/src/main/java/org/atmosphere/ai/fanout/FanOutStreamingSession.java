@@ -257,6 +257,24 @@ public final class FanOutStreamingSession implements AutoCloseable {
         }
 
         @Override
+        public void sendContent(org.atmosphere.ai.Content content) {
+            // Tee text content into the tracking buffer so Content.Text
+            // arriving via sendContent() counts toward TTFT and the per-model
+            // streaming-text aggregate. Binary variants are forwarded to the
+            // delegate untouched so the race winner still emits the image/
+            // audio/file frame on the wire without tripping the fan-out's
+            // cancel-peer interrupt.
+            if (closed.get() && !modelId.equals(firstComplete.get())) {
+                return; // cancelled
+            }
+            if (content instanceof org.atmosphere.ai.Content.Text text) {
+                send(text.text());
+                return;
+            }
+            delegate.sendContent(content);
+        }
+
+        @Override
         public void sendMetadata(String key, Object value) {
             delegate.sendMetadata(key, value);
         }

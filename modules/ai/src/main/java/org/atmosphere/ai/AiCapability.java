@@ -88,6 +88,28 @@ public enum AiCapability {
     TOKEN_USAGE,
 
     /**
+     * Runtime emits incremental tool-argument streaming frames via
+     * {@link StreamingSession#toolCallDelta(String, String)} as the model
+     * generates tool-call JSON, so browser UIs can render "typing" state on
+     * tool-argument fields before the consolidated
+     * {@link org.atmosphere.ai.AiEvent.ToolStart} event fires. Runtimes that
+     * lack this capability still fulfill the default {@code toolCallDelta()}
+     * no-op contract (the interface default is a structured metadata frame
+     * keyed by tool-call id) but never invoke it from their streaming loop,
+     * so no {@code ai.toolCall.delta.*} frames reach the wire.
+     *
+     * <p>In 4.0.36 only {@code BuiltInAgentRuntime} declares this — its
+     * {@code OpenAiCompatibleClient} chat-completions and responses-API
+     * streaming loops both call {@code session.toolCallDelta(id, chunk)}
+     * on every {@code delta.tool_calls[].function.arguments} fragment. The
+     * six framework bridges (Spring AI, LangChain4j, ADK, Embabel, Koog,
+     * Semantic Kernel) cannot emit deltas without bypassing their high-level
+     * streaming APIs — see the 4.0.36 CHANGELOG entry and commit
+     * {@code 895a7e0a2e} for the rationale.</p>
+     */
+    TOOL_CALL_DELTA,
+
+    /**
      * Runtime honours a per-request {@link RetryPolicy} supplied on
      * {@link AgentExecutionContext#retryPolicy()}. Only the Built-in runtime
      * currently threads the policy into its HTTP client's {@code sendWithRetry}

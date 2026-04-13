@@ -36,7 +36,7 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 
 | Adapter JAR | `AgentRuntime` implementation | Priority | Capabilities |
 |-------------|-------------------------------|----------|-------------|
-| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY |
+| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA |
 | `atmosphere-spring-ai` | `SpringAiAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY |
 | `atmosphere-langchain4j` | `LangChain4jAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY |
 | `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, TOKEN_USAGE, PER_REQUEST_RETRY, PROMPT_CACHING |
@@ -284,17 +284,18 @@ feature through a path the Atmosphere bridge can honor today.
 
 Legend: TS=TEXT_STREAMING, TC=TOOL_CALLING, SO=STRUCTURED_OUTPUT, SP=SYSTEM_PROMPT,
 AO=AGENT_ORCHESTRATION, CM=CONVERSATION_MEMORY, TA=TOOL_APPROVAL, V=VISION, A=AUDIO,
-MM=MULTI_MODAL, PC=PROMPT_CACHING, TU=TOKEN_USAGE, PRR=PER_REQUEST_RETRY.
+MM=MULTI_MODAL, PC=PROMPT_CACHING, TU=TOKEN_USAGE, PRR=PER_REQUEST_RETRY,
+TCD=TOOL_CALL_DELTA.
 
-| Runtime | Priority | TS | TC | SO | SP | AO | CM | TA | V | A | MM | PC | TU | PRR |
-|---------|---------:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:-:|:-:|:--:|:--:|:--:|:--:|
-| `BuiltInAgentRuntime`        |   0 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes |
-| `SpringAiAgentRuntime`       | 100 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes |
-| `LangChain4jAgentRuntime`    | 100 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes |
-| `AdkAgentRuntime`            | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-| `EmbabelAgentRuntime`        | 100 | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | —   | yes | yes |
-| `KoogAgentRuntime`           | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-| `SemanticKernelAgentRuntime` | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes |
+| Runtime | Priority | TS | TC | SO | SP | AO | CM | TA | V | A | MM | PC | TU | PRR | TCD |
+|---------|---------:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:-:|:-:|:--:|:--:|:--:|:--:|:--:|
+| `BuiltInAgentRuntime`        |   0 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| `SpringAiAgentRuntime`       | 100 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes | —   |
+| `LangChain4jAgentRuntime`    | 100 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes | —   |
+| `AdkAgentRuntime`            | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   |
+| `EmbabelAgentRuntime`        | 100 | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | —   | yes | yes | —   |
+| `KoogAgentRuntime`           | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   |
+| `SemanticKernelAgentRuntime` | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   |
 
 **Per-runtime gaps, honestly described:**
 
@@ -349,6 +350,18 @@ MM=MULTI_MODAL, PC=PROMPT_CACHING, TU=TOKEN_USAGE, PRR=PER_REQUEST_RETRY.
   `PROMPT_CACHING` / `AGENT_ORCHESTRATION` remain undeclared because SK 1.4.0's
   `ChatCompletionService.getStreamingChatMessageContentsAsync` does not expose
   those surfaces on the Atmosphere bridge path.
+- **`TOOL_CALL_DELTA`** is declared only by `BuiltInAgentRuntime`. Built-in's
+  `OpenAiCompatibleClient` forwards every `delta.tool_calls[].function.arguments`
+  fragment through `session.toolCallDelta(acc.id(), argChunk)` on both the
+  chat-completions and responses-API streaming paths (see
+  `OpenAiCompatibleClient.java` lines ~530 and ~892), so browser UIs receive
+  `ai.toolCall.delta.*` metadata frames before the consolidated `AiEvent.ToolStart`
+  fires. The six framework bridges (Spring AI, LangChain4j, ADK, Embabel, Koog,
+  Semantic Kernel) honor the default `StreamingSession.toolCallDelta()` no-op
+  contract but do not emit chunks from their streaming loops — their high-level
+  APIs surface only consolidated tool calls, and the negative assertion in
+  `modules/integration-tests/e2e/ai-tool-call-delta.spec.ts` pins the gap
+  (Correctness Invariant #5 — Runtime Truth).
 
 ### EmbeddingRuntime SPI
 

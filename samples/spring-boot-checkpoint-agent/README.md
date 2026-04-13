@@ -83,17 +83,35 @@ atmosphere checkpoint fork <id> --state custom-branch
 
 | File | Purpose |
 |------|---------|
-| `CheckpointConfig.java` | Wires `InMemoryCheckpointStore` + wraps the journal with `CheckpointingCoordinationJournal` |
+| `CheckpointConfig.java` | Wires a pluggable `CheckpointStore` (SQLite by default, in-memory opt-in) + wraps the journal with `CheckpointingCoordinationJournal` |
 | `DispatchCoordinator.java` | `@Coordinator` that calls the analyzer and returns the checkpoint pointer to the caller |
 | `AnalyzerAgent.java` | `@Agent` whose `AgentCompleted` events are captured as snapshots |
 | `ApproverAgent.java` | `@Agent` invoked by `CheckpointController#approve` to resume the workflow after HITL approval |
 | `CheckpointController.java` | REST surface over the `CheckpointStore`; `/approve` is the resumption point that calls the approver and chains its result |
 
-## Swapping the store backend
+## Checkpoint store backends
 
-Replace the `@Bean` in `CheckpointConfig` to use a different implementation
-(JDBC, Redis, etc. — planned follow-up modules). The contract is the
-`CheckpointStore` SPI; the rest of the sample is backend-agnostic.
+`CheckpointConfig` honors two Spring properties:
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `atmosphere.checkpoint.store` | `sqlite` | `sqlite` or `in-memory` |
+| `atmosphere.checkpoint.sqlite.path` | `target/checkpoint.db` | Filesystem path to the SQLite database file |
+
+- **SQLite (default).** Snapshots survive JVM restarts. The database lives
+  under `target/` so `mvn clean` resets the sample to a fresh slate, but
+  a plain restart (`Ctrl-C` → `./mvnw spring-boot:run ...`) keeps every
+  pending approval intact. Override the path with
+  `ATMOSPHERE_CHECKPOINT_SQLITE_PATH=/tmp/demo.db` (or the equivalent
+  `-Datmosphere.checkpoint.sqlite.path=...`) for a stable location.
+- **In-memory.** Start the sample with
+  `--atmosphere.checkpoint.store=in-memory` (or
+  `ATMOSPHERE_CHECKPOINT_STORE=in-memory`) to get a fresh store on every
+  boot — useful in integration tests that don't want to carry state
+  forward.
+
+Additional backends (JDBC, Redis, ...) plug into the same `CheckpointStore`
+SPI — the rest of the sample is backend-agnostic.
 
 ## Notes
 
@@ -101,5 +119,7 @@ Replace the `@Bean` in `CheckpointConfig` to use a different implementation
   demo runs without any LLM API key. In a real deployment, configure an
   AI runtime (`atmosphere-spring-ai`, `atmosphere-langchain4j`, etc.) and
   call it from `@Prompt`.
-- The checkpoint store is in-memory: restarting the JVM discards all
-  snapshots. Swap in a persistent backend for durability across restarts.
+- Durable by default: the flagship HITL story (approve hours after the
+  initial prompt, possibly across a JVM restart) works out of the box
+  with the default SQLite store. Switch to in-memory only if you
+  explicitly want snapshots to vanish at shutdown.

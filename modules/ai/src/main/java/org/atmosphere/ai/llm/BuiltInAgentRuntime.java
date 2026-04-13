@@ -237,7 +237,17 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
                 // the pipeline-managed history is honored even though this
                 // runtime does not persist it framework-side.
                 AiCapability.TOKEN_USAGE,
-                AiCapability.CONVERSATION_MEMORY);
+                AiCapability.CONVERSATION_MEMORY,
+                // TOOL_CALL_DELTA: OpenAiCompatibleClient's chat-completions
+                // tool-call loop and responses-API streaming loop both call
+                // session.toolCallDelta(acc.id(), chunk) on every
+                // delta.tool_calls[].function.arguments fragment (see
+                // OpenAiCompatibleClient.java lines ~530 and ~892). The six
+                // framework bridges cannot emit deltas without bypassing
+                // their high-level streaming APIs — Correctness Invariant #5
+                // (Runtime Truth): only the runtime that actually forwards
+                // chunks to session.toolCallDelta declares the capability.
+                AiCapability.TOOL_CALL_DELTA);
     }
 
     @Override

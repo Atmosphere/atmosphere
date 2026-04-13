@@ -58,6 +58,25 @@ public class AiPipeline {
     /** Pipeline-level response cache. Null by default (cache disabled). */
     private volatile org.atmosphere.ai.cache.ResponseCache responseCache;
     private volatile java.time.Duration responseCacheTtl = java.time.Duration.ofMinutes(5);
+    /**
+     * Default pipeline-level caching policy. When non-null and non-NONE,
+     * every {@link #execute(String, String, StreamingSession)} call seeds a
+     * {@link org.atmosphere.ai.llm.CacheHint} into the request metadata so
+     * the cache gate becomes reachable on the channel-bridge path. Callers
+     * that want per-request control use
+     * {@link #execute(String, String, StreamingSession, java.util.Map)}
+     * and pass their own {@code ai.cache.hint} entry in the metadata map.
+     */
+    private volatile org.atmosphere.ai.llm.CacheHint.CachePolicy defaultCachePolicy;
+    /**
+     * Metadata key emitted on both cache hit ({@code true}) and cache miss
+     * ({@code false}) when the pipeline's cache gate fires. Mirrors the
+     * naming convention of {@code ai.tokens.input}/{@code ai.tokens.output}
+     * — a single canonical framework-level signal that observers
+     * (e2e specs, metrics, audit) can read without reaching into
+     * sample-level shims.
+     */
+    public static final String CACHE_HIT_METADATA_KEY = "ai.cache.hit";
 
     public AiPipeline(AgentRuntime runtime, String systemPrompt, String model,
                       AiConversationMemory memory, ToolRegistry toolRegistry,
@@ -126,6 +145,26 @@ public class AiPipeline {
         return responseCache;
     }
 
+    /**
+     * Install a pipeline-level default cache policy. Every
+     * {@link #execute(String, String, StreamingSession)} call seeds a
+     * {@link org.atmosphere.ai.llm.CacheHint} with this policy into the
+     * request metadata before the cache gate runs, so the channel-bridge
+     * public entry becomes a first-class cache consumer — closing the gap
+     * where {@code execute(...)} previously hardcoded {@code Map.of()} and
+     * left the {@code cacheSafe} branch unreachable via the public API.
+     *
+     * <p>Pass {@link org.atmosphere.ai.llm.CacheHint.CachePolicy#NONE} or
+     * {@code null} to disable the default; per-request callers can still
+     * supply their own {@link org.atmosphere.ai.llm.CacheHint}
+     * via {@link #execute(String, String, StreamingSession, java.util.Map)}.
+     *
+     * @param policy caller intent; ignored when {@code null}
+     */
+    public void setDefaultCachePolicy(org.atmosphere.ai.llm.CacheHint.CachePolicy policy) {
+        this.defaultCachePolicy = policy;
+    }
+
     /** Exposed so callers can share the registry for cross-pipeline deduplication. */
     public ApprovalRegistry approvalRegistry() {
         return approvalRegistry;
@@ -135,17 +174,72 @@ public class AiPipeline {
      * Execute the full AI pipeline for the given message. Runs on the caller's
      * thread (typically a virtual thread from the channel bridge).
      *
+     * <p>Equivalent to
+     * {@link #execute(String, String, StreamingSession, java.util.Map)} with
+     * an empty extra-metadata map; callers that want to ride a per-request
+     * {@link org.atmosphere.ai.llm.CacheHint} or any other
+     * {@code AgentExecutionContext} sidecar must use the 4-arg overload so
+     * the metadata actually reaches the cache gate and the runtime bridge.</p>
+     *
      * @param clientId conversation key for memory (e.g., "telegram:12345")
      * @param message  the user's message
      * @param session  the streaming session to push tokens through
      */
     public void execute(String clientId, String message, StreamingSession session) {
+        execute(clientId, message, session, Map.of());
+    }
+
+    /**
+     * Execute the full AI pipeline with caller-supplied request metadata.
+     *
+     * <p>The {@code extraMetadata} map is merged with the pipeline's default
+     * cache policy (if any) and threaded through as
+     * {@link AiRequest#metadata()} and {@link AgentExecutionContext#metadata()}
+     * so downstream components — cache gate, runtime bridge, observability —
+     * observe the caller's intent. When both the caller and the pipeline
+     * default carry an {@code ai.cache.hint} key, the caller wins.</p>
+     *
+     * <p>Before this overload existed, {@link #execute(String, String, StreamingSession)}
+     * hardcoded an empty metadata map, so
+     * {@link org.atmosphere.ai.llm.CacheHint#from(AgentExecutionContext)}
+     * always returned {@link org.atmosphere.ai.llm.CacheHint#none()} and the
+     * cache branch in this method was dead code via the public API. The 4-arg
+     * entry closes that gap and makes the {@code ResponseCache} SPI reachable
+     * from channel bridges (Slack, Telegram, Discord, A2A) and from direct
+     * test callers.</p>
+     *
+     * @param clientId      conversation key for memory (e.g., "telegram:12345")
+     * @param message       the user's message
+     * @param session       the streaming session to push tokens through
+     * @param extraMetadata caller-supplied {@code AgentExecutionContext} metadata;
+     *                      merged with any pipeline-default {@link org.atmosphere.ai.llm.CacheHint}
+     */
+    public void execute(String clientId, String message, StreamingSession session,
+                        Map<String, Object> extraMetadata) {
         var history = memory != null
                 ? memory.getHistory(clientId)
                 : List.<org.atmosphere.ai.llm.ChatMessage>of();
 
+        // Build the initial request metadata from the caller's map plus the
+        // pipeline's default cache policy. When both sides carry an
+        // {@code ai.cache.hint} the caller wins (putIfAbsent semantics on the
+        // default path so callers can explicitly downgrade to
+        // {@code CacheHint.none()} via the 4-arg execute overload).
+        var baseMetadata = extraMetadata != null && !extraMetadata.isEmpty()
+                ? new java.util.HashMap<String, Object>(extraMetadata)
+                : new java.util.HashMap<String, Object>();
+        var pipelinePolicy = this.defaultCachePolicy;
+        if (pipelinePolicy != null
+                && pipelinePolicy != org.atmosphere.ai.llm.CacheHint.CachePolicy.NONE) {
+            baseMetadata.putIfAbsent(
+                    org.atmosphere.ai.llm.CacheHint.METADATA_KEY,
+                    new org.atmosphere.ai.llm.CacheHint(pipelinePolicy,
+                            java.util.Optional.empty(), java.util.Optional.empty()));
+        }
+
         var request = new AiRequest(message, systemPrompt, model,
-                null, clientId, null, clientId, Map.of(), history);
+                null, clientId, null, clientId,
+                java.util.Map.copyOf(baseMetadata), history);
 
         // Attach available tools
         if (toolRegistry != null && !toolRegistry.allTools().isEmpty()) {
@@ -263,6 +357,13 @@ public class AiPipeline {
                 // audit/metrics observers go blind on cache hits.
                 AbstractAgentRuntime.fireStart(context);
                 try {
+                    // Gap #7a — framework-level wire signal for a cache hit.
+                    // Emitted BEFORE send() so clients see the cache
+                    // attribution alongside the replayed text; matches the
+                    // naming convention of ai.tokens.input / ai.tokens.output
+                    // so observers (specs, metrics, audit) read a single
+                    // canonical key instead of sample-level shims.
+                    target.sendMetadata(CACHE_HIT_METADATA_KEY, Boolean.TRUE);
                     target.send(cached.text());
                     if (cached.usage() != null) {
                         target.usage(cached.usage());
@@ -276,6 +377,10 @@ public class AiPipeline {
                 return;
             }
             logger.debug("Pipeline response-cache MISS: key={}", key);
+            // Also emit the false wire signal on miss so specs can
+            // disambiguate "cache was consulted but missed" from "cache was
+            // skipped entirely" (gate short-circuited by tools/RAG/structured).
+            target.sendMetadata(CACHE_HIT_METADATA_KEY, Boolean.FALSE);
             effectiveTarget = new org.atmosphere.ai.cache.CachingStreamingSession(
                     target, key, responseCacheTtl, cache::put);
         } else if (cache != null && cacheHint.enabled() && logger.isDebugEnabled()) {

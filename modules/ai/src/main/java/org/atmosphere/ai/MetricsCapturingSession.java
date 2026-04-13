@@ -55,6 +55,17 @@ class MetricsCapturingSession implements StreamingSession {
     }
 
     @Override
+    public void sendContent(Content content) {
+        // Any content — text or binary — is a signal that the first token
+        // has arrived. Stamp the TTFT and forward to the delegate so the
+        // binary frame reaches the leaf writer.
+        if (firstStreamingTextTime == null) {
+            firstStreamingTextTime = Instant.now();
+        }
+        delegate.sendContent(content);
+    }
+
+    @Override
     public void sendMetadata(String key, Object value) {
         if ("usage.promptStreamingTexts".equals(key) && value instanceof Number n) {
             promptStreamingTexts = n.intValue();

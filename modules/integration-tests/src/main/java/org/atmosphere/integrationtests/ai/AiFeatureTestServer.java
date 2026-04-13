@@ -66,9 +66,33 @@ public class AiFeatureTestServer {
             framework.addAtmosphereHandler("/ai/embedding", new EmbeddingTestHandler());
             framework.addAtmosphereHandler("/ai/retry-policy", new RetryPolicyTestHandler());
             framework.addAtmosphereHandler("/ai/tool-call-delta", new ToolCallDeltaTestHandler());
+            // Runtime-truth capability reflection — enumerates every
+            // AgentRuntime discovered via ServiceLoader on this classpath,
+            // used by ai-tool-call-delta.spec.ts for the Gap #8 negative
+            // capability assertion. See CapabilitiesTestHandler javadoc for
+            // why only Built-in is discoverable in this module.
+            framework.addAtmosphereHandler("/ai/capabilities", new CapabilitiesTestHandler());
             framework.addAtmosphereHandler("/ai/lifecycle-listener", new LifecycleListenerTestHandler());
             framework.addAtmosphereHandler("/ai/models", new ModelsTestHandler());
             framework.addAtmosphereHandler("/ai/hitl-real", new HitlApprovalTestHandler());
+            framework.addAtmosphereHandler("/ai/cache-skip", new CacheSkipTestHandler());
+            framework.addAtmosphereHandler("/ai/hitl-cross-session", new HitlCrossSessionTestHandler());
+            // Wire-level ExecutionHandle.cancel() regression matrix (5 rows):
+            // Built-in exercises the real runtime stream-close path; the
+            // framework rows exercise the handler/session/wire contract via
+            // ExecutionHandle.Settable since those runtime modules are not on
+            // the integration-tests classpath. Semantic Kernel and Embabel
+            // are intentionally excluded — both no-op cancel by design.
+            framework.addAtmosphereHandler("/ai/cancel/built-in",
+                    new CancelTestHandler("built-in"));
+            framework.addAtmosphereHandler("/ai/cancel/spring-ai",
+                    new CancelTestHandler("spring-ai"));
+            framework.addAtmosphereHandler("/ai/cancel/langchain4j",
+                    new CancelTestHandler("langchain4j"));
+            framework.addAtmosphereHandler("/ai/cancel/adk",
+                    new CancelTestHandler("adk"));
+            framework.addAtmosphereHandler("/ai/cancel/koog",
+                    new CancelTestHandler("koog"));
             // Real-LLM tier: only wired when LLM_MODE indicates a live provider.
             // Keeps the default fake-mode test matrix free of network dependencies.
             var llmMode = System.getenv().getOrDefault("LLM_MODE", "fake");

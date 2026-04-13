@@ -55,6 +55,11 @@
 
         <dependency>
             <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-a2a</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-langchain4j</artifactId>
         </dependency>
         <dependency>

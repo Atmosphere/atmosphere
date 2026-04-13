@@ -58,6 +58,19 @@ class MemoryCapturingSession implements StreamingSession {
     }
 
     @Override
+    public void sendContent(Content content) {
+        // Tee the textual shape of Content.Text into the memory buffer so
+        // assistant text arriving via sendContent() (not just send()) is
+        // persisted. Binary variants have no text projection for memory
+        // storage — forward them to the delegate so the leaf session emits
+        // the binary frame on the wire.
+        if (content instanceof Content.Text text) {
+            accumulated.append(text.text());
+        }
+        delegate.sendContent(content);
+    }
+
+    @Override
     public void sendMetadata(String key, Object value) {
         delegate.sendMetadata(key, value);
     }

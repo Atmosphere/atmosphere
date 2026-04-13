@@ -7,6 +7,13 @@ spring:
 
 atmosphere:
   packages: org.atmosphere.samples.springboot.checkpoint
+  # Durable checkpoint store configuration. Default wiring is SQLite so
+  # the flagship HITL workflow survives JVM restarts without any extra
+  # configuration. Set store=in-memory for tests that want a clean slate.
+  checkpoint:
+    store: ${ATMOSPHERE_CHECKPOINT_STORE:sqlite}
+    sqlite:
+      path: ${ATMOSPHERE_CHECKPOINT_SQLITE_PATH:target/checkpoint.db}
 
 logging:
   level:

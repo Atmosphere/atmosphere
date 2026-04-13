@@ -74,6 +74,30 @@ test.describe('Combined Cost/Latency Routing + Cache Coalescing E2E', () => {
     }
   });
 
+  // Phase 3 nice-to-have — TokenUsage.cachedInput split assertion.
+  //
+  // GROUND TRUTH: TokenUsage.cachedInput is plumbed in OpenAiCompatibleClient
+  // via the OpenAI prompt_tokens_details.cached_tokens JSON field, surfaces
+  // on the wire as ai.tokens.cached_input, and the pipeline ResponseCache
+  // hit path calls target.usage(cached.usage()) which replays the stored
+  // TokenUsage exactly — so a real OpenAI-backed run that populates
+  // cached_tokens and then hits the pipeline cache WOULD assert a non-zero
+  // ai.tokens.cached_input value. However this specific endpoint
+  // (/ai/combined-cost-cache) exercises the BroadcasterCache listener
+  // coalescing path with FakeLlmClient fixtures that never emit a
+  // cachedInput > 0 TokenUsage, and it does not install a pipeline
+  // ResponseCache. The assertion would be a no-op against this handler.
+  //
+  // Documented as a skip to avoid rot: if a future handler wires a
+  // FakeLlmClient variant that emits cachedInput>0 (or if this endpoint
+  // gains a pipeline cache), flip the skip off and add the assertion.
+  test.skip('TokenUsage.cachedInput replayed on pipeline cache hit (requires real-LLM or fake-with-cached_tokens)', async () => {
+    // Assertion shape once plumbed end-to-end:
+    //   expect(firstClient.metadata.get('ai.tokens.cached_input')).toBeGreaterThan(0);
+    //   expect(secondClient.metadata.get('ai.tokens.cached_input'))
+    //       .toBe(firstClient.metadata.get('ai.tokens.cached_input'));
+  });
+
   test('Sequential cost then latency requests each produce a coalesced event', async () => {
     const client = new AiWsClient(server.wsUrl, '/ai/combined-cost-cache');
     try {

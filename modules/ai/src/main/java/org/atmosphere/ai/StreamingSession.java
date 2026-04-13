@@ -161,25 +161,48 @@ public interface StreamingSession extends AutoCloseable {
     }
 
     /**
-     * Send multi-modal content to the client. Default implementation handles
-     * text content via {@link #send(String)} and throws for binary content.
+     * Send multi-modal content to the client.
+     *
+     * <p>The default implementation routes {@link Content.Text} through
+     * {@link #send(String)} so text-only sessions work unchanged. Binary
+     * variants ({@link Content.Image}, {@link Content.Audio},
+     * {@link Content.File}) are routed through
+     * {@link #sendMetadata(String, Object)} as a structured
+     * {@code content.binary.dropped} descriptor so a session wired to a
+     * text-only sink (e.g. {@code CollectingSession}) never throws when a
+     * multi-modal response arrives — the caller sees a metadata breadcrumb
+     * instead of an {@code UnsupportedOperationException}. Sessions that
+     * can carry binary frames on the wire ({@link DefaultStreamingSession},
+     * {@link BroadcasterStreamingSession}) override this method; delegating
+     * wrappers ({@link AiStreamingSession}, {@code MemoryCapturingSession},
+     * {@code MetricsCapturingSession}, {@code GuardrailCapturingSession},
+     * {@code StructuredOutputCapturingSession}, the fan-out tracking
+     * session) forward the call to the wrapped delegate so the binary
+     * reaches the leaf writer intact.</p>
      *
      * <p>Wire protocol for content:</p>
      * <pre>{@code
      * {"type":"content","contentType":"text","data":"...","sessionId":"...","seq":N}
      * {"type":"content","contentType":"image","mimeType":"image/png","data":"<base64>","sessionId":"...","seq":N}
+     * {"type":"content","contentType":"audio","mimeType":"audio/wav","data":"<base64>","sessionId":"...","seq":N}
      * {"type":"content","contentType":"file","mimeType":"text/csv","fileName":"results.csv","data":"<base64>","sessionId":"...","seq":N}
      * }</pre>
      *
      * @param content the content to send
      */
     default void sendContent(Content content) {
-        if (content instanceof Content.Text text) {
-            send(text.text());
-        } else {
-            throw new UnsupportedOperationException(
-                    "This session does not support binary content. "
-                            + "Override sendContent() to handle multi-modal content.");
+        switch (content) {
+            case Content.Text text -> send(text.text());
+            case Content.Image image -> sendMetadata(
+                    "content.binary.dropped",
+                    "image/" + image.mimeType() + "/" + image.data().length + "B");
+            case Content.Audio audio -> sendMetadata(
+                    "content.binary.dropped",
+                    "audio/" + audio.mimeType() + "/" + audio.data().length + "B");
+            case Content.File file -> sendMetadata(
+                    "content.binary.dropped",
+                    "file/" + file.mimeType() + "/" + file.fileName()
+                            + "/" + file.data().length + "B");
         }
     }
 

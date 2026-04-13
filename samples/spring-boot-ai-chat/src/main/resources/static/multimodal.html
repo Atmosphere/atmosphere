@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atmosphere Multi-modal Demo</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; margin: 2rem; max-width: 48rem; }
+  h1 { margin-top: 0; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  #log { background: #111; color: #0f0; padding: 1rem; font-family: monospace;
+         white-space: pre-wrap; max-height: 20rem; overflow: auto; margin-top: 1rem; }
+  #preview { max-width: 12rem; max-height: 12rem; margin-top: 0.5rem; border: 1px solid #ccc; }
+  button { padding: 0.5rem 1rem; margin-top: 1rem; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  input[type="text"] { padding: 0.4rem; width: 16rem; }
+</style>
+</head>
+<body>
+<h1>Atmosphere Multi-modal Demo</h1>
+<p>Pick an image file and upload it to
+  <code>/atmosphere/ai-chat-multimodal</code>. The sample
+  <code>MultiModalChat</code> endpoint decodes the payload, wraps it in a
+  <code>Content.Image</code>, and streams both a binary frame and a text
+  acknowledgement back over WebSocket.</p>
+
+<label for="token">Auth token</label>
+<input id="token" type="text" value="demo-token">
+
+<label for="file">Image file</label>
+<input id="file" type="file" accept="image/*">
+<img id="preview" alt="preview" hidden>
+
+<button id="send" disabled>Upload</button>
+
+<div id="log"></div>
+
+<script>
+  const log = document.getElementById('log');
+  const fileInput = document.getElementById('file');
+  const preview = document.getElementById('preview');
+  const sendBtn = document.getElementById('send');
+  const tokenInput = document.getElementById('token');
+
+  function appendLog(line) {
+    log.textContent += line + '\n';
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result;
+        const comma = dataUrl.indexOf(',');
+        resolve({
+          mimeType: file.type || 'image/png',
+          base64: comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl
+        });
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) {
+      preview.hidden = true;
+      sendBtn.disabled = true;
+      return;
+    }
+    preview.src = URL.createObjectURL(file);
+    preview.hidden = false;
+    sendBtn.disabled = false;
+    appendLog('Selected ' + file.name + ' (' + file.size + ' bytes, ' + file.type + ')');
+  });
+
+  sendBtn.addEventListener('click', async () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    const token = tokenInput.value.trim() || 'demo-token';
+
+    let payload;
+    try {
+      payload = await readFileAsBase64(file);
+    } catch (e) {
+      appendLog('Failed to read file: ' + e);
+      return;
+    }
+
+    const wsUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:')
+      + '//' + location.host
+      + '/atmosphere/ai-chat-multimodal'
+      + '?X-Atmosphere-Transport=websocket'
+      + '&X-Atmosphere-Framework=5.0.0'
+      + '&X-Atmosphere-Auth=' + encodeURIComponent(token);
+
+    appendLog('Connecting to ' + wsUrl);
+    const ws = new WebSocket(wsUrl);
+
+    ws.addEventListener('open', () => {
+      const prompt = 'image:' + payload.mimeType + ':' + payload.base64;
+      appendLog('Open. Sending ' + payload.base64.length + ' base64 chars.');
+      ws.send(prompt);
+    });
+
+    ws.addEventListener('message', (event) => {
+      const text = typeof event.data === 'string' ? event.data : '';
+      for (const line of text.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          const frame = JSON.parse(trimmed);
+          appendLog('<- ' + JSON.stringify(frame));
+          if (frame.type === 'complete' || frame.type === 'error') {
+            ws.close();
+          }
+        } catch (err) {
+          appendLog('<- ' + trimmed);
+        }
+      }
+    });
+
+    ws.addEventListener('error', (e) => appendLog('error: ' + e));
+    ws.addEventListener('close', (e) => appendLog('closed: ' + e.code));
+  });
+</script>
+</body>
+</html>

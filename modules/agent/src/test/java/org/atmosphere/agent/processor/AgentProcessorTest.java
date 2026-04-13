@@ -271,4 +271,61 @@ public class AgentProcessorTest {
         }
         assertTrue(found, "SyntheticPrompt must have a @Prompt method");
     }
+
+    /**
+     * Regression for the 4.0.36 durable-HITL sample crash: AgentProcessor's
+     * bytecode must not contain any direct symbolic reference to
+     * {@code org/atmosphere/mcp/...}, otherwise samples that depend on
+     * {@code atmosphere-agent} without the optional {@code atmosphere-mcp}
+     * jar crash at servlet init with a NoClassDefFoundError on
+     * {@code McpRegistry$ParamEntry} before any handler is mapped.
+     *
+     * <p>All MCP type references must live in {@link McpAgentRegistration},
+     * which is loaded reflectively from AgentProcessor only after
+     * {@link ClasspathDetector#hasMcp()} succeeds.</p>
+     */
+    @Test
+    public void testAgentProcessorBytecodeIsFreeOfMcpClassRefs() throws Exception {
+        byte[] bytecode;
+        try (var in = AgentProcessor.class.getResourceAsStream(
+                "/org/atmosphere/agent/processor/AgentProcessor.class")) {
+            assertNotNull(in, "AgentProcessor.class must be on the classpath");
+            bytecode = in.readAllBytes();
+        }
+
+        var ascii = new String(bytecode, java.nio.charset.StandardCharsets.US_ASCII);
+        // Any slash-separated type reference to org/atmosphere/mcp/... in the
+        // constant pool would force the JVM to resolve that class at link
+        // time when AgentProcessor is loaded — which is exactly the failure
+        // mode this test pins down. String literals (e.g. the fully-qualified
+        // name passed to Class.forName) use dot notation and are safe.
+        assertFalse(ascii.contains("org/atmosphere/mcp/"),
+                "AgentProcessor.class must not contain any symbolic reference "
+                        + "to org/atmosphere/mcp/* — move MCP integration to "
+                        + "McpAgentRegistration (loaded reflectively). Found "
+                        + "one in the bytecode constant pool.");
+    }
+
+    /**
+     * Regression for the 4.0.36 durable-HITL sample crash: confirm the MCP
+     * bridge class is resolvable by the classloader agent users actually hit
+     * (so {@code Class.forName} in the registerMcpAt fallback path loads it)
+     * and exposes the expected static entry point.
+     */
+    @Test
+    public void testMcpAgentRegistrationIsLoadableViaClassForName() throws Exception {
+        var bridge = Class.forName(
+                "org.atmosphere.agent.processor.McpAgentRegistration",
+                true, Thread.currentThread().getContextClassLoader());
+        var register = bridge.getDeclaredMethod("register",
+                org.atmosphere.cpr.AtmosphereFramework.class,
+                String.class, String.class,
+                org.atmosphere.ai.tool.ToolRegistry.class,
+                Object.class, String.class,
+                java.util.List.class, java.util.List.class);
+        assertNotNull(register, "McpAgentRegistration.register must exist with the "
+                + "signature AgentProcessor invokes reflectively");
+        assertTrue(java.lang.reflect.Modifier.isStatic(register.getModifiers()),
+                "McpAgentRegistration.register must be static");
+    }
 }

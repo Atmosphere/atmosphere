@@ -276,8 +276,20 @@ class KoogAgentRuntime : AgentRuntime {
                     result.add(ContentPart.Audio(content, format, part.mimeType(), "audio.$format"))
                 }
                 is org.atmosphere.ai.Content.File -> {
-                    // Koog's chat surface does not accept generic file input.
-                    logger.debug("Dropping unsupported Content.File part: {}", part.fileName())
+                    // Koog's chat surface does not accept generic file input —
+                    // the ContentPart hierarchy only models Text/Image/Audio.
+                    // Log at WARN (not DEBUG) so operators see the silent loss
+                    // and know to route File attachments through ADK or
+                    // Built-in instead. Matches the mode-parity-drop WARN
+                    // fired by executeInternal when tools + multi-modal are
+                    // combined on the Koog path.
+                    logger.warn(
+                        "Koog bridge dropping unsupported Content.File part: {} ({} bytes, {}). " +
+                            "Koog's chat surface does not accept generic file input; " +
+                            "route File attachments through adk or built-in for Gemini/OpenAI " +
+                            "multi-modal support.",
+                        part.fileName(), part.data().size, part.mimeType()
+                    )
                 }
             }
         }

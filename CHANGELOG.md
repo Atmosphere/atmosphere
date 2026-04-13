@@ -131,11 +131,19 @@ time of release; commit hashes are listed where the attribution matters.
   explicit `mimeType` and `contentType`. Runtimes that do not support
   multi-modal input declare the exclusion in their `capabilities()` set
   (Correctness Invariant #5 — Runtime Truth).
-- **`session.toolCallDelta()`** — incremental tool-argument streaming so
-  clients can render partial JSON as the model generates it. In 4.0.36
-  this is **Built-in only** — the four framework bridges (Spring AI, LC4j,
-  ADK, Koog) cannot emit deltas without bypassing their high-level
-  streaming APIs (`895a7e0a2e`). Documented in the capability matrix.
+- **`session.toolCallDelta()` + `AiCapability.TOOL_CALL_DELTA`** — incremental
+  tool-argument streaming so clients can render partial JSON as the model
+  generates it. Declared as an `AiCapability` enum value so the distinction is
+  machine-readable on the SPI, not just prose in the matrix. Only
+  `BuiltInAgentRuntime` advertises it — its `OpenAiCompatibleClient` forwards
+  every `delta.tool_calls[].function.arguments` fragment through
+  `session.toolCallDelta(id, chunk)` on both the chat-completions and
+  responses-API streaming paths. The six framework bridges (Spring AI, LC4j,
+  ADK, Embabel, Koog, Semantic Kernel) cannot emit deltas without bypassing
+  their high-level streaming APIs (`895a7e0a2e`); they honor the default
+  no-op contract instead. Pinned in the Built-in contract test and in
+  `modules/integration-tests/e2e/ai-tool-call-delta.spec.ts`'s negative
+  capability assertion.
 - **`AgentRuntime.models()`** default method returning the list of models
   the resolved runtime can actually serve. Replaces the configuration-intent
   model flag with a runtime-resolved list (Correctness Invariant #5).

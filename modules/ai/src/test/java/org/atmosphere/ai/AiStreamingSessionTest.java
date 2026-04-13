@@ -427,6 +427,58 @@ public class AiStreamingSessionTest {
         assertEquals("test-model", metricsRecorder.errorModel);
     }
 
+    /**
+     * Gap #10 regression: {@link AiStreamingSession#sendContent(Content)}
+     * must forward text and binary variants to the wrapped delegate instead
+     * of inheriting the throwing interface default. Without the explicit
+     * override, an image/audio/file frame raised an
+     * {@code UnsupportedOperationException} mid-stream, forcing handlers
+     * to open a second {@code DefaultStreamingSession} as a workaround.
+     */
+    @Test
+    public void testSendContentForwardsTextToDelegate() {
+        var session = new AiStreamingSession(delegate, new RecordingRuntime(),
+                "", null, List.of(), resource);
+
+        session.sendContent(new Content.Text("hello"));
+
+        verify(delegate).sendContent(new Content.Text("hello"));
+        verifyNoMoreInteractions(delegate);
+    }
+
+    @Test
+    public void testSendContentForwardsImageToDelegate() {
+        var session = new AiStreamingSession(delegate, new RecordingRuntime(),
+                "", null, List.of(), resource);
+
+        var image = new Content.Image(new byte[] {(byte) 0x89, 'P', 'N', 'G'}, "image/png");
+        // Expect no throw — AiStreamingSession must route binary through the
+        // delegate, not inherit the interface default that dropped it to
+        // metadata breadcrumbs.
+        assertDoesNotThrow(() -> session.sendContent(image));
+        verify(delegate).sendContent(image);
+    }
+
+    @Test
+    public void testSendContentForwardsAudioToDelegate() {
+        var session = new AiStreamingSession(delegate, new RecordingRuntime(),
+                "", null, List.of(), resource);
+
+        var audio = new Content.Audio("RIFF".getBytes(), "audio/wav");
+        assertDoesNotThrow(() -> session.sendContent(audio));
+        verify(delegate).sendContent(audio);
+    }
+
+    @Test
+    public void testSendContentForwardsFileToDelegate() {
+        var session = new AiStreamingSession(delegate, new RecordingRuntime(),
+                "", null, List.of(), resource);
+
+        var file = new Content.File("name,value\n1,2\n".getBytes(), "text/csv", "results.csv");
+        assertDoesNotThrow(() -> session.sendContent(file));
+        verify(delegate).sendContent(file);
+    }
+
     static class RecordingMetrics implements AiMetrics {
         boolean streamingTextUsageRecorded;
         boolean latencyRecorded;

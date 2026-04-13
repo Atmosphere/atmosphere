@@ -66,6 +66,19 @@ class StructuredOutputCapturingSession implements StreamingSession {
     }
 
     @Override
+    public void sendContent(Content content) {
+        // Text variants feed the progressive field parser just like send().
+        // Binary variants have no structured-output projection — forward
+        // them to the delegate so the leaf session emits the binary frame
+        // without poisoning the parser's accumulated JSON buffer.
+        if (content instanceof Content.Text text) {
+            send(text.text());
+            return;
+        }
+        delegate.sendContent(content);
+    }
+
+    @Override
     public void emit(AiEvent event) {
         delegate.emit(event);
         if (event instanceof AiEvent.TextDelta delta) {

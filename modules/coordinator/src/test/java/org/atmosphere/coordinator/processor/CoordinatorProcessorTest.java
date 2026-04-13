@@ -165,4 +165,63 @@ public class CoordinatorProcessorTest {
         }
         assertTrue(hasPrompt);
     }
+
+    /**
+     * Regression for the 4.0.36 durable-HITL sample crash: CoordinatorProcessor's
+     * bytecode must not contain any direct symbolic reference to
+     * {@code org/atmosphere/mcp/...}, otherwise samples that depend on
+     * {@code atmosphere-coordinator} without the optional {@code atmosphere-mcp}
+     * jar crash at servlet init with a NoClassDefFoundError on
+     * {@code McpRegistry$ParamEntry} before any handler is mapped and the
+     * coordinator transport never comes alive.
+     *
+     * <p>All MCP type references must live in {@link McpCoordinatorRegistration},
+     * which is loaded reflectively from CoordinatorProcessor only after
+     * {@link org.atmosphere.agent.ClasspathDetector#hasMcp()} succeeds.</p>
+     */
+    @Test
+    public void testCoordinatorProcessorBytecodeIsFreeOfMcpClassRefs() throws Exception {
+        byte[] bytecode;
+        try (var in = CoordinatorProcessor.class.getResourceAsStream(
+                "/org/atmosphere/coordinator/processor/CoordinatorProcessor.class")) {
+            assertNotNull(in, "CoordinatorProcessor.class must be on the classpath");
+            bytecode = in.readAllBytes();
+        }
+
+        var ascii = new String(bytecode, java.nio.charset.StandardCharsets.US_ASCII);
+        // Any slash-separated type reference to org/atmosphere/mcp/... in the
+        // constant pool would force the JVM to resolve that class at link
+        // time when CoordinatorProcessor is loaded — which is exactly the
+        // failure mode this test pins down. String literals (e.g. the
+        // fully-qualified name passed to Class.forName) use dot notation and
+        // are safe.
+        assertFalse(ascii.contains("org/atmosphere/mcp/"),
+                "CoordinatorProcessor.class must not contain any symbolic "
+                        + "reference to org/atmosphere/mcp/* — move MCP "
+                        + "integration to McpCoordinatorRegistration (loaded "
+                        + "reflectively). Found one in the bytecode constant pool.");
+    }
+
+    /**
+     * Regression for the 4.0.36 durable-HITL sample crash: confirm the MCP
+     * bridge class is resolvable by the classloader coordinator users actually
+     * hit (so {@code Class.forName} in the registerMcp fallback path loads it)
+     * and exposes the expected static entry point.
+     */
+    @Test
+    public void testMcpCoordinatorRegistrationIsLoadableViaClassForName() throws Exception {
+        var bridge = Class.forName(
+                "org.atmosphere.coordinator.processor.McpCoordinatorRegistration",
+                true, Thread.currentThread().getContextClassLoader());
+        var register = bridge.getDeclaredMethod("register",
+                org.atmosphere.cpr.AtmosphereFramework.class,
+                String.class, String.class,
+                org.atmosphere.ai.tool.ToolRegistry.class,
+                String.class,
+                java.util.List.class, java.util.List.class);
+        assertNotNull(register, "McpCoordinatorRegistration.register must exist "
+                + "with the signature CoordinatorProcessor invokes reflectively");
+        assertTrue(java.lang.reflect.Modifier.isStatic(register.getModifiers()),
+                "McpCoordinatorRegistration.register must be static");
+    }
 }

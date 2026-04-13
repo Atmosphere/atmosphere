@@ -561,6 +561,17 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     @Override
+    public void sendContent(Content content) {
+        // Forward multi-modal content to the wrapped leaf session. Without
+        // this override AiStreamingSession inherits the interface default,
+        // which drops binary parts to a metadata breadcrumb — that is the
+        // wrong shape for an AiEndpoint-attached session where the delegate
+        // is typically a DefaultStreamingSession that can emit the binary
+        // frame on the wire.
+        delegate.sendContent(content);
+    }
+
+    @Override
     public void sendMetadata(String key, Object value) {
         delegate.sendMetadata(key, value);
     }

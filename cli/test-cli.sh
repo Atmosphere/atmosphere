@@ -418,6 +418,28 @@ SKILLEOF
         fail "copies skill file into cloned project"
     fi
 
+    # Sparse-clone standalone-compile regression (commit 0b9a8f194d).
+    # The cloned pom.xml must build standalone against the Maven Central
+    # parent — without <relativePath>, pinned SNAPSHOT→release, and with
+    # checkstyle/pmd skipped. Pick one representative template to keep the
+    # cycle fast; compiling every template would dominate CI runtime.
+    if command -v mvn >/dev/null 2>&1; then
+        out=$(cd "$tmp_dir" && "$CLI" new net-ai-chat --template ai-chat 2>&1) && ec=0 || ec=$?
+        assert_exit_code "$ec" 0 "new ai-chat exits successfully"
+        if [ -d "$tmp_dir/net-ai-chat" ]; then
+            compile_log=$(cd "$tmp_dir/net-ai-chat" && mvn -q -B -DskipTests -Dcheckstyle.skip=true -Dpmd.skip=true compile 2>&1) && cec=0 || cec=$?
+            if [ "$cec" -eq 0 ]; then
+                pass "cloned ai-chat pom.xml compiles standalone"
+            else
+                fail "cloned ai-chat pom.xml compile failed" "$(printf '%s' "$compile_log" | tail -20)"
+            fi
+        else
+            fail "cloned ai-chat project directory missing"
+        fi
+    else
+        printf "  ${DIM}— skipping sparse-clone compile regression (mvn not on PATH)${RESET}\n"
+    fi
+
     printf "\n"
 fi
 
@@ -524,6 +546,21 @@ if [ -d "$repo_root/samples" ]; then
             fail "frontend dir missing: $name"
         fi
     done < "$fs_tmp"
+
+    # Every sample listed in samples.json must ship a README.md. Samples are
+    # the first thing users see — a sample without a README is invisible.
+    jq -r '.samples[].name' "$SAMPLES_JSON" > "$fs_tmp"
+    missing_readmes=""
+    while read -r name; do
+        if [ ! -f "$repo_root/samples/$name/README.md" ]; then
+            missing_readmes="$missing_readmes $name"
+        fi
+    done < "$fs_tmp"
+    if [ -z "$missing_readmes" ]; then
+        pass "every sample has a README.md"
+    else
+        fail "samples missing README.md:$missing_readmes"
+    fi
     rm -f "$fs_tmp"
 else
     fail "samples directory not found at $repo_root/samples"

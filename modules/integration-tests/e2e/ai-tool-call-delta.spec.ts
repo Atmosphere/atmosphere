@@ -1,3 +1,17 @@
+/**
+ * toolCallDelta incremental-streaming wire contract (Wave 3) + Gap #8
+ * positive/negative capability assertion for AiCapability.TOOL_CALL_DELTA.
+ *
+ * Built-in's OpenAiCompatibleClient forwards every
+ * delta.tool_calls[].function.arguments fragment through
+ * StreamingSession.toolCallDelta(id, chunk). The six framework bridges
+ * (Spring AI, LangChain4j, ADK, Embabel, Koog, Semantic Kernel) do not —
+ * their high-level streaming APIs surface only consolidated tool calls,
+ * so they honor the default no-op contract without emitting delta frames.
+ * The AiCapability.TOOL_CALL_DELTA enum value pins that distinction on the
+ * SPI; the assertions below exercise it against runtime truth via the
+ * /ai/capabilities reflection endpoint (CapabilitiesTestHandler).
+ */
 import { test, expect } from '@playwright/test';
 import { startAiTestServer, type AiTestServer } from './fixtures/ai-test-server';
 import { AiWsClient } from './helpers/ai-ws-client';
@@ -47,6 +61,52 @@ test.describe('toolCallDelta Incremental Streaming (Wave 3)', () => {
       expect((toolResult!.result as Record<string, unknown>).temp).toBe(22);
     } finally {
       client.close();
+    }
+  });
+
+  // Gap #8 positive + negative capability assertion. The /ai/capabilities
+  // endpoint reflects AgentRuntimeResolver.resolveAll() — the live
+  // ServiceLoader discovery path — so these assertions bind to runtime
+  // truth (AiCapability enum value, AgentRuntime.capabilities()) rather
+  // than prose in the matrix. Only BuiltInAgentRuntime is on the
+  // integration-tests classpath, but the per-runtime contract tests in
+  // each framework runtime's own module pin their capability sets
+  // independently — a future attempt by any framework bridge to declare
+  // TOOL_CALL_DELTA without actually forwarding chunks would fail its
+  // own contract test at full-build time.
+  test('@smoke capability reflection: only Built-in declares TOOL_CALL_DELTA', async () => {
+    const response = await fetch(`${server.baseUrl}/ai/capabilities`);
+    expect(response.ok).toBeTruthy();
+
+    const payload = await response.json() as {
+      runtimes: Array<{ name: string; priority: number; capabilities: string[] }>;
+    };
+
+    expect(Array.isArray(payload.runtimes)).toBeTruthy();
+    expect(payload.runtimes.length).toBeGreaterThan(0);
+
+    // Positive: Built-in is discovered and declares TOOL_CALL_DELTA.
+    const builtIn = payload.runtimes.find(r => r.name === 'built-in');
+    expect(builtIn, 'built-in runtime should be discovered via ServiceLoader').toBeDefined();
+    expect(builtIn!.capabilities).toContain('TOOL_CALL_DELTA');
+    // Also pin the honest co-declarations so drift in either direction
+    // breaks the test:
+    expect(builtIn!.capabilities).toContain('TEXT_STREAMING');
+    expect(builtIn!.capabilities).toContain('TOOL_CALLING');
+
+    // Negative: any runtime discovered OTHER than built-in must NOT
+    // declare TOOL_CALL_DELTA. Vacuously true on the integration-tests
+    // classpath today (only Built-in is discoverable), but the assertion
+    // body itself is the drift detector — if a framework runtime is
+    // ever added here and wrongly advertises the capability, this fails.
+    const others = payload.runtimes.filter(r => r.name !== 'built-in');
+    for (const runtime of others) {
+      expect(
+        runtime.capabilities,
+        `${runtime.name} must not declare TOOL_CALL_DELTA — only BuiltInAgentRuntime`
+          + ' forwards delta.tool_calls[].function.arguments chunks through'
+          + ' StreamingSession.toolCallDelta()'
+      ).not.toContain('TOOL_CALL_DELTA');
     }
   });
 });

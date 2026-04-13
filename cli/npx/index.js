@@ -27,9 +27,10 @@ const TEMPLATES = {
   'mcp-server':  'MCP server exposing tools, resources, and prompts',
   'rag':         'RAG chat with vector store',
   'agent':       '@Agent skill-file driven agent (Dr. Molar dentist demo)',
-  'koog':        'Koog @AIAgent chat integration',
-  'multi-agent': 'Multi-agent fleet — 5 independent @Agents via A2A protocol',
-  'classroom':   'AI classroom — shared streaming responses (web + Expo RN)',
+  'koog':            'Koog @AIAgent chat integration',
+  'semantic-kernel': 'Microsoft Semantic Kernel for Java chat integration',
+  'multi-agent':     'Multi-agent fleet — 5 independent @Agents via A2A protocol',
+  'classroom':       'AI classroom — shared streaming responses (web + Expo RN)',
 };
 
 function die(msg) { console.error(`${RED}error:${RESET} ${msg}`); process.exit(1); }
@@ -50,7 +51,7 @@ ${BOLD}Options:${RESET}
 
 ${BOLD}Templates:${RESET}`);
   for (const [name, desc] of Object.entries(TEMPLATES)) {
-    console.log(`  ${GREEN}${name.padEnd(13)}${RESET} ${desc}`);
+    console.log(`  ${GREEN}${name.padEnd(16)}${RESET} ${desc}`);
   }
   console.log(`
 ${BOLD}Examples:${RESET}
@@ -89,7 +90,7 @@ function main() {
       case '--list-templates':
         console.log(`\n${BOLD}Available templates:${RESET}\n`);
         for (const [name, desc] of Object.entries(TEMPLATES)) {
-          console.log(`  ${GREEN}${name.padEnd(13)}${RESET} ${desc}`);
+          console.log(`  ${GREEN}${name.padEnd(16)}${RESET} ${desc}`);
         }
         console.log('');
         process.exit(0);

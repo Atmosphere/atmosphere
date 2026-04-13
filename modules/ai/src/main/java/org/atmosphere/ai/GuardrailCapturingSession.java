@@ -79,6 +79,28 @@ class GuardrailCapturingSession implements StreamingSession {
     }
 
     @Override
+    public void sendContent(Content content) {
+        // Text variants flow through the guardrail scanner so a Content.Text
+        // chunk is inspected the same way a send() chunk is. Binary variants
+        // have no text projection the text-centric guardrail API can check —
+        // forward them to the delegate when we are not already blocked so
+        // the binary frame reaches the leaf writer unchanged.
+        if (content instanceof Content.Text text) {
+            send(text.text());
+            return;
+        }
+        lock.lock();
+        try {
+            if (blocked) {
+                return;
+            }
+        } finally {
+            lock.unlock();
+        }
+        delegate.sendContent(content);
+    }
+
+    @Override
     public void sendMetadata(String key, Object value) {
         delegate.sendMetadata(key, value);
     }
