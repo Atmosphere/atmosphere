@@ -53,8 +53,11 @@ The CLI downloads pre-built JARs from GitHub Releases and caches them in `~/.atm
 ```bash
 atmosphere new my-chat-app
 atmosphere new my-ai-app --template ai-chat
-atmosphere new my-rag-app --template rag --group org.mycompany
+atmosphere new my-fleet --template multi-agent
+atmosphere new my-classroom --template classroom
 ```
+
+Available templates: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `koog`, `multi-agent`, `classroom`. Each template sparse-clones the matching sample from `cli/samples.json` into a directory you name.
 
 Or with npx (zero install):
 

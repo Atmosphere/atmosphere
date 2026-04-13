@@ -39,7 +39,9 @@ assert_contains() {
     output="$1"
     expected="$2"
     label="$3"
-    if printf '%s' "$output" | grep -q "$expected"; then
+    # Use `grep -e --` so patterns beginning with '-' (e.g. "--group") are
+    # not mistaken for grep options.
+    if printf '%s' "$output" | grep -q -F -e "$expected"; then
         pass "$label"
     else
         fail "$label" "expected output to contain: $expected"
@@ -50,7 +52,7 @@ assert_not_contains() {
     output="$1"
     unexpected="$2"
     label="$3"
-    if printf '%s' "$output" | grep -q "$unexpected"; then
+    if printf '%s' "$output" | grep -q -F -e "$unexpected"; then
         fail "$label" "output should NOT contain: $unexpected"
     else
         pass "$label"
@@ -335,266 +337,162 @@ assert_contains "$out" "No sample selected" "empty input shows cancel message"
 
 printf "\n"
 
-# ── 12. CLI: new (no JBang, minimal scaffold) ──────────────────────────────
-printf "${BOLD}atmosphere new (minimal scaffold)${RESET}\n"
+# ── 12. CLI: new (validation, no network) ─────────────────────────────────
+# `atmosphere new` sparse-clones a sample from GitHub, so end-to-end tests
+# require network. These cases exercise only the pure-local validation path.
+printf "${BOLD}atmosphere new (validation)${RESET}\n"
 
 tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT
 
-# Scaffold default chat template
-out=$(cd "$tmp_dir" && env PATH="/usr/bin:/bin:/usr/sbin:/sbin" "$CLI" new test-chat-app 2>&1) && ec=0 || ec=$?
-assert_exit_code "$ec" 0 "new command exits successfully"
-assert_contains "$out" "Project created" "prints success message"
-
-if [ -f "$tmp_dir/test-chat-app/pom.xml" ]; then
-    pass "creates pom.xml"
-else
-    fail "creates pom.xml"
-fi
-
-pom=$(cat "$tmp_dir/test-chat-app/pom.xml")
-assert_contains "$pom" "atmosphere-spring-boot-starter" "pom.xml has atmosphere starter"
-assert_contains "$pom" "spring-boot-starter-web" "pom.xml has spring-boot-web"
-assert_contains "$pom" "com.example" "pom.xml has default groupId"
-assert_contains "$pom" "test-chat-app" "pom.xml has correct artifactId"
-
-if [ -f "$tmp_dir/test-chat-app/src/main/java/com/example/ChatApplication.java" ]; then
-    pass "creates ChatApplication.java"
-else
-    fail "creates ChatApplication.java"
-fi
-
-if [ -f "$tmp_dir/test-chat-app/src/main/java/com/example/Chat.java" ]; then
-    pass "creates Chat.java handler"
-else
-    fail "creates Chat.java handler"
-fi
-
-if [ -f "$tmp_dir/test-chat-app/src/main/java/com/example/Message.java" ]; then
-    pass "creates Message.java"
-else
-    fail "creates Message.java"
-fi
-
-if [ -f "$tmp_dir/test-chat-app/src/main/java/com/example/JacksonEncoder.java" ]; then
-    pass "creates JacksonEncoder.java"
-else
-    fail "creates JacksonEncoder.java"
-fi
-
-if [ -f "$tmp_dir/test-chat-app/src/main/java/com/example/JacksonDecoder.java" ]; then
-    pass "creates JacksonDecoder.java"
-else
-    fail "creates JacksonDecoder.java"
-fi
-
-if [ -f "$tmp_dir/test-chat-app/src/main/resources/static/index.html" ]; then
-    pass "creates index.html"
-    html=$(cat "$tmp_dir/test-chat-app/src/main/resources/static/index.html")
-    assert_contains "$html" "/atmosphere/chat" "index.html connects to /atmosphere/chat"
-    assert_contains "$html" "WebSocket" "index.html uses WebSocket"
-else
-    fail "creates index.html"
-fi
-
-if [ -f "$tmp_dir/test-chat-app/src/main/resources/application.yml" ]; then
-    pass "creates application.yml"
-else
-    fail "creates application.yml"
-fi
-
-# Scaffold already exists
-out=$(cd "$tmp_dir" && env PATH="/usr/bin:/bin:/usr/sbin:/sbin" "$CLI" new test-chat-app 2>&1) && ec=0 || ec=$?
-# This should still succeed (mkdir -p), but let's just verify it doesn't crash badly
-
 # No name
 out=$("$CLI" new 2>&1) && ec=0 || ec=$?
 assert_exit_code "$ec" 1 "new without name exits with error"
+assert_contains "$out" "Usage: atmosphere new" "error message shows usage"
+
+# Unknown template
+out=$("$CLI" new foo --template nonesuch 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "new with unknown template exits with error"
+assert_contains "$out" "Unknown template: nonesuch" "error lists the bad template"
+assert_contains "$out" "multi-agent" "error lists known templates including multi-agent"
+assert_contains "$out" "classroom" "error lists known templates including classroom"
+
+# Unknown argument
+out=$("$CLI" new foo --bogus 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "new with unknown option exits with error"
+
+# --skill-file with nonexistent file
+out=$("$CLI" new bad-agent --skill-file /nonexistent/skill.md 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "nonexistent skill file exits with error"
+assert_contains "$out" "Skill file not found" "error mentions missing skill file"
+
+# Directory already exists
+mkdir "$tmp_dir/already-here"
+out=$(cd "$tmp_dir" && "$CLI" new already-here --template chat 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "existing directory exits with error"
+assert_contains "$out" "already exists" "error mentions existing directory"
+
+# --group is deprecated but still parsed; ensure the warning is emitted
+# on a validation-only code path (unknown template after --group).
+out=$("$CLI" new foo --template nonesuch --group com.acme 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "--group is no longer supported" "--group prints deprecation warning"
 
 printf "\n"
 
-# ── 12b. CLI: new --skill-file (agent from skill) ────────────────────────
-printf "${BOLD}atmosphere new --skill-file (agent scaffold)${RESET}\n"
+# ── 12b. CLI: new (network — gated by ATMOSPHERE_NETWORK_TESTS=1) ─────────
+# Full end-to-end clone test, skipped by default to keep CI fast and offline.
+if [ "${ATMOSPHERE_NETWORK_TESTS:-0}" = "1" ]; then
+    printf "${BOLD}atmosphere new (network clone)${RESET}\n"
 
-# Create a test skill file
-cat > "$tmp_dir/test-skill.md" <<SKILLEOF
+    out=$(cd "$tmp_dir" && "$CLI" new net-chat --template chat 2>&1) && ec=0 || ec=$?
+    assert_exit_code "$ec" 0 "new chat exits successfully"
+    assert_contains "$out" "Project created" "prints success message"
+    assert_contains "$out" "spring-boot-chat" "output mentions source sample"
+
+    if [ -f "$tmp_dir/net-chat/pom.xml" ]; then
+        pass "clones pom.xml from sample"
+    else
+        fail "clones pom.xml from sample"
+    fi
+
+    # Skill-file + agent template copies the skill into the cloned project
+    cat > "$tmp_dir/test-skill.md" <<'SKILLEOF'
 # Support Agent
 You are a customer support agent for Acme Corp.
 
 ## Skills
 - Answer product questions
-- Handle returns and exchanges
 
 ## Guardrails
 - Never share internal pricing
 SKILLEOF
 
-out=$(cd "$tmp_dir" && env PATH="/usr/bin:/bin:/usr/sbin:/sbin" "$CLI" new my-support-agent --skill-file "$tmp_dir/test-skill.md" 2>&1) && ec=0 || ec=$?
-assert_exit_code "$ec" 0 "new --skill-file exits successfully"
-assert_contains "$out" "Project created" "prints success message"
+    out=$(cd "$tmp_dir" && "$CLI" new net-agent --skill-file "$tmp_dir/test-skill.md" 2>&1) && ec=0 || ec=$?
+    assert_exit_code "$ec" 0 "new --skill-file exits successfully"
+    if [ -f "$tmp_dir/net-agent/src/main/resources/prompts/skill.md" ]; then
+        pass "copies skill file into cloned project"
+        skill_content=$(cat "$tmp_dir/net-agent/src/main/resources/prompts/skill.md")
+        assert_contains "$skill_content" "Support Agent" "skill file content preserved"
+        assert_contains "$skill_content" "Guardrails" "skill file guardrails preserved"
+    else
+        fail "copies skill file into cloned project"
+    fi
 
-if [ -f "$tmp_dir/my-support-agent/pom.xml" ]; then
-    pass "agent: creates pom.xml"
-    agent_pom=$(cat "$tmp_dir/my-support-agent/pom.xml")
-    assert_contains "$agent_pom" "atmosphere-agent" "agent pom.xml has atmosphere-agent dependency"
-else
-    fail "agent: creates pom.xml"
+    printf "\n"
 fi
-
-if [ -f "$tmp_dir/my-support-agent/src/main/java/com/example/MySupportAgent.java" ]; then
-    pass "agent: creates agent class with PascalCase name"
-    agent_java=$(cat "$tmp_dir/my-support-agent/src/main/java/com/example/MySupportAgent.java")
-    assert_contains "$agent_java" "@Agent" "agent class has @Agent annotation"
-    assert_contains "$agent_java" "skillFile" "agent class references skill file"
-    assert_contains "$agent_java" "prompts/skill.md" "agent class points to prompts/skill.md"
-else
-    fail "agent: creates agent class"
-fi
-
-if [ -f "$tmp_dir/my-support-agent/src/main/resources/prompts/skill.md" ]; then
-    pass "agent: copies skill file to resources"
-    skill_content=$(cat "$tmp_dir/my-support-agent/src/main/resources/prompts/skill.md")
-    assert_contains "$skill_content" "Support Agent" "skill file content preserved"
-    assert_contains "$skill_content" "Guardrails" "skill file guardrails preserved"
-else
-    fail "agent: copies skill file to resources"
-fi
-
-# --skill-file with nonexistent file
-out=$("$CLI" new bad-agent --skill-file /nonexistent/skill.md 2>&1) && ec=0 || ec=$?
-assert_exit_code "$ec" 1 "nonexistent skill file exits with error"
-
-printf "\n"
-
-# ── 12c. CLI: new --skill-file with fake JBang (graceful fallback) ────────
-printf "${BOLD}atmosphere new --skill-file (JBang failure fallback)${RESET}\n"
-
-# Create a fake jbang that always fails
-fake_bin="$tmp_dir/fake-bin"
-mkdir -p "$fake_bin"
-cat > "$fake_bin/jbang" <<'FAKEOF'
-#!/bin/sh
-echo "jbang: simulated failure" >&2
-exit 1
-FAKEOF
-chmod +x "$fake_bin/jbang"
-
-out=$(cd "$tmp_dir" && env PATH="$fake_bin:/usr/bin:/bin:/usr/sbin:/sbin" "$CLI" new my-fallback-agent --skill-file "$tmp_dir/test-skill.md" 2>&1) && ec=0 || ec=$?
-assert_exit_code "$ec" 0 "JBang failure falls back gracefully (exit 0)"
-assert_contains "$out" "Project created" "fallback prints success"
-assert_contains "$out" "JBang scaffold failed" "fallback warns about JBang failure"
-
-if [ -f "$tmp_dir/my-fallback-agent/src/main/resources/prompts/skill.md" ]; then
-    pass "fallback: skill file copied after JBang failure"
-else
-    fail "fallback: skill file copied after JBang failure"
-fi
-
-if [ -f "$tmp_dir/my-fallback-agent/pom.xml" ]; then
-    pass "fallback: pom.xml created after JBang failure"
-    fb_pom=$(cat "$tmp_dir/my-fallback-agent/pom.xml")
-    assert_contains "$fb_pom" "atmosphere-agent" "fallback pom.xml has atmosphere-agent dependency"
-else
-    fail "fallback: pom.xml created after JBang failure"
-fi
-
-if [ -f "$tmp_dir/my-fallback-agent/src/main/java/com/example/MyFallbackAgent.java" ]; then
-    pass "fallback: agent class created with correct name"
-else
-    fail "fallback: agent class created with correct name"
-fi
-
-# Verify JBang receives --handler (not --template) and maps agent -> ai-chat
-# Create a fake jbang that logs its arguments
-cat > "$fake_bin/jbang" <<'FAKEOF'
-#!/bin/sh
-echo "JBANG_ARGS: $*" >&2
-exit 1
-FAKEOF
-chmod +x "$fake_bin/jbang"
-
-out=$(cd "$tmp_dir" && env PATH="$fake_bin:/usr/bin:/bin:/usr/sbin:/sbin" "$CLI" new my-handler-test --skill-file "$tmp_dir/test-skill.md" 2>&1) && ec=0 || ec=$?
-assert_contains "$out" "handler ai-chat" "JBang receives --handler ai-chat (not --template agent)"
-assert_not_contains "$out" "template agent" "JBang does NOT receive --template agent flag"
-
-rm -rf "$fake_bin"
-
-printf "\n"
 
 # ── 13. npx: create-atmosphere-app ─────────────────────────────────────────
+# The npx wrapper is a thin shim that delegates to `atmosphere new`. Tests
+# assert its argument parsing + delegation contract, not clone output.
 if [ -z "$SKIP_NPX" ]; then
     printf "${BOLD}npx create-atmosphere-app${RESET}\n"
+
+    # Resolve node's absolute path so delegation tests that override PATH
+    # can still invoke node itself (homebrew installs node outside /usr/bin).
+    real_node=$(command -v node)
 
     # Help
     out=$(node "$NPX" --help 2>&1)
     assert_contains "$out" "create-atmosphere-app" "npx help shows tool name"
     assert_contains "$out" "chat" "npx help lists chat template"
     assert_contains "$out" "ai-chat" "npx help lists ai-chat template"
+    assert_contains "$out" "multi-agent" "npx help lists multi-agent template"
+    assert_contains "$out" "classroom" "npx help lists classroom template"
 
     # List templates
     out=$(node "$NPX" --list-templates 2>&1)
     assert_contains "$out" "chat" "npx --list-templates shows chat"
     assert_contains "$out" "rag" "npx --list-templates shows rag"
+    assert_contains "$out" "multi-agent" "npx --list-templates shows multi-agent"
+    assert_contains "$out" "classroom" "npx --list-templates shows classroom"
 
     # No name
     out=$(node "$NPX" 2>&1) && ec=0 || ec=$?
     assert_exit_code "$ec" 1 "npx without name exits with error"
 
-    # Scaffold (skip JBang by using restricted PATH)
-    npx_tmp=$(mktemp -d)
-    out=$(cd "$npx_tmp" && node -e "
-const orig = require('child_process').execSync;
-require('child_process').execSync = function(cmd, opts) {
-  if (cmd.startsWith('command -v jbang') || cmd.startsWith('command -v atmosphere') || cmd.startsWith('command -v mvn')) throw new Error('skip');
-  return orig(cmd, opts);
-};
-process.argv = ['node', 'index.js', 'my-ai-app', '--template', 'ai-chat', '--group', 'org.myco'];
-require('$NPX');
-" 2>&1)
-
-    assert_contains "$out" "Project created" "npx scaffold prints success"
-
-    if [ -f "$npx_tmp/my-ai-app/pom.xml" ]; then
-        pass "npx creates pom.xml"
-        npx_pom=$(cat "$npx_tmp/my-ai-app/pom.xml")
-        assert_contains "$npx_pom" "atmosphere-ai" "npx ai-chat template includes atmosphere-ai"
-        assert_contains "$npx_pom" "org.myco" "npx respects --group flag"
-    else
-        fail "npx creates pom.xml"
-    fi
-
-    if [ -f "$npx_tmp/my-ai-app/src/main/java/org/myco/ChatApplication.java" ]; then
-        pass "npx creates Java source in correct package"
-    else
-        fail "npx creates Java source in correct package"
-    fi
-
-    if [ -f "$npx_tmp/my-ai-app/src/main/java/org/myco/AiChat.java" ]; then
-        pass "npx ai-chat template creates AiChat.java handler"
-        ai_handler=$(cat "$npx_tmp/my-ai-app/src/main/java/org/myco/AiChat.java")
-        assert_contains "$ai_handler" "@AiEndpoint" "AiChat.java has @AiEndpoint"
-        assert_contains "$ai_handler" "@Prompt" "AiChat.java has @Prompt"
-    else
-        fail "npx ai-chat template creates AiChat.java handler"
-    fi
-
-    if [ -f "$npx_tmp/my-ai-app/src/main/resources/static/index.html" ]; then
-        pass "npx creates index.html"
-    else
-        fail "npx creates index.html"
-    fi
-
     # Unknown template
     out=$(node "$NPX" bad-app --template nonexistent 2>&1) && ec=0 || ec=$?
     assert_exit_code "$ec" 1 "npx with unknown template exits with error"
+    assert_contains "$out" "Unknown template: nonexistent" "npx error lists the bad template"
 
     # Existing directory
+    npx_tmp=$(mktemp -d)
     mkdir -p "$npx_tmp/existing-dir"
     out=$(cd "$npx_tmp" && node -e "
-process.argv = ['node', 'index.js', 'existing-dir'];
+process.argv = ['node', 'index.js', 'existing-dir', '--template', 'chat'];
 try { require('$NPX'); } catch(e) { process.exit(1); }
 " 2>&1) && ec=0 || ec=$?
     assert_exit_code "$ec" 1 "npx with existing directory exits with error"
+
+    # Missing atmosphere CLI → actionable install hint.
+    npx_nocli_bin="$npx_tmp/empty-bin"
+    mkdir -p "$npx_nocli_bin"
+    out=$(cd "$npx_tmp" && env PATH="$npx_nocli_bin" "$real_node" "$NPX" no-cli-app --template chat 2>&1) && ec=0 || ec=$?
+    assert_exit_code "$ec" 1 "npx exits 1 when atmosphere CLI is missing"
+    assert_contains "$out" "atmosphere" "npx install-hint mentions atmosphere CLI"
+
+    # Delegation: fake `atmosphere` binary captures the delegated argv
+    fake_bin="$npx_tmp/fake-bin"
+    mkdir -p "$fake_bin"
+    cat > "$fake_bin/atmosphere" <<'FAKEOF'
+#!/bin/sh
+printf 'ATMOSPHERE_ARGS: %s\n' "$*"
+exit 0
+FAKEOF
+    chmod +x "$fake_bin/atmosphere"
+
+    out=$(cd "$npx_tmp" && env PATH="$fake_bin:/usr/bin:/bin:/usr/sbin:/sbin" "$real_node" "$NPX" my-ai-app --template ai-chat 2>&1)
+    assert_contains "$out" "ATMOSPHERE_ARGS: new my-ai-app --template ai-chat" \
+        "npx delegates to 'atmosphere new' with --template"
+
+    out=$(cd "$npx_tmp" && env PATH="$fake_bin:/usr/bin:/bin:/usr/sbin:/sbin" "$real_node" "$NPX" my-fleet --template multi-agent 2>&1)
+    assert_contains "$out" "ATMOSPHERE_ARGS: new my-fleet --template multi-agent" \
+        "npx delegates multi-agent template correctly"
+
+    # --group is silently accepted but warned about (not forwarded)
+    out=$(cd "$npx_tmp" && env PATH="$fake_bin:/usr/bin:/bin:/usr/sbin:/sbin" "$real_node" "$NPX" g-app --template chat --group com.acme 2>&1)
+    assert_contains "$out" "--group is no longer supported" "npx warns on deprecated --group"
+    assert_not_contains "$out" "ATMOSPHERE_ARGS: new g-app --template chat --group" "npx strips --group before delegating"
 
     rm -rf "$npx_tmp"
     printf "\n"
