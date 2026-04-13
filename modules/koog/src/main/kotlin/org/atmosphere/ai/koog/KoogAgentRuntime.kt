@@ -101,18 +101,41 @@ class KoogAgentRuntime : AgentRuntime {
         val cancelled = AtomicBoolean()
         val done = CompletableFuture<Void>()
         val activeJob = java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?>()
+        val activeThread = java.util.concurrent.atomic.AtomicReference<Thread?>()
         Thread.startVirtualThread {
+            activeThread.set(Thread.currentThread())
             try {
                 executeInternal(context, session, cancelled, activeJob)
                 done.complete(null)
+            } catch (ce: java.util.concurrent.CancellationException) {
+                // Native Job.cancel propagated out. Treat as clean termination
+                // so whenDone() resolves instead of hanging.
+                if (!session.isClosed) session.complete()
+                done.complete(null)
             } catch (e: Throwable) {
+                if (!session.isClosed) session.error(e)
                 done.completeExceptionally(e)
+            } finally {
+                activeThread.set(null)
             }
         }
         return object : ExecutionHandle {
             override fun cancel() {
-                cancelled.set(true)
+                if (!cancelled.compareAndSet(false, true)) return
+                // 1. Cancel the coroutine Job so any suspension points inside
+                //    runBlocking unwind with CancellationException.
                 activeJob.get()?.cancel()
+                // 2. Interrupt the virtual thread as a belt-and-suspenders
+                //    fallback. runBlocking cannot interrupt a native blocking
+                //    socket read held by Koog's HttpClient; Thread.interrupt
+                //    flips the VT's interrupt status so NIO channels and
+                //    InterruptibleChannel-based I/O unwind.
+                activeThread.get()?.interrupt()
+                // 3. Resolve whenDone() immediately even if the VT is stuck in
+                //    non-interruptible native code. CompletableFuture semantics
+                //    drop the real completion harmlessly if the VT later catches
+                //    up, so this is the safest backstop against a hung cancel.
+                done.complete(null)
             }
             override fun isDone(): Boolean = done.isDone
             override fun whenDone(): CompletableFuture<Void> = done
@@ -221,10 +244,22 @@ class KoogAgentRuntime : AgentRuntime {
                 }
                 agent.close()
             }
-            session.complete()
+            if (!session.isClosed) session.complete()
+        } catch (ce: java.util.concurrent.CancellationException) {
+            // Caller-initiated cancel (executeWithHandle) or coroutine unwinding.
+            // Complete cleanly so the outer VT wrapper can resolve done() without
+            // re-reporting the cancel as an error.
+            if (cancelled.get()) {
+                logger.debug("Koog agent cancelled by caller")
+                if (!session.isClosed) session.complete()
+            } else {
+                logger.warn("Koog agent cancelled unexpectedly", ce)
+                if (!session.isClosed) session.error(ce)
+            }
+            throw ce
         } catch (e: Exception) {
             logger.error("Koog agent execution failed", e)
-            session.error(e)
+            if (!session.isClosed) session.error(e)
         }
     }
 
@@ -260,10 +295,19 @@ class KoogAgentRuntime : AgentRuntime {
                     }
                 }
             }
-            session.complete()
+            if (!session.isClosed) session.complete()
+        } catch (ce: java.util.concurrent.CancellationException) {
+            if (cancelled.get()) {
+                logger.debug("Koog streaming cancelled by caller")
+                if (!session.isClosed) session.complete()
+            } else {
+                logger.warn("Koog streaming cancelled unexpectedly", ce)
+                if (!session.isClosed) session.error(ce)
+            }
+            throw ce
         } catch (e: Exception) {
             logger.error("Koog streaming failed", e)
-            session.error(e)
+            if (!session.isClosed) session.error(e)
         }
     }
 
