@@ -65,6 +65,22 @@ jobs:
           curl -sSf http://localhost:11434/api/pull -d '{"name":"qwen2.5:0.5b"}' \
             | tail -1
           curl -sSf http://localhost:11434/api/tags | tee ollama-tags.json
+          # Warm-up inference — loading the 400MB model into RAM on the first
+          # real request takes ~15-30s on a cold CPU runner, which blows past
+          # the spec's 30s waitForDone. Force the load here so the in-test
+          # chat/completions call sees a hot model and streams immediately.
+          # Also proves the OpenAI-compat surface accepts our request shape.
+          echo "Warming up qwen2.5:0.5b via /v1/chat/completions..."
+          curl -sSf http://localhost:11434/v1/chat/completions \
+            -H 'Content-Type: application/json' \
+            -H 'Authorization: Bearer ollama-no-key-needed' \
+            -d '{
+              "model":"qwen2.5:0.5b",
+              "messages":[{"role":"user","content":"hi"}],
+              "stream":false,
+              "max_tokens":5
+            }' | head -c 500 || echo "Warm-up curl exited non-zero (will still run spec)"
+          echo
 
       - name: Build atmosphere-ai + integration-tests
         run: |

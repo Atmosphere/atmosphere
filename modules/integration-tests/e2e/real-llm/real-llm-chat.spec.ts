@@ -30,6 +30,22 @@ test.afterAll(async () => {
   await server?.stop();
 });
 
+test.afterEach(async ({}, testInfo) => {
+  // Dump test server stdout/stderr on failure so the Java side's
+  // BuiltInAgentRuntime stack traces, progress messages, and HTTP
+  // errors land in the Playwright report. Without this the Java
+  // exception is invisible and we can only see the TypeScript side
+  // of the wire, which turns every real-LLM regression into a guess.
+  if (testInfo.status !== testInfo.expectedStatus && server) {
+    // eslint-disable-next-line no-console
+    console.log('\n=== AiFeatureTestServer output (tail 4KB) ===');
+    // eslint-disable-next-line no-console
+    console.log(server.getOutput().slice(-4000));
+    // eslint-disable-next-line no-console
+    console.log('=== end server output ===\n');
+  }
+});
+
 test.describe('Real LLM — basic chat (Tier 1/2)', () => {
   test('streams at least one text-delta and completes cleanly', async () => {
     const client = new AiWsClient(server.wsUrl, '/ai/real/chat');
