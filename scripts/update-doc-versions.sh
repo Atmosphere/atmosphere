@@ -58,7 +58,14 @@ done
 echo "── Root README.md"
 if grep -q '<version>[0-9]' "$ROOT/README.md" 2>/dev/null; then
     sedi "s|<version>[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^<]*</version>|<version>$VERSION</version>|g" "$ROOT/README.md"
-    echo "   README.md"
+    echo "   README.md (xml version tag)"
+fi
+# "Current release: `X.Y.Z[-qualifier]`" pattern — markdown inline code,
+# not an XML tag. Release 4.0.36 shipped with 4.0.36-SNAPSHOT here because
+# this line slipped the tag-only regex above.
+if grep -q 'Current release:' "$ROOT/README.md" 2>/dev/null; then
+    sedi -E "s|(Current release: \`)[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?(\`)|\1${VERSION}\3|" "$ROOT/README.md"
+    echo "   README.md (Current release: inline code)"
 fi
 
 # ── 4. JAR artifact names in sample README.md ──
@@ -101,6 +108,21 @@ if [ -f "$CLI_NPX" ]; then
     sedi "s|\"version\": \"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^\"]*\"|\"version\": \"$VERSION\"|" "$CLI_NPX"
     echo "   cli/npx/package.json"
 fi
+
+# ── 7. cli/sdkman/*.md example commands ──
+# SDKMAN submission docs embed the publish.sh example command with a
+# pinned version argument. These are markdown prose files that the
+# Maven versions:set and xml-tag regexes never touch, so they silently
+# rot across releases. Release 4.0.36 shipped with "publish.sh 4.0.35"
+# here — caught by audit, fixed by adding this section.
+echo "── cli/sdkman/*.md example commands"
+{ find "$ROOT/cli/sdkman" -name '*.md' 2>/dev/null || true; } | while read -r f; do
+    if grep -qE 'publish\.sh [0-9]+\.[0-9]+\.[0-9]+' "$f" 2>/dev/null; then
+        sedi -E "s|(publish\.sh )[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?|\1${VERSION}|g" "$f"
+        echo "   $f"
+        UPDATED=$((UPDATED + 1))
+    fi
+done
 
 CLI_HOMEBREW="$ROOT/cli/homebrew/atmosphere.rb"
 if [ -f "$CLI_HOMEBREW" ]; then

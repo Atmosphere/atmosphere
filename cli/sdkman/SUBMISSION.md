@@ -88,7 +88,7 @@ Once you have `CONSUMER_KEY` and `CONSUMER_TOKEN`, run the helper script:
 ```bash
 export SDKMAN_CONSUMER_KEY="<key-from-sdkman>"
 export SDKMAN_CONSUMER_TOKEN="<token-from-sdkman>"
-./cli/sdkman/publish.sh 4.0.35
+./cli/sdkman/publish.sh 4.0.36
 ```
 
 The script will:

@@ -192,7 +192,7 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 
 Optional: `atmosphere-ai`, `atmosphere-spring-ai`, `atmosphere-langchain4j`, `atmosphere-adk`, `atmosphere-koog`, `atmosphere-embabel`, `atmosphere-semantic-kernel`, `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`, `atmosphere-channels`, `atmosphere-coordinator`, `atmosphere-admin`. Add to classpath and features auto-register.
 
-**Requirements:** Java 21+ &middot; Spring Boot 4.0.5+ or Quarkus 3.31.3+ &middot; Current release: `4.0.36-SNAPSHOT`
+**Requirements:** Java 21+ &middot; Spring Boot 4.0.5+ or Quarkus 3.31.3+ &middot; Current release: `4.0.36`
 
 ## Documentation
 
