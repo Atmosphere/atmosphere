@@ -286,6 +286,17 @@ public class AiPipeline {
 
         try {
             runtime.execute(context, effectiveTarget);
+            // Commit the captured response only after runtime.execute returns
+            // without throwing AND the session was not marked errored during
+            // the stream. A cancel-shaped session.complete() (from a runtime
+            // bridge's caller-initiated cancel path) is NOT a valid commit
+            // signal because the captured text is guaranteed partial. The
+            // cache captor no longer auto-persists on complete() — the
+            // pipeline decides here, post-execute, when to persist.
+            if (effectiveTarget instanceof org.atmosphere.ai.cache.CachingStreamingSession captor
+                    && !effectiveTarget.hasErrored()) {
+                captor.commit();
+            }
         } catch (Exception e) {
             metrics.recordError(model != null ? model : "unknown", "stream_error");
             throw e;

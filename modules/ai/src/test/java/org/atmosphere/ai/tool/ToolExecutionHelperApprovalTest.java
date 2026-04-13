@@ -92,13 +92,21 @@ class ToolExecutionHelperApprovalTest {
     }
 
     @Test
-    void executesImmediatelyWhenStrategyIsNullEvenIfApprovalRequired() {
+    void failsClosedWhenStrategyIsNullAndApprovalRequired() {
+        // Medium #14: prior behavior was fail-open (executed the sensitive
+        // tool when strategy was null). That bypassed @RequiresApproval on
+        // any code path that forgot to wire an ApprovalStrategy — a Security
+        // Invariant #6 (default deny) violation. Fail-closed now.
         var count = new AtomicInteger();
         var tool = sensitiveTool(count);
         var result = ToolExecutionHelper.executeWithApproval(
                 "delete_account", tool, Map.of("userId", "u1"), null, null);
-        assertEquals("deleted:u1", result);
-        assertEquals(1, count.get());
+        assertTrue(result.contains("cancelled"),
+                "null strategy on an approval-required tool must fail closed, got: " + result);
+        assertTrue(result.contains("no ApprovalStrategy"),
+                "error must explain the misconfiguration so operators can fix it, got: " + result);
+        assertEquals(0, count.get(),
+                "sensitive tool must NOT execute when no ApprovalStrategy is wired");
     }
 
     @Test

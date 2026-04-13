@@ -152,12 +152,33 @@ public final class ToolExecutionHelper {
             return buildValidationErrorJson(toolName, errors);
         }
         var effectivePolicy = policy != null ? policy : ToolApprovalPolicy.annotated();
-        if (!effectivePolicy.requiresApproval(tool) || strategy == null) {
+        // Fast-path: policy says no approval needed for this tool → execute directly.
+        if (!effectivePolicy.requiresApproval(tool)) {
             return executeAndFormat(toolName, tool.executor(), args);
         }
+        // DenyAll is evaluated BEFORE the strategy-null fall-through so that
+        // a null strategy cannot bypass a deny-by-policy decision. Previously
+        // {@code !requiresApproval || strategy == null} short-circuited here
+        // and let DenyAll-flagged tools execute unguarded whenever no
+        // ApprovalStrategy was wired — a Security Invariant #6 (default deny)
+        // violation.
         if (effectivePolicy instanceof ToolApprovalPolicy.DenyAll) {
             logger.info("Tool {} blocked by DenyAll policy", toolName);
             return "{\"status\":\"cancelled\",\"message\":\"Tool execution denied by policy\"}";
+        }
+        // Fail-closed when a tool needs approval but no strategy is available.
+        // The prior behaviour was fail-open (execute unguarded), which let
+        // {@code @RequiresApproval} tools run on any code path that forgot to
+        // wire an ApprovalStrategy (channel bridge, @Coordinator, ad-hoc
+        // helper invocations). Fail-closed surfaces the misconfiguration at
+        // the point of use and protects the gate even when the plumbing is
+        // incomplete.
+        if (strategy == null) {
+            logger.warn("Tool {} requires approval but no ApprovalStrategy is wired — "
+                    + "failing closed. Wire an ApprovalStrategy on the pipeline/session "
+                    + "to honor @RequiresApproval tools.", toolName);
+            return "{\"status\":\"cancelled\",\"message\":\"Tool requires approval but no "
+                    + "ApprovalStrategy is configured on this execution path\"}";
         }
 
         var timeout = tool.approvalTimeout() > 0 ? tool.approvalTimeout() : 300;
