@@ -103,6 +103,14 @@ public final class AdkEventAdapter {
 
     /**
      * Cancel the subscription and close the session.
+     *
+     * <p><b>Known limitation:</b> disposing the RxJava Flowable unsubscribes
+     * the downstream listener but does NOT propagate to ADK's internal Runner
+     * thread pool. If the Gemini API call is already in flight on ADK's worker,
+     * it will run to completion and bill to the user's quota. The session is
+     * closed client-side so no stale frames reach the browser, but the backend
+     * compute cannot be reclaimed without access to ADK's thread handle.
+     * Upstream: ADK has no {@code Runner.cancel(invocationId)} API today.</p>
      */
     public void cancel() {
         var disposable = subscription.getAndSet(null);
@@ -211,7 +219,10 @@ public final class AdkEventAdapter {
         if (completed.compareAndSet(false, true) && !session.isClosed()) {
             session.error(t);
         }
-        doneFuture.complete(null);
+        // completeExceptionally so whenDone().get() surfaces the real error
+        // to upstream listener chains. complete(null) here silently masked
+        // failures as successes for any caller waiting on the future.
+        doneFuture.completeExceptionally(t);
     }
 
     private void onComplete() {

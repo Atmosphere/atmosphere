@@ -161,7 +161,7 @@ class AdkEventAdapterTest {
         doAnswer(inv -> { latch.countDown(); return null; })
                 .when(mockSession).error(any(Throwable.class));
 
-        AdkEventAdapter.bridge(
+        var adapter = AdkEventAdapter.bridge(
                 Flowable.error(new RuntimeException("stream failed")),
                 mockSession
         );
@@ -170,6 +170,13 @@ class AdkEventAdapterTest {
         var captor = ArgumentCaptor.forClass(Throwable.class);
         verify(mockSession).error(captor.capture());
         assertEquals("stream failed", captor.getValue().getMessage());
+
+        // High #7: whenDone() must complete exceptionally on stream errors so
+        // upstream listener chains observing the future can distinguish error
+        // from natural completion. Previously onError called complete(null)
+        // which silently masked failures as successes.
+        assertTrue(adapter.whenDone().isCompletedExceptionally(),
+                "whenDone() must complete exceptionally when the Flowable errors");
     }
 
     @Test
