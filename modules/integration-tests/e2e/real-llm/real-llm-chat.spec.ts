@@ -38,18 +38,32 @@ test.describe('Real LLM — basic chat (Tier 1/2)', () => {
       client.send('Say hello in one short sentence.');
       await client.waitForDone(30_000);
 
+      // Atmosphere emits text in two wire formats depending on which code
+      // path the runtime uses:
+      //   - Legacy: {"type":"streaming-text","data":"..."}
+      //     — what DefaultStreamingSession.send() emits, used by
+      //       OpenAiCompatibleClient (the Built-in runtime's HTTP client).
+      //   - AiEvent:  {"event":"text-delta","data":{"text":"..."}}
+      //     — what session.emit(new AiEvent.TextDelta(...)) emits.
+      // We accept either so the spec survives a future migration.
       const textEvents = client.events.filter(
-        (e: { type?: string }) => e.type === 'text-delta' || e.type === 'message');
+        (e: { type?: string; event?: string }) =>
+          e.type === 'streaming-text' || e.event === 'text-delta');
       expect(textEvents.length,
-        `expected >= 1 text-delta frame, got ${client.events.length} events total`)
+        `expected >= 1 text frame, got ${client.events.length} events total: `
+        + JSON.stringify(client.events.map(e => e.type || e.event)))
         .toBeGreaterThanOrEqual(1);
 
-      const errorEvents = client.events.filter((e: { type?: string }) => e.type === 'error');
+      const errorEvents = client.events.filter(
+        (e: { type?: string; event?: string }) =>
+          e.type === 'error' || e.event === 'error');
       expect(errorEvents.length,
         `response must not contain error frames, got ${JSON.stringify(errorEvents)}`)
         .toBe(0);
 
-      const completeEvents = client.events.filter((e: { type?: string }) => e.type === 'complete');
+      const completeEvents = client.events.filter(
+        (e: { type?: string; event?: string }) =>
+          e.type === 'complete' || e.event === 'complete');
       expect(completeEvents.length, 'expected a complete frame').toBeGreaterThanOrEqual(1);
     } finally {
       client.close();
