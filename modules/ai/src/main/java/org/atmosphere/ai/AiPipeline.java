@@ -89,11 +89,17 @@ public class AiPipeline {
      * Callers on A2A / @Coordinator / AG-UI / Slack / Telegram / Discord /
      * WhatsApp wire their protocol's approval decision to this method.
      *
+     * <p>Only returns {@code true} when the registry actually matched and
+     * resolved a pending approval. {@link ApprovalRegistry.ResolveResult#UNKNOWN_ID}
+     * (stale, expired, or owned by another registry) and
+     * {@link ApprovalRegistry.ResolveResult#NOT_AN_APPROVAL} both fall through so
+     * the message propagates to the rest of the pipeline as normal input.
+     *
      * @param message the incoming approval-protocol message
-     * @return {@code true} if the message was consumed as an approval response
+     * @return {@code true} if the message resolved a pending approval in this pipeline
      */
     public boolean tryResolveApproval(String message) {
-        return approvalRegistry.tryResolve(message);
+        return approvalRegistry.resolve(message) == ApprovalRegistry.ResolveResult.RESOLVED;
     }
 
     /**

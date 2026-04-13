@@ -531,11 +531,16 @@ public class AiStreamingSession implements StreamingSession {
      * Check if an incoming message is an approval response and route it
      * to the approval registry. Called by the handler before dispatching to @Prompt.
      *
+     * <p>Only returns {@code true} when the registry matched and resolved a
+     * pending approval in <em>this</em> session. Stale / unknown IDs and
+     * non-approval messages fall through so the handler dispatches them to
+     * @Prompt as normal user input.
+     *
      * @param message the incoming message
-     * @return true if the message was consumed as an approval response
+     * @return true if the message resolved a pending approval in this session
      */
     public boolean tryResolveApproval(String message) {
-        return approvalRegistry.tryResolve(message);
+        return approvalRegistry.resolve(message) == ApprovalRegistry.ResolveResult.RESOLVED;
     }
 
     /** The session-scoped approval registry, exposed for the endpoint handler to route responses. */
