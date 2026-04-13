@@ -15,6 +15,8 @@
  */
 package org.atmosphere.ai;
 
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -89,6 +91,15 @@ public interface ExecutionHandle {
      * cancel flag plus a {@link CompletableFuture} the runtime completes when
      * its native pipeline terminates. Runtimes with a richer native primitive
      * should wrap it directly instead of using this.
+     *
+     * <p><b>Terminal reason race:</b> {@link CompletableFuture} is
+     * first-write-wins, so if {@link #cancel()} and a natural
+     * {@link #completeExceptionally(Throwable)} race, observers chained on
+     * {@link #whenDone()} see whichever completion fired first. A real error
+     * that arrives strictly after {@code cancel()} is silently dropped. If
+     * you need to distinguish "cancelled" from "errored" in telemetry,
+     * consult {@link #isCancelled()} explicitly inside your
+     * {@code whenComplete} callback — never rely on the cause type alone.</p>
      */
     final class Settable implements ExecutionHandle {
         private final CompletableFuture<Void> done = new CompletableFuture<>();
@@ -130,7 +141,14 @@ public interface ExecutionHandle {
                     try {
                         nativeCancel.run();
                     } catch (Exception e) {
-                        // Native cancel best-effort; do not leak into caller.
+                        // Native cancel is best-effort (the caller will block
+                        // on whenDone() regardless), but record the failure at
+                        // TRACE so post-mortem and observability tooling can
+                        // see which runtimes failed to unwind. Swallowing
+                        // silently violates the project's no-swallow rule.
+                        LoggerFactory.getLogger(ExecutionHandle.class)
+                                .trace("ExecutionHandle native cancel threw {}: {}",
+                                        e.getClass().getSimpleName(), e.getMessage(), e);
                     }
                 }
                 done.complete(null);

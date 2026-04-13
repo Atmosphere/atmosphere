@@ -19,6 +19,7 @@ import com.microsoft.semantickernel.services.textembedding.Embedding;
 import com.microsoft.semantickernel.services.textembedding.TextEmbeddingGenerationService;
 import org.atmosphere.ai.EmbeddingRuntime;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -44,6 +45,15 @@ import java.util.Objects;
  * cleanly.</p>
  */
 public class SemanticKernelEmbeddingRuntime implements EmbeddingRuntime {
+
+    /**
+     * Hard timeout on the reactive embedding call. Prevents a hung SK service
+     * from pinning a virtual thread (or a platform carrier under reactor 3.4
+     * without BlockHound) forever. 60 seconds is conservative for small-batch
+     * embedding; callers on very large batches should configure SK's service
+     * with its own upstream timeout that fires first.
+     */
+    private static final Duration EMBED_TIMEOUT = Duration.ofSeconds(60);
 
     private static volatile TextEmbeddingGenerationService staticService;
 
@@ -76,7 +86,7 @@ public class SemanticKernelEmbeddingRuntime implements EmbeddingRuntime {
         if (service == null) {
             throw new IllegalStateException("Semantic Kernel TextEmbeddingGenerationService not configured");
         }
-        var embedding = service.generateEmbeddingAsync(text).block();
+        var embedding = service.generateEmbeddingAsync(text).block(EMBED_TIMEOUT);
         if (embedding == null) {
             throw new IllegalStateException("SK generateEmbeddingAsync returned null");
         }
@@ -93,7 +103,7 @@ public class SemanticKernelEmbeddingRuntime implements EmbeddingRuntime {
         if (service == null) {
             throw new IllegalStateException("Semantic Kernel TextEmbeddingGenerationService not configured");
         }
-        var embeddings = service.generateEmbeddingsAsync(texts).block();
+        var embeddings = service.generateEmbeddingsAsync(texts).block(EMBED_TIMEOUT);
         if (embeddings == null) {
             throw new IllegalStateException("SK generateEmbeddingsAsync returned null");
         }

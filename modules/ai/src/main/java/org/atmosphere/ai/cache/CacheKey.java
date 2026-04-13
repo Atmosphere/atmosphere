@@ -92,8 +92,25 @@ public final class CacheKey {
                     update(digest, "p.mime", a.mimeType());
                     update(digest, "p.len", String.valueOf(a.data() != null ? a.data().length : 0));
                 } else if (p instanceof org.atmosphere.ai.Content.File f) {
+                    // F-C2 follow-up / Nit #17: File parts are semantic user
+                    // content (PDFs, CSVs, spreadsheets) where two distinct
+                    // documents with the same mime-type and byte length would
+                    // collide on mime+length alone. Fold the bytes into the
+                    // running digest so distinct files produce distinct keys.
+                    // Cost is bounded by the file size and only runs when a
+                    // File part is present — negligible for the common
+                    // small-attachment case and proportional for large files.
+                    // Image/Audio keep the cheap mime+length shortcut because
+                    // their cache-hit rate is low and the payloads are often
+                    // multi-MB. Filename is included so "doc.pdf" and
+                    // "alt.pdf" remain distinct even after a rename.
                     update(digest, "p.mime", f.mimeType());
+                    update(digest, "p.name", f.fileName());
                     update(digest, "p.len", String.valueOf(f.data() != null ? f.data().length : 0));
+                    if (f.data() != null) {
+                        digest.update(f.data());
+                        digest.update((byte) 0);
+                    }
                 }
             }
         }

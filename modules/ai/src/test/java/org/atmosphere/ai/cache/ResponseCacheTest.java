@@ -118,6 +118,33 @@ class ResponseCacheTest {
     }
 
     @Test
+    void cacheKeyDiffersForFileContentOfSameLength() {
+        // Nit #17: Two files with identical mime type and identical byte
+        // length but different content must not collide. The mime+length
+        // shortcut (Image/Audio) is not safe for semantic File parts where
+        // a user might upload "doc1.pdf" and "doc2.pdf" that happen to be
+        // the same size.
+        var file1 = new org.atmosphere.ai.Content.File(
+                new byte[]{1, 2, 3, 4, 5}, "application/pdf", "doc1.pdf");
+        var file2 = new org.atmosphere.ai.Content.File(
+                new byte[]{5, 4, 3, 2, 1}, "application/pdf", "doc2.pdf");
+        var ctx1 = new AgentExecutionContext(
+                "Summarize", "You are helpful", "gpt-4",
+                null, "sess-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), List.<org.atmosphere.ai.Content>of(file1),
+                ToolApprovalPolicy.annotated());
+        var ctx2 = new AgentExecutionContext(
+                "Summarize", "You are helpful", "gpt-4",
+                null, "sess-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), List.<org.atmosphere.ai.Content>of(file2),
+                ToolApprovalPolicy.annotated());
+        assertNotEquals(CacheKey.compute(ctx1), CacheKey.compute(ctx2),
+                "Files with distinct bytes must produce distinct cache keys even when size matches");
+    }
+
+    @Test
     void cacheKeyDiffersForDifferentResponseType() {
         // Blocker #1: responseType is an output discriminator — a plain-text
         // request and a structured-JSON request with the same prompt must not

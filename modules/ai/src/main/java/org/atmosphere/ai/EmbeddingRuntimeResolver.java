@@ -63,39 +63,48 @@ public final class EmbeddingRuntimeResolver {
      * {@link AiConfig} being configured.
      */
     public static List<EmbeddingRuntime> resolveAll() {
-        // No caching on empty results — if resolution fires before
-        // AiConfig.set() (startup-order race), Built-in reports unavailable
-        // and the result would be permanently empty. Re-scan on every call
-        // until at least one runtime is found, then cache.
+        // Fast path: a non-empty result is already cached. Volatile read is
+        // sufficient — the contents are an immutable List.copyOf and
+        // publication is safe.
         var result = cachedAll;
         if (result != null && !result.isEmpty()) {
             return result;
         }
-
-        var all = new ArrayList<EmbeddingRuntime>();
-
-        try {
-            for (var runtime : ServiceLoader.load(EmbeddingRuntime.class)) {
-                try {
-                    if (runtime.isAvailable()) {
-                        all.add(runtime);
-                        logger.debug("EmbeddingRuntime discovered: {} (priority {})",
-                                runtime.name(), runtime.priority());
-                    }
-                } catch (Exception e) {
-                    logger.warn("EmbeddingRuntime failed availability check: {}",
-                            e.getMessage());
-                }
+        // Slow path: scan under a lock so two early callers don't race into
+        // duplicate ServiceLoader.load()+availability checks, which can be
+        // expensive (each provider's isAvailable() might touch the classpath
+        // or initialise native resources). The empty-result re-scan behavior
+        // is preserved: if resolution fires before AiConfig.set() (startup
+        // race), Built-in reports unavailable and the result is not cached,
+        // so the next call rescans. DCL-safe: we re-check cachedAll inside
+        // the lock before spending work.
+        synchronized (EmbeddingRuntimeResolver.class) {
+            result = cachedAll;
+            if (result != null && !result.isEmpty()) {
+                return result;
             }
-        } catch (ServiceConfigurationError e) {
-            logger.debug("ServiceLoader<EmbeddingRuntime> error: {}", e.getMessage());
+            var all = new ArrayList<EmbeddingRuntime>();
+            try {
+                for (var runtime : ServiceLoader.load(EmbeddingRuntime.class)) {
+                    try {
+                        if (runtime.isAvailable()) {
+                            all.add(runtime);
+                            logger.debug("EmbeddingRuntime discovered: {} (priority {})",
+                                    runtime.name(), runtime.priority());
+                        }
+                    } catch (Exception e) {
+                        logger.warn("EmbeddingRuntime failed availability check: {}",
+                                e.getMessage());
+                    }
+                }
+            } catch (ServiceConfigurationError e) {
+                logger.debug("ServiceLoader<EmbeddingRuntime> error: {}", e.getMessage());
+            }
+            all.sort(Comparator.comparingInt(EmbeddingRuntime::priority).reversed());
+            result = List.copyOf(all);
+            cachedAll = result;
+            return result;
         }
-
-        all.sort(Comparator.comparingInt(EmbeddingRuntime::priority).reversed());
-
-        result = List.copyOf(all);
-        cachedAll = result;
-        return result;
     }
 
     /**
