@@ -471,6 +471,36 @@ install_source() {
         fi
     fi
 
+    # ── Make the cloned pom.xml standalone ────────────────────────────────
+    # Samples inherit from the reactor root pom (../../pom.xml), which is
+    # absent after sparse-clone. The release parent `org.atmosphere:atmosphere-project`
+    # is published to Maven Central, so we can make the sample build by:
+    #   1. dropping <relativePath> so Maven resolves the parent from Central
+    #   2. pinning SNAPSHOT → pinned release from cli/samples.json
+    #   3. disabling checkstyle/pmd inside <properties> — the atmosphere parent
+    #      binds them to `validate` and they look for config files under
+    #      config/ that only exist inside the atmosphere repo.
+    pom="$target_dir/pom.xml"
+    if [ -f "$pom" ] && grep -q "atmosphere-project" "$pom" 2>/dev/null; then
+        release_version="$VERSION"
+        awk -v version="$release_version" '
+          BEGIN { in_parent = 0; injected_skips = 0 }
+          /<parent>/ { in_parent = 1 }
+          in_parent && /<relativePath>.*<\/relativePath>/ { next }
+          in_parent && /<version>[^<]*-SNAPSHOT<\/version>/ {
+              gsub(/[0-9]+\.[0-9]+\.[0-9]+-SNAPSHOT/, version)
+          }
+          /<\/parent>/ { in_parent = 0 }
+          !injected_skips && /<\/properties>/ {
+              print "        <!-- atmosphere parent binds checkstyle/pmd to validate with repo-local config. -->"
+              print "        <checkstyle.skip>true</checkstyle.skip>"
+              print "        <pmd.skip>true</pmd.skip>"
+              injected_skips = 1
+          }
+          { print }
+        ' "$pom" > "$pom.new" && mv "$pom.new" "$pom"
+    fi
+
     if [ "$quiet" = "quiet" ]; then
         return 0
     fi
