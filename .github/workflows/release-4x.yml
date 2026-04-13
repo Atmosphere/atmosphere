@@ -225,6 +225,47 @@ jobs:
         git push origin main
         git push origin "atmosphere-${{ inputs.release_version }}"
 
+    - name: Sync atmosphere.github.io tutorial + website to release version
+      if: inputs.dry_run == false
+      env:
+        # Optional cross-repo write token. When unset the step logs a
+        # warning and skips — a 4.0.36-class embarrassment where the
+        # docs site shipped with 23 stale SNAPSHOT references will only
+        # recur if the token is missing, which is now a visible CI
+        # signal instead of a silent hole.
+        DOCS_SITE_TOKEN: ${{ secrets.DOCS_SITE_TOKEN }}
+        VERSION: ${{ inputs.release_version }}
+      run: |
+        if [ -z "${DOCS_SITE_TOKEN}" ]; then
+          echo "::warning ::DOCS_SITE_TOKEN secret not set — atmosphere.github.io will NOT be auto-synced." >&2
+          echo "::warning ::Run ./scripts/update-doc-versions.sh ${VERSION} in the sibling repo manually." >&2
+          exit 0
+        fi
+        # Clone the sibling repo with write access, run its own
+        # update-doc-versions.sh, commit, and push. The sibling repo
+        # owns its own version-update script so this step stays thin.
+        WORKDIR="$(mktemp -d)"
+        git clone --depth 10 \
+          "https://x-access-token:${DOCS_SITE_TOKEN}@github.com/Atmosphere/atmosphere.github.io.git" \
+          "$WORKDIR/atmosphere.github.io"
+        cd "$WORKDIR/atmosphere.github.io"
+        git config user.name "atmosphere-release-bot"
+        git config user.email "actions@github.com"
+        if [ ! -x scripts/update-doc-versions.sh ]; then
+          echo "::error ::atmosphere.github.io is missing scripts/update-doc-versions.sh" >&2
+          echo "::error ::Add it from the atmosphere repo companion commit before the next release." >&2
+          exit 1
+        fi
+        ./scripts/update-doc-versions.sh "${VERSION}"
+        if git diff --quiet; then
+          echo "No version changes to sync — atmosphere.github.io already at ${VERSION}"
+          exit 0
+        fi
+        git add -A
+        git commit -m "chore(docs): sync to Atmosphere ${VERSION}"
+        git push origin main
+        echo "::notice ::atmosphere.github.io synced to ${VERSION}"
+
     outputs:
       tag: atmosphere-${{ inputs.release_version }}
 
