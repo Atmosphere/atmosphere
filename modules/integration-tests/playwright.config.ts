@@ -426,6 +426,11 @@ export default defineConfig({
       name: 'ai-hitl-approval',
       testMatch: /ai-hitl-approval\.spec\.ts/,
     },
+    // ── ExecutionHandle.cancel() wire-level regression matrix ──
+    {
+      name: 'ai-cancel',
+      testMatch: /ai-cancel\.spec\.ts/,
+    },
     // ── CLI runtime (verifies `atmosphere run` launches working console) ──
     {
       name: 'cli-runtime',

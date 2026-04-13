@@ -69,6 +69,22 @@ public class AiFeatureTestServer {
             framework.addAtmosphereHandler("/ai/lifecycle-listener", new LifecycleListenerTestHandler());
             framework.addAtmosphereHandler("/ai/models", new ModelsTestHandler());
             framework.addAtmosphereHandler("/ai/hitl-real", new HitlApprovalTestHandler());
+            // Wire-level ExecutionHandle.cancel() regression matrix (5 rows):
+            // Built-in exercises the real runtime stream-close path; the
+            // framework rows exercise the handler/session/wire contract via
+            // ExecutionHandle.Settable since those runtime modules are not on
+            // the integration-tests classpath. Semantic Kernel and Embabel
+            // are intentionally excluded — both no-op cancel by design.
+            framework.addAtmosphereHandler("/ai/cancel/built-in",
+                    new CancelTestHandler("built-in"));
+            framework.addAtmosphereHandler("/ai/cancel/spring-ai",
+                    new CancelTestHandler("spring-ai"));
+            framework.addAtmosphereHandler("/ai/cancel/langchain4j",
+                    new CancelTestHandler("langchain4j"));
+            framework.addAtmosphereHandler("/ai/cancel/adk",
+                    new CancelTestHandler("adk"));
+            framework.addAtmosphereHandler("/ai/cancel/koog",
+                    new CancelTestHandler("koog"));
             // Real-LLM tier: only wired when LLM_MODE indicates a live provider.
             // Keeps the default fake-mode test matrix free of network dependencies.
             var llmMode = System.getenv().getOrDefault("LLM_MODE", "fake");
