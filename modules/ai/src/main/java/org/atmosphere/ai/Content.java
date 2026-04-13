@@ -54,6 +54,12 @@ public sealed interface Content {
             if (mimeType == null || mimeType.isBlank()) {
                 throw new IllegalArgumentException("mimeType must not be null or blank");
             }
+            // Defensive copy on construction so a caller that mutates the
+            // source byte[] after building the Image cannot poison the
+            // record's state. The {@code data()} accessor still returns
+            // the internal reference — callers that need to mutate the
+            // backing array must construct a new Image.
+            data = data.clone();
         }
 
         /** Base64-encoded data for wire transfer. */
@@ -76,6 +82,7 @@ public sealed interface Content {
             if (mimeType == null || mimeType.isBlank()) {
                 throw new IllegalArgumentException("mimeType must not be null or blank");
             }
+            data = data.clone();
         }
 
         /** Base64-encoded data for wire transfer. */
@@ -98,6 +105,7 @@ public sealed interface Content {
             if (fileName == null || fileName.isBlank()) {
                 throw new IllegalArgumentException("fileName must not be null or blank");
             }
+            data = data.clone();
         }
 
         /** Base64-encoded data for wire transfer. */
