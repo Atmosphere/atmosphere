@@ -337,6 +337,71 @@ When writing code that integrates with an external library (Embabel, LangChain4j
 3. **Never invent API calls** — if `agentPlatform.runAgent(prompt)` doesn't exist, don't write it
 4. **Check for auto-configuration** — most Spring ecosystem libraries provide starter/autoconfigure modules; use them instead of manual wiring
 
+## No Hallucinations — Verify Before Claiming
+
+**Every factual claim in docs, CHANGELOG entries, commit messages, marketing copy, and
+user-facing text must correspond to something that exists in the code or the git history.**
+Do not invent features, method names, backend implementations, capability sets, metric numbers,
+sample counts, or fix commits. The project has been burned by this before — every instance
+costs credibility and has to be chased down and rolled back.
+
+### Rules
+
+1. **Numerical claims require a source.** If you write "7 runtimes", "20 samples", "3 templates",
+   "5 CheckpointStore backends", etc., first verify the number against the actual code:
+   - Sample count → `cli/samples.json` + `ls samples/`
+   - Runtime count → enumerate `modules/*/src/main/**/*AgentRuntime.{java,kt}` or `capabilities()` sites
+   - CLI templates → `generator/AtmosphereInit.java:validHandlers`
+   - Capability rows → the `capabilities()` method of each runtime (pinned via
+     `AbstractAgentRuntimeContractTest.expectedCapabilities()` — do not bypass)
+   - Module/backend counts → `ls modules/` for the relevant family (e.g., CheckpointStore
+     backends live in `modules/checkpoint/src/main/**` — only `InMemory` and `Sqlite` exist today,
+     Redis/Postgres are pluggable via the SPI, NOT in-tree)
+
+2. **CHANGELOG entries must match real commits.** Before writing a "Fixed" or "Added" bullet,
+   run `git log --oneline --grep='<keyword>'` and confirm the described change exists. If the
+   bullet describes a fix, quote the commit hash in the internal draft before promoting to the
+   CHANGELOG. **Never** compose a plausible-sounding fix entry from memory or intuition — if
+   you cannot find the commit, the fix did not happen.
+
+3. **API surface claims require a source read.** Before writing
+   `TokenUsage(input, output, total)` in a doc, `cat` the actual `TokenUsage.java` record to
+   confirm the field list. Before writing `@AiEndpoint.promptCache()` as an annotation method,
+   grep for the method in the `AiEndpoint.java` source.
+
+4. **Competitor claims must be stable facts, not numbers.** Writing "LiteLLM: 100+ LLM APIs"
+   or "Vercel AI SDK: 20+ providers" is a hostage to fortune — those numbers change quarterly
+   and can't be verified from this repo. Use stable descriptors ("OpenAI-compatible proxy",
+   "Provider abstraction", "TypeScript only") instead.
+
+5. **When a fact cannot be verified, either remove it or mark it explicitly as
+   "not yet verified"** and ask ChefFamille before publishing. Silent best-guesses are the
+   failure mode.
+
+### What to do when you catch yourself hallucinating
+
+- **Stop immediately.** Do not commit. Do not push.
+- **Report the finding transparently** — quote the false claim, quote the ground truth, explain
+   how it slipped through (usually: "I inferred from the narrative/plan instead of reading the code").
+- **Fix all copies of the claim** (CHANGELOG, docs, website, sample READMEs — a hallucination
+   often metastasizes across multiple files).
+- **Add a verification step** to future work so the class of error is closed
+   — e.g., pinning capability sets in contract tests so doc/code drift breaks the build.
+
+### Known drift patterns
+
+- **CHANGELOG "Fixed" bullets** — the most common hallucination vector. If you don't have a
+  commit hash in hand, you're making it up.
+- **Sample counts, template counts, number of anything** — always verify against the source
+  of truth (`cli/samples.json`, `generator/AtmosphereInit.java`, `modules/` listing, etc.).
+- **Capability matrices** — see `tutorial/11-ai-adapters.md` + `AbstractAgentRuntimeContractTest.expectedCapabilities()`.
+  Do not update one side without the other.
+- **Backend/store implementations** — enumerating "SQLite, Redis, Postgres" when only SQLite
+  ships is a classic. Check the actual `src/main` directory for concrete implementations.
+- **"All seven runtimes do X"** — verify each runtime individually. Blanket "all runtimes"
+  claims are almost always wrong because framework runtimes routinely lack features the
+  Built-in runtime has.
+
 ## Getting Help
 - Always ask for clarification rather than making assumptions
 - If you're having trouble with something, stop and ask for help

@@ -9,199 +9,237 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.0.36] - 2026-04-13
 
+Every bullet in this section is grounded in a real commit on `main` at the
+time of release; commit hashes are listed where the attribution matters.
+
 ### Added
 
-#### Seventh AI Runtime
+#### Seventh AI runtime
 
-- **Microsoft Semantic Kernel adapter** (`atmosphere-semantic-kernel`). Seventh
-  `AgentRuntime` implementation backed by Semantic Kernel's
-  `ChatCompletionService`. Streams via `getStreamingChatMessageContentsAsync`,
-  honors system prompts, and threads `AgentExecutionContext` metadata through
-  the SK invocation context. Tool-calling is deferred in 4.0.36 (SK's native
-  function-call loop is not yet bridged). `SemanticKernelEmbeddingRuntime`
-  ships alongside for embedding support via SK's `EmbeddingGenerationService`.
+- **Microsoft Semantic Kernel adapter** (`atmosphere-semantic-kernel`).
+  Seventh `AgentRuntime` implementation backed by Semantic Kernel's
+  `ChatCompletionService`. Streams via the SK streaming chat API, honors
+  system prompts, threads `AgentExecutionContext` into the SK invocation
+  context, and reports token usage. Tool calling is deferred in 4.0.36
+  (SK's Java `KernelFunction` tool binding is not yet bridged through
+  `ToolExecutionHelper.executeWithApproval`). `SemanticKernelEmbeddingRuntime`
+  ships alongside for embedding support via SK's
+  `TextEmbeddingGenerationService`; blocks the reactive response at a 60s
+  ceiling to avoid pinning a virtual thread on a hung service.
 
-#### Unified `@Agent` API close-out (Waves 1-6)
+#### Unified `@Agent` API surface (Waves 1-6)
 
-- **`ToolApprovalPolicy`** — sealed interface on `AgentExecutionContext` with
-  four implementations: `annotated()` (default, honors `@RequiresApproval`),
-  `allowAll()` (trusted test fixtures), `denyAll()` (preview/shadow mode, no
-  invocation ever runs), and `custom(Predicate<ToolDefinition>)` for runtime
-  decisions. Every tool-calling runtime threads the policy through
-  `ToolExecutionHelper.executeWithApproval()` and the policy check runs
-  **before** the session-scoped `ApprovalStrategy` is consulted.
-- **`ExecutionHandle`** — first-class cooperative cancellation for in-flight
-  executions via `AgentRuntime.executeWithHandle(context, session)`. Returns
-  an `ExecutionHandle` with idempotent `cancel()`, terminal `whenDone()`
-  future, and `isDone()`. Each runtime wraps its native cancel primitive:
-  Built-in closes the HTTP `InputStream`, Spring AI / ADK dispose the Reactor
-  `Flux`, Koog cancels the `runBlocking` coroutine Job, LC4j completes the
-  `CompletableFuture` exceptionally with a soft-cancel flag. Closes
-  Correctness Invariant #2 (Terminal Path Completeness).
+- **`ToolApprovalPolicy` sealed interface** (`c83469a478`). Four permitted
+  implementations: `annotated()` (default, honors `@RequiresApproval`),
+  `allowAll()` (trusted test fixtures), `denyAll()` (preview / shadow mode,
+  no invocation ever runs), and `custom(Predicate<ToolDefinition>)` for
+  runtime-dependent decisions. Attach via
+  `AgentExecutionContext.withApprovalPolicy(...)`.
+- **`ExecutionHandle` cooperative cancel** for in-flight executions via
+  `AgentRuntime.executeWithHandle(context, session)`. Idempotent `cancel()`,
+  terminal `whenDone()` future, `isDone()`. Runtime cancel primitives
+  (verified from source):
+  - Built-in: `HttpClient` request + SSE `InputStream.close()`
+  - Spring AI: `reactor.core.Disposable.dispose()` on the streaming `Flux`
+  - LangChain4j: `CompletableFuture.completeExceptionally` + `AtomicBoolean`
+    soft-cancel flag consulted in the streaming response handler
+  - Google ADK: `AdkEventAdapter.cancel()` →
+    `io.reactivex.rxjava3.disposables.Disposable.dispose()` on the Runner
+    subscription
+  - JetBrains Koog: `AtomicReference<Job>` captured by `executeInternal` →
+    `Job.cancel()` + virtual-thread `Thread.interrupt()` fallback +
+    immediate `done.complete(null)` backstop
+  - Semantic Kernel, Embabel: no-op sentinel (`ExecutionHandle.completed()`)
+    — neither runtime overrides `executeWithHandle`, documented as a known
+    gap.
 - **`AgentLifecycleListener`** — observability SPI with `onStart`,
   `onToolCall`, `onToolResult`, `onCompletion`, `onError`. Attach via
-  `AgentExecutionContext.withListeners(...)`. All seven runtimes fire the
-  full event set; error isolation is guaranteed via static
-  `fireToolCall`/`fireToolResult` dispatchers that swallow listener
-  exceptions so a failing listener never breaks the tool-call loop.
-- **`EmbeddingRuntime` SPI** (`atmosphere-ai` module) with `float[] embed()`,
-  `List<float[]> embedAll()`, `int dimensions()`, `isAvailable()`, `name()`,
-  `priority()`. Five implementations ship with a priority chain:
-  `SpringAiEmbeddingRuntime` (200) > `LangChain4jEmbeddingRuntime` (190) >
-  `SemanticKernelEmbeddingRuntime` (180) > `EmbabelEmbeddingRuntime` (170) >
-  `BuiltInEmbeddingRuntime` (50, OpenAI-compatible HTTP). Service-loader
-  resolution picks the highest-priority available implementation at runtime.
-- **Per-request `RetryPolicy`** on `AgentExecutionContext` — declarative
-  retry with `maxRetries`, `initialDelay`, `backoffMultiplier`, and jitter.
-  Built-in runtime honors the policy natively; framework runtimes inherit
-  their own native retry layers and the per-request policy is Built-in only
-  in 4.0.36 (documented in the per-runtime capability matrix).
-- **`CacheHint`** — prompt-caching hint threaded through
-  `AgentExecutionContext.metadata()`. Policies: `CONSERVATIVE` (session
-  lifetime), `AGGRESSIVE` (cross-session), `NONE` (disable), with fallback
-  to session-ID-scoped cache key. The pipeline-layer `ResponseCache` honors
-  the hint using a SHA-256 `CacheKey` over model, system prompt, message,
-  history, tools, and content parts — session-ID-independent so identical
-  prompts hit the same cache line.
+  `AgentExecutionContext.withListeners(List<AgentLifecycleListener>)`.
+  `AbstractAgentRuntime` fires start / completion / error via protected
+  `fireStart` / `fireCompletion` / `fireError` helpers, so the five
+  runtimes that extend it (Built-in, Spring AI, LC4j, ADK, SK) get
+  lifecycle events automatically. Tool events fire through the static
+  `fireToolCall` / `fireToolResult` dispatchers used by every tool bridge.
+  Koog and Embabel implement `AgentRuntime` directly and do not yet fire
+  start / completion / error (documented exclusion in
+  `docs/reference/lifecycle-listener.md`).
+- **`EmbeddingRuntime` SPI** with `float[] embed(String)`,
+  `List<float[]> embedAll(List<String>)`, `int dimensions()`,
+  `isAvailable()`, `name()`, `priority()`. Five implementations ship;
+  service-loader resolution picks the highest-priority available one at
+  runtime:
+  - `SpringAiEmbeddingRuntime` — priority 200
+  - `LangChain4jEmbeddingRuntime` — priority 190
+  - `SemanticKernelEmbeddingRuntime` — priority 180
+  - `EmbabelEmbeddingRuntime` — priority 170
+  - `BuiltInEmbeddingRuntime` — priority 50 (zero-dep OpenAI-compatible
+    fallback)
+- **Per-request `RetryPolicy`** on `AgentExecutionContext`. Record shape:
+  `(int maxRetries, Duration initialDelay, Duration maxDelay, double
+  backoffMultiplier, Set<String> retryableErrors)`. Only the Built-in
+  runtime currently honors the per-request override; framework runtimes
+  inherit their own native retry layers and the capability is Built-in-only
+  in 4.0.36 (per the pinned capability matrix in
+  `AbstractAgentRuntimeContractTest.expectedCapabilities()`).
+- **Pipeline-level `ResponseCache`** (`3e1fc6e4a7`). SHA-256 `CacheKey` over
+  model, system prompt, message, response type, conversation history, tool
+  names, and content parts (text / image mime+length / audio mime+length /
+  file mime+length+bytes). Session-ID-independent so identical prompts hit
+  the same cache line. `CacheHint` metadata on the context selects policy
+  (`CONSERVATIVE`, `AGGRESSIVE`, `NONE`).
 - **Multi-modal `Content`** — sealed `Content` type with `Text`, `Image`,
-  `Audio`, `File` subtypes for multi-modal LLM input. Wire frames carry
-  base64-encoded payloads with explicit `mimeType` and `contentType`
-  metadata. Runtimes that do not support multi-modal input declare the
-  exclusion in their capability set (Correctness Invariant #5).
+  `Audio`, `File` subtypes. Wire frames carry base64-encoded payloads with
+  explicit `mimeType` and `contentType`. Runtimes that do not support
+  multi-modal input declare the exclusion in their `capabilities()` set
+  (Correctness Invariant #5 — Runtime Truth).
 - **`session.toolCallDelta()`** — incremental tool-argument streaming so
-  clients can render partial JSON as the model generates it. All seven
-  runtimes forward tool-call deltas when the underlying provider emits them.
-- **`models()` runtime truth** — `AgentRuntime.models()` returns the list of
-  models actually reachable by the resolved runtime instance, replacing the
-  configuration-intent flag from 4.0.35. The admin control plane
-  `/admin/runtime` endpoint exposes this as runtime-resolved truth.
-- **`TokenUsage` record** — unified `input`, `output`, `total`, `cached`
-  token accounting reported on completion metadata as `ai.tokens.input`,
-  `ai.tokens.output`, `ai.tokens.total`, `ai.tokens.cached`.
+  clients can render partial JSON as the model generates it. In 4.0.36
+  this is **Built-in only** — the four framework bridges (Spring AI, LC4j,
+  ADK, Koog) cannot emit deltas without bypassing their high-level
+  streaming APIs (`895a7e0a2e`). Documented in the capability matrix.
+- **`AgentRuntime.models()`** default method returning the list of models
+  the resolved runtime can actually serve. Replaces the configuration-intent
+  model flag with a runtime-resolved list (Correctness Invariant #5).
+- **`TokenUsage` record** `(long input, long output, long cachedInput,
+  long total, String model)`. Reported on completion metadata as
+  `ai.tokens.input` / `ai.tokens.output` / `ai.tokens.total` /
+  `ai.tokens.cached` when the provider surfaces it.
 - **`@AiEndpoint.promptCache()` and `@AiEndpoint.retry()`** — declarative
-  annotations for cache hint and retry policy that work identically across
-  Spring Boot and Quarkus. The annotation processor runs at build time in
-  Quarkus via the Atmosphere extension and wires into the Undertow
-  deployment; Spring Boot resolves them at bean post-processing.
-- **`AbstractAgentRuntimeContractTest`** — TCK that every `AgentRuntime`
-  subclass must pass. Exercises text streaming, tool calling, tool approval
-  (all four `ToolApprovalPolicy` variants), system prompt, conversation
-  memory, lifecycle listeners, execution cancel, and structured output
-  against each runtime implementation. Guarantees cross-runtime behavioral
-  parity (Correctness Invariant #7 — Mode Parity).
+  annotations on `@AiEndpoint`. `promptCache()` returns
+  `CacheHint.CachePolicy` (default `NONE`). `retry()` returns a nested
+  `@Retry` annotation with `maxRetries`, `initialDelayMs`, `maxDelayMs`,
+  `backoffMultiplier`. Resolved at bean post-processing on Spring Boot and
+  via the annotation processor at build time on Quarkus.
+- **`AbstractAgentRuntimeContractTest`** — TCK in `modules/ai-test` that
+  every `AgentRuntime` subclass must pass. Exercises text streaming, tool
+  calling, tool approval, system prompt, multi-modal input, cache hint
+  threading, execution cancel, and capability-set pinning via
+  `expectedCapabilities()` (added `c13e309d`) so adding or removing a
+  capability from a runtime without updating its pinned set breaks the
+  build. Drift between the code and the docs matrix in
+  `tutorial/11-ai-adapters.md` cannot ship silently.
 
-#### Unified `@Agent` + `@Command` (Wave 0-1 — released in 4.0.36)
+#### Unified `@Agent` + `@Command` (Wave 0-1, also in 4.0.36)
 
-- **`@Agent` + `@Command` — unified agent annotation.** Define an agent with
-  `@Agent(name, skillFile)`, add slash commands with `@Command`, and the
-  framework auto-generates `@AiEndpoint`, A2A Agent Card, MCP tools, AG-UI
-  events, and channel routing based on classpath detection. Commands work on
-  **every channel** — Web, Slack, Telegram, Discord, WhatsApp, Messenger —
-  with zero per-channel code.
+- **`@Agent` + `@Command`** — one annotation defines the agent; slash
+  commands routed on every wired channel (Web WebSocket plus the five
+  external channels when `atmosphere-channels` is present). Auto-generates
+  `@AiEndpoint`, A2A Agent Card, MCP tool manifest, and AG-UI event bindings
+  based on classpath detection.
 - **`atmosphere-agent`** module — annotation processor, `CommandRouter`,
-  `SkillFileParser`, and `AgentHandler`.
+  `SkillFileParser`, `AgentHandler`.
 - **`skill.md`** — markdown files that serve as both the LLM system prompt
-  and agent metadata. Sections (`## Skills`, `## Tools`, `## Channels`,
-  `## Guardrails`) are parsed for A2A Agent Card, MCP tool manifests, and
-  channel validation.
-- **`@Command` cross-channel routing** — slash commands defined once are
-  routed on Web (WebSocket), Slack, Telegram, Discord, WhatsApp, and
-  Messenger when `atmosphere-channels` is on the classpath. Includes
-  confirmation flow for destructive actions and auto-generated `/help`.
+  and agent metadata (`## Skills` / `## Tools` / `## Channels` /
+  `## Guardrails` sections parsed into Agent Card, MCP manifest, channel
+  validation).
 - **JetBrains Koog adapter** (`atmosphere-koog`). Sixth `AgentRuntime`
   backed by Koog's `AIAgent` / `chatAgentStrategy()` with tool calling via
-  `AtmosphereToolBridge`, cooperative cancel via `runBlocking` coroutine
-  `Job`, and real-time streaming through Koog's `PromptExecutor`. Works
-  with Gemini, OpenAI, and all Koog providers.
+  `AtmosphereToolBridge` and cooperative cancel via `AtomicReference<Job>`.
 - **Orchestration primitives** — agent handoffs
-  (`session.handoff(target, message)`), approval gates
-  (`@RequiresApproval`), conditional routing (`fleet.route(result, spec)`),
-  long-term memory (`LongTermMemoryInterceptor`), and LLM-as-judge eval
-  assertions (`LlmJudge.meetsIntent()`, `.isGroundedIn()`, `.hasQuality()`).
-- **Samples**: `spring-boot-dentist-agent` (Dr. Molar emergency dental
-  agent with `/firstaid`, `/urgency`, `/pain` and `assess_emergency` /
-  `pain_relief` tools across Slack + Telegram);
-  `spring-boot-orchestration-demo` (support/billing handoff with
-  `@RequiresApproval` on `cancel_account`);
-  `spring-boot-checkpoint-agent` (durable HITL workflow surviving JVM
-  restart via `CheckpointStore`).
-
-#### End-to-end coverage
-
-- **Nine new Playwright specs** in `modules/integration-tests/e2e/`
-  covering multi-modal content wire frames, `CacheHint` policy +
-  resolved cache key, `EmbeddingRuntime` vector shape, per-request
-  `RetryPolicy` echo, `toolCallDelta` incremental streaming,
-  `AgentLifecycleListener` event ordering, `models()` runtime truth,
-  real HITL approval flow (approve + deny paths), and the un-orphaned
-  HITL approval project wired into the `ai-tools` CI group.
-- **Ollama real-LLM tier** (`.github/workflows/e2e-real-llm.yml`) —
-  push-to-main CI job that exercises Built-in, Spring AI, and LC4j
-  runtimes against a containerized Ollama with `qwen2.5:0.5b`.
-  Structural assertions only (response non-empty, JSON parses, vector
-  dimensions > 0).
-- **Paid nightly tier** (`.github/workflows/e2e-real-llm-paid.yml`) —
-  scheduled OpenAI + Gemini coverage for tool calling, multi-modal
-  input, prompt caching, and HITL approval with real tool calls. Cost
-  ceiling ≤$5/run, hard 30s timeout per test.
+  (`session.handoff(target, message)`), approval gates (`@RequiresApproval`),
+  conditional routing in `@Fleet`, and LLM-as-judge eval assertions
+  (`LlmJudge`).
+- **Samples**: `spring-boot-dentist-agent`,
+  `spring-boot-orchestration-demo`, `spring-boot-checkpoint-agent` (durable
+  HITL workflow surviving JVM restart via `SqliteCheckpointStore`).
 
 ### Fixed
 
-- **`ToolApprovalPolicy.DenyAll` bypass (P0 security).**
-  `DenyAll.requiresApproval()` previously returned `true` and delegated to
-  the session-scoped `ApprovalStrategy`, so an auto-approve strategy could
-  silently run a tool that the caller intended to deny. The fix in
-  `ToolExecutionHelper.executeWithApproval` now detects `DenyAll`
-  specifically and returns
+Commit hashes listed for every Fixed bullet. If there is no commit, the
+bullet does not belong here.
+
+- **`ToolApprovalPolicy.DenyAll` bypass — P0 security** (`40d616b6ee`).
+  `DenyAll.requiresApproval()` previously returned `true` and fell through
+  to the session-scoped `ApprovalStrategy`, so an auto-approve strategy
+  could silently run a tool the caller intended to deny.
+  `ToolExecutionHelper.executeWithApproval` now detects `DenyAll` before
+  consulting the strategy and returns
   `{"status":"cancelled","message":"Tool execution denied by policy"}`
-  without consulting the strategy. Closes Correctness Invariant #6
-  (fail-closed default).
-- **`ToolApprovalPolicy` not threaded through tool-loop reconstruction
-  (P1).** Round 2+ of a multi-round tool execution previously rebuilt the
-  `AgentExecutionContext` without the caller's approval policy, silently
-  reverting to `annotated()`. All six tool-calling runtimes now preserve
-  `approvalPolicy` across tool-loop rounds.
-- **`tryResolve` classpath-only runtime detection (P1).** The admin
-  control plane and capability advertisement previously reported
-  runtimes as available based on `Class.forName()` success. They now
-  require a successful `isAvailable()` probe and a live
-  `AgentRuntimeResolver.resolve()` call. Honest runtime truth
-  (Correctness Invariant #5).
-- **Koog cancel deadlock (P1).** `KoogAgentRuntime.executeWithHandle`
-  previously stored the `runBlocking` coroutine `Job` inside the
-  blocking frame, so `handle.cancel()` racing with natural completion
-  could deadlock the virtual thread. The reference is now captured in
-  an `AtomicReference` before `runBlocking` enters, and the cancel
-  callback reads it without blocking.
-- **`ResponseCache` observability gap (P1).** Cache hits previously
-  fired no lifecycle events, so tracing and metrics showed a gap on
-  cache-hit paths. The pipeline now fires `onStart` + synthetic
-  `onCompletion` on cache hit with `ai.cache.hit=true` metadata.
-- **`CacheKey` missing output-affecting fields (P1).** The hash
-  previously omitted `maxTokens`, `temperature`, and `topP`, so two
-  requests with identical prompts but different generation parameters
-  shared a cache line. All output-affecting fields are now included in
-  the SHA-256 input.
-- **LC4j premature completion (P1).** `LangChain4jStreamingAdapter`
-  previously completed the handle future when the first tool-call
-  delta arrived, before the tool loop finished. It now waits for the
-  terminal `onComplete` callback.
-- **ADK model override ignored (P1).** `AdkAgentRuntime` previously
-  built its `LlmAgent` from the module-level default model and ignored
-  `AgentExecutionContext.model()`. The context value now takes
-  precedence.
-- **Release automation stale-version patterns (P1).** Two gaps in
-  `scripts/update-doc-versions.sh` left `README.md` "Current release"
+  immediately. Closes Correctness Invariant #6 (fail-closed default).
+- **Null-strategy approval bypass** (`56b1046f6f`). Before the DenyAll
+  evaluation fix, a tool annotated `@RequiresApproval` running under a
+  context with no `ApprovalStrategy` wired would execute unguarded. Now
+  `ToolExecutionHelper` fails closed on null strategy; DenyAll is evaluated
+  before the null-strategy branch. The same commit also stopped
+  `CachingStreamingSession` from auto-persisting on `complete()` so a
+  cancel-induced clean termination can no longer cache a partial response
+  — the pipeline decides whether to commit after `runtime.execute` returns.
+- **`ToolApprovalPolicy` not threaded through the tool-loop** (`b9b1af4aff`).
+  Every runtime bridge previously called the 5-arg
+  `executeWithApproval` overload which defaulted to
+  `ToolApprovalPolicy.annotated()` — `context.approvalPolicy()` was never
+  consumed. All five tool-calling bridges (Built-in, Spring AI, LC4j, ADK,
+  Koog) now call the 6-arg form and pass the policy through.
+  `ChatCompletionRequest` gained `approvalPolicy` as its 13th canonical
+  field, preserved across tool-loop rounds.
+- **`tryResolve` tri-state approval ID resolution** (`0db97e3276`,
+  `c3cc904644`). `ApprovalRegistry.tryResolve(id)` returned `true` on
+  `UNKNOWN_ID`, which caused `AiPipeline` / `AiStreamingSession` /
+  `ChannelAiBridge` to swallow stale or cross-session approval messages as
+  if consumed. Callers now use the tri-state `resolve()` method and only
+  short-circuit on `RESOLVED`, letting `UNKNOWN_ID` fall through to the
+  normal pipeline.
+- **Koog cancel race** (`ae732f8301`). `KoogAgentRuntime.executeWithHandle`
+  previously relied on a soft-cancel flag polled at suspension points, so a
+  cancel racing with a slow Koog `PromptExecutor` stall could leave the
+  virtual thread hanging on a native I/O read. The runtime now captures the
+  active coroutine `Job` in an `AtomicReference`, cancels the job, and
+  interrupts the virtual thread as a belt-and-suspenders fallback. The same
+  commit enables ADK `ContextCacheConfig` bootstrap and fixes an
+  `EmbeddingRuntimeResolver` startup-order race.
+- **LC4j premature completion + ADK model override + cross-session approval
+  fallback removal** (`d4c11ca76a`). LC4j's `doExecute` now blocks on
+  `handle.whenDone()` before returning so the lifecycle completion fires
+  after the tool stream actually finishes. ADK's `buildRequestRunner` now
+  honors `context.model()` when set instead of falling through to the
+  module-level default. `AiEndpointHandler` no longer performs a
+  cross-session approval fallback, preserving session-ownership guarantees.
+- **LC4j post-cancel error suppression + terminal-reason first-writer wins**
+  (`4ca8e983d8`). LC4j now drops `onError` callbacks that arrive after the
+  caller cancelled (the underlying HTTP may drain an IOException out of
+  band). `ExecutionHandle.Settable` now records the first-writer terminal
+  reason so observers can distinguish cancel from post-cancel error.
+  `RetryPolicy.isInheritSentinel` formalises `DEFAULT`-as-inheritance
+  contract.
+- **`ResponseCache` observability gap + structured-output / RAG / guardrail
+  cache-skip** (`28d381d4ff`). `CacheKey` now hashes `responseType` so a
+  structured-JSON request cannot replay a plain-text cached answer.
+  `AiPipeline` skips the cache when context providers, guardrails, or a
+  latently non-empty tool registry are present. The cache-hit path now
+  fires `AgentLifecycleListener.onStart` + `onCompletion` so observability
+  and audit traffic see a clean pair on both hit and miss paths.
+- **`CacheKey` Content.File collision + tool-loop cache skip**
+  (`13cf557532`). `CacheKey` now hashes `Content.File` parts (mime + length,
+  later upgraded to full byte hash in `c29542f1e6`) so two distinct PDFs of
+  identical length cannot collide. `AiPipeline.streamText` skips the cache
+  when `context.tools()` is non-empty so text-only replays never silently
+  drop tool round-trips.
+- **`CachingStreamingSession` binary-sendContent poisoning** (`0670e2f8b3`).
+  Binary `Content` (Image / Audio / File) cannot ride through a text-only
+  `StringBuilder`, so the default `sendContent` throw would have bypassed
+  the text capture. Override now marks the session as errored so the
+  pipeline's post-execute commit short-circuits — never caching a partial
+  text-only response for a flow that emitted binary output.
+- **Embedding runtime timeout + resolver DCL + cancel-swallow logging**
+  (`c29542f1e6`). `SemanticKernelEmbeddingRuntime.block()` calls inherit a
+  60s ceiling so a hung service cannot pin a virtual thread forever.
+  `EmbeddingRuntimeResolver` wraps the slow path in a synchronized block so
+  two early callers do not race duplicate ServiceLoader scans.
+  `ExecutionHandle.Settable.cancel` logs native-cancel exceptions at TRACE
+  instead of silently swallowing them, and documents the first-writer
+  terminal-reason race explicitly.
+- **Release automation stale-version patterns** (`a8516e9d7c`). Two gaps
+  in `scripts/update-doc-versions.sh` left `README.md` "Current release"
   and `cli/sdkman/*.md` `publish.sh` examples pointing at the previous
   release after `release-4x.yml` ran. Both patterns are now swept on
   every release.
-- **Cross-repo sync on release.** `release-4x.yml` now fires a
-  `repository_dispatch` event at `Atmosphere/atmosphere.github.io` via
-  the existing `SITE_DISPATCH_TOKEN` on successful release. A
-  companion `sync-version.yml` workflow in the docs repo runs
-  `scripts/update-doc-versions.sh` against every tutorial + website
-  reference and commits the result. Closes the long-standing gap where
-  the docs site lagged the Maven Central release by days.
+- **Cross-repo docs sync on release** (`dce1fba280`, `aadec4e1d8`).
+  `release-4x.yml` now fires a `repository_dispatch` event at
+  `Atmosphere/atmosphere.github.io` via the existing `SITE_DISPATCH_TOKEN`
+  on successful release. A companion `sync-version.yml` workflow in the
+  docs repo runs `scripts/update-doc-versions.sh` and commits the result.
+  Closes the long-standing gap where the docs site lagged the Maven
+  Central release by days.
 
 ## [4.0.11] - 2026-03-11
 
