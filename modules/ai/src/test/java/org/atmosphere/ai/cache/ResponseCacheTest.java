@@ -188,6 +188,25 @@ class ResponseCacheTest {
         assertEquals(0, cache.size());
     }
 
+    @Test
+    void autoCloseableContract() throws Exception {
+        // ResponseCache extends AutoCloseable so pipelines can wrap any impl
+        // in try-with-resources regardless of whether the backing store holds
+        // external resources. InMemoryResponseCache inherits the default
+        // no-op body and must be safe to close (idempotent, exception-free)
+        // while still serving reads afterwards — the default body does not
+        // invalidate the in-memory state.
+        try (ResponseCache cache = new InMemoryResponseCache()) {
+            cache.put("k", new CachedResponse("hello", null, Instant.now(), Duration.ofMinutes(1)));
+            assertEquals(1, cache.size());
+        }
+
+        // Double-close (e.g., a nested try-with-resources) must not throw.
+        var again = new InMemoryResponseCache();
+        again.close();
+        again.close();
+    }
+
     private static AgentExecutionContext newContext(String message, String systemPrompt,
                                                     String model, String sessionId) {
         return new AgentExecutionContext(

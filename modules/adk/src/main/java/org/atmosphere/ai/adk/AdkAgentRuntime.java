@@ -229,7 +229,10 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
      * the agent and runner — this is the only way to bind HITL context per invocation
      * without a ThreadLocal that ADK's reactive scheduler would not propagate.
      */
-    private Runner buildRequestRunner(AgentExecutionContext context, StreamingSession session) {
+    // Package-private test seam: tests subclass AdkAgentRuntime and override
+    // this method to return a mocked Runner so they can exercise the
+    // doExecuteWithHandle cancel path without needing a live Gemini API key.
+    Runner buildRequestRunner(AgentExecutionContext context, StreamingSession session) {
         var settings = AiConfig.get();
         if (settings == null) {
             settings = AiConfig.fromEnvironment();
@@ -334,10 +337,18 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 Content.fromParts(partsList.toArray(new Part[0]))
         );
 
-        // D-6 follow-up: wire the AdkEventAdapter's existing cancel() + whenDone()
-        // into the Phase 2 ExecutionHandle SPI so external callers can abort an
-        // in-flight ADK run via the unified API.
+        // Wire the AdkEventAdapter's existing cancel() + whenDone() into the
+        // ExecutionHandle SPI so external callers can abort an in-flight ADK
+        // run via the unified API. When the Runner is per-request (tools or
+        // cache hint path), cancel() also closes the Runner itself so the
+        // backend Gemini compute is reclaimed — ADK has no
+        // Runner.cancel(invocationId) API, but Runner.close() releases the
+        // whole Runner, and a per-request Runner has no other owners. For
+        // the shared-runner path (no tools, no hint), we can only dispose
+        // the RxJava subscription; closing the shared Runner would nuke
+        // concurrent requests, so we leave it alone.
         var adapter = AdkEventAdapter.bridge(events, session);
+        var closeOnCancel = needsPerRequestRunner ? requestRunner : null;
         return new ExecutionHandle() {
             private final java.util.concurrent.atomic.AtomicBoolean cancelled =
                     new java.util.concurrent.atomic.AtomicBoolean();
@@ -346,6 +357,27 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
             public void cancel() {
                 if (cancelled.compareAndSet(false, true)) {
                     adapter.cancel();
+                    if (closeOnCancel != null) {
+                        try {
+                            // close() returns a Completable; subscribing kicks
+                            // off the teardown. We don't block on it — the
+                            // adapter's whenDone() future is already resolved
+                            // by adapter.cancel() above, and a blocking wait
+                            // would tie the caller to Runner shutdown latency.
+                            closeOnCancel.close().subscribe(
+                                    () -> logger.debug(
+                                            "ADK per-request Runner closed after cancel"),
+                                    err -> logger.trace(
+                                            "ADK per-request Runner close failed: {}",
+                                            err.getMessage(), err));
+                        } catch (RuntimeException e) {
+                            // Runner.close() should not throw synchronously,
+                            // but treat any surprise as a TRACE log rather
+                            // than swallowing it (no-swallow rule).
+                            logger.trace("ADK Runner.close() threw synchronously: {}",
+                                    e.getMessage(), e);
+                        }
+                    }
                 }
             }
 

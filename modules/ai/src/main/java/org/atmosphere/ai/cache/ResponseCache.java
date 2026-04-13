@@ -49,7 +49,7 @@ import java.util.Optional;
  * layer to avoid replaying a text-only response for a flow that would
  * have invoked tools.</p>
  */
-public interface ResponseCache {
+public interface ResponseCache extends AutoCloseable {
 
     /** Look up a cached response by key. */
     Optional<CachedResponse> get(String key);
@@ -65,4 +65,23 @@ public interface ResponseCache {
 
     /** Remove all entries. */
     void clear();
+
+    /**
+     * Release any external resources held by the cache. In-memory
+     * implementations are GC-collected when orphaned and can inherit the
+     * default no-op body. Backing stores that hold connection pools or
+     * sockets (Redis, JDBC, gRPC) MUST override this so the pipeline can
+     * release them when it tears down. Declared here rather than as a
+     * marker interface so pipelines can safely wrap any
+     * {@code ResponseCache} in try-with-resources without caring which
+     * impl is behind it.
+     *
+     * <p>Implementations should treat this as idempotent — tearing down a
+     * cache twice must not throw. No exception is re-thrown from the
+     * default body.</p>
+     */
+    @Override
+    default void close() {
+        // Default: in-memory caches have nothing to release.
+    }
 }

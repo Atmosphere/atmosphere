@@ -104,13 +104,19 @@ public final class AdkEventAdapter {
     /**
      * Cancel the subscription and close the session.
      *
-     * <p><b>Known limitation:</b> disposing the RxJava Flowable unsubscribes
-     * the downstream listener but does NOT propagate to ADK's internal Runner
-     * thread pool. If the Gemini API call is already in flight on ADK's worker,
-     * it will run to completion and bill to the user's quota. The session is
-     * closed client-side so no stale frames reach the browser, but the backend
-     * compute cannot be reclaimed without access to ADK's thread handle.
-     * Upstream: ADK has no {@code Runner.cancel(invocationId)} API today.</p>
+     * <p><b>Backend reclamation contract.</b> This method only disposes the
+     * RxJava Flowable and completes the session — it does NOT touch the
+     * Runner. ADK exposes no {@code Runner.cancel(invocationId)} API, so
+     * per-invocation cancel on a shared Runner is not possible. However,
+     * {@code AdkAgentRuntime.doExecuteWithHandle} does cooperate with this
+     * method on the per-request-Runner path: when tools or a CacheHint
+     * force a fresh Runner per request, the outer {@code ExecutionHandle}
+     * also calls {@code Runner.close()} after delegating here, so that
+     * branch actually reclaims backend Gemini compute. On the shared-Runner
+     * path (no tools, no hint) the backend call still runs to completion
+     * and bills the user's quota — closing the shared Runner would nuke
+     * concurrent requests, so it is intentionally left alone until ADK
+     * ships a per-invocation cancel primitive.</p>
      */
     public void cancel() {
         var disposable = subscription.getAndSet(null);
