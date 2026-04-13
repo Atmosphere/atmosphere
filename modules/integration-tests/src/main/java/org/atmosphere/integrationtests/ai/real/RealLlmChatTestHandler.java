@@ -61,6 +61,16 @@ public class RealLlmChatTestHandler implements AtmosphereHandler {
         if (settings != null) {
             this.runtime.configure(settings);
         }
+        // exec:java in CI runs without a working SLF4J binding (Logback's
+        // service provider can't instantiate its no-arg constructor in the
+        // Maven classloader) so every logger.xxx() goes to NOP. Route critical
+        // diagnostics through System.err so they end up in the Playwright
+        // fixture's captured output.
+        System.err.println("[real-llm] handler constructed. "
+                + "LLM_MODE=" + System.getenv("LLM_MODE")
+                + ", LLM_BASE_URL=" + System.getenv("LLM_BASE_URL")
+                + ", LLM_MODEL=" + System.getenv("LLM_MODEL")
+                + ", settings=" + (settings != null ? "present" : "null"));
     }
 
     @Override
@@ -81,6 +91,7 @@ public class RealLlmChatTestHandler implements AtmosphereHandler {
     }
 
     private void handlePrompt(String prompt, AtmosphereResource resource) {
+        System.err.println("[real-llm] handlePrompt start: prompt=" + prompt);
         var session = StreamingSessions.start(resource);
         try {
             var context = new AgentExecutionContext(
@@ -91,11 +102,15 @@ public class RealLlmChatTestHandler implements AtmosphereHandler {
                     List.of(), null, null, List.of(), Map.of(),
                     List.of(), null, null, List.of(), List.of(),
                     ToolApprovalPolicy.annotated());
+            System.err.println("[real-llm] calling runtime.execute...");
             runtime.execute(context, session);
+            System.err.println("[real-llm] runtime.execute returned, closed=" + session.isClosed());
             if (!session.isClosed()) {
                 session.complete();
             }
         } catch (Exception e) {
+            System.err.println("[real-llm] execution threw: " + e);
+            e.printStackTrace(System.err);
             logger.error("Real LLM execution failed", e);
             session.error(e);
         }
