@@ -595,6 +595,7 @@
         <module>samples/spring-boot-multi-agent-startup-team</module>
         <module>samples/spring-boot-orchestration-demo</module>
         <module>samples/spring-boot-koog-chat</module>
+        <module>samples/spring-boot-semantic-kernel-chat</module>
         <module>samples/spring-boot-checkpoint-agent</module>
         <!-- <module>samples/spring-boot-embabel-chat</module> --> <!-- Embabel framework requires Spring Boot 3.5; use -Pspring-boot3 profile -->
         <module>modules/integration-tests</module>
@@ -705,6 +706,11 @@
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-koog</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-semantic-kernel</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

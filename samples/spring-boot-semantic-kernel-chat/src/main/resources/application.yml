@@ -1,0 +1,18 @@
+# Atmosphere Semantic Kernel Chat - Configuration
+# Uses Microsoft Semantic Kernel for Java as the AI runtime via the AgentRuntime SPI.
+
+atmosphere:
+  console-subtitle: Real-time AI chat powered by Microsoft Semantic Kernel
+
+# LLM config consumed by SkConfig:
+#   - AiConfig.LlmSettings (demo-mode detection)
+#   - OpenAIAsyncClient endpoint/key
+#   - OpenAIChatCompletion model id
+llm:
+  mode: ${LLM_MODE:remote}
+  model: ${LLM_MODEL:gpt-4o-mini}
+  base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
+  api-key: ${LLM_API_KEY:${OPENAI_API_KEY:}}
+
+server:
+  port: 8098
