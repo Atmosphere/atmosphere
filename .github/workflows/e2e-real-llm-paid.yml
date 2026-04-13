@@ -42,8 +42,13 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Build atmosphere-ai
-        run: ./mvnw -q install -pl modules/ai,modules/ai-test -am -DskipTests
+      - name: Build atmosphere-ai + integration-tests
+        run: |
+          # integration-tests is required so mvnw exec:java can load
+          # AiFeatureTestServer (the Playwright fixture spawns it). -am
+          # pulls all transitive modules including ai, ai-test, and the
+          # runtime bridges the real-LLM handler touches at startup.
+          ./mvnw -q install -pl modules/integration-tests -am -DskipTests
 
       - name: Set up Node
         uses: actions/setup-node@v4
