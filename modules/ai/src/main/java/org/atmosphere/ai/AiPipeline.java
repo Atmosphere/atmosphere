@@ -223,34 +223,65 @@ public class AiPipeline {
         // without touching the runtime. On miss, wrap the target session
         // so send() calls are captured for storage on complete().
         //
-        // Caching is skipped when context.tools() is non-empty because
-        // CachingStreamingSession only captures text via send() — tool
-        // calls, tool results, and intermediate lifecycle events are not
-        // replayable. Serving a cached text-only response for a
-        // tool-calling request would silently drop the tool round-trips
-        // and could produce wrong answers. Caching tool-enabled flows
-        // requires capturing AiEvent frames, not just text — out of
-        // scope for the v1 pipeline cache.
+        // Caching is skipped in any of these cases because CachingStreamingSession
+        // only captures text via send() and usage() — tool calls, tool results,
+        // structured-output field events, sendMetadata calls, and intermediate
+        // lifecycle events are NOT replayable. Serving a cached text-only
+        // response for any of these flows would silently drop the non-text
+        // frames and could produce wrong answers:
+        //   1. context.tools() non-empty — a tool round-trip was intended
+        //   2. pipeline has a non-empty toolRegistry — latent tool capability
+        //      even on requests where this call's context.tools() happens to
+        //      be empty (future request might add tools and share the key)
+        //   3. responseType non-null — structured output emits StructuredField
+        //      events via StructuredOutputCapturingSession, not plain text
+        //   4. contextProviders non-empty — RAG augments the prompt with
+        //      retrieved docs at runtime, so identical user messages may map
+        //      to different retrieved contexts and thus different answers
+        //   5. guardrails non-empty — guardrails may mutate the request at
+        //      runtime; a cached response would bypass subsequent filtering
         var cache = responseCache;
         var cacheHint = org.atmosphere.ai.llm.CacheHint.from(context);
         var hasTools = context.tools() != null && !context.tools().isEmpty();
+        var registryHasTools = toolRegistry != null && !toolRegistry.allTools().isEmpty();
+        var hasStructured = effectiveResponseType != null && effectiveResponseType != Void.class;
+        var hasRag = contextProviders != null && !contextProviders.isEmpty();
+        var hasGuardrails = !guardrails.isEmpty();
+        var cacheSafe = !hasTools && !registryHasTools && !hasStructured && !hasRag && !hasGuardrails;
         StreamingSession effectiveTarget = target;
-        if (cache != null && cacheHint.enabled() && !hasTools) {
+        if (cache != null && cacheHint.enabled() && cacheSafe) {
             var key = org.atmosphere.ai.cache.CacheKey.compute(context);
             var hit = cache.get(key);
             if (hit.isPresent()) {
                 logger.debug("Pipeline response-cache HIT: key={}", key);
                 var cached = hit.get();
-                target.send(cached.text());
-                if (cached.usage() != null) {
-                    target.usage(cached.usage());
+                // Fire lifecycle listeners so observers registered on the
+                // context see a clean start/completion pair even on the hit
+                // path — matches the cache-miss path where
+                // AbstractAgentRuntime.execute fires these internally. Without
+                // this, onStart/onCompletion fire on ~50% of traffic and
+                // audit/metrics observers go blind on cache hits.
+                AbstractAgentRuntime.fireStart(context);
+                try {
+                    target.send(cached.text());
+                    if (cached.usage() != null) {
+                        target.usage(cached.usage());
+                    }
+                    target.complete();
+                    AbstractAgentRuntime.fireCompletion(context);
+                } catch (RuntimeException e) {
+                    AbstractAgentRuntime.fireError(context, e);
+                    throw e;
                 }
-                target.complete();
                 return;
             }
             logger.debug("Pipeline response-cache MISS: key={}", key);
             effectiveTarget = new org.atmosphere.ai.cache.CachingStreamingSession(
                     target, key, responseCacheTtl, cache::put);
+        } else if (cache != null && cacheHint.enabled() && logger.isDebugEnabled()) {
+            logger.debug("Pipeline response-cache SKIP: hasTools={} registryHasTools={} "
+                            + "hasStructured={} hasRag={} hasGuardrails={}",
+                    hasTools, registryHasTools, hasStructured, hasRag, hasGuardrails);
         }
 
         try {

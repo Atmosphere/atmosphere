@@ -26,9 +26,19 @@ import java.util.HexFormat;
  * Computes a deterministic cache key from an {@link AgentExecutionContext}.
  * The key is a SHA-256 hex digest over the fields that must match for a
  * cached response to be semantically valid: system prompt, user message,
- * model, conversation history, and tool names.
+ * model, conversation history, tool names, multi-modal parts, and the
+ * declared response type (plain vs structured JSON).
  *
- * <p>Fields explicitly excluded from the key:</p>
+ * <p><b>Output-affecting fields included in the key:</b></p>
+ * <ul>
+ *   <li>{@code model}, {@code systemPrompt}, {@code message}, {@code history}</li>
+ *   <li>{@code tools} (by name only — see note below)</li>
+ *   <li>{@code parts} (by mime-type + length — see note below)</li>
+ *   <li>{@code responseType} (by fully-qualified class name) — prevents a
+ *       plain-text cached answer replaying for a structured-JSON request</li>
+ * </ul>
+ *
+ * <p><b>Fields explicitly excluded from the key:</b></p>
  * <ul>
  *   <li>{@code sessionId}, {@code userId}, {@code conversationId} — identity, not content</li>
  *   <li>{@code approvalStrategy}, {@code listeners} — runtime-scoped, not content</li>
@@ -55,6 +65,12 @@ public final class CacheKey {
         update(digest, "model", context.model());
         update(digest, "sys", context.systemPrompt());
         update(digest, "msg", context.message());
+        // responseType is the structured-output discriminator. Without this
+        // hash contribution, a plain-text request and a structured-JSON
+        // request with the same prompt would collide and silently replay
+        // text for a schema-bearing caller.
+        update(digest, "rtype",
+                context.responseType() != null ? context.responseType().getName() : "");
         if (context.history() != null) {
             for (var m : context.history()) {
                 update(digest, "h.r", m.role());

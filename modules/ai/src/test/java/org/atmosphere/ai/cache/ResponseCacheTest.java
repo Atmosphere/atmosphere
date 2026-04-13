@@ -118,6 +118,27 @@ class ResponseCacheTest {
     }
 
     @Test
+    void cacheKeyDiffersForDifferentResponseType() {
+        // Blocker #1: responseType is an output discriminator — a plain-text
+        // request and a structured-JSON request with the same prompt must not
+        // collide or the structured caller silently replays plain text.
+        var ctxText = new AgentExecutionContext(
+                "Summarize", "You are helpful", "gpt-4",
+                null, "sess-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), List.of(),
+                ToolApprovalPolicy.annotated());
+        var ctxJson = new AgentExecutionContext(
+                "Summarize", "You are helpful", "gpt-4",
+                null, "sess-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), java.util.Map.class, null, List.of(), List.of(),
+                ToolApprovalPolicy.annotated());
+        assertNotEquals(CacheKey.compute(ctxText), CacheKey.compute(ctxJson),
+                "Plain-text vs structured-output requests must produce different keys");
+    }
+
+    @Test
     void invalidateRemovesEntry() {
         var cache = new InMemoryResponseCache();
         cache.put("k", new CachedResponse("x", null, Instant.now(), Duration.ofMinutes(1)));

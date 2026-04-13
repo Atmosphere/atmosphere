@@ -147,9 +147,12 @@ class AiPipelineHitlTest {
         var pipeline = new AiPipeline(runtime, null, null, null, registry,
                 List.of(), List.of(), AiMetrics.NOOP);
 
-        // Non-approval messages are ignored, approval-shaped messages are consumed.
+        // Non-approval messages are ignored, and approval-shaped messages
+        // whose ID is not pending in this registry also fall through so they
+        // can reach the normal pipeline as regular input. Only a RESOLVED
+        // match short-circuits. See Blocker #5 / tryResolve tri-state fix.
         assertEquals(false, pipeline.tryResolveApproval("hello"));
-        assertEquals(true, pipeline.tryResolveApproval("/__approval/apr_nonexistent/approve"));
+        assertEquals(false, pipeline.tryResolveApproval("/__approval/apr_nonexistent/approve"));
         assertNotNull(pipeline.approvalRegistry(),
                 "pipeline must expose its ApprovalRegistry so callers can share it across invocations");
     }

@@ -168,12 +168,13 @@ class ApprovalRoutingTest {
     }
 
     @Test
-    void tryResolveApprovalOnAdapterReturnsTrueForUnknownId() {
-        // The single-registry tryResolve adapter preserves the "consumed"
-        // semantics for the websocket fast-path: an approval-shaped message with
-        // an unknown ID still short-circuits so it isn't forwarded as a prompt.
+    void tryResolveApprovalReturnsFalseForUnknownId() {
+        // Blocker #5 (tryResolve tri-state): an approval-shaped message with
+        // an unknown ID falls through so it reaches the normal pipeline as
+        // regular input. Only a RESOLVED match short-circuits. Prior behavior
+        // swallowed stale/cross-session IDs and silently dropped them.
         var session = newSession();
-        assertTrue(session.tryResolveApproval("/__approval/apr_unknown/approve"));
+        assertFalse(session.tryResolveApproval("/__approval/apr_unknown/approve"));
     }
 
     @Test
