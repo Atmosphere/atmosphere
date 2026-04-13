@@ -85,5 +85,21 @@ public enum AiCapability {
     MODEL_ENUMERATION,
 
     /** Runtime emits typed token usage via {@link StreamingSession#usage}. Phase 1. */
-    TOKEN_USAGE
+    TOKEN_USAGE,
+
+    /**
+     * Runtime honours a per-request {@link RetryPolicy} supplied on
+     * {@link AgentExecutionContext#retryPolicy()}. Only the Built-in runtime
+     * currently threads the policy into its HTTP client's {@code sendWithRetry}
+     * loop; framework runtimes (Spring AI, LangChain4j, ADK, Koog, Semantic
+     * Kernel) inherit their native retry layers and cannot be overridden at
+     * request time. Callers that need a guaranteed override should either use
+     * the Built-in runtime or wire retry at the framework layer.
+     *
+     * <p>Runtimes without this capability log a WARN on the first request that
+     * carries a non-default policy, per {@code AbstractAgentRuntime.execute}'s
+     * Mode-Parity enforcement — so operators see the gap in startup logs
+     * rather than silently getting the runtime's default retry behavior.</p>
+     */
+    PER_REQUEST_RETRY
 }

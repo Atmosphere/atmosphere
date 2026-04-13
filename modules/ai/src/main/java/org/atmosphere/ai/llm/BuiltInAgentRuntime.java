@@ -208,7 +208,14 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
                 // {@code prompt_cache_key} JSON field in the outgoing OpenAI
                 // chat-completions request body. See buildRequest() + the
                 // serializer in OpenAiCompatibleClient.buildRequestBody.
-                AiCapability.PROMPT_CACHING);
+                AiCapability.PROMPT_CACHING,
+                // PER_REQUEST_RETRY: buildRequest threads context.retryPolicy()
+                // into ChatCompletionRequest, which OpenAiCompatibleClient's
+                // sendWithRetry loop uses as the per-request override. Built-in
+                // is the only runtime that honors this today — framework
+                // runtimes inherit their own retry layers (Correctness
+                // Invariant #7, Mode Parity).
+                AiCapability.PER_REQUEST_RETRY);
     }
 
     @Override

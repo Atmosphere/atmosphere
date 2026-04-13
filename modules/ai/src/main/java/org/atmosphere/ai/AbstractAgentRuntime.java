@@ -126,6 +126,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     @Override
     public void execute(AgentExecutionContext context, StreamingSession session) {
         var client = resolveClient();
+        warnIfUnhonoredRetryPolicy(context);
         session.progress("Connecting to " + name() + "...");
         fireStart(context);
         try {
@@ -150,6 +151,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     public ExecutionHandle executeWithHandle(
             AgentExecutionContext context, StreamingSession session) {
         var client = resolveClient();
+        warnIfUnhonoredRetryPolicy(context);
         session.progress("Connecting to " + name() + "...");
         fireStart(context);
         try {
@@ -270,6 +272,36 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
             } catch (Exception e) {
                 lifecycleLogger.trace("AgentLifecycleListener.onError failed: {}", e.getMessage(), e);
             }
+        }
+    }
+
+    /**
+     * Mode-Parity enforcement for {@link AiCapability#PER_REQUEST_RETRY}:
+     * warn once when a non-default {@link RetryPolicy} is set on a runtime
+     * that does not advertise the capability. Operators see the gap in
+     * startup logs instead of silently getting the runtime's default retry
+     * behavior. The warning fires only once per runtime instance per unique
+     * policy to keep logs quiet under load.
+     */
+    private final java.util.Set<RetryPolicy> warnedRetryPolicies =
+            java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+
+    private void warnIfUnhonoredRetryPolicy(AgentExecutionContext context) {
+        var policy = context.retryPolicy();
+        if (policy == null || policy.equals(RetryPolicy.DEFAULT)) {
+            return;
+        }
+        if (capabilities().contains(AiCapability.PER_REQUEST_RETRY)) {
+            return;
+        }
+        if (warnedRetryPolicies.add(policy)) {
+            lifecycleLogger.warn(
+                    "{} runtime does not advertise PER_REQUEST_RETRY capability. "
+                            + "Context carries a custom RetryPolicy (maxRetries={}) but the "
+                            + "framework's native retry layer will run instead. Configure "
+                            + "retry at the framework layer or use the Built-in runtime to "
+                            + "guarantee the per-request override.",
+                    name(), policy.maxRetries());
         }
     }
 
