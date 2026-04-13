@@ -70,6 +70,7 @@ public class AiFeatureTestServer {
             framework.addAtmosphereHandler("/ai/models", new ModelsTestHandler());
             framework.addAtmosphereHandler("/ai/hitl-real", new HitlApprovalTestHandler());
             framework.addAtmosphereHandler("/ai/cache-skip", new CacheSkipTestHandler());
+            framework.addAtmosphereHandler("/ai/hitl-cross-session", new HitlCrossSessionTestHandler());
             // Wire-level ExecutionHandle.cancel() regression matrix (5 rows):
             // Built-in exercises the real runtime stream-close path; the
             // framework rows exercise the handler/session/wire contract via
