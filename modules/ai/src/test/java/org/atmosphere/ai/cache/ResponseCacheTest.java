@@ -166,6 +166,20 @@ class ResponseCacheTest {
     }
 
     @Test
+    void purgeExpiredRemovesOnlyExpiredEntries() {
+        var cache = new InMemoryResponseCache(16);
+        cache.put("fresh", new CachedResponse("a", null, Instant.now(), Duration.ofMinutes(5)));
+        cache.put("stale",
+                new CachedResponse("b", null, Instant.now().minusSeconds(3600), Duration.ofSeconds(60)));
+        cache.put("stale2",
+                new CachedResponse("c", null, Instant.now().minusSeconds(7200), Duration.ofSeconds(60)));
+        assertEquals(3, cache.size());
+        assertEquals(2, cache.purgeExpired());
+        assertEquals(1, cache.size());
+        assertTrue(cache.get("fresh").isPresent());
+    }
+
+    @Test
     void invalidateRemovesEntry() {
         var cache = new InMemoryResponseCache();
         cache.put("k", new CachedResponse("x", null, Instant.now(), Duration.ofMinutes(1)));

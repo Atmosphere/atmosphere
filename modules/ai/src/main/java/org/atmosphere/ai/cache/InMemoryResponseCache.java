@@ -29,6 +29,17 @@ import java.util.Optional;
  * <p>Thread-safe via a single synchronized block around the
  * {@link LinkedHashMap} — sufficient for virtual-thread workloads where
  * contention is low and critical sections are microseconds.</p>
+ *
+ * <p><b>Eviction and TTL interaction.</b> {@code removeEldestEntry} is a
+ * strict LRU policy: when the map exceeds its bound, the least-recently-used
+ * entry is evicted regardless of whether it is still live. An expired entry
+ * that has not yet been touched by a {@code get()} call therefore occupies
+ * a slot that could have held a fresh response. This is benign churn, not a
+ * memory leak — the map is still bounded at {@code maxEntries} and expired
+ * entries are purged lazily on first access. Callers who want to reclaim
+ * expired slots eagerly (for example under a periodic background sweeper)
+ * should call {@link #purgeExpired()} on a schedule; the default behavior
+ * is lazy for zero-overhead steady state.</p>
  */
 public class InMemoryResponseCache implements ResponseCache {
 
@@ -94,6 +105,22 @@ public class InMemoryResponseCache implements ResponseCache {
     public void clear() {
         synchronized (map) {
             map.clear();
+        }
+    }
+
+    /**
+     * Walk the map once and remove every expired entry. Use for eager
+     * reclamation when callers schedule a background sweep; the default
+     * lazy-on-get path is sufficient for most workloads.
+     *
+     * @return the number of entries removed
+     */
+    public int purgeExpired() {
+        var now = Instant.now();
+        synchronized (map) {
+            int before = map.size();
+            map.entrySet().removeIf(e -> e.getValue().isExpired(now));
+            return before - map.size();
         }
     }
 }
