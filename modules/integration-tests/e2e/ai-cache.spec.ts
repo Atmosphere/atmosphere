@@ -107,3 +107,67 @@ test.describe('AI Cache E2E', () => {
     }
   });
 });
+
+/**
+ * Gap #5 — AiPipeline cache-skip semantics.
+ *
+ * These four tests assert the 5-gate cache-safety formula lifted from
+ * AiPipeline.execute() (lines 243-250 in the worktree). Each toggle flips one
+ * gate and the handler reports the resulting booleans as metadata.
+ *
+ * WHY WHITE-BOX: the pipeline's public execute(String, String, StreamingSession)
+ * API hard-codes metadata=Map.of() when building the AiRequest, so
+ * CacheHint.from(context) always returns none() and the cacheSafe branch is
+ * unreachable via the pipeline entry point today — documented at length in the
+ * CacheSkipTestHandler Javadoc. The handler recomputes the same boolean formula
+ * against a real AgentExecutionContext + DefaultToolRegistry + guardrail list
+ * + context-provider list, so drift in any of the 5 gates (hasTools,
+ * registryHasTools, hasStructured, hasRag, hasGuardrails) breaks this spec.
+ * Upgrade to a true cache-hit vs cache-miss assertion once the pipeline grows
+ * a per-call metadata/CacheHint plumbing API.
+ */
+test.describe('AI Pipeline cache-skip gates (Gap #5)', () => {
+
+  const assertGates = async (
+    toggle: 'none' | 'tool' | 'rag' | 'guardrail' | 'structured',
+    expected: { hasTools?: boolean; registryHasTools?: boolean; hasStructured?: boolean;
+                hasRag?: boolean; hasGuardrails?: boolean; cacheSafe: boolean },
+  ) => {
+    const client = new AiWsClient(server.wsUrl, '/ai/cache-skip');
+    try {
+      await client.connect();
+      client.send(toggle);
+      await client.waitForDone(10_000);
+      expect(client.metadata.get('cacheSkip.toggle')).toBe(toggle);
+      expect(client.metadata.get('cacheSkip.hasTools')).toBe(expected.hasTools ?? false);
+      expect(client.metadata.get('cacheSkip.registryHasTools'))
+          .toBe(expected.registryHasTools ?? false);
+      expect(client.metadata.get('cacheSkip.hasStructured')).toBe(expected.hasStructured ?? false);
+      expect(client.metadata.get('cacheSkip.hasRag')).toBe(expected.hasRag ?? false);
+      expect(client.metadata.get('cacheSkip.hasGuardrails')).toBe(expected.hasGuardrails ?? false);
+      expect(client.metadata.get('cacheSkip.cacheSafe')).toBe(expected.cacheSafe);
+    } finally {
+      client.close();
+    }
+  };
+
+  test('baseline: no toggles → cacheSafe=true', async () => {
+    await assertGates('none', { cacheSafe: true });
+  });
+
+  test('structured responseType MISSES cache', async () => {
+    await assertGates('structured', { hasStructured: true, cacheSafe: false });
+  });
+
+  test('ContextProvider (RAG) attached MISSES cache', async () => {
+    await assertGates('rag', { hasRag: true, cacheSafe: false });
+  });
+
+  test('guardrail attached MISSES cache', async () => {
+    await assertGates('guardrail', { hasGuardrails: true, cacheSafe: false });
+  });
+
+  test('non-empty tool registry MISSES cache', async () => {
+    await assertGates('tool', { registryHasTools: true, cacheSafe: false });
+  });
+});
