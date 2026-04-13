@@ -436,6 +436,11 @@ export default defineConfig({
       name: 'cli-runtime',
       testMatch: /cli-runtime\.spec\.ts/,
     },
+    // ── Durable HITL checkpoint agent (4.0.36 gap #1) ──
+    {
+      name: 'checkpoint-agent',
+      testMatch: /checkpoint-agent\.spec\.ts/,
+    },
     // ── Cross-browser (opt-in via E2E_ALL_BROWSERS=true) ──
     ...(process.env.E2E_ALL_BROWSERS ? [
       {
