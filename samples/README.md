@@ -2,7 +2,7 @@
 
 Example applications demonstrating Atmosphere 4.0 across different deployment targets.
 
-All samples inherit their Atmosphere version from the parent POM (currently `4.0.36-SNAPSHOT`). The target stack is Java 21, Spring Boot 4.0.5, Spring Framework 6.2.8, and Quarkus 3.31.3.
+All samples inherit their Atmosphere version from the parent POM (currently `4.0.37-SNAPSHOT`). The target stack is Java 21, Spring Boot 4.0.5, Spring Framework 6.2.8, and Quarkus 3.31.3.
 
 ### Chat & Messaging
 
@@ -72,9 +72,19 @@ atmosphere run spring-boot-ai-chat --env LLM_API_KEY=your-key
 # List all available samples
 atmosphere list
 atmosphere list --tag ai
+
+# Scaffold a new project from a sample as a standalone starter
+# (sparse-clones the sample and rewrites its pom.xml to resolve the
+#  atmosphere-project parent from Maven Central — compiles out of the box)
+atmosphere new my-chat-app --template chat
+atmosphere new my-ai-app --template ai-chat
+atmosphere new my-fleet --template multi-agent
+atmosphere new my-classroom --template classroom
 ```
 
-Or with npx (zero install):
+Available `--template` values: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `koog`, `multi-agent`, `classroom`. See [cli/README.md](../cli/README.md#available-templates) for the template-to-sample mapping.
+
+Or with npx (zero install — delegates to the `atmosphere` CLI):
 
 ```bash
 npx create-atmosphere-app my-chat-app

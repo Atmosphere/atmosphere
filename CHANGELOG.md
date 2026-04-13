@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`atmosphere new` is now sample-clone based** (`b7f98d42f0`, `0b9a8f194d`).
+  The CLI no longer ships a mustache-based scaffold. `atmosphere new <name> --template <t>`
+  now sparse-clones the matching sample from `cli/samples.json` and rewrites the
+  cloned `pom.xml` so its `org.atmosphere:atmosphere-project` parent resolves from
+  Maven Central (pins the version from SNAPSHOT to the release in `cli/samples.json`,
+  drops the reactor-relative `<relativePath>`, disables repo-local checkstyle/pmd
+  bindings). The resulting project compiles standalone with plain `mvn compile`.
+- **Nine templates** in `cli/atmosphere` `cmd_new`: `chat`, `ai-chat`, `ai-tools`,
+  `mcp-server`, `rag`, `agent`, `koog`, `multi-agent`, `classroom`. Each maps 1:1
+  to a sample in `cli/samples.json`; `multi-agent` and `classroom` are new starters
+  exposing the 5-agent A2A fleet and the AI-classroom Spring Boot + Expo RN sample
+  respectively.
+- **`create-atmosphere-app` (npx)** rewritten as a thin delegating shim
+  (`944b190f43`). Drops the old JBang branch and the 240-line inline Java/HTML
+  fallback, resolves the installed `atmosphere` CLI on PATH, and execs
+  `atmosphere new <name> --template <t> [--skill-file <f>]`. Prints an actionable
+  install hint if the CLI is missing. `TEMPLATES` list synchronized with the
+  shell CLI's nine entries.
+
+### Removed
+
+- **`generator/AtmosphereInit.java`** + `AtmosphereInitTest.java` + `generator/templates/handler/**`
+  + `generator/templates/frontend/**` + `generator/templates/{Application.java,application.yml,pom.xml}.mustache`
+  + `generator/test-generator.sh` + `.github/workflows/generator-ci.yml` (`b7f98d42f0`).
+  The JBang mustache scaffold is fully gone. `generator/ComposeGenerator.java` and
+  its `generator/templates/compose/**` tree remain — they back the parametric
+  skill-file driven multi-module scaffold invoked by `atmosphere compose`, which
+  has no single-sample equivalent.
+- **`cli/atmosphere` bash fallback tree** — `create_minimal_project`,
+  `create_chat_handler`, `create_ai_chat_handler`, `create_agent_handler`,
+  `create_index_html` (~430 lines). `cmd_new` now always clones; there is no
+  fallback path.
+- **`--group` flag on `atmosphere new` and `create-atmosphere-app`**. Samples
+  ship with their own groupId; passing `--group` prints a deprecation warning
+  and is ignored. Rename the groupId in `pom.xml` and `src/main/java` by hand
+  after scaffolding if needed.
+
 ## [4.0.36] - 2026-04-13
 
 Every bullet in this section is grounded in a real commit on `main` at the

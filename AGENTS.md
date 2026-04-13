@@ -347,11 +347,12 @@ costs credibility and has to be chased down and rolled back.
 
 ### Rules
 
-1. **Numerical claims require a source.** If you write "7 runtimes", "20 samples", "3 templates",
+1. **Numerical claims require a source.** If you write "7 runtimes", "20 samples", "9 templates",
    "5 CheckpointStore backends", etc., first verify the number against the actual code:
    - Sample count → `cli/samples.json` + `ls samples/`
    - Runtime count → enumerate `modules/*/src/main/**/*AgentRuntime.{java,kt}` or `capabilities()` sites
-   - CLI templates → `generator/AtmosphereInit.java:validHandlers`
+   - CLI templates → `cmd_new` template map in `cli/atmosphere` (each entry sparse-clones a sample
+     listed in `cli/samples.json`; there is no longer a standalone generator)
    - Capability rows → the `capabilities()` method of each runtime (pinned via
      `AbstractAgentRuntimeContractTest.expectedCapabilities()` — do not bypass)
    - Module/backend counts → `ls modules/` for the relevant family (e.g., CheckpointStore
@@ -393,7 +394,7 @@ costs credibility and has to be chased down and rolled back.
 - **CHANGELOG "Fixed" bullets** — the most common hallucination vector. If you don't have a
   commit hash in hand, you're making it up.
 - **Sample counts, template counts, number of anything** — always verify against the source
-  of truth (`cli/samples.json`, `generator/AtmosphereInit.java`, `modules/` listing, etc.).
+  of truth (`cli/samples.json`, `cli/atmosphere` `cmd_new` template map, `modules/` listing, etc.).
 - **Capability matrices** — see `tutorial/11-ai-adapters.md` + `AbstractAgentRuntimeContractTest.expectedCapabilities()`.
   Do not update one side without the other.
 - **Backend/store implementations** — enumerating "SQLite, Redis, Postgres" when only SQLite

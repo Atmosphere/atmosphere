@@ -139,18 +139,26 @@ atmosphere plugins                                                # list install
 
 ## Available Templates
 
-| Template | Description |
-|----------|-------------|
-| `chat` | Basic real-time WebSocket chat |
-| `ai-chat` | AI-powered streaming chat (OpenAI/Gemini/Ollama) |
-| `ai-tools` | AI tool calling with LangChain4j |
-| `rag` | RAG chat with vector store |
-| `quarkus-chat` | Real-time chat with Quarkus |
+Every template sparse-clones the matching sample from `cli/samples.json` into the directory you name, then rewrites the cloned `pom.xml` so its parent (`org.atmosphere:atmosphere-project`) resolves from Maven Central instead of the reactor root — the resulting project compiles standalone with `mvn compile` / `mvn spring-boot:run`.
+
+| Template | Source sample | Description |
+|---|---|---|
+| `chat` (default) | `spring-boot-chat` | Real-time WebSocket chat with rooms, observability, integration tests |
+| `ai-chat` | `spring-boot-ai-chat` | AI streaming chat (Spring AI / LangChain4j / Gemini / Ollama) with structured-output demo |
+| `ai-tools` | `spring-boot-ai-tools` | AI chat with `@AiTool` function calling, cost metering, audit listener |
+| `mcp-server` | `spring-boot-mcp-server` | MCP server exposing tools, resources, and prompts to AI agents |
+| `rag` | `spring-boot-rag-chat` | RAG chat with vector store |
+| `agent` | `spring-boot-dentist-agent` | `@Agent` skill-file driven (the Dr. Molar demo); implied when `--skill-file` is passed |
+| `koog` | `spring-boot-koog-chat` | JetBrains Koog `@AIAgent` chat integration |
+| `multi-agent` | `spring-boot-multi-agent-startup-team` | Fleet of 5 independent `@Agent` classes collaborating over A2A |
+| `classroom` | `spring-boot-ai-classroom` | Shared streaming AI responses across web + Expo React Native clients |
 
 ## Requirements
 
 - **Java 21+** — `brew install openjdk@21` or [SDKMAN](https://sdkman.io)
-- **JBang** (optional, for full template support) — [jbang.dev/download](https://www.jbang.dev/download/)
+- **Maven 3.9+** — automatically on PATH via Homebrew/SDKMAN, or use the `mvnw` wrapper shipped with samples
+- **Git** — for the sparse-checkout used by `atmosphere new` and `atmosphere install`
+- **JBang** — only needed for `atmosphere compose` (skill-file driven multi-agent scaffolding); not required for `atmosphere new`
 
 ## Architecture
 
@@ -166,4 +174,4 @@ cli/
     └── atmosphere.rb   # Homebrew formula (for Atmosphere/homebrew-tap)
 ```
 
-The CLI downloads sample fat JARs from GitHub Releases on first run and caches them in `~/.atmosphere/cache/v{version}/`. The release workflow (`.github/workflows/release-samples.yml`) builds all sample JARs automatically when a GitHub Release is published.
+`atmosphere run` downloads sample fat JARs from GitHub Releases on first use and caches them in `~/.atmosphere/cache/v{version}/`. `atmosphere new` and `atmosphere install` use `git sparse-checkout` to fetch just the requested sample directory from `Atmosphere/atmosphere@main`. The release workflow (`.github/workflows/release-4x.yml`) stamps pinned versions across `cli/atmosphere`, `cli/samples.json`, `cli/npx/package.json`, and `cli/homebrew/atmosphere.rb` via `scripts/update-doc-versions.sh` before publishing a GitHub Release.
