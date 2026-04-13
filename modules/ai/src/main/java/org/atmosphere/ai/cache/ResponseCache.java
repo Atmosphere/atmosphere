@@ -32,6 +32,22 @@ import java.util.Optional;
  * <p>Opt-in via {@link org.atmosphere.ai.llm.CacheHint} on the execution
  * context's {@code metadata} map. The pipeline consults the cache only
  * when the hint is enabled.</p>
+ *
+ * <p><b>Concurrency note:</b> two concurrent requests with identical
+ * keys will both miss the cache, both execute the runtime, and both call
+ * {@link #put(String, CachedResponse)} on complete. The second write
+ * wins; the first run's work is not reused. This is a cost inefficiency
+ * on the cold-start edge, not a correctness bug. An in-flight
+ * {@code CompletableFuture<CachedResponse>} coalescing map could
+ * mitigate this but adds complexity — the v1 implementation accepts
+ * the duplicate-execute trade-off on concurrent misses.</p>
+ *
+ * <p><b>Tool-call caching:</b> {@link CachingStreamingSession} only tees
+ * {@code send()} text and captures {@code usage()}. Tool calls, tool
+ * results, and lifecycle events are <em>not</em> captured, so requests
+ * whose context carries tools are intentionally skipped at the pipeline
+ * layer to avoid replaying a text-only response for a flow that would
+ * have invoked tools.</p>
  */
 public interface ResponseCache {
 

@@ -37,7 +37,14 @@ import java.util.HexFormat;
  * </ul>
  *
  * <p>Multi-modal {@code parts} are included by mime-type + data length only
- * (not byte-for-byte) to keep key computation cheap on large images.</p>
+ * (not byte-for-byte) to keep key computation cheap on large images. This
+ * means two different 1024-byte JPEGs with the same mime type will collide
+ * — acceptable for the response-cache use case since cache hits on
+ * image/audio/file prompts are rare and the alternative (SHA over full
+ * binary payload) would dominate key computation time on multi-MB inputs.
+ * Callers that need content-sensitive caching on binary parts should hash
+ * the payload separately and pass the digest as part of the user
+ * message.</p>
  */
 public final class CacheKey {
 
@@ -68,6 +75,9 @@ public final class CacheKey {
                 } else if (p instanceof org.atmosphere.ai.Content.Audio a) {
                     update(digest, "p.mime", a.mimeType());
                     update(digest, "p.len", String.valueOf(a.data() != null ? a.data().length : 0));
+                } else if (p instanceof org.atmosphere.ai.Content.File f) {
+                    update(digest, "p.mime", f.mimeType());
+                    update(digest, "p.len", String.valueOf(f.data() != null ? f.data().length : 0));
                 }
             }
         }

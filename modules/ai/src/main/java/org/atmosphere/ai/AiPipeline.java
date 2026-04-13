@@ -216,10 +216,20 @@ public class AiPipeline {
         // identical response first. On hit, replay through the session
         // without touching the runtime. On miss, wrap the target session
         // so send() calls are captured for storage on complete().
+        //
+        // Caching is skipped when context.tools() is non-empty because
+        // CachingStreamingSession only captures text via send() — tool
+        // calls, tool results, and intermediate lifecycle events are not
+        // replayable. Serving a cached text-only response for a
+        // tool-calling request would silently drop the tool round-trips
+        // and could produce wrong answers. Caching tool-enabled flows
+        // requires capturing AiEvent frames, not just text — out of
+        // scope for the v1 pipeline cache.
         var cache = responseCache;
         var cacheHint = org.atmosphere.ai.llm.CacheHint.from(context);
+        var hasTools = context.tools() != null && !context.tools().isEmpty();
         StreamingSession effectiveTarget = target;
-        if (cache != null && cacheHint.enabled()) {
+        if (cache != null && cacheHint.enabled() && !hasTools) {
             var key = org.atmosphere.ai.cache.CacheKey.compute(context);
             var hit = cache.get(key);
             if (hit.isPresent()) {

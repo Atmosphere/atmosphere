@@ -93,6 +93,31 @@ class ResponseCacheTest {
     }
 
     @Test
+    void cacheKeyDiffersForDifferentFileParts() {
+        // F-C2: Content.File parts must be included in the key by
+        // mime-type + length. Two files of different sizes must produce
+        // different keys.
+        var file1 = new org.atmosphere.ai.Content.File(
+                new byte[]{1, 2, 3}, "application/pdf", "doc1.pdf");
+        var file2 = new org.atmosphere.ai.Content.File(
+                new byte[]{1, 2, 3, 4, 5}, "application/pdf", "doc2.pdf");
+        var ctx1 = new AgentExecutionContext(
+                "Summarize", "You are helpful", "gpt-4",
+                null, "sess-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), List.<org.atmosphere.ai.Content>of(file1),
+                ToolApprovalPolicy.annotated());
+        var ctx2 = new AgentExecutionContext(
+                "Summarize", "You are helpful", "gpt-4",
+                null, "sess-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), List.<org.atmosphere.ai.Content>of(file2),
+                ToolApprovalPolicy.annotated());
+        assertNotEquals(CacheKey.compute(ctx1), CacheKey.compute(ctx2),
+                "Different file lengths must produce different cache keys");
+    }
+
+    @Test
     void invalidateRemovesEntry() {
         var cache = new InMemoryResponseCache();
         cache.put("k", new CachedResponse("x", null, Instant.now(), Duration.ofMinutes(1)));
