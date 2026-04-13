@@ -95,7 +95,6 @@ public class PromptCacheDemoChat {
                 var p = new AiPipeline(new DemoAgentRuntime(), "cache demo", "demo-model",
                         null, null, java.util.List.of(), java.util.List.of(), AiMetrics.NOOP);
                 p.setResponseCache(cache, Duration.ofMinutes(5));
-                p.setDefaultCachePolicy(CacheHint.CachePolicy.CONSERVATIVE);
                 pipeline = p;
             }
             return pipeline;
