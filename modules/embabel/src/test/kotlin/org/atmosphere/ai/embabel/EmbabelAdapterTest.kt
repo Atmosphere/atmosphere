@@ -16,8 +16,10 @@
 package org.atmosphere.ai.embabel
 
 import com.embabel.agent.api.channel.*
+import com.embabel.agent.core.AgentPlatform
 import com.embabel.agent.domain.library.HasContent
 import com.embabel.chat.Message
+import org.atmosphere.ai.AgentExecutionContext
 import org.atmosphere.ai.StreamingSessions
 import org.atmosphere.cpr.AtmosphereResource
 import org.atmosphere.cpr.Broadcaster
@@ -27,6 +29,7 @@ import org.mockito.ArgumentCaptor
 import org.mockito.Mockito.*
 import java.util.concurrent.Future
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class EmbabelAdapterTest {
@@ -201,5 +204,61 @@ class EmbabelAdapterTest {
 
         val captor = ArgumentCaptor.forClass(Any::class.java)
         verify(broadcaster, atLeast(2)).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
+    }
+
+    /**
+     * Regression test for the SYSTEM_PROMPT / CONVERSATION_MEMORY honesty bug.
+     *
+     * Previous behavior: when `context.agentId()` did not match a deployed
+     * Embabel `@Agent`, `execute()` threw `IllegalStateException("Agent '<id>'
+     * not deployed on the platform")` — the Atmosphere-supplied system prompt
+     * and conversation history were silently unreachable.
+     *
+     * New behavior: the runtime falls back to the Atmosphere-native dispatch
+     * path, which obtains an [Ai] factory from the [AgentPlatform] and drives
+     * a direct LLM call via `PromptRunner.withSystemPrompt(...).withMessages(...)`.
+     * This test proves the dispatch decision is correct by verifying that the
+     * "not deployed" error path is NOT taken when the platform returns an
+     * empty agent list — the runtime now attempts the native path instead.
+     */
+    @Test
+    fun `runtime falls back to Ai factory path when no deployed agent matches`() {
+        val platform = mock(AgentPlatform::class.java)
+        `when`(platform.agents()).thenReturn(emptyList())
+
+        EmbabelAgentRuntime.setAgentPlatform(platform)
+        val runtime = EmbabelAgentRuntime()
+
+        val session = StreamingSessions.start("fallback-session", resource)
+        val context = AgentExecutionContext(
+            "Hello", "You are a helpful assistant", "gpt-4o-mini",
+            "unknown-agent", "session-1", "user-1", "conv-1",
+            emptyList<org.atmosphere.ai.tool.ToolDefinition>(),
+            null, null,
+            emptyList<org.atmosphere.ai.ContextProvider>(),
+            emptyMap<String, Any>(),
+            emptyList<org.atmosphere.ai.llm.ChatMessage>(),
+            null, null
+        )
+
+        // execute() should not throw — errors route to session.error()
+        runtime.execute(context, session)
+
+        // Verify the session received an error (aiFactory will fail against a
+        // mock platform that doesn't carry real Spring infrastructure), and
+        // that the error is NOT the "Agent not deployed" message — i.e., the
+        // dispatch correctly routed away from the deployed-agent path.
+        val captor = ArgumentCaptor.forClass(Any::class.java)
+        verify(broadcaster, atLeastOnce()).broadcast(captor.capture(), any<Set<AtmosphereResource>>())
+
+        val errorFrame = captor.allValues.map { it.toString() }
+            .firstOrNull { it.contains("\"type\":\"error\"") }
+        assertNotNull(errorFrame, "Runtime should emit an error frame from the native dispatch path")
+        assertTrue(
+            !errorFrame.contains("not deployed on the platform"),
+            "Runtime must not throw the legacy 'Agent not deployed' error when " +
+                "context.agentId() is unknown — the new dispatch should route to " +
+                "the Ai factory path instead. Got: $errorFrame"
+        )
     }
 }

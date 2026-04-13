@@ -72,7 +72,10 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.VISION,
                 AiCapability.MULTI_MODAL,
                 AiCapability.PROMPT_CACHING,
-                AiCapability.PER_REQUEST_RETRY);
+                AiCapability.PER_REQUEST_RETRY,
+                AiCapability.TOKEN_USAGE,
+                AiCapability.CONVERSATION_MEMORY,
+                AiCapability.AUDIO);
     }
 
     /**

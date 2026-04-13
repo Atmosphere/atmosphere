@@ -101,7 +101,10 @@ class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.VISION,
                 AiCapability.AUDIO,
                 AiCapability.MULTI_MODAL,
-                AiCapability.PROMPT_CACHING);
+                AiCapability.PROMPT_CACHING,
+                AiCapability.TOKEN_USAGE,
+                AiCapability.CONVERSATION_MEMORY,
+                AiCapability.PER_REQUEST_RETRY);
     }
 
     @Override

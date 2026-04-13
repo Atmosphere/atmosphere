@@ -36,15 +36,15 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 
 | Adapter JAR | `AgentRuntime` implementation | Priority | Capabilities |
 |-------------|-------------------------------|----------|-------------|
-| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, MULTI_MODAL, PROMPT_CACHING |
-| `atmosphere-spring-ai` | `SpringAiAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING |
-| `atmosphere-langchain4j` | `LangChain4jAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING |
-| `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, VISION, AUDIO, MULTI_MODAL |
-| `atmosphere-embabel` | `EmbabelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, SYSTEM_PROMPT |
-| `atmosphere-koog` | `KoogAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, AGENT_ORCHESTRATION, CONVERSATION_MEMORY |
-| `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE |
+| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY |
+| `atmosphere-spring-ai` | `SpringAiAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY |
+| `atmosphere-langchain4j` | `LangChain4jAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY |
+| `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, TOKEN_USAGE, PER_REQUEST_RETRY, PROMPT_CACHING |
+| `atmosphere-embabel` | `EmbabelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE, PER_REQUEST_RETRY, TOOL_CALLING, TOOL_APPROVAL, VISION, MULTI_MODAL |
+| `atmosphere-koog` | `KoogAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, TOKEN_USAGE, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY |
+| `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY |
 
-All runtimes report usage metadata (`ai.tokens.input`, `ai.tokens.output`, `ai.tokens.total`) when the underlying API provides it, feeding into `MetricsCapturingSession` and `MicrometerAiMetrics` automatically.
+Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build.
 
 ### AiInterceptor
 
@@ -276,22 +276,79 @@ See [atmosphere-mcp README](../mcp/README.md) for injectable parameter details.
 
 ## Capability Matrix
 
-Unified view of the seven `AgentRuntime` implementations shipped with Atmosphere.
+Unified view of the seven `AgentRuntime` implementations shipped with Atmosphere, derived
+from the pinned `expectedCapabilities()` declarations in each runtime's contract test
+(Correctness Invariant #5 — Runtime Truth). `yes` means the capability is declared
+**and** verified by a contract assertion; `—` means the framework does not expose the
+feature through a path the Atmosphere bridge can honor today.
+
 Legend: TS=TEXT_STREAMING, TC=TOOL_CALLING, SO=STRUCTURED_OUTPUT, SP=SYSTEM_PROMPT,
-AO=AGENT_ORCHESTRATION, CM=CONVERSATION_MEMORY, TA=TOOL_APPROVAL, V=VISION, MM=MULTI_MODAL, PC=PROMPT_CACHING.
+AO=AGENT_ORCHESTRATION, CM=CONVERSATION_MEMORY, TA=TOOL_APPROVAL, V=VISION, A=AUDIO,
+MM=MULTI_MODAL, PC=PROMPT_CACHING, TU=TOKEN_USAGE, PRR=PER_REQUEST_RETRY.
 
-| Runtime | Priority | TS | TC | SO | SP | AO | CM | TA | V | MM | PC |
-|---------|---------:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:-:|:--:|:--:|
-| `BuiltInAgentRuntime`    |   0 | yes | yes | yes | yes | —   | —   | yes | yes | yes | yes |
-| `SpringAiAgentRuntime`   | 100 | yes | yes | yes | yes | —   | —   | yes | yes | yes | yes |
-| `LangChain4jAgentRuntime`| 100 | yes | yes | yes | yes | —   | —   | yes | yes | yes | yes |
-| `AdkAgentRuntime`        | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   |
-| `EmbabelAgentRuntime`    | 100 | yes | —   | yes | yes | yes | —   | —   | —   | —   | —   |
-| `KoogAgentRuntime`       | 100 | yes | yes | yes | yes | yes | yes | yes | —   | —   | —   |
-| `SemanticKernelAgentRuntime` | 100 | yes | —   | yes | yes | —   | yes | —   | —   | —   | —   |
+| Runtime | Priority | TS | TC | SO | SP | AO | CM | TA | V | A | MM | PC | TU | PRR |
+|---------|---------:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:-:|:-:|:--:|:--:|:--:|:--:|
+| `BuiltInAgentRuntime`        |   0 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes |
+| `SpringAiAgentRuntime`       | 100 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes |
+| `LangChain4jAgentRuntime`    | 100 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes |
+| `AdkAgentRuntime`            | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| `EmbabelAgentRuntime`        | 100 | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | —   | yes | yes |
+| `KoogAgentRuntime`           | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| `SemanticKernelAgentRuntime` | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes |
 
-All runtimes emit usage metadata (`ai.tokens.input`, `ai.tokens.output`, `ai.tokens.total`)
-when the underlying API reports token counts.
+**Per-runtime gaps, honestly described:**
+
+- **Built-in** `AGENT_ORCHESTRATION` is not declared because Built-in is a
+  single-LLM runtime by design — it owns neither multi-step planning nor a
+  multi-agent handoff surface.
+- **Built-in / Spring AI / LangChain4j** `AGENT_ORCHESTRATION` — not declared
+  because these adapters wrap a single LLM call rather than a planner.
+- **`PER_REQUEST_RETRY`** is honored on all runtimes via two paths: Built-in uses
+  `OpenAiCompatibleClient.sendWithRetry` as its native retry layer (opting out of
+  the base-class wrapper via `ownsPerRequestRetry() = true`); every framework
+  runtime inherits the outer retry wrapper in
+  `AbstractAgentRuntime.executeWithOuterRetry` (Koog and Embabel, which do not
+  extend `AbstractAgentRuntime`, duplicate the same retry loop in their own
+  `execute()` methods). The outer wrapper retries pre-stream transient failures
+  up to `policy.maxRetries()` on top of whatever retries the framework's own
+  HTTP client performs — strictly "at least N retries", never fewer.
+- **Embabel** routes through two dispatch paths: (a) when `context.agentId()`
+  matches a deployed Embabel `@Agent`, it uses `runAgentFrom` (preserving
+  Embabel's goal-planner value prop — the deployed agent owns its own prompt,
+  history, and tools); (b) otherwise it falls back to
+  `Ai.withDefaultLlm()` via `InfrastructureInjectionConfiguration.aiFactory(platform)`,
+  and `EmbabelToolBridge` translates Atmosphere `ToolDefinition`s into Embabel
+  `com.embabel.agent.api.tool.Tool` instances (routing through
+  `ToolExecutionHelper.executeWithApproval`), with `Content.Image` parts mapped
+  to `AgentImage`. `AUDIO` / `PROMPT_CACHING` remain undeclared because
+  Embabel's `PromptRunner` surface does not expose audio input or a portable
+  cache-control primitive on the direct-LLM path. `TOKEN_USAGE` is honest on the
+  deployed-agent path only (`AgentProcess.usage()`) — the native path does not
+  surface an aggregated usage record.
+- **Koog** `PROMPT_CACHING` is honored via `CacheControl.Bedrock.{FiveMinutes,OneHour}`
+  attached to `Message.User` when the request carries a `CacheHint`. Bedrock-backed
+  Koog models observe the cache control on the wire; non-Bedrock providers silently
+  drop it — the same "honored on one provider, no-op elsewhere" shape Spring AI /
+  LangChain4j take for the OpenAI `prompt_cache_key` field. Multi-modal + tool
+  calling in the same request: Koog's `AIAgent.run(String)` tool-loop surface only
+  accepts a plain text message, so the bridge logs a WARN and the tool-calling
+  path wins when both tools and multi-modal parts are present.
+- **ADK** `PROMPT_CACHING` is honored via `resolveCacheConfig(context)` which
+  reads `CacheHint.from(context)` and builds a per-request `ContextCacheConfig`
+  with the hint's TTL. Since ADK's caching wires at `App.Builder` level, the
+  runtime forces a fresh per-request `Runner` whenever a cache hint is present —
+  working around ADK's App-scoped caching limitation without touching the upstream
+  ADK API.
+- **Semantic Kernel** `TOOL_CALLING` / `TOOL_APPROVAL` are implemented via
+  `SemanticKernelToolBridge` — a direct `KernelFunction<String>` subclass (one per
+  Atmosphere tool) whose overridden `invokeAsync` routes through
+  `ToolExecutionHelper.executeWithApproval`. Earlier SK releases claimed tool calling
+  needed a compile-time annotation processor or bytecode synthesis; that claim was
+  wrong — `KernelFunction`'s protected constructor and abstract `invokeAsync` are
+  designed exactly for this use case. `VISION` / `AUDIO` / `MULTI_MODAL` /
+  `PROMPT_CACHING` / `AGENT_ORCHESTRATION` remain undeclared because SK 1.4.0's
+  `ChatCompletionService.getStreamingChatMessageContentsAsync` does not expose
+  those surfaces on the Atmosphere bridge path.
 
 ### EmbeddingRuntime SPI
 

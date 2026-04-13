@@ -23,7 +23,6 @@ import java.util.ServiceLoader;
 import java.util.stream.StreamSupport;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -52,7 +51,7 @@ class SemanticKernelAgentRuntimeTest {
     }
 
     @Test
-    void capabilitiesDeclareTextStreamingSystemPromptMemoryAndTokenUsage() {
+    void capabilitiesDeclareTextStreamingSystemPromptMemoryAndToolCalling() {
         var runtime = new SemanticKernelAgentRuntime();
         var caps = runtime.capabilities();
 
@@ -62,12 +61,19 @@ class SemanticKernelAgentRuntimeTest {
         assertTrue(caps.contains(AiCapability.CONVERSATION_MEMORY));
         assertTrue(caps.contains(AiCapability.TOKEN_USAGE));
 
-        // Phase 12 initial release does NOT declare TOOL_CALLING — SK-Java's
-        // annotation-driven @DefineKernelFunction plugin system needs either
-        // compile-time generation or bytecode synthesis to map Atmosphere's
-        // dynamic ToolDefinition shape. Documented in the runtime's Javadoc.
-        assertFalse(caps.contains(AiCapability.TOOL_CALLING),
-                "TOOL_CALLING intentionally deferred — see class Javadoc for the follow-up plan");
+        // TOOL_CALLING / TOOL_APPROVAL are now honored via
+        // SemanticKernelToolBridge — a direct KernelFunction<String> subclass
+        // (one per Atmosphere ToolDefinition) whose overridden invokeAsync
+        // routes through ToolExecutionHelper.executeWithApproval. SK 1.4.0
+        // exposes KernelFunction's protected constructor and abstract
+        // invokeAsync precisely for this kind of programmatic bridging, so
+        // the earlier "needs annotation processor / bytecode synthesis"
+        // posture was wrong. See SemanticKernelToolBridge.AtmosphereSkFunction.
+        assertTrue(caps.contains(AiCapability.TOOL_CALLING),
+                "TOOL_CALLING is now implemented via SemanticKernelToolBridge");
+        assertTrue(caps.contains(AiCapability.TOOL_APPROVAL),
+                "TOOL_APPROVAL fires because AtmosphereSkFunction routes through "
+                        + "ToolExecutionHelper.executeWithApproval on every invocation");
     }
 
     @Test

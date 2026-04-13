@@ -23,7 +23,12 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.llm.LLMProvider
+import ai.koog.prompt.message.AttachmentContent
+import ai.koog.prompt.message.CacheControl
+import ai.koog.prompt.message.ContentPart
 import ai.koog.prompt.streaming.StreamFrame
+import org.atmosphere.ai.llm.CacheHint
+import java.util.Base64
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.runBlocking
 import org.atmosphere.ai.AiCapability
@@ -92,7 +97,58 @@ class KoogAgentRuntime : AgentRuntime {
     }
 
     override fun execute(context: AgentExecutionContext, session: StreamingSession) {
-        executeInternal(context, session, AtomicBoolean())
+        executeWithOuterRetry(context, session)
+    }
+
+    /**
+     * Outer retry wrapper honouring [AgentExecutionContext.retryPolicy] on
+     * pre-stream transient failures. Matches the base-class semantics in
+     * [org.atmosphere.ai.AbstractAgentRuntime.executeWithOuterRetry]:
+     *
+     *   1. No retry when the policy is the inherit sentinel
+     *      ([org.atmosphere.ai.RetryPolicy.DEFAULT]) or `maxRetries <= 0`
+     *   2. Retry only when [StreamingSession.hasErrored] is still false —
+     *      once the bridge has called `session.error(...)`, the caller has
+     *      observed terminal state and retry is unsafe
+     *   3. Honour the policy's [org.atmosphere.ai.RetryPolicy.delayForAttempt]
+     *      exponential backoff between attempts
+     *
+     * Koog does not extend [org.atmosphere.ai.AbstractAgentRuntime] (it
+     * implements [AgentRuntime] directly to avoid the Java base's type
+     * parameter on the native client), so we duplicate the retry loop
+     * here instead of inheriting. Kept in sync with the Java version so
+     * the `PER_REQUEST_RETRY` capability declaration is honest across
+     * both implementation families.
+     */
+    private fun executeWithOuterRetry(context: AgentExecutionContext, session: StreamingSession) {
+        val policy = context.retryPolicy()
+        if (policy == null || policy.isInheritSentinel || policy.maxRetries() <= 0) {
+            executeInternal(context, session, AtomicBoolean())
+            return
+        }
+        var attempt = 0
+        while (true) {
+            try {
+                executeInternal(context, session, AtomicBoolean())
+                return
+            } catch (e: RuntimeException) {
+                if (attempt >= policy.maxRetries() || session.hasErrored()) {
+                    throw e
+                }
+                val delay = policy.delayForAttempt(attempt)
+                attempt++
+                logger.info("koog outer-retry attempt {}/{} after {}ms (cause: {})",
+                    attempt, policy.maxRetries(), delay.toMillis(), e.message)
+                if (!delay.isZero && !delay.isNegative) {
+                    try {
+                        Thread.sleep(delay.toMillis())
+                    } catch (ie: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        throw e
+                    }
+                }
+            }
+        }
     }
 
     override fun executeWithHandle(
@@ -164,11 +220,68 @@ class KoogAgentRuntime : AgentRuntime {
             defaultModel
         }
 
+        // Mode-parity gap: Koog's AIAgent.run(String) tool-loop path accepts a
+        // plain text user message, so multi-modal parts (Content.Image /
+        // Content.Audio) cannot reach the tool-calling executor. When a
+        // caller provides BOTH tools and multi-modal parts, the tool-calling
+        // path wins — we log at WARN so the drop is visible in operator logs
+        // rather than silently truncating the prompt (Correctness Invariant
+        // #7, Mode Parity). Callers that need multi-modal + tools
+        // simultaneously should pick a runtime that supports both (Built-in,
+        // Spring AI, LC4j, or ADK).
+        if (context.tools().isNotEmpty() && context.parts().any { it !is org.atmosphere.ai.Content.Text }) {
+            logger.warn(
+                "Koog bridge cannot combine tool-calling and multi-modal input in " +
+                    "a single request; dropping {} non-text parts. Use the no-tools " +
+                    "path or a different runtime (built-in/spring-ai/langchain4j/adk) " +
+                    "for multi-modal + tools.",
+                context.parts().count { it !is org.atmosphere.ai.Content.Text }
+            )
+        }
+
         if (context.tools().isNotEmpty()) {
             executeWithAgent(executor, model, context, session, cancelled, activeJob)
         } else {
             executeWithExecutor(executor, model, context, session, cancelled, activeJob)
         }
+    }
+
+    /**
+     * Translate Atmosphere's [org.atmosphere.ai.Content] parts into Koog's
+     * [ContentPart] hierarchy for multi-modal user-message assembly. Image
+     * and Audio parts use [AttachmentContent.Binary.Base64] (Koog's preferred
+     * on-the-wire encoding for binary attachments); File parts are not
+     * translated because Koog's chat models do not accept generic file input
+     * on the user-message surface — that maps to the tool-calling path
+     * instead, which we degrade gracefully in [executeInternal].
+     */
+    private fun atmosphereContentsToKoogParts(
+        parts: List<org.atmosphere.ai.Content>
+    ): List<ContentPart> {
+        if (parts.isEmpty()) return emptyList()
+        val result = mutableListOf<ContentPart>()
+        for (part in parts) {
+            when (part) {
+                is org.atmosphere.ai.Content.Text -> result.add(ContentPart.Text(part.text()))
+                is org.atmosphere.ai.Content.Image -> {
+                    val base64 = Base64.getEncoder().encodeToString(part.data())
+                    val content = AttachmentContent.Binary.Base64(base64)
+                    val format = part.mimeType().substringAfter("/", "png")
+                    result.add(ContentPart.Image(content, format, part.mimeType(), "image.$format"))
+                }
+                is org.atmosphere.ai.Content.Audio -> {
+                    val base64 = Base64.getEncoder().encodeToString(part.data())
+                    val content = AttachmentContent.Binary.Base64(base64)
+                    val format = part.mimeType().substringAfter("/", "wav")
+                    result.add(ContentPart.Audio(content, format, part.mimeType(), "audio.$format"))
+                }
+                is org.atmosphere.ai.Content.File -> {
+                    // Koog's chat surface does not accept generic file input.
+                    logger.debug("Dropping unsupported Content.File part: {}", part.fileName())
+                }
+            }
+        }
+        return result
     }
 
     /**
@@ -371,7 +484,65 @@ class KoogAgentRuntime : AgentRuntime {
                 }
             }
 
-            user(context.message())
+            // Multi-modal + prompt-caching dispatch.
+            //
+            // Four combinations:
+            //   1. no cache, no parts          → user(text)                    (fast path)
+            //   2. no cache, parts             → user(text) { part(...) }      (DSL block)
+            //   3. cache, no parts             → user([Text(text)], cacheCtl)  (cache on text-only)
+            //   4. cache, parts                → user([Text(text), parts...], cacheCtl)
+            //
+            // Koog 0.7.3's CacheControl interface only exposes Bedrock impls
+            // (FiveMinutes / OneHour / Default singletons), so this path is
+            // honest on Bedrock-backed Koog models and silently ignored by
+            // every other provider — the same "honored on one path,
+            // no-op elsewhere" shape Spring AI / LangChain4j take for the
+            // OpenAI prompt_cache_key field (Correctness Invariant #5 —
+            // Runtime Truth: capability is declared because it works for at
+            // least one provider through the same code path every caller
+            // takes).
+            val koogParts = atmosphereContentsToKoogParts(context.parts())
+            val cacheControl = resolveBedrockCacheControl(context)
+
+            if (koogParts.isEmpty() && cacheControl == null) {
+                user(context.message())
+            } else if (cacheControl == null) {
+                user(context.message()) {
+                    for (p in koogParts) {
+                        part(p)
+                    }
+                }
+            } else {
+                val allParts = mutableListOf<ContentPart>(ContentPart.Text(context.message()))
+                allParts.addAll(koogParts)
+                user(allParts, cacheControl)
+            }
+        }
+    }
+
+    /**
+     * Translate an Atmosphere [CacheHint] into one of Koog 0.7.3's Bedrock
+     * cache-control variants. Returns {@code null} when caching is disabled
+     * or the hint cannot be honored — callers take the no-cache branch of
+     * [buildPrompt].
+     *
+     * Policy mapping (Bedrock ships only two TTL buckets):
+     *   - [CacheHint.CachePolicy.CONSERVATIVE] → [CacheControl.Bedrock.FiveMinutes]
+     *   - [CacheHint.CachePolicy.AGGRESSIVE]   → [CacheControl.Bedrock.OneHour]
+     *
+     * When the caller supplies an explicit TTL hint we pick the closest
+     * Bedrock bucket (<=5 min → FiveMinutes, otherwise OneHour) so TTL
+     * requests survive the translation to Bedrock's fixed-bucket model.
+     */
+    private fun resolveBedrockCacheControl(context: AgentExecutionContext): CacheControl? {
+        val hint = CacheHint.from(context)
+        if (!hint.enabled()) return null
+        val ttl = hint.ttl().orElse(null)
+        return when {
+            ttl != null && ttl.toMinutes() <= 5 -> CacheControl.Bedrock.FiveMinutes
+            ttl != null                         -> CacheControl.Bedrock.OneHour
+            hint.policy() == CacheHint.CachePolicy.AGGRESSIVE -> CacheControl.Bedrock.OneHour
+            else                                -> CacheControl.Bedrock.FiveMinutes
         }
     }
 
@@ -418,7 +589,36 @@ class KoogAgentRuntime : AgentRuntime {
         // captures the session + strategy and calls
         // ToolExecutionHelper.executeWithApproval, so @RequiresApproval
         // gates fire uniformly with the other runtimes.
-        AiCapability.TOOL_APPROVAL
+        AiCapability.TOOL_APPROVAL,
+        // TOKEN_USAGE: the StreamFrame.End handler reads Koog's usage
+        // totals and emits a typed TokenUsage record via session.usage()
+        // after drain — see executeWithAgent lines 223-232.
+        AiCapability.TOKEN_USAGE,
+        // VISION / AUDIO / MULTI_MODAL are honest on the no-tools path:
+        // atmosphereContentsToKoogParts translates Content.Image /
+        // Content.Audio into Koog's native ContentPart.Image /
+        // ContentPart.Audio with AttachmentContent.Binary.Base64, and the
+        // buildPrompt DSL attaches them to the user message via
+        // user(String, List<ContentPart>). When tools AND multi-modal parts
+        // are present simultaneously, Koog's AIAgent.run(String) tool-loop
+        // surface only accepts a plain text message — executeInternal logs
+        // a WARN and the tool-calling path wins, degrading gracefully.
+        AiCapability.VISION,
+        AiCapability.AUDIO,
+        AiCapability.MULTI_MODAL,
+        // PROMPT_CACHING is honest on Bedrock-backed Koog models:
+        // resolveBedrockCacheControl maps Atmosphere's portable CacheHint to
+        // one of Koog 0.7.3's CacheControl.Bedrock.{FiveMinutes,OneHour}
+        // singletons and attaches it to the outgoing Message.User via the
+        // parts-list + cacheControl PromptBuilder overload. Non-Bedrock
+        // providers silently drop the cache control — the same shape
+        // Spring AI / LangChain4j take for OpenAI prompt_cache_key.
+        AiCapability.PROMPT_CACHING,
+        // PER_REQUEST_RETRY: honored via executeWithOuterRetry which
+        // wraps executeInternal in a retry loop respecting
+        // context.retryPolicy(). Pre-stream transient failures are
+        // retried up to maxRetries on top of Koog's native HTTP retry.
+        AiCapability.PER_REQUEST_RETRY
     )
 
     override fun models(): List<String> {

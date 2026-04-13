@@ -340,7 +340,21 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 // {@code prompt_cache_key} through
                 // OpenAiChatRequestParameters.customParameters. Non-OpenAI
                 // providers silently drop the key.
-                AiCapability.PROMPT_CACHING
+                AiCapability.PROMPT_CACHING,
+                // TOKEN_USAGE: ToolAwareStreamingResponseHandler reads the
+                // tokenUsage() off the LC4j ChatResponse onComplete and emits
+                // a typed TokenUsage record via session.usage() — see
+                // ToolAwareStreamingResponseHandler.java:128-136.
+                // CONVERSATION_MEMORY: AbstractAgentRuntime.assembleMessages
+                // threads context.history() into the LC4j ChatRequest, so
+                // the pipeline-managed history is honored on every request.
+                AiCapability.TOKEN_USAGE,
+                AiCapability.CONVERSATION_MEMORY,
+                // PER_REQUEST_RETRY: honored via AbstractAgentRuntime's
+                // outer retry wrapper (executeWithOuterRetry). Retries
+                // pre-stream transient failures on top of LC4j's own
+                // RetryUtils layer.
+                AiCapability.PER_REQUEST_RETRY
         );
     }
 

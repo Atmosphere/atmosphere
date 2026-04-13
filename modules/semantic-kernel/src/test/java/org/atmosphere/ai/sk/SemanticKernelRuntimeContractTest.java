@@ -54,7 +54,11 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
 
     @Override
     protected AgentExecutionContext createToolCallContext() {
-        return null; // SK tool-calling bridge deferred — see class Javadoc on the runtime.
+        // SK tool-calling is now implemented via SemanticKernelToolBridge;
+        // still return null because the contract's tool-execution assertion
+        // requires a live ChatCompletionService to drive the auto-invoke
+        // loop. Unit-test-level verification lives in SemanticKernelToolBridgeTest.
+        return null;
     }
 
     @Override
@@ -69,7 +73,10 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
                 AiCapability.SYSTEM_PROMPT,
                 AiCapability.STRUCTURED_OUTPUT,
                 AiCapability.CONVERSATION_MEMORY,
-                AiCapability.TOKEN_USAGE);
+                AiCapability.TOKEN_USAGE,
+                AiCapability.TOOL_CALLING,
+                AiCapability.TOOL_APPROVAL,
+                AiCapability.PER_REQUEST_RETRY);
     }
 
     // SK execution requires a configured ChatCompletionService — skip live tests.

@@ -126,11 +126,10 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     @Override
     public void execute(AgentExecutionContext context, StreamingSession session) {
         var client = resolveClient();
-        warnIfUnhonoredRetryPolicy(context);
         session.progress("Connecting to " + name() + "...");
         fireStart(context);
         try {
-            doExecute(client, context, session);
+            executeWithOuterRetry(client, context, session);
             // If the bridge drained the stream but surfaced an error out-of-band
             // via session.error(...) (Spring AI reactive, ADK async callbacks,
             // LC4j onError, Koog error frames), honour that state instead of
@@ -151,7 +150,6 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     public ExecutionHandle executeWithHandle(
             AgentExecutionContext context, StreamingSession session) {
         var client = resolveClient();
-        warnIfUnhonoredRetryPolicy(context);
         session.progress("Connecting to " + name() + "...");
         fireStart(context);
         try {
@@ -276,32 +274,74 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     }
 
     /**
-     * Mode-Parity enforcement for {@link AiCapability#PER_REQUEST_RETRY}:
-     * warn once when a non-default {@link RetryPolicy} is set on a runtime
-     * that does not advertise the capability. Operators see the gap in
-     * startup logs instead of silently getting the runtime's default retry
-     * behavior. The warning fires only once per runtime instance per unique
-     * policy to keep logs quiet under load.
+     * Subclass hook: return {@code true} when this runtime already honours
+     * {@link AgentExecutionContext#retryPolicy()} at the native client layer
+     * (Built-in's {@link org.atmosphere.ai.llm.OpenAiCompatibleClient}'s
+     * {@code sendWithRetry} loop). When {@code true}, the base class skips
+     * the outer retry wrapper in {@link #execute} so we do not double-retry.
+     *
+     * <p>Default: {@code false} — framework runtimes inherit the outer
+     * wrapper, which retries on pre-stream transient failures.</p>
      */
-    private final java.util.Set<RetryPolicy> warnedRetryPolicies =
-            java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+    protected boolean ownsPerRequestRetry() {
+        return false;
+    }
 
-    private void warnIfUnhonoredRetryPolicy(AgentExecutionContext context) {
+    /**
+     * Outer retry wrapper for framework runtimes that cannot hook
+     * {@link AgentExecutionContext#retryPolicy()} into their native HTTP
+     * client. When the caller supplies a non-default {@link RetryPolicy}
+     * and this subclass does not {@link #ownsPerRequestRetry()}, the base
+     * class retries {@link #doExecute} on pre-stream transient failures
+     * until the policy's {@code maxRetries} budget is exhausted.
+     *
+     * <p><b>Safety semantics:</b> we only retry when the bridge threw a
+     * {@link RuntimeException} BEFORE calling {@link StreamingSession#error(Throwable)}
+     * — i.e., the session is still in a virgin state, the client has not
+     * seen any terminal error frame, and retrying is safe. Once the
+     * session reports an error out-of-band (reactive streams path, ADK
+     * async callbacks, LC4j {@code onError}, Koog error frames), retry is
+     * aborted and the exception propagates, because the caller has
+     * already observed terminal state.</p>
+     *
+     * <p>This delivers an "at least N retries" guarantee on top of
+     * whatever retries the framework's own HTTP client performs — strictly
+     * more retries than the caller asked for, never fewer — which is the
+     * correct direction for honouring a per-request override (Correctness
+     * Invariant #7, Mode Parity).</p>
+     */
+    private void executeWithOuterRetry(C client, AgentExecutionContext context,
+                                       StreamingSession session) {
         var policy = context.retryPolicy();
-        if (policy == null || policy.equals(RetryPolicy.DEFAULT)) {
+        if (policy == null || policy.isInheritSentinel() || policy.maxRetries() <= 0
+                || ownsPerRequestRetry()) {
+            doExecute(client, context, session);
             return;
         }
-        if (capabilities().contains(AiCapability.PER_REQUEST_RETRY)) {
-            return;
-        }
-        if (warnedRetryPolicies.add(policy)) {
-            lifecycleLogger.warn(
-                    "{} runtime does not advertise PER_REQUEST_RETRY capability. "
-                            + "Context carries a custom RetryPolicy (maxRetries={}) but the "
-                            + "framework's native retry layer will run instead. Configure "
-                            + "retry at the framework layer or use the Built-in runtime to "
-                            + "guarantee the per-request override.",
-                    name(), policy.maxRetries());
+        int attempt = 0;
+        while (true) {
+            try {
+                doExecute(client, context, session);
+                return;
+            } catch (RuntimeException e) {
+                if (attempt >= policy.maxRetries() || session.hasErrored()) {
+                    throw e;
+                }
+                var delay = policy.delayForAttempt(attempt);
+                attempt++;
+                lifecycleLogger.info(
+                        "{} outer-retry attempt {}/{} after {}ms (cause: {})",
+                        name(), attempt, policy.maxRetries(),
+                        delay.toMillis(), e.getMessage());
+                if (!delay.isZero() && !delay.isNegative()) {
+                    try {
+                        Thread.sleep(delay.toMillis());
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw e;
+                    }
+                }
+            }
         }
     }
 

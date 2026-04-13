@@ -269,7 +269,21 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                 // reads context.metadata()'s CacheHint and attaches an
                 // OpenAiChatOptions.promptCacheKey to the prompt spec.
                 // Non-OpenAI providers ignore the OpenAI-specific option.
-                AiCapability.PROMPT_CACHING
+                AiCapability.PROMPT_CACHING,
+                // TOKEN_USAGE: doExecuteWithHandle emits a typed TokenUsage
+                // record via session.usage() when the Spring AI response
+                // exposes non-null usage metadata — see lines 196-203.
+                // CONVERSATION_MEMORY: AbstractAgentRuntime.assembleMessages
+                // threads context.history() into the Prompt, so the
+                // pipeline-managed history is honored on every request.
+                AiCapability.TOKEN_USAGE,
+                AiCapability.CONVERSATION_MEMORY,
+                // PER_REQUEST_RETRY: honored via AbstractAgentRuntime's
+                // outer retry wrapper (executeWithOuterRetry). Pre-stream
+                // transient failures are retried up to the policy's
+                // maxRetries budget on top of Spring AI's own retry layer,
+                // delivering an "at least N retries" guarantee.
+                AiCapability.PER_REQUEST_RETRY
         );
     }
 

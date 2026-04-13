@@ -70,7 +70,10 @@ class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.TOOL_APPROVAL,
                 AiCapability.VISION,
                 AiCapability.AUDIO,
-                AiCapability.MULTI_MODAL);
+                AiCapability.MULTI_MODAL,
+                AiCapability.TOKEN_USAGE,
+                AiCapability.PER_REQUEST_RETRY,
+                AiCapability.PROMPT_CACHING);
     }
 
     /**

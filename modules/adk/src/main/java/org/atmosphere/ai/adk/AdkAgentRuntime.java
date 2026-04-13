@@ -73,6 +73,35 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
     }
 
     /**
+     * Resolve the {@link com.google.adk.agents.ContextCacheConfig} to apply
+     * for the given invocation. Prefers a per-request {@code CacheHint}
+     * (derived from {@code context.metadata()}) over the process-wide
+     * {@link #setCacheConfig} default, falling back to {@code null} when
+     * neither is set.
+     *
+     * <p>Per-request resolution is what makes {@code PROMPT_CACHING} an
+     * honest capability on this runtime: every invocation that carries a
+     * {@link org.atmosphere.ai.llm.CacheHint#enabled()} hint gets a fresh
+     * per-request {@link com.google.adk.apps.App} wired with that TTL and
+     * the default {@code minTokens} threshold, so ADK's caching path fires
+     * even when the process has no global config installed.</p>
+     */
+    private static com.google.adk.agents.ContextCacheConfig resolveCacheConfig(
+            AgentExecutionContext context) {
+        var hint = org.atmosphere.ai.llm.CacheHint.from(context);
+        if (hint.enabled()) {
+            // ADK's ContextCacheConfig record: (maxInvocations, ttl, minTokens)
+            // maxInvocations=0 means "no limit" per ADK convention.
+            // minTokens=32 is a conservative threshold — Gemini charges for
+            // cached content above this floor; raise it via setCacheConfig if
+            // you want larger prompt blocks to bypass caching.
+            var ttl = hint.ttl().orElse(java.time.Duration.ofMinutes(5));
+            return new com.google.adk.agents.ContextCacheConfig(0, ttl, 32);
+        }
+        return contextCacheConfig;
+    }
+
+    /**
      * Per-runner cache of initialized {@code userId:sessionId} keys. Weak-keyed
      * so runners that go out of scope (e.g. the per-request tool-calling
      * runners built by {@code buildRequestRunner} on every tool-bearing
@@ -227,8 +256,12 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         var appBuilder = com.google.adk.apps.App.builder()
                 .name("atmosphere")
                 .rootAgent(agentBuilder.build());
-        applyCacheConfig(appBuilder);
-        logger.debug("ADK per-request runner built with {} tools", adkTools.size());
+        var cacheConfig = resolveCacheConfig(context);
+        if (cacheConfig != null) {
+            appBuilder.contextCacheConfig(cacheConfig);
+        }
+        logger.debug("ADK per-request runner built with {} tools (cacheConfig={})",
+                adkTools.size(), cacheConfig != null);
         return Runner.builder().app(appBuilder.build()).build();
     }
 
@@ -250,29 +283,29 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
     @Override
     protected ExecutionHandle doExecuteWithHandle(
             Runner adkRunner, AgentExecutionContext context, StreamingSession session) {
-        // For tool-calling requests, build a fresh runner whose tools capture this
-        // invocation's session + ApprovalStrategy. The tool-less fallback runner held
-        // in getNativeClient() is only used for prompts without tools.
+        // For tool-calling requests AND requests carrying a per-request
+        // CacheHint, build a fresh runner whose App has the resolved
+        // ContextCacheConfig wired in. ADK's ContextCacheConfig is
+        // App.Builder-scoped (not mutable at request time), so a caller
+        // who supplies a CacheHint forces a per-request Runner — the
+        // cached tool-less fallback runner held in getNativeClient() is
+        // only usable when neither tools nor a cache hint are present.
         var tools = context.tools();
-        Runner requestRunner = tools.isEmpty() ? adkRunner : buildRequestRunner(context, session);
+        var adkHint = org.atmosphere.ai.llm.CacheHint.from(context);
+        var needsPerRequestRunner = !tools.isEmpty() || adkHint.enabled();
+        Runner requestRunner = needsPerRequestRunner
+                ? buildRequestRunner(context, session)
+                : adkRunner;
 
         var userId = context.userId() != null ? context.userId() : defaultUserId;
         var sessionId = context.sessionId() != null ? context.sessionId() : defaultSessionId;
 
         ensureSession(requestRunner, userId, sessionId);
 
-        // Prompt-caching: ADK's ContextCacheConfig wires at App.Builder level,
-        // not per-request. When Atmosphere caches the App+Runner, a
-        // per-request CacheHint cannot re-plumb the App cheaply — rebuilding
-        // the Runner for every invocation would churn memory and break the
-        // D-6 soft-cancel guarantees. We therefore log the hint at debug
-        // level and continue; configuring ADK prompt caching remains a
-        // runtime-bootstrap concern (see modules/adk/README for the recipe).
-        var adkHint = org.atmosphere.ai.llm.CacheHint.from(context);
         if (adkHint.enabled() && logger.isDebugEnabled()) {
-            logger.debug("ADK: per-request CacheHint (policy={}) ignored; "
-                    + "ADK ContextCacheConfig is App-scoped and must be wired "
-                    + "at App.Builder construction time.", adkHint.policy());
+            logger.debug("ADK: per-request CacheHint (policy={}, ttl={}) applied via "
+                    + "fresh per-request App.Builder.contextCacheConfig(...)",
+                    adkHint.policy(), adkHint.ttl().orElse(null));
         }
 
         // Translate any multi-modal Content.Image / Content.Audio / Content.File
@@ -364,7 +397,23 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 // Gemini models support all three input modalities natively.
                 AiCapability.VISION,
                 AiCapability.AUDIO,
-                AiCapability.MULTI_MODAL
+                AiCapability.MULTI_MODAL,
+                // TOKEN_USAGE: AdkEventAdapter reads event.usageMetadata() on
+                // every ADK Event and emits a typed TokenUsage record via
+                // session.usage() — see AdkEventAdapter.java:259-265.
+                AiCapability.TOKEN_USAGE,
+                // PER_REQUEST_RETRY: honored via AbstractAgentRuntime's
+                // outer retry wrapper (executeWithOuterRetry). Pre-stream
+                // transient failures retry on top of ADK's native HttpClient
+                // retries.
+                AiCapability.PER_REQUEST_RETRY,
+                // PROMPT_CACHING: resolveCacheConfig reads CacheHint.from(context)
+                // and builds a per-request ContextCacheConfig with the hint's
+                // TTL. When a hint is present, doExecuteWithHandle forces a
+                // fresh per-request Runner via buildRequestRunner so the
+                // ContextCacheConfig wires into a new App.Builder — working
+                // around ADK's App-scoped caching limitation.
+                AiCapability.PROMPT_CACHING
         );
     }
 

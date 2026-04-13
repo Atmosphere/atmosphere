@@ -104,7 +104,7 @@ What this registers depends on which modules are on the classpath:
 
 **[Durable HITL Workflows](https://atmosphere.github.io/docs/reference/checkpoint/)** — `CheckpointStore` SPI persists agent workflow state as parent-chained snapshots with fork semantics. Pause workflows without holding a live thread; resume via REST or programmatic replay. Pairs with `atmosphere-durable-sessions` for streaming reconnect + workflow continuation.
 
-**[7 AI Runtimes](https://atmosphere.github.io/docs/reference/ai/)** — Built-in, LangChain4j, Spring AI, Google ADK, Embabel, JetBrains Koog, Microsoft Semantic Kernel. Switch backends by changing one Maven dependency. All share tool calling, structured output, conversation memory, usage tracking, human-in-the-loop approval, multi-modal input, prompt caching, and embeddings.
+**[7 AI Runtimes](modules/ai/README.md#capability-matrix)** — Built-in, LangChain4j, Spring AI, Google ADK, Embabel, JetBrains Koog, Microsoft Semantic Kernel. Switch backends by changing one Maven dependency. All seven share text streaming, tool calling, tool approval, structured output, conversation memory, token usage, system prompts, and per-request retry; six ship multi-modal input (vision/audio); five ship prompt caching and embeddings. Every declaration is [pinned in each runtime's contract test](modules/ai/README.md#capability-matrix) so the matrix and the code cannot drift.
 
 **[3 Agent Protocols](https://atmosphere.github.io/docs/agents/a2a/)** — MCP (tools for Claude, Copilot, Cursor), A2A (agent-to-agent via JSON-RPC), AG-UI (streaming state to frontends). Auto-registered from classpath.
 

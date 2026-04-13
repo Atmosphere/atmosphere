@@ -17,6 +17,7 @@ package org.atmosphere.ai.sk;
 
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.orchestration.InvocationContext;
+import com.microsoft.semantickernel.orchestration.ToolCallBehavior;
 import com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService;
 import com.microsoft.semantickernel.services.chatcompletion.ChatHistory;
 import org.atmosphere.ai.AbstractAgentRuntime;
@@ -31,17 +32,20 @@ import java.util.Set;
 
 /**
  * {@link org.atmosphere.ai.AgentRuntime} implementation backed by Microsoft
- * Semantic Kernel for Java. Phase 12 of the unified {@code @Agent} API — the
- * 6th runtime, added to validate the SPI generalises against a hyperscaler-
- * maintained Java AI framework.
+ * Semantic Kernel for Java. Supports text streaming, system prompts,
+ * conversation memory via {@link ChatHistory}, and — via
+ * {@link SemanticKernelToolBridge} — full tool calling with
+ * {@code @RequiresApproval} gating routed through the shared
+ * {@link org.atmosphere.ai.tool.ToolExecutionHelper} helper.
  *
- * <p>This initial release supports text streaming, system prompts, and
- * conversation memory via {@link ChatHistory}. Tool calling (SK's
- * {@code @DefineKernelFunction} plugin system) is deferred as a follow-up
- * because mapping Atmosphere's dynamic {@code @AiTool} tool definitions to
- * SK's annotation-driven {@code KernelPluginFactory} requires either a
- * compile-time annotation processor or runtime bytecode synthesis — neither
- * fits the minimal Phase 12 scope.</p>
+ * <p>Tool calling is implemented by subclassing
+ * {@link com.microsoft.semantickernel.semanticfunctions.KernelFunction}
+ * directly (one function per Atmosphere {@code ToolDefinition}). SK's
+ * {@code KernelFunction} base class exposes a protected constructor and an
+ * abstract {@code invokeAsync} method specifically for this use case, so the
+ * bridge runs without reflection, annotation processing, or bytecode
+ * synthesis — earlier Javadoc on this class claimed such a bridge was
+ * impossible; that claim was wrong.</p>
  *
  * <p>The adapter uses the upstream 1.4.0 API surface (latest stable on Maven
  * Central as of April 2026). When Microsoft ships the "Microsoft Agent
@@ -108,11 +112,30 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
     protected void doExecute(ChatCompletionService service,
                              AgentExecutionContext context, StreamingSession session) {
         var chatHistory = buildChatHistory(context);
-        var kernel = Kernel.builder().build();
-        var invocationContext = InvocationContext.builder().build();
 
-        logger.debug("SK streaming: model={}, history messages={}",
-                context.model(), chatHistory.getMessages().size());
+        // Tool-calling path: when the context carries any @AiTool-derived
+        // ToolDefinitions, build a KernelPlugin of one AtmosphereSkFunction per
+        // tool and attach it to a fresh Kernel. ToolCallBehavior.allowAllKernelFunctions(true)
+        // enables SK's auto-invoke loop, which will dispatch to our
+        // KernelFunction.invokeAsync override and route through
+        // ToolExecutionHelper.executeWithApproval for @RequiresApproval gating.
+        var toolPlugin = SemanticKernelToolBridge.buildPlugin(context, session);
+        var kernelBuilder = Kernel.builder();
+        if (toolPlugin != null) {
+            kernelBuilder = kernelBuilder.withPlugin(toolPlugin);
+        }
+        var kernel = kernelBuilder.build();
+
+        var icBuilder = InvocationContext.builder();
+        if (toolPlugin != null) {
+            icBuilder = icBuilder.withToolCallBehavior(
+                    ToolCallBehavior.allowAllKernelFunctions(true));
+        }
+        var invocationContext = icBuilder.build();
+
+        logger.debug("SK streaming: model={}, history messages={}, tools={}",
+                context.model(), chatHistory.getMessages().size(),
+                toolPlugin != null ? context.tools().size() : 0);
 
         var flux = service.getStreamingChatMessageContentsAsync(
                 chatHistory, kernel, invocationContext);
@@ -145,7 +168,6 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
 
     @Override
     public Set<AiCapability> capabilities() {
-        // Phase 12 initial release — tool calling deferred, see class Javadoc.
         // STRUCTURED_OUTPUT is declared because any runtime that honors
         // SYSTEM_PROMPT gets pipeline-level structured output for free via
         // {@code AiPipeline.StructuredOutputCapturingSession} + system-prompt
@@ -153,17 +175,29 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         // uses (Invariant #5 — Runtime Truth), enforced by the contract test
         // {@code runtimeWithSystemPromptAlsoDeclaresStructuredOutput}.
         //
-        // TOOL_APPROVAL is NOT declared yet — while the shared pipeline-level
-        // approval seam is in place, the SK tool bridge that would invoke it
-        // is still deferred (no SK-native tool dispatch), so declaring
-        // TOOL_APPROVAL would be dishonest until the tool bridge lands and
-        // begins routing through ToolExecutionHelper.executeWithApproval.
+        // TOOL_CALLING is honest: SemanticKernelToolBridge builds one
+        // AtmosphereSkFunction per Atmosphere ToolDefinition on the context
+        // and attaches them to a fresh Kernel's KernelPlugin. The SK auto-
+        // invoke loop dispatches to AtmosphereSkFunction.invokeAsync, which
+        // translates KernelFunctionArguments into a Map<String,Object> and
+        // routes every call through ToolExecutionHelper.executeWithApproval.
+        //
+        // TOOL_APPROVAL is honest because the same routing path runs through
+        // the shared approval helper — @RequiresApproval gates fire
+        // uniformly with the other runtime bridges.
         return Set.of(
                 AiCapability.TEXT_STREAMING,
                 AiCapability.SYSTEM_PROMPT,
                 AiCapability.STRUCTURED_OUTPUT,
                 AiCapability.CONVERSATION_MEMORY,
-                AiCapability.TOKEN_USAGE
+                AiCapability.TOKEN_USAGE,
+                AiCapability.TOOL_CALLING,
+                AiCapability.TOOL_APPROVAL,
+                // PER_REQUEST_RETRY: honored via AbstractAgentRuntime's
+                // outer retry wrapper (executeWithOuterRetry). Retries
+                // pre-stream transient failures on top of SK's
+                // OpenAIAsyncClient retry layer.
+                AiCapability.PER_REQUEST_RETRY
         );
     }
 

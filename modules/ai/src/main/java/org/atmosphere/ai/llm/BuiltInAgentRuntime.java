@@ -30,6 +30,17 @@ import java.util.Set;
  */
 public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
 
+    /**
+     * Built-in threads {@link AgentExecutionContext#retryPolicy()} into
+     * {@link OpenAiCompatibleClient}'s {@code sendWithRetry} loop at the
+     * HTTP layer — the native retry surface. Opting out of the base
+     * class's outer retry wrapper prevents double-retries.
+     */
+    @Override
+    protected boolean ownsPerRequestRetry() {
+        return true;
+    }
+
     @Override
     public String name() {
         return "built-in";
@@ -189,15 +200,21 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
                 AiCapability.STRUCTURED_OUTPUT,
                 AiCapability.SYSTEM_PROMPT,
                 AiCapability.TOOL_APPROVAL,
-                // VISION / MULTI_MODAL are honest: buildRequest threads
-                // Content.Image parts through ChatCompletionRequest.parts,
-                // and OpenAiCompatibleClient.buildRequestBody translates them
-                // into the OpenAI multi-content array format
-                // ({"type":"image_url","image_url":{"url":"data:<mime>;base64,..."}})
-                // on the last user message. AUDIO is excluded — the OpenAI
-                // chat completions API does not accept audio input on the
-                // text-model surface (Whisper is a separate endpoint).
+                // VISION / AUDIO / MULTI_MODAL are honest: buildRequest
+                // threads Content.Image and Content.Audio parts through
+                // ChatCompletionRequest.parts, and
+                // OpenAiCompatibleClient.buildRequestBody translates them
+                // into the OpenAI multi-content array format on the last
+                // user message:
+                //   images → {"type":"image_url","image_url":{"url":"data:<mime>;base64,..."}}
+                //   audio  → {"type":"input_audio","input_audio":{"data":"<b64>","format":"mp3"}}
+                // Audio is supported on gpt-4o-audio-preview and other
+                // audio-capable chat-completion models. Pointing Atmosphere
+                // at a text-only model produces a provider-level error at
+                // dispatch (not a silent drop), matching the posture every
+                // other multi-modal-capable runtime takes.
                 AiCapability.VISION,
+                AiCapability.AUDIO,
                 AiCapability.MULTI_MODAL,
                 // PROMPT_CACHING is honest: a CacheHint in context.metadata()
                 // under key {@code ai.cache.hint} becomes a
@@ -211,7 +228,16 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
                 // is the only runtime that honors this today — framework
                 // runtimes inherit their own retry layers (Correctness
                 // Invariant #7, Mode Parity).
-                AiCapability.PER_REQUEST_RETRY);
+                AiCapability.PER_REQUEST_RETRY,
+                // TOKEN_USAGE: OpenAiCompatibleClient emits a typed TokenUsage
+                // record (including cachedInput) via session.usage() on every
+                // completed request — see OpenAiCompatibleClient.java:576, 964.
+                // CONVERSATION_MEMORY: AbstractAgentRuntime.assembleMessages
+                // threads context.history() into every outbound request, so
+                // the pipeline-managed history is honored even though this
+                // runtime does not persist it framework-side.
+                AiCapability.TOKEN_USAGE,
+                AiCapability.CONVERSATION_MEMORY);
     }
 
     @Override

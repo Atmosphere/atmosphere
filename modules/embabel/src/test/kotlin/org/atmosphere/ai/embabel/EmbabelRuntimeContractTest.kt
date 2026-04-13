@@ -54,6 +54,13 @@ internal class EmbabelRuntimeContractTest : AbstractAgentRuntimeContractTest() {
         AiCapability.STRUCTURED_OUTPUT,
         AiCapability.AGENT_ORCHESTRATION,
         AiCapability.SYSTEM_PROMPT,
+        AiCapability.CONVERSATION_MEMORY,
+        AiCapability.TOKEN_USAGE,
+        AiCapability.PER_REQUEST_RETRY,
+        AiCapability.TOOL_CALLING,
+        AiCapability.TOOL_APPROVAL,
+        AiCapability.VISION,
+        AiCapability.MULTI_MODAL,
     )
 
     // Embabel execution requires a real AgentPlatform, skip live tests.
