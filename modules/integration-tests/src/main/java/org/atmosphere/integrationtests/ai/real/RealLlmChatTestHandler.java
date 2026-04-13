@@ -67,10 +67,14 @@ public class RealLlmChatTestHandler implements AtmosphereHandler {
     public void onRequest(AtmosphereResource resource) throws IOException {
         resource.suspend();
 
+        // Atmosphere fires onRequest for the initial WebSocket upgrade with an
+        // empty body AND again for each inbound message. Skip the handshake
+        // frame (no body) so we don't fire a ghost Ollama request before the
+        // real prompt arrives — mirrors MultiModalTestHandler's guard.
         var reader = resource.getRequest().getReader();
         var prompt = reader.readLine();
         if (prompt == null || prompt.trim().isEmpty()) {
-            prompt = "Say hello in one short sentence.";
+            return;
         }
         var finalPrompt = prompt.trim();
         Thread.ofVirtual().name("real-llm-chat").start(() -> handlePrompt(finalPrompt, resource));
