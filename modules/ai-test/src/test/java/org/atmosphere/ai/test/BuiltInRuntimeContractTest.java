@@ -17,10 +17,12 @@ package org.atmosphere.ai.test;
 
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
+import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.llm.BuiltInAgentRuntime;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Concrete TCK subclass for {@link BuiltInAgentRuntime}. Lives in
@@ -57,6 +59,20 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     @Override
     protected AgentExecutionContext createErrorContext() {
         return null;
+    }
+
+    @Override
+    protected Set<AiCapability> expectedCapabilities() {
+        return Set.of(
+                AiCapability.TEXT_STREAMING,
+                AiCapability.TOOL_CALLING,
+                AiCapability.STRUCTURED_OUTPUT,
+                AiCapability.SYSTEM_PROMPT,
+                AiCapability.TOOL_APPROVAL,
+                AiCapability.VISION,
+                AiCapability.MULTI_MODAL,
+                AiCapability.PROMPT_CACHING,
+                AiCapability.PER_REQUEST_RETRY);
     }
 
     /**

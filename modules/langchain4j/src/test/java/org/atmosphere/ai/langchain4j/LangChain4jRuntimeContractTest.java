@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -87,6 +88,20 @@ class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     @Override
     protected AgentExecutionContext createErrorContext() {
         return null;
+    }
+
+    @Override
+    protected Set<AiCapability> expectedCapabilities() {
+        return Set.of(
+                AiCapability.TEXT_STREAMING,
+                AiCapability.TOOL_CALLING,
+                AiCapability.STRUCTURED_OUTPUT,
+                AiCapability.SYSTEM_PROMPT,
+                AiCapability.TOOL_APPROVAL,
+                AiCapability.VISION,
+                AiCapability.AUDIO,
+                AiCapability.MULTI_MODAL,
+                AiCapability.PROMPT_CACHING);
     }
 
     @Override

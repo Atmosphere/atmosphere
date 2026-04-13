@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -78,12 +79,45 @@ public abstract class AbstractAgentRuntimeContractTest {
      */
     protected abstract AgentExecutionContext createErrorContext();
 
+    /**
+     * Declare the exact {@link AiCapability} set this runtime's
+     * {@code capabilities()} method is expected to return. The contract
+     * test asserts the live method returns a set equal to this expectation,
+     * so the docs matrix in {@code docs/tutorial/11-ai-adapters.md} can be
+     * regenerated from these pinned declarations without drift
+     * (Correctness Invariant #5 — Runtime Truth). Adding or removing a
+     * capability from a runtime's {@code capabilities()} method without
+     * updating this override fails the build; that's the intended safety
+     * net.
+     */
+    protected abstract java.util.Set<AiCapability> expectedCapabilities();
+
     @Test
     protected void runtimeDeclaresMinimumCapabilities() {
         var runtime = createRuntime();
         var caps = runtime.capabilities();
         assertTrue(caps.contains(AiCapability.TEXT_STREAMING),
                 runtime.name() + " must declare TEXT_STREAMING");
+    }
+
+    /**
+     * Pin the runtime's declared capability set against
+     * {@link #expectedCapabilities()}. This is the runtime-truth anchor
+     * that keeps the {@code docs/tutorial/11-ai-adapters.md} matrix honest
+     * — a drift between the pinned set and the live {@code capabilities()}
+     * breaks the build on either side of the change.
+     */
+    @Test
+    protected void runtimeDeclaresExactlyExpectedCapabilities() {
+        var runtime = createRuntime();
+        var expected = expectedCapabilities();
+        assertNotNull(expected,
+                runtime.name() + " contract test must override expectedCapabilities() "
+                        + "with the runtime's pinned declaration");
+        assertEquals(expected, runtime.capabilities(),
+                runtime.name() + " capabilities() drift — pinned in the contract test "
+                        + "does not match the live declaration. Update both sides together "
+                        + "and refresh docs/tutorial/11-ai-adapters.md.");
     }
 
     /**

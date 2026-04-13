@@ -17,10 +17,12 @@ package org.atmosphere.ai.sk;
 
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
+import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.test.AbstractAgentRuntimeContractTest;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Concrete TCK subclass for {@link SemanticKernelAgentRuntime}. Previously
@@ -58,6 +60,16 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
     @Override
     protected AgentExecutionContext createErrorContext() {
         return null;
+    }
+
+    @Override
+    protected Set<AiCapability> expectedCapabilities() {
+        return Set.of(
+                AiCapability.TEXT_STREAMING,
+                AiCapability.SYSTEM_PROMPT,
+                AiCapability.STRUCTURED_OUTPUT,
+                AiCapability.CONVERSATION_MEMORY,
+                AiCapability.TOKEN_USAGE);
     }
 
     // SK execution requires a configured ChatCompletionService — skip live tests.

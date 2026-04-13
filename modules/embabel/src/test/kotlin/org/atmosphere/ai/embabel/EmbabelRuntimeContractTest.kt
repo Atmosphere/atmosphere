@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.ai.koog
+package org.atmosphere.ai.embabel
 
 import org.atmosphere.ai.AgentExecutionContext
 import org.atmosphere.ai.AgentRuntime
@@ -21,18 +21,18 @@ import org.atmosphere.ai.AiCapability
 import org.atmosphere.ai.test.AbstractAgentRuntimeContractTest
 
 /**
- * Kotlin contract-test subclass for [KoogAgentRuntime]. Brings Koog into the
- * cross-runtime parity matrix so the assertions
- * `runtimeWithSystemPromptAlsoDeclaresStructuredOutput` and
- * `hitlPendingApprovalEmitsProtocolEvent` actually run against it instead of
- * silently skipping.
+ * Kotlin contract-test subclass for [EmbabelAgentRuntime]. Brings Embabel into
+ * the cross-runtime parity matrix and anchors its
+ * [AbstractAgentRuntimeContractTest.expectedCapabilities] declaration so the
+ * docs matrix in `tutorial/11-ai-adapters.md` can be regenerated from a
+ * single pinned source (Correctness Invariant #5 — Runtime Truth).
  *
- * Execution tests override to skip — Koog needs a real [ai.koog.agents.core.agent.AIAgent]
- * with a live LLM client, which this module's unit tests do not carry.
+ * Execution tests skip — Embabel needs a real `AgentPlatform`, which this
+ * module's unit dependencies do not carry.
  */
-internal class KoogRuntimeContractTest : AbstractAgentRuntimeContractTest() {
+internal class EmbabelRuntimeContractTest : AbstractAgentRuntimeContractTest() {
 
-    override fun createRuntime(): AgentRuntime = KoogAgentRuntime()
+    override fun createRuntime(): AgentRuntime = EmbabelAgentRuntime()
 
     override fun createTextContext(): AgentExecutionContext =
         AgentExecutionContext(
@@ -51,16 +51,13 @@ internal class KoogRuntimeContractTest : AbstractAgentRuntimeContractTest() {
 
     override fun expectedCapabilities(): Set<AiCapability> = setOf(
         AiCapability.TEXT_STREAMING,
-        AiCapability.TOOL_CALLING,
         AiCapability.STRUCTURED_OUTPUT,
         AiCapability.AGENT_ORCHESTRATION,
-        AiCapability.CONVERSATION_MEMORY,
         AiCapability.SYSTEM_PROMPT,
-        AiCapability.TOOL_APPROVAL,
     )
 
-    // Koog execution requires a configured AIAgent with a live PromptExecutor.
+    // Embabel execution requires a real AgentPlatform, skip live tests.
     override fun textStreamingCompletesSession() {
-        // Skip: requires real AIAgent instance.
+        // Skip: requires configured AgentPlatform.
     }
 }
