@@ -41,16 +41,6 @@ for f in README.md $(find modules -name 'README.md' 2>/dev/null) $(find docs -na
   fi
 done
 
-# Check generator fallback
-if [ -f generator/AtmosphereInit.java ]; then
-  if grep -q "return \"${JAVA_VERSION}\";" generator/AtmosphereInit.java 2>/dev/null; then
-    pass "generator/AtmosphereInit.java"
-  else
-    fail "generator/AtmosphereInit.java — fallback version is not ${JAVA_VERSION}"
-    grep -n 'return "' generator/AtmosphereInit.java | head -1 || true
-  fi
-fi
-
 echo ""
 
 # ── 2. Check atmosphere.js versions ──

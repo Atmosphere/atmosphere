@@ -1,141 +1,79 @@
 # Atmosphere Project Generator
 
-Generate a ready-to-run Atmosphere + Spring Boot project with a single command.
+This directory contains the **compose generator** — a skill-file-driven scaffold
+that emits a parametric multi-module Atmosphere project (parent POM + N coordinator
+modules + M agent modules, optionally with Docker Compose deployment).
 
-## Prerequisites
+For scaffolding a single-module starter project from an existing sample, use the
+Atmosphere CLI instead:
+
+```bash
+atmosphere new my-app --template ai-chat
+# or clone the full sample verbatim
+atmosphere install spring-boot-ai-chat
+```
+
+Both paths sparse-clone from the `samples/` directory in this repo via
+`cli/samples.json`, so every sample listed in that registry is available as a
+starter with zero template maintenance.
+
+## Compose generator
+
+`ComposeGenerator.java` (invoked via JBang) consumes one or more
+[skill files](https://docs.anthropic.com/en/docs/agents/skills) and emits a
+multi-module project in which each skill becomes either a `@Coordinator` or an
+`@Agent` module.
+
+### Prerequisites
 
 - [JBang](https://www.jbang.dev/download/) installed (`sdk install jbang` or `brew install jbang`)
 - JDK 21+
 
-## Usage
+### Usage
 
-### Interactive mode
-
-```bash
-jbang generator/AtmosphereInit.java
-```
-
-Prompts for project name, handler type, and AI framework (if applicable).
-
-### Non-interactive mode
+The CLI wrapper is the recommended entry point:
 
 ```bash
-# Real-time chat
-jbang generator/AtmosphereInit.java \
-  --name my-chat-app \
-  --handler chat \
-  --output ./my-chat-app
-
-# AI streaming chat (built-in OpenAI-compatible client)
-jbang generator/AtmosphereInit.java \
-  --name my-ai-app \
-  --handler ai-chat \
-  --ai builtin \
-  --output ./my-ai-app
-
-# AI chat with Spring AI
-jbang generator/AtmosphereInit.java \
-  --name my-spring-ai-app \
-  --handler ai-chat \
-  --ai spring-ai \
-  --output ./my-spring-ai-app
-
-# AI chat with LangChain4j
-jbang generator/AtmosphereInit.java \
-  --name my-langchain4j-app \
-  --handler ai-chat \
-  --ai langchain4j \
-  --output ./my-langchain4j-app
-
-# AI chat with @AiTool methods (framework-agnostic tools)
-jbang generator/AtmosphereInit.java \
-  --name my-tools-app \
-  --handler ai-chat \
-  --ai langchain4j \
-  --tools \
-  --output ./my-tools-app
-
-# AI chat with Google ADK
-jbang generator/AtmosphereInit.java \
-  --name my-adk-app \
-  --handler ai-chat \
-  --ai adk \
-  --output ./my-adk-app
-
-# MCP server with chat
-jbang generator/AtmosphereInit.java \
-  --name my-mcp-server \
-  --handler mcp-server \
-  --output ./my-mcp-server
+atmosphere compose skills/research/ skills/writer/
+atmosphere compose --name my-fleet --protocol a2a research.md writer.md
 ```
 
-## Options
+See `atmosphere compose --help` for all options.
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-n, --name` | Project name | _(prompted)_ |
-| `-g, --group` | Maven group ID | `com.example` |
-| `--handler` | Handler type: `chat`, `ai-chat`, `mcp-server` | _(prompted)_ |
-| `--ai` | AI framework: `builtin`, `spring-ai`, `langchain4j`, `adk`, `embabel` | _(prompted if ai-chat)_ |
-| `--tools` | Include example `@AiTool` methods (ai-chat only) | _(prompted if ai-chat)_ |
-| `-o, --output` | Output directory | `./{name}` |
-
-## Handler types
-
-### chat
-
-A real-time chat application using `@ManagedService` with Jackson-based message encoding, heartbeat tracking, and disconnect handling. Includes a pre-built browser UI.
-
-### ai-chat
-
-An AI streaming endpoint using `@AiEndpoint` with `@Prompt` handling. Streams LLM responses text-by-text to connected browsers. Ships with a demo fallback that works without an API key.
-
-With `--tools`, the generated project includes an `AssistantTools.java` file with example `@AiTool`-annotated methods (time, weather). These are framework-agnostic — they work with any AI backend.
-
-Available AI frameworks:
-- **builtin** — OpenAI-compatible HTTP client (works with Gemini, Ollama, OpenAI)
-- **spring-ai** — Spring AI `ChatClient` integration
-- **langchain4j** — LangChain4j `StreamingChatLanguageModel`
-- **adk** — Google ADK `Runner` with event streaming
-- **embabel** — Embabel `AgentPlatform`
-
-### mcp-server
-
-An MCP (Model Context Protocol) server exposing tools, resources, and prompts to AI agents. Includes a chat handler for browser-based interaction and MCP tools for chat administration.
-
-## Generated project structure
-
-```
-my-app/
-├── pom.xml
-├── mvnw, mvnw.cmd, .mvn/wrapper/
-└── src/main/
-    ├── java/com/example/myapp/
-    │   ├── Application.java
-    │   └── ... (handler-specific files)
-    └── resources/
-        ├── application.yml
-        └── static/
-            └── index.html
-```
-
-## Running the generated project
+### Direct invocation (advanced)
 
 ```bash
-cd my-app
-./mvnw spring-boot:run
+jbang generator/ComposeGenerator.java \
+  --name my-fleet \
+  --group com.example \
+  --protocol a2a \
+  --transport websocket \
+  --skills coordinator.md,analyst.md
 ```
 
-Then open http://localhost:8080 in your browser.
+### Generated project structure
 
-For AI chat, set the appropriate API key:
+```
+my-fleet/
+├── pom.xml                    (parent POM)
+├── docker-compose.yml         (optional, with --deploy docker-compose)
+├── Dockerfile                 (optional, with --deploy docker-compose)
+├── README.md
+├── coordinator-<name>/
+│   ├── pom.xml
+│   └── src/main/java/.../Coordinator.java
+└── agent-<name>/
+    ├── pom.xml
+    └── src/main/java/.../Agent.java
+```
+
+## Tests
+
+`ComposeGeneratorTest.java` runs via JBang:
+
 ```bash
-# Built-in / LangChain4j
-LLM_API_KEY=your-key ./mvnw spring-boot:run
-
-# Spring AI / Embabel
-OPENAI_API_KEY=your-key ./mvnw spring-boot:run
-
-# ADK
-GOOGLE_API_KEY=your-key ./mvnw spring-boot:run
+jbang generator/ComposeGeneratorTest.java
 ```
+
+The `test-compose.sh` integration script exercises the end-to-end generated
+project (build + run smoke test).

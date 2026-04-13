@@ -83,17 +83,6 @@ npx create-atmosphere-app my-ai-app --template ai-chat
 
 See [cli/README.md](../cli/README.md) for full CLI documentation.
 
-### JBang
-
-Scaffold a full project with the [JBang](https://www.jbang.dev) generator:
-
-```bash
-jbang https://raw.githubusercontent.com/Atmosphere/atmosphere/main/generator/AtmosphereInit.java \
-  --name my-app --template ai-chat
-```
-
-See [generator/README.md](../generator/README.md) for all templates and options.
-
 ### Manual Build
 
 Each sample can be built independently:

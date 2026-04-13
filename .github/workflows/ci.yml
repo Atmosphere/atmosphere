@@ -55,7 +55,7 @@ jobs:
         echo "Expected doc version: $EXPECTED"
 
         # Check all doc/README version references
-        STALE=$(grep -rn '<version>[0-9]' docs/ modules/*/README.md README.md generator/AtmosphereInit.java 2>/dev/null \
+        STALE=$(grep -rn '<version>[0-9]' docs/ modules/*/README.md README.md 2>/dev/null \
           | grep -v "$EXPECTED" \
           | grep -v 'CHANGELOG\|target/\|node_modules' || true)
 

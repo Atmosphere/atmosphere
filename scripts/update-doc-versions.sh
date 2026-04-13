@@ -76,20 +76,7 @@ echo "── Sample README.md JAR references"
     UPDATED=$((UPDATED + 1))
 done
 
-# ── 5. Generator fallback version ──
-echo "── Generator fallback"
-INIT_FILE="$ROOT/generator/AtmosphereInit.java"
-if [ -f "$INIT_FILE" ]; then
-    sedi "/readAtmosphereVersion/,/^    }/s|return \"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^\"]*\";|return \"$VERSION\";|" "$INIT_FILE"
-    echo "   generator/AtmosphereInit.java"
-fi
-INIT_TEST="$ROOT/generator/AtmosphereInitTest.java"
-if [ -f "$INIT_TEST" ]; then
-    sedi "s|assertEquals(\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^\"]*\", version)|assertEquals(\"$VERSION\", version)|" "$INIT_TEST"
-    echo "   generator/AtmosphereInitTest.java"
-fi
-
-# ── 6. CLI version strings ──
+# ── 5. CLI version strings ──
 echo "── CLI version strings"
 CLI_SCRIPT="$ROOT/cli/atmosphere"
 if [ -f "$CLI_SCRIPT" ]; then
@@ -109,7 +96,7 @@ if [ -f "$CLI_NPX" ]; then
     echo "   cli/npx/package.json"
 fi
 
-# ── 7. cli/sdkman/*.md example commands ──
+# ── 6. cli/sdkman/*.md example commands ──
 # SDKMAN submission docs embed the publish.sh example command with a
 # pinned version argument. These are markdown prose files that the
 # Maven versions:set and xml-tag regexes never touch, so they silently
