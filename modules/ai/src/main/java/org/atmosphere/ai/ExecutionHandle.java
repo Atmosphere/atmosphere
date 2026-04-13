@@ -87,24 +87,40 @@ public interface ExecutionHandle {
     };
 
     /**
+     * Terminal classification recorded by {@link Settable} on the first
+     * successful transition. Observers use this instead of the
+     * {@link CompletableFuture#whenComplete} cause type to distinguish a
+     * caller-initiated cancel from a runtime-reported error when the two race.
+     */
+    enum TerminalReason {
+        /** Execution terminated via a successful {@code complete()} call. */
+        OK,
+        /** Execution terminated via {@link #cancel()}. */
+        CANCELLED,
+        /** Execution terminated via {@code completeExceptionally(Throwable)}. */
+        ERROR
+    }
+
+    /**
      * Simple mutable handle useful for runtimes that only need a CAS-guarded
      * cancel flag plus a {@link CompletableFuture} the runtime completes when
      * its native pipeline terminates. Runtimes with a richer native primitive
      * should wrap it directly instead of using this.
      *
-     * <p><b>Terminal reason race:</b> {@link CompletableFuture} is
-     * first-write-wins, so if {@link #cancel()} and a natural
-     * {@link #completeExceptionally(Throwable)} race, observers chained on
-     * {@link #whenDone()} see whichever completion fired first. A real error
-     * that arrives strictly after {@code cancel()} is silently dropped. If
-     * you need to distinguish "cancelled" from "errored" in telemetry,
-     * consult {@link #isCancelled()} explicitly inside your
-     * {@code whenComplete} callback — never rely on the cause type alone.</p>
+     * <p><b>Terminal reason guarantee:</b> the first caller to invoke
+     * {@link #complete()}, {@link #completeExceptionally(Throwable)}, or
+     * {@link #cancel()} wins the {@link TerminalReason}; all subsequent calls
+     * are no-ops. Observers chained on {@link #whenDone()} can consult
+     * {@link #terminalReason()} inside their {@code whenComplete} callback to
+     * distinguish a caller-initiated cancel from a runtime-reported error,
+     * even when the two race. This closes the previous first-writer-drops
+     * gap where a real error arriving strictly after {@code cancel()} could
+     * not be recovered from the cause type alone.</p>
      */
     final class Settable implements ExecutionHandle {
         private final CompletableFuture<Void> done = new CompletableFuture<>();
-        private final java.util.concurrent.atomic.AtomicBoolean cancelled =
-                new java.util.concurrent.atomic.AtomicBoolean();
+        private final java.util.concurrent.atomic.AtomicReference<TerminalReason> reason =
+                new java.util.concurrent.atomic.AtomicReference<>();
         private final Runnable nativeCancel;
 
         /**
@@ -121,22 +137,34 @@ public interface ExecutionHandle {
 
         /** Mark the execution as terminated. Runtimes call this from their completion hook. */
         public void complete() {
-            done.complete(null);
+            if (reason.compareAndSet(null, TerminalReason.OK)) {
+                done.complete(null);
+            }
         }
 
         /** Mark the execution as terminated with an error. */
         public void completeExceptionally(Throwable t) {
-            done.completeExceptionally(t);
+            if (reason.compareAndSet(null, TerminalReason.ERROR)) {
+                done.completeExceptionally(t);
+            }
         }
 
         /** @return {@code true} if {@link #cancel()} has been invoked (polling helper for runtimes). */
         public boolean isCancelled() {
-            return cancelled.get();
+            return reason.get() == TerminalReason.CANCELLED;
+        }
+
+        /**
+         * @return the terminal reason recorded by the first completion call,
+         * or {@code null} if the handle is still in flight.
+         */
+        public TerminalReason terminalReason() {
+            return reason.get();
         }
 
         @Override
         public void cancel() {
-            if (cancelled.compareAndSet(false, true)) {
+            if (reason.compareAndSet(null, TerminalReason.CANCELLED)) {
                 if (nativeCancel != null) {
                     try {
                         nativeCancel.run();

@@ -291,10 +291,24 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         }
 
         @Override public void onError(Throwable error) {
+            // LC4j's HTTP transport may surface a late SocketException /
+            // IOException after the caller has already cancelled — the
+            // underlying connection unwinds asynchronously on the provider's
+            // worker thread. Forwarding that error into the (already
+            // abandoned) session would fire a phantom AiEvent.Error after
+            // the session was explicitly cancelled. Drop post-cancel errors
+            // and leave the done future resolved as it was set by cancel().
+            var wasCancelled = cancelled.get();
             try {
-                inner.onError(error);
+                if (!wasCancelled) {
+                    inner.onError(error);
+                } else {
+                    logger.trace("Dropping post-cancel LC4j error", error);
+                }
             } finally {
-                done.completeExceptionally(error);
+                if (!wasCancelled) {
+                    done.completeExceptionally(error);
+                }
             }
         }
     }

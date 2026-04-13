@@ -108,17 +108,13 @@ public final class EmbeddingRuntimeResolver {
     }
 
     /**
-     * Clear the resolver's cached {@code ServiceLoader} result so the next
-     * {@link #resolveAll()} call rescans the classpath. Public but test-only
-     * — production code MUST NOT call this because the classpath does not
-     * change at runtime and clearing the cache forces redundant
-     * {@code ServiceLoader.load()} work.
-     *
-     * <p>The intended callers are test harnesses that install or uninstall
-     * a runtime via a {@code ServiceLoader} stub between assertions. The
-     * method is public rather than package-private so tests in other modules
-     * (e.g. the cross-module TCK subclasses) can reach it without a
-     * module-info export hack.</p>
+     * TCK helper: clear the resolver's cached {@code ServiceLoader} result so
+     * the next {@link #resolveAll()} call rescans the classpath. Exists
+     * because the cross-module contract tests in {@code modules/ai-test}
+     * install and uninstall fake runtimes between assertions and cannot reach
+     * a package-private helper from another Maven module without a
+     * {@code module-info} export hack. Production code has no legitimate
+     * reason to call this — the classpath is immutable at runtime.
      */
     public static void resetCache() {
         cachedAll = null;

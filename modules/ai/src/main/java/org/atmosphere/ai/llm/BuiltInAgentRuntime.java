@@ -155,18 +155,14 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
             }
         }
         // Per-request RetryPolicy override flows from context into the
-        // request so OpenAiCompatibleClient.sendWithRetry uses it instead of
-        // the client's instance-level default. Reference-equality check
-        // against RetryPolicy.DEFAULT is intentional: a caller that
-        // explicitly constructs a fresh RetryPolicy — even with values
-        // identical to DEFAULT — has made a deliberate choice and their
-        // reference wins over the client's instance-level policy. Callers
-        // who never touch retryPolicy ride the record's default sentinel
-        // (RetryPolicy.DEFAULT); the ref check passes them through so the
-        // client-level retry config set via OpenAiCompatibleClient.Builder
-        // stays authoritative for those unannotated paths.
-        if (context.retryPolicy() != null && context.retryPolicy() != org.atmosphere.ai.RetryPolicy.DEFAULT) {
-            builder.retryPolicy(context.retryPolicy());
+        // request so OpenAiCompatibleClient.sendWithRetry uses it instead
+        // of the client's instance-level default. The sentinel check is
+        // formalised on RetryPolicy.isInheritSentinel() rather than open-
+        // coding a reference comparison here — see the Javadoc on
+        // RetryPolicy.DEFAULT for the full contract.
+        var ctxPolicy = context.retryPolicy();
+        if (ctxPolicy != null && !ctxPolicy.isInheritSentinel()) {
+            builder.retryPolicy(ctxPolicy);
         }
         if (context.approvalPolicy() != null) {
             builder.approvalPolicy(context.approvalPolicy());

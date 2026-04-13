@@ -84,4 +84,48 @@ class ExecutionHandleTest {
         assertTrue(handle.isCancelled());
         assertTrue(handle.isDone());
     }
+
+    @Test
+    void terminalReasonRecordsFirstWriter() {
+        var ok = new ExecutionHandle.Settable(null);
+        assertEquals(null, ok.terminalReason());
+        ok.complete();
+        assertEquals(ExecutionHandle.TerminalReason.OK, ok.terminalReason());
+
+        var err = new ExecutionHandle.Settable(null);
+        err.completeExceptionally(new RuntimeException("boom"));
+        assertEquals(ExecutionHandle.TerminalReason.ERROR, err.terminalReason());
+
+        var cancelled = new ExecutionHandle.Settable(null);
+        cancelled.cancel();
+        assertEquals(ExecutionHandle.TerminalReason.CANCELLED, cancelled.terminalReason());
+    }
+
+    @Test
+    void cancelAfterCompleteDoesNotOverwriteTerminalReason() {
+        // Natural completion races cancel: OK must survive. CompletableFuture
+        // already drops the second write, but the terminalReason() enum must
+        // also preserve the first write so observers can distinguish a clean
+        // success that was followed by a late cancel from a true cancellation.
+        var handle = new ExecutionHandle.Settable(null);
+        handle.complete();
+        handle.cancel();
+        assertEquals(ExecutionHandle.TerminalReason.OK, handle.terminalReason());
+        assertFalse(handle.isCancelled());
+    }
+
+    @Test
+    void errorAfterCancelDoesNotOverwriteCancelReason() {
+        // Cancel races a real error arriving from the runtime's worker
+        // thread. The first writer wins; observers must read CANCELLED, not
+        // the cause type of the dropped exception.
+        var handle = new ExecutionHandle.Settable(null);
+        handle.cancel();
+        handle.completeExceptionally(new RuntimeException("late error"));
+        assertEquals(ExecutionHandle.TerminalReason.CANCELLED, handle.terminalReason());
+        assertTrue(handle.isCancelled());
+        // whenDone() was resolved by cancel() with a null completion, not an
+        // exception — the caller's whenComplete sees cancel semantics.
+        assertFalse(handle.whenDone().isCompletedExceptionally());
+    }
 }

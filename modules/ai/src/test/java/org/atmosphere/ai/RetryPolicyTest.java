@@ -103,4 +103,28 @@ public class RetryPolicyTest {
         // Inherits default retryable errors
         assertTrue(policy.shouldRetry("rate_limit", 0));
     }
+
+    @Test
+    public void testIsInheritSentinel() {
+        // The DEFAULT constant is the inheritance sentinel: dispatch sites
+        // read it to decide whether the caller wants client-level retry to
+        // stay authoritative. Reference identity — a fresh RetryPolicy with
+        // DEFAULT-equivalent values is a deliberate per-request choice and
+        // must not be confused with the sentinel.
+        assertTrue(RetryPolicy.DEFAULT.isInheritSentinel());
+        assertFalse(RetryPolicy.NONE.isInheritSentinel());
+
+        var freshDefaults = new RetryPolicy(
+                3,
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(30),
+                2.0,
+                java.util.Set.of("rate_limit", "timeout", "server_error", "unavailable"));
+        assertEquals(RetryPolicy.DEFAULT, freshDefaults);
+        assertFalse(freshDefaults.isInheritSentinel(),
+                "Fresh policy with DEFAULT-equivalent values is an explicit override, not the sentinel");
+
+        var custom = RetryPolicy.of(10, Duration.ofMillis(250));
+        assertFalse(custom.isInheritSentinel());
+    }
 }

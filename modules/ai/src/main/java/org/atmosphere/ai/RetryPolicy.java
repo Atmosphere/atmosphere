@@ -37,7 +37,21 @@ public record RetryPolicy(
         double backoffMultiplier,
         java.util.Set<String> retryableErrors
 ) {
-    /** Default retry policy: 3 retries, 1s initial, 30s max, 2x backoff. */
+    /**
+     * Default retry policy: 3 retries, 1s initial, 30s max, 2x backoff.
+     *
+     * <p><b>Inheritance sentinel.</b> This constant doubles as the
+     * per-request "inherit client policy" marker read by
+     * {@link #isInheritSentinel()}. Callers who want the client-level retry
+     * configuration to apply (rather than forcing a per-request override)
+     * should pass {@code RetryPolicy.DEFAULT} — by reference, not by
+     * reallocating structurally-identical values — or leave the context
+     * field unset so the constructor coalesces null to this constant.
+     * Any other {@code RetryPolicy} instance is treated as an explicit
+     * per-request override and shadows the client-level policy, even when
+     * its field values match this constant. See
+     * {@code BuiltInAgentRuntime.buildRequest} for the dispatch site.</p>
+     */
     public static final RetryPolicy DEFAULT = new RetryPolicy(
             3,
             Duration.ofSeconds(1),
@@ -75,6 +89,19 @@ public record RetryPolicy(
      */
     public boolean shouldRetry(String errorType, int attemptsSoFar) {
         return attemptsSoFar < maxRetries && retryableErrors.contains(errorType);
+    }
+
+    /**
+     * @return {@code true} when this instance is the {@link #DEFAULT}
+     * inheritance sentinel. Dispatch sites use this to decide whether a
+     * per-request override is in effect: when the answer is {@code true}
+     * the caller never set a per-request policy, and the client-level
+     * retry configuration stays authoritative. Reference identity is
+     * intentional — a caller who allocated a fresh {@code RetryPolicy}
+     * with the same values has made a deliberate choice and wins.
+     */
+    public boolean isInheritSentinel() {
+        return this == DEFAULT;
     }
 
     /**
