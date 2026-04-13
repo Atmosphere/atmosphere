@@ -91,13 +91,15 @@ public class RealLlmChatTestHandler implements AtmosphereHandler {
     }
 
     private void handlePrompt(String prompt, AtmosphereResource resource) {
-        System.err.println("[real-llm] handlePrompt start: prompt=" + prompt);
+        var settings = AiConfig.get();
+        var model = settings != null ? settings.model() : null;
+        System.err.println("[real-llm] handlePrompt start: prompt=" + prompt + ", model=" + model);
         var session = StreamingSessions.start(resource);
         try {
             var context = new AgentExecutionContext(
                     prompt,
                     "You are a concise assistant. Reply in one short sentence.",
-                    null,
+                    model,
                     null, UUID.randomUUID().toString(), "user-1", "conv-1",
                     List.of(), null, null, List.of(), Map.of(),
                     List.of(), null, null, List.of(), List.of(),
