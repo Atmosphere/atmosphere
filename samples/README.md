@@ -2,7 +2,7 @@
 
 Example applications demonstrating Atmosphere 4.0 across different deployment targets.
 
-All samples inherit their Atmosphere version from the parent POM (currently `4.0.37-SNAPSHOT`). The target stack is Java 21, Spring Boot 4.0.5, Spring Framework 6.2.8, and Quarkus 3.31.3.
+All samples inherit their Atmosphere version from the parent POM. The target stack is Java 21, Spring Boot 4.0.5, Spring Framework 6.2.8, and Quarkus 3.31.3.
 
 ### Chat & Messaging
 
