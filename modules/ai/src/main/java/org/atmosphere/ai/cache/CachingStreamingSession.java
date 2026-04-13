@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.cache;
 
+import org.atmosphere.ai.Content;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.TokenUsage;
 
@@ -108,6 +109,21 @@ public class CachingStreamingSession implements StreamingSession {
     public synchronized void error(Throwable t) {
         errored = true;
         delegate.error(t);
+    }
+
+    @Override
+    public synchronized void sendContent(Content content) {
+        // Text content rides through send(); binary content (Image/Audio/File)
+        // cannot be captured by a text-only string buffer, so we poison the
+        // captor and forward the frame to the delegate. The post-execute
+        // commit() short-circuits on errored=true, so a binary-emitting
+        // response is never cached as text-only.
+        if (content instanceof Content.Text text) {
+            send(text.text());
+            return;
+        }
+        errored = true;
+        delegate.sendContent(content);
     }
 
     @Override
