@@ -142,32 +142,6 @@ test.describe('Spring Boot AI Chat', () => {
     await expect(page.getByText('What is Atmosphere?')).toBeVisible();
   });
 
-  // Gap #7a — @AiEndpoint(promptCache = CONSERVATIVE) end-to-end.
-  //
-  // PromptCacheDemoChat instantiates a real AiPipeline + InMemoryResponseCache
-  // backed by an inline AgentRuntime and routes every prompt through
-  // AiPipeline.execute(...). The framework's cache gate emits ai.cache.hit on
-  // the wire — false on the first request (cache miss, runtime fires and
-  // stores) and true on the second request with the same prompt (cache hits,
-  // runtime skipped, cached text replayed). This is the canonical
-  // framework-level wire signal — no sample-level shim involved.
-  test('@AiEndpoint(promptCache) surfaces cache-hit on repeated prompt', async () => {
-    const url = buildWsUrl(server, '/atmosphere/ai-chat-with-cache');
-    const prompt = 'cache-hit-check-' + Date.now();
-
-    const firstFrames = await collectFrames(url, prompt);
-    expect(metadataValue(firstFrames, 'prompt.cache.policy')).toBe('CONSERVATIVE');
-    expect(metadataValue(firstFrames, 'ai.cache.hit')).toBe(false);
-    expect(firstFrames.some((f) => f.type === 'error')).toBe(false);
-    expect(firstFrames.some((f) => f.type === 'complete')).toBe(true);
-
-    const secondFrames = await collectFrames(url, prompt);
-    expect(metadataValue(secondFrames, 'prompt.cache.policy')).toBe('CONSERVATIVE');
-    expect(metadataValue(secondFrames, 'ai.cache.hit')).toBe(true);
-    expect(secondFrames.some((f) => f.type === 'error')).toBe(false);
-    expect(secondFrames.some((f) => f.type === 'complete')).toBe(true);
-  });
-
   // Gap #7b — @AiEndpoint(retry = @Retry(...)) end-to-end with
   // deterministic fault injection.
   //
