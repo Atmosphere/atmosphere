@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776186266002,
+  "lastUpdate": 1776191229056,
   "repoUrl": "https://github.com/Atmosphere/atmosphere",
   "entries": {
     "Atmosphere JMH Benchmarks": [
@@ -16578,6 +16578,222 @@ window.BENCHMARK_DATA = {
           {
             "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.listByCoordination ( {\"snapshotCount\":\"10000\"} )",
             "value": 1895.45436466877,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfarcand@apache.org",
+            "name": "jfarcand",
+            "username": "jfarcand"
+          },
+          "committer": {
+            "email": "jfarcand@apache.org",
+            "name": "jfarcand",
+            "username": "jfarcand"
+          },
+          "distinct": true,
+          "id": "a1237ec13acc635e9f970f75a72f2bfedb791bc7",
+          "message": "test(a2a,cpr): add 15 unit tests for A2A types, Task, AgentCard, listener adapter",
+          "timestamp": "2026-04-14T14:15:49-04:00",
+          "tree_id": "6cd8949897e975078e50e26c4d844d30c5b0e94e",
+          "url": "https://github.com/Atmosphere/atmosphere/commit/a1237ec13acc635e9f970f75a72f2bfedb791bc7"
+        },
+        "date": 1776191228497,
+        "tool": "jmh",
+        "benches": [
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BroadcasterDispatchBenchmark.broadcastToAll ( {\"subscriberCount\":\"1\"} )",
+            "value": 11927467.980318101,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BroadcasterDispatchBenchmark.broadcastToAll ( {\"subscriberCount\":\"10\"} )",
+            "value": 5628620.593641053,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BroadcasterDispatchBenchmark.broadcastToAll ( {\"subscriberCount\":\"100\"} )",
+            "value": 1039075.8978600744,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BroadcasterDispatchBenchmark.broadcastToAll ( {\"subscriberCount\":\"1000\"} )",
+            "value": 299946.1113841577,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.saveHot ( {\"snapshotCount\":\"100\"} )",
+            "value": 299830.0953587455,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.saveHot ( {\"snapshotCount\":\"1000\"} )",
+            "value": 297358.1046282461,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.saveHot ( {\"snapshotCount\":\"10000\"} )",
+            "value": 283477.7116781772,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AgentRuntimeResolverBenchmark.resolveAllSorted",
+            "value": 0.6240915592597106,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AgentRuntimeResolverBenchmark.resolveFirst",
+            "value": 0.9677837531527906,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"0\"} )",
+            "value": 0.7675811042382342,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"1\"} )",
+            "value": 1.7565194233118586,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"4\"} )",
+            "value": 3.5458905955150293,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"16\"} )",
+            "value": 9.13444007500618,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"64\"} )",
+            "value": 24.336152290618497,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"0\"} )",
+            "value": 0.8540947839579293,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"1\"} )",
+            "value": 3.870028763686591,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"4\"} )",
+            "value": 6.0692885217347765,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"16\"} )",
+            "value": 10.83014757767504,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"64\"} )",
+            "value": 25.58532867532797,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.forkChain ( {\"snapshotCount\":\"100\"} )",
+            "value": 11.208068703466665,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.forkChain ( {\"snapshotCount\":\"1000\"} )",
+            "value": 11.719963457943885,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.forkChain ( {\"snapshotCount\":\"10000\"} )",
+            "value": 14.648515193865569,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.loadRandom ( {\"snapshotCount\":\"100\"} )",
+            "value": 48.44486717237279,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.loadRandom ( {\"snapshotCount\":\"1000\"} )",
+            "value": 61.05697240213575,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.loadRandom ( {\"snapshotCount\":\"10000\"} )",
+            "value": 89.05681365609637,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CoordinatorFanOutBenchmark.parallelFanOut ( {\"fanOutCount\":\"2\"} )",
+            "value": 30.376269121794717,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CoordinatorFanOutBenchmark.parallelFanOut ( {\"fanOutCount\":\"4\"} )",
+            "value": 33.11693919255575,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CoordinatorFanOutBenchmark.parallelFanOut ( {\"fanOutCount\":\"8\"} )",
+            "value": 33.700323390702096,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CoordinatorFanOutBenchmark.parallelFanOut ( {\"fanOutCount\":\"16\"} )",
+            "value": 35.304435438703216,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.listByCoordination ( {\"snapshotCount\":\"100\"} )",
+            "value": 5.9138038668704525,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.listByCoordination ( {\"snapshotCount\":\"1000\"} )",
+            "value": 88.97977628528965,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.listByCoordination ( {\"snapshotCount\":\"10000\"} )",
+            "value": 2344.892904836193,
             "unit": "us/op",
             "extra": "iterations: 3\nforks: 1\nthreads: 1"
           }
