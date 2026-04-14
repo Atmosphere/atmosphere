@@ -88,18 +88,32 @@ public interface StreamingSession extends AutoCloseable {
     }
 
     /**
-     * Progressive tool-argument streaming (Phase 5 of the unified {@code @Agent}
-     * API). Runtimes whose provider emits incremental JSON for tool arguments
-     * (Spring AI, LangChain4j {@code onPartialToolExecutionRequest}, ADK
-     * streaming events, Koog {@code StreamFrame.ToolCallDelta}) call this
-     * method for each chunk so browser UIs can render "typing" state on
-     * tool-argument fields before the final consolidated
-     * {@code AiEvent.ToolStart} fires.
+     * Emit an incremental tool-argument fragment as the model streams JSON for
+     * a tool call, so browser UIs can render "typing" state on tool-argument
+     * fields before the consolidated {@link AiEvent.ToolStart} event fires.
      *
-     * <p>The default implementation emits a structured {@code metadata} frame
-     * keyed by the tool-call id so existing wire-format consumers observe the
-     * delta without a new event type. Runtimes that want a richer wire
-     * representation can override this method.</p>
+     * <p>Only runtimes that advertise {@link AiCapability#TOOL_CALL_DELTA}
+     * actually invoke this method from their streaming loop. As of 4.0.37 that
+     * is exactly one runtime: {@code BuiltInAgentRuntime}, whose
+     * {@code OpenAiCompatibleClient} forwards every
+     * {@code delta.tool_calls[].function.arguments} fragment from both the
+     * chat-completions and responses-API streaming paths. The framework
+     * bridges (Spring AI, LangChain4j, ADK, Embabel, Koog, Semantic Kernel)
+     * consume high-level streaming APIs that surface only consolidated tool
+     * calls and never per-chunk argument fragments, so they leave the default
+     * no-op contract in place — see commit {@code 895a7e0a2e} (the 4.0.36
+     * runtime capability honesty pass) for the rationale. Clients MUST check
+     * {@link AiCapability#TOOL_CALL_DELTA} on the resolved runtime before
+     * relying on delta frames; the negative assertion in
+     * {@code modules/integration-tests/e2e/ai-tool-call-delta.spec.ts} pins
+     * that distinction at the wire level (Correctness Invariant #5 — Runtime
+     * Truth).</p>
+     *
+     * <p>The default implementation emits a structured metadata frame keyed
+     * by the tool-call id ({@code ai.toolCall.delta.<id>}) so existing
+     * wire-format consumers observe the delta without a new event type.
+     * Sessions that want a richer wire representation can override this
+     * method.</p>
      *
      * @param toolCallId provider-assigned tool-call identifier; ignored when null
      * @param argsChunk  incremental JSON fragment; ignored when null or empty
