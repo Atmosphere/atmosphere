@@ -386,16 +386,21 @@ public class CoordinatorProcessor implements Processor<Object> {
             return new A2aAgentTransport(agentName, remoteUrl, timeouts);
         }
 
-        // No explicit URL — check for local handler (in-JVM, zero overhead)
-        for (var path : new String[]{customEndpoint, defaultPath, altPath}) {
-            if (path != null && framework.getAtmosphereHandlers().containsKey(path)) {
-                return new LocalAgentTransport(framework, agentName, path);
-            }
+        // No explicit URL — always construct a LocalAgentTransport that
+        // re-queries the framework handler map on every call. This closes the
+        // startup race where the agent bean's A2A handler registers after the
+        // coordinator wires its fleet: the transport probes the full candidate
+        // path list lazily, so whichever variant the handler ultimately lands
+        // at is discovered on the first dispatch without restart. The order
+        // matters — customEndpoint wins over the conventional defaults when
+        // the @Agent annotation pins one.
+        var candidates = new ArrayList<String>(3);
+        if (customEndpoint != null) {
+            candidates.add(customEndpoint);
         }
-
-        // Deferred: prefer custom endpoint if known, else default
-        var deferredPath = customEndpoint != null ? customEndpoint : defaultPath;
-        return new LocalAgentTransport(framework, agentName, deferredPath);
+        candidates.add(defaultPath);
+        candidates.add(altPath);
+        return new LocalAgentTransport(framework, agentName, candidates);
     }
 
     // --- Circular dependency detection ---
