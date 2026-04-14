@@ -128,6 +128,137 @@ public class CoordinatorProcessorJournalTest {
     }
 
     @Test
+    public void frameworkShutdownStopsProcessorOwnedJournal() {
+        // Simulates the ServiceLoader path: handle() discovered a journal,
+        // started it, tracked it as processor-owned, and installed the
+        // shutdown listener. destroy() must then stop() it exactly once so
+        // JDBC connections / background flushers don't leak on framework
+        // teardown in non-Spring deployments.
+        var framework = new AtmosphereFramework();
+        var processor = new CoordinatorProcessor();
+        var owned = new RecordingJournal();
+
+        processor.trackOwnedJournalForTest(framework, owned);
+        framework.destroy();
+
+        assertEquals(1, owned.stopCount.get(),
+                "framework destroy() must stop() the processor-owned journal "
+                        + "exactly once — otherwise ServiceLoader-wired "
+                        + "journals leak resources on shutdown");
+    }
+
+    @Test
+    public void frameworkShutdownDoesNotTouchExternallyManagedJournal() {
+        // A bridged (Spring-wired) journal is resolved via the property but
+        // is NEVER tracked in ownedJournals because the processor does not
+        // own its lifecycle. destroy() must therefore leave stopCount at 0
+        // so Spring's @Bean(destroyMethod="stop") stays the single owner.
+        var framework = new AtmosphereFramework();
+        var processor = new CoordinatorProcessor();
+        var bridged = new RecordingJournal();
+        framework.getAtmosphereConfig().properties()
+                .put(CoordinatorProcessor.COORDINATION_JOURNAL_PROPERTY, bridged);
+
+        // Resolve — the flag says externally managed, so handle() would
+        // NOT call trackOwnedJournalForTest on this path. We simulate the
+        // full contract: resolution happens, lifecycle is NOT tracked.
+        var resolved = processor.resolveJournal(framework);
+        assertTrue(resolved.externallyManaged());
+
+        framework.destroy();
+
+        assertEquals(0, bridged.stopCount.get(),
+                "externally-managed journals must not be stopped by the "
+                        + "processor's shutdown hook — double-stop would "
+                        + "close the underlying CheckpointStore twice");
+    }
+
+    @Test
+    public void shutdownIsNoOpWhenNoJournalWasStarted() {
+        // If the processor observed a NOOP result (or simply never handled a
+        // coordinator at all) the shutdown hook must not explode. This is
+        // the common path in test setups and in deployments that don't use
+        // the coordinator feature.
+        var framework = new AtmosphereFramework();
+        var processor = new CoordinatorProcessor();
+
+        // No track*(), no resolve*() — shutdown path must be a no-op.
+        processor.stopOwnedJournals();
+        framework.destroy();
+        // (No assertion needed beyond "does not throw"; we verify via the
+        // next test that the double-shutdown semantics are CAS-protected.)
+    }
+
+    @Test
+    public void doubleShutdownStopsJournalExactlyOnce() {
+        // stopOwnedJournals() must be idempotent. Framework destroy() is
+        // itself CAS-guarded, but we exercise the inner close-once directly
+        // because other code paths (e.g. hot-reload in Spring Boot dev-tools,
+        // a framework restart) could fire preDestroy twice against the same
+        // processor instance.
+        var framework = new AtmosphereFramework();
+        var processor = new CoordinatorProcessor();
+        var owned = new RecordingJournal();
+
+        processor.trackOwnedJournalForTest(framework, owned);
+        processor.stopOwnedJournals();
+        processor.stopOwnedJournals();
+        framework.destroy();
+
+        assertEquals(1, owned.stopCount.get(),
+                "the close-once CAS on OwnedJournal.stopped must collapse "
+                        + "repeated shutdown attempts into a single stop()");
+    }
+
+    @Test
+    public void shutdownSurvivesJournalStopThrowing() {
+        // If a misbehaving journal throws from stop(), shutdown must still
+        // complete cleanly — a single broken provider cannot be allowed to
+        // prevent framework destroy() or block sibling journals from being
+        // stopped.
+        var framework = new AtmosphereFramework();
+        var processor = new CoordinatorProcessor();
+        var broken = new ThrowingJournal();
+        var healthy = new RecordingJournal();
+
+        processor.trackOwnedJournalForTest(framework, broken);
+        processor.trackOwnedJournalForTest(framework, healthy);
+
+        framework.destroy(); // must not throw
+
+        assertEquals(1, broken.stopCount.get(),
+                "the broken journal's stop() was still invoked");
+        assertEquals(1, healthy.stopCount.get(),
+                "a throwing sibling must not prevent other owned journals "
+                        + "from being stopped");
+    }
+
+    @Test
+    public void multipleCoordinatorsShareSingleShutdownListener() {
+        // Processors are cached in AnnotationHandler and reused across
+        // multiple @Coordinator classes. Two coordinators in one scan would
+        // each append their journal to the owned list, but the shutdown
+        // listener must only be registered once per framework instance.
+        // Otherwise destroy() would iterate duplicate listeners and the
+        // close-once CAS would quietly swallow the second pass — but the
+        // duplicate registration itself is a symptom of a future bug (the
+        // second pass could have side effects). We pin the invariant here.
+        var framework = new AtmosphereFramework();
+        var processor = new CoordinatorProcessor();
+        var baseline = framework.frameworkListeners().size();
+
+        processor.trackOwnedJournalForTest(framework, new RecordingJournal());
+        processor.trackOwnedJournalForTest(framework, new RecordingJournal());
+        processor.trackOwnedJournalForTest(framework, new RecordingJournal());
+
+        assertEquals(baseline + 1,
+                framework.frameworkListeners().size(),
+                "exactly ONE shutdown listener must be installed per "
+                        + "(processor, framework) pair, regardless of how "
+                        + "many owned journals were tracked");
+    }
+
+    @Test
     public void bridgePropertyKeyIsStableForExternalConsumers() {
         // The constant is a public API contract that the spring-boot-starter
         // auto-configuration writes to. Pin its exact value so accidental
@@ -159,6 +290,45 @@ public class CoordinatorProcessorJournalTest {
         @Override
         public void stop() {
             stopCount.incrementAndGet();
+        }
+
+        @Override
+        public void record(CoordinationEvent event) {
+        }
+
+        @Override
+        public List<CoordinationEvent> retrieve(String coordinationId) {
+            return List.of();
+        }
+
+        @Override
+        public List<CoordinationEvent> query(CoordinationQuery query) {
+            return List.of();
+        }
+
+        @Override
+        public CoordinationJournal inspector(CoordinationJournalInspector inspector) {
+            return this;
+        }
+    }
+
+    /**
+     * Journal whose {@code stop()} increments the counter then throws —
+     * used to prove the processor's shutdown loop is exception-safe and
+     * still visits sibling journals after a failure.
+     */
+    private static final class ThrowingJournal implements CoordinationJournal {
+
+        private final AtomicInteger stopCount = new AtomicInteger();
+
+        @Override
+        public void start() {
+        }
+
+        @Override
+        public void stop() {
+            stopCount.incrementAndGet();
+            throw new IllegalStateException("simulated stop() failure");
         }
 
         @Override

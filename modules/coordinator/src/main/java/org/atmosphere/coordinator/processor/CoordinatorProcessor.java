@@ -59,6 +59,7 @@ import org.atmosphere.coordinator.transport.A2aAgentTransport;
 import org.atmosphere.coordinator.transport.AgentTransport;
 import org.atmosphere.coordinator.transport.LocalAgentTransport;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereFrameworkListenerAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,6 +78,8 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Processes {@link Coordinator} and {@link Fleet} annotations. Composes with
@@ -123,6 +126,37 @@ public class CoordinatorProcessor implements Processor<Object> {
             "org.atmosphere.coordinator.journal";
 
     private final Map<String, Set<String>> dependencyGraph = new ConcurrentHashMap<>();
+
+    /**
+     * Journals started by this processor on the {@link java.util.ServiceLoader}
+     * path. These are lifecycle-owned by the processor and must be
+     * {@link CoordinationJournal#stop() stopped} on framework shutdown so
+     * resources (file handles, JDBC connections, background flush threads)
+     * don't leak.
+     *
+     * <p>Externally-managed journals (Spring-bean bridge via
+     * {@link #COORDINATION_JOURNAL_PROPERTY}) are intentionally absent from
+     * this list — their {@code stop()} is owned by the bridging container
+     * (typically Spring's {@code @Bean(destroyMethod="stop")}).</p>
+     *
+     * <p>Entries are appended from {@link #handle(AtmosphereFramework, Class)}
+     * inside a successful ServiceLoader resolution. The list is
+     * {@link java.util.concurrent.CopyOnWriteArrayList} because shutdown reads
+     * it on the framework-destroy thread while {@code handle()} may still be
+     * appending on the annotation-scan thread.</p>
+     */
+    private final List<OwnedJournal> ownedJournals = new CopyOnWriteArrayList<>();
+
+    /**
+     * Ensures the shutdown {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
+     * is registered at most once per {@code (processor, framework)} pair.
+     * Multiple {@code @Coordinator} classes share one processor instance (the
+     * {@code AnnotationHandler} caches processors by class), so without this
+     * guard we would register a duplicate listener for every coordinator
+     * found in the same scan.
+     */
+    private final java.util.Set<AtmosphereFramework> shutdownHookInstalledOn =
+            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
 
     @Override
     public void handle(AtmosphereFramework framework, Class<Object> annotatedClass) {
@@ -185,6 +219,13 @@ public class CoordinatorProcessor implements Processor<Object> {
                 // the underlying CheckpointStore and double-log on boot.
                 if (!journalResolution.externallyManaged()) {
                     journal.start();
+                    // Track the processor-owned journal + install a one-shot
+                    // framework shutdown listener so stop() is called on
+                    // framework destroy(). Without this, ServiceLoader-wired
+                    // journals with real resources (JDBC, file handles,
+                    // background flushers) leak on every non-Spring shutdown.
+                    ownedJournals.add(new OwnedJournal(journal));
+                    installShutdownHook(framework);
                 }
                 fleet = new JournalingAgentFleet(fleet, journal, coordinatorName);
             }
@@ -522,6 +563,90 @@ public class CoordinatorProcessor implements Processor<Object> {
      * starts the discovered provider.</p>
      */
     record ResolvedJournal(CoordinationJournal journal, boolean externallyManaged) {}
+
+    /**
+     * Handle for a processor-owned {@link CoordinationJournal}. The
+     * {@link #stopped} flag is a close-once CAS: whichever caller flips it
+     * from {@code false} to {@code true} is responsible for invoking
+     * {@link CoordinationJournal#stop() stop()} exactly once. Re-entrant
+     * shutdown attempts and double-destroy sequences become no-ops.
+     */
+    static final class OwnedJournal {
+        final CoordinationJournal journal;
+        final AtomicBoolean stopped = new AtomicBoolean(false);
+
+        OwnedJournal(CoordinationJournal journal) {
+            this.journal = journal;
+        }
+    }
+
+    /**
+     * Registers a one-shot framework shutdown listener that calls
+     * {@link CoordinationJournal#stop() stop()} on every processor-owned
+     * journal. Idempotent per-framework: multiple {@code @Coordinator}
+     * classes share a processor instance (processors are cached in
+     * {@code AnnotationHandler#processors}) so we must not register a
+     * duplicate listener for each coordinator found in the same scan.
+     *
+     * <p>The listener is installed on the first ServiceLoader-started journal
+     * we observe. The shutdown path iterates {@link #ownedJournals} at
+     * fire time, so journals added for subsequent coordinators (after the
+     * listener is already installed) are still stopped correctly.</p>
+     */
+    private void installShutdownHook(AtmosphereFramework framework) {
+        synchronized (shutdownHookInstalledOn) {
+            if (!shutdownHookInstalledOn.add(framework)) {
+                return;
+            }
+        }
+        framework.frameworkListener(new AtmosphereFrameworkListenerAdapter() {
+            @Override
+            public void onPreDestroy(AtmosphereFramework f) {
+                stopOwnedJournals();
+            }
+        });
+    }
+
+    /**
+     * Test hook: simulate the bookkeeping the {@link #handle} path performs
+     * when it successfully starts a ServiceLoader-wired journal. Tests use
+     * this to drive the shutdown path without running the full annotation
+     * scan. Not part of the public API.
+     */
+    void trackOwnedJournalForTest(AtmosphereFramework framework,
+                                  CoordinationJournal journal) {
+        ownedJournals.add(new OwnedJournal(journal));
+        installShutdownHook(framework);
+    }
+
+    /**
+     * Stops every processor-owned journal that was started on the
+     * {@link java.util.ServiceLoader} path. Called from the framework
+     * {@link org.atmosphere.cpr.AtmosphereFrameworkListener#onPreDestroy
+     * onPreDestroy} hook and safe to call repeatedly: the per-journal
+     * {@link OwnedJournal#stopped} CAS guarantees {@code stop()} fires at
+     * most once per journal. Exceptions thrown by a single journal are
+     * logged at WARN and do not abort the loop — a single misbehaving
+     * journal must not prevent the framework from shutting down cleanly or
+     * block sibling journals from releasing their resources.
+     *
+     * <p>Package-private for direct exercise from
+     * {@code CoordinatorProcessorJournalTest}.</p>
+     */
+    void stopOwnedJournals() {
+        for (var owned : ownedJournals) {
+            if (!owned.stopped.compareAndSet(false, true)) {
+                continue;
+            }
+            try {
+                owned.journal.stop();
+            } catch (RuntimeException e) {
+                logger.warn("CoordinationJournal {} failed to stop on framework "
+                                + "shutdown; resources may leak: {}",
+                        owned.journal.getClass().getName(), e.getMessage(), e);
+            }
+        }
+    }
 
     /**
      * Resolves the {@link CoordinationJournal} for this coordinator. Resolution
