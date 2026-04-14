@@ -9,6 +9,7 @@ A real-time AI chat application that streams LLM responses text-by-text to the b
 - **Conversation memory** — multi-turn context preserved automatically per client
 - **Structured events** — `AiEvent` wire protocol for tool calls, agent steps, and structured output
 - **Demo mode** — works out-of-the-box without an API key (simulated streaming)
+- **Prompt cache demo** — `PromptCacheDemoChat` at `/atmosphere/ai-chat-with-cache` shows how `@AiEndpoint(promptCache = CONSERVATIVE)` threads a `CacheHint` into every request; the sample routes prompts through a real `AiPipeline` + `InMemoryResponseCache` so the framework emits `ai.cache.hit=false` on the first request and `ai.cache.hit=true` on repeated identical prompts (canonical framework-level wire signal, not a sample shim)
 - **Retry policy demo** — `RetryDemoChat` at `/atmosphere/ai-chat-with-retry` echoes the declared `@AiEndpoint(retry = @Retry(...))` attributes and exposes a deterministic `fail-once:<id>` fault-injection path that recovers on a second request
 - **Multi-modal demo** — `MultiModalChat` at `/atmosphere/ai-chat-multimodal` accepts `image:<base64>` prompts, wraps them in a `Content.Image`, and streams a binary content frame next to a text acknowledgement. A minimal picker page is served at `/multimodal.html`
 
