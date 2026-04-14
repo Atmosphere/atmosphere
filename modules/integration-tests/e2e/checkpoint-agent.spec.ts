@@ -281,6 +281,77 @@ test.describe('spring-boot-checkpoint-agent — durable HITL coverage (gap #1)',
     expect(log).not.toMatch(mcpCrashInCoordinatorProcessor);
   });
 
+  test('fu2: live coordinator probe writes snapshot with coordinationId="dispatch" (not UUID)', async () => {
+    // Round-2 follow-up to the 4.0.37 journal-bridge fix. Before this fix
+    // JournalingAgentFleet.coordinationId() returned UUID.randomUUID() per
+    // invocation, so REST callers who filtered `?coordination=dispatch`
+    // never matched any of the snapshots the coordinator actually wrote.
+    // After the fix the coordinator's @Coordinator(name="dispatch") value
+    // IS the coordination id on every recorded event — the REST filter
+    // becomes the primary discovery path for coordinator-driven snapshots.
+    //
+    // This test drives a real WebSocket probe against the dispatch
+    // coordinator (no sqlite3 CLI seeding) and asserts that:
+    //   1. GET /api/checkpoints?coordination=dispatch returns non-empty
+    //   2. Every row's coordinationId equals the literal "dispatch"
+    //   3. At least one row is the analyzer (the only specialist the
+    //      coordinator drives before the LLM stream kicks in — so even
+    //      without an API key, this row is the proof of life for the
+    //      coordinator → JournalingAgentFleet → CheckpointingCoordinationJournal
+    //      → SqliteCheckpointStore pipeline end-to-end)
+    clearCheckpointStore();
+
+    const wsUrl = server.baseUrl.replace('http://', 'ws://') + COORDINATOR_PATH;
+    await new Promise<void>((resolve) => {
+      const ws = new WebSocket(wsUrl);
+      const timer = setTimeout(() => {
+        try { ws.close(); } catch { /* ignore */ }
+        resolve();
+      }, 4_000);
+      ws.on('open', () => {
+        try { ws.send('please refund order 777'); } catch { /* ignore */ }
+      });
+      // Give the server a moment after any inbound frame to finish the
+      // synchronous JournalingAgentFleet.record(...) → SqliteCheckpointStore.save.
+      ws.on('message', () => { /* observed */ });
+      ws.on('close', () => { clearTimeout(timer); resolve(); });
+      ws.on('error', () => { clearTimeout(timer); resolve(); });
+    });
+
+    // Small settle window for the SqliteCheckpointStore INSERT to land.
+    await new Promise((r) => setTimeout(r, 500));
+
+    const res = await fetch(
+      `${server.baseUrl}${REST_PATH}?coordination=${COORDINATION_ID}`,
+    );
+    expect(res.status).toBe(200);
+    const rows = await res.json() as Array<Record<string, unknown>>;
+    expect(rows.length,
+      'GET /api/checkpoints?coordination=dispatch must return a non-empty '
+      + 'list after a live coordinator probe — if this is empty, '
+      + 'JournalingAgentFleet.coordinationId() is still emitting UUIDs and '
+      + 'the REST filter is silently broken').toBeGreaterThan(0);
+
+    // Every row filtered by `coordination=dispatch` must actually have
+    // coordinationId="dispatch" — not a UUID dressed up in the REST
+    // response. This is the invariant the round-2 fix exists to uphold.
+    for (const row of rows) {
+      expect(row.coordinationId,
+        `row ${row.id} must carry the coordinator name as coordinationId, `
+        + `got ${String(row.coordinationId)}`).toBe(COORDINATION_ID);
+    }
+
+    // At least one row must be the analyzer — that's the specialist the
+    // DispatchCoordinator.onPrompt dispatches synchronously before the LLM
+    // stream starts, so its AgentCompleted/AgentFailed boundary event is
+    // the one the CheckpointingCoordinationJournal persists. If no
+    // analyzer row shows up, the coordinator prompt method never ran.
+    const analyzerRows = rows.filter((r) => r.agentName === 'analyzer');
+    expect(analyzerRows.length).toBeGreaterThan(0);
+
+    clearCheckpointStore();
+  });
+
   test('Bug 1a-prime: /atmosphere/agent/dispatch WebSocket handler is mapped and responds', async () => {
     // Drive a real WebSocket probe against the dispatch coordinator.
     // Before the fix, the handler was never mapped (Atmosphere logged

@@ -224,7 +224,15 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
     private String coordinationId() {
         var id = activeCoordinationId.get();
         if (id == null) {
-            id = UUID.randomUUID().toString();
+            // Use the @Coordinator(name="...") value as the canonical
+            // coordination id so REST/journal consumers can filter by the
+            // logical coordinator name (e.g. `?coordination=dispatch`).
+            // Fall back to a random UUID only if the coordinator name is
+            // missing — the JournalingAgentFleet may be instantiated
+            // outside CoordinatorProcessor (tests, ad-hoc decorators).
+            id = coordinatorName != null && !coordinatorName.isEmpty()
+                    ? coordinatorName
+                    : UUID.randomUUID().toString();
             activeCoordinationId.set(id);
         }
         return id;

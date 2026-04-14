@@ -190,10 +190,17 @@ class JournalingAgentFleetTest {
 
         assertEquals(1, coordinationIds.size(),
                 "All operations on the same thread should share one coordination ID");
+        // The canonical id is the @Coordinator(name=...) value so REST filters
+        // like `?coordination=test-coordinator` match regardless of invocation.
+        assertTrue(coordinationIds.contains("test-coordinator"),
+                "coordinationId should be the coordinator's logical name");
     }
 
     @Test
-    void parallelAndPipelineGetSeparateCoordinationIds() {
+    void parallelAndPipelineShareCanonicalCoordinationId() {
+        // After the fix, every invocation of a given coordinator reuses the
+        // same canonical id (the @Coordinator name). This is what makes the
+        // REST filter `?coordination=dispatch` match snapshots from ALL runs.
         fleet.parallel(
                 new AgentCall("weather", "forecast", Map.of("city", "Madrid")),
                 new AgentCall("news", "headlines", Map.of())
@@ -209,13 +216,19 @@ class JournalingAgentFleetTest {
                 .map(CoordinationEvent::coordinationId)
                 .collect(Collectors.toSet());
 
-        assertEquals(2, coordinationIds.size(),
-                "parallel() and pipeline() should each get their own coordination ID "
-                        + "since the ThreadLocal is cleared after each coordination");
+        assertEquals(1, coordinationIds.size(),
+                "parallel() and pipeline() on the same coordinator should share the "
+                        + "canonical coordinator-name id");
+        assertTrue(coordinationIds.contains("test-coordinator"));
     }
 
     @Test
-    void differentThreadsGetDifferentCoordinationIds() throws Exception {
+    void differentThreadsShareCanonicalCoordinationId() throws Exception {
+        // With the coordinator-name-as-id fix, concurrent invocations of the
+        // same coordinator from different threads produce events keyed on
+        // the same canonical id — the ThreadLocal still scopes the cache
+        // across coordination boundaries but every scope resolves to the
+        // coordinator's logical name.
         var ids = java.util.concurrent.ConcurrentHashMap.<String>newKeySet();
         var latch = new CountDownLatch(2);
 
@@ -234,8 +247,10 @@ class JournalingAgentFleetTest {
         Thread.startVirtualThread(task);
         assertTrue(latch.await(5, TimeUnit.SECONDS));
 
-        assertTrue(ids.size() >= 2,
-                "Different threads should produce different coordination IDs");
+        assertEquals(1, ids.size(),
+                "All invocations of the same coordinator share one canonical "
+                        + "coordination id (the @Coordinator(name=...) value)");
+        assertTrue(ids.contains("test-coordinator"));
     }
 
     @Test
