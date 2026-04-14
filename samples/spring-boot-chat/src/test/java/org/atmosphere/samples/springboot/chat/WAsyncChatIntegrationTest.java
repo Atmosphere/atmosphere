@@ -15,15 +15,19 @@
  */
 package org.atmosphere.samples.springboot.chat;
 
+import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.wasync.Event;
 import org.atmosphere.wasync.Function;
 import org.atmosphere.wasync.Request;
 import org.atmosphere.wasync.impl.AtmosphereClient;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -40,7 +44,31 @@ class WAsyncChatIntegrationTest {
     @LocalServerPort
     private int port;
 
+    @Autowired
+    private AtmosphereFramework framework;
+
     private final ObjectMapper mapper = new ObjectMapper();
+
+    /**
+     * Wait until the broadcaster at {@code path} reports at least {@code minSubscribers}
+     * suspended {@code AtmosphereResource}s. Long-polling clients appear in this set only
+     * while their current HTTP request is suspended — between polls they vanish. Firing
+     * a broadcast before the LP client re-enters suspend mode drops the message on
+     * runners where poll-reconnect latency is non-trivial (seen on GitHub Actions).
+     */
+    private void awaitBroadcasterSubscribers(String path, int minSubscribers, long timeoutMillis)
+            throws InterruptedException {
+        long deadline = System.currentTimeMillis() + timeoutMillis;
+        while (System.currentTimeMillis() < deadline) {
+            Optional<Broadcaster> b = framework.getBroadcasterFactory().findBroadcaster(path);
+            if (b.isPresent() && b.get().getAtmosphereResources().size() >= minSubscribers) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        throw new AssertionError("Broadcaster " + path + " never reached " + minSubscribers
+                + " suspended subscribers within " + timeoutMillis + "ms");
+    }
 
     @Test
     void webSocketConnectAndChat() throws Exception {
@@ -202,16 +230,15 @@ class WAsyncChatIntegrationTest {
 
         // Long-polling has a race between Event.OPEN (first poll request
         // dispatched locally) and server-side AtmosphereResource registration
-        // in the broadcaster. If the broadcast fires before the LP client is
-        // actually subscribed, the message is lost. Re-fire on a short retry
-        // loop until the LP client picks it up — duplicates carry identical
-        // content so the subsequent payload assertions remain valid.
-        boolean delivered = false;
-        for (int i = 0; i < 10 && !delivered; i++) {
-            senderSocket.fire(mapper.writeValueAsString(new Message("Charlie", "Hello via LP!")));
-            delivered = messageLatch.await(5, TimeUnit.SECONDS);
-        }
-        assertThat(delivered)
+        // in the broadcaster. Query the broadcaster directly until BOTH the LP
+        // receiver and the WS sender appear in the suspended-resources set.
+        // This is more reliable than firing on a retry loop because slow CI
+        // runners can leave the LP client between polls for 100s of ms, and
+        // broadcasts during that window are dropped with no cache to replay.
+        awaitBroadcasterSubscribers("/atmosphere/chat", 2, 15_000);
+
+        senderSocket.fire(mapper.writeValueAsString(new Message("Charlie", "Hello via LP!")));
+        assertThat(messageLatch.await(15, TimeUnit.SECONDS))
                 .as("Long-polling client should receive broadcast").isTrue();
 
         var received = mapper.readValue(messages.getFirst(), Message.class);
