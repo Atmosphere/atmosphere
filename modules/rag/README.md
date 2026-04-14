@@ -63,7 +63,7 @@ Add Spring AI to your dependencies:
 <dependency>
     <groupId>org.springframework.ai</groupId>
     <artifactId>spring-ai-vector-store</artifactId>
-    <version>4.0.36</version>
+    <version>4.0.37</version>
 </dependency>
 ```
 
@@ -86,7 +86,7 @@ Add LangChain4j to your dependencies:
 <dependency>
     <groupId>dev.langchain4j</groupId>
     <artifactId>langchain4j-core</artifactId>
-    <version>4.0.36</version>
+    <version>4.0.37</version>
 </dependency>
 ```
 
