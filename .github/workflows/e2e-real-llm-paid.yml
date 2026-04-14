@@ -10,6 +10,17 @@ name: "CI: E2E (Real LLM — Paid nightly)"
 # job to cap runaway costs.
 #
 # Secrets required: OPENAI_API_KEY, GEMINI_API_KEY
+#
+# ADVISORY / NON-GATING (per ChefFamille, 4.0.37 release cycle):
+# Paid-API hiccups (OpenAI/Gemini transient 5xx, rate limits, model
+# deprecations) must NEVER block a release. This nightly canary surfaces
+# real wire-protocol regressions, but `continue-on-error: true` at the job
+# level forces the workflow conclusion to "success" so release-4x.yml and
+# main branch CI are never gated on it. Failures still appear as red on
+# the job page itself — that is the signal we watch.
+#
+# NOTE: these jobs are NOT in main's required status checks. Do NOT add
+# them to branch protection without checking with ChefFamille first.
 
 on:
   schedule:
@@ -22,8 +33,13 @@ concurrency:
 
 jobs:
   paid-e2e:
-    name: Paid ${{ matrix.provider.name }}
+    name: Paid ${{ matrix.provider.name }} (advisory)
     runs-on: ubuntu-latest
+    # Advisory: paid provider transients must not gate releases (see
+    # header comment). `continue-on-error: true` keeps the workflow
+    # conclusion green even when a matrix leg fails, so release-4x.yml
+    # and main branch CI are never blocked by an OpenAI/Gemini hiccup.
+    continue-on-error: true
     timeout-minutes: 10
     if: github.repository == 'Atmosphere/atmosphere'
     strategy:

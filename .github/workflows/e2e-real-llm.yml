@@ -7,6 +7,20 @@ name: "CI: E2E (Real LLM — Ollama)"
 #
 # Cost: $0 — Ollama is local to the runner.
 # Coverage: basic chat, structured output, embeddings across 3 runtimes.
+#
+# ADVISORY / NON-GATING (per ChefFamille, 4.0.37 release cycle):
+# Ollama on GitHub-hosted runners is unreliable — the warm-up loop in this
+# workflow is best-effort and the model-load latency on a cold CPU runner
+# routinely blows past the spec's 30s waitForDone, producing flaky red runs
+# that pass on re-run with no code change. The release cut MUST proceed
+# regardless of this workflow's outcome, and "main" CI must not turn red on
+# its failures. We keep the job alive so it still surfaces wire-protocol
+# regressions as warnings, but `continue-on-error: true` at the job level
+# forces the workflow conclusion to "success" even when Playwright fails.
+#
+# NOTE: this job is NOT in main's required status checks. Do NOT add it
+# to branch protection without checking with ChefFamille first. The Tier-2
+# paid workflow (e2e-real-llm-paid.yml) is advisory for the same reason.
 
 on:
   push:
@@ -25,8 +39,14 @@ concurrency:
 
 jobs:
   ollama-e2e:
-    name: Ollama real-llm-chat
+    name: Ollama real-llm-chat (advisory)
     runs-on: ubuntu-latest
+    # Advisory: Ollama warm-up on GH runners is flaky (see header comment).
+    # `continue-on-error: true` keeps the workflow conclusion green even
+    # when this job fails, so release-4x.yml + main branch CI are never
+    # gated on a transient Ollama hiccup. Failures still appear as red on
+    # the job page itself, which is the canary signal we want.
+    continue-on-error: true
     timeout-minutes: 30
     services:
       ollama:
