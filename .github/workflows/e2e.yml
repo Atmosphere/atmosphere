@@ -64,21 +64,35 @@ jobs:
     strategy:
       matrix:
         spring-boot-version: [4, 3]
+        # Groups are sized to keep the slowest leg under ~8 min. The long
+        # pole historically was gap-admin (SB3) at 15.6 min — split into
+        # -core and -smoke. gap-protocols, ai-chat, and ai-ux similarly
+        # split. New 4.0.36/4.0.37 flagship specs (ai-cancel, checkpoint-
+        # agent, semantic-kernel-chat, orchestration-primitives, admin-
+        # coverage) are now mapped — previously they lived in
+        # playwright.config.ts but were silently unmapped by any matrix
+        # leg, so CI never ran them.
         group:
           - name: core-chat
             projects: "chat,spring-boot-chat,multi-client,embedded-jetty-chat"
           - name: core-transports
             projects: "quarkus-chat,sse-transport,long-polling-transport,transport-fallback,reconnection"
-          - name: ai-chat
-            projects: "ai-chat,ai-streaming-dom,ai-chat-features,ai-memory,ai-memory-strategies"
-          - name: ai-ux
-            projects: "ai-identity,ai-error-recovery,ai-events,unified-console,ai-multimodal,ai-retry-policy,ai-lifecycle-listener,ai-models"
+          - name: ai-chat-core
+            projects: "ai-chat,ai-streaming-dom,ai-chat-features"
+          - name: ai-chat-memory
+            projects: "ai-memory,ai-memory-strategies"
+          - name: ai-ux-events
+            projects: "ai-identity,ai-error-recovery,ai-events,unified-console"
+          - name: ai-ux-flows
+            projects: "ai-multimodal,ai-retry-policy,ai-lifecycle-listener,ai-models"
           - name: ai-tools
             projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow"
           - name: ai-advanced
             projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding"
           - name: ai-routing
             projects: "ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
+          - name: ai-flagship
+            projects: "ai-cancel,checkpoint-agent,semantic-kernel-chat"
           - name: protocols
             projects: "mcp-server,mcp-tools,a2a-agent,a2a-discovery,agui-chat,multi-agent-startup-team"
           - name: protocols-extra
@@ -91,14 +105,18 @@ jobs:
             projects: "message-ordering,large-payload,slow-consumer,connection-timeout"
           - name: gap-infra
             projects: "redis-clustering,kafka-clustering,kotlin-dsl,wasync-client,mcp-bidirectional,cross-transport-interop"
-          - name: gap-protocols
-            projects: "agui-sse-lifecycle,channel-gateway,otel-span-correlation,a2a-multi-hop,concurrent-protocol-access"
+          - name: gap-protocols-events
+            projects: "agui-sse-lifecycle,channel-gateway,otel-span-correlation"
+          - name: gap-protocols-agent
+            projects: "a2a-multi-hop,concurrent-protocol-access,orchestration-primitives"
           - name: gap-coordinator
             projects: "coordinator-remote,coordinator-journal,coordinator-activity,durable-session-restart,session-token-expiry,auth-oauth-jwt"
           - name: gap-compat
             projects: "spring-boot3-parity,backpressure-bounded-queue,webtransport-raw,webtransport"
-          - name: gap-admin
-            projects: "admin-dashboard,admin-quarkus,console-http-check,sample-matrix-smoke"
+          - name: gap-admin-core
+            projects: "admin-dashboard,admin-quarkus"
+          - name: gap-admin-smoke
+            projects: "console-http-check,sample-matrix-smoke,admin-coverage"
           - name: gap-agents
             projects: "dentist-agent,koog-chat,a2a-discovery"
           - name: cli-runtime
