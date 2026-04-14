@@ -103,6 +103,25 @@ public class CoordinatorProcessor implements Processor<Object> {
     private static final Logger logger = LoggerFactory.getLogger(CoordinatorProcessor.class);
     private static final int DEFAULT_MAX_HISTORY = 20;
 
+    /**
+     * Property key under which an externally-managed
+     * {@link CoordinationJournal} can be stashed on
+     * {@code framework.getAtmosphereConfig().properties()}. When present, the
+     * processor uses that journal verbatim and does <strong>not</strong> call
+     * {@link CoordinationJournal#start() start()} or
+     * {@link CoordinationJournal#stop() stop()} — the bridging container
+     * (typically Spring Boot's auto-configuration) owns the lifecycle.
+     *
+     * <p>This is the bridge between Spring-managed {@code @Bean}-style journals
+     * and the processor's discovery path. Without this hook, the processor's
+     * {@link java.util.ServiceLoader}-only resolution silently misses Spring
+     * beans, the journal stays {@link CoordinationJournal#NOOP NOOP}, and
+     * {@code AgentCompleted}/{@code AgentFailed} events are swallowed inside
+     * {@link DefaultAgentFleet}.</p>
+     */
+    public static final String COORDINATION_JOURNAL_PROPERTY =
+            "org.atmosphere.coordinator.journal";
+
     private final Map<String, Set<String>> dependencyGraph = new ConcurrentHashMap<>();
 
     @Override
@@ -156,11 +175,17 @@ public class CoordinatorProcessor implements Processor<Object> {
 
             // Step 8: Create AgentFleet and AiEndpointHandler with injectable
             var evaluators = resolveEvaluators();
-            var journal = resolveJournal();
+            var journalResolution = resolveJournal(framework);
+            var journal = journalResolution.journal();
             AgentFleet fleet = new DefaultAgentFleet(proxies, evaluators,
                     DefaultAgentFleet.DEFAULT_PARALLEL_TIMEOUT_MS, activityListeners);
             if (journal != CoordinationJournal.NOOP) {
-                journal.start();
+                // Externally-managed journals (e.g. Spring-wired beans) own
+                // their own lifecycle — calling start() here would re-start
+                // the underlying CheckpointStore and double-log on boot.
+                if (!journalResolution.externallyManaged()) {
+                    journal.start();
+                }
                 fleet = new JournalingAgentFleet(fleet, journal, coordinatorName);
             }
             var responseType = annotation.responseAs() == Void.class
@@ -486,17 +511,51 @@ public class CoordinatorProcessor implements Processor<Object> {
         }
     }
 
-    private CoordinationJournal resolveJournal() {
+    /**
+     * Result of journal resolution: the journal itself plus a flag indicating
+     * whether the processor owns its lifecycle (i.e. should call
+     * {@code start()}/{@code stop()}) or not.
+     *
+     * <p>Externally-managed journals come from the framework property
+     * {@link #COORDINATION_JOURNAL_PROPERTY}; built-in resolution via
+     * {@link java.util.ServiceLoader} is processor-owned because nothing else
+     * starts the discovered provider.</p>
+     */
+    record ResolvedJournal(CoordinationJournal journal, boolean externallyManaged) {}
+
+    /**
+     * Resolves the {@link CoordinationJournal} for this coordinator. Resolution
+     * order:
+     * <ol>
+     *   <li>Bean bridged via {@link #COORDINATION_JOURNAL_PROPERTY} on
+     *       {@code framework.getAtmosphereConfig().properties()} — this is how
+     *       Spring Boot's auto-configuration injects a Spring-managed journal
+     *       bean. The processor does <strong>not</strong> own its lifecycle.</li>
+     *   <li>{@link java.util.ServiceLoader} provider on the classpath. The
+     *       processor owns the lifecycle of providers it discovers this way.</li>
+     *   <li>{@link CoordinationJournal#NOOP NOOP} fallback.</li>
+     * </ol>
+     */
+    ResolvedJournal resolveJournal(AtmosphereFramework framework) {
+        // 1. Externally-bridged (Spring bean, manual setProperty, etc.).
+        var bridged = framework.getAtmosphereConfig()
+                .properties().get(COORDINATION_JOURNAL_PROPERTY);
+        if (bridged instanceof CoordinationJournal cj && cj != CoordinationJournal.NOOP) {
+            logger.info("CoordinationJournal: {} (externally managed)",
+                    cj.getClass().getName());
+            return new ResolvedJournal(cj, true);
+        }
+        // 2. ServiceLoader fallback for plain-servlet / Quarkus deployments.
         try {
             var journal = ServiceLoader.load(CoordinationJournal.class)
                     .findFirst().orElse(CoordinationJournal.NOOP);
             if (journal != CoordinationJournal.NOOP) {
                 logger.info("CoordinationJournal: {}", journal.getClass().getName());
             }
-            return journal;
+            return new ResolvedJournal(journal, false);
         } catch (Exception | ServiceConfigurationError e) {
             logger.warn("Failed to load CoordinationJournal provider: {}", e.getMessage(), e);
-            return CoordinationJournal.NOOP;
+            return new ResolvedJournal(CoordinationJournal.NOOP, false);
         }
     }
 

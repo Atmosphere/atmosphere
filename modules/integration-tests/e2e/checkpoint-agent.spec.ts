@@ -332,6 +332,55 @@ test.describe('spring-boot-checkpoint-agent — durable HITL coverage (gap #1)',
     expect(log).toContain('Dispatch received: hello dispatch');
   });
 
+  // ── Bug 4: Spring journal bridge ─────────────────────────────────
+
+  test('Bug 4: Spring CoordinationJournal bean is bridged into CoordinatorProcessor', async () => {
+    // Before this fix, CoordinatorProcessor.resolveJournal used ServiceLoader
+    // exclusively and silently fell through to CoordinationJournal.NOOP for
+    // Spring-wired beans, swallowing every AgentCompleted/AgentFailed event
+    // inside DefaultAgentFleet. The CheckpointConfig @Bean was created and
+    // its store was real, but the coordinator-driven path produced ZERO
+    // snapshots because no one was calling journal.record(...).
+    //
+    // After the fix, the spring-boot-starter's
+    // AtmosphereCoordinatorAutoConfiguration bridges the journal bean onto
+    // framework.getAtmosphereConfig().properties() and the processor logs
+    // it as "(externally managed)" during startup. If this log line is
+    // missing, the bridge auto-config did not activate and the journal is
+    // back to NOOP — every coordinator run would silently drop snapshots.
+    const log = server.getOutput();
+    expect(log).toMatch(
+      /Bridged Spring CoordinationJournal bean .*CheckpointingCoordinationJournal.* into CoordinatorProcessor/,
+    );
+    expect(log).toMatch(
+      /CoordinationJournal:.*CheckpointingCoordinationJournal.*\(externally managed\)/,
+    );
+  });
+
+  test('Bug 4: SqliteCheckpointStore initialized exactly once on startup (no double-start)', async () => {
+    // Wave A audit (commit 306b58c47d timeframe) flagged the
+    // "SqliteCheckpointStore initialized" log line printing twice on boot —
+    // once from CheckpointConfig.checkpointStore() calling store.start()
+    // directly, and once from CheckpointConfig.coordinationJournal()
+    // calling journal.start(), which delegates to store.start() inside
+    // CheckpointingCoordinationJournal. After the fix the bean no longer
+    // calls journal.start() (Spring owns the lifecycle, the bridged
+    // journal lifecycle is a no-op for the underlying delegate, and the
+    // store is only started once by the @Bean(destroyMethod="stop") path).
+    //
+    // CoordinatorProcessor's resolveJournal must also NOT call start() on
+    // a bridged journal — the externally-managed flag is what enforces
+    // this. If either path regresses, the line below appears twice and
+    // the assertion fires.
+    const log = server.getOutput();
+    const occurrences = (log.match(/SqliteCheckpointStore initialized/g) ?? []).length;
+    expect(occurrences,
+      `expected exactly one "SqliteCheckpointStore initialized" log line on boot, `
+      + `but saw ${occurrences} — duplicate start() means the journal bridge `
+      + `is double-initializing the store (Bug 4 follow-up regression)`)
+      .toBe(1);
+  });
+
   // ── Approval resumption (single JVM) ──────────────────────────────
 
   test('approveResumesWorkflow — seeded analyzer snapshot → approver chain via /approve', async () => {

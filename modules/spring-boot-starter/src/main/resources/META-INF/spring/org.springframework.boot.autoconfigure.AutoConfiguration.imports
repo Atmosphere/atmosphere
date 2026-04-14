@@ -7,6 +7,7 @@ org.atmosphere.spring.boot.AtmosphereAuthAutoConfiguration
 org.atmosphere.spring.boot.AtmosphereCacheAutoConfiguration
 org.atmosphere.spring.boot.AtmosphereGrpcAutoConfiguration
 org.atmosphere.spring.boot.AtmosphereAiAutoConfiguration
+org.atmosphere.spring.boot.AtmosphereCoordinatorAutoConfiguration
 org.atmosphere.spring.boot.AtmosphereWebTransportAutoConfiguration
 org.atmosphere.spring.boot.webtransport.WebTransportInfoController
 org.atmosphere.spring.boot.AtmosphereAdminAutoConfiguration

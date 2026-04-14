@@ -102,12 +102,23 @@ public class CheckpointConfig {
         var underlying = new InMemoryCoordinationJournal();
         CoordinationStateExtractor<CoordinationEvent> extractor =
                 CoordinationStateExtractors.event();
-        var journal = new CheckpointingCoordinationJournal<>(
+        // Do NOT call journal.start() here. CheckpointingCoordinationJournal.start()
+        // delegates to store.start(), which would re-initialize the SQLite schema
+        // and emit a duplicate "SqliteCheckpointStore initialized" log line —
+        // checkpointStore() above has already started the store. The processor's
+        // bridged-journal path in CoordinatorProcessor also skips start() because
+        // this bean is Spring-owned (see AtmosphereCoordinatorAutoConfiguration).
+        return journal(underlying, store, extractor);
+    }
+
+    private static CoordinationJournal journal(
+            InMemoryCoordinationJournal underlying,
+            CheckpointStore store,
+            CoordinationStateExtractor<CoordinationEvent> extractor) {
+        return new CheckpointingCoordinationJournal<>(
                 underlying,
                 store,
                 CheckpointingCoordinationJournal.onAgentBoundaries(),
                 extractor);
-        journal.start();
-        return journal;
     }
 }
