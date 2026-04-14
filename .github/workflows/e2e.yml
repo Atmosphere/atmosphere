@@ -160,19 +160,16 @@ jobs:
         cache: 'npm'
         cache-dependency-path: modules/integration-tests/package-lock.json
 
-    - name: Resolve Playwright version
-      id: playwright-version
-      working-directory: modules/integration-tests
-      run: |
-        VER=$(node -p "require('@playwright/test/package.json').version")
-        echo "version=$VER" >> "$GITHUB_OUTPUT"
-
+    # Cache key is the hash of the npm lockfile — any Playwright version
+    # bump (or any other dep change) invalidates the cache. Conservative
+    # vs parsing the version directly, but has no ordering dependency on
+    # npm ci and stays correct across major/minor bumps.
     - name: Cache Playwright browsers
       id: playwright-cache
       uses: actions/cache@v4
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+        key: playwright-${{ runner.os }}-${{ hashFiles('modules/integration-tests/package-lock.json') }}
 
     - name: Install npm dependencies
       working-directory: modules/integration-tests
