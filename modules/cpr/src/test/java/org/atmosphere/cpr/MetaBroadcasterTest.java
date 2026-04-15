@@ -17,7 +17,9 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.util.ExecutorsFactory;
 
+import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -119,5 +121,65 @@ public class MetaBroadcasterTest {
         factory.get("/c");
         assertEquals(1, metaBroadcaster.broadcastTo("/a/@b", "yo").get().size());
 
+    }
+
+    @Test
+    public void destroyDoesNotThrow() {
+        assertDoesNotThrow(() -> metaBroadcaster.destroy());
+    }
+
+    @Test
+    public void addAndRemoveBroadcasterListener() {
+        BroadcasterListener listener = new BroadcasterListenerAdapter();
+        MetaBroadcaster result = metaBroadcaster.addBroadcasterListener(listener);
+        assertSame(metaBroadcaster, result);
+
+        MetaBroadcaster removed = metaBroadcaster.removeBroadcasterListener(listener);
+        assertSame(metaBroadcaster, removed);
+    }
+
+    @Test
+    public void setCacheReturnsThis() {
+        MetaBroadcaster.MetaBroadcasterCache cache = new MetaBroadcaster.NoCache();
+        MetaBroadcaster result = metaBroadcaster.cache(cache);
+        assertSame(metaBroadcaster, result);
+    }
+
+    @Test
+    public void noCacheCacheReturnsThis() {
+        var noCache = new MetaBroadcaster.NoCache();
+        MetaBroadcaster.MetaBroadcasterCache result = noCache.cache("/test", "msg");
+        assertSame(noCache, result);
+    }
+
+    @Test
+    public void noCacheFlushReturnsThis() {
+        var noCache = new MetaBroadcaster.NoCache();
+        MetaBroadcaster.MetaBroadcasterCache result = noCache.flushCache();
+        assertSame(noCache, result);
+    }
+
+    @Test
+    public void broadcastToWithCacheMessageFalse() throws ExecutionException, InterruptedException {
+        factory.get("/a");
+        Future<List<Broadcaster>> future = metaBroadcaster.broadcastTo("/a", "msg", false);
+        assertEquals(1, future.get().size());
+    }
+
+    @Test
+    public void broadcastToNonMatchingPathReturnsDone() throws ExecutionException, InterruptedException {
+        factory.get("/a");
+        Future<List<Broadcaster>> future = metaBroadcaster.broadcastTo("/z/y/x", "msg");
+        assertEquals(0, future.get().size());
+    }
+
+    @Test
+    public void broadcastToNullPathThrows() {
+        assertThrows(NullPointerException.class, () -> metaBroadcaster.broadcastTo(null, "msg"));
+    }
+
+    @Test
+    public void broadcastToEmptyPathThrows() {
+        assertThrows(NullPointerException.class, () -> metaBroadcaster.broadcastTo("", "msg"));
     }
 }

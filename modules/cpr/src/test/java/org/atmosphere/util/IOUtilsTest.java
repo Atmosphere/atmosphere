@@ -16,7 +16,14 @@
 package org.atmosphere.util;
 
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+
+import java.io.Closeable;
+import java.io.IOException;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Created by Romain on 17/03/14.
@@ -39,6 +46,77 @@ public class IOUtilsTest {
         testFullPath = "/com.zyxabc.abc.Abc/gwtCometEvent*";
         testCleanedPath = IOUtils.getCleanedServletPath(testFullPath);
         assertEquals("/com.zyxabc.abc.Abc/gwtCometEvent", testCleanedPath);
+    }
+
+    @Test
+    public void cleanedServletPathWildcardOnly() {
+        assertEquals("", IOUtils.getCleanedServletPath("/*"));
+    }
+
+    @Test
+    public void cleanedServletPathPlain() {
+        assertEquals("/simple", IOUtils.getCleanedServletPath("/simple"));
+    }
+
+    @Test
+    public void cleanedServletPathNoLeadingSlash() {
+        String result = IOUtils.getCleanedServletPath("api/events");
+        assertTrue(result.startsWith("/"));
+    }
+
+    @Test
+    public void isBodyEmptyForEmptyString() {
+        assertTrue(IOUtils.isBodyEmpty(""));
+    }
+
+    @Test
+    public void isBodyEmptyForNonEmptyString() {
+        assertFalse(IOUtils.isBodyEmpty("data"));
+    }
+
+    @Test
+    public void isBodyEmptyForEmptyByteArray() {
+        assertTrue(IOUtils.isBodyEmpty(new Byte[0]));
+    }
+
+    @Test
+    public void isBodyEmptyForNonEmptyByteArray() {
+        assertFalse(IOUtils.isBodyEmpty(new Byte[]{1, 2}));
+    }
+
+    @Test
+    public void loadClassFindsExistingClass() throws Exception {
+        Class<?> clazz = IOUtils.loadClass(IOUtilsTest.class, "java.lang.String");
+        assertNotNull(clazz);
+        assertEquals(String.class, clazz);
+    }
+
+    @Test
+    public void closeHandlesNull() {
+        IOUtils.close((Closeable) null);
+    }
+
+    @Test
+    public void closeHandlesMultipleCloseables() {
+        var c1 = new Closeable() {
+            boolean closed = false;
+            @Override
+            public void close() { closed = true; }
+        };
+        var c2 = new Closeable() {
+            boolean closed = false;
+            @Override
+            public void close() { closed = true; }
+        };
+        IOUtils.close(c1, c2);
+        assertTrue(c1.closed);
+        assertTrue(c2.closed);
+    }
+
+    @Test
+    public void closeSwallowsIOException() {
+        Closeable throwing = () -> { throw new IOException("test"); };
+        IOUtils.close(throwing);
     }
 
 }
