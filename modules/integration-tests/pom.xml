@@ -16,7 +16,7 @@
     <description>End-to-end integration tests with embedded Jetty and Testcontainers</description>
 
     <properties>
-        <kafka.version>3.9.0</kafka.version>
+        <kafka.version>3.9.2</kafka.version>
     </properties>
 
     <dependencies>
