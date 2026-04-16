@@ -303,7 +303,20 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         var userId = context.userId() != null ? context.userId() : defaultUserId;
         var sessionId = context.sessionId() != null ? context.sessionId() : defaultSessionId;
 
-        ensureSession(requestRunner, userId, sessionId);
+        boolean sessionCreated = ensureSession(requestRunner, userId, sessionId);
+
+        // Honor AiCapability.CONVERSATION_MEMORY: ADK's Session is the
+        // authoritative conversation store for this runtime, but Atmosphere is
+        // the authoritative store across restarts and across runtimes. When a
+        // fresh ADK session is created and context.history() is populated (the
+        // caller has prior turns from AgentState / AiConversationMemory), seed
+        // the ADK session with those turns as appendEvent calls so the next
+        // runAsync sees the full multi-turn context. Without this seeding the
+        // runtime silently drops Atmosphere-persisted history (latent
+        // capability lie, Correctness Invariant #5 — Runtime Truth).
+        if (sessionCreated && !context.history().isEmpty()) {
+            seedSessionFromHistory(requestRunner, userId, sessionId, context.history());
+        }
 
         if (adkHint.enabled() && logger.isDebugEnabled()) {
             logger.debug("ADK: per-request CacheHint (policy={}, ttl={}) applied via "
@@ -393,24 +406,92 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         };
     }
 
-    private static void ensureSession(Runner adkRunner, String userId, String sessionId) {
+    /**
+     * Resolve or create the ADK {@link com.google.adk.sessions.Session} for
+     * {@code (userId, sessionId)} on the given runner. Returns {@code true} if
+     * the session was newly created in this call (so the caller can seed it
+     * from Atmosphere-persisted history), {@code false} if an existing session
+     * was found in the ADK session service or the per-runner cache.
+     */
+    private static boolean ensureSession(Runner adkRunner, String userId, String sessionId) {
         var key = userId + ":" + sessionId;
         var perRunnerCache = KNOWN_SESSIONS_BY_RUNNER.computeIfAbsent(
                 adkRunner, r -> ConcurrentHashMap.newKeySet());
         if (perRunnerCache.contains(key)) {
-            return;
+            return false;
         }
 
         var existing = adkRunner.sessionService()
                 .getSession(adkRunner.appName(), userId, sessionId, Optional.empty())
                 .blockingGet();
+        boolean created = false;
         if (existing == null) {
             adkRunner.sessionService()
                     .createSession(adkRunner.appName(), userId, Map.of(), sessionId)
                     .blockingGet();
+            created = true;
             logger.debug("Created ADK session: userId={}, sessionId={}", userId, sessionId);
         }
         perRunnerCache.add(key);
+        return created;
+    }
+
+    /**
+     * Seed a freshly-created ADK session with Atmosphere's conversation history
+     * via {@link com.google.adk.sessions.BaseSessionService#appendEvent}. Maps
+     * Atmosphere roles to ADK authors: {@code user}→{@code user},
+     * {@code assistant}→{@code model}, {@code system}→{@code system},
+     * {@code tool}→{@code user}. Each history message becomes one
+     * {@link com.google.adk.events.Event} with a synthetic invocation id so
+     * the ADK session service can distinguish seeded events from live ones.
+     *
+     * <p>This is how ADK honors {@link AiCapability#CONVERSATION_MEMORY} —
+     * without seeding, Atmosphere-persisted history is silently dropped when
+     * the runtime is ADK. The capability advertisement would be a Correctness
+     * Invariant #5 violation (Runtime Truth).</p>
+     */
+    // Package-private so AdkAgentRuntimeHistorySeedTest can exercise it
+    // directly without spinning up a full runAsync pipeline (which would
+    // require a live Gemini backend).
+    static void seedSessionFromHistory(Runner runner, String userId, String sessionId,
+                                       List<org.atmosphere.ai.llm.ChatMessage> history) {
+        var session = runner.sessionService()
+                .getSession(runner.appName(), userId, sessionId, Optional.empty())
+                .blockingGet();
+        if (session == null) {
+            logger.warn("ADK session {} vanished before history seed (userId={})", sessionId, userId);
+            return;
+        }
+        var invocationId = "atmosphere-seed-" + com.google.adk.events.Event.generateEventId();
+        for (var msg : history) {
+            var author = switch (msg.role()) {
+                case "assistant" -> "model";
+                case "system" -> "system";
+                // "user" and "tool" both appear as user-origin events in ADK's
+                // model; tool-result messages are surfaced to the model as
+                // user-role input during the next turn.
+                default -> "user";
+            };
+            var event = com.google.adk.events.Event.builder()
+                    .id(com.google.adk.events.Event.generateEventId())
+                    .invocationId(invocationId)
+                    .author(author)
+                    .actions(com.google.adk.events.EventActions.builder().build())
+                    .content(Content.fromParts(Part.fromText(msg.content())))
+                    .build();
+            try {
+                runner.sessionService().appendEvent(session, event).blockingGet();
+            } catch (RuntimeException e) {
+                // Do not abort the whole seed on a single bad entry: log and
+                // continue. Subsequent messages may still land correctly, and
+                // the bridge's contract is best-effort seeding, not perfect
+                // replay.
+                logger.trace("ADK appendEvent failed while seeding session {}: {}",
+                        sessionId, e.getMessage(), e);
+            }
+        }
+        logger.debug("Seeded ADK session {} with {} historical messages (userId={})",
+                sessionId, history.size(), userId);
     }
 
     @Override
