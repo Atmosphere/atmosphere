@@ -1,0 +1,5 @@
+# InMemoryProtocolBridge is registered programmatically by CoordinatorProcessor
+# because it requires an AtmosphereFramework reference at construction. A
+# no-arg ServiceLoader entry would not be usable — leave this file present
+# as the contract-visible registration point for third-party bridges but do
+# not list the in-memory bridge here.
