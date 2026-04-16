@@ -192,6 +192,63 @@ class FileSystemAgentStateTest {
     }
 
     @Test
+    void factsAreIsolatedByUserAndAgent(@TempDir Path root) {
+        var state = new FileSystemAgentState(root);
+
+        state.addFact("alice", "pierre", "alice's fact");
+        state.addFact("bob", "pierre", "bob's fact for pierre");
+        state.addFact("alice", "sophia", "alice's fact for sophia");
+
+        var aliceForPierre = state.getFacts("alice", "pierre");
+        var bobForPierre = state.getFacts("bob", "pierre");
+        var aliceForSophia = state.getFacts("alice", "sophia");
+        var bobForSophia = state.getFacts("bob", "sophia");
+
+        assertEquals(1, aliceForPierre.size());
+        assertEquals("alice's fact", aliceForPierre.get(0).content());
+
+        assertEquals(1, bobForPierre.size());
+        assertEquals("bob's fact for pierre", bobForPierre.get(0).content());
+
+        assertEquals(1, aliceForSophia.size());
+        assertEquals("alice's fact for sophia", aliceForSophia.get(0).content());
+
+        assertTrue(bobForSophia.isEmpty(),
+                "unwritten (bob, sophia) scope must not see other scopes' facts");
+    }
+
+    @Test
+    void dailyNotesAreIsolatedByUserAndAgent(@TempDir Path root) {
+        var state = new FileSystemAgentState(root);
+        state.addDailyNote("alice", "pierre", "alice+pierre note");
+        state.addDailyNote("bob", "pierre", "bob+pierre note");
+
+        var alice = state.getDailyNotes("alice", "pierre", LocalDate.now());
+        var bob = state.getDailyNotes("bob", "pierre", LocalDate.now());
+
+        assertEquals(1, alice.size());
+        assertEquals("alice+pierre note", alice.get(0).content());
+        assertEquals(1, bob.size());
+        assertEquals("bob+pierre note", bob.get(0).content());
+    }
+
+    @Test
+    void removeFactOnlyAffectsOwnerScope(@TempDir Path root) {
+        var state = new FileSystemAgentState(root);
+        var aliceFact = state.addFact("alice", "pierre", "alice's private fact");
+        var bobFact = state.addFact("bob", "pierre", "bob's private fact");
+
+        state.removeFact("alice", "pierre", bobFact.id());
+
+        assertEquals(1, state.getFacts("alice", "pierre").size(),
+                "deletion must not cross into another user's scope");
+        assertEquals(1, state.getFacts("bob", "pierre").size(),
+                "bob's fact survives alice's remove attempt on bob's id");
+        assertEquals(aliceFact.id(),
+                state.getFacts("alice", "pierre").get(0).id());
+    }
+
+    @Test
     void autoMemoryEveryNTurnsWritesDailyNote(@TempDir Path root) {
         var state = new FileSystemAgentState(root);
         var strategy = AutoMemoryStrategy.everyNTurns(2);

@@ -145,32 +145,32 @@ public class FileSystemAgentState implements AgentState {
 
     @Override
     public List<MemoryEntry> getFacts(String userId, String agentId) {
-        return readEntries(memoryMdPath());
+        return readEntries(memoryMdPath(userId, agentId));
     }
 
     @Override
     public MemoryEntry addFact(String userId, String agentId, String content) {
         var entry = new MemoryEntry(UUID.randomUUID().toString(), content, Instant.now());
-        appendEntry(memoryMdPath(), entry);
+        appendEntry(memoryMdPath(userId, agentId), entry);
         return entry;
     }
 
     @Override
     public void removeFact(String userId, String agentId, String factId) {
-        rewriteWithout(memoryMdPath(), factId);
+        rewriteWithout(memoryMdPath(userId, agentId), factId);
     }
 
     // ---------- Daily notes ----------
 
     @Override
     public List<MemoryEntry> getDailyNotes(String userId, String agentId, LocalDate date) {
-        return readEntries(dailyNotePath(date));
+        return readEntries(dailyNotePath(userId, agentId, date));
     }
 
     @Override
     public MemoryEntry addDailyNote(String userId, String agentId, String content) {
         var entry = new MemoryEntry(UUID.randomUUID().toString(), content, Instant.now());
-        appendEntry(dailyNotePath(LocalDate.now()), entry);
+        appendEntry(dailyNotePath(userId, agentId, LocalDate.now()), entry);
         return entry;
     }
 
@@ -222,12 +222,35 @@ public class FileSystemAgentState implements AgentState {
 
     // ---------- Helpers ----------
 
-    private Path memoryMdPath() {
-        return workspaceRoot.resolve("MEMORY.md");
+    /**
+     * Resolve the {@code MEMORY.md} location for a specific user × agent.
+     * Every read and every write is scoped by both identifiers so facts
+     * never bleed across users or agents (Correctness Invariant #6,
+     * default deny on cross-scope access).
+     *
+     * <p>Third-party workspace adapters that want to honor a single-tenant
+     * OpenClaw-style root {@code MEMORY.md} are free to seed the scoped
+     * path from it at load time, but the storage SPI itself does not
+     * promote a shared root file to avoid silent cross-scope bleed.</p>
+     */
+    private Path memoryMdPath(String userId, String agentId) {
+        return scopedRoot(userId, agentId).resolve("MEMORY.md");
     }
 
-    private Path dailyNotePath(LocalDate date) {
-        return workspaceRoot.resolve("memory").resolve(date + ".md");
+    private Path dailyNotePath(String userId, String agentId, LocalDate date) {
+        return scopedRoot(userId, agentId).resolve("memory").resolve(date + ".md");
+    }
+
+    /**
+     * The per-user × per-agent subdirectory used for multi-tenant
+     * isolation. Validates both segments to prevent path traversal.
+     */
+    private Path scopedRoot(String userId, String agentId) {
+        var safeUser = validateSegment("userId", userId);
+        var safeAgent = validateSegment("agentId", agentId);
+        return resolveSafe(
+                workspaceRoot.resolve("users").resolve(safeUser).resolve("agents"),
+                safeAgent);
     }
 
     private Path sessionJsonl(String agentId, String sessionId) {
