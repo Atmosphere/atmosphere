@@ -104,6 +104,24 @@ patch. Exercises `Sandbox` and `AgentResumeHandle`. Runs with the
 in-process fallback when Docker is not available; production deployments
 pin the Docker provider.
 
+Note for sample authors: `StreamingSession.stream(String)` dispatches the
+argument to the LLM as a fresh user turn; use `StreamingSession.send(String)`
+when the intent is to push literal text (log lines, command output, file
+bytes) to the client unchanged. The coding-agent flow uses `send()` + an
+explicit `complete()` so the real README content reaches the UI instead of
+being routed through the LLM.
+
+## Runtime compatibility notes
+
+The Built-in runtime speaks OpenAI Chat Completions and works against any
+OpenAI-compatible endpoint (OpenAI, Ollama, Gemini's `v1beta/openai`
+compatibility layer). Gemini is stricter than OpenAI in two places that the
+serializer in `OpenAiCompatibleClient` covers: assistant messages carrying
+a tool call must emit the full `tool_calls` array (not just null content),
+and tool messages must emit the `name` field so Gemini can populate its
+native `function_response.name`. The JSON wire shape is pinned by
+`ChatMessageSerializationTest`.
+
 ## Definition of "shipped" vs "complete"
 
 Per the external review on the foundation branch:
