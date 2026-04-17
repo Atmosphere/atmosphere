@@ -598,6 +598,7 @@
         <module>samples/spring-boot-semantic-kernel-chat</module>
         <module>samples/spring-boot-checkpoint-agent</module>
         <module>samples/spring-boot-personal-assistant</module>
+        <module>samples/spring-boot-coding-agent</module>
         <!-- <module>samples/spring-boot-embabel-chat</module> --> <!-- Embabel framework requires Spring Boot 3.5; use -Pspring-boot3 profile -->
         <module>modules/integration-tests</module>
     </modules>
