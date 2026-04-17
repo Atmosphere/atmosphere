@@ -50,6 +50,17 @@
             <artifactId>atmosphere-ai</artifactId>
         </dependency>
 
+        <!-- Required by atmosphere-agent for @Agent auto-bridging -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-mcp</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-a2a</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-sandbox</artifactId>

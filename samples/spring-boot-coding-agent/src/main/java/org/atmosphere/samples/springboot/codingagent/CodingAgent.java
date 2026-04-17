@@ -18,6 +18,7 @@ package org.atmosphere.samples.springboot.codingagent;
 import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.sandbox.NetworkPolicy;
 import org.atmosphere.ai.sandbox.Sandbox;
 import org.atmosphere.ai.sandbox.SandboxLimits;
 import org.atmosphere.ai.sandbox.SandboxProvider;
@@ -81,8 +82,16 @@ public class CodingAgent {
             return;
         }
 
+        // Clone + apk need network; override the default NONE policy. A
+        // production coding agent would narrow this to GIT_ONLY once the
+        // sandbox runtime enforces the labeled allowlist.
+        var limits = new SandboxLimits(
+                SandboxLimits.DEFAULT.cpuFraction(),
+                SandboxLimits.DEFAULT.memoryBytes(),
+                SandboxLimits.DEFAULT.wallTime(),
+                NetworkPolicy.FULL);
         try (Sandbox sandbox = provider.create("alpine:3.20",
-                SandboxLimits.DEFAULT,
+                limits,
                 Map.of("owner", "coding-agent-sample", "repo", repo))) {
 
             session.progress("Cloning " + repo + "...");

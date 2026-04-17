@@ -55,6 +55,12 @@
             <artifactId>atmosphere-a2a</artifactId>
         </dependency>
 
+        <!-- Required by atmosphere-agent for @Agent auto-bridging to /atmosphere/a2a/{name} -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-mcp</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-ai</artifactId>
