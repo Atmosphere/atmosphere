@@ -35,14 +35,15 @@ test.describe('Personal assistant sample', () => {
   });
 
   /**
-   * Regression for the Gemini {@code function_response.name: Name cannot be
-   * empty} 400 observed live on 2026-04-17. The pa sample drives
-   * {@code OpenAiCompatibleClient} through the @AiTool → AgentFleet loop, and
-   * Gemini's OpenAI-compat layer rejects the second LLM round when the tool
-   * message lacks {@code name} or the assistant message lacks {@code tool_calls}.
-   * After the fix, the LLM must complete a second round and emit a narrative
-   * summary of the proposed slots — asserting both the tool-call card and the
-   * final narrative pins both halves of the wire contract.
+   * Regression for the strict OpenAI-compat tool-round-trip wire shape.
+   * The pa sample drives {@code OpenAiCompatibleClient} through the
+   * {@code @AiTool → AgentFleet} loop. OpenAI treats {@code tool_calls}
+   * on the assistant message and {@code name} on the tool-role reply as
+   * optional, but stricter OpenAI-compatible endpoints reject the second
+   * LLM round when either is missing. After the fix, the LLM must
+   * complete a second round and emit a narrative summary of the proposed
+   * slots — asserting both the tool-call card and the final narrative
+   * pins both halves of the wire contract.
    */
   test('schedule request fires tool call and returns narrative response', async ({
     page,
@@ -68,16 +69,16 @@ test.describe('Personal assistant sample', () => {
     });
 
     // The narrative answer proves the second LLM round completed. Prior to
-    // the fix, Gemini rejected the follow-up with a 400 and the UI showed
-    // "Error: API returned 400". Asserting *both* markers is stricter than
-    // either alone — the tool card can appear without the narrative if the
-    // Gemini compat regression returns.
+    // the fix, strict OpenAI-compatible endpoints rejected the follow-up
+    // with a 400 and the UI showed "Error: API returned 400". Asserting
+    // *both* markers is stricter than either alone — the tool card can
+    // appear without the narrative if the wire-shape regression returns.
     await expect(
       page.getByText(/slot|suggest|available|proposed/i).first()
     ).toBeVisible({ timeout: 60_000 });
 
-    // Guard: no Gemini / OpenAI 400 rendered. If this assertion starts
-    // failing, check ChatMessageSerializationTest for a wire-shape regression.
+    // Guard: no upstream 400 rendered. If this assertion starts failing,
+    // check ChatMessageSerializationTest for a wire-shape regression.
     await expect(page.getByText(/function_response\.name|API returned 4\d\d/i))
       .toHaveCount(0);
   });

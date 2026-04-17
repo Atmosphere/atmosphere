@@ -111,16 +111,18 @@ bytes) to the client unchanged. The coding-agent flow uses `send()` + an
 explicit `complete()` so the real README content reaches the UI instead of
 being routed through the LLM.
 
-## Runtime compatibility notes
+## OpenAI API compatibility
 
 The Built-in runtime speaks OpenAI Chat Completions and works against any
-OpenAI-compatible endpoint (OpenAI, Ollama, Gemini's `v1beta/openai`
-compatibility layer). Gemini is stricter than OpenAI in two places that the
-serializer in `OpenAiCompatibleClient` covers: assistant messages carrying
-a tool call must emit the full `tool_calls` array (not just null content),
-and tool messages must emit the `name` field so Gemini can populate its
-native `function_response.name`. The JSON wire shape is pinned by
-`ChatMessageSerializationTest`.
+endpoint that exposes the OpenAI wire shape — OpenAI itself, local proxies
+(Embacle, Ollama), cloud providers that ship an OpenAI-compatible
+surface. Some of those endpoints are stricter than OpenAI itself on
+tool-call round trips: OpenAI treats `tool_calls` on assistant messages
+and `name` on tool messages as optional, but strict endpoints require
+both. `OpenAiCompatibleClient` now serializes both unconditionally —
+additive for OpenAI, required for the stricter crowd. The JSON wire shape
+is pinned by `ChatMessageSerializationTest` so future refactors cannot
+silently regress either side.
 
 ## Definition of "shipped" vs "complete"
 

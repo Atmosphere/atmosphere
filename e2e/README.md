@@ -24,8 +24,9 @@ npm run test:coding-agent       # sample #2 happy path (ATMO_E2E_BASE_URL=http:/
   agent registers; admin plane sees it. Additionally, a schedule request
   drives the `@AiTool` loop through `OpenAiCompatibleClient` and asserts
   the tool-call card **and** the narrative response both render — the
-  regression surface for the Gemini `function_response.name: Name cannot
-  be empty` compat bug. Skipped when no `LLM_API_KEY` / `OPENAI_API_KEY` /
+  regression surface for the strict OpenAI-compat tool-round-trip wire
+  shape (`tool_calls` on the assistant message, `name` on the tool-role
+  reply). Skipped when no `LLM_API_KEY` / `OPENAI_API_KEY` /
   `GEMINI_API_KEY` is set.
 - **`coding-agent.spec.ts`** — sample #2 UI loads; `coding-agent` registers
   with the admin plane; Sandbox provider wiring succeeded at startup.
