@@ -36,6 +36,31 @@ public interface ControlAuthorizer {
      */
     boolean authorize(String action, String target, String principal);
 
-    /** Default authorizer that permits all operations. */
+    /**
+     * Default authorizer that permits all operations.
+     *
+     * <p><b>Do not use in production.</b> The Spring Boot starter and
+     * Quarkus extension log a WARN at startup when this authorizer is
+     * active so the posture is visible to operators. For production
+     * deployments prefer {@link #REQUIRE_PRINCIPAL} as a baseline and
+     * layer tenant-specific checks on top.</p>
+     */
     ControlAuthorizer ALLOW_ALL = (action, target, principal) -> true;
+
+    /**
+     * Default-deny authorizer. Every action is rejected regardless of
+     * principal. The recommended baseline when the operator has not yet
+     * wired a real authorizer — Correctness Invariant #6 (default deny).
+     */
+    ControlAuthorizer DENY_ALL = (action, target, principal) -> false;
+
+    /**
+     * Allows any action when an authenticated principal is present, denies
+     * anonymous access. The recommended minimal baseline for production
+     * deployments — authentication flows through the transport layer
+     * (Spring Security, Quarkus security) and admin actions require a
+     * resolved principal.
+     */
+    ControlAuthorizer REQUIRE_PRINCIPAL =
+            (action, target, principal) -> principal != null && !principal.isBlank();
 }

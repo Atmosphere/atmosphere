@@ -7,6 +7,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — AI Agent Foundation v0.5 (eight primitives)
+
+- **`AgentState` SPI** (`a0fd3fc48c`) — unifies conversation history,
+  durable facts, daily notes, working memory, and hierarchical rules under
+  one runtime-agnostic interface. File-backed default
+  (`FileSystemAgentState`) reads and writes an OpenClaw-compatible
+  Markdown workspace. `AutoMemoryStrategy` pluggable with four built-ins
+  (`EveryNTurns`, `LlmDecided`, `SessionEnd`, `Hybrid`).
+  `AgentStateConversationMemory` is a thin shim over the legacy
+  `AiConversationMemory`. `AdkAgentRuntime` seeds its ADK `Session` from
+  `context.history()` (closes Correctness Invariant #5 gap where
+  `CONVERSATION_MEMORY` was advertised but silently dropped).
+- **`AgentWorkspace` SPI** (`d4b3e341c7`) — agent-as-artifact. ServiceLoader
+  discovery with `OpenClawWorkspaceAdapter` + `AtmosphereNativeWorkspaceAdapter`.
+  OpenClaw canonical layout runs on Atmosphere without conversion.
+- **`ProtocolBridge` SPI** (`853cccc4aa`) — `InMemoryProtocolBridge`
+  elevated to first-class bridge, same footing as wire bridges.
+  `ProtocolBridgeRegistry` enumerates active bridges.
+- **`AiGateway` facade** (`4d48c3eb4a`, `43870cb537`) — single admission
+  point for outbound LLM calls. `PerUserRateLimiter`, pluggable
+  `CredentialResolver` and `GatewayTraceExporter`.
+  `BuiltInAgentRuntime` now routes every dispatch through
+  `AiGatewayHolder.get().admit(...)` — Correctness Invariant #3 enforced
+  at the runtime boundary.
+- **`AgentIdentity` SPI** (`f4df5603a7`) — per-user identity, permissions,
+  credentials, audit, session sharing. `PermissionMode` layers over per-tool
+  `@RequiresApproval`. `AtmosphereEncryptedCredentialStore` uses AES-GCM
+  with a 256-bit key and per-entry random IV; decryption failure is
+  fail-closed.
+- **`ToolExtensibilityPoint` SPI** (`59f7ecd197`) — bounded tool discovery
+  (`ToolIndex` + `DynamicToolSelector`) and pluggable per-user MCP trust
+  (`McpTrustProvider` with `CredentialStoreBacked` default).
+- **`Sandbox` SPI** (`818f531216`, `1e2daa1143`) — pluggable isolated
+  execution. `DockerSandboxProvider` default + dev-only
+  `InProcessSandboxProvider`. `@SandboxTool` annotation. Default limits
+  1 CPU · 512 MB · 5 min · no network. `NetworkPolicy` enum
+  (`NONE` / `GIT_ONLY` / `ALLOWLIST` / `FULL`) replaces the boolean
+  network flag; Docker provider labels containers with the resolved
+  policy.
+- **`AgentResumeHandle` + `RunRegistry`** (`2ae4e8835b`, `27425b15f6`) —
+  mid-stream reconnect primitive with bounded `RunEventReplayBuffer`.
+  `StreamingSession.runId()` default method returns the id registered
+  with `RunRegistry`; `DurableSessionInterceptor` stashes the
+  `X-Atmosphere-Run-Id` header in a request attribute so the ai module
+  can reattach without the durable-sessions module depending on
+  atmosphere-ai.
+- **Wire `ProtocolBridge` implementations** (`74d3ecbd6e`) for MCP, A2A,
+  AG-UI, and gRPC so the admin control plane can answer "which agents
+  are reachable via which protocol?" across every transport.
+
+### Added — Two proof samples
+
+- **`spring-boot-personal-assistant`** (`2a7ae59a41`) — primary
+  coordinator delegates to scheduler / research / drafter crew via
+  `InMemoryProtocolBridge`. Ships an OpenClaw-compatible workspace
+  (`AGENTS.md` / `SOUL.md` / `USER.md` / `IDENTITY.md` / `MEMORY.md`)
+  plus Atmosphere extension files (`CHANNELS.md` / `MCP.md` /
+  `PERMISSIONS.md`).
+- **`spring-boot-coding-agent`** (`ae9c2e174c`) — clones a repo into a
+  Docker sandbox and reads files. `SandboxProvider` discovered via
+  `ServiceLoader`; defaults to Docker, falls back to in-process for
+  dev.
+
+### Added — Security baseline
+
+- **`ControlAuthorizer.DENY_ALL` and `REQUIRE_PRINCIPAL`** as explicit
+  admin-plane baselines alongside the existing `ALLOW_ALL`. `ALLOW_ALL`
+  is documented as non-production; operators wire
+  `REQUIRE_PRINCIPAL` on top of their transport auth
+  (Spring Security, Quarkus security) for production deployments.
+
+### Fixed
+
+- **`FileSystemAgentState` cross-scope bleed** (`ad850f9f35`).
+  `MEMORY.md` and `memory/YYYY-MM-DD.md` now live under
+  `users/<userId>/agents/<agentId>/` so facts never bleed across users
+  or agents (Correctness Invariant #6, default deny on cross-scope
+  access). Three new isolation tests cover cross-user, cross-agent, and
+  cross-scope delete boundaries.
+
 ### Changed
 
 - **`atmosphere new` is now sample-clone based** (`b7f98d42f0`, `0b9a8f194d`).
