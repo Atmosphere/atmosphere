@@ -1,0 +1,18 @@
+{
+  "name": "atmosphere-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "End-to-end Playwright tests for the Atmosphere v0.5 foundation — admin UI and proof samples.",
+  "scripts": {
+    "install:browsers": "playwright install chromium",
+    "test": "playwright test",
+    "test:admin": "playwright test tests/admin.spec.ts",
+    "test:personal-assistant": "playwright test tests/personal-assistant.spec.ts",
+    "test:coding-agent": "playwright test tests/coding-agent.spec.ts",
+    "show-report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "typescript": "^5.6.0"
+  }
+}
