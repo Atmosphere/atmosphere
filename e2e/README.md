@@ -21,13 +21,23 @@ npm run test:coding-agent       # sample #2 happy path (ATMO_E2E_BASE_URL=http:/
 - **`admin.spec.ts`** — admin UI loads with zero console errors; agent list
   endpoint returns an array; state controller endpoints respond.
 - **`personal-assistant.spec.ts`** — sample #1 UI loads; `primary-assistant`
-  agent registers; admin plane sees it.
+  agent registers; admin plane sees it. Additionally, a schedule request
+  drives the `@AiTool` loop through `OpenAiCompatibleClient` and asserts
+  the tool-call card **and** the narrative response both render — the
+  regression surface for the Gemini `function_response.name: Name cannot
+  be empty` compat bug. Skipped when no `LLM_API_KEY` / `OPENAI_API_KEY` /
+  `GEMINI_API_KEY` is set.
 - **`coding-agent.spec.ts`** — sample #2 UI loads; `coding-agent` registers
   with the admin plane; Sandbox provider wiring succeeded at startup.
+  A clone request also drives the full Sandbox flow against Docker and
+  asserts the literal README bytes reach the client — the regression
+  surface for the `session.stream()` vs `session.send()` mix-up (the
+  first routes text through the LLM as fresh user input; only the second
+  streams to the UI). Skipped when `SKIP_SANDBOX_E2E` is set on CI
+  runners without Docker.
 
 ## What they do NOT prove (yet)
 
-- Full-flight LLM responses (requires `OPENAI_API_KEY` and costs money).
 - Cross-channel continuity (Slack ↔ web handoff requires bot tokens).
 - Cross-runtime parity (ran only against the default Spring AI runtime).
 - Mid-stream `AgentResumeHandle` reattach (requires orchestrated
