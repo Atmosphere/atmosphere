@@ -52,11 +52,44 @@ class ChatMessageTest {
         assertEquals("tool", msg.role());
         assertEquals("22°C", msg.content());
         assertEquals("call-1", msg.toolCallId());
+        assertNull(msg.name(),
+                "legacy two-arg tool() preserves null name for callers predating the field");
     }
 
     @Test
-    void twoArgConstructorNullsToolCallId() {
+    void toolFactoryWithName() {
+        // Carries the function name so downstream serialization can
+        // populate the optional OpenAI `name` field — required by Gemini's
+        // v1beta/openai compatibility layer.
+        var msg = ChatMessage.tool("22°C", "call-1", "get_weather");
+        assertEquals("tool", msg.role());
+        assertEquals("22°C", msg.content());
+        assertEquals("call-1", msg.toolCallId());
+        assertEquals("get_weather", msg.name());
+    }
+
+    @Test
+    void twoArgConstructorNullsToolCallIdAndName() {
         var msg = new ChatMessage("user", "test");
         assertNull(msg.toolCallId());
+        assertNull(msg.name());
+    }
+
+    @Test
+    void threeArgConstructorPreservesExistingContract() {
+        // Existing callers pass (role, content, toolCallId) — the new
+        // name field defaults to null so no downstream behavior changes.
+        var msg = new ChatMessage("tool", "result", "call-1");
+        assertEquals("tool", msg.role());
+        assertEquals("result", msg.content());
+        assertEquals("call-1", msg.toolCallId());
+        assertNull(msg.name());
+    }
+
+    @Test
+    void nonToolFactoriesAlwaysReturnNullName() {
+        assertNull(ChatMessage.system("x").name());
+        assertNull(ChatMessage.user("x").name());
+        assertNull(ChatMessage.assistant("x").name());
     }
 }

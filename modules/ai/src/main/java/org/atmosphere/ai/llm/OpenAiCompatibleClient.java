@@ -305,14 +305,19 @@ public class OpenAiCompatibleClient implements LlmClient {
             var toolMap = ToolExecutionHelper.toToolMap(request.tools());
             var updatedMessages = new ArrayList<>(request.messages());
 
-            // Build assistant message with tool_calls reference (no text content)
-            var toolCallIds = new ArrayList<String>();
+            // Build the assistant message that references every tool_call the
+            // model just emitted. Gemini's v1beta/openai compatibility layer
+            // needs this to pair each subsequent function_response with the
+            // originating function_call — a null-content placeholder does not
+            // satisfy it. OpenAI itself accepts either shape, so including
+            // the tool_calls array broadens interop without regressing.
+            var assistantToolCalls = new ArrayList<ChatMessage.ToolCall>();
             for (var entry : accumulators.entrySet()) {
                 var acc = entry.getValue();
-                toolCallIds.add(acc.id());
+                assistantToolCalls.add(new ChatMessage.ToolCall(
+                        acc.id(), acc.functionName(), acc.arguments()));
             }
-            // Add an assistant message placeholder for the tool call turn
-            updatedMessages.add(new ChatMessage("assistant", null));
+            updatedMessages.add(ChatMessage.assistantToolCalls(assistantToolCalls));
 
             // Execute each tool call and add result messages. For each call,
             // fire the lifecycle listeners attached to the request so
@@ -334,7 +339,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                     session.emit(new AiEvent.ToolError(toolName, "Tool not found"));
                     org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
                             request.listeners(), toolName, errorResult);
-                    updatedMessages.add(ChatMessage.tool(errorResult, acc.id()));
+                    updatedMessages.add(ChatMessage.tool(errorResult, acc.id(), toolName));
                     continue;
                 }
 
@@ -344,7 +349,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                 session.emit(new AiEvent.ToolResult(toolName, resultStr));
                 org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
                         request.listeners(), toolName, resultStr);
-                updatedMessages.add(ChatMessage.tool(resultStr, acc.id()));
+                updatedMessages.add(ChatMessage.tool(resultStr, acc.id(), toolName));
             }
 
             logger.debug("Tool round {}: executed {} tool calls, re-submitting",
@@ -666,14 +671,41 @@ public class OpenAiCompatibleClient implements LlmClient {
         return msg;
     }
 
-    private static Map<String, Object> serializeMessage(ChatMessage m) {
+    // Package-private so ChatMessageSerializationTest can pin the wire shape.
+    static Map<String, Object> serializeMessage(ChatMessage m) {
         var msg = new LinkedHashMap<String, Object>();
         msg.put("role", m.role());
+        // Assistant messages carrying tool_calls have null content but MUST
+        // emit the tool_calls array so downstream endpoints (notably Gemini
+        // compat) can pair the subsequent tool-role messages with their
+        // originating function_call. OpenAI allows null content on these.
         if (m.content() != null) {
             msg.put("content", m.content());
         }
         if (m.toolCallId() != null) {
             msg.put("tool_call_id", m.toolCallId());
+        }
+        // Optional function name on tool messages. OpenAI chat-completions
+        // treats this as optional, but Gemini's v1beta/openai compatibility
+        // layer rejects tool messages without it (it maps to the native
+        // function_response.name which is required). Emitting it when
+        // available broadens interop without breaking OpenAI itself.
+        if (m.name() != null && "tool".equals(m.role())) {
+            msg.put("name", m.name());
+        }
+        if (!m.toolCalls().isEmpty()) {
+            var arr = new ArrayList<Map<String, Object>>();
+            for (var tc : m.toolCalls()) {
+                var fn = new LinkedHashMap<String, Object>();
+                fn.put("name", tc.name());
+                fn.put("arguments", tc.argumentsJson() == null ? "{}" : tc.argumentsJson());
+                var wrapper = new LinkedHashMap<String, Object>();
+                wrapper.put("id", tc.id());
+                wrapper.put("type", "function");
+                wrapper.put("function", fn);
+                arr.add(wrapper);
+            }
+            msg.put("tool_calls", arr);
         }
         return msg;
     }
