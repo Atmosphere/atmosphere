@@ -34,6 +34,22 @@ public interface StreamingSession extends AutoCloseable {
     String sessionId();
 
     /**
+     * Stable identifier for the in-flight run this session carries. Returns
+     * {@link java.util.Optional#empty()} when the session is not associated
+     * with a {@code RunRegistry}-tracked run.
+     *
+     * <p>When present, the {@code runId} is the key a reconnecting client
+     * sends in the {@code X-Atmosphere-Run-Id} header to reattach to the
+     * in-flight run via {@code DurableSessionInterceptor} consulting
+     * {@code RunRegistry} (Primitive 8 — AgentResumeHandle). Default:
+     * {@link java.util.Optional#empty()}; implementations that register
+     * runs override this to surface the id the registry assigned.</p>
+     */
+    default java.util.Optional<String> runId() {
+        return java.util.Optional.empty();
+    }
+
+    /**
      * Send a streaming text chunk to the client.
      *
      * @param text the text chunk (typically a single streaming text from an LLM)

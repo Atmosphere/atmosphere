@@ -1,0 +1,2 @@
+- [id:seed-001|at:2026-04-15T00:00:00Z] ChefFamille prefers bun over npm
+- [id:seed-002|at:2026-04-15T00:00:00Z] Standup is at 09:30 local time

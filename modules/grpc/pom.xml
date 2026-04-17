@@ -25,6 +25,16 @@
             <artifactId>atmosphere-runtime</artifactId>
         </dependency>
 
+        <!-- Optional: ProtocolBridge SPI. Present so the grpc module can
+             surface a GrpcProtocolBridge alongside the in-memory / MCP /
+             A2A / AG-UI bridges; the runtime transport remains entirely
+             dependency-free on atmosphere-ai. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty-shaded</artifactId>
