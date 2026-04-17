@@ -50,6 +50,17 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
     /** Header sent by the server with the assigned session token. */
     public static final String SESSION_TOKEN_RESPONSE_HEADER = "X-Atmosphere-Session-Token";
 
+    /**
+     * Header sent by a reconnecting client that wants to reattach to a
+     * specific in-flight run (AgentResumeHandle — Primitive 8). The
+     * interceptor records the value in request attributes so downstream
+     * handlers can consult the run registry without re-parsing headers.
+     */
+    public static final String RUN_ID_HEADER = "X-Atmosphere-Run-Id";
+
+    /** Request attribute where the resolved run id is stashed for downstream handlers. */
+    public static final String RUN_ID_ATTRIBUTE = "org.atmosphere.session.runId";
+
     private final SessionStore store;
     private final Duration sessionTtl;
     private final Duration saveInterval;
@@ -100,6 +111,21 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         var token = request.getHeader(SESSION_TOKEN_HEADER);
         if (token == null) {
             token = request.getParameter("X-Atmosphere-Session-Token");
+        }
+
+        // Capture the run id header if present so downstream handlers can
+        // reattach to an in-flight AgentResumeHandle via the RunRegistry.
+        // We do not consult the registry here — this interceptor stays
+        // free of the atmosphere-ai dependency by stashing the raw id as
+        // a request attribute. The ai module's own interceptor / handler
+        // consumes it.
+        var runId = request.getHeader(RUN_ID_HEADER);
+        if (runId == null) {
+            runId = request.getParameter("X-Atmosphere-Run-Id");
+        }
+        if (runId != null && !runId.isBlank()) {
+            request.setAttribute(RUN_ID_ATTRIBUTE, runId);
+            logger.debug("Reconnect with run id {} for resource {}", runId, r.uuid());
         }
 
         if (token != null) {
