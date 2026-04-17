@@ -61,9 +61,22 @@ public class CodingAgent {
 
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
+        try {
+            runSandboxFlow(message, session);
+        } finally {
+            if (!session.isClosed()) {
+                session.complete();
+            }
+        }
+    }
+
+    // session.send() pushes a text chunk to the client; session.stream() would
+    // dispatch the argument to the LLM as a fresh user turn instead, which is
+    // not what this sample wants — it is driving the sandbox directly.
+    private void runSandboxFlow(String message, StreamingSession session) {
         var provider = resolveProvider();
         if (provider == null) {
-            session.stream(
+            session.send(
                     "No sandbox provider is available. Install Docker or include the "
                             + "in-process provider to run this sample.");
             return;
@@ -76,7 +89,7 @@ public class CodingAgent {
         var lower = message.toLowerCase();
         var repo = extractRepoUrl(lower);
         if (repo == null) {
-            session.stream(
+            session.send(
                     "Give me a repo URL to work with, for example:\n"
                             + "  `clone https://github.com/example/repo.git and read README.md`");
             return;
@@ -101,7 +114,7 @@ public class CodingAgent {
                                     + "git clone --depth 1 " + repo + " /workspace/repo"),
                     Duration.ofMinutes(2));
             if (!clone.succeeded()) {
-                session.stream("Clone failed:\n" + clone.stderr());
+                session.send("Clone failed:\n" + clone.stderr());
                 return;
             }
 
@@ -111,15 +124,15 @@ public class CodingAgent {
                 readme = tryReadFile(sandbox, Path.of("/workspace/repo/README"));
             }
             if (readme == null) {
-                session.stream("Cloned " + repo + " but no README found at the root.");
+                session.send("Cloned " + repo + " but no README found at the root.");
                 return;
             }
 
-            session.stream("README preview from " + repo + " (first 800 chars):\n\n"
+            session.send("README preview from " + repo + " (first 800 chars):\n\n"
                     + readme.substring(0, Math.min(800, readme.length())));
         } catch (RuntimeException e) {
             logger.warn("coding-agent run failed: {}", e.getMessage(), e);
-            session.stream("Sandbox operation failed: " + e.getMessage());
+            session.send("Sandbox operation failed: " + e.getMessage());
         }
     }
 
