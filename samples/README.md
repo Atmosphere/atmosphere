@@ -36,6 +36,8 @@ One agent class — slash commands and AI work on Web, Slack, Telegram, Discord,
 | [spring-boot-rag-chat](spring-boot-rag-chat/) | `@Agent`, `@Command`, `@AiTool`, RAG | Web | Knowledge base agent with document search tools |
 | [spring-boot-checkpoint-agent](spring-boot-checkpoint-agent/) | `@Coordinator`, `@Agent`, `CheckpointStore` | Web | Durable HITL workflow — approval-gated agent chaining |
 | [spring-boot-multi-agent-startup-team](spring-boot-multi-agent-startup-team/) | `@Coordinator`, `@Fleet`, A2A, SQLite checkpoints, WebTransport | Web | 5 collaborating agents (CEO + 4 specialists) with parallel/sequential dispatch |
+| [spring-boot-personal-assistant](spring-boot-personal-assistant/) | `@Coordinator`, `@Fleet`, `AgentState`, `AgentWorkspace`, `AgentIdentity`, `ToolExtensibilityPoint`, `AiGateway`, `InMemoryProtocolBridge` | Web | Proof sample #1 for the v0.5 foundation primitives. Primary assistant delegates to scheduler / research / drafter crew over InMemoryProtocolBridge; ships an OpenClaw-compatible workspace |
+| [spring-boot-coding-agent](spring-boot-coding-agent/) | `@Agent`, `Sandbox`, `AgentResumeHandle` | Web | Proof sample #2 for the v0.5 foundation primitives. Clones a repo into a Docker sandbox, reads files, proposes a patch |
 
 ### Agent Protocols
 
