@@ -37,6 +37,42 @@ class SandboxTest {
         assertEquals(512L * 1024L * 1024L, defaults.memoryBytes());
         assertEquals(Duration.ofMinutes(5), defaults.wallTime());
         assertFalse(defaults.network());
+        assertEquals(NetworkPolicy.Mode.NONE, defaults.networkPolicy().mode());
+    }
+
+    @Test
+    void networkPolicyModes() {
+        var none = NetworkPolicy.NONE;
+        assertFalse(none.hasEgress());
+        assertEquals(NetworkPolicy.Mode.NONE, none.mode());
+        assertTrue(none.allowedHosts().isEmpty());
+
+        var gitOnly = NetworkPolicy.GIT_ONLY;
+        assertTrue(gitOnly.hasEgress());
+        assertEquals(NetworkPolicy.Mode.GIT_ONLY, gitOnly.mode());
+        assertTrue(gitOnly.allowedHosts().contains("github.com"));
+
+        var allow = NetworkPolicy.allowlist("api.example.com", "cdn.example.com");
+        assertEquals(NetworkPolicy.Mode.ALLOWLIST, allow.mode());
+        assertEquals(2, allow.allowedHosts().size());
+
+        var full = NetworkPolicy.FULL;
+        assertTrue(full.hasEgress());
+        assertEquals(NetworkPolicy.Mode.FULL, full.mode());
+    }
+
+    @Test
+    void allowlistRequiresAtLeastOneHost() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new NetworkPolicy(NetworkPolicy.Mode.ALLOWLIST, java.util.List.of()));
+    }
+
+    @Test
+    void legacyBooleanConstructorMapsToFullOrNone() {
+        var legacyOn = new SandboxLimits(1.0, 1024L, Duration.ofSeconds(10), true);
+        var legacyOff = new SandboxLimits(1.0, 1024L, Duration.ofSeconds(10), false);
+        assertEquals(NetworkPolicy.Mode.FULL, legacyOn.networkPolicy().mode());
+        assertEquals(NetworkPolicy.Mode.NONE, legacyOff.networkPolicy().mode());
     }
 
     @Test

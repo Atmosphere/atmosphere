@@ -90,8 +90,22 @@ public final class DockerSandboxProvider implements SandboxProvider {
         args.add(id);
         args.add("--cpus=" + limits.cpuFraction());
         args.add("--memory=" + limits.memoryBytes() + "b");
-        if (!limits.network()) {
-            args.add("--network=none");
+        switch (limits.networkPolicy().mode()) {
+            case NONE -> args.add("--network=none");
+            case GIT_ONLY, ALLOWLIST -> {
+                // Container gets bridge networking; an egress firewall
+                // enforced outside Docker (e.g. iptables, istio egress policy)
+                // restricts which hosts are reachable. This avoids coupling
+                // the sandbox module to a specific host-firewall tool.
+                args.add("--network=bridge");
+                args.add("--label");
+                args.add("atmosphere.network.policy=" + limits.networkPolicy().mode().name());
+                for (var host : limits.networkPolicy().allowedHosts()) {
+                    args.add("--label");
+                    args.add("atmosphere.network.allow=" + host);
+                }
+            }
+            case FULL -> args.add("--network=bridge");
         }
         // Keep container alive for exec calls; the entrypoint idles.
         args.add("--entrypoint");

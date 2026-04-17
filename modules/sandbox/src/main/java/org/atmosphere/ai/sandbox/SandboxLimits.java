@@ -24,19 +24,19 @@ import java.time.Duration;
  * @param cpuFraction   CPU fraction (e.g. {@code 1.0} for one full core)
  * @param memoryBytes   maximum memory in bytes
  * @param wallTime      maximum wall-clock time for any single exec
- * @param network       {@code true} if the sandbox may reach the network
+ * @param networkPolicy egress policy; {@link NetworkPolicy#NONE} by default
  */
 public record SandboxLimits(
         double cpuFraction,
         long memoryBytes,
         Duration wallTime,
-        boolean network) {
+        NetworkPolicy networkPolicy) {
 
     public static final SandboxLimits DEFAULT = new SandboxLimits(
             1.0,
             512L * 1024L * 1024L,
             Duration.ofMinutes(5),
-            false);
+            NetworkPolicy.NONE);
 
     public SandboxLimits {
         if (cpuFraction <= 0) {
@@ -48,5 +48,28 @@ public record SandboxLimits(
         if (wallTime == null || wallTime.isNegative() || wallTime.isZero()) {
             throw new IllegalArgumentException("wallTime must be positive, got " + wallTime);
         }
+        if (networkPolicy == null) {
+            networkPolicy = NetworkPolicy.NONE;
+        }
+    }
+
+    /**
+     * Legacy boolean-network constructor kept for callers that have not
+     * migrated to {@link NetworkPolicy}. {@code true} maps to
+     * {@link NetworkPolicy#FULL}; {@code false} maps to
+     * {@link NetworkPolicy#NONE}. Prefer the {@link NetworkPolicy} overload
+     * for new code.
+     */
+    public SandboxLimits(double cpuFraction, long memoryBytes, Duration wallTime, boolean network) {
+        this(cpuFraction, memoryBytes, wallTime,
+                network ? NetworkPolicy.FULL : NetworkPolicy.NONE);
+    }
+
+    /**
+     * Whether this sandbox has any network egress. Equivalent to
+     * {@code networkPolicy().hasEgress()}.
+     */
+    public boolean network() {
+        return networkPolicy.hasEgress();
     }
 }
