@@ -17,6 +17,9 @@ package org.atmosphere.samples.springboot.personalassistant;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * Personal assistant proof sample — demonstrates how the v0.5 foundation
@@ -47,5 +50,20 @@ public class PersonalAssistantApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(PersonalAssistantApplication.class, args);
+    }
+
+    /**
+     * Root path redirects to Atmosphere's bundled AI console — the same
+     * WebSocket chat UI the spring-boot-ai-chat sample uses. The console
+     * auto-wires to the first registered {@code @Coordinator} / {@code @Agent}
+     * path, so it picks up {@code /atmosphere/agent/primary-assistant}
+     * without extra configuration.
+     */
+    @Configuration
+    static class ConsoleRedirect implements WebMvcConfigurer {
+        @Override
+        public void addViewControllers(ViewControllerRegistry registry) {
+            registry.addRedirectViewController("/", "/atmosphere/console/");
+        }
     }
 }
