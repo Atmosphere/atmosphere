@@ -1,0 +1,131 @@
+name: "CI: Foundation E2E (v0.5)"
+
+# Runs the Playwright suite under /e2e (the v0.5 foundation proof
+# samples). Separate workflow from e2e.yml so it doesn't compete with
+# the integration-tests matrix for runners; it boots personal-assistant
+# and coding-agent sample jars, drives the bundled Atmosphere AI console
+# via Playwright, and tears the samples down.
+#
+# Specs that require a live LLM (schedule/research/draft) are skipped
+# when no LLM_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY is set — they
+# still run nightly in e2e-real-llm.yml.
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'modules/**'
+      - 'samples/spring-boot-personal-assistant/**'
+      - 'samples/spring-boot-coding-agent/**'
+      - 'e2e/**'
+      - '.github/workflows/foundation-e2e.yml'
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: foundation-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  foundation-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: temurin
+          cache: maven
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build foundation samples
+        run: |
+          ./mvnw install -Pfastinstall -DskipTests \
+            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent \
+            -am -q
+
+      - name: Install Playwright deps
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Type-check Playwright specs
+        working-directory: e2e
+        run: npx tsc --noEmit
+
+      - name: Start personal-assistant sample
+        run: |
+          nohup java -jar samples/spring-boot-personal-assistant/target/atmosphere-spring-boot-personal-assistant-*.jar \
+            --server.port=8080 > /tmp/pa-run.log 2>&1 &
+          echo $! > /tmp/pa.pid
+          for i in $(seq 1 45); do
+            if curl -sf http://localhost:8080/atmosphere/console/ >/dev/null; then
+              echo "pa up after $i s"; break
+            fi
+            sleep 1
+          done
+          test -f /tmp/pa.pid
+
+      - name: Run personal-assistant specs
+        working-directory: e2e
+        env:
+          ATMO_E2E_BASE_URL: http://localhost:8080
+        run: npx playwright test tests/personal-assistant.spec.ts --reporter=list
+
+      - name: Stop personal-assistant
+        if: always()
+        run: |
+          if [ -f /tmp/pa.pid ]; then
+            kill "$(cat /tmp/pa.pid)" 2>/dev/null || true
+          fi
+          sleep 2
+
+      - name: Start coding-agent sample
+        env:
+          SKIP_SANDBOX_E2E: "true"
+        run: |
+          nohup java -jar samples/spring-boot-coding-agent/target/atmosphere-spring-boot-coding-agent-*.jar \
+            --server.port=8080 > /tmp/ca-run.log 2>&1 &
+          echo $! > /tmp/ca.pid
+          for i in $(seq 1 45); do
+            if curl -sf http://localhost:8080/atmosphere/console/ >/dev/null; then
+              echo "ca up after $i s"; break
+            fi
+            sleep 1
+          done
+          test -f /tmp/ca.pid
+
+      - name: Run coding-agent specs
+        working-directory: e2e
+        env:
+          ATMO_E2E_BASE_URL: http://localhost:8080
+          SKIP_SANDBOX_E2E: "true"
+        run: |
+          # The clone/read spec requires Docker; SKIP_SANDBOX_E2E flags it
+          # off in CI where we don't have a Docker daemon. The admin +
+          # sandbox-unavailable specs still run and catch regressions.
+          npx playwright test tests/coding-agent.spec.ts --reporter=list
+
+      - name: Stop coding-agent
+        if: always()
+        run: |
+          if [ -f /tmp/ca.pid ]; then
+            kill "$(cat /tmp/ca.pid)" 2>/dev/null || true
+          fi
+
+      - name: Dump sample logs on failure
+        if: failure()
+        run: |
+          echo '=== pa-run.log ==='
+          cat /tmp/pa-run.log || true
+          echo '=== ca-run.log ==='
+          cat /tmp/ca-run.log || true

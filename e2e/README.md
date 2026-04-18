@@ -48,24 +48,21 @@ These are all on the Phase 4 checklist; this suite is the Playwright
 scaffolding those later passes slot into without re-inventing the
 harness.
 
-## CI status (honest)
+## CI
 
-**These specs do NOT gate merges.** The `atmosphere-e2e` package is not
-wired into any workflow under `.github/workflows/` — `e2e.yml` runs the
-separate Playwright matrix under `modules/integration-tests/` against the
-atmosphere.js client, not this suite. Treat the specs here as
-*manual regression evidence* (run them after landing a foundation change
-that would break them) rather than as gating CI.
+**`.github/workflows/foundation-e2e.yml`** gates merges on this suite.
+The job builds `personal-assistant` and `coding-agent` as fat jars,
+boots each in turn on port 8080, waits for the console endpoint to
+return 200, runs the matching `tests/*.spec.ts` via Playwright, and
+tears down. Specs that need a live LLM
+(`schedule request fires tool call …`, `research request …`,
+`draft request …`) skip themselves on absent
+`LLM_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY`; they run in
+`e2e-real-llm.yml` nightly. The coding-agent clone-read spec skips on
+`SKIP_SANDBOX_E2E=true` so the CI runner (no Docker daemon) still
+exercises the admin + sandbox-unavailable branches.
 
-Wiring the suite to CI is tracked for v4.0.40. The shape will be:
-a dedicated job that spins up `personal-assistant` and `coding-agent`
-via `java -jar target/*.jar`, waits for their `/api/console/info`
-endpoints to return 200, runs the matching spec, and tears them down.
-Specs that require an LLM (`schedule request fires tool call …`,
-`research request …`, `draft request …`) already
-`test.skip(!process.env.LLM_API_KEY && …)` so they run on-demand only.
-
-Until the job lands:
+For manual local runs:
 
 ```bash
 cd e2e
