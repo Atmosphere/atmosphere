@@ -188,6 +188,39 @@ class JournalingAgentFleetCoordinationIdTest {
     }
 
     @Test
+    void directAgentCallLeavesNoThreadLocalResidueOnServletPool() throws Exception {
+        // Regression: prior to the fix, coordinationId() stashed the id into a
+        // ThreadLocal on the agent(name).call() path and never removed it.
+        // On a servlet thread pool this pinned "dispatch" to the worker and
+        // bled into unrelated subsequent requests served on the same thread.
+        // With the ThreadLocal removed, inspecting the instance via reflection
+        // must show zero ThreadLocal-typed fields.
+        var fleet = new JournalingAgentFleet(delegate, journal, "dispatch");
+        fleet.agent("weather").call("forecast", Map.of("city", "Paris"));
+
+        for (var f : JournalingAgentFleet.class.getDeclaredFields()) {
+            assertFalse(ThreadLocal.class.isAssignableFrom(f.getType()),
+                    "JournalingAgentFleet must not carry a ThreadLocal field — "
+                            + "servlet pools would pin the coordination id across requests: "
+                            + f.getName());
+        }
+
+        // And: a second fleet with a different coordinator name, invoked on
+        // the same thread, must surface its own id — proving no state from
+        // the first call survives on this thread.
+        var other = new JournalingAgentFleet(delegate, journal, "reporter");
+        other.agent("weather").call("forecast", Map.of());
+
+        var reporterEvents = journal.retrieve("reporter");
+        assertFalse(reporterEvents.isEmpty(),
+                "second fleet must publish under its own coordinator name, "
+                        + "not the first fleet's stale ThreadLocal value");
+        assertTrue(reporterEvents.stream()
+                        .allMatch(e -> "reporter".equals(e.coordinationId())),
+                "all events for 'reporter' must carry 'reporter', not 'dispatch'");
+    }
+
+    @Test
     void distinctCoordinatorsProduceDistinctCanonicalIds() {
         // Two separate JournalingAgentFleet instances wrapping the same
         // underlying delegate must each emit their own coordinator-name id.

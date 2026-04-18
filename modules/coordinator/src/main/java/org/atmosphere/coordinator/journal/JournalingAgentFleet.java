@@ -55,7 +55,6 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
     // Single-threaded: serialize eval calls to avoid rate-limiting LLM APIs
     private final ExecutorService evalExecutor;
     private final boolean ownsExecutor;
-    private final ThreadLocal<String> activeCoordinationId = new ThreadLocal<>();
 
     public JournalingAgentFleet(AgentFleet delegate, CoordinationJournal journal,
                                 String coordinatorName) {
@@ -110,79 +109,71 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
     public Map<String, AgentResult> parallel(AgentCall... calls) {
         var coordId = coordinationId();
         var start = Instant.now();
-        try {
-            journal.record(new CoordinationEvent.CoordinationStarted(
-                    coordId, coordinatorName, start));
+        journal.record(new CoordinationEvent.CoordinationStarted(
+                coordId, coordinatorName, start));
 
-            for (var agentCall : calls) {
-                journal.record(new CoordinationEvent.AgentDispatched(
-                        coordId, agentCall.agentName(), agentCall.skill(),
-                        agentCall.args(), Instant.now()));
-            }
-
-            var results = delegate.parallel(calls);
-
-            int idx = 0;
-            for (var entry : results.entrySet()) {
-                var result = entry.getValue();
-                recordResult(coordId, result);
-                autoEvaluate(coordId, result, idx < calls.length ? calls[idx] : null);
-                idx++;
-            }
-
-            journal.record(new CoordinationEvent.CoordinationCompleted(
-                    coordId, Duration.between(start, Instant.now()),
-                    calls.length, Instant.now()));
-
-            return results;
-        } finally {
-            activeCoordinationId.remove();
+        for (var agentCall : calls) {
+            journal.record(new CoordinationEvent.AgentDispatched(
+                    coordId, agentCall.agentName(), agentCall.skill(),
+                    agentCall.args(), Instant.now()));
         }
+
+        var results = delegate.parallel(calls);
+
+        int idx = 0;
+        for (var entry : results.entrySet()) {
+            var result = entry.getValue();
+            recordResult(coordId, result);
+            autoEvaluate(coordId, result, idx < calls.length ? calls[idx] : null);
+            idx++;
+        }
+
+        journal.record(new CoordinationEvent.CoordinationCompleted(
+                coordId, Duration.between(start, Instant.now()),
+                calls.length, Instant.now()));
+
+        return results;
     }
 
     @Override
     public AgentResult pipeline(AgentCall... calls) {
         var coordId = coordinationId();
         var start = Instant.now();
-        try {
-            journal.record(new CoordinationEvent.CoordinationStarted(
-                    coordId, coordinatorName, start));
+        journal.record(new CoordinationEvent.CoordinationStarted(
+                coordId, coordinatorName, start));
 
-            AgentResult last = null;
-            for (var agentCall : calls) {
-                // Merge previous result into args so pipeline steps can chain
-                var args = agentCall.args();
-                if (last != null) {
-                    var merged = new java.util.LinkedHashMap<>(args);
-                    merged.put("_previous_result", last.text());
-                    args = Map.copyOf(merged);
-                }
-
-                journal.record(new CoordinationEvent.AgentDispatched(
-                        coordId, agentCall.agentName(), agentCall.skill(),
-                        args, Instant.now()));
-
-                var proxy = delegate.agent(agentCall.agentName());
-                last = proxy.call(agentCall.skill(), args);
-                recordResult(coordId, last);
-                autoEvaluate(coordId, last, agentCall);
-
-                if (!last.success()) {
-                    break;
-                }
+        AgentResult last = null;
+        for (var agentCall : calls) {
+            // Merge previous result into args so pipeline steps can chain
+            var args = agentCall.args();
+            if (last != null) {
+                var merged = new java.util.LinkedHashMap<>(args);
+                merged.put("_previous_result", last.text());
+                args = Map.copyOf(merged);
             }
 
-            var completedCount = last != null
-                    ? (int) results(calls, last)
-                    : 0;
-            journal.record(new CoordinationEvent.CoordinationCompleted(
-                    coordId, Duration.between(start, Instant.now()),
-                    completedCount, Instant.now()));
+            journal.record(new CoordinationEvent.AgentDispatched(
+                    coordId, agentCall.agentName(), agentCall.skill(),
+                    args, Instant.now()));
 
-            return last;
-        } finally {
-            activeCoordinationId.remove();
+            var proxy = delegate.agent(agentCall.agentName());
+            last = proxy.call(agentCall.skill(), args);
+            recordResult(coordId, last);
+            autoEvaluate(coordId, last, agentCall);
+
+            if (!last.success()) {
+                break;
+            }
         }
+
+        var completedCount = last != null
+                ? (int) results(calls, last)
+                : 0;
+        journal.record(new CoordinationEvent.CoordinationCompleted(
+                coordId, Duration.between(start, Instant.now()),
+                completedCount, Instant.now()));
+
+        return last;
     }
 
     @Override
@@ -221,21 +212,22 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
                 evalExecutor, false);
     }
 
+    /**
+     * Resolve the canonical coordination id. Computed fresh per call rather
+     * than stashed in a {@code ThreadLocal} because servlet thread pools
+     * would otherwise pin the id to the worker thread across unrelated
+     * requests (Correctness Invariant #2 — terminal paths must reset state).
+     */
     private String coordinationId() {
-        var id = activeCoordinationId.get();
-        if (id == null) {
-            // Use the @Coordinator(name="...") value as the canonical
-            // coordination id so REST/journal consumers can filter by the
-            // logical coordinator name (e.g. `?coordination=dispatch`).
-            // Fall back to a random UUID only if the coordinator name is
-            // missing — the JournalingAgentFleet may be instantiated
-            // outside CoordinatorProcessor (tests, ad-hoc decorators).
-            id = coordinatorName != null && !coordinatorName.isEmpty()
-                    ? coordinatorName
-                    : UUID.randomUUID().toString();
-            activeCoordinationId.set(id);
-        }
-        return id;
+        // Use the @Coordinator(name="...") value as the canonical
+        // coordination id so REST/journal consumers can filter by the
+        // logical coordinator name (e.g. `?coordination=dispatch`).
+        // Fall back to a random UUID only if the coordinator name is
+        // missing — the JournalingAgentFleet may be instantiated
+        // outside CoordinatorProcessor (tests, ad-hoc decorators).
+        return coordinatorName != null && !coordinatorName.isEmpty()
+                ? coordinatorName
+                : UUID.randomUUID().toString();
     }
 
     private void recordResult(String coordId, AgentResult result) {
