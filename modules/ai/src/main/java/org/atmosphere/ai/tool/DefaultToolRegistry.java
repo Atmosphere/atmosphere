@@ -111,8 +111,16 @@ public class DefaultToolRegistry implements ToolRegistry {
     private ToolDefinition buildFromMethod(Object instance, Method method, AiTool annotation) {
         method.setAccessible(true);
 
+        // Framework-scoped parameter types don't appear in the JSON schema —
+        // the LLM must never be asked for them. DefaultToolRegistry excludes
+        // any method parameter whose declared type is likely to be supplied by
+        // an injectables map at dispatch time. The actual resolution happens
+        // in the executor below via assignable-from matches on the same map.
         var parameters = new ArrayList<ToolParameter>();
         for (Parameter param : method.getParameters()) {
+            if (isFrameworkInjectableType(param.getType())) {
+                continue;
+            }
             var paramAnnotation = param.getAnnotation(Param.class);
             if (paramAnnotation != null) {
                 parameters.add(new ToolParameter(
@@ -139,17 +147,33 @@ public class DefaultToolRegistry implements ToolRegistry {
 
         var returnType = ToolParameter.jsonSchemaType(method.getReturnType());
 
-        ToolExecutor executor = args -> {
-            var methodParams = method.getParameters();
-            var invokeArgs = new Object[methodParams.length];
-            for (int i = 0; i < methodParams.length; i++) {
-                var paramAnnotation = methodParams[i].getAnnotation(Param.class);
-                var paramName = paramAnnotation != null
-                        ? paramAnnotation.value()
-                        : methodParams[i].getName();
-                invokeArgs[i] = convertArg(args.get(paramName), methodParams[i].getType());
+        ToolExecutor executor = new ToolExecutor() {
+            @Override
+            public Object execute(Map<String, Object> args) throws Exception {
+                return execute(args, Map.of());
             }
-            return method.invoke(instance, invokeArgs);
+
+            @Override
+            public Object execute(Map<String, Object> args,
+                                  Map<Class<?>, Object> injectables) throws Exception {
+                var methodParams = method.getParameters();
+                var invokeArgs = new Object[methodParams.length];
+                var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
+                for (int i = 0; i < methodParams.length; i++) {
+                    var p = methodParams[i];
+                    var injected = resolveInjectable(p.getType(), scope);
+                    if (injected.present()) {
+                        invokeArgs[i] = injected.value();
+                        continue;
+                    }
+                    var paramAnnotation = p.getAnnotation(Param.class);
+                    var paramName = paramAnnotation != null
+                            ? paramAnnotation.value()
+                            : p.getName();
+                    invokeArgs[i] = convertArg(args.get(paramName), p.getType());
+                }
+                return method.invoke(instance, invokeArgs);
+            }
         };
 
         // Check for @RequiresApproval on the method
@@ -171,6 +195,62 @@ public class DefaultToolRegistry implements ToolRegistry {
                 approvalMessage,
                 approvalTimeout
         );
+    }
+
+    /**
+     * Result of an injectable lookup. A sentinel so {@code null} remains a
+     * legal injected value distinct from "no match".
+     */
+    private record Injected(boolean present, Object value) {
+        private static final Injected ABSENT = new Injected(false, null);
+        static Injected of(Object v) { return new Injected(true, v); }
+    }
+
+    /**
+     * Resolve {@code type} from the injectables map using
+     * {@code isAssignableFrom} so a method can declare an interface
+     * ({@code StreamingSession}) and receive the concrete implementation.
+     *
+     * <p>Exact key match is tried first (fastest path); then we scan the
+     * entries for the first assignable type. The scan is linear on a map
+     * that typically has fewer than ten entries, so this is cheap.</p>
+     */
+    private static Injected resolveInjectable(Class<?> type,
+                                              Map<Class<?>, Object> scope) {
+        if (scope.containsKey(type)) {
+            return Injected.of(scope.get(type));
+        }
+        for (var entry : scope.entrySet()) {
+            if (type.isAssignableFrom(entry.getKey())) {
+                return Injected.of(entry.getValue());
+            }
+        }
+        return Injected.ABSENT;
+    }
+
+    /**
+     * Pre-registration check: is {@code type} likely to be supplied via the
+     * framework injectables map at dispatch time? Kept conservative — we
+     * exclude a parameter from the JSON schema only for types the framework
+     * is known to inject. User domain types still get schema parameters.
+     *
+     * <p>Matched via class name so {@code atmosphere-ai} keeps its
+     * independence from {@code atmosphere-agent} and
+     * {@code atmosphere-coordinator} (which declare {@code AgentFleet},
+     * {@code AgentIdentity}, etc.) — no inverted module dependencies.</p>
+     */
+    private static boolean isFrameworkInjectableType(Class<?> type) {
+        if (type.isPrimitive() || type.isArray()) {
+            return false;
+        }
+        var name = type.getName();
+        return name.equals("org.atmosphere.ai.StreamingSession")
+                || name.equals("org.atmosphere.ai.AiStreamingSession")
+                || name.equals("org.atmosphere.cpr.AtmosphereResource")
+                || name.equals("org.atmosphere.coordinator.fleet.AgentFleet")
+                || name.equals("org.atmosphere.ai.identity.AgentIdentity")
+                || name.equals("org.atmosphere.ai.state.AgentState")
+                || name.equals("org.atmosphere.ai.workspace.AgentWorkspace");
     }
 
     @SuppressWarnings("unchecked")

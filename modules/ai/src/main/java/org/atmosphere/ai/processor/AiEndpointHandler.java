@@ -380,6 +380,19 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             session.setRetryPolicy(endpointRetryPolicy);
         }
 
+        // Publish the handler's injectables map (AgentFleet, AgentIdentity,
+        // AgentState, ...) onto the session so @AiTool methods can declare
+        // these types as parameters — no ThreadLocal shim required.
+        // Include the live AtmosphereResource so tools can reach request
+        // attributes (user id, session id) without a separate accessor.
+        if (!injectables.isEmpty() || resource != null) {
+            var toolScope = new java.util.LinkedHashMap<Class<?>, Object>(injectables);
+            if (resource != null) {
+                toolScope.putIfAbsent(AtmosphereResource.class, resource);
+            }
+            session.setInjectables(toolScope);
+        }
+
         // Set pre-stream hook so journal cards emit before LLM starts
         if (injectables.get(PostPromptHook.class) instanceof PostPromptHook hook) {
             session.setPreStreamHook(hook);

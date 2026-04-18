@@ -54,6 +54,11 @@ class GuardrailCapturingSession implements StreamingSession {
     }
 
     @Override
+    public java.util.Map<Class<?>, Object> injectables() {
+        return delegate.injectables();
+    }
+
+    @Override
     public String sessionId() {
         return delegate.sessionId();
     }

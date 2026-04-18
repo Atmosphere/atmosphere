@@ -166,4 +166,63 @@ public class DefaultToolRegistryTest {
             return "Weather in " + city + ": sunny, 22°C";
         }
     }
+
+    /**
+     * Pins the injectables-aware dispatch contract: an @AiTool method may
+     * declare a framework-scoped parameter (here {@code StreamingSession})
+     * and the reflective executor must
+     *  (a) exclude that parameter from the JSON schema (the LLM never supplies
+     *      it), and
+     *  (b) inject the live instance from the injectables map at call time.
+     *
+     * <p>This is the regression surface for the "no ThreadLocal" shift — a
+     * @AiTool method should reach the live session/fleet/identity via typed
+     * parameters, not via a static ThreadLocal smuggled from @Prompt. If this
+     * test fails, @AiTool methods fall back to asking the LLM for a
+     * session-shaped argument and {@code invoke()} throws with a null.</p>
+     */
+    @Test
+    public void frameworkTypedParamsAreInjectedAndHiddenFromSchema() throws Exception {
+        var registry = new DefaultToolRegistry();
+        var provider = new SessionAwareToolProvider();
+        registry.register(provider);
+
+        var tool = registry.getTool("echo_session_id").orElseThrow();
+        // (a) The session parameter must NOT leak into the JSON schema — the
+        //     LLM only sees the business arg.
+        assertEquals(1, tool.parameters().size());
+        assertEquals("note", tool.parameters().get(0).name());
+
+        // (b) A live session from the injectables map reaches the method.
+        var fakeSession = new StubSession("sess-42");
+        var result = tool.executor().execute(
+                Map.of("note", "hello"),
+                Map.<Class<?>, Object>of(
+                        org.atmosphere.ai.StreamingSession.class, fakeSession));
+        assertEquals("sess-42: hello", result);
+    }
+
+    static class SessionAwareToolProvider {
+        @AiTool(name = "echo_session_id", description = "Echoes a note prefixed with the session id")
+        public String echo(org.atmosphere.ai.StreamingSession session,
+                           @Param("note") String note) {
+            return session.sessionId() + ": " + note;
+        }
+    }
+
+    /** Minimal {@code StreamingSession} for the injectables test. */
+    static final class StubSession implements org.atmosphere.ai.StreamingSession {
+        private final String id;
+        StubSession(String id) { this.id = id; }
+        @Override public String sessionId() { return id; }
+        @Override public void send(String text) { }
+        @Override public void sendMetadata(String key, Object value) { }
+        @Override public void progress(String message) { }
+        @Override public void complete() { }
+        @Override public void complete(String summary) { }
+        @Override public void error(Throwable t) { }
+        @Override public void emit(org.atmosphere.ai.AiEvent event) { }
+        @Override public boolean isClosed() { return false; }
+        @Override public boolean hasErrored() { return false; }
+    }
 }

@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+atmosphere:
+  # Tell the Spring Boot starter where the sample's @Coordinator / @Agent
+  # classes live. Without this the starter only scans core org.atmosphere.*
+  # packages and the crew never registers.
+  packages: org.atmosphere.samples.springboot.personalassistant
+
+  # Workspace the foundation primitives load from on startup. Override with
+  # --atmosphere.workspace=/path/to/workspace to point at your own OpenClaw
+  # directory. Defaults resolve to the bundled workspace under
+  # agent-workspace/.
+  workspace: classpath:agent-workspace
+
+  ai:
+    # Any of the seven runtime artifacts on the classpath is picked up by
+    # AgentRuntime ServiceLoader discovery. Switching runtimes is a Maven
+    # dependency swap plus setting this to the runtime name.
+    runtime: spring-ai
+
+spring:
+  application:
+    name: atmosphere-personal-assistant
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:gpt-4o-mini}

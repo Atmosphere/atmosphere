@@ -62,8 +62,23 @@ public final class ToolExecutionHelper {
      */
     public static String executeAndFormat(String toolName, ToolExecutor executor,
                                           Map<String, Object> args) {
+        return executeAndFormat(toolName, executor, args, Map.of());
+    }
+
+    /**
+     * Injectables-aware variant of {@link #executeAndFormat(String, ToolExecutor, Map)}.
+     * Passes framework-scoped instances ({@code StreamingSession},
+     * {@code AgentFleet}, {@code AtmosphereResource}, ...) to the executor so
+     * {@code @AiTool} methods can declare them as parameters and receive the
+     * live instances without a {@link ThreadLocal} shim. Existing executors
+     * unaware of injectables fall through to the legacy 1-arg
+     * {@link ToolExecutor#execute(Map)} via the default method.
+     */
+    public static String executeAndFormat(String toolName, ToolExecutor executor,
+                                          Map<String, Object> args,
+                                          Map<Class<?>, Object> injectables) {
         try {
-            var result = executor.execute(args);
+            var result = executor.execute(args, injectables != null ? injectables : Map.of());
             logger.debug("Tool {} executed: {}", toolName, result);
             return result != null ? result.toString() : "null";
         } catch (Exception e) {
@@ -146,15 +161,34 @@ public final class ToolExecutionHelper {
                                              StreamingSession session,
                                              ApprovalStrategy strategy,
                                              ToolApprovalPolicy policy) {
+        return executeWithApproval(toolName, tool, args, session, strategy, policy, Map.of());
+    }
+
+    /**
+     * Injectables-aware overload — same semantics as
+     * {@link #executeWithApproval(String, ToolDefinition, Map, StreamingSession, ApprovalStrategy, ToolApprovalPolicy)}
+     * but threads framework-scoped instances through to
+     * {@link ToolExecutor#execute(Map, Map)}. The session is already in the
+     * injectables map when the caller supplies one keyed by {@code
+     * StreamingSession.class}; adding it to {@code injectables} explicitly
+     * lets {@code @AiTool} methods declare the concrete type too.
+     */
+    public static String executeWithApproval(String toolName, ToolDefinition tool,
+                                             Map<String, Object> args,
+                                             StreamingSession session,
+                                             ApprovalStrategy strategy,
+                                             ToolApprovalPolicy policy,
+                                             Map<Class<?>, Object> injectables) {
         var errors = ToolArgumentValidator.validate(tool, args);
         if (!errors.isEmpty()) {
             logger.info("Tool {} argument validation failed: {}", toolName, errors);
             return buildValidationErrorJson(toolName, errors);
         }
         var effectivePolicy = policy != null ? policy : ToolApprovalPolicy.annotated();
+        var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
         // Fast-path: policy says no approval needed for this tool → execute directly.
         if (!effectivePolicy.requiresApproval(tool)) {
-            return executeAndFormat(toolName, tool.executor(), args);
+            return executeAndFormat(toolName, tool.executor(), args, scope);
         }
         // DenyAll is evaluated BEFORE the strategy-null fall-through so that
         // a null strategy cannot bypass a deny-by-policy decision. Previously
@@ -195,7 +229,7 @@ public final class ToolExecutionHelper {
         return switch (outcome) {
             case APPROVED -> {
                 logger.info("Tool {} approved, executing", toolName);
-                yield executeAndFormat(toolName, tool.executor(), args);
+                yield executeAndFormat(toolName, tool.executor(), args, scope);
             }
             case DENIED -> {
                 logger.info("Tool {} denied by user", toolName);
