@@ -75,43 +75,35 @@ public class PrimaryAssistant {
 
     private static final Logger logger = LoggerFactory.getLogger(PrimaryAssistant.class);
 
-    /**
-     * The fleet for the in-flight prompt. {@code @Prompt} sets this
-     * per-call; {@code @AiTool} methods read it when the LLM invokes them
-     * on the same thread. A {@link ThreadLocal} is acceptable here
-     * because an agent run completes on a single carrier thread in the
-     * built-in runtime, and framework runtimes preserve the binding via
-     * their own tool-call execution model.
-     */
-    private static final ThreadLocal<AgentFleet> ACTIVE_FLEET = new ThreadLocal<>();
-
     @Prompt
     public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
         logger.info("Primary assistant received: {}", message);
-        fleet = fleet.withActivityListener(new StreamingActivityListener(session));
-        ACTIVE_FLEET.set(fleet);
-        try {
-            var settings = AiConfig.get();
-            boolean hasLlm = settings != null && settings.apiKey() != null
-                    && !settings.apiKey().isBlank();
+        // Wrap the fleet with a streaming activity listener so tool-call
+        // cards render in the Atmosphere AI Console. Publish the wrapped
+        // instance into the session's injectable scope so the @AiTool
+        // methods below receive the same wrapped fleet the LLM-driven
+        // tool-call loop would have seen.
+        var wrapped = fleet.withActivityListener(new StreamingActivityListener(session));
+        if (session instanceof org.atmosphere.ai.AiStreamingSession s) {
+            s.putInjectable(AgentFleet.class, wrapped);
+        }
 
-            if (hasLlm) {
-                // LLM-driven path: stream the user message through the runtime.
-                // The tool-call loop in OpenAiCompatibleClient (or the
-                // equivalent in Spring AI / LangChain4j / ADK / Koog / SK /
-                // Embabel) sees the three @AiTool methods below and picks
-                // the right one based on their descriptions.
-                session.stream(message);
-            } else {
-                // Fallback: keyword router with explicit tool dispatch so
-                // the demo runs without an API key. Each branch emits a
-                // ToolStart / ToolResult pair matching what the LLM path
-                // would emit, so the Atmosphere AI Console renders
-                // identical tool-call cards for both paths.
-                runKeywordFallback(message, session);
-            }
-        } finally {
-            ACTIVE_FLEET.remove();
+        var settings = AiConfig.get();
+        boolean hasLlm = settings != null && settings.apiKey() != null
+                && !settings.apiKey().isBlank();
+
+        if (hasLlm) {
+            // LLM-driven path: stream the user message through the runtime.
+            // The tool-call loop in OpenAiCompatibleClient (or the equivalent
+            // in Spring AI / LangChain4j / ADK / Koog / SK / Embabel) sees the
+            // three @AiTool methods below, picks the right one, and the
+            // framework injects the live AgentFleet as a typed parameter —
+            // no ThreadLocal required.
+            session.stream(message);
+        } else {
+            // Fallback: keyword router with explicit tool dispatch so the
+            // demo runs without an API key.
+            runKeywordFallback(message, session, wrapped);
         }
     }
 
@@ -121,13 +113,10 @@ public class PrimaryAssistant {
             description = "Propose meeting slots for a given topic. Call this when "
                     + "the user wants to schedule, book, or arrange a meeting.")
     public String scheduleMeeting(
+            AgentFleet fleet,
             @Param(value = "topic", description = "What the meeting is about") String topic,
             @Param(value = "date_hint",
                     description = "Optional ISO-8601 date (YYYY-MM-DD), empty for today") String dateHint) {
-        var fleet = ACTIVE_FLEET.get();
-        if (fleet == null) {
-            return "Scheduler unavailable in this context.";
-        }
         var result = fleet.agent("scheduler-agent")
                 .call("propose_slots", Map.of(
                         "topic", topic,
@@ -139,11 +128,8 @@ public class PrimaryAssistant {
             description = "Research a topic and return a short brief. Call this when "
                     + "the user wants to know about a topic, get context, or look something up.")
     public String researchTopic(
+            AgentFleet fleet,
             @Param(value = "topic", description = "The topic to research") String topic) {
-        var fleet = ACTIVE_FLEET.get();
-        if (fleet == null) {
-            return "Research unavailable in this context.";
-        }
         var result = fleet.agent("research-agent")
                 .call("summarize_topic", Map.of("topic", topic));
         return result.text();
@@ -153,14 +139,11 @@ public class PrimaryAssistant {
             description = "Draft a short-form message for a recipient. Call this when "
                     + "the user wants a note, reply, email, or message drafted.")
     public String draftMessage(
+            AgentFleet fleet,
             @Param(value = "recipient",
                     description = "Who the message is for — a person or team name") String recipient,
             @Param(value = "intent",
                     description = "What the message needs to convey") String intent) {
-        var fleet = ACTIVE_FLEET.get();
-        if (fleet == null) {
-            return "Drafter unavailable in this context.";
-        }
         var result = fleet.agent("drafter-agent")
                 .call("draft_message", Map.of(
                         "recipient", recipient == null || recipient.isBlank() ? "team" : recipient,
@@ -170,24 +153,24 @@ public class PrimaryAssistant {
 
     // ---------- Fallback path (no LLM) ----------
 
-    private void runKeywordFallback(String message, StreamingSession session) {
+    private void runKeywordFallback(String message, StreamingSession session, AgentFleet fleet) {
         var lower = message.toLowerCase(Locale.ROOT);
         if (matchesAny(lower, "schedule", "meeting", "book")) {
             emitToolCall(session, "schedule_meeting",
                     Map.of("topic", message, "date_hint", ""),
-                    scheduleMeeting(message, ""));
+                    scheduleMeeting(fleet, message, ""));
             return;
         }
         if (matchesAny(lower, "research", "look up", "what do you know")) {
             emitToolCall(session, "research_topic",
                     Map.of("topic", message),
-                    researchTopic(message));
+                    researchTopic(fleet, message));
             return;
         }
         if (matchesAny(lower, "draft", "write", "email", "reply", "note")) {
             emitToolCall(session, "draft_message",
                     Map.of("recipient", "team", "intent", message),
-                    draftMessage("team", message));
+                    draftMessage(fleet, "team", message));
             return;
         }
         session.stream(

@@ -15,7 +15,13 @@
  */
 package org.atmosphere.ai.identity;
 
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.HexFormat;
 import java.util.Optional;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * SPI for per-user credentials. Every secret touching Atmosphere flows
@@ -62,20 +68,58 @@ public interface CredentialStore {
     void delete(String userId, String key);
 
     /**
-     * A short, log-safe identifier for the secret
-     * ({@code "key-abc..."}) — surfaced in admin UIs so operators can see
-     * which credential was used without the secret leaking into logs.
-     * Returns {@link Optional#empty()} when absent.
+     * A short, log-safe identifier for the secret ({@code "cred-abc123..."})
+     * surfaced in admin UIs so operators can see which credential was used
+     * without the secret itself leaking. Returns {@link Optional#empty()}
+     * when absent.
+     *
+     * <p>The default implementation returns an HMAC-SHA256 of the secret
+     * keyed with a per-process salt — deterministic within one JVM (so the
+     * same secret groups all its log lines) but non-reversible and free of
+     * raw secret bytes (Correctness Invariant #6).</p>
      */
     default Optional<String> identifier(String userId, String key) {
-        return get(userId, key).map(secret -> {
-            if (secret.length() <= 4) {
-                return "****";
-            }
-            return secret.substring(0, 4) + "***";
-        });
+        return get(userId, key).map(Identifiers::derive);
     }
 
     /** Name of this store implementation (for admin inspection). */
     String name();
+
+    /**
+     * HMAC-keyed identifier derivation. Holds a per-process salt generated
+     * once so ids remain stable for a given JVM lifetime but cannot be
+     * precomputed or correlated across processes.
+     */
+    final class Identifiers {
+
+        private static final byte[] PROCESS_SALT = new byte[16];
+
+        static {
+            new SecureRandom().nextBytes(PROCESS_SALT);
+        }
+
+        private Identifiers() {
+        }
+
+        /**
+         * Derive a {@code "cred-<hex8>"} identifier from the given secret.
+         * The prior substring-prefix approach leaked raw bytes of the secret
+         * (critical for {@code sk-...}-style API keys), so every non-empty
+         * secret now goes through HMAC-SHA256 with {@link #PROCESS_SALT}.
+         */
+        public static String derive(String secret) {
+            try {
+                var mac = Mac.getInstance("HmacSHA256");
+                mac.init(new SecretKeySpec(PROCESS_SALT, "HmacSHA256"));
+                var digest = mac.doFinal(secret.getBytes(StandardCharsets.UTF_8));
+                // First 8 bytes is enough to group log lines without
+                // offering a brute-force preimage target of any value.
+                return "cred-" + HexFormat.of().formatHex(digest, 0, 8);
+            } catch (java.security.GeneralSecurityException e) {
+                // HmacSHA256 is mandatory in every JDK — absence is fatal.
+                throw new IllegalStateException(
+                        "HmacSHA256 is not available in this JVM", e);
+            }
+        }
+    }
 }

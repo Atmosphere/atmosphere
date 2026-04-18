@@ -50,6 +50,24 @@ public interface StreamingSession extends AutoCloseable {
     }
 
     /**
+     * Framework-scoped instances this session carries through to tool
+     * invocations, keyed by class. Populated by the endpoint handler with the
+     * live {@code AgentFleet}, {@code AgentIdentity}, {@code AgentState}, etc.
+     * {@code @AiTool} methods can then declare these types as parameters and
+     * the {@link org.atmosphere.ai.tool.DefaultToolRegistry DefaultToolRegistry}
+     * reflective executor injects the live instance — no {@link ThreadLocal}
+     * shim required.
+     *
+     * <p>The default implementation returns an empty map so sessions built
+     * outside the endpoint handler (tests, custom pipelines) behave safely.
+     * Sessions layered on top of {@code AiStreamingSession} should override
+     * this to expose the handler-stashed injectables.</p>
+     */
+    default java.util.Map<Class<?>, Object> injectables() {
+        return java.util.Map.of();
+    }
+
+    /**
      * Send a streaming text chunk to the client.
      *
      * @param text the text chunk (typically a single streaming text from an LLM)

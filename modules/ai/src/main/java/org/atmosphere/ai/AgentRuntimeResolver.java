@@ -53,6 +53,17 @@ public final class AgentRuntimeResolver {
     }
 
     /**
+     * Drop the cached runtime list so the next {@link #resolveAll()} call
+     * rescans the ServiceLoader. Visible for tests that install a custom
+     * runtime before the first resolution — without this, the cache freezes
+     * at the first call and subsequent {@code configure(...)} changes stay
+     * invisible for the rest of the JVM.
+     */
+    public static void reset() {
+        cachedAll = null;
+    }
+
+    /**
      * Returns all available runtimes sorted by priority (highest first).
      * Falls back to a singleton list with {@link BuiltInAgentRuntime} if
      * no implementations are discovered.

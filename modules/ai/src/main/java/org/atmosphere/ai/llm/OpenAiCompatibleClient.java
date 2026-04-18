@@ -343,9 +343,19 @@ public class OpenAiCompatibleClient implements LlmClient {
                     continue;
                 }
 
+                // Compose injectables for the @AiTool method: anything the
+                // session already carries (fleet, identity, state supplied by
+                // the endpoint handler), plus the live session and
+                // AtmosphereResource so tool methods can declare those types
+                // as parameters. Framework-runtime bridges that layer on top
+                // of this loop inherit the same map automatically.
+                var toolInjectables = new java.util.LinkedHashMap<Class<?>, Object>(
+                        session.injectables());
+                toolInjectables.putIfAbsent(
+                        org.atmosphere.ai.StreamingSession.class, session);
                 var resultStr = ToolExecutionHelper.executeWithApproval(
                         toolName, tool, args, session, request.approvalStrategy(),
-                        request.approvalPolicy());
+                        request.approvalPolicy(), toolInjectables);
                 session.emit(new AiEvent.ToolResult(toolName, resultStr));
                 org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
                         request.listeners(), toolName, resultStr);

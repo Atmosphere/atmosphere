@@ -56,8 +56,16 @@ public class AtmosphereAiAutoConfiguration {
         var baseUrl = resolveBaseUrl(aiProps);
         var mode = resolveMode(aiProps);
         if (apiKey == null && !"local".equalsIgnoreCase(mode)) {
+            if (aiProps.isFailFast()) {
+                throw new IllegalStateException(
+                        "Atmosphere AI is configured to fail-fast but no API key was found. "
+                                + "Set atmosphere.ai.api-key / LLM_API_KEY / OPENAI_API_KEY / "
+                                + "GEMINI_API_KEY, or set atmosphere.ai.fail-fast=false to boot "
+                                + "without credentials (dev mode only).");
+            }
             logger.warn("No AI API key configured. Set atmosphere.ai.api-key, "
-                    + "LLM_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY environment variable");
+                    + "LLM_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY environment variable "
+                    + "(set atmosphere.ai.fail-fast=true to refuse startup on missing keys)");
         }
         var settings = AiConfig.configure(mode, model, apiKey, baseUrl);
         logger.info("Atmosphere AI configured: mode={}, model={}", mode, model);

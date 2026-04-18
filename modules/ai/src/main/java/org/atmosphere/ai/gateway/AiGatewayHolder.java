@@ -44,8 +44,19 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class AiGatewayHolder {
 
+    private static final org.slf4j.Logger logger =
+            org.slf4j.LoggerFactory.getLogger(AiGatewayHolder.class);
+
     private static final AtomicReference<AiGateway> HOLDER =
             new AtomicReference<>(defaultGateway());
+
+    /** Fires once per JVM the first time an outbound call uses the permissive default. */
+    private static final java.util.concurrent.atomic.AtomicBoolean DEFAULT_USED_WARNING =
+            new java.util.concurrent.atomic.AtomicBoolean();
+
+    /** Tracks whether a non-default gateway was ever installed. */
+    private static final java.util.concurrent.atomic.AtomicBoolean INSTALLED =
+            new java.util.concurrent.atomic.AtomicBoolean();
 
     private AiGatewayHolder() {
         // static holder
@@ -54,15 +65,30 @@ public final class AiGatewayHolder {
     /** Install the process-wide gateway. */
     public static void install(AiGateway gateway) {
         HOLDER.set(Objects.requireNonNull(gateway, "gateway"));
+        INSTALLED.set(true);
     }
 
     /** Restore the permissive default gateway. Primarily for tests. */
     public static void reset() {
         HOLDER.set(defaultGateway());
+        INSTALLED.set(false);
+        DEFAULT_USED_WARNING.set(false);
     }
 
-    /** Fetch the current gateway. Never {@code null}. */
+    /**
+     * Fetch the current gateway. Never {@code null}. Logs a WARN the first
+     * time the permissive default is handed out in a production-shaped
+     * deployment (no {@link #install(AiGateway)} ever called) so the
+     * operator sees the misconfig instead of a silently unlimited choke
+     * point — papercut #5 from the v0.5 foundation review.
+     */
     public static AiGateway get() {
+        if (!INSTALLED.get() && DEFAULT_USED_WARNING.compareAndSet(false, true)) {
+            logger.warn("AiGatewayHolder serving the permissive default gateway "
+                    + "(1M calls/hour, noop CredentialResolver / TraceExporter). "
+                    + "Production deployments must call AiGatewayHolder.install(...) "
+                    + "with an enforcing gateway during startup.");
+        }
         return HOLDER.get();
     }
 

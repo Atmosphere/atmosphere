@@ -36,4 +36,28 @@ public interface ToolExecutor {
      * @throws Exception if tool execution fails
      */
     Object execute(Map<String, Object> arguments) throws Exception;
+
+    /**
+     * Execute the tool with access to framework-scoped injectables. Used by the
+     * reflective executor that {@link DefaultToolRegistry} builds from
+     * {@link org.atmosphere.ai.annotation.AiTool}-annotated methods so the
+     * method can declare parameter types like {@link org.atmosphere.ai.StreamingSession},
+     * {@code AgentFleet}, or {@link org.atmosphere.cpr.AtmosphereResource} and
+     * receive the live instances — no {@link ThreadLocal} shim required.
+     *
+     * <p>The default implementation delegates to {@link #execute(Map)} so
+     * hand-written executors (e.g., MCP bridges, dynamic tools) keep working.
+     * Framework-runtime bridges (Spring AI, LangChain4j, etc.) can opt in by
+     * passing the active injectables map through at tool-dispatch time.</p>
+     *
+     * @param arguments   tool arguments from the AI model
+     * @param injectables framework-scoped instances keyed by {@code Class<?>};
+     *                    {@code null} is treated as an empty map
+     * @return the result (serialized to JSON and sent back to the model)
+     * @throws Exception if tool execution fails
+     */
+    default Object execute(Map<String, Object> arguments,
+                           Map<Class<?>, Object> injectables) throws Exception {
+        return execute(arguments);
+    }
 }

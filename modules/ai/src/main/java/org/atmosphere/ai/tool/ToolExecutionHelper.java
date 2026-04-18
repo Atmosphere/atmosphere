@@ -62,8 +62,23 @@ public final class ToolExecutionHelper {
      */
     public static String executeAndFormat(String toolName, ToolExecutor executor,
                                           Map<String, Object> args) {
+        return executeAndFormat(toolName, executor, args, Map.of());
+    }
+
+    /**
+     * Injectables-aware variant of {@link #executeAndFormat(String, ToolExecutor, Map)}.
+     * Passes framework-scoped instances ({@code StreamingSession},
+     * {@code AgentFleet}, {@code AtmosphereResource}, ...) to the executor so
+     * {@code @AiTool} methods can declare them as parameters and receive the
+     * live instances without a {@link ThreadLocal} shim. Existing executors
+     * unaware of injectables fall through to the legacy 1-arg
+     * {@link ToolExecutor#execute(Map)} via the default method.
+     */
+    public static String executeAndFormat(String toolName, ToolExecutor executor,
+                                          Map<String, Object> args,
+                                          Map<Class<?>, Object> injectables) {
         try {
-            var result = executor.execute(args);
+            var result = executor.execute(args, injectables != null ? injectables : Map.of());
             logger.debug("Tool {} executed: {}", toolName, result);
             return result != null ? result.toString() : "null";
         } catch (Exception e) {
@@ -146,15 +161,66 @@ public final class ToolExecutionHelper {
                                              StreamingSession session,
                                              ApprovalStrategy strategy,
                                              ToolApprovalPolicy policy) {
+        return executeWithApproval(toolName, tool, args, session, strategy, policy, Map.of());
+    }
+
+    /**
+     * Injectables-aware overload — same semantics as
+     * {@link #executeWithApproval(String, ToolDefinition, Map, StreamingSession, ApprovalStrategy, ToolApprovalPolicy)}
+     * but threads framework-scoped instances through to
+     * {@link ToolExecutor#execute(Map, Map)}. The session is already in the
+     * injectables map when the caller supplies one keyed by {@code
+     * StreamingSession.class}; adding it to {@code injectables} explicitly
+     * lets {@code @AiTool} methods declare the concrete type too.
+     */
+    public static String executeWithApproval(String toolName, ToolDefinition tool,
+                                             Map<String, Object> args,
+                                             StreamingSession session,
+                                             ApprovalStrategy strategy,
+                                             ToolApprovalPolicy policy,
+                                             Map<Class<?>, Object> injectables) {
         var errors = ToolArgumentValidator.validate(tool, args);
         if (!errors.isEmpty()) {
             logger.info("Tool {} argument validation failed: {}", toolName, errors);
             return buildValidationErrorJson(toolName, errors);
         }
         var effectivePolicy = policy != null ? policy : ToolApprovalPolicy.annotated();
-        // Fast-path: policy says no approval needed for this tool → execute directly.
-        if (!effectivePolicy.requiresApproval(tool)) {
-            return executeAndFormat(toolName, tool.executor(), args);
+        var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
+
+        // Outer gate: the session's PermissionMode (from AgentIdentity, if
+        // present in the injectables map) is the per-user authorization
+        // override. The mode shadows per-tool @RequiresApproval — an explicit
+        // DENY_ALL overrides any tool-local permissive setting per Correctness
+        // Invariant #6 (default deny). When no identity is wired (tests,
+        // ad-hoc pipelines), the behaviour is unchanged from the per-tool
+        // gate below.
+        var permissionMode = resolveMode(scope);
+        boolean forceApproval = false;
+        switch (permissionMode) {
+            case DENY_ALL -> {
+                logger.info("Tool {} blocked by AgentIdentity PermissionMode.DENY_ALL", toolName);
+                return "{\"status\":\"cancelled\",\"message\":\"Tool execution denied by PermissionMode.DENY_ALL\"}";
+            }
+            case BYPASS -> {
+                // Auto-approve every tool. Explicit opt-in only.
+                return executeAndFormat(toolName, tool.executor(), args, scope);
+            }
+            case PLAN -> {
+                // Force approval on every tool regardless of tool-local
+                // @RequiresApproval — the mode IS the approval gate.
+                forceApproval = true;
+            }
+            case ACCEPT_EDITS, DEFAULT -> {
+                // Fall through to per-tool @RequiresApproval. ACCEPT_EDITS is
+                // intended to auto-approve edit-shaped tools — until we have
+                // structured tool-kind tags, behaviour matches DEFAULT so the
+                // outer gate never silently widens the attack surface.
+            }
+        }
+
+        // Fast-path: nothing requires approval — execute directly.
+        if (!forceApproval && !effectivePolicy.requiresApproval(tool)) {
+            return executeAndFormat(toolName, tool.executor(), args, scope);
         }
         // DenyAll is evaluated BEFORE the strategy-null fall-through so that
         // a null strategy cannot bypass a deny-by-policy decision. Previously
@@ -195,7 +261,7 @@ public final class ToolExecutionHelper {
         return switch (outcome) {
             case APPROVED -> {
                 logger.info("Tool {} approved, executing", toolName);
-                yield executeAndFormat(toolName, tool.executor(), args);
+                yield executeAndFormat(toolName, tool.executor(), args, scope);
             }
             case DENIED -> {
                 logger.info("Tool {} denied by user", toolName);
@@ -220,6 +286,48 @@ public final class ToolExecutionHelper {
             map.put(tool.name(), tool);
         }
         return map;
+    }
+
+    /**
+     * Pull the caller's {@link org.atmosphere.ai.identity.PermissionMode} from
+     * the injectable scope, falling back to {@code DEFAULT} when no identity
+     * is wired. Resolution order: (1) explicit {@code PermissionMode} entry,
+     * (2) derived from an {@code AgentIdentity} plus a {@code userId} on an
+     * {@link org.atmosphere.cpr.AtmosphereResource} request attribute,
+     * (3) {@code DEFAULT}.
+     */
+    private static org.atmosphere.ai.identity.PermissionMode resolveMode(
+            Map<Class<?>, Object> scope) {
+        if (scope.isEmpty()) {
+            return org.atmosphere.ai.identity.PermissionMode.DEFAULT;
+        }
+        if (scope.get(org.atmosphere.ai.identity.PermissionMode.class)
+                instanceof org.atmosphere.ai.identity.PermissionMode explicit) {
+            return explicit;
+        }
+        var identity = (org.atmosphere.ai.identity.AgentIdentity)
+                scope.get(org.atmosphere.ai.identity.AgentIdentity.class);
+        if (identity == null) {
+            return org.atmosphere.ai.identity.PermissionMode.DEFAULT;
+        }
+        String userId = null;
+        if (scope.get(org.atmosphere.cpr.AtmosphereResource.class)
+                instanceof org.atmosphere.cpr.AtmosphereResource resource
+                && resource.getRequest() != null
+                && resource.getRequest().getAttribute("ai.userId") != null) {
+            var attr = resource.getRequest().getAttribute("ai.userId").toString();
+            if (!attr.isBlank()) {
+                userId = attr;
+            }
+        }
+        // No userId on the request → there's nothing to authorize against.
+        // Fall back to DEFAULT rather than forcing AgentIdentity to accept a
+        // blank userId (most implementations validate).
+        if (userId == null) {
+            return org.atmosphere.ai.identity.PermissionMode.DEFAULT;
+        }
+        var mode = identity.permissionMode(userId);
+        return mode != null ? mode : org.atmosphere.ai.identity.PermissionMode.DEFAULT;
     }
 
     /**

@@ -92,6 +92,13 @@ public class AiStreamingSession implements StreamingSession {
     private volatile org.atmosphere.ai.llm.CacheHint.CachePolicy cachePolicy;
     /** Endpoint-configured per-request retry policy from {@code @AiEndpoint.retry()}. */
     private volatile org.atmosphere.ai.RetryPolicy endpointRetryPolicy;
+    /**
+     * Framework-scoped injectables stashed by the endpoint handler and
+     * threaded into {@code @AiTool} dispatch so tool methods can declare
+     * {@code AgentFleet}, {@code AgentIdentity}, etc. directly as parameters.
+     * Copied defensively by {@link #setInjectables(java.util.Map)}.
+     */
+    private volatile java.util.Map<Class<?>, Object> injectables = java.util.Map.of();
 
     /**
      * @param delegate     the underlying streaming session
@@ -301,6 +308,37 @@ public class AiStreamingSession implements StreamingSession {
         this.endpointRetryPolicy = policy;
     }
 
+    /**
+     * Publish the framework-scoped injectables the endpoint handler collected
+     * (live {@code AgentFleet}, {@code AgentIdentity}, {@code AgentState},
+     * ...). Threaded into the tool-call loop so {@code @AiTool} methods can
+     * declare these types directly — no {@link ThreadLocal} shim. Copied
+     * defensively so the handler can mutate its source map without affecting
+     * the session.
+     */
+    public void setInjectables(java.util.Map<Class<?>, Object> source) {
+        this.injectables = source == null || source.isEmpty()
+                ? java.util.Map.of()
+                : java.util.Map.copyOf(source);
+    }
+
+    /**
+     * Replace (or add) a single injectable entry, e.g. so {@code @Prompt} can
+     * swap a fleet wrapped in a {@code StreamingActivityListener} before tools
+     * dispatch. The internal map stays immutable-at-publish via copy-on-write
+     * so concurrent tool invocations see a consistent snapshot.
+     */
+    public void putInjectable(Class<?> key, Object value) {
+        var next = new java.util.LinkedHashMap<Class<?>, Object>(this.injectables);
+        next.put(key, value);
+        this.injectables = java.util.Map.copyOf(next);
+    }
+
+    @Override
+    public java.util.Map<Class<?>, Object> injectables() {
+        return injectables;
+    }
+
     @Override
     public void stream(String message) {
         // Fire pre-stream hook (e.g., journal emit) before LLM call starts.
@@ -392,10 +430,18 @@ public class AiStreamingSession implements StreamingSession {
             }
         }
 
-        // Wrap delegate in MemoryCapturingSession if memory is enabled
-        StreamingSession target = delegate;
+        // The capturing-session decorator chain starts at `this` rather than
+        // `delegate` so every delegating method — critically, `injectables()`
+        // — reaches AiStreamingSession's live map. The delegate chain
+        // (DefaultStreamingSession etc.) returns the empty default, which
+        // would leave {@code @AiTool} methods without their typed parameter
+        // injections (AgentFleet, AgentIdentity, ...) and force the
+        // ThreadLocal shim back. Existing capturing sessions forward all
+        // StreamingSession methods to their delegate, so starting the chain
+        // at `this` doesn't change observable behaviour on any other method.
+        StreamingSession target = this;
         if (memory != null) {
-            target = new MemoryCapturingSession(delegate, memory, resource.uuid(), message);
+            target = new MemoryCapturingSession(target, memory, resource.uuid(), message);
         }
 
         // Wrap in MetricsCapturingSession for latency/streaming text tracking
