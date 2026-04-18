@@ -48,9 +48,31 @@ These are all on the Phase 4 checklist; this suite is the Playwright
 scaffolding those later passes slot into without re-inventing the
 harness.
 
-## CI integration
+## CI status (honest)
 
-The `atmosphere-e2e` package is not yet wired into the Maven reactor;
-the Playwright suite runs as its own lane. When the CI matrix lands,
-each sample spins up via `mvn spring-boot:run` in the background, waits
-for the admin endpoint to return 200, and runs the corresponding spec.
+**These specs do NOT gate merges.** The `atmosphere-e2e` package is not
+wired into any workflow under `.github/workflows/` — `e2e.yml` runs the
+separate Playwright matrix under `modules/integration-tests/` against the
+atmosphere.js client, not this suite. Treat the specs here as
+*manual regression evidence* (run them after landing a foundation change
+that would break them) rather than as gating CI.
+
+Wiring the suite to CI is tracked for v4.0.40. The shape will be:
+a dedicated job that spins up `personal-assistant` and `coding-agent`
+via `java -jar target/*.jar`, waits for their `/api/console/info`
+endpoints to return 200, runs the matching spec, and tears them down.
+Specs that require an LLM (`schedule request fires tool call …`,
+`research request …`, `draft request …`) already
+`test.skip(!process.env.LLM_API_KEY && …)` so they run on-demand only.
+
+Until the job lands:
+
+```bash
+cd e2e
+ATMO_E2E_BASE_URL=http://localhost:8080 npx playwright test tests/personal-assistant.spec.ts
+ATMO_E2E_BASE_URL=http://localhost:8080 npx playwright test tests/coding-agent.spec.ts
+```
+
+after booting the respective sample jar with the env vars documented in
+`samples/spring-boot-personal-assistant/README.md` and
+`samples/spring-boot-coding-agent/README.md`.
