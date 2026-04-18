@@ -235,12 +235,28 @@ public class AtmosphereAdminAutoConfiguration {
         AdminMcpBridge atmosphereAdminMcpBridge(
                 AtmosphereAdmin admin,
                 org.atmosphere.mcp.registry.McpRegistry mcpRegistry,
-                AtmosphereProperties properties) {
-            var bridge = new AdminMcpBridge(admin, mcpRegistry, ControlAuthorizer.ALLOW_ALL);
+                AtmosphereProperties properties,
+                @org.springframework.beans.factory.annotation.Autowired(required = false)
+                ControlAuthorizer customAuthorizer) {
+            // Read tools (list, describe) keep ALLOW_ALL because they're
+            // information-only. Write tools (scale, kill, reload) default to
+            // REQUIRE_PRINCIPAL so the admin MCP surface isn't a no-auth
+            // mutation channel (Correctness Invariant #6 — default deny).
+            // Applications that expose admin writes intentionally can inject
+            // their own ControlAuthorizer bean to override.
+            ControlAuthorizer writeAuthorizer = customAuthorizer != null
+                    ? customAuthorizer
+                    : ControlAuthorizer.REQUIRE_PRINCIPAL;
+            var bridge = new AdminMcpBridge(admin, mcpRegistry,
+                    customAuthorizer != null ? customAuthorizer : ControlAuthorizer.ALLOW_ALL);
             bridge.registerReadTools();
             if (Boolean.TRUE.toString().equalsIgnoreCase(
                     properties.getAdminMcpWriteTools())) {
-                bridge.registerWriteTools();
+                // Rebuild the bridge with the stricter authorizer before
+                // mounting write tools so ALLOW_ALL never reaches a
+                // mutation surface.
+                var writeBridge = new AdminMcpBridge(admin, mcpRegistry, writeAuthorizer);
+                writeBridge.registerWriteTools();
             }
             return bridge;
         }

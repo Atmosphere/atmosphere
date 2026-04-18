@@ -173,17 +173,27 @@ public class PrimaryAssistant {
                     draftMessage(fleet, "team", message));
             return;
         }
-        session.stream(
+        // send() + complete() — NOT stream() — because this is the
+        // keyless-demo path that must NOT dispatch to an LLM. Same failure
+        // class as the coding-agent regression we fixed earlier: stream()
+        // on AiStreamingSession treats the argument as a fresh user-turn
+        // input and round-trips it to the model.
+        session.send(
                 "I can schedule meetings, research topics, or draft messages. "
                 + "Configure OPENAI_API_KEY to let me pick the right tool automatically; "
                 + "otherwise try keywords like 'schedule', 'research', or 'draft'.");
+        session.complete();
     }
 
     private static void emitToolCall(StreamingSession session, String toolName,
                                       Map<String, Object> args, String result) {
         session.emit(new AiEvent.ToolStart(toolName, args));
         session.emit(new AiEvent.ToolResult(toolName, result));
-        session.stream(result);
+        // Keyless fallback streams the tool result directly to the client
+        // via send() + complete(); stream() would re-dispatch the result
+        // as an LLM prompt and (without credentials) error out.
+        session.send(result);
+        session.complete();
     }
 
     private static boolean matchesAny(String haystack, String... needles) {

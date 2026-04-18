@@ -412,6 +412,26 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 t.interrupt();
             }
         });
+        // Default producer for the ai.userId request attribute that the
+        // rest of the ai module reads (ToolExecutionHelper.resolveMode,
+        // AiStreamingSession.stream, this handler's RunRegistry register):
+        // if nothing upstream has set it, fall back to the servlet
+        // Principal's name. Without this hook, PermissionMode resolution
+        // always saw null and fell to DEFAULT regardless of the
+        // AgentIdentity wiring. Apps that integrate their own auth stack
+        // set ai.userId via an AtmosphereInterceptor and this no-op's.
+        if (resource.getRequest() != null
+                && resource.getRequest().getAttribute("ai.userId") == null) {
+            try {
+                var principal = resource.getRequest().getUserPrincipal();
+                if (principal != null && principal.getName() != null
+                        && !principal.getName().isBlank()) {
+                    resource.getRequest().setAttribute("ai.userId", principal.getName());
+                }
+            } catch (RuntimeException e) {
+                logger.trace("unable to resolve userPrincipal for request attr", e);
+            }
+        }
         var userIdAttr = resource.getRequest() != null
                 ? resource.getRequest().getAttribute("ai.userId") : null;
         var runUserId = userIdAttr != null ? userIdAttr.toString() : "anonymous";
