@@ -128,8 +128,8 @@ public final class DefaultAgentFleet implements AgentFleet {
 
     // TODO [JEP 525]: Replace CompletableFuture fan-out with StructuredTaskScope
     // when it finalizes (6th preview in JDK 26). Benefits:
-    //   - Automatic cancellation of siblings on first failure (current: sequential
-    //     join + late cancel after all joins complete)
+    //   - Automatic cancellation of siblings on first failure (current: interrupt
+    //     on first failure via shutdownNow, preserving Correctness Invariant #2)
     //   - scope.join().throwIfFailed() for cleaner error collection
     //   - Structured ownership: parent scope owns child task lifetimes
     // Deferred: libraries cannot use --enable-preview. Track JDK 27+ milestones.
@@ -160,28 +160,56 @@ public final class DefaultAgentFleet implements AgentFleet {
         }
 
         var results = new LinkedHashMap<String, AgentResult>();
-        var failed = false;
-        for (var entry : futures.entrySet()) {
-            try {
-                results.put(entry.getKey(), entry.getValue().join());
-            } catch (Exception e) {
-                failed = true;
-                var cause = e.getCause();
-                var actualTimeout = timeouts.getOrDefault(entry.getKey(), parallelTimeoutMs);
-                var msg = cause instanceof TimeoutException
-                        ? "Agent timed out after " + actualTimeout + "ms"
-                        : "Parallel call failed: " + e.getMessage();
-                logger.error("Parallel call to '{}' failed: {}", entry.getKey(), msg);
-                results.put(entry.getKey(), AgentResult.failure(
-                        entry.getKey(), "", msg, Duration.ZERO));
+        try {
+            for (var entry : futures.entrySet()) {
+                try {
+                    results.put(entry.getKey(), entry.getValue().join());
+                } catch (Exception e) {
+                    // Cancel siblings WHILE the executor is still live so the
+                    // interrupt actually reaches blocked workers. Using
+                    // ExecutorService.close() first would block until every
+                    // task joins — then cancel(true) runs too late to do
+                    // anything (Correctness Invariant #2 — terminal paths
+                    // must complete/release/reset symmetrically).
+                    futures.values().forEach(f -> f.cancel(true));
+                    vtExecutor.shutdownNow();
+
+                    var cause = e.getCause();
+                    var actualTimeout =
+                            timeouts.getOrDefault(entry.getKey(), parallelTimeoutMs);
+                    var msg = cause instanceof TimeoutException
+                            ? "Agent timed out after " + actualTimeout + "ms"
+                            : "Parallel call failed: " + e.getMessage();
+                    logger.error("Parallel call to '{}' failed: {}", entry.getKey(), msg);
+                    results.put(entry.getKey(), AgentResult.failure(
+                            entry.getKey(), "", msg, Duration.ZERO));
+                    // Drain the remaining futures: on first failure we want
+                    // every agent to report a cancelled/failure result so
+                    // callers see a symmetric map, not a half-filled one.
+                    for (var remaining : futures.entrySet()) {
+                        if (results.containsKey(remaining.getKey())) {
+                            continue;
+                        }
+                        try {
+                            results.put(remaining.getKey(),
+                                    remaining.getValue().join());
+                        } catch (Exception re) {
+                            results.put(remaining.getKey(), AgentResult.failure(
+                                    remaining.getKey(), "",
+                                    "Sibling cancelled after peer failure",
+                                    Duration.ZERO));
+                        }
+                    }
+                    break;
+                }
             }
+        } finally {
+            // close() awaits tasks that weren't interrupted (success path) and
+            // is idempotent with shutdownNow() on the failure path — either
+            // way the executor's threads are released before we return.
+            vtExecutor.close();
         }
 
-        if (failed) {
-            futures.values().forEach(f -> f.cancel(true));
-        }
-
-        vtExecutor.close();
         logger.debug("Parallel fan-out complete: {} results", results.size());
         return results;
     }

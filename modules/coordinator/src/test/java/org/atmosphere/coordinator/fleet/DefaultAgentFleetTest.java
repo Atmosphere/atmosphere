@@ -21,6 +21,9 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -153,6 +156,98 @@ public class DefaultAgentFleetTest {
         // Non-duplicate names should use plain names as keys
         assertTrue(results.containsKey("research"));
         assertTrue(results.containsKey("strategy"));
+    }
+
+    @Test
+    void parallelInterruptsSiblingsOnFirstFailure() throws InterruptedException {
+        // Regression: the old parallel() layout called vtExecutor.close() —
+        // which blocks until every virtual thread joins — BEFORE calling
+        // cancel(true) on the sibling futures. That made the cancel a no-op
+        // and left slow agents running to full completion even after a peer
+        // had already failed (Correctness Invariant #2).
+        //
+        // This test wires two agents: `fast` throws immediately, `slow`
+        // blocks on a 30-second sleep and flips an interrupted-flag if and
+        // only if the thread is interrupted. The fix must make parallel()
+        // return in a small bounded time AND flag the slow worker.
+        var sleepDurationMs = 30_000L;
+        var sleepStarted = new CountDownLatch(1);
+        var interruptObserved = new AtomicBoolean(false);
+        var sleepDoneOrInterrupted = new CountDownLatch(1);
+
+        var fastTransport = mock(AgentTransport.class);
+        when(fastTransport.isAvailable()).thenReturn(true);
+        when(fastTransport.send(anyString(), anyString(), anyMap()))
+                .thenThrow(new RuntimeException("boom"));
+
+        AgentTransport slowTransport = new AgentTransport() {
+            @Override
+            public AgentResult send(String agent, String skill,
+                                    Map<String, Object> args) {
+                sleepStarted.countDown();
+                try {
+                    Thread.sleep(sleepDurationMs);
+                } catch (InterruptedException ie) {
+                    interruptObserved.set(true);
+                    Thread.currentThread().interrupt();
+                    sleepDoneOrInterrupted.countDown();
+                    throw new RuntimeException(ie);
+                }
+                sleepDoneOrInterrupted.countDown();
+                return new AgentResult(agent, skill, "ok",
+                        Map.of(), Duration.ZERO, true);
+            }
+
+            @Override
+            public void stream(String agent, String skill,
+                               Map<String, Object> args,
+                               java.util.function.Consumer<String> onToken,
+                               Runnable onComplete) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public boolean isAvailable() {
+                return true;
+            }
+        };
+
+        var proxies = new LinkedHashMap<String, AgentProxy>();
+        // Order matters: `fast` is iterated first by the join loop so its
+        // failure triggers cancellation of the slow sibling. If the old
+        // layout shipped, this test would hang for ~30s and timeout.
+        proxies.put("fast", new DefaultAgentProxy("fast", "1.0.0", 1, true, fastTransport));
+        proxies.put("slow", new DefaultAgentProxy("slow", "1.0.0", 1, true, slowTransport));
+        var fleet = new DefaultAgentFleet(proxies);
+
+        var start = System.nanoTime();
+        var results = fleet.parallel(
+                fleet.call("fast", "s", Map.of()),
+                fleet.call("slow", "s", Map.of())
+        );
+        var elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+
+        assertTrue(sleepStarted.await(5, TimeUnit.SECONDS),
+                "slow agent must have actually started sleeping");
+        assertTrue(sleepDoneOrInterrupted.await(5, TimeUnit.SECONDS),
+                "slow agent must have observed cancellation within the 5s window — "
+                        + "before the fix it would run to completion at " + sleepDurationMs + "ms");
+
+        assertTrue(elapsedMs < sleepDurationMs / 2,
+                "parallel() must return in well under the sleeper's "
+                        + sleepDurationMs + "ms sleep — the fix is to cancel siblings "
+                        + "WHILE the executor is live. Elapsed: " + elapsedMs + "ms");
+        assertTrue(interruptObserved.get(),
+                "slow agent's thread must have been interrupted — otherwise the "
+                        + "pre-fix no-op cancel pattern has shipped again");
+
+        // Both agents must appear in the results map — parallel() must not
+        // return a half-filled map on failure (Correctness Invariant #2).
+        assertEquals(2, results.size());
+        assertTrue(results.containsKey("fast"));
+        assertTrue(results.containsKey("slow"));
+        assertFalse(results.get("fast").success());
+        assertFalse(results.get("slow").success());
     }
 
     @Test
