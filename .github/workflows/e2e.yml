@@ -91,19 +91,10 @@ jobs:
             projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding,semantic-kernel-chat"
           - name: ai-routing
             projects: "ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
-          # QUARANTINE — one spec stays unmapped:
-          #   * orchestration-primitives
-          # Each has a latent defect that was masked when the specs were
-          # silently unmapped in an earlier matrix; run 24418307271 surfaced
-          # them once the split was introduced. Per AGENTS.md's quarantine
-          # rule these need an owner, an expiry, and a tracking issue. They
-          # are pre-v0.7-foundation debt — not new — so main CI stays green
-          # while the fix is scheduled for v4.0.40. Re-map as each spec is
-          # fixed; do not add new unmapped specs to this list without a
-          # tracking issue link below.
-          #   TODO(v4.0.40): file tracking issues + re-map on fix
-          # checkpoint-agent IS healthy and lives under gap-coordinator with
-          # the other durable-HITL specs.
+          # checkpoint-agent lives under gap-coordinator with the other
+          # durable-HITL specs. The previously-quarantined ai-cancel,
+          # semantic-kernel-chat, admin-coverage, and orchestration-primitives
+          # specs are now remapped into their matching legs.
           - name: protocols
             projects: "mcp-server,mcp-tools,a2a-agent,a2a-discovery,agui-chat,multi-agent-startup-team"
           - name: protocols-extra
@@ -121,7 +112,7 @@ jobs:
           - name: gap-protocols-agent
             projects: "a2a-multi-hop,concurrent-protocol-access"
           - name: gap-coordinator
-            projects: "coordinator-remote,coordinator-journal,coordinator-activity,durable-session-restart,session-token-expiry,auth-oauth-jwt,checkpoint-agent"
+            projects: "coordinator-remote,coordinator-journal,coordinator-activity,durable-session-restart,session-token-expiry,auth-oauth-jwt,checkpoint-agent,orchestration-primitives"
           - name: gap-compat
             projects: "spring-boot3-parity,backpressure-bounded-queue,webtransport-raw,webtransport"
           - name: gap-admin-core

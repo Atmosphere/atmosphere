@@ -71,9 +71,11 @@ test.describe('Orchestration Demo — Support + Billing Agents', () => {
     expect(output).toContain("Agent 'billing' registered");
   });
 
-  test('support agent has 2 commands and 2 tools', () => {
+  test('support agent has 3 commands and 2 tools', () => {
+    // SupportAgent annotates /status, /hours, /purge + lookup_account, cancel_account.
+    // AgentProcessor logs this as "commands: 3, tools: 2".
     const output = server.getOutput();
-    expect(output).toContain('commands: 2, tools: 2');
+    expect(output).toContain('commands: 3, tools: 2');
   });
 
   test('console info points to support agent', async () => {
@@ -153,7 +155,10 @@ test.describe('Orchestration Demo — Support + Billing Agents', () => {
     expect(text).toContain('purge');
   });
 
-  test('support agent has 3 commands after adding /purge', () => {
+  test('support agent registered /purge command is reflected in AgentProcessor log', () => {
+    // /purge is annotated with @Command(confirm=...), so it counts toward
+    // the commands total alongside /status and /hours. This test pins the
+    // @Command scanner picking up the confirm-gated variant.
     const output = server.getOutput();
     expect(output).toContain('commands: 3');
   });
@@ -186,8 +191,9 @@ test.describe('Orchestration Demo — Support + Billing Agents', () => {
     await page.getByTestId('chat-input').fill('I need a refund on my last payment');
     await page.getByTestId('chat-send').click();
 
-    // Wait for billing agent response
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+    // Wait for billing agent response in the message list — the console
+    // exposes message-list as a data-testid on the scrollable container.
+    await expect(page.getByTestId('message-list'))
       .toContainText('billing', { timeout: 15_000 });
   });
 
@@ -198,7 +204,7 @@ test.describe('Orchestration Demo — Support + Billing Agents', () => {
     await page.getByTestId('chat-input').fill('/status');
     await page.getByTestId('chat-send').click();
 
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+    await expect(page.getByTestId('message-list'))
       .toContainText('Account status', { timeout: 10_000 });
   });
 
