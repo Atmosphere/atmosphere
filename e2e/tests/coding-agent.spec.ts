@@ -85,4 +85,38 @@ test.describe('Coding agent sample', () => {
     await expect(page.getByText(/I'll clone|I've seen the README/i))
       .toHaveCount(0);
   });
+
+  /**
+   * Sad-path: clone a repo that doesn't exist. The sample's @Prompt must
+   * surface "Clone failed:" (with the underlying git stderr) via
+   * session.send() rather than swallow the failure or hand it to the LLM
+   * to paper over. Pins Correctness Invariant #2 — terminal paths must
+   * complete — for the failure branch of the sandbox flow.
+   */
+  test('clone of a missing repo streams the real git error', async ({ page }) => {
+    test.skip(
+      !!process.env.SKIP_SANDBOX_E2E,
+      'SKIP_SANDBOX_E2E set (no Docker or in-process sandbox available)'
+    );
+
+    await page.goto('/atmosphere/console/');
+    await expect(page.getByText(/connected/i)).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole('textbox').first()
+      .fill('clone https://github.com/atmosphere-invalid/does-not-exist.git and read README.md');
+    await page.getByRole('button', { name: /send/i }).click();
+
+    // Either "Clone failed:" from the happy path of the failure handler, or
+    // "no README found" if the clone somehow succeeded on a mock network —
+    // both are real, non-hallucinated outputs from the @Prompt body.
+    await expect(page.getByText(/Clone failed|no README/i)).toBeVisible({
+      timeout: 180_000,
+    });
+
+    // Same hallucination guard as the happy path — if an LLM reply ever
+    // lands on the failure branch, something is routing @Prompt output
+    // through session.stream() again.
+    await expect(page.getByText(/I'll clone|I've seen the README/i))
+      .toHaveCount(0);
+  });
 });

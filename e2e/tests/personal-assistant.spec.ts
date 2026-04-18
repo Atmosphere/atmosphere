@@ -23,15 +23,23 @@ test.describe('Personal assistant sample', () => {
   });
 
   test('admin control plane exposes the agent', async ({ request }) => {
-    const res = await request.get('/atmosphere/admin/agents');
+    // The admin REST API is mounted at /api/admin/*; /atmosphere/admin/* is
+    // the WS/UI namespace and returns 500 when hit as a plain HTTP GET (no
+    // AtmosphereHandler registered for that path). Using the REST path also
+    // pins the four-agent roster the foundation wire-in registers: primary
+    // plus the scheduler / research / drafter crew.
+    const res = await request.get('/api/admin/agents');
     expect(res.status()).toBe(200);
     const agents = await res.json();
-    expect(
-      agents.some(
-        (a: { name?: string }) => a.name === 'primary-assistant'
-      ),
-      'primary-assistant must appear in the agent registry'
-    ).toBe(true);
+    const names = agents.map((a: { name?: string }) => a.name);
+    for (const expected of [
+      'primary-assistant',
+      'scheduler-agent',
+      'research-agent',
+      'drafter-agent',
+    ]) {
+      expect(names, `missing agent: ${expected}`).toContain(expected);
+    }
   });
 
   /**
@@ -81,5 +89,63 @@ test.describe('Personal assistant sample', () => {
     // check ChatMessageSerializationTest for a wire-shape regression.
     await expect(page.getByText(/function_response\.name|API returned 4\d\d/i))
       .toHaveCount(0);
+  });
+
+  /**
+   * Exercises the second @AiTool (research_topic → research-agent). The
+   * research path is the simplest route — one crew member, one skill,
+   * one artifact. This is the smoke test for "crew dispatch over
+   * InMemoryProtocolBridge still works when the framework type-injects
+   * AgentFleet instead of a ThreadLocal shim".
+   */
+  test('research request dispatches to the research specialist', async ({ page }) => {
+    test.skip(
+      !process.env.LLM_API_KEY && !process.env.GEMINI_API_KEY && !process.env.OPENAI_API_KEY,
+      'no LLM credentials in env; this test requires a live LLM for the @AiTool loop'
+    );
+
+    await page.goto('/atmosphere/console/');
+    await expect(page.getByText(/connected/i)).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole('textbox').first()
+      .fill('Give me a quick brief on WebTransport adoption in the browser.');
+    await page.getByRole('button', { name: /send/i }).click();
+
+    // Research tool card + the specialist's canned prefix in the artifact.
+    await expect(page.getByText(/research.?topic|Summarize Topic/i).first())
+      .toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText(/Research brief for/i).first())
+      .toBeVisible({ timeout: 60_000 });
+  });
+
+  /**
+   * Exercises the third @AiTool (draft_message → drafter-agent) — the only
+   * tool with two @Param arguments. If the LLM can pull `recipient` and
+   * `intent` out of a natural-language prompt, tool-argument schema
+   * generation is round-tripping both fields correctly. Regression surface
+   * for the AiTool-parameter-exclusion change in DefaultToolRegistry
+   * (framework-typed params were filtered but business @Param args must
+   * still appear in the schema).
+   */
+  test('draft request passes both @Param args through the schema', async ({ page }) => {
+    test.skip(
+      !process.env.LLM_API_KEY && !process.env.GEMINI_API_KEY && !process.env.OPENAI_API_KEY,
+      'no LLM credentials in env; this test requires a live LLM for the @AiTool loop'
+    );
+
+    await page.goto('/atmosphere/console/');
+    await expect(page.getByText(/connected/i)).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole('textbox').first()
+      .fill('Draft a short note to the ops team letting them know the rollout is paused.');
+    await page.getByRole('button', { name: /send/i }).click();
+
+    // Draft tool fires with both params visible on the tool-call card.
+    await expect(page.getByText(/draft.?message/i).first())
+      .toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText(/recipient/i).first())
+      .toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText(/intent/i).first())
+      .toBeVisible({ timeout: 60_000 });
   });
 });
