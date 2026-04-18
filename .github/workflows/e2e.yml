@@ -88,11 +88,10 @@ jobs:
           - name: ai-tools
             projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow,ai-cancel"
           - name: ai-advanced
-            projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding"
+            projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding,semantic-kernel-chat"
           - name: ai-routing
             projects: "ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
-          # QUARANTINE — three specs stay unmapped:
-          #   * semantic-kernel-chat
+          # QUARANTINE — two specs stay unmapped:
           #   * admin-coverage
           #   * orchestration-primitives
           # Each has a latent defect that was masked when the specs were
