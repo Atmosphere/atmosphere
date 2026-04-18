@@ -315,7 +315,16 @@ public final class ToolExecutionHelper {
                 instanceof org.atmosphere.cpr.AtmosphereResource resource
                 && resource.getRequest() != null
                 && resource.getRequest().getAttribute("ai.userId") != null) {
-            userId = resource.getRequest().getAttribute("ai.userId").toString();
+            var attr = resource.getRequest().getAttribute("ai.userId").toString();
+            if (!attr.isBlank()) {
+                userId = attr;
+            }
+        }
+        // No userId on the request → there's nothing to authorize against.
+        // Fall back to DEFAULT rather than forcing AgentIdentity to accept a
+        // blank userId (most implementations validate).
+        if (userId == null) {
+            return org.atmosphere.ai.identity.PermissionMode.DEFAULT;
         }
         var mode = identity.permissionMode(userId);
         return mode != null ? mode : org.atmosphere.ai.identity.PermissionMode.DEFAULT;
