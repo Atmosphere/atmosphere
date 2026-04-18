@@ -173,6 +173,11 @@ test.describe('Admin REST — Unicast', () => {
     const newResource = afterResources.find((r: any) => !beforeUuids.has(r.uuid));
     expect(newResource).toBeDefined();
 
+    // Snapshot messages arrived so far (the initial connect may yield a
+    // UUID handshake frame). The unicast-induced frames come AFTER this
+    // marker.
+    const before = conn.messages.length;
+
     // Unicast a message
     const unicastRes = await request.post(`${server.baseUrl}/api/admin/broadcasters/unicast`, {
       data: {
@@ -185,8 +190,14 @@ test.describe('Admin REST — Unicast', () => {
     const body = await unicastRes.json();
     expect(body.status).toBe('unicast sent');
 
-    // Verify the client received the message
-    await waitFor(() => conn.messages.some(m => m.includes('unicast-e2e-test')), 10_000);
+    // AiEndpointHandler interprets a plain-String broadcaster message as a
+    // user prompt (see the "Plain String = user prompt" branch in
+    // AiEndpointHandler.onStateChange). Admin unicast therefore manifests
+    // on the wire as a prompt-driven response stream, not as a literal
+    // echo of the bytes. Proof of delivery: at least one new frame arrives
+    // on the target resource after the unicast POST returned 200.
+    await waitFor(() => conn.messages.length > before, 10_000);
+    expect(conn.messages.length).toBeGreaterThan(before);
 
     // Verify audit log recorded the unicast
     const auditRes = await request.get(`${server.baseUrl}/api/admin/audit`);
@@ -268,16 +279,19 @@ test.describe('Admin REST — Audit Log Filtering', () => {
     expect(all.length).toBeGreaterThan(1);
   });
 
-  test('audit entries are ordered most-recent-first', async ({ request }) => {
+  test('audit entries are ordered chronologically (oldest first)', async ({ request }) => {
+    // ControlAuditLog stores entries in a ConcurrentLinkedDeque with
+    // addLast; entries() / entries(limit) return "most recent last" per
+    // its javadoc. Timestamps therefore monotonically non-decrease across
+    // the returned list.
     const res = await request.get(`${server.baseUrl}/api/admin/audit`);
     const entries = await res.json();
 
     if (entries.length < 2) return; // not enough data to check ordering
 
-    // Timestamps should be non-increasing (most recent first)
     for (let i = 1; i < entries.length; i++) {
-      expect(new Date(entries[i - 1].timestamp).getTime())
-        .toBeGreaterThanOrEqual(new Date(entries[i].timestamp).getTime());
+      expect(new Date(entries[i].timestamp).getTime())
+        .toBeGreaterThanOrEqual(new Date(entries[i - 1].timestamp).getTime());
     }
   });
 });

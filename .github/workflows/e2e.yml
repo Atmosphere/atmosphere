@@ -91,8 +91,7 @@ jobs:
             projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding,semantic-kernel-chat"
           - name: ai-routing
             projects: "ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
-          # QUARANTINE — two specs stay unmapped:
-          #   * admin-coverage
+          # QUARANTINE — one spec stays unmapped:
           #   * orchestration-primitives
           # Each has a latent defect that was masked when the specs were
           # silently unmapped in an earlier matrix; run 24418307271 surfaced
@@ -126,7 +125,7 @@ jobs:
           - name: gap-compat
             projects: "spring-boot3-parity,backpressure-bounded-queue,webtransport-raw,webtransport"
           - name: gap-admin-core
-            projects: "admin-dashboard,admin-quarkus"
+            projects: "admin-dashboard,admin-quarkus,admin-coverage"
           - name: gap-admin-smoke
             projects: "console-http-check,sample-matrix-smoke"
           - name: gap-agents
