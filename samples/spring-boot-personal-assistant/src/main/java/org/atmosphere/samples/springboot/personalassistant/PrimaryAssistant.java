@@ -109,9 +109,21 @@ public class PrimaryAssistant {
 
     // ---------- @AiTool methods exposed to the LLM ----------
 
+    /**
+     * "Commit" action — schedules a meeting. Gated by
+     * {@link org.atmosphere.ai.annotation.RequiresApproval}
+     * so the user confirms before anything lands on the (hypothetical)
+     * calendar. Gives the foundation's PermissionMode + @RequiresApproval
+     * pipeline a live exerciser: set
+     * {@code AgentIdentity.setPermissionMode(userId, PermissionMode.PLAN)}
+     * and every tool — including read-only ones — will route through the
+     * approval gate, confirming the outer policy takes precedence.
+     */
     @AiTool(name = "schedule_meeting",
             description = "Propose meeting slots for a given topic. Call this when "
                     + "the user wants to schedule, book, or arrange a meeting.")
+    @org.atmosphere.ai.annotation.RequiresApproval(
+            "Confirm scheduling this meeting? (Click approve to propose slots, deny to cancel.)")
     public String scheduleMeeting(
             AgentFleet fleet,
             @Param(value = "topic", description = "What the meeting is about") String topic,
