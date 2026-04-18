@@ -97,6 +97,10 @@ class KoogAgentRuntime : AgentRuntime {
     }
 
     override fun execute(context: AgentExecutionContext, session: StreamingSession) {
+        // Admit through the process-wide AiGateway before issuing the native
+        // Koog dispatch — uniform per-user rate limiting and credential
+        // resolution across all seven runtimes (Correctness Invariant #3).
+        org.atmosphere.ai.AbstractAgentRuntime.admitThroughGateway(name(), context)
         executeWithOuterRetry(context, session)
     }
 

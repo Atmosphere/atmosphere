@@ -81,28 +81,6 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
     }
 
     /**
-     * Route the dispatch through the process-wide {@code AiGatewayHolder}
-     * so per-user rate limits and credential lookups apply uniformly
-     * regardless of which runtime the caller picked. The permissive
-     * default gateway returns accepted unconditionally; applications that
-     * install a real gateway at startup get real enforcement.
-     *
-     * <p>A rejected admission surfaces as {@link IllegalStateException}
-     * with the reason attached — callers MUST honor rejection per
-     * Correctness Invariant #3 (never ignore backpressure).</p>
-     */
-    private static void admitThroughGateway(AgentExecutionContext context) {
-        var gateway = org.atmosphere.ai.gateway.AiGatewayHolder.get();
-        var userId = context.userId() != null ? context.userId() : "anonymous";
-        var decision = gateway.admit(userId, "built-in",
-                context.model() != null ? context.model() : "default");
-        if (!decision.accepted()) {
-            throw new IllegalStateException(
-                    "AiGateway rejected call for user " + userId + ": " + decision.reason());
-        }
-    }
-
-    /**
      * D-6 Built-in hard-cancel: returns an {@link org.atmosphere.ai.ExecutionHandle}
      * whose {@code cancel()} closes the in-flight SSE {@link java.io.InputStream}
      * from another thread, interrupting the blocked {@code BufferedReader.readLine()}

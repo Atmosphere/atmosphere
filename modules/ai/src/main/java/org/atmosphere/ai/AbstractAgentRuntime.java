@@ -96,6 +96,47 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     }
 
     /**
+     * Admit the call through the process-wide {@link org.atmosphere.ai.gateway.AiGatewayHolder}
+     * so per-user rate limits, credential resolution, and unified trace
+     * emission apply uniformly regardless of which framework runtime the
+     * caller picked. Every concrete runtime's {@link #doExecute} (and any
+     * equivalent cancel-aware entry point) MUST call this before issuing
+     * the native LLM dispatch, otherwise the gateway is a choke point on
+     * exactly one runtime — the credibility gap the v0.7 gist was called
+     * out on.
+     *
+     * <p>A rejected admission throws {@link IllegalStateException} with
+     * the gateway's rationale; callers must propagate (Correctness
+     * Invariant #3 — never ignore backpressure).</p>
+     *
+     * <p>Exposed as a static so Kotlin runtimes ({@code KoogAgentRuntime},
+     * {@code EmbabelAgentRuntime}) that implement {@link AgentRuntime}
+     * directly can call it without inheriting from this class.</p>
+     *
+     * @param runtimeName the runtime identifier (used for trace labels and
+     *                    the {@link org.atmosphere.ai.gateway.AiGateway}
+     *                    admit decision)
+     * @param context     the execution context whose {@code userId()} /
+     *                    {@code model()} seed the gateway decision
+     */
+    public static void admitThroughGateway(String runtimeName,
+                                           AgentExecutionContext context) {
+        var gateway = org.atmosphere.ai.gateway.AiGatewayHolder.get();
+        var userId = context.userId() != null ? context.userId() : "anonymous";
+        var decision = gateway.admit(userId, runtimeName,
+                context.model() != null ? context.model() : "default");
+        if (!decision.accepted()) {
+            throw new IllegalStateException(
+                    "AiGateway rejected call for user " + userId + ": " + decision.reason());
+        }
+    }
+
+    /** Instance convenience — delegates to the static with {@link #name()}. */
+    protected final void admitThroughGateway(AgentExecutionContext context) {
+        admitThroughGateway(name(), context);
+    }
+
+    /**
      * Returns a human-readable description of the client type for error messages.
      */
     protected abstract String clientDescription();

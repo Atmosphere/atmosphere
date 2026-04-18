@@ -286,6 +286,10 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
     @Override
     protected ExecutionHandle doExecuteWithHandle(
             Runner adkRunner, AgentExecutionContext context, StreamingSession session) {
+        // Admit through the process-wide AiGateway before issuing the native
+        // ADK dispatch — uniform per-user rate limiting and credential
+        // resolution across all seven runtimes (Correctness Invariant #3).
+        admitThroughGateway(context);
         // For tool-calling requests AND requests carrying a per-request
         // CacheHint, build a fresh runner whose App has the resolved
         // ContextCacheConfig wired in. ADK's ContextCacheConfig is
