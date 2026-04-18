@@ -14,7 +14,9 @@ test.describe('Coding agent sample', () => {
   test.use({ baseURL: process.env.ATMO_E2E_BASE_URL ?? 'http://localhost:8081' });
 
   test('admin control plane registers the coding-agent', async ({ request }) => {
-    const res = await request.get('/atmosphere/admin/agents');
+    // Admin REST API is mounted at /api/admin/*; /atmosphere/admin/* is the
+    // WS/UI namespace and returns 500 when hit as a plain HTTP GET.
+    const res = await request.get('/api/admin/agents');
     expect(res.status()).toBe(200);
     const agents = await res.json();
     expect(
