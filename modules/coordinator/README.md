@@ -239,7 +239,7 @@ Optional agents (`required = false`) allow the coordinator to start even when th
 At startup, `CoordinatorProcessor` logs the resolved fleet:
 
 ```
-Coordinator 'ceo' registered (v1.0.0, fleet: 2 agents, protocols: [a2a, mcp])
+Coordinator 'ceo' registered at /atmosphere/agent/ceo (v1.0.0, fleet: 2 agents, protocols: [a2a, mcp])
   ceo (v1.0.0)
   +-- research        (local, v1.0.0, weight=1, required)  [ResearchAgent]
   +-- finance         (remote, v2.0.0, weight=1, optional)

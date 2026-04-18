@@ -65,6 +65,29 @@ async function a2aRequest(
   return (await res.json()) as Record<string, unknown>;
 }
 
+/**
+ * Poll server.getOutput() until every substring appears, or throw after timeout.
+ * Resolves the race where readyPath returns 200 (endpoint wired) before a
+ * later-in-startup log line (e.g. CoordinatorProcessor's "Coordinator 'X'
+ * registered") is flushed to the captured stdout buffer.
+ */
+async function waitForOutput(
+  substrings: string[],
+  timeoutMs = 15_000,
+): Promise<string> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const output = server.getOutput();
+    if (substrings.every((s) => output.includes(s))) return output;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  const output = server.getOutput();
+  const missing = substrings.filter((s) => !output.includes(s));
+  throw new Error(
+    `Expected log substrings not found after ${timeoutMs}ms: ${JSON.stringify(missing)}`,
+  );
+}
+
 test.describe('Multi-Agent Startup Team', () => {
   // ── Agent registration ──
 
@@ -73,14 +96,22 @@ test.describe('Multi-Agent Startup Team', () => {
     expect(res.status).not.toBe(404);
   });
 
-  test('server logs confirm CEO agent with protocols', () => {
-    const output = server.getOutput();
+  test('server logs confirm CEO agent with protocols', async () => {
+    const output = await waitForOutput([
+      '/atmosphere/agent/ceo',
+      "Coordinator 'ceo' registered",
+    ]);
     expect(output).toContain('/atmosphere/agent/ceo');
     expect(output).toContain("Coordinator 'ceo' registered");
   });
 
-  test('4 headless agents registered', () => {
-    const output = server.getOutput();
+  test('4 headless agents registered', async () => {
+    const output = await waitForOutput([
+      "Agent 'research-agent' registered",
+      "Agent 'strategy-agent' registered",
+      "Agent 'finance-agent' registered",
+      "Agent 'writer-agent' registered",
+    ]);
     expect(output).toContain("Agent 'research-agent' registered");
     expect(output).toContain("Agent 'strategy-agent' registered");
     expect(output).toContain("Agent 'finance-agent' registered");
