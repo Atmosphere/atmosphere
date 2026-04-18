@@ -293,13 +293,15 @@ public class AtmosphereProperties {
         /**
          * When {@code true}, the Spring Boot starter refuses to boot if the
          * AI key can't be resolved from properties or the env-var chain.
-         * Default {@code true} so production deployments surface misconfig
-         * at startup rather than at the first LLM call. Tests and local dev
-         * that boot without credentials must set {@code atmosphere.ai.fail-fast=false}
-         * (or {@code atmosphere.ai.mode=local}, which skips the API-key
-         * requirement entirely).
+         * Default {@code false} so tests and keyless dev samples
+         * (spring-boot-chat, coding-agent, …) still boot; production
+         * deployments should set {@code atmosphere.ai.fail-fast=true} so
+         * misconfig surfaces at startup rather than at the first LLM call.
+         * The earlier v4.0.39-SNAPSHOT default of {@code true} broke every
+         * existing sample's test matrix — keep default-off, loud WARN on,
+         * and let operators opt in.
          */
-        private boolean failFast = true;
+        private boolean failFast;
 
         public boolean isEnabled() {
             return enabled;
