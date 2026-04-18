@@ -18,6 +18,10 @@ atmosphere:
     # AgentRuntime ServiceLoader discovery. Switching runtimes is a Maven
     # dependency swap plus setting this to the runtime name.
     runtime: spring-ai
+    # This proof sample keeps a deterministic keyword-router fallback that
+    # runs without LLM credentials, so we opt out of the starter's
+    # fail-fast default. Production apps should leave fail-fast on.
+    fail-fast: false
 
 spring:
   application:

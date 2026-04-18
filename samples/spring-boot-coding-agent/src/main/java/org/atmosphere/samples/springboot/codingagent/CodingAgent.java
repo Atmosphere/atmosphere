@@ -107,11 +107,24 @@ public class CodingAgent {
                 limits,
                 Map.of("owner", "coding-agent-sample", "repo", repo))) {
 
+            // Install git + clone as two separate exec calls with argv-form
+            // commands — NEVER concatenate `repo` into an `sh -c` string, or
+            // a repo URL containing shell metacharacters turns the sandbox
+            // into a shell-injection primitive. `extractRepoUrl` already
+            // allowlists the URL shape; argv separation is the belt to its
+            // suspenders (Correctness Invariant #4 — Boundary Safety).
+            session.progress("Installing git...");
+            var aptget = sandbox.exec(
+                    List.of("apk", "add", "--no-cache", "git"),
+                    Duration.ofMinutes(1));
+            if (!aptget.succeeded()) {
+                session.send("Failed to install git in sandbox:\n" + aptget.stderr());
+                return;
+            }
+
             session.progress("Cloning " + repo + "...");
             var clone = sandbox.exec(
-                    List.of("sh", "-c",
-                            "apk add --no-cache git >/dev/null 2>&1 && "
-                                    + "git clone --depth 1 " + repo + " /workspace/repo"),
+                    List.of("git", "clone", "--depth", "1", repo, "/workspace/repo"),
                     Duration.ofMinutes(2));
             if (!clone.succeeded()) {
                 session.send("Clone failed:\n" + clone.stderr());
@@ -145,13 +158,22 @@ public class CodingAgent {
         return null;
     }
 
+    /**
+     * Strict GitHub-URL allowlist. Returns the normalized URL or {@code null}
+     * if the candidate contains anything outside the
+     * {@code https://github.com/<user>/<repo>(.git)?} shape — shell
+     * metacharacters, path traversal, unexpected hosts are all rejected.
+     * Defense-in-depth alongside argv-form {@code sandbox.exec} — even though
+     * the command path no longer interpolates the URL into a shell string,
+     * we still refuse malformed input at the boundary.
+     */
     private static String extractRepoUrl(String message) {
-        // Look for the first github.com URL. Keep it simple; a real agent
-        // would call an LLM to extract structured arguments.
-        var tokens = message.split("\\s+");
-        for (var token : tokens) {
-            if (token.startsWith("http") && token.contains("github.com")) {
-                return token.replace(".git", "") + ".git";
+        var pattern = java.util.regex.Pattern.compile(
+                "https://github\\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+(?:\\.git)?");
+        for (var token : message.split("\\s+")) {
+            var matcher = pattern.matcher(token);
+            if (matcher.matches()) {
+                return token.endsWith(".git") ? token : token + ".git";
             }
         }
         return null;
