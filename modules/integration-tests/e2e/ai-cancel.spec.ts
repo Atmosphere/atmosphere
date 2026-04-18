@@ -72,11 +72,19 @@ test.describe('ExecutionHandle.cancel() Wire-Level Matrix', () => {
         // 1. Start the long-running stream.
         client.send('slow');
 
-        // 2. Wait ~200ms so at least a couple tokens have been emitted
-        //    (the spec asserts partial streaming before cancel).
-        await new Promise((r) => setTimeout(r, 250));
+        // 2. Poll until at least one streaming-text token lands, with a
+        //    generous ceiling so slow CI runners (cold virtual-thread start
+        //    + broadcaster dispatch + wire roundtrip) don't fail the assert.
+        //    The original 250ms fixed sleep timed out on GitHub runners when
+        //    the Jetty warmup + first token ~= 300–400ms.
+        const tokenDeadline = 3_000;
+        const pollStart = Date.now();
+        while (client.tokens.length === 0 && Date.now() - pollStart < tokenDeadline) {
+          await new Promise((r) => setTimeout(r, 50));
+        }
         const tokensBeforeCancel = client.tokens.length;
-        expect(tokensBeforeCancel, `${runtime}: expected at least one token before cancel`)
+        expect(tokensBeforeCancel,
+          `${runtime}: expected at least one token before cancel within ${tokenDeadline}ms`)
           .toBeGreaterThan(0);
 
         // 3. Client-side cancel.

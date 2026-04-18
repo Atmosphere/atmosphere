@@ -86,13 +86,12 @@ jobs:
           - name: ai-ux-flows
             projects: "ai-multimodal,ai-retry-policy,ai-lifecycle-listener,ai-models"
           - name: ai-tools
-            projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow"
+            projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow,ai-cancel"
           - name: ai-advanced
             projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding"
           - name: ai-routing
             projects: "ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
-          # QUARANTINE — four specs stay unmapped:
-          #   * ai-cancel
+          # QUARANTINE — three specs stay unmapped:
           #   * semantic-kernel-chat
           #   * admin-coverage
           #   * orchestration-primitives
