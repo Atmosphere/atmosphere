@@ -101,6 +101,14 @@ public class AiStreamingSession implements StreamingSession {
     private volatile java.util.Map<Class<?>, Object> injectables = java.util.Map.of();
 
     /**
+     * The runId assigned by {@code RunRegistry} when the endpoint handler
+     * registered this run; surfaced via {@link #runId()} so the client's
+     * first response carries the id and subsequent reconnects can reattach
+     * via {@code X-Atmosphere-Run-Id}.
+     */
+    private volatile String runId;
+
+    /**
      * @param delegate     the underlying streaming session
      * @param runtime    the resolved AI support implementation
      * @param systemPrompt the system prompt from {@code @AiEndpoint}
@@ -337,6 +345,16 @@ public class AiStreamingSession implements StreamingSession {
     @Override
     public java.util.Map<Class<?>, Object> injectables() {
         return injectables;
+    }
+
+    /** Publish the runId the {@code RunRegistry} assigned on registration. */
+    public void setRunId(String runId) {
+        this.runId = runId;
+    }
+
+    @Override
+    public java.util.Optional<String> runId() {
+        return java.util.Optional.ofNullable(runId);
     }
 
     @Override

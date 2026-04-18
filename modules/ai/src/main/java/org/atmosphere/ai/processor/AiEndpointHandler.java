@@ -398,9 +398,31 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             session.setPreStreamHook(hook);
         }
 
+        // Register this run with the process-wide RunRegistry so a
+        // reconnecting client can look up the live AgentResumeHandle via the
+        // X-Atmosphere-Run-Id header (Primitive #8 — now with a real
+        // producer rather than a published-but-dead API).
+        // Cancelling the handle via RunRegistry (or admin plane) must
+        // actually interrupt the @Prompt virtual thread; we close over
+        // promptThreadRef after it's started below.
+        var promptThreadRef = new java.util.concurrent.atomic.AtomicReference<Thread>();
+        var runExecutionHandle = new org.atmosphere.ai.ExecutionHandle.Settable(() -> {
+            var t = promptThreadRef.get();
+            if (t != null) {
+                t.interrupt();
+            }
+        });
+        var userIdAttr = resource.getRequest() != null
+                ? resource.getRequest().getAttribute("ai.userId") : null;
+        var runUserId = userIdAttr != null ? userIdAttr.toString() : "anonymous";
+        var handle = org.atmosphere.ai.resume.RunRegistryHolder.get().register(
+                pathTemplate, runUserId, resource.uuid(), runExecutionHandle);
+        session.setRunId(handle.runId());
+
         var promptThread = Thread.startVirtualThread(() -> {
             try {
                 invokePrompt(userMessage, session, resource);
+                runExecutionHandle.complete();
             } catch (Exception e) {
                 Throwable cause = e;
                 if (e instanceof java.lang.reflect.InvocationTargetException ite
@@ -408,12 +430,15 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     cause = ite.getCause();
                 }
                 if (cause instanceof Error err) {
+                    runExecutionHandle.completeExceptionally(err);
                     throw err;
                 }
                 logger.error("Error invoking @Prompt method", cause);
                 session.error(cause);
+                runExecutionHandle.completeExceptionally(cause);
             }
         });
+        promptThreadRef.set(promptThread);
 
         if (suspendTimeout > 0) {
             Thread.startVirtualThread(() -> {
