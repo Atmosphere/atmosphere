@@ -113,9 +113,16 @@ public class AgentProcessor implements Processor<Object> {
             // Step 6: Create AgentHandler
             var responseType = annotation.responseAs() == Void.class
                     ? null : annotation.responseAs();
-            var agentInjectables = responseType != null
-                    ? java.util.Map.<Class<?>, Object>of(Class.class, responseType)
-                    : java.util.Map.<Class<?>, Object>of();
+            // v0.5 foundation primitives — build per-agent instances and
+            // publish into injectables so @Prompt/@AiTool methods can declare
+            // the SPI types (AgentState, AgentIdentity, AgentWorkspace) and
+            // receive a wired instance. Previously these were aspirational in
+            // the sample javadocs — nothing in production instantiated them.
+            var agentInjectables = new java.util.LinkedHashMap<Class<?>, Object>();
+            if (responseType != null) {
+                agentInjectables.put(Class.class, responseType);
+            }
+            buildFoundationPrimitives(agentName, agentInjectables);
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
                     systemPrompt, path, runtime, List.of(),
@@ -339,6 +346,58 @@ public class AgentProcessor implements Processor<Object> {
             settings = AiConfig.fromEnvironment();
         }
         return settings;
+    }
+
+    /**
+     * Wire the v0.5 foundation primitives into the endpoint's injectables map
+     * so {@code @Prompt} and {@code @AiTool} methods can declare them as
+     * parameters and receive live instances. Failures are non-fatal: if the
+     * workspace root can't be resolved or disk I/O fails, the agent keeps
+     * starting but the affected primitive simply isn't injected (callers
+     * declaring it as a parameter will see the same IllegalStateException as
+     * any other missing injectable, surfacing the misconfig at the point of
+     * use rather than silently).
+     */
+    private void buildFoundationPrimitives(String agentName,
+                                           java.util.Map<Class<?>, Object> injectables) {
+        var workspaceRoot = System.getProperty("atmosphere.workspace.root");
+        if (workspaceRoot == null) {
+            workspaceRoot = System.getenv("ATMOSPHERE_WORKSPACE_ROOT");
+        }
+        if (workspaceRoot == null) {
+            // Default: a per-user directory under the JVM's user.home, same
+            // shape as OpenClaw's convention. Tests can override with
+            // -Datmosphere.workspace.root.
+            workspaceRoot = System.getProperty("user.home") + "/.atmosphere/workspace";
+        }
+        try {
+            var root = java.nio.file.Path.of(workspaceRoot).resolve("agents").resolve(agentName);
+            java.nio.file.Files.createDirectories(root);
+            var state = new org.atmosphere.ai.state.FileSystemAgentState(root);
+            injectables.put(org.atmosphere.ai.state.AgentState.class, state);
+            injectables.put(org.atmosphere.ai.state.FileSystemAgentState.class, state);
+        } catch (Exception e) {
+            logger.warn("AgentState not wired for '{}': {}", agentName, e.getMessage());
+        }
+
+        try {
+            var credentials = org.atmosphere.ai.identity.AtmosphereEncryptedCredentialStore.withFreshKey();
+            var identity = new org.atmosphere.ai.identity.InMemoryAgentIdentity(credentials);
+            injectables.put(org.atmosphere.ai.identity.AgentIdentity.class, identity);
+            injectables.put(org.atmosphere.ai.identity.CredentialStore.class, credentials);
+        } catch (Exception e) {
+            logger.warn("AgentIdentity not wired for '{}': {}", agentName, e.getMessage());
+        }
+
+        try {
+            var loader = new org.atmosphere.ai.workspace.AgentWorkspaceLoader();
+            var adapters = loader.adapters();
+            if (!adapters.isEmpty()) {
+                injectables.put(org.atmosphere.ai.workspace.AgentWorkspace.class, adapters.get(0));
+            }
+        } catch (Exception e) {
+            logger.warn("AgentWorkspace not wired for '{}': {}", agentName, e.getMessage());
+        }
     }
 
     private AgentRuntime resolveRuntime(AiConfig.LlmSettings settings) {

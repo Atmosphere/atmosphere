@@ -290,12 +290,29 @@ public class AtmosphereProperties {
 
         private long timeout = 120_000L;
 
+        /**
+         * When {@code true}, the Spring Boot starter refuses to boot if the
+         * AI key can't be resolved from properties or the env-var chain. The
+         * default is {@code false} so tests / local dev still run without
+         * credentials, but production deployments should flip it on so
+         * misconfig surfaces at startup rather than at the first LLM call.
+         */
+        private boolean failFast;
+
         public boolean isEnabled() {
             return enabled;
         }
 
         public void setEnabled(boolean enabled) {
             this.enabled = enabled;
+        }
+
+        public boolean isFailFast() {
+            return failFast;
+        }
+
+        public void setFailFast(boolean failFast) {
+            this.failFast = failFast;
         }
 
         public String getMode() {

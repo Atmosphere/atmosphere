@@ -240,6 +240,11 @@ public class CoordinatorProcessor implements Processor<Object> {
             if (journalHook != null) {
                 injectables.put(org.atmosphere.ai.PostPromptHook.class, journalHook);
             }
+            // v0.5 foundation primitives — wire AgentState / AgentIdentity /
+            // AgentWorkspace so @Prompt / @AiTool methods on a @Coordinator
+            // receive them as typed parameters. Same semantics as
+            // AgentProcessor.buildFoundationPrimitives.
+            wireFoundationPrimitives(coordinatorName, injectables);
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
                     systemPrompt, path, runtime, List.of(),
@@ -1029,6 +1034,59 @@ public class CoordinatorProcessor implements Processor<Object> {
         A2aCoordinatorCollector(org.atmosphere.a2a.runtime.TaskContext taskCtx,
                                 AiPipeline pipeline) {
             super(taskCtx, pipeline);
+        }
+    }
+
+    /**
+     * Wire the v0.5 foundation primitives (AgentState, AgentIdentity,
+     * AgentWorkspace) into the @Coordinator's injectables so @Prompt /
+     * @AiTool methods can declare the SPI types as parameters. Same
+     * per-agent-root layout as {@code AgentProcessor.buildFoundationPrimitives}
+     * and non-fatal on failure — the coordinator still boots, the missing
+     * primitive simply won't be injectable.
+     */
+    private void wireFoundationPrimitives(String coordinatorName,
+                                          java.util.Map<Class<?>, Object> injectables) {
+        var workspaceRoot = System.getProperty("atmosphere.workspace.root");
+        if (workspaceRoot == null) {
+            workspaceRoot = System.getenv("ATMOSPHERE_WORKSPACE_ROOT");
+        }
+        if (workspaceRoot == null) {
+            workspaceRoot = System.getProperty("user.home") + "/.atmosphere/workspace";
+        }
+        try {
+            var root = java.nio.file.Path.of(workspaceRoot)
+                    .resolve("coordinators").resolve(coordinatorName);
+            java.nio.file.Files.createDirectories(root);
+            var state = new org.atmosphere.ai.state.FileSystemAgentState(root);
+            injectables.put(org.atmosphere.ai.state.AgentState.class, state);
+            injectables.put(org.atmosphere.ai.state.FileSystemAgentState.class, state);
+        } catch (Exception e) {
+            logger.warn("AgentState not wired for coordinator '{}': {}",
+                    coordinatorName, e.getMessage());
+        }
+
+        try {
+            var credentials = org.atmosphere.ai.identity.AtmosphereEncryptedCredentialStore
+                    .withFreshKey();
+            var identity = new org.atmosphere.ai.identity.InMemoryAgentIdentity(credentials);
+            injectables.put(org.atmosphere.ai.identity.AgentIdentity.class, identity);
+            injectables.put(org.atmosphere.ai.identity.CredentialStore.class, credentials);
+        } catch (Exception e) {
+            logger.warn("AgentIdentity not wired for coordinator '{}': {}",
+                    coordinatorName, e.getMessage());
+        }
+
+        try {
+            var loader = new org.atmosphere.ai.workspace.AgentWorkspaceLoader();
+            var adapters = loader.adapters();
+            if (!adapters.isEmpty()) {
+                injectables.put(org.atmosphere.ai.workspace.AgentWorkspace.class,
+                        adapters.get(0));
+            }
+        } catch (Exception e) {
+            logger.warn("AgentWorkspace not wired for coordinator '{}': {}",
+                    coordinatorName, e.getMessage());
         }
     }
 

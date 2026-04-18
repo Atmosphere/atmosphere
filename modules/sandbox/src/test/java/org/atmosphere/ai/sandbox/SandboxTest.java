@@ -104,10 +104,29 @@ class SandboxTest {
     }
 
     @Test
-    void inProcessProviderIsAlwaysAvailable() {
+    void inProcessProviderStaysUnavailableWithoutExplicitOptIn() {
+        // Regression for Correctness Invariant #6 — before the fix the in-process
+        // provider advertised availability unconditionally, so a missing Docker
+        // daemon caused ServiceLoader to silently hand the LLM a shell on the
+        // host JVM. Now the provider stays opted-out until the operator sets
+        // atmosphere.sandbox.insecure=true (or the equivalent env var).
+        System.clearProperty(InProcessSandboxProvider.INSECURE_OPT_IN);
         SandboxProvider provider = new InProcessSandboxProvider();
         assertEquals("in-process", provider.name());
-        assertTrue(provider.isAvailable());
+        assertFalse(provider.isAvailable(),
+                "must be unavailable without explicit opt-in");
+    }
+
+    @Test
+    void inProcessProviderAvailableWhenOptInSet() {
+        System.setProperty(InProcessSandboxProvider.INSECURE_OPT_IN, "true");
+        try {
+            var provider = new InProcessSandboxProvider();
+            assertTrue(provider.isAvailable(),
+                    "must be available when -Datmosphere.sandbox.insecure=true is set");
+        } finally {
+            System.clearProperty(InProcessSandboxProvider.INSECURE_OPT_IN);
+        }
     }
 
     @Test

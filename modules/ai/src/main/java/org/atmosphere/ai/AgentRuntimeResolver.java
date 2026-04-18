@@ -60,6 +60,17 @@ public final class AgentRuntimeResolver {
      * <p>Results are cached after first resolution — the classpath does not
      * change at runtime so the discovered runtimes are stable.</p>
      */
+    /**
+     * Drop the cached runtime list so the next {@link #resolveAll()} call
+     * rescans the ServiceLoader. Visible for tests that install a custom
+     * runtime before the first resolution — without this, the cache freezes
+     * at the first call and subsequent {@code configure(...)} changes stay
+     * invisible for the rest of the JVM.
+     */
+    public static void reset() {
+        cachedAll = null;
+    }
+
     public static List<AgentRuntime> resolveAll() {
         var result = cachedAll;
         if (result != null) {

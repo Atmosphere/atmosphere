@@ -119,4 +119,45 @@ class ToolExecutionHelperTest {
         var result = ToolExecutionHelper.executeAndFormat(tool, Map.of("a", "foo", "b", "bar"));
         assertEquals("foobar", result);
     }
+
+    /**
+     * Pins the PermissionMode outer gate — the blocker that {@code PermissionMode}
+     * was referenced only in documentation before. An explicit {@code DENY_ALL}
+     * on the injectables map must reject the call without reaching the
+     * executor, regardless of whether the tool carries {@code @RequiresApproval}.
+     */
+    @Test
+    void permissionModeDenyAllRejectsEvenPermissiveTools() {
+        var invoked = new boolean[]{false};
+        var tool = ToolDefinition.builder("safe", "Not gated by @RequiresApproval")
+                .parameter("note", "Arbitrary string", "string")
+                .executor(args -> { invoked[0] = true; return "ok"; })
+                .build();
+        var session = new DefaultToolRegistryTest.StubSession("sess-mode");
+        var result = ToolExecutionHelper.executeWithApproval(
+                "safe", tool, Map.of("note", "hi"),
+                session, null, null,
+                Map.of(org.atmosphere.ai.identity.PermissionMode.class,
+                        org.atmosphere.ai.identity.PermissionMode.DENY_ALL));
+        assertFalse(invoked[0], "DENY_ALL must skip the executor");
+        assertTrue(result.contains("DENY_ALL"), "response must name the mode: " + result);
+    }
+
+    @Test
+    void permissionModeBypassSkipsApprovalForGatedTool() {
+        var tool = ToolDefinition.builder("gated", "Gated tool with @RequiresApproval")
+                .parameter("x", "x", "string")
+                .executor(args -> "ran")
+                .requiresApproval("Are you sure?")
+                .build();
+        var session = new DefaultToolRegistryTest.StubSession("sess-bypass");
+        // BYPASS short-circuits the approval gate. strategy=null would fail
+        // closed under DEFAULT; with BYPASS the call still runs.
+        var result = ToolExecutionHelper.executeWithApproval(
+                "gated", tool, Map.of("x", "v"),
+                session, null, null,
+                Map.of(org.atmosphere.ai.identity.PermissionMode.class,
+                        org.atmosphere.ai.identity.PermissionMode.BYPASS));
+        assertEquals("ran", result);
+    }
 }

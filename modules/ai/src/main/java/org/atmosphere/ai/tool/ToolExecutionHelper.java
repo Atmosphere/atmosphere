@@ -186,8 +186,40 @@ public final class ToolExecutionHelper {
         }
         var effectivePolicy = policy != null ? policy : ToolApprovalPolicy.annotated();
         var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
-        // Fast-path: policy says no approval needed for this tool → execute directly.
-        if (!effectivePolicy.requiresApproval(tool)) {
+
+        // Outer gate: the session's PermissionMode (from AgentIdentity, if
+        // present in the injectables map) is the per-user authorization
+        // override. The mode shadows per-tool @RequiresApproval — an explicit
+        // DENY_ALL overrides any tool-local permissive setting per Correctness
+        // Invariant #6 (default deny). When no identity is wired (tests,
+        // ad-hoc pipelines), the behaviour is unchanged from the per-tool
+        // gate below.
+        var permissionMode = resolveMode(scope);
+        boolean forceApproval = false;
+        switch (permissionMode) {
+            case DENY_ALL -> {
+                logger.info("Tool {} blocked by AgentIdentity PermissionMode.DENY_ALL", toolName);
+                return "{\"status\":\"cancelled\",\"message\":\"Tool execution denied by PermissionMode.DENY_ALL\"}";
+            }
+            case BYPASS -> {
+                // Auto-approve every tool. Explicit opt-in only.
+                return executeAndFormat(toolName, tool.executor(), args, scope);
+            }
+            case PLAN -> {
+                // Force approval on every tool regardless of tool-local
+                // @RequiresApproval — the mode IS the approval gate.
+                forceApproval = true;
+            }
+            case ACCEPT_EDITS, DEFAULT -> {
+                // Fall through to per-tool @RequiresApproval. ACCEPT_EDITS is
+                // intended to auto-approve edit-shaped tools — until we have
+                // structured tool-kind tags, behaviour matches DEFAULT so the
+                // outer gate never silently widens the attack surface.
+            }
+        }
+
+        // Fast-path: nothing requires approval — execute directly.
+        if (!forceApproval && !effectivePolicy.requiresApproval(tool)) {
             return executeAndFormat(toolName, tool.executor(), args, scope);
         }
         // DenyAll is evaluated BEFORE the strategy-null fall-through so that
@@ -254,6 +286,39 @@ public final class ToolExecutionHelper {
             map.put(tool.name(), tool);
         }
         return map;
+    }
+
+    /**
+     * Pull the caller's {@link org.atmosphere.ai.identity.PermissionMode} from
+     * the injectable scope, falling back to {@code DEFAULT} when no identity
+     * is wired. Resolution order: (1) explicit {@code PermissionMode} entry,
+     * (2) derived from an {@code AgentIdentity} plus a {@code userId} on an
+     * {@link org.atmosphere.cpr.AtmosphereResource} request attribute,
+     * (3) {@code DEFAULT}.
+     */
+    private static org.atmosphere.ai.identity.PermissionMode resolveMode(
+            Map<Class<?>, Object> scope) {
+        if (scope.isEmpty()) {
+            return org.atmosphere.ai.identity.PermissionMode.DEFAULT;
+        }
+        if (scope.get(org.atmosphere.ai.identity.PermissionMode.class)
+                instanceof org.atmosphere.ai.identity.PermissionMode explicit) {
+            return explicit;
+        }
+        var identity = (org.atmosphere.ai.identity.AgentIdentity)
+                scope.get(org.atmosphere.ai.identity.AgentIdentity.class);
+        if (identity == null) {
+            return org.atmosphere.ai.identity.PermissionMode.DEFAULT;
+        }
+        String userId = null;
+        if (scope.get(org.atmosphere.cpr.AtmosphereResource.class)
+                instanceof org.atmosphere.cpr.AtmosphereResource resource
+                && resource.getRequest() != null
+                && resource.getRequest().getAttribute("ai.userId") != null) {
+            userId = resource.getRequest().getAttribute("ai.userId").toString();
+        }
+        var mode = identity.permissionMode(userId);
+        return mode != null ? mode : org.atmosphere.ai.identity.PermissionMode.DEFAULT;
     }
 
     /**

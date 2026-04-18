@@ -482,7 +482,19 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             } else if (AtmosphereResource.class.isAssignableFrom(paramTypes[i])) {
                 args[i] = resource;
             } else {
+                // Exact-key match first (O(1)); assignable-from scan as a
+                // fallback so a @Prompt method can declare an SPI interface
+                // (AgentState, AgentIdentity, AgentWorkspace) and receive the
+                // concrete impl the endpoint processor registered.
                 var injectable = injectables.get(paramTypes[i]);
+                if (injectable == null) {
+                    for (var entry : injectables.entrySet()) {
+                        if (paramTypes[i].isAssignableFrom(entry.getKey())) {
+                            injectable = entry.getValue();
+                            break;
+                        }
+                    }
+                }
                 if (injectable != null) {
                     args[i] = injectable;
                 } else {
