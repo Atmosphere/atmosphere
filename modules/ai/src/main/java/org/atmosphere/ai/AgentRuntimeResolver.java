@@ -53,14 +53,6 @@ public final class AgentRuntimeResolver {
     }
 
     /**
-     * Returns all available runtimes sorted by priority (highest first).
-     * Falls back to a singleton list with {@link BuiltInAgentRuntime} if
-     * no implementations are discovered.
-     *
-     * <p>Results are cached after first resolution — the classpath does not
-     * change at runtime so the discovered runtimes are stable.</p>
-     */
-    /**
      * Drop the cached runtime list so the next {@link #resolveAll()} call
      * rescans the ServiceLoader. Visible for tests that install a custom
      * runtime before the first resolution — without this, the cache freezes
@@ -71,6 +63,14 @@ public final class AgentRuntimeResolver {
         cachedAll = null;
     }
 
+    /**
+     * Returns all available runtimes sorted by priority (highest first).
+     * Falls back to a singleton list with {@link BuiltInAgentRuntime} if
+     * no implementations are discovered.
+     *
+     * <p>Results are cached after first resolution — the classpath does not
+     * change at runtime so the discovered runtimes are stable.</p>
+     */
     public static List<AgentRuntime> resolveAll() {
         var result = cachedAll;
         if (result != null) {
