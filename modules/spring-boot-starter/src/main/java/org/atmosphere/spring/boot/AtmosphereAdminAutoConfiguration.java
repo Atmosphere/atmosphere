@@ -331,5 +331,26 @@ public class AtmosphereAdminAutoConfiguration {
             logger.debug("Atmosphere Admin: Coordinator controller wired");
             return controller;
         }
+
+        /**
+         * Wires the agent-to-agent flow viewer backing the
+         * {@code /api/admin/flow} endpoints. Reads the Spring-bridged
+         * {@link org.atmosphere.coordinator.journal.CoordinationJournal} bean
+         * so it sees the same event stream as the coordinator pipeline
+         * (NOOP fallback keeps the endpoint usable when no bean is present).
+         */
+        @Bean
+        org.atmosphere.admin.flow.FlowController atmosphereAdminFlowController(
+                AtmosphereAdmin admin,
+                org.springframework.beans.factory.ObjectProvider<
+                        org.atmosphere.coordinator.journal.CoordinationJournal> journalProvider) {
+            var journal = journalProvider.getIfAvailable(
+                    () -> org.atmosphere.coordinator.journal.CoordinationJournal.NOOP);
+            var controller = new org.atmosphere.admin.flow.FlowController(journal);
+            admin.setFlowController(controller);
+            logger.debug("Atmosphere Admin: Flow controller wired (journal={})",
+                    journal.getClass().getSimpleName());
+            return controller;
+        }
     }
 }

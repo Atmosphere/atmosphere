@@ -54,6 +54,21 @@ import java.util.Optional;
  */
 public interface FactResolver {
 
+    /**
+     * Framework-property key under which a resolver instance can be bridged
+     * by Spring / Quarkus / CDI auto-configuration, mirroring the pattern used
+     * for {@code CoordinationJournal} and {@code Broadcaster} factories.
+     * Lookup order inside {@code AiEndpointHandler}:
+     * <ol>
+     *   <li>{@code framework.getAtmosphereConfig().properties().get(FACT_RESOLVER_PROPERTY)}
+     *       — the bridged bean (lifecycle owned by the DI container).</li>
+     *   <li>{@link java.util.ServiceLoader}{@code .load(FactResolver.class)} —
+     *       SPI discovery for plain-servlet and embedded deployments.</li>
+     *   <li>{@link DefaultFactResolver} — zero-dep fallback.</li>
+     * </ol>
+     */
+    String FACT_RESOLVER_PROPERTY = "org.atmosphere.ai.factResolver";
+
     /** Resolve the requested fact keys for this turn. Never returns {@code null}. */
     FactBundle resolve(FactRequest request);
 

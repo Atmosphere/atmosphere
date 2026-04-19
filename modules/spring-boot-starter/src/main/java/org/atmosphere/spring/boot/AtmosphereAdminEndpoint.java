@@ -19,6 +19,7 @@ import org.atmosphere.admin.AtmosphereAdmin;
 import org.atmosphere.admin.a2a.TaskController;
 import org.atmosphere.admin.ai.AiRuntimeController;
 import org.atmosphere.admin.coordinator.CoordinatorController;
+import org.atmosphere.admin.flow.FlowController;
 import org.atmosphere.admin.mcp.McpController;
 import org.atmosphere.admin.metrics.MetricsController;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -281,6 +282,28 @@ public class AtmosphereAdminEndpoint {
         return controller.getJournalLog(coordinationId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    // ── Agent-to-Agent Flow Graph ──
+
+    @GetMapping("/flow")
+    public ResponseEntity<Map<String, Object>> renderFlow(
+            @RequestParam(value = "lookbackMinutes", defaultValue = "0") int lookbackMinutes) {
+        FlowController controller = admin.flowController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of("nodes", List.of(), "edges", List.of()));
+        }
+        return ResponseEntity.ok(controller.renderFlow(lookbackMinutes));
+    }
+
+    @GetMapping("/flow/{coordinationId}")
+    public ResponseEntity<Map<String, Object>> renderRun(
+            @PathVariable("coordinationId") String coordinationId) {
+        FlowController controller = admin.flowController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of("nodes", List.of(), "edges", List.of()));
+        }
+        return ResponseEntity.ok(controller.renderRun(coordinationId));
     }
 
     // ── A2A Tasks ──

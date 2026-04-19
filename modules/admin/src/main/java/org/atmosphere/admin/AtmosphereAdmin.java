@@ -16,6 +16,7 @@
 package org.atmosphere.admin;
 
 import org.atmosphere.admin.agent.AgentController;
+import org.atmosphere.admin.flow.FlowController;
 import org.atmosphere.admin.framework.FrameworkController;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.metrics.AtmosphereHealth;
@@ -50,6 +51,7 @@ public final class AtmosphereAdmin {
     private Object aiRuntimeController;
     private Object mcpController;
     private Object metricsController;
+    private FlowController flowController;
 
     public AtmosphereAdmin(AtmosphereFramework framework, int auditLogSize) {
         this.frameworkController = framework != null ? new FrameworkController(framework) : null;
@@ -178,5 +180,13 @@ public final class AtmosphereAdmin {
     @SuppressWarnings("unchecked")
     public <T> T metricsController() {
         return (T) metricsController;
+    }
+
+    public void setFlowController(FlowController controller) {
+        this.flowController = controller;
+    }
+
+    public FlowController flowController() {
+        return flowController;
     }
 }

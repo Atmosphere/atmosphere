@@ -352,6 +352,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             return;
         }
 
+        // Copy any business.* request attributes onto SLF4J MDC so every
+        // log line produced by this turn (pipeline, runtime, tool calls)
+        // carries the tenant/customer/session-id/event-kind tags for
+        // observability correlation. Cleared in the same method's finally
+        // via clearBusinessMdc().
+        applyBusinessMdc(resource);
         logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
 
         var delegate = StreamingSessions.start(resource);
@@ -367,8 +373,14 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
 
         var responseType = injectables.get(Class.class) instanceof Class<?> c ? c : null;
+        // Prepend grounded facts to the system prompt via FactResolver.
+        // DefaultFactResolver supplies time.now + time.timezone; apps can
+        // install a richer resolver via FactResolverHolder.install(). Every
+        // turn pays one resolver call per endpoint — no ThreadLocal, no
+        // per-@AiTool wiring.
+        var effectivePrompt = prependResolvedFacts(systemPrompt, resource);
         var session = new AiStreamingSession(traced, runtime,
-                systemPrompt, model, interceptors, resource, memory,
+                effectivePrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, metrics, responseType);
         AiStreamingSession.registerActive(session);
 
@@ -477,6 +489,128 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 }
             });
         }
+    }
+
+    /**
+     * Framework-scoped FactResolver resolution. Same template as
+     * {@code CoordinatorProcessor.resolveJournal} /
+     * {@code BroadcasterFactory.lookup} — the resolver is tied to the
+     * {@link org.atmosphere.cpr.AtmosphereFramework} instance through its
+     * properties map, not a process-wide static, so multi-framework JVMs
+     * and tests stay isolated.
+     */
+    private org.atmosphere.ai.facts.FactResolver resolveFactResolver(AtmosphereResource resource) {
+        // 1. Framework-property bridge (Spring/Quarkus/CDI auto-config writes here).
+        if (resource != null && resource.getAtmosphereConfig() != null) {
+            var bridged = resource.getAtmosphereConfig().properties()
+                    .get(org.atmosphere.ai.facts.FactResolver.FACT_RESOLVER_PROPERTY);
+            if (bridged instanceof org.atmosphere.ai.facts.FactResolver fr) {
+                return fr;
+            }
+        }
+        // 2. ServiceLoader — plain servlet / embedded / Quarkus native deployments.
+        try {
+            var loaded = java.util.ServiceLoader.load(org.atmosphere.ai.facts.FactResolver.class)
+                    .findFirst();
+            if (loaded.isPresent()) {
+                return loaded.get();
+            }
+        } catch (java.util.ServiceConfigurationError | RuntimeException e) {
+            logger.debug("FactResolver ServiceLoader lookup failed: {}", e.getMessage());
+        }
+        // 3. Legacy process-wide holder — kept for tests that install per-test
+        //    resolvers and for libraries that set a resolver before any framework
+        //    instance exists. New code should use the framework-property bridge.
+        var held = org.atmosphere.ai.facts.FactResolverHolder.get();
+        if (held != null) {
+            return held;
+        }
+        // 4. Zero-dep default.
+        return new org.atmosphere.ai.facts.DefaultFactResolver();
+    }
+
+    /**
+     * Copy {@code business.*} request attributes onto the SLF4J MDC so every
+     * log record emitted during this turn carries the tenant / customer /
+     * session-id / event-kind tags. Observability backends (Dynatrace,
+     * Datadog, OTel log exporters) propagate MDC entries onto the active
+     * span as attributes, closing the "AI call → business outcome" loop.
+     *
+     * <p>Keys are the {@link org.atmosphere.ai.business.BusinessMetadata}
+     * constants; unknown event-kind strings are normalized via
+     * {@link org.atmosphere.ai.business.BusinessMetadata.EventKind#fromWire(String)}
+     * so downstream consumers see a canonical value.</p>
+     */
+    private void applyBusinessMdc(AtmosphereResource resource) {
+        if (resource == null || resource.getRequest() == null) {
+            return;
+        }
+        var req = resource.getRequest();
+        for (var key : java.util.List.of(
+                org.atmosphere.ai.business.BusinessMetadata.TENANT_ID,
+                org.atmosphere.ai.business.BusinessMetadata.CUSTOMER_ID,
+                org.atmosphere.ai.business.BusinessMetadata.CUSTOMER_SEGMENT,
+                org.atmosphere.ai.business.BusinessMetadata.SESSION_ID,
+                org.atmosphere.ai.business.BusinessMetadata.SESSION_CURRENCY,
+                org.atmosphere.ai.business.BusinessMetadata.EVENT_SUBJECT)) {
+            if (req.getAttribute(key) instanceof String s && !s.isBlank()) {
+                org.slf4j.MDC.put(key, s);
+            }
+        }
+        if (req.getAttribute(org.atmosphere.ai.business.BusinessMetadata.EVENT_KIND)
+                instanceof String kind && !kind.isBlank()) {
+            // Normalize through the enum so OTHER is emitted on unknown wire
+            // strings rather than leaking whatever free-form value came in.
+            org.slf4j.MDC.put(org.atmosphere.ai.business.BusinessMetadata.EVENT_KIND,
+                    org.atmosphere.ai.business.BusinessMetadata.EventKind.fromWire(kind).wireName());
+        }
+    }
+
+    /**
+     * Resolve the live {@link org.atmosphere.ai.facts.FactResolver} and prepend
+     * its output as a {@code facts} block to the base system prompt.
+     * Framework-scoped resolution mirrors {@code CoordinatorProcessor.resolveJournal}
+     * — check {@code framework.properties()}, then {@link java.util.ServiceLoader},
+     * then {@link org.atmosphere.ai.facts.FactResolverHolder} (legacy), then
+     * {@link org.atmosphere.ai.facts.DefaultFactResolver}. Returns the
+     * original prompt unchanged when the bundle is empty so this never
+     * regresses the text path when the feature is not in use.
+     */
+    private String prependResolvedFacts(String basePrompt, AtmosphereResource resource) {
+        var resolver = resolveFactResolver(resource);
+        if (resolver == null) {
+            return basePrompt != null ? basePrompt : "";
+        }
+        String userId = null;
+        if (resource != null && resource.getRequest() != null) {
+            var att = resource.getRequest().getAttribute("ai.userId");
+            if (att instanceof String s && !s.isBlank()) {
+                userId = s;
+            }
+        }
+        var req = new org.atmosphere.ai.facts.FactResolver.FactRequest(
+                userId, resource != null ? resource.uuid() : null,
+                null,
+                java.util.Set.of(
+                        org.atmosphere.ai.facts.FactKeys.TIME_NOW,
+                        org.atmosphere.ai.facts.FactKeys.TIME_TIMEZONE,
+                        org.atmosphere.ai.facts.FactKeys.USER_ID));
+        org.atmosphere.ai.facts.FactResolver.FactBundle bundle;
+        try {
+            bundle = resolver.resolve(req);
+        } catch (RuntimeException e) {
+            logger.warn("FactResolver {} failed; proceeding without facts: {}",
+                    resolver.getClass().getName(), e.getMessage());
+            return basePrompt != null ? basePrompt : "";
+        }
+        if (bundle == null || bundle.facts().isEmpty()) {
+            return basePrompt != null ? basePrompt : "";
+        }
+        var block = bundle.asSystemPromptBlock();
+        if (basePrompt == null || basePrompt.isBlank()) {
+            return block;
+        }
+        return block + "\n" + basePrompt;
     }
 
     private void handleDisconnect(AtmosphereResource resource, AtmosphereResourceEvent event,
