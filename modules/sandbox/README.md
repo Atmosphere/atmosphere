@@ -3,7 +3,7 @@
 Pluggable isolated-execution primitive for Atmosphere agents. Agents
 that run untrusted code, LLM-generated shell commands, or data
 transforms route those calls through a `Sandbox` instead of the hosting
-JVM — one of the eight foundation primitives in Atmosphere v0.5.
+JVM.
 
 ## SPI
 

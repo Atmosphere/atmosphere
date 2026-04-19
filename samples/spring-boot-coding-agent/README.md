@@ -1,8 +1,8 @@
 # spring-boot-coding-agent
 
-Proof sample #2 for the v0.5 foundation primitive set. Clones a Git
-repository into a sandbox, reads files, and proposes a patch. Exercises
-the primitives that the personal-assistant sample does not touch:
+Clones a Git repository into a sandbox, reads files, and proposes a
+patch. Exercises the primitives the personal-assistant sample does not
+touch:
 
 - **`Sandbox`** — every file and command goes through the SPI. Docker is
   the production default; the in-process provider is the dev fallback.

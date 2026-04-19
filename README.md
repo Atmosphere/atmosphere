@@ -126,7 +126,21 @@ What this registers depends on which modules are on the classpath:
 
 **[Observability](https://atmosphere.github.io/docs/reference/observability/)** — OpenTelemetry tracing, Micrometer metrics, AI token usage tracking. Auto-configured with Spring Boot.
 
-**[Admin Control Plane](https://atmosphere.github.io/docs/reference/admin/)** — Real-time dashboard at `/atmosphere/admin/`, 25 REST endpoints, WebSocket event stream, and MCP tools for managing agents, broadcasters, tasks, and runtimes. AI-manages-AI via MCP tool registration.
+**[Admin Control Plane](https://atmosphere.github.io/docs/reference/admin/)** — Real-time dashboard at `/atmosphere/admin/`, 25 REST endpoints, WebSocket event stream, and MCP tools for managing agents, broadcasters, tasks, and runtimes. AI-manages-AI via MCP tool registration. Every mutating endpoint runs three gates — feature flag → authenticated Principal → `ControlAuthorizer` — so enabling admin writes cannot accidentally open an anonymous back door.
+
+**[Agent-to-Agent Flow Viewer](https://atmosphere.github.io/docs/tutorial/29-admin-flow-viewer/)** — `GET /api/admin/flow` renders the coordination journal as a live graph: nodes are agents, edges carry dispatch counts, success / failure rates, and average duration. Attribution is per-`coordinationId` so concurrent tenant runs stay scoped. Drops in to vis.js / Cytoscape / React Flow without post-processing.
+
+**[Grounded Facts](https://atmosphere.github.io/docs/tutorial/28-fact-resolver/)** — `FactResolver` injects deterministic facts (current time, user identity, plan tier, recent events) into every agent turn so generative decisions anchor to real state instead of model memory. Values are escaped before rendering so embedded newlines can't reshape the system prompt.
+
+**[Business Outcome Tagging](https://atmosphere.github.io/docs/tutorial/27-business-metadata-observability/)** — `BusinessMetadata` threads tenant id, customer id, session revenue, and event kind through SLF4J MDC on every turn. Dynatrace / Datadog / OpenTelemetry log exporters pick the tags up automatically — closes the "how much does this feature cost per paying customer?" loop.
+
+**[Built-in Guardrails](https://atmosphere.github.io/docs/tutorial/12-ai-filters/)** — `PiiRedactionGuardrail` strips email / phone / credit card / US SSN / IPv4 from requests and Blocks leaks on responses (can't rewrite an already-emitted stream, so log-only signalling was security theatre). `OutputLengthZScoreGuardrail` catches drift via rolling z-score on response length — flags runaway prompts and injection payloads without a signature. Both off by default; opt in via one Spring property.
+
+**[Isolated Execution — Sandbox SPI](https://atmosphere.github.io/docs/reference/ai/)** — `Sandbox` + `SandboxProvider` with Docker as the production default (argv-form exec, `--network none` default, strict working-directory mount) and an opt-in in-process fallback for dev. Third-party backends (Firecracker, Kata, Vercel, E2B, Modal, Blaxel) plug in via `ServiceLoader`.
+
+**[Resumable Runs](https://atmosphere.github.io/docs/reference/ai/)** — Every `@Prompt` turn registers with the `RunRegistry` and emits an `X-Atmosphere-Run-Id` header. Disconnected clients reconnect with the id, and `AiEndpointHandler` drains the replay buffer to the new resource so the user catches up on the stream they missed.
+
+**[Three-Phase Trust Adoption](https://atmosphere.github.io/docs/tutorial/25-trust-phases/)** — Ship an agent from supervised to autonomous without a rewrite: the same `@Agent` class runs in `PLAN` (every tool gated), `DEFAULT` (only `@RequiresApproval` gated), `ACCEPT_EDITS` (edits auto, sensitive gated), and `BYPASS` (audit-after). Flipping the mode is a config change, not a redeploy.
 
 ## Client — atmosphere.js
 

@@ -65,16 +65,16 @@ The `protocols` segment reflects runtime-resolved state — if
 Correctness Invariant #5 — report only confirmed runtime state, never
 configuration intent.
 
-## Per-agent foundation primitives
+## Per-agent injectable primitives
 
 `AgentProcessor.buildFoundationPrimitives` creates one instance of each
-v0.5 primitive per agent, rooted at `~/.atmosphere/workspace/agents/{name}/`
-by default:
+foundation primitive per agent, rooted at
+`~/.atmosphere/workspace/agents/{name}/` by default:
 
 | Primitive | Use |
 |-----------|-----|
 | `AgentState` (`FileSystemAgentState`) | Durable per-agent state between restarts |
-| `AgentIdentity` (`InMemoryAgentIdentity` + `AtmosphereEncryptedCredentialStore`) | Per-user PermissionMode + encrypted credential store |
+| `AgentIdentity` (`InMemoryAgentIdentity` + `AtmosphereEncryptedCredentialStore`) | Per-user `PermissionMode` + encrypted credential store |
 | `AgentWorkspace` | ServiceLoader-discovered workspace adapter (OpenClaw, SWE-bench, none) |
 
 `@Prompt` / `@AiTool` method parameters of any of these types are
