@@ -283,15 +283,45 @@ public class AiEndpointProcessor implements Processor<Object> {
 
     private List<AiGuardrail> instantiateGuardrails(Class<? extends AiGuardrail>[] classes,
                                                     AtmosphereFramework framework) {
-        var guardrails = new ArrayList<AiGuardrail>();
+        // Merge three sources so a user-defined @AiEndpoint gets the same
+        // guardrail wiring as the default endpoint:
+        //   1. annotation-declared guardrails (highest precedence)
+        //   2. ServiceLoader-discovered guardrails (SPI wiring for plain
+        //      servlet / Quarkus / non-Spring deployments)
+        //   3. framework-property bridged guardrails (Spring auto-config
+        //      writes its bean list here — see AiGuardrail.GUARDRAILS_PROPERTY)
+        // Duplicates by concrete class are de-duped; the annotation-declared
+        // instance wins on conflict.
+        var merged = new java.util.LinkedHashMap<Class<?>, AiGuardrail>();
         for (var clazz : classes) {
             try {
-                guardrails.add(framework.newClassInstance(AiGuardrail.class, clazz));
+                var instance = framework.newClassInstance(AiGuardrail.class, clazz);
+                merged.putIfAbsent(clazz, instance);
             } catch (Exception e) {
                 logger.error("Failed to instantiate AiGuardrail: {}", clazz.getName(), e);
             }
         }
-        return List.copyOf(guardrails);
+        try {
+            for (var g : java.util.ServiceLoader.load(AiGuardrail.class)) {
+                if (g != null) {
+                    merged.putIfAbsent(g.getClass(), g);
+                }
+            }
+        } catch (java.util.ServiceConfigurationError e) {
+            logger.warn("AiGuardrail ServiceLoader lookup failed: {}", e.getMessage());
+        }
+        var cfg = framework.getAtmosphereConfig();
+        if (cfg != null) {
+            var bridged = cfg.properties().get(AiGuardrail.GUARDRAILS_PROPERTY);
+            if (bridged instanceof List<?> list) {
+                for (var g : list) {
+                    if (g instanceof AiGuardrail ai) {
+                        merged.putIfAbsent(ai.getClass(), ai);
+                    }
+                }
+            }
+        }
+        return List.copyOf(merged.values());
     }
 
     private List<ContextProvider> instantiateContextProviders(Class<? extends ContextProvider>[] classes,

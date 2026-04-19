@@ -48,6 +48,21 @@ package org.atmosphere.ai;
 public interface AiGuardrail {
 
     /**
+     * Framework-property key under which a {@code List<AiGuardrail>} can be
+     * bridged by Spring / Quarkus / CDI auto-configuration. Mirrors the
+     * {@code FactResolver.FACT_RESOLVER_PROPERTY} and
+     * {@code CoordinatorProcessor.COORDINATION_JOURNAL_PROPERTY} pattern —
+     * framework-scoped wiring so a user-defined {@code @AiEndpoint} picks
+     * up the same guardrail list as the default endpoint.
+     *
+     * <p>{@code AiEndpointProcessor} reads this property and merges its
+     * contents with annotation-declared guardrails plus ServiceLoader
+     * discovery. Spring's {@code AtmosphereAiAutoConfiguration} writes here
+     * when user beans are present.</p>
+     */
+    String GUARDRAILS_PROPERTY = "org.atmosphere.ai.guardrails";
+
+    /**
      * Inspect a request before it reaches the LLM.
      *
      * @param request the AI request

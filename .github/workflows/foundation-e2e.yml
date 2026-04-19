@@ -90,9 +90,11 @@ jobs:
           sleep 2
 
       - name: Start coding-agent sample
-        env:
-          SKIP_SANDBOX_E2E: "true"
         run: |
+          # GitHub-hosted ubuntu-latest runners ship with Docker, so we let
+          # the DockerSandboxProvider pick up and run the clone+read spec.
+          # SKIP_SANDBOX_E2E is deliberately NOT set — the earlier skip
+          # hid the command-injection hardening regression surface.
           nohup java -jar samples/spring-boot-coding-agent/target/atmosphere-spring-boot-coding-agent-*.jar \
             --server.port=8080 > /tmp/ca-run.log 2>&1 &
           echo $! > /tmp/ca.pid
@@ -104,15 +106,18 @@ jobs:
           done
           test -f /tmp/ca.pid
 
+      - name: Verify Docker available for sandbox spec
+        run: docker version --format '{{.Server.Version}}'
+
       - name: Run coding-agent specs
         working-directory: e2e
         env:
           ATMO_E2E_BASE_URL: http://localhost:8080
-          SKIP_SANDBOX_E2E: "true"
         run: |
-          # The clone/read spec requires Docker; SKIP_SANDBOX_E2E flags it
-          # off in CI where we don't have a Docker daemon. The admin +
-          # sandbox-unavailable specs still run and catch regressions.
+          # Full spec set including the Docker sandbox clone+read regression
+          # — the surface where the argv-form exec + strict URL allowlist
+          # live. Removing the SKIP_SANDBOX_E2E flag is required to keep
+          # the command-injection hardening covered on every PR.
           npx playwright test tests/coding-agent.spec.ts --reporter=list
 
       - name: Stop coding-agent

@@ -286,6 +286,68 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             lifecycle.onReady(target, resource);
             logger.info("Client {} connected to AI endpoint (broadcaster: {})",
                     resource.uuid(), resource.getBroadcaster().getID());
+            // Consume the X-Atmosphere-Run-Id header that
+            // DurableSessionInterceptor stashes on reconnection: if the run
+            // is still live in the RunRegistry, replay the buffered events
+            // to THIS resource so the client catches up on what it missed
+            // mid-stream. Silent no-op when the attr is absent (fresh
+            // connection) or the run is unknown (expired or never existed).
+            reattachPendingRun(resource);
+        }
+    }
+
+    /**
+     * Consumer path for the {@code X-Atmosphere-Run-Id} header. Closes the
+     * P1 gap where the producer (run registration in {@code invokePrompt})
+     * was wired but nothing read the id back on reconnection — so reattach
+     * was half-shipped. Looks the run up in {@link RunRegistryHolder} and,
+     * when it is still live, drains its replay buffer onto this resource
+     * only (not the broadcaster — the other subscribers already saw the
+     * events live).
+     */
+    private void reattachPendingRun(AtmosphereResource resource) {
+        if (resource == null || resource.getRequest() == null) {
+            return;
+        }
+        // Attribute key matches DurableSessionInterceptor.RUN_ID_ATTRIBUTE —
+        // the producer side. Inlined here so the ai module does not pull a
+        // compile-time dependency on the durable-sessions module.
+        var attr = resource.getRequest().getAttribute("org.atmosphere.session.runId");
+        if (attr == null) {
+            // Header fallback for clients that bypass the interceptor
+            // (e.g. raw WebSocket clients that don't speak the durable-session
+            // cookie contract but still carry the run id).
+            attr = resource.getRequest().getHeader("X-Atmosphere-Run-Id");
+        }
+        if (!(attr instanceof String runId) || runId.isBlank()) {
+            return;
+        }
+        var handleOpt = org.atmosphere.ai.resume.RunRegistryHolder.get().lookup(runId);
+        if (handleOpt.isEmpty()) {
+            logger.debug("Reconnect with run id {} but no live run in the registry "
+                    + "(expired or never existed); treating as fresh session", runId);
+            return;
+        }
+        var handle = handleOpt.get();
+        var replayed = handle.replayableEvents();
+        if (replayed.isEmpty()) {
+            logger.info("Reattach run {} for resource {}: no buffered events to replay",
+                    runId, resource.uuid());
+            return;
+        }
+        logger.info("Reattach run {} for resource {}: replaying {} event(s)",
+                runId, resource.uuid(), replayed.size());
+        for (var ev : replayed) {
+            try {
+                // Write directly to this resource — other resources already
+                // saw the event live on the shared broadcaster. Each event's
+                // payload is the wire-format string the live pipeline emits.
+                resource.write(ev.payload());
+            } catch (RuntimeException e) {
+                logger.warn("Replay to resource {} failed at event {}: {}",
+                        resource.uuid(), ev.sequence(), e.getMessage());
+                break;
+            }
         }
     }
 

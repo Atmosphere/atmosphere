@@ -106,6 +106,18 @@ public class AtmosphereAiAutoConfiguration {
             AtmosphereProperties properties,
             org.springframework.beans.factory.ObjectProvider<AiGuardrail> guardrailProvider) {
         var guardrails = guardrailProvider.orderedStream().toList();
+        // Bridge the bean list into framework properties so user-defined
+        // @AiEndpoint classes (which go through AiEndpointProcessor, not
+        // this registrar) also pick them up. Without this publish, the
+        // registrar applied guardrails to the default endpoint only and
+        // @AiEndpoint paths were starved.
+        if (!guardrails.isEmpty()) {
+            framework.getAtmosphereConfig().properties()
+                    .put(AiGuardrail.GUARDRAILS_PROPERTY, guardrails);
+            logger.info("Bridged {} Spring AiGuardrail bean(s) into framework properties: {}",
+                    guardrails.size(),
+                    guardrails.stream().map(g -> g.getClass().getSimpleName()).toList());
+        }
         return new AtmosphereAiEndpointRegistrar(framework, properties, guardrails);
     }
 

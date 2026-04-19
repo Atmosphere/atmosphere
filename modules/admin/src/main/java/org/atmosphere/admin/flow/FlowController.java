@@ -94,7 +94,15 @@ public final class FlowController {
     private Map<String, Object> buildGraph(List<CoordinationEvent> events) {
         Set<String> nodeSet = new LinkedHashSet<>();
         Map<String, EdgeKey> edgeAgg = new LinkedHashMap<>();
-        String currentCoordinator = null;
+        // Key: coordinationId → coordinator name. A flat "currentCoordinator"
+        // cursor misattributes edges whenever two @Coordinator runs
+        // interleave (common in multi-user tenants or concurrent fleet
+        // calls). Every event carries coordinationId; we look up the
+        // coordinator per-event and preserve attribution even when events
+        // arrive out of order. Fallback "unknown" only kicks in for
+        // completed/failed events whose CoordinationStarted is outside
+        // the queried window.
+        Map<String, String> coordinatorByRun = new java.util.HashMap<>();
 
         for (var e : events) {
             if (e == null) {
@@ -102,20 +110,22 @@ public final class FlowController {
             }
             switch (e) {
                 case CoordinationEvent.CoordinationStarted started -> {
-                    currentCoordinator = started.coordinatorName();
+                    coordinatorByRun.put(started.coordinationId(), started.coordinatorName());
                     nodeSet.add(started.coordinatorName());
                 }
                 case CoordinationEvent.AgentDispatched dispatched -> {
                     nodeSet.add(dispatched.agentName());
-                    var from = currentCoordinator != null ? currentCoordinator : "unknown";
+                    var from = coordinatorByRun.getOrDefault(
+                            dispatched.coordinationId(), "unknown");
                     var key = from + "->" + dispatched.agentName();
                     edgeAgg.computeIfAbsent(key, k -> new EdgeKey(from, dispatched.agentName()))
                             .dispatches++;
                 }
                 case CoordinationEvent.AgentCompleted completed -> {
                     nodeSet.add(completed.agentName());
-                    var key = (currentCoordinator != null ? currentCoordinator : "unknown")
-                            + "->" + completed.agentName();
+                    var from = coordinatorByRun.getOrDefault(
+                            completed.coordinationId(), "unknown");
+                    var key = from + "->" + completed.agentName();
                     var existing = edgeAgg.get(key);
                     if (existing != null) {
                         existing.successes++;
@@ -125,8 +135,9 @@ public final class FlowController {
                 }
                 case CoordinationEvent.AgentFailed failed -> {
                     nodeSet.add(failed.agentName());
-                    var key = (currentCoordinator != null ? currentCoordinator : "unknown")
-                            + "->" + failed.agentName();
+                    var from = coordinatorByRun.getOrDefault(
+                            failed.coordinationId(), "unknown");
+                    var key = from + "->" + failed.agentName();
                     var existing = edgeAgg.get(key);
                     if (existing != null) {
                         existing.failures++;

@@ -96,6 +96,67 @@ class FlowControllerTest {
         assertNotNull(graph.get("edges"));
     }
 
+    /**
+     * Regression for the P2 "flow graph attribution is wrong for
+     * interleaved/multi-coordination streams" finding. Two concurrent
+     * coordinator runs interleave their events in the journal; the graph
+     * must attribute each dispatch to its own coordinator, not to whichever
+     * started-event the iterator happened to see last.
+     */
+    @Test
+    void renderFlowAttributesInterleavedCoordinationsByCoordinationId() {
+        var now = Instant.now();
+        var journal = withEvents(List.of(
+                // Run A starts under coordinator "ceo"
+                new CoordinationEvent.CoordinationStarted(
+                        "coord-A", "ceo", now),
+                // Run B starts under coordinator "primary-assistant"
+                new CoordinationEvent.CoordinationStarted(
+                        "coord-B", "primary-assistant", now.plusMillis(1)),
+                // Run A dispatches to research-agent — must attribute to "ceo"
+                new CoordinationEvent.AgentDispatched(
+                        "coord-A", "research-agent", "web_search",
+                        Map.of(), now.plusMillis(5)),
+                // Run B dispatches to scheduler-agent — must attribute to
+                // "primary-assistant", NOT the most-recently-seen "ceo"
+                new CoordinationEvent.AgentDispatched(
+                        "coord-B", "scheduler-agent", "propose_slots",
+                        Map.of(), now.plusMillis(6)),
+                new CoordinationEvent.AgentCompleted(
+                        "coord-A", "research-agent", "web_search",
+                        "ok", Duration.ofMillis(30), now.plusMillis(40)),
+                new CoordinationEvent.AgentCompleted(
+                        "coord-B", "scheduler-agent", "propose_slots",
+                        "ok", Duration.ofMillis(20), now.plusMillis(41))));
+        var graph = new FlowController(journal).renderFlow(0);
+
+        @SuppressWarnings("unchecked")
+        var edges = (List<Map<String, Object>>) graph.get("edges");
+        assertEquals(2, edges.size(), "two distinct edges, one per coordinator");
+
+        var ceoEdge = edges.stream()
+                .filter(e -> "ceo".equals(e.get("from"))
+                        && "research-agent".equals(e.get("to")))
+                .findFirst().orElseThrow(() ->
+                        new AssertionError("missing ceo->research-agent edge: " + edges));
+        assertEquals(1, ceoEdge.get("dispatches"));
+
+        var paEdge = edges.stream()
+                .filter(e -> "primary-assistant".equals(e.get("from"))
+                        && "scheduler-agent".equals(e.get("to")))
+                .findFirst().orElseThrow(() ->
+                        new AssertionError(
+                                "missing primary-assistant->scheduler-agent edge: " + edges));
+        assertEquals(1, paEdge.get("dispatches"));
+
+        // The pre-fix behaviour would have collapsed the second dispatch
+        // under "ceo" (last-wins cursor), producing a single ceo->* edge
+        // with dispatches=2 — explicitly assert we don't see that shape.
+        assertTrue(edges.stream().noneMatch(e -> "ceo".equals(e.get("from"))
+                        && "scheduler-agent".equals(e.get("to"))),
+                "scheduler-agent must not be attributed to ceo: " + edges);
+    }
+
     @Test
     void renderFlowOnEmptyJournalReturnsEmptyGraph() {
         var graph = new FlowController(CoordinationJournal.NOOP).renderFlow(0);
