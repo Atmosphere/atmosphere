@@ -10,8 +10,13 @@ cd e2e
 npm install
 npm run install:browsers
 
-# Start the sample in another terminal first, then:
-npm run test:admin              # admin control plane smoke
+# In another terminal, boot the sample via Spring Boot Maven plugin — no
+# fat-jar repackage, no custom classpath assembly, no curl-based
+# readiness probe.
+./mvnw -pl samples/spring-boot-personal-assistant spring-boot:run \
+    -Dspring-boot.run.arguments='--server.port=8080'
+
+# Once /actuator/health reports UP:
 npm run test:personal-assistant # sample #1 happy path
 npm run test:coding-agent       # sample #2 happy path (ATMO_E2E_BASE_URL=http://localhost:8081)
 ```

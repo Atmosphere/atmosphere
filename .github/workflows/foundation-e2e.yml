@@ -3,8 +3,9 @@ name: "CI: Foundation E2E (v0.5)"
 # Runs the Playwright suite under /e2e (the v0.5 foundation proof
 # samples). Separate workflow from e2e.yml so it doesn't compete with
 # the integration-tests matrix for runners; it boots personal-assistant
-# and coding-agent sample jars, drives the bundled Atmosphere AI console
-# via Playwright, and tears the samples down.
+# and coding-agent samples via `./mvnw spring-boot:run` (no fat-jar
+# prebuild, no shell curl for readiness — the /actuator/health endpoint
+# is the standard Spring Boot liveness probe).
 #
 # Specs that require a live LLM (schedule/research/draft) are skipped
 # when no LLM_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY is set — they
@@ -46,7 +47,10 @@ jobs:
         with:
           node-version: 20
 
-      - name: Build foundation samples
+      - name: Install framework modules into local Maven repo
+        # spring-boot:run needs the framework deps on the classpath but does
+        # not produce a fat jar; install the reactor once so both samples
+        # can resolve them at run-time.
         run: |
           ./mvnw install -Pfastinstall -DskipTests \
             -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent \
@@ -62,18 +66,23 @@ jobs:
         working-directory: e2e
         run: npx tsc --noEmit
 
+      # ── Personal-assistant sample ─────────────────────────────────
       - name: Start personal-assistant sample
         run: |
-          nohup java -jar samples/spring-boot-personal-assistant/target/atmosphere-spring-boot-personal-assistant-*.jar \
-            --server.port=8080 > /tmp/pa-run.log 2>&1 &
+          # Boot via Spring Boot Maven plugin — no fat-jar repackage step,
+          # no custom classpath assembly. The JVM process backgrounds here
+          # and tears down via PID file after the specs run.
+          nohup ./mvnw -pl samples/spring-boot-personal-assistant -q \
+              spring-boot:run \
+              -Dspring-boot.run.arguments='--server.port=8080' \
+              > /tmp/pa-run.log 2>&1 &
           echo $! > /tmp/pa.pid
-          for i in $(seq 1 45); do
-            if curl -sf http://localhost:8080/atmosphere/console/ >/dev/null; then
-              echo "pa up after $i s"; break
-            fi
-            sleep 1
-          done
-          test -f /tmp/pa.pid
+
+      - name: Wait for personal-assistant /actuator/health
+        # actuator/health is the standard Spring Boot readiness probe.
+        # Replaces the old curl-the-console loop — status UP guarantees
+        # the Atmosphere framework finished init, not just Tomcat.
+        run: npx --yes wait-on --timeout 180000 http://localhost:8080/actuator/health
 
       - name: Run personal-assistant specs
         working-directory: e2e
@@ -87,27 +96,26 @@ jobs:
           if [ -f /tmp/pa.pid ]; then
             kill "$(cat /tmp/pa.pid)" 2>/dev/null || true
           fi
+          # Kill any leftover maven/spring-boot child java process on 8080.
+          pkill -f "spring-boot-personal-assistant" 2>/dev/null || true
           sleep 2
+
+      # ── Coding-agent sample ───────────────────────────────────────
+      - name: Verify Docker available for sandbox spec
+        # ubuntu-latest ships with Docker; the clone/read spec needs the
+        # DockerSandboxProvider. Fail early here if the runner changed.
+        run: docker version --format '{{.Server.Version}}'
 
       - name: Start coding-agent sample
         run: |
-          # GitHub-hosted ubuntu-latest runners ship with Docker, so we let
-          # the DockerSandboxProvider pick up and run the clone+read spec.
-          # SKIP_SANDBOX_E2E is deliberately NOT set — the earlier skip
-          # hid the command-injection hardening regression surface.
-          nohup java -jar samples/spring-boot-coding-agent/target/atmosphere-spring-boot-coding-agent-*.jar \
-            --server.port=8080 > /tmp/ca-run.log 2>&1 &
+          nohup ./mvnw -pl samples/spring-boot-coding-agent -q \
+              spring-boot:run \
+              -Dspring-boot.run.arguments='--server.port=8080' \
+              > /tmp/ca-run.log 2>&1 &
           echo $! > /tmp/ca.pid
-          for i in $(seq 1 45); do
-            if curl -sf http://localhost:8080/atmosphere/console/ >/dev/null; then
-              echo "ca up after $i s"; break
-            fi
-            sleep 1
-          done
-          test -f /tmp/ca.pid
 
-      - name: Verify Docker available for sandbox spec
-        run: docker version --format '{{.Server.Version}}'
+      - name: Wait for coding-agent /actuator/health
+        run: npx --yes wait-on --timeout 180000 http://localhost:8080/actuator/health
 
       - name: Run coding-agent specs
         working-directory: e2e
@@ -116,8 +124,7 @@ jobs:
         run: |
           # Full spec set including the Docker sandbox clone+read regression
           # — the surface where the argv-form exec + strict URL allowlist
-          # live. Removing the SKIP_SANDBOX_E2E flag is required to keep
-          # the command-injection hardening covered on every PR.
+          # live. SKIP_SANDBOX_E2E is deliberately NOT set.
           npx playwright test tests/coding-agent.spec.ts --reporter=list
 
       - name: Stop coding-agent
@@ -126,6 +133,7 @@ jobs:
           if [ -f /tmp/ca.pid ]; then
             kill "$(cat /tmp/ca.pid)" 2>/dev/null || true
           fi
+          pkill -f "spring-boot-coding-agent" 2>/dev/null || true
 
       - name: Dump sample logs on failure
         if: failure()
