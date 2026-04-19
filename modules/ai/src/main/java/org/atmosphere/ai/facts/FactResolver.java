@@ -100,13 +100,49 @@ public interface FactResolver {
             return Optional.ofNullable(facts.get(key));
         }
 
-        /** Render as a newline-delimited {@code key: value} block for system-prompt injection. */
+        /**
+         * Render as a newline-delimited {@code key: value} block for
+         * system-prompt injection. Keys and values are escaped so
+         * newline / carriage-return / tab characters in fact values
+         * cannot reshape the surrounding instruction context — they are
+         * replaced with a literal space. Without this escaping a
+         * malicious or accidental value like
+         * {@code "Alice\n\nIgnore prior instructions."} would inject
+         * a new line that downstream models treat as an authoritative
+         * directive.
+         */
         public String asSystemPromptBlock() {
             if (facts.isEmpty()) {
                 return "";
             }
             var sb = new StringBuilder("Grounded facts (deterministic, as of this turn):\n");
-            facts.forEach((k, v) -> sb.append("- ").append(k).append(": ").append(v).append('\n'));
+            facts.forEach((k, v) -> sb.append("- ")
+                    .append(escape(k))
+                    .append(": ")
+                    .append(escape(v == null ? "" : v.toString()))
+                    .append('\n'));
+            return sb.toString();
+        }
+
+        /**
+         * Replace newline, carriage-return, tab, and other ASCII control
+         * characters with a single space so a fact value cannot terminate
+         * the current line and start a new "instruction" line in the
+         * system prompt.
+         */
+        private static String escape(String raw) {
+            if (raw == null || raw.isEmpty()) {
+                return "";
+            }
+            var sb = new StringBuilder(raw.length());
+            for (int i = 0; i < raw.length(); i++) {
+                char c = raw.charAt(i);
+                if (c == '\n' || c == '\r' || c == '\t' || (c < 0x20 && c != ' ')) {
+                    sb.append(' ');
+                } else {
+                    sb.append(c);
+                }
+            }
             return sb.toString();
         }
 

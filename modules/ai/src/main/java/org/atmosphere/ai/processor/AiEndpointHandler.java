@@ -352,12 +352,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             return;
         }
 
-        // Copy any business.* request attributes onto SLF4J MDC so every
-        // log line produced by this turn (pipeline, runtime, tool calls)
-        // carries the tenant/customer/session-id/event-kind tags for
-        // observability correlation. Cleared in the same method's finally
-        // via clearBusinessMdc().
-        applyBusinessMdc(resource);
+        // Snapshot business.* request attributes so the VT dispatch below
+        // can re-apply them on the virtual-thread's own MDC. MDC is
+        // thread-local — setting it on the servlet thread does nothing for
+        // logs produced by the VT. Apply + clear is wrapped around the VT
+        // body (see promptThread below).
+        var businessMdc = snapshotBusinessMdc(resource);
         logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
 
         var delegate = StreamingSessions.start(resource);
@@ -452,6 +452,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         session.setRunId(handle.runId());
 
         var promptThread = Thread.startVirtualThread(() -> {
+            // Apply business.* MDC on the VT so every log record emitted
+            // during the turn (pipeline / runtime / tool calls) carries the
+            // tenant/customer/session tags. Clear in finally — otherwise
+            // the VT pool leaks keys across turns.
+            businessMdc.forEach(org.slf4j.MDC::put);
             try {
                 invokePrompt(userMessage, session, resource);
                 runExecutionHandle.complete();
@@ -468,6 +473,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 logger.error("Error invoking @Prompt method", cause);
                 session.error(cause);
                 runExecutionHandle.completeExceptionally(cause);
+            } finally {
+                businessMdc.keySet().forEach(org.slf4j.MDC::remove);
             }
         });
         promptThreadRef.set(promptThread);
@@ -530,22 +537,23 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * Copy {@code business.*} request attributes onto the SLF4J MDC so every
-     * log record emitted during this turn carries the tenant / customer /
-     * session-id / event-kind tags. Observability backends (Dynatrace,
-     * Datadog, OTel log exporters) propagate MDC entries onto the active
-     * span as attributes, closing the "AI call → business outcome" loop.
+     * Snapshot {@code business.*} request attributes into a map the VT
+     * dispatch below re-applies onto its own SLF4J MDC. Returning a
+     * snapshot (instead of mutating MDC directly) avoids the
+     * servlet-thread-vs-VT mismatch: MDC is thread-local, so calls made
+     * on the servlet thread would never reach the VT's log records.
      *
      * <p>Keys are the {@link org.atmosphere.ai.business.BusinessMetadata}
      * constants; unknown event-kind strings are normalized via
      * {@link org.atmosphere.ai.business.BusinessMetadata.EventKind#fromWire(String)}
      * so downstream consumers see a canonical value.</p>
      */
-    private void applyBusinessMdc(AtmosphereResource resource) {
+    private java.util.Map<String, String> snapshotBusinessMdc(AtmosphereResource resource) {
         if (resource == null || resource.getRequest() == null) {
-            return;
+            return java.util.Map.of();
         }
         var req = resource.getRequest();
+        var snapshot = new java.util.LinkedHashMap<String, String>();
         for (var key : java.util.List.of(
                 org.atmosphere.ai.business.BusinessMetadata.TENANT_ID,
                 org.atmosphere.ai.business.BusinessMetadata.CUSTOMER_ID,
@@ -554,16 +562,17 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 org.atmosphere.ai.business.BusinessMetadata.SESSION_CURRENCY,
                 org.atmosphere.ai.business.BusinessMetadata.EVENT_SUBJECT)) {
             if (req.getAttribute(key) instanceof String s && !s.isBlank()) {
-                org.slf4j.MDC.put(key, s);
+                snapshot.put(key, s);
             }
         }
         if (req.getAttribute(org.atmosphere.ai.business.BusinessMetadata.EVENT_KIND)
                 instanceof String kind && !kind.isBlank()) {
             // Normalize through the enum so OTHER is emitted on unknown wire
             // strings rather than leaking whatever free-form value came in.
-            org.slf4j.MDC.put(org.atmosphere.ai.business.BusinessMetadata.EVENT_KIND,
+            snapshot.put(org.atmosphere.ai.business.BusinessMetadata.EVENT_KIND,
                     org.atmosphere.ai.business.BusinessMetadata.EventKind.fromWire(kind).wireName());
         }
+        return snapshot;
     }
 
     /**

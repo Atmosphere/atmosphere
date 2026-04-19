@@ -105,31 +105,32 @@ public final class PiiRedactionGuardrail implements AiGuardrail {
         if (accumulatedResponse == null || accumulatedResponse.isEmpty()) {
             return GuardrailResult.pass();
         }
-        var redacted = accumulatedResponse;
         var kinds = new ArrayList<String>();
         for (var p : patterns) {
-            var matcher = p.regex.matcher(redacted);
+            var matcher = p.regex.matcher(accumulatedResponse);
             if (matcher.find()) {
                 kinds.add(p.kind);
-                redacted = matcher.replaceAll(p.replacement);
             }
         }
         if (kinds.isEmpty()) {
             return GuardrailResult.pass();
         }
+        // Both default and blocking modes produce a Block on the response
+        // path because the Guardrail SPI's Modify variant only accepts a
+        // modified AiRequest — we cannot rewrite the accumulated response
+        // once it has been emitted to the client. Blocking surfaces the PII
+        // hit as a security error instead of silently letting the PII
+        // through with only a log line. Applications that want pure
+        // log-only signalling should register their own inspectResponse
+        // override; the default protects.
+        var reason = "response contains PII of kinds: " + kinds;
         if (blockOnMatch) {
-            logger.warn("PII detected in response (kinds={}), blocking per guardrail policy", kinds);
-            return GuardrailResult.block("response contains PII of kinds: " + kinds);
+            logger.warn("PII detected in response (kinds={}), blocking (explicit blocking mode)", kinds);
+        } else {
+            logger.warn("PII detected in response (kinds={}), blocking — "
+                    + "default behaviour (cannot redact an already-emitted stream)", kinds);
         }
-        logger.info("Redacted PII in response (kinds={})", kinds);
-        // The AiGuardrail SPI's Modify variant carries a modified AiRequest,
-        // not a modified response — the response-path contract is pass /
-        // block. Applications that need response-mutation must layer a
-        // GuardrailCapturingSession that rewrites the stream. For the
-        // default we log the redaction and Pass, leaving the upstream
-        // stream untouched; a block-mode deployment gets the stricter
-        // Block decision.
-        return GuardrailResult.pass();
+        return GuardrailResult.block(reason);
     }
 
     @Override

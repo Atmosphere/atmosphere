@@ -158,6 +158,11 @@ class KoogAgentRuntime : AgentRuntime {
     override fun executeWithHandle(
         context: AgentExecutionContext, session: StreamingSession
     ): ExecutionHandle {
+        // Gateway admission on the handle-based path too — rate-limit and
+        // credential choke-point parity across every dispatch mode
+        // (Correctness Invariant #7 — mode parity). Prior to this fix the
+        // cancel-capable path skipped the gateway.
+        org.atmosphere.ai.AbstractAgentRuntime.admitThroughGateway(name(), context)
         val cancelled = AtomicBoolean()
         val done = CompletableFuture<Void>()
         val activeJob = java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?>()

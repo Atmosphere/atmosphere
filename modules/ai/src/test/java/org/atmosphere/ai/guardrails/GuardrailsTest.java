@@ -103,10 +103,26 @@ class GuardrailsTest {
     @Test
     void piiGuardrailRedactsCreditCardOnResponsePath() {
         var g = new PiiRedactionGuardrail().blocking();
-        // Response path returns Pass when the redaction would lose data
-        // (behaviour documented in the javadoc) — blocking mode gives Block
-        // so compliance deployments see the signal.
+        // Both default and blocking modes now return Block on the response
+        // path — an already-emitted stream cannot be rewritten, so leaking
+        // the PII with only a log line was security theatre.
         var result = g.inspectResponse("Charge the card 4111 1111 1111 1111 next Monday");
         assertInstanceOf(AiGuardrail.GuardrailResult.Block.class, result);
+    }
+
+    /**
+     * Regression for the P1 "PII response path is effectively non-redacting
+     * in default mode" finding. The default mode previously returned Pass,
+     * so PII leaked to the client with only a log line. The SPI cannot
+     * rewrite an emitted stream, so the honest default is to Block on
+     * response hit.
+     */
+    @Test
+    void piiGuardrailBlocksOnResponseHitEvenInDefaultMode() {
+        var g = new PiiRedactionGuardrail(); // default (non-blocking on request)
+        var result = g.inspectResponse("Your SSN is 123-45-6789, noted.");
+        assertInstanceOf(AiGuardrail.GuardrailResult.Block.class, result,
+                "default PII guardrail must block the response when PII is "
+                + "found — the alternative is leaking the PII with only a log line");
     }
 }

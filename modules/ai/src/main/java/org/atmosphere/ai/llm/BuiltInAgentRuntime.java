@@ -91,6 +91,11 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
     @Override
     protected org.atmosphere.ai.ExecutionHandle doExecuteWithHandle(
             LlmClient client, AgentExecutionContext context, StreamingSession session) {
+        // Gateway admission MUST happen on every dispatch path so rate
+        // limits and credential-choke-point policies see the handle-based
+        // flow too. Prior to this the cancel-capable path bypassed the
+        // gateway — parity regression covered by RuntimeCapabilityParityTest.
+        admitThroughGateway(context);
         var cancelled = new java.util.concurrent.atomic.AtomicBoolean();
         var inFlightStream = new java.util.concurrent.atomic.AtomicReference<java.io.Closeable>();
         var done = new java.util.concurrent.CompletableFuture<Void>();
