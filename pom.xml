@@ -930,6 +930,21 @@
                 <artifactId>grpc-testing</artifactId>
                 <version>${grpc.version}</version>
             </dependency>
+            <!-- Keep protobuf-java / protobuf-java-util aligned with the protoc
+                 compiler (${protobuf.version}); otherwise the generated sources
+                 target a newer API than the transitive runtime grpc-protobuf
+                 pulls in, and the build fails with "cannot find symbol
+                 com.google.protobuf.RuntimeVersion". -->
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${protobuf.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java-util</artifactId>
+                <version>${protobuf.version}</version>
+            </dependency>
             <!-- Jackson 3.x needs jackson-annotations >= 2.21 for JsonSerializeAs;
                  override Spring Boot BOMs which may pin an older version -->
             <dependency>
@@ -1043,7 +1058,7 @@
         <awaitility.version>4.2.2</awaitility.version>
         <netty.version>4.2.12.Final</netty.version>
         <grpc.version>1.80.0</grpc.version>
-        <protobuf.version>3.25.5</protobuf.version>
+        <protobuf.version>4.34.1</protobuf.version>
         <tomcat-annotations-api.version>6.0.53</tomcat-annotations-api.version>
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
         <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
