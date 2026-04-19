@@ -126,7 +126,7 @@ public final class McpProtocolHandler {
             case McpMethod.INITIALIZE -> handleInitialize(resource, idVal, node.get("params"));
             case McpMethod.PING -> JsonRpc.Response.success(idVal, Map.of());
             case McpMethod.TOOLS_LIST -> handleToolsList(idVal);
-            case McpMethod.TOOLS_CALL -> handleToolsCall(idVal, node.get("params"));
+            case McpMethod.TOOLS_CALL -> handleToolsCall(resource, idVal, node.get("params"));
             case McpMethod.RESOURCES_LIST -> handleResourcesList(idVal);
             case McpMethod.RESOURCES_READ -> handleResourcesRead(idVal, node.get("params"));
             case McpMethod.RESOURCES_SUBSCRIBE -> handleResourcesSubscribe(resource, idVal, node.get("params"));
@@ -214,7 +214,7 @@ public final class McpProtocolHandler {
         return JsonRpc.Response.success(id, Map.of("tools", toolList));
     }
 
-    private JsonRpc.Response handleToolsCall(Object id, JsonNode params) {
+    private JsonRpc.Response handleToolsCall(AtmosphereResource resource, Object id, JsonNode params) {
         if (params == null || !params.has("name")) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing tool name");
         }
@@ -228,13 +228,14 @@ public final class McpProtocolHandler {
         var tool = toolOpt.get();
         var arguments = params.has("arguments") ? params.get("arguments") : null;
         int argCount = arguments != null ? arguments.size() : 0;
+        var principalName = resolvePrincipal(resource);
 
         try {
             if (tracing != null) {
                 return tracing.traced("tool", toolName, argCount,
-                        () -> executeToolCall(id, tool, arguments));
+                        () -> executeToolCall(id, tool, arguments, principalName));
             }
-            return executeToolCall(id, tool, arguments);
+            return executeToolCall(id, tool, arguments, principalName);
         } catch (IllegalArgumentException e) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, e.getMessage());
         } catch (InvocationTargetException e) {
@@ -256,12 +257,24 @@ public final class McpProtocolHandler {
 
     private JsonRpc.Response executeToolCall(Object id,
                                               McpRegistry.ToolEntry tool,
-                                              JsonNode arguments) throws Exception {
+                                              JsonNode arguments,
+                                              String principalName) throws Exception {
         try {
             Object result;
             if (tool.isDynamic()) {
                 var argMap = bindArgumentsAsMap(tool.params(), arguments);
-                result = tool.handler().execute(argMap);
+                var handler = tool.handler();
+                // Handlers that implement IdentityAwareToolHandler receive the
+                // authenticated caller's principal; plain ToolHandler lambdas
+                // keep the single-arg shape. AdminMcpBridge uses the
+                // identity-aware form to gate writes through
+                // ControlAuthorizer.authorize with a real principal instead
+                // of null.
+                if (handler instanceof McpRegistry.IdentityAwareToolHandler aware) {
+                    result = aware.execute(argMap, principalName);
+                } else {
+                    result = handler.execute(argMap);
+                }
             } else {
                 var args = bindArguments(tool.method(), tool.params(), arguments);
                 result = tool.method().invoke(tool.instance(), args);
@@ -275,6 +288,31 @@ public final class McpProtocolHandler {
         } catch (InvocationTargetException e) {
             throw e;
         }
+    }
+
+    /**
+     * Resolve the authenticated caller for the current MCP tool
+     * invocation. Reads the servlet {@link java.security.Principal} first
+     * (Spring Security / Jakarta Security), then falls back to the
+     * {@code ai.userId} request attribute that the AI pipeline sets.
+     * Returns {@code null} for anonymous requests — downstream authorizer
+     * decides whether to admit them.
+     */
+    private static String resolvePrincipal(AtmosphereResource resource) {
+        if (resource == null || resource.getRequest() == null) {
+            return null;
+        }
+        var req = resource.getRequest();
+        var principal = req.getUserPrincipal();
+        if (principal != null && principal.getName() != null
+                && !principal.getName().isBlank()) {
+            return principal.getName();
+        }
+        var attr = req.getAttribute("ai.userId");
+        if (attr instanceof String s && !s.isBlank()) {
+            return s;
+        }
+        return null;
     }
 
     // ── Resources ────────────────────────────────────────────────────────

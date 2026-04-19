@@ -69,11 +69,35 @@ public class AtmosphereAdminAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public AtmosphereAdmin atmosphereAdmin(AtmosphereFramework framework) {
+    public AtmosphereAdmin atmosphereAdmin(
+            AtmosphereFramework framework,
+            org.springframework.beans.factory.ObjectProvider<ControlAuthorizer> authorizerProvider,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.admin.require-principal:true}") boolean requirePrincipalDefault) {
         // Micrometer wiring is in MicrometerAdminConfiguration (below) —
         // keeping it in a separate @ConditionalOnClass class avoids
         // TypeNotPresentException when Micrometer is not on the classpath.
-        return new AtmosphereAdmin(framework, 1000);
+        var admin = new AtmosphereAdmin(framework, 1000);
+        // Install the authorizer in priority order:
+        //   1. user-supplied @Bean ControlAuthorizer (wins always)
+        //   2. REQUIRE_PRINCIPAL when atmosphere.admin.require-principal=true (default)
+        //   3. DENY_ALL fallback — fail-closed per Correctness Invariant #6
+        var custom = authorizerProvider.getIfAvailable();
+        if (custom != null) {
+            admin.setAuthorizer(custom);
+            logger.info("Atmosphere Admin authorizer: {} (custom @Bean)",
+                    custom.getClass().getName());
+        } else if (requirePrincipalDefault) {
+            admin.setAuthorizer(ControlAuthorizer.REQUIRE_PRINCIPAL);
+            logger.info("Atmosphere Admin authorizer: REQUIRE_PRINCIPAL (default). "
+                    + "Supply a @Bean ControlAuthorizer for fine-grained role/scope checks.");
+        } else {
+            admin.setAuthorizer(ControlAuthorizer.DENY_ALL);
+            logger.warn("Atmosphere Admin authorizer: DENY_ALL — all mutating admin "
+                    + "actions will be rejected. Set atmosphere.admin.require-principal=true "
+                    + "or supply a @Bean ControlAuthorizer to enable mutations.");
+        }
+        return admin;
     }
 
     /** Wires Micrometer metrics into admin — only loaded when Micrometer is on the classpath. */

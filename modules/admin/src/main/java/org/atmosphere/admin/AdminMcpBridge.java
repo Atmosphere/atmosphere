@@ -99,54 +99,66 @@ public final class AdminMcpBridge {
      * Register write MCP tools (destructive operations, gated by authorizer).
      */
     public void registerWriteTools() {
+        // Each write tool reads the authenticated MCP caller's principal from
+        // the identity-aware 2-arg ToolHandler contract — passing it straight
+        // through to ControlAuthorizer.authorize so the default
+        // REQUIRE_PRINCIPAL gate actually fires. The earlier null-principal
+        // form either permanently denied every call (under REQUIRE_PRINCIPAL)
+        // or opened every call (under ALLOW_ALL) depending on wiring.
         registry.registerTool("atmosphere_broadcast",
                 "Broadcast a message to all subscribers of a specific broadcaster",
                 List.of(
                         new ParamEntry("broadcasterId", "Target broadcaster ID", true, String.class),
                         new ParamEntry("message", "Message to broadcast", true, String.class)),
-                args -> {
+                (McpRegistry.IdentityAwareToolHandler) (args, principal) -> {
                     var id = (String) args.get("broadcasterId");
                     var msg = (String) args.get("message");
-                    if (!authorizer.authorize("broadcast", id, null)) {
+                    if (!authorizer.authorize("broadcast", id, principal)) {
+                        admin.auditLog().record(principal, "broadcast.denied", id, false, null);
                         return Map.of("error", "unauthorized");
                     }
                     var success = admin.framework().broadcast(id, msg);
-                    admin.auditLog().record("mcp", "broadcast", id, success, msg);
+                    admin.auditLog().record(principal, "broadcast", id, success, msg);
                     return Map.of("success", success);
                 });
 
         registry.registerTool("atmosphere_disconnect_resource",
                 "Disconnect a specific client by resource UUID",
                 List.of(new ParamEntry("uuid", "Resource UUID to disconnect", true, String.class)),
-                args -> {
+                (McpRegistry.IdentityAwareToolHandler) (args, principal) -> {
                     var uuid = (String) args.get("uuid");
-                    if (!authorizer.authorize("disconnect", uuid, null)) {
+                    if (!authorizer.authorize("disconnect", uuid, principal)) {
+                        admin.auditLog().record(principal, "disconnect.denied", uuid, false, null);
                         return Map.of("error", "unauthorized");
                     }
                     var success = admin.framework().disconnectResource(uuid);
-                    admin.auditLog().record("mcp", "disconnect", uuid, success, null);
+                    admin.auditLog().record(principal, "disconnect", uuid, success, null);
                     return Map.of("success", success);
                 });
 
         registry.registerTool("atmosphere_destroy_broadcaster",
                 "Destroy a broadcaster and disconnect all its subscribers",
                 List.of(new ParamEntry("broadcasterId", "Broadcaster ID to destroy", true, String.class)),
-                args -> {
+                (McpRegistry.IdentityAwareToolHandler) (args, principal) -> {
                     var id = (String) args.get("broadcasterId");
-                    if (!authorizer.authorize("destroy_broadcaster", id, null)) {
+                    if (!authorizer.authorize("destroy_broadcaster", id, principal)) {
+                        admin.auditLog().record(principal, "destroy_broadcaster.denied",
+                                id, false, null);
                         return Map.of("error", "unauthorized");
                     }
                     var success = admin.framework().destroyBroadcaster(id);
-                    admin.auditLog().record("mcp", "destroy_broadcaster", id, success, null);
+                    admin.auditLog().record(principal, "destroy_broadcaster", id, success, null);
                     return Map.of("success", success);
                 });
 
         registry.registerTool("atmosphere_cancel_task",
                 "Cancel an in-flight A2A task",
                 List.of(new ParamEntry("taskId", "Task ID to cancel", true, String.class)),
-                args -> {
+                (McpRegistry.IdentityAwareToolHandler) (args, principal) -> {
                     var taskId = (String) args.get("taskId");
-                    if (!authorizer.authorize("cancel_task", taskId, null)) {
+                    if (!authorizer.authorize("cancel_task", taskId, principal)) {
+                        admin.auditLog().record(principal, "cancel_task.denied",
+                                taskId, false, null);
                         return Map.of("error", "unauthorized");
                     }
                     var controller = admin.<org.atmosphere.admin.a2a.TaskController>taskController();
@@ -154,7 +166,7 @@ public final class AdminMcpBridge {
                         return Map.of("error", "A2A module not available");
                     }
                     var success = controller.cancelTask(taskId);
-                    admin.auditLog().record("mcp", "cancel_task", taskId, success, null);
+                    admin.auditLog().record(principal, "cancel_task", taskId, success, null);
                     return Map.of("success", success);
                 });
 

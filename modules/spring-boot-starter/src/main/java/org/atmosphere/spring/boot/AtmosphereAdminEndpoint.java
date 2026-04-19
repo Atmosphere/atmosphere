@@ -34,6 +34,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -61,11 +63,50 @@ public class AtmosphereAdminEndpoint {
         this.writeEnabled = writeEnabled;
     }
 
-    private ResponseEntity<Map<String, Object>> guardWrite() {
+    /**
+     * Authorization gate for every mutating admin REST endpoint. Three
+     * layers, evaluated in order:
+     * <ol>
+     *   <li><strong>Feature flag</strong> —
+     *       {@code atmosphere.admin.http-write-enabled} must be {@code true}.
+     *       Returns {@code 403} when disabled.</li>
+     *   <li><strong>Authenticated principal</strong> — the servlet
+     *       {@code HttpServletRequest.getUserPrincipal()} must be non-null
+     *       and non-blank. Returns {@code 401} when anonymous.</li>
+     *   <li><strong>{@link org.atmosphere.admin.ControlAuthorizer}</strong>
+     *       installed on {@link AtmosphereAdmin} — an operator may plug in a
+     *       role/scope/tenant check. Returns {@code 403} on deny.</li>
+     * </ol>
+     *
+     * <p>Every decision (allowed or denied) is recorded in the control audit
+     * log so operators see the complete picture.</p>
+     *
+     * <p>Default deny per Correctness Invariant #6. The earlier
+     * feature-flag-only gate let any anonymous caller mutate state once the
+     * flag was flipped for machine access — the principal check closes that
+     * hole.</p>
+     */
+    private ResponseEntity<Map<String, Object>> guardWrite(
+            HttpServletRequest request, String action, String target) {
         if (!writeEnabled) {
+            admin.auditLog().record(null, action + ".denied.flag", target, false,
+                    "atmosphere.admin.http-write-enabled=false");
             return ResponseEntity.status(403).body(Map.of(
                     "error", "Admin write operations disabled",
                     "hint", "Set atmosphere.admin.http-write-enabled=true to enable"));
+        }
+        var principal = request != null ? request.getUserPrincipal() : null;
+        var principalName = principal != null ? principal.getName() : null;
+        if (principalName == null || principalName.isBlank()) {
+            admin.auditLog().record(null, action + ".denied.anonymous", target, false, null);
+            return ResponseEntity.status(401).body(Map.of(
+                    "error", "Authentication required for admin write operations"));
+        }
+        var authorizer = admin.authorizer();
+        if (!authorizer.authorize(action, target, principalName)) {
+            admin.auditLog().record(principalName, action + ".denied.authz", target, false, null);
+            return ResponseEntity.status(403).body(Map.of(
+                    "error", "Forbidden"));
         }
         return null;
     }
@@ -110,16 +151,19 @@ public class AtmosphereAdminEndpoint {
 
     @PostMapping("/broadcasters/broadcast")
     public ResponseEntity<Map<String, Object>> broadcast(
+            HttpServletRequest request,
             @RequestBody Map<String, String> body) {
-        var denied = guardWrite(); if (denied != null) return denied;
         var id = body.get("broadcasterId");
         var message = body.get("message");
+        var denied = guardWrite(request, "broadcast", id);
+        if (denied != null) return denied;
         if (id == null || message == null) {
             return ResponseEntity.badRequest().body(
                     Map.of("error", "missing 'broadcasterId' or 'message' field"));
         }
+        var principalName = request.getUserPrincipal().getName();
         var success = admin.framework().broadcast(id, message);
-        admin.auditLog().record(null, "broadcast", id, success, message);
+        admin.auditLog().record(principalName, "broadcast", id, success, message);
         if (success) {
             return ResponseEntity.ok(Map.of("status", "broadcast sent"));
         }
@@ -128,17 +172,21 @@ public class AtmosphereAdminEndpoint {
 
     @PostMapping("/broadcasters/unicast")
     public ResponseEntity<Map<String, Object>> unicast(
+            HttpServletRequest request,
             @RequestBody Map<String, String> body) {
-        var denied = guardWrite(); if (denied != null) return denied;
         var id = body.get("broadcasterId");
         var uuid = body.get("uuid");
         var message = body.get("message");
+        var target = id != null && uuid != null ? id + "/" + uuid : id;
+        var denied = guardWrite(request, "unicast", target);
+        if (denied != null) return denied;
         if (id == null || uuid == null || message == null) {
             return ResponseEntity.badRequest().body(
                     Map.of("error", "missing 'broadcasterId', 'uuid', or 'message' field"));
         }
+        var principalName = request.getUserPrincipal().getName();
         var success = admin.framework().unicast(id, uuid, message);
-        admin.auditLog().record(null, "unicast", id + "/" + uuid, success, message);
+        admin.auditLog().record(principalName, "unicast", target, success, message);
         if (success) {
             return ResponseEntity.ok(Map.of("status", "unicast sent"));
         }
@@ -147,10 +195,13 @@ public class AtmosphereAdminEndpoint {
 
     @DeleteMapping("/broadcasters/destroy")
     public ResponseEntity<Map<String, Object>> destroyBroadcaster(
+            HttpServletRequest request,
             @RequestParam("id") String id) {
-        var denied = guardWrite(); if (denied != null) return denied;
+        var denied = guardWrite(request, "destroy_broadcaster", id);
+        if (denied != null) return denied;
+        var principalName = request.getUserPrincipal().getName();
         var success = admin.framework().destroyBroadcaster(id);
-        admin.auditLog().record(null, "destroy_broadcaster", id, success, null);
+        admin.auditLog().record(principalName, "destroy_broadcaster", id, success, null);
         if (success) {
             return ResponseEntity.ok(Map.of("status", "broadcaster destroyed"));
         }
@@ -158,10 +209,14 @@ public class AtmosphereAdminEndpoint {
     }
 
     @DeleteMapping("/resources/{uuid}")
-    public ResponseEntity<Map<String, Object>> disconnectResource(@PathVariable("uuid") String uuid) {
-        var denied = guardWrite(); if (denied != null) return denied;
+    public ResponseEntity<Map<String, Object>> disconnectResource(
+            HttpServletRequest request,
+            @PathVariable("uuid") String uuid) {
+        var denied = guardWrite(request, "disconnect", uuid);
+        if (denied != null) return denied;
+        var principalName = request.getUserPrincipal().getName();
         var success = admin.framework().disconnectResource(uuid);
-        admin.auditLog().record(null, "disconnect", uuid, success, null);
+        admin.auditLog().record(principalName, "disconnect", uuid, success, null);
         if (success) {
             return ResponseEntity.ok(Map.of("status", "resource disconnected"));
         }
@@ -169,10 +224,14 @@ public class AtmosphereAdminEndpoint {
     }
 
     @PostMapping("/resources/{uuid}/resume")
-    public ResponseEntity<Map<String, Object>> resumeResource(@PathVariable("uuid") String uuid) {
-        var denied = guardWrite(); if (denied != null) return denied;
+    public ResponseEntity<Map<String, Object>> resumeResource(
+            HttpServletRequest request,
+            @PathVariable("uuid") String uuid) {
+        var denied = guardWrite(request, "resume", uuid);
+        if (denied != null) return denied;
+        var principalName = request.getUserPrincipal().getName();
         var success = admin.framework().resumeResource(uuid);
-        admin.auditLog().record(null, "resume", uuid, success, null);
+        admin.auditLog().record(principalName, "resume", uuid, success, null);
         if (success) {
             return ResponseEntity.ok(Map.of("status", "resource resumed"));
         }
@@ -182,14 +241,18 @@ public class AtmosphereAdminEndpoint {
     // ── A2A Task Write Operations ──
 
     @PostMapping("/tasks/{taskId}/cancel")
-    public ResponseEntity<Map<String, Object>> cancelTask(@PathVariable("taskId") String taskId) {
-        var denied = guardWrite(); if (denied != null) return denied;
+    public ResponseEntity<Map<String, Object>> cancelTask(
+            HttpServletRequest request,
+            @PathVariable("taskId") String taskId) {
+        var denied = guardWrite(request, "cancel_task", taskId);
+        if (denied != null) return denied;
         TaskController controller = admin.taskController();
         if (controller == null) {
             return ResponseEntity.notFound().build();
         }
+        var principalName = request.getUserPrincipal().getName();
         var success = controller.cancelTask(taskId);
-        admin.auditLog().record(null, "cancel_task", taskId, success, null);
+        admin.auditLog().record(principalName, "cancel_task", taskId, success, null);
         if (success) {
             return ResponseEntity.ok(Map.of("status", "task canceled"));
         }

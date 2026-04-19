@@ -44,6 +44,15 @@ public final class AtmosphereAdmin {
     private final AgentController agentController;
     private final AtmosphereHealth health;
     private final ControlAuditLog auditLog;
+    /**
+     * Authorizer gating every mutating admin action (HTTP write endpoints,
+     * MCP write tools, SSE control channel). Defaults to
+     * {@link ControlAuthorizer#DENY_ALL} — fail-closed per Correctness
+     * Invariant #6. Production deployments install either
+     * {@link ControlAuthorizer#REQUIRE_PRINCIPAL} or a custom authorizer
+     * wired against the app's auth stack.
+     */
+    private volatile ControlAuthorizer authorizer = ControlAuthorizer.DENY_ALL;
 
     // Optional controllers — null when modules are not on classpath
     private Object coordinatorController;
@@ -188,5 +197,19 @@ public final class AtmosphereAdmin {
 
     public FlowController flowController() {
         return flowController;
+    }
+
+    /**
+     * Install the admin control-plane authorizer. Every HTTP write endpoint,
+     * MCP write tool, and SSE control-channel mutation consults this gate;
+     * the default is {@link ControlAuthorizer#DENY_ALL} so unwired
+     * deployments cannot mutate state until an operator opts in.
+     */
+    public void setAuthorizer(ControlAuthorizer authorizer) {
+        this.authorizer = authorizer != null ? authorizer : ControlAuthorizer.DENY_ALL;
+    }
+
+    public ControlAuthorizer authorizer() {
+        return authorizer;
     }
 }

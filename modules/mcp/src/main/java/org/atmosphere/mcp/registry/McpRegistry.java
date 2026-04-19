@@ -44,10 +44,35 @@ public final class McpRegistry {
     /**
      * Functional interface for dynamically registered tools.
      * Receives a map of argument name → value, returns the tool result.
+     *
+     * <p>Handlers that need the authenticated caller's identity — to gate
+     * writes, scope tenant lookups, etc. — implement the sibling
+     * {@link IdentityAwareToolHandler}. The registry invokes whichever
+     * SAM the registered instance conforms to; existing single-arg
+     * lambdas keep compiling unchanged.</p>
      */
     @FunctionalInterface
     public interface ToolHandler {
         Object execute(Map<String, Object> arguments) throws Exception;
+    }
+
+    /**
+     * Identity-aware tool handler. {@code McpProtocolHandler} invokes this
+     * variant when the registered handler implements it, passing the
+     * servlet-resolved principal name ({@code null} for anonymous
+     * callers). Used by {@code AdminMcpBridge} so write tools can forward
+     * the caller identity to {@code ControlAuthorizer.authorize}.
+     */
+    @FunctionalInterface
+    public interface IdentityAwareToolHandler extends ToolHandler {
+        /** Execute with the caller's principal name ({@code null} when anonymous). */
+        Object execute(Map<String, Object> arguments, String principal) throws Exception;
+
+        /** Default delegates to the identity-aware form with principal=null. */
+        @Override
+        default Object execute(Map<String, Object> arguments) throws Exception {
+            return execute(arguments, null);
+        }
     }
 
     /**
