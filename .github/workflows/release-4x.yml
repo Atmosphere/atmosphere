@@ -521,7 +521,7 @@ jobs:
         ls -la "$GITHUB_WORKSPACE/atmosphere-${VERSION}.zip"
 
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         tag_name: atmosphere-${{ inputs.release_version }}
         name: Atmosphere ${{ inputs.release_version }}
