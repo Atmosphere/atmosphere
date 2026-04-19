@@ -247,11 +247,79 @@ var router = RoutingLlmClient.builder(defaultClient, "gemini-2.5-flash")
 
 Rules are evaluated in order; first match wins. If no model fits the constraint, the rule is skipped and the next rule is tried.
 
+## v0.8 primitives — observability, grounded facts, guardrails
+
+Three additional SPIs land in the `org.atmosphere.ai.business`,
+`org.atmosphere.ai.facts`, and `org.atmosphere.ai.guardrails` packages.
+Each one uses the same framework-scoped resolution pattern as
+`CoordinationJournal` / `AsyncSupport` / `BroadcasterFactory`: check the
+framework-property bridge first, then `ServiceLoader`, then a built-in
+default.
+
+### BusinessMetadata — business-outcome correlation
+
+```java
+session.stream(request.withMetadata(Map.of(
+    BusinessMetadata.CUSTOMER_ID, "cust-42",
+    BusinessMetadata.SESSION_REVENUE, 12.50,
+    BusinessMetadata.EVENT_KIND,
+        BusinessMetadata.EventKind.PURCHASE.wireName())));
+```
+
+Keys named `business.*` land on SLF4J MDC for every turn (applied on
+the virtual-thread dispatcher, cleared in `finally`). Observability
+backends (Dynatrace, Datadog, OTel log exporters) propagate MDC onto
+the active span so an agent call can be joined to its business outcome.
+
+### FactResolver — grounded-fact injection
+
+```java
+public final class UserProfileFactResolver implements FactResolver {
+    public FactBundle resolve(FactRequest req) {
+        return new FactBundle(Map.of(
+                FactKeys.USER_NAME, profileService.lookup(req.userId()).name(),
+                FactKeys.USER_LOCALE, profileService.lookup(req.userId()).locale()));
+    }
+}
+```
+
+`AiEndpointHandler` calls the resolver on every `@Prompt` turn and
+prepends the bundle to the system prompt via
+`FactBundle.asSystemPromptBlock()`. Newline / tab / control characters
+in values are escaped so fact values cannot reshape the instruction
+context.
+
+Resolution order inside the handler:
+1. Spring-bridged bean at `FactResolver.FACT_RESOLVER_PROPERTY`
+2. `ServiceLoader.load(FactResolver.class)` — plain servlet / Quarkus
+3. `DefaultFactResolver` — supplies `time.now` + `time.timezone` only
+
+### Guardrails — PII redaction + drift detection
+
+Two zero-dep implementations ship in-tree:
+
+- `PiiRedactionGuardrail` — regex-based redaction of email / phone /
+  credit card / US SSN / IPv4 in requests AND responses. Default mode
+  Blocks on a response hit (the SPI cannot rewrite an already-emitted
+  stream, so log-only was security theatre).
+- `OutputLengthZScoreGuardrail` — rolling-window z-score on response
+  length. Blocks outliers beyond N standard deviations. Catches
+  runaway prompts and injection payloads that balloon responses
+  without a specific signature.
+
+Both opt in via Spring property (`atmosphere.ai.guardrails.pii.enabled=true`
+/ `atmosphere.ai.guardrails.drift.enabled=true`) or ServiceLoader.
+`AiEndpointProcessor` merges annotation-declared, ServiceLoader, and
+framework-property guardrails so user-defined `@AiEndpoint` paths get
+the same wiring as the default endpoint.
+
 ## Samples
 
 - [Spring Boot AI Chat](../../samples/spring-boot-ai-chat/) -- works with all backends (swap one Maven dependency)
 - [Spring Boot AI Tools](../../samples/spring-boot-ai-tools/) -- framework-agnostic tool calling
 - [Dentist Agent](../../samples/spring-boot-dentist-agent/) -- full `@Agent` with commands, tools, and multi-channel
+- [Personal Assistant](../../samples/spring-boot-personal-assistant/) -- v0.5 foundation primitives (AgentState, AgentWorkspace, AgentIdentity, ToolExtensibilityPoint, AiGateway, ProtocolBridge) exercised end-to-end through `@Coordinator` + three `@Agent` crew members
+- [Coding Agent](../../samples/spring-boot-coding-agent/) -- Sandbox + AgentResumeHandle; clones a repo into Docker, reads files, proposes a patch
 
 ## AI-MCP Bridge
 
