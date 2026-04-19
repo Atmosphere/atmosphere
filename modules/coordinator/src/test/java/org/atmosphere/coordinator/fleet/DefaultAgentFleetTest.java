@@ -227,11 +227,13 @@ public class DefaultAgentFleetTest {
         );
         var elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
 
-        assertTrue(sleepStarted.await(5, TimeUnit.SECONDS),
+        assertTrue(sleepStarted.await(10, TimeUnit.SECONDS),
                 "slow agent must have actually started sleeping");
-        assertTrue(sleepDoneOrInterrupted.await(5, TimeUnit.SECONDS),
-                "slow agent must have observed cancellation within the 5s window — "
-                        + "before the fix it would run to completion at " + sleepDurationMs + "ms");
+        assertTrue(sleepDoneOrInterrupted.await(10, TimeUnit.SECONDS),
+                "slow agent must have observed cancellation within the 10s window — "
+                        + "before the fix it would run to completion at " + sleepDurationMs + "ms. "
+                        + "Cold CI runners saw 5s+ warmup on the VT scheduler, so the "
+                        + "window is generous relative to the 30s sleep that it guards.");
 
         assertTrue(elapsedMs < sleepDurationMs / 2,
                 "parallel() must return in well under the sleeper's "

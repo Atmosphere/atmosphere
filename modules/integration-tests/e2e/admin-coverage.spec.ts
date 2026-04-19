@@ -12,6 +12,11 @@ import { connectWebSocket, waitFor, retryAsync } from './helpers/transport-helpe
  */
 
 const AUTH_TOKEN = 'demo-token';
+// Header bundle every mutating REST request must carry. Admin writes now
+// enforce authentication — anonymous callers receive 401 before reaching
+// the ControlAuthorizer. Tests reuse the sample's demo token which the
+// AuthInterceptor resolves into a "demo-user" Principal.
+const AUTH = { 'X-Atmosphere-Auth': AUTH_TOKEN };
 
 let server: SampleServer;
 
@@ -126,7 +131,8 @@ test.describe('Admin REST — Resource Lifecycle', () => {
     expect(newResource.transport).toBeDefined();
 
     // Disconnect via admin API
-    const disconnectRes = await request.delete(`${server.baseUrl}/api/admin/resources/${uuid}`);
+    const disconnectRes = await request.delete(
+        `${server.baseUrl}/api/admin/resources/${uuid}`, { headers: AUTH });
     expect(disconnectRes.ok()).toBeTruthy();
     const body = await disconnectRes.json();
     expect(body.status).toBe('resource disconnected');
@@ -146,6 +152,7 @@ test.describe('Admin REST — Resource Lifecycle', () => {
   test('resume unknown resource returns 404', async ({ request }) => {
     const res = await request.post(
       `${server.baseUrl}/api/admin/resources/nonexistent-uuid/resume`,
+      { headers: AUTH },
     );
     expect(res.status()).toBe(404);
   });
@@ -180,6 +187,7 @@ test.describe('Admin REST — Unicast', () => {
 
     // Unicast a message
     const unicastRes = await request.post(`${server.baseUrl}/api/admin/broadcasters/unicast`, {
+      headers: AUTH,
       data: {
         broadcasterId: '/atmosphere/ai-chat',
         uuid: newResource.uuid,
@@ -211,6 +219,7 @@ test.describe('Admin REST — Unicast', () => {
 
   test('unicast to unknown resource returns 404', async ({ request }) => {
     const res = await request.post(`${server.baseUrl}/api/admin/broadcasters/unicast`, {
+      headers: AUTH,
       data: {
         broadcasterId: '/atmosphere/ai-chat',
         uuid: 'nonexistent-uuid',
@@ -226,6 +235,7 @@ test.describe('Admin REST — Unicast', () => {
 test.describe('Admin REST — Input Validation', () => {
   test('broadcast with missing broadcasterId returns 400', async ({ request }) => {
     const res = await request.post(`${server.baseUrl}/api/admin/broadcasters/broadcast`, {
+      headers: AUTH,
       data: { message: 'no broadcaster id' },
     });
     expect(res.status()).toBe(400);
@@ -235,6 +245,7 @@ test.describe('Admin REST — Input Validation', () => {
 
   test('broadcast with missing message returns 400', async ({ request }) => {
     const res = await request.post(`${server.baseUrl}/api/admin/broadcasters/broadcast`, {
+      headers: AUTH,
       data: { broadcasterId: '/atmosphere/ai-chat' },
     });
     expect(res.status()).toBe(400);
@@ -244,6 +255,7 @@ test.describe('Admin REST — Input Validation', () => {
 
   test('unicast with missing fields returns 400', async ({ request }) => {
     const res = await request.post(`${server.baseUrl}/api/admin/broadcasters/unicast`, {
+      headers: AUTH,
       data: { broadcasterId: '/atmosphere/ai-chat', message: 'no uuid' },
     });
     expect(res.status()).toBe(400);
@@ -259,6 +271,7 @@ test.describe('Admin REST — Audit Log Filtering', () => {
     // Perform multiple broadcasts to accumulate audit entries
     for (let i = 0; i < 3; i++) {
       await request.post(`${server.baseUrl}/api/admin/broadcasters/broadcast`, {
+        headers: AUTH,
         data: {
           broadcasterId: '/atmosphere/ai-chat',
           message: `audit-limit-test-${i}`,
@@ -302,6 +315,7 @@ test.describe('Admin REST — Broadcaster Destroy', () => {
   test('destroy broadcaster removes it from listing', async ({ request }) => {
     // First, trigger a broadcast to ensure the target broadcaster exists
     await request.post(`${server.baseUrl}/api/admin/broadcasters/broadcast`, {
+      headers: AUTH,
       data: {
         broadcasterId: '/atmosphere/ai-chat',
         message: 'pre-destroy check',
@@ -317,6 +331,7 @@ test.describe('Admin REST — Broadcaster Destroy', () => {
     // Destroy it
     const destroyRes = await request.delete(
       `${server.baseUrl}/api/admin/broadcasters/destroy?id=${encodeURIComponent('/atmosphere/ai-chat')}`,
+      { headers: AUTH },
     );
     expect(destroyRes.ok()).toBeTruthy();
     const body = await destroyRes.json();
@@ -344,6 +359,7 @@ test.describe('Admin REST — Broadcaster Destroy', () => {
   test('destroy unknown broadcaster returns 404', async ({ request }) => {
     const res = await request.delete(
       `${server.baseUrl}/api/admin/broadcasters/destroy?id=/nonexistent/broadcaster`,
+      { headers: AUTH },
     );
     expect(res.status()).toBe(404);
   });

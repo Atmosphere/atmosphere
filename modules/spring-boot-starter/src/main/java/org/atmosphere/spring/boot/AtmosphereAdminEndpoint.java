@@ -95,9 +95,27 @@ public class AtmosphereAdminEndpoint {
                     "error", "Admin write operations disabled",
                     "hint", "Set atmosphere.admin.http-write-enabled=true to enable"));
         }
-        var principal = request != null ? request.getUserPrincipal() : null;
-        var principalName = principal != null ? principal.getName() : null;
-        if (principalName == null || principalName.isBlank()) {
+        // Principal resolution order mirrors AiEndpointHandler:
+        //   1. servlet getUserPrincipal() (Spring Security, Jakarta Security)
+        //   2. Atmosphere's own AuthInterceptor attribute (token-validated Principal)
+        //   3. ai.userId request attribute (framework-set fallback)
+        String principalName = null;
+        if (request != null) {
+            var principal = request.getUserPrincipal();
+            if (principal != null && principal.getName() != null
+                    && !principal.getName().isBlank()) {
+                principalName = principal.getName();
+            } else if (request.getAttribute("org.atmosphere.auth.principal")
+                    instanceof java.security.Principal attrPrincipal
+                    && attrPrincipal.getName() != null
+                    && !attrPrincipal.getName().isBlank()) {
+                principalName = attrPrincipal.getName();
+            } else if (request.getAttribute("ai.userId") instanceof String s
+                    && !s.isBlank()) {
+                principalName = s;
+            }
+        }
+        if (principalName == null) {
             admin.auditLog().record(null, action + ".denied.anonymous", target, false, null);
             return ResponseEntity.status(401).body(Map.of(
                     "error", "Authentication required for admin write operations"));
@@ -109,6 +127,28 @@ public class AtmosphereAdminEndpoint {
                     "error", "Forbidden"));
         }
         return null;
+    }
+
+    /**
+     * Resolve the authenticated caller's name using the same order as
+     * {@code guardWrite}. Must only be called on a request that already
+     * passed guardWrite — so principalName is guaranteed non-null.
+     */
+    private static String resolvePrincipalName(HttpServletRequest request) {
+        var principal = request.getUserPrincipal();
+        if (principal != null && principal.getName() != null
+                && !principal.getName().isBlank()) {
+            return principal.getName();
+        }
+        if (request.getAttribute("org.atmosphere.auth.principal")
+                instanceof java.security.Principal attrPrincipal
+                && attrPrincipal.getName() != null) {
+            return attrPrincipal.getName();
+        }
+        if (request.getAttribute("ai.userId") instanceof String s) {
+            return s;
+        }
+        return "unknown";
     }
 
     // ── System Overview ──
@@ -161,7 +201,7 @@ public class AtmosphereAdminEndpoint {
             return ResponseEntity.badRequest().body(
                     Map.of("error", "missing 'broadcasterId' or 'message' field"));
         }
-        var principalName = request.getUserPrincipal().getName();
+        var principalName = resolvePrincipalName(request);
         var success = admin.framework().broadcast(id, message);
         admin.auditLog().record(principalName, "broadcast", id, success, message);
         if (success) {
@@ -184,7 +224,7 @@ public class AtmosphereAdminEndpoint {
             return ResponseEntity.badRequest().body(
                     Map.of("error", "missing 'broadcasterId', 'uuid', or 'message' field"));
         }
-        var principalName = request.getUserPrincipal().getName();
+        var principalName = resolvePrincipalName(request);
         var success = admin.framework().unicast(id, uuid, message);
         admin.auditLog().record(principalName, "unicast", target, success, message);
         if (success) {
@@ -199,7 +239,7 @@ public class AtmosphereAdminEndpoint {
             @RequestParam("id") String id) {
         var denied = guardWrite(request, "destroy_broadcaster", id);
         if (denied != null) return denied;
-        var principalName = request.getUserPrincipal().getName();
+        var principalName = resolvePrincipalName(request);
         var success = admin.framework().destroyBroadcaster(id);
         admin.auditLog().record(principalName, "destroy_broadcaster", id, success, null);
         if (success) {
@@ -214,7 +254,7 @@ public class AtmosphereAdminEndpoint {
             @PathVariable("uuid") String uuid) {
         var denied = guardWrite(request, "disconnect", uuid);
         if (denied != null) return denied;
-        var principalName = request.getUserPrincipal().getName();
+        var principalName = resolvePrincipalName(request);
         var success = admin.framework().disconnectResource(uuid);
         admin.auditLog().record(principalName, "disconnect", uuid, success, null);
         if (success) {
@@ -229,7 +269,7 @@ public class AtmosphereAdminEndpoint {
             @PathVariable("uuid") String uuid) {
         var denied = guardWrite(request, "resume", uuid);
         if (denied != null) return denied;
-        var principalName = request.getUserPrincipal().getName();
+        var principalName = resolvePrincipalName(request);
         var success = admin.framework().resumeResource(uuid);
         admin.auditLog().record(principalName, "resume", uuid, success, null);
         if (success) {
@@ -250,7 +290,7 @@ public class AtmosphereAdminEndpoint {
         if (controller == null) {
             return ResponseEntity.notFound().build();
         }
-        var principalName = request.getUserPrincipal().getName();
+        var principalName = resolvePrincipalName(request);
         var success = controller.cancelTask(taskId);
         admin.auditLog().record(principalName, "cancel_task", taskId, success, null);
         if (success) {
