@@ -65,7 +65,11 @@ public class SyntheticRunController {
                 new ExecutionHandle.Settable(() -> { }));
 
         for (var payload : SYNTHETIC_EVENTS) {
-            handle.replayBuffer().capture("text", payload);
+            // Use the wire-protocol type name so the replay path emits a
+            // valid AiStreamMessage JSON frame without translation —
+            // matches RunEventCapturingSession's capture shape in
+            // production.
+            handle.replayBuffer().capture("streaming-text", payload);
         }
         handle.replayBuffer().capture("complete", "synthetic");
 
@@ -76,5 +80,30 @@ public class SyntheticRunController {
                 "runId", handle.runId(),
                 "events", SYNTHETIC_EVENTS,
                 "total", SYNTHETIC_EVENTS.size() + 1);
+    }
+
+    /**
+     * Companion route for terminal-error replay. The Playwright spec
+     * drives this to prove the capturing session surfaces an
+     * {@code error} envelope on reconnect — without it a client that
+     * reconnects after the @Prompt method threw / timed out sees
+     * partial text and hangs forever waiting for a terminator.
+     */
+    @PostMapping("/synthetic-error-run")
+    public Map<String, Object> registerSyntheticErrorRun() {
+        var handle = RunRegistryHolder.get().register(
+                "/atmosphere/agent/harness",
+                "harness-user",
+                "harness-resource",
+                new ExecutionHandle.Settable(() -> { }));
+
+        handle.replayBuffer().capture("streaming-text", "partial before failure");
+        handle.replayBuffer().capture("error",
+                "Prompt processing timed out after 30000ms");
+
+        logger.info("Synthetic error run registered: runId={}", handle.runId());
+        return Map.of(
+                "runId", handle.runId(),
+                "total", 2);
     }
 }

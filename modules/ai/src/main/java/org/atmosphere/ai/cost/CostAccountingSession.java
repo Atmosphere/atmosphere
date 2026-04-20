@@ -47,10 +47,29 @@ public final class CostAccountingSession implements StreamingSession {
 
     private final StreamingSession delegate;
     private final CostAccountant accountant;
+    /**
+     * Tenant id snapshotted on the dispatch thread. Must be captured at
+     * construction time because {@code usage(TokenUsage)} fires from
+     * downstream runtime threads (Spring AI reactor, ADK async
+     * callbacks, LC4j streaming handler) where SLF4J MDC is not
+     * propagated. Reading MDC inside {@code usage(...)} would silently
+     * collapse every tenant into the {@code __default__} bucket,
+     * destroying enforcement. Snapshot once, read forever.
+     */
+    private final String tenantSnapshot;
 
     public CostAccountingSession(StreamingSession delegate, CostAccountant accountant) {
         this.delegate = delegate;
         this.accountant = accountant;
+        this.tenantSnapshot = org.slf4j.MDC.get(TENANT_MDC_KEY);
+    }
+
+    /**
+     * Package-private test hook so regressions can pin the captured tenant
+     * without a mock MDC harness.
+     */
+    String tenantSnapshot() {
+        return tenantSnapshot;
     }
 
     @Override
@@ -73,11 +92,14 @@ public final class CostAccountingSession implements StreamingSession {
     @Override
     public void usage(TokenUsage usage) {
         if (usage != null && usage.hasCounts()) {
-            // Pull the tenant tag FIRST so the accountant sees the turn's
-            // MDC context rather than whatever thread picks up the delegate
-            // call — AiStreamingSession dispatch runs on the servlet thread,
-            // which is where AiEndpointHandler publishes business.tenant.id.
-            var tenant = org.slf4j.MDC.get(TENANT_MDC_KEY);
+            // Use the tenant captured at construction time — the MDC
+            // context that existed on the dispatch thread. Reactor /
+            // async callbacks don't propagate MDC by default, so reading
+            // here would see null for every Spring AI / ADK / LC4j turn
+            // and collapse tenants into __default__. The construction-
+            // time snapshot is the one source of truth this wrapper
+            // relies on.
+            var tenant = tenantSnapshot;
             try {
                 accountant.record(tenant, usage, usage.model());
             } catch (RuntimeException e) {

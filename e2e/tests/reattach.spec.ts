@@ -72,14 +72,56 @@ test.describe('Mid-stream reattach via X-Atmosphere-Run-Id', () => {
         runId,
         8_000);
 
-    // Step 3 — every captured event must surface on the reconnecting
-    // resource. The assertion is exact: if any event is missing the
-    // replay wire is broken.
-    for (const ev of ['replay-event-0', 'replay-event-1', 'replay-event-2']) {
-      expect(body,
-          `replay payload missing '${ev}' — body: ${body.slice(0, 400)}`)
-          .toContain(ev);
+    // Step 3 — every captured event must surface as a proper
+    // AiStreamMessage JSON frame on the reconnecting resource. The
+    // substring presence check alone was too weak — it passes even if
+    // the replay path drops the JSON envelope, which breaks the
+    // frontend parser. Assert the schema explicitly.
+    const frames = parseJsonFrames(body);
+    expect(frames.length,
+        `expected >=4 replay frames (3 text + 1 complete), got ${frames.length}: ${body.slice(0, 400)}`)
+        .toBeGreaterThanOrEqual(4);
+
+    const textFrames = frames.filter((f) => f.type === 'streaming-text');
+    expect(textFrames.length, 'three streaming-text frames must replay').toBe(3);
+    expect(textFrames.map((f) => f.data))
+        .toEqual(['replay-event-0', 'replay-event-1', 'replay-event-2']);
+
+    const completeFrame = frames.find((f) => f.type === 'complete');
+    expect(completeFrame, 'terminal complete envelope must replay').toBeDefined();
+    expect(completeFrame?.data).toBe('synthetic');
+
+    for (const f of frames.slice(0, 4)) {
+      expect(f.sessionId, 'every replay frame must carry sessionId for client correlation')
+          .toBe(runId);
     }
+  });
+
+  test('synthetic error run — reconnect replays text + error envelope',
+      async ({ request, baseURL }) => {
+    // Terminal-error replay is the other half of the contract: a
+    // turn that threw or timed out on the server must surface an
+    // error envelope to the reconnecting client so the UI stops
+    // spinning. Prior to the P1 fix that wired
+    // AiEndpointHandler's catch / timeout paths through the
+    // capturing session, this would have surfaced partial text with
+    // no terminator.
+    const runRes = await request.post('/harness/synthetic-error-run');
+    expect(runRes.ok()).toBeTruthy();
+    const { runId } = await runRes.json();
+    expect(runId).toBeTruthy();
+
+    const body = await fetchWithAbort(
+        `${baseURL}/atmosphere/agent/harness/?X-Atmosphere-Transport=long-polling`,
+        runId, 5_000);
+
+    const frames = parseJsonFrames(body);
+    const textFrame = frames.find((f) => f.type === 'streaming-text');
+    const errorFrame = frames.find((f) => f.type === 'error');
+    expect(textFrame, 'partial text before failure must replay').toBeDefined();
+    expect(textFrame?.data).toBe('partial before failure');
+    expect(errorFrame, 'terminal error envelope must replay so client stops spinning').toBeDefined();
+    expect(errorFrame?.data).toContain('timed out');
   });
 
   test('unknown run id — connection still succeeds, zero replay events',
@@ -97,6 +139,33 @@ test.describe('Mid-stream reattach via X-Atmosphere-Run-Id', () => {
         + 'expired; treat as a fresh session').not.toContain('replay-event');
   });
 });
+
+/**
+ * Parse the response body into individual AiStreamMessage frames.
+ * Atmosphere's long-polling response mixes ~2KB of padding (spaces /
+ * middle-dots used as the browser-flush primer) followed by
+ * newline-delimited JSON lines. Strip the padding and split on newlines,
+ * keeping only lines that parse as a JSON object with a `type` field —
+ * ignore any raw residue the transport may have added.
+ */
+function parseJsonFrames(body: string): Array<{ type: string; data?: string; sessionId?: string; seq?: number }> {
+  const out: Array<{ type: string; data?: string; sessionId?: string; seq?: number }> = [];
+  for (const line of body.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed?.type === 'string') {
+        out.push(parsed);
+      }
+    } catch {
+      // Ignore non-JSON lines — padding / keepalive.
+    }
+  }
+  return out;
+}
 
 /**
  * Long-polling intentionally keeps the connection open after the first

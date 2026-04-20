@@ -80,7 +80,11 @@ public final class RunEventCapturingSession implements StreamingSession {
     @Override
     public void send(String text) {
         if (text != null && !text.isEmpty()) {
-            buffer.capture("text", text);
+            // Capture under the wire-protocol type name so the replay
+            // path can emit a valid AiStreamMessage JSON frame without
+            // a type-name translation step — "text" would not parse as
+            // a streaming-text event on the client.
+            buffer.capture("streaming-text", text);
         }
         delegate.send(text);
     }

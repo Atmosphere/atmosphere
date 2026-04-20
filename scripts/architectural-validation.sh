@@ -184,9 +184,18 @@ else
     pass_validation "No dead AI interfaces"
 fi
 
-# 1c. META-INF/services files that are empty
+# 1c. META-INF/services files that are empty (third-party extension points
+#     without an in-tree provider can opt into an allowlist in
+#     validation-patterns.toml [empty_services].allowed).
 EMPTY_SPI=""
+# Read the allowlist into a grep-friendly pattern — each line quoted in TOML.
+EMPTY_ALLOWLIST=$(sed -n '/^\[empty_services\]/,/^\[/p' "$TOML_FILE" 2>/dev/null \
+    | grep -oE '"[^"]+"' | tr -d '"' || true)
 while IFS= read -r spi_file; do
+    # Skip allowlisted paths.
+    if [ -n "$EMPTY_ALLOWLIST" ] && echo "$EMPTY_ALLOWLIST" | grep -qF "$spi_file"; then
+        continue
+    fi
     content_lines=$(grep -v '^\s*#' "$spi_file" 2>/dev/null | grep -v '^\s*$' | wc -l | tr -d ' ')
     if [ "$content_lines" -eq 0 ]; then
         spi_iface=$(basename "$spi_file")

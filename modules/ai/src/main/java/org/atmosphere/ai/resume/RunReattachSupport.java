@@ -87,41 +87,34 @@ public final class RunReattachSupport {
                     runId, resource.uuid());
             return 0;
         }
-        // Long-polling + the default {@code resumeOnBroadcast=true} mean
-        // the first {@code resource.write} flushes the response AND
-        // resumes the suspended request — every event after the first
-        // then lands on an already-closed resource and never reaches the
-        // client. Concatenate the buffered events into a single
-        // newline-delimited payload so the transport flushes once with
-        // every event, preserving per-event boundaries for the client
-        // to re-parse. The original per-event order is kept; the single
-        // write retains the resume-on-broadcast contract callers expect.
-        // Event boundary marker. `\u001e` (INFORMATION SEPARATOR TWO)
-        // is the ASCII "record separator" the HTTP streaming community
-        // adopts for event-separated text payloads; it is invisible in
-        // typical text renderings yet explicit for the client to split
-        // on. Chose over `\n` because broadcasters and servlet writers
-        // may line-buffer or treat newline as a message terminator on
-        // some transports.
-        var joined = new StringBuilder();
-        for (int i = 0; i < replayed.size(); i++) {
-            if (i > 0) {
-                joined.append('\u001e');
-            }
-            joined.append(replayed.get(i).payload());
-        }
-        // Write directly through the response's servlet output so the
-        // payload reaches the reconnecting client without going through
-        // the endpoint's broadcaster. The broadcaster would route this
-        // back into the @Prompt dispatcher — the same broadcaster that
-        // feeds the endpoint's own @Prompt — and trip the handler as
-        // if a new user message arrived. Directly writing + flushing
-        // keeps the replay scoped to this single reconnecting resource.
+        // Emit each buffered event as a proper AiStreamMessage JSON
+        // frame — the same wire shape DefaultStreamingSession.send and
+        // .complete produce on the live path. The frontend parser
+        // treats this endpoint as a stream of newline-delimited JSON
+        // events; an opaque concatenated-text payload would fail to
+        // parse at all. RunEvent.type is captured as the wire-protocol
+        // type name ("streaming-text" / "complete" / "error") so the
+        // mapping is direct. Sequence numbers restart at 1 for the
+        // replay run — the client correlates by sessionId, and the
+        // replayed sessionId is the run id so a reconnecting client
+        // can distinguish replay frames from live frames.
         int written = 0;
         try {
             var response = resource.getResponse();
             var writer = response.getWriter();
-            writer.write(joined.toString());
+            long seq = 0;
+            var batch = new StringBuilder();
+            for (var ev : replayed) {
+                seq++;
+                var msg = new org.atmosphere.ai.filter.AiStreamMessage(
+                        ev.type(), ev.payload(), runId, seq, null, null);
+                batch.append(msg.toJson()).append('\n');
+            }
+            // Single write so long-polling's resume-on-broadcast fires
+            // exactly once after every event is flushed — per-event
+            // writes would flush+close on the first one and drop the
+            // rest.
+            writer.write(batch.toString());
             writer.flush();
             written = replayed.size();
         } catch (java.io.IOException | RuntimeException e) {

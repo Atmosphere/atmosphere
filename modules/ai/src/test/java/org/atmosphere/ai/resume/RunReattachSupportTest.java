@@ -88,8 +88,8 @@ class RunReattachSupportTest {
         // Simulate the pipeline capturing a few events while the client
         // was disconnected — matches what StreamingSession writes into
         // the RunEventReplayBuffer on real runs.
-        handle.replayBuffer().capture("text", "Hello, ");
-        handle.replayBuffer().capture("text", "how can I help?");
+        handle.replayBuffer().capture("streaming-text", "Hello, ");
+        handle.replayBuffer().capture("streaming-text", "how can I help?");
         handle.replayBuffer().capture("complete", "[complete]");
 
         var writes = new ArrayList<String>();
@@ -103,15 +103,28 @@ class RunReattachSupportTest {
                 + "flushes once per resource.write and the first flush resumes the "
                 + "response, so individual per-event writes drop everything after "
                 + "the first");
-        assertEquals("Hello, \u001ehow can I help?\u001e[complete]", writes.get(0),
-                "batched payload must preserve capture order with the ASCII "
-                + "record-separator (U+001E) between events so the client "
-                + "re-parses boundaries without collisions on printable chars");
+        // The batched payload is newline-delimited AiStreamMessage JSON,
+        // matching the live DefaultStreamingSession wire shape so the
+        // client parser can handle replay and live frames identically.
+        var lines = writes.get(0).split("\\n");
+        assertEquals(3, lines.length,
+                "one JSON frame per captured event: " + writes.get(0));
+        assertTrue(lines[0].contains("\"type\":\"streaming-text\"")
+                        && lines[0].contains("\"data\":\"Hello, \""),
+                "first frame must be streaming-text with original payload: " + lines[0]);
+        assertTrue(lines[1].contains("\"data\":\"how can I help?\""),
+                "second frame preserves order: " + lines[1]);
+        assertTrue(lines[2].contains("\"type\":\"complete\"")
+                        && lines[2].contains("\"data\":\"[complete]\""),
+                "terminal frame must be complete envelope carrying summary: " + lines[2]);
+        assertTrue(lines[0].contains("\"sessionId\":\"" + handle.runId() + "\""),
+                "sessionId on replay frames must be the run id so the client "
+                + "can distinguish replay from live frames: " + lines[0]);
     }
 
     @Test
     void replayFallsBackToHeaderWhenAttributeIsAbsent() {
-        handle.replayBuffer().capture("text", "raw-client frame");
+        handle.replayBuffer().capture("streaming-text", "raw-client frame");
         var writes = new ArrayList<String>();
         // Null attribute, run id only in the HTTP header — raw WS clients
         // bypass DurableSessionInterceptor but still carry the id.
@@ -126,9 +139,9 @@ class RunReattachSupportTest {
 
     @Test
     void replayReportsZeroWhenWriteFails() throws java.io.IOException {
-        handle.replayBuffer().capture("text", "first");
-        handle.replayBuffer().capture("text", "second");
-        handle.replayBuffer().capture("text", "third");
+        handle.replayBuffer().capture("streaming-text", "first");
+        handle.replayBuffer().capture("streaming-text", "second");
+        handle.replayBuffer().capture("streaming-text", "third");
 
         var resource = Mockito.mock(AtmosphereResource.class);
         var request = Mockito.mock(AtmosphereRequest.class);

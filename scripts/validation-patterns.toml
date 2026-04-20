@@ -129,6 +129,19 @@ user_extensible = [
 ]
 
 # ============================================================================
+# EMPTY META-INF/services ALLOWLIST — SPI files intentionally present but
+# with no in-tree provider (third-party extension points).
+# ============================================================================
+
+[empty_services]
+# These files exist so third-party ProtocolBridge / runtime implementations
+# have a canonical registration point. The in-tree bridge is registered
+# programmatically (requires AtmosphereFramework reference at construction).
+allowed = [
+    "modules/coordinator/src/main/resources/META-INF/services/org.atmosphere.ai.bridge.ProtocolBridge"
+]
+
+# ============================================================================
 # DISABLED TESTS ALLOWLIST
 # ============================================================================
 

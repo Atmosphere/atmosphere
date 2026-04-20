@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 /**
@@ -50,7 +51,9 @@ class RunEventCapturingSessionTest {
         var replay = buffer.snapshot();
         assertEquals(3, replay.size(),
                 "every send / complete on the wrapper must land in the buffer");
-        assertEquals("text", replay.get(0).type());
+        assertEquals("streaming-text", replay.get(0).type(),
+                "capture must use the wire-protocol type name so the replay "
+                + "path emits a valid AiStreamMessage JSON frame without translation");
         assertEquals("Hello, ", replay.get(0).payload());
         assertEquals("world!", replay.get(1).payload());
         assertEquals("complete", replay.get(2).type());
@@ -90,6 +93,82 @@ class RunEventCapturingSessionTest {
     }
 
     /**
+     * Regression for the P1 terminal-path gap — {@code AiEndpointHandler}
+     * must route timeout / exception terminal calls through the
+     * capturing session, not the underlying delegate. Otherwise a client
+     * that reconnects after the @Prompt method threw or timed out replays
+     * partial text with no error envelope and hangs waiting for a
+     * terminator that never arrives.
+     */
+    /**
+     * Regression for the {@code handoff()} forwarding hotfix. The
+     * default {@link org.atmosphere.ai.StreamingSession#handoff}
+     * implementation throws {@code UnsupportedOperationException}; a
+     * decorator that fails to forward silently shadows agent-backed
+     * sessions and breaks the orchestration-primitives flow. Pin it.
+     */
+    @Test
+    void handoffForwardsToDelegate() {
+        var delegate = new HandoffTrackingSession();
+        var session = new RunEventCapturingSession(delegate, new RunEventReplayBuffer());
+        session.handoff("billing-agent", "show me a refund option");
+        assertEquals("billing-agent", delegate.lastAgent,
+                "handoff must forward to the delegate — the default interface "
+                + "implementation throws UnsupportedOperationException, which "
+                + "would break every agent-backed session wrapped by the "
+                + "capturing decorator");
+        assertEquals("show me a refund option", delegate.lastMessage);
+    }
+
+    private static final class HandoffTrackingSession implements org.atmosphere.ai.StreamingSession {
+        volatile String lastAgent;
+        volatile String lastMessage;
+        @Override public String sessionId() { return "t"; }
+        @Override public void send(String text) { }
+        @Override public void sendMetadata(String key, Object value) { }
+        @Override public void progress(String message) { }
+        @Override public void complete() { }
+        @Override public void complete(String summary) { }
+        @Override public void error(Throwable t) { }
+        @Override public boolean isClosed() { return false; }
+        @Override
+        public void handoff(String agentName, String message) {
+            this.lastAgent = agentName;
+            this.lastMessage = message;
+        }
+    }
+
+    @Test
+    void captureFeedsReattachWithErrorEnvelopeWhenHandlerThrows() {
+        var registry = new RunRegistry();
+        var handle = registry.register("agent-a", "alice", "sess-1",
+                new ExecutionHandle.Settable(() -> { }));
+        var session = new RunEventCapturingSession(new CollectingSession(), handle.replayBuffer());
+
+        session.send("partial response");
+        // AiEndpointHandler's catch block and timeout VT now call
+        // capturingSession.error(...) — simulate that terminal path.
+        session.error(new java.util.concurrent.TimeoutException(
+                "Prompt processing timed out after 30000ms"));
+
+        // Reconnect and assert the replay payload ends with an error
+        // envelope the client can correlate to turn termination.
+        var writes = new ArrayList<String>();
+        var resource = mockReconnectResource(handle.runId(), writes);
+        var replayed = RunReattachSupport.replayPendingRun(resource, registry);
+        assertEquals(2, replayed, "partial text + error envelope must both replay");
+        assertEquals(1, writes.size());
+        var lines = writes.get(0).split("\\n");
+        assertEquals(2, lines.length);
+        assertTrue(lines[1].contains("\"type\":\"error\""),
+                "terminal error envelope must be emitted so client can stop "
+                + "spinning after replay — got: " + lines[1]);
+        assertTrue(lines[1].contains("timed out"),
+                "error envelope must carry the cause message so the client "
+                + "can surface a meaningful failure, got: " + lines[1]);
+    }
+
+    /**
      * Full loop: capture → disconnect → reconnect → replay. Simulates
      * the mid-stream disconnect scenario by routing
      * {@link RunReattachSupport#replayPendingRun} against the buffer the
@@ -122,10 +201,21 @@ class RunEventCapturingSessionTest {
                 "replay batches into a single write — long-polling flushes and "
                 + "resumes on the first resource.write, so per-event writes drop "
                 + "everything after the first");
-        assertEquals("Streamed \u001etokens\u001e", writes.get(0),
-                "batched payload must preserve capture order with the ASCII "
-                + "record-separator (U+001E) between events so the client "
-                + "re-parses boundaries without collisions on printable chars");
+        var lines = writes.get(0).split("\\n");
+        assertEquals(3, lines.length, "batched write must contain one JSON line per event");
+        for (var line : lines) {
+            assertTrue(line.startsWith("{") && line.endsWith("}"),
+                    "each replay frame must be a JSON AiStreamMessage envelope, got: "
+                    + line);
+        }
+        assertTrue(lines[0].contains("\"type\":\"streaming-text\"")
+                && lines[0].contains("\"data\":\"Streamed \""),
+                "first replay frame must be a streaming-text envelope carrying the "
+                + "original payload, got: " + lines[0]);
+        assertTrue(lines[1].contains("\"data\":\"tokens\""),
+                "second frame must carry the second captured payload: " + lines[1]);
+        assertTrue(lines[2].contains("\"type\":\"complete\""),
+                "terminal frame must be a complete envelope: " + lines[2]);
     }
 
     @SuppressWarnings("MockitoMockClassCanBeFinal")

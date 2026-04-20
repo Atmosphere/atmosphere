@@ -73,6 +73,39 @@ class CostAccountingSessionTest {
                 "CostAccountingSession must feed the guardrail with the pricing-computed cost");
     }
 
+    /**
+     * Regression for the P2 MDC fragility across Reactor callbacks.
+     * Spring AI / ADK / LC4j emit {@code session.usage(...)} from
+     * runtime threads that don't inherit SLF4J MDC from the servlet
+     * dispatch thread. Reading MDC at usage-time collapses every
+     * tenant into the {@code __default__} bucket, which destroys the
+     * per-tenant cost ceiling. The wrapper MUST snapshot tenant at
+     * construction time (dispatch thread) and ignore later MDC state.
+     */
+    @Test
+    void tenantCapturedAtConstructionSurvivesMdcClearOnUsageThread() {
+        var guardrail = new CostCeilingGuardrail(0.10);
+        var pricing = TokenPricing.flat(1.00, 2.00);
+        var accountant = new CostCeilingAccountant(guardrail, pricing);
+
+        // Construction time — servlet dispatch thread has the MDC tag.
+        org.slf4j.MDC.put("business.tenant.id", "acme");
+        var session = new CostAccountingSession(new CollectingSession(), accountant);
+
+        // Simulate the runtime thread crossing: MDC is empty here, as it
+        // would be inside a Spring AI Reactor subscriber or an ADK async
+        // callback that didn't propagate the context.
+        org.slf4j.MDC.clear();
+        session.usage(TokenUsage.of(1000, 500, 1500, "gpt-4"));
+
+        assertEquals(0.002, guardrail.spent("acme"), 1e-9,
+                "tenant must be booked to 'acme' — the construction-time "
+                + "snapshot, not the empty MDC on the usage thread.");
+        assertEquals(0.0, guardrail.spent(null), 1e-9,
+                "nothing may land in the __default__ bucket when the "
+                + "dispatch thread had a tenant tag");
+    }
+
     @Test
     void usageAccumulatesThenBlocksRequestSide() {
         var guardrail = new CostCeilingGuardrail(0.005);

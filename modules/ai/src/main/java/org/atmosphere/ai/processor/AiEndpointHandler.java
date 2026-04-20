@@ -501,7 +501,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     throw err;
                 }
                 logger.error("Error invoking @Prompt method", cause);
-                session.error(cause);
+                // Route the terminal error through the capturing session so
+                // the replay buffer records the failure envelope — a
+                // reconnecting client must be able to tell the turn
+                // terminated in error, not just see the partial text and
+                // hang waiting for a complete frame that never arrives.
+                capturingSession.error(cause);
                 runExecutionHandle.completeExceptionally(cause);
             } finally {
                 businessMdc.keySet().forEach(org.slf4j.MDC::remove);
@@ -516,8 +521,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                         logger.warn("@Prompt method timed out after {}ms for client {}",
                                 suspendTimeout, resource.uuid());
                         promptThread.interrupt();
-                        if (!session.isClosed()) {
-                            session.error(new TimeoutException(
+                        if (!capturingSession.isClosed()) {
+                            // Terminal timeout flows through the capturing
+                            // session so the replay buffer captures the
+                            // error frame — otherwise reconnecting clients
+                            // see partial streams with no terminator.
+                            capturingSession.error(new TimeoutException(
                                     "Prompt processing timed out after " + suspendTimeout + "ms"));
                         }
                     }
