@@ -19,6 +19,7 @@ import jakarta.ws.rs.core.SecurityContext;
 import org.atmosphere.admin.AtmosphereAdmin;
 import org.atmosphere.admin.ControlAuditLog;
 import org.atmosphere.admin.ControlAuthorizer;
+import org.atmosphere.admin.framework.FrameworkController;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -47,10 +48,15 @@ class AdminResourceAuthzTest {
 
     @BeforeEach
     void setUp() {
-        admin = Mockito.mock(AtmosphereAdmin.class, Mockito.RETURNS_DEEP_STUBS);
-        // Real audit log so record() does not NPE through the mock chain.
+        // Explicit stubs (no RETURNS_DEEP_STUBS) so the test surface is
+        // visible from the setup block — adding a new call site to
+        // AdminResource then fails fast with a clear NPE rather than
+        // producing silently-correct deep-stub chains.
+        admin = Mockito.mock(AtmosphereAdmin.class);
+        var framework = Mockito.mock(FrameworkController.class);
         Mockito.when(admin.auditLog()).thenReturn(new ControlAuditLog(100));
-        Mockito.when(admin.framework().broadcast(Mockito.anyString(), Mockito.anyString()))
+        Mockito.when(admin.framework()).thenReturn(framework);
+        Mockito.when(framework.broadcast(Mockito.anyString(), Mockito.anyString()))
                 .thenReturn(true);
         resource = new AdminResource();
         resource.admin = admin;
@@ -126,6 +132,30 @@ class AdminResourceAuthzTest {
         assertEquals(200, response.getStatus(),
                 "Quarkus must accept an Atmosphere-AuthInterceptor-set Principal for "
                         + "parity with the Spring starter (mode parity)");
+    }
+
+    /**
+     * Third source in the principal chain — {@code ai.userId} request
+     * attribute populated by the AI pipeline (framework-scoped
+     * identity, not Jakarta Security or Atmosphere AuthInterceptor).
+     * Spring's {@code guardWrite} admits it; Quarkus must too.
+     */
+    @Test
+    void principalFromAiUserIdAttributeIsRespected() {
+        Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+        resource.writeEnabled = true;
+
+        resource.servletRequest = Mockito.mock(jakarta.servlet.http.HttpServletRequest.class);
+        Mockito.when(resource.servletRequest.getAttribute("org.atmosphere.auth.principal"))
+                .thenReturn(null);
+        Mockito.when(resource.servletRequest.getAttribute("ai.userId"))
+                .thenReturn("pipeline-resolved-user");
+
+        var response = resource.broadcast(anonymousSecurityContext(),
+                Map.of("broadcasterId", "/chat", "message", "x"));
+        assertEquals(200, response.getStatus(),
+                "Quarkus must accept the ai.userId request attribute as principal — "
+                        + "third source in the resolution chain, parity with Spring");
     }
 
     private static SecurityContext securityContextFor(String name) {

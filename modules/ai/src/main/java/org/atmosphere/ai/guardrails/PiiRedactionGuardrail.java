@@ -57,8 +57,11 @@ import java.util.List;
  * on the session — earlier bytes are already on the wire. Both default
  * and blocking modes Block on the response path; this is a safety net
  * that limits the leak window and writes the hit to the audit log, not
- * a retroactive redactor. For synchronous scrubbing, layer a per-token
- * filter in the transport chain.
+ * a retroactive redactor. For synchronous per-token scrubbing use
+ * {@code org.atmosphere.ai.filter.PiiRedactionFilter} (extends
+ * {@code AiStreamBroadcastFilter}) — it runs inside the broadcaster's
+ * filter chain and rewrites each text frame before it reaches the
+ * client.
  */
 public final class PiiRedactionGuardrail implements AiGuardrail {
 
@@ -130,11 +133,13 @@ public final class PiiRedactionGuardrail implements AiGuardrail {
         // here is an *early termination* — subsequent tokens are suppressed
         // and the session surfaces a SecurityException. It does NOT undo
         // bytes already flushed to the wire (stream writes are
-        // irreversible); callers that need a stronger guarantee must layer
-        // a per-token filter in the transport chain or compute on a
-        // synchronous path. Blocking is still strictly better than a pure
-        // log signal because it halts the response before more PII can
-        // leak, and surfaces the hit to the client + audit trail.
+        // irreversible); callers that need synchronous per-token scrubbing
+        // register org.atmosphere.ai.filter.PiiRedactionFilter (extends
+        // AiStreamBroadcastFilter) — that filter runs inside the
+        // broadcaster chain and rewrites each text frame before it is
+        // broadcast. Blocking is still strictly better than a pure log
+        // signal because it halts the response before more PII can leak
+        // and surfaces the hit to the client + audit trail.
         var reason = "response contains PII of kinds: " + kinds;
         if (blockOnMatch) {
             logger.warn("PII detected in response (kinds={}), blocking (explicit blocking mode)", kinds);

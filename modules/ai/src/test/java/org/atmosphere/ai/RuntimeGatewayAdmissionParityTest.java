@@ -21,72 +21,67 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Cross-runtime contract check — every {@code *AgentRuntime.{java,kt}}
- * file in the repo MUST invoke {@code admitThroughGateway(...)} from the
- * method bodies that dispatch an LLM call. Both entry points are
- * checked (plain execute + cancel-capable executeWithHandle), so a
- * runtime that bypasses the gateway on one mode but not the other
- * fails here.
+ * file in the repo MUST reach {@code admitThroughGateway(...)} on every
+ * LLM-dispatching method, either directly in the body or through a
+ * pinned delegation to another method that does.
  *
  * <p>Source-level check, not exec-level — the full transitive dep tree
  * of every runtime is not on this module's classpath. The BuiltIn
  * runtime's exec-path parity is covered by
  * {@link org.atmosphere.ai.llm.BuiltInExecuteWithHandleGatewayTest}.</p>
- *
- * <p>The prior version of this test included a vestigial counting
- * {@code AiGateway} installer that was never queried — dead scaffold
- * left over from a planned exec-level assertion. Removed in favour of
- * the per-method-body grep below, which catches the regression the
- * review flagged: a dead helper referencing {@code admitThroughGateway}
- * used to satisfy the "at least one hit" grep even when the real
- * dispatch methods bypassed the gateway.</p>
  */
 class RuntimeGatewayAdmissionParityTest {
 
     /**
-     * Each runtime owns admission at one of its two dispatch methods —
-     * the other delegates. Three common shapes:
-     * <ul>
-     *   <li><b>BuiltIn, Koog</b>: admit in BOTH plain + handle paths.</li>
-     *   <li><b>SpringAI, LangChain4j, ADK</b>: admit lives in the
-     *       handle path; the plain {@code doExecute} delegates by calling
-     *       {@code doExecuteWithHandle} itself.</li>
-     *   <li><b>SemanticKernel, Embabel</b>: override only the plain
-     *       path; the cancel-capable default on {@link AgentRuntime}
-     *       calls {@code execute}, so admitting in {@code execute} is
-     *       enough for parity.</li>
-     * </ul>
+     * Contract for one runtime. {@code admitMethods} names the method
+     * bodies that MUST call {@code admitThroughGateway(} directly.
+     * {@code delegationMap} pins delegation shape: an entry
+     * {@code A→B} asserts {@code A}'s body calls {@code B(} — this
+     * catches the refactor where a runtime that previously delegated
+     * to the handle path gets rewritten to dispatch directly from
+     * {@code doExecute} without admitting. The invariant tested is not
+     * "each runtime calls admit" but "every dispatch path reaches
+     * admit", including indirectly via delegation.
      *
-     * <p>The {@code admitMethods} array lists every method body that MUST
-     * contain the call — a dead helper referencing the symbol at file
-     * scope no longer passes the test.</p>
+     * <p>A dead helper referencing the symbol at file scope no longer
+     * passes the admit check (body-scanned), and the delegation assert
+     * keeps the test honest when runtimes change shape.</p>
      */
-    private record Runtime(String name, String path, String[] admitMethods) { }
+    private record Runtime(String name, String path, String[] admitMethods,
+                           String[][] delegationMap) { }
 
     @Test
-    void everyRuntimeCallsAdmitInTheDesignatedDispatchMethodBody() throws Exception {
+    void everyRuntimeCallsAdmitOrDelegatesToAMethodThatDoes() throws Exception {
         var repoRoot = resolveRepoRoot();
         var runtimes = java.util.List.of(
                 new Runtime("built-in",
                         "modules/ai/src/main/java/org/atmosphere/ai/llm/BuiltInAgentRuntime.java",
-                        new String[] { "doExecute", "doExecuteWithHandle" }),
+                        new String[] { "doExecute", "doExecuteWithHandle" },
+                        new String[0][]),
                 new Runtime("spring-ai",
                         "modules/spring-ai/src/main/java/org/atmosphere/ai/spring/SpringAiAgentRuntime.java",
-                        new String[] { "doExecuteWithHandle" }),
+                        new String[] { "doExecuteWithHandle" },
+                        new String[][] { { "doExecute", "doExecuteWithHandle" } }),
                 new Runtime("langchain4j",
                         "modules/langchain4j/src/main/java/org/atmosphere/ai/langchain4j/LangChain4jAgentRuntime.java",
-                        new String[] { "doExecuteWithHandle" }),
+                        new String[] { "doExecuteWithHandle" },
+                        new String[][] { { "doExecute", "doExecuteWithHandle" } }),
                 new Runtime("adk",
                         "modules/adk/src/main/java/org/atmosphere/ai/adk/AdkAgentRuntime.java",
-                        new String[] { "doExecuteWithHandle" }),
+                        new String[] { "doExecuteWithHandle" },
+                        new String[][] { { "doExecute", "doExecuteWithHandle" } }),
                 new Runtime("semantic-kernel",
                         "modules/semantic-kernel/src/main/java/org/atmosphere/ai/sk/SemanticKernelAgentRuntime.java",
-                        new String[] { "doExecute" }),
+                        new String[] { "doExecute" },
+                        new String[0][]),
                 new Runtime("embabel",
                         "modules/embabel/src/main/kotlin/org/atmosphere/ai/embabel/EmbabelAgentRuntime.kt",
-                        new String[] { "execute" }),
+                        new String[] { "execute" },
+                        new String[0][]),
                 new Runtime("koog",
                         "modules/koog/src/main/kotlin/org/atmosphere/ai/koog/KoogAgentRuntime.kt",
-                        new String[] { "execute", "executeWithHandle" }));
+                        new String[] { "execute", "executeWithHandle" },
+                        new String[0][]));
 
         for (var rt : runtimes) {
             var path = repoRoot.resolve(rt.path());
@@ -96,45 +91,77 @@ class RuntimeGatewayAdmissionParityTest {
             for (var method : rt.admitMethods()) {
                 assertAdmitInMethodBody(source, rt.name(), method);
             }
+            for (var pair : rt.delegationMap()) {
+                assertMethodBodyCalls(source, rt.name(), pair[0], pair[1]);
+            }
         }
     }
 
     /**
+     * Assert {@code callerMethod}'s body invokes {@code calleeMethod(}.
+     * Keeps the delegation shape declarative: if someone refactors
+     * {@code doExecute} to dispatch independently (and forgets to
+     * admit), this assertion fails even when the handle-path admit is
+     * still present.
+     */
+    private static void assertMethodBodyCalls(String source,
+                                              String runtimeName,
+                                              String callerMethod,
+                                              String calleeMethod) {
+        var body = extractMethodBody(source, callerMethod);
+        assertTrue(body != null,
+                runtimeName + " source does not declare method '"
+                        + callerMethod + "' — delegation pin cannot proceed");
+        assertTrue(body.contains(calleeMethod + "("),
+                runtimeName + "::" + callerMethod + " must delegate to "
+                        + calleeMethod + "(...) so gateway admission still fires. "
+                        + "If a refactor dropped the delegation, admit needs to be "
+                        + "restored in " + callerMethod + "'s own body.");
+    }
+
+    /**
      * Extract the body of {@code methodName(} and assert
-     * {@code admitThroughGateway(} appears inside. Brace-counting over
-     * the sliced region keeps us inside the target method even when
-     * inner lambdas contain their own braces. Comment-stripping would
-     * make this test more precise; for now, a helper that merely
-     * references the symbol in a javadoc block does not match because
-     * we require the {@code name(} form, not just {@code name}.
+     * {@code admitThroughGateway(} appears inside.
      */
     private static void assertAdmitInMethodBody(String source,
                                                 String runtimeName,
                                                 String methodName) {
-        // Find "methodName(" declaration — skip any match inside a line comment.
+        var body = extractMethodBody(source, methodName);
+        assertTrue(body != null,
+                runtimeName + " source does not declare a method body for '"
+                        + methodName + "' — parity test cannot proceed");
+        assertTrue(body.contains("admitThroughGateway("),
+                runtimeName + "::" + methodName + " must invoke admitThroughGateway("
+                        + ") from its body so rate limits and credential resolution "
+                        + "apply uniformly across dispatch modes (Correctness Invariant "
+                        + "#3). Body: " + abbrev(body));
+    }
+
+    /**
+     * Slice out the brace-balanced body of the first non-abstract
+     * declaration of {@code methodName}. Line-commented occurrences
+     * and interface / abstract method signatures (terminated by
+     * {@code ;} before the opening {@code {}) are skipped. Returns
+     * {@code null} when no body is found.
+     */
+    private static String extractMethodBody(String source, String methodName) {
         int cursor = 0;
         int bodyStart = -1;
         while (cursor < source.length()) {
             var idx = source.indexOf(methodName + "(", cursor);
             if (idx < 0) break;
-            // Skip matches that sit on a line-commented line (// prefix before idx).
             var lineStart = source.lastIndexOf('\n', idx);
             var line = source.substring(lineStart + 1, idx);
             if (line.contains("//")) { cursor = idx + 1; continue; }
-            // Walk forward to the opening brace that starts the body.
             var brace = source.indexOf('{', idx);
             var semicolon = source.indexOf(';', idx);
             if (brace < 0 || (semicolon >= 0 && semicolon < brace)) {
-                cursor = idx + 1; continue; // abstract / interface method or call site
+                cursor = idx + 1; continue;
             }
             bodyStart = brace;
             break;
         }
-        assertTrue(bodyStart >= 0,
-                runtimeName + " source does not declare a method body for '"
-                        + methodName + "' — parity test cannot proceed");
-
-        // Brace-count through the body to find the closing brace.
+        if (bodyStart < 0) return null;
         int depth = 0, bodyEnd = -1;
         for (int i = bodyStart; i < source.length(); i++) {
             char c = source.charAt(i);
@@ -144,16 +171,7 @@ class RuntimeGatewayAdmissionParityTest {
                 if (depth == 0) { bodyEnd = i; break; }
             }
         }
-        assertTrue(bodyEnd > bodyStart,
-                runtimeName + "::" + methodName
-                        + " — body never closed (unbalanced braces in test scan)");
-
-        var body = source.substring(bodyStart, bodyEnd + 1);
-        assertTrue(body.contains("admitThroughGateway("),
-                runtimeName + "::" + methodName + " must invoke admitThroughGateway("
-                        + ") from its body so rate limits and credential resolution "
-                        + "apply uniformly across dispatch modes (Correctness Invariant "
-                        + "#3). Body: " + abbrev(body));
+        return bodyEnd > bodyStart ? source.substring(bodyStart, bodyEnd + 1) : null;
     }
 
     private static String abbrev(String s) {

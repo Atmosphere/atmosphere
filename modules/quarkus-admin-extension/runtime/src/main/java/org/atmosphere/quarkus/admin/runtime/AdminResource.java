@@ -64,11 +64,12 @@ public class AdminResource {
      * transitively resolves an OSGi bundle annotation whose class file
      * is intentionally absent from the Quarkus extension jar.</p>
      *
-     * <p>Package-private (non-final) so unit tests can flip it without
-     * standing up a full Quarkus config backend. Production code path
-     * is unchanged.</p>
+     * <p>Package-private (non-final) — deliberately visible to the
+     * in-package {@code AdminResourceAuthzTest} so it can flip the flag
+     * without standing up a full Quarkus config backend. Production
+     * code never mutates it after construction.</p>
      */
-    boolean writeEnabled = resolveWriteEnabledFromConfig();
+    /* package */ boolean writeEnabled = resolveWriteEnabledFromConfig();
 
     private static boolean resolveWriteEnabledFromConfig() {
         try {
