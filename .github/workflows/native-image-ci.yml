@@ -1,10 +1,15 @@
 name: "CI: Native Image"
 
 on:
+  # `-am` in the install step transitively compiles modules/ai + modules/wasync,
+  # so a doclint / compile break in those modules fails Native Image even
+  # though they are not direct `-pl` targets. Trigger on them too.
   push:
     branches: [ main ]
     paths:
       - 'modules/cpr/**'
+      - 'modules/ai/**'
+      - 'modules/wasync/**'
       - 'modules/spring-boot-starter/**'
       - 'modules/quarkus-extension/**'
       - 'samples/spring-boot-chat/**'
@@ -14,11 +19,14 @@ on:
     branches: [ main ]
     paths:
       - 'modules/cpr/**'
+      - 'modules/ai/**'
+      - 'modules/wasync/**'
       - 'modules/spring-boot-starter/**'
       - 'modules/quarkus-extension/**'
       - 'samples/spring-boot-chat/**'
       - 'samples/quarkus-chat/**'
       - '.github/workflows/native-image-ci.yml'
+  workflow_dispatch:
 
 jobs:
   spring-boot-native:
