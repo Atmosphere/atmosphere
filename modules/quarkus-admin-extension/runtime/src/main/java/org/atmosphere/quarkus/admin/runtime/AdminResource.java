@@ -24,8 +24,10 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import org.atmosphere.admin.AtmosphereAdmin;
 import org.atmosphere.admin.a2a.TaskController;
 import org.atmosphere.admin.ai.AiRuntimeController;
@@ -49,6 +51,61 @@ public class AdminResource {
 
     @Inject
     AtmosphereAdmin admin;
+
+    /**
+     * Feature flag — every mutating endpoint returns 403 until the
+     * operator flips this to {@code true}. Default off, matching the
+     * Spring Boot starter's {@code atmosphere.admin.http-write-enabled}.
+     * Correctness Invariant #6: default deny on mutating surfaces.
+     *
+     * <p>Resolved via {@code ConfigProvider} rather than
+     * {@code @ConfigProperty} to avoid pulling the MicroProfile
+     * annotation class onto the extension's runtime classpath — it
+     * transitively resolves an OSGi bundle annotation whose class file
+     * is intentionally absent from the Quarkus extension jar.</p>
+     */
+    private final boolean writeEnabled = Boolean.parseBoolean(
+            org.eclipse.microprofile.config.ConfigProvider.getConfig()
+                    .getOptionalValue("atmosphere.admin.http-write-enabled", String.class)
+                    .orElse("false"));
+
+    /**
+     * Three-gate write authorization mirrored from the Spring Boot
+     * AtmosphereAdminEndpoint.guardWrite: feature flag → Jakarta
+     * Security Principal → installed {@link org.atmosphere.admin.ControlAuthorizer}.
+     * Every decision (grant and deny) lands in the audit log. Returns
+     * {@code null} when the request is allowed; returns a populated
+     * {@link Response} (401 or 403) when rejected.
+     */
+    private Response guardWrite(SecurityContext sec, String action, String target) {
+        if (!writeEnabled) {
+            admin.auditLog().record(null, action + ".denied.flag", target, false,
+                    "atmosphere.admin.http-write-enabled=false");
+            return Response.status(403)
+                    .entity(Map.of(
+                            "error", "Admin write operations disabled",
+                            "hint", "Set atmosphere.admin.http-write-enabled=true to enable"))
+                    .build();
+        }
+        String principalName = null;
+        if (sec != null && sec.getUserPrincipal() != null
+                && sec.getUserPrincipal().getName() != null
+                && !sec.getUserPrincipal().getName().isBlank()) {
+            principalName = sec.getUserPrincipal().getName();
+        }
+        if (principalName == null) {
+            admin.auditLog().record(null, action + ".denied.anonymous", target, false, null);
+            return Response.status(401)
+                    .entity(Map.of("error", "Authentication required for admin write operations"))
+                    .build();
+        }
+        var authorizer = admin.authorizer();
+        if (!authorizer.authorize(action, target, principalName)) {
+            admin.auditLog().record(principalName, action + ".denied.authz", target, false, null);
+            return Response.status(403).entity(Map.of("error", "Forbidden")).build();
+        }
+        return null;
+    }
 
     // ── System Overview ──
 
@@ -97,16 +154,19 @@ public class AdminResource {
     @POST
     @Path("/broadcasters/broadcast")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response broadcast(Map<String, String> body) {
+    public Response broadcast(@Context SecurityContext sec, Map<String, String> body) {
         var id = body.get("broadcasterId");
         var message = body.get("message");
+        var denied = guardWrite(sec, "broadcast", id);
+        if (denied != null) return denied;
         if (id == null || message == null) {
             return Response.status(400)
                     .entity(Map.of("error", "missing 'broadcasterId' or 'message' field"))
                     .build();
         }
+        var principalName = sec.getUserPrincipal().getName();
         var success = admin.framework().broadcast(id, message);
-        admin.auditLog().record(null, "broadcast", id, success, message);
+        admin.auditLog().record(principalName, "broadcast", id, success, message);
         return success
                 ? Response.ok(Map.of("status", "broadcast sent")).build()
                 : Response.status(404).build();
@@ -114,9 +174,12 @@ public class AdminResource {
 
     @DELETE
     @Path("/resources/{uuid}")
-    public Response disconnectResource(@PathParam("uuid") String uuid) {
+    public Response disconnectResource(@Context SecurityContext sec, @PathParam("uuid") String uuid) {
+        var denied = guardWrite(sec, "disconnect", uuid);
+        if (denied != null) return denied;
+        var principalName = sec.getUserPrincipal().getName();
         var success = admin.framework().disconnectResource(uuid);
-        admin.auditLog().record(null, "disconnect", uuid, success, null);
+        admin.auditLog().record(principalName, "disconnect", uuid, success, null);
         return success
                 ? Response.ok(Map.of("status", "resource disconnected")).build()
                 : Response.status(404).build();
@@ -124,9 +187,12 @@ public class AdminResource {
 
     @POST
     @Path("/resources/{uuid}/resume")
-    public Response resumeResource(@PathParam("uuid") String uuid) {
+    public Response resumeResource(@Context SecurityContext sec, @PathParam("uuid") String uuid) {
+        var denied = guardWrite(sec, "resume", uuid);
+        if (denied != null) return denied;
+        var principalName = sec.getUserPrincipal().getName();
         var success = admin.framework().resumeResource(uuid);
-        admin.auditLog().record(null, "resume", uuid, success, null);
+        admin.auditLog().record(principalName, "resume", uuid, success, null);
         return success
                 ? Response.ok(Map.of("status", "resource resumed")).build()
                 : Response.status(404).build();
@@ -211,13 +277,16 @@ public class AdminResource {
 
     @POST
     @Path("/tasks/{taskId}/cancel")
-    public Response cancelTask(@PathParam("taskId") String taskId) {
+    public Response cancelTask(@Context SecurityContext sec, @PathParam("taskId") String taskId) {
+        var denied = guardWrite(sec, "cancel_task", taskId);
+        if (denied != null) return denied;
         TaskController controller = admin.taskController();
         if (controller == null) {
             return Response.status(404).build();
         }
+        var principalName = sec.getUserPrincipal().getName();
         var success = controller.cancelTask(taskId);
-        admin.auditLog().record(null, "cancel_task", taskId, success, null);
+        admin.auditLog().record(principalName, "cancel_task", taskId, success, null);
         return success
                 ? Response.ok(Map.of("status", "task canceled")).build()
                 : Response.status(404).build();

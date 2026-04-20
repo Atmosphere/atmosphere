@@ -659,9 +659,22 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 userId = s;
             }
         }
+        // Derive agentId from the endpoint path template — "/atmosphere/agent/{name}"
+        // for @Agent-registered endpoints. Null when the handler is a plain
+        // @AiEndpoint at a custom path, in which case downstream resolvers
+        // treat the request as agent-unscoped.
+        String agentId = null;
+        if (pathTemplate != null && pathTemplate.startsWith("/atmosphere/agent/")) {
+            var rest = pathTemplate.substring("/atmosphere/agent/".length());
+            var slash = rest.indexOf('/');
+            agentId = slash < 0 ? rest : rest.substring(0, slash);
+            if (agentId.isBlank()) {
+                agentId = null;
+            }
+        }
         var req = new org.atmosphere.ai.facts.FactResolver.FactRequest(
                 userId, resource != null ? resource.uuid() : null,
-                null,
+                agentId,
                 java.util.Set.of(
                         org.atmosphere.ai.facts.FactKeys.TIME_NOW,
                         org.atmosphere.ai.facts.FactKeys.TIME_TIMEZONE,

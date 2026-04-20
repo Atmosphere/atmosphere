@@ -63,10 +63,4 @@ public final class DefaultFactResolver implements FactResolver {
         }
         return new FactBundle(facts);
     }
-
-    @Override
-    public long cacheHint(String key) {
-        // time.* is time-varying; other keys are stable within a session.
-        return key.startsWith("time.") ? -1L : 0L;
-    }
 }

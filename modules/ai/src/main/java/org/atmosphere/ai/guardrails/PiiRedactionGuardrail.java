@@ -116,13 +116,16 @@ public final class PiiRedactionGuardrail implements AiGuardrail {
             return GuardrailResult.pass();
         }
         // Both default and blocking modes produce a Block on the response
-        // path because the Guardrail SPI's Modify variant only accepts a
-        // modified AiRequest — we cannot rewrite the accumulated response
-        // once it has been emitted to the client. Blocking surfaces the PII
-        // hit as a security error instead of silently letting the PII
-        // through with only a log line. Applications that want pure
-        // log-only signalling should register their own inspectResponse
-        // override; the default protects.
+        // path. The Guardrail SPI inspects the accumulated response text
+        // AFTER tokens have already been streamed to the client, so a Block
+        // here is an *early termination* — subsequent tokens are suppressed
+        // and the session surfaces a SecurityException. It does NOT undo
+        // bytes already flushed to the wire (stream writes are
+        // irreversible); callers that need a stronger guarantee must layer
+        // a per-token filter in the transport chain or compute on a
+        // synchronous path. Blocking is still strictly better than a pure
+        // log signal because it halts the response before more PII can
+        // leak, and surfaces the hit to the client + audit trail.
         var reason = "response contains PII of kinds: " + kinds;
         if (blockOnMatch) {
             logger.warn("PII detected in response (kinds={}), blocking (explicit blocking mode)", kinds);

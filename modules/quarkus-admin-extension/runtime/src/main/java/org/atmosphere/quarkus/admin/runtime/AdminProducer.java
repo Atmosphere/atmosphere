@@ -71,6 +71,12 @@ public class AdminProducer {
         }
 
         admin = new AtmosphereAdmin(framework, 1000);
+        // Default authorizer: REQUIRE_PRINCIPAL — Jakarta Security must
+        // resolve a non-anonymous Principal for any /api/admin/* write.
+        // Operators wire a custom ControlAuthorizer via CDI (or disable
+        // via atmosphere.admin.http-write-enabled=false). Fail-closed
+        // per Correctness Invariant #6.
+        admin.setAuthorizer(org.atmosphere.admin.ControlAuthorizer.REQUIRE_PRINCIPAL);
 
         // Register the admin event WebSocket handler
         var handler = new AdminEventHandler();

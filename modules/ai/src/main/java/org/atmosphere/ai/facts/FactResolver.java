@@ -35,7 +35,7 @@ import java.util.Optional;
  * Resolvers return a {@link FactBundle} — an immutable map of
  * {@code key → value} — that the framework serializes into the agent's
  * execution context as a {@code facts} block prepended to the system
- * prompt. The default impl is {@link NoopFactResolver}; applications
+ * prompt. The default impl is {@link DefaultFactResolver}; applications
  * install richer resolvers (user-service lookup, feature-flag read,
  * internal event bus) via {@code ServiceLoader}.
  *
@@ -46,11 +46,10 @@ import java.util.Optional;
  * {@code app.user.plan_tier}) — the framework treats unknown keys
  * transparently.
  *
- * <h2>Threading / caching</h2>
+ * <h2>Threading</h2>
  *
- * Implementations MUST be thread-safe. Results for a given
- * {@code (userId, key)} pair may be cached per-session; see
- * {@link FactResolver#cacheHint(String)} to advertise a TTL.
+ * Implementations MUST be thread-safe. {@code resolve} is invoked once
+ * per {@code @Prompt} turn, from the dispatching virtual thread.
  */
 public interface FactResolver {
 
@@ -71,16 +70,6 @@ public interface FactResolver {
 
     /** Resolve the requested fact keys for this turn. Never returns {@code null}. */
     FactBundle resolve(FactRequest request);
-
-    /**
-     * Optional cache-hint TTL in seconds for a given key. {@code -1} means
-     * "no caching" (resolve fresh every turn); {@code 0} means "cache for
-     * the session lifetime"; any positive value is seconds. Default
-     * implementation returns {@code -1}.
-     */
-    default long cacheHint(String key) {
-        return -1L;
-    }
 
     /** Per-turn input. */
     record FactRequest(String userId, String sessionId, String agentId,
