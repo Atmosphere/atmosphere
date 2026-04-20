@@ -194,6 +194,123 @@ public class AtmosphereAiAutoConfiguration {
         return new OutputLengthZScoreGuardrail(windowSize, zThreshold, minSamples);
     }
 
+    /**
+     * Opt-in per-tenant cost ceiling. Off by default — enable with
+     * {@code atmosphere.ai.guardrails.cost.enabled=true} and set a USD
+     * ceiling via {@code atmosphere.ai.guardrails.cost.budget-usd}.
+     * Enforcement only kicks in when both this bean AND a
+     * {@link org.atmosphere.ai.cost.TokenPricing} bean are present — without
+     * pricing the framework cannot compute per-turn cost and {@code addCost}
+     * would stay at zero, so exposing the guardrail alone would silently
+     * publish a dashboard that never triggers.
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereCostCeilingGuardrail")
+    @ConditionalOnProperty(name = "atmosphere.ai.guardrails.cost.enabled", havingValue = "true")
+    public org.atmosphere.ai.guardrails.CostCeilingGuardrail atmosphereCostCeilingGuardrail(
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.cost.budget-usd:0.0}") double budgetUsd) {
+        logger.info("CostCeilingGuardrail registered (budgetUsd={})", budgetUsd);
+        return new org.atmosphere.ai.guardrails.CostCeilingGuardrail(budgetUsd);
+    }
+
+    /**
+     * Publishes a {@link org.atmosphere.ai.cost.CostAccountant} into the
+     * process-wide holder the {@code AiStreamingSession} decorator chain
+     * reads. Priority:
+     *
+     * <ol>
+     *   <li>A user-supplied {@link org.atmosphere.ai.cost.CostAccountant}
+     *       bean (custom attribution — ledger, Micrometer, third-party
+     *       billing).</li>
+     *   <li>A built-in {@link org.atmosphere.ai.cost.CostCeilingAccountant}
+     *       composed from the
+     *       {@link org.atmosphere.ai.guardrails.CostCeilingGuardrail} +
+     *       {@link org.atmosphere.ai.cost.TokenPricing} beans — this is
+     *       the production consumer that closes the
+     *       {@code addCost} integration loop.</li>
+     * </ol>
+     *
+     * <p>Without at least one of these paths the holder stays at its
+     * no-op default and {@code CostAccountingSession} never wraps the
+     * outgoing session — zero runtime overhead for deployments that do
+     * not track cost.</p>
+     *
+     * <p>{@link org.springframework.beans.factory.DisposableBean}
+     * restores the no-op on shutdown so the holder does not carry stale
+     * state across hot-redeploy and test-context restarts.</p>
+     */
+    @Bean
+    @ConditionalOnMissingBean(CostAccountantInstaller.class)
+    public CostAccountantInstaller atmosphereCostAccountantInstaller(
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.cost.CostAccountant>
+                    userAccountant,
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.guardrails.CostCeilingGuardrail>
+                    guardrailProvider,
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.cost.TokenPricing>
+                    pricingProvider) {
+        var user = userAccountant.getIfAvailable();
+        if (user != null) {
+            return new CostAccountantInstaller(user, "user-bean");
+        }
+        var guardrail = guardrailProvider.getIfAvailable();
+        var pricing = pricingProvider.getIfAvailable();
+        if (guardrail != null && pricing != null) {
+            return new CostAccountantInstaller(
+                    new org.atmosphere.ai.cost.CostCeilingAccountant(guardrail, pricing),
+                    "CostCeilingAccountant(guardrail+pricing)");
+        }
+        // Nothing to wire — return an installer that leaves the holder at NOOP.
+        return new CostAccountantInstaller(
+                org.atmosphere.ai.cost.CostAccountant.NOOP, "NOOP (no CostAccountant, guardrail, or pricing bean)");
+    }
+
+    /**
+     * Installs a {@link org.atmosphere.ai.cost.CostAccountant} into the
+     * process-wide {@link org.atmosphere.ai.cost.CostAccountantHolder} on
+     * startup and restores the no-op on shutdown so the
+     * {@code AiStreamingSession} decorator chain stays consistent across
+     * context restarts.
+     */
+    static final class CostAccountantInstaller
+            implements org.springframework.beans.factory.SmartInitializingSingleton,
+                       org.springframework.beans.factory.DisposableBean {
+
+        private final org.atmosphere.ai.cost.CostAccountant accountant;
+        private final String source;
+
+        CostAccountantInstaller(org.atmosphere.ai.cost.CostAccountant accountant, String source) {
+            this.accountant = accountant;
+            this.source = source;
+        }
+
+        @Override
+        public void afterSingletonsInstantiated() {
+            if (accountant != org.atmosphere.ai.cost.CostAccountant.NOOP) {
+                org.atmosphere.ai.cost.CostAccountantHolder.install(accountant);
+                logger.info("CostAccountant installed ({}): {}",
+                        source, accountant.getClass().getSimpleName());
+            } else {
+                logger.debug("CostAccountantInstaller: {} — holder stays at NOOP", source);
+            }
+        }
+
+        @Override
+        public void destroy() {
+            org.atmosphere.ai.cost.CostAccountantHolder.reset();
+        }
+
+        /** Exposed so tests can assert which path fired. */
+        String source() {
+            return source;
+        }
+
+        /** Exposed so tests can assert the resolved accountant. */
+        org.atmosphere.ai.cost.CostAccountant accountant() {
+            return accountant;
+        }
+    }
+
 
 
     @Bean
@@ -264,14 +381,43 @@ public class AtmosphereAiAutoConfiguration {
      *
      * <p>This is the response-path delivery of the guardrail promise —
      * rewriting tokens in-flight, not terminating after the fact.</p>
+     *
+     * <p>Implements {@link org.springframework.beans.factory.DisposableBean}
+     * so Spring calls {@code destroy()} on context shutdown and the listener
+     * is removed from the factory (Correctness Invariant #1 — every
+     * registration has an explicit uninstall). Without this, test
+     * harnesses and embedded redeploys accumulate stale installer
+     * listeners on the same factory.</p>
      */
     @Bean
     @ConditionalOnBean(org.atmosphere.ai.filter.AiStreamBroadcastFilter.class)
-    public org.springframework.beans.factory.SmartInitializingSingleton
-            atmosphereAiStreamFilterInstaller(
+    public AiStreamFilterInstaller atmosphereAiStreamFilterInstaller(
             AtmosphereFramework framework,
             java.util.List<org.atmosphere.ai.filter.AiStreamBroadcastFilter> filters) {
-        return () -> {
+        return new AiStreamFilterInstaller(framework, filters);
+    }
+
+    /**
+     * Installs AI stream filters and keeps a handle on both the factory and
+     * the listener so the registration can be undone on shutdown.
+     */
+    static final class AiStreamFilterInstaller
+            implements org.springframework.beans.factory.SmartInitializingSingleton,
+                       org.springframework.beans.factory.DisposableBean {
+
+        private final AtmosphereFramework framework;
+        private final java.util.List<org.atmosphere.ai.filter.AiStreamBroadcastFilter> filters;
+        private volatile org.atmosphere.cpr.BroadcasterFactory factoryRef;
+        private volatile BroadcasterListener listenerRef;
+
+        AiStreamFilterInstaller(AtmosphereFramework framework,
+                java.util.List<org.atmosphere.ai.filter.AiStreamBroadcastFilter> filters) {
+            this.framework = framework;
+            this.filters = filters;
+        }
+
+        @Override
+        public void afterSingletonsInstantiated() {
             framework.getAtmosphereConfig().startupHook(f -> {
                 var factory = f.getBroadcasterFactory();
                 if (factory == null) {
@@ -279,10 +425,8 @@ public class AtmosphereAiAutoConfiguration {
                             + "{} stream filter(s) on AI broadcasters", filters.size());
                     return;
                 }
-                // Install on all currently-registered broadcasters.
                 factory.lookupAll().forEach(b -> applyFilters(b, filters));
-                // And on every broadcaster created after startup.
-                factory.addBroadcasterListener(new BroadcasterListener() {
+                var listener = new BroadcasterListener() {
                     @Override public void onPostCreate(Broadcaster b) { applyFilters(b, filters); }
                     @Override public void onComplete(Broadcaster b) { }
                     @Override public void onPreDestroy(Broadcaster b) { }
@@ -292,11 +436,26 @@ public class AtmosphereAiAutoConfiguration {
                             org.atmosphere.cpr.AtmosphereResource r) { }
                     @Override public void onMessage(Broadcaster b,
                             org.atmosphere.cpr.Deliver d) { }
-                });
+                };
+                factory.addBroadcasterListener(listener);
+                this.factoryRef = factory;
+                this.listenerRef = listener;
                 logger.info("Installed {} AiStreamBroadcastFilter(s) on every broadcaster "
                         + "(present + future)", filters.size());
             });
-        };
+        }
+
+        @Override
+        public void destroy() {
+            var factory = factoryRef;
+            var listener = listenerRef;
+            if (factory != null && listener != null) {
+                factory.removeBroadcasterListener(listener);
+                logger.info("Removed AiStreamBroadcastFilter installer listener from factory");
+            }
+            factoryRef = null;
+            listenerRef = null;
+        }
     }
 
     private static void applyFilters(Broadcaster b,

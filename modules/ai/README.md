@@ -298,9 +298,9 @@ Resolution order inside the handler:
 2. `ServiceLoader.load(FactResolver.class)` — plain servlet / Quarkus
 3. `DefaultFactResolver` — supplies `time.now` + `time.timezone` only
 
-### Guardrails — PII redaction + drift detection
+### Guardrails — PII redaction, drift, cost ceiling
 
-Two zero-dep implementations ship in-tree:
+Three zero-dep implementations ship in-tree:
 
 - `PiiRedactionGuardrail` — regex-based redaction of email / phone /
   credit card / US SSN / IPv4 in requests AND responses. Default mode
@@ -309,13 +309,50 @@ Two zero-dep implementations ship in-tree:
 - `OutputLengthZScoreGuardrail` — rolling-window z-score on response
   length. Blocks outliers beyond N standard deviations. Catches
   runaway prompts and injection payloads that balloon responses
-  without a specific signature.
+  without a specific signature. Windows partition by the
+  `business.tenant.id` MDC tag so one noisy tenant cannot poison
+  another's baseline.
+- `CostCeilingGuardrail` — per-tenant dollar budget; Blocks the next
+  outbound `@Prompt` when cumulative cost crosses the ceiling. Tenant
+  scoping keys on `business.tenant.id`; turns without a tenant land in
+  a shared `__default__` bucket. Automatically fed via
+  `CostAccountingSession` → `CostCeilingAccountant` → `addCost` whenever
+  a runtime reports `TokenUsage` (see Cost accounting wire below).
 
-Both opt in via Spring property (`atmosphere.ai.guardrails.pii.enabled=true`
-/ `atmosphere.ai.guardrails.drift.enabled=true`) or ServiceLoader.
-`AiEndpointProcessor` merges annotation-declared, ServiceLoader, and
-framework-property guardrails so user-defined `@AiEndpoint` paths get
-the same wiring as the default endpoint.
+All three opt in via Spring property
+(`atmosphere.ai.guardrails.{pii,drift,cost}.enabled=true`) or
+ServiceLoader. `AiEndpointProcessor` merges annotation-declared,
+ServiceLoader, and framework-property guardrails so user-defined
+`@AiEndpoint` paths get the same wiring as the default endpoint.
+
+### Cost accounting wire — observability → enforcement
+
+Every runtime calls `StreamingSession.usage(TokenUsage)` at completion.
+`AiStreamingSession.dispatch` wraps the outgoing session in a
+`CostAccountingSession` whenever a `CostAccountant` is installed in the
+process-wide `CostAccountantHolder`, so those usage events feed a
+pricing layer automatically:
+
+```
+runtime → session.usage(TokenUsage)
+        → CostAccountingSession.usage (MDC: business.tenant.id)
+        → CostAccountant.record(tenantId, usage, model)
+        → (built-in) CostCeilingAccountant
+        → TokenPricing.costUsd(usage, model)
+        → CostCeilingGuardrail.addCost(tenantId, cost)
+```
+
+The next request-side `inspectRequest` on that guardrail sees the
+accumulated spend and Blocks. Observability (`TokenUsage`) becomes the
+input to enforcement (`CostCeilingGuardrail`) — a dashboard becomes a
+control plane.
+
+The Spring Boot starter wires this automatically when both a
+`CostCeilingGuardrail` and `TokenPricing` bean are present; operators
+with custom attribution (Micrometer, external ledger) publish their
+own `CostAccountant` bean and the starter uses it instead. With neither
+path set the holder stays at no-op and `CostAccountingSession` doesn't
+wrap — zero overhead for deployments that don't need cost tracking.
 
 ## Samples
 

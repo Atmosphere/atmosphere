@@ -467,6 +467,18 @@ public class AiStreamingSession implements StreamingSession {
             target = new MetricsCapturingSession(target, metrics, model);
         }
 
+        // Wrap in CostAccountingSession so TokenUsage events feed whatever
+        // CostAccountant is installed in the holder (default NOOP). This is
+        // the observability → enforcement wire: runtimes report usage, the
+        // accountant pushes cost into CostCeilingGuardrail.addCost, the next
+        // request-side guardrail inspection blocks the tenant once the
+        // ceiling trips. Skip wrapping when no accountant is installed so
+        // the decorator chain stays flat in the common case.
+        var accountant = org.atmosphere.ai.cost.CostAccountantHolder.get();
+        if (accountant != org.atmosphere.ai.cost.CostAccountant.NOOP) {
+            target = new org.atmosphere.ai.cost.CostAccountingSession(target, accountant);
+        }
+
         // Wrap in GuardrailCapturingSession for post-LLM response inspection
         if (!guardrails.isEmpty()) {
             target = new GuardrailCapturingSession(target, guardrails);
