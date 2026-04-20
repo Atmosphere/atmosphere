@@ -65,6 +65,7 @@
   <div class="tabs">
     <div class="tab active" data-tab="dashboard">Dashboard</div>
     <div class="tab" data-tab="agents">Agents</div>
+    <div class="tab" data-tab="flow">Flow</div>
     <div class="tab" data-tab="observability">Observability</div>
     <div class="tab" data-tab="journal">Journal</div>
     <div class="tab" data-tab="control">Control</div>
@@ -140,6 +141,42 @@
     </div>
   </div>
 
+  <!-- Flow — agent-to-agent graph, nodes = agents, edges = dispatch counts + success/failure/avg-duration.
+       Backed by GET /api/admin/flow[?lookbackMinutes=N] and GET /api/admin/flow/{coordinationId}. -->
+  <div class="content hidden" id="tab-flow">
+    <div class="form-row" style="margin-bottom:16px;">
+      <label>Coordination ID</label>
+      <input id="flow-coord-id" placeholder="optional — single-run drilldown" style="max-width:300px;" />
+      <label style="min-width:110px;">Lookback (min)</label>
+      <input id="flow-lookback" type="number" value="60" min="0" style="max-width:90px;" />
+      <button class="btn btn-primary" onclick="loadFlow()">Render</button>
+      <span id="flow-status" style="margin-left:12px; font-size:12px; color:#6b7280;"></span>
+    </div>
+    <div class="card">
+      <div class="card-header">Agent-to-Agent Graph</div>
+      <div class="card-body">
+        <svg id="flow-svg" width="100%" height="420"
+             viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet"
+             style="background:#fafafa; border:1px solid #e5e7eb; border-radius:4px;">
+          <defs>
+            <marker id="flow-arrow" viewBox="0 -5 10 10" refX="10" refY="0"
+                    markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,-5L10,0L0,5" fill="#6b7280"/>
+            </marker>
+            <marker id="flow-arrow-red" viewBox="0 -5 10 10" refX="10" refY="0"
+                    markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,-5L10,0L0,5" fill="#dc2626"/>
+            </marker>
+          </defs>
+        </svg>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Edges</div>
+      <div class="card-body" id="flow-edges"></div>
+    </div>
+  </div>
+
   <!-- Journal -->
   <div class="content hidden" id="tab-journal">
     <div class="form-row" style="margin-bottom:16px;">
@@ -212,6 +249,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.getElementById('tab-' + tab.dataset.tab).classList.remove('hidden');
     if (tab.dataset.tab === 'agents') loadAgents();
     if (tab.dataset.tab === 'observability') loadMetrics();
+    if (tab.dataset.tab === 'flow') loadFlow();
     if (tab.dataset.tab === 'journal') loadJournal();
     if (tab.dataset.tab === 'control') loadAudit();
   });
@@ -475,6 +513,105 @@ function tbl(headers, rows) {
 }
 function badge(text, color) {
   return `<span class="badge-sm badge-${color}">${text}</span>`;
+}
+
+// Flow — agent-to-agent graph renderer.
+// Backed by GET /api/admin/flow[?lookbackMinutes=N] and
+// GET /api/admin/flow/{coordinationId}. Plain-SVG layout (circle arrangement),
+// no external graph library — adequate for the fleet sizes Atmosphere runs.
+async function loadFlow() {
+  const coordId = (document.getElementById('flow-coord-id').value || '').trim();
+  const lookback = parseInt(document.getElementById('flow-lookback').value || '0', 10);
+  const status = document.getElementById('flow-status');
+  status.textContent = 'loading...';
+  const path = coordId
+      ? '/flow/' + encodeURIComponent(coordId)
+      : '/flow' + (lookback > 0 ? ('?lookbackMinutes=' + lookback) : '');
+  const graph = await api(path);
+  if (!graph) {
+    status.textContent = 'error loading flow';
+    return;
+  }
+  const nodes = graph.nodes || [];
+  const edges = graph.edges || [];
+  status.textContent = nodes.length + ' nodes, ' + edges.length + ' edges';
+  renderFlowSvg(nodes, edges);
+  document.getElementById('flow-edges').innerHTML = edges.length
+      ? tbl(['From', 'To', 'Dispatches', 'Successes', 'Failures', 'Avg ms'],
+            edges.map(e => [e.from, e.to, e.dispatches, e.successes, e.failures, e.averageDurationMs]))
+      : '<div class="empty">No edges — journal may be empty or outside the lookback window</div>';
+}
+
+function renderFlowSvg(nodes, edges) {
+  const svg = document.getElementById('flow-svg');
+  // Clear previous nodes + edges but keep the <defs> marker block.
+  Array.from(svg.querySelectorAll('g[data-flow-layer]')).forEach(g => g.remove());
+  const NS = 'http://www.w3.org/2000/svg';
+  const layer = document.createElementNS(NS, 'g');
+  layer.setAttribute('data-flow-layer', '1');
+  svg.appendChild(layer);
+  if (!nodes.length) {
+    const txt = document.createElementNS(NS, 'text');
+    txt.setAttribute('x', '450');
+    txt.setAttribute('y', '210');
+    txt.setAttribute('text-anchor', 'middle');
+    txt.setAttribute('fill', '#9ca3af');
+    txt.setAttribute('font-size', '14');
+    txt.textContent = 'No nodes in the journal window';
+    layer.appendChild(txt);
+    return;
+  }
+  // Circle layout: evenly spaced nodes around the center.
+  const cx = 450, cy = 210, r = Math.min(160, 50 + nodes.length * 18);
+  const pos = {};
+  nodes.forEach((n, i) => {
+    const a = (i / nodes.length) * 2 * Math.PI - Math.PI / 2;
+    pos[n.id] = { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+  });
+  // Edges first, so nodes render on top.
+  edges.forEach(e => {
+    const p1 = pos[e.from], p2 = pos[e.to];
+    if (!p1 || !p2) return;
+    const red = e.failures > 0;
+    const line = document.createElementNS(NS, 'line');
+    line.setAttribute('x1', p1.x); line.setAttribute('y1', p1.y);
+    line.setAttribute('x2', p2.x); line.setAttribute('y2', p2.y);
+    line.setAttribute('stroke', red ? '#dc2626' : '#6b7280');
+    line.setAttribute('stroke-width', Math.min(5, 1 + Math.log2(1 + (e.dispatches || 0))));
+    line.setAttribute('marker-end', red ? 'url(#flow-arrow-red)' : 'url(#flow-arrow)');
+    layer.appendChild(line);
+    const label = document.createElementNS(NS, 'text');
+    label.setAttribute('x', (p1.x + p2.x) / 2);
+    label.setAttribute('y', (p1.y + p2.y) / 2 - 6);
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('font-size', '11');
+    label.setAttribute('fill', red ? '#dc2626' : '#4b5563');
+    label.textContent = (e.successes || 0) + '/' + (e.dispatches || 0)
+        + '  ' + (e.averageDurationMs || 0) + 'ms';
+    layer.appendChild(label);
+  });
+  nodes.forEach(n => {
+    const p = pos[n.id];
+    const g = document.createElementNS(NS, 'g');
+    const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('cx', p.x); c.setAttribute('cy', p.y);
+    c.setAttribute('r', '28');
+    c.setAttribute('fill', '#e0e7ff');
+    c.setAttribute('stroke', '#4f46e5');
+    c.setAttribute('stroke-width', '1.5');
+    g.appendChild(c);
+    const t = document.createElementNS(NS, 'text');
+    t.setAttribute('x', p.x); t.setAttribute('y', p.y + 4);
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('font-size', '11');
+    t.setAttribute('fill', '#1e293b');
+    // Trim long names to fit the node.
+    t.textContent = (n.label || n.id).length > 14
+        ? (n.label || n.id).slice(0, 12) + '…'
+        : (n.label || n.id);
+    g.appendChild(t);
+    layer.appendChild(g);
+  });
 }
 
 // Init
