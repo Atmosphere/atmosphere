@@ -186,6 +186,93 @@ public class AtmosphereAdminAutoConfiguration {
     }
 
     /**
+     * Validates {@code X-Atmosphere-Auth} on every {@code /api/admin/*}
+     * request via the Spring-supplied {@code TokenValidator} bean and
+     * surfaces the resolved principal to Spring MVC. {@code AuthInterceptor}
+     * only runs inside the Atmosphere handler chain, which does not
+     * cover {@code /api/admin/*} (that path is served by Spring MVC's
+     * DispatcherServlet). Without this filter the admin REST endpoints
+     * reject the token-carrying writes with 401 because
+     * {@code guardWrite}'s principal lookup finds nothing.
+     *
+     * <p>Only registered when a {@code TokenValidator} bean is present —
+     * applications without the Atmosphere auth stack keep the legacy
+     * "bring your own Spring Security filter chain" path.</p>
+     */
+    @Bean
+    @ConditionalOnBean(org.atmosphere.auth.TokenValidator.class)
+    public FilterRegistrationBean<AdminApiAuthFilter> adminApiAuthFilter(
+            org.atmosphere.auth.TokenValidator validator) {
+        var reg = new FilterRegistrationBean<>(new AdminApiAuthFilter(validator));
+        reg.addUrlPatterns("/api/admin/*");
+        reg.setOrder(0);
+        return reg;
+    }
+
+    /**
+     * Surfaces the {@code X-Atmosphere-Auth}-resolved principal onto
+     * Spring MVC requests so {@code AtmosphereAdminEndpoint.guardWrite}
+     * can enforce authn+authz. Absent tokens or invalid tokens leave
+     * the principal unset so guardWrite still returns 401 (default deny,
+     * Correctness Invariant #6).
+     */
+    static class AdminApiAuthFilter implements Filter {
+
+        private final org.atmosphere.auth.TokenValidator validator;
+
+        AdminApiAuthFilter(org.atmosphere.auth.TokenValidator validator) {
+            this.validator = validator;
+        }
+
+        @Override
+        public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+                throws IOException, ServletException {
+            var httpReq = (HttpServletRequest) request;
+            var token = httpReq.getHeader("X-Atmosphere-Auth");
+            if (token == null || token.isBlank()) {
+                // Fall back to the ?X-Atmosphere-Auth= query string
+                // since browsers cannot set custom headers on WebSocket /
+                // EventSource upgrades; the REST surface supports it too
+                // so test fixtures that share the token-in-query flow
+                // work.
+                token = httpReq.getParameter("X-Atmosphere-Auth");
+            }
+            if (token != null && !token.isBlank()
+                    && validator.validate(token)
+                            instanceof org.atmosphere.auth.TokenValidator.Valid valid) {
+                var principal = valid.principal();
+                httpReq.setAttribute("org.atmosphere.auth.principal", principal);
+                chain.doFilter(new AuthenticatedHttpRequest(httpReq, principal), response);
+                return;
+            }
+            chain.doFilter(request, response);
+        }
+    }
+
+    /**
+     * Wraps the servlet request so {@code getUserPrincipal()} returns the
+     * token-resolved principal. Spring MVC, Jakarta Security, and the
+     * admin endpoint's {@code guardWrite} all read the standard servlet
+     * method — wrapping is simpler than duplicating the lookup at every
+     * site.
+     */
+    static class AuthenticatedHttpRequest
+            extends jakarta.servlet.http.HttpServletRequestWrapper {
+
+        private final java.security.Principal principal;
+
+        AuthenticatedHttpRequest(HttpServletRequest req, java.security.Principal principal) {
+            super(req);
+            this.principal = principal;
+        }
+
+        @Override
+        public java.security.Principal getUserPrincipal() {
+            return principal;
+        }
+    }
+
+    /**
      * Serves admin dashboard static assets from
      * {@code META-INF/resources/atmosphere/admin/}.
      */
