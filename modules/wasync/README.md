@@ -107,7 +107,7 @@ Connect to an Atmosphere gRPC server using bidirectional streaming. Requires `at
 <dependency>
     <groupId>io.grpc</groupId>
     <artifactId>grpc-netty-shaded</artifactId>
-    <version>4.0.38</version>
+    <version>1.80.0</version>
 </dependency>
 ```
 

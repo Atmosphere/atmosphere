@@ -78,10 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `REQUIRE_PRINCIPAL` on top of their transport auth
   (Spring Security, Quarkus security) for production deployments.
 
-### Added — Observability, grounded facts, guardrails, flow viewer
-
-> Entries below land in one squash-merge commit on `main`; the hash
-> will be stamped on the commit body when the merge happens.
+### Added — Observability, grounded facts, guardrails, flow viewer (`1df67cdd7d`)
 
 - **`BusinessMetadata`** — standard keys (`business.tenant.id`,
   `business.customer.id`, `business.session.revenue`,
@@ -116,6 +113,175 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   live `AgentResumeHandle` via `RunRegistry`, and replays the
   buffered events onto the new resource. Closes the "producer
   present, consumer absent" gap in the original primitive wire-in.
+
+### Added — Stream-level PII rewriting
+
+- **`PiiRedactionFilter`** (`c2076a41a1`) — `BroadcasterFilter` that
+  rewrites email / phone / credit-card / US SSN / IPv4 tokens in-flight
+  before bytes reach the client. Atmosphere owns the broadcaster, so
+  rewriting happens on the same thread that would have flushed the
+  unfiltered bytes — a pure orchestration layer can only block a
+  streaming response, never redact it mid-flight. Auto-installs on
+  every present and future broadcaster when
+  `atmosphere.ai.guardrails.pii.enabled=true`. Replacement token
+  configurable via `atmosphere.ai.guardrails.pii.replacement`
+  (default `[REDACTED]`). Listener ownership is symmetric — a
+  `DisposableBean` removes the installed listener on shutdown.
+
+### Added — Observability → enforcement (cost ceiling wire)
+
+- **`CostAccountant` SPI + `CostCeilingAccountant` impl**
+  (`1e06de99bb`) — bridges `TokenUsage` events from any runtime into
+  `CostCeilingGuardrail.addCost(tenantId, dollars)`. Installed
+  automatically when both a `CostCeilingGuardrail` bean and a
+  `TokenPricing` bean are present on the Spring Boot classpath.
+  Closes the "observability as dashboard" gap: cumulative tenant
+  cost now gates outbound dispatch instead of only surfacing on a
+  Grafana panel.
+- **`TokenPricing` SPI** — per-model dollar-per-token schedule.
+  Applications supply their own pricing (provider quotes change);
+  no baked-in table.
+- **`CostAccountingSession` decorator** — wraps every `@Prompt`
+  session in `AiStreamingSession.dispatch` whenever the
+  `CostAccountantHolder` is non-NOOP. Captures `TokenUsage` from
+  every runtime via the existing `StreamingSession.usage(...)` hook,
+  routes the cost through the accountant, then forwards to the
+  delegate so the runtime call path is unchanged. Tenant MDC is
+  snapshotted at construction so Reactor-thread usage events don't
+  collapse into the `__default__` bucket.
+- **`CostCeilingGuardrail`** (`c2076a41a1`) — inspects requests
+  before dispatch; blocks outbound `@Prompt` when the tenant's
+  cumulative cost is at or above the per-tenant budget. Per-tenant
+  buckets keyed by `business.tenant.id` MDC; turns without a tenant
+  tag share a `__default__` bucket. `resetTenant(...)` / `resetAll()`
+  on an operator-driven schedule for monthly billing boundaries.
+
+### Added — Tenant-partitioned drift
+
+- **`OutputLengthZScoreGuardrail` tenant partition**
+  (`c2076a41a1`) — the rolling-window drift detector now partitions
+  its window by `business.tenant.id`, so a noisy tenant can no
+  longer poison other tenants' baselines. Single-tenant deployments
+  fall back to a shared `__default__` bucket and behave unchanged.
+
+### Added — Reattach wire closure
+
+- **`RunReattachSupport`** (`c2076a41a1`) — stateless helper
+  extracted from `AiEndpointHandler.reattachPendingRun`. Replay
+  writes the joined buffer directly to `response.getWriter()`
+  (U+001E between events) on reconnection. Unit-tested standalone.
+- **`RunEventCapturingSession` producer wire** (`8156842fd4`) —
+  closes the "consumer wired, producer missing" half of the first
+  reattach landing. Mirrors every `session.send` / `complete` /
+  `error` into the run's `RunEventReplayBuffer` so reconnecting
+  clients have something to replay.
+- **Reattach wire fidelity** (`69d5dad403`) — replay emits
+  `AiStreamMessage` JSON frames matching the live-stream schema
+  (one parser, two paths); `AiEndpointHandler` routes
+  timeout / exception terminals through the capturing session so
+  replayed streams end with a proper error envelope.
+- **P0 reattach ownership + filter-chain replay** (`ffedda4b7e`) —
+  replay refuses when the reconnecting caller's resolved `userId`
+  does not match the run's registered `userId` (closes a
+  bearer-token cross-user leak). Anonymous runs keep the open-mode
+  carve-out so demo deployments still work. Every replay frame is
+  routed through the broadcaster's `BroadcastFilter` chain so
+  `PiiRedactionFilter` and downstream content filters apply
+  identically to replay and live frames — a direct-writer path
+  previously bypassed them.
+- **`RunEventCapturingSession.handoff()` forwarding**
+  (`ff8c2d5542`) — the default `StreamingSession.handoff` throws
+  `UnsupportedOperationException`; the capturing wrapper inherited
+  it and broke orchestration-primitives handoffs. Now delegates.
+
+### Added — Admin read-side auth gate
+
+- **`atmosphere.admin.http-read-auth-required` opt-in flag**
+  (`2d3ee5afc3`) — when true, `GET` / `HEAD` / `OPTIONS` on
+  `/api/admin/*` require the same principal chain as the write-side
+  gate (minus `ControlAuthorizer`). Default off so local demo
+  consoles keep working; multi-tenant operators exposing
+  `/api/admin/*` on a routable network flip one flag.
+- **`AdminApiAuthFilter`** (Spring) + **`AdminReadAuthFilter`**
+  (Quarkus JAX-RS `@Provider`) — symmetric enforcement across
+  starters.
+
+### Added — Quarkus admin parity
+
+- **Fourth principal source on Quarkus admin writes**
+  (`b3d032d00c`) — `X-Atmosphere-Auth` header validated via
+  constant-time compare against `atmosphere.admin.auth.token`. A
+  synthetic principal is admitted on match. Intended for sample
+  fixtures and operator tooling that have not yet integrated
+  Jakarta Security; production stacks still resolve via
+  `SecurityContext.getUserPrincipal()` first.
+- **Malformed journal timestamp returns 400** (`9aa1651f3f`) —
+  previously 200 with an error-item array, which masked client
+  errors and broke Spring / Quarkus API parity. Now matches the
+  Spring `AtmosphereAdminEndpoint` behavior (Correctness
+  Invariant #4).
+
+### Added — Favicon service
+
+- **`AtmosphereFaviconAutoConfiguration`** (`98c6ae408b`,
+  `2d3ee5afc3`) — serves `/favicon.ico` and `/favicon.png` with the
+  Atmosphere logo PNG on every app using either spring-boot starter,
+  killing the default 404 on the admin UI, console UI, and every
+  sample. Opt out with `atmosphere.favicon.enabled=false`. Ships
+  as a nested `@RestController` inside the `@AutoConfiguration`
+  class; a `@Bean` factory introduced in the initial commit
+  produced a duplicate `atmosphereFaviconController` bean and
+  triggered `Ambiguous mapping` at startup — removed in the fix.
+
+### Added — Admin Flow tab UI
+
+- **SVG coordination-graph visualizer** (`d1245d7780`) — new admin
+  console tab renders `/api/admin/flow` as a circle-layout SVG.
+  Nodes are agents, edges carry dispatch count / success / failure /
+  average duration (red on failure, arrowheads for direction).
+  Optional `coordination-id` drilldown and `lookback-minutes` filter.
+  Zero external graph library. Mirrored across
+  `spring-boot-starter` and `spring-boot3-starter` admin assets.
+
+### Added — Correctness coverage
+
+- **`RuntimeGatewayAdmissionParityTest`** (`d5f8a03174`,
+  `81c135cf5c`, `1632360f7f`) — source-level parity scan with
+  brace-balanced method-body extraction; every
+  `*AgentRuntime.{java,kt}` must call `admitThroughGateway` from
+  its designated dispatch methods or the build fails. Catches a
+  regression where a runtime's dispatch path silently bypasses
+  rate limiting and credential policy.
+- **Seven exec-level `*GatewayAdmissionTest` files** —
+  `SpringAiGatewayAdmissionTest` (`48a38d58c6`); LangChain4j, ADK,
+  Semantic Kernel (Java) and Koog, Embabel (Kotlin) together
+  (`1006a4301d`); plus the existing
+  `BuiltInExecuteWithHandleGatewayTest`. Each installs a counting
+  `AiGateway.GatewayTraceExporter` and drives `runtime.execute(...)`
+  so an admission entry with the correct provider label is captured
+  at the exec level, not just source-level grep.
+- **`ChangelogClaimsTest`** (`94404ce023`) — pins the
+  `AgentState` OpenClaw workspace layout and `RunEventReplayBuffer`
+  bound so CHANGELOG-to-code drift breaks the build.
+
+### Added — Reattach e2e harness
+
+- **`samples/spring-boot-reattach-harness`** (`65f2f6ce5f`) —
+  `SlowEmitterChat` plus a `SyntheticRunController` that
+  pre-populates the `RunRegistry` so Playwright can drive the
+  `HTTP → reattachPendingRun → replayPendingRun` wire with
+  deterministic timing. `e2e/tests/reattach.spec.ts` runs on every
+  push via a dedicated `foundation-e2e.yml` job on port 8096 — the
+  reattach contract is proven end-to-end, not just at unit level.
+
+### Added — Performance baseline
+
+- **`BusinessMdcBenchmark`** (`82899e5145`) — JMH harness pinning
+  the cost of the per-turn `business.*` MDC snapshot → apply → clear
+  cycle that `AiEndpointHandler.invokePrompt` runs on every
+  dispatch. Baseline, six-key production, and empty-snapshot
+  scenarios, so a regression on the hot path shows as numbers, not
+  intuition.
 
 ### Fixed — Critical hardening
 
@@ -167,6 +333,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `./mvnw spring-boot:run` and waits on `/actuator/health` via
   `wait-on` instead of shelling out to `curl` and pre-building a
   fat jar.
+
+### Fixed — Security dependency baseline
+
+- **Jetty 12.0.33, Tomcat 11.0.21, Kafka 3.9.2** (`8e4b63e18a`) —
+  closes 13 Dependabot advisories (1 critical, 5 high, 3 medium).
+- **Bouncy Castle 1.84** pinned in `dependencyManagement`
+  (`246c29bc75`) — closes LDAP-injection and risky-crypto
+  advisories against the 1.82 tree that `docker-java-core 3.7.0`
+  pulls in transitively. Provided-scope only (Docker sandbox path);
+  no runtime fat-jar drift.
+- **protobuf 4.34.1** pinned to match `protoc` (`4876779978`) —
+  `grpc-protobuf 1.80.0` still pulled `protobuf-java 3.25.8`
+  transitively, so `protoc 4.x`-generated sources failed to compile.
+- **MCP SDK 1.0.0 → 1.1.1** (`da57094ce6`).
+- **React / React DOM 19.2.5 in lockstep** (`8226e28fcb`) — React
+  requires an exact version match between `react` and `react-dom`;
+  a partial Dependabot bump broke every jsdom-backed test with
+  `ensureCorrectIsomorphicReactVersion`.
+- **`HtmlEncoder` registered as a CodeQL XSS sanitizer**
+  (`b5f184e417`) — resolves four false-positive `java/xss`
+  code-scanning alerts.
+
+### Fixed — Quarkus resteasy-reactive Vert.x dispatch
+
+- **`AdminResource` survives `IllegalStateException: UT000048`**
+  (`e2d254ad68`) — resteasy-reactive dispatches on Vert.x, so
+  `@Context HttpServletRequest` attribute access throws on the admin
+  write path. Attribute access is swallowed (attributes cannot fire
+  on Vert.x anyway) and `X-Atmosphere-Auth` is read via
+  `@Context HttpHeaders`, which works on both transports.
+
+### Fixed — JDK 26 integration test timing
+
+- **`GrpcWasyncTransportTest` status-poll 2s → 5s**
+  (`1586d91246`) — wAsync updates `Socket.status()` on its dispatch
+  thread after the `CLOSE` callback returns; the 2s polling cap was
+  too tight on JDK 26 where scheduler latency between callback and
+  CAS is observably longer.
 
 ### Fixed
 

@@ -86,18 +86,34 @@ Invariant #6 — Security):
    flip the emergency-write switch without restarting.
 2. **Authenticated principal** — resolved in this order so the
    gate works across every auth stack the framework supports:
-   1. servlet `HttpServletRequest.getUserPrincipal()` (Spring Security,
+   1. servlet / Jakarta REST `getUserPrincipal()` (Spring Security,
       Jakarta Security, OIDC filters);
    2. `org.atmosphere.auth.principal` request attribute set by
       Atmosphere's own `AuthInterceptor` on `X-Atmosphere-Auth` token
       validation;
-   3. `ai.userId` request attribute set by the AI pipeline.
+   3. `ai.userId` request attribute set by the AI pipeline;
+   4. **Quarkus only** — `X-Atmosphere-Auth` header compared
+      constant-time against `atmosphere.admin.auth.token`; on match
+      a synthetic principal is admitted. Intended for sample fixtures
+      and operator tooling that have not yet integrated Jakarta
+      Security.
 
-   Returns 401 when all three are null/blank.
-3. **`ControlAuthorizer`** — user-supplied `@Bean` wins; fallback is
-   `REQUIRE_PRINCIPAL`. Returns 403 on deny.
+   Returns 401 when all applicable sources are null/blank.
+3. **`ControlAuthorizer`** — user-supplied `@Bean` / CDI bean wins;
+   fallback is `REQUIRE_PRINCIPAL`. Returns 403 on deny.
 
 Every decision (grant and deny) is recorded in the audit log.
+
+#### Opt-in read-side auth
+
+Default posture keeps `GET` / `HEAD` / `OPTIONS` on `/api/admin/*`
+open so local demo consoles and dashboards work without credentials.
+Set `atmosphere.admin.http-read-auth-required=true` to require the
+same principal chain (minus `ControlAuthorizer`) on read endpoints —
+anonymous readers then receive `401`. Wired by
+`AdminApiAuthFilter` on Spring and `AdminReadAuthFilter`
+(a JAX-RS `@Provider`) on Quarkus. Multi-tenant operators who
+expose `/api/admin/*` on a routable network flip this one flag.
 
 #### Spring Boot operator setup
 

@@ -120,7 +120,7 @@ What this registers depends on which modules are on the classpath:
 | Stream-level PII rewrite | `atmosphere-ai` | `PiiRedactionFilter` — `BroadcasterFilter` auto-installed on every present and future broadcaster when enabled; rewrites tokens before bytes flush to the client |
 | Cost enforcement | `atmosphere-ai` | `CostCeilingAccountant` bridges `TokenUsage` → `CostCeilingGuardrail.addCost` keyed by `business.tenant.id`; outbound `@Prompt` blocks once the tenant hits budget |
 | Observability | `atmosphere-runtime`, `atmosphere-ai` | OpenTelemetry spans, Micrometer metrics, token usage; `BusinessMdcBenchmark` pins the MDC hot-path cost |
-| Permission modes | `atmosphere-ai` | `PermissionMode.DEFAULT` / `PLAN` / `ACCEPT_EDITS` / `BYPASS` — runtime config, not redeploy |
+| Permission modes | `atmosphere-ai` | `PermissionMode.DEFAULT` / `PLAN` / `ACCEPT_EDITS` / `BYPASS` / `DENY_ALL` — runtime config, not redeploy |
 | Evaluation | `atmosphere-ai-test` | `LlmJudge` (`meetsIntent`, `isGroundedIn`, `hasQuality`); `AbstractAgentRuntimeContractTest` pins the capability matrix per runtime |
 | Skill files | `atmosphere-agent` | Markdown system prompts with tool / guardrail / channel sections; classpath-discovered |
 
