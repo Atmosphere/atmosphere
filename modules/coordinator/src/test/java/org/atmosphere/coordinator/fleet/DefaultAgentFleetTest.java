@@ -175,10 +175,39 @@ public class DefaultAgentFleetTest {
         var interruptObserved = new AtomicBoolean(false);
         var sleepDoneOrInterrupted = new CountDownLatch(1);
 
-        var fastTransport = mock(AgentTransport.class);
-        when(fastTransport.isAvailable()).thenReturn(true);
-        when(fastTransport.send(anyString(), anyString(), anyMap()))
-                .thenThrow(new RuntimeException("boom"));
+        // fast agent waits for slow to have entered Thread.sleep before
+        // throwing. Without this barrier, on slow CI runners fast can throw
+        // and cancel slow BEFORE slow's virtual thread has even scheduled —
+        // which is a legitimate outcome (cancel-before-start) but not the
+        // regression the test wants to prove (cancel-while-running).
+        AgentTransport fastTransport = new AgentTransport() {
+            @Override
+            public AgentResult send(String agent, String skill,
+                                    Map<String, Object> args) {
+                try {
+                    if (!sleepStarted.await(10, TimeUnit.SECONDS)) {
+                        throw new AssertionError(
+                            "slow agent never entered sleep within 10s — "
+                            + "scheduler starvation would make this race flaky");
+                    }
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(ie);
+                }
+                throw new RuntimeException("boom");
+            }
+            @Override
+            public void stream(String agent, String skill,
+                               Map<String, Object> args,
+                               java.util.function.Consumer<String> onToken,
+                               Runnable onComplete) {
+                throw new UnsupportedOperationException();
+            }
+            @Override
+            public boolean isAvailable() {
+                return true;
+            }
+        };
 
         AgentTransport slowTransport = new AgentTransport() {
             @Override
