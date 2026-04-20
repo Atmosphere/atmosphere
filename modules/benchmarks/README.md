@@ -35,6 +35,7 @@ Or use the helper script: `scripts/benchmarks/run-jmh.sh`.
 | AiInterceptor chain traversal | `AiInterceptorChainBenchmark` | Implemented |
 | Broadcaster dispatch per subscriber | `BroadcasterDispatchBenchmark` | Implemented |
 | Coordinator fan-out latency | `CoordinatorFanOutBenchmark` | Implemented |
+| Business-metadata MDC snapshot/apply/clear | `BusinessMdcBenchmark` | Implemented |
 | Streaming load test (wAsync) | `StreamingLoadTest` | Implemented |
 
 ## Streaming Load Test
