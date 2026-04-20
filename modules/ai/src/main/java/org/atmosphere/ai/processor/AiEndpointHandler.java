@@ -286,6 +286,68 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             lifecycle.onReady(target, resource);
             logger.info("Client {} connected to AI endpoint (broadcaster: {})",
                     resource.uuid(), resource.getBroadcaster().getID());
+            // Consume the X-Atmosphere-Run-Id header that
+            // DurableSessionInterceptor stashes on reconnection: if the run
+            // is still live in the RunRegistry, replay the buffered events
+            // to THIS resource so the client catches up on what it missed
+            // mid-stream. Silent no-op when the attr is absent (fresh
+            // connection) or the run is unknown (expired or never existed).
+            reattachPendingRun(resource);
+        }
+    }
+
+    /**
+     * Consumer path for the {@code X-Atmosphere-Run-Id} header. Closes the
+     * P1 gap where the producer (run registration in {@code invokePrompt})
+     * was wired but nothing read the id back on reconnection — so reattach
+     * was half-shipped. Looks the run up in {@link RunRegistryHolder} and,
+     * when it is still live, drains its replay buffer onto this resource
+     * only (not the broadcaster — the other subscribers already saw the
+     * events live).
+     */
+    private void reattachPendingRun(AtmosphereResource resource) {
+        if (resource == null || resource.getRequest() == null) {
+            return;
+        }
+        // Attribute key matches DurableSessionInterceptor.RUN_ID_ATTRIBUTE —
+        // the producer side. Inlined here so the ai module does not pull a
+        // compile-time dependency on the durable-sessions module.
+        var attr = resource.getRequest().getAttribute("org.atmosphere.session.runId");
+        if (attr == null) {
+            // Header fallback for clients that bypass the interceptor
+            // (e.g. raw WebSocket clients that don't speak the durable-session
+            // cookie contract but still carry the run id).
+            attr = resource.getRequest().getHeader("X-Atmosphere-Run-Id");
+        }
+        if (!(attr instanceof String runId) || runId.isBlank()) {
+            return;
+        }
+        var handleOpt = org.atmosphere.ai.resume.RunRegistryHolder.get().lookup(runId);
+        if (handleOpt.isEmpty()) {
+            logger.debug("Reconnect with run id {} but no live run in the registry "
+                    + "(expired or never existed); treating as fresh session", runId);
+            return;
+        }
+        var handle = handleOpt.get();
+        var replayed = handle.replayableEvents();
+        if (replayed.isEmpty()) {
+            logger.info("Reattach run {} for resource {}: no buffered events to replay",
+                    runId, resource.uuid());
+            return;
+        }
+        logger.info("Reattach run {} for resource {}: replaying {} event(s)",
+                runId, resource.uuid(), replayed.size());
+        for (var ev : replayed) {
+            try {
+                // Write directly to this resource — other resources already
+                // saw the event live on the shared broadcaster. Each event's
+                // payload is the wire-format string the live pipeline emits.
+                resource.write(ev.payload());
+            } catch (RuntimeException e) {
+                logger.warn("Replay to resource {} failed at event {}: {}",
+                        resource.uuid(), ev.sequence(), e.getMessage());
+                break;
+            }
         }
     }
 
@@ -352,6 +414,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             return;
         }
 
+        // Snapshot business.* request attributes so the VT dispatch below
+        // can re-apply them on the virtual-thread's own MDC. MDC is
+        // thread-local — setting it on the servlet thread does nothing for
+        // logs produced by the VT. Apply + clear is wrapped around the VT
+        // body (see promptThread below).
+        var businessMdc = snapshotBusinessMdc(resource);
         logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
 
         var delegate = StreamingSessions.start(resource);
@@ -367,8 +435,14 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
 
         var responseType = injectables.get(Class.class) instanceof Class<?> c ? c : null;
+        // Prepend grounded facts to the system prompt via FactResolver.
+        // DefaultFactResolver supplies time.now + time.timezone; apps can
+        // install a richer resolver via FactResolverHolder.install(). Every
+        // turn pays one resolver call per endpoint — no ThreadLocal, no
+        // per-@AiTool wiring.
+        var effectivePrompt = prependResolvedFacts(systemPrompt, resource);
         var session = new AiStreamingSession(traced, runtime,
-                systemPrompt, model, interceptors, resource, memory,
+                effectivePrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, metrics, responseType);
         AiStreamingSession.registerActive(session);
 
@@ -398,9 +472,56 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             session.setPreStreamHook(hook);
         }
 
+        // Register this run with the process-wide RunRegistry so a
+        // reconnecting client can look up the live AgentResumeHandle via the
+        // X-Atmosphere-Run-Id header (Primitive #8 — now with a real
+        // producer rather than a published-but-dead API).
+        // Cancelling the handle via RunRegistry (or admin plane) must
+        // actually interrupt the @Prompt virtual thread; we close over
+        // promptThreadRef after it's started below.
+        var promptThreadRef = new java.util.concurrent.atomic.AtomicReference<Thread>();
+        var runExecutionHandle = new org.atmosphere.ai.ExecutionHandle.Settable(() -> {
+            var t = promptThreadRef.get();
+            if (t != null) {
+                t.interrupt();
+            }
+        });
+        // Default producer for the ai.userId request attribute that the
+        // rest of the ai module reads (ToolExecutionHelper.resolveMode,
+        // AiStreamingSession.stream, this handler's RunRegistry register):
+        // if nothing upstream has set it, fall back to the servlet
+        // Principal's name. Without this hook, PermissionMode resolution
+        // always saw null and fell to DEFAULT regardless of the
+        // AgentIdentity wiring. Apps that integrate their own auth stack
+        // set ai.userId via an AtmosphereInterceptor and this no-op's.
+        if (resource.getRequest() != null
+                && resource.getRequest().getAttribute("ai.userId") == null) {
+            try {
+                var principal = resource.getRequest().getUserPrincipal();
+                if (principal != null && principal.getName() != null
+                        && !principal.getName().isBlank()) {
+                    resource.getRequest().setAttribute("ai.userId", principal.getName());
+                }
+            } catch (RuntimeException e) {
+                logger.trace("unable to resolve userPrincipal for request attr", e);
+            }
+        }
+        var userIdAttr = resource.getRequest() != null
+                ? resource.getRequest().getAttribute("ai.userId") : null;
+        var runUserId = userIdAttr != null ? userIdAttr.toString() : "anonymous";
+        var handle = org.atmosphere.ai.resume.RunRegistryHolder.get().register(
+                pathTemplate, runUserId, resource.uuid(), runExecutionHandle);
+        session.setRunId(handle.runId());
+
         var promptThread = Thread.startVirtualThread(() -> {
+            // Apply business.* MDC on the VT so every log record emitted
+            // during the turn (pipeline / runtime / tool calls) carries the
+            // tenant/customer/session tags. Clear in finally — otherwise
+            // the VT pool leaks keys across turns.
+            businessMdc.forEach(org.slf4j.MDC::put);
             try {
                 invokePrompt(userMessage, session, resource);
+                runExecutionHandle.complete();
             } catch (Exception e) {
                 Throwable cause = e;
                 if (e instanceof java.lang.reflect.InvocationTargetException ite
@@ -408,12 +529,17 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     cause = ite.getCause();
                 }
                 if (cause instanceof Error err) {
+                    runExecutionHandle.completeExceptionally(err);
                     throw err;
                 }
                 logger.error("Error invoking @Prompt method", cause);
                 session.error(cause);
+                runExecutionHandle.completeExceptionally(cause);
+            } finally {
+                businessMdc.keySet().forEach(org.slf4j.MDC::remove);
             }
         });
+        promptThreadRef.set(promptThread);
 
         if (suspendTimeout > 0) {
             Thread.startVirtualThread(() -> {
@@ -432,6 +558,130 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 }
             });
         }
+    }
+
+    /**
+     * Framework-scoped FactResolver resolution. Same template as
+     * {@code CoordinatorProcessor.resolveJournal} /
+     * {@code BroadcasterFactory.lookup} — the resolver is tied to the
+     * {@link org.atmosphere.cpr.AtmosphereFramework} instance through its
+     * properties map, not a process-wide static, so multi-framework JVMs
+     * and tests stay isolated.
+     */
+    private org.atmosphere.ai.facts.FactResolver resolveFactResolver(AtmosphereResource resource) {
+        // 1. Framework-property bridge (Spring/Quarkus/CDI auto-config writes here).
+        if (resource != null && resource.getAtmosphereConfig() != null) {
+            var bridged = resource.getAtmosphereConfig().properties()
+                    .get(org.atmosphere.ai.facts.FactResolver.FACT_RESOLVER_PROPERTY);
+            if (bridged instanceof org.atmosphere.ai.facts.FactResolver fr) {
+                return fr;
+            }
+        }
+        // 2. ServiceLoader — plain servlet / embedded / Quarkus native deployments.
+        try {
+            var loaded = java.util.ServiceLoader.load(org.atmosphere.ai.facts.FactResolver.class)
+                    .findFirst();
+            if (loaded.isPresent()) {
+                return loaded.get();
+            }
+        } catch (java.util.ServiceConfigurationError | RuntimeException e) {
+            logger.debug("FactResolver ServiceLoader lookup failed: {}", e.getMessage());
+        }
+        // 3. Legacy process-wide holder — kept for tests that install per-test
+        //    resolvers and for libraries that set a resolver before any framework
+        //    instance exists. New code should use the framework-property bridge.
+        var held = org.atmosphere.ai.facts.FactResolverHolder.get();
+        if (held != null) {
+            return held;
+        }
+        // 4. Zero-dep default.
+        return new org.atmosphere.ai.facts.DefaultFactResolver();
+    }
+
+    /**
+     * Snapshot {@code business.*} request attributes into a map the VT
+     * dispatch below re-applies onto its own SLF4J MDC. Returning a
+     * snapshot (instead of mutating MDC directly) avoids the
+     * servlet-thread-vs-VT mismatch: MDC is thread-local, so calls made
+     * on the servlet thread would never reach the VT's log records.
+     *
+     * <p>Keys are the {@link org.atmosphere.ai.business.BusinessMetadata}
+     * constants; unknown event-kind strings are normalized via
+     * {@link org.atmosphere.ai.business.BusinessMetadata.EventKind#fromWire(String)}
+     * so downstream consumers see a canonical value.</p>
+     */
+    private java.util.Map<String, String> snapshotBusinessMdc(AtmosphereResource resource) {
+        if (resource == null || resource.getRequest() == null) {
+            return java.util.Map.of();
+        }
+        var req = resource.getRequest();
+        var snapshot = new java.util.LinkedHashMap<String, String>();
+        for (var key : java.util.List.of(
+                org.atmosphere.ai.business.BusinessMetadata.TENANT_ID,
+                org.atmosphere.ai.business.BusinessMetadata.CUSTOMER_ID,
+                org.atmosphere.ai.business.BusinessMetadata.CUSTOMER_SEGMENT,
+                org.atmosphere.ai.business.BusinessMetadata.SESSION_ID,
+                org.atmosphere.ai.business.BusinessMetadata.SESSION_CURRENCY,
+                org.atmosphere.ai.business.BusinessMetadata.EVENT_SUBJECT)) {
+            if (req.getAttribute(key) instanceof String s && !s.isBlank()) {
+                snapshot.put(key, s);
+            }
+        }
+        if (req.getAttribute(org.atmosphere.ai.business.BusinessMetadata.EVENT_KIND)
+                instanceof String kind && !kind.isBlank()) {
+            // Normalize through the enum so OTHER is emitted on unknown wire
+            // strings rather than leaking whatever free-form value came in.
+            snapshot.put(org.atmosphere.ai.business.BusinessMetadata.EVENT_KIND,
+                    org.atmosphere.ai.business.BusinessMetadata.EventKind.fromWire(kind).wireName());
+        }
+        return snapshot;
+    }
+
+    /**
+     * Resolve the live {@link org.atmosphere.ai.facts.FactResolver} and prepend
+     * its output as a {@code facts} block to the base system prompt.
+     * Framework-scoped resolution mirrors {@code CoordinatorProcessor.resolveJournal}
+     * — check {@code framework.properties()}, then {@link java.util.ServiceLoader},
+     * then {@link org.atmosphere.ai.facts.FactResolverHolder} (legacy), then
+     * {@link org.atmosphere.ai.facts.DefaultFactResolver}. Returns the
+     * original prompt unchanged when the bundle is empty so this never
+     * regresses the text path when the feature is not in use.
+     */
+    private String prependResolvedFacts(String basePrompt, AtmosphereResource resource) {
+        var resolver = resolveFactResolver(resource);
+        if (resolver == null) {
+            return basePrompt != null ? basePrompt : "";
+        }
+        String userId = null;
+        if (resource != null && resource.getRequest() != null) {
+            var att = resource.getRequest().getAttribute("ai.userId");
+            if (att instanceof String s && !s.isBlank()) {
+                userId = s;
+            }
+        }
+        var req = new org.atmosphere.ai.facts.FactResolver.FactRequest(
+                userId, resource != null ? resource.uuid() : null,
+                null,
+                java.util.Set.of(
+                        org.atmosphere.ai.facts.FactKeys.TIME_NOW,
+                        org.atmosphere.ai.facts.FactKeys.TIME_TIMEZONE,
+                        org.atmosphere.ai.facts.FactKeys.USER_ID));
+        org.atmosphere.ai.facts.FactResolver.FactBundle bundle;
+        try {
+            bundle = resolver.resolve(req);
+        } catch (RuntimeException e) {
+            logger.warn("FactResolver {} failed; proceeding without facts: {}",
+                    resolver.getClass().getName(), e.getMessage());
+            return basePrompt != null ? basePrompt : "";
+        }
+        if (bundle == null || bundle.facts().isEmpty()) {
+            return basePrompt != null ? basePrompt : "";
+        }
+        var block = bundle.asSystemPromptBlock();
+        if (basePrompt == null || basePrompt.isBlank()) {
+            return block;
+        }
+        return block + "\n" + basePrompt;
     }
 
     private void handleDisconnect(AtmosphereResource resource, AtmosphereResourceEvent event,

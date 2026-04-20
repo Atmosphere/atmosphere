@@ -370,6 +370,20 @@ costs credibility and has to be chased down and rolled back.
    confirm the field list. Before writing `@AiEndpoint.promptCache()` as an annotation method,
    grep for the method in the `AiEndpoint.java` source.
 
+3a. **"Shipped" / "wired" / "integrated" claims require a production consumer, not just an SPI.**
+    SPI presence is not runtime presence. Before calling a primitive shipped in a gist, README,
+    CHANGELOG, or release note, run:
+    ```
+    git grep '<ClassName>' -- ':!**/test/**' ':!**/*Test.java'
+    ```
+    and confirm at least one hit is on the critical path reached from a user action — not the
+    primitive's own package, not a reference impl, not a @Deprecated dead path. Zero qualifying
+    hits = "API + reference impl, integration pending"; do not promote to "shipped." For
+    cross-runtime claims ("works across the seven runtimes") grep each runtime's
+    `*AgentRuntime.{java,kt}` individually for the call — "all N runtimes do X" is almost
+    always wrong. Extends Correctness Invariant #5 (Runtime Truth) from capability flags
+    to SPI adoption.
+
 4. **Competitor claims must be stable facts, not numbers.** Writing "LiteLLM: 100+ LLM APIs"
    or "Vercel AI SDK: 20+ providers" is a hostage to fortune — those numbers change quarterly
    and can't be verified from this repo. Use stable descriptors ("OpenAI-compatible proxy",

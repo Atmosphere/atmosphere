@@ -1,8 +1,10 @@
 # spring-boot-personal-assistant
 
-Proof sample #1 for the v0.5 foundation primitive set. A long-lived,
-memory-bearing personal assistant with a three-member crew (scheduler,
-research, drafter) dispatched through `InMemoryProtocolBridge`.
+A long-lived, memory-bearing personal assistant with a three-member
+crew (scheduler, research, drafter) dispatched through
+`InMemoryProtocolBridge`. Exercises the foundation primitives —
+`AgentState`, `AgentWorkspace`, `AgentIdentity`, `ToolExtensibilityPoint`,
+`AiGateway`, `ProtocolBridge` — end-to-end.
 
 ## What this sample proves
 
@@ -57,8 +59,8 @@ set `atmosphere.ai.runtime` in `application.yml` to switch:
 - `atmosphere-embabel` — Embabel
 - _(default)_ — Built-in OpenAI-compatible client
 
-The assistant's behavior does not change with the runtime. That is the
-foundation primitive promise.
+The assistant's behavior does not change with the runtime — swap the
+Maven dependency and every primitive still wires the same way.
 
 ## Demo flow
 

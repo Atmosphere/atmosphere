@@ -227,11 +227,14 @@ public class DefaultAgentFleetTest {
         );
         var elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
 
-        assertTrue(sleepStarted.await(5, TimeUnit.SECONDS),
+        assertTrue(sleepStarted.await(10, TimeUnit.SECONDS),
                 "slow agent must have actually started sleeping");
-        assertTrue(sleepDoneOrInterrupted.await(5, TimeUnit.SECONDS),
-                "slow agent must have observed cancellation within the 5s window — "
-                        + "before the fix it would run to completion at " + sleepDurationMs + "ms");
+        assertTrue(sleepDoneOrInterrupted.await(20, TimeUnit.SECONDS),
+                "slow agent must have observed cancellation within the 20s window — "
+                        + "before the fix it would run to completion at " + sleepDurationMs + "ms. "
+                        + "20s picked to comfortably precede the 30s natural-completion "
+                        + "path that the pre-fix bug exhibits, while absorbing VT-scheduler "
+                        + "warmup latency on cold CI runners (we saw 10.02s on JDK 21/26).");
 
         assertTrue(elapsedMs < sleepDurationMs / 2,
                 "parallel() must return in well under the sleeper's "

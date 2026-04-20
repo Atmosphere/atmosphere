@@ -285,7 +285,7 @@ public class CoordinatorProcessor implements Processor<Object> {
                     pipeline, channels, protocols);
 
             // Step 11: Log fleet topology
-            logTopology(coordinatorName, annotation.version(), proxies,
+            logTopology(coordinatorName, path, annotation.version(), proxies,
                     fleetAnnotation, protocols);
 
         } catch (RuntimeException e) {
@@ -450,7 +450,7 @@ public class CoordinatorProcessor implements Processor<Object> {
 
     // --- Topology logging ---
 
-    private void logTopology(String coordinatorName, String version,
+    private void logTopology(String coordinatorName, String endpointPath, String version,
                              Map<String, AgentProxy> proxies,
                              Fleet fleetAnnotation, List<String> protocols) {
         var refMap = new LinkedHashMap<String, AgentRef>();
@@ -460,8 +460,8 @@ public class CoordinatorProcessor implements Processor<Object> {
 
         var sb = new StringBuilder();
         sb.append(String.format(
-                "Coordinator '%s' registered (v%s, fleet: %d agents, protocols: %s)%n",
-                coordinatorName, version, proxies.size(),
+                "Coordinator '%s' registered at %s (v%s, fleet: %d agents, protocols: %s)%n",
+                coordinatorName, endpointPath, version, proxies.size(),
                 protocols.isEmpty() ? "[web]" : protocols));
         sb.append(String.format("  %s (v%s)%n", coordinatorName, version));
 

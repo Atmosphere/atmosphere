@@ -123,23 +123,32 @@ class PerUserRateLimiterTest {
     }
 
     @Test
-    void hardCapFailsOpenForNovelUsersWhenMapIsSaturated() {
+    void hardCapFailsClosedForNovelUsersWhenMapIsSaturated() {
         var clock = new MutableClock();
         // Tiny cap so the test saturates in a few iterations.
         var limiter = new PerUserRateLimiter(5, Duration.ofSeconds(60), clock, 3);
 
-        // Fill the map to the cap.
+        // Fill the map to the cap with still-active users.
         for (int i = 0; i < 3; i++) {
             assertTrue(limiter.tryAcquire("user-" + i));
         }
         assertEquals(3, limiter.trackedUserCount());
 
-        // A novel user beyond the cap is let through (fail open) but is NOT
-        // added to the map — preventing the DoS while preserving availability.
-        assertTrue(limiter.tryAcquire("novel-user"),
-                "beyond-cap novel users must fail open, not be rate-limited");
+        // Previously this case failed OPEN — a DoS vector. Now it fails
+        // CLOSED: once the cap is reached and sweep() can't reclaim a slot
+        // (all entries are fresh), a novel user is rejected. Operators who
+        // expect more users set a larger cap at construction time; the
+        // default (100k) is ample for most deployments.
+        assertFalse(limiter.tryAcquire("novel-user"),
+                "beyond-cap novel users must fail closed once sweep() can't reclaim a slot");
         assertEquals(3, limiter.trackedUserCount(),
                 "hard cap prevents unbounded map growth");
+
+        // Advance the clock past the window so sweep() can reclaim slots —
+        // the same novel user should now be admitted.
+        clock.advance(Duration.ofMinutes(2));
+        assertTrue(limiter.tryAcquire("novel-user"),
+                "after sweep reclaims expired slots, the novel user is admitted");
     }
 
     @Test

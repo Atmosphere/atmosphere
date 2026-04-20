@@ -78,6 +78,51 @@ The event feed streams `AdminEvent` instances over WebSocket — the dashboard e
 
 All write operations are recorded in the audit log.
 
+Every mutating endpoint passes through three gates (Correctness
+Invariant #6 — Security):
+
+1. **Feature flag** — `atmosphere.admin.http-write-enabled=true`.
+   Defaults off. Returns 403 when disabled.
+2. **Authenticated principal** — servlet `getUserPrincipal()` or the
+   Atmosphere `AuthInterceptor`'s validated principal. Returns 401 when
+   anonymous.
+3. **`ControlAuthorizer`** — user-supplied `@Bean` or the default
+   `REQUIRE_PRINCIPAL`. Returns 403 on deny.
+
+The feature-flag-only gate was the P0 that landed in Phase 6 — every
+decision (grant and deny) is recorded in the audit log.
+
+### Agent-to-Agent Flow Viewer
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/admin/flow[?lookbackMinutes=N]` | Render the coordination journal as a graph (nodes=agents, edges=dispatches) |
+| `GET /api/admin/flow/{coordinationId}` | Same graph scoped to a single run |
+
+Payload shape:
+
+```json
+{
+  "nodes": [{"id": "ceo", "label": "ceo"}, {"id": "research-agent", "label": "research-agent"}],
+  "edges": [
+    {"from": "ceo", "to": "research-agent",
+     "dispatches": 3, "successes": 3, "failures": 0,
+     "averageDurationMs": 142}
+  ]
+}
+```
+
+The viewer attributes edges by `coordinationId` — concurrent
+coordinator runs that interleave their events in the journal stay
+correctly scoped to their own coordinator. Closes the 44% gap the
+Dynatrace 2026 report flagged around manual agent-to-agent flow
+review.
+
+Backed by `atmosphere-coordinator`'s `CoordinationJournal` (Spring bean
+bridge via `AtmosphereCoordinatorAutoConfiguration`). When no journal
+is installed the endpoint returns empty nodes/edges rather than
+failing.
+
 ## WebSocket Event Stream
 
 Connect to `/atmosphere/admin/events` to receive real-time `AdminEvent` JSON:

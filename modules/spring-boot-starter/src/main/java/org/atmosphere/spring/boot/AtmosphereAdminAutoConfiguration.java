@@ -69,11 +69,35 @@ public class AtmosphereAdminAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public AtmosphereAdmin atmosphereAdmin(AtmosphereFramework framework) {
+    public AtmosphereAdmin atmosphereAdmin(
+            AtmosphereFramework framework,
+            org.springframework.beans.factory.ObjectProvider<ControlAuthorizer> authorizerProvider,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.admin.require-principal:true}") boolean requirePrincipalDefault) {
         // Micrometer wiring is in MicrometerAdminConfiguration (below) —
         // keeping it in a separate @ConditionalOnClass class avoids
         // TypeNotPresentException when Micrometer is not on the classpath.
-        return new AtmosphereAdmin(framework, 1000);
+        var admin = new AtmosphereAdmin(framework, 1000);
+        // Install the authorizer in priority order:
+        //   1. user-supplied @Bean ControlAuthorizer (wins always)
+        //   2. REQUIRE_PRINCIPAL when atmosphere.admin.require-principal=true (default)
+        //   3. DENY_ALL fallback — fail-closed per Correctness Invariant #6
+        var custom = authorizerProvider.getIfAvailable();
+        if (custom != null) {
+            admin.setAuthorizer(custom);
+            logger.info("Atmosphere Admin authorizer: {} (custom @Bean)",
+                    custom.getClass().getName());
+        } else if (requirePrincipalDefault) {
+            admin.setAuthorizer(ControlAuthorizer.REQUIRE_PRINCIPAL);
+            logger.info("Atmosphere Admin authorizer: REQUIRE_PRINCIPAL (default). "
+                    + "Supply a @Bean ControlAuthorizer for fine-grained role/scope checks.");
+        } else {
+            admin.setAuthorizer(ControlAuthorizer.DENY_ALL);
+            logger.warn("Atmosphere Admin authorizer: DENY_ALL — all mutating admin "
+                    + "actions will be rejected. Set atmosphere.admin.require-principal=true "
+                    + "or supply a @Bean ControlAuthorizer to enable mutations.");
+        }
+        return admin;
     }
 
     /** Wires Micrometer metrics into admin — only loaded when Micrometer is on the classpath. */
@@ -162,6 +186,93 @@ public class AtmosphereAdminAutoConfiguration {
     }
 
     /**
+     * Validates {@code X-Atmosphere-Auth} on every {@code /api/admin/*}
+     * request via the Spring-supplied {@code TokenValidator} bean and
+     * surfaces the resolved principal to Spring MVC. {@code AuthInterceptor}
+     * only runs inside the Atmosphere handler chain, which does not
+     * cover {@code /api/admin/*} (that path is served by Spring MVC's
+     * DispatcherServlet). Without this filter the admin REST endpoints
+     * reject the token-carrying writes with 401 because
+     * {@code guardWrite}'s principal lookup finds nothing.
+     *
+     * <p>Only registered when a {@code TokenValidator} bean is present —
+     * applications without the Atmosphere auth stack keep the legacy
+     * "bring your own Spring Security filter chain" path.</p>
+     */
+    @Bean
+    @ConditionalOnBean(org.atmosphere.auth.TokenValidator.class)
+    public FilterRegistrationBean<AdminApiAuthFilter> adminApiAuthFilter(
+            org.atmosphere.auth.TokenValidator validator) {
+        var reg = new FilterRegistrationBean<>(new AdminApiAuthFilter(validator));
+        reg.addUrlPatterns("/api/admin/*");
+        reg.setOrder(0);
+        return reg;
+    }
+
+    /**
+     * Surfaces the {@code X-Atmosphere-Auth}-resolved principal onto
+     * Spring MVC requests so {@code AtmosphereAdminEndpoint.guardWrite}
+     * can enforce authn+authz. Absent tokens or invalid tokens leave
+     * the principal unset so guardWrite still returns 401 (default deny,
+     * Correctness Invariant #6).
+     */
+    static class AdminApiAuthFilter implements Filter {
+
+        private final org.atmosphere.auth.TokenValidator validator;
+
+        AdminApiAuthFilter(org.atmosphere.auth.TokenValidator validator) {
+            this.validator = validator;
+        }
+
+        @Override
+        public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+                throws IOException, ServletException {
+            var httpReq = (HttpServletRequest) request;
+            var token = httpReq.getHeader("X-Atmosphere-Auth");
+            if (token == null || token.isBlank()) {
+                // Fall back to the ?X-Atmosphere-Auth= query string
+                // since browsers cannot set custom headers on WebSocket /
+                // EventSource upgrades; the REST surface supports it too
+                // so test fixtures that share the token-in-query flow
+                // work.
+                token = httpReq.getParameter("X-Atmosphere-Auth");
+            }
+            if (token != null && !token.isBlank()
+                    && validator.validate(token)
+                            instanceof org.atmosphere.auth.TokenValidator.Valid valid) {
+                var principal = valid.principal();
+                httpReq.setAttribute("org.atmosphere.auth.principal", principal);
+                chain.doFilter(new AuthenticatedHttpRequest(httpReq, principal), response);
+                return;
+            }
+            chain.doFilter(request, response);
+        }
+    }
+
+    /**
+     * Wraps the servlet request so {@code getUserPrincipal()} returns the
+     * token-resolved principal. Spring MVC, Jakarta Security, and the
+     * admin endpoint's {@code guardWrite} all read the standard servlet
+     * method — wrapping is simpler than duplicating the lookup at every
+     * site.
+     */
+    static class AuthenticatedHttpRequest
+            extends jakarta.servlet.http.HttpServletRequestWrapper {
+
+        private final java.security.Principal principal;
+
+        AuthenticatedHttpRequest(HttpServletRequest req, java.security.Principal principal) {
+            super(req);
+            this.principal = principal;
+        }
+
+        @Override
+        public java.security.Principal getUserPrincipal() {
+            return principal;
+        }
+    }
+
+    /**
      * Serves admin dashboard static assets from
      * {@code META-INF/resources/atmosphere/admin/}.
      */
@@ -235,12 +346,28 @@ public class AtmosphereAdminAutoConfiguration {
         AdminMcpBridge atmosphereAdminMcpBridge(
                 AtmosphereAdmin admin,
                 org.atmosphere.mcp.registry.McpRegistry mcpRegistry,
-                AtmosphereProperties properties) {
-            var bridge = new AdminMcpBridge(admin, mcpRegistry, ControlAuthorizer.ALLOW_ALL);
+                AtmosphereProperties properties,
+                @org.springframework.beans.factory.annotation.Autowired(required = false)
+                ControlAuthorizer customAuthorizer) {
+            // Read tools (list, describe) keep ALLOW_ALL because they're
+            // information-only. Write tools (scale, kill, reload) default to
+            // REQUIRE_PRINCIPAL so the admin MCP surface isn't a no-auth
+            // mutation channel (Correctness Invariant #6 — default deny).
+            // Applications that expose admin writes intentionally can inject
+            // their own ControlAuthorizer bean to override.
+            ControlAuthorizer writeAuthorizer = customAuthorizer != null
+                    ? customAuthorizer
+                    : ControlAuthorizer.REQUIRE_PRINCIPAL;
+            var bridge = new AdminMcpBridge(admin, mcpRegistry,
+                    customAuthorizer != null ? customAuthorizer : ControlAuthorizer.ALLOW_ALL);
             bridge.registerReadTools();
             if (Boolean.TRUE.toString().equalsIgnoreCase(
                     properties.getAdminMcpWriteTools())) {
-                bridge.registerWriteTools();
+                // Rebuild the bridge with the stricter authorizer before
+                // mounting write tools so ALLOW_ALL never reaches a
+                // mutation surface.
+                var writeBridge = new AdminMcpBridge(admin, mcpRegistry, writeAuthorizer);
+                writeBridge.registerWriteTools();
             }
             return bridge;
         }
@@ -313,6 +440,27 @@ public class AtmosphereAdminAutoConfiguration {
                     org.atmosphere.coordinator.journal.CoordinationJournal.NOOP);
             admin.setCoordinatorController(controller);
             logger.debug("Atmosphere Admin: Coordinator controller wired");
+            return controller;
+        }
+
+        /**
+         * Wires the agent-to-agent flow viewer backing the
+         * {@code /api/admin/flow} endpoints. Reads the Spring-bridged
+         * {@link org.atmosphere.coordinator.journal.CoordinationJournal} bean
+         * so it sees the same event stream as the coordinator pipeline
+         * (NOOP fallback keeps the endpoint usable when no bean is present).
+         */
+        @Bean
+        org.atmosphere.admin.flow.FlowController atmosphereAdminFlowController(
+                AtmosphereAdmin admin,
+                org.springframework.beans.factory.ObjectProvider<
+                        org.atmosphere.coordinator.journal.CoordinationJournal> journalProvider) {
+            var journal = journalProvider.getIfAvailable(
+                    () -> org.atmosphere.coordinator.journal.CoordinationJournal.NOOP);
+            var controller = new org.atmosphere.admin.flow.FlowController(journal);
+            admin.setFlowController(controller);
+            logger.debug("Atmosphere Admin: Flow controller wired (journal={})",
+                    journal.getClass().getSimpleName());
             return controller;
         }
     }

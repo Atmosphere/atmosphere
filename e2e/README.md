@@ -10,8 +10,13 @@ cd e2e
 npm install
 npm run install:browsers
 
-# Start the sample in another terminal first, then:
-npm run test:admin              # admin control plane smoke
+# In another terminal, boot the sample via Spring Boot Maven plugin — no
+# fat-jar repackage, no custom classpath assembly, no curl-based
+# readiness probe.
+./mvnw -pl samples/spring-boot-personal-assistant spring-boot:run \
+    -Dspring-boot.run.arguments='--server.port=8080'
+
+# Once /actuator/health reports UP:
 npm run test:personal-assistant # sample #1 happy path
 npm run test:coding-agent       # sample #2 happy path (ATMO_E2E_BASE_URL=http://localhost:8081)
 ```
@@ -48,9 +53,28 @@ These are all on the Phase 4 checklist; this suite is the Playwright
 scaffolding those later passes slot into without re-inventing the
 harness.
 
-## CI integration
+## CI
 
-The `atmosphere-e2e` package is not yet wired into the Maven reactor;
-the Playwright suite runs as its own lane. When the CI matrix lands,
-each sample spins up via `mvn spring-boot:run` in the background, waits
-for the admin endpoint to return 200, and runs the corresponding spec.
+**`.github/workflows/foundation-e2e.yml`** gates merges on this suite.
+The job builds `personal-assistant` and `coding-agent` as fat jars,
+boots each in turn on port 8080, waits for the console endpoint to
+return 200, runs the matching `tests/*.spec.ts` via Playwright, and
+tears down. Specs that need a live LLM
+(`schedule request fires tool call …`, `research request …`,
+`draft request …`) skip themselves on absent
+`LLM_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY`; they run in
+`e2e-real-llm.yml` nightly. The coding-agent clone-read spec skips on
+`SKIP_SANDBOX_E2E=true` so the CI runner (no Docker daemon) still
+exercises the admin + sandbox-unavailable branches.
+
+For manual local runs:
+
+```bash
+cd e2e
+ATMO_E2E_BASE_URL=http://localhost:8080 npx playwright test tests/personal-assistant.spec.ts
+ATMO_E2E_BASE_URL=http://localhost:8080 npx playwright test tests/coding-agent.spec.ts
+```
+
+after booting the respective sample jar with the env vars documented in
+`samples/spring-boot-personal-assistant/README.md` and
+`samples/spring-boot-coding-agent/README.md`.

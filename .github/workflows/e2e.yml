@@ -86,18 +86,15 @@ jobs:
           - name: ai-ux-flows
             projects: "ai-multimodal,ai-retry-policy,ai-lifecycle-listener,ai-models"
           - name: ai-tools
-            projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow"
+            projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow,ai-cancel"
           - name: ai-advanced
-            projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding"
+            projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding,semantic-kernel-chat"
           - name: ai-routing
             projects: "ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
-          # ai-cancel, semantic-kernel-chat, admin-coverage, and
-          # orchestration-primitives are intentionally NOT mapped — all
-          # four were silently unmapped before the split and the first
-          # real run revealed latent spec bugs (see run 24418307271 for
-          # evidence). They stay unmapped until fixed so main CI stays
-          # green; checkpoint-agent IS healthy and lives under
-          # gap-coordinator with the other durable-HITL specs.
+          # checkpoint-agent lives under gap-coordinator with the other
+          # durable-HITL specs. The previously-quarantined ai-cancel,
+          # semantic-kernel-chat, admin-coverage, and orchestration-primitives
+          # specs are now remapped into their matching legs.
           - name: protocols
             projects: "mcp-server,mcp-tools,a2a-agent,a2a-discovery,agui-chat,multi-agent-startup-team"
           - name: protocols-extra
@@ -115,11 +112,11 @@ jobs:
           - name: gap-protocols-agent
             projects: "a2a-multi-hop,concurrent-protocol-access"
           - name: gap-coordinator
-            projects: "coordinator-remote,coordinator-journal,coordinator-activity,durable-session-restart,session-token-expiry,auth-oauth-jwt,checkpoint-agent"
+            projects: "coordinator-remote,coordinator-journal,coordinator-activity,durable-session-restart,session-token-expiry,auth-oauth-jwt,checkpoint-agent,orchestration-primitives"
           - name: gap-compat
             projects: "spring-boot3-parity,backpressure-bounded-queue,webtransport-raw,webtransport"
           - name: gap-admin-core
-            projects: "admin-dashboard,admin-quarkus"
+            projects: "admin-dashboard,admin-quarkus,admin-coverage"
           - name: gap-admin-smoke
             projects: "console-http-check,sample-matrix-smoke"
           - name: gap-agents

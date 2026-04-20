@@ -40,6 +40,26 @@ async function injectAuthToken(page: import('@playwright/test').Page) {
     (window as any).WebSocket.CLOSING = OrigWS.CLOSING;
     (window as any).WebSocket.CLOSED = OrigWS.CLOSED;
     (window as any).WebSocket.prototype = OrigWS.prototype;
+
+    // Patch fetch so the admin dashboard's REST mutations
+    // (/api/admin/broadcasters/broadcast etc.) carry the token —
+    // guardWrite now resolves a Principal from X-Atmosphere-Auth and
+    // rejects anonymous callers with 401.
+    const origFetch = window.fetch.bind(window);
+    (window as any).fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+      const urlStr = typeof input === 'string'
+          ? input : input instanceof URL ? input.toString() : (input as Request).url;
+      if (urlStr && urlStr.includes('/api/admin/')) {
+        const merged: RequestInit = { ...(init ?? {}) };
+        const headers = new Headers(merged.headers ?? {});
+        if (!headers.has('X-Atmosphere-Auth')) {
+          headers.set('X-Atmosphere-Auth', token);
+        }
+        merged.headers = headers;
+        return origFetch(input, merged);
+      }
+      return origFetch(input, init);
+    };
   }, AUTH_TOKEN);
 }
 
@@ -160,8 +180,14 @@ test.describe('Admin REST API', () => {
 });
 
 test.describe('Admin Write Operations', () => {
+  // Admin write endpoints now enforce authentication — every mutating
+  // POST / DELETE must carry the demo token so the AuthInterceptor
+  // resolves a Principal before guardWrite consults the ControlAuthorizer.
+  const AUTH_HEADER = { 'X-Atmosphere-Auth': AUTH_TOKEN };
+
   test('broadcast sends a message and appears in audit log', async ({ request }) => {
     const broadcastRes = await request.post(`${server.baseUrl}/api/admin/broadcasters/broadcast`, {
+      headers: AUTH_HEADER,
       data: {
         broadcasterId: '/atmosphere/ai-chat',
         message: 'e2e test broadcast',
@@ -185,6 +211,7 @@ test.describe('Admin Write Operations', () => {
 
   test('broadcast to unknown broadcaster returns 404', async ({ request }) => {
     const res = await request.post(`${server.baseUrl}/api/admin/broadcasters/broadcast`, {
+      headers: AUTH_HEADER,
       data: {
         broadcasterId: '/nonexistent/path',
         message: 'should fail',
@@ -196,6 +223,7 @@ test.describe('Admin Write Operations', () => {
   test('disconnect unknown resource returns 404', async ({ request }) => {
     const res = await request.delete(
       `${server.baseUrl}/api/admin/resources/nonexistent-uuid`,
+      { headers: AUTH_HEADER },
     );
     expect(res.status()).toBe(404);
   });
@@ -203,8 +231,18 @@ test.describe('Admin Write Operations', () => {
   test('cancel unknown task returns 404', async ({ request }) => {
     const res = await request.post(
       `${server.baseUrl}/api/admin/tasks/nonexistent-task-id/cancel`,
+      { headers: AUTH_HEADER },
     );
     expect(res.status()).toBe(404);
+  });
+
+  test('anonymous write (no auth) returns 401', async ({ request }) => {
+    // Regression for the P0 "admin HTTP write is unauthenticated" finding —
+    // removing the header must get a 401, proving guardWrite actually fires.
+    const res = await request.post(`${server.baseUrl}/api/admin/broadcasters/broadcast`, {
+      data: { broadcasterId: '/atmosphere/ai-chat', message: 'anon' },
+    });
+    expect(res.status()).toBe(401);
   });
 });
 
@@ -311,8 +349,9 @@ test.describe('Admin Event Stream', () => {
     // Wait for connection to stabilize
     await new Promise(r => setTimeout(r, 2000));
 
-    // Trigger a broadcast
+    // Trigger a broadcast — carries the demo-token so guardWrite admits it.
     await request.post(`${server.baseUrl}/api/admin/broadcasters/broadcast`, {
+      headers: { 'X-Atmosphere-Auth': AUTH_TOKEN },
       data: {
         broadcasterId: '/atmosphere/ai-chat',
         message: 'event stream test',

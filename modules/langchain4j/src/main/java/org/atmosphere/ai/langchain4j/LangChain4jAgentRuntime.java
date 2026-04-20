@@ -141,6 +141,10 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
     protected org.atmosphere.ai.ExecutionHandle doExecuteWithHandle(
             StreamingChatModel streamingModel,
             AgentExecutionContext context, StreamingSession session) {
+        // Admit through the process-wide AiGateway before issuing the native
+        // LangChain4j dispatch — uniform per-user rate limiting and credential
+        // resolution across all seven runtimes (Correctness Invariant #3).
+        admitThroughGateway(context);
         var messages = assembleMessages(context).stream()
                 .map(LangChain4jAgentRuntime::toLangChainMessage)
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));

@@ -119,6 +119,49 @@ class AdminMcpBridgeTest {
         assertEquals("unauthorized", result.get("error"));
     }
 
+    /**
+     * Regression for the P1 "MCP writes require principal" bug — previously
+     * every tool passed {@code null} to the authorizer, so REQUIRE_PRINCIPAL
+     * permanently denied every call regardless of who was connected. This
+     * test asserts the identity-aware form now threads the principal through.
+     */
+    @Test
+    void testWriteToolsForwardPrincipalToAuthorizer() throws Exception {
+        var seen = new java.util.concurrent.atomic.AtomicReference<String>();
+        ControlAuthorizer sniffing = (action, target, principal) -> {
+            seen.set(principal);
+            return principal != null && !principal.isBlank();
+        };
+        var sniffingBridge = new AdminMcpBridge(admin, registry, sniffing);
+        sniffingBridge.registerWriteTools();
+
+        var tool = registry.tools().get("atmosphere_broadcast");
+        var handler = tool.handler();
+        assertTrue(handler instanceof McpRegistry.IdentityAwareToolHandler,
+                "write tool must be identity-aware so the authorizer sees a real principal");
+
+        var aware = (McpRegistry.IdentityAwareToolHandler) handler;
+        // Anonymous caller → denied under REQUIRE_PRINCIPAL semantics.
+        @SuppressWarnings("unchecked")
+        var denied = (Map<String, Object>) aware.execute(
+                Map.of("broadcasterId", "/chat", "message", "hi"), null);
+        assertEquals("unauthorized", denied.get("error"));
+        assertEquals(null, seen.get(), "authorizer must receive the null principal verbatim");
+
+        // Authenticated caller → authorizer receives the real name.
+        @SuppressWarnings("unchecked")
+        var allowed = (Map<String, Object>) aware.execute(
+                Map.of("broadcasterId", "/chat", "message", "hi"), "alice@example.com");
+        assertEquals("alice@example.com", seen.get(),
+                "authorizer must receive the authenticated principal, not null");
+        // admin.framework().broadcast returns false for unknown broadcasters,
+        // but the authorizer already accepted — response carries "success"
+        // (true or false) rather than "error=unauthorized".
+        assertTrue(allowed.containsKey("success"),
+                "authorizer accepted: payload should carry the broadcast outcome, "
+                + "not the unauthorized error: " + allowed);
+    }
+
     @Test
     void testDisconnectToolDeniedByAuthorizer() throws Exception {
         var denyAll = (ControlAuthorizer) (action, target, principal) -> false;

@@ -16,6 +16,10 @@
 package org.atmosphere.spring.boot;
 
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiGuardrail;
+import org.atmosphere.ai.facts.FactResolver;
+import org.atmosphere.ai.guardrails.OutputLengthZScoreGuardrail;
+import org.atmosphere.ai.guardrails.PiiRedactionGuardrail;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,8 +103,92 @@ public class AtmosphereAiAutoConfiguration {
     @ConditionalOnMissingBean
     public AtmosphereAiEndpointRegistrar atmosphereAiEndpointRegistrar(
             AtmosphereFramework framework,
-            AtmosphereProperties properties) {
-        return new AtmosphereAiEndpointRegistrar(framework, properties);
+            AtmosphereProperties properties,
+            org.springframework.beans.factory.ObjectProvider<AiGuardrail> guardrailProvider) {
+        var guardrails = guardrailProvider.orderedStream().toList();
+        // Bridge the bean list into framework properties so user-defined
+        // @AiEndpoint classes (which go through AiEndpointProcessor, not
+        // this registrar) also pick them up. Without this publish, the
+        // registrar applied guardrails to the default endpoint only and
+        // @AiEndpoint paths were starved.
+        if (!guardrails.isEmpty()) {
+            framework.getAtmosphereConfig().properties()
+                    .put(AiGuardrail.GUARDRAILS_PROPERTY, guardrails);
+            logger.info("Bridged {} Spring AiGuardrail bean(s) into framework properties: {}",
+                    guardrails.size(),
+                    guardrails.stream().map(g -> g.getClass().getSimpleName()).toList());
+        }
+        return new AtmosphereAiEndpointRegistrar(framework, properties, guardrails);
+    }
+
+    /**
+     * Bridges the application's {@link FactResolver} bean (if any) into the
+     * framework's properties so {@code AiEndpointHandler} picks it up at
+     * turn dispatch. Same template as
+     * {@code AtmosphereCoordinatorAutoConfiguration.atmosphereCoordinatorJournalBridge}
+     * — framework-scoped, lifecycle owned by Spring, no process-wide static.
+     */
+    @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnBean(FactResolver.class)
+    public FactResolverBridge atmosphereFactResolverBridge(
+            AtmosphereFramework framework, FactResolver resolver) {
+        framework.getAtmosphereConfig().properties()
+                .put(FactResolver.FACT_RESOLVER_PROPERTY, resolver);
+        logger.info("Bridged Spring FactResolver bean {} into AiEndpointHandler "
+                + "(lifecycle: Spring-owned)", resolver.getClass().getName());
+        return new FactResolverBridge(resolver);
+    }
+
+    /**
+     * Marker bean recording that a Spring-managed FactResolver has been
+     * bridged into the framework properties. The bean carries the resolver
+     * reference so tests and diagnostics can verify the bridge was wired
+     * without poking at framework properties directly.
+     */
+    public record FactResolverBridge(FactResolver resolver) { }
+
+    /**
+     * Opt-in PII redaction guardrail. Off by default — enable with
+     * {@code atmosphere.ai.guardrails.pii.enabled=true}. Redacts emails,
+     * phone numbers, credit card numbers, and US SSNs from requests and
+     * responses; set {@code atmosphere.ai.guardrails.pii.blocking=true} to
+     * block instead of redact.
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmospherePiiGuardrail")
+    @ConditionalOnProperty(name = "atmosphere.ai.guardrails.pii.enabled", havingValue = "true")
+    public PiiRedactionGuardrail atmospherePiiGuardrail(
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.pii.blocking:false}") boolean blocking) {
+        var g = new PiiRedactionGuardrail();
+        if (blocking) {
+            logger.info("PiiRedactionGuardrail registered (blocking mode)");
+            return g.blocking();
+        }
+        logger.info("PiiRedactionGuardrail registered (redacting mode)");
+        return g;
+    }
+
+    /**
+     * Opt-in drift / output-length guardrail. Off by default — enable with
+     * {@code atmosphere.ai.guardrails.drift.enabled=true}. Maintains a
+     * rolling window of response lengths and blocks outliers beyond
+     * {@code atmosphere.ai.guardrails.drift.z-score-threshold} standard
+     * deviations.
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereDriftGuardrail")
+    @ConditionalOnProperty(name = "atmosphere.ai.guardrails.drift.enabled", havingValue = "true")
+    public OutputLengthZScoreGuardrail atmosphereDriftGuardrail(
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.drift.window-size:50}") int windowSize,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.drift.z-score-threshold:3.0}") double zThreshold,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.drift.min-samples:10}") int minSamples) {
+        logger.info("OutputLengthZScoreGuardrail registered (window={}, z={}, minSamples={})",
+                windowSize, zThreshold, minSamples);
+        return new OutputLengthZScoreGuardrail(windowSize, zThreshold, minSamples);
     }
 
 

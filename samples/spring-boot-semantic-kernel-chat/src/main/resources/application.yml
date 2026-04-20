@@ -3,6 +3,11 @@
 
 atmosphere:
   console-subtitle: Real-time AI chat powered by Microsoft Semantic Kernel
+  # Required: the @AiEndpoint second-pass scan only traverses user-configured
+  # packages. Without this the framework never discovers SkChat and falls
+  # back to registering the DefaultAiChatEndpoint at /atmosphere/ai-chat —
+  # which then tries the un-configured SemanticKernel runtime and errors out.
+  packages: org.atmosphere.samples.springboot.skchat
 
 # LLM config consumed by SkConfig:
 #   - AiConfig.LlmSettings (demo-mode detection)

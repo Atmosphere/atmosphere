@@ -111,6 +111,11 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
     @Override
     protected void doExecute(ChatCompletionService service,
                              AgentExecutionContext context, StreamingSession session) {
+        // Admit through the process-wide AiGateway before issuing the native
+        // Semantic Kernel dispatch — uniform per-user rate limiting and
+        // credential resolution across all seven runtimes
+        // (Correctness Invariant #3).
+        admitThroughGateway(context);
         var chatHistory = buildChatHistory(context);
 
         // Tool-calling path: when the context carries any @AiTool-derived

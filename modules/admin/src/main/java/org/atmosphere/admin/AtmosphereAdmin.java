@@ -16,6 +16,7 @@
 package org.atmosphere.admin;
 
 import org.atmosphere.admin.agent.AgentController;
+import org.atmosphere.admin.flow.FlowController;
 import org.atmosphere.admin.framework.FrameworkController;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.metrics.AtmosphereHealth;
@@ -43,6 +44,15 @@ public final class AtmosphereAdmin {
     private final AgentController agentController;
     private final AtmosphereHealth health;
     private final ControlAuditLog auditLog;
+    /**
+     * Authorizer gating every mutating admin action (HTTP write endpoints,
+     * MCP write tools, SSE control channel). Defaults to
+     * {@link ControlAuthorizer#DENY_ALL} — fail-closed per Correctness
+     * Invariant #6. Production deployments install either
+     * {@link ControlAuthorizer#REQUIRE_PRINCIPAL} or a custom authorizer
+     * wired against the app's auth stack.
+     */
+    private volatile ControlAuthorizer authorizer = ControlAuthorizer.DENY_ALL;
 
     // Optional controllers — null when modules are not on classpath
     private Object coordinatorController;
@@ -50,6 +60,7 @@ public final class AtmosphereAdmin {
     private Object aiRuntimeController;
     private Object mcpController;
     private Object metricsController;
+    private FlowController flowController;
 
     public AtmosphereAdmin(AtmosphereFramework framework, int auditLogSize) {
         this.frameworkController = framework != null ? new FrameworkController(framework) : null;
@@ -178,5 +189,27 @@ public final class AtmosphereAdmin {
     @SuppressWarnings("unchecked")
     public <T> T metricsController() {
         return (T) metricsController;
+    }
+
+    public void setFlowController(FlowController controller) {
+        this.flowController = controller;
+    }
+
+    public FlowController flowController() {
+        return flowController;
+    }
+
+    /**
+     * Install the admin control-plane authorizer. Every HTTP write endpoint,
+     * MCP write tool, and SSE control-channel mutation consults this gate;
+     * the default is {@link ControlAuthorizer#DENY_ALL} so unwired
+     * deployments cannot mutate state until an operator opts in.
+     */
+    public void setAuthorizer(ControlAuthorizer authorizer) {
+        this.authorizer = authorizer != null ? authorizer : ControlAuthorizer.DENY_ALL;
+    }
+
+    public ControlAuthorizer authorizer() {
+        return authorizer;
     }
 }

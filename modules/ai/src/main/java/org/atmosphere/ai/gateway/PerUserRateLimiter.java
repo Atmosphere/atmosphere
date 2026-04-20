@@ -15,6 +15,9 @@
  */
 package org.atmosphere.ai.gateway;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -64,6 +67,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class PerUserRateLimiter {
 
+    private static final Logger logger = LoggerFactory.getLogger(PerUserRateLimiter.class);
+
     /**
      * Default hard cap on distinct tracked user ids. Chosen so that a deque
      * of {@code maxRequests} longs per user fits comfortably on the heap
@@ -109,8 +114,12 @@ public final class PerUserRateLimiter {
      * rejected.
      *
      * <p>When the tracked-user cap is reached for a previously-unseen user
-     * the call fails open: we'd rather serve one extra request than 429 a
-     * legitimate user because the limiter can't allocate a deque.</p>
+     * the call sweeps idle entries first; if that doesn't free a slot the
+     * call <b>fails closed</b> (returns {@code false}). Previously this
+     * path failed open, which let an abuser bypass the limiter exactly at
+     * the moment abuse was most likely (Correctness Invariant #6 —
+     * default deny). Operators can raise {@link #maxTrackedUsers} or
+     * shorten {@link #window} if the cap is clipping legitimate users.</p>
      */
     public boolean tryAcquire(String userId) {
         if (userId == null || userId.isBlank()) {
@@ -122,7 +131,14 @@ public final class PerUserRateLimiter {
         if (existing == null) {
             // Enforce hard cap before allocating a new deque.
             if (timestamps.size() >= maxTrackedUsers) {
-                return true; // fail open — see javadoc
+                // One more sweep attempt before giving up — cheap, and if it
+                // reclaims at least one slot the new user gets in.
+                sweep();
+                if (timestamps.size() >= maxTrackedUsers) {
+                    logger.warn("PerUserRateLimiter tracked-user cap ({}) reached; "
+                            + "failing closed on new user '{}'", maxTrackedUsers, userId);
+                    return false;
+                }
             }
             var fresh = timestamps.computeIfAbsent(userId, k -> new ArrayDeque<>());
             synchronized (fresh) {

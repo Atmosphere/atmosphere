@@ -1,0 +1,28 @@
+server:
+  port: 8081
+
+atmosphere:
+  # Tell the Spring Boot starter where the sample's @Agent classes live so
+  # the CodingAgent endpoint registers. Without this the starter only scans
+  # core org.atmosphere.* packages.
+  packages: org.atmosphere.samples.springboot.codingagent
+
+  ai:
+    # Any of the seven runtime artifacts on the classpath is picked up by
+    # AgentRuntime ServiceLoader discovery. Switching runtimes is a Maven
+    # dependency swap plus setting this to the runtime name.
+    runtime: spring-ai
+    # Keyless demo — the sample's @Prompt body drives a Docker Sandbox flow
+    # that does not require an LLM, so opt out of the starter's fail-fast
+    # default. Production apps should leave fail-fast on (the default).
+    fail-fast: false
+
+spring:
+  application:
+    name: atmosphere-coding-agent
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:gpt-4o-mini}

@@ -78,6 +78,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `REQUIRE_PRINCIPAL` on top of their transport auth
   (Spring Security, Quarkus security) for production deployments.
 
+### Added — Observability, grounded facts, guardrails, flow viewer
+
+> Entries below land in one squash-merge commit on `main`; the hash
+> will be stamped on the commit body when the merge happens.
+
+- **`BusinessMetadata`** — standard keys (`business.tenant.id`,
+  `business.customer.id`, `business.session.revenue`,
+  `business.event.kind`, ...) with an `EventKind` enum. Published to
+  SLF4J MDC on the dispatching virtual thread and cleared in
+  `finally` so Dynatrace / Datadog / OTel log exporters propagate
+  tenant + customer + revenue tags onto the active span for every
+  agent turn.
+- **`FactResolver`** SPI + `DefaultFactResolver` — injects
+  deterministic facts (time, user identity, plan tier, custom
+  `app.*` keys) into the system prompt before every turn. Resolution
+  order matches `CoordinationJournal` / `AsyncSupport`:
+  framework-property bridge (Spring beans) → `ServiceLoader` →
+  process-wide holder → default. Newline / tab / control characters
+  in values are escaped so fact values cannot reshape the
+  instruction context.
+- **`PiiRedactionGuardrail`** — regex-based detection of email,
+  phone, credit card, US SSN, IPv4. Redacts on the request path,
+  Blocks on the response path (the SPI cannot rewrite an
+  already-emitted stream, so default-mode log-only signalling was
+  security theatre).
+- **`OutputLengthZScoreGuardrail`** — rolling-window drift detector;
+  Blocks responses more than N standard deviations above the window
+  mean. Opt-in via `atmosphere.ai.guardrails.drift.enabled=true`.
+- **Agent-to-Agent Flow Viewer** — `GET /api/admin/flow` and
+  `GET /api/admin/flow/{coordinationId}` render the
+  `CoordinationJournal` as a graph (nodes = agents, edges = dispatch
+  count + success / failure / avg-duration). Edge attribution is
+  keyed per-`coordinationId` so concurrent tenant runs stay scoped.
+- **Run reattach consumer** — `AiEndpointHandler` now reads the
+  `X-Atmosphere-Run-Id` header on reconnection, looks up the
+  live `AgentResumeHandle` via `RunRegistry`, and replays the
+  buffered events onto the new resource. Closes the "producer
+  present, consumer absent" gap in the original primitive wire-in.
+
+### Fixed — Critical hardening
+
+- **Admin HTTP writes now enforce authentication** in addition to
+  the feature flag. `guardWrite(HttpServletRequest, action, target)`
+  resolves a Principal from the servlet `UserPrincipal`, the
+  Atmosphere `AuthInterceptor`-set attribute, or the `ai.userId`
+  attribute, then consults `ControlAuthorizer`. The earlier
+  feature-flag-only gate let any anonymous caller mutate state once
+  the flag was flipped. Correctness Invariant #6 (Security).
+- **MCP write tools forward the authenticated principal** to
+  `ControlAuthorizer.authorize(...)`. Previously every tool passed
+  `null`, so `REQUIRE_PRINCIPAL` permanently denied and `ALLOW_ALL`
+  permanently admitted regardless of identity. New
+  `IdentityAwareToolHandler` functional interface threads the
+  servlet-resolved principal through `McpProtocolHandler.executeToolCall`.
+- **`AiGateway` admission on cancel-capable dispatch paths**.
+  `BuiltInAgentRuntime.doExecuteWithHandle` and
+  `KoogAgentRuntime.executeWithHandle` now call
+  `admitThroughGateway` — parity with the plain `execute` path so
+  rate limits and credential policies fire on every mode
+  (Correctness Invariant #7 — mode parity).
+- **Business MDC lifecycle.** The MDC population was previously done
+  on the servlet thread (wrong thread — VT logs never saw it) and
+  never cleared. Snapshot on the servlet thread, apply on the VT
+  dispatcher with try/finally clear, so every log record during the
+  turn carries the tags and the VT pool starts clean on the next
+  turn.
+- **Flow graph attribution under interleaved coordinations.**
+  `FlowController.buildGraph` previously carried a flat
+  `currentCoordinator` cursor — concurrent runs misattributed every
+  second edge. Now maintains a `coordinationId → coordinatorName`
+  map.
+- **User `@AiEndpoint` paths get Spring + ServiceLoader
+  guardrails.** `AiEndpointProcessor` merges annotation-declared
+  guardrails with `ServiceLoader.load(AiGuardrail.class)` and the
+  framework-property bridge so annotation-declared endpoints are no
+  longer starved of the auto-wired guardrail set. New
+  `AiGuardrail.GUARDRAILS_PROPERTY` mirrors the
+  `CoordinationJournal` bridge key.
+- **Foundation E2E stops skipping the Docker sandbox regression.**
+  `SKIP_SANDBOX_E2E=true` previously hid the command-injection
+  hardening; removed from `foundation-e2e.yml` so the clone+read
+  spec runs on every PR. ubuntu-latest ships with Docker — the new
+  workflow also verifies its presence early.
+- **Sample boot modernization.** `spring-boot-coding-agent` reverted
+  from `application.properties` to `application.yml`; both samples
+  add `spring-boot-starter-actuator`; `foundation-e2e.yml` boots via
+  `./mvnw spring-boot:run` and waits on `/actuator/health` via
+  `wait-on` instead of shelling out to `curl` and pre-building a
+  fat jar.
+
 ### Fixed
 
 - **`FileSystemAgentState` cross-scope bleed** (`ad850f9f35`).

@@ -15,10 +15,11 @@
  */
 package org.atmosphere.spring.boot;
 
+import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiConversationMemory;
+import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiMetrics;
-import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.processor.AiEndpointHandler;
@@ -42,8 +43,33 @@ class AtmosphereAiEndpointRegistrar {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereAiEndpointRegistrar.class);
 
+    private final List<AiGuardrail> guardrails;
+
     AtmosphereAiEndpointRegistrar(AtmosphereFramework framework,
-                                  AtmosphereProperties properties) {
+                                  AtmosphereProperties properties,
+                                  List<AiGuardrail> guardrails) {
+        // Merge Spring-bridged beans with ServiceLoader providers so
+        // plain-servlet / Quarkus-native classpaths pick up guardrails too —
+        // same discovery shape as AsyncSupport / CoordinationJournal. Spring
+        // beans win on duplicate class names.
+        var merged = new java.util.LinkedHashMap<Class<?>, AiGuardrail>();
+        if (guardrails != null) {
+            for (var g : guardrails) {
+                if (g != null) {
+                    merged.putIfAbsent(g.getClass(), g);
+                }
+            }
+        }
+        try {
+            for (var g : java.util.ServiceLoader.load(AiGuardrail.class)) {
+                if (g != null) {
+                    merged.putIfAbsent(g.getClass(), g);
+                }
+            }
+        } catch (java.util.ServiceConfigurationError e) {
+            logger.warn("AiGuardrail ServiceLoader lookup failed: {}", e.getMessage());
+        }
+        this.guardrails = List.copyOf(merged.values());
         framework.getAtmosphereConfig().startupHook(f -> {
             if (hasUserDefinedAiEndpoint(f, properties)) {
                 logger.info("User-defined @AiEndpoint detected, skipping default AI endpoint registration");
@@ -106,13 +132,19 @@ class AtmosphereAiEndpointRegistrar {
                 target, promptMethod, aiProps.getTimeout(),
                 systemPrompt, path, runtime, List.of(),
                 memory, lifecycle,
-                new DefaultToolRegistry(), List.of(), List.of(),
+                new DefaultToolRegistry(), guardrails, List.of(),
                 AiMetrics.NOOP, List.of(), null);
 
         List<AtmosphereInterceptor> interceptors = new LinkedList<>();
         AnnotationUtil.defaultManagedServiceInterceptors(framework, interceptors);
         framework.addAtmosphereHandler(path, handler, interceptors);
 
-        logger.info("Default AI chat endpoint registered at {}", path);
+        if (!guardrails.isEmpty()) {
+            logger.info("Default AI chat endpoint registered at {} with {} guardrail(s): {}",
+                    path, guardrails.size(),
+                    guardrails.stream().map(g -> g.getClass().getSimpleName()).toList());
+        } else {
+            logger.info("Default AI chat endpoint registered at {}", path);
+        }
     }
 }

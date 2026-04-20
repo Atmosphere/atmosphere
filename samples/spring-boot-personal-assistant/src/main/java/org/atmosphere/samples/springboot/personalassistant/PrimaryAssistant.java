@@ -109,9 +109,21 @@ public class PrimaryAssistant {
 
     // ---------- @AiTool methods exposed to the LLM ----------
 
+    /**
+     * "Commit" action — schedules a meeting. Gated by
+     * {@link org.atmosphere.ai.annotation.RequiresApproval}
+     * so the user confirms before anything lands on the (hypothetical)
+     * calendar. Gives the foundation's PermissionMode + @RequiresApproval
+     * pipeline a live exerciser: set
+     * {@code AgentIdentity.setPermissionMode(userId, PermissionMode.PLAN)}
+     * and every tool — including read-only ones — will route through the
+     * approval gate, confirming the outer policy takes precedence.
+     */
     @AiTool(name = "schedule_meeting",
             description = "Propose meeting slots for a given topic. Call this when "
                     + "the user wants to schedule, book, or arrange a meeting.")
+    @org.atmosphere.ai.annotation.RequiresApproval(
+            "Confirm scheduling this meeting? (Click approve to propose slots, deny to cancel.)")
     public String scheduleMeeting(
             AgentFleet fleet,
             @Param(value = "topic", description = "What the meeting is about") String topic,
@@ -173,17 +185,27 @@ public class PrimaryAssistant {
                     draftMessage(fleet, "team", message));
             return;
         }
-        session.stream(
+        // send() + complete() — NOT stream() — because this is the
+        // keyless-demo path that must NOT dispatch to an LLM. Same failure
+        // class as the coding-agent regression we fixed earlier: stream()
+        // on AiStreamingSession treats the argument as a fresh user-turn
+        // input and round-trips it to the model.
+        session.send(
                 "I can schedule meetings, research topics, or draft messages. "
                 + "Configure OPENAI_API_KEY to let me pick the right tool automatically; "
                 + "otherwise try keywords like 'schedule', 'research', or 'draft'.");
+        session.complete();
     }
 
     private static void emitToolCall(StreamingSession session, String toolName,
                                       Map<String, Object> args, String result) {
         session.emit(new AiEvent.ToolStart(toolName, args));
         session.emit(new AiEvent.ToolResult(toolName, result));
-        session.stream(result);
+        // Keyless fallback streams the tool result directly to the client
+        // via send() + complete(); stream() would re-dispatch the result
+        // as an LLM prompt and (without credentials) error out.
+        session.send(result);
+        session.complete();
     }
 
     private static boolean matchesAny(String haystack, String... needles) {
