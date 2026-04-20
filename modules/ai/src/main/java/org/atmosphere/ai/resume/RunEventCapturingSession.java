@@ -153,4 +153,15 @@ public final class RunEventCapturingSession implements StreamingSession {
         // and are captured there. Forward without double-capture.
         delegate.stream(message);
     }
+
+    @Override
+    public void handoff(String agentName, String message) {
+        // Handoff dispatches to another @Agent; the target agent's
+        // session.send events flow back through the replay path when
+        // the framework re-broadcasts completions. Forward without
+        // capturing here — the default base method throws
+        // UnsupportedOperationException, which would mask agent-backed
+        // handoffs that the underlying session supports.
+        delegate.handoff(agentName, message);
+    }
 }
