@@ -51,6 +51,13 @@ export const SAMPLES: Record<string, SampleConfig> = {
     dir: 'quarkus-chat',
     port: 8080,
     type: 'quarkus',
+    env: {
+      // Admin writes opt in via env so the default (out-of-box) posture
+      // stays fail-closed, while admin-quarkus.spec.ts can authenticate
+      // with X-Atmosphere-Auth: demo-token against the configured token.
+      ATMOSPHERE_ADMIN_HTTP_WRITE_ENABLED: 'true',
+      ATMOSPHERE_ADMIN_AUTH_TOKEN: 'demo-token',
+    },
   },
   'spring-boot-ai-chat': {
     name: 'spring-boot-ai-chat',

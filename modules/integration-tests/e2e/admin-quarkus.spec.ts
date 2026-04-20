@@ -1,12 +1,49 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 
+/**
+ * The admin token configured in the quarkus-chat sample fixture. The
+ * fixture sets ATMOSPHERE_ADMIN_HTTP_WRITE_ENABLED=true AND
+ * ATMOSPHERE_ADMIN_AUTH_TOKEN=demo-token so the admin-write triple-gate
+ * (feature flag → Principal → authorizer) can resolve a Principal via
+ * the fourth source in the chain — X-Atmosphere-Auth validated against
+ * the configured token. Mirrors the Spring demo-token posture so
+ * admin-dashboard.spec.ts and admin-quarkus.spec.ts share the pattern.
+ */
+const AUTH_TOKEN = 'demo-token';
+const AUTH_HEADER = { 'X-Atmosphere-Auth': AUTH_TOKEN };
+
 let server: SampleServer;
 
 test.beforeAll(async () => {
   test.setTimeout(120_000);
   server = await startSample(SAMPLES['quarkus-chat']);
 });
+
+/**
+ * Patch window.fetch to inject X-Atmosphere-Auth on admin REST calls
+ * so the browser-driven UI tests authenticate the same way as the
+ * raw-request tests above. Mirrors admin-dashboard.spec.ts's helper.
+ */
+async function injectAuthToken(page: import('@playwright/test').Page) {
+  await page.addInitScript((token: string) => {
+    const origFetch = window.fetch.bind(window);
+    (window as any).fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+      const urlStr = typeof input === 'string'
+        ? input : input instanceof URL ? input.toString() : (input as Request).url;
+      if (urlStr && urlStr.includes('/api/admin/')) {
+        const merged: RequestInit = { ...(init ?? {}) };
+        const headers = new Headers(merged.headers ?? {});
+        if (!headers.has('X-Atmosphere-Auth')) {
+          headers.set('X-Atmosphere-Auth', token);
+        }
+        merged.headers = headers;
+        return origFetch(input, merged);
+      }
+      return origFetch(input, init);
+    };
+  }, AUTH_TOKEN);
+}
 
 test.afterAll(async () => {
   await server?.stop();
@@ -80,8 +117,13 @@ test.describe('Quarkus Admin REST API', () => {
 });
 
 test.describe('Quarkus Admin Write Operations', () => {
+  // Writes require authentication: the fixture enables writes via
+  // ATMOSPHERE_ADMIN_HTTP_WRITE_ENABLED=true and sets the admin token
+  // via ATMOSPHERE_ADMIN_AUTH_TOKEN, so every mutating POST / DELETE
+  // must carry X-Atmosphere-Auth: demo-token to resolve a Principal.
   test('broadcast sends a message and appears in audit log', async ({ request }) => {
     const broadcastRes = await request.post(`${server.baseUrl}/api/admin/broadcasters/broadcast`, {
+      headers: AUTH_HEADER,
       data: {
         broadcasterId: '/atmosphere/chat',
         message: 'quarkus e2e test broadcast',
@@ -104,14 +146,28 @@ test.describe('Quarkus Admin Write Operations', () => {
 
   test('broadcast to unknown broadcaster returns 404', async ({ request }) => {
     const res = await request.post(`${server.baseUrl}/api/admin/broadcasters/broadcast`, {
+      headers: AUTH_HEADER,
       data: { broadcasterId: '/nonexistent', message: 'fail' },
     });
     expect(res.status()).toBe(404);
   });
 
   test('disconnect unknown resource returns 404', async ({ request }) => {
-    const res = await request.delete(`${server.baseUrl}/api/admin/resources/nonexistent-uuid`);
+    const res = await request.delete(`${server.baseUrl}/api/admin/resources/nonexistent-uuid`, {
+      headers: AUTH_HEADER,
+    });
     expect(res.status()).toBe(404);
+  });
+
+  test('anonymous write (no auth) returns 401', async ({ request }) => {
+    // Parity with the Spring admin-dashboard.spec.ts anonymous-write
+    // case: a POST that doesn't carry X-Atmosphere-Auth must be
+    // rejected, not silently fall through to the feature flag check
+    // or hit the audit log as success.
+    const res = await request.post(`${server.baseUrl}/api/admin/broadcasters/broadcast`, {
+      data: { broadcasterId: '/atmosphere/chat', message: 'should fail' },
+    });
+    expect(res.status()).toBe(401);
   });
 });
 
@@ -148,6 +204,9 @@ test.describe('Quarkus Admin Dashboard UI', () => {
   });
 
   test('broadcast from UI shows Sent confirmation', async ({ page }) => {
+    // The admin UI fires /api/admin/* writes from the browser; patch
+    // fetch to carry the auth token so guardWrite admits the request.
+    await injectAuthToken(page);
     await page.goto(`${server.baseUrl}/admin/`);
     await page.getByText('Control', { exact: true }).click();
 

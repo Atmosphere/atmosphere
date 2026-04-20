@@ -158,6 +158,68 @@ class AdminResourceAuthzTest {
                         + "third source in the resolution chain, parity with Spring");
     }
 
+    /**
+     * Fourth source in the principal chain — {@code X-Atmosphere-Auth}
+     * header validated against {@code atmosphere.admin.auth.token}.
+     * This is the JAX-RS-specific path: the Quarkus admin surface is a
+     * raw JAX-RS resource (not Atmosphere-handled), so Atmosphere's
+     * {@code AuthInterceptor} doesn't fire to populate the request
+     * attribute. Without this last resort, operators would have to
+     * stand up Quarkus Security even for the demo-token use case the
+     * Spring sample supports out-of-box.
+     */
+    @Test
+    void principalFromXAtmosphereAuthHeaderAgainstConfiguredTokenIsRespected() {
+        System.setProperty("atmosphere.admin.auth.token", "demo-token");
+        try {
+            Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+            resource.writeEnabledOverride = true;
+
+            resource.servletRequest = Mockito.mock(jakarta.servlet.http.HttpServletRequest.class);
+            Mockito.when(resource.servletRequest.getAttribute("org.atmosphere.auth.principal"))
+                    .thenReturn(null);
+            Mockito.when(resource.servletRequest.getAttribute("ai.userId"))
+                    .thenReturn(null);
+            Mockito.when(resource.servletRequest.getHeader("X-Atmosphere-Auth"))
+                    .thenReturn("demo-token");
+
+            var response = resource.broadcast(anonymousSecurityContext(),
+                    Map.of("broadcasterId", "/chat", "message", "x"));
+            assertEquals(200, response.getStatus(),
+                    "Quarkus must accept X-Atmosphere-Auth validated against the "
+                            + "configured admin token — fourth source in the chain.");
+        } finally {
+            System.clearProperty("atmosphere.admin.auth.token");
+        }
+    }
+
+    /**
+     * Fourth-source negative: wrong token must be rejected the same as
+     * anonymous. Regression for the constant-time-compare path — a
+     * length-mismatch short-circuit is fine, but a prefix-match early
+     * exit would be a timing leak worth catching.
+     */
+    @Test
+    void wrongXAtmosphereAuthTokenIsRejected() {
+        System.setProperty("atmosphere.admin.auth.token", "demo-token");
+        try {
+            Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+            resource.writeEnabledOverride = true;
+
+            resource.servletRequest = Mockito.mock(jakarta.servlet.http.HttpServletRequest.class);
+            Mockito.when(resource.servletRequest.getHeader("X-Atmosphere-Auth"))
+                    .thenReturn("wrong-token");
+
+            var response = resource.broadcast(anonymousSecurityContext(),
+                    Map.of("broadcasterId", "/chat", "message", "x"));
+            assertEquals(401, response.getStatus(),
+                    "Mismatched admin token must return 401 — the token source must "
+                            + "not bypass the principal requirement.");
+        } finally {
+            System.clearProperty("atmosphere.admin.auth.token");
+        }
+    }
+
     private static SecurityContext securityContextFor(String name) {
         var ctx = Mockito.mock(SecurityContext.class);
         Principal p = () -> name;

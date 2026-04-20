@@ -96,7 +96,7 @@ public class AdminResource {
      * {@code null} when the request is allowed; returns a populated
      * {@link Response} (401 or 403) when rejected.
      *
-     * <p>Principal resolution checks three sources in order — same
+     * <p>Principal resolution checks four sources in order — same
      * chain as the Spring side, so operators who authenticate via
      * Atmosphere's own {@code AuthInterceptor} and receive the
      * principal as a request attribute (not via Jakarta Security) are
@@ -107,9 +107,18 @@ public class AdminResource {
      *       Quarkus Security's primary surface.</li>
      *   <li>{@code org.atmosphere.auth.principal} request attribute —
      *       populated by Atmosphere's {@code AuthInterceptor} on
-     *       {@code X-Atmosphere-Auth} token validation.</li>
+     *       {@code X-Atmosphere-Auth} token validation (fires on
+     *       Atmosphere-handled paths — won't fire on raw JAX-RS
+     *       resources).</li>
      *   <li>{@code ai.userId} request attribute — set by the AI
      *       pipeline for framework-scoped identity.</li>
+     *   <li>{@code X-Atmosphere-Auth} header validated against
+     *       {@code atmosphere.admin.auth.token} config — the JAX-RS
+     *       path on the Quarkus admin surface isn't Atmosphere-handled,
+     *       so {@code AuthInterceptor} doesn't fire. This last source
+     *       gives operators a one-config-line way to run the admin
+     *       plane with token auth without standing up Quarkus Security,
+     *       matching the demo-token posture the Spring sample uses.</li>
      * </ol>
      */
     @Context
@@ -141,7 +150,7 @@ public class AdminResource {
     }
 
     /**
-     * Resolve the authenticated caller's name across the three
+     * Resolve the authenticated caller's name across the four
      * supported auth surfaces. Returns {@code null} for anonymous or
      * blank identity.
      */
@@ -161,8 +170,58 @@ public class AdminResource {
                     && !s.isBlank()) {
                 return s;
             }
+            // Fourth source: X-Atmosphere-Auth header validated against
+            // the configured admin token. Fires only when the operator
+            // has opted in via atmosphere.admin.auth.token; otherwise
+            // the header is ignored and the principal stays null so
+            // default-deny kicks in.
+            var tokenAuth = resolvePrincipalFromAdminToken();
+            if (tokenAuth != null) {
+                return tokenAuth;
+            }
         }
         return null;
+    }
+
+    /**
+     * Match {@code X-Atmosphere-Auth} against the configured admin
+     * token. Returns the logical name {@code "atmosphere-admin-token"}
+     * on match so {@link org.atmosphere.admin.ControlAuthorizer}
+     * implementations can grant or deny specifically by token-auth
+     * principals. Returns {@code null} when no token is configured or
+     * the header does not match.
+     */
+    private String resolvePrincipalFromAdminToken() {
+        String header = servletRequest.getHeader("X-Atmosphere-Auth");
+        if (header == null || header.isBlank()) {
+            return null;
+        }
+        String configured;
+        try {
+            configured = org.eclipse.microprofile.config.ConfigProvider.getConfig()
+                    .getOptionalValue("atmosphere.admin.auth.token", String.class)
+                    .orElse(null);
+        } catch (RuntimeException e) {
+            return null;
+        }
+        if (configured == null || configured.isBlank()) {
+            return null;
+        }
+        // Constant-time compare — no short-circuit timing leak on prefix match.
+        return constantTimeEquals(header, configured)
+                ? "atmosphere-admin-token"
+                : null;
+    }
+
+    private static boolean constantTimeEquals(String a, String b) {
+        if (a.length() != b.length()) {
+            return false;
+        }
+        int result = 0;
+        for (int i = 0; i < a.length(); i++) {
+            result |= a.charAt(i) ^ b.charAt(i);
+        }
+        return result == 0;
     }
 
     // ── System Overview ──
