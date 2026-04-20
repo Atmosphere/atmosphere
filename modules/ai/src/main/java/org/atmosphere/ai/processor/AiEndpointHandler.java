@@ -472,6 +472,15 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 pathTemplate, runUserId, resource.uuid(), runExecutionHandle);
         session.setRunId(handle.runId());
 
+        // Producer side of the reattach wire: wrap the outgoing session so
+        // every text / complete / error event the @Prompt method emits also
+        // lands in the run's replay buffer. Without this, RunReattachSupport
+        // has nothing to drain on reconnect — the reattach primitive was
+        // half-shipped (consumer wired, producer not). See
+        // RunEventCapturingSession javadoc.
+        var capturingSession = new org.atmosphere.ai.resume.RunEventCapturingSession(
+                session, handle.replayBuffer());
+
         var promptThread = Thread.startVirtualThread(() -> {
             // Apply business.* MDC on the VT so every log record emitted
             // during the turn (pipeline / runtime / tool calls) carries the
@@ -479,7 +488,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // the VT pool leaks keys across turns.
             businessMdc.forEach(org.slf4j.MDC::put);
             try {
-                invokePrompt(userMessage, session, resource);
+                invokePrompt(userMessage, capturingSession, resource);
                 runExecutionHandle.complete();
             } catch (Exception e) {
                 Throwable cause = e;
