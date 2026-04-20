@@ -18,6 +18,7 @@ package org.atmosphere.ai.resume;
 import org.atmosphere.ai.ExecutionHandle;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -27,7 +28,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
@@ -98,8 +98,15 @@ class RunReattachSupportTest {
         var replayed = RunReattachSupport.replayPendingRun(resource, registry);
 
         assertEquals(3, replayed, "all three buffered events must reach the new resource");
-        assertEquals(List.of("Hello, ", "how can I help?", "[complete]"), writes,
-                "replay must preserve capture order — clients reconstruct the stream");
+        assertEquals(1, writes.size(),
+                "replay must batch events into a single write — long-polling "
+                + "flushes once per resource.write and the first flush resumes the "
+                + "response, so individual per-event writes drop everything after "
+                + "the first");
+        assertEquals("Hello, \u001ehow can I help?\u001e[complete]", writes.get(0),
+                "batched payload must preserve capture order with the ASCII "
+                + "record-separator (U+001E) between events so the client "
+                + "re-parses boundaries without collisions on printable chars");
     }
 
     @Test
@@ -118,51 +125,58 @@ class RunReattachSupportTest {
     }
 
     @Test
-    void replayStopsOnWriteFailureAndReportsPartialCount() {
+    void replayReportsZeroWhenWriteFails() throws java.io.IOException {
         handle.replayBuffer().capture("text", "first");
-        handle.replayBuffer().capture("text", "second — write will throw");
-        handle.replayBuffer().capture("text", "third never attempted");
+        handle.replayBuffer().capture("text", "second");
+        handle.replayBuffer().capture("text", "third");
 
-        var writes = new ArrayList<String>();
         var resource = Mockito.mock(AtmosphereResource.class);
         var request = Mockito.mock(AtmosphereRequest.class);
+        var response = Mockito.mock(AtmosphereResponse.class);
         when(resource.getRequest()).thenReturn(request);
         when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE))
                 .thenReturn(handle.runId());
         when(resource.uuid()).thenReturn("res-1");
-        // Throw on the second write to exercise the partial-count path.
-        Mockito.when(resource.write(anyString())).thenAnswer(inv -> {
-            var arg = (String) inv.getArgument(0);
-            if ("second — write will throw".equals(arg)) {
-                throw new RuntimeException("socket closed");
-            }
-            writes.add(arg);
-            return resource;
-        });
+        when(resource.getResponse()).thenReturn(response);
+        // The writer acquisition throws IOException — callers see 0 events
+        // delivered so they can re-register and retry on a fresh resource.
+        when(response.getWriter()).thenThrow(new java.io.IOException("socket closed"));
 
         var replayed = RunReattachSupport.replayPendingRun(resource, registry);
 
-        assertEquals(1, replayed,
-                "replay must report the partial count when a write fails "
-                + "mid-drain — callers can decide whether to retry");
-        assertEquals(List.of("first"), writes,
-                "events after the failure must not be written (stream is terminal)");
+        assertEquals(0, replayed,
+                "when the batched write fails, zero events reached the client — "
+                + "reporting anything else would mislead retry logic into "
+                + "assuming partial delivery");
     }
 
     private static AtmosphereResource mockResourceWithRunId(
             String attributeValue, String headerValue, List<String> writes) {
         var resource = Mockito.mock(AtmosphereResource.class);
         var request = Mockito.mock(AtmosphereRequest.class);
+        var response = Mockito.mock(AtmosphereResponse.class);
+        var stringWriter = new java.io.StringWriter();
+        var printWriter = new java.io.PrintWriter(stringWriter) {
+            @Override public void flush() {
+                super.flush();
+                // Snapshot what the writer has accumulated so the test
+                // can assert the exact payload produced by replay.
+                writes.clear();
+                writes.add(stringWriter.toString());
+            }
+        };
         when(resource.getRequest()).thenReturn(request);
         when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE))
                 .thenReturn(attributeValue);
         when(request.getHeader(RunReattachSupport.RUN_ID_HEADER))
                 .thenReturn(headerValue);
         when(resource.uuid()).thenReturn("res-" + System.identityHashCode(resource));
-        Mockito.when(resource.write(anyString())).thenAnswer(inv -> {
-            writes.add(inv.getArgument(0));
-            return resource;
-        });
+        try {
+            when(resource.getResponse()).thenReturn(response);
+            when(response.getWriter()).thenReturn(printWriter);
+        } catch (java.io.IOException e) {
+            throw new AssertionError("mock cannot throw", e);
+        }
         return resource;
     }
 }

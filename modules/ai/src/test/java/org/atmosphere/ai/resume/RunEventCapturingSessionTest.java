@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
@@ -119,8 +118,14 @@ class RunEventCapturingSessionTest {
 
         assertEquals(3, replayed,
                 "three captured events (2 text + 1 complete) must replay on reconnect");
-        assertEquals(List.of("Streamed ", "tokens", ""), writes,
-                "replay must deliver the captured payloads in the original order");
+        assertEquals(1, writes.size(),
+                "replay batches into a single write — long-polling flushes and "
+                + "resumes on the first resource.write, so per-event writes drop "
+                + "everything after the first");
+        assertEquals("Streamed \u001etokens\u001e", writes.get(0),
+                "batched payload must preserve capture order with the ASCII "
+                + "record-separator (U+001E) between events so the client "
+                + "re-parses boundaries without collisions on printable chars");
     }
 
     @SuppressWarnings("MockitoMockClassCanBeFinal")
@@ -128,14 +133,25 @@ class RunEventCapturingSessionTest {
             String runId, List<String> writes) {
         var resource = Mockito.mock(AtmosphereResource.class);
         var request = Mockito.mock(AtmosphereRequest.class);
+        var response = Mockito.mock(org.atmosphere.cpr.AtmosphereResponse.class);
+        var stringWriter = new java.io.StringWriter();
+        var printWriter = new java.io.PrintWriter(stringWriter) {
+            @Override public void flush() {
+                super.flush();
+                writes.clear();
+                writes.add(stringWriter.toString());
+            }
+        };
         when(resource.getRequest()).thenReturn(request);
         when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE))
                 .thenReturn(runId);
         when(resource.uuid()).thenReturn("reconnect-res");
-        Mockito.when(resource.write(anyString())).thenAnswer(inv -> {
-            writes.add(inv.getArgument(0));
-            return resource;
-        });
+        try {
+            when(resource.getResponse()).thenReturn(response);
+            when(response.getWriter()).thenReturn(printWriter);
+        } catch (java.io.IOException e) {
+            throw new AssertionError("mock cannot throw", e);
+        }
         return resource;
     }
 }

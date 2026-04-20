@@ -1,0 +1,19 @@
+server:
+  port: 8096
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.reattach
+  auth:
+    # The reattach harness is a CI-only surface; leave auth off so the
+    # Playwright spec can focus on the reattach contract without carrying
+    # an auth token dance.
+    enabled: false
+
+# Intentionally minimal — the sample has no LLM dispatch. The @Prompt in
+# SlowEmitterChat emits canned events with Thread.sleep, and the
+# SyntheticRunController pre-populates the registry directly. No model
+# configuration needed.
+logging:
+  level:
+    org.atmosphere.ai.resume: DEBUG
+    org.atmosphere.samples.springboot.reattach: DEBUG

@@ -18,6 +18,7 @@ on:
       - 'modules/**'
       - 'samples/spring-boot-personal-assistant/**'
       - 'samples/spring-boot-coding-agent/**'
+      - 'samples/spring-boot-reattach-harness/**'
       - 'e2e/**'
       - '.github/workflows/foundation-e2e.yml'
   pull_request:
@@ -49,11 +50,11 @@ jobs:
 
       - name: Install framework modules into local Maven repo
         # spring-boot:run needs the framework deps on the classpath but does
-        # not produce a fat jar; install the reactor once so both samples
-        # can resolve them at run-time.
+        # not produce a fat jar; install the reactor once so all three
+        # samples can resolve them at run-time.
         run: |
           ./mvnw install -Pfastinstall -DskipTests \
-            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent \
+            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent,samples/spring-boot-reattach-harness \
             -am -q
 
       - name: Install Playwright deps
@@ -135,6 +136,40 @@ jobs:
           fi
           pkill -f "spring-boot-coding-agent" 2>/dev/null || true
 
+      # ── Reattach-harness sample ───────────────────────────────────
+      # Deterministic harness for the mid-stream reattach wire. Runs on
+      # port 8096 so it can coexist with the personal-assistant/coding-agent
+      # stops above (those used 8080). The sample has no LLM dispatch —
+      # just a slow-emit @AiEndpoint plus a REST surface that pre-populates
+      # the RunRegistry so the Playwright spec can drive the HTTP →
+      # reattachPendingRun → replayPendingRun wire without timing flake.
+      - name: Start reattach-harness sample
+        run: |
+          nohup ./mvnw -pl samples/spring-boot-reattach-harness -q \
+              spring-boot:run \
+              -Dspring-boot.run.arguments='--server.port=8096' \
+              > /tmp/rh-run.log 2>&1 &
+          echo $! > /tmp/rh.pid
+
+      - name: Wait for reattach-harness readiness
+        # The harness exposes the AI endpoint only; /actuator isn't wired.
+        # A successful GET against the endpoint root means the framework
+        # + @AiEndpoint registrar are up.
+        run: npx --yes wait-on --timeout 120000 http://localhost:8096/atmosphere/agent/harness/
+
+      - name: Run reattach spec
+        working-directory: e2e
+        env:
+          ATMO_E2E_BASE_URL: http://localhost:8096
+        run: npx playwright test tests/reattach.spec.ts --reporter=list
+
+      - name: Stop reattach-harness
+        if: always()
+        run: |
+          if [ -f /tmp/rh.pid ]; then
+            kill "$(cat /tmp/rh.pid)" 2>/dev/null || true
+          fi
+
       - name: Dump sample logs on failure
         if: failure()
         run: |
@@ -142,3 +177,5 @@ jobs:
           cat /tmp/pa-run.log || true
           echo '=== ca-run.log ==='
           cat /tmp/ca-run.log || true
+          echo '=== rh-run.log ==='
+          cat /tmp/rh-run.log || true

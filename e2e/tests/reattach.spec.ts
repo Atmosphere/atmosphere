@@ -1,115 +1,142 @@
 import { expect, test } from '@playwright/test';
+import { request as httpRequest } from 'node:http';
+import { URL } from 'node:url';
 
 /**
- * E2E reattach contract: a client that disconnects mid-stream and
- * reconnects carrying `X-Atmosphere-Run-Id` must receive every event
- * the replay buffer captured while it was gone. Exercises the full
- * pipeline:
+ * E2E reattach contract: a client connecting to an Atmosphere
+ * `@AiEndpoint` with `X-Atmosphere-Run-Id` set must receive every event
+ * the replay buffer captured against that run id. Exercises the full
+ * production pipeline:
  *
- *   AiEndpointHandler.invokePrompt (producer: registers the run)
- *     → RunRegistry / RunEventReplayBuffer (capture live events)
- *     → [client disconnects]
+ *   RunRegistryHolder.register (producer)
+ *     → RunEventReplayBuffer.capture (buffer populated)
  *     → [client reconnects with X-Atmosphere-Run-Id]
- *     → DurableSessionInterceptor (stashes header into request attribute)
  *     → AiEndpointHandler.onReady → reattachPendingRun
  *     → RunReattachSupport.replayPendingRun (drains buffer → resource.write)
+ *     → transport flushes bytes to the client
  *
- * The unit tests `RunReattachSupportTest` and `RunEventCapturingSessionTest`
- * pin the replay semantics deterministically; the latter walks the full
- * capture → disconnect → reconnect → replay loop with a real
- * `RunRegistry`, real `RunEventReplayBuffer`, and real
- * `RunReattachSupport`. This spec is the last mile — proving the real
- * transport, real broadcaster, and real interceptor chain all cooperate.
+ * Unit tests (`RunReattachSupportTest`, `RunEventCapturingSessionTest`,
+ * `AgentResumeHandleTest`) pin every primitive individually and walk
+ * the capture → disconnect → reconnect → replay loop with a real
+ * registry. They cannot prove the **transport** layer cooperates —
+ * that the servlet container preserves the header onto the request
+ * attribute chain, that `AtmosphereResource` lifecycle events fire in
+ * the right order, and that the broadcaster delivers the replay writes
+ * through to the reconnected HTTP response. This spec closes that gap
+ * by driving the `spring-boot-reattach-harness` sample over real HTTP.
  *
- * Skipped by default. Set `REATTACH_SAMPLE_URL` to a sample that:
+ * REQUIRES: `samples/spring-boot-reattach-harness` running on port 8096.
+ *   cd samples/spring-boot-reattach-harness
+ *   ../../mvnw spring-boot:run
  *
- *   1. Exposes an `@AiEndpoint` whose @Prompt dispatches to a
- *      deliberately-slow runtime (e.g. a mock LLM that emits one event
- *      every 500ms).
- *   2. Has `DurableSessionInterceptor` on the chain so the
- *      `X-Atmosphere-Run-Id` header is stashed as the request attribute
- *      `org.atmosphere.session.runId`. (Optional — `RunReattachSupport`
- *      falls back to reading the raw header when the attribute is absent,
- *      so raw WebSocket clients still reattach.)
- *   3. Uses the default `RunRegistryHolder.get()` so the registry sees
- *      the run the endpoint registers.
- *
- * Producer wire note: as of commit `8156842fd4`, `RunEventCapturingSession`
- * populates the replay buffer from every `session.send / complete / error`
- * on every `@Prompt` dispatch — the primitive is no longer half-shipped.
- * Any sample with a slow `@Prompt` satisfies condition 1; the existing
- * `spring-boot-ai-chat` in demo mode (`DemoResponseProducer` emits words
- * with `Thread.sleep(50)`) is the closest candidate, but its long-poll
- * transport makes mid-stream abort timing tricky to script deterministically.
- * A follow-up dedicated harness sample with a fixed-cadence emitter is
- * the cleanest way to green-light this spec in the default CI lane.
+ * Why `synthetic-run` instead of a live `@Prompt` disconnect:
+ * the reattach contract is about the header-to-replay wire, not
+ * wall-clock timing. `SyntheticRunController` pre-populates a run's
+ * replay buffer with known events and returns the run id; the reconnect
+ * path goes through the identical production code
+ * (`AiEndpointHandler.onReady → replayPendingRun`). The live-`@Prompt`
+ * surface (`SlowEmitterChat` at `/atmosphere/agent/harness`) is there
+ * for manual verification; this spec uses the synthetic surface for CI
+ * reliability.
  */
-const SAMPLE_URL = process.env.REATTACH_SAMPLE_URL;
-
 test.describe('Mid-stream reattach via X-Atmosphere-Run-Id', () => {
-  test.skip(
-    !SAMPLE_URL,
-    'set REATTACH_SAMPLE_URL to a reattach-capable sample with a deliberately-slow @AiEndpoint — '
-      + 'the default personal-assistant / coding-agent samples do not gate dispatch latency '
-      + 'deterministically enough to drive a disconnect-mid-stream scenario'
-  );
+  test.use({ baseURL: process.env.ATMO_E2E_BASE_URL ?? 'http://localhost:8096' });
 
-  test.use({ baseURL: SAMPLE_URL });
+  test('synthetic run — reconnect replays captured events to new resource',
+      async ({ request, baseURL }) => {
+    // Step 1 — pre-register a run with known events via the harness REST
+    // surface. This lands entries in RunRegistryHolder.get() exactly as
+    // AiEndpointHandler.invokePrompt does for a real @Prompt turn; the
+    // reconnect path consults the same registry.
+    const runRes = await request.post('/harness/synthetic-run');
+    expect(runRes.ok(),
+        'harness /harness/synthetic-run must succeed — ensure the reattach-harness '
+        + 'sample is running on port 8096 (set ATMO_E2E_BASE_URL to override)')
+        .toBeTruthy();
+    const payload = await runRes.json();
+    expect(payload.events).toEqual(['replay-event-0', 'replay-event-1', 'replay-event-2']);
+    const runId = payload.runId as string;
+    expect(runId, 'harness must return a non-empty run id').toBeTruthy();
 
-  test('reconnect with X-Atmosphere-Run-Id replays buffered events', async ({ request }) => {
-    // Step 1: open an initial long-poll connection, fire a prompt, and
-    // read the first few events — proving the run is live and the
-    // replay buffer is capturing.
-    const initialResponse = await request.post('/atmosphere/agent/default', {
-      data: { message: 'start a long streaming response' },
-      timeout: 2_000,
-      failOnStatusCode: false,
-    });
-    const initialBody = await initialResponse.text();
+    // Step 2 — connect to the @AiEndpoint carrying X-Atmosphere-Run-Id.
+    // AiEndpointHandler.onReady fires reattachPendingRun, which hands
+    // the request to RunReattachSupport.replayPendingRun. That drains
+    // the 3 text + 1 complete event from the buffer onto the resource.
+    //
+    // Long-polling keeps the connection open after the replay, so we
+    // use a raw fetch with AbortController and a short timeout — the
+    // replay lands well before the cap and the bytes we pull are what
+    // we assert on.
+    const body = await fetchWithAbort(
+        `${baseURL}/atmosphere/agent/harness/?X-Atmosphere-Transport=long-polling`,
+        runId,
+        8_000);
 
-    // The sample's @Prompt dispatcher stashes the run id either in a
-    // response header (REATTACH harness convention) or in a streamed
-    // event envelope. Either surface is acceptable; the contract is
-    // that the client can recover it.
-    const runId = initialResponse.headers()['x-atmosphere-run-id']
-      ?? extractRunIdFromBody(initialBody);
-    expect(runId, 'sample must surface a run id the client can reconnect with').toBeTruthy();
+    // Step 3 — every captured event must surface on the reconnecting
+    // resource. The assertion is exact: if any event is missing the
+    // replay wire is broken.
+    for (const ev of ['replay-event-0', 'replay-event-1', 'replay-event-2']) {
+      expect(body,
+          `replay payload missing '${ev}' — body: ${body.slice(0, 400)}`)
+          .toContain(ev);
+    }
+  });
 
-    // Step 2: reconnect carrying the run id. The reattach hop fires
-    // inside AiEndpointHandler.onReady and writes the buffered events
-    // directly to this new resource (not the broadcaster — peer
-    // subscribers already saw them live).
-    const reattached = await request.post('/atmosphere/agent/default', {
-      headers: { 'X-Atmosphere-Run-Id': runId! },
-      data: { message: 'resume' },
-      timeout: 5_000,
-      failOnStatusCode: false,
-    });
-    expect(reattached.status()).toBe(200);
-    const replayBody = await reattached.text();
-
-    // Step 3: assert the replay surfaced events the initial connection
-    // had either not yet seen or that the server captured while the
-    // client was gone. The harness guarantees at least one "replay"
-    // marker payload so this assertion can be specific instead of a
-    // length-greater-than-zero hedge.
-    expect(
-      replayBody,
-      'reattach must replay events the first connection missed — '
-      + 'an empty body here means onReady.reattachPendingRun did not fire '
-      + 'or RunReattachSupport.replayPendingRun returned 0'
-    ).toMatch(/replay|buffered|resumed/i);
+  test('unknown run id — connection still succeeds, zero replay events',
+      async ({ baseURL }) => {
+    // A reconnect carrying a run id the registry never saw must be a
+    // silent no-op — the endpoint still accepts the connection (the run
+    // may have expired; treat as a fresh session) but writes nothing
+    // from a replay buffer.
+    const body = await fetchWithAbort(
+        `${baseURL}/atmosphere/agent/harness/?X-Atmosphere-Transport=long-polling`,
+        'never-seen-runId',
+        2_000);
+    expect(body,
+        'unknown run id must not trigger replay writes — the run may have '
+        + 'expired; treat as a fresh session').not.toContain('replay-event');
   });
 });
 
 /**
- * The reattach harness convention: sample sends a JSON envelope
- * `{"event":"run-started","runId":"…"}` before any payload events. When
- * the header isn't set, parse the id out of the body so the test still
- * works against samples that prefer in-band advertisement.
+ * Long-polling intentionally keeps the connection open after the first
+ * flush, so `fetch(...)` buffers the body until connection close and
+ * aborting mid-stream discards whatever partial bytes arrived. Drop to
+ * Node's raw `http.request` so we can accumulate chunks as they land
+ * and destroy the socket when our cap elapses — keeping what actually
+ * came back on the wire, which is the replay payload.
  */
-function extractRunIdFromBody(body: string): string | undefined {
-  // eslint-disable-next-line no-useless-escape
-  const match = body.match(/"runId"\s*:\s*"([^"\\]+)"/);
-  return match?.[1];
+function fetchWithAbort(url: string, runId: string, ms: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const req = httpRequest({
+      hostname: parsed.hostname,
+      port: parsed.port,
+      path: parsed.pathname + parsed.search,
+      method: 'GET',
+      headers: { 'X-Atmosphere-Run-Id': runId },
+    }, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => resolve(body));
+      res.on('close', () => resolve(body));
+    });
+    req.on('error', (e: any) => {
+      if (e?.code === 'ECONNRESET' || e?.code === 'UND_ERR_SOCKET') {
+        resolve('');
+      } else {
+        reject(e);
+      }
+    });
+    const timer = setTimeout(() => {
+      // Destroy the socket after the cap — whatever bytes landed on
+      // the 'data' handler are in `body` and returned via the 'close'
+      // listener above.
+      req.destroy();
+    }, ms);
+    // Ensure the timer doesn't keep the test runner alive.
+    timer.unref?.();
+    req.end();
+  });
 }

@@ -87,16 +87,46 @@ public final class RunReattachSupport {
                     runId, resource.uuid());
             return 0;
         }
-        int written = 0;
-        for (var ev : replayed) {
-            try {
-                resource.write(ev.payload());
-                written++;
-            } catch (RuntimeException e) {
-                logger.warn("Replay to resource {} failed at event {}: {}",
-                        resource.uuid(), ev.sequence(), e.getMessage());
-                break;
+        // Long-polling + the default {@code resumeOnBroadcast=true} mean
+        // the first {@code resource.write} flushes the response AND
+        // resumes the suspended request — every event after the first
+        // then lands on an already-closed resource and never reaches the
+        // client. Concatenate the buffered events into a single
+        // newline-delimited payload so the transport flushes once with
+        // every event, preserving per-event boundaries for the client
+        // to re-parse. The original per-event order is kept; the single
+        // write retains the resume-on-broadcast contract callers expect.
+        // Event boundary marker. `\u001e` (INFORMATION SEPARATOR TWO)
+        // is the ASCII "record separator" the HTTP streaming community
+        // adopts for event-separated text payloads; it is invisible in
+        // typical text renderings yet explicit for the client to split
+        // on. Chose over `\n` because broadcasters and servlet writers
+        // may line-buffer or treat newline as a message terminator on
+        // some transports.
+        var joined = new StringBuilder();
+        for (int i = 0; i < replayed.size(); i++) {
+            if (i > 0) {
+                joined.append('\u001e');
             }
+            joined.append(replayed.get(i).payload());
+        }
+        // Write directly through the response's servlet output so the
+        // payload reaches the reconnecting client without going through
+        // the endpoint's broadcaster. The broadcaster would route this
+        // back into the @Prompt dispatcher — the same broadcaster that
+        // feeds the endpoint's own @Prompt — and trip the handler as
+        // if a new user message arrived. Directly writing + flushing
+        // keeps the replay scoped to this single reconnecting resource.
+        int written = 0;
+        try {
+            var response = resource.getResponse();
+            var writer = response.getWriter();
+            writer.write(joined.toString());
+            writer.flush();
+            written = replayed.size();
+        } catch (java.io.IOException | RuntimeException e) {
+            logger.warn("Replay to resource {} failed: {}",
+                    resource.uuid(), e.getMessage());
         }
         logger.info("Reattach run {} for resource {}: replayed {}/{} event(s)",
                 runId, resource.uuid(), written, replayed.size());

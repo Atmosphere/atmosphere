@@ -585,6 +585,7 @@
         <module>samples/spring-boot-otel-chat</module>
         <module>samples/spring-boot-mcp-server</module>
         <module>samples/spring-boot-durable-sessions</module>
+        <module>samples/spring-boot-reattach-harness</module>
         <module>samples/spring-boot-ai-tools</module>
         <module>samples/spring-boot-rag-chat</module>
         <module>samples/grpc-chat</module>

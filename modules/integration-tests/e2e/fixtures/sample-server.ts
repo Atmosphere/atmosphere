@@ -88,6 +88,18 @@ export const SAMPLES: Record<string, SampleConfig> = {
     type: 'spring-boot',
     readyPath: '/atmosphere/chat',
   },
+  'spring-boot-reattach-harness': {
+    name: 'spring-boot-reattach-harness',
+    dir: 'spring-boot-reattach-harness',
+    port: 8096,
+    type: 'spring-boot',
+    // The harness has no websocket chat endpoint at / — just the
+    // @AiEndpoint under /atmosphere/agent/harness plus the REST
+    // /harness/synthetic-run surface. HTTP ready-probe against the
+    // AI endpoint is enough to know the framework is up.
+    readyPath: '/atmosphere/agent/harness/',
+    httpOnlyReady: true,
+  },
   'spring-boot-otel-chat': {
     name: 'spring-boot-otel-chat',
     dir: 'spring-boot-otel-chat',
