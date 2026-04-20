@@ -183,11 +183,14 @@ check_compile_warnings() {
     return 0
 }
 
-# Run architectural validation (fast mode — critical checks only)
+# Run architectural validation — full matrix. The script was previously
+# invoked with --fast; that flag was removed (2026-04-20) so the
+# extended checks (Test Integrity, Dead Code Patterns, etc.) run on
+# every commit. The full run is still seconds of ripgrep, not minutes.
 check_architectural_validation() {
     local script="$(git rev-parse --show-toplevel)/scripts/architectural-validation.sh"
     if [ -x "$script" ]; then
-        if ! "$script" --fast; then
+        if ! "$script"; then
             echo ""
             echo "ERROR: Commit blocked — architectural validation failed."
             return 1

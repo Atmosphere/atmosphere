@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
-# Pre-push validation script — runs Maven build and stamps a marker.
-# Run this before `git push`. The pre-push hook checks for the marker.
+# Pre-push validation — runs the full Maven install with tests, stamps a
+# marker, and the pre-push hook checks for the marker. No opt-out.
 #
 # Usage:
-#   ./scripts/pre-push-validate.sh          # full build + tests
-#   ./scripts/pre-push-validate.sh --fast   # install without tests (ensures .m2 JARs)
+#   ./scripts/pre-push-validate.sh
+#
+# History: the script used to support a `--fast` mode that ran
+# {@code install -DskipTests}. It was removed 2026-04-20 because it
+# encouraged pushing without running tests locally — `./mvnw install -q`
+# is the one path every push takes now. If you need JAR-only installs
+# for an unrelated task, call Maven directly — don't brand it as
+# validation.
 
 set -e
 
@@ -30,23 +36,27 @@ echo "📋 Branch: $CURRENT_BRANCH"
 echo "   Commit: ${CURRENT_COMMIT:0:8}"
 echo ""
 
-# Determine build mode
-if [ "$1" = "--fast" ]; then
-    echo "⚡ Fast mode: install (skip tests)"
+# Full build + tests. Single path so no push ships code that never ran
+# the test suite locally.
+BUILD_CMD="./mvnw install -q"
+echo "🔨 Full mode: compile + tests"
+echo ""
+
+# Reject any leftover invocation that passes the old --fast flag, so
+# hook scripts / CI runners that cached the flag fail loudly instead of
+# silently skipping tests.
+if [ -n "$1" ]; then
+    echo "❌ pre-push-validate.sh no longer accepts arguments (got: '$1')."
+    echo "   The --fast mode was removed — every push validates with tests."
     echo ""
-    # install (not compile) ensures reactor JARs are in .m2 for transitive deps
-    BUILD_CMD="./mvnw install -DskipTests -q"
-else
-    echo "🔨 Full mode: compile + tests"
-    echo ""
-    BUILD_CMD="./mvnw install -q"
+    exit 2
 fi
 
-# Run architectural validation first (fast fail before long build)
+# Run architectural validation first (fast fail before long build).
 cd "$PROJECT_ROOT"
 echo "Running architectural validation..."
 echo ""
-if ! ./scripts/architectural-validation.sh --fast; then
+if ! ./scripts/architectural-validation.sh; then
     echo ""
     echo "Architectural validation failed — fix issues before pushing."
     echo ""

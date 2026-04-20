@@ -12,8 +12,10 @@
 # Configuration: scripts/validation-patterns.toml
 #
 # Usage:
-#   ./scripts/architectural-validation.sh          # full scan
-#   ./scripts/architectural-validation.sh --fast   # critical checks only
+#   ./scripts/architectural-validation.sh          # full scan (only mode)
+# The previous `--fast` flag was removed (2026-04-20) — the extended
+# checks are ripgrep passes and cost seconds, not the hours that made
+# skipping them tempting. A single path means nothing slips through.
 
 set -e
 
@@ -28,9 +30,13 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-FAST_MODE=false
+# The `--fast` mode was removed alongside the pre-push-validate.sh
+# fast path (2026-04-20). Every architectural-validation call now runs
+# the full matrix — Test Integrity, Cross-Module Contracts, etc. Reject
+# the stale flag so hooks that still pass it fail loudly.
 if [ "$1" = "--fast" ]; then
-    FAST_MODE=true
+    echo "architectural-validation.sh no longer accepts --fast — extended checks always run."
+    exit 2
 fi
 
 VALIDATION_FAILED=false
@@ -283,38 +289,24 @@ else
     pass_validation "All @SuppressWarnings use approved categories"
 fi
 
-if [ "$FAST_MODE" = true ]; then
-    # ── Unchecked Return Values (fast mode) ──
-    echo ""
-    echo -e "${BLUE}--- Unchecked Return Values ---${NC}"
-    UNCHECKED=$(rg '^\s+\w+\.offer\(' $SOURCE_DIRS --type java -l 2>/dev/null | \
-        grep -v "StubAgentTransport\|Test\.java\|InMemoryCheckpointStore" || true)
-    if [ -n "$UNCHECKED" ]; then
-        fail_validation "Unchecked offer() return values in: $(echo "$UNCHECKED" | tr '\n' ' ')"
-    else
-        pass_validation "No unchecked offer() calls in production code"
-    fi
+echo ""
+echo -e "${BLUE}--- Unchecked Return Values ---${NC}"
+UNCHECKED=$(rg '^\s+\w+\.offer\(' $SOURCE_DIRS --type java -l 2>/dev/null | \
+    grep -v "StubAgentTransport\|Test\.java\|InMemoryCheckpointStore" || true)
+if [ -n "$UNCHECKED" ]; then
+    fail_validation "Unchecked offer() return values in: $(echo "$UNCHECKED" | tr '\n' ' ')"
+else
+    pass_validation "No unchecked offer() calls in production code"
+fi
 
-    # ── Test Quality (fast mode) ──
-    echo ""
-    echo -e "${BLUE}--- Test Quality ---${NC}"
-    NOOP_TESTS=$(rg 'expect\(true\)\.toBe\(true\)|expect\(1\)\.toBe\(1\)|assertTrue\(true\)' \
-        modules/integration-tests/e2e/ modules/*/src/test/ --type ts --type java 2>/dev/null || true)
-    if [ -n "$NOOP_TESTS" ]; then
-        fail_validation "Found no-op test assertions (expect(true).toBe(true))"
-    else
-        pass_validation "No no-op test assertions found"
-    fi
-
-    echo ""
-    echo -e "${BLUE}--- Fast mode: skipping extended checks ---${NC}"
-    echo ""
-    if [ "$VALIDATION_FAILED" = true ]; then
-        echo -e "${RED}ARCHITECTURAL VALIDATION FAILED${NC}"
-        exit 1
-    fi
-    echo -e "${GREEN}ARCHITECTURAL VALIDATION PASSED (fast mode)${NC}"
-    exit 0
+echo ""
+echo -e "${BLUE}--- Test Quality ---${NC}"
+NOOP_TESTS=$(rg 'expect\(true\)\.toBe\(true\)|expect\(1\)\.toBe\(1\)|assertTrue\(true\)' \
+    modules/integration-tests/e2e/ modules/*/src/test/ --type ts --type java 2>/dev/null || true)
+if [ -n "$NOOP_TESTS" ]; then
+    fail_validation "Found no-op test assertions (expect(true).toBe(true))"
+else
+    pass_validation "No no-op test assertions found"
 fi
 
 # ============================================================================
