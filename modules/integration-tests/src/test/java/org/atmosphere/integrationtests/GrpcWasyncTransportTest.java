@@ -241,7 +241,13 @@ public class GrpcWasyncTransportTest {
         socket.close();
 
         assertTrue(closeLatch.await(5, TimeUnit.SECONDS), "CLOSE event should fire");
-        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        // wAsync updates Socket.status() on its dispatch thread AFTER the
+        // CLOSE event callback returns, so a straight read right here races
+        // the transition. Poll with the same 5s budget the rest of this
+        // test uses — the prior 2s cap was too tight on JDK 26 where
+        // scheduler latency between the callback and the status CAS is
+        // observably longer than on 21.
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (socket.status() != Socket.STATUS.CLOSE && System.nanoTime() < deadline) {
             Thread.sleep(20);
         }
