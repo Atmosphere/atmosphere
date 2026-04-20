@@ -137,6 +137,94 @@ class RunReattachSupportTest {
                 + "attribute is absent — raw-WebSocket clients rely on it");
     }
 
+    /**
+     * Ownership check: a run originated by {@code alice} must not
+     * replay to {@code mallory} even if mallory happens to carry the
+     * correct run id. The run id is a bearer token — without principal
+     * binding, any caller who guesses or obtains one replays another
+     * user's stream. Regression for the P0 cross-tenant leak.
+     */
+    @Test
+    void replayRefusedWhenCallerDoesNotOwnRun() {
+        handle.replayBuffer().capture("streaming-text", "alice's secrets");
+        var writes = new ArrayList<String>();
+        var resource = mockResourceWithRunIdAndCaller(
+                handle.runId(), null, "mallory", writes);
+
+        var replayed = RunReattachSupport.replayPendingRun(resource, registry);
+
+        assertEquals(0, replayed,
+                "cross-user replay must be refused — the run id is a bearer "
+                + "token and the registry-recorded userId is the ownership check");
+        assertTrue(writes.isEmpty() || writes.get(0).isEmpty(),
+                "no bytes may be written on a refused replay");
+    }
+
+    /**
+     * Anonymous-runner carve-out: a run registered without auth
+     * (userId == "anonymous") relies on runId entropy for protection;
+     * the reconnecting caller need not be authenticated. This is the
+     * open-mode deployment path.
+     */
+    @Test
+    void replayAllowedForAnonymousRunsRegardlessOfCallerIdentity() {
+        // Re-register with anonymous userId — what AiEndpointHandler
+        // does when no principal is resolved on the dispatch thread.
+        var anon = registry.register("agent-a", "anonymous", "sess-anon",
+                new ExecutionHandle.Settable(() -> { }));
+        anon.replayBuffer().capture("streaming-text", "open-mode event");
+
+        var writes = new ArrayList<String>();
+        // Caller is anonymous too (no principal attribute resolved).
+        var resource = mockResourceWithRunIdAndCaller(
+                anon.runId(), null, null, writes);
+
+        var replayed = RunReattachSupport.replayPendingRun(resource, registry);
+
+        assertEquals(1, replayed,
+                "anonymous runs must replay without ownership enforcement — "
+                + "open-mode deployments rely on runId entropy");
+    }
+
+    /**
+     * Replay MUST apply the broadcaster's BroadcastFilter chain to
+     * each frame so response-path protections (PII redaction, content
+     * safety, etc.) see replayed frames identically to live frames.
+     * Regression for the P0 cross-session leak where a direct
+     * response.getWriter() write bypassed PiiRedactionFilter and
+     * leaked content the live path would have redacted.
+     */
+    @Test
+    void replayRoutesFramesThroughBroadcasterFilterChain() {
+        handle.replayBuffer().capture("streaming-text", "contact me at alice@example.com");
+        var writes = new ArrayList<String>();
+        var resource = mockResourceWithRunIdAndCaller(
+                handle.runId(), null, "alice", writes);
+        // Install the PiiRedactionFilter on the resource's broadcaster
+        // so applyFilters picks it up.
+        var broadcaster = Mockito.mock(org.atmosphere.cpr.Broadcaster.class);
+        var config = Mockito.mock(org.atmosphere.cpr.BroadcasterConfig.class);
+        Mockito.when(resource.getBroadcaster()).thenReturn(broadcaster);
+        Mockito.when(broadcaster.getBroadcasterConfig()).thenReturn(config);
+        Mockito.when(broadcaster.getID()).thenReturn("/atmosphere/agent/test");
+        var pii = new org.atmosphere.ai.filter.PiiRedactionFilter("[redacted-email]");
+        java.util.List<org.atmosphere.cpr.BroadcastFilter> filterList = new ArrayList<>();
+        filterList.add(pii);
+        Mockito.when(config.filters()).thenReturn(filterList);
+
+        var replayed = RunReattachSupport.replayPendingRun(resource, registry);
+
+        assertEquals(1, replayed, "one frame replayed (filter transformed, didn't abort)");
+        assertEquals(1, writes.size());
+        assertTrue(writes.get(0).contains("[redacted-email]"),
+                "PII redaction must apply to replay frames identically to live "
+                + "frames — a direct response.getWriter() write that bypasses the "
+                + "filter chain would leak the email back to the client: "
+                + writes.get(0));
+        assertTrue(!writes.get(0).contains("alice@example.com"),
+                "original PII must not leak on the replay path: " + writes.get(0));
+    }
+
     @Test
     void replayReportsZeroWhenWriteFails() throws java.io.IOException {
         handle.replayBuffer().capture("streaming-text", "first");
@@ -149,6 +237,7 @@ class RunReattachSupportTest {
         when(resource.getRequest()).thenReturn(request);
         when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE))
                 .thenReturn(handle.runId());
+        when(request.getAttribute("ai.userId")).thenReturn("alice");
         when(resource.uuid()).thenReturn("res-1");
         when(resource.getResponse()).thenReturn(response);
         // The writer acquisition throws IOException — callers see 0 events
@@ -165,6 +254,15 @@ class RunReattachSupportTest {
 
     private static AtmosphereResource mockResourceWithRunId(
             String attributeValue, String headerValue, List<String> writes) {
+        // Default: caller identity matches the run's userId ("alice" —
+        // see setUp) so the ownership check admits. Per-test variants
+        // use mockResourceWithRunIdAndCaller to exercise mismatch paths.
+        return mockResourceWithRunIdAndCaller(attributeValue, headerValue, "alice", writes);
+    }
+
+    private static AtmosphereResource mockResourceWithRunIdAndCaller(
+            String attributeValue, String headerValue, String callerUserId,
+            List<String> writes) {
         var resource = Mockito.mock(AtmosphereResource.class);
         var request = Mockito.mock(AtmosphereRequest.class);
         var response = Mockito.mock(AtmosphereResponse.class);
@@ -183,6 +281,10 @@ class RunReattachSupportTest {
                 .thenReturn(attributeValue);
         when(request.getHeader(RunReattachSupport.RUN_ID_HEADER))
                 .thenReturn(headerValue);
+        // Caller identity via the ai.userId attribute — same chain
+        // AiEndpointHandler populates on dispatch. Allows each test to
+        // steer the ownership decision.
+        when(request.getAttribute("ai.userId")).thenReturn(callerUserId);
         when(resource.uuid()).thenReturn("res-" + System.identityHashCode(resource));
         try {
             when(resource.getResponse()).thenReturn(response);

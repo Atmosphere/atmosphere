@@ -60,7 +60,10 @@ public class SyntheticRunController {
         // drain it on the next connection that carries the run id.
         var handle = RunRegistryHolder.get().register(
                 "/atmosphere/agent/harness",
-                "harness-user",
+                // Use the anonymous marker so RunReattachSupport's
+                // ownership check admits the reconnecting Playwright
+                // client — the harness is explicitly open-mode for CI.
+                "anonymous",
                 "harness-resource",
                 new ExecutionHandle.Settable(() -> { }));
 
@@ -93,7 +96,10 @@ public class SyntheticRunController {
     public Map<String, Object> registerSyntheticErrorRun() {
         var handle = RunRegistryHolder.get().register(
                 "/atmosphere/agent/harness",
-                "harness-user",
+                // Use the anonymous marker so RunReattachSupport's
+                // ownership check admits the reconnecting Playwright
+                // client — the harness is explicitly open-mode for CI.
+                "anonymous",
                 "harness-resource",
                 new ExecutionHandle.Settable(() -> { }));
 

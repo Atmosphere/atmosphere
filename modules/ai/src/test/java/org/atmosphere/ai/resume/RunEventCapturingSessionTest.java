@@ -235,6 +235,9 @@ class RunEventCapturingSessionTest {
         when(resource.getRequest()).thenReturn(request);
         when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE))
                 .thenReturn(runId);
+        // The replay ownership check compares caller userId to the
+        // run's userId. Tests register with "alice"; match it.
+        when(request.getAttribute("ai.userId")).thenReturn("alice");
         when(resource.uuid()).thenReturn("reconnect-res");
         try {
             when(resource.getResponse()).thenReturn(response);
