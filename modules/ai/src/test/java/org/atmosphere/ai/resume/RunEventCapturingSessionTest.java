@@ -93,14 +93,6 @@ class RunEventCapturingSessionTest {
     }
 
     /**
-     * Regression for the P1 terminal-path gap — {@code AiEndpointHandler}
-     * must route timeout / exception terminal calls through the
-     * capturing session, not the underlying delegate. Otherwise a client
-     * that reconnects after the @Prompt method threw or timed out replays
-     * partial text with no error envelope and hangs waiting for a
-     * terminator that never arrives.
-     */
-    /**
      * Regression for the {@code handoff()} forwarding hotfix. The
      * default {@link org.atmosphere.ai.StreamingSession#handoff}
      * implementation throws {@code UnsupportedOperationException}; a
@@ -138,6 +130,14 @@ class RunEventCapturingSessionTest {
         }
     }
 
+    /**
+     * Regression for the P1 terminal-path gap — {@code AiEndpointHandler}
+     * must route timeout / exception terminal calls through the
+     * capturing session, not the underlying delegate. Otherwise a client
+     * that reconnects after the @Prompt method threw or timed out replays
+     * partial text with no error envelope and hangs waiting for a
+     * terminator that never arrives.
+     */
     @Test
     void captureFeedsReattachWithErrorEnvelopeWhenHandlerThrows() {
         var registry = new RunRegistry();
