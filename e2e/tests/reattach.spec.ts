@@ -14,8 +14,11 @@ import { expect, test } from '@playwright/test';
  *     → AiEndpointHandler.onReady → reattachPendingRun
  *     → RunReattachSupport.replayPendingRun (drains buffer → resource.write)
  *
- * The unit test `RunReattachSupportTest` pins the replay semantics
- * deterministically; this spec is the last mile — proving the real
+ * The unit tests `RunReattachSupportTest` and `RunEventCapturingSessionTest`
+ * pin the replay semantics deterministically; the latter walks the full
+ * capture → disconnect → reconnect → replay loop with a real
+ * `RunRegistry`, real `RunEventReplayBuffer`, and real
+ * `RunReattachSupport`. This spec is the last mile — proving the real
  * transport, real broadcaster, and real interceptor chain all cooperate.
  *
  * Skipped by default. Set `REATTACH_SAMPLE_URL` to a sample that:
@@ -25,14 +28,21 @@ import { expect, test } from '@playwright/test';
  *      every 500ms).
  *   2. Has `DurableSessionInterceptor` on the chain so the
  *      `X-Atmosphere-Run-Id` header is stashed as the request attribute
- *      `org.atmosphere.session.runId`.
+ *      `org.atmosphere.session.runId`. (Optional — `RunReattachSupport`
+ *      falls back to reading the raw header when the attribute is absent,
+ *      so raw WebSocket clients still reattach.)
  *   3. Uses the default `RunRegistryHolder.get()` so the registry sees
  *      the run the endpoint registers.
  *
- * The existing default samples (personal-assistant, coding-agent) don't
- * satisfy condition 1 — their LLM dispatch is only as slow as the model
- * the operator configures. A future harness sample will plug in here;
- * until then the test documents the contract and stays green-when-skipped.
+ * Producer wire note: as of commit `8156842fd4`, `RunEventCapturingSession`
+ * populates the replay buffer from every `session.send / complete / error`
+ * on every `@Prompt` dispatch — the primitive is no longer half-shipped.
+ * Any sample with a slow `@Prompt` satisfies condition 1; the existing
+ * `spring-boot-ai-chat` in demo mode (`DemoResponseProducer` emits words
+ * with `Thread.sleep(50)`) is the closest candidate, but its long-poll
+ * transport makes mid-stream abort timing tricky to script deterministically.
+ * A follow-up dedicated harness sample with a fixed-cadence emitter is
+ * the cleanest way to green-light this spec in the default CI lane.
  */
 const SAMPLE_URL = process.env.REATTACH_SAMPLE_URL;
 
