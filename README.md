@@ -5,8 +5,7 @@
 <h1 align="center">Atmosphere</h1>
 
 <p align="center">
-  <strong>A portable layer across Java AI runtimes.</strong><br/>
-  Write <code>@Agent</code> once against a unified API (tool calling, memory, streaming, structured output); swap the runtime — Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, Microsoft Semantic Kernel, or built-in OpenAI — by changing one dependency. <code>@Coordinator</code> orchestrates multi-agent fleets with parallel, sequential, and conditional routing. Served over transports (WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC) and protocols (MCP, A2A, AG-UI). Built by Async-IO.
+  A framework for building streaming AI agents on the JVM. Atmosphere owns the transport layer — tokens flow from the LLM runtime to the client through a broadcaster you can filter, gate, and observe. <code>@Agent</code> declares the behavior; the framework handles streaming, tool calling, memory, reconnect, authorization, and cost accounting.
 </p>
 
 <p align="center">
@@ -19,7 +18,9 @@
 
 ---
 
-Atmosphere is a portable layer across Java AI runtimes. Your application code declares **what** it does against a unified API — tool calling, memory, streaming, structured output — and the framework handles **which runtime** executes it (Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, Microsoft Semantic Kernel, or built-in OpenAI) and **how** it's delivered (WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC, MCP, A2A, AG-UI, Slack, Telegram, Discord). A single `@Agent` class runs on any runtime and serves any transport — swap either by changing one dependency.
+A `@Agent` class runs on any of seven AI runtimes (built-in OpenAI, Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, Microsoft Semantic Kernel) and is served over any of five transports (WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC) plus three agent protocols (MCP, A2A, AG-UI) and six channels (web, Slack, Telegram, Discord, WhatsApp, Messenger). Runtime and transport are swapped by changing a Maven dependency.
+
+Atmosphere owns the broadcaster, which enables capabilities a pure orchestration library cannot provide: per-token PII rewriting in flight, per-tenant cost ceilings that block dispatch at the gateway, durable reconnect that replays mid-stream events after a client drop, triple-gate authorization on the admin control plane.
 
 ## Quick Start
 
@@ -96,51 +97,34 @@ What this registers depends on which modules are on the classpath:
 | `atmosphere-admin` | Admin dashboard at `/atmosphere/admin/` with live event stream |
 | (built-in) | Console UI at `/atmosphere/console/` |
 
-## Key Features
+## Modules
 
-**[Multi-Agent Orchestration](https://atmosphere.github.io/docs/agents/coordinator/)** — `@Coordinator` manages a fleet of agents with parallel fan-out, sequential pipelines, conditional routing, coordination journal, and result evaluation. Test with `StubAgentFleet` — no infrastructure needed.
+| Capability | Module | Key types |
+|---|---|---|
+| Streaming transports | `atmosphere-runtime` | WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC — negotiated via `AsyncSupport`; Jetty 12 QUIC native or Reactor Netty HTTP/3 sidecar |
+| Agent declaration | `atmosphere-agent` | `@Agent`, `@Prompt`, `@Command`, `@AiTool`, `@RequiresApproval` |
+| AI runtimes | `atmosphere-ai` + `atmosphere-{spring-ai,langchain4j,adk,koog,embabel,semantic-kernel}` | `AgentRuntime` SPI; capability matrix pinned in `AbstractAgentRuntimeContractTest` |
+| Multi-agent coordination | `atmosphere-coordinator` | `@Coordinator`, `@Fleet`, `@AgentRef`; parallel / sequential / conditional routing; coordination journal |
+| Agent protocols | `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui` | auto-registered endpoints per `@Agent` |
+| Channels | `atmosphere-channels` | Slack, Telegram, Discord, WhatsApp, Messenger dispatch from one `@Command` |
+| Memory | `atmosphere-ai` | sliding window, LLM summarization; durable via `atmosphere-durable-sessions` (SQLite / Redis) |
+| Checkpoints | `atmosphere-checkpoint` | `CheckpointStore` — parent-chained snapshots, fork, resume by REST |
+| Reconnect & replay | `atmosphere-durable-sessions` + `RunRegistry` in `atmosphere-ai` | clients reconnect with `X-Atmosphere-Run-Id`; `AiEndpointHandler` replays the mid-stream buffer to the new resource |
+| Sandbox | `atmosphere-sandbox` | `Sandbox` / `SandboxProvider`; Docker default (`--network none`, argv-form exec, strict mount); `ServiceLoader` for Firecracker / Kata / E2B / Modal |
+| Authentication | `atmosphere-runtime` | `TokenValidator`, `TokenRefresher`, `AuthInterceptor` — rejects at WebSocket / HTTP upgrade |
+| Admin control plane | `atmosphere-admin` | `/atmosphere/admin/` UI, `/api/admin/*` REST, MCP tools; triple-gate (feature flag → Principal → `ControlAuthorizer`) |
+| Flow viewer | `atmosphere-admin` | `GET /api/admin/flow` — JSON graph keyed by `coordinationId` (nodes, edges, success / failure / avg duration) |
+| Grounded facts | `atmosphere-ai` | `FactResolver` SPI, per-turn; values escaped before prompt injection |
+| Business tags | `atmosphere-ai` | `BusinessMetadata` → SLF4J MDC (tenant, customer, session, event kind) |
+| Guardrails | `atmosphere-ai` | `PiiRedactionGuardrail`, `OutputLengthZScoreGuardrail` (tenant-partitioned), `CostCeilingGuardrail` |
+| Stream-level PII rewrite | `atmosphere-ai` | `PiiRedactionFilter` — `BroadcasterFilter` auto-installed on every present and future broadcaster when enabled; rewrites tokens before bytes flush to the client |
+| Cost enforcement | `atmosphere-ai` | `CostCeilingAccountant` bridges `TokenUsage` → `CostCeilingGuardrail.addCost` keyed by `business.tenant.id`; outbound `@Prompt` blocks once the tenant hits budget |
+| Observability | `atmosphere-runtime`, `atmosphere-ai` | OpenTelemetry spans, Micrometer metrics, token usage; `BusinessMdcBenchmark` pins the MDC hot-path cost |
+| Permission modes | `atmosphere-ai` | `PermissionMode.DEFAULT` / `PLAN` / `ACCEPT_EDITS` / `BYPASS` — runtime config, not redeploy |
+| Evaluation | `atmosphere-ai-test` | `LlmJudge` (`meetsIntent`, `isGroundedIn`, `hasQuality`); `AbstractAgentRuntimeContractTest` pins the capability matrix per runtime |
+| Skill files | `atmosphere-agent` | Markdown system prompts with tool / guardrail / channel sections; classpath-discovered |
 
-**[Agent Handoffs & Human-in-the-Loop](https://atmosphere.github.io/docs/reference/ai/)** — Transfer conversations between agents with `session.handoff()`. Pause tool execution with `@RequiresApproval` for human-in-the-loop approval — the virtual thread parks cheaply until the client approves or denies.
-
-**[Durable HITL Workflows](https://atmosphere.github.io/docs/reference/checkpoint/)** — `CheckpointStore` SPI persists agent workflow state as parent-chained snapshots with fork semantics. Pause workflows without holding a live thread; resume via REST or programmatic replay. Pairs with `atmosphere-durable-sessions` for streaming reconnect + workflow continuation.
-
-**[7 AI Runtimes](modules/ai/README.md#capability-matrix)** — Built-in, LangChain4j, Spring AI, Google ADK, Embabel, JetBrains Koog, Microsoft Semantic Kernel. Switch backends by changing one Maven dependency. All seven share text streaming, tool calling, tool approval, structured output, conversation memory, token usage, system prompts, and per-request retry; six ship multi-modal input (vision/audio); five ship prompt caching and embeddings. Every declaration is [pinned in each runtime's contract test](modules/ai/README.md#capability-matrix) so the matrix and the code cannot drift.
-
-**[3 Agent Protocols](https://atmosphere.github.io/docs/agents/a2a/)** — MCP (tools for Claude, Copilot, Cursor), A2A (agent-to-agent via JSON-RPC), AG-UI (streaming state to frontends). Auto-registered from classpath.
-
-**[6 Channels](https://atmosphere.github.io/docs/tutorial/23-channels/)** — Web, Slack, Telegram, Discord, WhatsApp, Messenger. Set a bot token and the same `@Command` + AI pipeline works everywhere.
-
-**[Skill Files](https://atmosphere.github.io/docs/agents/skills/)** — Markdown system prompts with sections for tools, guardrails, and channels. Auto-discovered from classpath. Browse curated skills in the [Atmosphere Skills](https://github.com/Atmosphere/atmosphere-skills) registry.
-
-**[Long-Term Memory](https://atmosphere.github.io/docs/agents/coordinator/)** — Agents remember users across sessions. `LongTermMemoryInterceptor` extracts facts via LLM and injects them into future system prompts. Three strategies: on session close, per message, or periodic.
-
-**[Conversation Memory](https://atmosphere.github.io/docs/reference/ai/)** — Pluggable compaction strategies (sliding window, LLM summarization). Durable sessions via SQLite or Redis survive server restarts.
-
-**[Eval Assertions](https://atmosphere.github.io/docs/reference/testing/)** — `LlmJudge` tests agent quality with `meetsIntent()`, `isGroundedIn()`, and `hasQuality()`. `StubAgentFleet` and `CoordinatorAssertions` for testing coordinators without infrastructure.
-
-**[15 Event Types](https://atmosphere.github.io/docs/reference/ai/)** — `AiEvent` sealed interface: text deltas, tool start/result/error, agent steps, handoffs, approval prompts, structured output, routing decisions. Normalized across all runtimes.
-
-**[5 Transports](https://atmosphere.github.io/docs/tutorial/04-transports/)** — WebTransport/HTTP3, WebSocket, SSE, Long-Polling, gRPC. Automatic fallback, reconnection, heartbeats, message caching. First Java framework with [WebTransport over HTTP/3](https://atmosphere.github.io/docs/webtransport/) — auto-detected via `AsyncSupport`: native Jetty 12 QUIC connector (zero-config, no sidecar) or Reactor Netty HTTP/3 sidecar for Tomcat/Undertow. Self-signed cert for dev, `Alt-Svc` header advertisement, transparent fallback to WebSocket.
-
-**[Authentication](modules/spring-boot-starter/README.md#webtransport-over-http3)** — `TokenValidator` + `TokenRefresher` SPIs with `AuthInterceptor`. Define a validator bean and connections without valid tokens are rejected at the WebSocket/HTTP upgrade. Auto-configured via Spring Boot.
-
-**[Observability](https://atmosphere.github.io/docs/reference/observability/)** — OpenTelemetry tracing, Micrometer metrics, AI token usage tracking. Auto-configured with Spring Boot.
-
-**[Admin Control Plane](https://atmosphere.github.io/docs/reference/admin/)** — Real-time dashboard at `/atmosphere/admin/`, 25 REST endpoints, WebSocket event stream, and MCP tools for managing agents, broadcasters, tasks, and runtimes. AI-manages-AI via MCP tool registration. Every mutating endpoint runs three gates — feature flag → authenticated Principal → `ControlAuthorizer` — so enabling admin writes cannot accidentally open an anonymous back door.
-
-**[Agent-to-Agent Flow Viewer](https://atmosphere.github.io/docs/tutorial/29-admin-flow-viewer/)** — `GET /api/admin/flow` renders the coordination journal as a live graph: nodes are agents, edges carry dispatch counts, success / failure rates, and average duration. Attribution is per-`coordinationId` so concurrent tenant runs stay scoped. Drops in to vis.js / Cytoscape / React Flow without post-processing.
-
-**[Grounded Facts](https://atmosphere.github.io/docs/tutorial/28-fact-resolver/)** — `FactResolver` injects deterministic facts (current time, user identity, plan tier, recent events) into every agent turn so generative decisions anchor to real state instead of model memory. Values are escaped before rendering so embedded newlines can't reshape the system prompt.
-
-**[Business Outcome Tagging](https://atmosphere.github.io/docs/tutorial/27-business-metadata-observability/)** — `BusinessMetadata` threads tenant id, customer id, session revenue, and event kind through SLF4J MDC on every turn. Dynatrace / Datadog / OpenTelemetry log exporters pick the tags up automatically — closes the "how much does this feature cost per paying customer?" loop.
-
-**[Built-in Guardrails](https://atmosphere.github.io/docs/tutorial/12-ai-filters/)** — `PiiRedactionGuardrail` strips email / phone / credit card / US SSN / IPv4 from requests and Blocks leaks on responses (can't rewrite an already-emitted stream, so log-only signalling was security theatre). `OutputLengthZScoreGuardrail` catches drift via rolling z-score on response length — flags runaway prompts and injection payloads without a signature. Both off by default; opt in via one Spring property.
-
-**[Isolated Execution — Sandbox SPI](https://atmosphere.github.io/docs/reference/ai/)** — `Sandbox` + `SandboxProvider` with Docker as the production default (argv-form exec, `--network none` default, strict working-directory mount) and an opt-in in-process fallback for dev. Third-party backends (Firecracker, Kata, Vercel, E2B, Modal, Blaxel) plug in via `ServiceLoader`.
-
-**[Resumable Runs](https://atmosphere.github.io/docs/reference/ai/)** — Every `@Prompt` turn registers with the `RunRegistry` and emits an `X-Atmosphere-Run-Id` header. Disconnected clients reconnect with the id, and `AiEndpointHandler` drains the replay buffer to the new resource so the user catches up on the stream they missed.
-
-**[Three-Phase Trust Adoption](https://atmosphere.github.io/docs/tutorial/25-trust-phases/)** — Ship an agent from supervised to autonomous without a rewrite: the same `@Agent` class runs in `PLAN` (every tool gated), `DEFAULT` (only `@RequiresApproval` gated), `ACCEPT_EDITS` (edits auto, sensitive gated), and `BYPASS` (audit-after). Flipping the mode is a config change, not a redeploy.
+The AI-runtime capability matrix — which runtimes ship tool calling, structured output, multi-modal input, prompt caching, embeddings, retry — lives in [`modules/ai/README.md`](modules/ai/README.md#capability-matrix) and is enforced by `AbstractAgentRuntimeContractTest.expectedCapabilities()`, so the matrix and the runtime code cannot drift.
 
 ## Client — atmosphere.js
 
@@ -208,7 +192,7 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 
 Optional: `atmosphere-ai`, `atmosphere-spring-ai`, `atmosphere-langchain4j`, `atmosphere-adk`, `atmosphere-koog`, `atmosphere-embabel`, `atmosphere-semantic-kernel`, `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`, `atmosphere-channels`, `atmosphere-coordinator`, `atmosphere-admin`. Add to classpath and features auto-register.
 
-**Requirements:** Java 21+ &middot; Spring Boot 4.0.5+ or Quarkus 3.31.3+ &middot; Current release: `4.0.38`
+**Requirements:** Java 21+ &middot; Spring Boot 4.0.5+ or Quarkus 3.31.3+ &middot; Current release: see the Maven Central badge above
 
 ## Documentation
 
