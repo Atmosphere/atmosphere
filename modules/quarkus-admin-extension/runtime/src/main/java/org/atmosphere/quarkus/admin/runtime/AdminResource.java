@@ -374,7 +374,7 @@ public class AdminResource {
 
     @GET
     @Path("/journal")
-    public List<Map<String, Object>> queryJournal(
+    public Response queryJournal(
             @QueryParam("coordinationId") String coordinationId,
             @QueryParam("agent") String agentName,
             @QueryParam("since") String since,
@@ -382,7 +382,7 @@ public class AdminResource {
             @QueryParam("limit") Integer limit) {
         CoordinatorController controller = admin.coordinatorController();
         if (controller == null) {
-            return List.of();
+            return Response.ok(List.of()).build();
         }
         Instant sinceInstant = null;
         Instant untilInstant = null;
@@ -390,11 +390,17 @@ public class AdminResource {
             if (since != null) sinceInstant = Instant.parse(since);
             if (until != null) untilInstant = Instant.parse(until);
         } catch (java.time.format.DateTimeParseException e) {
-            return java.util.List.of(java.util.Map.of(
-                    "error", "Invalid timestamp: " + e.getMessage()));
+            // Match the Spring starter's 400 response for the same
+            // input class — malformed ISO-8601 timestamps are client
+            // errors (Correctness Invariant #4: return 400 for
+            // malformed input). Previously this path returned 200 with
+            // a single-item error array, which masked the failure and
+            // broke Spring/Quarkus API parity.
+            return Response.status(400).entity(Map.of(
+                    "error", "Invalid timestamp: " + e.getMessage())).build();
         }
-        return controller.queryJournal(coordinationId, agentName,
-                sinceInstant, untilInstant, limit != null ? limit : 100);
+        return Response.ok(controller.queryJournal(coordinationId, agentName,
+                sinceInstant, untilInstant, limit != null ? limit : 100)).build();
     }
 
     // ── A2A Tasks ──
