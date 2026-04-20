@@ -260,6 +260,25 @@ first, then `ServiceLoader`, then a safe built-in default.
 Packages: `org.atmosphere.ai.business`, `org.atmosphere.ai.facts`,
 `org.atmosphere.ai.guardrails`.
 
+### Two resolution patterns — when to pick which
+
+The codebase ships two SPI-resolution patterns; both are valid, each fits
+a specific call-site shape. The distinction was surfaced in the v0.9
+review and is pinned here so new primitives don't reinvent the wheel.
+
+| Pattern | Use when | Examples |
+|---|---|---|
+| **Framework-scoped property** (property bridge → `ServiceLoader` → default) | The primitive is consulted on the *request path* inside an `AtmosphereHandler` / `AiEndpointHandler` and the framework is the natural owner. | `FactResolver`, `CoordinationJournal`, `AsyncSupport`, `BroadcasterFactory` |
+| **Process-wide holder** (static `Holder.install(...)` / `.get()`) | The primitive is consulted on the *session-decorator path* (`StreamingSession.send / usage / …`) where the dependency has to reach a call-site the framework doesn't inject into. | `AiGateway` (runtime admit), `CostAccountant` (session-decorator), `RunRegistry` (run lifecycle), `StructuredOutputParser` |
+
+Rule of thumb: if the call site receives an `AtmosphereResource` or
+`AtmosphereConfig`, go framework-property (it scales with the framework's
+life cycle and is per-instance-isolated). If the call site only has a
+`StreamingSession` or is deep inside an `AgentRuntime` bridge that
+doesn't extend `AbstractAgentRuntime`, go process-wide holder — Spring
+Boot / Quarkus starters install the concrete implementation at startup
+and reset to no-op on shutdown via `DisposableBean` / `@PreDestroy`.
+
 ### BusinessMetadata — business-outcome correlation
 
 ```java
