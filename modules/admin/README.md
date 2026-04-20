@@ -82,15 +82,74 @@ Every mutating endpoint passes through three gates (Correctness
 Invariant #6 — Security):
 
 1. **Feature flag** — `atmosphere.admin.http-write-enabled=true`.
-   Defaults off. Returns 403 when disabled.
-2. **Authenticated principal** — servlet `getUserPrincipal()` or the
-   Atmosphere `AuthInterceptor`'s validated principal. Returns 401 when
-   anonymous.
-3. **`ControlAuthorizer`** — user-supplied `@Bean` or the default
+   Defaults off. Consulted on every call (dynamic) so an operator can
+   flip the emergency-write switch without restarting.
+2. **Authenticated principal** — resolved in this order so the
+   gate works across every auth stack the framework supports:
+   1. servlet `HttpServletRequest.getUserPrincipal()` (Spring Security,
+      Jakarta Security, OIDC filters);
+   2. `org.atmosphere.auth.principal` request attribute set by
+      Atmosphere's own `AuthInterceptor` on `X-Atmosphere-Auth` token
+      validation;
+   3. `ai.userId` request attribute set by the AI pipeline.
+
+   Returns 401 when all three are null/blank.
+3. **`ControlAuthorizer`** — user-supplied `@Bean` wins; fallback is
    `REQUIRE_PRINCIPAL`. Returns 403 on deny.
 
-The feature-flag-only gate was the P0 that landed in Phase 6 — every
-decision (grant and deny) is recorded in the audit log.
+Every decision (grant and deny) is recorded in the audit log.
+
+#### Spring Boot operator setup
+
+```java
+@Bean
+TokenValidator myTokenValidator() {
+  return token -> validateAndResolvePrincipal(token);  // your JWT lib
+}
+
+@Bean
+ControlAuthorizer roleScoped() {
+  return (action, target, principal) ->
+      roles(principal).contains("atmosphere-admin");
+}
+```
+
+`application.yml`:
+
+```yaml
+atmosphere:
+  admin:
+    http-write-enabled: true
+```
+
+The starter's `AdminApiAuthFilter` reads `X-Atmosphere-Auth` on
+`/api/admin/*` and populates `getUserPrincipal()` — no servlet
+filter-chain wiring required.
+
+#### Quarkus operator setup
+
+Produce a CDI `ControlAuthorizer`:
+
+```java
+@ApplicationScoped
+public class RoleAuthorizer implements ControlAuthorizer {
+  @Override
+  public boolean authorize(String action, String target, String principal) {
+    return principal != null && isAdmin(principal);
+  }
+}
+```
+
+`application.properties`:
+
+```properties
+atmosphere.admin.http-write-enabled=true
+```
+
+Jakarta Security (e.g. `quarkus-smallrye-jwt`) populates
+`SecurityContext.getUserPrincipal()` natively; the gate picks it up
+without extra wiring. Atmosphere `AuthInterceptor` populates the
+`org.atmosphere.auth.principal` attribute, so either auth stack works.
 
 ### Agent-to-Agent Flow Viewer
 

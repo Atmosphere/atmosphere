@@ -49,23 +49,32 @@ class AtmosphereAdminEndpointAuthzTest {
 
     @BeforeEach
     void setUp() {
-        admin = Mockito.mock(AtmosphereAdmin.class, Mockito.RETURNS_DEEP_STUBS);
-        // Audit log is a concrete class — back the mock chain with a real
-        // instance so the endpoint's record() calls don't NPE.
+        // Explicit stubs so test setup is readable; adding a new call site
+        // to AtmosphereAdminEndpoint fails fast with a clear NPE rather
+        // than silently succeeding through a RETURNS_DEEP_STUBS chain.
+        admin = Mockito.mock(AtmosphereAdmin.class);
+        var framework = Mockito.mock(
+                org.atmosphere.admin.framework.FrameworkController.class);
         Mockito.when(admin.auditLog()).thenReturn(
                 new org.atmosphere.admin.ControlAuditLog(100));
-        Mockito.when(admin.framework().broadcast(Mockito.anyString(), Mockito.anyString()))
+        Mockito.when(admin.framework()).thenReturn(framework);
+        Mockito.when(framework.broadcast(Mockito.anyString(), Mockito.anyString()))
                 .thenReturn(true);
-        // Gate-closed instance: writeEnabled=false — every write returns 403
-        // from the feature-flag layer before even reaching authn/authz.
+        // Each MockMvc instance gets its own Environment so the feature
+        // flag is consulted on every guardWrite call (runtime-flippable
+        // in production, fixed per-instance in tests).
         mockMvcGateClosed = MockMvcBuilders.standaloneSetup(
-                        new AtmosphereAdminEndpoint(admin, false))
+                        new AtmosphereAdminEndpoint(admin, envWithWrite(false)))
                 .build();
-        // Gate-open instance: writeEnabled=true — authn and authz now
-        // matter and are asserted by the tests below.
         mockMvcGateOpen = MockMvcBuilders.standaloneSetup(
-                        new AtmosphereAdminEndpoint(admin, true))
+                        new AtmosphereAdminEndpoint(admin, envWithWrite(true)))
                 .build();
+    }
+
+    private static org.springframework.core.env.Environment envWithWrite(boolean enabled) {
+        var env = new org.springframework.mock.env.MockEnvironment();
+        env.setProperty("atmosphere.admin.http-write-enabled", String.valueOf(enabled));
+        return env;
     }
 
     @Test

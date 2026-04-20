@@ -53,14 +53,27 @@ import java.util.Map;
 public class AtmosphereAdminEndpoint {
 
     private final AtmosphereAdmin admin;
-    private final boolean writeEnabled;
+    private final org.springframework.core.env.Environment env;
 
     public AtmosphereAdminEndpoint(
             AtmosphereAdmin admin,
-            @org.springframework.beans.factory.annotation.Value(
-                    "${atmosphere.admin.http-write-enabled:false}") boolean writeEnabled) {
+            org.springframework.core.env.Environment env) {
         this.admin = admin;
-        this.writeEnabled = writeEnabled;
+        this.env = env;
+    }
+
+    /**
+     * Consulted on every mutating call — not cached — so an operator
+     * can flip {@code atmosphere.admin.http-write-enabled=false} at
+     * runtime (Spring's {@code @RefreshScope} or a live
+     * {@code ConfigFileApplicationListener}) and every subsequent
+     * write rejects without a restart. Resolved fresh per request; the
+     * cost is one environment lookup per guardWrite call — negligible
+     * next to the servlet dispatch.
+     */
+    boolean writeEnabled() {
+        return Boolean.parseBoolean(
+                env.getProperty("atmosphere.admin.http-write-enabled", "false"));
     }
 
     /**
@@ -88,7 +101,7 @@ public class AtmosphereAdminEndpoint {
      */
     private ResponseEntity<Map<String, Object>> guardWrite(
             HttpServletRequest request, String action, String target) {
-        if (!writeEnabled) {
+        if (!writeEnabled()) {
             admin.auditLog().record(null, action + ".denied.flag", target, false,
                     "atmosphere.admin.http-write-enabled=false");
             return ResponseEntity.status(403).body(Map.of(

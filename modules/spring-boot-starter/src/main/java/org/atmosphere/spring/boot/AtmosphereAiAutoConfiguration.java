@@ -18,9 +18,12 @@ package org.atmosphere.spring.boot;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.facts.FactResolver;
+import org.atmosphere.ai.filter.PiiRedactionFilter;
 import org.atmosphere.ai.guardrails.OutputLengthZScoreGuardrail;
 import org.atmosphere.ai.guardrails.PiiRedactionGuardrail;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -224,6 +227,85 @@ public class AtmosphereAiAutoConfiguration {
     private static String env(String key) {
         var val = System.getenv(key);
         return (val != null && !val.isBlank()) ? val : null;
+    }
+
+    /**
+     * Stream-level PII scrubber — the response-path complement to the
+     * guardrail. Unlike the guardrail (which can only early-terminate
+     * after tokens have flushed), this filter rewrites each text frame
+     * in-flight inside the broadcaster chain before any byte reaches
+     * the client. Atmosphere owns the broadcaster; no other AI
+     * framework can do per-token redaction without controlling the
+     * transport.
+     *
+     * <p>Registered under the same property as the guardrail
+     * ({@code atmosphere.ai.guardrails.pii.enabled=true}) so operators
+     * opt into the full PII story with one flag. Default replacement
+     * text is {@code [REDACTED]}; override via
+     * {@code atmosphere.ai.guardrails.pii.replacement}.</p>
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmospherePiiStreamFilter")
+    @ConditionalOnProperty(name = "atmosphere.ai.guardrails.pii.enabled", havingValue = "true")
+    public PiiRedactionFilter atmospherePiiStreamFilter(
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.pii.replacement:[REDACTED]}") String replacement) {
+        logger.info("PiiRedactionFilter registered (BroadcasterFilter, replacement={})",
+                replacement);
+        return new PiiRedactionFilter(replacement);
+    }
+
+    /**
+     * Installs every {@link org.atmosphere.ai.filter.AiStreamBroadcastFilter}
+     * bean (PII, or user-defined) on every broadcaster created by the
+     * framework — present and future. Subscribes to
+     * {@link BroadcasterListener#onPostCreate} so late-attached
+     * broadcasters also pick up the filter without the app re-binding.
+     *
+     * <p>This is the response-path delivery of the guardrail promise —
+     * rewriting tokens in-flight, not terminating after the fact.</p>
+     */
+    @Bean
+    @ConditionalOnBean(org.atmosphere.ai.filter.AiStreamBroadcastFilter.class)
+    public org.springframework.beans.factory.SmartInitializingSingleton
+            atmosphereAiStreamFilterInstaller(
+            AtmosphereFramework framework,
+            java.util.List<org.atmosphere.ai.filter.AiStreamBroadcastFilter> filters) {
+        return () -> {
+            framework.getAtmosphereConfig().startupHook(f -> {
+                var factory = f.getBroadcasterFactory();
+                if (factory == null) {
+                    logger.warn("BroadcasterFactory not available — cannot install "
+                            + "{} stream filter(s) on AI broadcasters", filters.size());
+                    return;
+                }
+                // Install on all currently-registered broadcasters.
+                factory.lookupAll().forEach(b -> applyFilters(b, filters));
+                // And on every broadcaster created after startup.
+                factory.addBroadcasterListener(new BroadcasterListener() {
+                    @Override public void onPostCreate(Broadcaster b) { applyFilters(b, filters); }
+                    @Override public void onComplete(Broadcaster b) { }
+                    @Override public void onPreDestroy(Broadcaster b) { }
+                    @Override public void onAddAtmosphereResource(Broadcaster b,
+                            org.atmosphere.cpr.AtmosphereResource r) { }
+                    @Override public void onRemoveAtmosphereResource(Broadcaster b,
+                            org.atmosphere.cpr.AtmosphereResource r) { }
+                    @Override public void onMessage(Broadcaster b,
+                            org.atmosphere.cpr.Deliver d) { }
+                });
+                logger.info("Installed {} AiStreamBroadcastFilter(s) on every broadcaster "
+                        + "(present + future)", filters.size());
+            });
+        };
+    }
+
+    private static void applyFilters(Broadcaster b,
+            java.util.List<org.atmosphere.ai.filter.AiStreamBroadcastFilter> filters) {
+        for (var f : filters) {
+            if (!b.getBroadcasterConfig().filters().contains(f)) {
+                b.getBroadcasterConfig().addFilter(f);
+            }
+        }
     }
 
 }

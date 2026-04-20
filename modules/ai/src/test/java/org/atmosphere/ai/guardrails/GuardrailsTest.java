@@ -125,4 +125,71 @@ class GuardrailsTest {
                 "default PII guardrail must block the response when PII is "
                 + "found — the alternative is leaking the PII with only a log line");
     }
+
+    // --- OutputLengthZScoreGuardrail: tenant-scoped baselines ------------
+
+    /**
+     * Regression for the review finding that a process-wide window lets
+     * one noisy tenant poison every other tenant's baseline.
+     */
+    @Test
+    void lengthGuardrailWindowsArePartitionedByTenantMdc() {
+        var g = new OutputLengthZScoreGuardrail(50, 2.0, 10);
+        try {
+            org.slf4j.MDC.put("business.tenant.id", "tenant-a");
+            for (int i = 0; i < 15; i++) {
+                g.inspectResponse("x".repeat(5_000));
+            }
+            org.slf4j.MDC.put("business.tenant.id", "tenant-b");
+            for (int i = 0; i < 12; i++) {
+                g.inspectResponse("x".repeat(100));
+            }
+            var tenantBOutlier = g.inspectResponse("x".repeat(10_000));
+            assertInstanceOf(AiGuardrail.GuardrailResult.Block.class, tenantBOutlier,
+                    "tenant-b's window must catch its own outlier against its own "
+                    + "baseline, not tenant-a's polluted mean");
+        } finally {
+            org.slf4j.MDC.remove("business.tenant.id");
+        }
+    }
+
+    // --- CostCeilingGuardrail --------------------------------------------
+
+    @Test
+    void costCeilingBlocksTenantAtOrAboveBudget() {
+        var g = new org.atmosphere.ai.guardrails.CostCeilingGuardrail(5.00);
+        try {
+            org.slf4j.MDC.put("business.tenant.id", "acme");
+            var r1 = g.inspectRequest(new org.atmosphere.ai.AiRequest(
+                    "hello", null, null, null, null, null, null,
+                    java.util.Map.of(), java.util.List.of()));
+            assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class, r1);
+            g.addCost("acme", 3.25);
+            g.addCost("acme", 1.80);
+            var r2 = g.inspectRequest(new org.atmosphere.ai.AiRequest(
+                    "hello again", null, null, null, null, null, null,
+                    java.util.Map.of(), java.util.List.of()));
+            assertInstanceOf(AiGuardrail.GuardrailResult.Block.class, r2,
+                    "tenant at budget must be blocked on the next dispatch — "
+                    + "observability without enforcement is a dashboard, not control");
+        } finally {
+            org.slf4j.MDC.remove("business.tenant.id");
+        }
+    }
+
+    @Test
+    void costCeilingIsolatesTenants() {
+        var g = new org.atmosphere.ai.guardrails.CostCeilingGuardrail(10.00);
+        g.addCost("big-spender", 15.00);
+        try {
+            org.slf4j.MDC.put("business.tenant.id", "small-account");
+            var r = g.inspectRequest(new org.atmosphere.ai.AiRequest(
+                    "hello", null, null, null, null, null, null,
+                    java.util.Map.of(), java.util.List.of()));
+            assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class, r,
+                    "small-account must not be blocked by big-spender's spend");
+        } finally {
+            org.slf4j.MDC.remove("business.tenant.id");
+        }
+    }
 }

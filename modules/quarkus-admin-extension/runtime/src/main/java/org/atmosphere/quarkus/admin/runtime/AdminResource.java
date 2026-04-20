@@ -58,20 +58,24 @@ public class AdminResource {
      * Spring Boot starter's {@code atmosphere.admin.http-write-enabled}.
      * Correctness Invariant #6: default deny on mutating surfaces.
      *
-     * <p>Resolved via {@code ConfigProvider} rather than
-     * {@code @ConfigProperty} to avoid pulling the MicroProfile
-     * annotation class onto the extension's runtime classpath — it
-     * transitively resolves an OSGi bundle annotation whose class file
-     * is intentionally absent from the Quarkus extension jar.</p>
+     * <p>Resolved via {@code ConfigProvider} on every {@code guardWrite}
+     * call rather than at construction — MicroProfile Config supports
+     * dynamic config sources, so an operator can flip the flag at
+     * runtime (emergency lockdown) and every subsequent request
+     * rejects without an app restart. Unit tests override by setting
+     * the package-private {@code writeEnabledOverride} field.</p>
      *
-     * <p>Package-private (non-final) — deliberately visible to the
-     * in-package {@code AdminResourceAuthzTest} so it can flip the flag
-     * without standing up a full Quarkus config backend. Production
-     * code never mutates it after construction.</p>
+     * <p>Not a MicroProfile {@code @ConfigProperty} binding — importing
+     * that annotation pulls in an OSGi bundle annotation whose class
+     * file is intentionally absent from the Quarkus extension jar and
+     * turns compiler warnings into {@code -Werror} failures.</p>
      */
-    /* package */ boolean writeEnabled = resolveWriteEnabledFromConfig();
+    /* package */ Boolean writeEnabledOverride;
 
-    private static boolean resolveWriteEnabledFromConfig() {
+    private boolean writeEnabled() {
+        if (writeEnabledOverride != null) {
+            return writeEnabledOverride;
+        }
         try {
             return Boolean.parseBoolean(
                     org.eclipse.microprofile.config.ConfigProvider.getConfig()
@@ -79,8 +83,7 @@ public class AdminResource {
                             .orElse("false"));
         } catch (RuntimeException e) {
             // No MicroProfile Config backend available (unit tests, embedded
-            // fixtures). Default deny — the operator must explicitly flip
-            // the flag in production.
+            // fixtures). Default deny per Correctness Invariant #6.
             return false;
         }
     }
@@ -113,7 +116,7 @@ public class AdminResource {
     jakarta.servlet.http.HttpServletRequest servletRequest;
 
     private Response guardWrite(SecurityContext sec, String action, String target) {
-        if (!writeEnabled) {
+        if (!writeEnabled()) {
             admin.auditLog().record(null, action + ".denied.flag", target, false,
                     "atmosphere.admin.http-write-enabled=false");
             return Response.status(403)

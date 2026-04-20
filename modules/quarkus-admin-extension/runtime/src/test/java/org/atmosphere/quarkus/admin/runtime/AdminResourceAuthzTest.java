@@ -65,7 +65,7 @@ class AdminResourceAuthzTest {
     @Test
     void writeReturns403WhenFeatureFlagDisabled() {
         Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
-        resource.writeEnabled = false;
+        resource.writeEnabledOverride = false;
         var response = resource.broadcast(securityContextFor("alice"),
                 Map.of("broadcasterId", "/chat", "message", "x"));
         assertEquals(403, response.getStatus());
@@ -74,7 +74,7 @@ class AdminResourceAuthzTest {
     @Test
     void writeReturns401ForAnonymousCallerWhenFlagEnabled() {
         Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
-        resource.writeEnabled = true;
+        resource.writeEnabledOverride = true;
         // Anonymous: SecurityContext resolves no Principal, attribute-based
         // fallbacks empty — guardWrite must return 401.
         var response = resource.broadcast(anonymousSecurityContext(),
@@ -85,7 +85,7 @@ class AdminResourceAuthzTest {
     @Test
     void writeReturns200ForAuthenticatedCallerUnderRequirePrincipal() {
         Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
-        resource.writeEnabled = true;
+        resource.writeEnabledOverride = true;
         var response = resource.broadcast(securityContextFor("alice@example.com"),
                 Map.of("broadcasterId", "/chat", "message", "x"));
         assertEquals(200, response.getStatus());
@@ -95,7 +95,7 @@ class AdminResourceAuthzTest {
     void customAuthorizerThatDeniesReturns403() {
         ControlAuthorizer roleCheck = (action, target, principal) -> false;
         Mockito.when(admin.authorizer()).thenReturn(roleCheck);
-        resource.writeEnabled = true;
+        resource.writeEnabledOverride = true;
         var response = resource.broadcast(securityContextFor("alice"),
                 Map.of("broadcasterId", "/chat", "message", "x"));
         assertEquals(403, response.getStatus());
@@ -104,7 +104,7 @@ class AdminResourceAuthzTest {
     @Test
     void denyAllAuthorizerBlocksEvenAuthenticatedCallers() {
         Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.DENY_ALL);
-        resource.writeEnabled = true;
+        resource.writeEnabledOverride = true;
         var response = resource.broadcast(securityContextFor("alice"),
                 Map.of("broadcasterId", "/chat", "message", "x"));
         assertEquals(403, response.getStatus());
@@ -120,7 +120,7 @@ class AdminResourceAuthzTest {
     @Test
     void principalFromAtmosphereAuthInterceptorAttributeIsRespected() {
         Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
-        resource.writeEnabled = true;
+        resource.writeEnabledOverride = true;
 
         Principal tokenPrincipal = () -> "demo-user";
         resource.servletRequest = Mockito.mock(jakarta.servlet.http.HttpServletRequest.class);
@@ -143,7 +143,7 @@ class AdminResourceAuthzTest {
     @Test
     void principalFromAiUserIdAttributeIsRespected() {
         Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
-        resource.writeEnabled = true;
+        resource.writeEnabledOverride = true;
 
         resource.servletRequest = Mockito.mock(jakarta.servlet.http.HttpServletRequest.class);
         Mockito.when(resource.servletRequest.getAttribute("org.atmosphere.auth.principal"))
