@@ -62,6 +62,28 @@
             <artifactId>slf4j-api</artifactId>
             <version>2.0.17</version>
         </dependency>
+
+        <!-- Test-scope deps: pinpoint regression of the admin-write triple-gate
+             without booting a full Quarkus app. Plain JUnit 5 + Mockito is
+             enough to drive AdminResource directly through its public API;
+             RESTEasy core supplies the Jakarta REST RuntimeDelegate needed
+             to materialize Response objects in-JVM. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.resteasy</groupId>
+            <artifactId>resteasy-core</artifactId>
+            <version>6.2.12.Final</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

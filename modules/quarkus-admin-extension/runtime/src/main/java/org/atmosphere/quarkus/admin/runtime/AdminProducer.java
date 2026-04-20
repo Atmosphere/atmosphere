@@ -17,11 +17,14 @@ package org.atmosphere.quarkus.admin.runtime;
 
 import io.quarkus.runtime.Startup;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.enterprise.inject.Produces;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.atmosphere.admin.AdminEventHandler;
 import org.atmosphere.admin.AdminEventProducer;
 import org.atmosphere.admin.AtmosphereAdmin;
+import org.atmosphere.admin.ControlAuthorizer;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.quarkus.runtime.LazyAtmosphereConfigurator;
 import org.slf4j.Logger;
@@ -41,6 +44,18 @@ public class AdminProducer {
     private static final Logger logger = LoggerFactory.getLogger(AdminProducer.class);
 
     private volatile AtmosphereAdmin admin;
+
+    /**
+     * Optional CDI hook for a user-supplied {@link ControlAuthorizer}.
+     * If the application declares a {@code @Produces ControlAuthorizer}
+     * (or an {@code @ApplicationScoped} bean), it wins over the
+     * fallback {@link ControlAuthorizer#REQUIRE_PRINCIPAL}. Mirrors the
+     * Spring Boot starter's {@code @ConditionalOnBean} behaviour so the
+     * two starters behave identically — operators ship one authorizer
+     * bean and both runtimes pick it up.
+     */
+    @Inject
+    Instance<ControlAuthorizer> authorizerCandidates;
 
     @Produces
     @Singleton
@@ -71,12 +86,25 @@ public class AdminProducer {
         }
 
         admin = new AtmosphereAdmin(framework, 1000);
-        // Default authorizer: REQUIRE_PRINCIPAL — Jakarta Security must
-        // resolve a non-anonymous Principal for any /api/admin/* write.
+        // Authorizer resolution in priority order:
+        //   1. user-supplied CDI bean (wins always)
+        //   2. REQUIRE_PRINCIPAL fallback — Jakarta Security must resolve a
+        //      non-anonymous Principal for any /api/admin/* write.
         // Operators wire a custom ControlAuthorizer via CDI (or disable
         // via atmosphere.admin.http-write-enabled=false). Fail-closed
         // per Correctness Invariant #6.
-        admin.setAuthorizer(org.atmosphere.admin.ControlAuthorizer.REQUIRE_PRINCIPAL);
+        if (authorizerCandidates != null && !authorizerCandidates.isUnsatisfied()
+                && !authorizerCandidates.isAmbiguous()) {
+            var custom = authorizerCandidates.get();
+            admin.setAuthorizer(custom);
+            logger.info("Atmosphere Admin authorizer: {} (CDI-provided)",
+                    custom.getClass().getName());
+        } else {
+            admin.setAuthorizer(ControlAuthorizer.REQUIRE_PRINCIPAL);
+            logger.info("Atmosphere Admin authorizer: REQUIRE_PRINCIPAL (default). "
+                    + "Produce a @ApplicationScoped ControlAuthorizer bean for "
+                    + "fine-grained role / tenant checks.");
+        }
 
         // Register the admin event WebSocket handler
         var handler = new AdminEventHandler();

@@ -24,19 +24,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Regex-based PII redactor. Catches the common structured-PII shapes
- * (email, phone, credit-card, SSN, IPv4) in outbound responses and
- * returns a {@link GuardrailResult.Modify} so downstream consumers see
- * the redacted text rather than the leaked original. Works on the
- * inbound path too — the response path is the default scope because the
- * request path usually pre-dates the guardrail.
- *
- * <p>Ships with a conservative default pattern set; applications extend
- * with their own via {@link #withPatterns(List)}. For NLP-grade PII
+ * Regex-based PII guardrail. Ships with a conservative default pattern
+ * set — email, phone, credit-card, US SSN, IPv4. Applications extend
+ * with their own via {@link #withPatterns(List)}; for NLP-grade PII
  * detection plug in a model-backed guardrail (Presidio, AWS Comprehend)
- * that implements the same SPI.</p>
+ * that implements the same {@link AiGuardrail} SPI.
  *
- * <h2>Behaviour</h2>
+ * <h2>Request path — redact (Modify)</h2>
+ *
+ * Matches are substituted with a {@code [redacted-*]} token and the
+ * modified {@link AiRequest} is handed to the pipeline; the model sees
+ * only the redacted form. Substitutions:
  *
  * <ul>
  *   <li>Email → {@code [redacted-email]}</li>
@@ -46,10 +44,21 @@ import java.util.List;
  *   <li>IPv4 → {@code [redacted-ip]}</li>
  * </ul>
  *
- * <p>The guardrail never blocks by default — it redacts and passes. Set
- * {@code blockOnMatch=true} to surface a {@code Block} decision instead
- * (useful for compliance environments where PII must not leave the
- * process even redacted).</p>
+ * <p>Call {@link #blocking()} to switch the request path to {@code Block}
+ * instead (useful for compliance environments where PII must not leave
+ * the process even redacted).</p>
+ *
+ * <h2>Response path — early termination (Block)</h2>
+ *
+ * The guardrail inspects accumulated response text AFTER tokens have
+ * already streamed to the client, so substitution is impossible
+ * retroactively. On a PII hit the guardrail returns {@code Block},
+ * which halts subsequent tokens and surfaces a {@code SecurityException}
+ * on the session — earlier bytes are already on the wire. Both default
+ * and blocking modes Block on the response path; this is a safety net
+ * that limits the leak window and writes the hit to the audit log, not
+ * a retroactive redactor. For synchronous scrubbing, layer a per-token
+ * filter in the transport chain.
  */
 public final class PiiRedactionGuardrail implements AiGuardrail {
 

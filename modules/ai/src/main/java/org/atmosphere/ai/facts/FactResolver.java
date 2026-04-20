@@ -71,7 +71,18 @@ public interface FactResolver {
     /** Resolve the requested fact keys for this turn. Never returns {@code null}. */
     FactBundle resolve(FactRequest request);
 
-    /** Per-turn input. */
+    /**
+     * Per-turn input.
+     *
+     * <p>{@code agentId} is derived by {@code AiEndpointHandler} from
+     * the endpoint's {@code pathTemplate} when it matches
+     * {@code /atmosphere/agent/<name>} — i.e., endpoints registered
+     * through {@code @Agent} or {@code @Coordinator}. Plain
+     * {@code @AiEndpoint} declarations at custom paths produce
+     * {@code null}; resolvers that need agent-scoped facts on those
+     * endpoints MUST receive the agent id out-of-band (HTTP header,
+     * session attribute, session id lookup).</p>
+     */
     record FactRequest(String userId, String sessionId, String agentId,
                        java.util.Set<String> keys) {
         public FactRequest {

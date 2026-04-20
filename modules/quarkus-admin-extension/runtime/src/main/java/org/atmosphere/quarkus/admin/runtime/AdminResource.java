@@ -63,20 +63,54 @@ public class AdminResource {
      * annotation class onto the extension's runtime classpath — it
      * transitively resolves an OSGi bundle annotation whose class file
      * is intentionally absent from the Quarkus extension jar.</p>
+     *
+     * <p>Package-private (non-final) so unit tests can flip it without
+     * standing up a full Quarkus config backend. Production code path
+     * is unchanged.</p>
      */
-    private final boolean writeEnabled = Boolean.parseBoolean(
-            org.eclipse.microprofile.config.ConfigProvider.getConfig()
-                    .getOptionalValue("atmosphere.admin.http-write-enabled", String.class)
-                    .orElse("false"));
+    boolean writeEnabled = resolveWriteEnabledFromConfig();
+
+    private static boolean resolveWriteEnabledFromConfig() {
+        try {
+            return Boolean.parseBoolean(
+                    org.eclipse.microprofile.config.ConfigProvider.getConfig()
+                            .getOptionalValue("atmosphere.admin.http-write-enabled", String.class)
+                            .orElse("false"));
+        } catch (RuntimeException e) {
+            // No MicroProfile Config backend available (unit tests, embedded
+            // fixtures). Default deny — the operator must explicitly flip
+            // the flag in production.
+            return false;
+        }
+    }
 
     /**
      * Three-gate write authorization mirrored from the Spring Boot
-     * AtmosphereAdminEndpoint.guardWrite: feature flag → Jakarta
-     * Security Principal → installed {@link org.atmosphere.admin.ControlAuthorizer}.
-     * Every decision (grant and deny) lands in the audit log. Returns
+     * AtmosphereAdminEndpoint.guardWrite: feature flag → Principal →
+     * installed {@link org.atmosphere.admin.ControlAuthorizer}. Every
+     * decision (grant and deny) lands in the audit log. Returns
      * {@code null} when the request is allowed; returns a populated
      * {@link Response} (401 or 403) when rejected.
+     *
+     * <p>Principal resolution checks three sources in order — same
+     * chain as the Spring side, so operators who authenticate via
+     * Atmosphere's own {@code AuthInterceptor} and receive the
+     * principal as a request attribute (not via Jakarta Security) are
+     * admitted identically across starters (Correctness Invariant #7 —
+     * mode parity):</p>
+     * <ol>
+     *   <li>Jakarta REST {@link SecurityContext#getUserPrincipal()} —
+     *       Quarkus Security's primary surface.</li>
+     *   <li>{@code org.atmosphere.auth.principal} request attribute —
+     *       populated by Atmosphere's {@code AuthInterceptor} on
+     *       {@code X-Atmosphere-Auth} token validation.</li>
+     *   <li>{@code ai.userId} request attribute — set by the AI
+     *       pipeline for framework-scoped identity.</li>
+     * </ol>
      */
+    @Context
+    jakarta.servlet.http.HttpServletRequest servletRequest;
+
     private Response guardWrite(SecurityContext sec, String action, String target) {
         if (!writeEnabled) {
             admin.auditLog().record(null, action + ".denied.flag", target, false,
@@ -87,12 +121,7 @@ public class AdminResource {
                             "hint", "Set atmosphere.admin.http-write-enabled=true to enable"))
                     .build();
         }
-        String principalName = null;
-        if (sec != null && sec.getUserPrincipal() != null
-                && sec.getUserPrincipal().getName() != null
-                && !sec.getUserPrincipal().getName().isBlank()) {
-            principalName = sec.getUserPrincipal().getName();
-        }
+        var principalName = resolvePrincipalName(sec);
         if (principalName == null) {
             admin.auditLog().record(null, action + ".denied.anonymous", target, false, null);
             return Response.status(401)
@@ -103,6 +132,31 @@ public class AdminResource {
         if (!authorizer.authorize(action, target, principalName)) {
             admin.auditLog().record(principalName, action + ".denied.authz", target, false, null);
             return Response.status(403).entity(Map.of("error", "Forbidden")).build();
+        }
+        return null;
+    }
+
+    /**
+     * Resolve the authenticated caller's name across the three
+     * supported auth surfaces. Returns {@code null} for anonymous or
+     * blank identity.
+     */
+    String resolvePrincipalName(SecurityContext sec) {
+        if (sec != null && sec.getUserPrincipal() != null
+                && sec.getUserPrincipal().getName() != null
+                && !sec.getUserPrincipal().getName().isBlank()) {
+            return sec.getUserPrincipal().getName();
+        }
+        if (servletRequest != null) {
+            var attr = servletRequest.getAttribute("org.atmosphere.auth.principal");
+            if (attr instanceof java.security.Principal p
+                    && p.getName() != null && !p.getName().isBlank()) {
+                return p.getName();
+            }
+            if (servletRequest.getAttribute("ai.userId") instanceof String s
+                    && !s.isBlank()) {
+                return s;
+            }
         }
         return null;
     }
@@ -164,7 +218,7 @@ public class AdminResource {
                     .entity(Map.of("error", "missing 'broadcasterId' or 'message' field"))
                     .build();
         }
-        var principalName = sec.getUserPrincipal().getName();
+        var principalName = resolvePrincipalName(sec);
         var success = admin.framework().broadcast(id, message);
         admin.auditLog().record(principalName, "broadcast", id, success, message);
         return success
@@ -177,7 +231,7 @@ public class AdminResource {
     public Response disconnectResource(@Context SecurityContext sec, @PathParam("uuid") String uuid) {
         var denied = guardWrite(sec, "disconnect", uuid);
         if (denied != null) return denied;
-        var principalName = sec.getUserPrincipal().getName();
+        var principalName = resolvePrincipalName(sec);
         var success = admin.framework().disconnectResource(uuid);
         admin.auditLog().record(principalName, "disconnect", uuid, success, null);
         return success
@@ -190,7 +244,7 @@ public class AdminResource {
     public Response resumeResource(@Context SecurityContext sec, @PathParam("uuid") String uuid) {
         var denied = guardWrite(sec, "resume", uuid);
         if (denied != null) return denied;
-        var principalName = sec.getUserPrincipal().getName();
+        var principalName = resolvePrincipalName(sec);
         var success = admin.framework().resumeResource(uuid);
         admin.auditLog().record(principalName, "resume", uuid, success, null);
         return success
@@ -284,7 +338,7 @@ public class AdminResource {
         if (controller == null) {
             return Response.status(404).build();
         }
-        var principalName = sec.getUserPrincipal().getName();
+        var principalName = resolvePrincipalName(sec);
         var success = controller.cancelTask(taskId);
         admin.auditLog().record(principalName, "cancel_task", taskId, success, null);
         return success
