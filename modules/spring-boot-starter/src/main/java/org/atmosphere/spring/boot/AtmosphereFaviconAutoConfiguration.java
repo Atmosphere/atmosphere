@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
-import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -45,17 +44,25 @@ import java.io.InputStream;
         havingValue = "true", matchIfMissing = true)
 public class AtmosphereFaviconAutoConfiguration {
 
-    @Bean
-    public AtmosphereFaviconController atmosphereFaviconController() {
-        return new AtmosphereFaviconController();
-    }
-
     /**
      * Single mapping over {@code /favicon.ico} and {@code /favicon.png}.
      * Both return the same PNG bytes — the {@code .ico} path is what
      * browsers auto-request at the site root when no {@code <link
      * rel="icon">} tag declares otherwise; the {@code .png} alias is
      * kept for HTML pages that reference it explicitly.
+     *
+     * <p>Registered exclusively via the nested {@code @RestController}
+     * stereotype. Do NOT add an {@code @Bean} method for this class: a
+     * stereotype-annotated nested class inside an
+     * {@code @AutoConfiguration} is already picked up as a bean, and a
+     * competing {@code @Bean} factory produces a second bean with a
+     * different name pointing to the same {@code @GetMapping} route,
+     * which triggers {@code Ambiguous mapping. Cannot map
+     * 'atmosphereFaviconController'} at startup. The
+     * {@code @ConditionalOnProperty} on the outer class gates both
+     * stereotype discovery and the bean creation, so opt-out
+     * ({@code atmosphere.favicon.enabled=false}) disables the entire
+     * controller as intended.</p>
      */
     @RestController
     public static class AtmosphereFaviconController {

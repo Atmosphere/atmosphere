@@ -202,8 +202,9 @@ public class AtmosphereAdminAutoConfiguration {
     @Bean
     @ConditionalOnBean(org.atmosphere.auth.TokenValidator.class)
     public FilterRegistrationBean<AdminApiAuthFilter> adminApiAuthFilter(
-            org.atmosphere.auth.TokenValidator validator) {
-        var reg = new FilterRegistrationBean<>(new AdminApiAuthFilter(validator));
+            org.atmosphere.auth.TokenValidator validator,
+            org.springframework.core.env.Environment env) {
+        var reg = new FilterRegistrationBean<>(new AdminApiAuthFilter(validator, env));
         reg.addUrlPatterns("/api/admin/*");
         reg.setOrder(0);
         return reg;
@@ -219,9 +220,12 @@ public class AtmosphereAdminAutoConfiguration {
     static class AdminApiAuthFilter implements Filter {
 
         private final org.atmosphere.auth.TokenValidator validator;
+        private final org.springframework.core.env.Environment env;
 
-        AdminApiAuthFilter(org.atmosphere.auth.TokenValidator validator) {
+        AdminApiAuthFilter(org.atmosphere.auth.TokenValidator validator,
+                           org.springframework.core.env.Environment env) {
             this.validator = validator;
+            this.env = env;
         }
 
         @Override
@@ -237,15 +241,47 @@ public class AtmosphereAdminAutoConfiguration {
                 // work.
                 token = httpReq.getParameter("X-Atmosphere-Auth");
             }
+            java.security.Principal principal = null;
             if (token != null && !token.isBlank()
                     && validator.validate(token)
                             instanceof org.atmosphere.auth.TokenValidator.Valid valid) {
-                var principal = valid.principal();
+                principal = valid.principal();
                 httpReq.setAttribute("org.atmosphere.auth.principal", principal);
+            }
+            // Opt-in read auth gate: when
+            // atmosphere.admin.http-read-auth-required=true, reject
+            // anonymous reads (GET/HEAD/OPTIONS) too. Default false so
+            // existing demo consoles keep working; production operators
+            // flip the flag. Writes go through guardWrite on the
+            // endpoint and aren't double-gated here.
+            if (principal == null && isReadAuthRequired() && isReadMethod(httpReq)) {
+                var httpRes = (HttpServletResponse) response;
+                httpRes.setStatus(401);
+                httpRes.setContentType("application/json");
+                httpRes.getWriter().write(
+                        "{\"error\":\"Admin read operations require authentication\","
+                        + "\"hint\":\"Send X-Atmosphere-Auth header or disable "
+                        + "atmosphere.admin.http-read-auth-required\"}");
+                httpRes.getWriter().flush();
+                return;
+            }
+            if (principal != null) {
                 chain.doFilter(new AuthenticatedHttpRequest(httpReq, principal), response);
                 return;
             }
             chain.doFilter(request, response);
+        }
+
+        private boolean isReadAuthRequired() {
+            return Boolean.parseBoolean(
+                    env.getProperty("atmosphere.admin.http-read-auth-required", "false"));
+        }
+
+        private static boolean isReadMethod(HttpServletRequest req) {
+            var method = req.getMethod();
+            return "GET".equalsIgnoreCase(method)
+                    || "HEAD".equalsIgnoreCase(method)
+                    || "OPTIONS".equalsIgnoreCase(method);
         }
     }
 
