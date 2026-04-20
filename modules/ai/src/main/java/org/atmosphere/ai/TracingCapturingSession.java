@@ -35,9 +35,8 @@ import java.time.Instant;
  * <p>Follows the same wrapping pattern as {@link MemoryCapturingSession} and
  * {@link MetricsCapturingSession}.</p>
  */
-public class TracingCapturingSession implements StreamingSession {
+public class TracingCapturingSession extends DelegatingStreamingSession {
 
-    private final StreamingSession delegate;
     private final AiMetrics metrics;
     private final String model;
     private final Instant startTime;
@@ -45,21 +44,11 @@ public class TracingCapturingSession implements StreamingSession {
     private int streamingTextCount;
 
     public TracingCapturingSession(StreamingSession delegate, AiMetrics metrics, String model) {
-        this.delegate = delegate;
+        super(delegate);
         this.metrics = metrics;
         this.model = model != null ? model : "unknown";
         this.startTime = Instant.now();
         metrics.sessionStarted(this.model);
-    }
-
-    @Override
-    public java.util.Map<Class<?>, Object> injectables() {
-        return delegate.injectables();
-    }
-
-    @Override
-    public String sessionId() {
-        return delegate.sessionId();
     }
 
     @Override
@@ -69,16 +58,6 @@ public class TracingCapturingSession implements StreamingSession {
         }
         streamingTextCount++;
         delegate.send(text);
-    }
-
-    @Override
-    public void sendMetadata(String key, Object value) {
-        delegate.sendMetadata(key, value);
-    }
-
-    @Override
-    public void progress(String message) {
-        delegate.progress(message);
     }
 
     @Override
@@ -101,16 +80,6 @@ public class TracingCapturingSession implements StreamingSession {
     }
 
     @Override
-    public boolean isClosed() {
-        return delegate.isClosed();
-    }
-
-    @Override
-    public void sendContent(Content content) {
-        delegate.sendContent(content);
-    }
-
-    @Override
     public void emit(AiEvent event) {
         if (event instanceof AiEvent.TextDelta) {
             if (firstStreamingTextTime == null) {
@@ -119,11 +88,6 @@ public class TracingCapturingSession implements StreamingSession {
             streamingTextCount++;
         }
         delegate.emit(event);
-    }
-
-    @Override
-    public void stream(String message) {
-        delegate.stream(message);
     }
 
     /**

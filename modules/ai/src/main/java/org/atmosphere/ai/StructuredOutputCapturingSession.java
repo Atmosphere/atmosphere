@@ -31,13 +31,12 @@ import java.util.Set;
  * <p>Follows the same wrapping pattern as {@link GuardrailCapturingSession}
  * and {@link MemoryCapturingSession}.</p>
  */
-class StructuredOutputCapturingSession implements StreamingSession {
+class StructuredOutputCapturingSession extends DelegatingStreamingSession {
 
     private static final Logger logger = LoggerFactory.getLogger(
             StructuredOutputCapturingSession.class);
     private static final int PARSE_INTERVAL = 100;
 
-    private final StreamingSession delegate;
     private final StructuredOutputParser parser;
     private final Class<?> responseType;
     private final StringBuilder accumulated = new StringBuilder();
@@ -48,19 +47,9 @@ class StructuredOutputCapturingSession implements StreamingSession {
     StructuredOutputCapturingSession(StreamingSession delegate,
                                      StructuredOutputParser parser,
                                      Class<?> responseType) {
-        this.delegate = delegate;
+        super(delegate);
         this.parser = parser;
         this.responseType = responseType;
-    }
-
-    @Override
-    public java.util.Map<Class<?>, Object> injectables() {
-        return delegate.injectables();
-    }
-
-    @Override
-    public String sessionId() {
-        return delegate.sessionId();
     }
 
     @Override
@@ -93,16 +82,6 @@ class StructuredOutputCapturingSession implements StreamingSession {
     }
 
     @Override
-    public void sendMetadata(String key, Object value) {
-        delegate.sendMetadata(key, value);
-    }
-
-    @Override
-    public void progress(String message) {
-        delegate.progress(message);
-    }
-
-    @Override
     public void complete() {
         emitEntity();
         delegate.complete();
@@ -112,16 +91,6 @@ class StructuredOutputCapturingSession implements StreamingSession {
     public void complete(String summary) {
         emitEntity();
         delegate.complete(summary);
-    }
-
-    @Override
-    public void error(Throwable t) {
-        delegate.error(t);
-    }
-
-    @Override
-    public boolean isClosed() {
-        return delegate.isClosed();
     }
 
     private void attemptFieldParse() {

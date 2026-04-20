@@ -28,13 +28,12 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <p>If a guardrail blocks the response, the stream is terminated with an error.</p>
  */
-class GuardrailCapturingSession implements StreamingSession {
+class GuardrailCapturingSession extends DelegatingStreamingSession {
 
     private static final Logger logger = LoggerFactory.getLogger(GuardrailCapturingSession.class);
 
     private static final int DEFAULT_CHECK_INTERVAL = 200;
 
-    private final StreamingSession delegate;
     private final List<AiGuardrail> guardrails;
     private final int checkInterval;
     private final ReentrantLock lock = new ReentrantLock();
@@ -48,19 +47,9 @@ class GuardrailCapturingSession implements StreamingSession {
 
     GuardrailCapturingSession(StreamingSession delegate, List<AiGuardrail> guardrails,
                               int checkInterval) {
-        this.delegate = delegate;
+        super(delegate);
         this.guardrails = guardrails;
         this.checkInterval = checkInterval;
-    }
-
-    @Override
-    public java.util.Map<Class<?>, Object> injectables() {
-        return delegate.injectables();
-    }
-
-    @Override
-    public String sessionId() {
-        return delegate.sessionId();
     }
 
     @Override
@@ -106,16 +95,6 @@ class GuardrailCapturingSession implements StreamingSession {
     }
 
     @Override
-    public void sendMetadata(String key, Object value) {
-        delegate.sendMetadata(key, value);
-    }
-
-    @Override
-    public void progress(String message) {
-        delegate.progress(message);
-    }
-
-    @Override
     public void complete() {
         lock.lock();
         try {
@@ -146,11 +125,6 @@ class GuardrailCapturingSession implements StreamingSession {
         if (!blocked) {
             delegate.complete(summary);
         }
-    }
-
-    @Override
-    public void error(Throwable t) {
-        delegate.error(t);
     }
 
     @Override

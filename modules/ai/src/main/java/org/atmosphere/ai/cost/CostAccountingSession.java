@@ -15,12 +15,9 @@
  */
 package org.atmosphere.ai.cost;
 
-import org.atmosphere.ai.AiEvent;
-import org.atmosphere.ai.Content;
+import org.atmosphere.ai.DelegatingStreamingSession;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.TokenUsage;
-
-import java.util.Map;
 
 /**
  * {@link StreamingSession} decorator that intercepts
@@ -32,12 +29,11 @@ import java.util.Map;
  * populated, matching {@link org.atmosphere.ai.processor.AiEndpointHandler}'s
  * per-turn publish).
  *
- * <p>Follows the same wrapping pattern as
- * {@link org.atmosphere.ai.MemoryCapturingSession} and
- * {@link org.atmosphere.ai.MetricsCapturingSession} so the session
- * decorator chain in {@code AiStreamingSession.dispatch} stays uniform.</p>
+ * <p>Extends {@link DelegatingStreamingSession} so every interface
+ * method that this decorator does not explicitly override is forwarded
+ * automatically. Only {@link #usage(TokenUsage)} is intercepted.</p>
  */
-public final class CostAccountingSession implements StreamingSession {
+public final class CostAccountingSession extends DelegatingStreamingSession {
 
     private static final org.slf4j.Logger logger =
             org.slf4j.LoggerFactory.getLogger(CostAccountingSession.class);
@@ -45,7 +41,6 @@ public final class CostAccountingSession implements StreamingSession {
     /** SLF4J MDC key read at usage-time; matches CostCeilingGuardrail. */
     private static final String TENANT_MDC_KEY = "business.tenant.id";
 
-    private final StreamingSession delegate;
     private final CostAccountant accountant;
     /**
      * Tenant id snapshotted on the dispatch thread. Must be captured at
@@ -59,7 +54,7 @@ public final class CostAccountingSession implements StreamingSession {
     private final String tenantSnapshot;
 
     public CostAccountingSession(StreamingSession delegate, CostAccountant accountant) {
-        this.delegate = delegate;
+        super(delegate);
         this.accountant = accountant;
         this.tenantSnapshot = org.slf4j.MDC.get(TENANT_MDC_KEY);
     }
@@ -71,23 +66,6 @@ public final class CostAccountingSession implements StreamingSession {
     String tenantSnapshot() {
         return tenantSnapshot;
     }
-
-    @Override
-    public Map<Class<?>, Object> injectables() {
-        return delegate.injectables();
-    }
-
-    @Override public String sessionId() { return delegate.sessionId(); }
-    @Override public void send(String text) { delegate.send(text); }
-    @Override public void sendContent(Content content) { delegate.sendContent(content); }
-    @Override public void sendMetadata(String key, Object value) { delegate.sendMetadata(key, value); }
-    @Override public void progress(String message) { delegate.progress(message); }
-    @Override public void complete() { delegate.complete(); }
-    @Override public void complete(String summary) { delegate.complete(summary); }
-    @Override public void error(Throwable t) { delegate.error(t); }
-    @Override public boolean isClosed() { return delegate.isClosed(); }
-    @Override public void emit(AiEvent event) { delegate.emit(event); }
-    @Override public void stream(String message) { delegate.stream(message); }
 
     @Override
     public void usage(TokenUsage usage) {

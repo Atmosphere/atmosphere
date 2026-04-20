@@ -43,9 +43,8 @@ import java.util.function.BiConsumer;
  * {@link #error(Throwable)}, the captor is poisoned and {@link #commit()}
  * becomes a no-op so the next request re-executes and may succeed.</p>
  */
-public class CachingStreamingSession implements StreamingSession {
+public class CachingStreamingSession extends org.atmosphere.ai.DelegatingStreamingSession {
 
-    private final StreamingSession delegate;
     private final BiConsumer<String, CachedResponse> cacheSink;
     private final Duration ttl;
     private final StringBuilder captured = new StringBuilder();
@@ -56,15 +55,10 @@ public class CachingStreamingSession implements StreamingSession {
 
     public CachingStreamingSession(StreamingSession delegate, String cacheKey,
                                    Duration ttl, BiConsumer<String, CachedResponse> cacheSink) {
-        this.delegate = delegate;
+        super(delegate);
         this.cacheKey = cacheKey;
         this.ttl = ttl;
         this.cacheSink = cacheSink;
-    }
-
-    @Override
-    public String sessionId() {
-        return delegate.sessionId();
     }
 
     @Override
@@ -73,16 +67,6 @@ public class CachingStreamingSession implements StreamingSession {
             captured.append(text);
         }
         delegate.send(text);
-    }
-
-    @Override
-    public void sendMetadata(String key, Object value) {
-        delegate.sendMetadata(key, value);
-    }
-
-    @Override
-    public void progress(String message) {
-        delegate.progress(message);
     }
 
     @Override
@@ -124,11 +108,6 @@ public class CachingStreamingSession implements StreamingSession {
         }
         errored = true;
         delegate.sendContent(content);
-    }
-
-    @Override
-    public boolean isClosed() {
-        return delegate.isClosed();
     }
 
     @Override

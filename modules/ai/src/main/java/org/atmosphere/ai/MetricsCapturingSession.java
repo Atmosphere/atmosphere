@@ -24,9 +24,8 @@ import java.time.Instant;
  *
  * <p>Follows the same wrapping pattern as {@link MemoryCapturingSession}.</p>
  */
-class MetricsCapturingSession implements StreamingSession {
+class MetricsCapturingSession extends DelegatingStreamingSession {
 
-    private final StreamingSession delegate;
     private final AiMetrics metrics;
     private final String model;
     private final Instant startTime;
@@ -35,20 +34,10 @@ class MetricsCapturingSession implements StreamingSession {
     private int completionStreamingTexts;
 
     MetricsCapturingSession(StreamingSession delegate, AiMetrics metrics, String model) {
-        this.delegate = delegate;
+        super(delegate);
         this.metrics = metrics;
         this.model = model != null ? model : "unknown";
         this.startTime = Instant.now();
-    }
-
-    @Override
-    public java.util.Map<Class<?>, Object> injectables() {
-        return delegate.injectables();
-    }
-
-    @Override
-    public String sessionId() {
-        return delegate.sessionId();
     }
 
     @Override
@@ -81,11 +70,6 @@ class MetricsCapturingSession implements StreamingSession {
     }
 
     @Override
-    public void progress(String message) {
-        delegate.progress(message);
-    }
-
-    @Override
     public void complete() {
         recordMetrics();
         delegate.complete();
@@ -104,11 +88,6 @@ class MetricsCapturingSession implements StreamingSession {
     }
 
     @Override
-    public boolean isClosed() {
-        return delegate.isClosed();
-    }
-
-    @Override
     public void emit(AiEvent event) {
         if (event instanceof AiEvent.TextDelta) {
             if (firstStreamingTextTime == null) {
@@ -116,11 +95,6 @@ class MetricsCapturingSession implements StreamingSession {
             }
         }
         delegate.emit(event);
-    }
-
-    @Override
-    public void stream(String message) {
-        delegate.stream(message);
     }
 
     private void recordMetrics() {

@@ -28,11 +28,10 @@ import org.slf4j.LoggerFactory;
  * streaming-text-by-streaming-text via callbacks, so we need to accumulate the full
  * response before we can store it in memory.</p>
  */
-class MemoryCapturingSession implements StreamingSession {
+class MemoryCapturingSession extends DelegatingStreamingSession {
 
     private static final Logger logger = LoggerFactory.getLogger(MemoryCapturingSession.class);
 
-    private final StreamingSession delegate;
     private final AiConversationMemory memory;
     private final String conversationId;
     private final String userMessage;
@@ -40,20 +39,10 @@ class MemoryCapturingSession implements StreamingSession {
 
     MemoryCapturingSession(StreamingSession delegate, AiConversationMemory memory,
                            String conversationId, String userMessage) {
-        this.delegate = delegate;
+        super(delegate);
         this.memory = memory;
         this.conversationId = conversationId;
         this.userMessage = userMessage;
-    }
-
-    @Override
-    public java.util.Map<Class<?>, Object> injectables() {
-        return delegate.injectables();
-    }
-
-    @Override
-    public String sessionId() {
-        return delegate.sessionId();
     }
 
     @Override
@@ -73,16 +62,6 @@ class MemoryCapturingSession implements StreamingSession {
             accumulated.append(text.text());
         }
         delegate.sendContent(content);
-    }
-
-    @Override
-    public void sendMetadata(String key, Object value) {
-        delegate.sendMetadata(key, value);
-    }
-
-    @Override
-    public void progress(String message) {
-        delegate.progress(message);
     }
 
     @Override
@@ -109,21 +88,11 @@ class MemoryCapturingSession implements StreamingSession {
     }
 
     @Override
-    public boolean isClosed() {
-        return delegate.isClosed();
-    }
-
-    @Override
     public void emit(AiEvent event) {
         if (event instanceof AiEvent.TextDelta delta) {
             accumulated.append(delta.text());
         }
         delegate.emit(event);
-    }
-
-    @Override
-    public void stream(String message) {
-        delegate.stream(message);
     }
 
     private void saveToMemory(String assistantResponse) {
