@@ -11,3 +11,4 @@ org.atmosphere.spring.boot.AtmosphereCoordinatorAutoConfiguration
 org.atmosphere.spring.boot.AtmosphereAdminAutoConfiguration
 org.atmosphere.spring.boot.AtmosphereAdminEndpoint
 org.atmosphere.spring.boot.AtmosphereConsoleInfoEndpoint
+org.atmosphere.spring.boot.AtmosphereFaviconAutoConfiguration
