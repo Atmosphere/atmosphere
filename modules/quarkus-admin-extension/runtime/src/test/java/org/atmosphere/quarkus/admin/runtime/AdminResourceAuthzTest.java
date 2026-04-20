@@ -175,12 +175,12 @@ class AdminResourceAuthzTest {
             Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
             resource.writeEnabledOverride = true;
 
-            resource.servletRequest = Mockito.mock(jakarta.servlet.http.HttpServletRequest.class);
-            Mockito.when(resource.servletRequest.getAttribute("org.atmosphere.auth.principal"))
-                    .thenReturn(null);
-            Mockito.when(resource.servletRequest.getAttribute("ai.userId"))
-                    .thenReturn(null);
-            Mockito.when(resource.servletRequest.getHeader("X-Atmosphere-Auth"))
+            // Header injection is via Jakarta REST HttpHeaders so the
+            // path works on both Undertow (servlet) and resteasy-reactive
+            // (Vert.x) — resteasy-reactive throws UT000048 on servlet
+            // request access, so the servlet path is a non-starter.
+            resource.jaxrsHeaders = Mockito.mock(jakarta.ws.rs.core.HttpHeaders.class);
+            Mockito.when(resource.jaxrsHeaders.getHeaderString("X-Atmosphere-Auth"))
                     .thenReturn("demo-token");
 
             var response = resource.broadcast(anonymousSecurityContext(),
@@ -206,8 +206,8 @@ class AdminResourceAuthzTest {
             Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
             resource.writeEnabledOverride = true;
 
-            resource.servletRequest = Mockito.mock(jakarta.servlet.http.HttpServletRequest.class);
-            Mockito.when(resource.servletRequest.getHeader("X-Atmosphere-Auth"))
+            resource.jaxrsHeaders = Mockito.mock(jakarta.ws.rs.core.HttpHeaders.class);
+            Mockito.when(resource.jaxrsHeaders.getHeaderString("X-Atmosphere-Auth"))
                     .thenReturn("wrong-token");
 
             var response = resource.broadcast(anonymousSecurityContext(),
@@ -215,6 +215,44 @@ class AdminResourceAuthzTest {
             assertEquals(401, response.getStatus(),
                     "Mismatched admin token must return 401 — the token source must "
                             + "not bypass the principal requirement.");
+        } finally {
+            System.clearProperty("atmosphere.admin.auth.token");
+        }
+    }
+
+    /**
+     * Regression for the Vert.x-thread scenario: resteasy-reactive
+     * dispatches on Vert.x, not Undertow, so
+     * {@code servletRequest.getAttribute(...)} throws
+     * {@code IllegalStateException: UT000048 No request is currently
+     * active}. {@link AdminResource#resolvePrincipalName} must swallow
+     * that and fall through to the token-header path — otherwise every
+     * admin write on Quarkus becomes a 500.
+     */
+    @Test
+    void servletRequestThrowingUT000048FallsThroughToTokenHeader() {
+        System.setProperty("atmosphere.admin.auth.token", "demo-token");
+        try {
+            Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+            resource.writeEnabledOverride = true;
+
+            // Simulate the resteasy-reactive Vert.x-thread failure:
+            // servletRequest proxy is non-null, but every access throws.
+            resource.servletRequest = Mockito.mock(jakarta.servlet.http.HttpServletRequest.class);
+            Mockito.when(resource.servletRequest.getAttribute(Mockito.anyString()))
+                    .thenThrow(new IllegalStateException("UT000048: No request is currently active"));
+
+            // Token-header path (Jakarta REST, thread-agnostic) carries
+            // the admission decision.
+            resource.jaxrsHeaders = Mockito.mock(jakarta.ws.rs.core.HttpHeaders.class);
+            Mockito.when(resource.jaxrsHeaders.getHeaderString("X-Atmosphere-Auth"))
+                    .thenReturn("demo-token");
+
+            var response = resource.broadcast(anonymousSecurityContext(),
+                    Map.of("broadcasterId", "/chat", "message", "x"));
+            assertEquals(200, response.getStatus(),
+                    "Vert.x-thread UT000048 from servletRequest must not propagate; "
+                            + "the token-header path must still admit the caller.");
         } finally {
             System.clearProperty("atmosphere.admin.auth.token");
         }

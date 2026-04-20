@@ -153,6 +153,17 @@ public class AdminResource {
      * Resolve the authenticated caller's name across the four
      * supported auth surfaces. Returns {@code null} for anonymous or
      * blank identity.
+     *
+     * <p>The {@code servletRequest} attribute path is best-effort on
+     * Quarkus because resteasy-reactive dispatches on Vert.x threads
+     * where Undertow's servlet context is not active; accessing the
+     * proxy throws {@code IllegalStateException: UT000048 No request
+     * is currently active}. That is a no-op for the admin plane —
+     * Atmosphere's {@code AuthInterceptor} (which stashes the
+     * attributes) runs on the Atmosphere servlet handler, not on the
+     * JAX-RS admin resource — so on resteasy-reactive the attributes
+     * are never populated. Swallow the exception and fall through to
+     * the Jakarta-REST-native header source below.</p>
      */
     String resolvePrincipalName(SecurityContext sec) {
         if (sec != null && sec.getUserPrincipal() != null
@@ -160,28 +171,35 @@ public class AdminResource {
                 && !sec.getUserPrincipal().getName().isBlank()) {
             return sec.getUserPrincipal().getName();
         }
-        if (servletRequest != null) {
-            var attr = servletRequest.getAttribute("org.atmosphere.auth.principal");
-            if (attr instanceof java.security.Principal p
-                    && p.getName() != null && !p.getName().isBlank()) {
-                return p.getName();
+        try {
+            if (servletRequest != null) {
+                var attr = servletRequest.getAttribute("org.atmosphere.auth.principal");
+                if (attr instanceof java.security.Principal p
+                        && p.getName() != null && !p.getName().isBlank()) {
+                    return p.getName();
+                }
+                if (servletRequest.getAttribute("ai.userId") instanceof String s
+                        && !s.isBlank()) {
+                    return s;
+                }
             }
-            if (servletRequest.getAttribute("ai.userId") instanceof String s
-                    && !s.isBlank()) {
-                return s;
-            }
-            // Fourth source: X-Atmosphere-Auth header validated against
-            // the configured admin token. Fires only when the operator
-            // has opted in via atmosphere.admin.auth.token; otherwise
-            // the header is ignored and the principal stays null so
-            // default-deny kicks in.
-            var tokenAuth = resolvePrincipalFromAdminToken();
-            if (tokenAuth != null) {
-                return tokenAuth;
-            }
+        } catch (IllegalStateException servletInactive) {
+            // Vert.x thread — Undertow servlet context isn't active.
+            // Attribute paths can't fire here; the header path below
+            // does, so continue rather than propagate.
+        }
+        // Fourth source: X-Atmosphere-Auth header, validated against
+        // the configured admin token via Jakarta REST's HttpHeaders
+        // (populated on both Undertow and Vert.x request paths).
+        var tokenAuth = resolvePrincipalFromAdminToken();
+        if (tokenAuth != null) {
+            return tokenAuth;
         }
         return null;
     }
+
+    @Context
+    jakarta.ws.rs.core.HttpHeaders jaxrsHeaders;
 
     /**
      * Match {@code X-Atmosphere-Auth} against the configured admin
@@ -190,9 +208,17 @@ public class AdminResource {
      * implementations can grant or deny specifically by token-auth
      * principals. Returns {@code null} when no token is configured or
      * the header does not match.
+     *
+     * <p>Reads via {@link jakarta.ws.rs.core.HttpHeaders} rather than
+     * {@code HttpServletRequest} so the path works on both the
+     * Undertow servlet transport and resteasy-reactive's Vert.x
+     * transport — same JAX-RS injection, same behaviour.</p>
      */
     private String resolvePrincipalFromAdminToken() {
-        String header = servletRequest.getHeader("X-Atmosphere-Auth");
+        if (jaxrsHeaders == null) {
+            return null;
+        }
+        String header = jaxrsHeaders.getHeaderString("X-Atmosphere-Auth");
         if (header == null || header.isBlank()) {
             return null;
         }
