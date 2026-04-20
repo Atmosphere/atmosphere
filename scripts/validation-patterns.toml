@@ -124,7 +124,8 @@ user_extensible = [
     "ToolExecutor",
     "PostPromptHook",
     "AgentLifecycleListener",
-    "EmbeddingRuntime"
+    "EmbeddingRuntime",
+    "TokenPricing"
 ]
 
 # ============================================================================
