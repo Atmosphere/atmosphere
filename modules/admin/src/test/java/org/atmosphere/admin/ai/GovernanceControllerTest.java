@@ -105,6 +105,80 @@ class GovernanceControllerTest {
     }
 
     @Test
+    void checkAllowsWhenNoPoliciesInstalled() {
+        var controller = new GovernanceController(framework);
+        var decision = controller.check(java.util.Map.of(
+                "agent_id", "agent-a",
+                "action", "read_documents",
+                "context", java.util.Map.of("tool_name", "search")));
+        assertTrue((boolean) decision.get("allowed"));
+        assertEquals("allow", decision.get("decision"));
+        assertEquals("", decision.get("reason"));
+    }
+
+    @Test
+    void checkRunsMsStyleDenyRuleFromMetadata() {
+        // In-memory MS-style rule: deny when tool_name == delete_database.
+        // Avoids a test-scope SnakeYAML dep while still proving the /check
+        // endpoint flows MS context fields through metadata correctly.
+        var rule = new org.atmosphere.ai.governance.MsAgentOsPolicy.Rule(
+                "deny-delete", "tool_name",
+                org.atmosphere.ai.governance.MsAgentOsPolicy.Operator.EQ,
+                "delete_database", 100, "Destructive tool call",
+                org.atmosphere.ai.governance.MsAgentOsPolicy.Action.DENY, null);
+        var policy = new org.atmosphere.ai.governance.MsAgentOsPolicy(
+                "block-delete-database", "yaml:test", "1.0",
+                List.of(rule),
+                org.atmosphere.ai.governance.MsAgentOsPolicy.Action.ALLOW);
+        properties.put(GovernancePolicy.POLICIES_PROPERTY, List.of(policy));
+
+        var controller = new GovernanceController(framework);
+        var decision = controller.check(java.util.Map.of(
+                "agent_id", "agent-a",
+                "action", "call_tool",
+                "context", java.util.Map.of("tool_name", "delete_database")));
+
+        assertEquals(false, decision.get("allowed"));
+        assertEquals("deny", decision.get("decision"));
+        assertEquals("Destructive tool call", decision.get("reason"));
+        assertEquals("block-delete-database", decision.get("matched_policy"));
+        assertEquals("yaml:test", decision.get("matched_source"));
+    }
+
+    @Test
+    void checkAllowsWhenNoRuleMatches() {
+        var rule = new org.atmosphere.ai.governance.MsAgentOsPolicy.Rule(
+                "deny-exact-tool", "tool_name",
+                org.atmosphere.ai.governance.MsAgentOsPolicy.Operator.EQ,
+                "delete_database", 100, "",
+                org.atmosphere.ai.governance.MsAgentOsPolicy.Action.DENY, null);
+        var policy = new org.atmosphere.ai.governance.MsAgentOsPolicy(
+                "specific-denies", "yaml:test", "1.0",
+                List.of(rule),
+                org.atmosphere.ai.governance.MsAgentOsPolicy.Action.ALLOW);
+        properties.put(GovernancePolicy.POLICIES_PROPERTY, List.of(policy));
+
+        var controller = new GovernanceController(framework);
+        var decision = controller.check(java.util.Map.of(
+                "agent_id", "agent-a",
+                "action", "call_tool",
+                "context", java.util.Map.of("tool_name", "search_documents")));
+
+        assertTrue((boolean) decision.get("allowed"));
+        assertEquals("allow", decision.get("decision"));
+    }
+
+    @Test
+    void checkReportsEvaluationMs() throws Exception {
+        var controller = new GovernanceController(framework);
+        var decision = controller.check(java.util.Map.of("context", java.util.Map.of()));
+        var evaluationMs = decision.get("evaluation_ms");
+        assertTrue(evaluationMs instanceof Number,
+                "evaluation_ms must be numeric (got " + evaluationMs + ")");
+        assertTrue(((Number) evaluationMs).doubleValue() >= 0.0);
+    }
+
+    @Test
     void wrongTypeInPropertyYieldsEmptyList() {
         properties.put(GovernancePolicy.POLICIES_PROPERTY, "not a list");
         var controller = new GovernanceController(framework);

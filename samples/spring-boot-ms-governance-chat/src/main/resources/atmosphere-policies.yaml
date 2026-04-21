@@ -1,0 +1,45 @@
+# Microsoft Agent Governance Toolkit YAML schema, enforced by Atmosphere.
+#
+# This file uses MS's native policy format — a single document with a top-level
+# `rules:` sequence, first-match-by-priority evaluation, `defaults.action`
+# fallback. Atmosphere's YamlPolicyParser auto-detects the schema and produces
+# a MsAgentOsPolicy that preserves MS's semantics verbatim.
+#
+# The three rules demonstrate three different operators against the incoming
+# chat message. Edit the file, restart the app, governance changes with no
+# code edits.
+
+version: "1.0"
+name: ms-governance-demo
+description: Demonstrates Atmosphere running Microsoft Agent Governance Toolkit YAML unchanged
+
+rules:
+  - name: block-destructive-sql
+    condition:
+      field: message
+      operator: matches
+      value: '(?i)\bdrop\s+(table|database)\b'
+    action: deny
+    priority: 100
+    message: "Destructive SQL statements are not permitted in this chat."
+
+  - name: block-legal-escalation
+    condition:
+      field: message
+      operator: contains
+      value: "sue us"
+    action: deny
+    priority: 90
+    message: "Legal-threat language is routed to a human agent — the AI cannot handle it."
+
+  - name: block-ssn-shape
+    condition:
+      field: message
+      operator: matches
+      value: '\b\d{3}-\d{2}-\d{4}\b'
+    action: deny
+    priority: 80
+    message: "The message looks like it contains a US Social Security number; refusing to process."
+
+defaults:
+  action: allow

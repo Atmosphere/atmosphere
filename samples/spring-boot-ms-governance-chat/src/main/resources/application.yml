@@ -1,0 +1,9 @@
+atmosphere:
+  packages: org.atmosphere.samples.springboot.msgovernance
+  admin:
+    enabled: true
+    http-write-enabled: false   # read-only admin — /check is a read endpoint
+    require-principal: false
+
+server:
+  port: 8090

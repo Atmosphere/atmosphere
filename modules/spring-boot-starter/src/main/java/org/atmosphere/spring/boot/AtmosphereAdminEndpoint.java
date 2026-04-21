@@ -486,6 +486,31 @@ public class AtmosphereAdminEndpoint {
         return ResponseEntity.ok(controller.summary());
     }
 
+    /**
+     * Microsoft Agent Governance Toolkit {@code POST /check}-compatible
+     * decision endpoint. External gateways (Envoy, Kong, Azure APIM)
+     * that already speak to MS's ASGI policy provider can point at
+     * this endpoint to use Atmosphere as the decision service.
+     * Payload: {@code {"agent_id": "...", "action": "...", "context": {...}}}.
+     * Response: {@code {"allowed": bool, "decision": "...", "reason": "...",
+     *                   "matched_policy": "...", "evaluation_ms": N}}.
+     * Read-only — no authorizer guard required (this does not mutate state).
+     */
+    @PostMapping("/governance/check")
+    public ResponseEntity<Map<String, Object>> governanceCheck(@RequestBody(required = false) Map<String, Object> payload) {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of(
+                    "allowed", true,
+                    "decision", "allow",
+                    "reason", "",
+                    "matched_policy", null,
+                    "matched_source", null,
+                    "evaluation_ms", 0.0));
+        }
+        return ResponseEntity.ok(controller.check(payload));
+    }
+
     // ── MCP Registry ──
 
     @GetMapping("/mcp/tools")

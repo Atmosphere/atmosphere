@@ -451,11 +451,15 @@ the April 2026 public source):
   (`phase` → `pre_admission` / `post_response`), and every
   `AiRequest.metadata()` entry by its exact key.
 - **HTTP surface**: MS's `PolicyProviderHandler` is an ASGI app
-  (`/check`, `/policies`, `/health`). Atmosphere exposes the
-  introspection side at `/api/admin/governance/policies` and
-  `/api/admin/governance/summary`. A decision-check adapter (Atmosphere
-  endpoint that speaks MS's `POST /check` payload) is future work
-  — the Java SPI and YAML layers already agree.
+  (`/check`, `/policies`, `/health`). Atmosphere exposes the same
+  three endpoints at `/api/admin/governance/check`,
+  `/api/admin/governance/policies`, and `/api/admin/governance/summary`.
+  The `POST /check` endpoint accepts MS's `{agent_id, action,
+  context}` payload and returns `{allowed, decision, reason,
+  matched_policy, matched_source, evaluation_ms}` — drop-in wire
+  compatibility so external gateways (Envoy, Kong, Azure APIM) that
+  already speak to MS's ASGI app can use Atmosphere as the decision
+  service without code changes.
 
 **Admin introspection**: `/api/admin/governance/policies` lists
 the live policy set; `/api/admin/governance/summary` returns counts

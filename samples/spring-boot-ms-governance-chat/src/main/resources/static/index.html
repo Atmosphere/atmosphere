@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Atmosphere × MS Agent Governance Toolkit — Chat Demo</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0f1021; color: #e7e7ef; margin: 0; padding: 0; }
+        .wrap { max-width: 780px; margin: 28px auto; padding: 0 20px; }
+        h1 { font-size: 22px; margin-bottom: 4px; }
+        .sub { color: #a8a8c2; font-size: 13px; margin-bottom: 18px; }
+        .tag { display: inline-block; background: #2a2a4a; padding: 2px 8px; border-radius: 6px; font-size: 11px; color: #9ad2ff; margin-right: 4px; }
+        .chat { background: #16213e; border-radius: 12px; display: flex; flex-direction: column; height: 460px; border: 1px solid #2a2a4a; }
+        .messages { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+        .bubble { padding: 10px 14px; border-radius: 14px; max-width: 85%; word-wrap: break-word; }
+        .mine { align-self: flex-end; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+        .ai { align-self: flex-start; background: #2a2a4a; color: #e7e7ef; }
+        .denied { align-self: flex-start; background: #552233; color: #ffb4c4; border: 1px solid #884455; }
+        .meta { font-size: 11px; color: #8888a0; padding: 4px 16px; }
+        .controls { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #2a2a4a; background: #1a1a2e; border-radius: 0 0 12px 12px; }
+        input { flex: 1; padding: 10px 14px; border-radius: 20px; border: 1px solid #2a2a4a; background: #0f1021; color: #e7e7ef; font-size: 14px; outline: none; }
+        button { padding: 10px 20px; border-radius: 20px; border: none; background: linear-gradient(135deg, #4a5a8a, #5c3d7a); color: #fff; cursor: pointer; font-weight: 600; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .hint { margin-top: 14px; font-size: 12px; color: #9696a8; line-height: 1.5; }
+        code { background: #2a2a4a; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>Atmosphere × MS Agent Governance Toolkit</h1>
+    <div class="sub">
+        <span class="tag">MS schema</span>
+        <span class="tag">rules-over-context</span>
+        <span class="tag">first-match-by-priority</span>
+        This chat is gated by Microsoft's Agent Governance Toolkit YAML policies,
+        loaded unchanged. Try prompts that should trip the rules.
+    </div>
+
+    <div class="chat">
+        <div class="messages" id="messages"></div>
+        <div class="meta" id="meta">disconnected</div>
+        <div class="controls">
+            <input id="input" type="text" placeholder="Try: 'please DROP TABLE users' or 'my SSN is 123-45-6789'"/>
+            <button id="send" disabled>Send</button>
+        </div>
+    </div>
+
+    <div class="hint">
+        <p>Try each rule:</p>
+        <ul>
+            <li><b>Destructive SQL</b> (<code>matches</code> operator): "please DROP TABLE users"</li>
+            <li><b>Legal escalation</b> (<code>contains</code> operator): "I'm going to sue us"</li>
+            <li><b>SSN shape</b> (<code>matches</code> operator): "my SSN is 123-45-6789"</li>
+            <li><b>Allowed</b> (defaults.action = allow): "hello" — admitted through the chain</li>
+        </ul>
+        <p>Endpoints: <code>GET /api/admin/governance/policies</code> lists the active chain,
+           <code>POST /api/admin/governance/check</code> runs an ad-hoc decision
+           against the live policies.</p>
+    </div>
+</div>
+
+<script>
+    const msgEl = document.getElementById('messages');
+    const inputEl = document.getElementById('input');
+    const sendEl = document.getElementById('send');
+    const metaEl = document.getElementById('meta');
+    let pendingAiBubble = null;
+    let ws = null;
+
+    function append(text, cls) {
+        const d = document.createElement('div');
+        d.className = 'bubble ' + cls;
+        d.textContent = text;
+        msgEl.appendChild(d);
+        msgEl.scrollTop = msgEl.scrollHeight;
+        return d;
+    }
+
+    function connect() {
+        const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://')
+            + location.host + '/atmosphere/ms-governance';
+        ws = new WebSocket(wsUrl);
+        ws.onopen = () => { metaEl.textContent = 'connected'; sendEl.disabled = false; };
+        ws.onclose = () => {
+            metaEl.textContent = 'disconnected — reconnecting in 2s';
+            sendEl.disabled = true;
+            setTimeout(connect, 2000);
+        };
+        ws.onmessage = (event) => {
+            const raw = event.data;
+            if (!raw) return;
+            // Atmosphere sends JSON envelope frames: {type, data, sessionId, seq}.
+            // Errors have type="error" and carry the policy denial reason in data.
+            let frame = null;
+            try { frame = JSON.parse(raw); } catch (e) { /* raw text */ }
+            if (frame && frame.type === 'error') {
+                append(frame.data || 'error', 'denied');
+                pendingAiBubble = null;
+                return;
+            }
+            if (frame && frame.type === 'complete') {
+                pendingAiBubble = null;
+                return;
+            }
+            const txt = (frame && frame.data) ? frame.data : raw;
+            if (frame && frame.type === 'progress') {
+                append(txt, 'ai meta');
+                return;
+            }
+            if (!pendingAiBubble) {
+                pendingAiBubble = append('', 'ai');
+            }
+            pendingAiBubble.textContent += txt;
+            msgEl.scrollTop = msgEl.scrollHeight;
+        };
+    }
+
+    connect();
+
+    sendEl.onclick = () => {
+        const v = inputEl.value.trim();
+        if (!v || !ws || ws.readyState !== WebSocket.OPEN) return;
+        append(v, 'mine');
+        pendingAiBubble = null;
+        ws.send(v);
+        inputEl.value = '';
+    };
+    inputEl.onkeypress = (e) => { if (e.key === 'Enter') sendEl.click(); };
+</script>
+</body>
+</html>

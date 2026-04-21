@@ -15,7 +15,10 @@
  */
 package org.atmosphere.admin.ai;
 
+import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.governance.PolicyContext;
+import org.atmosphere.ai.governance.PolicyDecision;
 import org.atmosphere.cpr.AtmosphereFramework;
 
 import java.util.ArrayList;
@@ -62,6 +65,98 @@ public final class GovernanceController {
         return result;
     }
 
+    /**
+     * Evaluate a policy-decision request shaped like Microsoft Agent Governance
+     * Toolkit's {@code POST /check} endpoint. Accepts {@code {agent_id, action,
+     * context}} and returns {@code {allowed, decision, reason, matched_policy,
+     * evaluation_ms}}. Wire-level compatible so external gateways (Envoy,
+     * Kong, Azure APIM) that already speak to MS's ASGI policy provider can
+     * use Atmosphere as a drop-in decision service.
+     *
+     * <p>Mapping to the {@link GovernancePolicy} chain:</p>
+     * <ul>
+     *   <li>{@code agent_id} → {@link AiRequest#agentId()}</li>
+     *   <li>{@code action} → {@code context["action"]}</li>
+     *   <li>Each {@code context} key is flattened onto request metadata so
+     *       MS rules that reference {@code tool_name}, {@code token_count},
+     *       etc. see the same values they would inside MS's evaluator.</li>
+     * </ul>
+     */
+    public Map<String, Object> check(Map<String, Object> payload) {
+        var start = System.nanoTime();
+        var agentId = asString(payload == null ? null : payload.get("agent_id"));
+        var action = asString(payload == null ? null : payload.get("action"));
+        Map<String, Object> rawContext = Map.of();
+        if (payload != null && payload.get("context") instanceof Map<?, ?> ctxMap) {
+            var copy = new LinkedHashMap<String, Object>();
+            for (var entry : ctxMap.entrySet()) {
+                if (entry.getKey() != null) {
+                    copy.put(entry.getKey().toString(), entry.getValue());
+                }
+            }
+            rawContext = copy;
+        }
+        var metadata = new LinkedHashMap<String, Object>(rawContext);
+        if (action != null && !action.isBlank()) {
+            metadata.putIfAbsent("action", action);
+        }
+        var message = asString(metadata.get("message"));
+        var request = new AiRequest(message == null ? "" : message,
+                "", null, null, null, agentId, null, metadata, List.of());
+        var policies = readPolicies();
+
+        String matchedName = null;
+        String matchedSource = null;
+        String action_outcome = "allow";
+        boolean allowed = true;
+        String reason;
+        if (policies.isEmpty()) {
+            reason = "no policies installed";
+        } else {
+            reason = "no rule matched";
+            for (var policy : policies) {
+                try {
+                    var decision = policy.evaluate(PolicyContext.preAdmission(request));
+                    switch (decision) {
+                        case PolicyDecision.Deny deny -> {
+                            allowed = false;
+                            action_outcome = "deny";
+                            reason = deny.reason();
+                            matchedName = policy.name();
+                            matchedSource = policy.source();
+                        }
+                        case PolicyDecision.Transform transform -> {
+                            allowed = true;
+                            action_outcome = "transform";
+                            reason = "request rewritten by policy";
+                            matchedName = policy.name();
+                            matchedSource = policy.source();
+                        }
+                        case PolicyDecision.Admit ignored -> { }
+                    }
+                } catch (Exception e) {
+                    allowed = false;
+                    action_outcome = "deny";
+                    reason = "policy evaluation failed: " + e.getMessage();
+                    matchedName = policy.name();
+                    matchedSource = policy.source();
+                }
+                if (!allowed) {
+                    break;
+                }
+            }
+        }
+        var durationMs = (System.nanoTime() - start) / 1_000_000.0;
+        var response = new LinkedHashMap<String, Object>();
+        response.put("allowed", allowed);
+        response.put("decision", action_outcome);
+        response.put("reason", allowed ? "" : reason);
+        response.put("matched_policy", matchedName);
+        response.put("matched_source", matchedSource);
+        response.put("evaluation_ms", Math.round(durationMs * 100.0) / 100.0);
+        return response;
+    }
+
     /** Summary: policy count and distinct source URIs. */
     public Map<String, Object> summary() {
         var policies = readPolicies();
@@ -73,6 +168,10 @@ public final class GovernanceController {
         result.put("policyCount", policies.size());
         result.put("sources", List.copyOf(sources));
         return result;
+    }
+
+    private static String asString(Object value) {
+        return value == null ? null : value.toString();
     }
 
     private List<GovernancePolicy> readPolicies() {
