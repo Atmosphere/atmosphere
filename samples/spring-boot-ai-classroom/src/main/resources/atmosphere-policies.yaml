@@ -1,0 +1,38 @@
+#
+# Atmosphere Governance Policy Plane — classroom sample
+#
+# This file is loaded by PoliciesConfig at startup and parsed into
+# org.atmosphere.ai.governance.GovernancePolicy instances. Each policy is
+# applied on pre-admission (before the LLM call) and on post-response
+# (as text streams back).
+#
+# Types available out-of-the-box:
+#   pii-redaction          — redact or block emails, phone numbers, SSNs,
+#                            credit cards, IPv4s
+#   cost-ceiling           — per-tenant dollar budget (requires app to
+#                            call CostCeilingGuardrail.addCost())
+#   output-length-zscore   — flag responses more than N sigma from the
+#                            rolling mean length (drift detector)
+#
+# Change this file, restart the app, and the governance posture changes
+# with zero code edits. Add custom types by registering a factory on
+# PolicyRegistry in your Spring configuration.
+#
+version: "1.0"
+policies:
+  - name: classroom-pii-guard
+    type: pii-redaction
+    version: "1.0"
+    config:
+      # Redact matches (the LLM sees "[redacted-email]") rather than hard
+      # block — classroom questions about real-world scenarios may mention
+      # PII incidentally. For stricter environments use `mode: block`.
+      mode: redact
+
+  - name: classroom-drift-watcher
+    type: output-length-zscore
+    version: "1.0"
+    config:
+      window-size: 50
+      z-threshold: 3.0
+      min-samples: 10

@@ -50,6 +50,15 @@ public class AiClassroom {
 
 The `{room}` path segment is extracted by `AiEndpointHandler` and each unique room path gets its own Atmosphere broadcaster, so messages in the math room are isolated from the code and science rooms. The `skill:classroom` prefix loads the system prompt from a skill file (classpath or `~/.atmosphere/skills/`).
 
+## Governance policies (YAML-driven)
+
+This sample loads governance policies from `src/main/resources/atmosphere-policies.yaml`. `PoliciesConfig` reads the file at startup via `YamlPolicyParser`, publishes the resulting `GovernancePolicy` list to the framework's `POLICIES_PROPERTY`, and `AiEndpointProcessor` installs them on every `@AiEndpoint` in the app. The shipped policies:
+
+- **classroom-pii-guard** — PII redaction (email, phone, credit-card, SSN, IPv4). Redacts matches before the LLM sees them; on the response side, blocks further tokens if PII slips through.
+- **classroom-drift-watcher** — z-score drift detector on response length. Flags replies more than 3 sigma from the rolling mean (truncations, runaway generations).
+
+Edit `atmosphere-policies.yaml`, restart the app, and the governance posture changes with zero code edits. Built-in types: `pii-redaction`, `cost-ceiling`, `output-length-zscore`. Register a custom type by calling `PolicyRegistry.register("my-type", descriptor -> ...)` in a Spring `@Configuration`.
+
 **The interceptor (sets persona per room):**
 
 ```java
