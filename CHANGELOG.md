@@ -14,13 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   evaluation. Vocabulary aligned with OPA/Rego and Microsoft Agent
   Governance Toolkit at the evaluate-decision level (`admit` / `deny`
   / transform). The SPI is strictly additive — existing `AiGuardrail`
-  wiring keeps working unchanged. **Interop scope with Microsoft toolkit
-  (verified 2026-04-21):** SPI-shape parity yes, YAML-artifact parity
-  no — Atmosphere uses type-dispatch YAML (`type: pii-redaction`, etc.)
-  while MS uses rules-over-context
-  (`condition: {field, operator, value}`, priority-sorted). A future
-  `MsAgentOsYamlPolicyParser` can read MS's schema and synthesize
-  `GovernancePolicy` instances from each rule; that work is deferred.
+  wiring keeps working unchanged.
 - **`GuardrailAsPolicy` + `PolicyAsGuardrail` adapters** (`efefaea40a`) —
   every existing `AiGuardrail` is reachable as a `GovernancePolicy` via
   `GuardrailAsPolicy`; policies land on the current `AiPipeline`
@@ -65,6 +59,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/api/admin/governance/summary` HTTP endpoints expose the live list;
   `AtmosphereAdmin.overview()` reports the policy count alongside the
   AI runtime name.
+- **Microsoft Agent Governance Toolkit YAML parity** — `YamlPolicyParser`
+  auto-detects the MS schema (documents with top-level `rules:`) and
+  produces a `MsAgentOsPolicy` that preserves MS's first-match-by-priority
+  rule-evaluation semantic. All nine comparison operators (`eq`, `ne`,
+  `gt`, `lt`, `gte`, `lte`, `in`, `contains`, `matches`) and all four
+  actions (`allow`, `deny`, `audit`, `block`) are honored. Context map
+  bridges `AiRequest` fields (`message`, `model`, `user_id`, …) and every
+  metadata entry to rule field names. `MsAgentOsYamlConformanceTest`
+  loads MS's own example YAMLs (copied unmodified from `microsoft/
+  agent-governance-toolkit@April-2026`) and asserts byte-for-byte
+  interop.
 
 ### Added — AI Agent Foundation v0.5 (eight primitives)
 

@@ -35,13 +35,16 @@ package org.atmosphere.ai.governance;
  * / {@code /health}), not a Java-style programming interface; the closest programming
  * equivalent is MS's {@code PolicyEvaluator.evaluate(context: dict) -> PolicyDecision}.
  * Our {@code GovernancePolicy.evaluate(PolicyContext) -> PolicyDecision} shares shape
- * at the evaluate() level (named policy, identity metadata, admit/deny decision), but
- * the YAML artifact schema diverges: MS uses rules-over-context (priority-sorted
- * {@code condition → action} on a request dict) while Atmosphere uses type-dispatch
- * (each entry names a built-in behavior plus a config block). The two schemas are NOT
- * interchangeable today. A future {@code MsAgentOsYamlPolicyParser} could read MS's
- * rules-format YAML and map each rule to a synthetic {@code GovernancePolicy} — that
- * work is deferred; Phase A ships the Atmosphere-native schema only.</p>
+ * at that level (named policy, identity metadata, admit/deny decision). For <b>YAML
+ * artifact parity</b>, {@link YamlPolicyParser} auto-detects the MS schema (documents
+ * with a top-level {@code rules:} sequence) and produces a {@link MsAgentOsPolicy}
+ * that preserves MS's first-match-by-priority semantic — operators {@code eq},
+ * {@code ne}, {@code gt}, {@code lt}, {@code gte}, {@code lte}, {@code in},
+ * {@code contains}, {@code matches}; actions {@code allow}, {@code deny}, {@code audit},
+ * {@code block}. Conformance tests load MS's own example YAMLs byte-for-byte from
+ * {@code docs/tutorials/policy-as-code/examples/}. Atmosphere's native type-dispatch
+ * schema ({@code policies:} sequence) lives alongside it and the two are mutually
+ * exclusive per document.</p>
  *
  * <p>Implementations MUST be side-effect-free in {@link #evaluate(PolicyContext)}
  * except for metrics/logging. They MUST tolerate concurrent invocation — the pipeline

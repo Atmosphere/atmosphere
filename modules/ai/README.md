@@ -412,29 +412,50 @@ registry.register("my-domain-policy",
 `PolicyParser` implementation and a
 `META-INF/services/org.atmosphere.ai.governance.PolicyParser` entry.
 
-**Interop with Microsoft Agent Governance Toolkit** (verified
-against the April 2026 public source):
+**Interop with Microsoft Agent Governance Toolkit** (verified against
+the April 2026 public source):
 
-- SPI shape lines up at the evaluate-decision level:
+- **SPI shape** lines up at the evaluate-decision level:
   `GovernancePolicy.evaluate(PolicyContext) → PolicyDecision` mirrors
   MS's `PolicyEvaluator.evaluate(context: dict) → PolicyDecision`.
-  Both return identity metadata (matched policy name, version) plus
-  an allow/deny decision.
-- YAML artifact schema **does not** line up. MS Agent OS YAML is
-  rules-over-context (priority-sorted `condition: {field, operator,
-  value}` → `action: allow|deny`); Atmosphere YAML is type-dispatch
-  (each entry names a built-in behavior plus config). The two
-  documents are not interchangeable today. A future
-  `MsAgentOsYamlPolicyParser` implementation could translate MS
-  rules into synthetic `GovernancePolicy` instances; that work is
-  deferred.
-- MS's `PolicyProviderHandler` is an HTTP ASGI app (endpoints
-  `/check`, `/policies`, `/health`). Atmosphere exposes the
-  equivalent at `/api/admin/governance/policies` and
-  `/api/admin/governance/summary` through `GovernanceController`.
-  An HTTP-level adapter that accepts MS's `POST /check` payload
-  and returns a compatible response would give cross-runtime
-  interop without touching the SPI — future work.
+  Both carry identity metadata (matched policy name, version) and an
+  admit/deny decision.
+- **YAML artifact parity.** `YamlPolicyParser` auto-detects the MS
+  schema — documents with a top-level `rules:` sequence produce a
+  single `MsAgentOsPolicy` that preserves MS's first-match-by-priority
+  rule-evaluation semantic. Operators (`eq`, `ne`, `gt`, `lt`, `gte`,
+  `lte`, `in`, `contains`, `matches`) and actions (`allow`, `deny`,
+  `audit`, `block`) are all honored. Drop-in example (copied verbatim
+  from MS's `docs/tutorials/policy-as-code/examples/01_first_policy.yaml`):
+
+  ```yaml
+  version: "1.0"
+  name: my-first-policy
+  description: A simple policy that blocks dangerous agent actions
+  rules:
+    - name: block-delete-database
+      condition: { field: tool_name, operator: eq, value: delete_database }
+      action: deny
+      priority: 100
+      message: "Deleting databases is not allowed"
+  defaults: { action: allow }
+  ```
+
+  Atmosphere's native `policies:` schema lives alongside the MS schema
+  — the two are mutually exclusive per document. `MsAgentOsYamlConformanceTest`
+  pins the interop against MS's unmodified example YAMLs so upstream
+  schema drift surfaces as a test failure here.
+- **Context map bridge**: rule `field:` references map to `AiRequest`
+  properties (`message`, `system_prompt`, `model`, `user_id`,
+  `session_id`, `agent_id`, `conversation_id`), the context phase
+  (`phase` → `pre_admission` / `post_response`), and every
+  `AiRequest.metadata()` entry by its exact key.
+- **HTTP surface**: MS's `PolicyProviderHandler` is an ASGI app
+  (`/check`, `/policies`, `/health`). Atmosphere exposes the
+  introspection side at `/api/admin/governance/policies` and
+  `/api/admin/governance/summary`. A decision-check adapter (Atmosphere
+  endpoint that speaks MS's `POST /check` payload) is future work
+  — the Java SPI and YAML layers already agree.
 
 **Admin introspection**: `/api/admin/governance/policies` lists
 the live policy set; `/api/admin/governance/summary` returns counts

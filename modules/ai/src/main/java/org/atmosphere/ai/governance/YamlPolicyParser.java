@@ -23,13 +23,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Default {@link PolicyParser} — reads a YAML document into
  * {@link GovernancePolicy} instances via {@link PolicyRegistry}.
  *
- * <h2>Schema</h2>
+ * <h2>Atmosphere-native schema (type-dispatch)</h2>
  * <pre>{@code
  * version: "1.0"
  * policies:
@@ -50,9 +53,35 @@ import java.util.Map;
  *       min-samples: 10
  * }</pre>
  *
- * <p>{@code version:} at the document root is advisory for now — the parser
- * records it on every {@link org.atmosphere.ai.governance.PolicyRegistry.PolicyDescriptor}
- * as a fallback when the individual policy entry omits {@code version:}.</p>
+ * <h2>Microsoft Agent OS schema (rules-over-context)</h2>
+ * The parser <b>auto-detects</b> the Microsoft Agent Governance Toolkit YAML
+ * shape ({@code rules:} sequence at the document root) and produces a single
+ * {@link MsAgentOsPolicy} that preserves MS's first-match-by-priority semantic.
+ * Operators: {@code eq}, {@code ne}, {@code gt}, {@code lt}, {@code gte},
+ * {@code lte}, {@code in}, {@code contains}, {@code matches} (regex). Actions:
+ * {@code allow}, {@code deny}, {@code audit}, {@code block}.
+ * <pre>{@code
+ * version: "1.0"
+ * name: production-policy
+ * description: Company-wide policy
+ * rules:
+ *   - name: block-delete-database
+ *     condition:
+ *       field: message
+ *       operator: contains
+ *       value: DROP TABLE
+ *     action: deny
+ *     priority: 100
+ *     message: "SQL drop statements are never allowed"
+ * defaults:
+ *   action: allow
+ * }</pre>
+ *
+ * <p>{@code version:} at the document root is advisory for the Atmosphere schema —
+ * the parser records it on every {@link org.atmosphere.ai.governance.PolicyRegistry.PolicyDescriptor}
+ * as a fallback when the individual policy entry omits {@code version:}. For MS
+ * documents the top-level {@code version:} becomes the synthetic policy's
+ * {@link GovernancePolicy#version()}.</p>
  *
  * <p>Uses {@link SafeConstructor} — no arbitrary class instantiation, no URL
  * loading. Input is treated as untrusted config data.</p>
@@ -107,7 +136,20 @@ public final class YamlPolicyParser implements PolicyParser {
         }
 
         var defaultVersion = asString(root.get("version"), "embedded");
+
+        // Auto-detect MS Agent Governance Toolkit schema — root has `rules:`
+        // instead of `policies:`. The two schemas are mutually exclusive by
+        // design (MS uses rules-over-context, Atmosphere uses type-dispatch);
+        // documents that carry both raise an error.
+        var rulesRaw = root.get("rules");
         var policiesRaw = root.get("policies");
+        if (rulesRaw != null && policiesRaw != null) {
+            throw new IOException("YAML document at " + effectiveSource
+                    + " has both 'rules' and 'policies' keys — pick one schema");
+        }
+        if (rulesRaw != null) {
+            return List.of(parseMsAgentOsDocument(effectiveSource, root, rulesRaw));
+        }
         if (policiesRaw == null) {
             return List.of();
         }
@@ -138,6 +180,113 @@ public final class YamlPolicyParser implements PolicyParser {
         }
         return List.copyOf(result);
     }
+
+    // --- Microsoft Agent Governance Toolkit schema ---------------------------
+
+    private GovernancePolicy parseMsAgentOsDocument(String source,
+                                                     Map<?, ?> root,
+                                                     Object rulesRaw) throws IOException {
+        if (!(rulesRaw instanceof List<?> ruleList)) {
+            throw new IOException("expected 'rules' to be a sequence in " + source);
+        }
+        var docName = asString(root.get("name"), "unnamed");
+        var docVersion = asString(root.get("version"), "1.0");
+
+        var rules = new ArrayList<MsAgentOsPolicy.Rule>(ruleList.size());
+        for (int i = 0; i < ruleList.size(); i++) {
+            var entry = ruleList.get(i);
+            if (!(entry instanceof Map<?, ?> ruleMap)) {
+                throw new IOException("expected mapping in rules[" + i + "] of " + source
+                        + ", got: " + (entry == null ? "null" : entry.getClass().getSimpleName()));
+            }
+            rules.add(parseMsRule(source, i, ruleMap));
+        }
+
+        var defaultAction = parseMsAction(
+                asString(asStringKeyedMap(root.get("defaults")).get("action"), "allow"),
+                source + ".defaults");
+
+        return new MsAgentOsPolicy(docName, source, docVersion, rules, defaultAction);
+    }
+
+    private static MsAgentOsPolicy.Rule parseMsRule(String source, int index, Map<?, ?> ruleMap)
+            throws IOException {
+        var name = asString(ruleMap.get("name"), "");
+        if (name.isBlank()) {
+            throw new IOException("rules[" + index + "] missing 'name' in " + source);
+        }
+        var conditionRaw = ruleMap.get("condition");
+        if (!(conditionRaw instanceof Map<?, ?> conditionMap)) {
+            throw new IOException("rules[" + index + "] ('" + name
+                    + "') missing mapping 'condition' in " + source);
+        }
+        var field = asString(conditionMap.get("field"), "");
+        if (field.isBlank()) {
+            throw new IOException("rules[" + index + "].condition missing 'field' in " + source);
+        }
+        var operator = parseMsOperator(
+                asString(conditionMap.get("operator"), ""),
+                source + ".rules[" + index + "].condition");
+        var value = conditionMap.get("value");
+        var action = parseMsAction(asString(ruleMap.get("action"), ""),
+                source + ".rules[" + index + "] ('" + name + "')");
+        var priority = toInt(ruleMap.get("priority"), 0);
+        var message = asString(ruleMap.get("message"), "");
+
+        Pattern compiled = null;
+        if (operator == MsAgentOsPolicy.Operator.MATCHES) {
+            try {
+                compiled = Pattern.compile(value == null ? "" : value.toString());
+            } catch (PatternSyntaxException e) {
+                throw new IOException("rules[" + index + "] ('" + name + "') has invalid regex '"
+                        + value + "' in " + source + ": " + e.getMessage(), e);
+            }
+        }
+        return new MsAgentOsPolicy.Rule(name, field, operator, value,
+                priority, message, action, compiled);
+    }
+
+    private static MsAgentOsPolicy.Operator parseMsOperator(String raw, String path)
+            throws IOException {
+        var normalized = raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "eq" -> MsAgentOsPolicy.Operator.EQ;
+            case "ne" -> MsAgentOsPolicy.Operator.NE;
+            case "gt" -> MsAgentOsPolicy.Operator.GT;
+            case "lt" -> MsAgentOsPolicy.Operator.LT;
+            case "gte" -> MsAgentOsPolicy.Operator.GTE;
+            case "lte" -> MsAgentOsPolicy.Operator.LTE;
+            case "in" -> MsAgentOsPolicy.Operator.IN;
+            case "contains" -> MsAgentOsPolicy.Operator.CONTAINS;
+            case "matches" -> MsAgentOsPolicy.Operator.MATCHES;
+            default -> throw new IOException("unknown operator '" + raw + "' at " + path
+                    + " (supported: eq, ne, gt, lt, gte, lte, in, contains, matches)");
+        };
+    }
+
+    private static MsAgentOsPolicy.Action parseMsAction(String raw, String path) throws IOException {
+        var normalized = raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "allow", "" -> MsAgentOsPolicy.Action.ALLOW;
+            case "deny" -> MsAgentOsPolicy.Action.DENY;
+            case "audit" -> MsAgentOsPolicy.Action.AUDIT;
+            case "block" -> MsAgentOsPolicy.Action.BLOCK;
+            default -> throw new IOException("unknown action '" + raw + "' at " + path
+                    + " (supported: allow, deny, audit, block)");
+        };
+    }
+
+    private static int toInt(Object value, int defaultValue) {
+        if (value == null) return defaultValue;
+        if (value instanceof Number n) return n.intValue();
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+
+    // ---------------------------------------------------------------------
 
     private static String asString(Object value, String defaultValue) {
         return value == null ? defaultValue : value.toString();
