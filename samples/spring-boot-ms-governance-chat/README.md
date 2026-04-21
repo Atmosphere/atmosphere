@@ -8,8 +8,17 @@
 
 ```bash
 ./mvnw spring-boot:run -pl samples/spring-boot-ms-governance-chat
-open http://localhost:8090
+open http://localhost:8090/atmosphere/console/
 ```
+
+The built-in Atmosphere AI console (ships with `atmosphere-spring-boot-starter`,
+Vue 3 chat UI) auto-discovers the `@AiEndpoint` at `/atmosphere/ms-governance`
+and streams responses through the same WebSocket Atmosphere uses for every
+sample. `application.yml` sets `atmosphere.console-subtitle` and
+`atmosphere.console-endpoint` so the page header names the demo and pins
+the endpoint path explicitly. No custom HTML, no custom WebSocket client —
+every UI bug fix and every feature in the console benefits this sample
+automatically.
 
 ## Try each rule
 

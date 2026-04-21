@@ -1,8 +1,12 @@
 atmosphere:
   packages: org.atmosphere.samples.springboot.msgovernance
+  # Built-in AI console auto-discovers the @AiEndpoint at
+  # /atmosphere/ms-governance and reads this metadata at page load.
+  console-subtitle: "Microsoft Agent Governance Toolkit — rules-over-context demo"
+  console-endpoint: /atmosphere/ms-governance
   admin:
     enabled: true
-    http-write-enabled: false   # read-only admin — /check is a read endpoint
+    http-write-enabled: false
     require-principal: false
 
 server:
