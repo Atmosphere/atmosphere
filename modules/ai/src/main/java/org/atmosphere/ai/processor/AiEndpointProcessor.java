@@ -33,6 +33,8 @@ import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.RoutingAiSupport;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.governance.PolicyAsGuardrail;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.annotation.AnnotationUtil;
@@ -103,6 +105,19 @@ public class AiEndpointProcessor implements Processor<Object> {
 
             // Instantiate guardrails and context providers
             var guardrails = instantiateGuardrails(annotation.guardrails(), framework);
+            // Declarative governance policies are merged into the guardrail
+            // list through PolicyAsGuardrail so the handler's existing wiring
+            // keeps working while the GovernancePolicy SPI picks up Spring /
+            // Quarkus / ServiceLoader sources through POLICIES_PROPERTY.
+            var policies = instantiatePolicies(framework);
+            if (!policies.isEmpty()) {
+                var merged = new ArrayList<AiGuardrail>(guardrails.size() + policies.size());
+                merged.addAll(guardrails);
+                for (var policy : policies) {
+                    merged.add(new PolicyAsGuardrail(policy));
+                }
+                guardrails = List.copyOf(merged);
+            }
             var contextProviders = instantiateContextProviders(
                     annotation.contextProviders(), annotation.autoDiscoverContextProviders(), framework);
 
@@ -317,6 +332,38 @@ public class AiEndpointProcessor implements Processor<Object> {
                 for (var g : list) {
                     if (g instanceof AiGuardrail ai) {
                         merged.putIfAbsent(ai.getClass(), ai);
+                    }
+                }
+            }
+        }
+        return List.copyOf(merged.values());
+    }
+
+    /**
+     * Merge declarative governance policies from ServiceLoader and the
+     * framework-scoped {@link GovernancePolicy#POLICIES_PROPERTY} bag.
+     * Deduplicates by {@link GovernancePolicy#name()} so repeat wiring
+     * (Spring + ServiceLoader + YAML pre-loaded into the property) cannot
+     * double-install the same policy.
+     */
+    private List<GovernancePolicy> instantiatePolicies(AtmosphereFramework framework) {
+        var merged = new java.util.LinkedHashMap<String, GovernancePolicy>();
+        try {
+            for (var p : ServiceLoader.load(GovernancePolicy.class)) {
+                if (p != null) {
+                    merged.putIfAbsent(p.name(), p);
+                }
+            }
+        } catch (java.util.ServiceConfigurationError e) {
+            logger.warn("GovernancePolicy ServiceLoader lookup failed: {}", e.getMessage());
+        }
+        var cfg = framework.getAtmosphereConfig();
+        if (cfg != null) {
+            var bridged = cfg.properties().get(GovernancePolicy.POLICIES_PROPERTY);
+            if (bridged instanceof List<?> list) {
+                for (var p : list) {
+                    if (p instanceof GovernancePolicy policy) {
+                        merged.putIfAbsent(policy.name(), policy);
                     }
                 }
             }
