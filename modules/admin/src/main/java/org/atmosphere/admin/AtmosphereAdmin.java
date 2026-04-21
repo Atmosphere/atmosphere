@@ -58,6 +58,7 @@ public final class AtmosphereAdmin {
     private Object coordinatorController;
     private Object taskController;
     private Object aiRuntimeController;
+    private Object governanceController;
     private Object mcpController;
     private Object metricsController;
     private FlowController flowController;
@@ -123,6 +124,17 @@ public final class AtmosphereAdmin {
             }
         }
 
+        // Optional: governance policy count
+        if (governanceController != null) {
+            try {
+                var method = governanceController.getClass().getMethod("summary");
+                var summary = (Map<?, ?>) method.invoke(governanceController);
+                result.put("governancePolicyCount", summary.get("policyCount"));
+            } catch (Exception e) {
+                logger.trace("Could not query governance controller", e);
+            }
+        }
+
         return result;
     }
 
@@ -171,6 +183,15 @@ public final class AtmosphereAdmin {
     @SuppressWarnings("unchecked")
     public <T> T aiRuntimeController() {
         return (T) aiRuntimeController;
+    }
+
+    public void setGovernanceController(Object controller) {
+        this.governanceController = controller;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T governanceController() {
+        return (T) governanceController;
     }
 
     public void setMcpController(Object controller) {

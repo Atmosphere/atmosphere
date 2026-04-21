@@ -18,6 +18,7 @@ package org.atmosphere.spring.boot;
 import org.atmosphere.admin.AtmosphereAdmin;
 import org.atmosphere.admin.a2a.TaskController;
 import org.atmosphere.admin.ai.AiRuntimeController;
+import org.atmosphere.admin.ai.GovernanceController;
 import org.atmosphere.admin.coordinator.CoordinatorController;
 import org.atmosphere.admin.flow.FlowController;
 import org.atmosphere.admin.mcp.McpController;
@@ -463,6 +464,26 @@ public class AtmosphereAdminEndpoint {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(controller.getActiveRuntime());
+    }
+
+    // ── Governance Policies ──
+
+    @GetMapping("/governance/policies")
+    public ResponseEntity<List<Map<String, Object>>> listGovernancePolicies() {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(controller.listPolicies());
+    }
+
+    @GetMapping("/governance/summary")
+    public ResponseEntity<Map<String, Object>> governanceSummary() {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of("policyCount", 0, "sources", List.of()));
+        }
+        return ResponseEntity.ok(controller.summary());
     }
 
     // ── MCP Registry ──

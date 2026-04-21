@@ -22,6 +22,7 @@ import org.atmosphere.admin.AtmosphereAdmin;
 import org.atmosphere.admin.ControlAuthorizer;
 import org.atmosphere.admin.a2a.TaskController;
 import org.atmosphere.admin.ai.AiRuntimeController;
+import org.atmosphere.admin.ai.GovernanceController;
 import org.atmosphere.admin.coordinator.CoordinatorController;
 import org.atmosphere.admin.metrics.MetricsController;
 import org.atmosphere.admin.mcp.McpController;
@@ -421,6 +422,16 @@ public class AtmosphereAdminAutoConfiguration {
             var controller = new AiRuntimeController();
             admin.setAiRuntimeController(controller);
             logger.debug("Atmosphere Admin: AI runtime controller wired");
+            return controller;
+        }
+
+        @Bean
+        @ConditionalOnClass(name = "org.atmosphere.ai.governance.GovernancePolicy")
+        GovernanceController atmosphereAdminGovernanceController(
+                AtmosphereAdmin admin, AtmosphereFramework framework) {
+            var controller = new GovernanceController(framework);
+            admin.setGovernanceController(controller);
+            logger.debug("Atmosphere Admin: governance policy controller wired");
             return controller;
         }
     }
