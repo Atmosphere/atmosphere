@@ -52,6 +52,15 @@
             <artifactId>atmosphere-skills</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!--
+            atmosphere-admin is the control-plane / introspection surface.
+            Pulling it in exposes /api/admin/governance/policies and /summary
+            so operators can verify the YAML-loaded policy chain at runtime.
+        -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-admin</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
