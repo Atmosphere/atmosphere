@@ -131,12 +131,7 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         }
         var kernel = kernelBuilder.build();
 
-        var icBuilder = InvocationContext.builder();
-        if (toolPlugin != null) {
-            icBuilder = icBuilder.withToolCallBehavior(
-                    ToolCallBehavior.allowAllKernelFunctions(true));
-        }
-        var invocationContext = icBuilder.build();
+        var invocationContext = buildInvocationContext(toolPlugin != null);
 
         logger.debug("SK streaming: model={}, history messages={}, tools={}",
                 context.model(), chatHistory.getMessages().size(),
@@ -146,6 +141,22 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
                 chatHistory, kernel, invocationContext);
 
         SemanticKernelStreamingAdapter.drain(flux, session);
+    }
+
+    /**
+     * Build an {@link InvocationContext} that always carries a
+     * {@link ToolCallBehavior}. SK 1.4.0's {@code OpenAIChatCompletion}
+     * dereferences {@code invocationContext.getToolCallBehavior()} without a
+     * null-check (see {@code OpenAIChatCompletion.java:200}), so a builder that
+     * omits tool-call behavior NPEs the moment streaming starts. Passing
+     * {@code allowAllKernelFunctions(false)} in the no-tool case keeps the
+     * behavior honest — no auto-invoke, no tools — while satisfying SK's
+     * non-null expectation.
+     */
+    static InvocationContext buildInvocationContext(boolean hasTools) {
+        return InvocationContext.builder()
+                .withToolCallBehavior(ToolCallBehavior.allowAllKernelFunctions(hasTools))
+                .build();
     }
 
     /**

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.sk;
 
+import com.microsoft.semantickernel.orchestration.ToolCallBehavior;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AiCapability;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ import java.util.ServiceLoader;
 import java.util.stream.StreamSupport;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -81,5 +83,22 @@ class SemanticKernelAgentRuntimeTest {
         var runtime = new SemanticKernelAgentRuntime();
         assertTrue(runtime.isAvailable(),
                 "Semantic Kernel API is a provided dependency; isAvailable should be true in the test classpath");
+    }
+
+    @Test
+    void invocationContextAlwaysCarriesToolCallBehaviorEvenWithNoTools() {
+        // Regression: SK 1.4.0 OpenAIChatCompletion:200 dereferences
+        // getToolCallBehavior() without a null-check, so any InvocationContext
+        // built without .withToolCallBehavior(...) NPEs the moment streaming
+        // starts — breaking every sample that wires SK with zero @AiTool
+        // methods (e.g. spring-boot-semantic-kernel-chat).
+        var noTools = SemanticKernelAgentRuntime.buildInvocationContext(false);
+        assertNotNull(noTools.getToolCallBehavior(),
+                "ToolCallBehavior must be set even when no tools are configured");
+        assertInstanceOf(ToolCallBehavior.AllowedKernelFunctions.class, noTools.getToolCallBehavior());
+
+        var withTools = SemanticKernelAgentRuntime.buildInvocationContext(true);
+        assertNotNull(withTools.getToolCallBehavior());
+        assertInstanceOf(ToolCallBehavior.AllowedKernelFunctions.class, withTools.getToolCallBehavior());
     }
 }
