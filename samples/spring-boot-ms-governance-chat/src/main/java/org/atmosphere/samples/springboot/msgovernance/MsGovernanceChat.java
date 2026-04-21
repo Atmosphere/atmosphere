@@ -26,20 +26,45 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Chat endpoint gated by Microsoft Agent Governance Toolkit YAML policies.
- * Every prompt passes through the MS-schema rule chain loaded by
- * {@link PoliciesConfig}; denials surface as a {@code SecurityException} on
- * the streaming session and the user sees the policy's {@code message} text.
+ * Customer-support chat gated by Microsoft Agent Governance Toolkit YAML
+ * policies AND an Atmosphere-native {@link AgentScope}. The rule set in
+ * {@code atmosphere-policies.yaml} mirrors the feature matrix from
+ * Microsoft's {@code packages/agent-os/examples/customer-service/main.py}
+ * canonical sample — escalation triggers, forbidden keywords, PII patterns,
+ * discount-limit enforcement, audit-only probes — all expressed as MS-schema
+ * rules. {@link AgentScope} layers the goal-hijacking defense on top (code
+ * / medical / legal / financial probes rejected architecturally, not via
+ * prompt engineering).
  *
- * <p>The demo response path exists so the sample works without an LLM —
- * {@link PolicyAdmissionGate} still runs governance before the canned reply.</p>
+ * <p>Defense-in-depth stack on every turn:</p>
+ * <ol>
+ *   <li>{@link AgentScope} scope classification (rule-based tier — sub-ms)</li>
+ *   <li>MS-schema policies from YAML (first-match-by-priority)</li>
+ *   <li>Framework-injected scope confinement preamble on the system prompt</li>
+ *   <li>Every decision recorded to {@code GovernanceDecisionLog} for
+ *       {@code GET /api/admin/governance/decisions} + an OpenTelemetry span</li>
+ * </ol>
  */
 @AiEndpoint(path = "/atmosphere/ms-governance")
-@AgentScope(unrestricted = true,
-        justification = "Microsoft Agent Governance Toolkit YAML demo — scope enforcement is the point of this sample and is delivered via classpath:atmosphere-policies.yaml (MS schema) rather than @AgentScope. Adding @AgentScope would muddy the interop story — the whole demo is about MS-format YAML governance running unmodified on Atmosphere.")
+@AgentScope(
+        purpose = "Customer support agent for Example Corp — orders, billing, "
+                + "account questions, product information, refund and shipping status.",
+        forbiddenTopics = {"legal advice", "medical advice", "financial advice",
+                "competitor products"},
+        onBreach = AgentScope.Breach.POLITE_REDIRECT,
+        redirectMessage = "I can only help with Example Corp orders, billing, and "
+                + "account questions. What can I help you with on that?",
+        tier = AgentScope.Tier.RULE_BASED)
 public class MsGovernanceChat {
 
     private static final Logger logger = LoggerFactory.getLogger(MsGovernanceChat.class);
+
+    private static String policyRuleCountSummary() {
+        // Quick descriptor of what's loaded; kept inline so the sample
+        // narrative stays concrete. The real numbers are authoritative via
+        // GET /api/admin/governance/summary.
+        return "9 MS-schema rules (destructive / escalation / PII / discount / audit)";
+    }
 
     @Prompt
     public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
@@ -53,11 +78,19 @@ public class MsGovernanceChat {
             }
             case PolicyAdmissionGate.Result.Admitted admitted -> {
                 var effective = admitted.request().message();
-                session.progress("Admitted by MS Agent Governance policy chain");
-                session.send("Got it — you said: \"" + effective + "\". ");
-                session.send("This deployment enforces Microsoft Agent Governance Toolkit "
-                        + "YAML policies unchanged; see `atmosphere-policies.yaml` for the rule set ");
-                session.send("and `GET /api/admin/governance/policies` for the live chain.");
+                session.progress("Admitted — "
+                        + "@AgentScope + MS-schema YAML rules both passed");
+                // Canned customer-support response. Real deployments swap this
+                // for session.stream(message) to route through an LLM — the
+                // governance chain already ran, so the LLM sees only admitted
+                // or transformed requests.
+                session.send("Thanks for contacting Example Corp support. I see your "
+                        + "message: \"" + effective + "\". ");
+                session.send("Every turn passes through @AgentScope classification "
+                        + "plus the " + policyRuleCountSummary()
+                        + " from `atmosphere-policies.yaml`, audit-logged at "
+                        + "`GET /api/admin/governance/decisions`. ");
+                session.send("Try prompts listed in README.md to see each rule fire.");
                 session.complete();
             }
         }
