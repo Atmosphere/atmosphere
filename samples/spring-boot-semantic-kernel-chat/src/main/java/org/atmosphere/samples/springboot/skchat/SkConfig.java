@@ -16,11 +16,10 @@
 package org.atmosphere.samples.springboot.skchat;
 
 import com.azure.ai.openai.OpenAIAsyncClient;
-import com.azure.ai.openai.OpenAIClientBuilder;
-import com.azure.core.credential.KeyCredential;
 import com.microsoft.semantickernel.aiservices.openai.chatcompletion.OpenAIChatCompletion;
 import com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.sk.SemanticKernelOpenAiClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -61,13 +60,15 @@ public class SkConfig {
     }
 
     /**
-     * Builds an Azure OpenAI async client against either the default
-     * {@code api.openai.com} endpoint or a user-supplied {@code llm.base-url}
-     * (e.g. for Azure OpenAI or a compatible proxy).
+     * Builds an OpenAI async client against any OpenAI-compatible endpoint.
      *
-     * <p>Uses the real Azure SDK API:
-     * {@code new OpenAIClientBuilder().credential(new KeyCredential(apiKey))
-     *     .endpoint(url).buildAsyncClient()}.</p>
+     * <p>Delegates to {@link SemanticKernelOpenAiClientFactory#forEndpoint}
+     * rather than calling {@code OpenAIClientBuilder} directly. SK 1.4.0's
+     * wrapped Azure SDK (azure-ai-openai 1.0.0-beta.12) uses the Azure URL
+     * shape unless the endpoint starts with {@code https://api.openai.com/v1}
+     * — which 404s against Gemini, Together, Groq, or Ollama. The factory
+     * installs a per-call URL-rewrite policy that preserves the non-Azure
+     * path while routing to the configured base URL.</p>
      */
     @Bean
     @ConditionalOnExpression("'${llm.api-key:}' != ''")
@@ -76,10 +77,7 @@ public class SkConfig {
             @Value("${llm.base-url:https://api.openai.com/v1}") String baseUrl) {
 
         logger.info("Building SK OpenAIAsyncClient endpoint={}", baseUrl);
-        return new OpenAIClientBuilder()
-                .credential(new KeyCredential(apiKey))
-                .endpoint(baseUrl)
-                .buildAsyncClient();
+        return SemanticKernelOpenAiClientFactory.forEndpoint(baseUrl, apiKey);
     }
 
     /**
