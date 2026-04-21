@@ -172,7 +172,23 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         int tracing = 0;
 
-        AtmosphereHandlerWrapper handlerWrapper = map(req);
+        AtmosphereHandlerWrapper handlerWrapper;
+        try {
+            handlerWrapper = map(req);
+        } catch (AtmosphereMappingException unmapped) {
+            // Per Correctness Invariant #4 (Boundary Safety): unknown user
+            // input at the wire boundary returns 404, not 500. Without this
+            // guard the exception escapes through the container, producing a
+            // full HTML error page (Undertow) or stack trace (Tomcat) on what
+            // is just an unmapped path — common when a stale browser tab
+            // reconnects to a different sample on the same port, or when an
+            // /atmosphere/* probe arrives before any handler is registered.
+            logger.debug("Returning 404 for unmapped path {}: {}", req.getRequestURI(), unmapped.getMessage());
+            res.setStatus(404);
+            res.addHeader(X_ATMOSPHERE_ERROR, unmapped.getMessage());
+            res.flushBuffer();
+            return new Action();
+        }
         if (config.getBroadcasterFactory() == null) {
             logger.error("Atmosphere is misconfigured and will not work. BroadcasterFactory is null");
             return Action.CANCELLED;

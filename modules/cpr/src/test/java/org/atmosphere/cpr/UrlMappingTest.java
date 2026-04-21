@@ -174,6 +174,29 @@ public class UrlMappingTest {
     }
 
     @Test
+    public void unmappedPathReturns404FromAction() throws Exception {
+        // Regression: an unmapped /atmosphere/* path used to escape from
+        // AsynchronousProcessor.action() as a raw AtmosphereMappingException,
+        // which Undertow / Tomcat translated to HTTP 500 with a stack-trace
+        // page. Per Correctness Invariant #4 the wire boundary must return
+        // 404 for unknown user input. Stale browser tabs reconnecting to
+        // ports owned by a different sample (the common case) trip this.
+        framework.addAtmosphereHandler("/atmosphere/chat", handler);
+
+        AtmosphereRequest req = new AtmosphereRequestImpl.Builder()
+                .pathInfo("/atmosphere/ai-chat")
+                .build();
+        AtmosphereResponse res = AtmosphereResponseImpl.newInstance();
+        Action result = processor.action(req, res);
+
+        assertNotNull(result, "action() must complete the response, not propagate the exception");
+        assertEquals(404, res.getStatus(),
+                "Unmapped /atmosphere/* path must return 404, not 500");
+        assertNotNull(res.getHeader(HeaderConfig.X_ATMOSPHERE_ERROR),
+                "404 response must carry X-Atmosphere-error explaining the miss");
+    }
+
+    @Test
     public void mappingDotWildcard() throws ServletException {
         framework.addAtmosphereHandler("/*", handler);
 
