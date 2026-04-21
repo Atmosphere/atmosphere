@@ -106,19 +106,26 @@ public final class OwaspAgenticMatrix {
 
             new Row("A02", "Tool Misuse / Over-Privileged Tool Use",
                     "Agent invokes a tool it shouldn't, or with unsafe arguments.",
-                    Coverage.PARTIAL,
+                    Coverage.COVERED,
                     List.of(
                             new Evidence("org.atmosphere.ai.annotation.RequiresApproval",
                                     "",
                                     "@RequiresApproval",
                                     "HITL gate on @AiTool methods — parks the virtual thread until approved"),
+                            new Evidence("org.atmosphere.ai.governance.PolicyAdmissionGate",
+                                    "org.atmosphere.ai.governance.PolicyAdmissionGateToolCallTest",
+                                    "admitToolCall",
+                                    "Tool-call admission seam — auto-injects tool_name + action into metadata before the tool executor runs"),
                             new Evidence("org.atmosphere.ai.governance.MsAgentOsPolicy",
                                     "org.atmosphere.ai.governance.MsAgentOsYamlConformanceTest",
                                     "tool_name",
                                     "MS-schema YAML rules deny specific tool invocations by context.tool_name")),
-                    "PARTIAL because the tool-name context bridging is operator-wired "
-                            + "(put tool_name in AiRequest.metadata()) rather than injected by the "
-                            + "framework at dispatch. A follow-up auto-wires tool_name from ToolExecutionHelper."),
+                    "COVERED via three layers: @RequiresApproval HITL gate, "
+                            + "PolicyAdmissionGate.admitToolCall auto-injecting tool_name at dispatch "
+                            + "(ToolExecutionHelper calls it before executeAndFormat), and MS-schema "
+                            + "YAML rules over tool_name. The canonical MS example "
+                            + "{field: tool_name, operator: eq, value: delete_database, action: deny} "
+                            + "fires without operator plumbing."),
 
             new Row("A03", "Memory Poisoning",
                     "Adversary writes malicious content into long-term memory or RAG store.",

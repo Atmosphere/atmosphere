@@ -187,6 +187,26 @@ public final class ToolExecutionHelper {
         var effectivePolicy = policy != null ? policy : ToolApprovalPolicy.annotated();
         var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
 
+        // Governance policy plane admission on the tool-call intent. MS-schema
+        // rules that target tool_name (the canonical MS Agent Governance example
+        // {field: tool_name, operator: eq, value: delete_database, action: deny})
+        // fire here, before the tool executor runs. Covers OWASP Agentic
+        // Top-10 #A02 (Tool Misuse). Safe when no policies are installed —
+        // PolicyAdmissionGate admits implicitly on empty chains.
+        var resource = (org.atmosphere.cpr.AtmosphereResource) scope.get(
+                org.atmosphere.cpr.AtmosphereResource.class);
+        if (resource != null) {
+            var gateResult = org.atmosphere.ai.governance.PolicyAdmissionGate
+                    .admitToolCall(resource, toolName, args);
+            if (gateResult instanceof org.atmosphere.ai.governance.PolicyAdmissionGate.Result.Denied denied) {
+                logger.info("Tool {} denied by governance policy {}: {}",
+                        toolName, denied.policyName(), denied.reason());
+                return "{\"status\":\"cancelled\",\"message\":\"Tool "
+                        + toolName + " denied by policy '" + denied.policyName()
+                        + "': " + denied.reason().replace("\"", "\\\"") + "\"}";
+            }
+        }
+
         // Outer gate: the session's PermissionMode (from AgentIdentity, if
         // present in the injectables map) is the per-user authorization
         // override. The mode shadows per-tool @RequiresApproval — an explicit

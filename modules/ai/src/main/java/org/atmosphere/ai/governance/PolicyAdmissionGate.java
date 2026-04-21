@@ -21,7 +21,9 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Applies the framework's installed {@link GovernancePolicy} chain to an
@@ -130,5 +132,49 @@ public final class PolicyAdmissionGate {
         }
         var config = resource.getAtmosphereConfig();
         return admit(config == null ? null : config.framework(), request);
+    }
+
+    /**
+     * Run the admission chain against a tool-call intent. Builds a synthetic
+     * {@link AiRequest} whose metadata carries {@code tool_name}, {@code action},
+     * and (when present) a preview of the tool arguments so MS-schema rules like
+     * {@code {field: tool_name, operator: eq, value: delete_database, action: deny}}
+     * fire before the tool executes.
+     *
+     * <p>This is the admission seam for <b>OWASP Agentic Top-10 #A02 Tool Misuse</b>.
+     * A {@link org.atmosphere.ai.tool.ToolExecutionHelper} call site consults this
+     * gate before invoking the tool's executor when governance is in play.</p>
+     */
+    public static Result admitToolCall(AtmosphereFramework framework, String toolName,
+                                        Map<String, Object> args) {
+        if (toolName == null || toolName.isBlank()) {
+            return new Result.Admitted(new AiRequest(""));
+        }
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("tool_name", toolName);
+        metadata.put("action", "call_tool");
+        if (args != null && !args.isEmpty()) {
+            metadata.put("tool_args_preview", previewArgs(args));
+        }
+        var request = new AiRequest(
+                "call_tool:" + toolName,
+                "", null, null, null, null, null,
+                Map.copyOf(metadata), List.of());
+        return admit(framework, request);
+    }
+
+    /** Resource-aware overload — reads the framework off the resource. */
+    public static Result admitToolCall(AtmosphereResource resource, String toolName,
+                                        Map<String, Object> args) {
+        if (resource == null) {
+            return new Result.Admitted(new AiRequest(""));
+        }
+        var config = resource.getAtmosphereConfig();
+        return admitToolCall(config == null ? null : config.framework(), toolName, args);
+    }
+
+    private static String previewArgs(Map<String, Object> args) {
+        var rendered = args.toString();
+        return rendered.length() > 200 ? rendered.substring(0, 200) + "…" : rendered;
     }
 }
