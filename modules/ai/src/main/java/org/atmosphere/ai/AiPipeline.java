@@ -17,10 +17,15 @@ package org.atmosphere.ai;
 
 import org.atmosphere.ai.approval.ApprovalRegistry;
 import org.atmosphere.ai.approval.ApprovalStrategy;
+import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.governance.PolicyAsGuardrail;
+import org.atmosphere.ai.governance.PolicyContext;
+import org.atmosphere.ai.governance.PolicyDecision;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -44,6 +49,7 @@ public class AiPipeline {
     private final AiConversationMemory memory;
     private final ToolRegistry toolRegistry;
     private final List<AiGuardrail> guardrails;
+    private final List<GovernancePolicy> policies;
     private final List<ContextProvider> contextProviders;
     private final AiMetrics metrics;
     private final Class<?> responseType;
@@ -83,12 +89,29 @@ public class AiPipeline {
                       List<AiGuardrail> guardrails, List<ContextProvider> contextProviders,
                       AiMetrics metrics) {
         this(runtime, systemPrompt, model, memory, toolRegistry, guardrails,
-                contextProviders, metrics, null);
+                List.of(), contextProviders, metrics, null);
     }
 
     public AiPipeline(AgentRuntime runtime, String systemPrompt, String model,
                       AiConversationMemory memory, ToolRegistry toolRegistry,
                       List<AiGuardrail> guardrails, List<ContextProvider> contextProviders,
+                      AiMetrics metrics, Class<?> responseType) {
+        this(runtime, systemPrompt, model, memory, toolRegistry, guardrails,
+                List.of(), contextProviders, metrics, responseType);
+    }
+
+    /**
+     * Canonical constructor that accepts both imperative guardrails and declarative
+     * governance policies. Policies are evaluated after guardrails on the admission
+     * path (matching the configured order) and piggy-back on
+     * {@link GuardrailCapturingSession} for post-response evaluation via a
+     * {@link PolicyAsGuardrail} adapter.
+     */
+    public AiPipeline(AgentRuntime runtime, String systemPrompt, String model,
+                      AiConversationMemory memory, ToolRegistry toolRegistry,
+                      List<AiGuardrail> guardrails,
+                      List<GovernancePolicy> policies,
+                      List<ContextProvider> contextProviders,
                       AiMetrics metrics, Class<?> responseType) {
         this.runtime = runtime;
         this.systemPrompt = systemPrompt != null ? systemPrompt : "";
@@ -96,9 +119,15 @@ public class AiPipeline {
         this.memory = memory;
         this.toolRegistry = toolRegistry;
         this.guardrails = guardrails != null ? guardrails : List.of();
+        this.policies = policies != null ? List.copyOf(policies) : List.of();
         this.contextProviders = contextProviders != null ? contextProviders : List.of();
         this.metrics = metrics != null ? metrics : AiMetrics.NOOP;
         this.responseType = responseType;
+    }
+
+    /** Declarative policies installed on this pipeline (never {@code null}, may be empty). */
+    public List<GovernancePolicy> policies() {
+        return policies;
     }
 
     /**
@@ -269,6 +298,33 @@ public class AiPipeline {
             }
         }
 
+        // Governance policies: pre-admission (runs after guardrails so a guardrail
+        // redaction is visible to the policy evaluation). Exceptions fail-closed
+        // — a policy that throws denies the turn, matching the guardrail contract.
+        for (var policy : policies) {
+            try {
+                var decision = policy.evaluate(PolicyContext.preAdmission(request));
+                switch (decision) {
+                    case PolicyDecision.Deny deny -> {
+                        logger.warn("Request denied by policy {} (source={}, version={}): {}",
+                                policy.name(), policy.source(), policy.version(), deny.reason());
+                        session.error(new SecurityException("Request denied by policy "
+                                + policy.name() + ": " + deny.reason()));
+                        return;
+                    }
+                    case PolicyDecision.Transform transform ->
+                            request = transform.modifiedRequest();
+                    case PolicyDecision.Admit ignored -> { }
+                }
+            } catch (Exception e) {
+                logger.error("GovernancePolicy.evaluate failed (policy={}): fail-closed",
+                        policy.name(), e);
+                session.error(new SecurityException("Policy " + policy.name()
+                        + " evaluation failed: " + e.getMessage(), e));
+                return;
+            }
+        }
+
         // Wrap session in decorators
         StreamingSession target = session;
         if (memory != null) {
@@ -277,8 +333,11 @@ public class AiPipeline {
         if (metrics != AiMetrics.NOOP) {
             target = new MetricsCapturingSession(target, metrics, model);
         }
-        if (!guardrails.isEmpty()) {
-            target = new GuardrailCapturingSession(target, guardrails);
+        // Post-response evaluation: guardrails + policies (the latter wrapped so
+        // their post-response path flows through the existing capturing session).
+        var postResponseChecks = mergeForPostResponse(guardrails, policies);
+        if (!postResponseChecks.isEmpty()) {
+            target = new GuardrailCapturingSession(target, postResponseChecks);
         }
 
         // Wrap in StructuredOutputCapturingSession for typed response parsing
@@ -340,7 +399,7 @@ public class AiPipeline {
         var registryHasTools = toolRegistry != null && !toolRegistry.allTools().isEmpty();
         var hasStructured = effectiveResponseType != null && effectiveResponseType != Void.class;
         var hasRag = contextProviders != null && !contextProviders.isEmpty();
-        var hasGuardrails = !guardrails.isEmpty();
+        var hasGuardrails = !guardrails.isEmpty() || !policies.isEmpty();
         var cacheSafe = !hasTools && !registryHasTools && !hasStructured && !hasRag && !hasGuardrails;
         StreamingSession effectiveTarget = target;
         if (cache != null && cacheHint.enabled() && cacheSafe) {
@@ -406,5 +465,18 @@ public class AiPipeline {
             metrics.recordError(model != null ? model : "unknown", "stream_error");
             throw e;
         }
+    }
+
+    private static List<AiGuardrail> mergeForPostResponse(List<AiGuardrail> guardrails,
+                                                         List<GovernancePolicy> policies) {
+        if (policies.isEmpty()) {
+            return guardrails;
+        }
+        var merged = new ArrayList<AiGuardrail>(guardrails.size() + policies.size());
+        merged.addAll(guardrails);
+        for (var policy : policies) {
+            merged.add(new PolicyAsGuardrail(policy));
+        }
+        return List.copyOf(merged);
     }
 }
