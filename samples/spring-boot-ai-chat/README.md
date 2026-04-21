@@ -75,7 +75,40 @@ export LLM_MODEL=llama3.2
 atmosphere run spring-boot-ai-chat
 ```
 
-Open http://localhost:8080 in your browser.
+Open http://localhost:8080 in your browser. The AI Console UI is bundled at
+`/atmosphere/console/` (the root path redirects there).
+
+## Authentication
+
+Token-based authentication is **disabled by default** in this sample
+(`atmosphere.auth.enabled=false` in `application.properties`) so the bundled
+AI Console connects out-of-the-box. The framework default is fail-closed
+per Correctness Invariant #6 — the sample-level override is explicit.
+
+To demo the bundled `AuthConfig` token flow, run with auth enabled:
+
+```bash
+./mvnw spring-boot:run -pl samples/spring-boot-ai-chat \
+    -Dspring-boot.run.arguments="--atmosphere.auth.enabled=true"
+```
+
+Then mint a token and use it on the handshake:
+
+```bash
+# 1. Mint a demo token
+curl -s -X POST http://localhost:8080/api/auth/login \
+     -H 'Content-Type: application/json' -d '{"user":"demo"}'
+# -> {"token":"demo-token"}
+
+# 2. Use it as a header
+curl -i -H 'X-Atmosphere-Auth: demo-token' http://localhost:8080/atmosphere/ai-chat
+
+# Or as a query parameter (works for WebSocket too)
+curl -i 'http://localhost:8080/atmosphere/ai-chat?X-Atmosphere-Auth=demo-token'
+```
+
+Without `X-Atmosphere-Auth` (and with auth enabled), the handshake returns
+`HTTP 401 X-Atmosphere-error: No authentication token provided`.
 
 ## Project Structure
 
