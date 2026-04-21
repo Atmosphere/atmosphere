@@ -98,28 +98,76 @@ public final class ScopePolicy implements GovernancePolicy {
 
     @Override
     public PolicyDecision evaluate(PolicyContext context) {
-        if (context.phase() != PolicyContext.Phase.PRE_ADMISSION) {
-            // Post-response check is handled separately by a ScopePostResponseCheck
-            // wrapper when AgentScope.postResponseCheck() is true — for now, admit.
-            return PolicyDecision.admit();
-        }
         if (config.unrestricted()) {
             return PolicyDecision.admit();
         }
+        if (context.phase() == PolicyContext.Phase.POST_RESPONSE) {
+            return evaluatePostResponse(context);
+        }
+        return evaluatePreAdmission(context);
+    }
 
+    private PolicyDecision evaluatePreAdmission(PolicyContext context) {
         ScopeGuardrail.Decision decision;
         try {
             decision = guardrail.evaluate(context.request(), config);
         } catch (RuntimeException e) {
-            logger.error("ScopeGuardrail {} threw during evaluate — fail-closed",
+            logger.error("ScopeGuardrail {} threw during pre-admission evaluate — fail-closed",
                     guardrail.getClass().getSimpleName(), e);
             return PolicyDecision.deny("scope check failed: " + e.getMessage());
         }
-
         return switch (decision.outcome()) {
             case IN_SCOPE -> PolicyDecision.admit();
             case ERROR -> PolicyDecision.deny("scope check errored: " + decision.reason());
             case OUT_OF_SCOPE -> breachDecision(context.request(), decision);
+        };
+    }
+
+    /**
+     * Classify the accumulated response text against the declared purpose.
+     * Disabled by default — {@link ScopeConfig#postResponseCheck()} gates
+     * this path because the extra classifier call costs latency and the
+     * pre-admission gate catches most hijacking at zero additional cost.
+     * Operators enable it for high-stakes scopes where a drifted response
+     * is a compliance hit.
+     *
+     * <p>OUT_OF_SCOPE responses can only become {@link PolicyDecision#deny}
+     * — streamed bytes already on the wire are not retroactively rewritable,
+     * so {@link AgentScope.Breach#POLITE_REDIRECT} downgrades to Deny with a
+     * prefix note. Errors fail-OPEN on the response path because bytes are
+     * already flowing; the admin trail still records the error via
+     * {@link org.atmosphere.ai.AiPipeline}'s guardrail-wrapping seam.</p>
+     */
+    private PolicyDecision evaluatePostResponse(PolicyContext context) {
+        if (!config.postResponseCheck()) {
+            return PolicyDecision.admit();
+        }
+        var response = context.accumulatedResponse();
+        if (response == null || response.isBlank()) {
+            return PolicyDecision.admit();
+        }
+        // Reuse the same classifier against the response text — the purpose
+        // is symmetric, "is this text in scope?" works the same on request
+        // or response text.
+        var syntheticRequest = context.request().withMessage(response);
+        ScopeGuardrail.Decision decision;
+        try {
+            decision = guardrail.evaluate(syntheticRequest, config);
+        } catch (RuntimeException e) {
+            logger.error("ScopeGuardrail {} threw during post-response evaluate — admitting "
+                    + "(bytes already on the wire)", guardrail.getClass().getSimpleName(), e);
+            return PolicyDecision.admit();
+        }
+        return switch (decision.outcome()) {
+            case IN_SCOPE, ERROR -> PolicyDecision.admit();
+            case OUT_OF_SCOPE -> {
+                var reason = decision.reason().isEmpty()
+                        ? "response drifted outside endpoint scope"
+                        : decision.reason();
+                logger.warn("Scope post-response breach on '{}' (tier={}, similarity={}): {}",
+                        name, config.tier(), decision.similarity(), reason);
+                yield PolicyDecision.deny("post-response: " + reason);
+            }
         };
     }
 
