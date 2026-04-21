@@ -39,8 +39,12 @@ class OpenAiCompatibleClientCacheHintTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private static String invokeBuildRequestBody(ChatCompletionRequest request) throws Exception {
+        return invokeBuildRequestBody(request, "https://api.openai.com/v1");
+    }
+
+    private static String invokeBuildRequestBody(ChatCompletionRequest request, String baseUrl) throws Exception {
         var client = OpenAiCompatibleClient.builder()
-                .baseUrl("http://example.invalid")
+                .baseUrl(baseUrl)
                 .apiKey("test")
                 .build();
         Method m = OpenAiCompatibleClient.class.getDeclaredMethod(
@@ -107,6 +111,47 @@ class OpenAiCompatibleClientCacheHintTest {
 
         assertTrue(json.has("prompt_cache_key"));
         assertEquals("sess-99", json.get("prompt_cache_key").stringValue());
+    }
+
+    @Test
+    void geminiOpenAiCompatEndpointSuppressesPromptCacheKey() throws Exception {
+        // Regression: Gemini's OpenAI-compat endpoint at
+        // generativelanguage.googleapis.com/v1beta/openai/ rejects unknown
+        // fields with HTTP 400 ("Unknown name 'prompt_cache_key': Cannot find
+        // field"), unlike OpenAI itself which silently ignores them. Every
+        // AI sample driven against Gemini was breaking on this until the
+        // wire layer learned to gate emission by hostname.
+        var request = ChatCompletionRequest.builder("gemini-2.5-flash")
+                .system("You are helpful")
+                .user("Hello")
+                .cacheHint(CacheHint.conservative("sess-42"))
+                .build();
+
+        var body = invokeBuildRequestBody(request,
+                "https://generativelanguage.googleapis.com/v1beta/openai");
+        var json = MAPPER.readTree(body);
+
+        assertFalse(json.has("prompt_cache_key"),
+                "Gemini OpenAI-compat endpoint must not receive prompt_cache_key, got: " + body);
+    }
+
+    @Test
+    void unknownProviderSuppressesPromptCacheKeyByDefault() throws Exception {
+        // Default-deny: when the endpoint is not on the known-supports list,
+        // we drop the hint at the wire and rely on ResponseCache for caching.
+        // Surprises a stricter OpenAI-compat layer (Together, Groq, etc.)
+        // would otherwise reject the whole request.
+        var request = ChatCompletionRequest.builder("gpt-4o-mini")
+                .system("You are helpful")
+                .user("Hello")
+                .cacheHint(CacheHint.conservative("sess-42"))
+                .build();
+
+        var body = invokeBuildRequestBody(request, "https://api.example-provider.com/v1");
+        var json = MAPPER.readTree(body);
+
+        assertFalse(json.has("prompt_cache_key"),
+                "Unknown provider must not receive prompt_cache_key, got: " + body);
     }
 
     @Test

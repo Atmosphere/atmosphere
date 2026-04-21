@@ -634,11 +634,32 @@ public class OpenAiCompatibleClient implements LlmClient {
             body.put("tools", serializeTools(request.tools()));
         }
         var cacheHint = request.cacheHint();
-        if (cacheHint != null && cacheHint.enabled()) {
+        if (cacheHint != null && cacheHint.enabled() && supportsPromptCacheKey()) {
             cacheHint.cacheKey().filter(k -> !k.isBlank())
                     .ifPresent(k -> body.put("prompt_cache_key", k));
         }
         return MAPPER.writeValueAsString(body);
+    }
+
+    /**
+     * Returns {@code true} if the configured endpoint accepts the OpenAI
+     * {@code prompt_cache_key} field. OpenAI itself silently ignores unknown
+     * fields, but stricter OpenAI-compat layers (notably Gemini's
+     * {@code generativelanguage.googleapis.com/v1beta/openai}) reject the
+     * request with HTTP 400 {@code "Unknown name 'prompt_cache_key'"}. Gate
+     * emission to providers that are known to honor or ignore the field
+     * gracefully — the upstream behavior on unknown providers is to drop
+     * the hint silently and let {@link org.atmosphere.ai.cache.ResponseCache}
+     * still short-circuit identical requests at the pipeline level.
+     */
+    boolean supportsPromptCacheKey() {
+        if (baseUrl == null) {
+            return false;
+        }
+        return baseUrl.contains("api.openai.com")
+                || baseUrl.contains(".openai.azure.com")
+                || baseUrl.contains("localhost")
+                || baseUrl.contains("127.0.0.1");
     }
 
     private static int findLastUserMessageIndex(List<ChatMessage> messages) {
