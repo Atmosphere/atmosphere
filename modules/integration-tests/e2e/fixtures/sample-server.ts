@@ -65,7 +65,15 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8080,
     type: 'spring-boot',
     readyPath: '/atmosphere/ai-chat',
-    env: { ATMOSPHERE_AUTH_TOKEN: 'demo-token', ATMOSPHERE_ADMIN_HTTP_WRITE_ENABLED: 'true' },
+    // Sample defaults to atmosphere.auth.enabled=false (out-of-box demo
+     // posture per its application.properties). Auth-enforcement specs
+     // (auth-token.spec, auth-oauth-jwt.spec) require it on, so flip it
+     // back here for every e2e run; tests that don't care still pass.
+    env: {
+      ATMOSPHERE_AUTH_ENABLED: 'true',
+      ATMOSPHERE_AUTH_TOKEN: 'demo-token',
+      ATMOSPHERE_ADMIN_HTTP_WRITE_ENABLED: 'true',
+    },
   },
   'spring-boot-mcp-server': {
     name: 'spring-boot-mcp-server',
