@@ -1,1 +1,2 @@
 org.atmosphere.ai.llm.BuiltInAgentRuntime
+org.atmosphere.ai.llm.DemoAgentRuntime

@@ -15,7 +15,6 @@
  */
 package org.atmosphere.samples.springboot.a2astartup;
 
-import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.Prompt;
@@ -139,13 +138,6 @@ public class CeoCoordinator {
         // Wire per-session activity streaming — clients see agent-step events in real time
         fleet = fleet.withActivityListener(new StreamingActivityListener(session));
 
-        // Fall back to demo mode if no LLM API key is configured.
-        // In demo mode, we still call the fleet agents (so activity events stream
-        // to the browser) but skip the final LLM synthesis.
-        var settings = AiConfig.get();
-        var demoMode = settings == null || settings.apiKey() == null
-                || settings.apiKey().isBlank();
-
         // --- Step 1: Research (sequential — other agents need these results) ---
         // ToolStart/ToolResult events render as expandable cards in the console.
         var researchArgs = Map.<String, Object>of("query", message, "num_results", "3");
@@ -209,16 +201,11 @@ public class CeoCoordinator {
         // (PostPromptHook fires after @Prompt returns, before async LLM streaming completes)
 
         // --- Step 4: CEO synthesis via LLM ---
-        if (demoMode) {
-            // In demo mode, stream a summary of fleet results without calling the LLM
-            DemoResponseProducer.stream(message, session);
-            return;
-        }
-
         // Trim agent results to fit within the LLM context window, then stream
         // the executive briefing to the browser in real-time via session.stream().
-        // This call delegates to whichever AgentRuntime is on the classpath
-        // (ADK, Embabel, Spring AI, or LangChain4j).
+        // Delegates to whichever AgentRuntime the resolver picks — real (ADK,
+        // Embabel, Spring AI, LangChain4j) when LLM_API_KEY is set, or the
+        // built-in DemoAgentRuntime when not.
         var researchSummary = truncate(research.text(), 800);
         var strategySummary = truncate(results.get("strategy-agent").text(), 800);
         var financeSummary = truncate(results.get("finance-agent").text(), 800);

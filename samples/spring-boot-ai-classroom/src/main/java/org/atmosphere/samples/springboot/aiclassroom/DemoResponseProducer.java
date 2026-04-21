@@ -15,67 +15,54 @@
  */
 package org.atmosphere.samples.springboot.aiclassroom;
 
-import org.atmosphere.ai.StreamingSession;
+import jakarta.annotation.PostConstruct;
+import org.atmosphere.ai.AgentExecutionContext;
+import org.atmosphere.ai.llm.DemoAgentRuntime;
+import org.springframework.stereotype.Component;
 
 /**
- * Simulates LLM streaming responses with room-aware personas.
- * Used when no API key is configured so the sample works out-of-the-box.
+ * Installs a room-aware demo strategy so the bundled
+ * {@link DemoAgentRuntime} streams math-tutor / code-mentor / science-educator
+ * personas instead of its generic echo when the sample boots without an
+ * {@code LLM_API_KEY}. Runs at startup; the framework then drives every
+ * demo-mode request through the standard pipeline like any real runtime.
+ *
+ * <p>The {@link AgentExecutionContext#systemPrompt()} carries the room's
+ * persona (installed by {@code RoomContextInterceptor}), so the strategy
+ * looks for a lowercase room keyword anywhere in the system prompt to pick
+ * the right flavour of canned response.</p>
  */
-public final class DemoResponseProducer {
+@Component
+public class DemoResponseProducer {
 
-    private DemoResponseProducer() {
+    @PostConstruct
+    public void installRoomAwareStrategy() {
+        DemoAgentRuntime.setResponseStrategy(DemoResponseProducer::generateFor);
     }
 
-    /**
-     * Stream a simulated response word-by-word through the session.
-     */
-    public static void stream(String userMessage, StreamingSession session, String room) {
-        var response = generateResponse(room);
-        var words = response.split("(?<=\\s)");
-
-        try {
-            session.progress("Demo mode (room: " + sanitize(room)
-                    + ") — set LLM_API_KEY to enable real AI responses");
-            for (var word : words) {
-                session.send(word);
-                Thread.sleep(50);
-            }
-            session.complete(response);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            session.error(e);
-        }
-    }
-
-    private static String generateResponse(String room) {
-        return switch (room) {
-            case "math" -> "**Math Tutor**: Great question! Mathematics is all about "
+    private static String generateFor(AgentExecutionContext context) {
+        var system = context.systemPrompt() == null ? "" : context.systemPrompt().toLowerCase();
+        if (system.contains("math")) {
+            return "**Math Tutor**: Great question! Mathematics is all about "
                     + "patterns and logical reasoning. In demo mode, I can't compute "
                     + "real answers, but with an API key I'll solve equations step by step.\n\n"
                     + "Set `LLM_API_KEY` to connect to a real AI model.";
-            case "code" -> "**Code Mentor**: Good software is built on clear abstractions "
+        }
+        if (system.contains("code")) {
+            return "**Code Mentor**: Good software is built on clear abstractions "
                     + "and clean design. In demo mode, I can't write real code, but with "
                     + "an API key I'll provide working examples with explanations.\n\n"
                     + "Set `LLM_API_KEY` to connect to a real AI model.";
-            case "science" -> "**Science Educator**: Science is the art of asking why and "
+        }
+        if (system.contains("science")) {
+            return "**Science Educator**: Science is the art of asking why and "
                     + "testing how. In demo mode, I can't give detailed explanations, but "
                     + "with an API key I'll break down complex topics with analogies.\n\n"
                     + "Set `LLM_API_KEY` to connect to a real AI model.";
-            default -> "**Classroom AI**: Every student in this room is seeing this "
-                    + "response stream in real time — that's Atmosphere's broadcaster "
-                    + "at work!\n\n"
-                    + "Set `LLM_API_KEY` to connect to a real AI model.";
-        };
-    }
-
-    private static String sanitize(String input) {
-        if (input == null) {
-            return "";
         }
-        return input.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&#39;");
+        return "**Classroom AI**: Every student in this room is seeing this "
+                + "response stream in real time — that's Atmosphere's broadcaster "
+                + "at work!\n\n"
+                + "Set `LLM_API_KEY` to connect to a real AI model.";
     }
 }

@@ -15,7 +15,6 @@
  */
 package org.atmosphere.samples.channels;
 
-import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
@@ -46,13 +45,8 @@ public class OmnichannelChat {
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
         logger.info("Prompt: {}", message);
-
-        var settings = AiConfig.get();
-        if (settings == null || settings.apiKey() == null || settings.apiKey().isBlank()) {
-            DemoResponseProducer.stream(message, session);
-            return;
-        }
-
+        // Always through the pipeline: DemoAgentRuntime answers when no
+        // LLM_API_KEY is set, the real runtime answers when it is.
         session.stream(message);
     }
 }

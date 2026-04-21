@@ -75,6 +75,10 @@ public class AtmosphereAiAutoConfiguration {
                     + "(set atmosphere.ai.fail-fast=true to refuse startup on missing keys)");
         }
         var settings = AiConfig.configure(mode, model, apiKey, baseUrl);
+        // Drop any cached runtime resolution so DemoAgentRuntime (whose
+        // isAvailable depends on AiConfig) is evaluated against the config
+        // we just wrote, not the null config the cache may have frozen.
+        org.atmosphere.ai.AgentRuntimeResolver.reset();
         logger.info("Atmosphere AI configured: mode={}, model={}", mode, model);
         return settings;
     }

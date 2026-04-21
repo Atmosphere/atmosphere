@@ -15,7 +15,6 @@
  */
 package org.atmosphere.samples.springboot.aiclassroom;
 
-import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
@@ -67,14 +66,8 @@ public class AiClassroom {
     @Prompt
     public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
         logger.info("Classroom prompt in room '{}': {}", room, message);
-
-        var settings = AiConfig.get();
-        if (settings == null || settings.apiKey() == null
-                || settings.apiKey().isBlank()) {
-            DemoResponseProducer.stream(message, session, room != null ? room : "general");
-            return;
-        }
-
+        // Always through the pipeline: DemoAgentRuntime takes over when no
+        // LLM_API_KEY is configured, otherwise the real runtime streams.
         session.stream(message);
     }
 }

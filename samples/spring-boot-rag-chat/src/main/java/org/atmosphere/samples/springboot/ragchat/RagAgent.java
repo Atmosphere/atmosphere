@@ -17,7 +17,6 @@ package org.atmosphere.samples.springboot.ragchat;
 
 import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.agent.annotation.Command;
-import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;
@@ -64,14 +63,8 @@ public class RagAgent {
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
         logger.info("RAG prompt: {}", message);
-
-        var settings = AiConfig.get();
-        if (settings == null || settings.apiKey() == null
-                || settings.apiKey().isBlank()) {
-            DemoResponseProducer.stream(message, session);
-            return;
-        }
-
+        // Always through the pipeline: DemoAgentRuntime handles the no-key
+        // fallback, the real runtime drives RAG when LLM_API_KEY is set.
         session.stream(message);
     }
 
