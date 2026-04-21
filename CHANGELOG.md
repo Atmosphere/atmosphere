@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Agent scope, audit trail, OWASP matrix (Phase AS + D)
+
+- **`@AgentScope` annotation + `ScopeGuardrail` SPI** (`ba7ddf3688`) —
+  architectural goal-hijacking prevention. Annotation declares `purpose`,
+  `forbiddenTopics`, `onBreach` (POLITE_REDIRECT / DENY / CUSTOM_MESSAGE),
+  and `tier` (RULE_BASED / EMBEDDING_SIMILARITY default / LLM_CLASSIFIER
+  opt-in). `ScopePolicy` maps `ScopeGuardrail` outcomes to
+  admit/transform/deny semantics per the breach policy.
+  `RuleBasedScopeGuardrail` ships with built-in hijacking probes for code,
+  medical, legal, and financial patterns so the McDonald's failure mode
+  is caught without operator-declared topic enumeration.
+- **System-prompt hardening + endpoint auto-wiring** (`a11239cac3`) —
+  `AiEndpointProcessor` reads `@AgentScope` on the endpoint class and
+  auto-installs a `ScopePolicy` ahead of user-declared policies;
+  `AiPipeline` prepends an unbypassable scope-confinement preamble to
+  the system prompt on every `execute()` call, surviving sample-level
+  substitutions.
+- **Sample-hygiene CI lint + 12-sample retrofit** (`287a5f9b71`) —
+  `SampleAgentScopeLintTest` walks `samples/` and fails the build on any
+  `@AiEndpoint` missing `@AgentScope` (or lacking a non-blank
+  `justification` when `unrestricted = true`). All 12 existing sample
+  endpoints retrofitted — 11 declare `unrestricted = true` with specific
+  justifications (production deployments replace with a scoped
+  `@AgentScope`); `ReviewExtractor` declares a real scoped purpose.
+- **Embedding-similarity scope tier** (`2c856bd00d`) — default tier.
+  Resolves an `EmbeddingRuntime` via ServiceLoader; caches the purpose
+  vector (and every forbidden-topic vector) on first use; rejects when
+  cosine similarity falls below `similarityThreshold`. Absent runtime
+  admits-with-warning so the rule-based tier remains a safe fallback.
+- **LLM-classifier scope tier** (`5b8b6f51da`) — opt-in tier for
+  high-stakes scopes. Zero-shot YES/NO classifier over the resolved
+  `AgentRuntime`; tolerant parser handles `**YES**` / `YES.` / `*no*` /
+  "Not sure" edge cases; ambiguous verdicts fall through to admit so
+  LLM quirks don't over-reject; timeouts and runtime errors fail-closed
+  at the `ScopePolicy` layer.
+- **Governance audit trail** (`a534f5e462`) — `AuditEntry` records every
+  `GovernancePolicy.evaluate` decision with identity, reason, context
+  snapshot (redaction-safe: truncated message, primitive-only metadata),
+  and `evaluation_ms`. `GovernanceDecisionLog` is a thread-safe ring
+  buffer (default 500 entries) installed via
+  `GovernanceDecisionLog.install(capacity)`. Surfaced via
+  `GET /api/admin/governance/decisions?limit=N`. `GovernanceTracer`
+  emits an OpenTelemetry span per evaluation through reflective
+  classpath detection — OTel stays an optional dependency.
+- **ms-governance-chat feature-parity retrofit** (`3fc8ead4cb`) — the
+  sample now declares `@AgentScope(purpose = "Customer support for
+  Example Corp — orders, billing, ...")` and loads 9 MS-schema rules
+  mirroring MS's `customer-service/main.py` example (destructive SQL,
+  legal/media/exec escalation, human-request auto-escalate, PII shapes,
+  password disclosure, discount-limit enforcement, plus an `audit`-action
+  rule for code-request probing).
+- **OWASP Agentic Top-10 self-assessment matrix** (`712c57e4e8`) —
+  `OwaspAgenticMatrix.MATRIX` pins 10 rows (6 COVERED, 2 PARTIAL,
+  1 DESIGN, 1 NOT_ADDRESSED) with evidence classes, test references,
+  and consumer grep patterns per row. `OwaspMatrixPinTest` fails the
+  build when any evidence class is renamed or removed — structural
+  answer to the v4 §4 discipline risk. Served over HTTP at
+  `GET /api/admin/governance/owasp` for `agt verify`-style compliance
+  consumers.
+
 ### Added — Governance policy plane (Phase A)
 
 - **`GovernancePolicy` SPI** (`0ace2b6947`) — declarative policy identity
