@@ -412,6 +412,30 @@ registry.register("my-domain-policy",
 `PolicyParser` implementation and a
 `META-INF/services/org.atmosphere.ai.governance.PolicyParser` entry.
 
+**Interop with Microsoft Agent Governance Toolkit** (verified
+against the April 2026 public source):
+
+- SPI shape lines up at the evaluate-decision level:
+  `GovernancePolicy.evaluate(PolicyContext) → PolicyDecision` mirrors
+  MS's `PolicyEvaluator.evaluate(context: dict) → PolicyDecision`.
+  Both return identity metadata (matched policy name, version) plus
+  an allow/deny decision.
+- YAML artifact schema **does not** line up. MS Agent OS YAML is
+  rules-over-context (priority-sorted `condition: {field, operator,
+  value}` → `action: allow|deny`); Atmosphere YAML is type-dispatch
+  (each entry names a built-in behavior plus config). The two
+  documents are not interchangeable today. A future
+  `MsAgentOsYamlPolicyParser` implementation could translate MS
+  rules into synthetic `GovernancePolicy` instances; that work is
+  deferred.
+- MS's `PolicyProviderHandler` is an HTTP ASGI app (endpoints
+  `/check`, `/policies`, `/health`). Atmosphere exposes the
+  equivalent at `/api/admin/governance/policies` and
+  `/api/admin/governance/summary` through `GovernanceController`.
+  An HTTP-level adapter that accepts MS's `POST /check` payload
+  and returns a compatible response would give cross-runtime
+  interop without touching the SPI — future work.
+
 **Admin introspection**: `/api/admin/governance/policies` lists
 the live policy set; `/api/admin/governance/summary` returns counts
 and distinct source URIs. Reports runtime-confirmed state (Correctness

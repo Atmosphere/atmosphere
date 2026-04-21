@@ -25,10 +25,12 @@ import org.atmosphere.ai.AiRequest;
  * straightforward (see {@code GuardrailAdapter} / {@code PolicyAdapter} in the same
  * package, added in the wiring commit).</p>
  *
- * <p>Vocabulary choice: {@code admit}/{@code deny} matches OPA/Rego and MS Agent OS
- * governance surfaces, which is the interoperability target of Phase A. The imperative
- * {@code pass}/{@code block} vocabulary is preserved on {@code AiGuardrail} because
- * existing application code and tests reference it.</p>
+ * <p>Vocabulary choice: {@code admit}/{@code deny} matches OPA/Rego and the MS Agent
+ * Governance Toolkit at the evaluate-decision level. Interop is at the vocabulary
+ * and SPI-shape level, not the YAML-artifact level — see
+ * {@link GovernancePolicy} for a breakdown of what does and doesn't line up with
+ * Microsoft's toolkit. The imperative {@code pass}/{@code block} vocabulary is preserved
+ * on {@code AiGuardrail} because existing application code and tests reference it.</p>
  */
 public sealed interface PolicyDecision {
 

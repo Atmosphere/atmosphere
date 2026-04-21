@@ -11,9 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`GovernancePolicy` SPI** (`0ace2b6947`) — declarative policy identity
   (`name` / `source` / `version`) plus `PolicyContext`→`PolicyDecision`
-  evaluation. Vocabulary aligned with OPA/Rego and MS Agent OS
-  (`admit` / `transform` / `deny`). The SPI is strictly additive —
-  existing `AiGuardrail` wiring keeps working unchanged.
+  evaluation. Vocabulary aligned with OPA/Rego and Microsoft Agent
+  Governance Toolkit at the evaluate-decision level (`admit` / `deny`
+  / transform). The SPI is strictly additive — existing `AiGuardrail`
+  wiring keeps working unchanged. **Interop scope with Microsoft toolkit
+  (verified 2026-04-21):** SPI-shape parity yes, YAML-artifact parity
+  no — Atmosphere uses type-dispatch YAML (`type: pii-redaction`, etc.)
+  while MS uses rules-over-context
+  (`condition: {field, operator, value}`, priority-sorted). A future
+  `MsAgentOsYamlPolicyParser` can read MS's schema and synthesize
+  `GovernancePolicy` instances from each rule; that work is deferred.
 - **`GuardrailAsPolicy` + `PolicyAsGuardrail` adapters** (`efefaea40a`) —
   every existing `AiGuardrail` is reachable as a `GovernancePolicy` via
   `GuardrailAsPolicy`; policies land on the current `AiPipeline`

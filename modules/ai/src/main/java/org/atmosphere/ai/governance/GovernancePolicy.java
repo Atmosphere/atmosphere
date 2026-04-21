@@ -30,6 +30,19 @@ package org.atmosphere.ai.governance;
  * interop via adapters (added in a follow-up wiring commit); the declarative layer is
  * strictly additive.</p>
  *
+ * <p><b>Relationship with Microsoft Agent Governance Toolkit (verified 2026-04-21):</b>
+ * MS's {@code PolicyProviderHandler} is an HTTP ASGI app ({@code /check} / {@code /policies}
+ * / {@code /health}), not a Java-style programming interface; the closest programming
+ * equivalent is MS's {@code PolicyEvaluator.evaluate(context: dict) -> PolicyDecision}.
+ * Our {@code GovernancePolicy.evaluate(PolicyContext) -> PolicyDecision} shares shape
+ * at the evaluate() level (named policy, identity metadata, admit/deny decision), but
+ * the YAML artifact schema diverges: MS uses rules-over-context (priority-sorted
+ * {@code condition → action} on a request dict) while Atmosphere uses type-dispatch
+ * (each entry names a built-in behavior plus a config block). The two schemas are NOT
+ * interchangeable today. A future {@code MsAgentOsYamlPolicyParser} could read MS's
+ * rules-format YAML and map each rule to a synthetic {@code GovernancePolicy} — that
+ * work is deferred; Phase A ships the Atmosphere-native schema only.</p>
+ *
  * <p>Implementations MUST be side-effect-free in {@link #evaluate(PolicyContext)}
  * except for metrics/logging. They MUST tolerate concurrent invocation — the pipeline
  * applies policies on the caller thread (virtual or platform) and a long-lived policy
