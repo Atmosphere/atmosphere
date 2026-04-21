@@ -21,6 +21,7 @@ import org.atmosphere.ai.governance.GovernanceDecisionLog;
 import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.governance.PolicyContext;
 import org.atmosphere.ai.governance.PolicyDecision;
+import org.atmosphere.ai.governance.owasp.OwaspAgenticMatrix;
 import org.atmosphere.cpr.AtmosphereFramework;
 
 import java.util.ArrayList;
@@ -187,6 +188,47 @@ public final class GovernanceController {
         map.put("evaluation_ms", entry.evaluationMs());
         map.put("context_snapshot", entry.contextSnapshot());
         return map;
+    }
+
+    /**
+     * Render the {@link OwaspAgenticMatrix} self-assessment as a JSON-friendly
+     * map. One entry per OWASP Agentic Top-10 row with coverage, evidence
+     * pointers, and notes. Summary counts appear alongside so operators can
+     * read the one-line coverage story without walking the full matrix.
+     */
+    public Map<String, Object> owaspMatrix() {
+        var rows = new ArrayList<Map<String, Object>>(OwaspAgenticMatrix.MATRIX.size());
+        var coverageCounts = new LinkedHashMap<String, Integer>();
+        coverageCounts.put("COVERED", 0);
+        coverageCounts.put("PARTIAL", 0);
+        coverageCounts.put("DESIGN", 0);
+        coverageCounts.put("NOT_ADDRESSED", 0);
+        for (var row : OwaspAgenticMatrix.MATRIX) {
+            var renderedRow = new LinkedHashMap<String, Object>();
+            renderedRow.put("id", row.id());
+            renderedRow.put("title", row.title());
+            renderedRow.put("description", row.description());
+            renderedRow.put("coverage", row.coverage().name());
+            renderedRow.put("notes", row.notes());
+            var evidenceList = new ArrayList<Map<String, Object>>(row.evidence().size());
+            for (var evidence : row.evidence()) {
+                var renderedEvidence = new LinkedHashMap<String, Object>();
+                renderedEvidence.put("class", evidence.evidenceClass());
+                renderedEvidence.put("test", evidence.testClass());
+                renderedEvidence.put("consumer_grep", evidence.consumerGrepPattern());
+                renderedEvidence.put("description", evidence.description());
+                evidenceList.add(renderedEvidence);
+            }
+            renderedRow.put("evidence", evidenceList);
+            rows.add(renderedRow);
+            coverageCounts.merge(row.coverage().name(), 1, Integer::sum);
+        }
+        var result = new LinkedHashMap<String, Object>();
+        result.put("framework", "OWASP Agentic AI Top 10 (December 2025)");
+        result.put("rows", rows);
+        result.put("coverage_counts", coverageCounts);
+        result.put("total_rows", OwaspAgenticMatrix.MATRIX.size());
+        return result;
     }
 
     /** Summary: policy count and distinct source URIs. */

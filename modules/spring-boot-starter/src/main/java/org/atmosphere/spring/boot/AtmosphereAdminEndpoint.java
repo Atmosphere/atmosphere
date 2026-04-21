@@ -502,6 +502,22 @@ public class AtmosphereAdminEndpoint {
     }
 
     /**
+     * OWASP Agentic AI Top 10 (Dec 2025) self-assessment. Read-only. Pairs
+     * with the {@code agt verify} CLI payload shape — external compliance
+     * tooling that targets MS's Agent Compliance package can consume this
+     * endpoint as the Atmosphere equivalent evidence source.
+     */
+    @GetMapping("/governance/owasp")
+    public ResponseEntity<Map<String, Object>> governanceOwasp() {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of("framework", "OWASP Agentic AI Top 10 (December 2025)",
+                    "rows", List.of(), "total_rows", 0));
+        }
+        return ResponseEntity.ok(controller.owaspMatrix());
+    }
+
+    /**
      * Microsoft Agent Governance Toolkit {@code POST /check}-compatible
      * decision endpoint. External gateways (Envoy, Kong, Azure APIM)
      * that already speak to MS's ASGI policy provider can point at
