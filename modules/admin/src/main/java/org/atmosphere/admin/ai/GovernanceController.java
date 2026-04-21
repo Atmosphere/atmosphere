@@ -16,6 +16,8 @@
 package org.atmosphere.admin.ai;
 
 import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.governance.AuditEntry;
+import org.atmosphere.ai.governance.GovernanceDecisionLog;
 import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.governance.PolicyContext;
 import org.atmosphere.ai.governance.PolicyDecision;
@@ -155,6 +157,36 @@ public final class GovernanceController {
         response.put("matched_source", matchedSource);
         response.put("evaluation_ms", Math.round(durationMs * 100.0) / 100.0);
         return response;
+    }
+
+    /**
+     * Return the most-recent {@link AuditEntry} records from the installed
+     * {@link GovernanceDecisionLog}, newest first, up to {@code limit}.
+     * Empty when no log is installed (NOOP default).
+     */
+    public List<Map<String, Object>> listRecentDecisions(int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        var entries = GovernanceDecisionLog.installed().recent(limit);
+        var result = new ArrayList<Map<String, Object>>(entries.size());
+        for (var entry : entries) {
+            result.add(renderEntry(entry));
+        }
+        return result;
+    }
+
+    private static Map<String, Object> renderEntry(AuditEntry entry) {
+        var map = new LinkedHashMap<String, Object>();
+        map.put("timestamp", entry.timestamp().toString());
+        map.put("policy_name", entry.policyName());
+        map.put("policy_source", entry.policySource());
+        map.put("policy_version", entry.policyVersion());
+        map.put("decision", entry.decision());
+        map.put("reason", entry.reason());
+        map.put("evaluation_ms", entry.evaluationMs());
+        map.put("context_snapshot", entry.contextSnapshot());
+        return map;
     }
 
     /** Summary: policy count and distinct source URIs. */

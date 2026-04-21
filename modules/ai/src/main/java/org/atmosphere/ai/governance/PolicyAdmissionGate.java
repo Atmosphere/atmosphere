@@ -80,20 +80,42 @@ public final class PolicyAdmissionGate {
             if (!(entry instanceof GovernancePolicy policy)) {
                 continue;
             }
+            var ctx = PolicyContext.preAdmission(current);
+            var tracer = GovernanceTracer.start(policy, ctx);
+            var startNs = System.nanoTime();
             try {
-                var decision = policy.evaluate(PolicyContext.preAdmission(current));
+                var decision = policy.evaluate(ctx);
+                var evalMs = (System.nanoTime() - startNs) / 1_000_000.0;
                 switch (decision) {
                     case PolicyDecision.Deny deny -> {
                         logger.warn("Request denied by policy {} (source={}, version={}): {}",
                                 policy.name(), policy.source(), policy.version(), deny.reason());
+                        GovernanceDecisionLog.installed().record(
+                                GovernanceDecisionLog.entry(policy, ctx, "deny", deny.reason(), evalMs));
+                        tracer.end("deny", deny.reason());
                         return new Result.Denied(policy.name(), deny.reason());
                     }
-                    case PolicyDecision.Transform transform -> current = transform.modifiedRequest();
-                    case PolicyDecision.Admit ignored -> { }
+                    case PolicyDecision.Transform transform -> {
+                        GovernanceDecisionLog.installed().record(
+                                GovernanceDecisionLog.entry(policy, ctx, "transform",
+                                        "request rewritten", evalMs));
+                        tracer.end("transform", "request rewritten");
+                        current = transform.modifiedRequest();
+                    }
+                    case PolicyDecision.Admit ignored -> {
+                        GovernanceDecisionLog.installed().record(
+                                GovernanceDecisionLog.entry(policy, ctx, "admit", "", evalMs));
+                        tracer.end("admit", "");
+                    }
                 }
             } catch (Exception e) {
+                var evalMs = (System.nanoTime() - startNs) / 1_000_000.0;
                 logger.error("GovernancePolicy.evaluate failed (policy={}): fail-closed",
                         policy.name(), e);
+                GovernanceDecisionLog.installed().record(
+                        GovernanceDecisionLog.entry(policy, ctx, "error",
+                                "evaluate threw: " + e.getMessage(), evalMs));
+                tracer.end("error", e.getMessage());
                 return new Result.Denied(policy.name(),
                         "policy evaluation failed: " + e.getMessage());
             }

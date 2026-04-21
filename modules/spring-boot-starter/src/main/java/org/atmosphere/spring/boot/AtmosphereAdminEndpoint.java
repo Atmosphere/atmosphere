@@ -487,6 +487,21 @@ public class AtmosphereAdminEndpoint {
     }
 
     /**
+     * Recent policy decisions (ring-buffered). {@code limit} defaults to 100;
+     * capped at the log's configured capacity. Read-only — no authorizer
+     * guard required.
+     */
+    @GetMapping("/governance/decisions")
+    public ResponseEntity<List<Map<String, Object>>> governanceDecisions(
+            @RequestParam(value = "limit", defaultValue = "100") int limit) {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(controller.listRecentDecisions(limit));
+    }
+
+    /**
      * Microsoft Agent Governance Toolkit {@code POST /check}-compatible
      * decision endpoint. External gateways (Envoy, Kong, Azure APIM)
      * that already speak to MS's ASGI policy provider can point at
