@@ -478,6 +478,61 @@ public abstract class AbstractAgentRuntimeContractTest {
         return null;
     }
 
+    /**
+     * Cross-provider governance contract — install a deny {@code GovernancePolicy}
+     * on an {@link org.atmosphere.ai.AiPipeline} wrapping this runtime and verify
+     * that the runtime's {@code execute} is never reached. Every
+     * {@link AgentRuntime} adapter inherits this test so the governance plane's
+     * "deny before the runtime" guarantee is enforced across Built-in, Spring AI,
+     * LangChain4j, ADK, Embabel, Koog, Semantic Kernel. Cross-cutting invariant
+     * from the v5 governance roadmap.
+     */
+    @Test
+    protected void policyDenyBlocksRuntimeExecute() throws Exception {
+        var runtime = createRuntime();
+        if (!runtime.isAvailable()) {
+            return; // adapter not wired in this test environment
+        }
+        var denyPolicy = new org.atmosphere.ai.governance.GovernancePolicy() {
+            @Override public String name() { return "contract-test-deny-all"; }
+            @Override public String source() { return "code:AbstractAgentRuntimeContractTest"; }
+            @Override public String version() { return "1.0"; }
+            @Override public org.atmosphere.ai.governance.PolicyDecision evaluate(
+                    org.atmosphere.ai.governance.PolicyContext context) {
+                return org.atmosphere.ai.governance.PolicyDecision.deny(
+                        "contract-test deny for cross-provider parity check");
+            }
+        };
+        var runtimeInvoked = new AtomicBoolean(false);
+        var wrapper = new org.atmosphere.ai.AgentRuntime() {
+            @Override public String name() { return runtime.name() + "+contract-wrapper"; }
+            @Override public boolean isAvailable() { return runtime.isAvailable(); }
+            @Override public int priority() { return runtime.priority(); }
+            @Override public void configure(org.atmosphere.ai.AiConfig.LlmSettings s) {
+                runtime.configure(s);
+            }
+            @Override public java.util.Set<AiCapability> capabilities() {
+                return runtime.capabilities();
+            }
+            @Override
+            public void execute(AgentExecutionContext context, StreamingSession session) {
+                runtimeInvoked.set(true);
+                runtime.execute(context, session);
+            }
+        };
+        var pipeline = new org.atmosphere.ai.AiPipeline(
+                wrapper, "", null, null, null,
+                java.util.List.of(), java.util.List.of(denyPolicy), java.util.List.of(),
+                null, null);
+        var session = new RecordingSession();
+        pipeline.execute("contract-client", "hi", session);
+        session.awaitCompletion(5, TimeUnit.SECONDS);
+
+        assertFalse(runtimeInvoked.get(),
+                runtime.name() + " runtime.execute() must NOT run when a deny policy "
+                        + "precedes it on the pipeline — the governance plane's core guarantee.");
+    }
+
     /** Minimal StreamingSession satisfying the helper's session.sessionId() call. */
     private static final class NoopSession implements StreamingSession {
         @Override public String sessionId() { return "contract-test"; }
