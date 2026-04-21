@@ -42,7 +42,7 @@ public class Chat {
     private static final Logger logger = LoggerFactory.getLogger(Chat.class);
 
     @Inject
-    @Named("/atmosphere/chat")
+    @Named("/atmosphere/ai-chat")
     private Broadcaster broadcaster;
 
     @Inject

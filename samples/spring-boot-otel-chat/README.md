@@ -32,9 +32,28 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
 ../../mvnw spring-boot:run
 ```
 
-### 3. Chat
+### 3. Drive traffic at the endpoint
 
-Open [http://localhost:8084](http://localhost:8084) in two browser tabs and exchange messages.
+This sample is **API-only** — it ships no static UI. The `@ManagedService` listens at
+`/atmosphere/ai-chat` and any WebSocket / long-poll client will produce trace spans.
+
+Long-polling smoke test (returns suspended `200` and creates a connect span):
+
+```bash
+curl -i http://localhost:8084/atmosphere/ai-chat
+```
+
+WebSocket round-trip with [`wscat`](https://github.com/websockets/wscat):
+
+```bash
+npm install -g wscat
+wscat -c ws://localhost:8084/atmosphere/ai-chat
+> hi from wscat
+< hi from wscat        # echoed back; broadcaster span recorded
+```
+
+Open a second `wscat` session against the same URL and any message you send is
+broadcast to both — every connect, message, and disconnect emits a span.
 
 ### 4. View traces
 
@@ -44,16 +63,16 @@ Open [Jaeger UI](http://localhost:16686), select service **atmosphere-otel-chat*
 |---|---|
 | `atmosphere.transport` | `WEBSOCKET` |
 | `atmosphere.resource.uuid` | `abc-123` |
-| `atmosphere.broadcaster` | `/atmosphere/chat` |
+| `atmosphere.broadcaster` | `/atmosphere/ai-chat` |
 | `atmosphere.action` | `CONTINUE` |
 
 ## How it works
 
 ```
-┌─────────────┐     WebSocket     ┌──────────────────┐     OTLP/gRPC     ┌─────────┐
-│   Browser    │ ◄──────────────► │  Atmosphere +    │ ──────────────── ► │  Jaeger │
-│  (chat UI)   │                  │  AtmosphereTracing│                   │  (UI)   │
-└─────────────┘                   └──────────────────┘                   └─────────┘
+┌──────────┐     WebSocket     ┌────────────────────┐     OTLP/gRPC     ┌─────────┐
+│  wscat / │ ◄──────────────► │  Atmosphere +      │ ──────────────── ► │  Jaeger │
+│  client  │                  │  AtmosphereTracing │                   │  (UI)   │
+└──────────┘                  └────────────────────┘                   └─────────┘
 ```
 
 1. `AtmosphereTracingAutoConfiguration` detects `OpenTelemetry` bean on classpath
