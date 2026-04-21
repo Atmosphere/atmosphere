@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Governance policy plane (Phase A)
+
+- **`GovernancePolicy` SPI** (`0ace2b6947`) — declarative policy identity
+  (`name` / `source` / `version`) plus `PolicyContext`→`PolicyDecision`
+  evaluation. Vocabulary aligned with OPA/Rego and MS Agent OS
+  (`admit` / `transform` / `deny`). The SPI is strictly additive —
+  existing `AiGuardrail` wiring keeps working unchanged.
+- **`GuardrailAsPolicy` + `PolicyAsGuardrail` adapters** (`efefaea40a`) —
+  every existing `AiGuardrail` is reachable as a `GovernancePolicy` via
+  `GuardrailAsPolicy`; policies land on the current `AiPipeline`
+  admission seam via `PolicyAsGuardrail`. `Transform` decisions on the
+  post-response path are downgraded to `pass` with a warning (streamed
+  text is not retroactively rewritable).
+- **YAML `PolicyParser` + `PolicyRegistry`** (`83e5c2dafd`) — default
+  parser reads YAML via SnakeYAML's `SafeConstructor` (no arbitrary class
+  instantiation). Built-in types: `pii-redaction`, `cost-ceiling`,
+  `output-length-zscore` — factories wrap the shipped guardrails with
+  the identity from the YAML entry. `modules/ai` declares SnakeYAML as
+  an explicit runtime dep so bare-JVM / Jetty-embedded deployments get
+  the parser out-of-the-box. Parser discovered via ServiceLoader;
+  additional formats (Rego, Cedar) plug in by shipping another
+  `PolicyParser` service entry.
+- **Native `AiPipeline` wiring** (`9ac9ed1d6c`) — `AiPipeline` accepts a
+  `List<GovernancePolicy>` on a new constructor, evaluates them in a
+  dedicated pre-admission loop (fail-closed on exception per
+  Correctness Invariant #2), and merges them onto the existing
+  `GuardrailCapturingSession` for post-response via `PolicyAsGuardrail`.
+  `pipeline.policies()` accessor exposes the installed list so admin
+  surfaces can enumerate them without re-parsing YAML. Response cache
+  skips when policies are present so each turn re-evaluates.
+- **Spring + endpoint-processor bridge** (`9d7b75be78`) —
+  `AiEndpointProcessor.instantiatePolicies()` merges ServiceLoader and
+  `POLICIES_PROPERTY` sources with dedup by `name()`; policies are
+  wrapped through `PolicyAsGuardrail` and threaded onto every
+  `@AiEndpoint` in the app. `AtmosphereAiAutoConfiguration` now bridges
+  Spring-managed `GovernancePolicy` beans onto the same property so the
+  default path "drop a YAML file on the classpath" just works. Parity
+  test (`PolicyPlaneSourceParityTest`) pins YAML / programmatic /
+  ServiceLoader sources to identical admission decisions.
+- **Classroom sample retrofit** (`aaac15f725`) —
+  `samples/spring-boot-ai-classroom/src/main/resources/atmosphere-policies.yaml`
+  declares a PII redaction and a z-score drift detector; `PoliciesConfig`
+  reads it at startup and publishes the list to `POLICIES_PROPERTY`.
+  Demonstrates the Phase A promise: change YAML, restart, governance
+  changes — zero code edits.
+- **Admin introspection** (`b973aa2828`) — `GovernanceController` reads
+  `POLICIES_PROPERTY` for per-policy identity and distinct-source
+  counts; `/api/admin/governance/policies` and
+  `/api/admin/governance/summary` HTTP endpoints expose the live list;
+  `AtmosphereAdmin.overview()` reports the policy count alongside the
+  AI runtime name.
+
 ### Added — AI Agent Foundation v0.5 (eight primitives)
 
 - **`AgentState` SPI** (`a0fd3fc48c`) — unifies conversation history,

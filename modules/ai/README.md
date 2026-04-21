@@ -344,6 +344,85 @@ ServiceLoader. `AiEndpointProcessor` merges annotation-declared,
 ServiceLoader, and framework-property guardrails so user-defined
 `@AiEndpoint` paths get the same wiring as the default endpoint.
 
+### Governance policy plane (Phase A)
+
+A declarative layer over the guardrail SPI. Policies carry stable
+identity (`name` / `source` / `version`) for audit-trail pinning and
+use the `admit` / `transform` / `deny` vocabulary from OPA/Rego and
+MS Agent OS.
+
+Drop `atmosphere-policies.yaml` on the classpath:
+
+```yaml
+version: "1.0"
+policies:
+  - name: customer-pii-guard
+    type: pii-redaction
+    version: "1.0"
+    config:
+      mode: redact            # redact | block
+
+  - name: drift-watcher
+    type: output-length-zscore
+    config:
+      window-size: 50
+      z-threshold: 3.0
+      min-samples: 10
+
+  - name: tenant-budget
+    type: cost-ceiling
+    config:
+      budget-usd: 100.00
+```
+
+Load and publish:
+
+```java
+@Configuration
+public class PoliciesConfig {
+    @Bean
+    Object atmospherePolicyPlaneLoader(AtmosphereFramework framework) throws IOException {
+        try (var in = new ClassPathResource("atmosphere-policies.yaml").getInputStream()) {
+            var policies = new YamlPolicyParser().parse("classpath:atmosphere-policies.yaml", in);
+            framework.getAtmosphereConfig().properties()
+                    .put(GovernancePolicy.POLICIES_PROPERTY, policies);
+            return policies;
+        }
+    }
+}
+```
+
+That's it — `AiEndpointProcessor` picks them up through
+`POLICIES_PROPERTY` and installs them on every `@AiEndpoint` in the
+app. Spring-managed `GovernancePolicy` beans are also bridged
+automatically by `AtmosphereAiAutoConfiguration`.
+
+**Built-in types**: `pii-redaction`, `cost-ceiling`,
+`output-length-zscore`. Register a custom type in code:
+
+```java
+PolicyRegistry registry = new PolicyRegistry();
+registry.register("my-domain-policy",
+        descriptor -> new MyDomainPolicy(descriptor.name(),
+                descriptor.source(), descriptor.version(),
+                descriptor.config()));
+```
+
+**Additional formats** (Rego, Cedar) plug in by shipping another
+`PolicyParser` implementation and a
+`META-INF/services/org.atmosphere.ai.governance.PolicyParser` entry.
+
+**Admin introspection**: `/api/admin/governance/policies` lists
+the live policy set; `/api/admin/governance/summary` returns counts
+and distinct source URIs. Reports runtime-confirmed state (Correctness
+Invariant #5) — not what the YAML intended.
+
+**Interop with `AiGuardrail`**: `GuardrailAsPolicy` wraps any existing
+guardrail as a policy; `PolicyAsGuardrail` goes the other way. Both
+vocabularies land at the same `AiPipeline` admission seam so the
+declarative layer is strictly additive — existing guardrail wiring
+keeps working.
+
 ### Cost accounting wire — observability → enforcement
 
 Every runtime calls `StreamingSession.usage(TokenUsage)` at completion.
