@@ -17,6 +17,7 @@ package org.atmosphere.samples.springboot.msgovernance;
 
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.governance.PolicyAdmissionGate;
@@ -34,6 +35,8 @@ import org.slf4j.LoggerFactory;
  * {@link PolicyAdmissionGate} still runs governance before the canned reply.</p>
  */
 @AiEndpoint(path = "/atmosphere/ms-governance")
+@AgentScope(unrestricted = true,
+        justification = "Microsoft Agent Governance Toolkit YAML demo — scope enforcement is the point of this sample and is delivered via classpath:atmosphere-policies.yaml (MS schema) rather than @AgentScope. Adding @AgentScope would muddy the interop story — the whole demo is about MS-format YAML governance running unmodified on Atmosphere.")
 public class MsGovernanceChat {
 
     private static final Logger logger = LoggerFactory.getLogger(MsGovernanceChat.class);

@@ -17,6 +17,7 @@ package org.atmosphere.samples.springboot.aichat;
 
 import org.atmosphere.ai.Content;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.slf4j.Logger;
@@ -49,6 +50,8 @@ import java.util.Base64;
  * @see org.atmosphere.integrationtests.ai.MultiModalTestHandler
  */
 @AiEndpoint(path = "/atmosphere/ai-chat-multimodal")
+@AgentScope(unrestricted = true,
+        justification = "Multi-modal demo — accepts arbitrary text + image prompts to showcase multimodal streaming.")
 public class MultiModalChat {
 
     private static final Logger logger = LoggerFactory.getLogger(MultiModalChat.class);

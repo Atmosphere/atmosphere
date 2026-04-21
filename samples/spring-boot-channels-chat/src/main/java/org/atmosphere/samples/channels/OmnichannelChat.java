@@ -16,6 +16,7 @@
 package org.atmosphere.samples.channels;
 
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.config.service.Ready;
@@ -33,6 +34,8 @@ import org.slf4j.LoggerFactory;
 @AiEndpoint(path = "/atmosphere/ai-chat",
         systemPrompt = "You are a helpful AI assistant. Keep responses concise and friendly.",
         conversationMemory = true)
+@AgentScope(unrestricted = true,
+        justification = "Omnichannel demo — accepts arbitrary prompts to showcase channel-bridge delivery across Slack / Telegram / WhatsApp / Discord / Messenger. Production deployments scope per channel.")
 public class OmnichannelChat {
 
     private static final Logger logger = LoggerFactory.getLogger(OmnichannelChat.class);

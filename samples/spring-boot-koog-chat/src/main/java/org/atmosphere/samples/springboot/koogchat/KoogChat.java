@@ -18,6 +18,7 @@ package org.atmosphere.samples.springboot.koogchat;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.config.service.Disconnect;
@@ -41,6 +42,8 @@ import org.slf4j.LoggerFactory;
         systemPromptResource = "skill:koog-assistant",
         requires = {AiCapability.TEXT_STREAMING, AiCapability.SYSTEM_PROMPT},
         conversationMemory = true)
+@AgentScope(unrestricted = true,
+        justification = "Koog runtime demo — accepts arbitrary prompts to showcase Koog AgentRuntime integration.")
 public class KoogChat {
 
     private static final Logger logger = LoggerFactory.getLogger(KoogChat.class);

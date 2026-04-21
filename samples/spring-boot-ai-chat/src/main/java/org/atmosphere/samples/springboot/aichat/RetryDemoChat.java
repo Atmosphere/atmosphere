@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.aichat;
 
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.slf4j.Logger;
@@ -63,6 +64,8 @@ import java.util.concurrent.atomic.AtomicInteger;
                 initialDelayMs = 100,
                 maxDelayMs = 500,
                 backoffMultiplier = 2.0))
+@AgentScope(unrestricted = true,
+        justification = "Retry-policy demo — intentionally accepts arbitrary prompts to exercise RetryPolicy behaviour. Production deployments should replace with a scoped @AgentScope.")
 public class RetryDemoChat {
 
     private static final Logger logger = LoggerFactory.getLogger(RetryDemoChat.class);

@@ -21,6 +21,7 @@ import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiMetrics;
 import org.atmosphere.ai.AiPipeline;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.cache.InMemoryResponseCache;
@@ -59,6 +60,8 @@ import java.time.Duration;
  */
 @AiEndpoint(path = "/atmosphere/ai-chat-with-cache",
         promptCache = CacheHint.CachePolicy.CONSERVATIVE)
+@AgentScope(unrestricted = true,
+        justification = "Prompt-cache demo — accepts arbitrary prompts to demonstrate CacheHint / ResponseCache behaviour.")
 public class PromptCacheDemoChat {
 
     private static final Logger logger = LoggerFactory.getLogger(PromptCacheDemoChat.class);

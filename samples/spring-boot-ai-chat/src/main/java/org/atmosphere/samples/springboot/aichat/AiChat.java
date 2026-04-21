@@ -18,6 +18,7 @@ package org.atmosphere.samples.springboot.aichat;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.llm.CacheHint;
@@ -48,6 +49,10 @@ import org.slf4j.LoggerFactory;
         // support it (Spring AI / LC4j / Built-in OpenAI path), and short-circuits
         // at the pipeline level via ResponseCache on identical subsequent requests.
         promptCache = CacheHint.CachePolicy.CONSERVATIVE)
+@AgentScope(unrestricted = true,
+        justification = "General AI assistant demo — intentionally accepts arbitrary prompts "
+                + "to showcase @AiEndpoint capabilities. Production deployments should replace "
+                + "with a scoped @AgentScope declaring purpose + forbiddenTopics.")
 public class AiChat {
 
     private static final Logger logger = LoggerFactory.getLogger(AiChat.class);

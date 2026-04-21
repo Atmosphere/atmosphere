@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.aichat;
 
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.slf4j.Logger;
@@ -34,6 +35,7 @@ import org.slf4j.LoggerFactory;
         systemPrompt = "You are a movie review analyst. Extract structured reviews from user input. Respond with valid JSON only.",
         responseAs = MovieReview.class,
         conversationMemory = false)
+@AgentScope(purpose = "Extract structured movie review data from a user-supplied review text.")
 public class ReviewExtractor {
 
     private static final Logger logger = LoggerFactory.getLogger(ReviewExtractor.class);

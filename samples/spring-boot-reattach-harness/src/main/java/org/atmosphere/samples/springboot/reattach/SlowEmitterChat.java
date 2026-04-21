@@ -17,6 +17,7 @@ package org.atmosphere.samples.springboot.reattach;
 
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.slf4j.Logger;
@@ -35,6 +36,8 @@ import org.slf4j.LoggerFactory;
  */
 @AiEndpoint(path = "/atmosphere/agent/harness",
         requires = {AiCapability.TEXT_STREAMING})
+@AgentScope(unrestricted = true,
+        justification = "Reattach-harness test fixture — accepts arbitrary prompts to exercise mid-stream reconnect via RunRegistry.")
 public class SlowEmitterChat {
 
     private static final Logger logger = LoggerFactory.getLogger(SlowEmitterChat.class);

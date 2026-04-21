@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.aiclassroom;
 
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.config.service.Disconnect;
@@ -45,6 +46,8 @@ import org.slf4j.LoggerFactory;
 @AiEndpoint(path = "/atmosphere/classroom/{room}",
         systemPromptResource = "skill:classroom",
         interceptors = { RoomContextInterceptor.class })
+@AgentScope(unrestricted = true,
+        justification = "Educational assistant with per-room personas (math / code / science) — scope bounded by RoomContextInterceptor per-room system prompt rather than a global @AgentScope. The code room legitimately answers programming questions, so the rule-based hijacking probes would false-positive here; switch to EMBEDDING_SIMILARITY tier for per-room scope enforcement once the embedding guardrail tier ships.")
 public class AiClassroom {
 
     private static final Logger logger = LoggerFactory.getLogger(AiClassroom.class);
