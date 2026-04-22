@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Tool-call admission, per-request scope, audit sinks
+
+- **Tool-call admission seam** (`1def61ddf0`) — `PolicyAdmissionGate.admitToolCall`
+  builds a synthetic `AiRequest` whose metadata carries `tool_name`,
+  `action`, and an argument preview so MS-schema rules over `tool_name`
+  fire before the tool's executor runs. `ToolExecutionHelper` consults the
+  gate on every `@AiTool` dispatch; the canonical MS example
+  `{field: tool_name, operator: eq, value: delete_database, action: deny}`
+  fires without operator plumbing. OWASP A02 upgraded from PARTIAL to
+  COVERED.
+- **`@AgentScope.postResponseCheck`** (`2913da1b81`) — when enabled on a
+  high-stakes scope, `ScopePolicy` re-classifies the streamed response
+  text against the declared purpose. OUT_OF_SCOPE responses become Deny
+  with a `post-response:` prefix; errors fail-open on the response path
+  (bytes already on the wire). `POLITE_REDIRECT` breaches downgrade to
+  Deny because Transform can't rewind a stream.
+- **Cross-provider governance contract** (`613d216019`) —
+  `AbstractAgentRuntimeContractTest.policyDenyBlocksRuntimeExecute` is
+  inherited by all seven runtime adapters (Built-in, Spring AI,
+  LangChain4j, ADK, Embabel, Koog, Semantic Kernel); the "deny before
+  runtime" guarantee is now a build-time invariant for each provider.
+- **Per-request `ScopePolicy` install** (`334bde4969`) — an interceptor
+  can write a `ScopeConfig` under `ScopePolicy.REQUEST_SCOPE_METADATA_KEY`
+  and the pipeline / streaming session / admission gate install a
+  transient `ScopePolicy` ahead of endpoint-level policies for that one
+  turn. Classroom sample uses this for per-room scope (math / code /
+  science / general) — one `@AiEndpoint` hosts four personas, each with
+  its own purpose and forbidden-topic set. `perRequestScopeBlocksRuntimeExecute`
+  extends the cross-provider contract to the per-request path.
+- **Admin console governance views** — three Vue views under the existing
+  Atmosphere Console (`/atmosphere/console/`) poll
+  `/api/admin/governance/{policies,decisions,owasp}` on live intervals.
+  Tabs auto-hide when governance is not installed. Verified end-to-end
+  against the classroom sample via chrome-devtools (tabs render, OWASP
+  matrix shows 7 Covered / 1 Partial / 1 Design / 1 Not-addressed, zero
+  console errors).
+- **Persistent `AuditSink` SPI** — `GovernanceDecisionLog.addSink(AuditSink)`
+  fans every admission decision out to registered sinks while keeping
+  the ring buffer authoritative for the admin console. Sink failures are
+  isolated: one unreachable Kafka broker does not take down the pipeline.
+  `AsyncAuditSink` wraps a blocking delegate with a bounded drop-on-full
+  queue so the admission thread never blocks on IO (Backpressure
+  invariant #3). Two reference modules ship: `atmosphere-ai-audit-kafka`
+  (`KafkaAuditSink` → JSON to any topic) and `atmosphere-ai-audit-postgres`
+  (`JdbcAuditSink` → JDBC upsert with schema auto-create, works against
+  any JSR-221 `DataSource`; tests exercise H2 in-memory). The JSON shape
+  matches MS Agent Governance Toolkit's `audit_entry` so downstream
+  SIEM consumers of either system can read both.
+
 ### Added — Agent scope, audit trail, OWASP matrix (Phase AS + D)
 
 - **`@AgentScope` annotation + `ScopeGuardrail` SPI** (`ba7ddf3688`) —
