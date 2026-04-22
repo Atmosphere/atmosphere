@@ -10,7 +10,7 @@ const props = defineProps<{
   endpoint?: string
 }>()
 
-const { messages, toolCalls, isConnected, isStreaming, connectionState, send, clearMessages, respondToApproval } = useAtmosphereChat(props.endpoint)
+const { messages, toolCalls, isConnected, isStreaming, connectionState, send, clearMessages, respondToApproval, stats } = useAtmosphereChat(props.endpoint)
 const messagesContainer = ref<HTMLElement | null>(null)
 
 function scrollToBottom() {
@@ -65,6 +65,13 @@ function handleSend(text: string) {
       </template>
       <div v-if="isStreaming" class="streaming-indicator">
         <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      </div>
+      <div v-if="stats && !isStreaming" class="session-stats" data-testid="session-stats">
+        <span>{{ stats.totalStreamingTexts }} tokens</span>
+        <span class="sep">&middot;</span>
+        <span>{{ stats.elapsedMs }}ms</span>
+        <span class="sep">&middot;</span>
+        <span>{{ stats.streamingTextsPerSecond.toFixed(1) }} tok/s</span>
       </div>
     </div>
     <ChatInput :disabled="!isConnected" :is-streaming="isStreaming" @send="handleSend" />
@@ -158,6 +165,20 @@ function handleSend(text: string) {
   display: flex;
   gap: 4px;
   padding: 0.5rem 1rem;
+}
+
+.session-stats {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.375rem 1rem 0.5rem 2.75rem;
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  letter-spacing: 0.02em;
+}
+
+.session-stats .sep {
+  opacity: 0.5;
 }
 
 .dot {

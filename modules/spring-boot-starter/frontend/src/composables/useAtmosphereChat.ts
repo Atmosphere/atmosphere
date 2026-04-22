@@ -25,12 +25,19 @@ export interface ToolCall {
   approval?: PendingApproval
 }
 
+export interface SessionStats {
+  totalStreamingTexts: number
+  elapsedMs: number
+  streamingTextsPerSecond: number
+}
+
 export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
   const messages = ref<ChatMessage[]>([])
   const toolCalls = ref<ToolCall[]>([])
   const isConnected = ref(false)
   const isStreaming = ref(false)
   const connectionState = ref<string>('disconnected')
+  const stats = ref<SessionStats | null>(null)
 
   let atmosphere: Atmosphere | null = null
   let subscription: Subscription | null = null
@@ -39,6 +46,8 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
   let reactivityTimer: ReturnType<typeof setTimeout> | null = null
   let reconnectAttempts = 0
   const MAX_RECONNECT_ON_CLOSE = 10
+  let streamStartedAt = 0
+  let streamTokenCount = 0
 
   /**
    * Turn whatever shape the server emits for an error into a compact
@@ -145,6 +154,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
     switch (type) {
       case 'streaming-text':
       case 'text-delta':
+        streamTokenCount += 1
         appendToAssistant(
           typeof msg.data === 'string'
             ? msg.data
@@ -153,9 +163,18 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
               : ''
         )
         break
-      case 'complete':
+      case 'complete': {
+        if (streamStartedAt > 0) {
+          const elapsedMs = Math.max(1, Date.now() - streamStartedAt)
+          stats.value = {
+            totalStreamingTexts: streamTokenCount,
+            elapsedMs,
+            streamingTextsPerSecond: (streamTokenCount / elapsedMs) * 1000,
+          }
+        }
         finalizeAssistant()
         break
+      }
       case 'error': {
         const { message, retryDelay, status } = extractErrorShape(msg.data)
         let rendered = `\n\n**Error:** ${message}`
@@ -395,6 +414,9 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
     messages.value = [...messages.value, userMessage]
     toolCalls.value = []
     isStreaming.value = true
+    stats.value = null
+    streamStartedAt = Date.now()
+    streamTokenCount = 0
 
     subscription.push(text.trim())
   }
@@ -436,5 +458,6 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
     send,
     clearMessages,
     respondToApproval,
+    stats,
   }
 }
