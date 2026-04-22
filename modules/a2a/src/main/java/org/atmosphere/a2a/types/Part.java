@@ -15,8 +15,8 @@
  */
 package org.atmosphere.a2a.types;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import tools.jackson.databind.annotation.JsonDeserialize;
 
 import java.util.Map;
 
@@ -24,19 +24,37 @@ import java.util.Map;
  * Sealed interface representing the content part of an A2A message or artifact.
  * Permitted implementations are {@link TextPart} for plain text, {@link FilePart}
  * for file references, and {@link DataPart} for arbitrary structured data.
+ *
+ * <p>Wire discriminator is {@code "type"} on emission; on parse we accept both
+ * {@code "type"} and {@code "kind"} — the latter is what the current A2A spec
+ * emits, while earlier drafts (and some servers, including ours) still use
+ * {@code "type"}. Custom {@link PartDeserializer} reads the JSON tree, picks
+ * the concrete subtype from whichever discriminator is present, and dispatches
+ * directly — skipping Jackson's polymorphic machinery so it never reaches
+ * for a hard-coded {@code type} field and fails when only {@code kind} is
+ * available.</p>
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = Part.TextPart.class, name = "text"),
-    @JsonSubTypes.Type(value = Part.FilePart.class, name = "file"),
-    @JsonSubTypes.Type(value = Part.DataPart.class, name = "data")
-})
+@JsonDeserialize(using = PartDeserializer.class)
 public sealed interface Part {
+
+    /**
+     * Discriminator emitted as {@code "type"} on the wire. Each concrete
+     * subtype returns its canonical name so the output stays spec-compliant
+     * (the server emits {@code type}; the {@link PartDeserializer} accepts
+     * either {@code type} or {@code kind} on input).
+     */
+    @JsonProperty("type")
+    String type();
 
     /** A content part carrying plain text and optional metadata. */
     record TextPart(String text, Map<String, Object> metadata) implements Part {
         public TextPart(String text) {
             this(text, Map.of());
+        }
+
+        @Override
+        public String type() {
+            return "text";
         }
     }
 
@@ -46,6 +64,11 @@ public sealed interface Part {
         public FilePart(String name, String mimeType, String uri) {
             this(name, mimeType, uri, null, Map.of());
         }
+
+        @Override
+        public String type() {
+            return "file";
+        }
     }
 
     /** A content part carrying arbitrary structured data as a key-value map. */
@@ -53,6 +76,11 @@ public sealed interface Part {
         public DataPart {
             data = data != null ? Map.copyOf(data) : Map.of();
             metadata = metadata != null ? Map.copyOf(metadata) : Map.of();
+        }
+
+        @Override
+        public String type() {
+            return "data";
         }
     }
 }
