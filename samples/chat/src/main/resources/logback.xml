@@ -14,8 +14,7 @@
     <!--<logger name="org.atmosphere.cpr.AsyncSupportListenerAdapter" level="INFO"/>-->
 
 
-    <root>
-        <level value="INFO"/>
+    <root level="INFO">
         <appender-ref ref="STDOUT"/>
     </root>
 
