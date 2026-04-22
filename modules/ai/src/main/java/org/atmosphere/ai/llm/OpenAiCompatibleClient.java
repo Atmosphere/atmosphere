@@ -328,7 +328,10 @@ public class OpenAiCompatibleClient implements LlmClient {
                 var toolName = acc.functionName();
                 var args = ToolBridgeUtils.parseJsonArgs(acc.arguments());
 
-                session.emit(new AiEvent.ToolStart(toolName, args));
+                // ToolStart is emitted by ToolExecutionHelper.executeWithApproval
+                // at the shared execution seam so every runtime bridge (LC4j,
+                // Spring AI, ADK, SK, BuiltIn) surfaces identical tool frames
+                // (Correctness Invariant #7, Mode Parity).
                 org.atmosphere.ai.AgentLifecycleListener.fireToolCall(
                         request.listeners(), toolName, args);
 
@@ -336,7 +339,9 @@ public class OpenAiCompatibleClient implements LlmClient {
                 if (tool == null) {
                     logger.warn("Tool not found: {}", toolName);
                     var errorResult = "{\"error\":\"Tool not found: " + toolName + "\"}";
+                    session.emit(new AiEvent.ToolStart(toolName, args));
                     session.emit(new AiEvent.ToolError(toolName, "Tool not found"));
+                    session.emit(new AiEvent.ToolResult(toolName, errorResult));
                     org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
                             request.listeners(), toolName, errorResult);
                     updatedMessages.add(ChatMessage.tool(errorResult, acc.id(), toolName));
@@ -356,7 +361,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                 var resultStr = ToolExecutionHelper.executeWithApproval(
                         toolName, tool, args, session, request.approvalStrategy(),
                         request.approvalPolicy(), toolInjectables);
-                session.emit(new AiEvent.ToolResult(toolName, resultStr));
+                // ToolResult is emitted inside executeWithApproval.
                 org.atmosphere.ai.AgentLifecycleListener.fireToolResult(
                         request.listeners(), toolName, resultStr);
                 updatedMessages.add(ChatMessage.tool(resultStr, acc.id(), toolName));

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.tool;
 
+import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.approval.ApprovalRegistry;
 import org.atmosphere.ai.approval.ApprovalStrategy;
@@ -187,6 +188,17 @@ public final class ToolExecutionHelper {
         var effectivePolicy = policy != null ? policy : ToolApprovalPolicy.annotated();
         var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
 
+        // Emit a single ToolStart frame at the shared execution seam so all
+        // runtime bridges (LC4j, Spring AI, ADK, SK) surface tool activity to
+        // the client uniformly. OpenAiCompatibleClient used to emit its own
+        // ToolStart before delegating here — that duplicate was removed in
+        // favor of this centralized frame (Correctness Invariant #7, Mode
+        // Parity). ToolResult is emitted by {@link #finishAndEmit} on every
+        // terminal path.
+        if (session != null) {
+            session.emit(new AiEvent.ToolStart(toolName, args));
+        }
+
         // Outer gate: the session's PermissionMode (from AgentIdentity, if
         // present in the injectables map) is the per-user authorization
         // override. The mode shadows per-tool @RequiresApproval — an explicit
@@ -199,11 +211,13 @@ public final class ToolExecutionHelper {
         switch (permissionMode) {
             case DENY_ALL -> {
                 logger.info("Tool {} blocked by AgentIdentity PermissionMode.DENY_ALL", toolName);
-                return "{\"status\":\"cancelled\",\"message\":\"Tool execution denied by PermissionMode.DENY_ALL\"}";
+                return finishAndEmit(toolName, session,
+                        "{\"status\":\"cancelled\",\"message\":\"Tool execution denied by PermissionMode.DENY_ALL\"}");
             }
             case BYPASS -> {
                 // Auto-approve every tool. Explicit opt-in only.
-                return executeAndFormat(toolName, tool.executor(), args, scope);
+                return finishAndEmit(toolName, session,
+                        executeAndFormat(toolName, tool.executor(), args, scope));
             }
             case PLAN -> {
                 // Force approval on every tool regardless of tool-local
@@ -220,7 +234,8 @@ public final class ToolExecutionHelper {
 
         // Fast-path: nothing requires approval — execute directly.
         if (!forceApproval && !effectivePolicy.requiresApproval(tool)) {
-            return executeAndFormat(toolName, tool.executor(), args, scope);
+            return finishAndEmit(toolName, session,
+                    executeAndFormat(toolName, tool.executor(), args, scope));
         }
         // DenyAll is evaluated BEFORE the strategy-null fall-through so that
         // a null strategy cannot bypass a deny-by-policy decision. Previously
@@ -230,7 +245,8 @@ public final class ToolExecutionHelper {
         // violation.
         if (effectivePolicy instanceof ToolApprovalPolicy.DenyAll) {
             logger.info("Tool {} blocked by DenyAll policy", toolName);
-            return "{\"status\":\"cancelled\",\"message\":\"Tool execution denied by policy\"}";
+            return finishAndEmit(toolName, session,
+                    "{\"status\":\"cancelled\",\"message\":\"Tool execution denied by policy\"}");
         }
         // Fail-closed when a tool needs approval but no strategy is available.
         // The prior behaviour was fail-open (execute unguarded), which let
@@ -243,8 +259,9 @@ public final class ToolExecutionHelper {
             logger.warn("Tool {} requires approval but no ApprovalStrategy is wired — "
                     + "failing closed. Wire an ApprovalStrategy on the pipeline/session "
                     + "to honor @RequiresApproval tools.", toolName);
-            return "{\"status\":\"cancelled\",\"message\":\"Tool requires approval but no "
-                    + "ApprovalStrategy is configured on this execution path\"}";
+            return finishAndEmit(toolName, session,
+                    "{\"status\":\"cancelled\",\"message\":\"Tool requires approval but no "
+                    + "ApprovalStrategy is configured on this execution path\"}");
         }
 
         var timeout = tool.approvalTimeout() > 0 ? tool.approvalTimeout() : 300;
@@ -258,7 +275,7 @@ public final class ToolExecutionHelper {
         );
 
         var outcome = strategy.awaitApproval(approval, session);
-        return switch (outcome) {
+        return finishAndEmit(toolName, session, switch (outcome) {
             case APPROVED -> {
                 logger.info("Tool {} approved, executing", toolName);
                 yield executeAndFormat(toolName, tool.executor(), args, scope);
@@ -271,7 +288,14 @@ public final class ToolExecutionHelper {
                 logger.info("Tool {} approval timed out", toolName);
                 yield "{\"status\":\"timeout\",\"message\":\"Approval timed out\"}";
             }
-        };
+        });
+    }
+
+    private static String finishAndEmit(String toolName, StreamingSession session, String result) {
+        if (session != null) {
+            session.emit(new AiEvent.ToolResult(toolName, result));
+        }
+        return result;
     }
 
     /**
