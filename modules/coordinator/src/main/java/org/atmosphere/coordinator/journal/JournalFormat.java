@@ -92,6 +92,11 @@ public interface JournalFormat {
                     case CoordinationEvent.CircuitStateChanged e ->
                             row(sb, "CIRCUIT", e.agentName(),
                                     e.fromState() + " -> " + e.toState(), "\u2014");
+                    case CoordinationEvent.CommitmentRecorded e ->
+                            row(sb, "COMMIT", e.record().subject(),
+                                    e.record().outcome() + " (" + e.record().proof().scheme()
+                                            + " keyId=" + e.record().proof().keyId() + ")",
+                                    "\u2014");
                 }
             }
             return sb.toString();

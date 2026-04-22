@@ -193,6 +193,15 @@ public final class CoordinatorController {
                 info.put("fromState", e.fromState());
                 info.put("toState", e.toState());
             }
+            case CoordinationEvent.CommitmentRecorded e -> {
+                info.put("subject", e.record().subject());
+                info.put("issuer", e.record().issuer());
+                info.put("outcome", e.record().outcome());
+                info.put("scope", e.record().scope());
+                info.put("signatureScheme", e.record().proof().scheme());
+                info.put("signatureKeyId", e.record().proof().keyId());
+                info.put("signed", e.record().isSigned());
+            }
         }
         return info;
     }

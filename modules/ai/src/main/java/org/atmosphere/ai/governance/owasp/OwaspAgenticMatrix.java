@@ -129,14 +129,34 @@ public final class OwaspAgenticMatrix {
 
             new Row("A03", "Memory Poisoning",
                     "Adversary writes malicious content into long-term memory or RAG store.",
-                    Coverage.DESIGN,
+                    Coverage.PARTIAL,
                     List.of(
+                            new Evidence("org.atmosphere.coordinator.commitment.CommitmentRecord",
+                                    "org.atmosphere.coordinator.commitment.CommitmentRecordTest",
+                                    "CommitmentRecord",
+                                    "Ed25519-signed dispatch records — verifiable audit trail for "
+                                            + "any memory mutation that rides through the coordinator "
+                                            + "(Phase B1 primitive, @Experimental, flag-off default)"),
+                            new Evidence("org.atmosphere.coordinator.commitment.Ed25519CommitmentSigner",
+                                    "org.atmosphere.coordinator.commitment.CommitmentRecordTest",
+                                    "Ed25519CommitmentSigner",
+                                    "JDK 21 built-in EdDSA signer — no external crypto dep"),
+                            new Evidence("org.atmosphere.ai.governance.rag.SafetyContextProvider",
+                                    "org.atmosphere.ai.governance.rag.SafetyContextProviderTest",
+                                    "SafetyContextProvider",
+                                    "Filters injected documents from RAG retrieval — prevents "
+                                            + "poisoned RAG corpora from reaching the prompt (A04 overlap)"),
                             new Evidence("org.atmosphere.ai.AiConversationMemory",
                                     "",
                                     "AiConversationMemory",
-                                    "Conversation memory primitive exists; integrity signing not yet shipped")),
-                    "DESIGN: the memory SPI exists but has no integrity-check layer. "
-                            + "Phase B1 (commitment records, Ed25519 signatures on AgentState) closes this row."),
+                                    "Conversation memory primitive; integrity signing on AgentState "
+                                            + "snapshots queued as v5 Tier 3.2")),
+                    "PARTIAL — Phase B1 ships verifiable dispatch commitment records "
+                            + "(Ed25519-signed, flag-off default); RAG-store poisoning is countered "
+                            + "by the SafetyContextProvider injection classifier. Row moves to "
+                            + "COVERED once v5 Tier 3.2 (Ed25519 signatures on AgentState memory "
+                            + "snapshots) lands — that's the row-closer for long-term memory "
+                            + "integrity specifically."),
 
             new Row("A04", "Indirect Prompt Injection",
                     "Attacker plants instructions in RAG docs / tool outputs / web content the agent ingests.",

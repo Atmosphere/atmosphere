@@ -15,6 +15,8 @@
  */
 package org.atmosphere.coordinator.journal;
 
+import org.atmosphere.coordinator.commitment.CommitmentRecord;
+import org.atmosphere.coordinator.commitment.CommitmentSigner;
 import org.atmosphere.coordinator.evaluation.Evaluation;
 import org.atmosphere.coordinator.fleet.AgentActivity;
 import org.atmosphere.coordinator.fleet.AgentActivityListener;
@@ -55,6 +57,17 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
     // Single-threaded: serialize eval calls to avoid rate-limiting LLM APIs
     private final ExecutorService evalExecutor;
     private final boolean ownsExecutor;
+    /**
+     * Phase B1 — optional commitment-record signer. When non-null and
+     * non-UNSIGNED, every dispatch emits a signed {@link CommitmentRecord}
+     * alongside the existing {@code AgentDispatched} event. Flag-off
+     * default (null) so existing coordinators don't pay the signing cost
+     * unless operators opt in.
+     * <b>@Experimental</b> — shape may migrate by 2026-Q4.
+     */
+    private volatile CommitmentSigner commitmentSigner;
+    /** Optional principal identifier stamped onto every emitted record. */
+    private volatile String principal;
 
     public JournalingAgentFleet(AgentFleet delegate, CoordinationJournal journal,
                                 String coordinatorName) {
@@ -72,6 +85,30 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
         this.coordinatorName = coordinatorName;
         this.evalExecutor = evalExecutor;
         this.ownsExecutor = ownsExecutor;
+    }
+
+    /**
+     * Install a {@link CommitmentSigner} so every cross-agent dispatch
+     * emits a signed {@link CommitmentRecord}. Pass {@code null} or
+     * {@link CommitmentSigner#UNSIGNED} to disable. Flag-off default;
+     * operators enable this for deployments that need verifiable audit
+     * trails (financial, medical, legal-adjacent coordinators).
+     *
+     * @apiNote Experimental — Phase B1 primitive, migration possible by 2026-Q4.
+     */
+    public JournalingAgentFleet signer(CommitmentSigner signer) {
+        this.commitmentSigner = signer;
+        return this;
+    }
+
+    /**
+     * Set the principal identifier stamped onto {@link CommitmentRecord#principal()}.
+     * Operators typically wire the authenticated user/service principal
+     * resolved by their auth stack.
+     */
+    public JournalingAgentFleet principal(String principal) {
+        this.principal = principal;
+        return this;
     }
 
     /**
@@ -116,6 +153,7 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
             journal.record(new CoordinationEvent.AgentDispatched(
                     coordId, agentCall.agentName(), agentCall.skill(),
                     agentCall.args(), Instant.now()));
+            emitCommitmentRecord(coordId, agentCall, "started");
         }
 
         var results = delegate.parallel(calls);
@@ -155,6 +193,7 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
             journal.record(new CoordinationEvent.AgentDispatched(
                     coordId, agentCall.agentName(), agentCall.skill(),
                     args, Instant.now()));
+            emitCommitmentRecord(coordId, agentCall, "started");
 
             var proxy = delegate.agent(agentCall.agentName());
             last = proxy.call(agentCall.skill(), args);
@@ -228,6 +267,49 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
         return coordinatorName != null && !coordinatorName.isEmpty()
                 ? coordinatorName
                 : UUID.randomUUID().toString();
+    }
+
+    /**
+     * Build + sign + emit a {@link CommitmentRecord} for one dispatch.
+     * No-op when {@link #commitmentSigner} is null or UNSIGNED. The record
+     * is signed synchronously — typical Ed25519 sign is ~sub-millisecond so
+     * the admission hot path is unaffected. Operators swapping in an
+     * HSM-backed signer with higher latency should wrap via a custom
+     * async {@link CommitmentSigner}.
+     */
+    private void emitCommitmentRecord(String coordId, AgentCall call, String outcome) {
+        var signer = commitmentSigner;
+        if (signer == null || signer == CommitmentSigner.UNSIGNED) {
+            return;
+        }
+        try {
+            var unsigned = new CommitmentRecord(
+                    UUID.randomUUID().toString(),
+                    coordId,
+                    "coordinator:" + coordinatorName,
+                    principal,
+                    call.agentName(),
+                    call.skill(),
+                    List.of(),
+                    Instant.now(),
+                    null,
+                    outcome,
+                    call.args(),
+                    null);
+            var proof = signer.sign(unsigned);
+            var signed = new CommitmentRecord(
+                    unsigned.id(), unsigned.coordinationId(),
+                    unsigned.issuer(), unsigned.principal(), unsigned.subject(),
+                    unsigned.scope(), unsigned.delegationChain(),
+                    unsigned.issuedAt(), unsigned.expiresAt(), unsigned.outcome(),
+                    unsigned.properties(), proof);
+            journal.record(new CoordinationEvent.CommitmentRecorded(
+                    coordId, signed, Instant.now()));
+        } catch (RuntimeException e) {
+            logger.warn("Commitment-record emission failed for dispatch {}/{}: {} — "
+                    + "skipping (signing is best-effort, does not block dispatch)",
+                    call.agentName(), call.skill(), e.toString());
+        }
     }
 
     private void recordResult(String coordId, AgentResult result) {
