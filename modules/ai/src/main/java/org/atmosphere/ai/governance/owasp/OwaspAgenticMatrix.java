@@ -140,8 +140,18 @@ public final class OwaspAgenticMatrix {
 
             new Row("A04", "Indirect Prompt Injection",
                     "Attacker plants instructions in RAG docs / tool outputs / web content the agent ingests.",
-                    Coverage.PARTIAL,
+                    Coverage.COVERED,
                     List.of(
+                            new Evidence("org.atmosphere.ai.governance.rag.InjectionClassifier",
+                                    "org.atmosphere.ai.governance.rag.RuleBasedInjectionClassifierTest",
+                                    "InjectionClassifier",
+                                    "Three-tier classifier SPI (rule-based / embedding-similarity / "
+                                            + "LLM-classifier) cross-provider via EmbeddingRuntime + AgentRuntime"),
+                            new Evidence("org.atmosphere.ai.governance.rag.SafetyContextProvider",
+                                    "org.atmosphere.ai.governance.rag.SafetyContextProviderTest",
+                                    "SafetyContextProvider",
+                                    "Decorator wraps any ContextProvider, drops / flags / sanitizes "
+                                            + "flagged docs, records to GovernanceDecisionLog"),
                             new Evidence("org.atmosphere.ai.guardrails.PiiRedactionGuardrail",
                                     "org.atmosphere.ai.guardrails.GuardrailsTest",
                                     "PiiRedactionGuardrail",
@@ -150,9 +160,12 @@ public final class OwaspAgenticMatrix {
                                     "org.atmosphere.ai.AiPipelineScopeHardeningTest",
                                     "ScopePolicy",
                                     "Scope-confinement preamble blunts injected instructions")),
-                    "PARTIAL — no RAG-document content-scanner ships in-tree. Operators who use "
-                            + "atmosphere-rag wire a FactResolver sanitizer today; a canonical "
-                            + "content-injection classifier is future work."),
+                    "COVERED via three-tier InjectionClassifier SPI + SafetyContextProvider decorator. "
+                            + "Default rule-based tier requires no runtime; embedding-similarity tier "
+                            + "leverages any installed EmbeddingRuntime (5 adapters); LLM-classifier "
+                            + "tier uses any AgentRuntime (7 adapters). Every flagged document is "
+                            + "audited through GovernanceDecisionLog and honours drop / flag / "
+                            + "sanitize breach policies."),
 
             new Row("A05", "Cascading Failures / Runaway Agent Loops",
                     "Multi-agent loop spirals out of control; one agent's failure triggers another.",
