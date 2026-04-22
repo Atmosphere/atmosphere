@@ -83,6 +83,50 @@ public class AtmosphereAiAutoConfiguration {
         return settings;
     }
 
+    /**
+     * Servlet filter that redirects {@code GET /} →
+     * {@code /atmosphere/console/} so sample apps that don't ship their own
+     * root page don't land on Spring's Whitelabel 404. Only fires when the
+     * request URI is exactly {@code /} — static resources such as a sample's
+     * own {@code src/main/resources/static/index.html} are served by the
+     * dispatcher before this filter sees them (ORDER + chain.doFilter()
+     * order leaves samples with a bundled root untouched).
+     *
+     * <p>Opt out via {@code atmosphere.ai.console.root-redirect=false}.</p>
+     *
+     * <p>Implemented as a plain {@link jakarta.servlet.Filter} rather than a
+     * {@code WebMvcConfigurer} so the starter keeps its compile classpath
+     * narrow (no compile-time dependency on {@code spring-webmvc}).</p>
+     */
+    @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+            name = "atmosphere.ai.console.root-redirect", matchIfMissing = true)
+    public org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter>
+            atmosphereConsoleRootRedirect() {
+        // Cache the presence check once — the classpath does not change at runtime.
+        // Samples that ship their own root UI (classroom, multi-agent) drop an
+        // index.html into src/main/resources/static/ and opt out automatically.
+        final boolean hasBundledRoot =
+                AtmosphereAiAutoConfiguration.class.getResource("/static/index.html") != null;
+
+        jakarta.servlet.Filter filter = (req, res, chain) -> {
+            if (!hasBundledRoot
+                    && req instanceof jakarta.servlet.http.HttpServletRequest httpReq
+                    && res instanceof jakarta.servlet.http.HttpServletResponse httpRes
+                    && "GET".equalsIgnoreCase(httpReq.getMethod())
+                    && "/".equals(httpReq.getRequestURI())) {
+                httpRes.sendRedirect("/atmosphere/console/");
+                return;
+            }
+            chain.doFilter(req, res);
+        };
+        var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(filter);
+        registration.addUrlPatterns("/*");
+        registration.setName("atmosphereConsoleRootRedirect");
+        registration.setOrder(org.springframework.core.Ordered.HIGHEST_PRECEDENCE);
+        return registration;
+    }
+
     private String resolveMode(AtmosphereProperties.AiProperties aiProps) {
         if (aiProps.getMode() != null && !aiProps.getMode().isBlank()) {
             return aiProps.getMode();
