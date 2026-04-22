@@ -129,8 +129,14 @@ public final class OwaspAgenticMatrix {
 
             new Row("A03", "Memory Poisoning",
                     "Adversary writes malicious content into long-term memory or RAG store.",
-                    Coverage.PARTIAL,
+                    Coverage.COVERED,
                     List.of(
+                            new Evidence("org.atmosphere.coordinator.commitment.AgentStateIntegrity",
+                                    "org.atmosphere.coordinator.commitment.AgentStateIntegrityTest",
+                                    "AgentStateIntegrity",
+                                    "Ed25519 seal/verify utility for AgentState memory snapshots. "
+                                            + "Domain-separated payload binds content to its memory "
+                                            + "slot so cross-slot replay fails (v5 Tier 3.2)"),
                             new Evidence("org.atmosphere.coordinator.commitment.CommitmentRecord",
                                     "org.atmosphere.coordinator.commitment.CommitmentRecordTest",
                                     "CommitmentRecord",
@@ -140,23 +146,20 @@ public final class OwaspAgenticMatrix {
                             new Evidence("org.atmosphere.coordinator.commitment.Ed25519CommitmentSigner",
                                     "org.atmosphere.coordinator.commitment.CommitmentRecordTest",
                                     "Ed25519CommitmentSigner",
-                                    "JDK 21 built-in EdDSA signer — no external crypto dep"),
+                                    "JDK 21 built-in EdDSA signer — no external crypto dep; "
+                                            + "shared with the AgentStateIntegrity seal format"),
                             new Evidence("org.atmosphere.ai.governance.rag.SafetyContextProvider",
                                     "org.atmosphere.ai.governance.rag.SafetyContextProviderTest",
                                     "SafetyContextProvider",
                                     "Filters injected documents from RAG retrieval — prevents "
-                                            + "poisoned RAG corpora from reaching the prompt (A04 overlap)"),
-                            new Evidence("org.atmosphere.ai.AiConversationMemory",
-                                    "",
-                                    "AiConversationMemory",
-                                    "Conversation memory primitive; integrity signing on AgentState "
-                                            + "snapshots queued as v5 Tier 3.2")),
-                    "PARTIAL — Phase B1 ships verifiable dispatch commitment records "
-                            + "(Ed25519-signed, flag-off default); RAG-store poisoning is countered "
-                            + "by the SafetyContextProvider injection classifier. Row moves to "
-                            + "COVERED once v5 Tier 3.2 (Ed25519 signatures on AgentState memory "
-                            + "snapshots) lands — that's the row-closer for long-term memory "
-                            + "integrity specifically."),
+                                            + "poisoned RAG corpora from reaching the prompt (A04 overlap)")),
+                    "COVERED via two layers: AgentStateIntegrity seals long-term memory snapshots "
+                            + "with domain-separated Ed25519 signatures, and SafetyContextProvider "
+                            + "filters injected content out of the RAG retrieval path. The "
+                            + "coordinator's CommitmentRecord provides the audit trail for any "
+                            + "memory mutation that rides through dispatch. All three are flag-off "
+                            + "by default; operators opt in for deployments that require "
+                            + "tamper-evident memory."),
 
             new Row("A04", "Indirect Prompt Injection",
                     "Attacker plants instructions in RAG docs / tool outputs / web content the agent ingests.",
