@@ -591,9 +591,6 @@ public final class McpProtocolHandler {
     }
 
     /**
-     * Bind JSON arguments to a Map for dynamic (lambda-based) handlers.
-     */
-    /**
      * Flatten the incoming arguments JSON to a {@code Map<String, Object>}
      * suitable for audit preview via {@link McpPolicyGateway#admit}. Values
      * are coerced to primitives / strings; this is a best-effort snapshot,
@@ -611,6 +608,9 @@ public final class McpProtocolHandler {
         return map;
     }
 
+    /**
+     * Bind JSON arguments to a Map for dynamic (lambda-based) handlers.
+     */
     private Map<String, Object> bindArgumentsAsMap(List<McpRegistry.ParamEntry> paramEntries,
                                                    JsonNode arguments) {
         var map = new LinkedHashMap<String, Object>();
