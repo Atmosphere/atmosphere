@@ -124,10 +124,13 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Admin control plane: available on every Spring Boot sample at
+             /atmosphere/admin/. Pulled in non-optionally so users don't have
+             to opt each sample in; consumers that specifically want a lean
+             bundle can <exclude> this dependency. -->
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-admin</artifactId>
-            <optional>true</optional>
         </dependency>
 
         <dependency>
