@@ -29,6 +29,74 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
   let currentAssistantMessage: ChatMessage | null = null
   let toolCallCounter = 0
   let reactivityTimer: ReturnType<typeof setTimeout> | null = null
+  let reconnectAttempts = 0
+  const MAX_RECONNECT_ON_CLOSE = 10
+
+  /**
+   * Turn whatever shape the server emits for an error into a compact
+   * {message, status?, retryDelay?} card. Handles:
+   *  - plain string (legacy)
+   *  - {message: "..."} (LC4j / Spring AI / Built-in)
+   *  - stringified JSON arrays from the OpenAI-compat layer, e.g.
+   *    `[{"error":{"code":429,"message":"quota...","status":"RESOURCE_EXHAUSTED",
+   *       "details":[{"@type":".../RetryInfo","retryDelay":"5s"}, ...]}}]`
+   *    (this is the Gemini 429 case — the whole envelope used to render raw).
+   */
+  function extractErrorShape(raw: unknown): {
+    message: string
+    status?: string
+    retryDelay?: string
+  } {
+    // Unwrap one or two levels of JSON-in-string — the pipeline sometimes
+    // double-stringifies the upstream error.
+    let data: unknown = raw
+    for (let i = 0; i < 2 && typeof data === 'string'; i++) {
+      const trimmed = data.trim()
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try { data = JSON.parse(trimmed) } catch { break }
+      } else {
+        break
+      }
+    }
+
+    // Flatten single-element arrays
+    if (Array.isArray(data) && data.length === 1) {
+      data = data[0]
+    }
+
+    // Plain string after unwrap
+    if (typeof data === 'string') {
+      return { message: data }
+    }
+    if (data == null || typeof data !== 'object') {
+      return { message: 'Unknown error' }
+    }
+
+    // {error: {message, status, details: [...]}}
+    const obj = data as Record<string, unknown>
+    const errNode = (obj.error ?? obj) as Record<string, unknown>
+    const message = (errNode.message as string)
+      ?? (obj.message as string)
+      ?? 'Unknown error'
+    const status = errNode.status as string | undefined
+
+    // Walk details for google.rpc.RetryInfo
+    let retryDelay: string | undefined
+    const details = errNode.details as unknown
+    if (Array.isArray(details)) {
+      for (const d of details) {
+        if (d && typeof d === 'object') {
+          const dr = d as Record<string, unknown>
+          if (typeof dr.retryDelay === 'string') {
+            retryDelay = dr.retryDelay as string
+            break
+          }
+        }
+      }
+    }
+
+    return { message, status, retryDelay }
+  }
 
   function parseStreamingMessage(body: string) {
     // Messages arrive as JSON objects, possibly length-prefixed by TrackMessageSizeInterceptor.
@@ -81,15 +149,15 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
         finalizeAssistant()
         break
       case 'error': {
-        const errData = msg.data
-        const errMsg = typeof errData === 'string'
-          ? errData
-          : typeof errData === 'object' && errData !== null
-            ? (errData as Record<string, unknown>).message as string
-              || (errData as Record<string, unknown>).data as string
-              || JSON.stringify(errData)
-            : 'Unknown error'
-        appendToAssistant(`\n\n**Error:** ${errMsg}`)
+        const { message, retryDelay, status } = extractErrorShape(msg.data)
+        let rendered = `\n\n**Error:** ${message}`
+        if (status) {
+          rendered += `\n\n*${status}*`
+        }
+        if (retryDelay) {
+          rendered += `  •  retry in ${retryDelay}`
+        }
+        appendToAssistant(rendered)
         finalizeAssistant()
         break
       }
@@ -235,7 +303,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
         fallbackTransport: 'long-polling',
         reconnect: true,
         reconnectInterval: 3000,
-        maxReconnectOnClose: 10,
+        maxReconnectOnClose: MAX_RECONNECT_ON_CLOSE,
         trackMessageLength: true,
         enableProtocol: true,
       },
@@ -243,6 +311,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
         open: () => {
           isConnected.value = true
           connectionState.value = 'connected'
+          reconnectAttempts = 0
         },
         close: () => {
           isConnected.value = false
@@ -258,11 +327,18 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
           connectionState.value = 'error'
         },
         reconnect: () => {
-          connectionState.value = 'reconnecting'
+          reconnectAttempts += 1
+          // Stop advertising "reconnecting" after the client has exhausted
+          // its quota of retries — atmosphere.js will silently give up at
+          // that point, so surface the terminal state explicitly.
+          connectionState.value = reconnectAttempts >= MAX_RECONNECT_ON_CLOSE
+            ? 'disconnected'
+            : 'reconnecting'
         },
         reopen: () => {
           isConnected.value = true
           connectionState.value = 'connected'
+          reconnectAttempts = 0
         },
       }
     )
