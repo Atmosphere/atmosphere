@@ -9,12 +9,20 @@ export interface ChatMessage {
   timestamp: number
 }
 
+export interface PendingApproval {
+  approvalId: string
+  message: string
+  expiresIn: number
+  requestedAt: number
+}
+
 export interface ToolCall {
   id: string
   name: string
   args: Record<string, unknown>
   result?: string
   done: boolean
+  approval?: PendingApproval
 }
 
 export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
@@ -191,6 +199,37 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
         }
         break
       }
+      case 'approval-required': {
+        const data = msg.data as Record<string, unknown> | undefined
+        if (!data) break
+        const approvalId = data.approvalId as string
+        const toolName = (data.toolName as string) ?? ''
+        const args = (data.arguments as Record<string, unknown>) ?? {}
+        const message = (data.message as string) ?? `Approve running ${toolName}?`
+        const expiresIn = (data.expiresIn as number) ?? 300
+        if (!approvalId) break
+        const approval: PendingApproval = {
+          approvalId,
+          message,
+          expiresIn,
+          requestedAt: Date.now(),
+        }
+        // Attach to the most recent unfinished tool call with the same name
+        // (tool-start arrives before approval-required in the BuiltIn runtime
+        // path). Fall back to creating a new card so framework runtimes that
+        // skip tool-start still surface an approve/deny prompt.
+        const existing = [...toolCalls.value].reverse().find(t => t.name === toolName && !t.done && !t.approval)
+        if (existing) {
+          existing.approval = approval
+          toolCalls.value = [...toolCalls.value]
+        } else {
+          const id = `${++toolCallCounter}-${toolName || 'approval'}`
+          toolCalls.value = [...toolCalls.value, {
+            id, name: toolName || 'approval', args, done: false, approval,
+          }]
+        }
+        break
+      }
       case 'entity-start':
         // Structured output starting — suppress raw JSON text
         break
@@ -360,6 +399,18 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
     subscription.push(text.trim())
   }
 
+  function respondToApproval(approvalId: string, approved: boolean) {
+    if (!subscription || !approvalId) return
+    // Clear approval state locally so the UI collapses the buttons
+    // immediately — the server will follow up with tool-result.
+    const tc = toolCalls.value.find(t => t.approval?.approvalId === approvalId)
+    if (tc) {
+      tc.approval = undefined
+      toolCalls.value = [...toolCalls.value]
+    }
+    subscription.push(`/__approval/${approvalId}/${approved ? 'approve' : 'deny'}`)
+  }
+
   function clearMessages() {
     messages.value = []
     toolCalls.value = []
@@ -384,5 +435,6 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
     connectionState,
     send,
     clearMessages,
+    respondToApproval,
   }
 }

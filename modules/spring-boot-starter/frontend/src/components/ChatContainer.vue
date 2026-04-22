@@ -10,7 +10,7 @@ const props = defineProps<{
   endpoint?: string
 }>()
 
-const { messages, toolCalls, isConnected, isStreaming, connectionState, send, clearMessages } = useAtmosphereChat(props.endpoint)
+const { messages, toolCalls, isConnected, isStreaming, connectionState, send, clearMessages, respondToApproval } = useAtmosphereChat(props.endpoint)
 const messagesContainer = ref<HTMLElement | null>(null)
 
 function scrollToBottom() {
@@ -54,7 +54,13 @@ function handleSend(text: string) {
         <!-- Show tool cards after user message, before assistant response -->
         <div v-if="msg.role === 'user' && toolCalls.length > 0 && (idx === messages.length - 1 || messages[idx + 1]?.role === 'assistant')" class="tool-section" data-testid="tool-activity">
           <div class="tool-section-label">Agent Collaboration</div>
-          <ToolCard v-for="tc in toolCalls" :key="tc.id" :tool="tc" />
+          <ToolCard
+            v-for="tc in toolCalls"
+            :key="tc.id"
+            :tool="tc"
+            @approve="respondToApproval($event, true)"
+            @deny="respondToApproval($event, false)"
+          />
         </div>
       </template>
       <div v-if="isStreaming" class="streaming-indicator">
