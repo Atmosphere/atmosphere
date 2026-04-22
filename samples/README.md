@@ -116,6 +116,15 @@ cd embedded-jetty-websocket-chat && mvn clean install && mvn -Pserver
 
 Most samples run on **http://localhost:8080**. A few AI samples use different ports so they can run simultaneously (for example `spring-boot-mcp-server` on 8083, `spring-boot-a2a-agent` on 8084, `spring-boot-agui-chat` on 8085, `spring-boot-ai-tools` on 8090). Check each sample's `application.yml` / `application.properties` for the exact port.
 
+### Picking an LLM provider
+
+- **Gemini (free tier).** Fast to set up, but the free tier caps at roughly **20 requests/day** across all models. A single multi-agent sample (e.g. `spring-boot-multi-agent-startup-team`) can burn 5+ requests per turn, so expect `429 RESOURCE_EXHAUSTED` after a handful of prompts. Fine for a one-off demo, not for iterating on tool-heavy or coordinator samples.
+- **OpenAI / Anthropic (paid).** Practical for local development — higher per-minute limits, no daily cap. Point `LLM_BASE_URL` / `LLM_API_KEY` at the provider and you are done.
+- **Ollama (local).** Zero quota, no network required. Start `ollama serve`, then `export LLM_BASE_URL=http://localhost:11434/v1 LLM_MODEL=llama3.2` and every sample will hit the local model.
+- **[`dravr-embacle`](https://github.com/dravrtx/dravr-embacle).** OpenAI-compatible proxy in front of the Claude Code CLI / GitHub Copilot CLI — useful when you want quota-free local testing without running Ollama.
+
+Samples fall back to `DemoAgentRuntime` (canned responses through the real pipeline) when no LLM is configured, so the UI still demos even without a key.
+
 ## The Same Handler Everywhere
 
 The core `Chat.java` handler is nearly identical across all chat samples:
