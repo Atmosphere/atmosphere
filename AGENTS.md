@@ -277,15 +277,33 @@ Before committing, verify these for every changed file:
 **Do NOT commit or push if the build produces warnings.** Treat compiler warnings, deprecation warnings, and static analysis warnings as errors. Fix them before committing. The compiler runs with `-Xlint:all,-processing,-serial` and Checkstyle enforces `UnusedImports`/`RedundantImport` — both will catch common issues.
 
 ### Before Pushing
-The pre-push hook blocks `git push` unless you run the validation script first:
+The pre-push hook blocks `git push` unless you run the validation script first. The script is **diff-aware**: it classifies the changeset against `origin/main` and only builds the reactor modules that are actually affected.
+
 ```bash
-# Full build + tests (recommended)
+# Incremental build (default) — only affected modules + their -am closure
 ./scripts/pre-push-validate.sh
 
-# Compile only (faster iteration)
-./scripts/pre-push-validate.sh --fast
+# Force a full reactor build (same as the old behavior)
+./scripts/pre-push-validate.sh --full
+
+# Classify the diff without running Maven (useful for debugging the script)
+./scripts/pre-push-validate.sh --dry-run
+
+# Override the diff base (e.g. when working off the legacy branch)
+BASE_REF=origin/atmosphere-2.6.x ./scripts/pre-push-validate.sh
 ```
-The script stamps a marker valid for 30 minutes. The pre-push hook checks the marker is fresh and matches the current commit.
+
+The script picks one of three modes from the diff:
+
+| Mode | Trigger | Maven invocation |
+|------|---------|------------------|
+| `full` | `pom.xml` / `modules/pom.xml` / `bom/pom.xml` / `assembly/pom.xml` / `.mvn/*` / `config/*` changed, or `--full` flag | `./mvnw install -q` |
+| `none` | only `*.md`, `docs/`, `.github/`, `scripts/`, `atmosphere.js/`, `.claude/` changed | Maven skipped (architectural-validation only) |
+| `incremental` | any Java / leaf-module `pom.xml` change | main checkout: `./mvnw install -q -Dgib.disable=false -Dgib.baseBranch=refs/remotes/$BASE_REF` (routed through the Gitflow Incremental Builder extension declared in `.mvn/extensions.xml`)<br>worktree: `./mvnw install -q -pl <modules> -am` (GIB's JGit backend does not support separate worktrees, so the script falls back to manual `-pl` scoping) |
+
+The script stamps a marker in `.git/validation-passed` valid for 30 minutes. The pre-push hook checks the marker is fresh and matches the current commit.
+
+**Gotcha for worktrees**: if `git rev-parse --git-dir` differs from `git rev-parse --git-common-dir` (i.e. you're in `.claude/worktrees/*`), GIB self-disables and the script takes the manual `-pl ... -am` path. Same end result; the diagnostic banner prints `Worktree: true` so you can tell which path ran.
 
 **Always cancel previous GitHub Actions runs on the branch before pushing** to avoid runner congestion:
 ```bash
