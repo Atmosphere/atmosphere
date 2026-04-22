@@ -7,8 +7,7 @@
     </appender>
 
     <logger name="org.atmosphere" level="DEBUG"/>
-    <root>
-        <level value="INFO"/>
+    <root level="INFO">
         <appender-ref ref="STDOUT"/>
     </root>
 

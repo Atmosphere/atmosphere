@@ -48,18 +48,23 @@ public class EmbeddedJettyWebSocketChat {
         context.setContextPath("/");
 
         // Use target/webapp first (contains all dependencies), fallback to src/main/webapp,
-        // then classpath (fat JAR)
+        // then classpath (fat JAR). Bind the ResourceFactory to the server's lifecycle so
+        // the JAR mount is released on shutdown — ResourceFactory.root() is the JVM-scoped
+        // singleton and logs "Leaked Mount" at startup when we pin a jar:!/webapp/ URL to it.
+        var resourceFactory = ResourceFactory.of(server);
         Path resourceBasePath = Paths.get("target/webapp").toAbsolutePath();
+        boolean filesystemMode = false;
         if (!Files.exists(resourceBasePath)) {
             resourceBasePath = Paths.get("src/main/webapp").toAbsolutePath();
         }
         if (Files.exists(resourceBasePath)) {
-            context.setBaseResource(ResourceFactory.root().newResource(resourceBasePath.toUri()));
+            context.setBaseResource(resourceFactory.newResource(resourceBasePath.toUri()));
+            filesystemMode = true;
         } else {
             // Running from fat JAR — serve static files from classpath /webapp/
             var classpathResource = getClass().getClassLoader().getResource("webapp/");
             if (classpathResource != null) {
-                context.setBaseResource(ResourceFactory.root().newResource(classpathResource.toURI()));
+                context.setBaseResource(resourceFactory.newResource(classpathResource.toURI()));
             } else {
                 log.error("webapp directory not found on filesystem or classpath");
                 throw new IllegalStateException("No webapp directory found");
@@ -93,15 +98,16 @@ public class EmbeddedJettyWebSocketChat {
         log.info("Resource base: {}", context.getBaseResource());
         if (context.getBaseResource() != null) {
             log.info("Resource base exists: {}", context.getBaseResource().exists());
-            if (resourceBasePath != null) {
+            if (filesystemMode) {
                 Path indexPath = resourceBasePath.resolve("index.html");
-                log.info("index.html exists: {}", Files.exists(indexPath));
                 if (Files.exists(indexPath)) {
                     log.info("index.html found at {}", indexPath);
                 } else {
                     log.warn("index.html not found at {}", indexPath);
                 }
             }
+            // classpath mode serves from jar:.../webapp/; probing the filesystem path
+            // would always miss and log a misleading WARN.
         } else {
             log.info("No file system resource base configured, using classpath only");
         }
