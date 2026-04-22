@@ -18,6 +18,8 @@
         <module>cpr</module>
         <module>ai</module>
         <module>ai-test</module>
+        <module>ai-audit-kafka</module>
+        <module>ai-audit-postgres</module>
         <module>protocol-common</module>
         <module>mcp</module>
         <module>a2a</module>

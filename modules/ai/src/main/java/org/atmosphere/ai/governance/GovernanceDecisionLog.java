@@ -16,6 +16,8 @@
 package org.atmosphere.ai.governance;
 
 import org.atmosphere.ai.AiRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.ArrayDeque;
@@ -24,6 +26,7 @@ import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Thread-safe ring buffer of recent {@link AuditEntry} instances plus the
@@ -45,6 +48,8 @@ import java.util.Map;
  */
 public final class GovernanceDecisionLog {
 
+    private static final Logger logger = LoggerFactory.getLogger(GovernanceDecisionLog.class);
+
     /** Maximum length of the {@code message} field recorded in the snapshot. */
     public static final int MESSAGE_SNAPSHOT_MAX_CHARS = 200;
 
@@ -56,6 +61,12 @@ public final class GovernanceDecisionLog {
 
     private final int capacity;
     private final Deque<AuditEntry> entries;
+    // Persistent sinks fan out from record() — thread-safe list so operators
+    // can add/remove sinks while admission traffic is flowing. A failing
+    // sink is logged and skipped; the ring-buffer write always succeeds so
+    // the admin console view stays available even when Kafka / Postgres are
+    // unreachable.
+    private final CopyOnWriteArrayList<AuditSink> sinks = new CopyOnWriteArrayList<>();
 
     private GovernanceDecisionLog(int capacity) {
         if (capacity < 0) {
@@ -72,9 +83,13 @@ public final class GovernanceDecisionLog {
         return log;
     }
 
-    /** Reset to the NOOP log — intended for tests. */
+    /** Reset to the NOOP log — intended for tests. Closes all sinks on the outgoing log. */
     public static void reset() {
+        var previous = installed;
         installed = NOOP;
+        if (previous != NOOP) {
+            previous.closeAllSinks();
+        }
     }
 
     /** Current installed log; NOOP when nothing has called {@link #install(int)}. */
@@ -82,7 +97,16 @@ public final class GovernanceDecisionLog {
         return installed;
     }
 
-    /** Append an entry; no-op on the default NOOP log. */
+    /**
+     * Append an entry to the ring buffer AND fan out to registered
+     * {@link AuditSink}s. A sink throwing an exception is logged and
+     * isolated — it neither blocks the admission path nor prevents the
+     * other sinks from receiving the entry. The ring-buffer update always
+     * succeeds on an installed log so the admin console decisions view
+     * stays live even when every persistent sink is unreachable.
+     *
+     * <p>No-op on the default NOOP log (capacity 0).</p>
+     */
     public void record(AuditEntry entry) {
         if (capacity == 0 || entry == null) {
             return;
@@ -93,6 +117,51 @@ public final class GovernanceDecisionLog {
                 entries.removeFirst();
             }
         }
+        if (!sinks.isEmpty()) {
+            for (var sink : sinks) {
+                try {
+                    sink.write(entry);
+                } catch (RuntimeException e) {
+                    logger.warn("AuditSink '{}' failed for entry policy={} decision={}: {}",
+                            sink.name(), entry.policyName(), entry.decision(),
+                            e.toString());
+                }
+            }
+        }
+    }
+
+    /**
+     * Register a persistent sink. Fan-out is ordered by registration;
+     * failures in one sink do not affect others. Safe to call while
+     * admission traffic is flowing.
+     */
+    public GovernanceDecisionLog addSink(AuditSink sink) {
+        if (sink == null) {
+            throw new IllegalArgumentException("sink must not be null");
+        }
+        sinks.add(sink);
+        return this;
+    }
+
+    /** Uninstall a previously-registered sink. Returns true if the sink was present. */
+    public boolean removeSink(AuditSink sink) {
+        return sinks.remove(sink);
+    }
+
+    /** Immutable snapshot of registered sinks — for admin introspection. */
+    public List<AuditSink> sinks() {
+        return List.copyOf(sinks);
+    }
+
+    private void closeAllSinks() {
+        for (var sink : sinks) {
+            try {
+                sink.close();
+            } catch (RuntimeException e) {
+                logger.warn("AuditSink '{}' failed to close: {}", sink.name(), e.toString());
+            }
+        }
+        sinks.clear();
     }
 
     /** Snapshot of the most-recent entries, newest first, up to {@code limit}. */
