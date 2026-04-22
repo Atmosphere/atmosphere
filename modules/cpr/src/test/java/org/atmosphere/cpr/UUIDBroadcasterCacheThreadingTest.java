@@ -35,7 +35,7 @@ public class UUIDBroadcasterCacheThreadingTest {
     private final ConcurrentLinkedQueue<Object> retreivedMessages = new ConcurrentLinkedQueue<>();
 
     @Test
-    public void testUuidBroadcasterCacheThreading() {
+    public void testUuidBroadcasterCacheThreading() throws InterruptedException {
         AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
         factory.configure(DefaultBroadcaster.class, "NEVER", config);
@@ -51,6 +51,8 @@ public class UUIDBroadcasterCacheThreadingTest {
         });
         t.start();
 
+        // Drain concurrently while the producer is still running — this is
+        // the thread-safety check the test was always aiming for.
         long endTime = System.currentTimeMillis() + 15000;
         int totalRetrieved = 0;
         while (totalRetrieved < NUM_MESSAGES && System.currentTimeMillis() < endTime) {
@@ -59,6 +61,17 @@ public class UUIDBroadcasterCacheThreadingTest {
                 retreivedMessages.addAll(messages);
                 totalRetrieved += messages.size();
             }
+        }
+        // Wait for producer, then drain any trailing messages deterministically.
+        // Without this the test depended on the 15 s wall-clock for the final
+        // drain window — under parallel Maven load it would fail with ~97k/100k
+        // retrieved. Joining first, then draining once more, makes the test
+        // depend on completion, not timing.
+        t.join(30000);
+        List<Object> tail = cache.retrieveFromCache(BROADCASTER_ID, CLIENT_ID);
+        if (!tail.isEmpty()) {
+            retreivedMessages.addAll(tail);
+            totalRetrieved += tail.size();
         }
         assertEquals(NUM_MESSAGES, totalRetrieved);
     }
