@@ -17,6 +17,7 @@ package org.atmosphere.ai.governance.scope;
 
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.annotation.AgentScope;
+import org.atmosphere.ai.governance.GovernanceMetricsHolder;
 import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.governance.PolicyContext;
 import org.atmosphere.ai.governance.PolicyDecision;
@@ -128,13 +129,17 @@ public final class ScopePolicy implements GovernancePolicy {
         } catch (RuntimeException e) {
             logger.error("ScopeGuardrail {} threw during pre-admission evaluate — fail-closed",
                     guardrail.getClass().getSimpleName(), e);
+            GovernanceMetricsHolder.get().recordSimilarity(name, config.tier(), "error", Double.NaN);
             return PolicyDecision.deny("scope check failed: " + e.getMessage());
         }
-        return switch (decision.outcome()) {
+        var policyDecision = switch (decision.outcome()) {
             case IN_SCOPE -> PolicyDecision.admit();
             case ERROR -> PolicyDecision.deny("scope check errored: " + decision.reason());
             case OUT_OF_SCOPE -> breachDecision(context.request(), decision);
         };
+        GovernanceMetricsHolder.get().recordSimilarity(name, config.tier(),
+                decisionLabel(policyDecision), decision.similarity());
+        return policyDecision;
     }
 
     /**
@@ -170,9 +175,10 @@ public final class ScopePolicy implements GovernancePolicy {
         } catch (RuntimeException e) {
             logger.error("ScopeGuardrail {} threw during post-response evaluate — admitting "
                     + "(bytes already on the wire)", guardrail.getClass().getSimpleName(), e);
+            GovernanceMetricsHolder.get().recordSimilarity(name, config.tier(), "error", Double.NaN);
             return PolicyDecision.admit();
         }
-        return switch (decision.outcome()) {
+        var policyDecision = switch (decision.outcome()) {
             case IN_SCOPE, ERROR -> PolicyDecision.admit();
             case OUT_OF_SCOPE -> {
                 var reason = decision.reason().isEmpty()
@@ -182,6 +188,17 @@ public final class ScopePolicy implements GovernancePolicy {
                         name, config.tier(), decision.similarity(), reason);
                 yield PolicyDecision.deny("post-response: " + reason);
             }
+        };
+        GovernanceMetricsHolder.get().recordSimilarity(name, config.tier(),
+                decisionLabel(policyDecision), decision.similarity());
+        return policyDecision;
+    }
+
+    private static String decisionLabel(PolicyDecision decision) {
+        return switch (decision) {
+            case PolicyDecision.Admit ignored -> "admit";
+            case PolicyDecision.Deny ignored -> "deny";
+            case PolicyDecision.Transform ignored -> "transform";
         };
     }
 
