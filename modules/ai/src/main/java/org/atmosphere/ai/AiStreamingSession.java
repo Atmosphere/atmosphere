@@ -448,6 +448,81 @@ public class AiStreamingSession implements StreamingSession {
             }
         }
 
+        // Per-request ScopePolicy install — interceptors may have set a
+        // ScopeConfig under ScopePolicy.REQUEST_SCOPE_METADATA_KEY. Consume
+        // it now (mutating a copy of the metadata map) so the governance-
+        // internal key does not leak to the provider, then run pre-admission
+        // evaluate + system-prompt hardening, and append a PolicyAsGuardrail
+        // to the capturing list so the streamed response is measured against
+        // the narrowed scope when @AgentScope.postResponseCheck is enabled.
+        List<AiGuardrail> effectiveGuardrails = guardrails;
+        var mutableMeta = new java.util.HashMap<String, Object>(
+                request.metadata() != null ? request.metadata() : Map.of());
+        var requestScopePolicy =
+                org.atmosphere.ai.governance.scope.ScopePolicyInstaller.extract(mutableMeta);
+        if (requestScopePolicy != null) {
+            request = new AiRequest(request.message(), request.systemPrompt(),
+                    request.model(), request.userId(), request.sessionId(),
+                    request.agentId(), request.conversationId(),
+                    Map.copyOf(mutableMeta), request.history());
+            var ctx = org.atmosphere.ai.governance.PolicyContext.preAdmission(request);
+            var tracer = org.atmosphere.ai.governance.GovernanceTracer.start(requestScopePolicy, ctx);
+            var startNs = System.nanoTime();
+            try {
+                var decision = requestScopePolicy.evaluate(ctx);
+                var evalMs = (System.nanoTime() - startNs) / 1_000_000.0;
+                switch (decision) {
+                    case org.atmosphere.ai.governance.PolicyDecision.Deny deny -> {
+                        logger.warn("Request denied by per-request scope {}: {}",
+                                requestScopePolicy.name(), deny.reason());
+                        org.atmosphere.ai.governance.GovernanceDecisionLog.installed().record(
+                                org.atmosphere.ai.governance.GovernanceDecisionLog.entry(
+                                        requestScopePolicy, ctx, "deny", deny.reason(), evalMs));
+                        tracer.end("deny", deny.reason());
+                        delegate.error(new SecurityException("Request denied by per-request scope "
+                                + requestScopePolicy.name() + ": " + deny.reason()));
+                        return;
+                    }
+                    case org.atmosphere.ai.governance.PolicyDecision.Transform transform -> {
+                        org.atmosphere.ai.governance.GovernanceDecisionLog.installed().record(
+                                org.atmosphere.ai.governance.GovernanceDecisionLog.entry(
+                                        requestScopePolicy, ctx, "transform",
+                                        "request rewritten", evalMs));
+                        tracer.end("transform", "request rewritten");
+                        request = transform.modifiedRequest();
+                    }
+                    case org.atmosphere.ai.governance.PolicyDecision.Admit ignored -> {
+                        org.atmosphere.ai.governance.GovernanceDecisionLog.installed().record(
+                                org.atmosphere.ai.governance.GovernanceDecisionLog.entry(
+                                        requestScopePolicy, ctx, "admit", "", evalMs));
+                        tracer.end("admit", "");
+                    }
+                }
+            } catch (RuntimeException e) {
+                var evalMs = (System.nanoTime() - startNs) / 1_000_000.0;
+                logger.error("Per-request scope {} evaluate failed — fail-closed",
+                        requestScopePolicy.name(), e);
+                org.atmosphere.ai.governance.GovernanceDecisionLog.installed().record(
+                        org.atmosphere.ai.governance.GovernanceDecisionLog.entry(
+                                requestScopePolicy, ctx, "error",
+                                "evaluate threw: " + e.getMessage(), evalMs));
+                tracer.end("error", e.getMessage());
+                delegate.error(new SecurityException("Per-request scope " + requestScopePolicy.name()
+                        + " evaluation failed: " + e.getMessage(), e));
+                return;
+            }
+            // Prepend the confinement preamble so the LLM call is fronted
+            // by the narrowed scope even when the interceptor overwrote
+            // the endpoint's @AiEndpoint.systemPromptResource.
+            var hardened = org.atmosphere.ai.governance.scope.ScopePolicyInstaller
+                    .hardenSystemPrompt(request.systemPrompt(), List.of(requestScopePolicy));
+            request = request.withSystemPrompt(hardened);
+            var augmented = new java.util.ArrayList<AiGuardrail>(guardrails.size() + 1);
+            augmented.addAll(guardrails);
+            augmented.add(new org.atmosphere.ai.governance.PolicyAsGuardrail(requestScopePolicy));
+            effectiveGuardrails = List.copyOf(augmented);
+        }
+
         // The capturing-session decorator chain starts at `this` rather than
         // `delegate` so every delegating method — critically, `injectables()`
         // — reaches AiStreamingSession's live map. The delegate chain
@@ -479,9 +554,12 @@ public class AiStreamingSession implements StreamingSession {
             target = new org.atmosphere.ai.cost.CostAccountingSession(target, accountant);
         }
 
-        // Wrap in GuardrailCapturingSession for post-LLM response inspection
-        if (!guardrails.isEmpty()) {
-            target = new GuardrailCapturingSession(target, guardrails);
+        // Wrap in GuardrailCapturingSession for post-LLM response inspection.
+        // `effectiveGuardrails` adds the per-request ScopePolicy (wrapped as a
+        // PolicyAsGuardrail) when one was installed via request metadata so
+        // post-response drift detection honours the narrowed scope.
+        if (!effectiveGuardrails.isEmpty()) {
+            target = new GuardrailCapturingSession(target, effectiveGuardrails);
         }
 
         // Wrap in StructuredOutputCapturingSession for typed response parsing

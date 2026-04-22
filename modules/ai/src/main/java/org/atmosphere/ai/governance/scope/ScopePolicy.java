@@ -53,6 +53,20 @@ public final class ScopePolicy implements GovernancePolicy {
     /** Metadata key on {@link AiRequest#metadata()} carrying the breach-redirect message. */
     public static final String REDIRECT_METADATA_KEY = "atmosphere.scope.redirect";
 
+    /**
+     * Metadata key on {@link AiRequest#metadata()} carrying a per-request
+     * {@link ScopeConfig}. When {@link org.atmosphere.ai.AiPipeline#execute}
+     * finds this key, it installs a transient {@link ScopePolicy} ahead of
+     * the endpoint-level policy chain so that interceptors (e.g., a path-aware
+     * {@code RoomContextInterceptor}) can narrow scope per-request without
+     * mutating the endpoint configuration. The endpoint's static
+     * {@code @AgentScope} still applies; {@code unrestricted = true} on the
+     * endpoint contributes nothing, so the per-request scope is the sole
+     * enforcement on that path — the common pattern for multi-persona
+     * endpoints where a single {@code @AgentScope} can't express the variance.
+     */
+    public static final String REQUEST_SCOPE_METADATA_KEY = "atmosphere.scope.request";
+
     private final String name;
     private final String source;
     private final String version;

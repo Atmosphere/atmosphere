@@ -16,11 +16,13 @@
 package org.atmosphere.ai.governance;
 
 import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.governance.scope.ScopePolicyInstaller;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,15 +75,37 @@ public final class PolicyAdmissionGate {
         if (config == null) {
             return new Result.Admitted(request);
         }
-        var raw = config.properties().get(GovernancePolicy.POLICIES_PROPERTY);
-        if (!(raw instanceof List<?> list) || list.isEmpty()) {
-            return new Result.Admitted(request);
-        }
+
+        // Consume any per-request ScopePolicy install before iterating the
+        // framework-scoped policy chain. Mirrors AiPipeline / AiStreamingSession
+        // so direct admission-gate callers (demo responders, in-process
+        // simulators, channel bridges that bypass AiPipeline) honour the same
+        // per-request scope contract the streaming path does.
         var current = request;
-        for (var entry : list) {
-            if (!(entry instanceof GovernancePolicy policy)) {
-                continue;
+        var mutableMeta = new java.util.HashMap<String, Object>(
+                current.metadata() != null ? current.metadata() : Map.of());
+        var requestScope = ScopePolicyInstaller.extract(mutableMeta);
+        if (requestScope != null) {
+            current = new AiRequest(current.message(), current.systemPrompt(),
+                    current.model(), current.userId(), current.sessionId(),
+                    current.agentId(), current.conversationId(),
+                    Map.copyOf(mutableMeta), current.history());
+        }
+        var raw = config.properties().get(GovernancePolicy.POLICIES_PROPERTY);
+        var installedPolicies = raw instanceof List<?> list ? list : List.of();
+        if (requestScope == null && installedPolicies.isEmpty()) {
+            return new Result.Admitted(current);
+        }
+        var effectiveChain = new ArrayList<GovernancePolicy>(installedPolicies.size() + 1);
+        if (requestScope != null) {
+            effectiveChain.add(requestScope);
+        }
+        for (var entry : installedPolicies) {
+            if (entry instanceof GovernancePolicy gp) {
+                effectiveChain.add(gp);
             }
+        }
+        for (var policy : effectiveChain) {
             var ctx = PolicyContext.preAdmission(current);
             var tracer = GovernanceTracer.start(policy, ctx);
             var startNs = System.nanoTime();

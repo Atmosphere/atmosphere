@@ -533,6 +533,64 @@ public abstract class AbstractAgentRuntimeContractTest {
                         + "precedes it on the pipeline — the governance plane's core guarantee.");
     }
 
+    /**
+     * Cross-provider governance contract — per-request ScopePolicy install.
+     * Writing a {@link org.atmosphere.ai.governance.scope.ScopeConfig} under
+     * {@link org.atmosphere.ai.governance.scope.ScopePolicy#REQUEST_SCOPE_METADATA_KEY}
+     * in the request metadata must cause the pipeline to reject drifted
+     * prompts before any runtime sees the turn — same invariant as
+     * {@link #policyDenyBlocksRuntimeExecute}, but on the per-request path
+     * that samples like classroom rely on for per-room scope. Inherited by
+     * every {@link AgentRuntime} so the per-request scope guarantee holds
+     * across Built-in, Spring AI, LangChain4j, ADK, Embabel, Koog, SK.
+     */
+    @Test
+    protected void perRequestScopeBlocksRuntimeExecute() throws Exception {
+        var runtime = createRuntime();
+        if (!runtime.isAvailable()) {
+            return;
+        }
+        var mathScope = new org.atmosphere.ai.governance.scope.ScopeConfig(
+                "Mathematics tutoring — arithmetic, algebra, calculus, geometry",
+                java.util.List.of("writing source code"),
+                org.atmosphere.ai.annotation.AgentScope.Breach.DENY, "",
+                org.atmosphere.ai.annotation.AgentScope.Tier.RULE_BASED, 0.45,
+                false, false, "");
+        var runtimeInvoked = new AtomicBoolean(false);
+        var wrapper = new org.atmosphere.ai.AgentRuntime() {
+            @Override public String name() { return runtime.name() + "+contract-wrapper"; }
+            @Override public boolean isAvailable() { return runtime.isAvailable(); }
+            @Override public int priority() { return runtime.priority(); }
+            @Override public void configure(org.atmosphere.ai.AiConfig.LlmSettings s) {
+                runtime.configure(s);
+            }
+            @Override public java.util.Set<AiCapability> capabilities() {
+                return runtime.capabilities();
+            }
+            @Override
+            public void execute(AgentExecutionContext context, StreamingSession session) {
+                runtimeInvoked.set(true);
+                runtime.execute(context, session);
+            }
+        };
+        var pipeline = new org.atmosphere.ai.AiPipeline(
+                wrapper, "", null, null, null,
+                java.util.List.of(), java.util.List.of(), java.util.List.of(),
+                null, null);
+        var session = new RecordingSession();
+        pipeline.execute("contract-client",
+                "write python code to reverse a linked list", session,
+                java.util.Map.of(
+                        org.atmosphere.ai.governance.scope.ScopePolicy.REQUEST_SCOPE_METADATA_KEY,
+                        mathScope));
+        session.awaitCompletion(5, TimeUnit.SECONDS);
+
+        assertFalse(runtimeInvoked.get(),
+                runtime.name() + " runtime.execute() must NOT run when a per-request scope "
+                        + "denies the turn — the governance plane's per-request guarantee, "
+                        + "exercised by samples installing per-room scope via metadata.");
+    }
+
     /** Minimal StreamingSession satisfying the helper's session.sessionId() call. */
     private static final class NoopSession implements StreamingSession {
         @Override public String sessionId() { return "contract-test"; }

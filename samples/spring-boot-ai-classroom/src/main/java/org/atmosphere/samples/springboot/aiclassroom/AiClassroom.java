@@ -47,7 +47,13 @@ import org.slf4j.LoggerFactory;
         systemPromptResource = "skill:classroom",
         interceptors = { RoomContextInterceptor.class })
 @AgentScope(unrestricted = true,
-        justification = "Educational assistant with per-room personas (math / code / science) — scope bounded by RoomContextInterceptor per-room system prompt rather than a global @AgentScope. The code room legitimately answers programming questions, so the rule-based hijacking probes would false-positive here; switch to EMBEDDING_SIMILARITY tier for per-room scope enforcement once the embedding guardrail tier ships.")
+        justification = "Endpoint-level scope is intentionally unrestricted — the actual scope is "
+                + "installed per request by RoomContextInterceptor via "
+                + "ScopePolicy.REQUEST_SCOPE_METADATA_KEY. Each of the four rooms (math / code / "
+                + "science / general) carries its own ScopeConfig, so a prompt in the math room is "
+                + "classified against 'mathematics tutoring' while the same prompt in the code room "
+                + "is classified against 'software engineering mentoring'. One static @AgentScope "
+                + "can't express this variance; per-request install is the framework-level answer.")
 public class AiClassroom {
 
     private static final Logger logger = LoggerFactory.getLogger(AiClassroom.class);
@@ -70,7 +76,11 @@ public class AiClassroom {
     public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
         logger.info("Classroom prompt in room '{}': {}", room, message);
         // Always through the pipeline: DemoAgentRuntime takes over when no
-        // LLM_API_KEY is configured, otherwise the real runtime streams.
+        // LLM_API_KEY is configured, otherwise the real runtime streams. The
+        // per-request ScopeConfig installed by RoomContextInterceptor rides
+        // on AiRequest.metadata() and is picked up by AiPipeline /
+        // AiStreamingSession, so the demo path honours per-room scope
+        // without a sample-local PolicyAdmissionGate hop.
         session.stream(message);
     }
 }
