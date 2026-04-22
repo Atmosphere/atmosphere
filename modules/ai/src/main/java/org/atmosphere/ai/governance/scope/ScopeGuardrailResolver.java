@@ -57,15 +57,22 @@ public final class ScopeGuardrailResolver {
         if (requested == AgentScope.Tier.RULE_BASED) {
             return new RuleBasedScopeGuardrail();
         }
-        // Look for ServiceLoader-registered impl for the requested tier.
+        // ServiceLoader-registered impls take precedence for their declared tier.
         for (var candidate : ServiceLoader.load(ScopeGuardrail.class)) {
             if (candidate.tier() == requested) {
                 return candidate;
             }
         }
-        // Fall through to rule-based — the framework keeps working, operator
-        // sees a warning at wiring time.
-        return new RuleBasedScopeGuardrail();
+        // Built-in fallback chain. SEMANTIC_INTENT and EMBEDDING_SIMILARITY
+        // both use EmbeddingRuntime under the hood; LLM_CLASSIFIER resolves
+        // its own AgentRuntime. All three degrade to rule-based when the
+        // required runtime is absent (impl itself logs a warning).
+        return switch (requested) {
+            case RULE_BASED -> new RuleBasedScopeGuardrail();
+            case EMBEDDING_SIMILARITY -> new EmbeddingScopeGuardrail();
+            case SEMANTIC_INTENT -> new SemanticIntentScopeGuardrail();
+            case LLM_CLASSIFIER -> new LlmClassifierScopeGuardrail();
+        };
     }
 
     /** True when a dedicated impl exists for this tier (not the rule-based fallback). */

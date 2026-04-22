@@ -184,6 +184,19 @@ public @interface AgentScope {
         EMBEDDING_SIMILARITY,
 
         /**
+         * Semantic-intent classifier — extension of the embedding-similarity
+         * tier that applies a contrastive <i>margin</i> gate between the
+         * request's similarity to the purpose and its similarity to the
+         * {@link AgentScope#forbiddenTopics()}. A request is admitted only
+         * when the purpose similarity exceeds the best forbidden-topic
+         * similarity by the configured margin. Matches the default tier
+         * shape of Microsoft's Agent OS (embeddings + small classifier
+         * head) — ~5–20 ms, deterministic, higher precision than plain
+         * similarity when the corpus of forbidden topics is rich.
+         */
+        SEMANTIC_INTENT,
+
+        /**
          * Call a small-model classifier to classify the request as
          * in-scope / out-of-scope. ~100–500 ms, most accurate, use for
          * high-stakes scopes where false-negatives cost more than
