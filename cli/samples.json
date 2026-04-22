@@ -209,7 +209,7 @@
       "port": 8090,
       "runnable": true,
       "packaging": "spring-boot",
-      "hasFrontend": true,
+      "hasFrontend": false,
       "envVars": {}
     },
     {
