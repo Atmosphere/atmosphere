@@ -487,6 +487,24 @@ public class AtmosphereAdminEndpoint {
     }
 
     /**
+     * Governance plane health snapshot — kill switch state, dry-run counters,
+     * and per-policy hash fingerprints for supply-chain drift detection.
+     * Read-only; no authorizer required.
+     */
+    @GetMapping("/governance/health")
+    public ResponseEntity<Map<String, Object>> governanceHealth() {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of(
+                    "killSwitch", Map.of("armed", false),
+                    "policies", List.of(),
+                    "dryRuns", List.of(),
+                    "slos", List.of()));
+        }
+        return ResponseEntity.ok(controller.healthMap());
+    }
+
+    /**
      * Recent policy decisions (ring-buffered). {@code limit} defaults to 100;
      * capped at the log's configured capacity. Read-only — no authorizer
      * guard required.
