@@ -514,16 +514,26 @@ public class AtmosphereAdminEndpoint {
      * on success.</p>
      */
     @PostMapping("/governance/reload")
-    public ResponseEntity<Map<String, Object>> governanceReload(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> governanceReload(
+            HttpServletRequest request,
+            @RequestBody(required = false) Map<String, Object> body) {
         GovernanceController controller = admin.governanceController();
         if (controller == null) {
             return ResponseEntity.status(503).body(Map.of("error", "governance controller not installed"));
         }
-        var swapName = body == null ? null : String.valueOf(body.get("swapName"));
-        var yaml = body == null ? null : String.valueOf(body.get("yaml"));
+        var swapName = stringField(body, "swapName");
+        var denied = guardWrite(request, "governance.reload", swapName);
+        if (denied != null) return denied;
+
+        var yaml = stringField(body, "yaml");
+        var principalName = resolvePrincipalName(request);
         try {
-            return ResponseEntity.ok(controller.reloadSwappable(swapName, yaml));
+            var result = controller.reloadSwappable(swapName, yaml);
+            admin.auditLog().record(principalName, "governance.reload", swapName, true, null);
+            return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
+            admin.auditLog().record(principalName, "governance.reload.invalid",
+                    swapName, false, e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
@@ -531,38 +541,75 @@ public class AtmosphereAdminEndpoint {
     /**
      * Arm the operator kill switch. Request body carries
      * {@code {reason, operator}} — subsequent turns deny until disarm.
-     * MUTATING — HTTP layer must enforce auth.
+     * MUTATING — gated by {@code guardWrite}.
      */
     @PostMapping("/governance/kill-switch/arm")
     public ResponseEntity<Map<String, Object>> governanceKillSwitchArm(
-            @RequestBody Map<String, Object> body) {
+            HttpServletRequest request,
+            @RequestBody(required = false) Map<String, Object> body) {
         GovernanceController controller = admin.governanceController();
         if (controller == null) {
             return ResponseEntity.status(503).body(Map.of("error", "governance controller not installed"));
         }
-        var reason = body == null ? null : String.valueOf(body.get("reason"));
-        var operator = body == null ? null : (String) body.get("operator");
+        var reason = stringField(body, "reason");
+        var denied = guardWrite(request, "governance.kill_switch.arm", reason);
+        if (denied != null) return denied;
+
+        var operator = stringField(body, "operator");
+        var principalName = resolvePrincipalName(request);
         try {
-            return ResponseEntity.ok(controller.armKillSwitch(reason, operator));
+            var result = controller.armKillSwitch(reason,
+                    operator != null ? operator : principalName);
+            admin.auditLog().record(principalName, "governance.kill_switch.arm",
+                    reason, true, operator);
+            return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
+            admin.auditLog().record(principalName, "governance.kill_switch.arm.invalid",
+                    reason, false, e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (IllegalStateException e) {
+            admin.auditLog().record(principalName, "governance.kill_switch.arm.unavailable",
+                    reason, false, e.getMessage());
             return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
         }
     }
 
-    /** Disarm the kill switch. No body required. MUTATING. */
+    /** Disarm the kill switch. No body required. MUTATING — gated by {@code guardWrite}. */
     @PostMapping("/governance/kill-switch/disarm")
-    public ResponseEntity<Map<String, Object>> governanceKillSwitchDisarm() {
+    public ResponseEntity<Map<String, Object>> governanceKillSwitchDisarm(HttpServletRequest request) {
         GovernanceController controller = admin.governanceController();
         if (controller == null) {
             return ResponseEntity.status(503).body(Map.of("error", "governance controller not installed"));
         }
+        var denied = guardWrite(request, "governance.kill_switch.disarm", null);
+        if (denied != null) return denied;
+
+        var principalName = resolvePrincipalName(request);
         try {
-            return ResponseEntity.ok(controller.disarmKillSwitch());
+            var result = controller.disarmKillSwitch();
+            admin.auditLog().record(principalName, "governance.kill_switch.disarm",
+                    null, true, null);
+            return ResponseEntity.ok(result);
         } catch (IllegalStateException e) {
+            admin.auditLog().record(principalName, "governance.kill_switch.disarm.unavailable",
+                    null, false, e.getMessage());
             return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
         }
+    }
+
+    /**
+     * Extract a string field from a loosely-typed JSON body. Returns null
+     * for missing key, null value, or non-string type. Never coerces via
+     * {@code String.valueOf} — a missing field must not become the literal
+     * string {@code "null"} that trips blank-check validation.
+     */
+    private static String stringField(Map<String, Object> body, String key) {
+        if (body == null) return null;
+        var value = body.get(key);
+        if (value instanceof String s && !s.isBlank()) {
+            return s;
+        }
+        return null;
     }
 
     /**
