@@ -31,6 +31,7 @@ import jakarta.ws.rs.core.SecurityContext;
 import org.atmosphere.admin.AtmosphereAdmin;
 import org.atmosphere.admin.a2a.TaskController;
 import org.atmosphere.admin.ai.AiRuntimeController;
+import org.atmosphere.admin.ai.GovernanceController;
 import org.atmosphere.admin.coordinator.CoordinatorController;
 import org.atmosphere.admin.mcp.McpController;
 import org.atmosphere.admin.metrics.MetricsController;
@@ -506,5 +507,190 @@ public class AdminResource {
     @Path("/audit")
     public List<?> listAuditEntries(@QueryParam("limit") Integer limit) {
         return admin.auditLog().entries(limit != null ? limit : 100);
+    }
+
+    // ── Governance policy plane ───────────────────────────────────────────
+    // Mirrors the Spring Boot endpoints in AtmosphereAdminEndpoint —
+    // Mode Parity invariant #7. Mutating endpoints go through the same
+    // guardWrite(SecurityContext, action, target) the rest of this class
+    // uses; read endpoints are open like their Spring counterparts.
+
+    @GET
+    @Path("/governance/policies")
+    public List<Map<String, Object>> listGovernancePolicies() {
+        GovernanceController controller = admin.governanceController();
+        return controller != null ? controller.listPolicies() : List.of();
+    }
+
+    @GET
+    @Path("/governance/summary")
+    public Map<String, Object> governanceSummary() {
+        GovernanceController controller = admin.governanceController();
+        return controller != null
+                ? controller.summary()
+                : Map.of("policyCount", 0, "sources", List.of());
+    }
+
+    @GET
+    @Path("/governance/health")
+    public Map<String, Object> governanceHealth() {
+        GovernanceController controller = admin.governanceController();
+        return controller != null
+                ? controller.healthMap()
+                : Map.of("killSwitch", Map.of("armed", false),
+                        "policies", List.of(), "dryRuns", List.of(), "slos", List.of());
+    }
+
+    @GET
+    @Path("/governance/decisions")
+    public List<Map<String, Object>> governanceDecisions(@QueryParam("limit") Integer limit) {
+        GovernanceController controller = admin.governanceController();
+        return controller != null
+                ? controller.listRecentDecisions(limit != null ? limit : 100)
+                : List.of();
+    }
+
+    @GET
+    @Path("/governance/owasp")
+    public Map<String, Object> governanceOwasp() {
+        GovernanceController controller = admin.governanceController();
+        return controller != null
+                ? controller.owaspMatrix()
+                : Map.of("framework", "OWASP Agentic AI Top 10 (December 2025)",
+                        "rows", List.of(), "total_rows", 0);
+    }
+
+    @GET
+    @Path("/governance/compliance")
+    public Map<String, Object> governanceCompliance() {
+        GovernanceController controller = admin.governanceController();
+        return controller != null ? controller.complianceMatrices() : Map.of();
+    }
+
+    @GET
+    @Path("/governance/agt-verify")
+    public Map<String, Object> governanceAgtVerify() {
+        GovernanceController controller = admin.governanceController();
+        return controller != null
+                ? controller.agtVerifyExport()
+                : Map.of("schemaVersion", "agt-verify/1",
+                        "findings", List.of(), "summary", Map.of());
+    }
+
+    @GET
+    @Path("/governance/commitments")
+    public List<?> governanceCommitments(@QueryParam("limit") Integer limit) {
+        CoordinatorController controller = admin.coordinatorController();
+        return controller != null
+                ? controller.listCommitmentRecords(limit != null ? limit : 100)
+                : List.of();
+    }
+
+    @POST
+    @Path("/governance/check")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response governanceCheck(Map<String, Object> body) {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return Response.status(503)
+                    .entity(Map.of("error", "governance controller not installed")).build();
+        }
+        return Response.ok(controller.check(body != null ? body : Map.of())).build();
+    }
+
+    @POST
+    @Path("/governance/reload")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response governanceReload(@Context SecurityContext sec, Map<String, Object> body) {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return Response.status(503)
+                    .entity(Map.of("error", "governance controller not installed")).build();
+        }
+        var swapName = stringField(body, "swapName");
+        var denied = guardWrite(sec, "governance.reload", swapName);
+        if (denied != null) return denied;
+
+        var yaml = stringField(body, "yaml");
+        var principalName = resolvePrincipalName(sec);
+        try {
+            var result = controller.reloadSwappable(swapName, yaml);
+            admin.auditLog().record(principalName, "governance.reload", swapName, true, null);
+            return Response.ok(result).build();
+        } catch (IllegalArgumentException e) {
+            admin.auditLog().record(principalName, "governance.reload.invalid",
+                    swapName, false, e.getMessage());
+            return Response.status(400).entity(Map.of("error", e.getMessage())).build();
+        }
+    }
+
+    @POST
+    @Path("/governance/kill-switch/arm")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response governanceKillSwitchArm(@Context SecurityContext sec, Map<String, Object> body) {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return Response.status(503)
+                    .entity(Map.of("error", "governance controller not installed")).build();
+        }
+        var reason = stringField(body, "reason");
+        var denied = guardWrite(sec, "governance.kill_switch.arm", reason);
+        if (denied != null) return denied;
+
+        var operator = stringField(body, "operator");
+        var principalName = resolvePrincipalName(sec);
+        try {
+            var result = controller.armKillSwitch(reason,
+                    operator != null ? operator : principalName);
+            admin.auditLog().record(principalName, "governance.kill_switch.arm",
+                    reason, true, operator);
+            return Response.ok(result).build();
+        } catch (IllegalArgumentException e) {
+            admin.auditLog().record(principalName, "governance.kill_switch.arm.invalid",
+                    reason, false, e.getMessage());
+            return Response.status(400).entity(Map.of("error", e.getMessage())).build();
+        } catch (IllegalStateException e) {
+            admin.auditLog().record(principalName, "governance.kill_switch.arm.unavailable",
+                    reason, false, e.getMessage());
+            return Response.status(409).entity(Map.of("error", e.getMessage())).build();
+        }
+    }
+
+    @POST
+    @Path("/governance/kill-switch/disarm")
+    public Response governanceKillSwitchDisarm(@Context SecurityContext sec) {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return Response.status(503)
+                    .entity(Map.of("error", "governance controller not installed")).build();
+        }
+        var denied = guardWrite(sec, "governance.kill_switch.disarm", null);
+        if (denied != null) return denied;
+
+        var principalName = resolvePrincipalName(sec);
+        try {
+            var result = controller.disarmKillSwitch();
+            admin.auditLog().record(principalName, "governance.kill_switch.disarm",
+                    null, true, null);
+            return Response.ok(result).build();
+        } catch (IllegalStateException e) {
+            admin.auditLog().record(principalName, "governance.kill_switch.disarm.unavailable",
+                    null, false, e.getMessage());
+            return Response.status(409).entity(Map.of("error", e.getMessage())).build();
+        }
+    }
+
+    /**
+     * Safely extract a string field from a loosely-typed JSON body.
+     * Missing key, null value, or non-string type → null (never the
+     * literal string "null"; never {@link ClassCastException}).
+     */
+    private static String stringField(Map<String, Object> body, String key) {
+        if (body == null) return null;
+        var value = body.get(key);
+        if (value instanceof String s && !s.isBlank()) {
+            return s;
+        }
+        return null;
     }
 }
