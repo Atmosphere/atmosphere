@@ -505,6 +505,30 @@ public class AtmosphereAdminEndpoint {
     }
 
     /**
+     * Hot-reload a policy wrapped in {@code SwappablePolicy}. Request body
+     * carries {@code {swapName, yaml}}; response carries the outgoing /
+     * incoming delegate identity. MUTATING — requires authenticated +
+     * authorized caller at the HTTP layer.
+     *
+     * <p>400 on malformed YAML or unknown swap name; 200 with swap summary
+     * on success.</p>
+     */
+    @PostMapping("/governance/reload")
+    public ResponseEntity<Map<String, Object>> governanceReload(@RequestBody Map<String, Object> body) {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "governance controller not installed"));
+        }
+        var swapName = body == null ? null : String.valueOf(body.get("swapName"));
+        var yaml = body == null ? null : String.valueOf(body.get("yaml"));
+        try {
+            return ResponseEntity.ok(controller.reloadSwappable(swapName, yaml));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
      * Recent policy decisions (ring-buffered). {@code limit} defaults to 100;
      * capped at the log's configured capacity. Read-only — no authorizer
      * guard required.
