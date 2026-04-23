@@ -421,6 +421,55 @@ public final class GovernanceController {
         return result;
     }
 
+    /**
+     * Arm the first installed {@link KillSwitchPolicy} with the operator-
+     * supplied reason + operator id. Mutating surface — the HTTP layer
+     * is expected to authenticate and authorize the caller.
+     *
+     * @return summary of the resulting armed state
+     * @throws IllegalStateException when no kill switch is installed
+     */
+    public Map<String, Object> armKillSwitch(String reason, String operator) {
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("reason must not be blank");
+        }
+        var killSwitch = findKillSwitch();
+        if (killSwitch == null) {
+            throw new IllegalStateException("no KillSwitchPolicy installed on this framework");
+        }
+        killSwitch.arm(reason, operator == null ? "admin" : operator);
+        var state = killSwitch.armedState();
+        var result = new LinkedHashMap<String, Object>();
+        result.put("armed", true);
+        result.put("reason", state.reason());
+        result.put("operator", state.operator());
+        result.put("armedAt", state.armedAt().toString());
+        return result;
+    }
+
+    /** Disarm the installed kill switch, restoring normal traffic. */
+    public Map<String, Object> disarmKillSwitch() {
+        var killSwitch = findKillSwitch();
+        if (killSwitch == null) {
+            throw new IllegalStateException("no KillSwitchPolicy installed on this framework");
+        }
+        killSwitch.disarm();
+        return Map.of("armed", false);
+    }
+
+    private KillSwitchPolicy findKillSwitch() {
+        for (var policy : readPolicies()) {
+            var unwrapped = policy;
+            if (unwrapped instanceof TimedPolicy timed) {
+                unwrapped = timed.delegate();
+            }
+            if (unwrapped instanceof KillSwitchPolicy ks) {
+                return ks;
+            }
+        }
+        return null;
+    }
+
     private SwappablePolicy findSwappable(String name) {
         for (var policy : readPolicies()) {
             var unwrapped = policy;

@@ -529,6 +529,43 @@ public class AtmosphereAdminEndpoint {
     }
 
     /**
+     * Arm the operator kill switch. Request body carries
+     * {@code {reason, operator}} — subsequent turns deny until disarm.
+     * MUTATING — HTTP layer must enforce auth.
+     */
+    @PostMapping("/governance/kill-switch/arm")
+    public ResponseEntity<Map<String, Object>> governanceKillSwitchArm(
+            @RequestBody Map<String, Object> body) {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "governance controller not installed"));
+        }
+        var reason = body == null ? null : String.valueOf(body.get("reason"));
+        var operator = body == null ? null : (String) body.get("operator");
+        try {
+            return ResponseEntity.ok(controller.armKillSwitch(reason, operator));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /** Disarm the kill switch. No body required. MUTATING. */
+    @PostMapping("/governance/kill-switch/disarm")
+    public ResponseEntity<Map<String, Object>> governanceKillSwitchDisarm() {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "governance controller not installed"));
+        }
+        try {
+            return ResponseEntity.ok(controller.disarmKillSwitch());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
      * Recent policy decisions (ring-buffered). {@code limit} defaults to 100;
      * capped at the log's configured capacity. Read-only — no authorizer
      * guard required.
