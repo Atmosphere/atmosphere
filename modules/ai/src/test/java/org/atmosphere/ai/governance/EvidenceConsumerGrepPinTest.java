@@ -58,7 +58,8 @@ class EvidenceConsumerGrepPinTest {
         for (var row : OwaspAgenticMatrix.MATRIX) {
             for (var evidence : row.evidence()) {
                 verifyConsumer(row.id(), evidence.evidenceClass(),
-                        evidence.consumerGrepPattern(), productionFiles, failures);
+                        evidence.consumerGrepPattern(), evidence.selfGate(),
+                        productionFiles, failures);
             }
         }
         failIfAny(failures, "OWASP");
@@ -76,6 +77,7 @@ class EvidenceConsumerGrepPinTest {
                     verifyConsumer(framework.getKey().name() + "/" + row.id(),
                             evidence.evidenceClass(),
                             evidence.consumerGrepPattern(),
+                            evidence.selfGate(),
                             productionFiles, failures);
                 }
             }
@@ -83,12 +85,59 @@ class EvidenceConsumerGrepPinTest {
         failIfAny(failures, "Compliance");
     }
 
+    /**
+     * Belt-and-braces: the Evidence record's canonical constructor already
+     * rejects blank-pattern rows that didn't opt out via selfGate. This
+     * test makes the contract legible at the assertion surface too, so a
+     * future constructor refactor that weakens the check produces a
+     * readable test failure instead of a subtle behavioral regression.
+     */
+    @Test
+    void blankPatternRowsMustOptOutViaSelfGate() {
+        for (var row : OwaspAgenticMatrix.MATRIX) {
+            for (var evidence : row.evidence()) {
+                if (evidence.consumerGrepPattern().isBlank()) {
+                    if (!evidence.selfGate()) {
+                        throw new AssertionError(
+                                "OWASP row " + row.id() + " — blank-pattern Evidence '"
+                                        + evidence.evidenceClass() + "' must use "
+                                        + "Evidence.selfGate(...) to opt out of the grep check.");
+                    }
+                }
+            }
+        }
+        for (var framework : ComplianceMatrix.MATRICES.entrySet()) {
+            for (var row : framework.getValue()) {
+                for (var evidence : row.evidence()) {
+                    if (evidence.consumerGrepPattern().isBlank() && !evidence.selfGate()) {
+                        throw new AssertionError(
+                                framework.getKey() + "/" + row.id()
+                                        + " — blank-pattern Evidence '"
+                                        + evidence.evidenceClass()
+                                        + "' must use Evidence.selfGate(...).");
+                    }
+                }
+            }
+        }
+    }
+
     private static void verifyConsumer(String rowKey, String evidenceClass, String pattern,
+                                        boolean selfGate,
                                         List<Path> productionFiles, List<String> failures) {
+        if (selfGate) {
+            // Opt-out: the evidence class is itself the CI gate. Skipping
+            // the grep is an explicit authoring choice, surfaced via
+            // Evidence.selfGate(...) — not a silent blank-pattern bypass.
+            return;
+        }
         if (pattern == null || pattern.isBlank()) {
-            // Intentional skip — some evidence rows carry empty patterns
-            // because the evidence class is itself the CI gate (e.g.
-            // SampleAgentScopeLintTest), not something with external callers.
+            // Canonical constructor rejects this at initialization, so
+            // reaching here means a new code path created an Evidence
+            // with a blank pattern and selfGate=false. Fail loudly.
+            failures.add(rowKey + " — evidence class " + evidenceClass
+                    + " has a blank consumerGrepPattern without selfGate; "
+                    + "construct via Evidence.selfGate(...) if the class is "
+                    + "its own CI gate, otherwise supply a real pattern.");
             return;
         }
         var evidenceFile = classToRelativePath(evidenceClass);

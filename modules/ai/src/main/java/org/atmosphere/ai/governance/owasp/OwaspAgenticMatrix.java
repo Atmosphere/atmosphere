@@ -66,9 +66,21 @@ public final class OwaspAgenticMatrix {
         }
     }
 
-    /** Single evidence pointer: feature class + test + consumer grep pattern. */
+    /**
+     * Single evidence pointer: feature class + test + consumer-grep pattern.
+     *
+     * <p>{@link #selfGate()} defaults to false — ordinary rows assert that
+     * a non-blank {@link #consumerGrepPattern()} finds at least one
+     * production caller outside the evidence class itself. Rows where the
+     * evidence class <i>is</i> the CI gate (e.g. a lint test) must be
+     * constructed via {@link #selfGate(String, String, String)} to
+     * declare the opt-out explicitly — a blank pattern without
+     * {@code selfGate=true} fails the build via
+     * {@code EvidenceConsumerGrepPinTest}.</p>
+     */
     public record Evidence(String evidenceClass, String testClass,
-                           String consumerGrepPattern, String description) {
+                           String consumerGrepPattern, String description,
+                           boolean selfGate) {
         public Evidence {
             if (evidenceClass == null || evidenceClass.isBlank()) {
                 throw new IllegalArgumentException("evidenceClass must not be blank");
@@ -76,6 +88,31 @@ public final class OwaspAgenticMatrix {
             testClass = testClass == null ? "" : testClass;
             consumerGrepPattern = consumerGrepPattern == null ? "" : consumerGrepPattern;
             description = description == null ? "" : description;
+            if (consumerGrepPattern.isBlank() && !selfGate) {
+                throw new IllegalArgumentException(
+                        "Evidence row '" + evidenceClass + "' has a blank "
+                                + "consumerGrepPattern but selfGate=false. Either "
+                                + "supply a grep pattern for the consumer, or call "
+                                + "Evidence.selfGate(...) to declare that the "
+                                + "evidence class is its own CI gate.");
+            }
+        }
+
+        /** Conventional 4-arg constructor for ordinary rows (selfGate = false). */
+        public Evidence(String evidenceClass, String testClass,
+                        String consumerGrepPattern, String description) {
+            this(evidenceClass, testClass, consumerGrepPattern, description, false);
+        }
+
+        /**
+         * Opt-out factory — the evidence class is itself the CI gate
+         * (e.g. {@code SampleAgentScopeLintTest} walks samples/). No
+         * consumer-grep pattern is applicable; the test file's
+         * existence + green status IS the evidence.
+         */
+        public static Evidence selfGate(String evidenceClass, String testClass,
+                                        String description) {
+            return new Evidence(evidenceClass, testClass, "", description, true);
         }
     }
 
@@ -97,9 +134,8 @@ public final class OwaspAgenticMatrix {
                                     "org.atmosphere.ai.AiPipelineScopeHardeningTest",
                                     "ScopePolicy",
                                     "System-prompt hardening at AiPipeline layer (unbypassable)"),
-                            new Evidence("org.atmosphere.ai.governance.scope.SampleAgentScopeLintTest",
+                            Evidence.selfGate("org.atmosphere.ai.governance.scope.SampleAgentScopeLintTest",
                                     "org.atmosphere.ai.governance.scope.SampleAgentScopeLintTest",
-                                    "",
                                     "Sample-hygiene CI lint — build fails if an @AiEndpoint lacks @AgentScope")),
                     "Full defense-in-depth: pre-admission classification, system-prompt hardening, "
                             + "sample lint. Default tier is embedding-similarity."),

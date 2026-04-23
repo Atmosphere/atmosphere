@@ -84,9 +84,17 @@ public final class ComplianceMatrix {
         }
     }
 
-    /** Evidence pointer (same shape as {@code OwaspAgenticMatrix.Evidence}). */
+    /**
+     * Evidence pointer (same shape as {@code OwaspAgenticMatrix.Evidence}).
+     * {@link #selfGate()} defaults to false — ordinary rows must carry
+     * a non-blank {@link #consumerGrepPattern()} that the CI gate
+     * resolves to a production caller. Rows where the evidence class
+     * <i>is</i> the CI gate must be constructed via
+     * {@link #selfGate(String, String, String)} to opt out explicitly.
+     */
     public record Evidence(String evidenceClass, String testClass,
-                           String consumerGrepPattern, String description) {
+                           String consumerGrepPattern, String description,
+                           boolean selfGate) {
         public Evidence {
             if (evidenceClass == null || evidenceClass.isBlank()) {
                 throw new IllegalArgumentException("evidenceClass must not be blank");
@@ -94,6 +102,24 @@ public final class ComplianceMatrix {
             testClass = testClass == null ? "" : testClass;
             consumerGrepPattern = consumerGrepPattern == null ? "" : consumerGrepPattern;
             description = description == null ? "" : description;
+            if (consumerGrepPattern.isBlank() && !selfGate) {
+                throw new IllegalArgumentException(
+                        "ComplianceMatrix Evidence row '" + evidenceClass
+                                + "' has a blank consumerGrepPattern but selfGate=false. "
+                                + "Either supply a grep pattern for the consumer, or call "
+                                + "Evidence.selfGate(...) to declare that the evidence "
+                                + "class is its own CI gate.");
+            }
+        }
+
+        public Evidence(String evidenceClass, String testClass,
+                        String consumerGrepPattern, String description) {
+            this(evidenceClass, testClass, consumerGrepPattern, description, false);
+        }
+
+        public static Evidence selfGate(String evidenceClass, String testClass,
+                                        String description) {
+            return new Evidence(evidenceClass, testClass, "", description, true);
         }
     }
 
