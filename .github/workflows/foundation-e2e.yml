@@ -1,6 +1,6 @@
-name: "CI: Foundation E2E (v0.5)"
+name: "CI: Foundation E2E"
 
-# Runs the Playwright suite under /e2e (the v0.5 foundation proof
+# Runs the Playwright suite under /e2e (the foundation proof
 # samples). Separate workflow from e2e.yml so it doesn't compete with
 # the integration-tests matrix for runners; it boots personal-assistant
 # and coding-agent samples via `./mvnw spring-boot:run` (no fat-jar
