@@ -9,6 +9,7 @@ on:
       - 'atmosphere.js/src/chat/**'
       - 'cli/**'
       - 'pom.xml'
+      - '.mvn/**'
       - '.github/workflows/samples-ci.yml'
   pull_request:
     branches: [ main ]
@@ -18,7 +19,9 @@ on:
       - 'atmosphere.js/src/chat/**'
       - 'cli/**'
       - 'pom.xml'
+      - '.mvn/**'
       - '.github/workflows/samples-ci.yml'
+  workflow_dispatch:
 
 jobs:
   test-samples:

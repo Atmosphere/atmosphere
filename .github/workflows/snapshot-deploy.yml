@@ -8,6 +8,8 @@ on:
       - 'modules/**/pom.xml'
       - 'modules/**/src/main/java/**'
       - 'modules/**/src/main/resources/**'
+      - '.mvn/**'
+  workflow_dispatch:
 
 env:
   MAVEN_OPTS: '-Xmx2g'
