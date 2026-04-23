@@ -24,7 +24,9 @@ import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.governance.KillSwitchPolicy;
 import org.atmosphere.ai.governance.PolicyContext;
 import org.atmosphere.ai.governance.PolicyDecision;
+import org.atmosphere.ai.governance.SwappablePolicy;
 import org.atmosphere.ai.governance.TimedPolicy;
+import org.atmosphere.ai.governance.YamlPolicyParser;
 import org.atmosphere.ai.governance.compliance.ComplianceMatrix;
 import org.atmosphere.ai.governance.owasp.OwaspAgenticMatrix;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -365,6 +367,71 @@ public final class GovernanceController {
         // Keep SLO slot open even when empty so client code doesn't branch.
         out.put("slos", List.of());
         return out;
+    }
+
+    /**
+     * Hot-reload a policy wrapped in {@link SwappablePolicy}. Finds the
+     * swap slot whose {@link SwappablePolicy#name()} matches
+     * {@code swapName}, parses {@code yaml} into the first policy it
+     * yields, and atomically replaces the delegate. The wrapper's own
+     * identity (audit label) stays pinned; the underlying enforceable
+     * content changes.
+     *
+     * <p>Mutating surface — callers are expected to be authenticated and
+     * authorized by the HTTP layer (Correctness Invariant #6). Returns
+     * a summary of the swap: outgoing + incoming delegate identity.</p>
+     *
+     * @throws IllegalArgumentException when no SwappablePolicy with that
+     *         name is installed, or the YAML yields zero policies
+     */
+    public Map<String, Object> reloadSwappable(String swapName, String yaml) {
+        if (swapName == null || swapName.isBlank()) {
+            throw new IllegalArgumentException("swapName must not be blank");
+        }
+        if (yaml == null || yaml.isBlank()) {
+            throw new IllegalArgumentException("yaml must not be blank");
+        }
+        var target = findSwappable(swapName);
+        if (target == null) {
+            throw new IllegalArgumentException("no SwappablePolicy named '" + swapName + "' is installed");
+        }
+
+        List<GovernancePolicy> parsed;
+        try (var in = new java.io.ByteArrayInputStream(
+                yaml.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
+            parsed = new YamlPolicyParser().parse("admin-reload:" + swapName, in);
+        } catch (java.io.IOException e) {
+            throw new IllegalArgumentException("YAML parse failed: " + e.getMessage(), e);
+        }
+        if (parsed.isEmpty()) {
+            throw new IllegalArgumentException("YAML yielded zero policies — reload aborted");
+        }
+
+        var outgoing = target.replace(parsed.get(0));
+        var result = new LinkedHashMap<String, Object>();
+        result.put("swapName", swapName);
+        result.put("outgoing", Map.of(
+                "name", outgoing.name(),
+                "version", outgoing.version(),
+                "source", outgoing.source()));
+        result.put("incoming", Map.of(
+                "name", parsed.get(0).name(),
+                "version", parsed.get(0).version(),
+                "source", parsed.get(0).source()));
+        return result;
+    }
+
+    private SwappablePolicy findSwappable(String name) {
+        for (var policy : readPolicies()) {
+            var unwrapped = policy;
+            if (unwrapped instanceof TimedPolicy timed) {
+                unwrapped = timed.delegate();
+            }
+            if (unwrapped instanceof SwappablePolicy swap && swap.name().equals(name)) {
+                return swap;
+            }
+        }
+        return null;
     }
 
     /** Summary: policy count and distinct source URIs. */
