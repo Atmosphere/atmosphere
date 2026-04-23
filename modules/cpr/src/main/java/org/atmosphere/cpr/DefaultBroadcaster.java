@@ -974,8 +974,16 @@ public class DefaultBroadcaster implements Broadcaster {
             try {
                 request.removeAttribute(getID());
                 request.removeAttribute(usingTokenIdForAttribute);
-            } catch (NullPointerException ex) {
-                logger.trace("NPE after the message has been written for {}", r.uuid());
+            } catch (NullPointerException | IllegalStateException ex) {
+                // NPE: resource already recycled.
+                // IllegalStateException: Tomcat's RequestFacade throws this when
+                // the async request was already cancelled/completed before our
+                // write scheduler reaches it (e.g. long LLM response after the
+                // client-side async timeout expired). The write itself is lost
+                // — the broadcaster cache catches it above — so treat the
+                // attribute cleanup as best-effort rather than failing the
+                // write path and producing a noisy stack trace.
+                logger.trace("Request recycled while cleaning broadcast attributes for {}", r.uuid());
             }
             token.destroy();
         }

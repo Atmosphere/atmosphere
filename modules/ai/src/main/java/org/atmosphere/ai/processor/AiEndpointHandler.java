@@ -676,6 +676,19 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     private void handleDisconnect(AtmosphereResource resource, AtmosphereResourceEvent event,
                                    String logMessage) {
+        // Tomcat can fire the async error/cancel listener with a recycled request
+        // after the async context has been torn down. When that happens the
+        // AtmosphereResourceEvent has already been stripped of its resource and
+        // the event.getResource() we threaded through is null — there is nothing
+        // left to clean up here, so fall through to lifecycle.onDisconnect so
+        // user-defined listeners still see the signal.
+        if (resource == null) {
+            logger.debug("handleDisconnect invoked after resource recycled — skipping "
+                    + "memory/session cleanup (event.isClosedByClient={}, isCancelled={})",
+                    event.isClosedByClient(), event.isCancelled());
+            lifecycle.onDisconnect(target, event);
+            return;
+        }
         notifyInterceptorsOnDisconnect(resource);
         if (memory != null) {
             memory.clear(resource.uuid());
