@@ -21,9 +21,13 @@ import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
+import org.atmosphere.coordinator.commitment.CommitmentSigner;
 import org.atmosphere.coordinator.fleet.AgentFleet;
+import org.atmosphere.coordinator.journal.JournalingAgentFleet;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -74,12 +78,32 @@ public class DispatchCoordinator {
 
     private static final Logger logger = LoggerFactory.getLogger(DispatchCoordinator.class);
 
+    /**
+     * Ed25519 signer from {@link CommitmentConfig}. When present, every
+     * analyzer/approver dispatch emits a signed {@code CommitmentRecord}
+     * on the journal — paired with the checkpoint snapshot, this is the
+     * v4 Goal 3 audit trail across pause/resume.
+     */
+    @Autowired(required = false)
+    private CommitmentSigner commitmentSigner;
+
     @Prompt
-    public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
+    public void onPrompt(String message, AgentFleet fleet, StreamingSession session,
+                          AtmosphereResource resource) {
         logger.info("Dispatch received: {}", message);
+
+        // Goal 3 — arm commitment-record emission on this session's fleet.
+        // The principal is stamped from the Atmosphere resource UUID so
+        // the audit trail ties the signed record to the specific client.
+        if (commitmentSigner != null && fleet instanceof JournalingAgentFleet journaling) {
+            var principal = "user:" + resource.uuid();
+            journaling.signer(commitmentSigner).principal(principal);
+            logger.info("Commitment records armed for principal {}", principal);
+        }
 
         // Step 1 — analyze. The CheckpointingCoordinationJournal bridge
         // persists an AgentCompleted snapshot automatically after this call.
+        // A signed CommitmentRecord for this dispatch is also journaled.
         var analysis = fleet.agent("analyzer").call("analyze", Map.of("request", message));
         if (!analysis.success()) {
             session.stream("Analyzer failed: " + analysis.text());
