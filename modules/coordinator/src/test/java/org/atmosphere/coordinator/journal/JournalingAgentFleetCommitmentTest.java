@@ -15,6 +15,7 @@
  */
 package org.atmosphere.coordinator.journal;
 
+import org.atmosphere.coordinator.commitment.CommitmentRecordsFlag;
 import org.atmosphere.coordinator.commitment.CommitmentSigner;
 import org.atmosphere.coordinator.commitment.Ed25519CommitmentSigner;
 import org.atmosphere.coordinator.fleet.AgentCall;
@@ -55,6 +56,10 @@ class JournalingAgentFleetCommitmentTest {
 
     @BeforeEach
     void setUp() {
+        // v4 Phase B1 — commitment records are flag-off by default. These
+        // tests exercise emission behavior, so we flip the override on;
+        // @AfterEach clears it so other tests stay isolated.
+        CommitmentRecordsFlag.override(Boolean.TRUE);
         journal = new InMemoryCoordinationJournal();
         journal.start();
         transport = mock(AgentTransport.class);
@@ -74,6 +79,19 @@ class JournalingAgentFleetCommitmentTest {
     void tearDown() {
         fleet.close();
         journal.stop();
+        CommitmentRecordsFlag.override(null);
+    }
+
+    @Test
+    void flagOffGatesEmissionEvenWithSignerInstalled() {
+        // Override the BeforeEach enable so this test exercises the v4 gate.
+        CommitmentRecordsFlag.override(Boolean.FALSE);
+        fleet.signer(Ed25519CommitmentSigner.generate()).principal("user-42");
+
+        fleet.parallel(new AgentCall("billing", "query", Map.of("q", "hi")));
+
+        assertTrue(commitments().isEmpty(),
+                "v4 Phase B1: signer installed but flag off -> no emission");
     }
 
     @Test

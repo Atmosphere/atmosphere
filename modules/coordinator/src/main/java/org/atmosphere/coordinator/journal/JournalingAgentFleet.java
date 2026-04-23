@@ -16,6 +16,7 @@
 package org.atmosphere.coordinator.journal;
 
 import org.atmosphere.coordinator.commitment.CommitmentRecord;
+import org.atmosphere.coordinator.commitment.CommitmentRecordsFlag;
 import org.atmosphere.coordinator.commitment.CommitmentSigner;
 import org.atmosphere.coordinator.evaluation.Evaluation;
 import org.atmosphere.coordinator.fleet.AgentActivity;
@@ -278,6 +279,12 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
      * async {@link CommitmentSigner}.
      */
     private void emitCommitmentRecord(String coordId, AgentCall call, String outcome) {
+        // Flag-off default per v4 Phase B1 schema-leakage resolution:
+        // even when a signer is wired, emission is gated on the runtime
+        // flag so operators explicitly opt into the @Experimental schema.
+        if (!CommitmentRecordsFlag.isEnabled()) {
+            return;
+        }
         var signer = commitmentSigner;
         if (signer == null || signer == CommitmentSigner.UNSIGNED) {
             return;
