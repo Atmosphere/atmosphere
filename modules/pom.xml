@@ -21,6 +21,7 @@
         <module>ai-audit-kafka</module>
         <module>ai-audit-postgres</module>
         <module>ai-policy-rego</module>
+        <module>ai-policy-cedar</module>
         <module>protocol-common</module>
         <module>mcp</module>
         <module>a2a</module>
