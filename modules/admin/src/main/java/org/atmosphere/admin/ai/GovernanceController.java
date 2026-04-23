@@ -17,10 +17,14 @@ package org.atmosphere.admin.ai;
 
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.governance.AuditEntry;
+import org.atmosphere.ai.governance.DryRunPolicy;
 import org.atmosphere.ai.governance.GovernanceDecisionLog;
+import org.atmosphere.ai.governance.GovernanceHealthReport;
 import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.governance.KillSwitchPolicy;
 import org.atmosphere.ai.governance.PolicyContext;
 import org.atmosphere.ai.governance.PolicyDecision;
+import org.atmosphere.ai.governance.TimedPolicy;
 import org.atmosphere.ai.governance.compliance.ComplianceMatrix;
 import org.atmosphere.ai.governance.owasp.OwaspAgenticMatrix;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -280,6 +284,86 @@ public final class GovernanceController {
         out.put("rows", rendered);
         out.put("coverage_counts", coverageCounts);
         out.put("total_rows", rows.size());
+        return out;
+    }
+
+    /**
+     * Build a {@link GovernanceHealthReport} snapshot by introspecting the
+     * runtime policy list. Finds the first {@link KillSwitchPolicy} (wrapped
+     * or direct), every {@link DryRunPolicy}, and fingerprints every policy
+     * with its identity digest. Callers that track SLOs separately can
+     * extend the response — this surface reports on what the framework
+     * already has wired.
+     */
+    public GovernanceHealthReport health() {
+        var policies = readPolicies();
+        KillSwitchPolicy killSwitch = null;
+        var dryRuns = new ArrayList<DryRunPolicy>();
+        var fingerprintable = new java.util.LinkedHashMap<GovernancePolicy, byte[]>();
+
+        for (var policy : policies) {
+            var unwrapped = unwrap(policy);
+            if (killSwitch == null && unwrapped instanceof KillSwitchPolicy ks) {
+                killSwitch = ks;
+            }
+            if (unwrapped instanceof DryRunPolicy dr) {
+                dryRuns.add(dr);
+            }
+            // Key the fingerprint on the unwrapped policy — the digest should
+            // describe the enforceable content, not the observability wrapper.
+            fingerprintable.put(unwrapped, null);
+        }
+
+        return GovernanceHealthReport.build(killSwitch, fingerprintable, dryRuns, List.of());
+    }
+
+    private static GovernancePolicy unwrap(GovernancePolicy policy) {
+        if (policy instanceof TimedPolicy timed) {
+            return unwrap(timed.delegate());
+        }
+        return policy;
+    }
+
+    /** Convenience — {@link #health()} serialized as a plain map for JSON admin surfaces. */
+    public Map<String, Object> healthMap() {
+        var report = health();
+        var out = new LinkedHashMap<String, Object>();
+        out.put("generatedAt", report.generatedAt().toString());
+
+        var ks = new LinkedHashMap<String, Object>();
+        ks.put("armed", report.killSwitch().armed());
+        if (report.killSwitch().reason() != null) {
+            ks.put("reason", report.killSwitch().reason());
+            ks.put("operator", report.killSwitch().operator());
+            ks.put("armedAt", report.killSwitch().armedAt().toString());
+        }
+        out.put("killSwitch", ks);
+
+        var fingerprints = new ArrayList<Map<String, Object>>();
+        for (var fp : report.policies()) {
+            var entry = new LinkedHashMap<String, Object>();
+            entry.put("name", fp.name());
+            entry.put("source", fp.source());
+            entry.put("version", fp.version());
+            entry.put("digest", fp.digest());
+            fingerprints.add(entry);
+        }
+        out.put("policies", fingerprints);
+
+        var dryRunList = new ArrayList<Map<String, Object>>();
+        for (var dr : report.dryRuns()) {
+            var entry = new LinkedHashMap<String, Object>();
+            entry.put("wrappedPolicyName", dr.wrappedPolicyName());
+            entry.put("admits", dr.admits());
+            entry.put("denies", dr.denies());
+            entry.put("transforms", dr.transforms());
+            entry.put("errors", dr.errors());
+            dryRunList.add(entry);
+        }
+        out.put("dryRuns", dryRunList);
+
+        // Keep SLO slot open even when empty so client code doesn't branch.
+        out.put("slos", List.of());
         return out;
     }
 
