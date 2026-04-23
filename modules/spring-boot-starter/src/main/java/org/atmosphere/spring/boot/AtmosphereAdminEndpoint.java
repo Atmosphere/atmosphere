@@ -542,6 +542,27 @@ public class AtmosphereAdminEndpoint {
         return ResponseEntity.ok(controller.check(payload));
     }
 
+    /**
+     * Signed commitment records emitted by the coordination journal
+     * (Phase B1). Read-only. Operators render this stream as a
+     * verifiable audit trail — each entry carries the Ed25519 proof
+     * scheme / key id / signature so downstream SIEMs can verify
+     * against the publicly-published coordinator key.
+     *
+     * <p>Returns {@link org.atmosphere.admin.coordinator.CommitmentRecordView}
+     * — a typed record rather than a loose {@code Map<String, Object>}
+     * so shape drift surfaces at compile time.</p>
+     */
+    @GetMapping("/governance/commitments")
+    public ResponseEntity<List<org.atmosphere.admin.coordinator.CommitmentRecordView>> governanceCommitments(
+            @RequestParam(value = "limit", defaultValue = "100") int limit) {
+        CoordinatorController controller = admin.coordinatorController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(controller.listCommitmentRecords(limit));
+    }
+
     // ── MCP Registry ──
 
     @GetMapping("/mcp/tools")
