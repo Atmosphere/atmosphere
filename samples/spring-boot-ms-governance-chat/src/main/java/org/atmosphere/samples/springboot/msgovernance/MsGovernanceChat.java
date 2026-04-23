@@ -45,7 +45,8 @@ import org.slf4j.LoggerFactory;
  *       {@code GET /api/admin/governance/decisions} + an OpenTelemetry span</li>
  * </ol>
  */
-@AiEndpoint(path = "/atmosphere/ms-governance")
+@AiEndpoint(path = "/atmosphere/ms-governance",
+        interceptors = { FaqRetrievalInterceptor.class, TicketClassifierInterceptor.class })
 @AgentScope(
         purpose = "Customer support agent for Example Corp — orders, billing, "
                 + "account questions, product information, refund and shipping status.",
@@ -78,19 +79,36 @@ public class MsGovernanceChat {
             }
             case PolicyAdmissionGate.Result.Admitted admitted -> {
                 var effective = admitted.request().message();
+                var metadata = admitted.request().metadata();
+                var snippet = metadata == null ? null
+                        : (String) metadata.get(FaqKnowledgeBase.RAG_SNIPPET_METADATA_KEY);
+                var category = metadata == null ? null
+                        : (String) metadata.get(FaqKnowledgeBase.RAG_CATEGORY_METADATA_KEY);
                 session.progress("Admitted — "
                         + "@AgentScope + MS-schema YAML rules both passed");
-                // Canned customer-support response. Real deployments swap this
-                // for session.stream(message) to route through an LLM — the
-                // governance chain already ran, so the LLM sees only admitted
-                // or transformed requests.
-                session.send("Thanks for contacting Example Corp support. I see your "
-                        + "message: \"" + effective + "\". ");
-                session.send("Every turn passes through @AgentScope classification "
-                        + "plus the " + policyRuleCountSummary()
-                        + " from `atmosphere-policies.yaml`, audit-logged at "
-                        + "`GET /api/admin/governance/decisions`. ");
-                session.send("Try prompts listed in README.md to see each rule fire.");
+                // Canned customer-support response that incorporates any FAQ
+                // snippet retrieved by FaqRetrievalInterceptor. Real deployments
+                // swap session.send for session.stream(message) once an LLM is
+                // wired — the governance chain already ran, and the retrieved
+                // snippet ({metadata.rag.snippet}) is available for the LLM
+                // prompt builder to splice into a grounded response.
+                if (snippet != null) {
+                    session.send("Thanks for contacting Example Corp support. I see your "
+                            + "message: \"" + effective + "\". ");
+                    session.send("Matched FAQ (category=" + category + "): " + snippet + " ");
+                    session.send("Every turn also passes through @AgentScope classification "
+                            + "plus the " + policyRuleCountSummary()
+                            + " from `atmosphere-policies.yaml`, audit-logged at "
+                            + "`GET /api/admin/governance/decisions`.");
+                } else {
+                    session.send("Thanks for contacting Example Corp support. I see your "
+                            + "message: \"" + effective + "\". ");
+                    session.send("Every turn passes through @AgentScope classification "
+                            + "plus the " + policyRuleCountSummary()
+                            + " from `atmosphere-policies.yaml`, audit-logged at "
+                            + "`GET /api/admin/governance/decisions`. ");
+                    session.send("Try prompts listed in README.md to see each rule fire.");
+                }
                 session.complete();
             }
         }
