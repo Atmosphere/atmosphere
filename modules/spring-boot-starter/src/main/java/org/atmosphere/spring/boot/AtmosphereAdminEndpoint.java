@@ -566,6 +566,26 @@ public class AtmosphereAdminEndpoint {
     }
 
     /**
+     * Compliance export in the {@code agt verify} schema shape —
+     * cross-framework findings + per-framework coverage counts. External
+     * compliance tooling that already consumes MS's Agent Compliance
+     * package format can round-trip this output.
+     *
+     * <p>Closes the v4 roadmap Phase D acceptance criterion.</p>
+     */
+    @GetMapping("/governance/agt-verify")
+    public ResponseEntity<Map<String, Object>> governanceAgtVerify() {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of(
+                    "schemaVersion", "agt-verify/1",
+                    "findings", List.of(),
+                    "summary", Map.of()));
+        }
+        return ResponseEntity.ok(controller.agtVerifyExport());
+    }
+
+    /**
      * Recent policy decisions (ring-buffered). {@code limit} defaults to 100;
      * capped at the log's configured capacity. Read-only — no authorizer
      * guard required.

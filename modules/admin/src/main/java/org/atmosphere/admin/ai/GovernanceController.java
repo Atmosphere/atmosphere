@@ -272,6 +272,118 @@ public final class GovernanceController {
     }
 
     /**
+     * Export the OWASP + compliance self-assessments in the shape
+     * Microsoft's {@code agt verify} CLI consumes — flat array of findings
+     * (one per matrix row) with a top-level {@code framework} tag + a
+     * {@code summary} object keyed by framework name. External compliance
+     * tooling that already targets MS's Agent Compliance package can
+     * round-trip this output without any Atmosphere-specific adapter.
+     *
+     * <p>Schema:</p>
+     * <pre>{@code
+     * {
+     *   "schemaVersion": "agt-verify/1",
+     *   "generatedAt": "2026-04-23T13:35:00Z",
+     *   "findings": [
+     *     {
+     *       "framework": "OWASP_AGENTIC_TOP_10",
+     *       "controlId": "AG-1",
+     *       "title": "Goal Hijacking",
+     *       "status": "COVERED",
+     *       "evidence": [
+     *         { "class": "org.atmosphere.ai.annotation.AgentScope",
+     *           "test":  "org.atmosphere.ai.annotation.AgentScopeTest",
+     *           "consumerGrep": "@AgentScope" }
+     *       ]
+     *     },
+     *     ...
+     *   ],
+     *   "summary": {
+     *     "OWASP_AGENTIC_TOP_10": { "COVERED": 7, "PARTIAL": 2, "DESIGN": 1, ... },
+     *     "EU_AI_ACT": { ... }
+     *   }
+     * }
+     * }</pre>
+     *
+     * <p>Closes Phase D item from the v4 roadmap: "JSON export in {@code agt verify}
+     * schema" — operators can pipe this into cross-vendor compliance
+     * dashboards without reshaping.</p>
+     */
+    public Map<String, Object> agtVerifyExport() {
+        var findings = new ArrayList<Map<String, Object>>();
+        var summary = new LinkedHashMap<String, Object>();
+
+        // OWASP findings
+        var owaspCounts = new LinkedHashMap<String, Integer>();
+        owaspCounts.put("COVERED", 0);
+        owaspCounts.put("PARTIAL", 0);
+        owaspCounts.put("DESIGN", 0);
+        owaspCounts.put("NOT_ADDRESSED", 0);
+        for (var row : OwaspAgenticMatrix.MATRIX) {
+            findings.add(renderVerifyFinding("OWASP_AGENTIC_TOP_10",
+                    row.id(), row.title(), row.description(),
+                    row.coverage().name(), row.notes(),
+                    row.evidence().stream()
+                            .map(e -> Map.<String, Object>of(
+                                    "class", e.evidenceClass(),
+                                    "test", e.testClass(),
+                                    "consumerGrep", e.consumerGrepPattern(),
+                                    "description", e.description()))
+                            .toList()));
+            owaspCounts.merge(row.coverage().name(), 1, Integer::sum);
+        }
+        summary.put("OWASP_AGENTIC_TOP_10", owaspCounts);
+
+        // Compliance matrices
+        for (var entry : ComplianceMatrix.MATRICES.entrySet()) {
+            var frameworkKey = entry.getKey().name();
+            var counts = new LinkedHashMap<String, Integer>();
+            counts.put("COVERED", 0);
+            counts.put("PARTIAL", 0);
+            counts.put("DESIGN", 0);
+            counts.put("NOT_ADDRESSED", 0);
+            for (var row : entry.getValue()) {
+                findings.add(renderVerifyFinding(frameworkKey,
+                        row.id(), row.title(), row.description(),
+                        row.coverage().name(), row.notes(),
+                        row.evidence().stream()
+                                .map(e -> Map.<String, Object>of(
+                                        "class", e.evidenceClass(),
+                                        "test", e.testClass(),
+                                        "consumerGrep", e.consumerGrepPattern(),
+                                        "description", e.description()))
+                                .toList()));
+                counts.merge(row.coverage().name(), 1, Integer::sum);
+            }
+            summary.put(frameworkKey, counts);
+        }
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("schemaVersion", "agt-verify/1");
+        result.put("generatedAt", java.time.Instant.now().toString());
+        result.put("findings", findings);
+        result.put("summary", summary);
+        return result;
+    }
+
+    private static Map<String, Object> renderVerifyFinding(String framework, String controlId,
+                                                            String title, String description,
+                                                            String status, String notes,
+                                                            List<Map<String, Object>> evidence) {
+        var out = new LinkedHashMap<String, Object>();
+        out.put("framework", framework);
+        out.put("controlId", controlId);
+        out.put("title", title);
+        out.put("description", description);
+        out.put("status", status);
+        if (notes != null && !notes.isBlank()) {
+            out.put("notes", notes);
+        }
+        out.put("evidence", evidence);
+        return out;
+    }
+
+    /**
      * Render Atmosphere's regulatory compliance self-assessment —
      * {@code EU_AI_ACT}, {@code HIPAA}, {@code SOC2}. Each matrix follows
      * the same shape as the OWASP matrix so admin consumers can reuse
