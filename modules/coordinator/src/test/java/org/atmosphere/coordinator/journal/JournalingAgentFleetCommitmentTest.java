@@ -42,7 +42,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Verifies the Phase B1 commitment-record emission path. A signer
+ * Verifies the commitment-record emission path. A signer
  * installed on {@link JournalingAgentFleet} causes every dispatch to
  * emit a signed {@link org.atmosphere.coordinator.commitment.CommitmentRecord}
  * alongside the existing {@code AgentDispatched} event; no signer = no
@@ -56,9 +56,9 @@ class JournalingAgentFleetCommitmentTest {
 
     @BeforeEach
     void setUp() {
-        // v4 Phase B1 — commitment records are flag-off by default. These
-        // tests exercise emission behavior, so we flip the override on;
-        // @AfterEach clears it so other tests stay isolated.
+        // Commitment records are flag-off by default. These tests exercise
+        // emission behavior, so we flip the override on; @AfterEach clears
+        // it so other tests stay isolated.
         CommitmentRecordsFlag.override(Boolean.TRUE);
         journal = new InMemoryCoordinationJournal();
         journal.start();
@@ -84,14 +84,14 @@ class JournalingAgentFleetCommitmentTest {
 
     @Test
     void flagOffGatesEmissionEvenWithSignerInstalled() {
-        // Override the BeforeEach enable so this test exercises the v4 gate.
+        // Override the BeforeEach enable so this test exercises the gate.
         CommitmentRecordsFlag.override(Boolean.FALSE);
         fleet.signer(Ed25519CommitmentSigner.generate()).principal("user-42");
 
         fleet.parallel(new AgentCall("billing", "query", Map.of("q", "hi")));
 
         assertTrue(commitments().isEmpty(),
-                "v4 Phase B1: signer installed but flag off -> no emission");
+                "flag off -> no emission even when signer is installed");
     }
 
     @Test

@@ -23,7 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Tier 6.2 — retrieval layer for the MS-governance sample. Looks up the
+ * RAG retrieval layer for the MS-governance sample. Looks up the
  * user's message against {@link FaqKnowledgeBase}; on a hit, tags the
  * retrieved snippet + category onto {@code AiRequest.metadata()}.
  *

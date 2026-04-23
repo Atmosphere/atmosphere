@@ -37,7 +37,7 @@ import static org.mockito.Mockito.when;
  * {@link GovernancePolicy} chain when {@code atmosphere-ai} is on the
  * classpath (it is here — test-scope dep). An MS-schema YAML rule over
  * {@code tool_name} must fire for MCP tool calls just like it does for
- * first-party {@code @AiTool} dispatches. Addresses Tier 2.5.
+ * first-party {@code @AiTool} dispatches.
  */
 class McpPolicyGatewayTest {
 

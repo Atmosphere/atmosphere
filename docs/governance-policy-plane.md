@@ -10,7 +10,7 @@
 
 ## Why this exists
 
-Atmosphere has had `AiGuardrail` from the beginning — PII redaction, cost ceilings, output drift detection — but every guardrail was imperative Java code. The Phase A policy plane layers a declarative identity-carrying SPI on top so that:
+Atmosphere has had `AiGuardrail` from the beginning — PII redaction, cost ceilings, output drift detection — but every guardrail was imperative Java code. The policy plane layers a declarative identity-carrying SPI on top so that:
 
 1. **Operators can author governance in YAML**, not Java. Change `atmosphere-policies.yaml`, restart, governance posture changes. No recompilation.
 2. **Audit trails are pinned to policy identity**. Every admit / deny / transform decision records the `name`, `source` URI, and `version` of the matching policy — not just "some guardrail fired."
@@ -416,7 +416,7 @@ public void onPrompt(String msg, AgentFleet fleet, StreamingSession s) {
 Every dispatch emits a W3C Verifiable-Credential-subtype `CommitmentRecord`
 when both (a) an `Ed25519CommitmentSigner` is installed on the fleet via
 `JournalingAgentFleet.signer(signer)`, and (b) `CommitmentRecordsFlag`
-is enabled (flag-off default per v4 Phase B1; flip with the system
+is enabled (flag-off default; flip with the system
 property `atmosphere.ai.governance.commitment-records.enabled=true` or
 `CommitmentRecordsFlag.override(Boolean.TRUE)`).
 
@@ -443,7 +443,7 @@ checkpoints + cryptographic audit trail that survives pause/resume.
 
 ## Which samples demonstrate which goals
 
-| Sample | Goal 1 <br/>MS YAML | Goal 2 <br/>Scope | Goal 3 <br/>Commitments | Goal 4 <br/>OWASP | E2E tests |
+| Sample | MS YAML | Scope | Commitments | OWASP | E2E tests |
 |---|:-:|:-:|:-:|:-:|:-:|
 | [spring-boot-ms-governance-chat](../samples/spring-boot-ms-governance-chat/) | ✅ | ✅ | — | ✅ | — |
 | [spring-boot-ai-classroom](../samples/spring-boot-ai-classroom/) | ✅ | ✅ | — | — | 8 |

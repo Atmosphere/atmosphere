@@ -32,11 +32,11 @@ import java.util.Objects;
  * {@code proof} for VC; {@code delegationChain} and {@code scope} for
  * AP2's cross-agent dispatch tracing.</p>
  *
- * <p><b>@Experimental</b> — the shape of this record is not frozen. Phase
- * B2 (standards-track convergence with W3C CCG + AP2 + Visa TAP) may
- * cause a v2 schema migration. Default posture is flag-off; operators who
- * enable it are opting into potential migration by 2026-Q4 (per v4 gist
- * Phase B1 schema-leakage resolution).</p>
+ * <p><b>@Experimental</b> — the shape of this record is not frozen.
+ * Standards-track convergence with W3C CCG + AP2 + Visa TAP (target
+ * 2026-Q4) may cause a v2 schema migration. Default posture is flag-off
+ * via {@link CommitmentRecordsFlag}; operators who flip it on are
+ * explicitly opting into potential migration.</p>
  *
  * @param id                 stable unique record identifier (UUID)
  * @param coordinationId     ties this record to a {@code CoordinationEvent}

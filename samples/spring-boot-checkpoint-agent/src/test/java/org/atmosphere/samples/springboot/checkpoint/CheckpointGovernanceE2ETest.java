@@ -26,12 +26,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * v4 Goal 3 applied to the checkpoint-agent sample: Ed25519 signer wired,
- * commitment-records flag enabled at boot. The pause/resume flow itself
- * is exercised in {@code DispatchCoordinator} at runtime — this test
- * locks down the wiring so a future refactor can't silently remove the
- * signer and leave the sample claiming a signed audit trail it no longer
- * produces.
+ * Commitment-record wiring in the checkpoint-agent sample: Ed25519
+ * signer installed, commitment-records flag enabled at boot. The
+ * pause/resume flow itself is exercised in {@code DispatchCoordinator}
+ * at runtime — this test locks down the wiring so a future refactor
+ * can't silently remove the signer and leave the sample claiming a
+ * signed audit trail it no longer produces.
  *
  * <p>Atmosphere-unique differentiator: durable session + signed audit
  * trail across pause/resume. MS Agent Framework drops state on pause;
@@ -53,7 +53,7 @@ class CheckpointGovernanceE2ETest {
     @Test
     void goal3_commitmentRecordsFlagEnabledAtBoot() {
         assertTrue(CommitmentRecordsFlag.isEnabled(),
-                "CommitmentConfig must flip the v4 Phase B1 flag on at boot");
+                "CommitmentConfig must flip the commitment-records flag on at boot");
     }
 
     @Test

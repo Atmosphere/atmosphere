@@ -35,12 +35,12 @@ import java.util.stream.Stream;
  * under {@code modules/} or {@code samples/}), and that file must NOT be
  * the evidence class itself.
  *
- * <p>Closes the v4 gist Phase D "production-consumer grep-verified"
- * acceptance criterion. Before this gate landed, the
- * {@code consumerGrepPattern} field was metadata only — a row could claim
- * {@code COVERED} while the caller it pointed at had been deleted, and
- * nothing failed the build. That is the exact "credibility liability"
- * the v4 §9 Risk #5 called out.</p>
+ * <p>Enforces "production-consumer grep-verified" compliance coverage.
+ * Before this gate landed, the {@code consumerGrepPattern} field was
+ * metadata only — a row could claim {@code COVERED} while the caller it
+ * pointed at had been deleted, and nothing failed the build. That's the
+ * credibility liability we can't afford: if a governance row says
+ * "covered by X" and X is actually dead code, the matrix becomes noise.</p>
  *
  * <p>Why the evidence class is excluded from the search: the whole point
  * of "consumer grep" is to prove a <i>consumer</i> exists. A class

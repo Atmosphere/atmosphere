@@ -56,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matches MS Agent Governance Toolkit's `audit_entry` so downstream
   SIEM consumers of either system can read both.
 
-### Added — Agent scope, audit trail, OWASP matrix (Phase AS + D)
+### Added — Agent scope, audit trail, OWASP matrix
 
 - **`@AgentScope` annotation + `ScopeGuardrail` SPI** (`ba7ddf3688`) —
   architectural goal-hijacking prevention. Annotation declares `purpose`,
@@ -116,7 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `GET /api/admin/governance/owasp` for `agt verify`-style compliance
   consumers.
 
-### Added — Governance policy plane (Phase A)
+### Added — Governance policy plane
 
 - **`GovernancePolicy` SPI** (`0ace2b6947`) — declarative policy identity
   (`name` / `source` / `version`) plus `PolicyContext`→`PolicyDecision`
@@ -160,7 +160,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `samples/spring-boot-ai-classroom/src/main/resources/atmosphere-policies.yaml`
   declares a PII redaction and a z-score drift detector; `PoliciesConfig`
   reads it at startup and publishes the list to `POLICIES_PROPERTY`.
-  Demonstrates the Phase A promise: change YAML, restart, governance
+  Demonstrates the key promise: change YAML, restart, governance
   changes — zero code edits.
 - **Admin introspection** (`b973aa2828`) — `GovernanceController` reads
   `POLICIES_PROPERTY` for per-policy identity and distinct-source

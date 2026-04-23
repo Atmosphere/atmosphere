@@ -30,8 +30,8 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * v4 Goals 2 + 4 applied at the MCP protocol layer. Policies published
- * here are consumed by {@code McpPolicyGateway} on every
+ * Policies applied at the MCP protocol layer. Policies published here
+ * are consumed by {@code McpPolicyGateway} on every
  * {@code tools/call} — {@code PolicyAdmissionGate.admitToolCall} evaluates
  * the tool invocation against this chain before the
  * {@code @McpTool}-annotated method runs.

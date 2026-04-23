@@ -82,7 +82,7 @@ public class DispatchCoordinator {
      * Ed25519 signer from {@link CommitmentConfig}. When present, every
      * analyzer/approver dispatch emits a signed {@code CommitmentRecord}
      * on the journal — paired with the checkpoint snapshot, this is the
-     * v4 Goal 3 audit trail across pause/resume.
+     * signed audit trail across pause/resume.
      */
     @Autowired(required = false)
     private CommitmentSigner commitmentSigner;
@@ -92,9 +92,9 @@ public class DispatchCoordinator {
                           AtmosphereResource resource) {
         logger.info("Dispatch received: {}", message);
 
-        // Goal 3 — arm commitment-record emission on this session's fleet.
-        // The principal is stamped from the Atmosphere resource UUID so
-        // the audit trail ties the signed record to the specific client.
+        // Arm commitment-record emission on this session's fleet. The
+        // principal is stamped from the Atmosphere resource UUID so the
+        // audit trail ties the signed record to the specific client.
         if (commitmentSigner != null && fleet instanceof JournalingAgentFleet journaling) {
             var principal = "user:" + resource.uuid();
             journaling.signer(commitmentSigner).principal(principal);

@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * v4 Goals 2 + 4 applied to the MCP protocol layer. McpPolicyGateway
+ * Governance applied to the MCP protocol layer. McpPolicyGateway
  * evaluates {@code tools/call} invocations through the policy chain
  * published here; this test locks down the chain shape and proves the
  * policies decide correctly on representative MCP tool invocations.

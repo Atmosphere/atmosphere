@@ -153,7 +153,7 @@ public interface AgentFleet {
      * and any non-{@code Proceed} decision short-circuits the chain.
      *
      * <p>Governance wiring example — scope check at the agent-to-agent
-     * boundary (Goal 2 per-dispatch enforcement):</p>
+     * boundary:</p>
      * <pre>{@code
      * var governed = fleet
      *     .withInterceptor(call -> policy.evaluate(

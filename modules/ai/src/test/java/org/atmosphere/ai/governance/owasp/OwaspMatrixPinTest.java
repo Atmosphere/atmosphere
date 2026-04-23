@@ -37,9 +37,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <h2>What this test protects</h2>
  * Marketing / compliance copy will eventually cite this matrix. When
  * someone deletes or renames an evidence class, the matrix must fail the
- * build loudly rather than quietly keep the stale reference alive. That's
- * the v4 gist §4 Phase D 'organizational discipline' risk: the matrix is
- * a credibility liability when it drifts.
+ * build loudly rather than quietly keep the stale reference alive —
+ * otherwise the matrix becomes a credibility liability as it drifts away
+ * from the code it claims to describe.
  */
 class OwaspMatrixPinTest {
 

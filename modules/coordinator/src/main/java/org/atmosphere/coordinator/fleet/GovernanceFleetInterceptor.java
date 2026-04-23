@@ -32,7 +32,7 @@ import java.util.Objects;
  * configured policies. Deny short-circuits the dispatch; transform
  * rewrites the message field back into the call's args; admit proceeds.
  *
- * <p>This is the v4 gist's Goal 2 enforcement at the agent-to-agent edge.
+ * <p>Goal-hijacking prevention at the agent-to-agent edge.
  * A coordinator dispatching {@code call("research", "write_code", …)} is
  * the same goal-hijacking risk as a user prompting a support bot with
  * "write Python" — both must pass the same scope policy. Using this

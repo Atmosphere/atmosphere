@@ -26,7 +26,7 @@ import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Default (per v4 §4 Phase AS) scope-enforcement tier — compares the
+ * Default scope-enforcement tier — compares the
  * incoming message's embedding to the embedding of the declared
  * {@link ScopeConfig#purpose()} via cosine similarity, rejects when the
  * similarity falls below {@link ScopeConfig#similarityThreshold()}.

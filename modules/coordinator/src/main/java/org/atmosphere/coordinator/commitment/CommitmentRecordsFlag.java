@@ -16,8 +16,8 @@
 package org.atmosphere.coordinator.commitment;
 
 /**
- * Runtime gate for {@link CommitmentRecord} emission — the flag-off-default
- * contract called for by the v4 roadmap (Phase B1 schema-leakage resolution).
+ * Runtime gate for {@link CommitmentRecord} emission — flag-off default so
+ * operators explicitly opt into the {@code @Experimental} schema.
  *
  * <h2>Contract</h2>
  * <ul>
@@ -25,9 +25,9 @@ package org.atmosphere.coordinator.commitment;
  *       {@link CommitmentSigner} but don't flip this flag do not emit
  *       records — protecting existing deployments against a silent
  *       dependency on an experimental schema.</li>
- *   <li>Operators opting in acknowledge the {@code @Experimental} contract:
- *       the record shape may migrate by 2026-Q4 when Phase B2 standards
- *       convergence with W3C CCG + AP2 + Visa TAP resolves.</li>
+ *   <li>Operators opting in acknowledge that the record shape may migrate
+ *       when the standards-track convergence with W3C CCG + AP2 +
+ *       Visa TAP resolves (target 2026-Q4).</li>
  * </ul>
  *
  * <h2>Sources of truth (checked in order)</h2>
@@ -48,7 +48,7 @@ public final class CommitmentRecordsFlag {
 
     /**
      * System-property name gating commitment-record emission. Default off
-     * per v4 Phase B1 schema-leakage resolution. Operators enable with
+     * so operators explicitly opt into the experimental schema. Enable with
      * {@code -Datmosphere.ai.governance.commitment-records.enabled=true}.
      */
     public static final String PROPERTY_NAME = "atmosphere.ai.governance.commitment-records.enabled";

@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Tier 6.3 — lightweight ticket classifier that tags every incoming
+ * Lightweight ticket classifier that tags every incoming
  * support message with {@code ticket.category} and {@code ticket.priority}
  * metadata. Downstream MS-schema YAML rules + the governance audit log
  * see the tags without any extra plumbing.

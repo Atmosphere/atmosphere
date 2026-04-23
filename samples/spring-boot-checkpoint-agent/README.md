@@ -84,13 +84,13 @@ atmosphere checkpoint fork <id> --state custom-branch
 | File | Purpose |
 |------|---------|
 | `CheckpointConfig.java` | Wires a pluggable `CheckpointStore` (SQLite by default, in-memory opt-in) + wraps the journal with `CheckpointingCoordinationJournal` |
-| `CommitmentConfig.java` | **v4 Goal 3** — installs an `Ed25519CommitmentSigner` bean + flips `CommitmentRecordsFlag` on so every dispatch emits a signed VC-subtype record on the journal |
+| `CommitmentConfig.java` | Installs an `Ed25519CommitmentSigner` bean + flips `CommitmentRecordsFlag` on so every dispatch emits a signed VC-subtype record on the journal |
 | `DispatchCoordinator.java` | `@Coordinator` that arms the signer per session, calls the analyzer, and returns the checkpoint pointer. Signed `CommitmentRecord`s land on the journal alongside each `AgentDispatched` event. |
 | `AnalyzerAgent.java` | `@Agent` whose `AgentCompleted` events are captured as snapshots |
 | `ApproverAgent.java` | `@Agent` invoked by `CheckpointController#approve` to resume the workflow after HITL approval |
 | `CheckpointController.java` | REST surface over the `CheckpointStore`; `/approve` is the resumption point that calls the approver and chains its result |
 
-## Governance — signed audit trail across HITL pause (v4 Goal 3)
+## Governance — signed audit trail across HITL pause
 
 **This sample is unique**: durable session + Ed25519-signed commitment
 records paired across the HITL pause boundary. MS Agent Framework drops

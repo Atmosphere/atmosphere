@@ -43,7 +43,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * JMH micro-benchmarks for the governance admission hot path — Tier 7.2.
+ * JMH micro-benchmarks for the governance admission hot path.
  * Measures per-evaluation cost for each
  * {@link org.atmosphere.ai.governance.scope.ScopeGuardrail} tier, for
  * {@link MsAgentOsPolicy} priority-sorted rule eval, and for

@@ -119,7 +119,7 @@ public class CeoCoordinator {
      * Governance policies published by {@link GovernanceConfig}. Used to
      * build a {@link GovernanceFleetInterceptor} that evaluates every
      * dispatch to a specialist agent against the policy chain —
-     * the v4 Goal 2 per-dispatch enforcement.
+     * governance at the agent-to-agent boundary.
      */
     @Autowired(required = false)
     private List<GovernancePolicy> policies = List.of();
@@ -175,11 +175,11 @@ public class CeoCoordinator {
                           AtmosphereResource resource) {
         logger.info("CEO received: {}", message);
 
-        // Goal 2 — governance admission on user input. PolicyAdmissionGate
-        // runs @AgentScope + any installed GovernancePolicy chain (scope,
-        // kill switch, rate limit, ...) BEFORE any dispatch decisions. If
-        // the scope policy denies (off-topic) or redirects, short-circuit
-        // here — the specialist agents never see off-scope traffic.
+        // Governance admission on user input. PolicyAdmissionGate runs
+        // @AgentScope + any installed GovernancePolicy chain (scope, kill
+        // switch, rate limit, ...) BEFORE any dispatch decisions. If the
+        // scope policy denies (off-topic) or redirects, short-circuit here
+        // — the specialist agents never see off-scope traffic.
         var admission = PolicyAdmissionGate.admit(resource, new AiRequest(message));
         if (admission instanceof PolicyAdmissionGate.Result.Denied denied) {
             logger.info("Admission denied by {}: {}", denied.policyName(), denied.reason());
@@ -192,7 +192,7 @@ public class CeoCoordinator {
         // Wire per-session activity streaming — clients see agent-step events in real time
         fleet = fleet.withActivityListener(new StreamingActivityListener(session));
 
-        // Goal 2 (dispatch edge) — evaluate each cross-agent call against
+        // Dispatch-edge governance — evaluate each cross-agent call against
         // the governance policy chain before it leaves the coordinator.
         // Denies become synthetic failed AgentResults; transforms rewrite
         // the call's args before the specialist runs.
@@ -200,9 +200,9 @@ public class CeoCoordinator {
             fleet = fleet.withInterceptor(new GovernanceFleetInterceptor(policies));
         }
 
-        // Goal 3 — install the Ed25519 signer + principal on the journaling
-        // fleet so every dispatch emits a signed CommitmentRecord. The flag
-        // is flipped on by GovernanceConfig.enableCommitmentRecords().
+        // Install the Ed25519 signer + principal on the journaling fleet
+        // so every dispatch emits a signed CommitmentRecord. The flag is
+        // flipped on by GovernanceConfig.enableCommitmentRecords().
         if (commitmentSigner != null && fleet instanceof JournalingAgentFleet journaling) {
             var principal = "user:" + resource.uuid();
             journaling.signer(commitmentSigner).principal(principal);

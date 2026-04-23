@@ -23,7 +23,7 @@ package org.atmosphere.coordinator.fleet;
  * coordinator-to-specialist boundary rather than at the user-facing
  * {@code @Prompt} entry.
  *
- * <p>The v4 gist's Goal 2 (goal-hijacking prevention) is solved at the
+ * <p>Goal-hijacking prevention at the user-facing entry is solved at the
  * {@code @Prompt} entry by {@code PolicyAdmissionGate}; this SPI is the
  * <b>agent-to-agent</b> variant — a coordinator dispatching to Research
  * with "write Python code" is the same risk as a user asking for it

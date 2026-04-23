@@ -50,7 +50,7 @@ public class AiClassroom {
 
 The `{room}` path segment is extracted by `AiEndpointHandler` and each unique room path gets its own Atmosphere broadcaster, so messages in the math room are isolated from the code and science rooms. The `skill:classroom` prefix loads the system prompt from a skill file (classpath or `~/.atmosphere/skills/`).
 
-## Governance — YAML-driven per-room scope (v4 Goal 1)
+## Governance — YAML-driven per-room scope
 
 **This sample is unique in the JVM AI space**: ONE `@AiEndpoint` serves
 four DIFFERENT scopes selected per-request from the `{room}` path param.

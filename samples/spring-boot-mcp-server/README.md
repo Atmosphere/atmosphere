@@ -145,7 +145,7 @@ public class DemoMcpServer {
 }
 ```
 
-## Governance — scope on every MCP tool call (v4 Goals 2 + 4)
+## Governance — scope on every MCP tool call
 
 **This sample is unique**: governance on MCP protocol dispatch over the
 same streaming transport as the UI. Microsoft Agent Governance Toolkit
@@ -192,8 +192,8 @@ curl -X POST http://localhost:8083/api/admin/governance/kill-switch/arm \
 
 ### OWASP evidence
 
-This sample is the production consumer for OWASP A02 (tool misuse) +
-A08 (supply chain / MCP plugins) evidence rows. The `EvidenceConsumerGrepPinTest`
+This sample is a production consumer for OWASP A02 (tool misuse) + A08
+(supply chain / MCP plugins) evidence rows. The `EvidenceConsumerGrepPinTest`
 CI gate asserts that a production caller exists for each claimed coverage.
 
 ```bash

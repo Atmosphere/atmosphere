@@ -37,22 +37,17 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Quarkus-runtime parity test for the v4 Phase A policy plane. Verifies
+ * Quarkus-runtime parity test for the governance policy plane. Verifies
  * that governance primitives loaded on a real Quarkus deployment
- * classloader return the same decisions they do under Spring Boot:
- * <b>identical semantics across both runtimes</b> (v4 §7 Mode Parity
- * invariant).
+ * classloader return the same decisions they do under Spring Boot —
+ * identical semantics across both runtimes (Mode Parity invariant).
  *
- * <p>Why this test: the v4 gist explicitly calls for a Quarkus parity
- * check on every phase of the governance work. Until this landed, only
- * source-parity was proven ({@code PolicyPlaneSourceParityTest} in
- * modules/ai). This runs the same admission path under
- * {@link QuarkusUnitTest}, catching Quarkus-specific failure modes
- * (Jandex indexing, build-time class rewriting, deployment-classloader
- * isolation) that source tests can't.</p>
- *
- * <p>Closes the Phase A Quarkus-parity gap identified in the v4 status
- * audit.</p>
+ * <p>Until this landed, only source parity was proven
+ * ({@code PolicyPlaneSourceParityTest} in modules/ai). This runs the
+ * same admission path under {@link QuarkusUnitTest}, catching
+ * Quarkus-specific failure modes (Jandex indexing, build-time class
+ * rewriting, deployment-classloader isolation) that source tests
+ * can't.</p>
  */
 public class GovernancePolicyQuarkusParityTest {
 
@@ -95,7 +90,8 @@ public class GovernancePolicyQuarkusParityTest {
 
     @Test
     public void yamlParserRoundTripsUnderQuarkus() throws Exception {
-        // The v4 gist called out SnakeYAML runtime-dep status. This test
+        // Also proves SnakeYAML loads + parses under Quarkus's classloader.
+        // This test
         // proves the YAML parser loads and parses under Quarkus's
         // classloader — covering the "does SnakeYAML surface
         // deployment-classloader isolation issues?" concern.

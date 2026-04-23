@@ -1,10 +1,9 @@
 # Per-room scope config for the AI classroom sample.
 #
-# This file applies v4 Phase A Goal 1 to a multi-room, single-endpoint
-# deployment: operators tune each room's purpose, forbidden topics, and
-# scope tier without rebuilding the app. RoomScopesConfig reads this on
-# startup and exposes a Map<String, ScopeConfig> that
-# RoomContextInterceptor consumes.
+# Operators tune each room's purpose, forbidden topics, and scope tier
+# without rebuilding the app. RoomScopesConfig reads this on startup
+# and exposes a Map<String, ScopeConfig> that RoomContextInterceptor
+# consumes.
 #
 # Atmosphere is the only JVM framework with per-request scope install
 # (via REQUEST_SCOPE_METADATA_KEY) — YAML-backed per-room scope turns

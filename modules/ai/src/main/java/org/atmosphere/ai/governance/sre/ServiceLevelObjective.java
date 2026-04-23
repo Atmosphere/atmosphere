@@ -20,7 +20,7 @@ import java.time.Duration;
 /**
  * Declarative SLO — target success ratio over a rolling window. Feeds
  * {@link SloTracker} which accumulates admission-path observations and
- * computes remaining error budget. Tier 5.2 primitive.
+ * computes remaining error budget.
  *
  * <p>Tracks two SRE-native quantities:</p>
  * <ul>

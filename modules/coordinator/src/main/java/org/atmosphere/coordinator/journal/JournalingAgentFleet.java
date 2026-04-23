@@ -59,11 +59,11 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
     private final ExecutorService evalExecutor;
     private final boolean ownsExecutor;
     /**
-     * Phase B1 — optional commitment-record signer. When non-null and
-     * non-UNSIGNED, every dispatch emits a signed {@link CommitmentRecord}
-     * alongside the existing {@code AgentDispatched} event. Flag-off
-     * default (null) so existing coordinators don't pay the signing cost
-     * unless operators opt in.
+     * Optional commitment-record signer. When non-null and non-UNSIGNED,
+     * every dispatch emits a signed {@link CommitmentRecord} alongside
+     * the existing {@code AgentDispatched} event. Flag-off default (null)
+     * so existing coordinators don't pay the signing cost unless operators
+     * opt in.
      * <b>@Experimental</b> — shape may migrate by 2026-Q4.
      */
     private volatile CommitmentSigner commitmentSigner;
@@ -95,7 +95,8 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
      * operators enable this for deployments that need verifiable audit
      * trails (financial, medical, legal-adjacent coordinators).
      *
-     * @apiNote Experimental — Phase B1 primitive, migration possible by 2026-Q4.
+     * @apiNote Experimental — shape may migrate by 2026-Q4 when the W3C CCG +
+     *          AP2 + Visa TAP standards-track convergence resolves.
      */
     public JournalingAgentFleet signer(CommitmentSigner signer) {
         this.commitmentSigner = signer;
@@ -279,9 +280,9 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
      * async {@link CommitmentSigner}.
      */
     private void emitCommitmentRecord(String coordId, AgentCall call, String outcome) {
-        // Flag-off default per v4 Phase B1 schema-leakage resolution:
-        // even when a signer is wired, emission is gated on the runtime
-        // flag so operators explicitly opt into the @Experimental schema.
+        // Flag-off default: even when a signer is wired, emission is gated
+        // on the runtime flag so operators explicitly opt into the
+        // @Experimental schema.
         if (!CommitmentRecordsFlag.isEnabled()) {
             return;
         }

@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *   <li>the <b>general</b> room admits a broader educational band.</li>
  * </ul>
  *
- * <p><b>v4 Goal 1 applied</b> — room scopes are loaded from
+ * <p>Room scopes are loaded from
  * {@code atmosphere-classroom-scopes.yaml} via {@link RoomScopesConfig}.
  * Operators edit the YAML and restart the sample to tune room behavior
  * without a recompile. The inline {@code FALLBACK_ROOMS} below is the

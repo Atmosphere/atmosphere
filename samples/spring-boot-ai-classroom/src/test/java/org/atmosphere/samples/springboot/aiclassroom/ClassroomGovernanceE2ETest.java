@@ -33,10 +33,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * v4 Goal 1 applied to the classroom: per-request scope configuration
- * loaded from YAML. Four rooms (math / code / science / general) each
- * carry their own {@code ScopeConfig}; operators change YAML, restart,
- * rooms change.
+ * Per-request scope configuration loaded from YAML. Four rooms
+ * (math / code / science / general) each carry their own
+ * {@code ScopeConfig}; operators change YAML, restart, rooms change.
  *
  * <p>Unique to Atmosphere among JVM AI frameworks: a single
  * {@code @AiEndpoint} serves four different scopes selected per-request

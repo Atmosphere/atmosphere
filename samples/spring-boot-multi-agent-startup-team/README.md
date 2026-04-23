@@ -11,7 +11,7 @@ This sample demonstrates:
 - **`@Agent`** + **`@AgentSkill`** for headless specialist agents
 - **Agent Activity Streaming** — real-time `agent-step` events (thinking/completed) streamed to the browser via `StreamingActivityListener`
 - **Coordination Journal** with rendered markdown tables showing the full execution graph
-- **Governance policy plane (all 4 v4 goals)** — `@AgentScope` on the coordinator, `PolicyAdmissionGate.admit` at user input, `GovernanceFleetInterceptor` at every cross-agent dispatch, signed `CommitmentRecord`s on the journal. See [§ Governance](#governance--what-you-can-do-at-runtime).
+- **Governance policy plane** — `@AgentScope` on the coordinator, `PolicyAdmissionGate.admit` at user input, `GovernanceFleetInterceptor` at every cross-agent dispatch, signed `CommitmentRecord`s on the journal. See [§ Governance](#governance--what-you-can-do-at-runtime).
 - **Result Evaluation** — dual evaluators (`SanityCheckEvaluator` + `LlmResultEvaluator`) auto-score agent responses with EVAL rows in the journal
 - **SQLite Checkpoints** — `CheckpointingCoordinationJournal` persists coordination state to `atmosphere-checkpoints.db`
 - **Skill files from GitHub** — `skill:` prefix loads prompts from [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills) with SHA-256 integrity verification
@@ -262,18 +262,18 @@ sqlite3 atmosphere-checkpoints.db "SELECT COUNT(*) FROM checkpoints;"
 
 ## Governance — what you can do at runtime
 
-This sample applies all four v4 governance goals. `GovernanceConfig` publishes
-a policy chain at boot; `CeoCoordinator` evaluates it at `@Prompt` entry AND
-on every cross-agent dispatch.
+This sample applies the full governance policy plane. `GovernanceConfig`
+publishes a policy chain at boot; `CeoCoordinator` evaluates it at
+`@Prompt` entry AND on every cross-agent dispatch.
 
-### Goals applied
+### Capabilities applied
 
-| Goal | What this sample does | Where to look |
+| Capability | What this sample does | Where to look |
 |---|---|---|
-| **1 — MS YAML acceptance** | `GovernanceConfig.policyPlanePublisher()` publishes 4 admission policies on `GovernancePolicy.POLICIES_PROPERTY`; the framework evaluates them at admission. Drop `atmosphere-policies.yaml` (MS or native schema) on the classpath and it loads alongside. | [GovernanceConfig.java](src/main/java/org/atmosphere/samples/springboot/a2astartup/GovernanceConfig.java) |
-| **2 — Architectural scope enforcement** | `@AgentScope` on `CeoCoordinator` declares the startup-advisory purpose + forbidden topics. `PolicyAdmissionGate.admit` runs at `@Prompt` entry. `GovernanceFleetInterceptor` gates every coord→specialist dispatch. | [CeoCoordinator.java](src/main/java/org/atmosphere/samples/springboot/a2astartup/CeoCoordinator.java) |
-| **3 — Commitment records** | `Ed25519CommitmentSigner` bean + `CommitmentRecordsFlag.override(true)` in `GovernanceConfig` — every dispatch emits a VC-subtype signed record on the coordination journal. Visible in the admin **Commitments** tab. | `GovernanceConfig.commitmentSigner()` |
-| **4 — OWASP + compliance evidence** | All evidence rows point at primitives this sample exercises (`PolicyAdmissionGate`, `@AgentScope`, `ScopePolicy`). CI gate (`EvidenceConsumerGrepPinTest`) keeps the claims honest. | `/api/admin/governance/agt-verify` |
+| **MS YAML acceptance** | `GovernanceConfig.policyPlanePublisher()` publishes 4 admission policies on `GovernancePolicy.POLICIES_PROPERTY`; the framework evaluates them at admission. Drop `atmosphere-policies.yaml` (MS or native schema) on the classpath and it loads alongside. | [GovernanceConfig.java](src/main/java/org/atmosphere/samples/springboot/a2astartup/GovernanceConfig.java) |
+| **Architectural scope enforcement** | `@AgentScope` on `CeoCoordinator` declares the startup-advisory purpose + forbidden topics. `PolicyAdmissionGate.admit` runs at `@Prompt` entry. `GovernanceFleetInterceptor` gates every coord→specialist dispatch. | [CeoCoordinator.java](src/main/java/org/atmosphere/samples/springboot/a2astartup/CeoCoordinator.java) |
+| **Signed commitment records** | `Ed25519CommitmentSigner` bean + `CommitmentRecordsFlag.override(true)` in `GovernanceConfig` — every dispatch emits a VC-subtype signed record on the coordination journal. Visible in the admin **Commitments** tab. | `GovernanceConfig.commitmentSigner()` |
+| **OWASP + compliance evidence** | All evidence rows point at primitives this sample exercises (`PolicyAdmissionGate`, `@AgentScope`, `ScopePolicy`). CI gate (`EvidenceConsumerGrepPinTest`) keeps the claims honest. | `/api/admin/governance/agt-verify` |
 
 ### Exercise the goals live
 

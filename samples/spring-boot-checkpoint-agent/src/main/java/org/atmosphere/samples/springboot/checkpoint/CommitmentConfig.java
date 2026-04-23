@@ -25,9 +25,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * v4 Goal 3 applied to the checkpoint-agent sample: every cross-agent
- * dispatch (analyzer → approver) emits a signed {@code CommitmentRecord}
- * on the coordination journal, paired with the checkpoint snapshot.
+ * Commitment-record wiring for the checkpoint-agent sample: every
+ * cross-agent dispatch (analyzer → approver) emits a signed
+ * {@code CommitmentRecord} on the coordination journal, paired with
+ * the checkpoint snapshot.
  *
  * <p>The HITL pause is the exact use case commitment records were
  * designed for — a reviewer (possibly days later) reading
@@ -60,10 +61,10 @@ public class CommitmentConfig {
     }
 
     /**
-     * v4 Phase B1 says commitment records are flag-off by default. This
-     * sample opts in because the audit trail is the whole demonstration:
-     * an operator walking through the checkpoint/approve flow should see
-     * signed records arrive on the journal as each step fires.
+     * Commitment records are flag-off by default. This sample opts in
+     * because the audit trail is the whole demonstration: an operator
+     * walking through the checkpoint/approve flow should see signed
+     * records arrive on the journal as each step fires.
      */
     @PostConstruct
     public void enableCommitmentRecords() {

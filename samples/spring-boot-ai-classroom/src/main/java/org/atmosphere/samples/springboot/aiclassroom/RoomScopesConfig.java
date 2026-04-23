@@ -33,10 +33,9 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * v4 Phase A Goal 1 applied to the classroom sample — per-room scope
- * configuration loaded from {@code atmosphere-classroom-scopes.yaml}.
- * Operators edit YAML, restart the sample, every room's scope changes
- * without a recompile.
+ * Per-room scope configuration loaded from
+ * {@code atmosphere-classroom-scopes.yaml}. Operators edit YAML, restart
+ * the sample, every room's scope changes without a recompile.
  *
  * <p>This is the YAML-backed twin of the Java-defined ROOMS map the
  * {@link RoomContextInterceptor} previously held inline. The

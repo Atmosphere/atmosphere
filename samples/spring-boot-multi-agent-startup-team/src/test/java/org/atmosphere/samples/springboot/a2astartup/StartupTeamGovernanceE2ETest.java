@@ -44,9 +44,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * End-to-end verification of the v4 governance goals applied to this
- * multi-agent sample. Boots the Spring Boot context and asserts each of
- * the four goals lands at the runtime, not just in docstrings.
+ * End-to-end verification of the governance wiring applied to this
+ * multi-agent sample. Boots the Spring Boot context and asserts each
+ * governance capability (scope, admission chain, fleet interceptor,
+ * commitment records, compliance matrix) lands at the runtime, not
+ * just in docstrings.
  *
  * <p>Intentionally avoids hitting an LLM — asserts on the installed
  * governance chain shape + decision behavior, not on model output.</p>
@@ -67,19 +69,19 @@ class StartupTeamGovernanceE2ETest {
                 new AiRequest(msg, null, null, "user-42", null, null, null, null, null));
     }
 
-    // ── Goal 2 — architectural scope ────────────────────────────────────────
+    // ── Architectural scope ─────────────────────────────────────────────────
 
     @Test
     void goal2_ceoCoordinatorCarriesAgentScope() {
         var scope = CeoCoordinator.class.getAnnotation(AgentScope.class);
-        assertNotNull(scope, "CeoCoordinator must declare @AgentScope per v4 Goal 2");
+        assertNotNull(scope, "CeoCoordinator must declare @AgentScope");
         assertTrue(scope.purpose().toLowerCase().contains("startup"),
                 "scope purpose must describe the coordinator's actual domain");
         assertTrue(scope.forbiddenTopics().length > 0,
                 "forbidden topics must be declared — otherwise scope is paper-thin");
     }
 
-    // ── Goal 1 — MS-YAML-shaped admission chain (here via Java policy config)
+    // ── MS-YAML-shaped admission chain (here via Java policy config) ──────
 
     @Test
     void goal1_policiesArePublishedOnFrameworkProperty() {
@@ -138,7 +140,7 @@ class StartupTeamGovernanceE2ETest {
                 dispatchDenyList.evaluate(preAdm("analyze the SaaS market for Q3")));
     }
 
-    // ── Goal 2 — per-dispatch fleet interceptor ─────────────────────────────
+    // ── Per-dispatch fleet interceptor ──────────────────────────────────────
 
     @Test
     void goal2_fleetInterceptorBridgesPolicyChain() {
@@ -153,7 +155,7 @@ class StartupTeamGovernanceE2ETest {
                 Map.of("lang", "python"));
         var badDecision = interceptor.before(bad);
         assertInstanceOf(FleetInterceptor.Decision.Deny.class, badDecision,
-                "v4 Goal 2 dispatch edge — deny-list must fire on the coord→specialist hop");
+                "dispatch-edge deny-list must fire on the coord→specialist hop");
 
         // An on-topic research dispatch should proceed.
         var good = new AgentCall("research-agent", "web_search",
@@ -162,11 +164,11 @@ class StartupTeamGovernanceE2ETest {
                 interceptor.before(good));
     }
 
-    // ── Goal 3 — commitment records ─────────────────────────────────────────
+    // ── Commitment records ──────────────────────────────────────────────────
 
     @Test
     void goal3_commitmentSignerIsInstalled() {
-        assertNotNull(commitmentSigner, "Ed25519 signer bean required for Goal 3");
+        assertNotNull(commitmentSigner, "Ed25519 signer bean required to sign dispatch records");
         assertEquals("Ed25519", commitmentSigner.scheme());
         assertNotNull(commitmentSigner.keyId());
         assertFalse(commitmentSigner.keyId().isBlank());
@@ -179,7 +181,7 @@ class StartupTeamGovernanceE2ETest {
                         + "so every cross-agent dispatch emits a signed record");
     }
 
-    // ── Goal 4 — OWASP + compliance evidence ────────────────────────────────
+    // ── OWASP + compliance evidence ─────────────────────────────────────────
 
     @Test
     void goal4_governanceControllerExposesMatrices() {

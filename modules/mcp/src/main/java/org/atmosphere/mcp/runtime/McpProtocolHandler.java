@@ -230,10 +230,10 @@ public final class McpProtocolHandler {
         int argCount = arguments != null ? arguments.size() : 0;
         var principalName = resolvePrincipal(resource);
 
-        // Tier 2.5 — MCP security gateway. Consult the governance plane
-        // (if atmosphere-ai is on the classpath) before dispatching the
-        // tool handler. MS-schema YAML rules over `tool_name` fire for
-        // MCP invocations the same way they do for first-party @AiTool
+        // MCP security gateway. Consult the governance plane (if
+        // atmosphere-ai is on the classpath) before dispatching the tool
+        // handler. MS-schema YAML rules over `tool_name` fire for MCP
+        // invocations the same way they do for first-party @AiTool
         // dispatches. Partial coverage of OWASP Agentic Top-10 A08.
         var framework = config != null ? config.framework() : null;
         var previewArgs = jsonNodeToPreview(arguments);

@@ -34,33 +34,33 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * Applies the four v4 governance goals to this multi-agent sample.
+ * Wires the governance policy plane into this multi-agent sample.
  *
- * <ol>
- *   <li><b>Goal 1 — MS YAML artifacts:</b> this sample carries a
+ * <ul>
+ *   <li><b>MS YAML artifacts:</b> this sample carries a
  *       {@code classpath:atmosphere-policies.yaml} (loaded by Spring Boot's
  *       auto-config when present). Not enabled by default here to keep the
  *       demo focused on multi-agent orchestration; operators flip it on by
  *       adding the file.</li>
- *   <li><b>Goal 2 — scope + fleet interceptor:</b> {@link CeoCoordinator}
- *       declares {@code @AgentScope} (startup-advisory purpose) and runs
+ *   <li><b>Scope + fleet interceptor:</b> {@link CeoCoordinator} declares
+ *       {@code @AgentScope} (startup-advisory purpose) and runs
  *       {@code PolicyAdmissionGate.admit} at {@code @Prompt} entry. The
  *       coordinator also installs
  *       {@link org.atmosphere.coordinator.fleet.GovernanceFleetInterceptor}
  *       at the dispatch boundary so specialist agents receive governance
  *       coverage too.</li>
- *   <li><b>Goal 3 — commitment records:</b> we provide an
+ *   <li><b>Commitment records:</b> we provide an
  *       {@link Ed25519CommitmentSigner} bean and flip the
  *       {@link CommitmentRecordsFlag} on at startup. Every cross-agent
  *       dispatch from the CEO to a specialist emits a signed
  *       {@code CommitmentRecord} on the coordination journal.</li>
- *   <li><b>Goal 4 — OWASP evidence:</b> all four specialist dispatches
- *       travel through the same governance chain declared here. The
+ *   <li><b>OWASP evidence:</b> all four specialist dispatches travel
+ *       through the same governance chain declared here. The
  *       {@code EvidenceConsumerGrepPinTest} already confirms
  *       {@code @AgentScope}, {@code PolicyAdmissionGate}, and
  *       {@code CommitmentSigner} have production consumers — this sample
  *       is one of them.</li>
- * </ol>
+ * </ul>
  */
 @Configuration
 public class GovernanceConfig {

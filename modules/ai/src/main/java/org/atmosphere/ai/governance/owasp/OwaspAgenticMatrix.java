@@ -136,13 +136,13 @@ public final class OwaspAgenticMatrix {
                                     "AgentStateIntegrity",
                                     "Ed25519 seal/verify utility for AgentState memory snapshots. "
                                             + "Domain-separated payload binds content to its memory "
-                                            + "slot so cross-slot replay fails (v5 Tier 3.2)"),
+                                            + "slot so cross-slot replay fails."),
                             new Evidence("org.atmosphere.coordinator.commitment.CommitmentRecord",
                                     "org.atmosphere.coordinator.commitment.CommitmentRecordTest",
                                     "CommitmentRecord",
                                     "Ed25519-signed dispatch records — verifiable audit trail for "
                                             + "any memory mutation that rides through the coordinator "
-                                            + "(Phase B1 primitive, @Experimental, flag-off default)"),
+                                            + "(@Experimental, flag-off default)"),
                             new Evidence("org.atmosphere.coordinator.commitment.Ed25519CommitmentSigner",
                                     "org.atmosphere.coordinator.commitment.CommitmentRecordTest",
                                     "Ed25519CommitmentSigner",

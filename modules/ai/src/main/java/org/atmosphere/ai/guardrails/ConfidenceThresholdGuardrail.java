@@ -41,15 +41,15 @@ import java.util.regex.Pattern;
  * the human-review workflow. This guardrail should not know about the
  * approval-routing layer (that's a protocol concern).
  *
- * <p>Tier 6.5 — pair with {@code @RequiresApproval} on the @Prompt method
- * to auto-escalate low-confidence turns to a human.</p>
+ * <p>Pair with {@code @RequiresApproval} on the @Prompt method to
+ * auto-escalate low-confidence turns to a human.</p>
  */
 public final class ConfidenceThresholdGuardrail implements AiGuardrail {
 
     private static final Logger logger = LoggerFactory.getLogger(
             ConfidenceThresholdGuardrail.class);
 
-    /** Default threshold — pair with Tier 6.5 per the v5 roadmap: 0.7. */
+    /** Default threshold — below this, the response is denied for HITL review. */
     public static final double DEFAULT_THRESHOLD = 0.7;
 
     private final double threshold;

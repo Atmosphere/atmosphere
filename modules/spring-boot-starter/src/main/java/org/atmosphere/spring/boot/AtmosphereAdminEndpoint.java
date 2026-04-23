@@ -570,8 +570,6 @@ public class AtmosphereAdminEndpoint {
      * cross-framework findings + per-framework coverage counts. External
      * compliance tooling that already consumes MS's Agent Compliance
      * package format can round-trip this output.
-     *
-     * <p>Closes the v4 roadmap Phase D acceptance criterion.</p>
      */
     @GetMapping("/governance/agt-verify")
     public ResponseEntity<Map<String, Object>> governanceAgtVerify() {
@@ -657,9 +655,9 @@ public class AtmosphereAdminEndpoint {
     }
 
     /**
-     * Signed commitment records emitted by the coordination journal
-     * (Phase B1). Read-only. Operators render this stream as a
-     * verifiable audit trail — each entry carries the Ed25519 proof
+     * Signed commitment records emitted by the coordination journal.
+     * Read-only. Operators render this stream as a verifiable audit
+     * trail — each entry carries the Ed25519 proof
      * scheme / key id / signature so downstream SIEMs can verify
      * against the publicly-published coordinator key.
      *

@@ -158,14 +158,17 @@ Only packaging and configuration differ — your business logic is portable acro
 
 See the [atmosphere-ai capability matrix](../modules/ai/README.md#capability-matrix) for the cross-runtime support view.
 
-## Governance coverage — which samples demonstrate which v4 goals
+## Governance coverage across samples
 
-The governance policy plane has four goals; each sample below exercises at
-least one, with CI-verified end-to-end tests booting the Spring Boot context
-and asserting decisions fire live. See [docs/governance-policy-plane.md](../docs/governance-policy-plane.md)
+The governance policy plane has four axes: accepting MS Agent Governance
+Toolkit YAML, architectural scope enforcement, signed commitment records
+on cross-agent dispatch, and OWASP + compliance evidence. Each sample
+below exercises at least one axis with CI-verified end-to-end tests that
+boot the Spring Boot context and assert decisions fire live. See
+[docs/governance-policy-plane.md](../docs/governance-policy-plane.md)
 for the full picture.
 
-| Sample | Goal 1 <br/>(MS YAML) | Goal 2 <br/>(scope) | Goal 3 <br/>(commitments) | Goal 4 <br/>(OWASP) | Atmosphere-unique angle |
+| Sample | MS YAML | Scope | Commitments | OWASP | Atmosphere-unique angle |
 |---|:-:|:-:|:-:|:-:|---|
 | [spring-boot-ms-governance-chat](spring-boot-ms-governance-chat/) | ✅ | ✅ | — | ✅ | MS Agent Governance Toolkit YAML accepted verbatim |
 | [spring-boot-ai-classroom](spring-boot-ai-classroom/) | ✅ | ✅ | — | — | **Per-request scope install** — one endpoint, four YAML-backed scopes |

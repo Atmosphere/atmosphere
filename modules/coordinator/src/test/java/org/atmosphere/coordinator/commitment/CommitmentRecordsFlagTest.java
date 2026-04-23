@@ -23,8 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pins the v4 Phase B1 flag-off-default contract. The property defaults
- * to {@code false}; operators who explicitly opt in accept the
+ * Pins the flag-off-default contract. The property defaults to
+ * {@code false}; operators who explicitly opt in accept the
  * {@code @Experimental} schema and its 2026-Q4 migration horizon.
  */
 class CommitmentRecordsFlagTest {
@@ -51,7 +51,7 @@ class CommitmentRecordsFlagTest {
     @Test
     void defaultIsDisabledWhenNoPropertyOrOverride() {
         assertFalse(CommitmentRecordsFlag.isEnabled(),
-                "v4 Phase B1 contract: flag-off default");
+                "contract: flag-off default");
     }
 
     @Test
@@ -103,11 +103,12 @@ class CommitmentRecordsFlagTest {
     }
 
     @Test
-    void propertyNameMatchesV4GistContract() {
-        // The v4 gist calls out `atmosphere.ai.governance.commitment-records.enabled`
-        // verbatim — if someone renames this constant, the roadmap pin fails.
+    void propertyNameIsTheDocumentedConstant() {
+        // Property name is a public contract — docs + ops runbooks reference
+        // `atmosphere.ai.governance.commitment-records.enabled` verbatim.
+        // Renaming this constant without bumping the docs breaks operators.
         assertTrue(CommitmentRecordsFlag.PROPERTY_NAME
                         .equals("atmosphere.ai.governance.commitment-records.enabled"),
-                "property name must match v4 roadmap verbatim");
+                "property name must match the documented constant verbatim");
     }
 }

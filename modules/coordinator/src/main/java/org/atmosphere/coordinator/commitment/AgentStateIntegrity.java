@@ -58,9 +58,9 @@ import java.util.Base64;
  * share a single {@link KeyPair} across both and publish one public
  * key for all verifiers.</p>
  *
- * <p>Closes v5 Tier 3.2 / OWASP Agentic A03 Memory Poisoning row —
- * the companion evidence to {@link CommitmentRecord} which covers
- * dispatch records on the coordinator.</p>
+ * <p>Addresses OWASP Agentic A03 Memory Poisoning — the companion
+ * evidence to {@link CommitmentRecord}, which covers dispatch records
+ * on the coordinator.</p>
  */
 public final class AgentStateIntegrity {
 

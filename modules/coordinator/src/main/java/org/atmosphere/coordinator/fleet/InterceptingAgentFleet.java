@@ -28,7 +28,7 @@ import java.util.Objects;
  * decision: Rewrite replaces the call, Deny synthesizes a failed
  * {@link AgentResult} and skips the transport hop.
  *
- * <p>Goal 2 per-dispatch enforcement lives here — a
+ * <p>Per-dispatch governance enforcement lives here — a
  * {@code ScopeFleetInterceptor} can deny {@code call("research",
  * "write_code", …)} the same way {@code PolicyAdmissionGate} denies off-
  * scope user prompts. Same governance surface, agent-to-agent edge.</p>

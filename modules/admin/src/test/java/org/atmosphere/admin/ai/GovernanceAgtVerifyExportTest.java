@@ -33,9 +33,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Contract test for the {@code agt verify}-shaped JSON export — closes
- * the Phase D item from the v4 roadmap gist that called for compliance
- * output external tooling can consume.
+ * Contract test for the {@code agt verify}-shaped JSON export — locks
+ * down the shape so external compliance tooling that already consumes
+ * MS's Agent Compliance package format can round-trip the output.
  */
 class GovernanceAgtVerifyExportTest {
 

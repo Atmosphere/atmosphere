@@ -305,9 +305,10 @@ public final class GovernanceController {
      * }
      * }</pre>
      *
-     * <p>Closes Phase D item from the v4 roadmap: "JSON export in {@code agt verify}
-     * schema" — operators can pipe this into cross-vendor compliance
-     * dashboards without reshaping.</p>
+     * <p>Operators can pipe this into cross-vendor compliance dashboards
+     * without reshaping — the shape matches MS's {@code agt verify} CLI
+     * output so tooling that already consumes MS Agent Compliance package
+     * format round-trips without adapters.</p>
      */
     public Map<String, Object> agtVerifyExport() {
         var findings = new ArrayList<Map<String, Object>>();
