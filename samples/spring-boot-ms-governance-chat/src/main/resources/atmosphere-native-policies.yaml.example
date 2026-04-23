@@ -1,0 +1,92 @@
+# Atmosphere-native governance schema — alternative to the MS Agent Governance
+# Toolkit YAML. Swap `PoliciesConfig.POLICY_FILE` to this filename to load
+# policies declaratively with the type-dispatch schema instead of the MS
+# rules-over-context one.
+#
+# Every `type:` below resolves to a built-in factory in
+# org.atmosphere.ai.governance.PolicyRegistry. Custom types register via
+# PolicyRegistry.register(String, PolicyFactory) from application code.
+#
+# The chain below composes a production-shaped admission layer:
+#   * attribution enforcement (every request must carry tenant + trace ids)
+#   * literal deny-list (known-destructive phrases)
+#   * scope allow-list (only admit if message mentions a support topic)
+#   * size cap (bound per-turn cost)
+#   * rate limit (per-user sliding window)
+#   * concurrency cap (bound simultaneous streams per user)
+#   * time window (business-hours-only operation)
+#   * PII guardrail (existing type, redacts SSN/CC from message)
+
+version: "1.0"
+name: atmosphere-native-demo
+description: Production-shaped admission chain using Atmosphere-native policy types
+
+policies:
+  - name: attribution-required
+    type: metadata-presence
+    version: "1"
+    config:
+      required-keys:
+        - tenant-id
+        - trace-id
+
+  - name: sql-deny-list
+    type: deny-list
+    version: "1"
+    config:
+      phrases:
+        - DROP TABLE
+        - TRUNCATE
+      regex:
+        - '(?i)\bDELETE\s+FROM\b'
+
+  - name: support-topics
+    type: allow-list
+    version: "1"
+    config:
+      phrases:
+        - order
+        - billing
+        - refund
+        - shipping
+        - account
+        - product
+
+  - name: message-size-cap
+    type: message-length
+    version: "1"
+    config:
+      max-chars: 4096
+
+  - name: per-user-rate-limit
+    type: rate-limit
+    version: "1"
+    config:
+      limit: 30
+      window-seconds: 60
+
+  - name: per-user-concurrency
+    type: concurrency-limit
+    version: "1"
+    config:
+      max-concurrent: 3
+
+  - name: business-hours
+    type: time-window
+    version: "1"
+    config:
+      start: "09:00"
+      end: "17:00"
+      zone: "America/New_York"
+      days:
+        - MONDAY
+        - TUESDAY
+        - WEDNESDAY
+        - THURSDAY
+        - FRIDAY
+
+  - name: pii-redaction
+    type: pii-redaction
+    version: "1"
+    config:
+      mode: redact
