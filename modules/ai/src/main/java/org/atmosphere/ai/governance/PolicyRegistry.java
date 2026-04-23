@@ -88,6 +88,7 @@ public final class PolicyRegistry {
         register("concurrency-limit", PolicyRegistry::buildConcurrencyLimit);
         register("time-window", PolicyRegistry::buildTimeWindow);
         register("metadata-presence", PolicyRegistry::buildMetadataPresence);
+        register("authorization", PolicyRegistry::buildAuthorization);
     }
 
     /** Register a custom factory, replacing any previous entry for this type. */
@@ -273,6 +274,16 @@ public final class PolicyRegistry {
             throw new IllegalArgumentException("time-window 'days' must be non-empty");
         }
         return days;
+    }
+
+    private static GovernancePolicy buildAuthorization(PolicyDescriptor d) {
+        var roles = asStringList(d.config().get("required-roles"));
+        if (roles.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "authorization requires at least one entry under 'required-roles'");
+        }
+        return new AuthorizationPolicy(d.name(), d.source(), d.version(),
+                roles, AuthorizationPolicy::defaultRoleResolver);
     }
 
     private static GovernancePolicy buildMetadataPresence(PolicyDescriptor d) {

@@ -160,6 +160,31 @@ class PolicyRegistryBuiltinsTest {
     }
 
     @Test
+    void authorizationFactoryBuildsWorkingPolicy() {
+        var policy = registry.build(new PolicyRegistry.PolicyDescriptor(
+                "admin-only", "authorization", "1", "yaml:test",
+                Map.of("required-roles", List.of("admin"))));
+        assertInstanceOf(AuthorizationPolicy.class, policy);
+
+        var ctxWithAdmin = new PolicyContext(PolicyContext.Phase.PRE_ADMISSION,
+                new AiRequest("m", null, null, null, null, null, null,
+                        Map.of("roles", "admin,user"), null), "");
+        assertInstanceOf(PolicyDecision.Admit.class, policy.evaluate(ctxWithAdmin));
+
+        var ctxWithoutAdmin = new PolicyContext(PolicyContext.Phase.PRE_ADMISSION,
+                new AiRequest("m", null, null, null, null, null, null,
+                        Map.of("roles", "user"), null), "");
+        assertInstanceOf(PolicyDecision.Deny.class, policy.evaluate(ctxWithoutAdmin));
+    }
+
+    @Test
+    void authorizationFactoryRequiresRoles() {
+        assertThrows(IllegalArgumentException.class,
+                () -> registry.build(new PolicyRegistry.PolicyDescriptor(
+                        "x", "authorization", "1", "yaml:test", Map.of())));
+    }
+
+    @Test
     void metadataPresenceFactoryRequiresKeys() {
         var policy = registry.build(new PolicyRegistry.PolicyDescriptor(
                 "attribution", "metadata-presence", "1", "yaml:test",
