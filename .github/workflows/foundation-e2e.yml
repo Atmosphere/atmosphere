@@ -20,9 +20,12 @@ on:
       - 'samples/spring-boot-coding-agent/**'
       - 'samples/spring-boot-reattach-harness/**'
       - 'e2e/**'
+      - '.mvn/**'
+      - 'pom.xml'
       - '.github/workflows/foundation-e2e.yml'
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: foundation-e2e-${{ github.ref }}

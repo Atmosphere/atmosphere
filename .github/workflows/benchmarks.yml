@@ -10,6 +10,8 @@ on:
       - 'modules/coordinator/**'
       - 'modules/benchmarks/**'
       - 'scripts/benchmarks/**'
+      - '.mvn/**'
+      - 'pom.xml'
       - '.github/workflows/benchmarks.yml'
   pull_request:
     branches: [main]
@@ -20,6 +22,8 @@ on:
       - 'modules/coordinator/**'
       - 'modules/benchmarks/**'
       - 'scripts/benchmarks/**'
+      - '.mvn/**'
+      - 'pom.xml'
       - '.github/workflows/benchmarks.yml'
   schedule:
     - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
