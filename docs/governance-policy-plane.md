@@ -301,6 +301,161 @@ Response:
 
 External gateways (Envoy, Kong, Azure APIM) that already speak to MS's ASGI policy provider can point at this endpoint to use Atmosphere as the decision service without code changes.
 
+### `GET /api/admin/governance/health`
+
+Operator snapshot: kill-switch state, dry-run counters, SLO status, and
+per-policy hash fingerprints for supply-chain drift detection.
+
+```json
+{
+  "generatedAt": "2026-04-23T20:45:00Z",
+  "killSwitch": { "armed": false },
+  "policies": [
+    { "name": "scope.support", "source": "yaml:...", "version": "1",
+      "digest": "sha256:458be9dba..." }
+  ],
+  "dryRuns": [], "slos": []
+}
+```
+
+### `GET /api/admin/governance/agt-verify`
+
+Compliance export shaped for Microsoft's `agt verify` CLI — 25 findings
+spanning OWASP Agentic Top 10 + EU AI Act / HIPAA / SOC2. External
+procurement tooling that already consumes MS's compliance package format
+can round-trip this output.
+
+```json
+{
+  "schemaVersion": "agt-verify/1",
+  "findings": [
+    { "framework": "OWASP_AGENTIC_TOP_10", "controlId": "A01",
+      "title": "Goal Hijacking", "status": "COVERED",
+      "evidence": [
+        { "class": "org.atmosphere.ai.annotation.AgentScope",
+          "test":  "org.atmosphere.ai.governance.scope.RuleBasedScopeGuardrailTest",
+          "consumerGrep": "@AgentScope" }
+      ]
+    }
+  ],
+  "summary": { "OWASP_AGENTIC_TOP_10": { "COVERED": 9, "NOT_ADDRESSED": 1 } }
+}
+```
+
+The `EvidenceConsumerGrepPinTest` CI gate walks `modules/**/src/main` +
+`samples/**/src/main` and asserts every non-blank `consumerGrep` pattern
+finds a production caller — claimed coverage can't drift.
+
+### `POST /api/admin/governance/kill-switch/arm`
+
+Break-glass — halts every admission decision without a redeploy.
+
+```bash
+curl -X POST http://localhost:8080/api/admin/governance/kill-switch/arm \
+     -H 'Content-Type: application/json' \
+     -d '{"reason":"incident-42","operator":"oncall"}'
+```
+
+Response stamps `{armed: true, reason, operator, armedAt}`. Disarm with
+`POST /kill-switch/disarm` to restore traffic. Verified live on
+spring-boot-multi-agent-startup-team: the same prompt that admitted at
+0.11ms denies at 0.09ms while armed.
+
+### `POST /api/admin/governance/reload`
+
+Hot-reload a policy wrapped in `SwappablePolicy`. Request body carries
+`{swapName, yaml}`; response carries the outgoing + incoming delegate
+identity so the admin trail can log the swap.
+
+---
+
+## Multi-agent governance
+
+Single-endpoint admission is only half the story — cross-agent dispatches
+need the same enforcement. `FleetInterceptor` (module `atmosphere-coordinator`)
+gates every outbound `AgentCall` before it leaves the coordinator.
+
+### `FleetInterceptor` SPI
+
+```java
+@FunctionalInterface
+public interface FleetInterceptor {
+    Decision before(AgentCall call);
+    sealed interface Decision {
+        record Proceed() implements Decision {}
+        record Rewrite(AgentCall modifiedCall) implements Decision {}
+        record Deny(String reason) implements Decision {}
+    }
+}
+```
+
+Install via `AgentFleet.withInterceptor(interceptor)`. Denies synthesize
+a failed `AgentResult` without consuming the transport hop; rewrites
+forward modified args; proceed admits unchanged.
+
+### `GovernanceFleetInterceptor`
+
+Bridge from `FleetInterceptor` to a `GovernancePolicy` chain. Every outbound
+`AgentCall` is synthesized into an `AiRequest(skill + args)` and evaluated
+against the configured policies. Dispatch-edge metadata
+(`fleet.dispatch.agent`, `fleet.dispatch.skill`) is stamped so policies
+can inspect the dispatch target.
+
+```java
+@Prompt
+public void onPrompt(String msg, AgentFleet fleet, StreamingSession s) {
+    var governed = fleet.withInterceptor(new GovernanceFleetInterceptor(policies));
+    var research = governed.agent("research").call("web_search", args);
+    // a coordinator mistakenly dispatching "write Python" to research
+    // gets denied at the fleet boundary — not just at the user entry
+}
+```
+
+### Commitment records on cross-agent dispatch
+
+Every dispatch emits a W3C Verifiable-Credential-subtype `CommitmentRecord`
+when both (a) an `Ed25519CommitmentSigner` is installed on the fleet via
+`JournalingAgentFleet.signer(signer)`, and (b) `CommitmentRecordsFlag`
+is enabled (flag-off default per v4 Phase B1; flip with the system
+property `atmosphere.ai.governance.commitment-records.enabled=true` or
+`CommitmentRecordsFlag.override(Boolean.TRUE)`).
+
+```java
+// In your Spring @Configuration:
+@Bean CommitmentSigner commitmentSigner() {
+    return Ed25519CommitmentSigner.generate();
+}
+@PostConstruct void enable() {
+    CommitmentRecordsFlag.override(Boolean.TRUE);
+}
+
+// In your coordinator's @Prompt:
+if (signer != null && fleet instanceof JournalingAgentFleet journaling) {
+    journaling.signer(signer).principal("user:" + resource.uuid());
+}
+```
+
+Records surface in the admin **Commitments** tab with Ed25519 verification
+status. This is the unique combination: streaming transport + durable
+checkpoints + cryptographic audit trail that survives pause/resume.
+
+---
+
+## Which samples demonstrate which goals
+
+| Sample | Goal 1 <br/>MS YAML | Goal 2 <br/>Scope | Goal 3 <br/>Commitments | Goal 4 <br/>OWASP | E2E tests |
+|---|:-:|:-:|:-:|:-:|:-:|
+| [spring-boot-ms-governance-chat](../samples/spring-boot-ms-governance-chat/) | ✅ | ✅ | — | ✅ | — |
+| [spring-boot-ai-classroom](../samples/spring-boot-ai-classroom/) | ✅ | ✅ | — | — | 8 |
+| [spring-boot-multi-agent-startup-team](../samples/spring-boot-multi-agent-startup-team/) | ✅ | ✅ | ✅ | ✅ | 10 |
+| [spring-boot-checkpoint-agent](../samples/spring-boot-checkpoint-agent/) | — | — | ✅ | — | 3 |
+| [spring-boot-mcp-server](../samples/spring-boot-mcp-server/) | — | ✅ | — | ✅ | 7 |
+
+Each sample boots the real Spring Boot context in its e2e tests and
+asserts goal flows fire at runtime — no mocking at the governance seam.
+See `StartupTeamGovernanceE2ETest`, `ClassroomGovernanceE2ETest`,
+`CheckpointGovernanceE2ETest`, `McpGovernanceE2ETest`.
+
 ---
 
 ## Correctness invariants honored

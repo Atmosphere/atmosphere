@@ -84,10 +84,45 @@ atmosphere checkpoint fork <id> --state custom-branch
 | File | Purpose |
 |------|---------|
 | `CheckpointConfig.java` | Wires a pluggable `CheckpointStore` (SQLite by default, in-memory opt-in) + wraps the journal with `CheckpointingCoordinationJournal` |
-| `DispatchCoordinator.java` | `@Coordinator` that calls the analyzer and returns the checkpoint pointer to the caller |
+| `CommitmentConfig.java` | **v4 Goal 3** — installs an `Ed25519CommitmentSigner` bean + flips `CommitmentRecordsFlag` on so every dispatch emits a signed VC-subtype record on the journal |
+| `DispatchCoordinator.java` | `@Coordinator` that arms the signer per session, calls the analyzer, and returns the checkpoint pointer. Signed `CommitmentRecord`s land on the journal alongside each `AgentDispatched` event. |
 | `AnalyzerAgent.java` | `@Agent` whose `AgentCompleted` events are captured as snapshots |
 | `ApproverAgent.java` | `@Agent` invoked by `CheckpointController#approve` to resume the workflow after HITL approval |
 | `CheckpointController.java` | REST surface over the `CheckpointStore`; `/approve` is the resumption point that calls the approver and chains its result |
+
+## Governance — signed audit trail across HITL pause (v4 Goal 3)
+
+**This sample is unique**: durable session + Ed25519-signed commitment
+records paired across the HITL pause boundary. MS Agent Framework drops
+state on pause; LangChain has no checkpoint primitive; both make it
+impossible to produce a signed trail that survives a pause-and-resume.
+
+Every analyzer dispatch publishes a `CommitmentRecord` with fields
+`{issuer, principal, subject, scope, issuedAt, outcome, proof}` where
+`proof` carries the Ed25519 signature over the record's canonical bytes.
+A reviewer approving hours later can verify the signature against the
+coordinator's public key — cryptographic proof that (a) the request
+came from the expected coordinator, (b) the request is unmodified,
+(c) the approval decision is bound to this specific request.
+
+```bash
+# Start the sample
+./mvnw spring-boot:run -pl samples/spring-boot-checkpoint-agent
+
+# Fire a request
+wscat -c ws://localhost:8080/atmosphere/dispatch
+> please refund order 1234
+
+# Inspect the Commitments tab at /atmosphere/admin/ — each analyzer hop
+# renders with a ✓ verified badge. The record's proof.signature field
+# can be verified offline with the coordinator's Ed25519 public key
+# (published at /api/admin/governance/health → policies[].digest).
+
+# Hours later — approve via REST (resumes the workflow from the checkpoint)
+curl -X POST http://localhost:8080/api/checkpoints/{id}/approve
+# The approver agent's dispatch ALSO emits a signed CommitmentRecord,
+# cryptographically linked to the original analyzer snapshot.
+```
 
 ## Checkpoint store backends
 

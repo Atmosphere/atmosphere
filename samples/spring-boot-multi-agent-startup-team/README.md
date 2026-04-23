@@ -11,11 +11,12 @@ This sample demonstrates:
 - **`@Agent`** + **`@AgentSkill`** for headless specialist agents
 - **Agent Activity Streaming** — real-time `agent-step` events (thinking/completed) streamed to the browser via `StreamingActivityListener`
 - **Coordination Journal** with rendered markdown tables showing the full execution graph
+- **Governance policy plane (all 4 v4 goals)** — `@AgentScope` on the coordinator, `PolicyAdmissionGate.admit` at user input, `GovernanceFleetInterceptor` at every cross-agent dispatch, signed `CommitmentRecord`s on the journal. See [§ Governance](#governance--what-you-can-do-at-runtime).
 - **Result Evaluation** — dual evaluators (`SanityCheckEvaluator` + `LlmResultEvaluator`) auto-score agent responses with EVAL rows in the journal
 - **SQLite Checkpoints** — `CheckpointingCoordinationJournal` persists coordination state to `atmosphere-checkpoints.db`
 - **Skill files from GitHub** — `skill:` prefix loads prompts from [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills) with SHA-256 integrity verification
 - **WebTransport over HTTP/3** — self-signed cert auto-discovery via `/api/webtransport-info`
-- **Admin Control Plane** — live dashboard at `/atmosphere/admin/`
+- **Admin Control Plane** — live dashboard at `/atmosphere/admin/` with kill-switch, hot-reload, OWASP matrix, `agt verify` export
 - **4 swappable AI runtimes**: ADK (default), Embabel, Spring AI, LangChain4j
 
 ## Prerequisites
@@ -258,6 +259,63 @@ and survives JVM restarts.
 # After a request, verify checkpoints on disk:
 sqlite3 atmosphere-checkpoints.db "SELECT COUNT(*) FROM checkpoints;"
 ```
+
+## Governance — what you can do at runtime
+
+This sample applies all four v4 governance goals. `GovernanceConfig` publishes
+a policy chain at boot; `CeoCoordinator` evaluates it at `@Prompt` entry AND
+on every cross-agent dispatch.
+
+### Goals applied
+
+| Goal | What this sample does | Where to look |
+|---|---|---|
+| **1 — MS YAML acceptance** | `GovernanceConfig.policyPlanePublisher()` publishes 4 admission policies on `GovernancePolicy.POLICIES_PROPERTY`; the framework evaluates them at admission. Drop `atmosphere-policies.yaml` (MS or native schema) on the classpath and it loads alongside. | [GovernanceConfig.java](src/main/java/org/atmosphere/samples/springboot/a2astartup/GovernanceConfig.java) |
+| **2 — Architectural scope enforcement** | `@AgentScope` on `CeoCoordinator` declares the startup-advisory purpose + forbidden topics. `PolicyAdmissionGate.admit` runs at `@Prompt` entry. `GovernanceFleetInterceptor` gates every coord→specialist dispatch. | [CeoCoordinator.java](src/main/java/org/atmosphere/samples/springboot/a2astartup/CeoCoordinator.java) |
+| **3 — Commitment records** | `Ed25519CommitmentSigner` bean + `CommitmentRecordsFlag.override(true)` in `GovernanceConfig` — every dispatch emits a VC-subtype signed record on the coordination journal. Visible in the admin **Commitments** tab. | `GovernanceConfig.commitmentSigner()` |
+| **4 — OWASP + compliance evidence** | All evidence rows point at primitives this sample exercises (`PolicyAdmissionGate`, `@AgentScope`, `ScopePolicy`). CI gate (`EvidenceConsumerGrepPinTest`) keeps the claims honest. | `/api/admin/governance/agt-verify` |
+
+### Exercise the goals live
+
+```bash
+# Who's enforcing right now?
+curl http://localhost:8080/api/admin/governance/policies
+# Returns 4 policies with sha256 digests + armed/timed/dry-run flags
+
+# Full health snapshot
+curl http://localhost:8080/api/admin/governance/health
+
+# Send an off-topic prompt through the MS-compatible /check endpoint
+curl -X POST http://localhost:8080/api/admin/governance/check \
+     -H 'Content-Type: application/json' \
+     -d '{"agent_id":"ceo","action":"prompt","context":{"message":"write_code in python"}}'
+# → {"allowed":false,"matched_policy":"dispatch-deny","evaluation_ms":1.14}
+
+# Break-glass — arm the kill switch
+curl -X POST http://localhost:8080/api/admin/governance/kill-switch/arm \
+     -H 'Content-Type: application/json' \
+     -d '{"reason":"incident-42","operator":"oncall"}'
+
+# Compliance export (cross-vendor agt verify schema)
+curl http://localhost:8080/api/admin/governance/agt-verify | jq '.summary'
+# → OWASP 9/1 covered/not-addressed, EU_AI_ACT 4/1, HIPAA 3/1/1, SOC2 3/2
+```
+
+Every decision streams into the admin **Decisions** tab — expand an entry to
+see the matched policy, reason, and redaction-safe context snapshot.
+
+### Why this matters
+
+The combination below isn't possible in any other JVM AI framework:
+
+- **Streaming transport + governance**: decisions flow through the same
+  WebSocket/SSE the UI uses. Admin console sees policy denies as they happen.
+- **Per-dispatch enforcement**: `GovernanceFleetInterceptor` gates every
+  coord→specialist hop — a coordinator mistakenly dispatching "write Python"
+  to the research agent gets denied at the fleet boundary, not just at the
+  user-facing entry.
+- **Signed audit trail over the same transport**: the admin Commitments tab
+  renders Ed25519-signed `CommitmentRecord`s as they land on the journal.
 
 ## Admin Dashboard
 
