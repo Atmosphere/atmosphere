@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -97,5 +98,76 @@ class PolicyRegistryBuiltinsTest {
         assertTrue(registry.has("deny-list"));
         assertTrue(registry.has("allow-list"));
         assertTrue(registry.has("message-length"));
+        assertTrue(registry.has("rate-limit"));
+        assertTrue(registry.has("concurrency-limit"));
+        assertTrue(registry.has("time-window"));
+        assertTrue(registry.has("metadata-presence"));
+    }
+
+    @Test
+    void rateLimitFactoryBuildsWorkingPolicy() {
+        var policy = registry.build(new PolicyRegistry.PolicyDescriptor(
+                "rl", "rate-limit", "1", "yaml:test",
+                Map.of("limit", 2, "window-seconds", 60)));
+        assertInstanceOf(RateLimitPolicy.class, policy);
+
+        var aliceCtx = new PolicyContext(PolicyContext.Phase.PRE_ADMISSION,
+                new AiRequest("msg", null, null, "alice", null, null, null, null, null), "");
+        assertInstanceOf(PolicyDecision.Admit.class, policy.evaluate(aliceCtx));
+        assertInstanceOf(PolicyDecision.Admit.class, policy.evaluate(aliceCtx));
+        assertInstanceOf(PolicyDecision.Deny.class, policy.evaluate(aliceCtx));
+    }
+
+    @Test
+    void rateLimitFactoryRequiresBothFields() {
+        assertThrows(IllegalArgumentException.class,
+                () -> registry.build(new PolicyRegistry.PolicyDescriptor(
+                        "x", "rate-limit", "1", "yaml:test", Map.of("limit", 5))));
+        assertThrows(IllegalArgumentException.class,
+                () -> registry.build(new PolicyRegistry.PolicyDescriptor(
+                        "x", "rate-limit", "1", "yaml:test", Map.of("window-seconds", 60))));
+    }
+
+    @Test
+    void concurrencyLimitFactoryBuildsWorkingPolicy() {
+        var policy = registry.build(new PolicyRegistry.PolicyDescriptor(
+                "cc", "concurrency-limit", "1", "yaml:test",
+                Map.of("max-concurrent", 1)));
+        assertInstanceOf(ConcurrencyLimitPolicy.class, policy);
+    }
+
+    @Test
+    void timeWindowFactoryAcceptsIso8601TimesAndDayList() {
+        var policy = registry.build(new PolicyRegistry.PolicyDescriptor(
+                "bh", "time-window", "1", "yaml:test",
+                Map.of("start", "09:00", "end", "17:00",
+                        "days", List.of("MONDAY", "Tuesday", "friday"),
+                        "zone", "UTC")));
+        assertInstanceOf(TimeWindowPolicy.class, policy);
+        var tw = (TimeWindowPolicy) policy;
+        assertTrue(tw.days().contains(java.time.DayOfWeek.MONDAY));
+        assertTrue(tw.days().contains(java.time.DayOfWeek.TUESDAY));
+        assertTrue(tw.days().contains(java.time.DayOfWeek.FRIDAY));
+    }
+
+    @Test
+    void timeWindowFactoryDefaultsToMondayFridayBusinessDays() {
+        var policy = registry.build(new PolicyRegistry.PolicyDescriptor(
+                "bh", "time-window", "1", "yaml:test",
+                Map.of("start", "09:00", "end", "17:00")));
+        var tw = (TimeWindowPolicy) policy;
+        assertEquals(5, tw.days().size());
+    }
+
+    @Test
+    void metadataPresenceFactoryRequiresKeys() {
+        var policy = registry.build(new PolicyRegistry.PolicyDescriptor(
+                "attribution", "metadata-presence", "1", "yaml:test",
+                Map.of("required-keys", List.of("tenant-id", "trace-id"))));
+        assertInstanceOf(MetadataPresencePolicy.class, policy);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> registry.build(new PolicyRegistry.PolicyDescriptor(
+                        "bad", "metadata-presence", "1", "yaml:test", Map.of())));
     }
 }

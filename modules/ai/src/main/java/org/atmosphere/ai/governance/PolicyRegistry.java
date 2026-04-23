@@ -84,6 +84,10 @@ public final class PolicyRegistry {
         register("deny-list", PolicyRegistry::buildDenyList);
         register("allow-list", PolicyRegistry::buildAllowList);
         register("message-length", PolicyRegistry::buildMessageLength);
+        register("rate-limit", PolicyRegistry::buildRateLimit);
+        register("concurrency-limit", PolicyRegistry::buildConcurrencyLimit);
+        register("time-window", PolicyRegistry::buildTimeWindow);
+        register("metadata-presence", PolicyRegistry::buildMetadataPresence);
     }
 
     /** Register a custom factory, replacing any previous entry for this type. */
@@ -207,6 +211,94 @@ public final class PolicyRegistry {
                     "message-length requires a positive 'max-chars' under config");
         }
         return new MessageLengthPolicy(d.name(), d.source(), d.version(), maxChars);
+    }
+
+    private static GovernancePolicy buildRateLimit(PolicyDescriptor d) {
+        var limit = asInt(d.config().get("limit"), 0);
+        if (limit <= 0) {
+            throw new IllegalArgumentException(
+                    "rate-limit requires a positive 'limit' under config");
+        }
+        var windowSeconds = asInt(d.config().get("window-seconds"), 0);
+        if (windowSeconds <= 0) {
+            throw new IllegalArgumentException(
+                    "rate-limit requires a positive 'window-seconds' under config");
+        }
+        return new RateLimitPolicy(d.name(), d.source(), d.version(),
+                limit, java.time.Duration.ofSeconds(windowSeconds),
+                java.time.Clock.systemUTC(),
+                RateLimitPolicyDefaults.SUBJECT);
+    }
+
+    private static GovernancePolicy buildConcurrencyLimit(PolicyDescriptor d) {
+        var max = asInt(d.config().get("max-concurrent"), 0);
+        if (max <= 0) {
+            throw new IllegalArgumentException(
+                    "concurrency-limit requires a positive 'max-concurrent' under config");
+        }
+        return new ConcurrencyLimitPolicy(d.name(), d.source(), d.version(),
+                max, RateLimitPolicyDefaults.SUBJECT);
+    }
+
+    private static GovernancePolicy buildTimeWindow(PolicyDescriptor d) {
+        var config = d.config();
+        var start = java.time.LocalTime.parse(asString(config.get("start"), "09:00"));
+        var end = java.time.LocalTime.parse(asString(config.get("end"), "17:00"));
+        var zone = java.time.ZoneId.of(asString(config.get("zone"), "UTC"));
+        var days = parseDays(config.get("days"));
+        return new TimeWindowPolicy(d.name(), d.source(), d.version(),
+                start, end, days, zone, java.time.Clock.systemUTC());
+    }
+
+    private static java.util.Set<java.time.DayOfWeek> parseDays(Object value) {
+        if (value == null) {
+            // Default to Monday–Friday if unspecified.
+            return java.util.EnumSet.of(java.time.DayOfWeek.MONDAY, java.time.DayOfWeek.TUESDAY,
+                    java.time.DayOfWeek.WEDNESDAY, java.time.DayOfWeek.THURSDAY,
+                    java.time.DayOfWeek.FRIDAY);
+        }
+        if (!(value instanceof java.util.List<?> list)) {
+            throw new IllegalArgumentException("time-window 'days' must be a YAML list");
+        }
+        var days = java.util.EnumSet.noneOf(java.time.DayOfWeek.class);
+        for (var item : list) {
+            if (item == null) continue;
+            try {
+                days.add(java.time.DayOfWeek.valueOf(item.toString().toUpperCase(java.util.Locale.ROOT)));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("unknown day-of-week: " + item, e);
+            }
+        }
+        if (days.isEmpty()) {
+            throw new IllegalArgumentException("time-window 'days' must be non-empty");
+        }
+        return days;
+    }
+
+    private static GovernancePolicy buildMetadataPresence(PolicyDescriptor d) {
+        var keys = asStringList(d.config().get("required-keys"));
+        if (keys.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "metadata-presence requires at least one entry under 'required-keys'");
+        }
+        return new MetadataPresencePolicy(d.name(), d.source(), d.version(), keys);
+    }
+
+    /**
+     * Common default subject extractor for rate-limit / concurrency-limit —
+     * matches the behavior documented on {@link RateLimitPolicy} /
+     * {@link ConcurrencyLimitPolicy}. Shared from a helper so the two
+     * factories stay in lockstep.
+     */
+    private static final class RateLimitPolicyDefaults {
+        static final java.util.function.Function<org.atmosphere.ai.AiRequest, String> SUBJECT = req -> {
+            if (req == null) return "anonymous";
+            if (req.userId() != null && !req.userId().isBlank()) return "user:" + req.userId();
+            if (req.sessionId() != null && !req.sessionId().isBlank()) {
+                return "session:" + req.sessionId();
+            }
+            return "anonymous";
+        };
     }
 
     private static java.util.List<String> asStringList(Object value) {
