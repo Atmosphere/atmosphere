@@ -48,6 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SampleAgentScopeLintTest {
 
     private static final Pattern AI_ENDPOINT = Pattern.compile("(?m)^@AiEndpoint\\b");
+    private static final Pattern COORDINATOR = Pattern.compile("(?m)^@Coordinator\\b");
     private static final Pattern AGENT_SCOPE = Pattern.compile("(?m)^@AgentScope\\b");
     private static final Pattern UNRESTRICTED_OK = Pattern.compile(
             "(?s)@AgentScope\\s*\\([^)]*?unrestricted\\s*=\\s*true[^)]*?"
@@ -68,9 +69,12 @@ class SampleAgentScopeLintTest {
         }
 
         if (!offenders.isEmpty()) {
-            var message = "The following @AiEndpoint classes in samples/ are missing "
-                    + "@AgentScope (or a properly-justified unrestricted opt-out). "
-                    + "See docs/governance-policy-plane.md for the rationale.\n  "
+            var message = "The following @AiEndpoint / @Coordinator classes in samples/ "
+                    + "are missing @AgentScope (or a properly-justified unrestricted "
+                    + "opt-out). Multi-agent coordinators need scope enforcement at the "
+                    + "@Prompt entry just like single endpoints — user input lands here "
+                    + "and is dispatched to specialists. See "
+                    + "docs/governance-policy-plane.md for the rationale.\n  "
                     + String.join("\n  ", offenders);
             throw new AssertionError(message);
         }
@@ -83,12 +87,16 @@ class SampleAgentScopeLintTest {
         } catch (IOException e) {
             return;
         }
-        if (!AI_ENDPOINT.matcher(text).find()) {
+        var isAiEndpoint = AI_ENDPOINT.matcher(text).find();
+        var isCoordinator = COORDINATOR.matcher(text).find();
+        if (!isAiEndpoint && !isCoordinator) {
             return;
         }
+        var kind = isAiEndpoint ? "@AiEndpoint" : "@Coordinator";
         var hasScope = AGENT_SCOPE.matcher(text).find();
         if (!hasScope) {
-            offenders.add(repoRoot.relativize(source).toString() + " — add @AgentScope");
+            offenders.add(repoRoot.relativize(source).toString()
+                    + " — " + kind + " without @AgentScope");
             return;
         }
         if (containsUnrestrictedTrue(text) && !UNRESTRICTED_OK.matcher(text).find()) {

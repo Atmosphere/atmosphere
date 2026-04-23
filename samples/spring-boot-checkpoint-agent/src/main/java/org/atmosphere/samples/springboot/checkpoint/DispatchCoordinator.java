@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.checkpoint;
 
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
@@ -62,6 +63,12 @@ import java.util.Map;
         @AgentRef(type = AnalyzerAgent.class),
         @AgentRef(type = ApproverAgent.class)
 })
+@AgentScope(unrestricted = true,
+        justification = "HITL checkpoint demo — the sample exists to exercise the "
+                + "analyzer/approver + checkpoint store plumbing, not to demonstrate "
+                + "scope enforcement. Production deployments that fork this sample "
+                + "replace 'unrestricted = true' with a scoped purpose matching their "
+                + "analyzer's domain.")
 @Component
 public class DispatchCoordinator {
 

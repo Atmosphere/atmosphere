@@ -16,8 +16,11 @@
 package org.atmosphere.samples.springboot.a2astartup;
 
 import org.atmosphere.ai.AiEvent;
+import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.governance.PolicyAdmissionGate;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.coordinator.annotation.AgentRef;
@@ -90,6 +93,18 @@ import java.util.Map;
         @AgentRef(type = FinanceAgent.class),
         @AgentRef(type = WriterAgent.class)
 })
+@AgentScope(
+        purpose = "Startup CEO advisory: market analysis, competitive strategy, "
+                + "financial modeling, executive briefings. The coordinator dispatches "
+                + "to Research / Strategy / Finance / Writer specialist agents for "
+                + "business-oriented questions about markets, go-to-market plans, and "
+                + "financial projections.",
+        forbiddenTopics = {"code", "programming", "medical advice",
+                "legal advice", "personal therapy"},
+        onBreach = AgentScope.Breach.POLITE_REDIRECT,
+        redirectMessage = "I can only help with startup advisory — market analysis, "
+                + "strategy, financial modeling. What would you like to analyze?",
+        tier = AgentScope.Tier.RULE_BASED)
 public class CeoCoordinator {
 
     private static final Logger logger = LoggerFactory.getLogger(CeoCoordinator.class);
@@ -132,8 +147,23 @@ public class CeoCoordinator {
      * @param session the streaming session for real-time browser updates
      */
     @Prompt
-    public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
+    public void onPrompt(String message, AgentFleet fleet, StreamingSession session,
+                          AtmosphereResource resource) {
         logger.info("CEO received: {}", message);
+
+        // Goal 2 — governance admission on user input. PolicyAdmissionGate
+        // runs @AgentScope + any installed GovernancePolicy chain (scope,
+        // kill switch, rate limit, ...) BEFORE any dispatch decisions. If
+        // the scope policy denies (off-topic) or redirects, short-circuit
+        // here — the specialist agents never see off-scope traffic.
+        var admission = PolicyAdmissionGate.admit(resource, new AiRequest(message));
+        if (admission instanceof PolicyAdmissionGate.Result.Denied denied) {
+            logger.info("Admission denied by {}: {}", denied.policyName(), denied.reason());
+            session.error(new SecurityException(
+                    "Request denied by policy '" + denied.policyName()
+                            + "': " + denied.reason()));
+            return;
+        }
 
         // Wire per-session activity streaming — clients see agent-step events in real time
         fleet = fleet.withActivityListener(new StreamingActivityListener(session));
