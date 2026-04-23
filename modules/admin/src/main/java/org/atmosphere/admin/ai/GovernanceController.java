@@ -70,6 +70,39 @@ public final class GovernanceController {
             entry.put("source", policy.source());
             entry.put("version", policy.version());
             entry.put("className", policy.getClass().getName());
+
+            // Enrich with wrapper/primitive-specific state so operators don't
+            // need a second round-trip to inspect common gauges.
+            var unwrapped = policy;
+            if (unwrapped instanceof TimedPolicy timed) {
+                entry.put("timed", true);
+                unwrapped = timed.delegate();
+                entry.put("delegateClassName", unwrapped.getClass().getName());
+            }
+            if (unwrapped instanceof KillSwitchPolicy ks) {
+                entry.put("armed", ks.isArmed());
+                var state = ks.armedState();
+                if (state != null) {
+                    entry.put("armedReason", state.reason());
+                    entry.put("armedAt", state.armedAt().toString());
+                }
+            }
+            if (unwrapped instanceof org.atmosphere.ai.governance.DryRunPolicy dr) {
+                entry.put("dryRun", true);
+                entry.put("wrappedPolicyName", dr.delegate().name());
+                entry.put("shadowAdmits", dr.shadowAdmits());
+                entry.put("shadowDenies", dr.shadowDenies());
+                entry.put("shadowTransforms", dr.shadowTransforms());
+                entry.put("delegateErrors", dr.delegateErrors());
+            }
+            if (unwrapped instanceof SwappablePolicy swap) {
+                entry.put("swappable", true);
+                entry.put("delegateVersion", swap.delegateVersion());
+            }
+            // Every policy carries a hash digest — operators compare boot-time
+            // to observed to detect drift.
+            entry.put("digest", org.atmosphere.ai.governance.PolicyHashDigest.forIdentity(unwrapped));
+
             result.add(entry);
         }
         return result;
