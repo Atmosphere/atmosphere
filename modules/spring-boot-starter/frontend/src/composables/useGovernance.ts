@@ -41,6 +41,30 @@ export interface OwaspMatrix {
   total_rows: number
 }
 
+export interface CommitmentProof {
+  scheme: string
+  keyId: string
+  signature: string
+  createdAt: string
+}
+
+export interface CommitmentRecord {
+  id: string
+  coordinationId: string
+  eventTimestamp: string
+  issuer: string
+  principal: string | null
+  subject: string
+  scope: string | null
+  delegationChain: string[]
+  issuedAt: string
+  expiresAt: string | null
+  outcome: string
+  properties: Record<string, unknown>
+  proof: CommitmentProof
+  signed: boolean
+}
+
 /**
  * Poll a read-only governance endpoint on a fixed interval and expose the
  * result + last-error + loading flag. Callers mount the composable inside

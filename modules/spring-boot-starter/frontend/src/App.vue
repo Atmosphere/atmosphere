@@ -4,9 +4,10 @@ import ChatContainer from './components/ChatContainer.vue'
 import GovernancePolicies from './components/GovernancePolicies.vue'
 import GovernanceDecisions from './components/GovernanceDecisions.vue'
 import GovernanceOwasp from './components/GovernanceOwasp.vue'
+import GovernanceCommitments from './components/GovernanceCommitments.vue'
 import logoUrl from './assets/logo.svg'
 
-type Tab = 'chat' | 'policies' | 'decisions' | 'owasp'
+type Tab = 'chat' | 'policies' | 'decisions' | 'owasp' | 'commitments'
 
 const subtitle = ref('')
 const endpoint = ref('/atmosphere/ai-chat')
@@ -42,6 +43,7 @@ const tabs = computed(() => {
         ? String(governancePolicyCount.value) : undefined,
     })
     list.push({ id: 'decisions', label: 'Decisions' })
+    list.push({ id: 'commitments', label: 'Commitments' })
     list.push({ id: 'owasp', label: 'OWASP' })
   }
   return list
@@ -93,6 +95,8 @@ onMounted(async () => {
                           :active="activeTab === 'policies'" />
       <GovernanceDecisions v-if="ready" v-show="activeTab === 'decisions'"
                            :active="activeTab === 'decisions'" />
+      <GovernanceCommitments v-if="ready" v-show="activeTab === 'commitments'"
+                             :active="activeTab === 'commitments'" />
       <GovernanceOwasp v-if="ready" v-show="activeTab === 'owasp'"
                        :active="activeTab === 'owasp'" />
     </main>
