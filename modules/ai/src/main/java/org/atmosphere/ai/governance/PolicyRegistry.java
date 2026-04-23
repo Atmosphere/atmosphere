@@ -81,6 +81,9 @@ public final class PolicyRegistry {
         register("pii-redaction", PolicyRegistry::buildPiiRedaction);
         register("cost-ceiling", PolicyRegistry::buildCostCeiling);
         register("output-length-zscore", PolicyRegistry::buildOutputLengthZScore);
+        register("deny-list", PolicyRegistry::buildDenyList);
+        register("allow-list", PolicyRegistry::buildAllowList);
+        register("message-length", PolicyRegistry::buildMessageLength);
     }
 
     /** Register a custom factory, replacing any previous entry for this type. */
@@ -157,6 +160,67 @@ public final class PolicyRegistry {
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("expected numeric, got: " + value, e);
         }
+    }
+
+    private static GovernancePolicy buildDenyList(PolicyDescriptor d) {
+        var phrases = asStringList(d.config().get("phrases"));
+        var regex = asStringList(d.config().get("regex"));
+        if (phrases.isEmpty() && regex.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "deny-list requires 'phrases' or 'regex' under config");
+        }
+        var patterns = new java.util.ArrayList<java.util.regex.Pattern>();
+        for (var p : phrases) {
+            patterns.add(java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(p),
+                    java.util.regex.Pattern.CASE_INSENSITIVE));
+        }
+        for (var r : regex) {
+            patterns.add(java.util.regex.Pattern.compile(r,
+                    java.util.regex.Pattern.CASE_INSENSITIVE));
+        }
+        return new DenyListPolicy(d.name(), d.source(), d.version(), patterns);
+    }
+
+    private static GovernancePolicy buildAllowList(PolicyDescriptor d) {
+        var phrases = asStringList(d.config().get("phrases"));
+        var regex = asStringList(d.config().get("regex"));
+        if (phrases.isEmpty() && regex.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "allow-list requires 'phrases' or 'regex' under config");
+        }
+        var patterns = new java.util.ArrayList<java.util.regex.Pattern>();
+        for (var p : phrases) {
+            patterns.add(java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(p),
+                    java.util.regex.Pattern.CASE_INSENSITIVE));
+        }
+        for (var r : regex) {
+            patterns.add(java.util.regex.Pattern.compile(r,
+                    java.util.regex.Pattern.CASE_INSENSITIVE));
+        }
+        return new AllowListPolicy(d.name(), d.source(), d.version(), patterns);
+    }
+
+    private static GovernancePolicy buildMessageLength(PolicyDescriptor d) {
+        var maxChars = asInt(d.config().get("max-chars"), 0);
+        if (maxChars <= 0) {
+            throw new IllegalArgumentException(
+                    "message-length requires a positive 'max-chars' under config");
+        }
+        return new MessageLengthPolicy(d.name(), d.source(), d.version(), maxChars);
+    }
+
+    private static java.util.List<String> asStringList(Object value) {
+        if (value == null) return java.util.List.of();
+        if (!(value instanceof java.util.List<?> list)) {
+            throw new IllegalArgumentException("expected a YAML list, got: " + value);
+        }
+        var out = new java.util.ArrayList<String>(list.size());
+        for (var item : list) {
+            if (item == null) continue;
+            var s = item.toString();
+            if (!s.isBlank()) out.add(s);
+        }
+        return out;
     }
 
     private static int asInt(Object value, int defaultValue) {
