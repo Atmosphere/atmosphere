@@ -83,4 +83,59 @@ class TicketClassifierInterceptorTest {
         assertEquals("other_value", out.metadata().get("other_key"));
         assertEquals("general", out.metadata().get(TicketClassifierInterceptor.CATEGORY_KEY));
     }
+
+    @Test
+    void customRulesBundleSupportsNonEnglishLocales() {
+        // Prove the i18n seam: a French-locale rule set wires through the
+        // same constructor. Operators deploying in fr-FR would source these
+        // patterns from their own resource bundle / service.
+        var categories = new java.util.LinkedHashMap<String, java.util.regex.Pattern>();
+        TicketClassifierInterceptor.Rules.add(categories, "refund", "remboursement|retour");
+        TicketClassifierInterceptor.Rules.add(categories, "shipping", "livraison|colis|suivi");
+        TicketClassifierInterceptor.Rules.add(categories, "billing", "facture|paiement");
+        var urgent = java.util.regex.Pattern.compile(
+                "\\b(urgent|immédiatement|cassé|volé|fraude\\w*)\\b",
+                java.util.regex.Pattern.CASE_INSENSITIVE);
+        var high = java.util.regex.Pattern.compile(
+                "\\b(plainte|probl[eè]me|manquant)\\b",
+                java.util.regex.Pattern.CASE_INSENSITIVE);
+        var french = TicketClassifierInterceptor.Rules.of(
+                categories, "général", urgent, high);
+        var interceptor = new TicketClassifierInterceptor(french);
+
+        var refundOut = interceptor.preProcess(
+                new AiRequest("Je veux un remboursement pour ma commande"), null);
+        assertEquals("refund", refundOut.metadata().get(TicketClassifierInterceptor.CATEGORY_KEY));
+
+        var urgentOut = interceptor.preProcess(
+                new AiRequest("ma carte a été utilisée dans une fraude"), null);
+        assertEquals("urgent", urgentOut.metadata().get(TicketClassifierInterceptor.PRIORITY_KEY));
+
+        var fallbackOut = interceptor.preProcess(new AiRequest("bonjour"), null);
+        assertEquals("général",
+                fallbackOut.metadata().get(TicketClassifierInterceptor.CATEGORY_KEY));
+    }
+
+    @Test
+    void mergingRuleBundlesJoinsPatterns() {
+        var base = TicketClassifierInterceptor.Rules.english();
+        var extraCategories = new java.util.LinkedHashMap<String, java.util.regex.Pattern>();
+        TicketClassifierInterceptor.Rules.add(extraCategories, "shipping", "livraison|colis");
+        var extra = TicketClassifierInterceptor.Rules.of(
+                extraCategories, "general",
+                java.util.regex.Pattern.compile("\\burgent\\b",
+                        java.util.regex.Pattern.CASE_INSENSITIVE),
+                java.util.regex.Pattern.compile("\\bissue\\b",
+                        java.util.regex.Pattern.CASE_INSENSITIVE));
+        var merged = base.merge(extra);
+        var interceptor = new TicketClassifierInterceptor(merged);
+
+        // Either language's "shipping" keyword hits the shipping category.
+        assertEquals("shipping", interceptor.preProcess(
+                new AiRequest("tracking number please"), null)
+                .metadata().get(TicketClassifierInterceptor.CATEGORY_KEY));
+        assertEquals("shipping", interceptor.preProcess(
+                new AiRequest("ma livraison est en retard"), null)
+                .metadata().get(TicketClassifierInterceptor.CATEGORY_KEY));
+    }
 }
