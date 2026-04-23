@@ -518,6 +518,21 @@ public class AtmosphereAdminEndpoint {
     }
 
     /**
+     * Compliance matrices — EU AI Act / HIPAA / SOC2 self-assessments
+     * parallel to the OWASP matrix. Read-only. Returns a map keyed by
+     * framework name ({@code EU_AI_ACT}, {@code HIPAA}, {@code SOC2})
+     * with one matrix per framework in the same shape as {@code /owasp}.
+     */
+    @GetMapping("/governance/compliance")
+    public ResponseEntity<Map<String, Object>> governanceCompliance() {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of());
+        }
+        return ResponseEntity.ok(controller.complianceMatrices());
+    }
+
+    /**
      * Microsoft Agent Governance Toolkit {@code POST /check}-compatible
      * decision endpoint. External gateways (Envoy, Kong, Azure APIM)
      * that already speak to MS's ASGI policy provider can point at

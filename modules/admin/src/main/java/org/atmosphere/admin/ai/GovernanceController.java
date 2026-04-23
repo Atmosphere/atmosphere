@@ -21,6 +21,7 @@ import org.atmosphere.ai.governance.GovernanceDecisionLog;
 import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.governance.PolicyContext;
 import org.atmosphere.ai.governance.PolicyDecision;
+import org.atmosphere.ai.governance.compliance.ComplianceMatrix;
 import org.atmosphere.ai.governance.owasp.OwaspAgenticMatrix;
 import org.atmosphere.cpr.AtmosphereFramework;
 
@@ -229,6 +230,57 @@ public final class GovernanceController {
         result.put("coverage_counts", coverageCounts);
         result.put("total_rows", OwaspAgenticMatrix.MATRIX.size());
         return result;
+    }
+
+    /**
+     * Render Atmosphere's regulatory compliance self-assessment —
+     * {@code EU_AI_ACT}, {@code HIPAA}, {@code SOC2}. Each matrix follows
+     * the same shape as the OWASP matrix so admin consumers can reuse
+     * the same rendering code.
+     */
+    public Map<String, Object> complianceMatrices() {
+        var result = new LinkedHashMap<String, Object>();
+        for (var entry : ComplianceMatrix.MATRICES.entrySet()) {
+            result.put(entry.getKey().name(), renderMatrix(
+                    entry.getKey().displayName(), entry.getValue()));
+        }
+        return result;
+    }
+
+    private static Map<String, Object> renderMatrix(String displayName,
+                                                     List<ComplianceMatrix.Row> rows) {
+        var rendered = new ArrayList<Map<String, Object>>(rows.size());
+        var coverageCounts = new LinkedHashMap<String, Integer>();
+        coverageCounts.put("COVERED", 0);
+        coverageCounts.put("PARTIAL", 0);
+        coverageCounts.put("DESIGN", 0);
+        coverageCounts.put("NOT_ADDRESSED", 0);
+        for (var row : rows) {
+            var renderedRow = new LinkedHashMap<String, Object>();
+            renderedRow.put("id", row.id());
+            renderedRow.put("title", row.title());
+            renderedRow.put("description", row.description());
+            renderedRow.put("coverage", row.coverage().name());
+            renderedRow.put("notes", row.notes());
+            var evidenceList = new ArrayList<Map<String, Object>>(row.evidence().size());
+            for (var evidence : row.evidence()) {
+                var renderedEvidence = new LinkedHashMap<String, Object>();
+                renderedEvidence.put("class", evidence.evidenceClass());
+                renderedEvidence.put("test", evidence.testClass());
+                renderedEvidence.put("consumer_grep", evidence.consumerGrepPattern());
+                renderedEvidence.put("description", evidence.description());
+                evidenceList.add(renderedEvidence);
+            }
+            renderedRow.put("evidence", evidenceList);
+            rendered.add(renderedRow);
+            coverageCounts.merge(row.coverage().name(), 1, Integer::sum);
+        }
+        var out = new LinkedHashMap<String, Object>();
+        out.put("framework", displayName);
+        out.put("rows", rendered);
+        out.put("coverage_counts", coverageCounts);
+        out.put("total_rows", rows.size());
+        return out;
     }
 
     /** Summary: policy count and distinct source URIs. */
