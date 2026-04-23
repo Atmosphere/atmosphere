@@ -90,6 +90,24 @@ export interface AiEventMessage {
 }
 
 /**
+ * Parsed governance denial. Emitted to {@link StreamingHandlers.onPolicyDenied}
+ * when the server's governance plane denies the turn (scope breach, MS-schema
+ * rule hit, kill switch armed, etc.). Distinguished from generic transport
+ * errors so UIs can render governance denials with appropriate framing
+ * (friendly redirect vs. connection-failed banner).
+ */
+export interface PolicyDenial {
+  /** Kind of denial — {@code policy} for {@code GovernancePolicy}, {@code guardrail} for {@code AiGuardrail}. */
+  kind: 'policy' | 'guardrail';
+  /** Policy or guardrail identity, when known. */
+  policyName?: string;
+  /** Human-readable denial reason. Safe to render in UI. */
+  reason: string;
+  /** The raw server error string, kept for debug overlays. */
+  raw: string;
+}
+
+/**
  * Event handlers for a streaming session.
  */
 export interface StreamingHandlers {
@@ -101,6 +119,15 @@ export interface StreamingHandlers {
   onComplete?: (summary?: string) => void;
   /** Called on error. */
   onError?: (error: string) => void;
+  /**
+   * Called when the server denied the turn via governance (scope breach,
+   * MS-schema rule hit, kill switch armed) or a guardrail (PII, cost ceiling).
+   * When this fires, {@link #onError} also fires with the same raw string so
+   * code that cares only about error display keeps working; new code should
+   * check for {@link PolicyDenial} first and fall back to {@link #onError}
+   * only for transport-level failures.
+   */
+  onPolicyDenied?: (denial: PolicyDenial) => void;
   /** Called on metadata events (model name, streaming text count, etc.). */
   onMetadata?: (key: string, value: unknown) => void;
   /** Called for structured AiEvent messages (tool calls, agent steps, entities, etc.). */
