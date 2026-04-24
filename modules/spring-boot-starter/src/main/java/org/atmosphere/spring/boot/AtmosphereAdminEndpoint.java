@@ -18,6 +18,7 @@ package org.atmosphere.spring.boot;
 import org.atmosphere.admin.AtmosphereAdmin;
 import org.atmosphere.admin.a2a.TaskController;
 import org.atmosphere.admin.ai.AiRuntimeController;
+import org.atmosphere.admin.ai.GovernanceController;
 import org.atmosphere.admin.coordinator.CoordinatorController;
 import org.atmosphere.admin.flow.FlowController;
 import org.atmosphere.admin.mcp.McpController;
@@ -463,6 +464,261 @@ public class AtmosphereAdminEndpoint {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(controller.getActiveRuntime());
+    }
+
+    // ── Governance Policies ──
+
+    @GetMapping("/governance/policies")
+    public ResponseEntity<List<Map<String, Object>>> listGovernancePolicies() {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(controller.listPolicies());
+    }
+
+    @GetMapping("/governance/summary")
+    public ResponseEntity<Map<String, Object>> governanceSummary() {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of("policyCount", 0, "sources", List.of()));
+        }
+        return ResponseEntity.ok(controller.summary());
+    }
+
+    /**
+     * Governance plane health snapshot — kill switch state, dry-run counters,
+     * and per-policy hash fingerprints for supply-chain drift detection.
+     * Read-only; no authorizer required.
+     */
+    @GetMapping("/governance/health")
+    public ResponseEntity<Map<String, Object>> governanceHealth() {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of(
+                    "killSwitch", Map.of("armed", false),
+                    "policies", List.of(),
+                    "dryRuns", List.of(),
+                    "slos", List.of()));
+        }
+        return ResponseEntity.ok(controller.healthMap());
+    }
+
+    /**
+     * Hot-reload a policy wrapped in {@code SwappablePolicy}. Request body
+     * carries {@code {swapName, yaml}}; response carries the outgoing /
+     * incoming delegate identity. MUTATING — requires authenticated +
+     * authorized caller at the HTTP layer.
+     *
+     * <p>400 on malformed YAML or unknown swap name; 200 with swap summary
+     * on success.</p>
+     */
+    @PostMapping("/governance/reload")
+    public ResponseEntity<Map<String, Object>> governanceReload(
+            HttpServletRequest request,
+            @RequestBody(required = false) Map<String, Object> body) {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "governance controller not installed"));
+        }
+        var swapName = stringField(body, "swapName");
+        var denied = guardWrite(request, "governance.reload", swapName);
+        if (denied != null) return denied;
+
+        var yaml = stringField(body, "yaml");
+        var principalName = resolvePrincipalName(request);
+        try {
+            var result = controller.reloadSwappable(swapName, yaml);
+            admin.auditLog().record(principalName, "governance.reload", swapName, true, null);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            admin.auditLog().record(principalName, "governance.reload.invalid",
+                    swapName, false, e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Arm the operator kill switch. Request body carries
+     * {@code {reason, operator}} — subsequent turns deny until disarm.
+     * MUTATING — gated by {@code guardWrite}.
+     */
+    @PostMapping("/governance/kill-switch/arm")
+    public ResponseEntity<Map<String, Object>> governanceKillSwitchArm(
+            HttpServletRequest request,
+            @RequestBody(required = false) Map<String, Object> body) {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "governance controller not installed"));
+        }
+        var reason = stringField(body, "reason");
+        var denied = guardWrite(request, "governance.kill_switch.arm", reason);
+        if (denied != null) return denied;
+
+        var operator = stringField(body, "operator");
+        var principalName = resolvePrincipalName(request);
+        try {
+            var result = controller.armKillSwitch(reason,
+                    operator != null ? operator : principalName);
+            admin.auditLog().record(principalName, "governance.kill_switch.arm",
+                    reason, true, operator);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            admin.auditLog().record(principalName, "governance.kill_switch.arm.invalid",
+                    reason, false, e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (IllegalStateException e) {
+            admin.auditLog().record(principalName, "governance.kill_switch.arm.unavailable",
+                    reason, false, e.getMessage());
+            return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /** Disarm the kill switch. No body required. MUTATING — gated by {@code guardWrite}. */
+    @PostMapping("/governance/kill-switch/disarm")
+    public ResponseEntity<Map<String, Object>> governanceKillSwitchDisarm(HttpServletRequest request) {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "governance controller not installed"));
+        }
+        var denied = guardWrite(request, "governance.kill_switch.disarm", null);
+        if (denied != null) return denied;
+
+        var principalName = resolvePrincipalName(request);
+        try {
+            var result = controller.disarmKillSwitch();
+            admin.auditLog().record(principalName, "governance.kill_switch.disarm",
+                    null, true, null);
+            return ResponseEntity.ok(result);
+        } catch (IllegalStateException e) {
+            admin.auditLog().record(principalName, "governance.kill_switch.disarm.unavailable",
+                    null, false, e.getMessage());
+            return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Extract a string field from a loosely-typed JSON body. Returns null
+     * for missing key, null value, or non-string type. Never coerces via
+     * {@code String.valueOf} — a missing field must not become the literal
+     * string {@code "null"} that trips blank-check validation.
+     */
+    private static String stringField(Map<String, Object> body, String key) {
+        if (body == null) return null;
+        var value = body.get(key);
+        if (value instanceof String s && !s.isBlank()) {
+            return s;
+        }
+        return null;
+    }
+
+    /**
+     * Compliance export in the {@code agt verify} schema shape —
+     * cross-framework findings + per-framework coverage counts. External
+     * compliance tooling that already consumes MS's Agent Compliance
+     * package format can round-trip this output.
+     */
+    @GetMapping("/governance/agt-verify")
+    public ResponseEntity<Map<String, Object>> governanceAgtVerify() {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of(
+                    "schemaVersion", "agt-verify/1",
+                    "findings", List.of(),
+                    "summary", Map.of()));
+        }
+        return ResponseEntity.ok(controller.agtVerifyExport());
+    }
+
+    /**
+     * Recent policy decisions (ring-buffered). {@code limit} defaults to 100;
+     * capped at the log's configured capacity. Read-only — no authorizer
+     * guard required.
+     */
+    @GetMapping("/governance/decisions")
+    public ResponseEntity<List<Map<String, Object>>> governanceDecisions(
+            @RequestParam(value = "limit", defaultValue = "100") int limit) {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(controller.listRecentDecisions(limit));
+    }
+
+    /**
+     * OWASP Agentic AI Top 10 (Dec 2025) self-assessment. Read-only. Pairs
+     * with the {@code agt verify} CLI payload shape — external compliance
+     * tooling that targets MS's Agent Compliance package can consume this
+     * endpoint as the Atmosphere equivalent evidence source.
+     */
+    @GetMapping("/governance/owasp")
+    public ResponseEntity<Map<String, Object>> governanceOwasp() {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of("framework", "OWASP Agentic AI Top 10 (December 2025)",
+                    "rows", List.of(), "total_rows", 0));
+        }
+        return ResponseEntity.ok(controller.owaspMatrix());
+    }
+
+    /**
+     * Compliance matrices — EU AI Act / HIPAA / SOC2 self-assessments
+     * parallel to the OWASP matrix. Read-only. Returns a map keyed by
+     * framework name ({@code EU_AI_ACT}, {@code HIPAA}, {@code SOC2})
+     * with one matrix per framework in the same shape as {@code /owasp}.
+     */
+    @GetMapping("/governance/compliance")
+    public ResponseEntity<Map<String, Object>> governanceCompliance() {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            return ResponseEntity.ok(Map.of());
+        }
+        return ResponseEntity.ok(controller.complianceMatrices());
+    }
+
+    /**
+     * Microsoft Agent Governance Toolkit {@code POST /check}-compatible
+     * decision endpoint. External gateways (Envoy, Kong, Azure APIM)
+     * that already speak to MS's ASGI policy provider can point at
+     * this endpoint to use Atmosphere as the decision service.
+     * Payload: {@code {"agent_id": "...", "action": "...", "context": {...}}}.
+     * Response: {@code {"allowed": bool, "decision": "...", "reason": "...",
+     *                   "matched_policy": "...", "evaluation_ms": N}}.
+     * Read-only — no authorizer guard required (this does not mutate state).
+     */
+    @PostMapping("/governance/check")
+    public ResponseEntity<Map<String, Object>> governanceCheck(@RequestBody(required = false) Map<String, Object> payload) {
+        GovernanceController controller = admin.governanceController();
+        if (controller == null) {
+            // MS /check wire compat — gateways routing on `allowed` keep
+            // working even on deployments that haven't wired the
+            // governance plane. Shape matches the shared
+            // GovernanceController.unconfiguredAllowPayload() helper so
+            // Spring and Quarkus return byte-identical JSON here.
+            return ResponseEntity.ok(GovernanceController.unconfiguredAllowPayload());
+        }
+        return ResponseEntity.ok(controller.check(payload));
+    }
+
+    /**
+     * Signed commitment records emitted by the coordination journal.
+     * Read-only. Operators render this stream as a verifiable audit
+     * trail — each entry carries the Ed25519 proof
+     * scheme / key id / signature so downstream SIEMs can verify
+     * against the publicly-published coordinator key.
+     *
+     * <p>Returns {@link org.atmosphere.admin.coordinator.CommitmentRecordView}
+     * — a typed record rather than a loose {@code Map<String, Object>}
+     * so shape drift surfaces at compile time.</p>
+     */
+    @GetMapping("/governance/commitments")
+    public ResponseEntity<List<org.atmosphere.admin.coordinator.CommitmentRecordView>> governanceCommitments(
+            @RequestParam(value = "limit", defaultValue = "100") int limit) {
+        CoordinatorController controller = admin.coordinatorController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(controller.listCommitmentRecords(limit));
     }
 
     // ── MCP Registry ──

@@ -31,8 +31,14 @@ import org.atmosphere.ai.ModelRouter;
 import org.atmosphere.ai.PersistentConversationMemory;
 import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.RoutingAiSupport;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.governance.PolicyAsGuardrail;
+import org.atmosphere.ai.governance.scope.ScopeConfig;
+import org.atmosphere.ai.governance.scope.ScopeGuardrailResolver;
+import org.atmosphere.ai.governance.scope.ScopePolicy;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.annotation.AnnotationUtil;
@@ -103,6 +109,33 @@ public class AiEndpointProcessor implements Processor<Object> {
 
             // Instantiate guardrails and context providers
             var guardrails = instantiateGuardrails(annotation.guardrails(), framework);
+            // Declarative governance policies are merged into the guardrail
+            // list through PolicyAsGuardrail so the handler's existing wiring
+            // keeps working while the GovernancePolicy SPI picks up Spring /
+            // Quarkus / ServiceLoader sources through POLICIES_PROPERTY.
+            var policies = instantiatePolicies(framework);
+            // @AgentScope on the endpoint class becomes an auto-installed
+            // ScopePolicy. Sample-hygiene CI lint (separate commit) rejects
+            // samples that neither declare @AgentScope nor opt out via
+            // unrestricted = true.
+            var scopeAnnotation = annotatedClass.getAnnotation(AgentScope.class);
+            if (scopeAnnotation != null) {
+                var scopePolicy = buildScopePolicy(scopeAnnotation, annotatedClass, annotation.path());
+                if (scopePolicy != null) {
+                    var extended = new ArrayList<GovernancePolicy>(policies.size() + 1);
+                    extended.add(scopePolicy);      // scope runs first — cheapest rejection
+                    extended.addAll(policies);
+                    policies = List.copyOf(extended);
+                }
+            }
+            if (!policies.isEmpty()) {
+                var merged = new ArrayList<AiGuardrail>(guardrails.size() + policies.size());
+                merged.addAll(guardrails);
+                for (var policy : policies) {
+                    merged.add(new PolicyAsGuardrail(policy));
+                }
+                guardrails = List.copyOf(merged);
+            }
             var contextProviders = instantiateContextProviders(
                     annotation.contextProviders(), annotation.autoDiscoverContextProviders(), framework);
 
@@ -317,6 +350,78 @@ public class AiEndpointProcessor implements Processor<Object> {
                 for (var g : list) {
                     if (g instanceof AiGuardrail ai) {
                         merged.putIfAbsent(ai.getClass(), ai);
+                    }
+                }
+            }
+        }
+        return List.copyOf(merged.values());
+    }
+
+    /**
+     * Build a {@link ScopePolicy} from the {@link AgentScope} annotation on
+     * an endpoint class. Returns {@code null} when the annotation is invalid
+     * (e.g. {@code unrestricted = false} with blank purpose) and logs the
+     * reason — the endpoint keeps working without scope enforcement, which
+     * is the "refuse to break at startup" behaviour callers expect; the
+     * sample-hygiene CI lint catches this class of misconfiguration before
+     * it ships.
+     */
+    private static ScopePolicy buildScopePolicy(AgentScope annotation,
+                                                 Class<?> endpointClass,
+                                                 String endpointPath) {
+        try {
+            var config = ScopeConfig.fromAnnotation(annotation);
+            var guardrail = ScopeGuardrailResolver.resolve(config.tier());
+            if (guardrail.tier() != config.tier()) {
+                logger.warn("No {} ScopeGuardrail impl on the classpath for endpoint {} — "
+                                + "falling back to rule-based tier; install atmosphere-ai-scope-<tier> for the "
+                                + "intended behaviour", config.tier(), endpointPath);
+            }
+            var name = "scope::" + endpointClass.getSimpleName();
+            var source = "annotation:" + endpointClass.getName();
+            return new ScopePolicy(name, source, "1.0",
+                    // rebuild config against the guardrail we actually resolved
+                    // so we don't advertise EMBEDDING_SIMILARITY when only the
+                    // RULE_BASED fallback is installed
+                    new ScopeConfig(config.purpose(), config.forbiddenTopics(),
+                            config.onBreach(), config.redirectMessage(),
+                            guardrail.tier(), config.similarityThreshold(),
+                            config.postResponseCheck(), config.unrestricted(),
+                            config.justification()),
+                    guardrail);
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid @AgentScope on {} ({}) — endpoint will run WITHOUT scope "
+                    + "enforcement; fix the annotation or add unrestricted = true with a justification",
+                    endpointClass.getName(), endpointPath, e);
+            return null;
+        }
+    }
+
+    /**
+     * Merge declarative governance policies from ServiceLoader and the
+     * framework-scoped {@link GovernancePolicy#POLICIES_PROPERTY} bag.
+     * Deduplicates by {@link GovernancePolicy#name()} so repeat wiring
+     * (Spring + ServiceLoader + YAML pre-loaded into the property) cannot
+     * double-install the same policy.
+     */
+    private List<GovernancePolicy> instantiatePolicies(AtmosphereFramework framework) {
+        var merged = new java.util.LinkedHashMap<String, GovernancePolicy>();
+        try {
+            for (var p : ServiceLoader.load(GovernancePolicy.class)) {
+                if (p != null) {
+                    merged.putIfAbsent(p.name(), p);
+                }
+            }
+        } catch (java.util.ServiceConfigurationError e) {
+            logger.warn("GovernancePolicy ServiceLoader lookup failed: {}", e.getMessage());
+        }
+        var cfg = framework.getAtmosphereConfig();
+        if (cfg != null) {
+            var bridged = cfg.properties().get(GovernancePolicy.POLICIES_PROPERTY);
+            if (bridged instanceof List<?> list) {
+                for (var p : list) {
+                    if (p instanceof GovernancePolicy policy) {
+                        merged.putIfAbsent(policy.name(), policy);
                     }
                 }
             }

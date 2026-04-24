@@ -46,6 +46,20 @@
             <artifactId>quarkus-junit-internal</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!--
+            Test-scope only — the runtime extension does NOT depend on
+            atmosphere-ai, but we need the governance classes on the test
+            classpath to run the v4 Phase A Quarkus-parity test that proves
+            governance admission behaves identically on Quarkus and
+            Spring Boot.
+        -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

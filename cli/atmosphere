@@ -766,7 +766,8 @@ cmd_new() {
         semantic-kernel) source_sample="spring-boot-semantic-kernel-chat" ;;
         multi-agent)   source_sample="spring-boot-multi-agent-startup-team" ;;
         classroom)     source_sample="spring-boot-ai-classroom" ;;
-        *)             die "Unknown template: $template (chat, ai-chat, ai-tools, mcp-server, rag, agent, koog, semantic-kernel, multi-agent, classroom)" ;;
+        ms-governance) source_sample="spring-boot-ms-governance-chat" ;;
+        *)             die "Unknown template: $template (chat, ai-chat, ai-tools, mcp-server, rag, agent, koog, semantic-kernel, multi-agent, classroom, ms-governance)" ;;
     esac
 
     json=$(get_samples_json)

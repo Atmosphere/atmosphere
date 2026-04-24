@@ -128,6 +128,28 @@ public final class CoordinatorController {
     }
 
     /**
+     * Return the most-recent {@link CoordinationEvent.CommitmentRecorded}
+     * events from the journal, newest-first, up to {@code limit}. Each
+     * entry is a typed {@link CommitmentRecordView} so downstream shape
+     * drift is caught at compile time — the alternative
+     * {@code Map<String, Object>} rendering is brittle.
+     */
+    public List<CommitmentRecordView> listCommitmentRecords(int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        var events = journal.query(CoordinationQuery.all());
+        var result = new ArrayList<CommitmentRecordView>();
+        for (int i = events.size() - 1; i >= 0 && result.size() < limit; i--) {
+            var event = events.get(i);
+            if (event instanceof CoordinationEvent.CommitmentRecorded rec) {
+                result.add(CommitmentRecordView.from(rec));
+            }
+        }
+        return result;
+    }
+
+    /**
      * Get the formatted log for a specific coordination.
      */
     public Optional<String> getJournalLog(String coordinationId) {
@@ -192,6 +214,15 @@ public final class CoordinatorController {
                 info.put("agentName", e.agentName());
                 info.put("fromState", e.fromState());
                 info.put("toState", e.toState());
+            }
+            case CoordinationEvent.CommitmentRecorded e -> {
+                info.put("subject", e.record().subject());
+                info.put("issuer", e.record().issuer());
+                info.put("outcome", e.record().outcome());
+                info.put("scope", e.record().scope());
+                info.put("signatureScheme", e.record().proof().scheme());
+                info.put("signatureKeyId", e.record().proof().keyId());
+                info.put("signed", e.record().isSigned());
             }
         }
         return info;

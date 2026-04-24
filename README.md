@@ -117,6 +117,13 @@ What this registers depends on which modules are on the classpath:
 | Grounded facts | `atmosphere-ai` | `FactResolver` SPI, per-turn; values escaped before prompt injection |
 | Business tags | `atmosphere-ai` | `BusinessMetadata` → SLF4J MDC (tenant, customer, session, event kind) |
 | Guardrails | `atmosphere-ai` | `PiiRedactionGuardrail`, `OutputLengthZScoreGuardrail` (tenant-partitioned), `CostCeilingGuardrail` |
+| Governance policy plane | `atmosphere-ai` | `GovernancePolicy` SPI; YAML `PolicyParser` auto-detects Atmosphere-native + **Microsoft Agent Governance Toolkit** schema; `PolicyAdmissionGate` for non-pipeline paths; MS-compatible `POST /api/admin/governance/check` decision endpoint |
+| Policy admission primitives | `atmosphere-ai` | `AllowListPolicy`, `DenyListPolicy`, `MessageLengthPolicy`, `RateLimitPolicy`, `ConcurrencyLimitPolicy`, `TimeWindowPolicy`, `MetadataPresencePolicy`, `AuthorizationPolicy`, `ConfidenceThresholdGuardrail` — all declarable in YAML and composable via `PolicyRing` |
+| Ops primitives | `atmosphere-ai` | `KillSwitchPolicy` break-glass; `DryRunPolicy` shadow rollouts; `SwappablePolicy` hot-reload; `TimedPolicy` / `CountingPolicy` metrics wrappers; `SloTracker` SRE burn-rate; `PolicyHashDigest` supply-chain drift detection |
+| Multi-agent governance | `atmosphere-coordinator` | `FleetInterceptor` SPI for per-dispatch gating; `GovernanceFleetInterceptor` bridges `FleetInterceptor` → `GovernancePolicy` chain at the coord→specialist edge |
+| Commitment records | `atmosphere-coordinator` | W3C Verifiable-Credential-subtype records signed with Ed25519; `CommitmentRecordsFlag` flag-off default; `JournalingAgentFleet.signer()` installs per-session; admin Commitments tab renders verified records |
+| Admin governance surface | `atmosphere-admin` + starter | `GET /governance/{policies,health,decisions,owasp,compliance,agt-verify}`; `POST /governance/{check,reload,kill-switch/arm,kill-switch/disarm}` — all verified end-to-end via `StartupTeamGovernanceE2ETest` |
+| Compliance evidence | `atmosphere-ai` | OWASP Agentic Top 10 + EU AI Act / HIPAA / SOC2 matrices; CI-enforced via `OwaspMatrixPinTest`, `ComplianceMatrixPinTest`, and `EvidenceConsumerGrepPinTest` (asserts every claimed coverage row has a real production consumer) |
 | Stream-level PII rewrite | `atmosphere-ai` | `PiiRedactionFilter` — `BroadcasterFilter` auto-installed on every present and future broadcaster when enabled; rewrites tokens before bytes flush to the client |
 | Cost enforcement | `atmosphere-ai` | `CostCeilingAccountant` bridges `TokenUsage` → `CostCeilingGuardrail.addCost` keyed by `business.tenant.id`; outbound `@Prompt` blocks once the tenant hits budget |
 | Observability | `atmosphere-runtime`, `atmosphere-ai` | OpenTelemetry spans, Micrometer metrics, token usage; `BusinessMdcBenchmark` pins the MDC hot-path cost |
@@ -166,6 +173,7 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 | [durable-sessions](samples/spring-boot-durable-sessions/) | SQLite/Redis session persistence |
 | [checkpoint-agent](samples/spring-boot-checkpoint-agent/) | Durable HITL workflow — @Coordinator + CheckpointStore + REST approval |
 | [ai-classroom](samples/spring-boot-ai-classroom/) | Multi-room collaborative AI |
+| [ms-governance-chat](samples/spring-boot-ms-governance-chat/) | Chat gated by **Microsoft Agent Governance Toolkit** YAML (MS schema, verbatim) |
 | [channels-chat](samples/spring-boot-channels-chat/) | Slack, Telegram, WhatsApp, Messenger |
 | [personal-assistant](samples/spring-boot-personal-assistant/) | `@Coordinator` + `AgentFleet` over `InMemoryProtocolBridge`, `@AiTool` → crew dispatch, OpenClaw workspace |
 | [coding-agent](samples/spring-boot-coding-agent/) | Docker `Sandbox` provider — clone, read, stream real file bytes to the client |

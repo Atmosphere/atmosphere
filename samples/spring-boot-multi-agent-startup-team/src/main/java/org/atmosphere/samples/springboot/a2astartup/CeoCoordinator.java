@@ -16,21 +16,30 @@
 package org.atmosphere.samples.springboot.a2astartup;
 
 import org.atmosphere.ai.AiEvent;
+import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.governance.PolicyAdmissionGate;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
+import org.atmosphere.coordinator.commitment.CommitmentSigner;
 import org.atmosphere.coordinator.fleet.AgentFleet;
+import org.atmosphere.coordinator.fleet.GovernanceFleetInterceptor;
 import org.atmosphere.coordinator.fleet.StreamingActivityListener;
 import org.atmosphere.coordinator.journal.JournalFormat;
+import org.atmosphere.coordinator.journal.JournalingAgentFleet;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -90,9 +99,39 @@ import java.util.Map;
         @AgentRef(type = FinanceAgent.class),
         @AgentRef(type = WriterAgent.class)
 })
+@AgentScope(
+        purpose = "Startup CEO advisory: market analysis, competitive strategy, "
+                + "financial modeling, executive briefings. The coordinator dispatches "
+                + "to Research / Strategy / Finance / Writer specialist agents for "
+                + "business-oriented questions about markets, go-to-market plans, and "
+                + "financial projections.",
+        forbiddenTopics = {"code", "programming", "medical advice",
+                "legal advice", "personal therapy"},
+        onBreach = AgentScope.Breach.POLITE_REDIRECT,
+        redirectMessage = "I can only help with startup advisory — market analysis, "
+                + "strategy, financial modeling. What would you like to analyze?",
+        tier = AgentScope.Tier.RULE_BASED)
 public class CeoCoordinator {
 
     private static final Logger logger = LoggerFactory.getLogger(CeoCoordinator.class);
+
+    /**
+     * Governance policies published by {@link GovernanceConfig}. Used to
+     * build a {@link GovernanceFleetInterceptor} that evaluates every
+     * dispatch to a specialist agent against the policy chain —
+     * governance at the agent-to-agent boundary.
+     */
+    @Autowired(required = false)
+    private List<GovernancePolicy> policies = List.of();
+
+    /**
+     * Ed25519 signer for commitment records. When present, every
+     * cross-agent dispatch emits a signed VC-subtype record on the
+     * coordination journal ({@code CommitmentRecordsFlag} must also be
+     * on — {@link GovernanceConfig} flips it at boot).
+     */
+    @Autowired(required = false)
+    private CommitmentSigner commitmentSigner;
 
     /** Called when a browser client connects via WebSocket. */
     @Ready
@@ -132,11 +171,43 @@ public class CeoCoordinator {
      * @param session the streaming session for real-time browser updates
      */
     @Prompt
-    public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
+    public void onPrompt(String message, AgentFleet fleet, StreamingSession session,
+                          AtmosphereResource resource) {
         logger.info("CEO received: {}", message);
+
+        // Governance admission on user input. PolicyAdmissionGate runs
+        // @AgentScope + any installed GovernancePolicy chain (scope, kill
+        // switch, rate limit, ...) BEFORE any dispatch decisions. If the
+        // scope policy denies (off-topic) or redirects, short-circuit here
+        // — the specialist agents never see off-scope traffic.
+        var admission = PolicyAdmissionGate.admit(resource, new AiRequest(message));
+        if (admission instanceof PolicyAdmissionGate.Result.Denied denied) {
+            logger.info("Admission denied by {}: {}", denied.policyName(), denied.reason());
+            session.error(new SecurityException(
+                    "Request denied by policy '" + denied.policyName()
+                            + "': " + denied.reason()));
+            return;
+        }
 
         // Wire per-session activity streaming — clients see agent-step events in real time
         fleet = fleet.withActivityListener(new StreamingActivityListener(session));
+
+        // Dispatch-edge governance — evaluate each cross-agent call against
+        // the governance policy chain before it leaves the coordinator.
+        // Denies become synthetic failed AgentResults; transforms rewrite
+        // the call's args before the specialist runs.
+        if (!policies.isEmpty()) {
+            fleet = fleet.withInterceptor(new GovernanceFleetInterceptor(policies));
+        }
+
+        // Install the Ed25519 signer + principal on the journaling fleet
+        // so every dispatch emits a signed CommitmentRecord. The flag is
+        // flipped on by GovernanceConfig.enableCommitmentRecords().
+        if (commitmentSigner != null && fleet instanceof JournalingAgentFleet journaling) {
+            var principal = "user:" + resource.uuid();
+            journaling.signer(commitmentSigner).principal(principal);
+            logger.info("Commitment records armed for principal {}", principal);
+        }
 
         // --- Step 1: Research (sequential — other agents need these results) ---
         // ToolStart/ToolResult events render as expandable cards in the console.

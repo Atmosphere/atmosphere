@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-project</artifactId>
+        <version>4.0.40-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>atmosphere-ai-policy-cedar</artifactId>
+    <packaging>jar</packaging>
+    <name>atmosphere-ai-policy-cedar</name>
+    <description>Cedar (AWS) PolicyParser for the Atmosphere governance plane</description>
+    <url>https://github.com/Atmosphere/atmosphere</url>
+
+    <properties>
+        <atmosphere.module.name>org.atmosphere.ai.policy.cedar</atmosphere.module.name>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!--
+          Cedar evaluation shells out to the `cedar` CLI by default — no JVM
+          Cedar runtime dep. Operators who want a proper JVM binding install
+          com.cedarpolicy:cedar-java and plug it in via CedarAuthorizer. The
+          CLI path is offered because Cedar's own reference distribution
+          ships `cedar-cli` (go / brew install) and is the path most ops
+          orgs take first.
+        -->
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback-version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

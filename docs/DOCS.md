@@ -17,6 +17,7 @@ All documentation has moved to the Atmosphere documentation site:
 | Protocols (MCP, A2A, AG-UI) | [A2A Protocol](https://atmosphere.github.io/docs/agents/a2a/) |
 | Channels | [Channels Tutorial](https://atmosphere.github.io/docs/tutorial/23-channels/) |
 | Testing | [AI Testing](https://atmosphere.github.io/docs/reference/testing/) |
+| Governance Policy Plane | [Tutorial](https://atmosphere.github.io/docs/tutorial/30-governance-policy-plane/) · [Reference](https://atmosphere.github.io/docs/reference/governance/) · [In-tree detailed docs](governance-policy-plane.md) |
 | Configuration | [Spring Boot](https://atmosphere.github.io/docs/integrations/spring-boot/) |
 | Observability | [Observability](https://atmosphere.github.io/docs/reference/observability/) |
 | Durable Sessions | [Sessions](https://atmosphere.github.io/docs/reference/durable-sessions/) |

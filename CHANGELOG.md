@@ -7,6 +7,179 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Tool-call admission, per-request scope, audit sinks
+
+- **Tool-call admission seam** (`1def61ddf0`) — `PolicyAdmissionGate.admitToolCall`
+  builds a synthetic `AiRequest` whose metadata carries `tool_name`,
+  `action`, and an argument preview so MS-schema rules over `tool_name`
+  fire before the tool's executor runs. `ToolExecutionHelper` consults the
+  gate on every `@AiTool` dispatch; the canonical MS example
+  `{field: tool_name, operator: eq, value: delete_database, action: deny}`
+  fires without operator plumbing. OWASP A02 upgraded from PARTIAL to
+  COVERED.
+- **`@AgentScope.postResponseCheck`** (`2913da1b81`) — when enabled on a
+  high-stakes scope, `ScopePolicy` re-classifies the streamed response
+  text against the declared purpose. OUT_OF_SCOPE responses become Deny
+  with a `post-response:` prefix; errors fail-open on the response path
+  (bytes already on the wire). `POLITE_REDIRECT` breaches downgrade to
+  Deny because Transform can't rewind a stream.
+- **Cross-provider governance contract** (`613d216019`) —
+  `AbstractAgentRuntimeContractTest.policyDenyBlocksRuntimeExecute` is
+  inherited by all seven runtime adapters (Built-in, Spring AI,
+  LangChain4j, ADK, Embabel, Koog, Semantic Kernel); the "deny before
+  runtime" guarantee is now a build-time invariant for each provider.
+- **Per-request `ScopePolicy` install** (`334bde4969`) — an interceptor
+  can write a `ScopeConfig` under `ScopePolicy.REQUEST_SCOPE_METADATA_KEY`
+  and the pipeline / streaming session / admission gate install a
+  transient `ScopePolicy` ahead of endpoint-level policies for that one
+  turn. Classroom sample uses this for per-room scope (math / code /
+  science / general) — one `@AiEndpoint` hosts four personas, each with
+  its own purpose and forbidden-topic set. `perRequestScopeBlocksRuntimeExecute`
+  extends the cross-provider contract to the per-request path.
+- **Admin console governance views** — three Vue views under the existing
+  Atmosphere Console (`/atmosphere/console/`) poll
+  `/api/admin/governance/{policies,decisions,owasp}` on live intervals.
+  Tabs auto-hide when governance is not installed. Verified end-to-end
+  against the classroom sample via chrome-devtools (tabs render, OWASP
+  matrix shows 7 Covered / 1 Partial / 1 Design / 1 Not-addressed, zero
+  console errors).
+- **Persistent `AuditSink` SPI** — `GovernanceDecisionLog.addSink(AuditSink)`
+  fans every admission decision out to registered sinks while keeping
+  the ring buffer authoritative for the admin console. Sink failures are
+  isolated: one unreachable Kafka broker does not take down the pipeline.
+  `AsyncAuditSink` wraps a blocking delegate with a bounded drop-on-full
+  queue so the admission thread never blocks on IO (Backpressure
+  invariant #3). Two reference modules ship: `atmosphere-ai-audit-kafka`
+  (`KafkaAuditSink` → JSON to any topic) and `atmosphere-ai-audit-postgres`
+  (`JdbcAuditSink` → JDBC upsert with schema auto-create, works against
+  any JSR-221 `DataSource`; tests exercise H2 in-memory). The JSON shape
+  matches MS Agent Governance Toolkit's `audit_entry` so downstream
+  SIEM consumers of either system can read both.
+
+### Added — Agent scope, audit trail, OWASP matrix
+
+- **`@AgentScope` annotation + `ScopeGuardrail` SPI** (`ba7ddf3688`) —
+  architectural goal-hijacking prevention. Annotation declares `purpose`,
+  `forbiddenTopics`, `onBreach` (POLITE_REDIRECT / DENY / CUSTOM_MESSAGE),
+  and `tier` (RULE_BASED / EMBEDDING_SIMILARITY default / LLM_CLASSIFIER
+  opt-in). `ScopePolicy` maps `ScopeGuardrail` outcomes to
+  admit/transform/deny semantics per the breach policy.
+  `RuleBasedScopeGuardrail` ships with built-in hijacking probes for code,
+  medical, legal, and financial patterns so the McDonald's failure mode
+  is caught without operator-declared topic enumeration.
+- **System-prompt hardening + endpoint auto-wiring** (`a11239cac3`) —
+  `AiEndpointProcessor` reads `@AgentScope` on the endpoint class and
+  auto-installs a `ScopePolicy` ahead of user-declared policies;
+  `AiPipeline` prepends an unbypassable scope-confinement preamble to
+  the system prompt on every `execute()` call, surviving sample-level
+  substitutions.
+- **Sample-hygiene CI lint + 12-sample retrofit** (`287a5f9b71`) —
+  `SampleAgentScopeLintTest` walks `samples/` and fails the build on any
+  `@AiEndpoint` missing `@AgentScope` (or lacking a non-blank
+  `justification` when `unrestricted = true`). All 12 existing sample
+  endpoints retrofitted — 11 declare `unrestricted = true` with specific
+  justifications (production deployments replace with a scoped
+  `@AgentScope`); `ReviewExtractor` declares a real scoped purpose.
+- **Embedding-similarity scope tier** (`2c856bd00d`) — default tier.
+  Resolves an `EmbeddingRuntime` via ServiceLoader; caches the purpose
+  vector (and every forbidden-topic vector) on first use; rejects when
+  cosine similarity falls below `similarityThreshold`. Absent runtime
+  admits-with-warning so the rule-based tier remains a safe fallback.
+- **LLM-classifier scope tier** (`5b8b6f51da`) — opt-in tier for
+  high-stakes scopes. Zero-shot YES/NO classifier over the resolved
+  `AgentRuntime`; tolerant parser handles `**YES**` / `YES.` / `*no*` /
+  "Not sure" edge cases; ambiguous verdicts fall through to admit so
+  LLM quirks don't over-reject; timeouts and runtime errors fail-closed
+  at the `ScopePolicy` layer.
+- **Governance audit trail** (`a534f5e462`) — `AuditEntry` records every
+  `GovernancePolicy.evaluate` decision with identity, reason, context
+  snapshot (redaction-safe: truncated message, primitive-only metadata),
+  and `evaluation_ms`. `GovernanceDecisionLog` is a thread-safe ring
+  buffer (default 500 entries) installed via
+  `GovernanceDecisionLog.install(capacity)`. Surfaced via
+  `GET /api/admin/governance/decisions?limit=N`. `GovernanceTracer`
+  emits an OpenTelemetry span per evaluation through reflective
+  classpath detection — OTel stays an optional dependency.
+- **ms-governance-chat feature-parity retrofit** (`3fc8ead4cb`) — the
+  sample now declares `@AgentScope(purpose = "Customer support for
+  Example Corp — orders, billing, ...")` and loads 9 MS-schema rules
+  mirroring MS's `customer-service/main.py` example (destructive SQL,
+  legal/media/exec escalation, human-request auto-escalate, PII shapes,
+  password disclosure, discount-limit enforcement, plus an `audit`-action
+  rule for code-request probing).
+- **OWASP Agentic Top-10 self-assessment matrix** (`712c57e4e8`) —
+  `OwaspAgenticMatrix.MATRIX` pins 10 rows (6 COVERED, 2 PARTIAL,
+  1 DESIGN, 1 NOT_ADDRESSED) with evidence classes, test references,
+  and consumer grep patterns per row. `OwaspMatrixPinTest` fails the
+  build when any evidence class is renamed or removed — structural
+  answer to the v4 §4 discipline risk. Served over HTTP at
+  `GET /api/admin/governance/owasp` for `agt verify`-style compliance
+  consumers.
+
+### Added — Governance policy plane
+
+- **`GovernancePolicy` SPI** (`0ace2b6947`) — declarative policy identity
+  (`name` / `source` / `version`) plus `PolicyContext`→`PolicyDecision`
+  evaluation. Vocabulary aligned with OPA/Rego and Microsoft Agent
+  Governance Toolkit at the evaluate-decision level (`admit` / `deny`
+  / transform). The SPI is strictly additive — existing `AiGuardrail`
+  wiring keeps working unchanged.
+- **`GuardrailAsPolicy` + `PolicyAsGuardrail` adapters** (`efefaea40a`) —
+  every existing `AiGuardrail` is reachable as a `GovernancePolicy` via
+  `GuardrailAsPolicy`; policies land on the current `AiPipeline`
+  admission seam via `PolicyAsGuardrail`. `Transform` decisions on the
+  post-response path are downgraded to `pass` with a warning (streamed
+  text is not retroactively rewritable).
+- **YAML `PolicyParser` + `PolicyRegistry`** (`83e5c2dafd`) — default
+  parser reads YAML via SnakeYAML's `SafeConstructor` (no arbitrary class
+  instantiation). Built-in types: `pii-redaction`, `cost-ceiling`,
+  `output-length-zscore` — factories wrap the shipped guardrails with
+  the identity from the YAML entry. `modules/ai` declares SnakeYAML as
+  an explicit runtime dep so bare-JVM / Jetty-embedded deployments get
+  the parser out-of-the-box. Parser discovered via ServiceLoader;
+  additional formats (Rego, Cedar) plug in by shipping another
+  `PolicyParser` service entry.
+- **Native `AiPipeline` wiring** (`9ac9ed1d6c`) — `AiPipeline` accepts a
+  `List<GovernancePolicy>` on a new constructor, evaluates them in a
+  dedicated pre-admission loop (fail-closed on exception per
+  Correctness Invariant #2), and merges them onto the existing
+  `GuardrailCapturingSession` for post-response via `PolicyAsGuardrail`.
+  `pipeline.policies()` accessor exposes the installed list so admin
+  surfaces can enumerate them without re-parsing YAML. Response cache
+  skips when policies are present so each turn re-evaluates.
+- **Spring + endpoint-processor bridge** (`9d7b75be78`) —
+  `AiEndpointProcessor.instantiatePolicies()` merges ServiceLoader and
+  `POLICIES_PROPERTY` sources with dedup by `name()`; policies are
+  wrapped through `PolicyAsGuardrail` and threaded onto every
+  `@AiEndpoint` in the app. `AtmosphereAiAutoConfiguration` now bridges
+  Spring-managed `GovernancePolicy` beans onto the same property so the
+  default path "drop a YAML file on the classpath" just works. Parity
+  test (`PolicyPlaneSourceParityTest`) pins YAML / programmatic /
+  ServiceLoader sources to identical admission decisions.
+- **Classroom sample retrofit** (`aaac15f725`) —
+  `samples/spring-boot-ai-classroom/src/main/resources/atmosphere-policies.yaml`
+  declares a PII redaction and a z-score drift detector; `PoliciesConfig`
+  reads it at startup and publishes the list to `POLICIES_PROPERTY`.
+  Demonstrates the key promise: change YAML, restart, governance
+  changes — zero code edits.
+- **Admin introspection** (`b973aa2828`) — `GovernanceController` reads
+  `POLICIES_PROPERTY` for per-policy identity and distinct-source
+  counts; `/api/admin/governance/policies` and
+  `/api/admin/governance/summary` HTTP endpoints expose the live list;
+  `AtmosphereAdmin.overview()` reports the policy count alongside the
+  AI runtime name.
+- **Microsoft Agent Governance Toolkit YAML parity** — `YamlPolicyParser`
+  auto-detects the MS schema (documents with top-level `rules:`) and
+  produces a `MsAgentOsPolicy` that preserves MS's first-match-by-priority
+  rule-evaluation semantic. All nine comparison operators (`eq`, `ne`,
+  `gt`, `lt`, `gte`, `lte`, `in`, `contains`, `matches`) and all four
+  actions (`allow`, `deny`, `audit`, `block`) are honored. Context map
+  bridges `AiRequest` fields (`message`, `model`, `user_id`, …) and every
+  metadata entry to rule field names. `MsAgentOsYamlConformanceTest`
+  loads MS's own example YAMLs (copied unmodified from `microsoft/
+  agent-governance-toolkit@April-2026`) and asserts byte-for-byte
+  interop.
+
 ### Added — AI Agent Foundation v0.5 (eight primitives)
 
 - **`AgentState` SPI** (`a0fd3fc48c`) — unifies conversation history,

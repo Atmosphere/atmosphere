@@ -19,6 +19,7 @@ import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.facts.FactResolver;
 import org.atmosphere.ai.filter.PiiRedactionFilter;
+import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.guardrails.OutputLengthZScoreGuardrail;
 import org.atmosphere.ai.guardrails.PiiRedactionGuardrail;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -155,7 +156,8 @@ public class AtmosphereAiAutoConfiguration {
     public AtmosphereAiEndpointRegistrar atmosphereAiEndpointRegistrar(
             AtmosphereFramework framework,
             AtmosphereProperties properties,
-            org.springframework.beans.factory.ObjectProvider<AiGuardrail> guardrailProvider) {
+            org.springframework.beans.factory.ObjectProvider<AiGuardrail> guardrailProvider,
+            org.springframework.beans.factory.ObjectProvider<GovernancePolicy> policyProvider) {
         var guardrails = guardrailProvider.orderedStream().toList();
         // Bridge the bean list into framework properties so user-defined
         // @AiEndpoint classes (which go through AiEndpointProcessor, not
@@ -168,6 +170,14 @@ public class AtmosphereAiAutoConfiguration {
             logger.info("Bridged {} Spring AiGuardrail bean(s) into framework properties: {}",
                     guardrails.size(),
                     guardrails.stream().map(g -> g.getClass().getSimpleName()).toList());
+        }
+        var policies = policyProvider.orderedStream().toList();
+        if (!policies.isEmpty()) {
+            framework.getAtmosphereConfig().properties()
+                    .put(GovernancePolicy.POLICIES_PROPERTY, policies);
+            logger.info("Bridged {} Spring GovernancePolicy bean(s) into framework properties: {}",
+                    policies.size(),
+                    policies.stream().map(GovernancePolicy::name).toList());
         }
         return new AtmosphereAiEndpointRegistrar(framework, properties, guardrails);
     }

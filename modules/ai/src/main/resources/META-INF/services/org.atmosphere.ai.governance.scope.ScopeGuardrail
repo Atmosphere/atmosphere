@@ -1,0 +1,2 @@
+org.atmosphere.ai.governance.scope.EmbeddingScopeGuardrail
+org.atmosphere.ai.governance.scope.LlmClassifierScopeGuardrail

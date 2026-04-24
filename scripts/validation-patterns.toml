@@ -94,7 +94,9 @@ allowed = [
 # These NOOP constants are defined as default/sentinel values and used internally
 # via constructor defaults or ServiceLoader fallbacks. They don't need external references.
 internal_use = [
-    "AiMetrics.NOOP"  # used as ServiceLoader fallback default
+    "AiMetrics.NOOP",            # used as ServiceLoader fallback default
+    "GovernanceDecisionLog.NOOP", # sentinel for the installed-by-default log
+    "GovernanceTracer.NOOP"       # no-op span handle when OTel is absent
 ]
 
 # ============================================================================

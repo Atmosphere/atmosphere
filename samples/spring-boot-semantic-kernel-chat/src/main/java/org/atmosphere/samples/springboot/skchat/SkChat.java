@@ -18,6 +18,7 @@ package org.atmosphere.samples.springboot.skchat;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.config.service.Disconnect;
@@ -47,6 +48,8 @@ import org.slf4j.LoggerFactory;
                 + "Microsoft Semantic Kernel for Java.",
         requires = {AiCapability.TEXT_STREAMING, AiCapability.SYSTEM_PROMPT},
         conversationMemory = true)
+@AgentScope(unrestricted = true,
+        justification = "Semantic Kernel runtime demo — accepts arbitrary prompts to showcase SK AgentRuntime integration.")
 public class SkChat {
 
     private static final Logger logger = LoggerFactory.getLogger(SkChat.class);

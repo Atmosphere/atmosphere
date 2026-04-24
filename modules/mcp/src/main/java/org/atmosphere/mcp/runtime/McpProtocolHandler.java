@@ -230,6 +230,22 @@ public final class McpProtocolHandler {
         int argCount = arguments != null ? arguments.size() : 0;
         var principalName = resolvePrincipal(resource);
 
+        // MCP security gateway. Consult the governance plane (if
+        // atmosphere-ai is on the classpath) before dispatching the tool
+        // handler. MS-schema YAML rules over `tool_name` fire for MCP
+        // invocations the same way they do for first-party @AiTool
+        // dispatches. Partial coverage of OWASP Agentic Top-10 A08.
+        var framework = config != null ? config.framework() : null;
+        var previewArgs = jsonNodeToPreview(arguments);
+        var gateOutcome = McpPolicyGateway.admit(framework, toolName, previewArgs);
+        if (gateOutcome instanceof McpPolicyGateway.Outcome.Denied denied) {
+            logger.warn("MCP tool '{}' denied by policy '{}': {}",
+                    toolName, denied.policyName(), denied.reason());
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_REQUEST,
+                    "Tool '" + toolName + "' denied by policy '" + denied.policyName()
+                            + "': " + denied.reason());
+        }
+
         try {
             if (tracing != null) {
                 return tracing.traced("tool", toolName, argCount,
@@ -572,6 +588,24 @@ public final class McpProtocolHandler {
             throw new IllegalStateException("Failed to create StreamingSession for topic " + topic, e);
         }
         throw new IllegalArgumentException("Unsupported injectable type: " + type.getName());
+    }
+
+    /**
+     * Flatten the incoming arguments JSON to a {@code Map<String, Object>}
+     * suitable for audit preview via {@link McpPolicyGateway#admit}. Values
+     * are coerced to primitives / strings; this is a best-effort snapshot,
+     * not a full type-bound binding — it's only used by the governance
+     * audit trail, not the tool executor.
+     */
+    private static Map<String, Object> jsonNodeToPreview(JsonNode arguments) {
+        if (arguments == null || !arguments.isObject()) {
+            return Map.of();
+        }
+        var map = new LinkedHashMap<String, Object>();
+        for (var field : arguments.properties()) {
+            map.put(field.getKey(), mapper.convertValue(field.getValue(), Object.class));
+        }
+        return map;
     }
 
     /**

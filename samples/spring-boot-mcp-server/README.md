@@ -145,6 +145,62 @@ public class DemoMcpServer {
 }
 ```
 
+## Governance — scope on every MCP tool call
+
+**This sample is unique**: governance on MCP protocol dispatch over the
+same streaming transport as the UI. Microsoft Agent Governance Toolkit
+has an MCP security gateway but it's HTTP-only; Atmosphere governs the
+same dispatch over WebSocket/SSE + streams tool events to admin consumers.
+
+### How it works
+
+`McpGovernanceConfig` publishes four admission policies onto
+`GovernancePolicy.POLICIES_PROPERTY`. The MCP module's `McpPolicyGateway`
+calls `PolicyAdmissionGate.admitToolCall(framework, toolName, args)` on
+every `tools/call` — the policy chain evaluates before the
+`@McpTool`-annotated method runs.
+
+| Policy | Shape | What it catches |
+|---|---|---|
+| `kill-switch` | `KillSwitchPolicy` | Operator break-glass — halts every MCP call at 0.1ms |
+| `mcp-tool-rate-limit` | `RateLimitPolicy(60/60s)` | Per-MCP-client rate cap |
+| `mcp-tool-allowlist` | `AllowListPolicy` | Default-deny — only `list_users`, `broadcast_message`, `send_message`, `atmosphere_version` admitted. Sensitive `ban_user` is deliberately absent so operators opt in explicitly. |
+| `mcp-arg-deny-list` | `DenyListPolicy.fromRegex` | Catches `DROP TABLE`, `rm -rf /`, path traversal in tool arguments |
+
+### Exercise live
+
+```bash
+# Run the sample
+./mvnw spring-boot:run -pl samples/spring-boot-mcp-server
+
+# Connect an MCP client to ws://localhost:8083/mcp and call an admitted tool
+# → list_users succeeds (on the allow-list)
+
+# Try a non-allowlisted tool
+# → ban_user denied by mcp-tool-allowlist — PolicyAdmissionGate.admitToolCall
+#   blocks dispatch before the @McpTool method runs
+
+# Try an argument injection on an admitted tool
+# broadcast_message({body: "'; DROP TABLE users;'"})
+# → denied by mcp-arg-deny-list, method never called
+
+# Ops break-glass — halts every MCP call
+curl -X POST http://localhost:8083/api/admin/governance/kill-switch/arm \
+     -H 'Content-Type: application/json' \
+     -d '{"reason":"mcp-incident","operator":"oncall"}'
+```
+
+### OWASP evidence
+
+This sample is a production consumer for OWASP A02 (tool misuse) + A08
+(supply chain / MCP plugins) evidence rows. The `EvidenceConsumerGrepPinTest`
+CI gate asserts that a production caller exists for each claimed coverage.
+
+```bash
+curl http://localhost:8083/api/admin/governance/agt-verify | jq '.findings[]
+    | select(.controlId == "A02" or .controlId == "A08")'
+```
+
 ## React Frontend
 
 The sample includes a React frontend (`frontend/`) built with the `useAtmosphere` hook from `atmosphere.js/react`. It provides a live chat UI where human users interact in real-time — while AI agents simultaneously connect via MCP to invoke tools like `list_users`, `broadcast_message`, and `ban_user`.

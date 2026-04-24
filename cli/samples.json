@@ -194,6 +194,25 @@
       }
     },
     {
+      "name": "spring-boot-ms-governance-chat",
+      "description": "Chat gated by Microsoft Agent Governance Toolkit YAML policies (MS schema, verbatim)",
+      "category": "governance",
+      "tags": [
+        "spring-boot",
+        "ai",
+        "governance",
+        "policy",
+        "ms-agent-os",
+        "yaml",
+        "interop"
+      ],
+      "port": 8090,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {}
+    },
+    {
       "name": "spring-boot-ai-tools",
       "description": "Framework-agnostic AI tool calling \u2014 swap backend via one dependency",
       "category": "tools",
@@ -214,7 +233,7 @@
     },
     {
       "name": "spring-boot-rag-chat",
-      "description": "RAG agent — @Agent with AI tools for knowledge base search, slash commands, and document retrieval",
+      "description": "RAG agent \u2014 @Agent with AI tools for knowledge base search, slash commands, and document retrieval",
       "category": "agent",
       "tags": [
         "spring-boot",

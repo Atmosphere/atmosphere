@@ -1,0 +1,136 @@
+# Microsoft Agent Governance Toolkit YAML schema, enforced by Atmosphere.
+#
+# This file uses MS's native policy format — a single document with a top-level
+# `rules:` sequence, first-match-by-priority evaluation, `defaults.action`
+# fallback. Atmosphere's YamlPolicyParser auto-detects the schema and produces
+# a MsAgentOsPolicy that preserves MS's semantics verbatim.
+#
+# The rule set below mirrors the feature matrix from Microsoft's
+# `packages/agent-os/examples/customer-service/main.py` canonical sample —
+# escalation triggers, forbidden-word detection, PII patterns, discount
+# limits, response-length caps — all expressed as MS-schema rules over the
+# `message` field. Edit the file, restart the app, governance changes with
+# no code edits.
+
+version: "1.0"
+name: ms-customer-service-demo
+description: Customer-support governance matching MS Agent OS customer-service example
+
+rules:
+  # ── Tier 1: destructive or adversarial requests — always denied ─────────
+  - name: block-destructive-sql
+    condition:
+      field: message
+      operator: matches
+      value: '(?i)\b(drop|truncate)\s+(table|database)\b'
+    action: deny
+    priority: 100
+    message: "Destructive SQL statements are not permitted in this chat."
+
+  - name: block-delete-account
+    condition:
+      field: message
+      operator: matches
+      value: '(?i)\b(delete|remove|terminate|cancel|wipe)\s+(my\s+)?(account|subscription|data)\b'
+    action: deny
+    priority: 95
+    message: "Account-deletion requests are escalated to a human; the AI cannot process them."
+
+  # ── Tier 2: legal / media escalation triggers — deny and route to human ─
+  # Matches MS customer-service's `escalation_triggers` list:
+  # lawsuit, lawyer, legal action, sue, discrimination, harassment,
+  # racist, sexist, media, reporter, news, viral, ceo, executive, board
+  - name: block-legal-escalation
+    condition:
+      field: message
+      operator: matches
+      value: '(?i)\b(lawsuit|lawyer|attorney|legal\s+action|sue|discriminat|harass|racist|sexist)\b'
+    action: deny
+    priority: 90
+    message: "Legal-language queries are routed to a human agent — the AI cannot handle them."
+
+  - name: block-media-escalation
+    condition:
+      field: message
+      operator: matches
+      value: '(?i)\b(reporter|journalist|going\s+viral|news\s+story|twitter\s+thread)\b'
+    action: deny
+    priority: 88
+    message: "Media inquiries are routed to a human communications agent — the AI cannot handle them."
+
+  - name: block-exec-escalation
+    condition:
+      field: message
+      operator: matches
+      value: '(?i)\b(ceo|executive|board\s+member|president|chairman)\b'
+    action: deny
+    priority: 85
+    message: "Executive escalations are routed to a human; the AI cannot handle them."
+
+  # ── Tier 3: auto-escalate on explicit ask for human ─────────────────────
+  # Mirrors MS's `auto_escalate_keywords`: supervisor, manager, human, real person
+  - name: auto-escalate-to-human
+    condition:
+      field: message
+      operator: matches
+      value: '(?i)\b(supervisor|manager|real\s+person|talk\s+to\s+someone|speak\s+to\s+a\s+human|not\s+a\s+bot)\b'
+    action: deny
+    priority: 80
+    message: "Connecting you with a human agent — the AI cannot continue this turn."
+
+  # ── Tier 4: PII-shape refusal (post-pipeline redaction still runs) ──────
+  # Mirrors MS's `pii_patterns`: SSN, credit card, password
+  - name: block-ssn-shape
+    condition:
+      field: message
+      operator: matches
+      value: '\b\d{3}-\d{2}-\d{4}\b'
+    action: deny
+    priority: 70
+    message: "That looks like a US Social Security number — please redact before sending."
+
+  - name: block-credit-card-shape
+    condition:
+      field: message
+      operator: matches
+      value: '\b(?:\d{4}[\s-]?){3}\d{4}\b'
+    action: deny
+    priority: 68
+    message: "That looks like a credit-card number — please contact billing via a secure channel."
+
+  - name: block-password-disclosure
+    condition:
+      field: message
+      operator: matches
+      value: '(?i)\bpassword\s*[:=]\s*\S+'
+    action: deny
+    priority: 65
+    message: "Never send passwords through chat. Use the password-reset flow instead."
+
+  # ── Tier 5: discount-limit enforcement ──────────────────────────────────
+  # MS customer-service allows tier1 agents max 10% discount; this rule
+  # denies any user request that demands more than 20% off.
+  - name: block-excessive-discount-request
+    condition:
+      field: message
+      operator: matches
+      value: '(?i)\b([2-9]\d|100)\s*%\s*(off|discount)'
+    action: deny
+    priority: 60
+    message: "Discounts above 20% require a supervisor — the AI cannot authorize them."
+
+  # ── Tier 6: common agentic-hijack probes (audit-only) ───────────────────
+  # `action: audit` means allow + structured-log the match. Atmosphere's
+  # AuditEntry captures these in the ring buffer so operators can observe
+  # probing traffic without rejecting it.
+  - name: audit-code-request
+    condition:
+      field: message
+      operator: matches
+      value: '(?i)\bwrite\s+(me\s+)?(python|javascript|java|rust|go)\s+(code|function|script)'
+    action: audit
+    priority: 50
+    message: "User asked the support agent to write code — likely off-scope probing."
+
+defaults:
+  action: allow

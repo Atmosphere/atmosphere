@@ -29,6 +29,17 @@
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
         </dependency>
+        <!--
+            SnakeYAML is the default PolicyParser implementation for the
+            governance policy plane. Declared as an explicit runtime dep
+            because it is NOT transitive on Quarkus / bare-JVM / Jetty-embedded
+            deployments — operators must get the YAML policy loader
+            out-of-the-box on every runtime.
+        -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>

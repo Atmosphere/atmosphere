@@ -145,4 +145,40 @@ public interface AgentFleet {
     default AgentFleet withActivityListener(AgentActivityListener listener) {
         return this;
     }
+
+    /**
+     * Wrap this fleet with a {@link FleetInterceptor} that evaluates every
+     * dispatch before it leaves the coordinator. Multiple interceptors
+     * compose through chained calls — the most recently added runs last,
+     * and any non-{@code Proceed} decision short-circuits the chain.
+     *
+     * <p>Governance wiring example — scope check at the agent-to-agent
+     * boundary:</p>
+     * <pre>{@code
+     * var governed = fleet
+     *     .withInterceptor(call -> policy.evaluate(
+     *             PolicyContext.preAdmission(
+     *                     new AiRequest(call.skill() + " " + call.args(), ...)))
+     *         instanceof PolicyDecision.Deny deny
+     *             ? FleetInterceptor.Decision.deny(deny.reason())
+     *             : FleetInterceptor.Decision.proceed());
+     * var result = governed.agent("research").call("web_search", args);
+     * }</pre>
+     *
+     * @param interceptor the per-dispatch gate; denial yields a synthetic
+     *                    failed {@link AgentResult}, rewrite forwards a
+     *                    modified call, proceed admits unchanged
+     * @return a new fleet instance with the interceptor added
+     */
+    default AgentFleet withInterceptor(FleetInterceptor interceptor) {
+        if (interceptor == null) {
+            throw new IllegalArgumentException("interceptor must not be null");
+        }
+        if (this instanceof InterceptingAgentFleet existing) {
+            var combined = new java.util.ArrayList<>(existing.interceptors());
+            combined.add(interceptor);
+            return new InterceptingAgentFleet(existing.unwrap(), combined);
+        }
+        return new InterceptingAgentFleet(this, java.util.List.of(interceptor));
+    }
 }

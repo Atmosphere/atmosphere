@@ -15,8 +15,9 @@
  */
 
 import type { AtmosphereRequest, Subscription } from '../types';
-import type { StreamingHandlers, StreamingHandle, StreamingMessage, SessionStats, RoutingInfo, SendOptions } from './types';
+import type { StreamingHandlers, StreamingHandle, StreamingMessage, SessionStats, RoutingInfo, SendOptions, PolicyDenial } from './types';
 import { parseStreamingMessage } from './decoder';
+import { parsePolicyDenial } from './policy-denial';
 import { Atmosphere } from '../core/atmosphere';
 
 /**
@@ -112,6 +113,39 @@ interface TrackingState {
   routing: RoutingInfo;
 }
 
+/**
+ * Route an error message. Governance denials fire {@code onPolicyDenied}
+ * (when a handler is registered) and {@code onError}; transport errors
+ * only fire {@code onError}. Firing both keeps existing {@code onError}-only
+ * consumers working while giving new code a typed path.
+ */
+function dispatchError(
+  message: string,
+  data: Record<string, unknown> | undefined,
+  handlers: StreamingHandlers,
+): void {
+  let denial: PolicyDenial | null = null;
+
+  // Prefer a structured server payload when the AiEvent carries one —
+  // data.policyName + data.reason are the canonical keys emitted by the
+  // Java governance layer when it prefers structured over string.
+  if (data && (typeof data.policyName === 'string' || typeof data.policy === 'string')) {
+    denial = {
+      kind: (data.kind === 'guardrail') ? 'guardrail' : 'policy',
+      policyName: (data.policyName ?? data.policy) as string,
+      reason: (data.reason as string) ?? message,
+      raw: message,
+    };
+  } else {
+    denial = parsePolicyDenial(message);
+  }
+
+  if (denial) {
+    handlers.onPolicyDenied?.(denial);
+  }
+  handlers.onError?.(message);
+}
+
 function extractRouting(key: string, value: unknown, routing: RoutingInfo): boolean {
   if (!key.startsWith('routing.')) return false;
   const field = key.substring('routing.'.length);
@@ -164,7 +198,8 @@ function dispatch(
         break;
       }
       case 'error': {
-        handlers.onError?.(data.message as string ?? 'Unknown error');
+        const errorMsg = data.message as string ?? 'Unknown error';
+        dispatchError(errorMsg, data as Record<string, unknown>, handlers);
         const elapsed = state.startTime ? Date.now() - state.startTime : 0;
         const stats: SessionStats = {
           totalStreamingTexts: state.streamingTextCount,
@@ -209,7 +244,7 @@ function dispatch(
       break;
     }
     case 'error': {
-      handlers.onError?.(msg.data ?? 'Unknown error');
+      dispatchError(msg.data ?? 'Unknown error', undefined, handlers);
       const elapsed = state.startTime ? Date.now() - state.startTime : 0;
       const stats: SessionStats = {
         totalStreamingTexts: state.streamingTextCount,

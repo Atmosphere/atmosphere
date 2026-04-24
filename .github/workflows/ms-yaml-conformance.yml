@@ -1,0 +1,133 @@
+name: "CI: MS Agent Governance YAML Conformance"
+
+# Tier 7.1 — weekly diff against Microsoft's upstream Agent Governance Toolkit
+# YAML fixtures. Guards the claim that Atmosphere parses MS policy YAML
+# byte-for-byte: if MS changes the example shape upstream and our copies
+# drift, the workflow opens an issue / PR and fails loudly.
+#
+# The fixture directory is modules/ai/src/test/resources/ms-agent-os/. Our
+# MsAgentOsYamlConformanceTest (runs in CI: Core) asserts the shipped
+# parser accepts every file in that directory — this workflow keeps the
+# directory aligned with upstream.
+
+on:
+  schedule:
+    # Weekly on Monday 06:00 UTC — cheap, no user impact, plenty of time
+    # to land a fix before the working week starts.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: 'MS Agent Governance Toolkit git ref to diff against (default: main)'
+        default: 'main'
+        required: false
+  pull_request:
+    paths:
+      - '.github/workflows/ms-yaml-conformance.yml'
+      - 'modules/ai/src/test/resources/ms-agent-os/**'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  diff-upstream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Atmosphere
+        uses: actions/checkout@v4
+
+      - name: Clone MS Agent Governance Toolkit upstream
+        run: |
+          set -euo pipefail
+          REF="${{ github.event.inputs.upstream_ref || 'main' }}"
+          mkdir -p /tmp/ms-upstream
+          # MS ships the toolkit at microsoft/agent-governance-toolkit. If
+          # the repo is moved or the path changes, this block is the one
+          # thing to edit.
+          git clone --depth 1 --branch "$REF" \
+            https://github.com/microsoft/agent-governance-toolkit.git \
+            /tmp/ms-upstream || {
+              echo "::error::upstream repo unreachable or ref '$REF' does not exist"
+              exit 1
+            }
+
+      - name: Diff fixtures
+        id: diff
+        run: |
+          set -euo pipefail
+          FIXTURES=modules/ai/src/test/resources/ms-agent-os
+          UPSTREAM=/tmp/ms-upstream/docs/tutorials/policy-as-code/examples
+          if [ ! -d "$UPSTREAM" ]; then
+            echo "::error::upstream examples directory not found at $UPSTREAM"
+            exit 1
+          fi
+          DRIFT=""
+          for f in "$FIXTURES"/*.yaml; do
+            name="$(basename "$f")"
+            if [ ! -f "$UPSTREAM/$name" ]; then
+              DRIFT="$DRIFT\n$name: removed upstream (our copy still exists)"
+              continue
+            fi
+            if ! diff -q "$f" "$UPSTREAM/$name" > /dev/null 2>&1; then
+              DRIFT="$DRIFT\n$name: content diverged\n$(diff -u "$f" "$UPSTREAM/$name" || true)"
+            fi
+          done
+          for f in "$UPSTREAM"/*.yaml; do
+            name="$(basename "$f")"
+            if [ ! -f "$FIXTURES/$name" ]; then
+              DRIFT="$DRIFT\n$name: new upstream file (missing from our tree)"
+            fi
+          done
+          if [ -n "$DRIFT" ]; then
+            echo "drift<<EOF" >> "$GITHUB_OUTPUT"
+            printf "%b" "$DRIFT" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+            echo "::error::Microsoft YAML fixtures drifted — see step summary"
+            {
+              echo "## MS Agent Governance Toolkit YAML drift detected"
+              echo
+              echo "\`\`\`"
+              printf "%b" "$DRIFT"
+              echo
+              echo "\`\`\`"
+              echo
+              echo "**Action:** update \`$FIXTURES\` to match upstream and re-run"
+              echo "\`MsAgentOsYamlConformanceTest\` locally. Rationale for any"
+              echo "intentional divergence belongs in that test's Javadoc."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "✅ fixtures in sync with upstream"
+
+      - name: Open issue on drift
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'MS Agent Governance YAML fixtures drifted';
+            const body = `The weekly upstream conformance check detected drift in \`modules/ai/src/test/resources/ms-agent-os/\`.
+
+            See the failed workflow run for the diff:
+            ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
+
+            To resolve, pull the latest upstream examples and update our fixtures, or document the intentional divergence in \`MsAgentOsYamlConformanceTest\`.`;
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['governance', 'upstream-drift'],
+            });
+            if (issues.data.some(i => i.title === title)) {
+              console.log('Existing drift issue already open; skipping.');
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['governance', 'upstream-drift'],
+            });

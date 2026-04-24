@@ -188,13 +188,34 @@ public final class ToolExecutionHelper {
         var effectivePolicy = policy != null ? policy : ToolApprovalPolicy.annotated();
         var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
 
+        // Governance policy plane admission on the tool-call intent. MS-schema
+        // rules that target tool_name (the canonical MS Agent Governance example
+        // {field: tool_name, operator: eq, value: delete_database, action: deny})
+        // fire here, before the tool executor runs. Covers OWASP Agentic
+        // Top-10 #A02 (Tool Misuse). Safe when no policies are installed —
+        // PolicyAdmissionGate admits implicitly on empty chains.
+        var resource = (org.atmosphere.cpr.AtmosphereResource) scope.get(
+                org.atmosphere.cpr.AtmosphereResource.class);
+        if (resource != null) {
+            var gateResult = org.atmosphere.ai.governance.PolicyAdmissionGate
+                    .admitToolCall(resource, toolName, args);
+            if (gateResult instanceof org.atmosphere.ai.governance.PolicyAdmissionGate.Result.Denied denied) {
+                logger.info("Tool {} denied by governance policy {}: {}",
+                        toolName, denied.policyName(), denied.reason());
+                return "{\"status\":\"cancelled\",\"message\":\"Tool "
+                        + toolName + " denied by policy '" + denied.policyName()
+                        + "': " + denied.reason().replace("\"", "\\\"") + "\"}";
+            }
+        }
+
         // Emit a single ToolStart frame at the shared execution seam so all
         // runtime bridges (LC4j, Spring AI, ADK, SK) surface tool activity to
         // the client uniformly. OpenAiCompatibleClient used to emit its own
         // ToolStart before delegating here — that duplicate was removed in
         // favor of this centralized frame (Correctness Invariant #7, Mode
         // Parity). ToolResult is emitted by {@link #finishAndEmit} on every
-        // terminal path.
+        // terminal path. Emitted only after governance admission so denied
+        // tool calls do not show up as started-but-never-finished in the UI.
         if (session != null) {
             session.emit(new AiEvent.ToolStart(toolName, args));
         }

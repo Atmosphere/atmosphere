@@ -18,6 +18,7 @@ package org.atmosphere.samples.springboot.personalassistant;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;
 import org.atmosphere.ai.annotation.Prompt;
@@ -71,6 +72,11 @@ import java.util.Map;
         @AgentRef(type = ResearchAgent.class),
         @AgentRef(type = DrafterAgent.class)
 })
+@AgentScope(unrestricted = true,
+        justification = "Personal-assistant demo — the sample is intentionally broad "
+                + "(scheduling + research + drafting) so no single purpose captures it. "
+                + "A production personal assistant would either scope per user or keep "
+                + "this unrestricted and rely on the downstream crew members' own scopes.")
 public class PrimaryAssistant {
 
     private static final Logger logger = LoggerFactory.getLogger(PrimaryAssistant.class);

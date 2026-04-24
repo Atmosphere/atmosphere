@@ -183,4 +183,29 @@ public sealed interface CoordinationEvent {
             return "CIRCUIT  " + agentName + " " + fromState + " -> " + toState;
         }
     }
+
+    /**
+     * Signed commitment record — emitted on cross-agent dispatch when a
+     * {@link org.atmosphere.coordinator.commitment.CommitmentSigner} is
+     * installed. The signed record is the verifiable trace-of-dispatch
+     * downstream consumers (admin console, SIEM, audit pipelines) use to
+     * confirm the coordinator's decision was produced by the expected
+     * key. Drops back to unsigned if no signer is installed (no event is
+     * emitted — callers test for the signer before recording).
+     *
+     * <p><b>@Experimental</b> — schema may migrate by 2026-Q4 after
+     * standards-track convergence with W3C CCG + AP2 + Visa TAP.</p>
+     */
+    record CommitmentRecorded(
+            String coordinationId,
+            org.atmosphere.coordinator.commitment.CommitmentRecord record,
+            Instant timestamp
+    ) implements CoordinationEvent {
+        @Override
+        public String toLogLine() {
+            return "COMMIT  " + record.subject() + " (" + record.outcome()
+                    + ", " + record.proof().scheme() + " keyId=" + record.proof().keyId()
+                    + ")";
+        }
+    }
 }

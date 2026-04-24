@@ -17,6 +17,7 @@ package org.atmosphere.samples.springboot.aitools;
 
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.config.service.Disconnect;
@@ -38,6 +39,8 @@ import org.slf4j.LoggerFactory;
         maxHistoryMessages = 30,
         tools = AssistantTools.class,
         interceptors = CostMeteringInterceptor.class)
+@AgentScope(unrestricted = true,
+        justification = "Tool-calling demo — accepts arbitrary prompts to exercise @AiTool dispatch across runtimes.")
 public class AiToolsChat {
 
     private static final Logger logger = LoggerFactory.getLogger(AiToolsChat.class);

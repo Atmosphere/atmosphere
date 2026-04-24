@@ -167,9 +167,42 @@ Only packaging and configuration differ — your business logic is portable acro
 
 See the [atmosphere-ai capability matrix](../modules/ai/README.md#capability-matrix) for the cross-runtime support view.
 
+## Governance coverage across samples
+
+The governance policy plane has four axes: accepting MS Agent Governance
+Toolkit YAML, architectural scope enforcement, signed commitment records
+on cross-agent dispatch, and OWASP + compliance evidence. Each sample
+below exercises at least one axis with CI-verified end-to-end tests that
+boot the Spring Boot context and assert decisions fire live. See
+[docs/governance-policy-plane.md](../docs/governance-policy-plane.md)
+for the full picture.
+
+| Sample | MS YAML | Scope | Commitments | OWASP | Atmosphere-unique angle |
+|---|:-:|:-:|:-:|:-:|---|
+| [spring-boot-ms-governance-chat](spring-boot-ms-governance-chat/) | ✅ | ✅ | — | ✅ | MS Agent Governance Toolkit YAML accepted verbatim |
+| [spring-boot-ai-classroom](spring-boot-ai-classroom/) | ✅ | ✅ | — | — | **Per-request scope install** — one endpoint, four YAML-backed scopes |
+| [spring-boot-multi-agent-startup-team](spring-boot-multi-agent-startup-team/) | ✅ | ✅ | ✅ | ✅ | Streaming + signed `CommitmentRecord`s + `GovernanceFleetInterceptor` at every dispatch |
+| [spring-boot-checkpoint-agent](spring-boot-checkpoint-agent/) | — | — | ✅ | — | **Signed audit trail across HITL pause** — durable + cryptographic in one |
+| [spring-boot-mcp-server](spring-boot-mcp-server/) | — | ✅ | — | ✅ | MCP tool-call governance over the streaming transport (MS gateway is HTTP-only) |
+
+### Admin control plane — try it on any of the samples above
+
+```bash
+curl http://localhost:8080/api/admin/governance/policies       # installed policies + sha256 digests
+curl http://localhost:8080/api/admin/governance/health         # kill-switch + dry-run + slos
+curl http://localhost:8080/api/admin/governance/agt-verify     # OWASP + compliance, agt verify schema
+curl http://localhost:8080/api/admin/governance/decisions      # recent policy decisions (ring buffer)
+
+# Break-glass: halt all AI traffic without a redeploy
+curl -X POST http://localhost:8080/api/admin/governance/kill-switch/arm \
+     -H 'Content-Type: application/json' \
+     -d '{"reason":"incident","operator":"oncall"}'
+```
+
 ## Documentation
 
 - [Full Documentation](https://atmosphere.github.io/docs/)
 - [Getting Started with Spring Boot](https://atmosphere.github.io/docs/integrations/spring-boot/)
 - [Getting Started with Quarkus](https://atmosphere.github.io/docs/integrations/quarkus/)
 - [Core Runtime](https://atmosphere.github.io/docs/reference/core/)
+- [Governance policy plane](../docs/governance-policy-plane.md)

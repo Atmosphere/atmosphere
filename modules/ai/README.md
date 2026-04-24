@@ -344,6 +344,134 @@ ServiceLoader. `AiEndpointProcessor` merges annotation-declared,
 ServiceLoader, and framework-property guardrails so user-defined
 `@AiEndpoint` paths get the same wiring as the default endpoint.
 
+### Governance policy plane (Phase A)
+
+A declarative layer over the guardrail SPI. Policies carry stable
+identity (`name` / `source` / `version`) for audit-trail pinning and
+use the `admit` / `transform` / `deny` vocabulary from OPA/Rego and
+MS Agent OS.
+
+Drop `atmosphere-policies.yaml` on the classpath:
+
+```yaml
+version: "1.0"
+policies:
+  - name: customer-pii-guard
+    type: pii-redaction
+    version: "1.0"
+    config:
+      mode: redact            # redact | block
+
+  - name: drift-watcher
+    type: output-length-zscore
+    config:
+      window-size: 50
+      z-threshold: 3.0
+      min-samples: 10
+
+  - name: tenant-budget
+    type: cost-ceiling
+    config:
+      budget-usd: 100.00
+```
+
+Load and publish:
+
+```java
+@Configuration
+public class PoliciesConfig {
+    @Bean
+    Object atmospherePolicyPlaneLoader(AtmosphereFramework framework) throws IOException {
+        try (var in = new ClassPathResource("atmosphere-policies.yaml").getInputStream()) {
+            var policies = new YamlPolicyParser().parse("classpath:atmosphere-policies.yaml", in);
+            framework.getAtmosphereConfig().properties()
+                    .put(GovernancePolicy.POLICIES_PROPERTY, policies);
+            return policies;
+        }
+    }
+}
+```
+
+That's it — `AiEndpointProcessor` picks them up through
+`POLICIES_PROPERTY` and installs them on every `@AiEndpoint` in the
+app. Spring-managed `GovernancePolicy` beans are also bridged
+automatically by `AtmosphereAiAutoConfiguration`.
+
+**Built-in types**: `pii-redaction`, `cost-ceiling`,
+`output-length-zscore`. Register a custom type in code:
+
+```java
+PolicyRegistry registry = new PolicyRegistry();
+registry.register("my-domain-policy",
+        descriptor -> new MyDomainPolicy(descriptor.name(),
+                descriptor.source(), descriptor.version(),
+                descriptor.config()));
+```
+
+**Additional formats** (Rego, Cedar) plug in by shipping another
+`PolicyParser` implementation and a
+`META-INF/services/org.atmosphere.ai.governance.PolicyParser` entry.
+
+**Interop with Microsoft Agent Governance Toolkit** (verified against
+the April 2026 public source):
+
+- **SPI shape** lines up at the evaluate-decision level:
+  `GovernancePolicy.evaluate(PolicyContext) → PolicyDecision` mirrors
+  MS's `PolicyEvaluator.evaluate(context: dict) → PolicyDecision`.
+  Both carry identity metadata (matched policy name, version) and an
+  admit/deny decision.
+- **YAML artifact parity.** `YamlPolicyParser` auto-detects the MS
+  schema — documents with a top-level `rules:` sequence produce a
+  single `MsAgentOsPolicy` that preserves MS's first-match-by-priority
+  rule-evaluation semantic. Operators (`eq`, `ne`, `gt`, `lt`, `gte`,
+  `lte`, `in`, `contains`, `matches`) and actions (`allow`, `deny`,
+  `audit`, `block`) are all honored. Drop-in example (copied verbatim
+  from MS's `docs/tutorials/policy-as-code/examples/01_first_policy.yaml`):
+
+  ```yaml
+  version: "1.0"
+  name: my-first-policy
+  description: A simple policy that blocks dangerous agent actions
+  rules:
+    - name: block-delete-database
+      condition: { field: tool_name, operator: eq, value: delete_database }
+      action: deny
+      priority: 100
+      message: "Deleting databases is not allowed"
+  defaults: { action: allow }
+  ```
+
+  Atmosphere's native `policies:` schema lives alongside the MS schema
+  — the two are mutually exclusive per document. `MsAgentOsYamlConformanceTest`
+  pins the interop against MS's unmodified example YAMLs so upstream
+  schema drift surfaces as a test failure here.
+- **Context map bridge**: rule `field:` references map to `AiRequest`
+  properties (`message`, `system_prompt`, `model`, `user_id`,
+  `session_id`, `agent_id`, `conversation_id`), the context phase
+  (`phase` → `pre_admission` / `post_response`), and every
+  `AiRequest.metadata()` entry by its exact key.
+- **HTTP surface**: MS's `PolicyProviderHandler` is an ASGI app
+  (`/check`, `/policies`, `/health`). Atmosphere exposes the same
+  three endpoints at `/api/admin/governance/check`,
+  `/api/admin/governance/policies`, and `/api/admin/governance/summary`.
+  The `POST /check` endpoint accepts MS's `{agent_id, action,
+  context}` payload and returns `{allowed, decision, reason,
+  matched_policy, matched_source, evaluation_ms}` — drop-in wire
+  compatibility so external gateways (Envoy, Kong, Azure APIM) that
+  already speak to MS's ASGI app can use Atmosphere as the decision
+  service without code changes.
+
+**Admin introspection**: `/api/admin/governance/policies` lists
+the live policy set; `/api/admin/governance/summary` returns counts
+and distinct source URIs. Reports runtime-confirmed state (Correctness
+Invariant #5) — not what the YAML intended.
+
+**Interop with `AiGuardrail`**: `GuardrailAsPolicy` wraps any existing
+guardrail as a policy; `PolicyAsGuardrail` goes the other way. Both
+vocabularies land at the same `AiPipeline` admission seam so the
+declarative layer is strictly additive — existing guardrail wiring
+keeps working.
+
 ### Cost accounting wire — observability → enforcement
 
 Every runtime calls `StreamingSession.usage(TokenUsage)` at completion.

@@ -178,6 +178,7 @@ public final class CheckpointingCoordinationJournal<S> implements CoordinationJo
             case CoordinationEvent.RouteEvaluated e -> e.selectedAgent();
             case CoordinationEvent.AgentActivityChanged e -> e.agentName();
             case CoordinationEvent.CircuitStateChanged e -> e.agentName();
+            case CoordinationEvent.CommitmentRecorded e -> e.record().subject();
             case CoordinationEvent.CoordinationStarted e -> e.coordinatorName();
             case CoordinationEvent.CoordinationCompleted ignored -> null;
         };

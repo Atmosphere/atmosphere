@@ -1,0 +1,80 @@
+# Per-room scope config for the AI classroom sample.
+#
+# Operators tune each room's purpose, forbidden topics, and scope tier
+# without rebuilding the app. RoomScopesConfig reads this on startup
+# and exposes a Map<String, ScopeConfig> that RoomContextInterceptor
+# consumes.
+#
+# Atmosphere is the only JVM framework with per-request scope install
+# (via REQUEST_SCOPE_METADATA_KEY) — YAML-backed per-room scope turns
+# that Java-only pattern into an ops-controllable configuration surface.
+
+version: "1.0"
+default: general
+
+rooms:
+  math:
+    systemPrompt: >
+      You are an expert mathematics tutor. Explain concepts clearly with
+      step-by-step examples. Use precise mathematical notation. Keep
+      responses under 300 words.
+    purpose: >
+      Mathematics tutoring — arithmetic, algebra, calculus, geometry,
+      statistics, proof technique
+    forbiddenTopics:
+      - writing source code
+      - programming tutorials
+    onBreach: POLITE_REDIRECT
+    redirectMessage: "This is the math room — ask me about a mathematics topic instead."
+    tier: RULE_BASED
+    similarityThreshold: 0.45
+
+  code:
+    systemPrompt: >
+      You are an expert software engineer and programming mentor. Provide
+      clear, idiomatic code examples with explanations. Favor readability
+      over cleverness. Keep responses under 300 words.
+    purpose: >
+      Software engineering mentoring — programming languages, debugging,
+      algorithms, design patterns, testing
+    forbiddenTopics:
+      - medical advice
+      - legal advice
+      - financial advice
+    onBreach: POLITE_REDIRECT
+    redirectMessage: "This is the code room — ask me about a programming topic instead."
+    tier: RULE_BASED
+    similarityThreshold: 0.45
+
+  science:
+    systemPrompt: >
+      You are a science educator specializing in physics, chemistry, and
+      biology. Use analogies and real-world examples to make concepts
+      accessible. Keep responses under 300 words.
+    purpose: >
+      Science education — physics, chemistry, biology, earth science,
+      scientific method
+    forbiddenTopics:
+      - writing source code
+      - programming tutorials
+      - medical diagnosis
+    onBreach: POLITE_REDIRECT
+    redirectMessage: "This is the science room — ask me about a scientific topic instead."
+    tier: RULE_BASED
+    similarityThreshold: 0.45
+
+  general:
+    systemPrompt: >
+      You are a helpful classroom assistant. Answer questions clearly and
+      concisely. Keep responses under 300 words.
+    purpose: >
+      General educational assistance — broad-band tutoring across
+      academic subjects
+    forbiddenTopics:
+      - medical diagnosis
+      - legal advice
+      - financial advice
+    onBreach: POLITE_REDIRECT
+    redirectMessage: "I can only help with general educational topics."
+    tier: RULE_BASED
+    similarityThreshold: 0.45

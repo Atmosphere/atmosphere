@@ -582,6 +582,7 @@
         <module>samples/quarkus-chat</module>
         <module>samples/spring-boot-ai-chat</module>
         <module>samples/spring-boot-ai-classroom</module>
+        <module>samples/spring-boot-ms-governance-chat</module>
         <module>samples/spring-boot-otel-chat</module>
         <module>samples/spring-boot-mcp-server</module>
         <module>samples/spring-boot-durable-sessions</module>
@@ -982,6 +983,15 @@
                 <artifactId>mcp</artifactId>
                 <version>1.1.1</version>
             </dependency>
+            <!-- SnakeYAML — declared here so downstream consumers of
+                 atmosphere-ai resolve the version through this BOM-style
+                 management rather than the variable reference that's
+                 unresolvable once atmosphere-ai's pom is installed. -->
+            <dependency>
+                <groupId>org.yaml</groupId>
+                <artifactId>snakeyaml</artifactId>
+                <version>${snakeyaml.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <!-- All dependencies are available on Maven Central. Legacy repositories
@@ -1068,6 +1078,7 @@
         <junit-jupiter.version>5.11.4</junit-jupiter.version>
         <jackson.version>3.1.1</jackson.version>
         <jackson-annotations.version>2.21</jackson-annotations.version>
+        <snakeyaml.version>2.3</snakeyaml.version>
         <mockito.version>5.23.0</mockito.version>
         <mockito-kotlin.version>5.4.0</mockito-kotlin.version>
         <json.version>20250517</json.version>
