@@ -75,7 +75,7 @@ foundation primitive per agent, rooted at
 |-----------|-----|
 | `AgentState` (`FileSystemAgentState`) | Durable per-agent state between restarts |
 | `AgentIdentity` (`InMemoryAgentIdentity` + `AtmosphereEncryptedCredentialStore`) | Per-user `PermissionMode` + encrypted credential store |
-| `AgentWorkspace` | ServiceLoader-discovered workspace adapter (OpenClaw, SWE-bench, none) |
+| `AgentWorkspace` | ServiceLoader-discovered workspace adapter (`OpenClawWorkspaceAdapter` + `AtmosphereNativeWorkspaceAdapter` fallback; third-party adapters plug in via `META-INF/services/`) |
 
 `@Prompt` / `@AiTool` method parameters of any of these types are
 injected from the agent-scoped map — no ThreadLocal, no static holder
