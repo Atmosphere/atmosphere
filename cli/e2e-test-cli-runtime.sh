@@ -120,6 +120,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# ── Align CLI pinned version with the locally-built SNAPSHOT ─────────────────
+# Samples on main can use APIs that land in the NEXT release. The CLI pins the
+# sample parent POM to the last released version (see cli/atmosphere VERSION),
+# which would fail `mvn compile` when the source uses a post-release API. In
+# CI, the workflow installs the current SNAPSHOT into local m2 before this
+# script runs, so point the CLI at that version for the scaffold-then-compile
+# checks. ATMOSPHERE_CLI_VERSION is honored by cli/atmosphere.
+ROOT_POM_VERSION=$(grep -m1 '<version>' "$REPO_ROOT/pom.xml" | sed -E 's|.*<version>([^<]+)</version>.*|\1|')
+if [ -n "$ROOT_POM_VERSION" ]; then
+    export ATMOSPHERE_CLI_VERSION="$ROOT_POM_VERSION"
+fi
+
 # ── Prerequisites ───────────────────────────────────────────────────────────
 printf "\n${BOLD}Atmosphere CLI E2E Runtime Lifecycle Tests${RESET}\n\n"
 
@@ -285,7 +297,9 @@ if [ -d "$new_tmp/chat-test" ]; then
     pass "chat-test project directory created"
     grep -q 'atmosphere-project' "$new_tmp/chat-test/pom.xml" && pass "chat-test pom.xml inherits atmosphere-project" || fail "chat-test pom.xml inherits atmosphere-project"
     ! grep -q 'relativePath' "$new_tmp/chat-test/pom.xml" && pass "chat-test pom.xml relativePath stripped (resolves from Central)" || fail "chat-test pom.xml relativePath stripped"
-    ! grep -q 'SNAPSHOT' "$new_tmp/chat-test/pom.xml" && pass "chat-test pom.xml version pinned (no SNAPSHOT)" || fail "chat-test pom.xml version pinned"
+    if [ -z "${ATMOSPHERE_CLI_VERSION:-}" ] || ! printf '%s' "${ATMOSPHERE_CLI_VERSION}" | grep -q 'SNAPSHOT'; then
+        ! grep -q 'SNAPSHOT' "$new_tmp/chat-test/pom.xml" && pass "chat-test pom.xml version pinned (no SNAPSHOT)" || fail "chat-test pom.xml version pinned"
+    fi
     grep -q '<checkstyle.skip>true</checkstyle.skip>' "$new_tmp/chat-test/pom.xml" && pass "chat-test pom.xml disables repo-local checkstyle" || fail "chat-test pom.xml disables repo-local checkstyle"
 
     compile_out=$(cd "$new_tmp/chat-test" && mvn -q compile -B 2>&1) && compile_ec=0 || compile_ec=$?

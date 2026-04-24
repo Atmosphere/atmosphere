@@ -50,7 +50,7 @@ public record CommitmentRecordView(
         boolean signed
 ) {
     /** Build the view from a live journal event. */
-    public static CommitmentRecordView from(CoordinationEvent.CommitmentRecorded event) {
+    static CommitmentRecordView from(CoordinationEvent.CommitmentRecorded event) {
         var r = event.record();
         return new CommitmentRecordView(
                 r.id(),
@@ -76,7 +76,7 @@ public record CommitmentRecordView(
             String signature,
             String createdAt
     ) {
-        public static Proof from(CommitmentRecord.Proof proof) {
+        static Proof from(CommitmentRecord.Proof proof) {
             return new Proof(
                     proof.scheme(),
                     proof.keyId(),
