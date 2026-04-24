@@ -3,7 +3,7 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-quarkus-admin-extension-parent</artifactId>
-        <version>4.0.40</version>
+        <version>4.0.41-SNAPSHOT</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
