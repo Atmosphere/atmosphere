@@ -690,13 +690,12 @@ public class AtmosphereAdminEndpoint {
     public ResponseEntity<Map<String, Object>> governanceCheck(@RequestBody(required = false) Map<String, Object> payload) {
         GovernanceController controller = admin.governanceController();
         if (controller == null) {
-            return ResponseEntity.ok(Map.of(
-                    "allowed", true,
-                    "decision", "allow",
-                    "reason", "",
-                    "matched_policy", null,
-                    "matched_source", null,
-                    "evaluation_ms", 0.0));
+            // MS /check wire compat — gateways routing on `allowed` keep
+            // working even on deployments that haven't wired the
+            // governance plane. Shape matches the shared
+            // GovernanceController.unconfiguredAllowPayload() helper so
+            // Spring and Quarkus return byte-identical JSON here.
+            return ResponseEntity.ok(GovernanceController.unconfiguredAllowPayload());
         }
         return ResponseEntity.ok(controller.check(payload));
     }

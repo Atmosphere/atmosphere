@@ -125,6 +125,36 @@ public final class GovernanceController {
      *       etc. see the same values they would inside MS's evaluator.</li>
      * </ul>
      */
+    /**
+     * MS-compat allow-payload returned on the {@code /governance/check}
+     * fallback path when no {@link GovernanceController} is installed on
+     * the framework. Shape matches {@link #check(Map)} so external
+     * gateways (Envoy, Kong, Azure APIM) pointed at this endpoint get
+     * the same JSON schema whether or not governance is wired — a
+     * gateway routing on {@code allowed} continues to work on an
+     * unconfigured deployment instead of choking on a 503.
+     *
+     * <p>Semantically honest: with zero policies installed there is
+     * nothing to deny, so "allow" is the accurate decision. Operators
+     * who want fail-closed behavior install a {@code DenyAll} policy
+     * or flip a feature flag at the HTTP layer; the fallback itself
+     * should not impose a policy decision.</p>
+     *
+     * <p>Uses a mutable {@link java.util.LinkedHashMap} because
+     * {@link Map#of(Object...)} rejects null values — and MS's schema
+     * permits {@code matched_policy / matched_source} as null.</p>
+     */
+    public static Map<String, Object> unconfiguredAllowPayload() {
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("allowed", true);
+        payload.put("decision", "allow");
+        payload.put("reason", "");
+        payload.put("matched_policy", null);
+        payload.put("matched_source", null);
+        payload.put("evaluation_ms", 0.0);
+        return payload;
+    }
+
     public Map<String, Object> check(Map<String, Object> payload) {
         var start = System.nanoTime();
         var agentId = asString(payload == null ? null : payload.get("agent_id"));

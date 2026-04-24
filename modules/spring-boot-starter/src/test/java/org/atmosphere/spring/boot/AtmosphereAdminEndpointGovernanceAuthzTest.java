@@ -227,12 +227,35 @@ class AtmosphereAdminEndpointGovernanceAuthzTest {
                 .andExpect(status().isBadRequest());
     }
 
+    // ── /governance/check fallback shape — parity with Quarkus ────────────
+
     @Test
-    void killSwitchArmRejectsNonStringOperatorAs400() throws Exception {
+    void governanceCheckFallbackReturns200AllowPayloadWhenControllerMissing()
+            throws Exception {
+        // When GovernanceController is not installed, /governance/check must
+        // still return the MS-compat 200 allow payload so external gateways
+        // routing on {@code allowed} keep working. Shape verified
+        // byte-identically against Quarkus via
+        // GovernanceController.unconfiguredAllowPayload().
+        Mockito.when(admin.governanceController()).thenReturn(null);
+        mockMvcGateOpen.perform(post("/api/admin/governance/check")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"agent_id\":\"x\"}"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.allowed").value(true))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.decision").value("allow"));
+    }
+
+    @Test
+    void killSwitchArmCoercesNonStringOperatorToNullWithoutClassCast() throws Exception {
         Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
-        // operator arrives as an integer — must NOT throw ClassCastException
-        // (500). stringField() coerces non-strings to null, falling back
-        // to the principal name, so this is still a 200 for a valid reason.
+        // operator arrives as an integer — stringField() coerces non-strings
+        // to null rather than throwing ClassCastException (which would
+        // surface as 500). The controller then falls back to the principal
+        // name as the operator stamp, so a valid reason still yields 200.
+        // Test name asserts the coercion shape, not the HTTP status.
         Principal alice = () -> "alice@example.com";
         mockMvcGateOpen.perform(post(ARM)
                         .principal(alice)

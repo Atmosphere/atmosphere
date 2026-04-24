@@ -198,8 +198,24 @@ class AdminResourceGovernanceAuthzTest {
         assertEquals(400, response.getStatus());
     }
 
+    // ── /governance/check fallback shape — parity with Spring ─────────────
+
     @Test
-    void killSwitchArmRejectsNonStringOperatorWithoutClassCast() {
+    void governanceCheckFallbackReturns200AllowPayloadWhenControllerMissing() {
+        Mockito.when(admin.governanceController()).thenReturn(null);
+        var response = resource.governanceCheck(Map.of("agent_id", "x"));
+        assertEquals(200, response.getStatus(),
+                "Quarkus must return 200 allow payload on missing controller for "
+                        + "wire parity with Spring — gateways routing on `allowed` "
+                        + "cannot tolerate a 503 just because governance isn't wired.");
+        @SuppressWarnings("unchecked")
+        var body = (Map<String, Object>) response.getEntity();
+        assertEquals(Boolean.TRUE, body.get("allowed"));
+        assertEquals("allow", body.get("decision"));
+    }
+
+    @Test
+    void killSwitchArmCoercesNonStringOperatorToNullWithoutClassCast() {
         Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
         resource.writeEnabledOverride = true;
         // operator arrives as an Integer — stringField returns null rather

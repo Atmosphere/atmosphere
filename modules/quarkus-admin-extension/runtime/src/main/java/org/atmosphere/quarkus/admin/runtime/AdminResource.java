@@ -592,8 +592,10 @@ public class AdminResource {
     public Response governanceCheck(Map<String, Object> body) {
         GovernanceController controller = admin.governanceController();
         if (controller == null) {
-            return Response.status(503)
-                    .entity(Map.of("error", "governance controller not installed")).build();
+            // Mode Parity with Spring: return the MS /check-compat allow
+            // payload rather than 503. Gateways pointed at /governance/check
+            // keep routing correctly whether or not governance is wired.
+            return Response.ok(GovernanceController.unconfiguredAllowPayload()).build();
         }
         return Response.ok(controller.check(body != null ? body : Map.of())).build();
     }
