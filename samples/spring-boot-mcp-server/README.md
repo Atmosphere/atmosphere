@@ -164,7 +164,7 @@ every `tools/call` — the policy chain evaluates before the
 |---|---|---|
 | `kill-switch` | `KillSwitchPolicy` | Operator break-glass — halts every MCP call at 0.1ms |
 | `mcp-tool-rate-limit` | `RateLimitPolicy(60/60s)` | Per-MCP-client rate cap |
-| `mcp-tool-allowlist` | `AllowListPolicy` | Default-deny — only `list_users`, `broadcast_message`, `get_chat_stats` admitted. Sensitive `ban_user` is deliberately absent so operators opt in explicitly. |
+| `mcp-tool-allowlist` | `AllowListPolicy` | Default-deny — only `list_users`, `broadcast_message`, `send_message`, `atmosphere_version` admitted. Sensitive `ban_user` is deliberately absent so operators opt in explicitly. |
 | `mcp-arg-deny-list` | `DenyListPolicy.fromRegex` | Catches `DROP TABLE`, `rm -rf /`, path traversal in tool arguments |
 
 ### Exercise live

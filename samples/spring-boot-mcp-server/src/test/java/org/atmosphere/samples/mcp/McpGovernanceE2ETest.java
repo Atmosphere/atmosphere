@@ -102,7 +102,7 @@ class McpGovernanceE2ETest {
                 argDenyList.evaluate(toolCall("broadcast_message",
                         "{body='; DROP TABLE users;'}")));
         assertInstanceOf(PolicyDecision.Deny.class,
-                argDenyList.evaluate(toolCall("get_chat_stats",
+                argDenyList.evaluate(toolCall("atmosphere_version",
                         "{path='../../etc/passwd'}")));
     }
 

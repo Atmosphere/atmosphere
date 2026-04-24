@@ -75,13 +75,21 @@ public class McpGovernanceConfig {
      * policy-evaluation message via {@code admitToolCall} — only messages
      * matching one of these tool names admit. {@code ban_user} is
      * deliberately excluded so its invocation fails closed; operators
-     * who actually want it accessible add it to the YAML-backed version
-     * of this list.
+     * who actually want that sensitive tool accessible add it to the
+     * YAML-backed version of this list.
+     *
+     * <p>Names must match the {@code @McpTool(name = ...)} declarations
+     * in {@link DemoMcpServer} exactly — drift isn't caught by
+     * {@code EvidenceConsumerGrepPinTest}; the protocol-level
+     * {@code mcp-tools.spec.ts} e2e catches it.</p>
      */
     @Bean
     public AllowListPolicy mcpToolAllowList() {
         return new AllowListPolicy("mcp-tool-allowlist",
-                "list_users", "broadcast_message", "get_chat_stats");
+                "list_users",
+                "broadcast_message",
+                "send_message",
+                "atmosphere_version");
     }
 
     /** Deny-list on argument content — catches obvious abuse patterns. */

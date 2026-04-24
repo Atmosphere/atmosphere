@@ -109,23 +109,6 @@ public final class GovernanceController {
     }
 
     /**
-     * Evaluate a policy-decision request shaped like Microsoft Agent Governance
-     * Toolkit's {@code POST /check} endpoint. Accepts {@code {agent_id, action,
-     * context}} and returns {@code {allowed, decision, reason, matched_policy,
-     * evaluation_ms}}. Wire-level compatible so external gateways (Envoy,
-     * Kong, Azure APIM) that already speak to MS's ASGI policy provider can
-     * use Atmosphere as a drop-in decision service.
-     *
-     * <p>Mapping to the {@link GovernancePolicy} chain:</p>
-     * <ul>
-     *   <li>{@code agent_id} → {@link AiRequest#agentId()}</li>
-     *   <li>{@code action} → {@code context["action"]}</li>
-     *   <li>Each {@code context} key is flattened onto request metadata so
-     *       MS rules that reference {@code tool_name}, {@code token_count},
-     *       etc. see the same values they would inside MS's evaluator.</li>
-     * </ul>
-     */
-    /**
      * MS-compat allow-payload returned on the {@code /governance/check}
      * fallback path when no {@link GovernanceController} is installed on
      * the framework. Shape matches {@link #check(Map)} so external
@@ -155,6 +138,23 @@ public final class GovernanceController {
         return payload;
     }
 
+    /**
+     * Evaluate a policy-decision request shaped like Microsoft Agent Governance
+     * Toolkit's {@code POST /check} endpoint. Accepts {@code {agent_id, action,
+     * context}} and returns {@code {allowed, decision, reason, matched_policy,
+     * evaluation_ms}}. Wire-level compatible so external gateways (Envoy,
+     * Kong, Azure APIM) that already speak to MS's ASGI policy provider can
+     * use Atmosphere as a drop-in decision service.
+     *
+     * <p>Mapping to the {@link GovernancePolicy} chain:</p>
+     * <ul>
+     *   <li>{@code agent_id} → {@link AiRequest#agentId()}</li>
+     *   <li>{@code action} → {@code context["action"]}</li>
+     *   <li>Each {@code context} key is flattened onto request metadata so
+     *       MS rules that reference {@code tool_name}, {@code token_count},
+     *       etc. see the same values they would inside MS's evaluator.</li>
+     * </ul>
+     */
     public Map<String, Object> check(Map<String, Object> payload) {
         var start = System.nanoTime();
         var agentId = asString(payload == null ? null : payload.get("agent_id"));
