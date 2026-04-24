@@ -15,23 +15,26 @@
  */
 package org.atmosphere.admin.coordinator;
 
-import org.atmosphere.coordinator.commitment.CommitmentRecord;
-import org.atmosphere.coordinator.journal.CoordinationEvent;
-
 import java.util.List;
 import java.util.Map;
 
 /**
- * Typed projection of {@link CommitmentRecord} for the
+ * Typed projection of the coordinator's commitment record for the
  * {@code GET /api/admin/governance/commitments} endpoint. Owns the
  * admin-surface shape so downstream drift (Jackson property order, field
  * addition, etc.) is caught at compile time instead of at the JSON
  * boundary.
  *
- * <p>Mirrors the {@link CommitmentRecord} fields 1:1 plus a flattened
- * {@link Proof} record and an {@code eventTimestamp} that reports when
- * the journal emitted the entry (which can differ from
- * {@link CommitmentRecord#issuedAt()} when commits are replayed).</p>
+ * <p>Mirrors the coordinator's {@code CommitmentRecord} fields 1:1 plus a
+ * flattened {@link Proof} record and an {@code eventTimestamp} that reports
+ * when the journal emitted the entry (which can differ from {@code issuedAt}
+ * when commits are replayed).</p>
+ *
+ * <p>Construction from the coordinator's event types lives in
+ * {@link CommitmentRecordViewFactory}; keeping coordinator-typed parameters
+ * out of this record's method signatures lets Spring AOT introspect the
+ * response body on samples that don't pull {@code atmosphere-coordinator}
+ * transitively (the coordinator dep is {@code optional=true}).</p>
  */
 public record CommitmentRecordView(
         String id,
@@ -49,39 +52,12 @@ public record CommitmentRecordView(
         Proof proof,
         boolean signed
 ) {
-    /** Build the view from a live journal event. */
-    static CommitmentRecordView from(CoordinationEvent.CommitmentRecorded event) {
-        var r = event.record();
-        return new CommitmentRecordView(
-                r.id(),
-                r.coordinationId(),
-                event.timestamp().toString(),
-                r.issuer(),
-                r.principal(),
-                r.subject(),
-                r.scope(),
-                r.delegationChain(),
-                r.issuedAt().toString(),
-                r.expiresAt() == null ? null : r.expiresAt().toString(),
-                r.outcome(),
-                r.properties(),
-                Proof.from(r.proof()),
-                r.isSigned());
-    }
-
-    /** Flattened {@link CommitmentRecord.Proof} projection. */
+    /** Flattened projection of the coordinator's signing proof. */
     public record Proof(
             String scheme,
             String keyId,
             String signature,
             String createdAt
     ) {
-        static Proof from(CommitmentRecord.Proof proof) {
-            return new Proof(
-                    proof.scheme(),
-                    proof.keyId(),
-                    proof.signature(),
-                    proof.createdAt().toString());
-        }
     }
 }

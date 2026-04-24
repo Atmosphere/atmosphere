@@ -57,7 +57,7 @@ class CommitmentRecordViewTest {
         var event = new CoordinationEvent.CommitmentRecorded(
                 "coord-1", record, Instant.parse("2026-04-22T19:00:01Z"));
 
-        var view = CommitmentRecordView.from(event);
+        var view = CommitmentRecordViewFactory.from(event);
 
         assertEquals("rec-1", view.id());
         assertEquals("coord-1", view.coordinationId());
@@ -91,7 +91,7 @@ class CommitmentRecordViewTest {
         var event = new CoordinationEvent.CommitmentRecorded(
                 "coord-1", record, Instant.parse("2026-04-22T18:55:00Z"));
 
-        var view = CommitmentRecordView.from(event);
+        var view = CommitmentRecordViewFactory.from(event);
         assertNull(view.expiresAt(),
                 "null issuesAt field maps to null JSON, not a placeholder string");
         assertEquals(false, view.signed(),

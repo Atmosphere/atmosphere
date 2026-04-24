@@ -143,7 +143,7 @@ public final class CoordinatorController {
         for (int i = events.size() - 1; i >= 0 && result.size() < limit; i--) {
             var event = events.get(i);
             if (event instanceof CoordinationEvent.CommitmentRecorded rec) {
-                result.add(CommitmentRecordView.from(rec));
+                result.add(CommitmentRecordViewFactory.from(rec));
             }
         }
         return result;
