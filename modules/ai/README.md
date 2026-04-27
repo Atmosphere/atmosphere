@@ -344,7 +344,7 @@ ServiceLoader. `AiEndpointProcessor` merges annotation-declared,
 ServiceLoader, and framework-property guardrails so user-defined
 `@AiEndpoint` paths get the same wiring as the default endpoint.
 
-### Governance policy plane (Phase A)
+### Governance policy plane
 
 A declarative layer over the guardrail SPI. Policies carry stable
 identity (`name` / `source` / `version`) for audit-trail pinning and

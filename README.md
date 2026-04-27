@@ -133,6 +133,41 @@ What this registers depends on which modules are on the classpath:
 
 The AI-runtime capability matrix — which runtimes ship tool calling, structured output, multi-modal input, prompt caching, embeddings, retry — lives in [`modules/ai/README.md`](modules/ai/README.md#capability-matrix) and is enforced by `AbstractAgentRuntimeContractTest.expectedCapabilities()`, so the matrix and the runtime code cannot drift.
 
+## Governance
+
+Drop `atmosphere-policies.yaml` on the classpath and every `@Prompt` and `@AiTool` dispatch flows through it. No code changes, no redeploy on policy edits.
+
+```yaml
+# atmosphere-policies.yaml
+version: "1.0"
+policies:
+  - name: deny-destructive-sql
+    type: deny-list
+    config:
+      phrases: ["DROP TABLE", "TRUNCATE", "DELETE FROM"]
+  - name: tenant-cost-ceiling
+    type: cost-ceiling
+    config:
+      ceilingDollars: 50.0
+```
+
+Or annotate an endpoint with `@AgentScope` so a customer-support bot stops answering Python questions:
+
+```java
+@AiEndpoint("/support")
+@AgentScope(
+    purpose = "Customer support — orders, billing, store hours",
+    forbiddenTopics = {"code", "programming", "medical advice"},
+    onBreach = AgentScope.Breach.POLITE_REDIRECT)
+public class SupportAgent { /* @Prompt method */ }
+```
+
+YAML auto-detects either Atmosphere-native shape or **Microsoft Agent Governance Toolkit** schema; an MS rule like `{field: tool_name, operator: eq, value: drop_database, action: deny}` fires before the tool's executor runs. Decisions are surfaced at `GET /api/admin/governance/decisions`, mapped to OWASP Agentic Top 10 + EU AI Act / HIPAA / SOC2 evidence at `GET /api/admin/governance/agt-verify` (the same shape MS's `agt verify` CLI consumes), and a Vue admin tab renders the live state.
+
+Optional sinks ship in separate modules: `atmosphere-ai-audit-kafka`, `atmosphere-ai-audit-postgres`, `atmosphere-ai-policy-rego` (OPA), `atmosphere-ai-policy-cedar` (AWS).
+
+[Governance policy plane reference](docs/governance-policy-plane.md) · [tutorial site](https://atmosphere.github.io/docs/reference/governance/) · [`ms-governance-chat` sample](samples/spring-boot-ms-governance-chat/)
+
 ## Client — atmosphere.js
 
 ```bash

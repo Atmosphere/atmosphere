@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.40] - 2026-04-24
+
 ### Added — Tool-call admission, per-request scope, audit sinks
 
 - **Tool-call admission seam** (`1def61ddf0`) — `PolicyAdmissionGate.admitToolCall`
