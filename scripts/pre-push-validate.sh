@@ -59,10 +59,10 @@ run_full() {
 }
 
 run_gib() {
-    echo "Running: ./mvnw install -q -Dgib.disable=false -Dgib.baseBranch=refs/remotes/$BASE_REF"
+    echo "Running: ./mvnw install -q -Dgib.disable=false -Dgib.referenceBranch=refs/remotes/$BASE_REF"
     ./mvnw install -q \
         -Dgib.disable=false \
-        -Dgib.baseBranch="refs/remotes/$BASE_REF"
+        -Dgib.referenceBranch="refs/remotes/$BASE_REF"
 }
 
 # Map each changed file to its enclosing Maven module (nearest ancestor
