@@ -27,65 +27,66 @@ async function a2aRequest(
   return (await res.json()) as Record<string, unknown>;
 }
 
+/** v1.0.0 SendMessage params for skill 'ask' with the given text. */
+function sendMessageParams(text: string, id: number) {
+  return {
+    message: {
+      messageId: `msg-${id}`,
+      role: 'ROLE_USER',
+      parts: [{ text }],
+      metadata: { skillId: 'ask' },
+    },
+  };
+}
+
+/** Unwrap the v1.0.0 SendMessageResponse oneof: result.task | result.message. */
+function taskOf(body: Record<string, unknown>): Record<string, unknown> {
+  const result = body.result as Record<string, unknown>;
+  return (result.task as Record<string, unknown>) ?? result;
+}
+
 test.describe('Concurrent Protocol Access', () => {
 
   test('multiple concurrent A2A requests complete independently', async () => {
     const promises = Array.from({ length: 5 }, (_, i) =>
-      a2aRequest(server.baseUrl, 'message/send', {
-        message: {
-          role: 'user',
-          parts: [{ type: 'text', text: `Concurrent request ${i}` }],
-          metadata: { skillId: 'ask' },
-        },
-      }, i + 100),
+      a2aRequest(server.baseUrl, 'SendMessage',
+        sendMessageParams(`Concurrent request ${i}`, i + 100), i + 100),
     );
 
     const results = await Promise.all(promises);
 
     for (const body of results) {
-      const result = body.result as Record<string, unknown>;
-      expect(result).toBeDefined();
-      const status = result.status as { state: string };
-      expect(status.state).toBe('COMPLETED');
+      const task = taskOf(body);
+      expect(task).toBeDefined();
+      const status = task.status as { state: string };
+      expect(status.state).toBe('TASK_STATE_COMPLETED');
     }
   });
 
   test('agent card and task execution in parallel', async () => {
     const [cardResult, taskResult] = await Promise.all([
-      a2aRequest(server.baseUrl, 'agent/authenticatedExtendedCard', {}, 200),
-      a2aRequest(server.baseUrl, 'message/send', {
-        message: {
-          role: 'user',
-          parts: [{ type: 'text', text: 'Parallel task' }],
-          metadata: { skillId: 'ask' },
-        },
-      }, 201),
+      a2aRequest(server.baseUrl, 'GetExtendedAgentCard', {}, 200),
+      a2aRequest(server.baseUrl, 'SendMessage',
+        sendMessageParams('Parallel task', 201), 201),
     ]);
 
-    // Card should return agent info
     const card = cardResult.result as Record<string, unknown>;
     expect(card).toBeDefined();
     expect(card.name).toBeDefined();
 
-    // Task should complete
-    const task = taskResult.result as Record<string, unknown>;
+    const task = taskOf(taskResult);
     expect(task).toBeDefined();
   });
 
   test('rapid sequential requests do not interfere', async () => {
     for (let i = 0; i < 5; i++) {
-      const body = await a2aRequest(server.baseUrl, 'message/send', {
-        message: {
-          role: 'user',
-          parts: [{ type: 'text', text: `Sequential ${i}` }],
-          metadata: { skillId: 'ask' },
-        },
-      }, 300 + i);
+      const body = await a2aRequest(server.baseUrl, 'SendMessage',
+        sendMessageParams(`Sequential ${i}`, 300 + i), 300 + i);
 
-      const result = body.result as Record<string, unknown>;
-      expect(result).toBeDefined();
-      const status = result.status as { state: string };
-      expect(status.state).toBe('COMPLETED');
+      const task = taskOf(body);
+      expect(task).toBeDefined();
+      const status = task.status as { state: string };
+      expect(status.state).toBe('TASK_STATE_COMPLETED');
     }
   });
 });

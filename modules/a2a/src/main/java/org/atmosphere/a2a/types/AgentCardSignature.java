@@ -16,26 +16,22 @@
 package org.atmosphere.a2a.types;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.List;
 import java.util.Map;
 
 /**
- * Immutable description of an A2A skill, including its identifier, human-readable name,
- * classification tags, and optional JSON schemas for input and output validation.
+ * JSON Web Signature attesting an {@link AgentCard}. Defined in A2A v1.0.0.
+ * The {@code protectedHeader} record component serializes as the JWS
+ * {@code "protected"} field — Java reserves the bare identifier.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record Skill(
-    String id,
-    String name,
-    String description,
-    List<String> tags,
-    Map<String, Object> inputSchema,
-    Map<String, Object> outputSchema
+public record AgentCardSignature(
+    @JsonProperty("protected") String protectedHeader,
+    String signature,
+    Map<String, Object> header
 ) {
-    public Skill {
-        tags = tags != null ? List.copyOf(tags) : List.of();
-        inputSchema = inputSchema != null ? Map.copyOf(inputSchema) : Map.of();
-        outputSchema = outputSchema != null ? Map.copyOf(outputSchema) : Map.of();
+    public AgentCardSignature {
+        header = header != null ? Map.copyOf(header) : Map.of();
     }
 }

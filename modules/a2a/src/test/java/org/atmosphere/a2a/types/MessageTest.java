@@ -15,100 +15,64 @@
  */
 package org.atmosphere.a2a.types;
 
-import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
-
-import java.util.List;
-import java.util.Map;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/** Verifies the v1.0.0 {@link Message} shape (Role enum + collapsed-Part). */
 class MessageTest {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
-    void fullConstruction() {
-        var parts = List.<Part>of(new Part.TextPart("hello"));
-        var meta = Map.<String, Object>of("key", "val");
-        var msg = new Message("user", parts, "msg-1", "task-1", "ctx-1", meta);
-        assertEquals("user", msg.role());
-        assertEquals(1, msg.parts().size());
-        assertEquals("msg-1", msg.messageId());
-        assertEquals("task-1", msg.taskId());
-        assertEquals("ctx-1", msg.contextId());
-        assertEquals("val", msg.metadata().get("key"));
+    void userFactoryProducesUserRole() {
+        var m = Message.user("hi");
+        assertEquals(Role.USER, m.role());
+        assertEquals("hi", m.parts().getFirst().text());
     }
 
     @Test
-    void nullPartsDefaultsToEmpty() {
-        var msg = new Message("agent", null, "m1", null, null, null);
-        assertNotNull(msg.parts());
-        assertTrue(msg.parts().isEmpty());
+    void agentFactoryProducesAgentRole() {
+        var m = Message.agent("ack");
+        assertEquals(Role.AGENT, m.role());
     }
 
     @Test
-    void nullMetadataDefaultsToEmpty() {
-        var msg = new Message("user", List.of(), "m1", null, null, null);
-        assertNotNull(msg.metadata());
-        assertTrue(msg.metadata().isEmpty());
+    void roleSerializesAsProtoJsonWireForm() throws Exception {
+        var json = mapper.writeValueAsString(Message.user("x"));
+        assertEquals(true, json.contains("\"role\":\"ROLE_USER\""),
+                "expected ROLE_USER, got " + json);
     }
 
     @Test
-    void partsListIsUnmodifiable() {
-        var msg = new Message("user", List.of(new Part.TextPart("hi")), "m1", null, null, null);
+    void roleAcceptsLowercaseLegacyForm() throws Exception {
+        var m = mapper.readValue(
+                "{\"messageId\":\"m1\",\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}",
+                Message.class);
+        assertEquals(Role.USER, m.role());
+    }
+
+    @Test
+    void roleAcceptsProtoNameForm() throws Exception {
+        var m = mapper.readValue(
+                "{\"messageId\":\"m1\",\"role\":\"ROLE_AGENT\",\"parts\":[{\"text\":\"hi\"}]}",
+                Message.class);
+        assertEquals(Role.AGENT, m.role());
+    }
+
+    @Test
+    void unknownRoleRejected() {
+        assertThrows(Exception.class, () -> mapper.readValue(
+                "{\"messageId\":\"m1\",\"role\":\"bystander\",\"parts\":[]}",
+                Message.class));
+    }
+
+    @Test
+    void partsListIsImmutable() {
+        var m = Message.user("x");
         assertThrows(UnsupportedOperationException.class,
-                () -> msg.parts().add(new Part.TextPart("extra")));
-    }
-
-    @Test
-    void userFactoryCreatesUserRole() {
-        var msg = Message.user("Hello agent");
-        assertEquals("user", msg.role());
-        assertEquals(1, msg.parts().size());
-        var textPart = (Part.TextPart) msg.parts().getFirst();
-        assertEquals("Hello agent", textPart.text());
-    }
-
-    @Test
-    void agentFactoryCreatesAgentRole() {
-        var msg = Message.agent("Hello user");
-        assertEquals("agent", msg.role());
-        assertEquals(1, msg.parts().size());
-        var textPart = (Part.TextPart) msg.parts().getFirst();
-        assertEquals("Hello user", textPart.text());
-    }
-
-    @Test
-    void userFactoryGeneratesNonNullMessageId() {
-        var msg = Message.user("test");
-        assertNotNull(msg.messageId());
-        assertEquals(36, msg.messageId().length());
-    }
-
-    @Test
-    void agentFactoryGeneratesUniqueIds() {
-        var msg1 = Message.agent("a");
-        var msg2 = Message.agent("b");
-        assertNotNull(msg1.messageId());
-        assertNotNull(msg2.messageId());
-        assertTrue(!msg1.messageId().equals(msg2.messageId()),
-                "Each message should have a unique ID");
-    }
-
-    @Test
-    void jsonRoundTrip() throws Exception {
-        var msg = new Message("user", List.of(new Part.TextPart("test")),
-                "msg-42", "task-1", "ctx-1", Map.of("meta", "data"));
-        String json = mapper.writeValueAsString(msg);
-        var deserialized = mapper.readValue(json, Message.class);
-        assertEquals(msg.role(), deserialized.role());
-        assertEquals(msg.messageId(), deserialized.messageId());
-        assertEquals(msg.taskId(), deserialized.taskId());
-        assertEquals(msg.contextId(), deserialized.contextId());
-        assertEquals(1, deserialized.parts().size());
+                () -> m.parts().add(Part.text("y")));
     }
 }

@@ -15,137 +15,88 @@
  */
 package org.atmosphere.a2a.types;
 
-import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AgentCardTest {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    @Test
-    void basicConstruction() {
-        var card = new AgentCard("TestAgent", "A test agent", "http://localhost:8080",
-                "1.0", "TestCorp", "http://docs.test.com",
-                new AgentCard.AgentCapabilities(true, false, true),
-                List.of(new Skill("s1", "Skill1", "desc", null, null, null)),
-                Map.of("bearer", "jwt"), List.of("text"), List.of("text"), List.of("safety"));
-        assertEquals("TestAgent", card.name());
-        assertEquals("A test agent", card.description());
-        assertEquals("http://localhost:8080", card.url());
-        assertEquals("1.0", card.version());
-        assertEquals("TestCorp", card.provider());
-        assertEquals("http://docs.test.com", card.documentationUrl());
-        assertEquals(1, card.skills().size());
-        assertEquals(1, card.securitySchemes().size());
-        assertEquals(List.of("safety"), card.guardrails());
+    private AgentCard sample() {
+        return new AgentCard(
+                "demo",
+                "Demo agent",
+                List.of(new AgentInterface(
+                        "https://example.com/a2a", AgentInterface.JSONRPC, "1.0")),
+                new AgentProvider("https://example.com", "Example"),
+                "1.0.0",
+                "https://docs.example.com",
+                new AgentCapabilities(true, false, null, true),
+                null,
+                null,
+                List.of("text"),
+                List.of("text"),
+                List.of(new AgentSkill("s1", "Skill", "A skill", List.of("tag"))),
+                null,
+                "https://example.com/icon.png");
     }
 
     @Test
-    void nullSkillsDefaultsToEmptyList() {
-        var card = new AgentCard("a", "d", "u", "v", null, null, null,
-                null, null, null, null, null);
+    void supportedInterfacesReplacesUrl() throws Exception {
+        var card = sample();
+        var json = mapper.writeValueAsString(card);
+        assertTrue(json.contains("\"supportedInterfaces\""), json);
+        assertTrue(json.contains("\"protocolBinding\":\"JSONRPC\""), json);
+    }
+
+    @Test
+    void providerIsStructuredRecord() {
+        var card = sample();
+        assertEquals("Example", card.provider().organization());
+        assertEquals("https://example.com", card.provider().url());
+    }
+
+    @Test
+    void iconUrlIsEmittedWhenNonNull() throws Exception {
+        var json = mapper.writeValueAsString(sample());
+        assertTrue(json.contains("\"iconUrl\":\"https://example.com/icon.png\""), json);
+    }
+
+    @Test
+    void capabilitiesExtendedAgentCardField() {
+        var card = sample();
+        assertEquals(true, card.capabilities().extendedAgentCard());
+    }
+
+    @Test
+    void skillsAccessor() {
+        var card = sample();
         assertNotNull(card.skills());
-        assertTrue(card.skills().isEmpty());
-    }
-
-    @Test
-    void nullSecuritySchemesDefaultsToEmptyMap() {
-        var card = new AgentCard("a", "d", "u", "v", null, null, null,
-                null, null, null, null, null);
-        assertNotNull(card.securitySchemes());
-        assertTrue(card.securitySchemes().isEmpty());
-    }
-
-    @Test
-    void nullDefaultInputModesDefaultsToText() {
-        var card = new AgentCard("a", "d", "u", "v", null, null, null,
-                null, null, null, null, null);
-        assertEquals(List.of("text"), card.defaultInputModes());
-    }
-
-    @Test
-    void nullDefaultOutputModesDefaultsToText() {
-        var card = new AgentCard("a", "d", "u", "v", null, null, null,
-                null, null, null, null, null);
-        assertEquals(List.of("text"), card.defaultOutputModes());
-    }
-
-    @Test
-    void nullGuardrailsStaysNull() {
-        var card = new AgentCard("a", "d", "u", "v", null, null, null,
-                null, null, null, null, null);
-        assertNull(card.guardrails());
-    }
-
-    @Test
-    void skillsListIsUnmodifiable() {
-        var card = new AgentCard("a", "d", "u", "v", null, null, null,
-                List.of(new Skill("s1", "S", "d", null, null, null)),
-                null, null, null, null);
-        assertThrows(UnsupportedOperationException.class,
-                () -> card.skills().add(new Skill("s2", "S2", "d2", null, null, null)));
-    }
-
-    @Test
-    void skillsListDefensivelyCopied() {
-        var skills = new ArrayList<>(List.of(new Skill("s1", "S", "d", null, null, null)));
-        var card = new AgentCard("a", "d", "u", "v", null, null, null,
-                skills, null, null, null, null);
-        skills.add(new Skill("s2", "S2", "d2", null, null, null));
         assertEquals(1, card.skills().size());
     }
 
     @Test
-    void agentCapabilitiesConstruction() {
-        var caps = new AgentCard.AgentCapabilities(true, true, false);
-        assertTrue(caps.streaming());
-        assertTrue(caps.pushNotifications());
-        assertFalse(caps.stateTransitionHistory());
+    void agentCapabilitiesExtensions() throws Exception {
+        var ext = new AgentExtension("https://x/extensions/test/v1", "test", false, java.util.Map.of("k", "v"));
+        var caps = new AgentCapabilities(true, false, List.of(ext), true);
+        var json = mapper.writeValueAsString(caps);
+        assertTrue(json.contains("\"extensions\""), json);
+        assertTrue(json.contains("https://x/extensions/test/v1"), json);
     }
 
     @Test
-    void agentCapabilitiesAllFalse() {
-        var caps = new AgentCard.AgentCapabilities(false, false, false);
-        assertFalse(caps.streaming());
-        assertFalse(caps.pushNotifications());
-        assertFalse(caps.stateTransitionHistory());
-    }
-
-    @Test
-    void jsonSerializationRoundTrip() throws Exception {
-        var card = new AgentCard("Agent", "desc", "http://example.com", "2.0",
-                "Provider", "http://docs.example.com",
-                new AgentCard.AgentCapabilities(true, false, true),
-                List.of(new Skill("s1", "Skill", "A skill", List.of("tag"), null, null)),
-                Map.of("oauth", "bearer"), List.of("text", "image"),
-                List.of("text"), List.of("safety"));
-        String json = mapper.writeValueAsString(card);
-        var deserialized = mapper.readValue(json, AgentCard.class);
-        assertEquals(card.name(), deserialized.name());
-        assertEquals(card.version(), deserialized.version());
-        assertEquals(card.skills().size(), deserialized.skills().size());
-        assertEquals(card.defaultInputModes(), deserialized.defaultInputModes());
-        assertEquals(card.guardrails(), deserialized.guardrails());
-    }
-
-    @Test
-    void jsonOmitsNullFields() throws Exception {
-        var card = new AgentCard("Agent", null, "http://example.com", null,
-                null, null, null, null, null, null, null, null);
-        String json = mapper.writeValueAsString(card);
-        assertFalse(json.contains("\"provider\""));
-        assertFalse(json.contains("\"documentationUrl\""));
-        assertFalse(json.contains("\"guardrails\""));
+    void serializationRoundTripPreservesShape() throws Exception {
+        var card = sample();
+        var json = mapper.writeValueAsString(card);
+        var roundTrip = mapper.readValue(json, AgentCard.class);
+        assertEquals(card.name(), roundTrip.name());
+        assertEquals(card.supportedInterfaces().size(), roundTrip.supportedInterfaces().size());
+        assertEquals(card.provider().organization(), roundTrip.provider().organization());
     }
 }

@@ -16,9 +16,9 @@
 package org.atmosphere.a2a;
 
 import tools.jackson.databind.ObjectMapper;
-import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.a2a.annotation.AgentSkill;
 import org.atmosphere.a2a.annotation.AgentSkillHandler;
+import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.a2a.registry.A2aRegistry;
 import org.atmosphere.a2a.runtime.A2aProtocolHandler;
 import org.atmosphere.a2a.runtime.TaskContext;
@@ -26,6 +26,7 @@ import org.atmosphere.a2a.runtime.TaskManager;
 import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.a2a.types.TaskState;
 import org.atmosphere.protocol.JsonRpc;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -36,10 +37,16 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Integration tests for {@link A2aProtocolHandler} dispatch — exercises both v1.0.0
+ * PascalCase method names and the pre-1.0 slash-style aliases (which should be
+ * canonicalized to the same handlers).
+ */
 class A2aProtocolHandlerTest {
 
     private final ObjectMapper mapper = new ObjectMapper();
     private A2aProtocolHandler handler;
+    private TaskManager taskManager;
 
     static class TestAgent {
         @AgentSkill(id = "greet", name = "Greet", description = "Greet someone")
@@ -55,157 +62,169 @@ class A2aProtocolHandlerTest {
     void setUp() {
         var registry = new A2aRegistry();
         registry.scan(new TestAgent());
-        var taskManager = new TaskManager();
-        var agentCard = registry.buildAgentCard("test-agent", "Test", "1.0", "/a2a");
-        handler = new A2aProtocolHandler(registry, taskManager, agentCard);
+        taskManager = new TaskManager();
+        var card = registry.buildAgentCard("test-agent", "Test", "1.0", "/a2a");
+        handler = new A2aProtocolHandler(registry, taskManager, card, card);
+    }
+
+    @AfterEach
+    void tearDown() {
+        taskManager.shutdown();
     }
 
     @Test
-    void handleGetAgentCard() throws Exception {
-        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,"
-                + "\"method\":\"agent/authenticatedExtendedCard\"}";
+    void sendMessageReturnsTaskWrappedInResponse() throws Exception {
+        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"SendMessage\","
+                + "\"params\":{\"message\":{\"messageId\":\"m1\",\"role\":\"ROLE_USER\","
+                + "\"parts\":[{\"text\":\"hello\"}]},\"arguments\":{\"name\":\"World\"}}}";
         var response = handler.handleMessage(request);
-        assertNotNull(response);
         var node = mapper.readTree(response);
         assertEquals("2.0", node.get("jsonrpc").stringValue());
-        assertNotNull(node.get("result"));
+        // SendMessageResponse oneof: result.task
+        var task = node.get("result").get("task");
+        assertNotNull(task);
+        assertEquals("TASK_STATE_COMPLETED",
+                task.get("status").get("state").stringValue());
+    }
+
+    @Test
+    void legacyMessageSendStillWorksViaAlias() throws Exception {
+        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"message/send\","
+                + "\"params\":{\"message\":{\"messageId\":\"m1\",\"role\":\"user\","
+                + "\"parts\":[{\"type\":\"text\",\"text\":\"hello\"}]},"
+                + "\"arguments\":{\"name\":\"World\"}}}";
+        var response = handler.handleMessage(request);
+        var node = mapper.readTree(response);
+        assertNotNull(node.get("result").get("task"));
+    }
+
+    @Test
+    void getTaskHonorsHistoryLength() throws Exception {
+        var sendReq = sendRequest(1, "SendMessage", "World");
+        var sendResp = handler.handleMessage(sendReq);
+        var taskId = mapper.readTree(sendResp).get("result").get("task")
+                .get("id").stringValue();
+
+        var getReq = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"GetTask\","
+                + "\"params\":{\"id\":\"" + taskId + "\",\"historyLength\":0}}";
+        var node = mapper.readTree(handler.handleMessage(getReq));
+        assertEquals(taskId, node.get("result").get("id").stringValue());
+        assertEquals(0, node.get("result").get("history").size());
+    }
+
+    @Test
+    void listTasksReturnsPaginatedResponse() throws Exception {
+        handler.handleMessage(sendRequest(1, "SendMessage", "Alice"));
+        handler.handleMessage(sendRequest(2, "SendMessage", "Bob"));
+
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"ListTasks\","
+                + "\"params\":{\"pageSize\":10}}";
+        var node = mapper.readTree(handler.handleMessage(req));
+        var result = node.get("result");
+        assertTrue(result.get("tasks").isArray());
+        assertEquals(2, result.get("totalSize").asInt());
+        assertEquals(10, result.get("pageSize").asInt());
+    }
+
+    @Test
+    void listTasksRespectsPageSize() throws Exception {
+        handler.handleMessage(sendRequest(1, "SendMessage", "A"));
+        handler.handleMessage(sendRequest(2, "SendMessage", "B"));
+        handler.handleMessage(sendRequest(3, "SendMessage", "C"));
+
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"ListTasks\","
+                + "\"params\":{\"pageSize\":2}}";
+        var node = mapper.readTree(handler.handleMessage(req));
+        assertEquals(2, node.get("result").get("tasks").size());
+        assertFalse(node.get("result").get("nextPageToken").stringValue().isEmpty());
+    }
+
+    @Test
+    void cancelTaskOnUnknownReturnsTaskNotFoundError() throws Exception {
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"CancelTask\","
+                + "\"params\":{\"id\":\"nosuch\"}}";
+        var node = mapper.readTree(handler.handleMessage(req));
+        assertEquals(A2aProtocolHandler.ERROR_TASK_NOT_FOUND,
+                node.get("error").get("code").asInt());
+    }
+
+    @Test
+    void subscribeToTaskOnTerminalReturnsUnsupportedOperation() throws Exception {
+        var sendResp = handler.handleMessage(sendRequest(1, "SendMessage", "X"));
+        var taskId = mapper.readTree(sendResp).get("result").get("task")
+                .get("id").stringValue();
+        // greet skill completes the task; SubscribeToTask on a terminal task → -32004
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"SubscribeToTask\","
+                + "\"params\":{\"id\":\"" + taskId + "\"}}";
+        var node = mapper.readTree(handler.handleMessage(req));
+        assertEquals(A2aProtocolHandler.ERROR_UNSUPPORTED_OPERATION,
+                node.get("error").get("code").asInt());
+    }
+
+    @Test
+    void getExtendedAgentCardReturnsConfiguredCard() throws Exception {
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"GetExtendedAgentCard\"}";
+        var node = mapper.readTree(handler.handleMessage(req));
         assertEquals("test-agent", node.get("result").get("name").stringValue());
     }
 
     @Test
-    void handleSendMessage() throws Exception {
-        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"message/send\","
-                + "\"params\":{\"message\":{\"role\":\"user\","
-                + "\"parts\":[{\"type\":\"text\",\"text\":\"hello\"}],"
-                + "\"messageId\":\"m1\"},\"arguments\":{\"name\":\"World\"}}}";
-        var response = handler.handleMessage(request);
-        assertNotNull(response);
-        var node = mapper.readTree(response);
-        assertNotNull(node.get("result"));
-        var task = node.get("result");
-        assertNotNull(task.get("id"));
-        assertEquals("COMPLETED", task.get("status").get("state").stringValue());
+    void getExtendedAgentCardWithoutConfigReturnsNotConfiguredError() throws Exception {
+        var registry = new A2aRegistry();
+        registry.scan(new TestAgent());
+        var bare = new A2aProtocolHandler(registry, new TaskManager(),
+                registry.buildAgentCard("a", "b", "1.0", "/a2a"));
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"GetExtendedAgentCard\"}";
+        var node = mapper.readTree(bare.handleMessage(req));
+        assertEquals(A2aProtocolHandler.ERROR_EXTENDED_CARD_NOT_CONFIGURED,
+                node.get("error").get("code").asInt());
     }
 
     @Test
-    void handleGetTask() throws Exception {
-        // First create a task
-        var sendReq = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"message/send\","
-                + "\"params\":{\"message\":{\"role\":\"user\","
-                + "\"parts\":[{\"type\":\"text\",\"text\":\"test\"}],"
-                + "\"messageId\":\"m1\"},\"arguments\":{\"name\":\"World\"}}}";
-        var sendResp = handler.handleMessage(sendReq);
-        var taskId = mapper.readTree(sendResp).get("result").get("id").stringValue();
-
-        // Then get it
-        var getReq = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tasks/get\","
-                + "\"params\":{\"id\":\"" + taskId + "\"}}";
-        var getResp = handler.handleMessage(getReq);
-        var node = mapper.readTree(getResp);
-        assertEquals(taskId, node.get("result").get("id").stringValue());
+    void pushNotificationMethodsReturnNotSupported() throws Exception {
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":1,"
+                + "\"method\":\"CreateTaskPushNotificationConfig\","
+                + "\"params\":{\"taskId\":\"t1\",\"url\":\"https://hook\"}}";
+        var node = mapper.readTree(handler.handleMessage(req));
+        assertEquals(A2aProtocolHandler.ERROR_PUSH_NOT_SUPPORTED,
+                node.get("error").get("code").asInt());
     }
 
     @Test
-    void handleListTasks() throws Exception {
-        var sendReq = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"message/send\","
-                + "\"params\":{\"message\":{\"role\":\"user\","
-                + "\"parts\":[{\"type\":\"text\",\"text\":\"test\"}],"
-                + "\"messageId\":\"m1\"},\"arguments\":{\"name\":\"World\"}}}";
-        handler.handleMessage(sendReq);
-
-        var listReq = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tasks/list\","
-                + "\"params\":{}}";
-        var listResp = handler.handleMessage(listReq);
-        var node = mapper.readTree(listResp);
-        assertTrue(node.get("result").isArray());
-        assertTrue(node.get("result").size() > 0);
-    }
-
-    @Test
-    void handleUnknownMethod() throws Exception {
-        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"unknown/method\"}";
-        var response = handler.handleMessage(request);
-        var node = mapper.readTree(response);
-        assertNotNull(node.get("error"));
+    void unknownMethodReturnsMethodNotFound() throws Exception {
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"UnknownMethod\"}";
+        var node = mapper.readTree(handler.handleMessage(req));
         assertEquals(JsonRpc.METHOD_NOT_FOUND, node.get("error").get("code").asInt());
     }
 
     @Test
-    void handleInvalidJson() throws Exception {
-        var response = handler.handleMessage("{invalid");
-        var node = mapper.readTree(response);
-        assertNotNull(node.get("error"));
+    void invalidJsonReturnsParseError() throws Exception {
+        var node = mapper.readTree(handler.handleMessage("{not json"));
         assertEquals(JsonRpc.PARSE_ERROR, node.get("error").get("code").asInt());
     }
 
     @Test
-    void handleStreamingMessageDispatchesSameAsSend() throws Exception {
-        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"message/stream\","
-                + "\"params\":{\"message\":{\"role\":\"user\","
-                + "\"parts\":[{\"type\":\"text\",\"text\":\"hello\"}],"
-                + "\"messageId\":\"m1\"},\"arguments\":{\"name\":\"World\"}}}";
-        var response = handler.handleMessage(request);
-        assertNotNull(response);
-        var node = mapper.readTree(response);
-        // Should succeed (not METHOD_NOT_FOUND) — same behavior as message/send
-        assertNotNull(node.get("result"));
-        assertEquals("COMPLETED", node.get("result").get("status").get("state").stringValue());
-    }
-
-    @Test
-    void handleStreamingMessageCallbackProducesTokens() {
+    void streamingMessageProducesTokens() {
         var tokens = new ArrayList<String>();
-        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"message/stream\","
-                + "\"params\":{\"message\":{\"role\":\"user\","
-                + "\"parts\":[{\"type\":\"text\",\"text\":\"hello\"}],"
-                + "\"messageId\":\"m1\"},\"arguments\":{\"name\":\"World\"}}}";
-
         var completed = new boolean[]{false};
-        handler.handleStreamingMessage(request, tokens::add, () -> completed[0] = true);
-
-        assertFalse(tokens.isEmpty(), "Should have emitted at least one token");
-        assertTrue(completed[0], "onComplete should have been called");
+        handler.handleStreamingMessage(sendRequest(1, "SendStreamingMessage", "Bob"),
+                tokens::add, () -> completed[0] = true);
+        assertFalse(tokens.isEmpty());
+        assertTrue(completed[0]);
     }
 
     @Test
-    void handleStreamingMessageWithNoParamsCallsComplete() {
-        var tokens = new ArrayList<String>();
-        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"message/stream\"}";
-
-        var completed = new boolean[]{false};
-        handler.handleStreamingMessage(request, tokens::add, () -> completed[0] = true);
-
-        assertTrue(tokens.isEmpty());
-        assertTrue(completed[0], "onComplete must be called even with no params");
+    void streamingMessageWithNoParamsCompletesExactlyOnce() {
+        var count = new int[]{0};
+        handler.handleStreamingMessage(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"SendStreamingMessage\"}",
+                t -> {}, () -> count[0]++);
+        assertEquals(1, count[0]);
     }
 
-    @Test
-    void handleStreamingMessageNoParamsCallsOnCompleteExactlyOnce() {
-        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"message/stream\"}";
-        var completeCount = new int[]{0};
-        handler.handleStreamingMessage(request, t -> {}, () -> completeCount[0]++);
-        assertEquals(1, completeCount[0],
-                "onComplete must be called exactly once, even with no params");
-    }
-
-    @Test
-    void handleStreamingMessageWithNoSkillsProducesNoTokens() {
-        // Build a handler with an empty registry (no skills)
-        var emptyRegistry = new A2aRegistry();
-        var taskManager = new TaskManager();
-        var card = emptyRegistry.buildAgentCard("empty", "Empty", "1.0", "/a2a");
-        var emptyHandler = new A2aProtocolHandler(emptyRegistry, taskManager, card);
-
-        var tokens = new ArrayList<String>();
-        var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"message/stream\","
-                + "\"params\":{\"message\":{\"role\":\"user\","
-                + "\"parts\":[{\"type\":\"text\",\"text\":\"hello\"}],"
-                + "\"messageId\":\"m1\"}}}";
-
-        var completed = new boolean[]{false};
-        emptyHandler.handleStreamingMessage(request, tokens::add, () -> completed[0] = true);
-
-        assertTrue(tokens.isEmpty(), "No skills means no tokens");
-        assertTrue(completed[0], "onComplete must still be called");
+    private String sendRequest(int id, String method, String name) {
+        return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"method\":\"" + method + "\","
+                + "\"params\":{\"message\":{\"messageId\":\"m\",\"role\":\"ROLE_USER\","
+                + "\"parts\":[{\"text\":\"hi\"}]},\"arguments\":{\"name\":\"" + name + "\"}}}";
     }
 }

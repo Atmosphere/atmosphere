@@ -21,16 +21,27 @@ import org.atmosphere.protocol.ProtocolTracing;
 /**
  * Wraps an OpenTelemetry instance to provide pre-configured tracing for the A2A protocol.
  * Delegates to {@link ProtocolTracing} with the {@code atmosphere-a2a} instrumentation scope.
+ * The instrumentation version is resolved from the package's implementation version when
+ * available so it tracks the build automatically.
  */
 public final class A2aTracing {
+
+    private static final String INSTRUMENTATION_VERSION = resolveVersion();
 
     private final ProtocolTracing delegate;
 
     public A2aTracing(OpenTelemetry openTelemetry) {
-        this.delegate = new ProtocolTracing(openTelemetry, "atmosphere-a2a", "4.0.8", "a2a");
+        this.delegate = new ProtocolTracing(openTelemetry, "atmosphere-a2a",
+                INSTRUMENTATION_VERSION, "a2a");
     }
 
     public ProtocolTracing tracing() {
         return delegate;
+    }
+
+    private static String resolveVersion() {
+        var pkg = A2aTracing.class.getPackage();
+        var v = pkg != null ? pkg.getImplementationVersion() : null;
+        return v != null ? v : "unknown";
     }
 }

@@ -16,45 +16,52 @@
 package org.atmosphere.a2a.types;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 import java.util.Map;
 
 /**
- * Immutable description of an A2A agent, published at {@code /.well-known/agent.json}.
- * Contains the agent's identity, supported capabilities, registered skills,
- * security schemes, and default I/O modes.
+ * Public agent descriptor served at {@code /.well-known/agent.json}. Aligned
+ * with A2A v1.0.0: the pre-1.0 single top-level {@code url} string is replaced
+ * by the {@link #supportedInterfaces} list (so an agent can advertise multiple
+ * protocol bindings — e.g. JSON-RPC and HTTP+JSON — at distinct URLs);
+ * {@code provider} is structured as {@link AgentProvider} (was a free string);
+ * {@link #securitySchemes} is typed; and {@link #signatures}, {@link #iconUrl},
+ * and {@link #securityRequirements} are new.
+ *
+ * <p>The pre-1.0 {@code guardrails} top-level list is no longer modeled —
+ * surface guardrails as an {@link AgentExtension} on
+ * {@link AgentCapabilities#extensions()} using
+ * {@link AgentExtension#GUARDRAILS_URI}.</p>
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AgentCard(
     String name,
     String description,
-    String url,
+    List<AgentInterface> supportedInterfaces,
+    AgentProvider provider,
     String version,
-    String provider,
     String documentationUrl,
     AgentCapabilities capabilities,
-    List<Skill> skills,
-    Map<String, Object> securitySchemes,
+    Map<String, SecurityScheme> securitySchemes,
+    List<SecurityRequirement> securityRequirements,
     List<String> defaultInputModes,
     List<String> defaultOutputModes,
-    List<String> guardrails
+    List<AgentSkill> skills,
+    List<AgentCardSignature> signatures,
+    String iconUrl
 ) {
     public AgentCard {
+        supportedInterfaces = supportedInterfaces != null
+                ? List.copyOf(supportedInterfaces) : List.of();
+        securitySchemes = securitySchemes != null ? Map.copyOf(securitySchemes) : null;
+        securityRequirements = securityRequirements != null
+                ? List.copyOf(securityRequirements) : null;
+        defaultInputModes = defaultInputModes != null
+                ? List.copyOf(defaultInputModes) : List.of("text");
+        defaultOutputModes = defaultOutputModes != null
+                ? List.copyOf(defaultOutputModes) : List.of("text");
         skills = skills != null ? List.copyOf(skills) : List.of();
-        securitySchemes = securitySchemes != null ? Map.copyOf(securitySchemes) : Map.of();
-        defaultInputModes = defaultInputModes != null ? List.copyOf(defaultInputModes) : List.of("text");
-        defaultOutputModes = defaultOutputModes != null ? List.copyOf(defaultOutputModes) : List.of("text");
-        guardrails = guardrails != null ? List.copyOf(guardrails) : null;
-    }
-
-    /** Declares the transport-level capabilities supported by the agent. */
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record AgentCapabilities(
-        boolean streaming,
-        @JsonProperty("pushNotifications") boolean pushNotifications,
-        @JsonProperty("stateTransitionHistory") boolean stateTransitionHistory
-    ) {
+        signatures = signatures != null ? List.copyOf(signatures) : null;
     }
 }

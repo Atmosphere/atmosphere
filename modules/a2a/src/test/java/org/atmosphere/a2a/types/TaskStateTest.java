@@ -15,92 +15,69 @@
  */
 package org.atmosphere.a2a.types;
 
-import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Tests for the {@link TaskState} enum values and JSON serialization.
- */
+/** Verifies v1.0.0 {@link TaskState} wire-form encoding and lifecycle helpers. */
 class TaskStateTest {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
-    void hasExpectedNumberOfValues() {
-        assertEquals(7, TaskState.values().length);
+    void v1AddedSubmittedState() {
+        assertEquals("TASK_STATE_SUBMITTED", TaskState.SUBMITTED.wire());
     }
 
     @Test
-    void workingState() {
-        assertEquals("WORKING", TaskState.WORKING.name());
-        assertEquals(0, TaskState.WORKING.ordinal());
+    void wireFormFollowsProtoJson() {
+        assertEquals("TASK_STATE_WORKING", TaskState.WORKING.wire());
+        assertEquals("TASK_STATE_COMPLETED", TaskState.COMPLETED.wire());
+        assertEquals("TASK_STATE_AUTH_REQUIRED", TaskState.AUTH_REQUIRED.wire());
     }
 
     @Test
-    void completedState() {
-        assertEquals("COMPLETED", TaskState.COMPLETED.name());
-        assertEquals(1, TaskState.COMPLETED.ordinal());
-    }
-
-    @Test
-    void failedState() {
-        assertEquals("FAILED", TaskState.FAILED.name());
-        assertEquals(2, TaskState.FAILED.ordinal());
-    }
-
-    @Test
-    void canceledState() {
-        assertEquals("CANCELED", TaskState.CANCELED.name());
-        assertEquals(3, TaskState.CANCELED.ordinal());
-    }
-
-    @Test
-    void rejectedState() {
-        assertEquals("REJECTED", TaskState.REJECTED.name());
-        assertEquals(4, TaskState.REJECTED.ordinal());
-    }
-
-    @Test
-    void inputRequiredState() {
-        assertEquals("INPUT_REQUIRED", TaskState.INPUT_REQUIRED.name());
-        assertEquals(5, TaskState.INPUT_REQUIRED.ordinal());
-    }
-
-    @Test
-    void authRequiredState() {
-        assertEquals("AUTH_REQUIRED", TaskState.AUTH_REQUIRED.name());
-        assertEquals(6, TaskState.AUTH_REQUIRED.ordinal());
-    }
-
-    @Test
-    void valueOfRoundTrips() {
-        for (var state : TaskState.values()) {
-            assertEquals(state, TaskState.valueOf(state.name()));
-        }
-    }
-
-    @Test
-    void valueOfInvalidThrows() {
-        assertThrows(IllegalArgumentException.class, () -> TaskState.valueOf("UNKNOWN"));
-    }
-
-    @Test
-    void jsonSerializationRoundTrip() throws Exception {
-        for (var state : TaskState.values()) {
-            var json = mapper.writeValueAsString(state);
-            assertNotNull(json);
-            var deserialized = mapper.readValue(json, TaskState.class);
-            assertEquals(state, deserialized);
-        }
-    }
-
-    @Test
-    void jsonSerializesAsString() throws Exception {
+    void serializationUsesProtoJsonName() throws Exception {
         var json = mapper.writeValueAsString(TaskState.WORKING);
-        assertEquals("\"WORKING\"", json);
+        assertEquals("\"TASK_STATE_WORKING\"", json);
+    }
+
+    @Test
+    void deserializationAcceptsProtoJsonName() throws Exception {
+        assertEquals(TaskState.WORKING,
+                mapper.readValue("\"TASK_STATE_WORKING\"", TaskState.class));
+    }
+
+    @Test
+    void deserializationAcceptsLegacyShortName() throws Exception {
+        assertEquals(TaskState.WORKING, mapper.readValue("\"WORKING\"", TaskState.class));
+        assertEquals(TaskState.WORKING, mapper.readValue("\"working\"", TaskState.class));
+    }
+
+    @Test
+    void unknownStateRejected() {
+        assertThrows(Exception.class,
+                () -> mapper.readValue("\"TASK_STATE_NONESUCH\"", TaskState.class));
+    }
+
+    @Test
+    void terminalStates() {
+        assertTrue(TaskState.COMPLETED.isTerminal());
+        assertTrue(TaskState.FAILED.isTerminal());
+        assertTrue(TaskState.CANCELED.isTerminal());
+        assertTrue(TaskState.REJECTED.isTerminal());
+        assertFalse(TaskState.WORKING.isTerminal());
+        assertFalse(TaskState.SUBMITTED.isTerminal());
+    }
+
+    @Test
+    void interruptedStates() {
+        assertTrue(TaskState.INPUT_REQUIRED.isInterrupted());
+        assertTrue(TaskState.AUTH_REQUIRED.isInterrupted());
+        assertFalse(TaskState.WORKING.isInterrupted());
     }
 }

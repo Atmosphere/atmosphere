@@ -178,8 +178,12 @@ class WellKnownAgentFilterTest {
 
         for (var name : agentNames) {
             var card = new AgentCard(name, "Test " + name,
-                    "http://localhost/" + name, "1.0",
-                    null, null, null, List.of(), null, null, null, null);
+                    List.of(new org.atmosphere.a2a.types.AgentInterface(
+                            "http://localhost/" + name,
+                            org.atmosphere.a2a.types.AgentInterface.JSONRPC, "1.0")),
+                    null, "1.0", null,
+                    new org.atmosphere.a2a.types.AgentCapabilities(true, false, null, false),
+                    null, null, null, null, List.of(), null, null);
             var protocolHandler = new A2aProtocolHandler(
                     mock(A2aRegistry.class), mock(TaskManager.class), card);
             var handler = new A2aHandler(protocolHandler);

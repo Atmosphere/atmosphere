@@ -16,35 +16,40 @@
 package org.atmosphere.a2a.types;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * Immutable representation of an A2A artifact — a reusable output produced by a skill,
- * consisting of one or more {@link Part} instances and optional metadata.
+ * Reusable output produced by a skill. v1.0.0 added the {@code extensions}
+ * URI list; the rest of the shape is unchanged from the pre-1.0 record.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record Artifact(
-    @JsonProperty("artifactId") String artifactId,
+    String artifactId,
     String name,
     String description,
     List<Part> parts,
-    Map<String, Object> metadata
+    Map<String, Object> metadata,
+    List<String> extensions
 ) {
     public Artifact {
         parts = parts != null ? List.copyOf(parts) : List.of();
-        metadata = metadata != null ? Map.copyOf(metadata) : Map.of();
+        metadata = metadata != null ? Map.copyOf(metadata) : null;
+        extensions = extensions != null ? List.copyOf(extensions) : null;
+    }
+
+    public Artifact(String artifactId, String name, String description, List<Part> parts) {
+        this(artifactId, name, description, parts, null, null);
     }
 
     public static Artifact text(String text) {
         return new Artifact(UUID.randomUUID().toString(), null, null,
-                List.of(new Part.TextPart(text)), Map.of());
+                List.of(Part.text(text)), null, null);
     }
 
     public static Artifact named(String name, String description, List<Part> parts) {
-        return new Artifact(UUID.randomUUID().toString(), name, description, parts, Map.of());
+        return new Artifact(UUID.randomUUID().toString(), name, description, parts, null, null);
     }
 }

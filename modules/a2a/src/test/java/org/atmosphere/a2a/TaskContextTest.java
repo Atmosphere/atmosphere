@@ -15,28 +15,28 @@
  */
 package org.atmosphere.a2a;
 
+import org.atmosphere.a2a.runtime.TaskContext;
 import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.a2a.types.Message;
-import org.atmosphere.a2a.types.Task;
 import org.atmosphere.a2a.types.TaskState;
-import org.atmosphere.a2a.runtime.TaskContext;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TaskContextTest {
 
     @Test
-    void initialStateIsWorking() {
+    void initialStateIsSubmittedPerV1Spec() {
         var ctx = new TaskContext("t1", "ctx1");
-        assertEquals(TaskState.WORKING, ctx.state());
+        assertEquals(TaskState.SUBMITTED, ctx.state());
     }
 
     @Test
-    void taskIdAndContextIdAreRetained() {
+    void taskAndContextIdsRetained() {
         var ctx = new TaskContext("task-42", "context-7");
         assertEquals("task-42", ctx.taskId());
         assertEquals("context-7", ctx.contextId());
@@ -49,93 +49,104 @@ class TaskContextTest {
     }
 
     @Test
-    void addMessageAccumulatesMessages() {
+    void addMessageAccumulates() {
         var ctx = new TaskContext("t1", "c1");
-        assertTrue(ctx.messages().isEmpty());
-
         var msg = Message.agent("hello");
         ctx.addMessage(msg);
         assertEquals(1, ctx.messages().size());
-        assertEquals(msg, ctx.messages().get(0));
     }
 
     @Test
-    void updateStatusChangesStateAndMessage() {
+    void updateStatusFlipsState() {
         var ctx = new TaskContext("t1", "c1");
-        ctx.updateStatus(TaskState.INPUT_REQUIRED, "need more info");
-        assertEquals(TaskState.INPUT_REQUIRED, ctx.state());
-        assertEquals("need more info", ctx.statusMessage());
+        ctx.updateStatus(TaskState.WORKING, "go");
+        assertEquals(TaskState.WORKING, ctx.state());
+        assertEquals("go", ctx.statusMessage());
     }
 
     @Test
-    void completeSetsFinalState() {
+    void completeIsTerminal() {
         var ctx = new TaskContext("t1", "c1");
         ctx.complete("done");
+        assertTrue(ctx.state().isTerminal());
         assertEquals(TaskState.COMPLETED, ctx.state());
-        assertEquals("done", ctx.statusMessage());
     }
 
     @Test
-    void failSetsFinalState() {
+    void failIsTerminal() {
         var ctx = new TaskContext("t1", "c1");
-        ctx.fail("error occurred");
+        ctx.fail("nope");
         assertEquals(TaskState.FAILED, ctx.state());
-        assertEquals("error occurred", ctx.statusMessage());
+        assertEquals("nope", ctx.statusMessage());
     }
 
     @Test
-    void cancelSetsFinalState() {
+    void cancelIsTerminal() {
         var ctx = new TaskContext("t1", "c1");
-        ctx.cancel("user cancelled");
+        ctx.cancel("user");
         assertEquals(TaskState.CANCELED, ctx.state());
-        assertEquals("user cancelled", ctx.statusMessage());
     }
 
     @Test
     void addArtifactAccumulates() {
         var ctx = new TaskContext("t1", "c1");
-        assertTrue(ctx.artifacts().isEmpty());
-
-        var artifact = Artifact.text("result");
-        ctx.addArtifact(artifact);
+        ctx.addArtifact(Artifact.text("result"));
         assertEquals(1, ctx.artifacts().size());
     }
 
     @Test
-    void toTaskCreatesSnapshot() {
+    void toTaskUsesV1Schema() {
         var ctx = new TaskContext("t1", "c1");
         ctx.addMessage(Message.user("hi"));
         ctx.updateStatus(TaskState.WORKING, "processing");
 
-        Task task = ctx.toTask();
+        var task = ctx.toTask();
         assertEquals("t1", task.id());
         assertEquals("c1", task.contextId());
         assertEquals(TaskState.WORKING, task.status().state());
-        assertEquals("processing", task.status().message());
-        assertEquals(1, task.messages().size());
+        assertNotNull(task.status().timestamp());
+        assertEquals("processing", task.status().message().parts().getFirst().text());
+        assertEquals(1, task.history().size());
     }
 
     @Test
-    void metadataIsInitiallyEmpty() {
+    void toTaskWithHistoryLengthClampsHistory() {
         var ctx = new TaskContext("t1", "c1");
-        assertTrue(ctx.metadata().isEmpty());
+        ctx.addMessage(Message.user("first"));
+        ctx.addMessage(Message.user("second"));
+        ctx.addMessage(Message.user("third"));
+
+        var task = ctx.toTask(2);
+        assertEquals(2, task.history().size());
+        assertEquals("second", task.history().get(0).parts().getFirst().text());
+        assertEquals("third", task.history().get(1).parts().getFirst().text());
     }
 
     @Test
-    void messagesListIsUnmodifiable() {
+    void toTaskWithZeroHistoryReturnsEmpty() {
+        var ctx = new TaskContext("t1", "c1");
+        ctx.addMessage(Message.user("first"));
+        var task = ctx.toTask(0);
+        assertEquals(0, task.history().size());
+    }
+
+    @Test
+    void messagesListIsImmutable() {
         var ctx = new TaskContext("t1", "c1");
         var messages = ctx.messages();
-        try {
-            messages.add(Message.agent("test"));
-            assertFalse(true, "Expected UnsupportedOperationException");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThrows(UnsupportedOperationException.class,
+                () -> messages.add(Message.agent("test")));
     }
 
     @Test
     void statusMessageInitiallyNull() {
         var ctx = new TaskContext("t1", "c1");
         assertNull(ctx.statusMessage());
+    }
+
+    @Test
+    void metadataInitiallyEmpty() {
+        var ctx = new TaskContext("t1", "c1");
+        assertTrue(ctx.metadata().isEmpty());
     }
 }

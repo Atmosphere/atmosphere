@@ -7,6 +7,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — A2A v1.0.0 alignment (wire-breaking)
+
+- **`atmosphere-a2a` retracked to A2A v1.0.0** (`a2aproject/A2A@v1.0.0`,
+  released 2026-03-12). The pre-1.0 wire surface was the slash-style
+  method names (`message/send`, `tasks/get`, …) and a polymorphic
+  `Part` envelope; both are gone in v1.0.0.
+- **JSON-RPC method names switched to PascalCase** per spec §9.4 —
+  `SendMessage`, `SendStreamingMessage`, `GetTask`, `ListTasks`,
+  `CancelTask`, `SubscribeToTask`, the four
+  `{Create,Get,List,Delete}TaskPushNotificationConfig` operations, and
+  `GetExtendedAgentCard`. The pre-1.0 slash names and the old
+  `tasks/pushNotification/*` path are aliased to their v1.0.0
+  equivalents at handler entry, with a one-time WARN per legacy method
+  seen — existing Atmosphere clients keep working through the
+  transition.
+- **HTTP+JSON / REST binding added** — colon-verb endpoints
+  (`POST /tasks/{id}:cancel`, `POST /tasks/{id}:subscribe`,
+  `POST /message:send` / `:stream`), `pushNotificationConfigs` CRUD
+  URLs, and `GET /extendedAgentCard` are recognized by `A2aHandler`.
+  REST requests are translated to JSON-RPC envelopes and dispatched
+  through the same handler so the two bindings agree by construction
+  (Mode Parity invariant #7).
+- **Type schema rewrite under `org.atmosphere.a2a.types`**:
+  - `Part` collapses three legacy subtypes (`TextPart` / `FilePart` /
+    `DataPart`) into a single record carrying a `text | raw | url |
+    data` oneof plus shared `metadata`, `filename`, `mediaType`. The
+    deserializer continues to accept the pre-1.0
+    `{"type":"text",…}` / `{"kind":"text",…}` envelopes for
+    migration.
+  - `Message.role` is now the `Role` enum (`ROLE_USER` /
+    `ROLE_AGENT` per ADR-001 ProtoJSON). Lower-case legacy forms
+    parse for back-compat.
+  - `TaskState` adds `SUBMITTED` (the v1.0.0 ack-before-work state)
+    and emits its proto-JSON name on the wire
+    (`TASK_STATE_WORKING`, …).
+  - `Task.messages` is renamed to `Task.history`; `TaskStatus` is
+    promoted to a top-level type and carries a `timestamp`; both
+    update events (`TaskStatusUpdateEvent`,
+    `TaskArtifactUpdateEvent`) gain `contextId` and `metadata` and
+    drop the redundant `final` flag.
+  - `AgentCard` gains `supportedInterfaces` (so an agent can
+    advertise JSON-RPC + HTTP+JSON at distinct URLs), structured
+    `AgentProvider`, `AgentCardSignature`, `iconUrl`, structured
+    `SecurityScheme`/`SecurityRequirement`, and `extendedAgentCard`
+    moves into `AgentCapabilities` (was
+    `supportsAuthenticatedExtendedCard`). The pre-1.0 top-level
+    `guardrails` field is no longer modeled — guardrails surface as
+    an `AgentExtension` on `AgentCapabilities.extensions` under
+    `https://atmosphere.async-io.org/extensions/guardrails/v1`.
+  - New types added for the missing v1.0.0 surface:
+    `AgentInterface`, `AgentExtension`, `AgentSkill` (replaces
+    `Skill`), `SecurityRequirement`, `SecurityScheme` +
+    `APIKey`/`HTTPAuth`/`OAuth2`/`OpenIdConnect`/`MutualTls`,
+    `OAuthFlows` + the three non-deprecated flow shapes,
+    `AuthenticationInfo`, `TaskPushNotificationConfig`, and the
+    response wrappers `SendMessageResponse`, `StreamResponse`,
+    `ListTasksResponse`, `ListTaskPushNotificationConfigsResponse`.
+- **Pagination + history honored**: `GetTask` reads
+  `historyLength`; `ListTasks` reads `pageSize` (clamped 1..100,
+  default 50), `pageToken`, optional `status` filter; the response
+  is the v1.0.0 `ListTasksResponse` with `nextPageToken`,
+  `pageSize`, `totalSize`. `SubscribeToTask` returns `-32004`
+  `UnsupportedOperationError` on a terminal task.
+- **Push-notification methods**: handlers route the four CRUD names
+  but return `-32003` `PushNotificationNotSupportedError` —
+  `AgentCapabilities.pushNotifications` is advertised as `false`
+  (Runtime Truth invariant #5; deliveries are not yet wired so the
+  capability flag stays honest).
+- **SSE chunks** emitted by `A2aHandler.handleSseStreaming` are now
+  spec-compliant `StreamResponse` envelopes carrying an
+  `artifactUpdate` oneof variant (was a custom
+  `{"artifact":{…}}` shape pre-1.0).
+- Coordinator `A2aAgentTransport` updated to send/receive
+  `SendMessage`/`SendMessageResponse` and to accept both the v1.0.0
+  and pre-1.0 task-status shapes when classifying failure replies.
+- `modules/agent` `AgentProcessor` updated to construct the v1.0.0
+  `AgentCard` and surface guardrails via the extension URI above.
+  Spring Boot `WellKnownAgentFilterTest` fixture rewritten for the
+  new card constructor.
+
 ## [4.0.40] - 2026-04-24
 
 ### Added — Tool-call admission, per-request scope, audit sinks

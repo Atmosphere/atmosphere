@@ -19,6 +19,7 @@ import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.a2a.types.Message;
 import org.atmosphere.a2a.types.Task;
 import org.atmosphere.a2a.types.TaskState;
+import org.atmosphere.a2a.types.TaskStatus;
 
 import java.util.Collections;
 import java.util.List;
@@ -28,16 +29,16 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Mutable, thread-safe representation of an in-flight A2A task. Accumulates messages
- * and artifacts, tracks the current {@link TaskState}, and notifies the owning
- * {@link TaskManager} on status and artifact changes.
+ * Mutable, thread-safe in-flight A2A task. The initial state is
+ * {@link TaskState#SUBMITTED} (added in v1.0.0); skill execution flips it
+ * to {@link TaskState#WORKING} via the first {@link #updateStatus} call.
  */
 public final class TaskContext {
 
     private final String taskId;
     private final String contextId;
     private final long createdAtMillis = System.currentTimeMillis();
-    private volatile TaskState state = TaskState.WORKING;
+    private volatile TaskState state = TaskState.SUBMITTED;
     private volatile String statusMessage;
     private final List<Message> messages = new CopyOnWriteArrayList<>();
     private final List<Artifact> artifacts = new CopyOnWriteArrayList<>();
@@ -122,8 +123,25 @@ public final class TaskContext {
         updateStatus(TaskState.CANCELED, message);
     }
 
+    /** Snapshot the task as the v1.0.0 wire {@link Task} record. */
     public Task toTask() {
-        return new Task(taskId, contextId, new Task.TaskStatus(state, statusMessage),
-                messages, artifacts, metadata);
+        return new Task(taskId, contextId, TaskStatus.of(state, statusMessage),
+                artifacts, messages, metadata);
+    }
+
+    /** Snapshot with a clamped history length. {@code historyLength=null} means no limit. */
+    public Task toTask(Integer historyLength) {
+        if (historyLength == null) {
+            return toTask();
+        }
+        if (historyLength <= 0) {
+            return new Task(taskId, contextId, TaskStatus.of(state, statusMessage),
+                    artifacts, List.of(), metadata);
+        }
+        var size = messages.size();
+        var fromIndex = Math.max(0, size - historyLength);
+        var trimmed = messages.subList(fromIndex, size);
+        return new Task(taskId, contextId, TaskStatus.of(state, statusMessage),
+                artifacts, List.copyOf(trimmed), metadata);
     }
 }

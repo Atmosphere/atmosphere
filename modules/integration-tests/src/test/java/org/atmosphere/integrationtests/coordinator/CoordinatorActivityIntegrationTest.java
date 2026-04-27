@@ -117,11 +117,11 @@ public class CoordinatorActivityIntegrationTest {
     @Timeout(value = 30_000, unit = TimeUnit.MILLISECONDS)
     @Test
     public void testActivityCoordinatorRespondsToA2a() throws Exception {
-        // Test that the activity-coordinator also responds via A2A JSON-RPC
+        // Test that the activity-coordinator also responds via A2A JSON-RPC v1.0.0
         var rpcRequest = """
-                {"jsonrpc":"2.0","id":1,"method":"message/send",
-                 "params":{"message":{"role":"user",
-                   "parts":[{"type":"text","text":"machine learning"}],
+                {"jsonrpc":"2.0","id":1,"method":"SendMessage",
+                 "params":{"message":{"messageId":"m1","role":"ROLE_USER",
+                   "parts":[{"text":"machine learning"}],
                    "metadata":{"skillId":"chat"}},
                   "arguments":{"message":"machine learning"}}}""";
 

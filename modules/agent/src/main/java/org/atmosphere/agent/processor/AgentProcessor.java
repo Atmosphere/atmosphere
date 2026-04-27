@@ -482,15 +482,29 @@ public class AgentProcessor implements Processor<Object> {
         try {
             var skills = buildSkills(skillFile, commandRegistry);
             var guardrails = skillFile.listItems("Guardrails");
+            var a2aEndpoint = annotation.endpoint().isEmpty()
+                    ? basePath + "/a2a" : annotation.endpoint();
+            java.util.List<org.atmosphere.a2a.types.AgentExtension> extensions = null;
+            if (!guardrails.isEmpty()) {
+                extensions = java.util.List.of(new org.atmosphere.a2a.types.AgentExtension(
+                        org.atmosphere.a2a.types.AgentExtension.GUARDRAILS_URI,
+                        "Atmosphere agent guardrails", false,
+                        java.util.Map.of("guardrails", guardrails)));
+            }
+            var capabilities = new org.atmosphere.a2a.types.AgentCapabilities(
+                    true, false, extensions, true);
             var card = new org.atmosphere.a2a.types.AgentCard(
                     annotation.name(),
                     annotation.description().isEmpty() ? skillFile.title() : annotation.description(),
-                    annotation.endpoint().isEmpty() ? basePath + "/a2a" : annotation.endpoint(),
+                    java.util.List.of(new org.atmosphere.a2a.types.AgentInterface(
+                            a2aEndpoint, org.atmosphere.a2a.types.AgentInterface.JSONRPC, "1.0")),
+                    null,
                     annotation.version().isEmpty() ? AGENT_VERSION : annotation.version(),
-                    null, null,
-                    new org.atmosphere.a2a.types.AgentCard.AgentCapabilities(true, false, false),
-                    skills, null, null, null,
-                    guardrails.isEmpty() ? null : guardrails);
+                    null,
+                    capabilities,
+                    null, null, null, null,
+                    skills,
+                    null, null);
 
             var registry = new org.atmosphere.a2a.registry.A2aRegistry();
 
@@ -533,23 +547,23 @@ public class AgentProcessor implements Processor<Object> {
         }
     }
 
-    private List<org.atmosphere.a2a.types.Skill> buildSkills(
+    private List<org.atmosphere.a2a.types.AgentSkill> buildSkills(
             SkillFileParser skillFile, CommandRegistry commandRegistry) {
-        var skills = new java.util.ArrayList<org.atmosphere.a2a.types.Skill>();
+        var skills = new java.util.ArrayList<org.atmosphere.a2a.types.AgentSkill>();
 
         // Skills from skill.md
         for (var item : skillFile.listItems("Skills")) {
-            skills.add(new org.atmosphere.a2a.types.Skill(
-                    slugify(item), item, item, List.of(), null, null));
+            skills.add(new org.atmosphere.a2a.types.AgentSkill(
+                    slugify(item), item, item, List.of()));
         }
 
         // Commands as skills
         for (var cmd : commandRegistry.allCommands()) {
-            skills.add(new org.atmosphere.a2a.types.Skill(
+            skills.add(new org.atmosphere.a2a.types.AgentSkill(
                     "command" + cmd.prefix().replace("/", "_"),
                     cmd.prefix(),
                     cmd.description().isEmpty() ? "Execute " + cmd.prefix() : cmd.description(),
-                    List.of("command"), null, null));
+                    List.of("command")));
         }
 
         return List.copyOf(skills);

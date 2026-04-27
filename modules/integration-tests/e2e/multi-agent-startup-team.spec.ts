@@ -65,6 +65,29 @@ async function a2aRequest(
   return (await res.json()) as Record<string, unknown>;
 }
 
+/** Build a v1.0.0 SendMessage params object. */
+function sendMessageParams(
+  skillId: string,
+  text: string,
+  extraArgs: Record<string, unknown> = {},
+) {
+  return {
+    message: {
+      messageId: `msg-${Date.now()}`,
+      role: 'ROLE_USER',
+      parts: [{ text }],
+      metadata: { skillId },
+    },
+    arguments: extraArgs,
+  };
+}
+
+/** Unwrap the v1.0.0 SendMessageResponse oneof: result.task | result.message. */
+function taskOf(body: Record<string, unknown>): Record<string, unknown> {
+  const result = body.result as Record<string, unknown>;
+  return (result.task as Record<string, unknown>) ?? result;
+}
+
 /**
  * Poll server.getOutput() until every substring appears, or throw after timeout.
  * Resolves the race where readyPath returns 200 (endpoint wired) before a
@@ -125,7 +148,7 @@ test.describe('Multi-Agent Startup Team', () => {
 
   test('research agent discoverable via Agent Card', async () => {
     const body = await a2aRequest(server.baseUrl, '/atmosphere/a2a/research',
-      'agent/authenticatedExtendedCard');
+      'GetExtendedAgentCard');
     const result = body.result as Record<string, unknown>;
     expect(result).toBeDefined();
     expect(result.name).toBe('research-agent');
@@ -136,7 +159,7 @@ test.describe('Multi-Agent Startup Team', () => {
 
   test('finance agent discoverable via Agent Card', async () => {
     const body = await a2aRequest(server.baseUrl, '/atmosphere/a2a/finance',
-      'agent/authenticatedExtendedCard');
+      'GetExtendedAgentCard');
     const result = body.result as Record<string, unknown>;
     expect(result).toBeDefined();
     expect(result.name).toBe('finance-agent');
@@ -146,31 +169,25 @@ test.describe('Multi-Agent Startup Team', () => {
 
   test('research agent executes web_search skill via A2A', async () => {
     const body = await a2aRequest(server.baseUrl, '/atmosphere/a2a/research',
-      'message/send', {
-        message: { role: 'user', parts: [{ type: 'text', text: 'test' }],
-          metadata: { skillId: 'web_search' } },
-        arguments: { query: 'AI developer tools', num_results: '2' },
-      });
-    const result = body.result as Record<string, unknown>;
-    expect(result).toBeDefined();
-    const status = result.status as { state: string };
-    expect(status.state).toBe('COMPLETED');
-    const artifacts = result.artifacts as { parts: { text: string }[] }[];
+      'SendMessage', sendMessageParams('web_search', 'test',
+        { query: 'AI developer tools', num_results: '2' }));
+    const task = taskOf(body);
+    expect(task).toBeDefined();
+    const status = task.status as { state: string };
+    expect(status.state).toBe('TASK_STATE_COMPLETED');
+    const artifacts = task.artifacts as { parts: { text: string }[] }[];
     expect(artifacts.length).toBeGreaterThan(0);
     expect(artifacts[0].parts[0].text).toContain('search results');
   });
 
   test('strategy agent executes analyze_strategy skill via A2A', async () => {
     const body = await a2aRequest(server.baseUrl, '/atmosphere/a2a/strategy',
-      'message/send', {
-        message: { role: 'user', parts: [{ type: 'text', text: 'test' }],
-          metadata: { skillId: 'analyze_strategy' } },
-        arguments: { market: 'AI tools', research_findings: 'Growing market',
-          focus_area: 'entry' },
-      });
-    const result = body.result as Record<string, unknown>;
-    const status = result.status as { state: string };
-    expect(status.state).toBe('COMPLETED');
+      'SendMessage', sendMessageParams('analyze_strategy', 'test',
+        { market: 'AI tools', research_findings: 'Growing market',
+          focus_area: 'entry' }));
+    const task = taskOf(body);
+    const status = task.status as { state: string };
+    expect(status.state).toBe('TASK_STATE_COMPLETED');
   });
 
   // ── Streaming response ──
@@ -225,15 +242,13 @@ test.describe('Multi-Agent Startup Team', () => {
   test('individual agent failure doesn\'t crash coordinator', async () => {
     // Send a request to the research agent with an invalid skill ID
     const body = await a2aRequest(server.baseUrl, '/atmosphere/a2a/research',
-      'message/send', {
-        message: { role: 'user', parts: [{ type: 'text', text: 'test' }],
-          metadata: { skillId: 'nonexistent_skill_xyz' } },
-        arguments: {},
-      });
+      'SendMessage', sendMessageParams('nonexistent_skill_xyz', 'test'));
     // The agent should return an error or handle gracefully (not crash)
     // It may return an error in the result or a JSON-RPC error
+    const result = body.result as Record<string, unknown> | undefined;
+    const task = result ? taskOf(body) : undefined;
     const hasError = body.error !== undefined ||
-      (body.result as Record<string, unknown>)?.status !== undefined;
+      (task?.status !== undefined);
     expect(hasError).toBe(true);
 
     // Verify the CEO agent still responds after the failed request

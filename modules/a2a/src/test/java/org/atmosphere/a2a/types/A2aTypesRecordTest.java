@@ -18,162 +18,97 @@ package org.atmosphere.a2a.types;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/** Smoke coverage of the v1.0.0 type surface — defensive copies, factories, immutability. */
 class A2aTypesRecordTest {
 
     @Test
-    void skillNullCollectionsDefaultToEmpty() {
-        var skill = new Skill("s1", "Search", "desc", null, null, null);
-        assertNotNull(skill.tags());
-        assertTrue(skill.tags().isEmpty());
-        assertTrue(skill.inputSchema().isEmpty());
-        assertTrue(skill.outputSchema().isEmpty());
-    }
-
-    @Test
-    void skillDefensivelyCopiesCollections() {
-        var tags = new ArrayList<>(List.of("search"));
-        var skill = new Skill("s1", "Search", "desc", tags, null, null);
-        tags.add("modified");
+    void agentSkillBasicCtor() {
+        var skill = new AgentSkill("s1", "Search", "desc", List.of("tag"));
+        assertEquals("s1", skill.id());
         assertEquals(1, skill.tags().size());
+        assertNull(skill.examples());
     }
 
     @Test
-    void skillImmutableCollections() {
-        var skill = new Skill("s1", "Name", "desc", List.of("a"), Map.of(), Map.of());
-        assertThrows(UnsupportedOperationException.class, () -> skill.tags().add("b"));
+    void agentSkillDefensiveTagsCopy() {
+        var src = new ArrayList<>(List.of("a", "b"));
+        var skill = new AgentSkill("s1", "Search", "desc", src);
+        src.clear();
+        assertEquals(2, skill.tags().size());
     }
 
     @Test
-    void skillRecordAccessors() {
-        var skill = new Skill("id1", "MySkill", "A skill", List.of("tag1"), Map.of("type", "string"), Map.of());
-        assertEquals("id1", skill.id());
-        assertEquals("MySkill", skill.name());
-        assertEquals("A skill", skill.description());
-        assertEquals(List.of("tag1"), skill.tags());
+    void agentSkillNullTagsBecomesEmpty() {
+        var skill = new AgentSkill("s1", "X", "Y", null);
+        assertEquals(0, skill.tags().size());
     }
 
     @Test
-    void taskNullCollectionsDefaultToEmpty() {
-        var task = new Task("t1", "ctx1", new Task.TaskStatus(TaskState.WORKING, null),
-                null, null, null);
-        assertTrue(task.messages().isEmpty());
-        assertTrue(task.artifacts().isEmpty());
-        assertTrue(task.metadata().isEmpty());
+    void taskStatusOfStoresState() {
+        var s = TaskStatus.of(TaskState.WORKING, "go");
+        assertEquals(TaskState.WORKING, s.state());
+        assertNotNull(s.timestamp());
     }
 
     @Test
-    void taskDefensivelyCopiesMessages() {
-        var msgs = new ArrayList<>(List.of(Message.user("hello")));
-        var task = new Task("t1", "ctx1", new Task.TaskStatus(TaskState.COMPLETED, "done"),
-                msgs, null, null);
-        msgs.add(Message.agent("world"));
-        assertEquals(1, task.messages().size());
+    void taskStatusMessageNullable() {
+        var s = TaskStatus.of(TaskState.COMPLETED);
+        assertNull(s.message());
     }
 
     @Test
-    void taskStatusHoldsStateAndMessage() {
-        var status = new Task.TaskStatus(TaskState.FAILED, "error occurred");
-        assertEquals(TaskState.FAILED, status.state());
-        assertEquals("error occurred", status.message());
+    void taskRecordHistoryDefensiveCopy() {
+        var history = new ArrayList<>(List.of(Message.user("hi")));
+        var task = new Task("t1", "ctx1", TaskStatus.of(TaskState.WORKING),
+                List.of(), history, null);
+        history.clear();
+        assertEquals(1, task.history().size());
     }
 
     @Test
-    void taskRecordAccessors() {
-        var task = new Task("t1", "ctx1", new Task.TaskStatus(TaskState.INPUT_REQUIRED, null),
-                List.of(), List.of(), Map.of("key", "val"));
-        assertEquals("t1", task.id());
-        assertEquals("ctx1", task.contextId());
-        assertEquals(TaskState.INPUT_REQUIRED, task.status().state());
-        assertNull(task.status().message());
-    }
-
-    @Test
-    void agentCardDefaultInputOutputModes() {
-        var card = new AgentCard("agent", "desc", "http://localhost", "1.0",
-                null, null, null, null, null, null, null, null);
+    void agentCardDefaultModesFallback() {
+        var card = new AgentCard(
+                "x", "y", List.of(),
+                null, "1.0", null,
+                new AgentCapabilities(true, false, null, false),
+                null, null, null, null, List.of(), null, null);
         assertEquals(List.of("text"), card.defaultInputModes());
         assertEquals(List.of("text"), card.defaultOutputModes());
     }
 
     @Test
-    void agentCardDefensivelyCopiesSkills() {
-        var skills = new ArrayList<>(List.of(
-                new Skill("s1", "Skill1", "desc", null, null, null)));
-        var card = new AgentCard("agent", "desc", "http://localhost", "1.0",
-                null, null, null, skills, null, null, null, null);
-        skills.add(new Skill("s2", "Skill2", "desc", null, null, null));
-        assertEquals(1, card.skills().size());
+    void agentCardSkillsImmutable() {
+        var card = new AgentCard(
+                "x", "y", List.of(),
+                null, "1.0", null,
+                new AgentCapabilities(true, false, null, false),
+                null, null, null, null,
+                List.of(new AgentSkill("s1", "S", "d", null)),
+                null, null);
+        assertThrows(UnsupportedOperationException.class,
+                () -> card.skills().add(new AgentSkill("s2", "S", "d", null)));
     }
 
     @Test
-    void agentCardCapabilities() {
-        var caps = new AgentCard.AgentCapabilities(true, false, true);
-        assertTrue(caps.streaming());
-        assertFalse(caps.pushNotifications());
-        assertTrue(caps.stateTransitionHistory());
+    void agentExtensionParamsDefensiveCopy() {
+        var src = new java.util.HashMap<String, Object>(Map.of("k", "v"));
+        var ext = new AgentExtension("https://x/ext", "desc", true, src);
+        src.clear();
+        assertEquals(1, ext.params().size());
     }
 
     @Test
-    void agentCardSecuritySchemesDefaults() {
-        var card = new AgentCard("agent", "desc", "http://localhost", "1.0",
-                null, null, null, null, null, null, null, null);
-        assertTrue(card.securitySchemes().isEmpty());
-    }
-
-    @Test
-    void agentCardCustomModes() {
-        var card = new AgentCard("agent", "desc", "http://localhost", "1.0",
-                null, null, null, null, null,
-                List.of("text", "image"), List.of("text", "audio"), null);
-        assertEquals(2, card.defaultInputModes().size());
-        assertEquals(2, card.defaultOutputModes().size());
-    }
-
-    @Test
-    void agentCardRecordAccessors() {
-        var card = new AgentCard("MyAgent", "A helpful agent", "http://example.com", "2.0",
-                "Acme Corp", "http://docs.example.com", null, null, null, null, null, null);
-        assertEquals("MyAgent", card.name());
-        assertEquals("A helpful agent", card.description());
-        assertEquals("http://example.com", card.url());
-        assertEquals("2.0", card.version());
-        assertEquals("Acme Corp", card.provider());
-        assertEquals("http://docs.example.com", card.documentationUrl());
-    }
-
-    @Test
-    void taskMetadataDefensivelyCopied() {
-        var meta = new HashMap<>(Map.of("key", (Object) "value"));
-        var task = new Task("t1", "ctx", new Task.TaskStatus(TaskState.WORKING, null),
-                null, null, meta);
-        meta.put("extra", "val");
-        assertEquals(1, task.metadata().size());
-    }
-
-    @Test
-    void agentCardGuardrailsNullRemainsNull() {
-        var card = new AgentCard("agent", "desc", "url", "1.0",
-                null, null, null, null, null, null, null, null);
-        assertNull(card.guardrails());
-    }
-
-    @Test
-    void agentCardGuardrailsCopied() {
-        var guardrails = new ArrayList<>(List.of("safety", "ethics"));
-        var card = new AgentCard("agent", "desc", "url", "1.0",
-                null, null, null, null, null, null, null, guardrails);
-        guardrails.add("hacked");
-        assertEquals(2, card.guardrails().size());
+    void securityRequirementSchemesImmutable() {
+        var req = new SecurityRequirement(Map.of("oauth", List.of("read")));
+        assertThrows(UnsupportedOperationException.class,
+                () -> req.schemes().put("apiKey", List.of()));
     }
 }

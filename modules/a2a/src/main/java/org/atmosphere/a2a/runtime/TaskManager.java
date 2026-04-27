@@ -16,9 +16,9 @@
 package org.atmosphere.a2a.runtime;
 
 import org.atmosphere.a2a.types.Artifact;
-import org.atmosphere.a2a.types.Task;
 import org.atmosphere.a2a.types.TaskArtifactUpdateEvent;
 import org.atmosphere.a2a.types.TaskState;
+import org.atmosphere.a2a.types.TaskStatus;
 import org.atmosphere.a2a.types.TaskStatusUpdateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,9 +35,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
- * Manages the lifecycle of A2A tasks, including creation, lookup, cancellation,
- * and automatic eviction of completed tasks after a configurable TTL. Broadcasts
- * status and artifact update events to registered listeners.
+ * Lifecycle manager for A2A tasks. Status / artifact events are emitted as
+ * v1.0.0 spec-shaped {@link TaskStatusUpdateEvent} /
+ * {@link TaskArtifactUpdateEvent} carrying both {@code taskId} and
+ * {@code contextId}.
  */
 public final class TaskManager {
 
@@ -90,9 +91,18 @@ public final class TaskManager {
                 .toList();
     }
 
+    /** Filter tasks by context + state; null filters are unconstrained. */
+    public List<TaskContext> listTasks(String contextId, TaskState status) {
+        return tasks.values().stream()
+                .filter(t -> contextId == null || contextId.equals(t.contextId()))
+                .filter(t -> status == null || status == t.state())
+                .toList();
+    }
+
     public boolean cancelTask(String taskId) {
         var task = tasks.get(taskId);
-        if (task != null && task.state() == TaskState.WORKING) {
+        if (task != null && (task.state() == TaskState.WORKING
+                || task.state() == TaskState.SUBMITTED)) {
             task.cancel("Canceled by request");
             return true;
         }
@@ -108,12 +118,8 @@ public final class TaskManager {
     }
 
     void notifyStatusUpdate(TaskContext task) {
-        var isFinal = task.state() == TaskState.COMPLETED
-                || task.state() == TaskState.FAILED
-                || task.state() == TaskState.CANCELED
-                || task.state() == TaskState.REJECTED;
-        var event = new TaskStatusUpdateEvent(task.taskId(),
-                new Task.TaskStatus(task.state(), task.statusMessage()), isFinal);
+        var event = new TaskStatusUpdateEvent(task.taskId(), task.contextId(),
+                TaskStatus.of(task.state(), task.statusMessage()));
         for (var listener : statusListeners) {
             try {
                 listener.accept(event);
@@ -124,7 +130,7 @@ public final class TaskManager {
     }
 
     void notifyArtifactUpdate(TaskContext task, Artifact artifact) {
-        var event = new TaskArtifactUpdateEvent(task.taskId(), artifact);
+        var event = new TaskArtifactUpdateEvent(task.taskId(), task.contextId(), artifact);
         for (var listener : artifactListeners) {
             try {
                 listener.accept(event);
@@ -140,10 +146,8 @@ public final class TaskManager {
         while (iterator.hasNext()) {
             var entry = iterator.next();
             var ctx = entry.getValue();
-            var terminalState = ctx.state() == TaskState.COMPLETED
-                    || ctx.state() == TaskState.FAILED
-                    || ctx.state() == TaskState.CANCELED;
-            if (terminalState && (now - ctx.createdAtMillis()) > COMPLETED_TASK_TTL_MS) {
+            if (ctx.state().isTerminal()
+                    && (now - ctx.createdAtMillis()) > COMPLETED_TASK_TTL_MS) {
                 iterator.remove();
                 logger.debug("Evicted stale task {} (state={})", entry.getKey(), ctx.state());
             }

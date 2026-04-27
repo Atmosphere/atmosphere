@@ -16,16 +16,27 @@
 package org.atmosphere.a2a.types;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.Map;
 
 /**
- * Immutable event representing a change in a task's status. The {@code isFinal} flag
- * indicates whether the task has reached a terminal state.
+ * Event emitted when a task's {@link TaskStatus} changes. Rewritten in v1.0.0:
+ * the redundant {@code final} flag was dropped (terminality is derivable from
+ * {@link TaskState#isTerminal()}), {@code id} was split into {@code taskId} +
+ * {@code contextId}, and a free-form {@code metadata} struct was added.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record TaskStatusUpdateEvent(
-    String id,
-    Task.TaskStatus status,
-    @JsonProperty("final") boolean isFinal
+    String taskId,
+    String contextId,
+    TaskStatus status,
+    Map<String, Object> metadata
 ) {
+    public TaskStatusUpdateEvent {
+        metadata = metadata != null ? Map.copyOf(metadata) : null;
+    }
+
+    public TaskStatusUpdateEvent(String taskId, String contextId, TaskStatus status) {
+        this(taskId, contextId, status, null);
+    }
 }

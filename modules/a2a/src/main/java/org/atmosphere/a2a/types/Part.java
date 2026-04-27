@@ -15,72 +15,60 @@
  */
 package org.atmosphere.a2a.types;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import tools.jackson.databind.annotation.JsonDeserialize;
 
 import java.util.Map;
 
 /**
- * Sealed interface representing the content part of an A2A message or artifact.
- * Permitted implementations are {@link TextPart} for plain text, {@link FilePart}
- * for file references, and {@link DataPart} for arbitrary structured data.
+ * Content part of an A2A {@link Message} or {@link Artifact}. Collapsed in
+ * v1.0.0 from three polymorphic subtypes ({@code TextPart} / {@code FilePart} /
+ * {@code DataPart}) into a single record carrying a {@code oneof} of
+ * {@link #text}, {@link #raw} bytes, a {@link #url}, or structured
+ * {@link #data}, plus the shared {@link #metadata}, {@link #filename}, and
+ * {@link #mediaType} fields.
  *
- * <p>Wire discriminator is {@code "type"} on emission; on parse we accept both
- * {@code "type"} and {@code "kind"} — the latter is what the current A2A spec
- * emits, while earlier drafts (and some servers, including ours) still use
- * {@code "type"}. Custom {@link PartDeserializer} reads the JSON tree, picks
- * the concrete subtype from whichever discriminator is present, and dispatches
- * directly — skipping Jackson's polymorphic machinery so it never reaches
- * for a hard-coded {@code type} field and fails when only {@code kind} is
- * available.</p>
+ * <p>On the wire exactly one of the four content fields is populated; the
+ * record permits all to be {@code null} for record-default convenience but the
+ * static factory methods enforce the invariant.</p>
+ *
+ * <p>The deserializer accepts the pre-1.0 polymorphic shape
+ * ({@code {"type":"text",...}} or {@code {"kind":"text",...}}) for migration —
+ * see {@link PartDeserializer}.</p>
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonDeserialize(using = PartDeserializer.class)
-public sealed interface Part {
-
-    /**
-     * Discriminator emitted as {@code "type"} on the wire. Each concrete
-     * subtype returns its canonical name so the output stays spec-compliant
-     * (the server emits {@code type}; the {@link PartDeserializer} accepts
-     * either {@code type} or {@code kind} on input).
-     */
-    @JsonProperty("type")
-    String type();
-
-    /** A content part carrying plain text and optional metadata. */
-    record TextPart(String text, Map<String, Object> metadata) implements Part {
-        public TextPart(String text) {
-            this(text, Map.of());
-        }
-
-        @Override
-        public String type() {
-            return "text";
-        }
+public record Part(
+    String text,
+    byte[] raw,
+    String url,
+    Map<String, Object> data,
+    Map<String, Object> metadata,
+    String filename,
+    String mediaType
+) {
+    public Part {
+        data = data != null ? Map.copyOf(data) : null;
+        metadata = metadata != null ? Map.copyOf(metadata) : null;
     }
 
-    /** A content part referencing a file by URI or inline bytes, with an associated MIME type. */
-    record FilePart(String name, String mimeType, String uri,
-                    byte[] bytes, Map<String, Object> metadata) implements Part {
-        public FilePart(String name, String mimeType, String uri) {
-            this(name, mimeType, uri, null, Map.of());
-        }
-
-        @Override
-        public String type() {
-            return "file";
-        }
+    public static Part text(String text) {
+        return new Part(text, null, null, null, null, null, null);
     }
 
-    /** A content part carrying arbitrary structured data as a key-value map. */
-    record DataPart(Map<String, Object> data, Map<String, Object> metadata) implements Part {
-        public DataPart {
-            data = data != null ? Map.copyOf(data) : Map.of();
-            metadata = metadata != null ? Map.copyOf(metadata) : Map.of();
-        }
+    public static Part text(String text, String mediaType) {
+        return new Part(text, null, null, null, null, null, mediaType);
+    }
 
-        @Override
-        public String type() {
-            return "data";
-        }
+    public static Part raw(byte[] raw, String filename, String mediaType) {
+        return new Part(null, raw, null, null, null, filename, mediaType);
+    }
+
+    public static Part url(String url, String filename, String mediaType) {
+        return new Part(null, null, url, null, null, filename, mediaType);
+    }
+
+    public static Part data(Map<String, Object> data) {
+        return new Part(null, null, null, data, null, null, null);
     }
 }

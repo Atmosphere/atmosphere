@@ -16,37 +16,41 @@
 package org.atmosphere.a2a.types;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * Immutable representation of an A2A message exchanged between a user and an agent,
- * carrying a role, content parts, and contextual identifiers.
+ * Single A2A message exchanged between user and agent. Aligned with the
+ * v1.0.0 schema: {@code role} is the {@link Role} enum (was a free String
+ * pre-1.0), and {@code extensions} / {@code referenceTaskIds} were added.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record Message(
-    String role,
+    String messageId,
+    String contextId,
+    String taskId,
+    Role role,
     List<Part> parts,
-    @JsonProperty("messageId") String messageId,
-    @JsonProperty("taskId") String taskId,
-    @JsonProperty("contextId") String contextId,
-    Map<String, Object> metadata
+    Map<String, Object> metadata,
+    List<String> extensions,
+    List<String> referenceTaskIds
 ) {
     public Message {
         parts = parts != null ? List.copyOf(parts) : List.of();
-        metadata = metadata != null ? Map.copyOf(metadata) : Map.of();
+        metadata = metadata != null ? Map.copyOf(metadata) : null;
+        extensions = extensions != null ? List.copyOf(extensions) : null;
+        referenceTaskIds = referenceTaskIds != null ? List.copyOf(referenceTaskIds) : null;
     }
 
     public static Message user(String text) {
-        return new Message("user", List.of(new Part.TextPart(text)),
-                UUID.randomUUID().toString(), null, null, Map.of());
+        return new Message(UUID.randomUUID().toString(), null, null,
+                Role.USER, List.of(Part.text(text)), null, null, null);
     }
 
     public static Message agent(String text) {
-        return new Message("agent", List.of(new Part.TextPart(text)),
-                UUID.randomUUID().toString(), null, null, Map.of());
+        return new Message(UUID.randomUUID().toString(), null, null,
+                Role.AGENT, List.of(Part.text(text)), null, null, null);
     }
 }

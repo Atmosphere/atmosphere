@@ -16,32 +16,26 @@
 package org.atmosphere.a2a.types;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 import java.util.Map;
 
 /**
- * Immutable snapshot of an A2A task, including its current status, accumulated messages,
- * produced artifacts, and metadata.
+ * Server-managed task. v1.0.0 renamed the message log field {@code messages}
+ * to {@code history} and lifted {@link TaskStatus} to a top-level type.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record Task(
     String id,
-    @JsonProperty("contextId") String contextId,
+    String contextId,
     TaskStatus status,
-    List<Message> messages,
     List<Artifact> artifacts,
+    List<Message> history,
     Map<String, Object> metadata
 ) {
     public Task {
-        messages = messages != null ? List.copyOf(messages) : List.of();
         artifacts = artifacts != null ? List.copyOf(artifacts) : List.of();
-        metadata = metadata != null ? Map.copyOf(metadata) : Map.of();
-    }
-
-    /** The current status of a task, pairing a {@link TaskState} with an optional message. */
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record TaskStatus(TaskState state, String message) {
+        history = history != null ? List.copyOf(history) : List.of();
+        metadata = metadata != null ? Map.copyOf(metadata) : null;
     }
 }

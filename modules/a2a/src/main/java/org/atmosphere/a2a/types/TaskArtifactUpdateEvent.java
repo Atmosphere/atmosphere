@@ -17,13 +17,28 @@ package org.atmosphere.a2a.types;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import java.util.Map;
+
 /**
- * Immutable event representing a new or updated {@link Artifact} on a task,
- * emitted to SSE and listener subscribers.
+ * Event emitted when a task produces or extends an {@link Artifact}. v1.0.0
+ * adds {@code contextId}, {@code append} (whether to concatenate to an existing
+ * artifact with the same id), {@code lastChunk} (final chunk marker), and a
+ * free-form {@code metadata} struct.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record TaskArtifactUpdateEvent(
-    String id,
-    Artifact artifact
+    String taskId,
+    String contextId,
+    Artifact artifact,
+    Boolean append,
+    Boolean lastChunk,
+    Map<String, Object> metadata
 ) {
+    public TaskArtifactUpdateEvent {
+        metadata = metadata != null ? Map.copyOf(metadata) : null;
+    }
+
+    public TaskArtifactUpdateEvent(String taskId, String contextId, Artifact artifact) {
+        this(taskId, contextId, artifact, null, null, null);
+    }
 }

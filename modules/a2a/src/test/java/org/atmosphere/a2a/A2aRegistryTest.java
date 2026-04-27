@@ -15,15 +15,20 @@
  */
 package org.atmosphere.a2a;
 
-import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.a2a.annotation.AgentSkill;
 import org.atmosphere.a2a.annotation.AgentSkillHandler;
+import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.a2a.registry.A2aRegistry;
 import org.atmosphere.a2a.runtime.TaskContext;
+import org.atmosphere.a2a.types.AgentExtension;
+import org.atmosphere.a2a.types.AgentInterface;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class A2aRegistryTest {
@@ -39,7 +44,6 @@ class A2aRegistryTest {
         public void skill2(TaskContext task) {
         }
 
-        // Not a skill - no @AgentSkillHandler
         @AgentSkill(id = "s3", name = "Not a skill", description = "No handler")
         public void notASkill() {
         }
@@ -53,31 +57,56 @@ class A2aRegistryTest {
         assertEquals(2, registry.skills().size());
         assertTrue(registry.skill("s1").isPresent());
         assertTrue(registry.skill("s2").isPresent());
-        assertFalse(registry.skill("s3").isPresent()); // missing @AgentSkillHandler
+        assertFalse(registry.skill("s3").isPresent());
     }
 
     @Test
-    void skillEntryHasCorrectMetadata() {
+    void buildAgentCardLegacyUrlOverloadProducesJsonRpcInterface() {
         var registry = new A2aRegistry();
         registry.scan(new TestAgent());
-
-        var s1 = registry.skill("s1").orElseThrow();
-        assertEquals("Skill One", s1.name());
-        assertEquals("First skill", s1.description());
-        assertEquals(2, s1.tags().size());
-        assertEquals(1, s1.params().size()); // TaskContext is excluded
-        assertEquals("input", s1.params().getFirst().name());
-    }
-
-    @Test
-    void buildAgentCard() {
-        var registry = new A2aRegistry();
-        registry.scan(new TestAgent());
-
         var card = registry.buildAgentCard("test", "Test Agent", "1.0", "/a2a");
+
         assertEquals("test", card.name());
         assertEquals("1.0", card.version());
         assertEquals(2, card.skills().size());
-        assertTrue(card.capabilities().streaming());
+        assertEquals(1, card.supportedInterfaces().size());
+        var iface = card.supportedInterfaces().getFirst();
+        assertEquals("/a2a", iface.url());
+        assertEquals(AgentInterface.JSONRPC, iface.protocolBinding());
+    }
+
+    @Test
+    void buildAgentCardPropagatesGuardrailsAsExtension() {
+        var registry = new A2aRegistry();
+        var card = registry.buildAgentCard("test", "Test", "1.0", "/a2a",
+                List.of("no-pii", "no-medical"));
+
+        assertNotNull(card.capabilities().extensions());
+        assertEquals(1, card.capabilities().extensions().size());
+        var ext = card.capabilities().extensions().getFirst();
+        assertEquals(AgentExtension.GUARDRAILS_URI, ext.uri());
+        @SuppressWarnings("unchecked")
+        var guardrails = (List<String>) ext.params().get("guardrails");
+        assertEquals(2, guardrails.size());
+    }
+
+    @Test
+    void buildAgentCardWithMultipleInterfaces() {
+        var registry = new A2aRegistry();
+        var card = registry.buildAgentCard("test", "Test", "1.0",
+                List.of(
+                        new AgentInterface("/a2a", AgentInterface.JSONRPC, "1.0"),
+                        new AgentInterface("/a2a/rest", AgentInterface.HTTP_JSON, "1.0")),
+                null);
+        assertEquals(2, card.supportedInterfaces().size());
+    }
+
+    @Test
+    void buildAgentCardCapabilitiesAdvertiseStreamingAndExtendedCard() {
+        var registry = new A2aRegistry();
+        var card = registry.buildAgentCard("test", "Test", "1.0", "/a2a");
+        assertEquals(true, card.capabilities().streaming());
+        assertEquals(true, card.capabilities().extendedAgentCard());
+        assertEquals(false, card.capabilities().pushNotifications());
     }
 }

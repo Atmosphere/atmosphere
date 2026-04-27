@@ -124,16 +124,17 @@ public class A2aAgentTransport implements AgentTransport, AutoCloseable {
                     return AgentResult.failure(agentName, skill, errorMsg, duration);
                 }
 
-                // Check for failed task status
+                // v1.0.0 SendMessage returns SendMessageResponse with a `task` oneof field;
+                // fall back to bare result for pre-1.0 servers that returned the Task directly.
                 var result = json.get("result");
-                if (result != null && result.has("status")) {
-                    var state = result.get("status").has("state")
-                            ? result.get("status").get("state").stringValue() : "";
-                    if ("failed".equalsIgnoreCase(state) || "canceled".equalsIgnoreCase(state)) {
-                        var statusMsg = result.get("status").has("message")
-                                ? result.get("status").get("message").stringValue()
-                                : "Task " + state;
-                        return AgentResult.failure(agentName, skill, statusMsg, duration);
+                var task = result != null && result.has("task") ? result.get("task") : result;
+                if (task != null && task.has("status")) {
+                    var state = task.get("status").has("state")
+                            ? task.get("status").get("state").stringValue() : "";
+                    if (isFailureState(state)) {
+                        var statusMsg = extractStatusMessage(task);
+                        return AgentResult.failure(agentName, skill,
+                                statusMsg != null ? statusMsg : "Task " + state, duration);
                     }
                 }
 
@@ -203,21 +204,49 @@ public class A2aAgentTransport implements AgentTransport, AutoCloseable {
     private String extractStreamingText(String data) {
         try {
             var json = mapper.readTree(data);
-            // A2A streaming event: artifact part text
-            if (json.has("artifact")) {
-                var parts = json.get("artifact").get("parts");
-                if (parts != null && parts.isArray() && !parts.isEmpty()
-                        && parts.get(0).has("text")) {
-                    return parts.get(0).get("text").stringValue();
+            // v1.0.0 SSE chunks are full JSON-RPC envelopes carrying a StreamResponse oneof
+            // ({task, message, statusUpdate, artifactUpdate}). Unwrap result.* first.
+            var payload = json.has("result") ? json.get("result") : json;
+            if (payload.has("artifactUpdate")
+                    && payload.get("artifactUpdate").has("artifact")) {
+                var text = firstPartText(payload.get("artifactUpdate").get("artifact"));
+                if (text != null) {
+                    return text;
                 }
             }
-            // Status update with message
-            if (json.has("status") && json.get("status").has("message")) {
-                return json.get("status").get("message").stringValue();
+            if (payload.has("message")) {
+                var text = firstPartText(payload.get("message"));
+                if (text != null) {
+                    return text;
+                }
             }
-            // Plain text delta
-            if (json.has("text")) {
-                return json.get("text").stringValue();
+            // Pre-1.0 / Atmosphere shorthand: {"artifact":{"parts":[{"text":"..."}]}}
+            if (payload.has("artifact")) {
+                var text = firstPartText(payload.get("artifact"));
+                if (text != null) {
+                    return text;
+                }
+            }
+            if (payload.has("statusUpdate")
+                    && payload.get("statusUpdate").has("status")
+                    && payload.get("statusUpdate").get("status").has("message")) {
+                var text = firstPartText(payload.get("statusUpdate").get("status").get("message"));
+                if (text != null) {
+                    return text;
+                }
+            }
+            if (payload.has("status") && payload.get("status").has("message")) {
+                var msg = payload.get("status").get("message");
+                if (msg.isString()) {
+                    return msg.stringValue();
+                }
+                var text = firstPartText(msg);
+                if (text != null) {
+                    return text;
+                }
+            }
+            if (payload.has("text")) {
+                return payload.get("text").stringValue();
             }
         } catch (Exception e) {
             logger.debug("Failed to parse SSE data: {}", data);
@@ -225,11 +254,54 @@ public class A2aAgentTransport implements AgentTransport, AutoCloseable {
         return null;
     }
 
+    private static String firstPartText(tools.jackson.databind.JsonNode partsCarrier) {
+        var parts = partsCarrier.get("parts");
+        if (parts != null && parts.isArray() && !parts.isEmpty()
+                && parts.get(0).has("text")) {
+            return parts.get(0).get("text").stringValue();
+        }
+        return null;
+    }
+
+    /**
+     * Pull the status message text from a Task node, accepting both the
+     * pre-1.0 string form and the v1.0.0 Message-record form. Returns
+     * {@code null} if no message text is present.
+     */
+    private static String extractStatusMessage(tools.jackson.databind.JsonNode task) {
+        if (!task.has("status") || !task.get("status").has("message")) {
+            return null;
+        }
+        var msg = task.get("status").get("message");
+        if (msg.isString()) {
+            return msg.stringValue();
+        }
+        if (msg.isObject() && msg.has("parts")
+                && msg.get("parts").isArray() && !msg.get("parts").isEmpty()
+                && msg.get("parts").get(0).has("text")) {
+            return msg.get("parts").get(0).get("text").stringValue();
+        }
+        return null;
+    }
+
+    /** Match either the v1.0.0 ProtoJSON enum names or the pre-1.0 lowercase forms. */
+    private static boolean isFailureState(String state) {
+        if (state == null) {
+            return false;
+        }
+        return "TASK_STATE_FAILED".equalsIgnoreCase(state)
+                || "TASK_STATE_CANCELED".equalsIgnoreCase(state)
+                || "TASK_STATE_REJECTED".equalsIgnoreCase(state)
+                || "failed".equalsIgnoreCase(state)
+                || "canceled".equalsIgnoreCase(state)
+                || "rejected".equalsIgnoreCase(state);
+    }
+
     @Override
     public boolean isAvailable() {
         try {
             var rpc = Map.of("jsonrpc", "2.0", "id", 1,
-                    "method", "agent/authenticatedExtendedCard");
+                    "method", "GetExtendedAgentCard");
             var httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl))
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(rpc)))

@@ -24,22 +24,18 @@ import tools.jackson.databind.exc.MismatchedInputException;
 import java.util.Map;
 
 /**
- * Deserializes an A2A {@link Part} JSON envelope while accepting the discriminator
- * under either {@code type} (earlier A2A drafts and our own emitter) or
- * {@code kind} (current A2A spec). Dispatches directly to the concrete
- * subtype instead of going through Jackson's polymorphic machinery, so there's
- * no loop back into this deserializer when the reader is annotated with
- * {@code @JsonDeserialize(using = PartDeserializer.class)}.
+ * Deserializes an A2A {@link Part} accepting either the v1.0.0 spec shape
+ * (one of {@code text}, {@code raw}, {@code url}, {@code data} as a top-level
+ * field, plus optional {@code metadata}, {@code filename}, {@code mediaType})
+ * or the pre-1.0 polymorphic envelope ({@code {"type":"text",...}} or
+ * {@code {"kind":"text",...}}).
  *
- * <p>Without this bridge, a client sending the spec-compliant
- * {@code {"kind":"text","text":"hi"}} silently lost its payload because Jackson
- * couldn't find the discriminator — the server parsed an empty
- * {@link Part.TextPart} and the user message was dropped.</p>
+ * <p>Pre-1.0 file shape ({@code mimeType}, {@code uri}, {@code bytes}) is
+ * normalized to v1.0.0 ({@code mediaType}, {@code url}, {@code raw}). The
+ * legacy {@code TextPart}/{@code FilePart}/{@code DataPart} subtype
+ * distinction is collapsed because v1.0.0 unified them.</p>
  */
 public final class PartDeserializer extends ValueDeserializer<Part> {
-
-    private static final String TYPE = "type";
-    private static final String KIND = "kind";
 
     @Override
     public Part deserialize(JsonParser parser, DeserializationContext ctxt) {
@@ -49,34 +45,68 @@ public final class PartDeserializer extends ValueDeserializer<Part> {
                     "A2A Part must be a JSON object, got " + root.getNodeType());
         }
 
-        JsonNode discriminator = root.has(TYPE) ? root.get(TYPE)
-                : root.has(KIND) ? root.get(KIND)
+        var legacyDiscriminator = root.has("type") ? root.get("type")
+                : root.has("kind") ? root.get("kind")
                 : null;
-        if (discriminator == null || !discriminator.isString()) {
-            throw MismatchedInputException.from(parser, Part.class,
-                    "A2A Part is missing the discriminator — expected 'type' or 'kind' "
-                            + "with one of \"text\", \"file\", \"data\"");
+
+        Map<String, Object> metadata = readMap(root.get("metadata"), ctxt);
+        String filename = stringOrNull(root.get("filename"));
+        if (filename == null) {
+            filename = stringOrNull(root.get("name"));
         }
-        String kind = discriminator.asString();
-        // Build the concrete record by reading fields from the JsonNode directly
-        // rather than delegating to ctxt.readTreeAsValue — that path would
-        // loop back through @JsonDeserialize(using = PartDeserializer.class)
-        // because the annotation is inherited from the sealed interface.
+        String mediaType = stringOrNull(root.get("mediaType"));
+        if (mediaType == null) {
+            mediaType = stringOrNull(root.get("mimeType"));
+        }
+
+        if (legacyDiscriminator != null && legacyDiscriminator.isString()) {
+            return fromLegacy(parser, root, ctxt, legacyDiscriminator.asString(),
+                    metadata, filename, mediaType);
+        }
+
+        if (root.has("text")) {
+            return new Part(stringOrEmpty(root.get("text")), null, null, null,
+                    metadata, filename, mediaType);
+        }
+        if (root.has("data")) {
+            return new Part(null, null, null, readMap(root.get("data"), ctxt),
+                    metadata, filename, mediaType);
+        }
+        if (root.has("raw")) {
+            return new Part(null, ctxt.readTreeAsValue(root.get("raw"), byte[].class),
+                    null, null, metadata, filename, mediaType);
+        }
+        if (root.has("url")) {
+            return new Part(null, null, stringOrNull(root.get("url")), null,
+                    metadata, filename, mediaType);
+        }
+        if (root.has("uri")) {
+            return new Part(null, null, stringOrNull(root.get("uri")), null,
+                    metadata, filename, mediaType);
+        }
+        throw MismatchedInputException.from(parser, Part.class,
+                "A2A Part is missing content — expected one of text|raw|url|data");
+    }
+
+    private Part fromLegacy(JsonParser parser, JsonNode root, DeserializationContext ctxt,
+                            String kind, Map<String, Object> metadata,
+                            String filename, String mediaType) {
         return switch (kind) {
-            case "text" -> new Part.TextPart(
-                    stringOrEmpty(root.get("text")),
-                    readMap(root.get("metadata"), ctxt));
-            case "file" -> new Part.FilePart(
-                    stringOrNull(root.get("name")),
-                    stringOrNull(root.get("mimeType")),
-                    stringOrNull(root.get("uri")),
-                    root.has("bytes") ? ctxt.readTreeAsValue(root.get("bytes"), byte[].class) : null,
-                    readMap(root.get("metadata"), ctxt));
-            case "data" -> new Part.DataPart(
-                    readMap(root.get("data"), ctxt),
-                    readMap(root.get("metadata"), ctxt));
+            case "text" -> new Part(stringOrEmpty(root.get("text")), null, null, null,
+                    metadata, filename, mediaType);
+            case "data" -> new Part(null, null, null, readMap(root.get("data"), ctxt),
+                    metadata, filename, mediaType);
+            case "file" -> {
+                byte[] raw = root.has("bytes")
+                        ? ctxt.readTreeAsValue(root.get("bytes"), byte[].class) : null;
+                String url = stringOrNull(root.get("url"));
+                if (url == null) {
+                    url = stringOrNull(root.get("uri"));
+                }
+                yield new Part(null, raw, url, null, metadata, filename, mediaType);
+            }
             default -> throw MismatchedInputException.from(parser, Part.class,
-                    "Unknown A2A Part kind: '" + kind + "' — expected text | file | data");
+                    "Unknown legacy A2A Part kind: '" + kind + "'");
         };
     }
 
@@ -91,7 +121,7 @@ public final class PartDeserializer extends ValueDeserializer<Part> {
     @SuppressWarnings("unchecked")
     private static Map<String, Object> readMap(JsonNode node, DeserializationContext ctxt) {
         if (node == null || node.isNull()) {
-            return Map.of();
+            return null;
         }
         return ctxt.readTreeAsValue(node, Map.class);
     }

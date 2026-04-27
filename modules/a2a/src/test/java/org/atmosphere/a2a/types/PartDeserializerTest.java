@@ -15,79 +15,88 @@
  */
 package org.atmosphere.a2a.types;
 
-import tools.jackson.databind.DatabindException;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+/**
+ * Verifies that {@link PartDeserializer} parses both the v1.0.0 spec shape
+ * (top-level text/raw/url/data fields) and the pre-1.0 polymorphic shape
+ * ({@code "type":"text"} / {@code "kind":"text"}, {@code mimeType},
+ * {@code uri}, {@code bytes}).
+ */
 class PartDeserializerTest {
 
-    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
-    void acceptsLegacyTypeDiscriminator() throws Exception {
-        // Pre-1.0 A2A drafts (and our own emitter) use "type".
-        Part part = MAPPER.readValue("{\"type\":\"text\",\"text\":\"hi\"}", Part.class);
-        assertInstanceOf(Part.TextPart.class, part);
-        assertEquals("hi", ((Part.TextPart) part).text());
+    void v1TextShape() throws Exception {
+        var p = mapper.readValue("{\"text\":\"hi\"}", Part.class);
+        assertEquals("hi", p.text());
     }
 
     @Test
-    void acceptsCurrentKindDiscriminator() throws Exception {
-        // Regression: current A2A spec uses "kind" — server used to drop the
-        // payload silently because Jackson couldn't find the discriminator.
-        Part part = MAPPER.readValue("{\"kind\":\"text\",\"text\":\"hi\"}", Part.class);
-        assertInstanceOf(Part.TextPart.class, part);
-        assertEquals("hi", ((Part.TextPart) part).text());
+    void v1DataShape() throws Exception {
+        var p = mapper.readValue("{\"data\":{\"score\":42}}", Part.class);
+        assertEquals(42, p.data().get("score"));
     }
 
     @Test
-    void filePartAcceptsKind() throws Exception {
-        String json = "{\"kind\":\"file\",\"name\":\"report.pdf\","
-                + "\"mimeType\":\"application/pdf\",\"uri\":\"https://example.com/r.pdf\"}";
-        Part part = MAPPER.readValue(json, Part.class);
-        assertInstanceOf(Part.FilePart.class, part);
-        assertEquals("report.pdf", ((Part.FilePart) part).name());
-        assertEquals("application/pdf", ((Part.FilePart) part).mimeType());
+    void v1UrlShape() throws Exception {
+        var p = mapper.readValue("{\"url\":\"https://example.com/a\"}", Part.class);
+        assertEquals("https://example.com/a", p.url());
     }
 
     @Test
-    void dataPartAcceptsKind() throws Exception {
-        String json = "{\"kind\":\"data\",\"data\":{\"score\":42}}";
-        Part part = MAPPER.readValue(json, Part.class);
-        assertInstanceOf(Part.DataPart.class, part);
-        assertEquals(42, ((Part.DataPart) part).data().get("score"));
+    void legacyTypeDiscriminatorText() throws Exception {
+        var p = mapper.readValue("{\"type\":\"text\",\"text\":\"hi\"}", Part.class);
+        assertEquals("hi", p.text());
     }
 
     @Test
-    void typeWinsOverKindWhenBothPresent() throws Exception {
-        // Defensive: if both are present, trust "type" (the field we emit and
-        // that the server authoritatively sets). A mismatched client sending
-        // {"type":"text","kind":"data",...} is rare but should not produce a
-        // surprise DataPart.
-        Part part = MAPPER.readValue(
-                "{\"type\":\"text\",\"kind\":\"data\",\"text\":\"hi\"}", Part.class);
-        assertInstanceOf(Part.TextPart.class, part);
+    void legacyKindDiscriminatorText() throws Exception {
+        var p = mapper.readValue("{\"kind\":\"text\",\"text\":\"hi\"}", Part.class);
+        assertEquals("hi", p.text());
     }
 
     @Test
-    void emptyObjectFailsWithHelpfulMessage() {
-        var ex = assertThrows(DatabindException.class,
-                () -> MAPPER.readValue("{}", Part.class));
-        assertEquals(true,
-                ex.getOriginalMessage().contains("discriminator")
-                        || ex.getOriginalMessage().contains("type")
-                        || ex.getOriginalMessage().contains("kind"));
+    void legacyFileShapeNormalizesMimeAndUri() throws Exception {
+        var p = mapper.readValue(
+                "{\"type\":\"file\",\"name\":\"a.pdf\","
+                        + "\"mimeType\":\"application/pdf\",\"uri\":\"file:///a.pdf\"}",
+                Part.class);
+        assertEquals("a.pdf", p.filename());
+        assertEquals("application/pdf", p.mediaType());
+        assertEquals("file:///a.pdf", p.url());
     }
 
     @Test
-    void unknownKindFailsWithHelpfulMessage() {
-        var ex = assertThrows(DatabindException.class,
-                () -> MAPPER.readValue("{\"kind\":\"video\",\"src\":\"x\"}", Part.class));
-        assertEquals(true, ex.getOriginalMessage().contains("video"));
+    void legacyFileShapeWithBytes() throws Exception {
+        // base64("hi") = "aGk="
+        var p = mapper.readValue(
+                "{\"type\":\"file\",\"name\":\"x\",\"bytes\":\"aGk=\"}",
+                Part.class);
+        assertArrayEquals(new byte[]{'h', 'i'}, p.raw());
+    }
+
+    @Test
+    void legacyDataShape() throws Exception {
+        var p = mapper.readValue("{\"type\":\"data\",\"data\":{\"k\":\"v\"}}", Part.class);
+        assertEquals("v", p.data().get("k"));
+    }
+
+    @Test
+    void unknownLegacyKindRejected() {
+        assertThrows(Exception.class, () ->
+                mapper.readValue("{\"type\":\"frobnicate\"}", Part.class));
+    }
+
+    @Test
+    void emptyObjectRejected() {
+        assertThrows(Exception.class, () ->
+                mapper.readValue("{}", Part.class));
     }
 }

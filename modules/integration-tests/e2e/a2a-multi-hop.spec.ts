@@ -28,7 +28,7 @@ async function a2aRequest(
   return { status: res.status, body };
 }
 
-/** Send a message/send request with the given skillId. */
+/** Send a v1.0.0 SendMessage request with the given skillId. */
 async function sendTask(
   baseUrl: string,
   skillId: string,
@@ -36,14 +36,21 @@ async function sendTask(
   extraArgs: Record<string, unknown> = {},
   id: number | string = 1,
 ) {
-  return a2aRequest(baseUrl, 'message/send', {
+  return a2aRequest(baseUrl, 'SendMessage', {
     message: {
-      role: 'user',
-      parts: [{ type: 'text', text }],
+      messageId: `msg-${id}`,
+      role: 'ROLE_USER',
+      parts: [{ text }],
       metadata: { skillId },
     },
     arguments: extraArgs,
   }, id);
+}
+
+/** Unwrap the v1.0.0 SendMessageResponse oneof: result.task | result.message. */
+function taskOf(body: Record<string, unknown>): Record<string, unknown> {
+  const result = body.result as Record<string, unknown>;
+  return (result.task as Record<string, unknown>) ?? result;
 }
 
 test.describe('A2A Multi-Hop Agent Chains', () => {
@@ -51,32 +58,30 @@ test.describe('A2A Multi-Hop Agent Chains', () => {
   test('first agent responds to direct message', async () => {
     const { body } = await sendTask(server.baseUrl, 'ask', 'Hello first hop!');
 
-    const result = body.result as Record<string, unknown>;
-    expect(result).toBeDefined();
+    const task = taskOf(body);
+    expect(task).toBeDefined();
 
-    const status = result.status as { state: string };
-    expect(status.state).toBe('COMPLETED');
+    const status = task.status as { state: string };
+    expect(status.state).toBe('TASK_STATE_COMPLETED');
 
-    const artifacts = result.artifacts as { parts: { text: string }[] }[];
+    const artifacts = task.artifacts as { parts: { text: string }[] }[];
     expect(artifacts.length).toBeGreaterThan(0);
     expect(artifacts[0].parts[0].text.length).toBeGreaterThan(0);
   });
 
   test('sequential task execution preserves order', async () => {
-    // Send tasks sequentially and verify they complete in order
     const results: string[] = [];
 
     for (let i = 1; i <= 3; i++) {
       const { body } = await sendTask(
         server.baseUrl, 'ask', `Hop ${i}`, {}, i * 100,
       );
-      const result = body.result as Record<string, unknown>;
-      const status = result?.status as { state: string } | undefined;
+      const task = taskOf(body);
+      const status = task?.status as { state: string } | undefined;
       results.push(status?.state ?? 'UNKNOWN');
     }
 
-    // All should complete
-    expect(results.every(r => r === 'COMPLETED')).toBeTruthy();
+    expect(results.every(r => r === 'TASK_STATE_COMPLETED')).toBeTruthy();
   });
 
   test('error propagation — invalid skill returns FAILED', async () => {
@@ -87,10 +92,10 @@ test.describe('A2A Multi-Hop Agent Chains', () => {
     const result = body.result as Record<string, unknown> | undefined;
     const error = body.error as { code: number } | undefined;
 
-    // Either the task fails or we get a JSON-RPC error
     if (result) {
-      const status = result.status as { state: string };
-      expect(status.state).toBe('FAILED');
+      const task = taskOf(body);
+      const status = task.status as { state: string };
+      expect(status.state).toBe('TASK_STATE_FAILED');
     } else {
       expect(error).toBeDefined();
     }
@@ -103,7 +108,6 @@ test.describe('A2A Multi-Hop Agent Chains', () => {
     );
     const elapsed = Date.now() - startTime;
 
-    // Should complete within a reasonable time
     expect(elapsed).toBeLessThan(30_000);
 
     const result = body.result as Record<string, unknown>;
@@ -118,22 +122,22 @@ test.describe('A2A Multi-Hop Agent Chains', () => {
     const results = await Promise.all(promises);
 
     for (const { body } of results) {
-      const result = body.result as Record<string, unknown>;
-      expect(result).toBeDefined();
-      const status = result.status as { state: string };
-      expect(status.state).toBe('COMPLETED');
+      const task = taskOf(body);
+      expect(task).toBeDefined();
+      const status = task.status as { state: string };
+      expect(status.state).toBe('TASK_STATE_COMPLETED');
     }
   });
 
-  test('tasks/list returns all executed tasks', async () => {
-    // Execute a known task first
+  test('ListTasks returns all executed tasks', async () => {
     await sendTask(server.baseUrl, 'ask', 'List test', {}, 300);
 
-    const { body } = await a2aRequest(server.baseUrl, 'tasks/list', {}, 301);
+    const { body } = await a2aRequest(server.baseUrl, 'ListTasks', { pageSize: 50 }, 301);
 
-    const result = body.result as unknown[];
+    const result = body.result as Record<string, unknown>;
     expect(result).toBeDefined();
-    expect(Array.isArray(result)).toBeTruthy();
-    expect(result.length).toBeGreaterThan(0);
+    const tasks = result.tasks as unknown[];
+    expect(Array.isArray(tasks)).toBeTruthy();
+    expect(tasks.length).toBeGreaterThan(0);
   });
 });

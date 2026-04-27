@@ -28,7 +28,7 @@ async function a2aRequest(
   return { status: res.status, body };
 }
 
-/** Send a message/send request with the given skillId and extra arguments. */
+/** Send a v1.0.0 SendMessage request with the given skillId and extra arguments. */
 async function sendTask(
   baseUrl: string,
   skillId: string,
@@ -36,21 +36,28 @@ async function sendTask(
   extraArgs: Record<string, unknown> = {},
   id: number | string = 1,
 ) {
-  return a2aRequest(baseUrl, 'message/send', {
+  return a2aRequest(baseUrl, 'SendMessage', {
     message: {
-      role: 'user',
-      parts: [{ type: 'text', text }],
+      messageId: `msg-${id}`,
+      role: 'ROLE_USER',
+      parts: [{ text }],
       metadata: { skillId },
     },
     arguments: extraArgs,
   }, id);
 }
 
+/** Unwrap the v1.0.0 SendMessageResponse oneof: result.task | result.message. */
+function taskOf(body: Record<string, unknown>): Record<string, unknown> {
+  const result = body.result as Record<string, unknown>;
+  return (result.task as Record<string, unknown>) ?? result;
+}
+
 test.describe('A2A Agent Protocol', () => {
   test('agent card discovery returns 3 skills', async () => {
     const { status, body } = await a2aRequest(
       server.baseUrl,
-      'agent/authenticatedExtendedCard',
+      'GetExtendedAgentCard',
     );
 
     expect(status).toBe(200);
@@ -70,13 +77,13 @@ test.describe('A2A Agent Protocol', () => {
   test('ask skill returns a response', async () => {
     const { body } = await sendTask(server.baseUrl, 'ask', 'Hello!');
 
-    const result = body.result as Record<string, unknown>;
-    expect(result).toBeDefined();
+    const task = taskOf(body);
+    expect(task).toBeDefined();
 
-    const status = result.status as { state: string };
-    expect(status.state).toBe('COMPLETED');
+    const status = task.status as { state: string };
+    expect(status.state).toBe('TASK_STATE_COMPLETED');
 
-    const artifacts = result.artifacts as { parts: { text: string }[] }[];
+    const artifacts = task.artifacts as { parts: { text: string }[] }[];
     expect(artifacts.length).toBeGreaterThan(0);
     expect(artifacts[0].parts[0].text.length).toBeGreaterThan(0);
   });
@@ -89,13 +96,13 @@ test.describe('A2A Agent Protocol', () => {
       { location: 'Montreal' },
     );
 
-    const result = body.result as Record<string, unknown>;
-    expect(result).toBeDefined();
+    const task = taskOf(body);
+    expect(task).toBeDefined();
 
-    const status = result.status as { state: string };
-    expect(status.state).toBe('COMPLETED');
+    const status = task.status as { state: string };
+    expect(status.state).toBe('TASK_STATE_COMPLETED');
 
-    const artifacts = result.artifacts as { parts: { text: string }[] }[];
+    const artifacts = task.artifacts as { parts: { text: string }[] }[];
     const text = artifacts[0].parts[0].text;
     expect(text.length).toBeGreaterThan(0);
   });
@@ -108,16 +115,15 @@ test.describe('A2A Agent Protocol', () => {
       { timezone: 'America/New_York' },
     );
 
-    const result = body.result as Record<string, unknown>;
-    expect(result).toBeDefined();
+    const task = taskOf(body);
+    expect(task).toBeDefined();
 
-    const status = result.status as { state: string };
-    expect(status.state).toBe('COMPLETED');
+    const status = task.status as { state: string };
+    expect(status.state).toBe('TASK_STATE_COMPLETED');
 
-    const artifacts = result.artifacts as { parts: { text: string }[] }[];
+    const artifacts = task.artifacts as { parts: { text: string }[] }[];
     const text = artifacts[0].parts[0].text;
     expect(text).toContain('America/New_York');
-    // Format: yyyy-MM-dd HH:mm:ss z
     expect(text).toMatch(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/);
   });
 
@@ -129,24 +135,26 @@ test.describe('A2A Agent Protocol', () => {
       { timezone: 'Invalid/Zone' },
     );
 
-    const result = body.result as Record<string, unknown>;
-    expect(result).toBeDefined();
+    const task = taskOf(body);
+    expect(task).toBeDefined();
 
-    const status = result.status as { state: string };
-    expect(status.state).toBe('FAILED');
+    const status = task.status as { state: string };
+    expect(status.state).toBe('TASK_STATE_FAILED');
   });
 
-  test('tasks/list returns executed tasks', async () => {
-    // Send two tasks
+  test('ListTasks returns paginated executed tasks', async () => {
     await sendTask(server.baseUrl, 'ask', 'First question', {}, 10);
     await sendTask(server.baseUrl, 'ask', 'Second question', {}, 11);
 
-    const { body } = await a2aRequest(server.baseUrl, 'tasks/list', {}, 12);
+    const { body } = await a2aRequest(server.baseUrl, 'ListTasks', { pageSize: 50 }, 12);
 
-    const result = body.result as unknown[];
+    const result = body.result as Record<string, unknown>;
     expect(result).toBeDefined();
-    expect(Array.isArray(result)).toBeTruthy();
-    expect(result.length).toBeGreaterThanOrEqual(2);
+    const tasks = result.tasks as unknown[];
+    expect(Array.isArray(tasks)).toBeTruthy();
+    expect(tasks.length).toBeGreaterThanOrEqual(2);
+    expect(typeof result.pageSize).toBe('number');
+    expect(typeof result.totalSize).toBe('number');
   });
 
   test('missing method returns INVALID_REQUEST (-32600)', async () => {
@@ -186,7 +194,7 @@ test.describe('A2A Agent Protocol', () => {
   test('agent card has expected skill metadata', async () => {
     const { body } = await a2aRequest(
       server.baseUrl,
-      'agent/authenticatedExtendedCard',
+      'GetExtendedAgentCard',
     );
 
     const result = body.result as Record<string, unknown>;
