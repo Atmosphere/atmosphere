@@ -264,7 +264,12 @@ class EmbabelAgentRuntime : AgentRuntime {
             return
         }
 
-        val messages = buildList<Message> {
+        // Embabel's PromptRunner contract: generateText(text) carries the
+        // current user prompt; withMessages(...) carries prior history only.
+        // Calling generateText("") makes Embabel reject the request with
+        // "Text content cannot be empty" before it consults withMessages,
+        // so the current message MUST go to generateText, not into messages.
+        val historyMessages = buildList<Message> {
             context.history().forEach { msg ->
                 when (msg.role()) {
                     "system" -> add(SystemMessage(msg.content()))
@@ -272,8 +277,8 @@ class EmbabelAgentRuntime : AgentRuntime {
                     else -> add(UserMessage(msg.content()))
                 }
             }
-            add(UserMessage(context.message()))
         }
+        val currentMessage = context.message().orEmpty().ifBlank { " " }
 
         // Translate Atmosphere ToolDefinitions and multi-modal Content parts
         // into Embabel-native surfaces so PromptRunner's withTools(...) /
@@ -291,14 +296,16 @@ class EmbabelAgentRuntime : AgentRuntime {
             if (!context.systemPrompt().isNullOrBlank()) {
                 runner = runner.withSystemPrompt(context.systemPrompt())
             }
-            runner = runner.withMessages(messages)
+            if (historyMessages.isNotEmpty()) {
+                runner = runner.withMessages(historyMessages)
+            }
             if (embabelTools.isNotEmpty()) {
                 runner = runner.withTools(embabelTools)
             }
             if (embabelImages.isNotEmpty()) {
                 runner = runner.withImages(embabelImages)
             }
-            runner.generateText("")
+            runner.generateText(currentMessage)
         } catch (t: Throwable) {
             logger.error("Embabel Ai dispatch failed", t)
             session.error(t)
