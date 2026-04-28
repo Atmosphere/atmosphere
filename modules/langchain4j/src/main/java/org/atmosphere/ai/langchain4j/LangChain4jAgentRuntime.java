@@ -194,11 +194,16 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         // OpenAI-path {@code prompt_cache_key} injected via LC4j's
         // OpenAiChatRequestParameters.customParameters(Map) — LC4j's generic
         // ChatRequest.Builder has no typed cache accessor, so we go through
-        // the OpenAI params surface. Non-OpenAI providers silently ignore
-        // the field.
+        // the OpenAI params surface. Most OpenAI-compat providers silently
+        // ignore unknown fields, but Gemini's surface enforces strict JSON
+        // schema and rejects with HTTP 400; CacheHint.endpointAcceptsPromptCacheKey
+        // gates the injection on the configured base URL.
+        var settings = org.atmosphere.ai.AiConfig.get();
+        var endpointUrl = settings != null ? settings.baseUrl() : null;
         var cacheHint = org.atmosphere.ai.llm.CacheHint.from(context);
         var cacheKey = cacheHint.resolvedKey(context);
-        if (cacheHint.enabled() && cacheKey.isPresent()) {
+        if (cacheHint.enabled() && cacheKey.isPresent()
+                && org.atmosphere.ai.llm.CacheHint.endpointAcceptsPromptCacheKey(endpointUrl)) {
             var paramsBuilder = dev.langchain4j.model.openai.OpenAiChatRequestParameters.builder()
                     .customParameters(java.util.Map.of("prompt_cache_key", cacheKey.get()));
             if (context.model() != null && !context.model().isBlank()) {

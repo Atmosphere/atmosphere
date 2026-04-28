@@ -121,4 +121,29 @@ public record CacheHint(CachePolicy policy, Optional<String> cacheKey, Optional<
         }
         return Optional.empty();
     }
+
+    /**
+     * True when the configured LLM endpoint is known to tolerate the OpenAI
+     * extension field {@code prompt_cache_key}. OpenAI proper accepts it;
+     * most OpenAI-compat proxies (Groq, Together, vLLM, Ollama) silently
+     * ignore unknown fields. Gemini's OpenAI-compat surface enforces strict
+     * JSON schema validation and rejects unknown fields with HTTP 400, so
+     * adapters MUST suppress {@code prompt_cache_key} when targeting Gemini.
+     *
+     * <p>Returns {@code true} for {@code null}/blank URLs (assumed OpenAI by
+     * default) and any URL not in the known-incompatible list, preserving
+     * the cache-hint behavior for all OpenAI-compatible providers except the
+     * ones empirically observed to reject unknown fields.</p>
+     */
+    public static boolean endpointAcceptsPromptCacheKey(String endpointUrl) {
+        if (endpointUrl == null || endpointUrl.isBlank()) {
+            return true;
+        }
+        String url = endpointUrl.toLowerCase(java.util.Locale.ROOT);
+        // Gemini OpenAI-compat: strict schema, rejects unknown fields.
+        if (url.contains("generativelanguage.googleapis.com")) {
+            return false;
+        }
+        return true;
+    }
 }
