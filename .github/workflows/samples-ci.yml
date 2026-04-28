@@ -98,8 +98,8 @@ jobs:
       with:
         node-version: 22
 
-    - name: Install jq
-      run: sudo apt-get install -y jq
+    - name: Install jq + xmllint
+      run: sudo apt-get install -y jq libxml2-utils
 
     - name: Run CLI Tests
       run: ./cli/test-cli.sh

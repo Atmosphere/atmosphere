@@ -443,6 +443,159 @@ SKILLEOF
     printf "\n"
 fi
 
+# ── 12c. CLI: --runtime overlay ────────────────────────────────────────────
+# `--runtime <name>` injects an AgentRuntime adapter (and provider deps + repo)
+# into the scaffolded pom.xml. Tests cover the registry, validation path, and
+# the pure-local injection logic (sourcing the helper without network).
+printf "${BOLD}atmosphere new --runtime${RESET}\n"
+
+OVERLAYS_JSON="$SCRIPT_DIR/runtime-overlays.json"
+
+# Registry integrity
+if jq empty "$OVERLAYS_JSON" 2>/dev/null; then
+    pass "runtime-overlays.json is valid JSON"
+else
+    fail "runtime-overlays.json is valid JSON"
+fi
+
+expected_runtimes="builtin spring-ai langchain4j adk koog embabel semantic-kernel"
+for rt in $expected_runtimes; do
+    if jq -e ".overlays[\"$rt\"]" "$OVERLAYS_JSON" >/dev/null 2>&1; then
+        pass "registry has '$rt' overlay"
+    else
+        fail "registry has '$rt' overlay"
+    fi
+done
+
+# Every non-builtin overlay must declare description + at least one dep with
+# groupId/artifactId; built-in is the only valid empty-deps entry.
+bad_overlays=$(jq -r '
+    .overlays | to_entries[] |
+    select(.key != "builtin") |
+    select((.value.description | not) or (.value.deps | length == 0) or
+           (.value.deps | map(select(.groupId == null or .artifactId == null)) | length > 0)) |
+    .key
+' "$OVERLAYS_JSON")
+if [ -z "$bad_overlays" ]; then
+    pass "all overlays declare description + groupId/artifactId on every dep"
+else
+    fail "overlays missing required fields" "$bad_overlays"
+fi
+
+# Embabel must declare the repository entry (Embabel artifacts are not on
+# Maven Central — without this, the cloned project won't resolve the deps).
+emb_repo=$(jq -r '.overlays.embabel.repository.url // empty' "$OVERLAYS_JSON")
+assert_contains "$emb_repo" "repo.embabel.com" "embabel overlay declares repo.embabel.com"
+
+# Validation: --runtime with no value
+out=$("$CLI" new foo --runtime 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "new --runtime without value exits with error"
+
+# Validation: unknown runtime triggers the registry error path. The CLI must
+# parse arguments far enough to call apply_runtime_overlay AFTER scaffolding,
+# so we can't test this purely offline against a real template (clone needs
+# network). Instead, drive the helper directly via a sub-shell that sources
+# only the apply_runtime_overlay function.
+overlay_tmp=$(mktemp -d)
+cp "$SCRIPT_DIR/../samples/spring-boot-ai-chat/pom.xml" "$overlay_tmp/pom.xml"
+
+# Extract the apply_runtime_overlay function body to a sourceable file. We
+# can't pass it through `sh -c` (the function's own $variables would expand
+# in the outer shell first), so we drive it via a tiny harness script.
+overlay_fn_file="$overlay_tmp/apply_overlay.sh"
+sed -n '/^# ── Runtime overlay/,/^cmd_new() {$/p' "$CLI" \
+    | sed '/^cmd_new() {$/d' > "$overlay_fn_file"
+
+cat > "$overlay_tmp/harness.sh" <<HARNESS
+#!/bin/sh
+# Stand-alone harness that calls apply_runtime_overlay with the env the
+# real CLI provides.
+die()  { echo "error: \$1" >&2; exit 1; }
+info() { :; }
+ok()   { :; }
+warn() { :; }
+has_jq() { command -v jq >/dev/null 2>&1; }
+ensure_cache_dir() { :; }
+download() { :; }
+RED=''; GREEN=''; YELLOW=''; CYAN=''; BOLD=''; DIM=''; RESET=''
+CACHE_DIR='$overlay_tmp/cache'
+get_runtime_overlays_json() { cat '$OVERLAYS_JSON'; }
+. '$overlay_fn_file'
+apply_runtime_overlay "\$1" "\$2"
+HARNESS
+chmod +x "$overlay_tmp/harness.sh"
+
+drive_overlay() {
+    "$overlay_tmp/harness.sh" "$1" "$2"
+}
+
+# Unknown runtime gives a friendly error listing valid choices
+cp "$overlay_tmp/pom.xml" "$overlay_tmp/pom.unknown.xml"
+out=$(drive_overlay nonsense "$overlay_tmp/pom.unknown.xml" 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "unknown runtime exits with error"
+assert_contains "$out" "Unknown runtime: nonsense" "error names the bad runtime"
+assert_contains "$out" "spring-ai" "error lists spring-ai as valid"
+assert_contains "$out" "embabel" "error lists embabel as valid"
+
+# Each overlay produces well-formed XML, leaves <dependencyManagement> alone,
+# and adds the matching adapter dependency. Use xmllint when available;
+# otherwise fall back to a structural grep.
+have_xmllint=0
+command -v xmllint >/dev/null 2>&1 && have_xmllint=1
+
+for rt in $expected_runtimes; do
+    pom_copy="$overlay_tmp/pom.$rt.xml"
+    cp "$overlay_tmp/pom.xml" "$pom_copy"
+    drive_overlay "$rt" "$pom_copy" >/dev/null 2>&1 || {
+        fail "overlay '$rt' applied without error"
+        continue
+    }
+    pass "overlay '$rt' applied without error"
+
+    if [ "$have_xmllint" = 1 ]; then
+        if xmllint --noout "$pom_copy" 2>/dev/null; then
+            pass "overlay '$rt' produces well-formed XML"
+        else
+            fail "overlay '$rt' produces well-formed XML" \
+                 "$(xmllint --noout "$pom_copy" 2>&1 | head -3)"
+        fi
+    fi
+
+    # Built-in is a no-op overlay — skip the dep-presence check.
+    if [ "$rt" = "builtin" ]; then continue; fi
+
+    expected_artifact=$(jq -r ".overlays[\"$rt\"].deps[0].artifactId" "$OVERLAYS_JSON")
+    if grep -q "<artifactId>$expected_artifact</artifactId>" "$pom_copy"; then
+        pass "overlay '$rt' injected $expected_artifact"
+    else
+        fail "overlay '$rt' injected $expected_artifact"
+    fi
+done
+
+# Embabel's repository must end up inside <repositories>.
+emb_pom="$overlay_tmp/pom.embabel.xml"
+if grep -q "<id>embabel-releases</id>" "$emb_pom"; then
+    pass "embabel overlay injects <repository> entry"
+else
+    fail "embabel overlay injects <repository> entry"
+fi
+
+# The injection must NOT land inside <dependencyManagement> — that section
+# only declares versions, it does not bring deps onto the runtime classpath.
+# Smoke-check by ensuring the injected comment marker appears AFTER the
+# closing </dependencyManagement> tag (or that the pom has none).
+mgmt_close_line=$(grep -n "</dependencyManagement>" "$overlay_tmp/pom.langchain4j.xml" | head -1 | cut -d: -f1)
+inject_line=$(grep -n "Injected by atmosphere CLI" "$overlay_tmp/pom.langchain4j.xml" | head -1 | cut -d: -f1)
+if [ -z "$mgmt_close_line" ] || [ -z "$inject_line" ] || [ "$inject_line" -gt "$mgmt_close_line" ]; then
+    pass "overlay lands outside <dependencyManagement>"
+else
+    fail "overlay lands outside <dependencyManagement>" \
+         "inject@$inject_line, </dependencyManagement>@$mgmt_close_line"
+fi
+
+rm -rf "$overlay_tmp"
+printf "\n"
+
 # ── 13. npx: create-atmosphere-app ─────────────────────────────────────────
 # The npx wrapper is a thin shim that delegates to `atmosphere new`. Tests
 # assert its argument parsing + delegation contract, not clone output.
@@ -510,6 +663,14 @@ FAKEOF
     out=$(cd "$npx_tmp" && env PATH="$fake_bin:/usr/bin:/bin:/usr/sbin:/sbin" "$real_node" "$NPX" my-fleet --template multi-agent 2>&1)
     assert_contains "$out" "ATMOSPHERE_ARGS: new my-fleet --template multi-agent" \
         "npx delegates multi-agent template correctly"
+
+    # --runtime forwards through to the shell CLI
+    out=$(cd "$npx_tmp" && env PATH="$fake_bin:/usr/bin:/bin:/usr/sbin:/sbin" "$real_node" "$NPX" my-rt-app --template ai-chat --runtime langchain4j 2>&1)
+    assert_contains "$out" "--runtime langchain4j" "npx forwards --runtime to shell CLI"
+
+    # --runtime help is documented
+    out=$(node "$NPX" --help 2>&1)
+    assert_contains "$out" "--runtime" "npx --help documents --runtime"
 
     # --group is silently accepted but warned about (not forwarded)
     out=$(cd "$npx_tmp" && env PATH="$fake_bin:/usr/bin:/bin:/usr/sbin:/sbin" "$real_node" "$NPX" g-app --template chat --group com.acme 2>&1)

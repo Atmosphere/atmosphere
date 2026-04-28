@@ -850,7 +850,10 @@ EOF
     desc=$(printf '%s' "$overlay" | jq -r '.description')
     note=$(printf '%s' "$overlay" | jq -r '.note // empty')
     ok "Applied runtime overlay '$runtime' — $desc"
-    [ -n "$note" ] && warn "$note"
+    if [ -n "$note" ]; then
+        warn "$note"
+    fi
+    return 0
 }
 
 cmd_new() {
