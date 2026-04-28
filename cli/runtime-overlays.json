@@ -1,0 +1,58 @@
+{
+  "_comment": "Runtime overlay registry consumed by 'atmosphere new <name> --runtime <X>'. Each overlay declares the Maven dependencies (and optional repository) that must be appended to the scaffolded sample's pom.xml so the named AgentRuntime is on the classpath. Atmosphere's AgentRuntime SPI picks the highest-priority runtime present, so adding the overlay deps to a transparent sample like spring-boot-ai-chat is enough to swap providers.",
+  "overlays": {
+    "builtin": {
+      "description": "Built-in OpenAI-compatible runtime (no extra deps; default)",
+      "deps": []
+    },
+    "spring-ai": {
+      "description": "Spring AI 2.0 + OpenAI/Gemini",
+      "deps": [
+        { "groupId": "org.atmosphere", "artifactId": "atmosphere-spring-ai" },
+        { "groupId": "org.springframework.ai", "artifactId": "spring-ai-starter-model-openai", "version": "${spring-ai.version}" }
+      ]
+    },
+    "langchain4j": {
+      "description": "LangChain4j 1.x + OpenAI/Gemini",
+      "deps": [
+        { "groupId": "org.atmosphere", "artifactId": "atmosphere-langchain4j" },
+        { "groupId": "dev.langchain4j", "artifactId": "langchain4j-open-ai", "version": "${langchain4j.version}" }
+      ]
+    },
+    "adk": {
+      "description": "Google ADK (Agent Development Kit)",
+      "deps": [
+        { "groupId": "org.atmosphere", "artifactId": "atmosphere-adk" },
+        { "groupId": "com.google.adk", "artifactId": "google-adk", "version": "${google-adk.version}" }
+      ]
+    },
+    "koog": {
+      "description": "JetBrains Koog (Kotlin — works from Java via JVM interop)",
+      "deps": [
+        { "groupId": "org.atmosphere", "artifactId": "atmosphere-koog" },
+        { "groupId": "ai.koog", "artifactId": "koog-agents-jvm", "version": "${koog.version}" }
+      ]
+    },
+    "embabel": {
+      "description": "Embabel GOAP agent platform (Spring Boot 3.5 only)",
+      "deps": [
+        { "groupId": "org.atmosphere", "artifactId": "atmosphere-embabel" },
+        { "groupId": "com.embabel.agent", "artifactId": "embabel-agent-api", "version": "${embabel.version}" },
+        { "groupId": "com.embabel.agent", "artifactId": "embabel-agent-starter-gemini", "version": "${embabel.version}" }
+      ],
+      "repository": {
+        "id": "embabel-releases",
+        "url": "https://repo.embabel.com/artifactory/libs-release"
+      },
+      "note": "Embabel targets Spring Boot 3.5 — build with -Pspring-boot3 (Atmosphere's parent profile pins SB 3.5 + atmosphere-spring-boot3-starter)."
+    },
+    "semantic-kernel": {
+      "description": "Microsoft Semantic Kernel (Java)",
+      "deps": [
+        { "groupId": "org.atmosphere", "artifactId": "atmosphere-semantic-kernel" },
+        { "groupId": "com.microsoft.semantic-kernel", "artifactId": "semantickernel-api", "version": "1.4.0" },
+        { "groupId": "com.microsoft.semantic-kernel", "artifactId": "semantickernel-aiservices-openai", "version": "1.4.0" }
+      ]
+    }
+  }
+}

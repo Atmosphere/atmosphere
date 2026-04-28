@@ -10,6 +10,7 @@ VERSION="4.0.40"
 ATMOSPHERE_HOME="${ATMOSPHERE_HOME:-$HOME/.atmosphere}"
 CACHE_DIR="$ATMOSPHERE_HOME/cache"
 SAMPLES_JSON_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/samples.json"
+RUNTIME_OVERLAYS_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/runtime-overlays.json"
 SOURCE_TARBALL_URL="https://github.com/Atmosphere/atmosphere/archive/refs/heads/main.tar.gz"
 
 # ── Colors ──────────────────────────────────────────────────────────────────
@@ -96,6 +97,23 @@ get_samples_json() {
     cat "$CACHE_DIR/samples.json"
 }
 
+# Get the local runtime-overlays.json — bundled with CLI or download it
+get_runtime_overlays_json() {
+    script_dir="$(cd "$(dirname "$0")" && pwd)"
+    if [ -f "$script_dir/runtime-overlays.json" ]; then
+        cat "$script_dir/runtime-overlays.json"
+        return
+    fi
+    if [ -f "$CACHE_DIR/runtime-overlays.json" ]; then
+        cat "$CACHE_DIR/runtime-overlays.json"
+        return
+    fi
+    ensure_cache_dir
+    info "Downloading runtime overlay registry..."
+    download "$RUNTIME_OVERLAYS_URL" "$CACHE_DIR/runtime-overlays.json"
+    cat "$CACHE_DIR/runtime-overlays.json"
+}
+
 # Parse JSON without jq — extract field from a sample block
 # Usage: json_field "field_name" <<< "$json_block"
 # This is intentionally simple; we use jq when available.
@@ -157,6 +175,7 @@ ${BOLD}Examples:${RESET}
   atmosphere run spring-boot-ai-chat --env LLM_API_KEY=sk-xxx
   atmosphere new my-chat-app
   atmosphere new my-ai-app --template ai-chat
+  atmosphere new my-ai-app --template ai-chat --runtime langchain4j
   atmosphere checkpoint list --coordination dispatch
   atmosphere checkpoint approve abc-123 --by alice
 
@@ -722,16 +741,130 @@ cmd_run() {
     fi
 }
 
+# ── Runtime overlay (--runtime) ─────────────────────────────────────────────
+# Apply a runtime overlay (cli/runtime-overlays.json) to a scaffolded sample's
+# pom.xml. Appends <dependency> blocks before </dependencies> and an optional
+# <repository> before </repositories> (creating the section if absent). Prints
+# any "note" the overlay carries (e.g., Embabel's Spring Boot 3.5 reminder).
+#
+# Usage: apply_runtime_overlay <runtime-name> <pom-path>
+apply_runtime_overlay() {
+    runtime="$1"
+    pom="$2"
+    [ -z "$runtime" ] && return 0
+    [ ! -f "$pom" ] && die "pom.xml not found: $pom"
+
+    has_jq || die "--runtime requires jq. Install with: brew install jq"
+
+    overlays=$(get_runtime_overlays_json)
+    overlay=$(printf '%s' "$overlays" | jq -e ".overlays[\"$runtime\"]" 2>/dev/null) || {
+        names=$(printf '%s' "$overlays" | jq -r '.overlays | keys | join(", ")')
+        die "Unknown runtime: $runtime (available: $names)"
+    }
+
+    # Built-in is the default — no overlay needed
+    dep_count=$(printf '%s' "$overlay" | jq '.deps | length')
+    if [ "$dep_count" -eq 0 ]; then
+        info "Runtime '$runtime' uses Atmosphere's built-in adapter — no extra deps required"
+        return 0
+    fi
+
+    # Build the <dependency> XML block in a temp file. BSD awk on macOS rejects
+    # multi-line -v values, so we read the block via getline rather than passing
+    # it through a variable.
+    dep_block=$(mktemp)
+    printf '%s' "$overlay" | jq -r '
+        .deps[] |
+        "        <dependency>\n" +
+        "            <groupId>\(.groupId)</groupId>\n" +
+        "            <artifactId>\(.artifactId)</artifactId>" +
+        (if .version then "\n            <version>\(.version)</version>" else "" end) +
+        "\n        </dependency>"
+    ' > "$dep_block"
+
+    # Inject before </dependencies>. Use awk so we only patch the FIRST occurrence
+    # outside <dependencyManagement> (the project's main <dependencies>).
+    tmp_pom="${pom}.tmp"
+    awk -v block_file="$dep_block" '
+        BEGIN { injected = 0; in_mgmt = 0 }
+        /<dependencyManagement>/ { in_mgmt = 1 }
+        /<\/dependencyManagement>/ { in_mgmt = 0 }
+        !injected && !in_mgmt && /<\/dependencies>/ {
+            print "        <!-- Injected by atmosphere CLI runtime overlay -->"
+            while ((getline line < block_file) > 0) print line
+            close(block_file)
+            injected = 1
+        }
+        { print }
+    ' "$pom" > "$tmp_pom" && mv "$tmp_pom" "$pom"
+    rm -f "$dep_block"
+
+    # Optional repository (Embabel). Same getline trick to avoid BSD awk's
+    # multi-line -v limitation.
+    repo_id=$(printf '%s' "$overlay" | jq -r '.repository.id // empty')
+    if [ -n "$repo_id" ]; then
+        repo_url=$(printf '%s' "$overlay" | jq -r '.repository.url')
+        repo_block=$(mktemp)
+        if grep -q "<repositories>" "$pom"; then
+            cat > "$repo_block" <<EOF
+        <repository>
+            <id>$repo_id</id>
+            <url>$repo_url</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+EOF
+            awk -v block_file="$repo_block" '
+                BEGIN { injected = 0 }
+                !injected && /<\/repositories>/ {
+                    while ((getline line < block_file) > 0) print line
+                    close(block_file)
+                    injected = 1
+                }
+                { print }
+            ' "$pom" > "$tmp_pom" && mv "$tmp_pom" "$pom"
+        else
+            cat > "$repo_block" <<EOF
+    <repositories>
+        <repository>
+            <id>$repo_id</id>
+            <url>$repo_url</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+    </repositories>
+EOF
+            awk -v block_file="$repo_block" '
+                BEGIN { injected = 0 }
+                !injected && /<\/project>/ {
+                    while ((getline line < block_file) > 0) print line
+                    close(block_file)
+                    injected = 1
+                }
+                { print }
+            ' "$pom" > "$tmp_pom" && mv "$tmp_pom" "$pom"
+        fi
+        rm -f "$repo_block"
+    fi
+
+    desc=$(printf '%s' "$overlay" | jq -r '.description')
+    note=$(printf '%s' "$overlay" | jq -r '.note // empty')
+    ok "Applied runtime overlay '$runtime' — $desc"
+    [ -n "$note" ] && warn "$note"
+}
+
 cmd_new() {
-    [ -z "$1" ] && die "Usage: atmosphere new <project-name> [--template <template>] [--skill-file <path>]"
+    [ -z "$1" ] && die "Usage: atmosphere new <project-name> [--template <template>] [--runtime <runtime>] [--skill-file <path>]"
     project_name="$1"; shift
 
     template="chat"
     skill_file=""
+    runtime=""
     while [ $# -gt 0 ]; do
         case "$1" in
             --template|-t)    template="$2"; shift 2 ;;
             --skill-file|-s)  skill_file="$2"; shift 2 ;;
+            --runtime|-r)     runtime="$2"; shift 2 ;;
             --group|-g)
                 warn "--group is no longer supported. Samples ship with their own groupId;"
                 warn "rename the groupId in pom.xml and the src/main/java package by hand after scaffolding."
@@ -779,6 +912,14 @@ cmd_new() {
         mkdir -p "$project_name/src/main/resources/prompts"
         cp "$skill_file" "$project_name/src/main/resources/prompts/skill.md"
         info "Copied skill file to src/main/resources/prompts/skill.md"
+    fi
+
+    # Apply runtime overlay if requested. The AgentRuntime SPI picks the
+    # highest-priority runtime present on the classpath, so injecting the
+    # overlay's deps into a transparent template (e.g. ai-chat) is enough
+    # to swap providers without code changes.
+    if [ -n "$runtime" ]; then
+        apply_runtime_overlay "$runtime" "$project_name/pom.xml"
     fi
 
     ok "Project created: $project_name/"

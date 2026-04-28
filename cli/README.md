@@ -55,9 +55,17 @@ atmosphere new my-chat-app
 atmosphere new my-ai-app --template ai-chat
 atmosphere new my-fleet --template multi-agent
 atmosphere new my-classroom --template classroom
+
+# Swap the AI runtime by injecting the matching adapter dependency
+atmosphere new my-ai-app --template ai-chat --runtime langchain4j
+atmosphere new my-ai-app --template ai-chat --runtime spring-ai
+atmosphere new my-ai-app --template ai-chat --runtime adk
+atmosphere new my-kotlin-ai --template ai-chat --runtime embabel
 ```
 
 Available templates: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `koog`, `embabel`, `multi-agent`, `classroom`. Each template sparse-clones the matching sample from `cli/samples.json` into a directory you name.
+
+Available runtimes (`--runtime`): `builtin` (default — no extra deps), `spring-ai`, `langchain4j`, `adk`, `koog`, `embabel`, `semantic-kernel`. The CLI appends the matching adapter dependencies (and Embabel's release repository) to the scaffolded `pom.xml` — Atmosphere's `AgentRuntime` SPI then picks the highest-priority runtime present, so transparent templates like `ai-chat` swap providers without code changes.
 
 Or with npx (zero install):
 

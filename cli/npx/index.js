@@ -45,6 +45,8 @@ ${BOLD}Usage:${RESET}
 
 ${BOLD}Options:${RESET}
   --template, -t <name>     Template to use (default: chat)
+  --runtime, -r <name>      AI runtime adapter to inject (builtin | spring-ai |
+                            langchain4j | adk | koog | embabel | semantic-kernel)
   --skill-file, -s <path>   Scaffold an @Agent that loads this skill file
   --list-templates          List available templates
   --help, -h                Show this help
@@ -80,6 +82,7 @@ function main() {
   let projectName = null;
   let template = 'chat';
   let skillFile = null;
+  let runtime = null;
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
@@ -98,6 +101,10 @@ function main() {
       case '--template': case '-t':
         template = args[++i];
         if (!template) die('--template requires a value');
+        break;
+      case '--runtime': case '-r':
+        runtime = args[++i];
+        if (!runtime) die('--runtime requires a value');
         break;
       case '--skill-file': case '-s':
         skillFile = args[++i];
@@ -142,6 +149,7 @@ function main() {
 
   const cliArgs = ['new', projectName, '--template', template];
   if (skillFile) cliArgs.push('--skill-file', skillFile);
+  if (runtime) cliArgs.push('--runtime', runtime);
 
   const result = spawnSync('atmosphere', cliArgs, { stdio: 'inherit' });
   if (result.error) {
