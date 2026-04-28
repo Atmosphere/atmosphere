@@ -32,7 +32,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
  * {@code OpenAIAsyncClient} — because SK-Java's service construction depends
  * on provider-specific credentials this module does not depend on.</p>
  */
-@AutoConfiguration
+@AutoConfiguration(after = AtmosphereSemanticKernelClientAutoConfiguration.class)
 @ConditionalOnClass(ChatCompletionService.class)
 @ConditionalOnBean(ChatCompletionService.class)
 public class AtmosphereSemanticKernelAutoConfiguration {
