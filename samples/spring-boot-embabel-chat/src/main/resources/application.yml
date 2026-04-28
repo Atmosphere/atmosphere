@@ -1,0 +1,41 @@
+# Atmosphere Embabel Chat - Configuration
+# Uses Embabel's AgentPlatform as the AI runtime via the AgentRuntime SPI.
+# Embabel framework requires Spring Boot 3.5 (not 4.0).
+
+atmosphere:
+  console-subtitle: Real-time AI chat powered by Embabel GOAP
+  packages: org.atmosphere.samples.springboot.embabelchat
+
+# LLM config (used by AiConfig for demo-mode detection).
+# When LLM_API_KEY is set, the Embabel AgentPlatform engages real GOAP
+# planning via embabel-agent-starter-platform.
+llm:
+  mode: ${LLM_MODE:remote}
+  model: ${LLM_MODEL:gemini-2.5-flash}
+  base-url: ${LLM_BASE_URL:}
+  # Intentionally empty by default — DemoResponseProducer fires when this
+  # is blank, short-circuiting the Embabel dispatch. Set LLM_API_KEY (or
+  # GEMINI_API_KEY) to engage real GOAP planning.
+  api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
+
+# Embabel's AgentPlatform routes LLM calls through Spring AI 1.x.
+# embabel-agent-starter-gemini requires a non-empty API key at bean
+# construction time even before any LLM call is made; we default to a
+# placeholder so the sample boots in demo mode without env vars. The
+# @Prompt handler short-circuits to DemoResponseProducer when LLM_API_KEY
+# is unset, so the placeholder is never sent over the wire.
+embabel:
+  # Override Embabel's hardcoded default LLM (gpt-4.1-mini) so it picks
+  # a model the gemini starter actually registered. The gemini starter
+  # registers gemini-{2.0-flash, 2.0-flash-lite, 2.5-flash, 2.5-flash-lite,
+  # 2.5-pro, 3-pro-preview}.
+  models:
+    default-llm: ${LLM_MODEL:gemini-2.5-flash}
+  agent:
+    platform:
+      models:
+        gemini:
+          api-key: ${LLM_API_KEY:${GEMINI_API_KEY:demo-placeholder}}
+
+server:
+  port: ${SERVER_PORT:8099}

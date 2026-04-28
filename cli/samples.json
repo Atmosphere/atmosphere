@@ -85,6 +85,28 @@
       }
     },
     {
+      "name": "spring-boot-embabel-chat",
+      "description": "Real-time AI chat powered by Embabel GOAP (Spring Boot 3.5, Kotlin)",
+      "category": "ai",
+      "tags": [
+        "spring-boot",
+        "ai",
+        "embabel",
+        "goap",
+        "kotlin",
+        "spring-boot-3"
+      ],
+      "port": 8099,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {
+        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)",
+        "LLM_MODEL": "Model name (default: gemini-2.5-flash)",
+        "LLM_BASE_URL": "OpenAI-compatible endpoint (optional)"
+      }
+    },
+    {
       "name": "spring-boot-semantic-kernel-chat",
       "description": "Real-time AI chat powered by Microsoft Semantic Kernel for Java",
       "category": "ai",
