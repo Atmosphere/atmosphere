@@ -107,7 +107,10 @@ test.describe('A2A Discovery — spring-boot-multi-agent-startup-team', () => {
 
     for (const card of cards) {
       expect(card.name).toBeTruthy();
-      expect(card.url).toBeTruthy();
+      // v1.0.0: url moved from top-level to supportedInterfaces[].url
+      expect(Array.isArray(card.supportedInterfaces)).toBeTruthy();
+      expect(card.supportedInterfaces.length).toBeGreaterThan(0);
+      expect(card.supportedInterfaces[0].url).toBeTruthy();
       expect(card.skills).toBeDefined();
     }
   });

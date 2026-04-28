@@ -329,11 +329,11 @@ public final class A2aProtocolHandler {
     }
 
     private JsonRpc.Response handleGetExtendedAgentCard(Object id) {
-        if (extendedAgentCard == null) {
-            return JsonRpc.Response.error(id, ERROR_EXTENDED_CARD_NOT_CONFIGURED,
-                    "Extended Agent Card is not configured");
-        }
-        return JsonRpc.Response.success(id, extendedAgentCard);
+        // Per A2A v1.0.0 §6.4: if no separate extended card is configured, fall
+        // back to the public agent card. The capability flag advertises that
+        // the method is callable, not that a distinct card exists.
+        return JsonRpc.Response.success(id,
+                extendedAgentCard != null ? extendedAgentCard : agentCard);
     }
 
     private void executeSkill(A2aRegistry.SkillEntry skill, TaskContext taskCtx, JsonNode params) {

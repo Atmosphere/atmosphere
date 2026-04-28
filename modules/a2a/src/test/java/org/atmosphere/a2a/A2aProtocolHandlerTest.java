@@ -169,15 +169,14 @@ class A2aProtocolHandlerTest {
     }
 
     @Test
-    void getExtendedAgentCardWithoutConfigReturnsNotConfiguredError() throws Exception {
+    void getExtendedAgentCardFallsBackToPublicCard() throws Exception {
         var registry = new A2aRegistry();
         registry.scan(new TestAgent());
         var bare = new A2aProtocolHandler(registry, new TaskManager(),
                 registry.buildAgentCard("a", "b", "1.0", "/a2a"));
         var req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"GetExtendedAgentCard\"}";
         var node = mapper.readTree(bare.handleMessage(req));
-        assertEquals(A2aProtocolHandler.ERROR_EXTENDED_CARD_NOT_CONFIGURED,
-                node.get("error").get("code").asInt());
+        assertEquals("a", node.get("result").get("name").stringValue());
     }
 
     @Test
