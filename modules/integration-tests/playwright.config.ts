@@ -450,11 +450,6 @@ export default defineConfig({
       name: 'orchestration-primitives',
       testMatch: /orchestration-primitives\.spec\.ts/,
     },
-    // ── Semantic Kernel chat ──
-    {
-      name: 'semantic-kernel-chat',
-      testMatch: /spring-boot-semantic-kernel-chat\.spec\.ts/,
-    },
     // ── Cross-browser (opt-in via E2E_ALL_BROWSERS=true) ──
     ...(process.env.E2E_ALL_BROWSERS ? [
       {

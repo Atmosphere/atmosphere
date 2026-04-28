@@ -107,26 +107,6 @@
       }
     },
     {
-      "name": "spring-boot-semantic-kernel-chat",
-      "description": "Real-time AI chat powered by Microsoft Semantic Kernel for Java",
-      "category": "ai",
-      "tags": [
-        "spring-boot",
-        "ai",
-        "semantic-kernel",
-        "microsoft"
-      ],
-      "port": 8098,
-      "runnable": true,
-      "packaging": "spring-boot",
-      "hasFrontend": false,
-      "envVars": {
-        "LLM_API_KEY": "OpenAI or Azure OpenAI API key (optional \u2014 demo mode without)",
-        "LLM_MODEL": "Model deployment name (default: gpt-4o-mini)",
-        "LLM_BASE_URL": "OpenAI-compatible endpoint (default: https://api.openai.com/v1)"
-      }
-    },
-    {
       "name": "spring-boot-orchestration-demo",
       "description": "Support Desk \u2014 handoffs, approval gates, commands",
       "category": "agent",

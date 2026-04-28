@@ -68,10 +68,9 @@ jobs:
         # pole historically was gap-admin (SB3) at 15.6 min — split into
         # -core and -smoke. gap-protocols, ai-chat, and ai-ux similarly
         # split. New 4.0.36/4.0.37 flagship specs (ai-cancel, checkpoint-
-        # agent, semantic-kernel-chat, orchestration-primitives, admin-
-        # coverage) are now mapped — previously they lived in
-        # playwright.config.ts but were silently unmapped by any matrix
-        # leg, so CI never ran them.
+        # agent, orchestration-primitives, admin-coverage) are now mapped —
+        # previously they lived in playwright.config.ts but were silently
+        # unmapped by any matrix leg, so CI never ran them.
         group:
           - name: core-chat
             projects: "chat,spring-boot-chat,multi-client,embedded-jetty-chat"
@@ -88,13 +87,13 @@ jobs:
           - name: ai-tools
             projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow,ai-cancel"
           - name: ai-advanced
-            projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding,semantic-kernel-chat"
+            projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding"
           - name: ai-routing
             projects: "ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
           # checkpoint-agent lives under gap-coordinator with the other
           # durable-HITL specs. The previously-quarantined ai-cancel,
-          # semantic-kernel-chat, admin-coverage, and orchestration-primitives
-          # specs are now remapped into their matching legs.
+          # admin-coverage, and orchestration-primitives specs are now
+          # remapped into their matching legs.
           - name: protocols
             projects: "mcp-server,mcp-tools,a2a-agent,a2a-discovery,agui-chat,multi-agent-startup-team"
           - name: protocols-extra

@@ -21,7 +21,7 @@ All samples inherit their Atmosphere version from the parent POM. The target sta
 | [spring-boot-ai-chat](spring-boot-ai-chat/) | Built-in (Gemini/OpenAI/Ollama) | — | Basic AI streaming with `@AiEndpoint` |
 | [spring-boot-ai-tools](spring-boot-ai-tools/) | Built-in / any `AgentRuntime` | `@AiTool` (portable) | Framework-agnostic tool calling pipeline with live `AiEvent` tool activity |
 | [spring-boot-koog-chat](spring-boot-koog-chat/) | JetBrains Koog | — | Koog `PromptExecutor` via the `AgentRuntime` SPI |
-| [spring-boot-semantic-kernel-chat](spring-boot-semantic-kernel-chat/) | Microsoft Semantic Kernel for Java | ✅ (via `SemanticKernelToolBridge`) | SK `ChatCompletionService` streaming via the `AgentRuntime` SPI |
+| [spring-boot-embabel-chat](spring-boot-embabel-chat/) | Embabel GOAP (Kotlin, SB 3.5) | — | Embabel `AgentPlatform` planning via the `AgentRuntime` SPI |
 | [spring-boot-ai-classroom](spring-boot-ai-classroom/) | Built-in | — | Multi-room collaborative AI streaming ([Expo client](spring-boot-ai-classroom/expo-client/)) |
 | [spring-boot-rag-chat](spring-boot-rag-chat/) | Built-in + Spring AI VectorStore | `@AiTool` | RAG agent with knowledge base search tools |
 
@@ -85,7 +85,7 @@ atmosphere new my-fleet --template multi-agent
 atmosphere new my-classroom --template classroom
 ```
 
-Available `--template` values: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `koog`, `semantic-kernel`, `multi-agent`, `classroom`. See [cli/README.md](../cli/README.md#available-templates) for the template-to-sample mapping.
+Available `--template` values: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `koog`, `embabel`, `multi-agent`, `classroom`. See [cli/README.md](../cli/README.md#available-templates) for the template-to-sample mapping.
 
 Or with npx (zero install — delegates to the `atmosphere` CLI):
 

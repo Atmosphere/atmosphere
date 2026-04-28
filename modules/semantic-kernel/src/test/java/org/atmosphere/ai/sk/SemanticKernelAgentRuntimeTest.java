@@ -90,8 +90,9 @@ class SemanticKernelAgentRuntimeTest {
         // Regression: SK 1.4.0 OpenAIChatCompletion:200 dereferences
         // getToolCallBehavior() without a null-check, so any InvocationContext
         // built without .withToolCallBehavior(...) NPEs the moment streaming
-        // starts — breaking every sample that wires SK with zero @AiTool
-        // methods (e.g. spring-boot-semantic-kernel-chat).
+        // starts — breaking any sample that wires SK with zero @AiTool methods
+        // (e.g. spring-boot-ai-chat with the atmosphere-semantic-kernel
+        // dependency swapped in).
         var noTools = SemanticKernelAgentRuntime.buildInvocationContext(false);
         assertNotNull(noTools.getToolCallBehavior(),
                 "ToolCallBehavior must be set even when no tools are configured");

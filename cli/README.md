@@ -57,7 +57,7 @@ atmosphere new my-fleet --template multi-agent
 atmosphere new my-classroom --template classroom
 ```
 
-Available templates: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `koog`, `semantic-kernel`, `multi-agent`, `classroom`. Each template sparse-clones the matching sample from `cli/samples.json` into a directory you name.
+Available templates: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `koog`, `embabel`, `multi-agent`, `classroom`. Each template sparse-clones the matching sample from `cli/samples.json` into a directory you name.
 
 Or with npx (zero install):
 
@@ -150,7 +150,7 @@ Every template sparse-clones the matching sample from `cli/samples.json` into th
 | `rag` | `spring-boot-rag-chat` | RAG chat with vector store |
 | `agent` | `spring-boot-dentist-agent` | `@Agent` skill-file driven (the Dr. Molar demo); implied when `--skill-file` is passed |
 | `koog` | `spring-boot-koog-chat` | JetBrains Koog `@AIAgent` chat integration |
-| `semantic-kernel` | `spring-boot-semantic-kernel-chat` | Microsoft Semantic Kernel for Java chat integration |
+| `embabel` | `spring-boot-embabel-chat` | Embabel GOAP planning (Kotlin, SB 3.5) |
 | `multi-agent` | `spring-boot-multi-agent-startup-team` | Fleet of 5 independent `@Agent` classes collaborating over A2A |
 | `classroom` | `spring-boot-ai-classroom` | Shared streaming AI responses across web + Expo React Native clients |
 

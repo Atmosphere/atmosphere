@@ -28,7 +28,7 @@ const TEMPLATES = {
   'rag':         'RAG chat with vector store',
   'agent':       '@Agent skill-file driven agent (Dr. Molar dentist demo)',
   'koog':            'Koog @AIAgent chat integration',
-  'semantic-kernel': 'Microsoft Semantic Kernel for Java chat integration',
+  'embabel':         'Embabel GOAP planning (Kotlin, SB 3.5)',
   'multi-agent':     'Multi-agent fleet — 5 independent @Agents via A2A protocol',
   'classroom':       'AI classroom — shared streaming responses (web + Expo RN)',
 };

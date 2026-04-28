@@ -177,13 +177,6 @@ export const SAMPLES: Record<string, SampleConfig> = {
     type: 'spring-boot',
     readyPath: '/atmosphere/ai-chat',
   },
-  'spring-boot-semantic-kernel-chat': {
-    name: 'spring-boot-semantic-kernel-chat',
-    dir: 'spring-boot-semantic-kernel-chat',
-    port: 8098,
-    type: 'spring-boot',
-    readyPath: '/atmosphere/ai-chat',
-  },
 };
 
 /**

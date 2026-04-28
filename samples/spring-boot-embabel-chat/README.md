@@ -57,4 +57,4 @@ Open <http://localhost:8099/atmosphere/console/> in your browser.
 
 - [`modules/embabel/README.md`](../../modules/embabel/README.md) — the runtime adapter
 - [`samples/spring-boot-koog-chat`](../spring-boot-koog-chat/) — equivalent sample for JetBrains Koog
-- [`samples/spring-boot-semantic-kernel-chat`](../spring-boot-semantic-kernel-chat/) — equivalent for Microsoft Semantic Kernel
+- [`samples/spring-boot-ai-chat`](../spring-boot-ai-chat/) — generic AI chat that picks up Embabel (and any other Atmosphere runtime adapter) transparently when its dependency is on the classpath; use `-Pspring-boot3` and add `atmosphere-embabel` + the Embabel platform/provider starters to engage Embabel from this sample.
