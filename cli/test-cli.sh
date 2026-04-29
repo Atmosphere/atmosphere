@@ -489,7 +489,12 @@ assert_contains "$emb_repo" "repo.embabel.com" "embabel overlay declares repo.em
 
 # Validation: --runtime with no value
 out=$("$CLI" new foo --runtime 2>&1) && ec=0 || ec=$?
-assert_exit_code "$ec" 1 "new --runtime without value exits with error"
+if [ "$ec" -ne 0 ]; then
+    pass "new --runtime without value exits with error"
+else
+    fail "new --runtime without value exits with error" "exit was $ec"
+fi
+assert_contains "$out" "--runtime requires a value" "error message names the missing argument"
 
 # Validation: unknown runtime triggers the registry error path. The CLI must
 # parse arguments far enough to call apply_runtime_overlay AFTER scaffolding,

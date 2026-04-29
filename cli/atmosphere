@@ -865,13 +865,19 @@ cmd_new() {
     runtime=""
     while [ $# -gt 0 ]; do
         case "$1" in
-            --template|-t)    template="$2"; shift 2 ;;
-            --skill-file|-s)  skill_file="$2"; shift 2 ;;
-            --runtime|-r)     runtime="$2"; shift 2 ;;
+            --template|-t)
+                shift; [ -z "$1" ] && die "--template requires a value"
+                template="$1"; shift ;;
+            --skill-file|-s)
+                shift; [ -z "$1" ] && die "--skill-file requires a value"
+                skill_file="$1"; shift ;;
+            --runtime|-r)
+                shift; [ -z "$1" ] && die "--runtime requires a value"
+                runtime="$1"; shift ;;
             --group|-g)
                 warn "--group is no longer supported. Samples ship with their own groupId;"
                 warn "rename the groupId in pom.xml and the src/main/java package by hand after scaffolding."
-                shift 2 ;;
+                shift; [ $# -gt 0 ] && shift ;;
             -*)               die "Unknown option: $1" ;;
             *)                die "Unknown argument: $1" ;;
         esac
