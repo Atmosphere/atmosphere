@@ -110,6 +110,9 @@ fi
 #   $7 — artifactId that MUST be absent after the overlay applies
 #        (e.g. atmosphere-langchain4j when force-swapping ai-tools to
 #        spring-ai). Empty = skip the absence assertion.
+#   $8 — extra environment variables for the spring-boot:run invocation
+#        (e.g. "LLM_MODEL=gemini-2.5-flash" for embabel, whose Gemini
+#        starter doesn't ship the OpenAI-default model). Empty = none.
 test_runtime() {
     rt="$1"
     expected_name="$2"
@@ -118,6 +121,7 @@ test_runtime() {
     template="${5:-ai-chat}"
     extra_new_args="$6"
     must_not_contain="$7"
+    extra_env="$8"
 
     # Use full if-statements rather than `[ … ] && …` so an empty
     # extra_new_args doesn't return non-zero and trip set -e.
@@ -197,6 +201,7 @@ test_runtime() {
     (
         cd "$proj_dir" && \
         LLM_MODE=remote LLM_API_KEY=test-key-not-real \
+        env $extra_env \
         $MVN_CMD -B -q $extra_mvn_args spring-boot:run \
             -Dspring-boot.run.jvmArguments="-Dserver.port=$port -Datmosphere.web-transport.enabled=false" \
             > "$log" 2>&1
@@ -242,19 +247,30 @@ printf "\n${BOLD}Atmosphere CLI --runtime overlay E2E${RESET}\n"
 [ -n "$ATMOSPHERE_VERSION_OVERRIDE" ] && \
     printf "${DIM}ATMOSPHERE_VERSION_OVERRIDE=%s${RESET}\n" "$ATMOSPHERE_VERSION_OVERRIDE"
 
-# Matrix: built-in is the fall-through case (no adapter on classpath),
-# spring-ai and langchain4j cover the two transparent-swap paths most
-# users hit, and semantic-kernel proves the SK runtime is 100% reachable
-# via the overlay (the dedicated spring-boot-semantic-kernel-chat sample
-# was removed in 8fc5968da9 once SK auto-config landed — the boot test
-# below is the regression guard for that decision). Kotlin runtimes
-# (embabel, koog) and ADK ship their own end-to-end integration tests
-# in-tree; their overlay scaffolds are exercised by Tier 1 (test-cli.sh)
-# at the `mvn compile` level.
+# Full 7-runtime matrix: every overlay in cli/runtime-overlays.json gets a
+# scaffold + boot + assert. The CLI is the only path to several runtimes
+# (the dedicated spring-boot-semantic-kernel-chat sample was retired in
+# 8fc5968da9 in favor of `--runtime semantic-kernel`), so each entry is a
+# regression guard for the overlay-as-distribution-channel claim. The
+# in-tree tests for adk/koog/embabel are unit-level only — they don't
+# boot a Spring Boot app and verify SPI resolution.
+#
+# Per-runtime notes:
+#   - adk's name() is "google-adk" (matches the underlying SDK groupId)
+#   - embabel needs -Pspring-boot3 (targets SB 3.5) AND its own Gemini-only
+#     default-LLM property: embabel-agent-starter-gemini's ConfigurableModel-
+#     Provider validates that the configured default model is in its
+#     registry, and ignores Atmosphere's `llm.model`. Pass the override via
+#     SPRING_APPLICATION_JSON so the ai-chat template's application.yml
+#     stays untouched.
 test_runtime builtin         "built-in"        18801 ""
 test_runtime spring-ai       "spring-ai"       18802 ""
 test_runtime langchain4j     "langchain4j"     18803 ""
 test_runtime semantic-kernel "semantic-kernel" 18804 ""
+test_runtime adk             "google-adk"      18805 ""
+test_runtime koog            "koog"            18806 ""
+test_runtime embabel         "embabel"         18807 "-Pspring-boot3" "" "" "" \
+    'SPRING_APPLICATION_JSON={"embabel":{"models":{"default-llm":"gemini-2.5-flash"}}}'
 
 # Why no --force boot test:
 # Samples that actually pre-pin a non-default adapter (ai-tools, rag) also
