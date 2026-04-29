@@ -436,6 +436,50 @@ SKILLEOF
         else
             fail "cloned ai-chat project directory missing"
         fi
+
+        # ── --runtime scaffold + compile ──────────────────────────────────
+        # For each of the 7 overlay runtimes, scaffold ai-chat with the
+        # adapter dep injected and confirm the resulting standalone pom.xml
+        # resolves and compiles. Catches the things unit tests can't:
+        # malformed XML in the injected block, missing transitive deps,
+        # version-property refs that don't resolve outside the reactor,
+        # repository-block placement, and the SB3-only path for embabel.
+        printf "\n  ${BOLD}--runtime scaffold + compile${RESET}\n"
+
+        rt_compile() {
+            rt_name="$1"
+            rt_extra_args="$2"
+            proj="net-rt-$rt_name"
+            out=$(cd "$tmp_dir" && "$CLI" new "$proj" --template ai-chat --runtime "$rt_name" 2>&1) && ec=0 || ec=$?
+            if [ "$ec" -ne 0 ]; then
+                fail "scaffold --runtime $rt_name" "exit=$ec, output: $(printf '%s' "$out" | tail -3)"
+                return
+            fi
+            pass "scaffold --runtime $rt_name"
+
+            # shellcheck disable=SC2086
+            compile_log=$(cd "$tmp_dir/$proj" && mvn -q -B -DskipTests \
+                -Dcheckstyle.skip=true -Dpmd.skip=true \
+                $rt_extra_args compile 2>&1) && cec=0 || cec=$?
+            if [ "$cec" -eq 0 ]; then
+                pass "scaffold --runtime $rt_name compiles standalone"
+            else
+                fail "scaffold --runtime $rt_name compile failed" \
+                     "$(printf '%s' "$compile_log" | tail -15)"
+            fi
+        }
+
+        # Built-in is a no-op overlay (no extra deps); compile as a control.
+        rt_compile builtin ""
+        rt_compile spring-ai ""
+        rt_compile langchain4j ""
+        rt_compile adk ""
+        rt_compile koog ""
+        # Embabel targets Spring Boot 3.5; activate -Pspring-boot3 so the
+        # parent swaps to atmosphere-spring-boot3-starter and brings the
+        # SB3-compatible AI adapter chain.
+        rt_compile embabel "-Pspring-boot3"
+        rt_compile semantic-kernel ""
     else
         printf "  ${DIM}— skipping sparse-clone compile regression (mvn not on PATH)${RESET}\n"
     fi

@@ -501,7 +501,11 @@ install_source() {
     #      config/ that only exist inside the atmosphere repo.
     pom="$target_dir/pom.xml"
     if [ -f "$pom" ] && grep -q "atmosphere-project" "$pom" 2>/dev/null; then
-        release_version="$VERSION"
+        # ATMOSPHERE_VERSION_OVERRIDE lets test fixtures point a scaffolded
+        # project at a locally-installed SNAPSHOT instead of the pinned
+        # release. This is the only way to e2e-validate adapter changes that
+        # haven't shipped to Maven Central yet.
+        release_version="${ATMOSPHERE_VERSION_OVERRIDE:-$VERSION}"
         awk -v version="$release_version" '
           BEGIN { in_parent = 0; injected_skips = 0 }
           /<parent>/ { in_parent = 1 }
