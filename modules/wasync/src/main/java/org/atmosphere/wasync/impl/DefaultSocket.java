@@ -268,7 +268,11 @@ public class DefaultSocket implements Socket {
             activeTransport.close();
         }
         if (ownHttpClient && httpClient != null) {
-            httpClient.close();
+            // shutdownNow() interrupts in-flight requests and returns immediately;
+            // close() awaits the SelectorManager thread, which can hang indefinitely
+            // when a long-poll GET is still suspended server-side at close-time
+            // (JDK 21 HttpClientImpl.awaitTermination → Thread.join).
+            httpClient.shutdownNow();
         }
     }
 
