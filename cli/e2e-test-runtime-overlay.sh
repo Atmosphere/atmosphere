@@ -252,11 +252,18 @@ test_runtime builtin     "built-in"     18801 ""
 test_runtime spring-ai   "spring-ai"    18802 ""
 test_runtime langchain4j "langchain4j"  18803 ""
 
-# Force-swap: ai-tools pre-pins atmosphere-langchain4j. Running
-# `--runtime spring-ai --force` should strip the langchain4j adapter
-# before injecting spring-ai, so the resolver lands on the requested
-# runtime instead of the pre-pinned one.
-test_runtime spring-ai "spring-ai" 18804 "" ai-tools "--force" "atmosphere-langchain4j"
+# Why no --force boot test:
+# Samples that actually pre-pin a non-default adapter (ai-tools, rag) also
+# have provider-specific Java imports (e.g. ai-tools wires
+# OpenAiStreamingChatModel directly). `--force` correctly strips the
+# adapter dep — the offline strip tests in test-cli.sh prove that — but
+# the source then fails to compile against a different provider's API.
+# That's a sample-design property, not a CLI bug; the right fix is
+# either picking a transparent template or manually editing the imports
+# after force-swap. The other candidate samples (multi-agent) have their
+# adapter blocks XML-commented out and so default to the Built-in runtime,
+# making a force-swap boot test a no-op. Coverage stays at the dep-strip
+# level, where it's deterministic.
 
 printf "\n${BOLD}Results: %s passed, %s failed${RESET} (out of %s)\n\n" \
     "$PASS" "$FAIL" "$((PASS + FAIL))"

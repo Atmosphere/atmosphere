@@ -176,7 +176,7 @@ ${BOLD}Examples:${RESET}
   atmosphere new my-chat-app
   atmosphere new my-ai-app --template ai-chat
   atmosphere new my-ai-app --template ai-chat --runtime langchain4j
-  atmosphere new my-ai-app --template ai-tools  --runtime spring-ai --force
+  atmosphere new my-ai-app --template ai-chat --runtime spring-ai --force
   atmosphere checkpoint list --coordination dispatch
   atmosphere checkpoint approve abc-123 --by alice
 
