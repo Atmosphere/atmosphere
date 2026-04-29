@@ -57,13 +57,19 @@ public class AtmosphereLangChain4jAutoConfiguration {
     @ConditionalOnExpression("'${llm.api-key:}' != ''")
     public StreamingChatModel atmosphereLangChain4jStreamingChatModel(
             @Value("${llm.api-key:}") String apiKey,
-            @Value("${llm.base-url:https://api.openai.com/v1}") String baseUrl,
+            @Value("${llm.base-url:}") String baseUrl,
             @Value("${llm.model:gpt-4o-mini}") String model) {
 
-        logger.info("Auto-building LC4j OpenAiStreamingChatModel model={} endpoint={}", model, baseUrl);
+        // Spring's @Value default only kicks in when the property is absent;
+        // an empty value still binds, which would NPE OpenAiStreamingChatModel
+        // (baseUrl cannot be null or blank). Apply the OpenAI fallback here.
+        var resolvedBaseUrl = (baseUrl == null || baseUrl.isBlank())
+                ? "https://api.openai.com/v1"
+                : baseUrl;
+        logger.info("Auto-building LC4j OpenAiStreamingChatModel model={} endpoint={}", model, resolvedBaseUrl);
         return OpenAiStreamingChatModel.builder()
                 .apiKey(apiKey)
-                .baseUrl(baseUrl)
+                .baseUrl(resolvedBaseUrl)
                 .modelName(model)
                 .build();
     }
