@@ -103,23 +103,47 @@ fi
 #   $2 — expected AgentRuntime.name() value
 #   $3 — server port (each invocation gets a unique port to allow parallelism)
 #   $4 — extra mvn args (e.g. -Pspring-boot3 for embabel)
+#   $5 — template (default: "ai-chat") — set to "ai-tools" for the
+#        force-swap variant where the sample pre-pins a different adapter
+#   $6 — extra `atmosphere new` flags (e.g. "--force") — used by the
+#        force-swap test to wipe pre-pinned adapters before injecting
+#   $7 — artifactId that MUST be absent after the overlay applies
+#        (e.g. atmosphere-langchain4j when force-swapping ai-tools to
+#        spring-ai). Empty = skip the absence assertion.
 test_runtime() {
     rt="$1"
     expected_name="$2"
     port="$3"
     extra_mvn_args="$4"
+    template="${5:-ai-chat}"
+    extra_new_args="$6"
+    must_not_contain="$7"
 
-    printf "\n${BOLD}── Runtime: %s (port %s) ──${RESET}\n" "$rt" "$port"
+    # Use full if-statements rather than `[ … ] && …` so an empty
+    # extra_new_args doesn't return non-zero and trip set -e.
+    label="$rt"
+    if [ -n "$extra_new_args" ]; then
+        label="$rt ($extra_new_args on $template)"
+    fi
+    printf "\n${BOLD}── Runtime: %s (port %s) ──${RESET}\n" "$label" "$port"
 
     # Scaffold into TMP_DIR. `atmosphere new` refuses to overwrite, so we
     # cd to TMP_DIR for a clean parent.
+    #
+    # When a force-swap test reuses an overlay name (e.g. spring-ai on
+    # ai-tools after the same overlay was already exercised on ai-chat),
+    # the project directory would clash; suffix when extra_new_args is set.
     proj="rt-$rt"
-    out=$(cd "$TMP_DIR" && "$CLI" new "$proj" --template ai-chat --runtime "$rt" 2>&1) && ec=0 || ec=$?
+    if [ -n "$extra_new_args" ]; then
+        proj="rt-$rt-force"
+    fi
+    # shellcheck disable=SC2086
+    out=$(cd "$TMP_DIR" && "$CLI" new "$proj" --template "$template" --runtime "$rt" $extra_new_args 2>&1) && ec=0 || ec=$?
     if [ "$ec" -ne 0 ]; then
-        fail "$rt: scaffold failed" "exit=$ec, output: $(printf '%s' "$out" | tail -3)"
+        fail "$label: scaffold failed" "exit=$ec, output: $(printf '%s' "$out" | tail -3)"
         return 0
     fi
-    pass "$rt: scaffold completed"
+    pass "$label: scaffold completed"
 
     proj_dir="$TMP_DIR/$proj"
 
@@ -130,19 +154,31 @@ test_runtime() {
         *)       expected_artifact="atmosphere-$rt" ;;
     esac
     if grep -q "<artifactId>$expected_artifact</artifactId>" "$proj_dir/pom.xml"; then
-        pass "$rt: pom.xml contains $expected_artifact"
+        pass "$label: pom.xml contains $expected_artifact"
     else
-        fail "$rt: pom.xml missing $expected_artifact"
+        fail "$label: pom.xml missing $expected_artifact"
         return 0
+    fi
+
+    # Force-swap: assert the previously-pinned adapter has been stripped.
+    # Without this, the resolver could land on the pre-pinned runtime via
+    # ServiceLoader iteration order on a priority-100 tie.
+    if [ -n "$must_not_contain" ]; then
+        if grep -q "<artifactId>$must_not_contain</artifactId>" "$proj_dir/pom.xml"; then
+            fail "$label: pom.xml still contains stripped artifact $must_not_contain"
+            return 0
+        else
+            pass "$label: stripped artifact $must_not_contain absent from pom.xml"
+        fi
     fi
 
     # Pre-resolve dependencies so the boot timer doesn't have to absorb
     # cold-cache downloads from repo.spring.io / Maven Central. We still
     # cap the boot at 300s, but separating download from boot makes the
     # failure mode legible when the timer trips.
-    resolve_log="$TMP_DIR/$rt.resolve.log"
+    resolve_log="$TMP_DIR/$proj.resolve.log"
     if ! (cd "$proj_dir" && $MVN_CMD -B -q $extra_mvn_args dependency:resolve >"$resolve_log" 2>&1); then
-        fail "$rt: mvn dependency:resolve failed"
+        fail "$label: mvn dependency:resolve failed"
         printf "    ${DIM}--- last 25 resolve-log lines ---${RESET}\n"
         tail -25 "$resolve_log" | sed 's/^/    /'
         return 0
@@ -157,7 +193,7 @@ test_runtime() {
     # SPI-resolved active runtime whenever AiConfig.apiKey() is blank.
     # The bogus key never leaves the JVM — no real LLM call fires unless
     # the test itself sends a chat message, which it doesn't.
-    log="$TMP_DIR/$rt.log"
+    log="$TMP_DIR/$proj.log"
     (
         cd "$proj_dir" && \
         LLM_MODE=remote LLM_API_KEY=test-key-not-real \
@@ -169,32 +205,32 @@ test_runtime() {
     SERVER_PIDS="$SERVER_PIDS $pid"
 
     if ! wait_for_admin_endpoint "$port"; then
-        fail "$rt: server did not boot within 300s"
+        fail "$label: server did not boot within 300s"
         printf "    ${DIM}--- last 25 log lines ---${RESET}\n"
         tail -25 "$log" 2>/dev/null | sed 's/^/    /'
         kill -TERM "$pid" 2>/dev/null || true
         return 0
     fi
-    pass "$rt: server booted on port $port"
+    pass "$label: server booted on port $port"
 
     body=$(curl -sf "http://localhost:$port/api/admin/runtimes/active") || {
-        fail "$rt: GET /api/admin/runtimes/active failed"
+        fail "$label: GET /api/admin/runtimes/active failed"
         kill -TERM "$pid" 2>/dev/null || true
         return 0
     }
 
     actual_name=$(printf '%s' "$body" | jq -r '.name')
     if [ "$actual_name" = "$expected_name" ]; then
-        pass "$rt: AgentRuntime.name() == \"$expected_name\""
+        pass "$label: AgentRuntime.name() == \"$expected_name\""
     else
-        fail "$rt: expected name=\"$expected_name\", got \"$actual_name\"" "body: $body"
+        fail "$label: expected name=\"$expected_name\", got \"$actual_name\"" "body: $body"
     fi
 
     actual_avail=$(printf '%s' "$body" | jq -r '.isAvailable')
     if [ "$actual_avail" = "true" ]; then
-        pass "$rt: runtime reports isAvailable=true"
+        pass "$label: runtime reports isAvailable=true"
     else
-        fail "$rt: expected isAvailable=true, got \"$actual_avail\""
+        fail "$label: expected isAvailable=true, got \"$actual_avail\""
     fi
 
     # SIGTERM and let the cleanup trap mop up if the JVM stalls.
@@ -215,6 +251,12 @@ printf "\n${BOLD}Atmosphere CLI --runtime overlay E2E${RESET}\n"
 test_runtime builtin     "built-in"     18801 ""
 test_runtime spring-ai   "spring-ai"    18802 ""
 test_runtime langchain4j "langchain4j"  18803 ""
+
+# Force-swap: ai-tools pre-pins atmosphere-langchain4j. Running
+# `--runtime spring-ai --force` should strip the langchain4j adapter
+# before injecting spring-ai, so the resolver lands on the requested
+# runtime instead of the pre-pinned one.
+test_runtime spring-ai "spring-ai" 18804 "" ai-tools "--force" "atmosphere-langchain4j"
 
 printf "\n${BOLD}Results: %s passed, %s failed${RESET} (out of %s)\n\n" \
     "$PASS" "$FAIL" "$((PASS + FAIL))"

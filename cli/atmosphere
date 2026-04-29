@@ -176,6 +176,7 @@ ${BOLD}Examples:${RESET}
   atmosphere new my-chat-app
   atmosphere new my-ai-app --template ai-chat
   atmosphere new my-ai-app --template ai-chat --runtime langchain4j
+  atmosphere new my-ai-app --template ai-tools  --runtime spring-ai --force
   atmosphere checkpoint list --coordination dispatch
   atmosphere checkpoint approve abc-123 --by alice
 
@@ -745,16 +746,82 @@ cmd_run() {
     fi
 }
 
+# Strip every <dependency>...</dependency> block whose <artifactId> matches
+# any artifactId declared in cli/runtime-overlays.json. Used by
+# `--runtime <X> --force` to wipe pre-pinned adapter deps from a scaffolded
+# sample's pom before injecting the chosen overlay — guarantees the resolver
+# picks the requested runtime instead of whichever adapter the sample had
+# pinned (priority-100 ties are otherwise resolved by ServiceLoader iteration
+# order, which is jar-order on the classpath and not user-controllable).
+#
+# Atmosphere's own `atmosphere-ai` is NOT in any overlay's deps list, so the
+# foundational dep stays in place.
+#
+# Usage: strip_competing_adapters <pom-path> <overlays-json>
+strip_competing_adapters() {
+    pom="$1"
+    overlays_json="$2"
+    # BSD awk on macOS chokes on multi-line -v values, so write the
+    # artifactId list to a temp file and stream it via getline.
+    artifacts_file=$(mktemp)
+    printf '%s' "$overlays_json" | jq -r '.overlays | to_entries[] | .value.deps[]?.artifactId' | sort -u > "$artifacts_file"
+    if [ ! -s "$artifacts_file" ]; then
+        rm -f "$artifacts_file"
+        return 0
+    fi
+
+    tmp_pom="${pom}.stripped"
+    awk -v artifacts_file="$artifacts_file" '
+        BEGIN {
+            while ((getline line < artifacts_file) > 0) {
+                if (line != "") strip[line] = 1
+            }
+            close(artifacts_file)
+            in_dep = 0
+            buf = ""
+            skip = 0
+        }
+        /<dependency>/ && in_dep == 0 {
+            in_dep = 1
+            buf = $0
+            skip = 0
+            next
+        }
+        in_dep == 1 {
+            buf = buf "\n" $0
+            for (a in strip) {
+                if (index($0, "<artifactId>" a "</artifactId>")) {
+                    skip = 1
+                }
+            }
+            if (/<\/dependency>/) {
+                if (!skip) print buf
+                buf = ""
+                in_dep = 0
+                skip = 0
+            }
+            next
+        }
+        { print }
+    ' "$pom" > "$tmp_pom" && mv "$tmp_pom" "$pom"
+    rm -f "$artifacts_file"
+}
+
 # ── Runtime overlay (--runtime) ─────────────────────────────────────────────
 # Apply a runtime overlay (cli/runtime-overlays.json) to a scaffolded sample's
 # pom.xml. Appends <dependency> blocks before </dependencies> and an optional
 # <repository> before </repositories> (creating the section if absent). Prints
 # any "note" the overlay carries (e.g., Embabel's Spring Boot 3.5 reminder).
 #
-# Usage: apply_runtime_overlay <runtime-name> <pom-path>
+# When force=true, strips every adapter dep declared in
+# cli/runtime-overlays.json before injecting — this turns `--runtime <X>` into
+# a deterministic swap on samples that pre-pin a different provider.
+#
+# Usage: apply_runtime_overlay <runtime-name> <pom-path> [force]
 apply_runtime_overlay() {
     runtime="$1"
     pom="$2"
+    force="${3:-false}"
     [ -z "$runtime" ] && return 0
     [ ! -f "$pom" ] && die "pom.xml not found: $pom"
 
@@ -766,7 +833,16 @@ apply_runtime_overlay() {
         die "Unknown runtime: $runtime (available: $names)"
     }
 
-    # Built-in is the default — no overlay needed
+    # `--force` strips every adapter dep before we inject — even for builtin,
+    # which has no overlay deps but should still wipe pre-pinned adapters so
+    # the resolver lands on Built-in instead of whatever the sample shipped.
+    if [ "$force" = "true" ]; then
+        strip_competing_adapters "$pom" "$overlays"
+        info "Stripped pre-pinned adapter deps (--force)"
+    fi
+
+    # Built-in is the default — no overlay deps to inject (force already wiped
+    # any pre-pinned adapters above, so we can return cleanly).
     dep_count=$(printf '%s' "$overlay" | jq '.deps | length')
     if [ "$dep_count" -eq 0 ]; then
         info "Runtime '$runtime' uses Atmosphere's built-in adapter — no extra deps required"
@@ -861,12 +937,13 @@ EOF
 }
 
 cmd_new() {
-    [ -z "$1" ] && die "Usage: atmosphere new <project-name> [--template <template>] [--runtime <runtime>] [--skill-file <path>]"
+    [ -z "$1" ] && die "Usage: atmosphere new <project-name> [--template <template>] [--runtime <runtime> [--force]] [--skill-file <path>]"
     project_name="$1"; shift
 
     template="chat"
     skill_file=""
     runtime=""
+    force="false"
     while [ $# -gt 0 ]; do
         case "$1" in
             --template|-t)
@@ -878,6 +955,8 @@ cmd_new() {
             --runtime|-r)
                 shift; [ -z "$1" ] && die "--runtime requires a value"
                 runtime="$1"; shift ;;
+            --force|-f)
+                force="true"; shift ;;
             --group|-g)
                 warn "--group is no longer supported. Samples ship with their own groupId;"
                 warn "rename the groupId in pom.xml and the src/main/java package by hand after scaffolding."
@@ -886,6 +965,13 @@ cmd_new() {
             *)                die "Unknown argument: $1" ;;
         esac
     done
+
+    # --force only makes sense with --runtime: it controls whether the overlay
+    # strips pre-pinned adapter deps. Reject the bare flag explicitly so
+    # `atmosphere new foo --force` doesn't silently no-op.
+    if [ "$force" = "true" ] && [ -z "$runtime" ]; then
+        die "--force requires --runtime <name> (it strips other adapters before injecting the chosen one)"
+    fi
 
     # --skill-file implies an agent template
     if [ -n "$skill_file" ]; then
@@ -930,9 +1016,11 @@ cmd_new() {
     # Apply runtime overlay if requested. The AgentRuntime SPI picks the
     # highest-priority runtime present on the classpath, so injecting the
     # overlay's deps into a transparent template (e.g. ai-chat) is enough
-    # to swap providers without code changes.
+    # to swap providers without code changes. With --force, pre-pinned
+    # adapter deps are stripped first so the swap is deterministic on
+    # samples that already ship a different provider.
     if [ -n "$runtime" ]; then
-        apply_runtime_overlay "$runtime" "$project_name/pom.xml"
+        apply_runtime_overlay "$runtime" "$project_name/pom.xml" "$force"
     fi
 
     ok "Project created: $project_name/"

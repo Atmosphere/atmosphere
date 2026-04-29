@@ -540,6 +540,16 @@ else
 fi
 assert_contains "$out" "--runtime requires a value" "error message names the missing argument"
 
+# Validation: --force without --runtime is rejected (the flag only makes sense
+# when there's an overlay to apply).
+out=$("$CLI" new foo --force 2>&1) && ec=0 || ec=$?
+if [ "$ec" -ne 0 ]; then
+    pass "new --force without --runtime exits with error"
+else
+    fail "new --force without --runtime exits with error" "exit was $ec"
+fi
+assert_contains "$out" "--force requires --runtime" "error message explains why --force is rejected"
+
 # Validation: unknown runtime triggers the registry error path. The CLI must
 # parse arguments far enough to call apply_runtime_overlay AFTER scaffolding,
 # so we can't test this purely offline against a real template (clone needs
@@ -548,17 +558,18 @@ assert_contains "$out" "--runtime requires a value" "error message names the mis
 overlay_tmp=$(mktemp -d)
 cp "$SCRIPT_DIR/../samples/spring-boot-ai-chat/pom.xml" "$overlay_tmp/pom.xml"
 
-# Extract the apply_runtime_overlay function body to a sourceable file. We
-# can't pass it through `sh -c` (the function's own $variables would expand
-# in the outer shell first), so we drive it via a tiny harness script.
+# Extract strip_competing_adapters + apply_runtime_overlay function bodies
+# to a sourceable file. We can't pass them through `sh -c` (the functions'
+# own $variables would expand in the outer shell first), so we drive them
+# via a tiny harness script.
 overlay_fn_file="$overlay_tmp/apply_overlay.sh"
-sed -n '/^# ── Runtime overlay/,/^cmd_new() {$/p' "$CLI" \
+sed -n '/^# Strip every <dependency>/,/^cmd_new() {$/p' "$CLI" \
     | sed '/^cmd_new() {$/d' > "$overlay_fn_file"
 
 cat > "$overlay_tmp/harness.sh" <<HARNESS
 #!/bin/sh
 # Stand-alone harness that calls apply_runtime_overlay with the env the
-# real CLI provides.
+# real CLI provides. Third arg (optional) is the force flag.
 die()  { echo "error: \$1" >&2; exit 1; }
 info() { :; }
 ok()   { :; }
@@ -570,12 +581,12 @@ RED=''; GREEN=''; YELLOW=''; CYAN=''; BOLD=''; DIM=''; RESET=''
 CACHE_DIR='$overlay_tmp/cache'
 get_runtime_overlays_json() { cat '$OVERLAYS_JSON'; }
 . '$overlay_fn_file'
-apply_runtime_overlay "\$1" "\$2"
+apply_runtime_overlay "\$1" "\$2" "\${3:-false}"
 HARNESS
 chmod +x "$overlay_tmp/harness.sh"
 
 drive_overlay() {
-    "$overlay_tmp/harness.sh" "$1" "$2"
+    "$overlay_tmp/harness.sh" "$1" "$2" "${3:-false}"
 }
 
 # Unknown runtime gives a friendly error listing valid choices
@@ -640,6 +651,64 @@ if [ -z "$mgmt_close_line" ] || [ -z "$inject_line" ] || [ "$inject_line" -gt "$
 else
     fail "overlay lands outside <dependencyManagement>" \
          "inject@$inject_line, </dependencyManagement>@$mgmt_close_line"
+fi
+
+# ── --force: strip pre-pinned adapters before injecting ───────────────────
+# ai-tools pre-pins atmosphere-langchain4j. Without --force, swapping to
+# spring-ai is additive (both adapters end up on the classpath, and the
+# resolver picks one based on jar order). With --force, the langchain4j
+# adapter dep should be removed before atmosphere-spring-ai is injected.
+ai_tools_pom="$SCRIPT_DIR/../samples/spring-boot-ai-tools/pom.xml"
+if [ -f "$ai_tools_pom" ]; then
+    force_pom="$overlay_tmp/pom.force.spring-ai.xml"
+    cp "$ai_tools_pom" "$force_pom"
+    if drive_overlay spring-ai "$force_pom" true >/dev/null 2>&1; then
+        pass "--force overlay 'spring-ai' applied without error on ai-tools pom"
+    else
+        fail "--force overlay 'spring-ai' applied without error on ai-tools pom"
+    fi
+    if grep -q "<artifactId>atmosphere-langchain4j</artifactId>" "$force_pom"; then
+        fail "--force strips pre-pinned atmosphere-langchain4j" \
+             "found stale dep in $force_pom"
+    else
+        pass "--force strips pre-pinned atmosphere-langchain4j"
+    fi
+    if grep -q "<artifactId>atmosphere-spring-ai</artifactId>" "$force_pom"; then
+        pass "--force injects atmosphere-spring-ai after stripping"
+    else
+        fail "--force injects atmosphere-spring-ai after stripping"
+    fi
+    if grep -q "<artifactId>atmosphere-ai</artifactId>" "$force_pom"; then
+        pass "--force preserves foundational atmosphere-ai dep"
+    else
+        fail "--force preserves foundational atmosphere-ai dep"
+    fi
+    if [ "$have_xmllint" = 1 ] && xmllint --noout "$force_pom" 2>/dev/null; then
+        pass "--force overlay produces well-formed XML"
+    elif [ "$have_xmllint" = 1 ]; then
+        fail "--force overlay produces well-formed XML"
+    fi
+
+    # Builtin + --force: every adapter dep should be wiped, leaving only the
+    # foundational atmosphere-ai. There's no overlay dep to inject, so this
+    # is the strict-strip case.
+    builtin_force_pom="$overlay_tmp/pom.force.builtin.xml"
+    cp "$ai_tools_pom" "$builtin_force_pom"
+    if drive_overlay builtin "$builtin_force_pom" true >/dev/null 2>&1; then
+        pass "--force overlay 'builtin' applied without error on ai-tools pom"
+    else
+        fail "--force overlay 'builtin' applied without error on ai-tools pom"
+    fi
+    if grep -q "<artifactId>atmosphere-langchain4j</artifactId>" "$builtin_force_pom"; then
+        fail "--force builtin strips atmosphere-langchain4j"
+    else
+        pass "--force builtin strips atmosphere-langchain4j"
+    fi
+    if grep -q "<artifactId>atmosphere-ai</artifactId>" "$builtin_force_pom"; then
+        pass "--force builtin preserves foundational atmosphere-ai dep"
+    else
+        fail "--force builtin preserves foundational atmosphere-ai dep"
+    fi
 fi
 
 rm -rf "$overlay_tmp"
