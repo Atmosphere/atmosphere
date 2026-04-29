@@ -242,15 +242,19 @@ printf "\n${BOLD}Atmosphere CLI --runtime overlay E2E${RESET}\n"
 [ -n "$ATMOSPHERE_VERSION_OVERRIDE" ] && \
     printf "${DIM}ATMOSPHERE_VERSION_OVERRIDE=%s${RESET}\n" "$ATMOSPHERE_VERSION_OVERRIDE"
 
-# Matrix kept tight on purpose: built-in is the fall-through case (no
-# adapter on classpath), spring-ai and langchain4j cover the two
-# transparent-swap paths most users hit. Kotlin runtimes (embabel, koog)
-# and JVM-only runtimes (ADK, Semantic Kernel) are covered by their
-# own integration tests in-tree; doubling up here would add ~10 min of
-# CI for almost no marginal coverage.
-test_runtime builtin     "built-in"     18801 ""
-test_runtime spring-ai   "spring-ai"    18802 ""
-test_runtime langchain4j "langchain4j"  18803 ""
+# Matrix: built-in is the fall-through case (no adapter on classpath),
+# spring-ai and langchain4j cover the two transparent-swap paths most
+# users hit, and semantic-kernel proves the SK runtime is 100% reachable
+# via the overlay (the dedicated spring-boot-semantic-kernel-chat sample
+# was removed in 8fc5968da9 once SK auto-config landed — the boot test
+# below is the regression guard for that decision). Kotlin runtimes
+# (embabel, koog) and ADK ship their own end-to-end integration tests
+# in-tree; their overlay scaffolds are exercised by Tier 1 (test-cli.sh)
+# at the `mvn compile` level.
+test_runtime builtin         "built-in"        18801 ""
+test_runtime spring-ai       "spring-ai"       18802 ""
+test_runtime langchain4j     "langchain4j"     18803 ""
+test_runtime semantic-kernel "semantic-kernel" 18804 ""
 
 # Why no --force boot test:
 # Samples that actually pre-pin a non-default adapter (ai-tools, rag) also
