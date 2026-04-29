@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.41] - 2026-04-29
+
 ### Changed — A2A v1.0.0 alignment (wire-breaking)
 
 - **`atmosphere-a2a` retracked to A2A v1.0.0** (`a2aproject/A2A@v1.0.0`,
