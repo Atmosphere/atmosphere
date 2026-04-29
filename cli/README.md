@@ -61,11 +61,16 @@ atmosphere new my-ai-app --template ai-chat --runtime langchain4j
 atmosphere new my-ai-app --template ai-chat --runtime spring-ai
 atmosphere new my-ai-app --template ai-chat --runtime adk
 atmosphere new my-kotlin-ai --template ai-chat --runtime embabel
+
+# Force-swap: strip every pre-pinned adapter before injecting the chosen one
+atmosphere new my-ai-app --template ai-tools --runtime spring-ai --force
 ```
 
 Available templates: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `koog`, `embabel`, `multi-agent`, `classroom`. Each template sparse-clones the matching sample from `cli/samples.json` into a directory you name.
 
 Available runtimes (`--runtime`): `builtin` (default — no extra deps), `spring-ai`, `langchain4j`, `adk`, `koog`, `embabel`, `semantic-kernel`. The CLI appends the matching adapter dependencies (and Embabel's release repository) to the scaffolded `pom.xml` — Atmosphere's `AgentRuntime` SPI then picks the highest-priority runtime present, so transparent templates like `ai-chat` swap providers without code changes.
+
+`--force` (only valid with `--runtime`) wipes every adapter dep declared in `cli/runtime-overlays.json` from the scaffolded `pom.xml` *before* injecting the chosen overlay. This makes the swap deterministic on samples that already pin a non-default adapter (e.g. `ai-tools` ships with `atmosphere-langchain4j`) — without `--force`, both adapters would land on the classpath and the SPI resolver would pick one based on `ServiceLoader` iteration order. Note: samples whose Java code imports a specific provider's API directly (e.g. `OpenAiStreamingChatModel`) will still need manual edits after force-swap; transparent templates (`ai-chat`, `multi-agent`) work end-to-end with no code changes.
 
 Or with npx (zero install):
 

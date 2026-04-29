@@ -37,6 +37,11 @@ atmosphere run spring-boot-multi-agent-startup-team
 # Or scaffold your own project from a sample
 atmosphere new my-agent --template ai-chat
 
+# Swap the AI runtime by injecting the matching adapter (`builtin` is the default).
+# Add `--force` to strip pre-pinned adapters first — useful on samples like ai-tools
+# that already ship with one provider wired up.
+atmosphere new my-agent --template ai-chat --runtime spring-ai
+
 # Import a skill from an allowed skills repo
 atmosphere import https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
 cd frontend-design && LLM_API_KEY=your-key ./mvnw spring-boot:run
