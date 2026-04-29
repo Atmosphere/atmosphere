@@ -98,7 +98,7 @@ jobs:
         ATMOSPHERE_NETWORK_TESTS: '1'
       run: sh cli/test-cli.sh
 
-    - name: Tier 2 — boot + assert AgentRuntime.name() (3 runtimes)
+    - name: Tier 2 — boot + assert AgentRuntime.name() (7 runtimes)
       env:
         ATMOSPHERE_VERSION_OVERRIDE: ${{ steps.version.outputs.snapshot }}
       run: sh cli/e2e-test-runtime-overlay.sh
