@@ -56,14 +56,19 @@ pass() { PASS=$((PASS + 1)); printf "  ${GREEN}✓${RESET} %s\n" "$1"; }
 fail() {
     FAIL=$((FAIL + 1))
     printf "  ${RED}✗${RESET} %s\n" "$1"
-    [ -n "$2" ] && printf "    ${DIM}%s${RESET}\n" "$2"
+    if [ -n "$2" ]; then
+        printf "    ${DIM}%s${RESET}\n" "$2"
+    fi
+    return 0
 }
 
 # Wait until the admin runtime endpoint answers 200. ai-chat boots in
-# ~25s on a cold runner; cap at 180s to absorb maven-download spikes.
+# ~25s on a warm runner; cap at 300s because Spring AI 2.0.0-M2 + LC4j
+# 1.x cold-fetch from repo.spring.io / Central can chew through the
+# first couple of minutes on an empty runner cache.
 wait_for_admin_endpoint() {
     port="$1"
-    deadline=$(( $(date +%s) + 180 ))
+    deadline=$(( $(date +%s) + 300 ))
     while [ "$(date +%s)" -lt "$deadline" ]; do
         if curl -sf "http://localhost:$port/api/admin/runtimes/active" >/dev/null 2>&1; then
             return 0
@@ -112,7 +117,7 @@ test_runtime() {
     out=$(cd "$TMP_DIR" && "$CLI" new "$proj" --template ai-chat --runtime "$rt" 2>&1) && ec=0 || ec=$?
     if [ "$ec" -ne 0 ]; then
         fail "$rt: scaffold failed" "exit=$ec, output: $(printf '%s' "$out" | tail -3)"
-        return
+        return 0
     fi
     pass "$rt: scaffold completed"
 
@@ -128,7 +133,19 @@ test_runtime() {
         pass "$rt: pom.xml contains $expected_artifact"
     else
         fail "$rt: pom.xml missing $expected_artifact"
-        return
+        return 0
+    fi
+
+    # Pre-resolve dependencies so the boot timer doesn't have to absorb
+    # cold-cache downloads from repo.spring.io / Maven Central. We still
+    # cap the boot at 300s, but separating download from boot makes the
+    # failure mode legible when the timer trips.
+    resolve_log="$TMP_DIR/$rt.resolve.log"
+    if ! (cd "$proj_dir" && $MVN_CMD -B -q $extra_mvn_args dependency:resolve >"$resolve_log" 2>&1); then
+        fail "$rt: mvn dependency:resolve failed"
+        printf "    ${DIM}--- last 25 resolve-log lines ---${RESET}\n"
+        tail -25 "$resolve_log" | sed 's/^/    /'
+        return 0
     fi
 
     # Boot the server. Each runtime gets its own port + WebTransport
@@ -152,18 +169,18 @@ test_runtime() {
     SERVER_PIDS="$SERVER_PIDS $pid"
 
     if ! wait_for_admin_endpoint "$port"; then
-        fail "$rt: server did not boot within 180s"
+        fail "$rt: server did not boot within 300s"
         printf "    ${DIM}--- last 25 log lines ---${RESET}\n"
-        tail -25 "$log" | sed 's/^/    /'
+        tail -25 "$log" 2>/dev/null | sed 's/^/    /'
         kill -TERM "$pid" 2>/dev/null || true
-        return
+        return 0
     fi
     pass "$rt: server booted on port $port"
 
     body=$(curl -sf "http://localhost:$port/api/admin/runtimes/active") || {
         fail "$rt: GET /api/admin/runtimes/active failed"
         kill -TERM "$pid" 2>/dev/null || true
-        return
+        return 0
     }
 
     actual_name=$(printf '%s' "$body" | jq -r '.name')
