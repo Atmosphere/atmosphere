@@ -209,7 +209,7 @@ class PlanAndVerifyTest {
                 PlanFixtures.fakeRegistry(null),
                 PlanFixtures.policyAllowing(PlanFixtures.FETCH, PlanFixtures.SUMMARIZE));
 
-        // Both Phase 1 verifiers are registered via META-INF/services
+        // Every built-in verifier is registered via META-INF/services
         Set<String> names = pv.verifiers().stream()
                 .map(PlanVerifier::name)
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
@@ -217,6 +217,8 @@ class PlanAndVerifyTest {
                 () -> "missing allowlist verifier; found: " + names);
         assertTrue(names.contains("well-formed"),
                 () -> "missing well-formed verifier; found: " + names);
+        assertTrue(names.contains("taint"),
+                () -> "missing taint verifier; found: " + names);
     }
 
     // ---- test helpers --------------------------------------------------

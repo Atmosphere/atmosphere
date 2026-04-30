@@ -94,7 +94,7 @@ class PlanAstRoundtripTest {
     @Test
     void serviceLoaderDiscoversBuiltInVerifiers() {
         // META-INF/services drift is the cheapest defect class to prevent;
-        // assert both Phase 1 verifiers actually load via ServiceLoader.
+        // assert all built-in verifiers actually load via ServiceLoader.
         var found = new java.util.HashSet<String>();
         for (PlanVerifier v : ServiceLoader.load(PlanVerifier.class)) {
             found.add(v.name());
@@ -104,5 +104,7 @@ class PlanAstRoundtripTest {
                 () -> "AllowlistVerifier missing from ServiceLoader; found: " + found);
         assertTrue(found.contains("well-formed"),
                 () -> "WellFormednessVerifier missing from ServiceLoader; found: " + found);
+        assertTrue(found.contains("taint"),
+                () -> "TaintVerifier missing from ServiceLoader; found: " + found);
     }
 }
