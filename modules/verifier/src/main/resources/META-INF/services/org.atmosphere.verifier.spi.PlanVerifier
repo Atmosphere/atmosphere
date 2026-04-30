@@ -1,0 +1,2 @@
+org.atmosphere.verifier.checks.AllowlistVerifier
+org.atmosphere.verifier.checks.WellFormednessVerifier

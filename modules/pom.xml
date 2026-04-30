@@ -44,6 +44,7 @@
         <module>spring-boot3-starter</module>
         <module>agent</module>
         <module>coordinator</module>
+        <module>verifier</module>
         <module>admin</module>
         <module>checkpoint</module>
         <module>channels</module>
