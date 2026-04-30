@@ -24,6 +24,9 @@ import org.atmosphere.verifier.policy.Policy;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.Set;
 
@@ -99,8 +102,22 @@ public class GuardedEmailAgentApplication {
     public PlanAndVerify planAndVerify(AgentRuntime planRuntime,
                                        ToolRegistry registry,
                                        Policy emailPolicy) {
-        // ServiceLoader picks up allowlist + well-formed + taint
-        // verifiers from atmosphere-verifier's META-INF/services.
+        // ServiceLoader picks up allowlist + well-formed + capability +
+        // taint + automaton + smt verifiers from atmosphere-verifier's
+        // META-INF/services.
         return PlanAndVerify.withDefaults(planRuntime, registry, emailPolicy);
+    }
+
+    /**
+     * Front-door redirect from {@code /} to the static demo UI. Without
+     * this, hitting the root yields a 404 because Spring's index.html
+     * resolution races the static servlet on JDK 21 + Spring Boot 4.
+     */
+    @Configuration
+    static class IndexRedirect implements WebMvcConfigurer {
+        @Override
+        public void addViewControllers(ViewControllerRegistry registry) {
+            registry.addRedirectViewController("/", "/index.html");
+        }
     }
 }

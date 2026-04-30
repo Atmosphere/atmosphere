@@ -10,6 +10,7 @@
     "test:personal-assistant": "playwright test tests/personal-assistant.spec.ts",
     "test:coding-agent": "playwright test tests/coding-agent.spec.ts",
     "test:reattach": "playwright test tests/reattach.spec.ts",
+    "test:guarded-email-agent": "playwright test tests/guarded-email-agent.spec.ts",
     "show-report": "playwright show-report"
   },
   "devDependencies": {
