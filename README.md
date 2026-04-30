@@ -129,6 +129,7 @@ What this registers depends on which modules are on the classpath:
 | Commitment records | `atmosphere-coordinator` | W3C Verifiable-Credential-subtype records signed with Ed25519; `CommitmentRecordsFlag` flag-off default; `JournalingAgentFleet.signer()` installs per-session; admin Commitments tab renders verified records |
 | Admin governance surface | `atmosphere-admin` + starter | `GET /governance/{policies,health,decisions,owasp,compliance,agt-verify}`; `POST /governance/{check,reload,kill-switch/arm,kill-switch/disarm}` — all verified end-to-end via `StartupTeamGovernanceE2ETest` |
 | Compliance evidence | `atmosphere-ai` | OWASP Agentic Top 10 + EU AI Act / HIPAA / SOC2 matrices; CI-enforced via `OwaspMatrixPinTest`, `ComplianceMatrixPinTest`, and `EvidenceConsumerGrepPinTest` (asserts every claimed coverage row has a real production consumer) |
+| Plan-and-verify | `atmosphere-verifier` | Static verification of LLM-emitted tool-call workflows ([Meijer, *Guardians of the Agents*, CACM Jan 2026](https://cacm.acm.org/research/guardians-of-the-agents/)); sealed `Workflow` AST; `PlanVerifier` SPI with `AllowlistVerifier` / `WellFormednessVerifier` / `CapabilityVerifier` / `TaintVerifier` / `AutomatonVerifier` / `SmtVerifier` (Z3-ready SPI); `@Sink` + `@RequiresCapability` annotations co-locate the policy with the protected code; CLI `verify` for offline plan inspection |
 | Stream-level PII rewrite | `atmosphere-ai` | `PiiRedactionFilter` — `BroadcasterFilter` auto-installed on every present and future broadcaster when enabled; rewrites tokens before bytes flush to the client |
 | Cost enforcement | `atmosphere-ai` | `CostCeilingAccountant` bridges `TokenUsage` → `CostCeilingGuardrail.addCost` keyed by `business.tenant.id`; outbound `@Prompt` blocks once the tenant hits budget |
 | Observability | `atmosphere-runtime`, `atmosphere-ai` | OpenTelemetry spans, Micrometer metrics, token usage; `BusinessMdcBenchmark` pins the MDC hot-path cost |
@@ -217,6 +218,7 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 | [channels-chat](samples/spring-boot-channels-chat/) | Slack, Telegram, WhatsApp, Messenger |
 | [personal-assistant](samples/spring-boot-personal-assistant/) | `@Coordinator` + `AgentFleet` over `InMemoryProtocolBridge`, `@AiTool` → crew dispatch, OpenClaw workspace |
 | [coding-agent](samples/spring-boot-coding-agent/) | Docker `Sandbox` provider — clone, read, stream real file bytes to the client |
+| [guarded-email-agent](samples/spring-boot-guarded-email-agent/) | Plan-and-verify demo — LLM-emitted workflow refused by `TaintVerifier` before any tool fires (Meijer "Guardians of the Agents" pattern) |
 
 [All samples](samples/) &middot; `atmosphere install` for interactive picker &middot; `atmosphere compose` to scaffold multi-agent projects &middot; [CLI reference](cli/README.md)
 
