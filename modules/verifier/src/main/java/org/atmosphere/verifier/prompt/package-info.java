@@ -15,8 +15,21 @@
  */
 
 /**
- * System-prompt builders that coax an LLM into producing well-formed
- * {@link org.atmosphere.verifier.ast.Workflow} JSON — populated in Phase 2
- * (plan-mode dispatch in {@code AbstractAgentRuntime}).
+ * Plan-mode prompt + parser plumbing — coaxes the LLM into emitting a
+ * {@link org.atmosphere.verifier.ast.Workflow} JSON instead of free-form
+ * tool calls.
+ *
+ * <ul>
+ *   <li>{@link org.atmosphere.verifier.prompt.PlanPromptBuilder} — builds
+ *       the system prompt (tool list filtered by {@code Policy} +
+ *       schema instructions + worked example).</li>
+ *   <li>{@link org.atmosphere.verifier.prompt.WorkflowJsonParser} —
+ *       parses the LLM's JSON response into the AST, converting
+ *       {@code "@name"} markers into {@code SymRef}s.</li>
+ * </ul>
+ *
+ * <p>Wire format is intentionally flat (no Jackson polymorphism) so the
+ * verifier compile path stays Jackson-free; parsing is delegated to the
+ * {@code StructuredOutputParser} resolved on the classpath.</p>
  */
 package org.atmosphere.verifier.prompt;
