@@ -213,12 +213,12 @@ class PlanAndVerifyTest {
         Set<String> names = pv.verifiers().stream()
                 .map(PlanVerifier::name)
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        assertTrue(names.contains("allowlist"),
-                () -> "missing allowlist verifier; found: " + names);
-        assertTrue(names.contains("well-formed"),
-                () -> "missing well-formed verifier; found: " + names);
-        assertTrue(names.contains("taint"),
-                () -> "missing taint verifier; found: " + names);
+        for (String expected : new String[]{
+                "allowlist", "well-formed", "capability",
+                "taint", "automaton", "smt"}) {
+            assertTrue(names.contains(expected),
+                    () -> "missing " + expected + " verifier; found: " + names);
+        }
     }
 
     // ---- test helpers --------------------------------------------------

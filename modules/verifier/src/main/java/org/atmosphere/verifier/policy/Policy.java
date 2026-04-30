@@ -16,6 +16,7 @@
 package org.atmosphere.verifier.policy;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -28,25 +29,37 @@ import java.util.Set;
  * declaration enforces at both layers — defense in depth from one
  * source.</p>
  *
- * <p>In Phase 1 only {@code allowedTools} is consulted (by
- * {@link org.atmosphere.verifier.checks.AllowlistVerifier}). The
- * {@code taintRules} list is consumed by Phase 3's {@code TaintVerifier};
- * {@code automata} are consumed by Phase 5's {@code AutomatonVerifier}.
- * The records are present from day one so authors can declare the full
- * security posture and pick up new checks as they ship without rewriting
- * their YAML.</p>
+ * <p>Field consumers:</p>
+ * <ul>
+ *   <li>{@code allowedTools} — Phase 1 {@code AllowlistVerifier}.</li>
+ *   <li>{@code taintRules} — Phase 3 {@code TaintVerifier}.</li>
+ *   <li>{@code automata} — Phase 5 {@code AutomatonVerifier}.</li>
+ *   <li>{@code grantedCapabilities} +
+ *       {@code toolCapabilityRequirements} — Phase 5
+ *       {@code CapabilityVerifier}.</li>
+ * </ul>
  *
- * @param name         identifier surfaced in diagnostics; non-blank.
- * @param allowedTools tools that may appear in a verified plan; defensively
- *                     copied; non-null.
- * @param taintRules   dataflow restrictions; defensively copied; may be
- *                     empty.
- * @param automata     security automata; defensively copied; may be empty.
+ * @param name                       identifier surfaced in diagnostics; non-blank.
+ * @param allowedTools               tools that may appear in a verified plan;
+ *                                   defensively copied; non-null.
+ * @param taintRules                 dataflow restrictions; defensively copied;
+ *                                   may be empty.
+ * @param automata                   security automata; defensively copied;
+ *                                   may be empty.
+ * @param grantedCapabilities        capability tokens the agent has been
+ *                                   granted; defensively copied; may be empty.
+ * @param toolCapabilityRequirements per-tool required-capabilities; the
+ *                                   capability verifier rejects any plan that
+ *                                   names a tool whose required set has any
+ *                                   member not in {@code grantedCapabilities};
+ *                                   defensively copied; may be empty.
  */
 public record Policy(String name,
                      Set<String> allowedTools,
                      List<TaintRule> taintRules,
-                     List<SecurityAutomaton> automata) {
+                     List<SecurityAutomaton> automata,
+                     Set<String> grantedCapabilities,
+                     Map<String, Set<String>> toolCapabilityRequirements) {
 
     public Policy {
         Objects.requireNonNull(name, "name");
@@ -56,9 +69,30 @@ public record Policy(String name,
         Objects.requireNonNull(allowedTools, "allowedTools");
         Objects.requireNonNull(taintRules, "taintRules");
         Objects.requireNonNull(automata, "automata");
+        Objects.requireNonNull(grantedCapabilities, "grantedCapabilities");
+        Objects.requireNonNull(toolCapabilityRequirements, "toolCapabilityRequirements");
         allowedTools = Set.copyOf(allowedTools);
         taintRules = List.copyOf(taintRules);
         automata = List.copyOf(automata);
+        grantedCapabilities = Set.copyOf(grantedCapabilities);
+        // Map.copyOf doesn't deep-copy the value sets — wrap each.
+        var copiedReqs = new java.util.LinkedHashMap<String, Set<String>>(
+                toolCapabilityRequirements.size());
+        for (var entry : toolCapabilityRequirements.entrySet()) {
+            copiedReqs.put(entry.getKey(), Set.copyOf(entry.getValue()));
+        }
+        toolCapabilityRequirements = Map.copyOf(copiedReqs);
+    }
+
+    /**
+     * Phase-1 4-arg shim — preserved for callers that don't yet declare
+     * capability data. Defaults both new fields to empty.
+     */
+    public Policy(String name,
+                  Set<String> allowedTools,
+                  List<TaintRule> taintRules,
+                  List<SecurityAutomaton> automata) {
+        this(name, allowedTools, taintRules, automata, Set.of(), Map.of());
     }
 
     /**
@@ -67,5 +101,15 @@ public record Policy(String name,
      */
     public static Policy allowlist(String name, String... tools) {
         return new Policy(name, Set.of(tools), List.of(), List.of());
+    }
+
+    /**
+     * Returns a copy of this policy with the supplied capability grants
+     * and tool-requirement map.
+     */
+    public Policy withCapabilities(Set<String> grants,
+                                    Map<String, Set<String>> requirements) {
+        return new Policy(name, allowedTools, taintRules, automata,
+                grants, requirements);
     }
 }

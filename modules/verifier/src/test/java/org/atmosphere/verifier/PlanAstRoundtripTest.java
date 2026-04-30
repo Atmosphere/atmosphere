@@ -100,11 +100,11 @@ class PlanAstRoundtripTest {
             found.add(v.name());
             assertNotNull(v.name(), "Verifier returned null name");
         }
-        assertTrue(found.contains("allowlist"),
-                () -> "AllowlistVerifier missing from ServiceLoader; found: " + found);
-        assertTrue(found.contains("well-formed"),
-                () -> "WellFormednessVerifier missing from ServiceLoader; found: " + found);
-        assertTrue(found.contains("taint"),
-                () -> "TaintVerifier missing from ServiceLoader; found: " + found);
+        for (String expected : new String[]{
+                "allowlist", "well-formed", "capability",
+                "taint", "automaton", "smt"}) {
+            assertTrue(found.contains(expected),
+                    () -> expected + " verifier missing from ServiceLoader; found: " + found);
+        }
     }
 }
