@@ -202,9 +202,8 @@ public final class ToolExecutionHelper {
             if (gateResult instanceof org.atmosphere.ai.governance.PolicyAdmissionGate.Result.Denied denied) {
                 logger.info("Tool {} denied by governance policy {}: {}",
                         toolName, denied.policyName(), denied.reason());
-                return "{\"status\":\"cancelled\",\"message\":\"Tool "
-                        + toolName + " denied by policy '" + denied.policyName()
-                        + "': " + denied.reason().replace("\"", "\\\"") + "\"}";
+                return buildGovernanceDenyJson(toolName,
+                        denied.policyName(), denied.reason());
             }
         }
 
@@ -392,5 +391,21 @@ public final class ToolExecutionHelper {
         return "{\"error\":\"invalid_arguments\",\"tool\":\""
                 + ToolBridgeUtils.escapeJson(toolName)
                 + "\",\"details\":[" + details + "]}";
+    }
+
+    /**
+     * Build the cancellation payload returned when a governance policy denies
+     * a tool call. Every interpolated field passes through
+     * {@link ToolBridgeUtils#escapeJson} so backslashes, newlines, tabs, and
+     * embedded quotes in tool / policy names or reasons cannot produce
+     * malformed JSON for the downstream parser. Package-private so the
+     * regression test can pin the wire format directly.
+     */
+    static String buildGovernanceDenyJson(String toolName, String policyName, String reason) {
+        String message = "Tool " + (toolName == null ? "" : toolName)
+                + " denied by policy '" + (policyName == null ? "" : policyName)
+                + "': " + (reason == null ? "" : reason);
+        return "{\"status\":\"cancelled\",\"message\":\""
+                + ToolBridgeUtils.escapeJson(message) + "\"}";
     }
 }

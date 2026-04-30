@@ -163,16 +163,50 @@ public final class VerifyCli {
     }
 
     private static VerificationResult runChain(Workflow workflow, Policy policy, ToolRegistry registry) {
+        return runChain(workflow, policy, registry, VerifyCli::serviceLoaderDiscover);
+    }
+
+    /**
+     * Package-private testable seam — same shape as
+     * {@link org.atmosphere.verifier.PlanAndVerify#withDiscovery} so tests
+     * can exercise the fail-closed path without touching the JVM's
+     * service loader.
+     */
+    static VerificationResult runChain(Workflow workflow,
+                                       Policy policy,
+                                       ToolRegistry registry,
+                                       java.util.function.Supplier<List<PlanVerifier>> discoverer) {
+        List<PlanVerifier> verifiers = discoverer.get();
+        if (verifiers == null) {
+            verifiers = List.of();
+        }
+        // Fail closed when discovery yields nothing — the same defect class
+        // PlanAndVerify.withDefaults guards against, surfaced here as a
+        // violation so the CLI exits non-zero (1) rather than printing OK.
+        if (verifiers.isEmpty()) {
+            return VerificationResult.of(Violation.of(
+                    "chain-empty",
+                    "No PlanVerifier providers were discovered via ServiceLoader. "
+                            + "Likely a packaging defect: META-INF/services/"
+                            + PlanVerifier.class.getName() + " is missing or empty "
+                            + "in the classpath used to launch verify. Refusing to "
+                            + "report OK on an unchecked plan."));
+        }
+        var sorted = new ArrayList<>(verifiers);
+        sorted.sort(Comparator.comparingInt(PlanVerifier::priority));
+        VerificationResult acc = VerificationResult.ok();
+        for (PlanVerifier v : sorted) {
+            acc = acc.merge(v.verify(workflow, policy, registry));
+        }
+        return acc;
+    }
+
+    private static List<PlanVerifier> serviceLoaderDiscover() {
         var verifiers = new ArrayList<PlanVerifier>();
         for (PlanVerifier v : ServiceLoader.load(PlanVerifier.class)) {
             verifiers.add(v);
         }
-        verifiers.sort(Comparator.comparingInt(PlanVerifier::priority));
-        VerificationResult acc = VerificationResult.ok();
-        for (PlanVerifier v : verifiers) {
-            acc = acc.merge(v.verify(workflow, policy, registry));
-        }
-        return acc;
+        return verifiers;
     }
 
     private static String readStdin() throws java.io.IOException {

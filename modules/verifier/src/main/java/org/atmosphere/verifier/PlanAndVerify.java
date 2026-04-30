@@ -125,11 +125,47 @@ public final class PlanAndVerify {
 
     /**
      * Discover verifiers via {@link ServiceLoader} — the production path.
+     *
+     * <p><strong>Fail closed (security):</strong> if {@link ServiceLoader}
+     * returns no providers — typically a packaging defect (missing
+     * {@code META-INF/services} entry under shading / native-image / fat-jar
+     * relocation) — this method throws
+     * {@link IllegalStateException}. Construction with an explicit empty list
+     * via the multi-arg constructor is still allowed because the caller has
+     * declared the intent; here, an empty discovery is silent failure of the
+     * security mechanism and must surface loudly.</p>
+     *
+     * @throws IllegalStateException when {@link ServiceLoader} discovers zero
+     *         {@link PlanVerifier} providers.
      */
     public static PlanAndVerify withDefaults(AgentRuntime runtime,
                                              ToolRegistry registry,
                                              Policy policy) {
-        return new PlanAndVerify(runtime, registry, policy, discoverVerifiers());
+        return withDiscovery(runtime, registry, policy, PlanAndVerify::discoverVerifiers);
+    }
+
+    /**
+     * Package-private testable seam for the fail-closed-on-empty-discovery
+     * guard. The public {@link #withDefaults} delegates here with the
+     * {@link ServiceLoader}-backed discoverer; tests pass
+     * {@code () -> List.of()} to exercise the empty-classpath path
+     * deterministically without manipulating the JVM's service loader.
+     */
+    static PlanAndVerify withDiscovery(AgentRuntime runtime,
+                                        ToolRegistry registry,
+                                        Policy policy,
+                                        java.util.function.Supplier<List<PlanVerifier>> discoverer) {
+        List<PlanVerifier> discovered = discoverer.get();
+        if (discovered == null || discovered.isEmpty()) {
+            throw new IllegalStateException(
+                    "PlanAndVerify.withDefaults found no PlanVerifier providers via "
+                            + "ServiceLoader — refusing to construct a fail-open chain. "
+                            + "Likely a packaging defect: META-INF/services/"
+                            + PlanVerifier.class.getName()
+                            + " is missing or empty in the runtime classpath "
+                            + "(check shading / native-image / fat-jar relocation).");
+        }
+        return new PlanAndVerify(runtime, registry, policy, discovered);
     }
 
     /**
@@ -168,9 +204,28 @@ public final class PlanAndVerify {
      * a workflow + the policy/registry pair this orchestrator was
      * constructed with. Aggregates per-verifier results via
      * {@link VerificationResult#merge}.
+     *
+     * <p><strong>Fail closed (security):</strong> if the chain is empty
+     * for any reason — discovery failure, accidental empty list passed by
+     * the caller, classpath stripping at runtime — this method synthesises a
+     * single {@code chain-empty} violation rather than returning OK. An
+     * empty chain is indistinguishable from "every plan passes" by the
+     * executor; surfacing it as a violation keeps the security mechanism
+     * loud-on-failure (Correctness Invariant #5: runtime truth, not
+     * configuration intent).</p>
      */
     public VerificationResult verify(Workflow workflow) {
         Objects.requireNonNull(workflow, "workflow");
+        if (verifiers.isEmpty()) {
+            return VerificationResult.of(
+                    org.atmosphere.verifier.spi.Violation.of(
+                            "chain-empty",
+                            "Verifier chain is empty — refusing to verify any plan as a "
+                                    + "safety measure. Construct PlanAndVerify with a "
+                                    + "non-empty list of PlanVerifiers, or use "
+                                    + "PlanAndVerify.withDefaults(...) which discovers "
+                                    + "providers via ServiceLoader."));
+        }
         VerificationResult acc = VerificationResult.ok();
         for (PlanVerifier v : verifiers) {
             VerificationResult result = v.verify(workflow, policy, registry);

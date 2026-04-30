@@ -141,6 +141,7 @@ class VerifyCliTest {
         assertTrue(cap.outText().contains("Usage"));
     }
 
+
     private static Path writeFile(Path dir, String name, String content) throws Exception {
         Path p = dir.resolve(name);
         Files.writeString(p, content);

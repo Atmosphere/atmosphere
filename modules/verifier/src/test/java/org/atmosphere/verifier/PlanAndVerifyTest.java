@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -219,6 +220,64 @@ class PlanAndVerifyTest {
             assertTrue(names.contains(expected),
                     () -> "missing " + expected + " verifier; found: " + names);
         }
+    }
+
+    @Test
+    void emptyVerifierChainFailsClosedWithChainEmptyViolation() {
+        // The fail-closed defense: an explicit empty list (test-only construction
+        // path) must not silently let unverified plans through. verify() emits
+        // a synthetic 'chain-empty' violation and run() turns it into the same
+        // PlanVerificationException callers handle for any other refusal.
+        var pv = new PlanAndVerify(
+                stubRuntimeReturning(OK_PLAN_JSON),
+                PlanFixtures.fakeRegistry(null),
+                PlanFixtures.policyAllowing(PlanFixtures.FETCH, PlanFixtures.SUMMARIZE),
+                List.of());
+
+        VerificationResult result = pv.verify(pv.plan("any goal"));
+        assertFalse(result.isOk(),
+                () -> "empty chain returned OK — fail-open vulnerability");
+        assertEquals(1, result.violations().size());
+        assertEquals("chain-empty", result.violations().get(0).category());
+
+        // run() surfaces the same condition as a typed exception, with no
+        // tool dispatch.
+        assertThrows(PlanVerificationException.class,
+                () -> pv.run("any goal", java.util.Map.of()));
+    }
+
+    @Test
+    void withDiscoveryThrowsWhenSupplierReturnsEmpty() {
+        // The production path is PlanAndVerify.withDefaults(...) which calls
+        // withDiscovery(..., PlanAndVerify::discoverVerifiers). The
+        // package-private withDiscovery overload exists so this test can
+        // simulate the packaging-defect case (missing META-INF/services
+        // entry under shading or native-image relocation) without
+        // manipulating the JVM's ServiceLoader at runtime.
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> PlanAndVerify.withDiscovery(
+                        stubRuntimeReturning(OK_PLAN_JSON),
+                        PlanFixtures.fakeRegistry(null),
+                        PlanFixtures.policyAllowing(PlanFixtures.FETCH),
+                        List::of));
+
+        assertTrue(ex.getMessage().contains("PlanVerifier"),
+                () -> "expected PlanVerifier diagnostic; got: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("META-INF/services")
+                        || ex.getMessage().contains("ServiceLoader"),
+                () -> "expected service-discovery diagnostic; got: " + ex.getMessage());
+    }
+
+    @Test
+    void withDiscoveryThrowsWhenSupplierReturnsNull() {
+        // Defensive — a custom supplier could return null; treat it
+        // identically to empty.
+        assertThrows(IllegalStateException.class,
+                () -> PlanAndVerify.withDiscovery(
+                        stubRuntimeReturning(OK_PLAN_JSON),
+                        PlanFixtures.fakeRegistry(null),
+                        PlanFixtures.policyAllowing(PlanFixtures.FETCH),
+                        () -> null));
     }
 
     // ---- test helpers --------------------------------------------------

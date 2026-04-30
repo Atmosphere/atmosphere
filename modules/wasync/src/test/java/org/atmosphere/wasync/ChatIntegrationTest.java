@@ -342,10 +342,24 @@ class ChatIntegrationTest {
               .open(request);
 
         assertTrue(openLatch.await(10, TimeUnit.SECONDS), "Should connect");
-        assertEquals(Socket.STATUS.OPEN, socket.status());
+        // OPEN event fires from the same call that updates the status field,
+        // but the two writes are not atomic — under release-pipeline CI load
+        // we observed the handler running before the field landed. Poll for
+        // the transition with a short bounded wait instead of asserting
+        // immediately.
+        awaitStatus(socket, Socket.STATUS.OPEN);
 
         socket.close();
-        assertEquals(Socket.STATUS.CLOSE, socket.status());
+        awaitStatus(socket, Socket.STATUS.CLOSE);
+    }
+
+    private static void awaitStatus(Socket socket, Socket.STATUS expected) throws InterruptedException {
+        long deadlineNanos = System.nanoTime() + java.time.Duration.ofSeconds(2).toNanos();
+        while (socket.status() != expected && System.nanoTime() < deadlineNanos) {
+            Thread.sleep(10);
+        }
+        assertEquals(expected, socket.status(),
+                "Socket status did not transition to " + expected + " within timeout");
     }
 
     @Test
