@@ -24,6 +24,11 @@ on:
 
 env:
   MAVEN_OPTS: '-Xmx2g'
+  # Pin JReleaser. Auto-upgrade burned us between 1.23.0 (4.0.41) and 1.24.0
+  # (4.0.42): the keyserver-published pre-check tightened from "fingerprint
+  # reachable on any keyserver" to "verified UID on keys.openpgp.org",
+  # flipping the same key from INFO→WARN with no input change.
+  JRELEASER_VERSION: '1.24.0'
 
 jobs:
   # ─────────────────────────────────────────────
@@ -163,6 +168,7 @@ jobs:
       if: inputs.dry_run == false
       uses: jreleaser/release-action@v2
       with:
+        version: ${{ env.JRELEASER_VERSION }}
         arguments: 'deploy'
       env:
         JRELEASER_PROJECT_VERSION: ${{ inputs.release_version }}
@@ -177,6 +183,7 @@ jobs:
       if: inputs.dry_run
       uses: jreleaser/release-action@v2
       with:
+        version: ${{ env.JRELEASER_VERSION }}
         arguments: 'deploy --dry-run'
       env:
         JRELEASER_PROJECT_VERSION: ${{ inputs.release_version }}
