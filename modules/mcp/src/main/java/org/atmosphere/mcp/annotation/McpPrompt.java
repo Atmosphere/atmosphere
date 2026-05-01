@@ -40,9 +40,18 @@ import java.lang.annotation.Target;
 @Documented
 public @interface McpPrompt {
 
-    /** Prompt template name. */
+    /** Prompt template name (programmatic identifier). */
     String name();
+
+    /**
+     * Human-friendly display title (MCP 2025-06-18+). UI label, distinct
+     * from the programmatic {@link #name()}. Empty omits the field.
+     */
+    String title() default "";
 
     /** Description of what this prompt does. */
     String description() default "";
+
+    /** Optional icon URI (MCP 2025-11-25). Empty omits the field. */
+    String iconUrl() default "";
 }

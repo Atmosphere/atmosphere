@@ -166,9 +166,32 @@ public final class McpRegistry {
      */
     public record ParamEntry(String name, String description, boolean required, Class<?> type) {}
 
+    /**
+     * MCP 2025-06-18 / 2025-11-25 spec extensions: human-friendly display
+     * {@code title}, optional {@code iconUrl}, and an open {@code _meta}
+     * passthrough blob. Carried as a sidecar to the {@link ToolEntry} /
+     * {@link ResourceEntry} / {@link PromptEntry} records so existing
+     * record signatures (and their many constructor call-sites) don't
+     * have to change. Empty/absent fields are simply omitted from the
+     * wire response.
+     */
+    public record EntryMetadata(String title, String iconUrl, Map<String, Object> meta) {
+        public EntryMetadata {
+            title = title == null ? "" : title;
+            iconUrl = iconUrl == null ? "" : iconUrl;
+            meta = meta == null ? Map.of() : Map.copyOf(meta);
+        }
+        public boolean isEmpty() {
+            return title.isEmpty() && iconUrl.isEmpty() && meta.isEmpty();
+        }
+    }
+
     private final Map<String, ToolEntry> tools = new ConcurrentHashMap<>();
     private final Map<String, ResourceEntry> resources = new ConcurrentHashMap<>();
     private final Map<String, PromptEntry> prompts = new ConcurrentHashMap<>();
+    private final Map<String, EntryMetadata> toolMetadata = new ConcurrentHashMap<>();
+    private final Map<String, EntryMetadata> resourceMetadata = new ConcurrentHashMap<>();
+    private final Map<String, EntryMetadata> promptMetadata = new ConcurrentHashMap<>();
 
     /**
      * Scan the given instance for @McpTool, @McpResource, @McpPrompt methods.
@@ -179,17 +202,29 @@ public final class McpRegistry {
                 var a = method.getAnnotation(McpTool.class);
                 var params = extractParams(method);
                 tools.put(a.name(), new ToolEntry(a.name(), a.description(), method, instance, params));
+                var meta = new EntryMetadata(a.title(), a.iconUrl(), Map.of());
+                if (!meta.isEmpty()) {
+                    toolMetadata.put(a.name(), meta);
+                }
             }
             if (method.isAnnotationPresent(McpResource.class)) {
                 var a = method.getAnnotation(McpResource.class);
                 var params = extractParams(method);
                 resources.put(a.uri(), new ResourceEntry(a.uri(), a.name(), a.description(),
                         a.mimeType(), method, instance, params));
+                var meta = new EntryMetadata(a.title(), a.iconUrl(), Map.of());
+                if (!meta.isEmpty()) {
+                    resourceMetadata.put(a.uri(), meta);
+                }
             }
             if (method.isAnnotationPresent(McpPrompt.class)) {
                 var a = method.getAnnotation(McpPrompt.class);
                 var params = extractParams(method);
                 prompts.put(a.name(), new PromptEntry(a.name(), a.description(), method, instance, params));
+                var meta = new EntryMetadata(a.title(), a.iconUrl(), Map.of());
+                if (!meta.isEmpty()) {
+                    promptMetadata.put(a.name(), meta);
+                }
             }
         }
     }
@@ -279,6 +314,52 @@ public final class McpRegistry {
 
     public Map<String, ToolEntry> tools() {
         return Collections.unmodifiableMap(tools);
+    }
+
+    /**
+     * Spec-extension metadata for a registered tool, if any.
+     * @see EntryMetadata
+     */
+    public Optional<EntryMetadata> toolMetadata(String name) {
+        return Optional.ofNullable(toolMetadata.get(name));
+    }
+
+    public Optional<EntryMetadata> resourceMetadata(String uri) {
+        return Optional.ofNullable(resourceMetadata.get(uri));
+    }
+
+    public Optional<EntryMetadata> promptMetadata(String name) {
+        return Optional.ofNullable(promptMetadata.get(name));
+    }
+
+    /**
+     * Programmatically attach spec-extension metadata to a registered tool.
+     * Useful when registering tools via {@link #registerTool} (which doesn't
+     * carry annotation defaults). Pass {@code null} or an empty
+     * {@link EntryMetadata} to remove.
+     */
+    public void setToolMetadata(String name, EntryMetadata metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            toolMetadata.remove(name);
+        } else {
+            toolMetadata.put(name, metadata);
+        }
+    }
+
+    public void setResourceMetadata(String uri, EntryMetadata metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            resourceMetadata.remove(uri);
+        } else {
+            resourceMetadata.put(uri, metadata);
+        }
+    }
+
+    public void setPromptMetadata(String name, EntryMetadata metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            promptMetadata.remove(name);
+        } else {
+            promptMetadata.put(name, metadata);
+        }
     }
 
     public Map<String, ResourceEntry> resources() {

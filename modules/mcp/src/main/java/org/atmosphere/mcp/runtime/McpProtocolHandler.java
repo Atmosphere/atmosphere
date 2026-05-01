@@ -34,6 +34,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Core MCP protocol handler. Processes incoming JSON-RPC messages and dispatches
@@ -43,13 +45,35 @@ public final class McpProtocolHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(McpProtocolHandler.class);
     private static final ObjectMapper mapper = new ObjectMapper();
-    private static final String PROTOCOL_VERSION = "2025-03-26";
+
+    /**
+     * The latest MCP spec revision this server speaks.
+     * <p>Bumped to {@code 2025-11-25} (icons, EnumSchema, URL-mode elicitation,
+     * standards-based ElicitResult, OIDC discovery hooks, JSON Schema 2020-12
+     * default dialect). Version negotiation: if the client requests a revision
+     * we know about ({@link #SUPPORTED_VERSIONS}), we respond with theirs;
+     * otherwise we respond with the latest we speak and let the client decide
+     * whether to proceed.</p>
+     */
+    public static final String PROTOCOL_VERSION = "2025-11-25";
+
+    /**
+     * Revisions this server understands, newest first. Used during the
+     * initialize handshake to honor clients pinned to older specs.
+     */
+    public static final List<String> SUPPORTED_VERSIONS = List.of(
+            "2025-11-25",
+            "2025-06-18",
+            "2025-03-26",
+            "2024-11-05"
+    );
 
     private final String serverName;
     private final String serverVersion;
     private final McpRegistry registry;
     private final AtmosphereConfig config;
     private final List<String> guardrails;
+    private final McpTaskManager taskManager = new McpTaskManager();
     private volatile McpTracing tracing;
 
     public McpProtocolHandler(String serverName, String serverVersion,
@@ -82,16 +106,12 @@ public final class McpProtocolHandler {
         try {
             var node = mapper.readTree(message);
 
-            // JSON-RPC 2.0 batch support: array of requests
+            // MCP 2025-06-18 dropped JSON-RPC batching. Reject batches outright
+            // with INVALID_REQUEST so a non-conforming client gets a clear
+            // diagnostic instead of partial-success ambiguity.
             if (node.isArray()) {
-                var responses = new java.util.ArrayList<String>();
-                for (var element : node) {
-                    var resp = handleSingleMessage(resource, element);
-                    if (resp != null) {
-                        responses.add(resp);
-                    }
-                }
-                return responses.isEmpty() ? null : "[" + String.join(",", responses) + "]";
+                return serialize(JsonRpc.Response.error(null, JsonRpc.INVALID_REQUEST,
+                        "JSON-RPC batching is not supported (removed in MCP 2025-06-18)"));
             }
 
             return handleSingleMessage(resource, node);
@@ -109,6 +129,24 @@ public final class McpProtocolHandler {
     private String handleSingleMessage(AtmosphereResource resource, JsonNode node) {
         var method = node.has("method") ? node.get("method").stringValue() : null;
         var id = node.has("id") ? node.get("id") : null;
+
+        // Response envelope (no method, has id, has result|error) — this is
+        // a client reply to a server-initiated request such as
+        // elicitation/create. Route it back to the waiting future on the
+        // session and return null (no further response from the server).
+        if (method == null && id != null && !id.isNull()
+                && (node.has("result") || node.has("error"))) {
+            var session = (McpSession) resource.getRequest()
+                    .getAttribute(McpSession.ATTRIBUTE_KEY);
+            if (session != null) {
+                var requestId = id.isString() ? id.stringValue() : id.toString();
+                if (!session.completeServerRequest(requestId, node)) {
+                    logger.debug("Received response for unknown server request id={} on session {}",
+                            requestId, session.sessionId());
+                }
+            }
+            return null;
+        }
 
         if (method == null) {
             return serialize(JsonRpc.Response.error(idValue(id),
@@ -133,6 +171,10 @@ public final class McpProtocolHandler {
             case McpMethod.RESOURCES_UNSUBSCRIBE -> handleResourcesUnsubscribe(resource, idVal, node.get("params"));
             case McpMethod.PROMPTS_LIST -> handlePromptsList(idVal);
             case McpMethod.PROMPTS_GET -> handlePromptsGet(idVal, node.get("params"));
+            case McpMethod.TASKS_GET -> handleTasksGet(idVal, node.get("params"));
+            case McpMethod.TASKS_RESULT -> handleTasksResult(idVal, node.get("params"));
+            case McpMethod.TASKS_LIST -> handleTasksList(idVal, node.get("params"));
+            case McpMethod.TASKS_CANCEL -> handleTasksCancel(idVal, node.get("params"));
             default -> JsonRpc.Response.error(idVal, JsonRpc.METHOD_NOT_FOUND,
                     "Unknown method: " + method);
         });
@@ -144,14 +186,26 @@ public final class McpProtocolHandler {
     private JsonRpc.Response handleInitialize(AtmosphereResource resource, Object id, JsonNode params) {
         var session = getOrCreateSession(resource);
 
+        // Honor the version the client asked for if we know it; otherwise
+        // fall back to our latest. Clients that don't recognize the response
+        // version are expected to disconnect (per spec).
+        String negotiatedVersion = PROTOCOL_VERSION;
         if (params != null) {
             var clientInfo = params.get("clientInfo");
             var capabilities = params.get("capabilities");
+            var requested = params.get("protocolVersion");
+            if (requested != null && requested.isString()) {
+                var asked = requested.stringValue();
+                if (SUPPORTED_VERSIONS.contains(asked)) {
+                    negotiatedVersion = asked;
+                }
+            }
             session.setClientInfo(
                     clientInfo != null && clientInfo.has("name") ? clientInfo.get("name").stringValue() : "unknown",
                     clientInfo != null && clientInfo.has("version") ? clientInfo.get("version").stringValue() : "unknown",
                     capabilities != null ? mapper.convertValue(capabilities, Map.class) : Map.of()
             );
+            session.setProtocolVersion(negotiatedVersion);
         }
 
         var serverCapabilities = new LinkedHashMap<String, Object>();
@@ -164,6 +218,15 @@ public final class McpProtocolHandler {
         if (!registry.prompts().isEmpty()) {
             serverCapabilities.put("prompts", Map.of("listChanged", true));
         }
+        // MCP 2025-11-25 (experimental): advertise task support for the
+        // request types we accept task-augmentation on. Tools/call is the
+        // only one we support today; sampling/elicitation augmentation is
+        // a future iteration.
+        serverCapabilities.put("tasks", Map.of(
+                "list", Map.of(),
+                "cancel", Map.of(),
+                "requests", Map.of("tools", Map.of("call", Map.of()))
+        ));
 
         var serverInfo = new LinkedHashMap<String, Object>();
         serverInfo.put("name", serverName);
@@ -173,7 +236,7 @@ public final class McpProtocolHandler {
         }
 
         var result = new LinkedHashMap<String, Object>();
-        result.put("protocolVersion", PROTOCOL_VERSION);
+        result.put("protocolVersion", negotiatedVersion);
         result.put("capabilities", serverCapabilities);
         result.put("serverInfo", serverInfo);
 
@@ -205,6 +268,20 @@ public final class McpProtocolHandler {
         for (var entry : registry.tools().values()) {
             var tool = new LinkedHashMap<String, Object>();
             tool.put("name", entry.name());
+            registry.toolMetadata(entry.name()).ifPresent(meta -> {
+                if (!meta.title().isEmpty()) {
+                    tool.put("title", meta.title());
+                }
+                if (!meta.iconUrl().isEmpty()) {
+                    // MCP 2025-11-25: icons is an array of objects with src/sizes/type.
+                    // We expose a single-icon shorthand here; consumers needing
+                    // multiple sizes/srcsets can register the metadata directly.
+                    tool.put("icons", List.of(Map.of("src", meta.iconUrl())));
+                }
+                if (!meta.meta().isEmpty()) {
+                    tool.put("_meta", meta.meta());
+                }
+            });
             if (!entry.description().isEmpty()) {
                 tool.put("description", entry.description());
             }
@@ -220,6 +297,14 @@ public final class McpProtocolHandler {
         }
         var toolName = params.get("name").stringValue();
         var toolOpt = registry.tool(toolName);
+
+        // Task-augmented call (MCP 2025-11-25 experimental). When the
+        // requestor includes params.task, we accept the task, return a
+        // CreateTaskResult immediately, and run the underlying tool
+        // off-thread so subsequent tasks/get / tasks/result poll it.
+        if (toolOpt.isPresent() && params.has("task")) {
+            return acceptToolCallAsTask(resource, id, toolOpt.get(), params);
+        }
         if (toolOpt.isEmpty()) {
             return JsonRpc.Response.error(id, JsonRpc.METHOD_NOT_FOUND,
                     "Unknown tool: " + toolName);
@@ -295,12 +380,25 @@ public final class McpProtocolHandler {
                 var args = bindArguments(tool.method(), tool.params(), arguments);
                 result = tool.method().invoke(tool.instance(), args);
             }
-            var text = result instanceof String s ? s : mapper.writeValueAsString(result);
 
-            return JsonRpc.Response.success(id, Map.of(
-                    "content", List.of(Map.of("type", "text", "text", text)),
-                    "isError", false
-            ));
+            // MCP 2025-06-18 added `structuredContent`: tools that return a
+            // typed object (not a plain String) emit both the legacy text
+            // content AND the structured form. Older clients ignore the
+            // unknown field; newer ones consume the typed payload directly.
+            var resultMap = new LinkedHashMap<String, Object>();
+            String text;
+            if (result instanceof String s) {
+                text = s;
+            } else {
+                text = mapper.writeValueAsString(result);
+                if (result != null) {
+                    resultMap.put("structuredContent", result);
+                }
+            }
+            resultMap.put("content", List.of(Map.of("type", "text", "text", text)));
+            resultMap.put("isError", false);
+
+            return JsonRpc.Response.success(id, resultMap);
         } catch (InvocationTargetException e) {
             throw e;
         }
@@ -331,6 +429,188 @@ public final class McpProtocolHandler {
         return null;
     }
 
+    // ── Tasks (durable requests, MCP 2025-11-25 experimental) ────────────
+
+    /**
+     * Accept a task-augmented {@code tools/call}. Immediately returns a
+     * {@code CreateTaskResult} envelope and dispatches the actual tool
+     * execution to a virtual thread. The eventual outcome is stored on the
+     * task and surfaced via {@code tasks/result}.
+     */
+    private JsonRpc.Response acceptToolCallAsTask(AtmosphereResource resource, Object id,
+                                                   McpRegistry.ToolEntry tool, JsonNode params) {
+        var taskParams = params.get("task");
+        long requestedTtl = taskParams != null && taskParams.has("ttl")
+                ? taskParams.get("ttl").asLong(McpTaskManager.DEFAULT_TTL_MS)
+                : McpTaskManager.DEFAULT_TTL_MS;
+        var task = taskManager.create(requestedTtl);
+        var arguments = params.has("arguments") ? params.get("arguments") : null;
+        var principal = resolvePrincipal(resource);
+
+        Thread.startVirtualThread(() -> {
+            try {
+                var underlying = executeToolCall(id, tool, arguments, principal);
+                if (underlying.error() == null && underlying.result() instanceof Map<?, ?> rawMap) {
+                    @SuppressWarnings("unchecked")
+                    var resMap = (Map<String, Object>) rawMap;
+                    var isError = resMap.get("isError") instanceof Boolean b && b;
+                    if (isError) {
+                        task.fail(resMap, "Tool reported isError=true");
+                    } else {
+                        task.complete(resMap, "Tool completed");
+                    }
+                } else {
+                    var msg = underlying.error() != null ? underlying.error().message() : "Unknown failure";
+                    task.fail(Map.of(
+                            "content", List.of(Map.of("type", "text", "text",
+                                    "Tool execution failed: " + msg)),
+                            "isError", true
+                    ), msg);
+                }
+            } catch (Exception e) {
+                logger.warn("Async tool execution threw", e);
+                task.fail(Map.of(
+                        "content", List.of(Map.of("type", "text", "text",
+                                "Tool threw: " + e.getMessage())),
+                        "isError", true
+                ), e.getMessage());
+            }
+        });
+
+        return JsonRpc.Response.success(id, Map.of("task", task.toWire()));
+    }
+
+    private JsonRpc.Response handleTasksGet(Object id, JsonNode params) {
+        if (params == null || !params.has("taskId")) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing taskId");
+        }
+        var taskId = params.get("taskId").stringValue();
+        var task = taskManager.get(taskId);
+        if (task.isEmpty()) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS,
+                    "Failed to retrieve task: Task not found");
+        }
+        return JsonRpc.Response.success(id, task.get().toWire());
+    }
+
+    private JsonRpc.Response handleTasksResult(Object id, JsonNode params) {
+        if (params == null || !params.has("taskId")) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing taskId");
+        }
+        var taskId = params.get("taskId").stringValue();
+        var taskOpt = taskManager.get(taskId);
+        if (taskOpt.isEmpty()) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS,
+                    "Failed to retrieve task: Task not found");
+        }
+        var task = taskOpt.get();
+        try {
+            // Spec: tasks/result blocks until the task reaches a terminal
+            // status. With our in-process executor this is bounded by tool
+            // runtime; production deployments may want a wall-clock cap.
+            var resultMap = task.result().get();
+            var withMeta = new LinkedHashMap<String, Object>(resultMap);
+            withMeta.merge("_meta", Map.of(
+                    "io.modelcontextprotocol/related-task",
+                    Map.of("taskId", task.taskId())), (a, b) -> a);
+            return JsonRpc.Response.success(id, withMeta);
+        } catch (Exception e) {
+            return JsonRpc.Response.error(id, JsonRpc.INTERNAL_ERROR,
+                    "tasks/result failed: " + e.getMessage());
+        }
+    }
+
+    private JsonRpc.Response handleTasksList(Object id, JsonNode params) {
+        String cursor = params != null && params.has("cursor") && params.get("cursor").isString()
+                ? params.get("cursor").stringValue() : null;
+        var page = taskManager.list(cursor, 100);
+        return JsonRpc.Response.success(id, page.toWire());
+    }
+
+    private JsonRpc.Response handleTasksCancel(Object id, JsonNode params) {
+        if (params == null || !params.has("taskId")) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing taskId");
+        }
+        var taskId = params.get("taskId").stringValue();
+        var existing = taskManager.get(taskId);
+        if (existing.isEmpty()) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS,
+                    "Failed to retrieve task: Task not found");
+        }
+        if (existing.get().status().isTerminal()) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS,
+                    "Cannot cancel task: already in terminal status '"
+                            + existing.get().status().wireValue() + "'");
+        }
+        var cancelled = taskManager.cancel(taskId, "Cancelled by request");
+        return JsonRpc.Response.success(id, cancelled.get().toWire());
+    }
+
+    /** Visible-for-testing: lets tests peek at task state. */
+    public McpTaskManager taskManager() {
+        return taskManager;
+    }
+
+    // ── Elicitation (server → client request, MCP 2025-06-18) ────────────
+
+    /**
+     * Issue an {@code elicitation/create} request to the client behind
+     * {@code session} and return a future that completes with the client's
+     * response envelope. The response payload follows MCP {@code ElicitResult}
+     * shape: {@code {action: "accept|decline|cancel", content: {...}}}.
+     *
+     * <p>Failure modes:</p>
+     * <ul>
+     *   <li>Client did not advertise the {@code elicitation} capability at
+     *       initialize time → the future fails with
+     *       {@link IllegalStateException} immediately.</li>
+     *   <li>Client never replies → caller's responsibility to apply a
+     *       timeout (e.g. {@link CompletableFuture#orTimeout}) and call
+     *       {@link McpSession#cancelServerRequest} on expiry.</li>
+     * </ul>
+     *
+     * @param session       the MCP session to elicit through (typically obtained
+     *                      from a {@code @McpTool} handler's resource attribute)
+     * @param message       human-readable prompt shown to the user
+     * @param requestedSchema JSON Schema describing the expected response shape
+     * @return future resolving to the {@code result}/{@code error} JSON envelope
+     */
+    public CompletableFuture<JsonNode> elicit(McpSession session, String message,
+                                              Map<String, Object> requestedSchema) {
+        if (session == null) {
+            return CompletableFuture.failedFuture(
+                    new IllegalArgumentException("elicit requires an active McpSession"));
+        }
+        var caps = session.clientCapabilities();
+        if (caps == null || !caps.containsKey("elicitation")) {
+            return CompletableFuture.failedFuture(new IllegalStateException(
+                    "Client did not advertise the 'elicitation' capability at initialize. "
+                            + "Cannot issue elicitation/create."));
+        }
+
+        var requestId = UUID.randomUUID().toString();
+        var request = new LinkedHashMap<String, Object>();
+        request.put("jsonrpc", "2.0");
+        request.put("id", requestId);
+        request.put("method", McpMethod.ELICITATION_CREATE);
+        var params = new LinkedHashMap<String, Object>();
+        params.put("message", message);
+        params.put("requestedSchema", requestedSchema != null ? requestedSchema : Map.of());
+        request.put("params", params);
+
+        var future = new CompletableFuture<JsonNode>();
+        session.registerServerRequest(requestId, future);
+
+        try {
+            var serialized = mapper.writeValueAsString(request);
+            session.addPendingNotification(serialized);
+        } catch (Exception e) {
+            session.cancelServerRequest(requestId, e);
+            return CompletableFuture.failedFuture(e);
+        }
+        return future;
+    }
+
     // ── Resources ────────────────────────────────────────────────────────
 
     private JsonRpc.Response handleResourcesList(Object id) {
@@ -341,6 +621,17 @@ public final class McpProtocolHandler {
             if (!entry.name().isEmpty()) {
                 res.put("name", entry.name());
             }
+            registry.resourceMetadata(entry.uri()).ifPresent(meta -> {
+                if (!meta.title().isEmpty()) {
+                    res.put("title", meta.title());
+                }
+                if (!meta.iconUrl().isEmpty()) {
+                    res.put("icons", List.of(Map.of("src", meta.iconUrl())));
+                }
+                if (!meta.meta().isEmpty()) {
+                    res.put("_meta", meta.meta());
+                }
+            });
             if (!entry.description().isEmpty()) {
                 res.put("description", entry.description());
             }
@@ -436,6 +727,17 @@ public final class McpProtocolHandler {
         for (var entry : registry.prompts().values()) {
             var prompt = new LinkedHashMap<String, Object>();
             prompt.put("name", entry.name());
+            registry.promptMetadata(entry.name()).ifPresent(meta -> {
+                if (!meta.title().isEmpty()) {
+                    prompt.put("title", meta.title());
+                }
+                if (!meta.iconUrl().isEmpty()) {
+                    prompt.put("icons", List.of(Map.of("src", meta.iconUrl())));
+                }
+                if (!meta.meta().isEmpty()) {
+                    prompt.put("_meta", meta.meta());
+                }
+            });
             if (!entry.description().isEmpty()) {
                 prompt.put("description", entry.description());
             }

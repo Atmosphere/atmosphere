@@ -45,4 +45,16 @@ public final class McpMethod {
     public static final String PROGRESS = "notifications/progress";
     public static final String CANCELLED = "notifications/cancelled";
     public static final String RESOURCES_UPDATED = "notifications/resources/updated";
+
+    // Elicitation (MCP 2025-06-18+) — server requests info from user via the
+    // client. Issued as a request from server to client; the client returns an
+    // ElicitResult envelope with the user's response.
+    public static final String ELICITATION_CREATE = "elicitation/create";
+
+    // Tasks (MCP 2025-11-25, experimental) — durable request tracking.
+    public static final String TASKS_GET = "tasks/get";
+    public static final String TASKS_RESULT = "tasks/result";
+    public static final String TASKS_LIST = "tasks/list";
+    public static final String TASKS_CANCEL = "tasks/cancel";
+    public static final String TASKS_STATUS = "notifications/tasks/status";
 }

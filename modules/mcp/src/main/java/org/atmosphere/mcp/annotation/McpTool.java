@@ -37,9 +37,22 @@ import java.lang.annotation.Target;
 @Documented
 public @interface McpTool {
 
-    /** Tool name as reported to MCP clients. */
+    /** Tool name as reported to MCP clients. Programmatic identifier. */
     String name();
+
+    /**
+     * Human-friendly display title (MCP 2025-06-18+). Use this for UI labels
+     * so {@link #name()} stays a stable programmatic identifier. Defaults to
+     * empty, in which case the response omits the {@code title} field.
+     */
+    String title() default "";
 
     /** Human-readable description of what this tool does. */
     String description() default "";
+
+    /**
+     * Optional icon URI advertised in tools/list (MCP 2025-11-25). Empty
+     * string omits the {@code icons} field from the wire response.
+     */
+    String iconUrl() default "";
 }

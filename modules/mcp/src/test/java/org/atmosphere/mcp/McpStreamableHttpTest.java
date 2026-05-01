@@ -240,6 +240,61 @@ public class McpStreamableHttpTest {
         verify(resource.getResponse()).setStatus(405);
     }
 
+    // ── 2025-11-25 Origin enforcement: HTTP 403 ──────────────────────────
+
+    @Test
+    public void testForbiddenOriginReturns403() throws Exception {
+        var output = new StringWriter();
+        var resource = mockResource("POST", "{}", "application/json", null);
+        var request = resource.getRequest();
+        when(request.getHeader("Origin")).thenReturn("https://evil.example");
+        request.setAttribute("org.atmosphere.mcp.allowedOrigins",
+                java.util.List.of("https://app.example"));
+        when(resource.getResponse().getWriter()).thenReturn(new PrintWriter(output));
+
+        handler.onRequest(resource);
+
+        verify(resource.getResponse()).setStatus(403);
+        assertTrue(output.toString().contains("Forbidden Origin"),
+                () -> "expected 403 body; got: " + output);
+    }
+
+    @Test
+    public void testAllowedOriginPasses() throws Exception {
+        var output = new StringWriter();
+        var resource = mockResource("POST", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}",
+                "application/json", null);
+        var request = resource.getRequest();
+        when(request.getHeader("Origin")).thenReturn("https://app.example");
+        request.setAttribute("org.atmosphere.mcp.allowedOrigins",
+                java.util.List.of("https://app.example"));
+        when(resource.getResponse().getWriter()).thenReturn(new PrintWriter(output));
+
+        handler.onRequest(resource);
+
+        verify(resource.getResponse(), org.mockito.Mockito.never()).setStatus(403);
+        verify(resource.getResponse()).setStatus(200);
+    }
+
+    @Test
+    public void testNoOriginHeaderIsAllowed() throws Exception {
+        // Non-browser clients (CLI, server-to-server) don't send Origin.
+        // The 403 enforcement is only for browser-cross-origin abuse.
+        var output = new StringWriter();
+        var resource = mockResource("POST", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}",
+                "application/json", null);
+        var request = resource.getRequest();
+        when(request.getHeader("Origin")).thenReturn(null);
+        request.setAttribute("org.atmosphere.mcp.allowedOrigins",
+                java.util.List.of("https://only.example"));
+        when(resource.getResponse().getWriter()).thenReturn(new PrintWriter(output));
+
+        handler.onRequest(resource);
+
+        verify(resource.getResponse(), org.mockito.Mockito.never()).setStatus(403);
+        verify(resource.getResponse()).setStatus(200);
+    }
+
     // ── Helper ───────────────────────────────────────────────────────────
 
     private AtmosphereResource mockResource(String method, String body,

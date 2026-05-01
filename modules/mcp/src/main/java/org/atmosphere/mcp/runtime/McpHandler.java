@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
  * {@link AtmosphereHandler} that bridges Atmosphere's transport layer with the
  * MCP JSON-RPC protocol. Supports three transports:
  * <ul>
- *   <li><b>Streamable HTTP</b> (MCP spec 2025-03-26) — POST for requests, GET for SSE notifications, DELETE to end session</li>
+ *   <li><b>Streamable HTTP</b> (MCP spec 2025-11-25) — POST for requests, GET for SSE notifications, DELETE to end session</li>
  *   <li><b>WebSocket</b> — full-duplex JSON-RPC via WebSocket frames</li>
  *   <li><b>SSE fallback</b> — Atmosphere's automatic WebSocket→SSE downgrade</li>
  * </ul>
@@ -51,6 +51,12 @@ public final class McpHandler implements AtmosphereHandler {
     private static final String TEXT_EVENT_STREAM = "text/event-stream";
     private static final int DEFAULT_MAX_SESSIONS = 10_000;
     private static final int MAX_BODY_SIZE = 10 * 1024 * 1024;
+
+    /**
+     * Header name for MCP protocol version negotiation, required on all
+     * post-handshake requests since spec 2025-06-18.
+     */
+    public static final String PROTOCOL_VERSION_HEADER = "MCP-Protocol-Version";
 
     private final McpProtocolHandler protocolHandler;
     private final Map<String, McpSession> sessions = new ConcurrentHashMap<>();
@@ -80,17 +86,92 @@ public final class McpHandler implements AtmosphereHandler {
 
     @Override
     public void onRequest(AtmosphereResource resource) throws IOException {
-        var method = resource.getRequest().getMethod();
+        var request = resource.getRequest();
+        var response = resource.getResponse();
+
+        // MCP 2025-11-25 clarification: invalid Origin → HTTP 403, not 400.
+        // We treat "no Origin" as benign (non-browser clients); a present
+        // but non-matching Origin against a configured allowlist is the
+        // case the spec is targeting. Allowlist lives on the request
+        // attribute "org.atmosphere.mcp.allowedOrigins" (List<String>);
+        // when absent, no enforcement (back-compat with existing deployments).
+        if (!isOriginAllowed(request)) {
+            response.setStatus(403);
+            response.setContentType(APPLICATION_JSON);
+            response.getWriter().write(
+                    "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32600,\"message\":\"Forbidden Origin\"}}");
+            return;
+        }
+
+        var method = request.getMethod();
 
         switch (method.toUpperCase()) {
             case "POST" -> handlePost(resource);
             case "GET" -> handleGet(resource);
             case "DELETE" -> handleDelete(resource);
             default -> {
-                resource.getResponse().setStatus(405);
-                resource.getResponse().getWriter().write("{\"error\":\"Method not allowed\"}");
+                response.setStatus(405);
+                response.getWriter().write("{\"error\":\"Method not allowed\"}");
             }
         }
+    }
+
+    /**
+     * Validate the {@code Origin} header against an optional allowlist.
+     * Returns {@code true} when there is no allowlist configured, when no
+     * {@code Origin} header is present (non-browser clients), or when the
+     * presented Origin is in the allowlist.
+     */
+    @SuppressWarnings("unchecked")
+    private boolean isOriginAllowed(org.atmosphere.cpr.AtmosphereRequest request) {
+        var origin = request.getHeader("Origin");
+        if (origin == null || origin.isEmpty()) {
+            return true;
+        }
+        var allowed = (List<String>) request.getAttribute("org.atmosphere.mcp.allowedOrigins");
+        if (allowed == null || allowed.isEmpty()) {
+            return true;
+        }
+        return allowed.contains(origin);
+    }
+
+    /**
+     * After the initialize handshake, MCP 2025-06-18 requires the client to
+     * echo the negotiated protocol revision in {@code MCP-Protocol-Version}
+     * on every subsequent HTTP request. A missing or mismatched header on a
+     * known session yields HTTP 400 so misconfigured clients fail loud.
+     *
+     * @return {@code true} if the request may proceed, {@code false} if a
+     *         response has already been written (caller should return).
+     */
+    private boolean enforceProtocolVersionHeader(AtmosphereResource resource, McpSession session) throws IOException {
+        if (session == null || !session.isInitialized()) {
+            // Pre-handshake (initialize itself) — no enforcement
+            return true;
+        }
+        var negotiated = session.protocolVersion();
+        if (negotiated == null) {
+            return true;
+        }
+        var presented = resource.getRequest().getHeader(PROTOCOL_VERSION_HEADER);
+        if (presented == null) {
+            // Tolerant for back-compat: spec says clients SHOULD send it; we
+            // don't fail-close here to avoid breaking existing 2025-03-26 clients
+            // that don't know about the header. Once this is widely adopted we
+            // can promote to fail-closed.
+            return true;
+        }
+        if (!presented.equals(negotiated)) {
+            var response = resource.getResponse();
+            response.setStatus(400);
+            response.setContentType(APPLICATION_JSON);
+            response.getWriter().write(
+                    "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32600,\"message\":\""
+                            + "MCP-Protocol-Version mismatch: session=" + negotiated
+                            + ", header=" + presented + "\"}}");
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -144,11 +225,17 @@ public final class McpHandler implements AtmosphereHandler {
 
         // Restore session from Mcp-Session-Id header if present
         var sessionId = request.getHeader(McpSession.SESSION_ID_HEADER);
+        McpSession existingSession = null;
         if (sessionId != null) {
-            var session = sessions.get(sessionId);
-            if (session != null) {
-                request.setAttribute(McpSession.ATTRIBUTE_KEY, session);
+            existingSession = sessions.get(sessionId);
+            if (existingSession != null) {
+                request.setAttribute(McpSession.ATTRIBUTE_KEY, existingSession);
             }
+        }
+
+        // MCP 2025-06-18: protocol version header enforcement on post-handshake POSTs
+        if (!enforceProtocolVersionHeader(resource, existingSession)) {
+            return;
         }
 
         var jsonResponse = protocolHandler.handleMessage(resource, sb.toString());
@@ -207,13 +294,17 @@ public final class McpHandler implements AtmosphereHandler {
 
         // Restore session from header
         var sessionId = request.getHeader(McpSession.SESSION_ID_HEADER);
+        McpSession session = null;
         if (sessionId != null) {
-            var session = sessions.get(sessionId);
+            session = sessions.get(sessionId);
             if (session != null) {
                 request.setAttribute(McpSession.ATTRIBUTE_KEY, session);
                 session.touch();
                 response.setHeader(McpSession.SESSION_ID_HEADER, session.sessionId());
             }
+        }
+        if (!enforceProtocolVersionHeader(resource, session)) {
+            return;
         }
 
         // SSE notification stream or WebSocket upgrade
@@ -222,17 +313,14 @@ public final class McpHandler implements AtmosphereHandler {
         resource.suspend();
 
         // Replay any notifications buffered while the client was disconnected
-        if (sessionId != null) {
-            var session = sessions.get(sessionId);
-            if (session != null) {
-                var pending = session.drainPendingNotifications();
-                for (var notification : pending) {
-                    response.getWriter().write("event: message\ndata: " + notification + "\n\n");
-                }
-                if (!pending.isEmpty()) {
-                    response.getWriter().flush();
-                    logger.debug("Replayed {} pending notifications for session {}", pending.size(), sessionId);
-                }
+        if (session != null) {
+            var pending = session.drainPendingNotifications();
+            for (var notification : pending) {
+                response.getWriter().write("event: message\ndata: " + notification + "\n\n");
+            }
+            if (!pending.isEmpty()) {
+                response.getWriter().flush();
+                logger.debug("Replayed {} pending notifications for session {}", pending.size(), sessionId);
             }
         }
     }
@@ -244,6 +332,14 @@ public final class McpHandler implements AtmosphereHandler {
         var request = resource.getRequest();
         var response = resource.getResponse();
         var sessionId = request.getHeader(McpSession.SESSION_ID_HEADER);
+
+        McpSession session = null;
+        if (sessionId != null) {
+            session = sessions.get(sessionId);
+        }
+        if (!enforceProtocolVersionHeader(resource, session)) {
+            return;
+        }
 
         if (sessionId != null) {
             var removed = sessions.remove(sessionId);

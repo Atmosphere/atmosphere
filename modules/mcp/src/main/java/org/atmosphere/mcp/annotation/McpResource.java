@@ -45,9 +45,18 @@ public @interface McpResource {
     /** Human-readable name of this resource. */
     String name() default "";
 
+    /**
+     * Human-friendly display title (MCP 2025-06-18+). UI label distinct from
+     * the programmatic {@link #name()}. Empty string omits the field.
+     */
+    String title() default "";
+
     /** Description of this resource. */
     String description() default "";
 
     /** MIME type of the resource content. */
     String mimeType() default "text/plain";
+
+    /** Optional icon URI (MCP 2025-11-25). Empty omits the field. */
+    String iconUrl() default "";
 }
