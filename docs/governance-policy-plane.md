@@ -1,10 +1,8 @@
 # Governance Policy Plane
 
-**Status:** Shipped. All SPI + YAML parity + HTTP endpoint + sample are in-tree and covered by tests.
+Declarative governance policies — admit / deny / transform every AI turn — loaded from YAML ([Atmosphere-native schema](#atmosphere-native-type-dispatch) or [Microsoft Agent Governance Toolkit](https://github.com/microsoft/agent-governance-toolkit) schema verbatim), enforced on every `@AiEndpoint`, introspected through the admin console, and queryable via a Microsoft-compatible `POST /check` decision endpoint.
 
-**Module:** `atmosphere-ai`. Admin-surface pieces live in `atmosphere-admin` and the Spring Boot auto-configuration is in `atmosphere-spring-boot-starter`.
-
-**One-line summary:** declarative governance policies — admit / deny / transform every AI turn — loaded from YAML (Atmosphere-native schema OR Microsoft Agent Governance Toolkit schema verbatim), enforced on every `@AiEndpoint`, introspected through the admin console, and queryable via a Microsoft-compatible `POST /check` decision endpoint.
+**Module:** `atmosphere-ai`. Admin-surface pieces live in `atmosphere-admin`; the Spring Boot auto-configuration is in `atmosphere-spring-boot-starter`.
 
 ---
 
@@ -475,5 +473,5 @@ Spring vs Quarkus parity at the framework level: `AiEndpointProcessor.instantiat
 - **Sample**: [`samples/spring-boot-ms-governance-chat/`](../samples/spring-boot-ms-governance-chat/) — ships a verbatim MS YAML policy and demonstrates every operator + action in a live chat gated by the built-in Atmosphere AI console.
 - **Reference**: [atmosphere.github.io `reference/governance.md`](https://atmosphere.github.io/docs/reference/governance/) — full API reference.
 - **Tutorial**: [atmosphere.github.io `tutorial/30-governance-policy-plane.md`](https://atmosphere.github.io/docs/tutorial/30-governance-policy-plane/) — walk-through from empty project to MS-YAML-enforced chat.
-- **Module README**: [`modules/ai/README.md`](../modules/ai/README.md#governance-policy-plane-phase-a) — quick-start snippet + operator table.
+- **Module README**: [`modules/ai/README.md`](../modules/ai/README.md#governance-policy-plane) — quick-start snippet + operator table.
 - **Microsoft Agent Governance Toolkit**: [github.com/microsoft/agent-governance-toolkit](https://github.com/microsoft/agent-governance-toolkit) — the upstream toolkit whose YAML schema Atmosphere consumes verbatim.

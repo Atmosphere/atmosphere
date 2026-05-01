@@ -104,38 +104,60 @@ What this registers depends on which modules are on the classpath:
 
 ## Modules
 
+### Real-time core
+
 | Capability | Module | Key types |
 |---|---|---|
 | Streaming transports | `atmosphere-runtime` | WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC — negotiated via `AsyncSupport`; Jetty 12 QUIC native or Reactor Netty HTTP/3 sidecar |
+| Authentication | `atmosphere-runtime` | `TokenValidator`, `TokenRefresher`, `AuthInterceptor` — rejects at WebSocket / HTTP upgrade |
+| Observability | `atmosphere-runtime`, `atmosphere-ai` | OpenTelemetry spans, Micrometer metrics, token usage; `BusinessMdcBenchmark` pins the MDC hot-path cost |
+| Business tags | `atmosphere-ai` | `BusinessMetadata` → SLF4J MDC (tenant, customer, session, event kind) |
+
+### Agents
+
+| Capability | Module | Key types |
+|---|---|---|
 | Agent declaration | `atmosphere-agent` | `@Agent`, `@Prompt`, `@Command`, `@AiTool`, `@RequiresApproval` |
-| AI runtimes | `atmosphere-ai` + `atmosphere-{spring-ai,langchain4j,adk,koog,embabel,semantic-kernel}` | `AgentRuntime` SPI; capability matrix pinned in `AbstractAgentRuntimeContractTest` |
-| Multi-agent coordination | `atmosphere-coordinator` | `@Coordinator`, `@Fleet`, `@AgentRef`; parallel / sequential / conditional routing; coordination journal |
-| Agent protocols | `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui` | auto-registered endpoints per `@Agent` |
-| Channels | `atmosphere-channels` | Slack, Telegram, Discord, WhatsApp, Messenger dispatch from one `@Command` |
+| Skill files | `atmosphere-agent` | Markdown system prompts with tool / guardrail / channel sections; classpath-discovered |
 | Memory | `atmosphere-ai` | sliding window, LLM summarization; durable via `atmosphere-durable-sessions` (SQLite / Redis) |
 | Checkpoints | `atmosphere-checkpoint` | `CheckpointStore` — parent-chained snapshots, fork, resume by REST |
-| Reconnect & replay | `atmosphere-durable-sessions` + `RunRegistry` in `atmosphere-ai` | clients reconnect with `X-Atmosphere-Run-Id`; `AiEndpointHandler` replays the mid-stream buffer to the new resource |
-| Sandbox | `atmosphere-sandbox` | `Sandbox` / `SandboxProvider`; Docker default (`--network none`, argv-form exec, strict mount); `ServiceLoader` for Firecracker / Kata / E2B / Modal |
-| Authentication | `atmosphere-runtime` | `TokenValidator`, `TokenRefresher`, `AuthInterceptor` — rejects at WebSocket / HTTP upgrade |
+| Reconnect & replay | `atmosphere-durable-sessions` + `RunRegistry` | clients reconnect with `X-Atmosphere-Run-Id`; `AiEndpointHandler` replays the mid-stream buffer to the new resource |
+| Grounded facts | `atmosphere-ai` | `FactResolver` SPI, per-turn; values escaped before prompt injection |
+| Permission modes | `atmosphere-ai` | `PermissionMode.DEFAULT` / `PLAN` / `ACCEPT_EDITS` / `BYPASS` / `DENY_ALL` — runtime config, not redeploy |
+
+### AI runtimes & multi-agent
+
+| Capability | Module | Key types |
+|---|---|---|
+| AI runtimes | `atmosphere-ai`, `atmosphere-spring-ai`, `atmosphere-langchain4j`, `atmosphere-adk`, `atmosphere-koog`, `atmosphere-embabel`, `atmosphere-semantic-kernel` | `AgentRuntime` SPI; capability matrix pinned in `AbstractAgentRuntimeContractTest` |
+| Multi-agent coordination | `atmosphere-coordinator` | `@Coordinator`, `@Fleet`, `@AgentRef`; parallel / sequential / conditional routing; coordination journal |
+| Agent protocols | `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui` | auto-registered endpoints per `@Agent`; A2A v1.0.0 |
+| Channels | `atmosphere-channels` | Slack, Telegram, Discord, WhatsApp, Messenger dispatch from one `@Command` |
+| Evaluation | `atmosphere-ai-test` | `LlmJudge` (`meetsIntent`, `isGroundedIn`, `hasQuality`); `AbstractAgentRuntimeContractTest` |
+
+### Governance & compliance
+
+| Capability | Module | Key types |
+|---|---|---|
+| Guardrails | `atmosphere-ai` | `PiiRedactionGuardrail`, `OutputLengthZScoreGuardrail` (tenant-partitioned), `CostCeilingGuardrail` |
+| Governance policy plane | `atmosphere-ai` | `GovernancePolicy` SPI; YAML `PolicyParser` auto-detects Atmosphere-native + [Microsoft Agent Governance Toolkit](https://github.com/microsoft/agent-governance-toolkit) schema; MS-compatible `POST /api/admin/governance/check` |
+| Policy admission primitives | `atmosphere-ai` | `AllowListPolicy`, `DenyListPolicy`, `MessageLengthPolicy`, `RateLimitPolicy`, `ConcurrencyLimitPolicy`, `TimeWindowPolicy`, `MetadataPresencePolicy`, `AuthorizationPolicy`, `ConfidenceThresholdGuardrail` — composable via `PolicyRing` |
+| Ops primitives | `atmosphere-ai` | `KillSwitchPolicy` break-glass; `DryRunPolicy` shadow rollouts; `SwappablePolicy` hot-reload; `SloTracker` burn-rate; `PolicyHashDigest` drift detection |
+| Multi-agent governance | `atmosphere-coordinator` | `FleetInterceptor` SPI for per-dispatch gating; `GovernanceFleetInterceptor` bridges `FleetInterceptor` → `GovernancePolicy` at the coord→specialist edge |
+| Commitment records | `atmosphere-coordinator` | W3C Verifiable-Credential-subtype records signed Ed25519; `CommitmentRecordsFlag` flag-off default; admin Commitments tab |
+| Plan-and-verify | `atmosphere-verifier` | Static verification of LLM-emitted tool-call workflows ([Meijer, *Guardians of the Agents*, CACM Jan 2026](https://cacm.acm.org/research/guardians-of-the-agents/)); sealed `Workflow` AST; six `PlanVerifier` SPIs (Allowlist / WellFormedness / Capability / Taint / Automaton / Smt); `@Sink` + `@RequiresCapability` co-located policy; `verify` CLI |
+| Stream-level PII rewrite | `atmosphere-ai` | `PiiRedactionFilter` — `BroadcasterFilter` auto-installed; rewrites tokens before bytes flush to the client |
+| Cost enforcement | `atmosphere-ai` | `CostCeilingAccountant` bridges `TokenUsage` → `CostCeilingGuardrail.addCost` keyed by `business.tenant.id`; per-tenant budgets block dispatch |
+| Compliance evidence | `atmosphere-ai` | OWASP Agentic Top 10 + EU AI Act / HIPAA / SOC 2 matrices; CI-enforced via `OwaspMatrixPinTest`, `ComplianceMatrixPinTest`, `EvidenceConsumerGrepPinTest` |
+
+### Admin & sandbox
+
+| Capability | Module | Key types |
+|---|---|---|
 | Admin control plane | `atmosphere-admin` | `/atmosphere/admin/` UI, `/api/admin/*` REST, MCP tools; triple-gate (feature flag → Principal → `ControlAuthorizer`) |
 | Flow viewer | `atmosphere-admin` | `GET /api/admin/flow` — JSON graph keyed by `coordinationId` (nodes, edges, success / failure / avg duration) |
-| Grounded facts | `atmosphere-ai` | `FactResolver` SPI, per-turn; values escaped before prompt injection |
-| Business tags | `atmosphere-ai` | `BusinessMetadata` → SLF4J MDC (tenant, customer, session, event kind) |
-| Guardrails | `atmosphere-ai` | `PiiRedactionGuardrail`, `OutputLengthZScoreGuardrail` (tenant-partitioned), `CostCeilingGuardrail` |
-| Governance policy plane | `atmosphere-ai` | `GovernancePolicy` SPI; YAML `PolicyParser` auto-detects Atmosphere-native + **Microsoft Agent Governance Toolkit** schema; `PolicyAdmissionGate` for non-pipeline paths; MS-compatible `POST /api/admin/governance/check` decision endpoint |
-| Policy admission primitives | `atmosphere-ai` | `AllowListPolicy`, `DenyListPolicy`, `MessageLengthPolicy`, `RateLimitPolicy`, `ConcurrencyLimitPolicy`, `TimeWindowPolicy`, `MetadataPresencePolicy`, `AuthorizationPolicy`, `ConfidenceThresholdGuardrail` — all declarable in YAML and composable via `PolicyRing` |
-| Ops primitives | `atmosphere-ai` | `KillSwitchPolicy` break-glass; `DryRunPolicy` shadow rollouts; `SwappablePolicy` hot-reload; `TimedPolicy` / `CountingPolicy` metrics wrappers; `SloTracker` SRE burn-rate; `PolicyHashDigest` supply-chain drift detection |
-| Multi-agent governance | `atmosphere-coordinator` | `FleetInterceptor` SPI for per-dispatch gating; `GovernanceFleetInterceptor` bridges `FleetInterceptor` → `GovernancePolicy` chain at the coord→specialist edge |
-| Commitment records | `atmosphere-coordinator` | W3C Verifiable-Credential-subtype records signed with Ed25519; `CommitmentRecordsFlag` flag-off default; `JournalingAgentFleet.signer()` installs per-session; admin Commitments tab renders verified records |
-| Admin governance surface | `atmosphere-admin` + starter | `GET /governance/{policies,health,decisions,owasp,compliance,agt-verify}`; `POST /governance/{check,reload,kill-switch/arm,kill-switch/disarm}` — all verified end-to-end via `StartupTeamGovernanceE2ETest` |
-| Compliance evidence | `atmosphere-ai` | OWASP Agentic Top 10 + EU AI Act / HIPAA / SOC2 matrices; CI-enforced via `OwaspMatrixPinTest`, `ComplianceMatrixPinTest`, and `EvidenceConsumerGrepPinTest` (asserts every claimed coverage row has a real production consumer) |
-| Plan-and-verify | `atmosphere-verifier` | Static verification of LLM-emitted tool-call workflows ([Meijer, *Guardians of the Agents*, CACM Jan 2026](https://cacm.acm.org/research/guardians-of-the-agents/)); sealed `Workflow` AST; `PlanVerifier` SPI with `AllowlistVerifier` / `WellFormednessVerifier` / `CapabilityVerifier` / `TaintVerifier` / `AutomatonVerifier` / `SmtVerifier` (Z3-ready SPI); `@Sink` + `@RequiresCapability` annotations co-locate the policy with the protected code; CLI `verify` for offline plan inspection |
-| Stream-level PII rewrite | `atmosphere-ai` | `PiiRedactionFilter` — `BroadcasterFilter` auto-installed on every present and future broadcaster when enabled; rewrites tokens before bytes flush to the client |
-| Cost enforcement | `atmosphere-ai` | `CostCeilingAccountant` bridges `TokenUsage` → `CostCeilingGuardrail.addCost` keyed by `business.tenant.id`; outbound `@Prompt` blocks once the tenant hits budget |
-| Observability | `atmosphere-runtime`, `atmosphere-ai` | OpenTelemetry spans, Micrometer metrics, token usage; `BusinessMdcBenchmark` pins the MDC hot-path cost |
-| Permission modes | `atmosphere-ai` | `PermissionMode.DEFAULT` / `PLAN` / `ACCEPT_EDITS` / `BYPASS` / `DENY_ALL` — runtime config, not redeploy |
-| Evaluation | `atmosphere-ai-test` | `LlmJudge` (`meetsIntent`, `isGroundedIn`, `hasQuality`); `AbstractAgentRuntimeContractTest` pins the capability matrix per runtime |
-| Skill files | `atmosphere-agent` | Markdown system prompts with tool / guardrail / channel sections; classpath-discovered |
+| Admin governance surface | `atmosphere-admin` + starter | `GET /governance/{policies,health,decisions,owasp,compliance,agt-verify}`; `POST /governance/{check,reload,kill-switch/arm,kill-switch/disarm}` |
+| Sandbox | `atmosphere-sandbox` | `Sandbox` / `SandboxProvider`; Docker default (`--network none`, argv-form exec, strict mount); `ServiceLoader` for Firecracker / Kata / E2B / Modal |
 
 The AI-runtime capability matrix — which runtimes ship tool calling, structured output, multi-modal input, prompt caching, embeddings, retry — lives in [`modules/ai/README.md`](modules/ai/README.md#capability-matrix) and is enforced by `AbstractAgentRuntimeContractTest.expectedCapabilities()`, so the matrix and the runtime code cannot drift.
 
@@ -168,7 +190,7 @@ Or annotate an endpoint with `@AgentScope` so a customer-support bot stops answe
 public class SupportAgent { /* @Prompt method */ }
 ```
 
-YAML auto-detects either Atmosphere-native shape or **Microsoft Agent Governance Toolkit** schema; an MS rule like `{field: tool_name, operator: eq, value: drop_database, action: deny}` fires before the tool's executor runs. Decisions are surfaced at `GET /api/admin/governance/decisions`, mapped to OWASP Agentic Top 10 + EU AI Act / HIPAA / SOC2 evidence at `GET /api/admin/governance/agt-verify` (the same shape MS's `agt verify` CLI consumes), and a Vue admin tab renders the live state.
+YAML auto-detects either Atmosphere-native shape or [Microsoft Agent Governance Toolkit](https://github.com/microsoft/agent-governance-toolkit) schema; an MS rule like `{field: tool_name, operator: eq, value: drop_database, action: deny}` fires before the tool's executor runs. Decisions are surfaced at `GET /api/admin/governance/decisions`, mapped to OWASP Agentic Top 10 + EU AI Act / HIPAA / SOC2 evidence at `GET /api/admin/governance/agt-verify` (the same shape MS's `agt verify` CLI consumes), and a Vue admin tab renders the live state.
 
 Optional sinks ship in separate modules: `atmosphere-ai-audit-kafka`, `atmosphere-ai-audit-postgres`, `atmosphere-ai-policy-rego` (OPA), `atmosphere-ai-policy-cedar` (AWS).
 
@@ -214,7 +236,7 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 | [durable-sessions](samples/spring-boot-durable-sessions/) | SQLite/Redis session persistence |
 | [checkpoint-agent](samples/spring-boot-checkpoint-agent/) | Durable HITL workflow — @Coordinator + CheckpointStore + REST approval |
 | [ai-classroom](samples/spring-boot-ai-classroom/) | Multi-room collaborative AI |
-| [ms-governance-chat](samples/spring-boot-ms-governance-chat/) | Chat gated by **Microsoft Agent Governance Toolkit** YAML (MS schema, verbatim) |
+| [ms-governance-chat](samples/spring-boot-ms-governance-chat/) | Chat gated by [Microsoft Agent Governance Toolkit](https://github.com/microsoft/agent-governance-toolkit) YAML (MS schema, verbatim) |
 | [channels-chat](samples/spring-boot-channels-chat/) | Slack, Telegram, WhatsApp, Messenger |
 | [personal-assistant](samples/spring-boot-personal-assistant/) | `@Coordinator` + `AgentFleet` over `InMemoryProtocolBridge`, `@AiTool` → crew dispatch, OpenClaw workspace |
 | [coding-agent](samples/spring-boot-coding-agent/) | Docker `Sandbox` provider — clone, read, stream real file bytes to the client |
@@ -261,7 +283,7 @@ services for production deployments.
   `OwaspMatrixPinTest` / `ComplianceMatrixPinTest` /
   `EvidenceConsumerGrepPinTest`, so drift between code and the matrices
   breaks the build.
-- **Microsoft Agent Governance Toolkit interop** — MS's YAML rule
+- **[Microsoft Agent Governance Toolkit](https://github.com/microsoft/agent-governance-toolkit) interop** — MS's YAML rule
   schema parsed verbatim by `YamlPolicyParser`; `audit_entry` JSON
   shape matches MS so SIEM consumers read both. Drop-in for shops
   standardising on MS Agent OS.

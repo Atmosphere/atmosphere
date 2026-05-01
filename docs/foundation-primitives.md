@@ -1,13 +1,13 @@
 # Atmosphere AI Agent Foundation Primitives
 
-Atmosphere 2.x ships a set of named primitives — nouns every Java AI agent
+Atmosphere 4.x ships a set of named primitives — nouns every Java AI agent
 needs regardless of what the agent does. Each primitive is runtime-agnostic:
 it works across the seven hosted runtimes (Built-in, Spring AI, LangChain4j,
 Google ADK, Koog, Semantic Kernel, Embabel) through the same interface.
 
 The governing analogy is Atmosphere 1.0 (2008-2013). 1.0 didn't build a chat
 app; it built `AtmosphereResource`, `Broadcaster`, `CometSupport`, and the
-rest — nouns every real-time Java app needed. Atmosphere 2.x does the same
+rest — nouns every real-time Java app needed. Atmosphere 4.x does the same
 for AI agents.
 
 ## The eight primitives
@@ -123,30 +123,6 @@ both. `OpenAiCompatibleClient` now serializes both unconditionally —
 additive for OpenAI, required for the stricter crowd. The JSON wire shape
 is pinned by `ChatMessageSerializationTest` so future refactors cannot
 silently regress either side.
-
-## Definition of "shipped" vs "complete"
-
-Per the external review on the foundation branch:
-
-- **Shipped** — SPI + default implementation + unit tests + zero-warning
-  compile.
-- **Complete** — shipped + wired into every live code path + cross-runtime
-  contract tests green on all seven runtimes + security invariants
-  verified.
-
-The eight primitives above are all shipped. Completion lands as follow-up
-work in three phases:
-
-- **Phase 1.5 — wire-in pass**: `AiGateway` becomes a mandatory choke
-  point through each runtime's LLM dispatch; `runId` threads through
-  `StreamingSession`; `DurableSessionInterceptor` consults `RunRegistry`
-  on reconnect; wire bridges for MCP / A2A / AG-UI / gRPC implement
-  `ProtocolBridge`.
-- **Phase 4 — cross-runtime contract test matrix**: one contract test per
-  primitive, run against all seven runtimes in CI.
-- **Phase 5 — security defaults**: default-deny auth on admin surfaces,
-  `SandboxLimits.network` extended to `NetworkPolicy` enum
-  (`NONE` / `GIT_ONLY` / `ALLOWLIST`).
 
 ## Non-goals (explicit)
 
