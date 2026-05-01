@@ -560,6 +560,18 @@
         </profile>
     </profiles>
     <repositories>
+        <!-- Maven Central explicitly first. As soon as any <repositories>
+             block exists, Central's implicit position is lost — Maven
+             queries the listed repos in declaration order. embabel-releases
+             below has 401-on-anonymous for non-embabel artifacts; without
+             this, Maven asks Embabel before Central for every dep and
+             fails when Embabel rejects the request (CI: Samples 170fa3f). -->
+        <repository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
         <repository>
             <id>embabel-releases</id>
             <url>https://repo.embabel.com/artifactory/libs-release</url>
