@@ -1039,15 +1039,16 @@
                 <artifactId>jackson-annotations</artifactId>
                 <version>${jackson2.version}</version>
             </dependency>
-            <dependency>
-                <!-- spring-webflux 6.2.x < 6.2.17 has CVE-2026-22735 (SSE
-                     stream corruption) and CVE-2026-22737 (script-view path
-                     traversal). The 7.x branch is unaffected; only the
-                     transitive 6.2.x consumers need the override. -->
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-webflux</artifactId>
-                <version>${spring6.version}</version>
-            </dependency>
+            <!-- NOTE: spring-webflux is intentionally NOT force-pinned here.
+                 Globally pinning to 6.2.17 (the patched 6.x) drags Spring 6's
+                 webflux into modules using Spring 7 (Spring Boot 4) and
+                 fails with IncompatibleClassChangeError on HttpHeaders /
+                 Map at startup, since Spring 7's HttpHeaders no longer
+                 implements Map. The 6.2.x CVE alerts (CVE-2026-22735 /
+                 -22737) only affect consumers actually on the 6.2.x branch;
+                 the Spring Boot 4 BOM resolves 7.x webflux which is
+                 unaffected. If a sample/test pulls in 6.2.x via a different
+                 BOM, fix it by upgrading that BOM, not by force-pinning here. -->
         </dependencies>
     </dependencyManagement>
     <!-- All dependencies are available on Maven Central. Legacy repositories
@@ -1139,10 +1140,6 @@
         <jackson2.version>2.21.2</jackson2.version>
         <jackson-annotations.version>2.21</jackson-annotations.version>
         <commons-lang3.version>3.18.0</commons-lang3.version>
-        <!-- Spring Framework 6.2.x is transitive (Spring Boot 3 path). 6.2.17
-             closes CVE-2026-22735 (SSE corruption) + CVE-2026-22737 (script
-             view path traversal). The 7.x branch is unaffected. -->
-        <spring6.version>6.2.17</spring6.version>
         <snakeyaml.version>2.3</snakeyaml.version>
         <mockito.version>5.23.0</mockito.version>
         <mockito-kotlin.version>5.4.0</mockito-kotlin.version>
