@@ -987,6 +987,55 @@
                 <artifactId>snakeyaml</artifactId>
                 <version>${snakeyaml.version}</version>
             </dependency>
+
+            <!-- CVE force-pins. These deps are pulled transitively through
+                 Spring/Quarkus/AWS/Tomcat BOMs that occasionally trail their
+                 own published patched versions. Pinning at the parent-POM
+                 dependencyManagement level overrides the transitive choice
+                 in every leaf module reactor-wide. -->
+            <dependency>
+                <!-- Tomcat 11.0.20 had GHSA-x4m4-345f-5h5g, GHSA-rv64-5gf8-9qq8,
+                     GHSA-24j9-x2wg-9qv6 (info disclosure / log encoding /
+                     escape). Fixed in 11.0.21. -->
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>${tomcat-version}</version>
+            </dependency>
+            <dependency>
+                <!-- commons-lang3 < 3.18.0: CVE-2025-48924 uncontrolled
+                     recursion / DoS on long inputs. -->
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${commons-lang3.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Jackson 2 (com.fasterxml.*) is transitive only; the project
+                     itself uses Jackson 3 (tools.jackson.*). Force-pin so the
+                     transitive Jackson 2 is at the patched version (2.21.1+
+                     fixes GHSA-72hv-8253-57qq async-parser DoS). -->
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>${jackson2.version}</version>
+            </dependency>
+            <dependency>
+                <!-- spring-webflux 6.2.x < 6.2.17 has CVE-2026-22735 (SSE
+                     stream corruption) and CVE-2026-22737 (script-view path
+                     traversal). The 7.x branch is unaffected; only the
+                     transitive 6.2.x consumers need the override. -->
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-webflux</artifactId>
+                <version>${spring6.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <!-- All dependencies are available on Maven Central. Legacy repositories
@@ -1072,7 +1121,16 @@
         <commons-pool2>2.12.0</commons-pool2>
         <junit-jupiter.version>5.11.4</junit-jupiter.version>
         <jackson.version>3.1.1</jackson.version>
+        <!-- Jackson 2 force-pin (CVE force-pin block in dependencyManagement).
+             Jackson 2 enters the dep tree transitively via Spring/Quarkus/AWS;
+             we don't compile against it. 2.21.2 closes GHSA-72hv-8253-57qq. -->
+        <jackson2.version>2.21.2</jackson2.version>
         <jackson-annotations.version>2.21</jackson-annotations.version>
+        <commons-lang3.version>3.18.0</commons-lang3.version>
+        <!-- Spring Framework 6.2.x is transitive (Spring Boot 3 path). 6.2.17
+             closes CVE-2026-22735 (SSE corruption) + CVE-2026-22737 (script
+             view path traversal). The 7.x branch is unaffected. -->
+        <spring6.version>6.2.17</spring6.version>
         <snakeyaml.version>2.3</snakeyaml.version>
         <mockito.version>5.23.0</mockito.version>
         <mockito-kotlin.version>5.4.0</mockito-kotlin.version>

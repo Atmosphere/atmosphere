@@ -6,11 +6,34 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 3
 
+  # Sample frontends + atmosphere.js + spring-boot-starter front-end.
+  # Without watchers here, postcss/react/etc. CVEs in sample lockfiles
+  # accumulate as alerts but never get auto-PR'd. Consolidated under one
+  # update config via the `directories:` plural form.
   - package-ecosystem: "npm"
-    directory: "/atmosphere.js"
+    directories:
+      - "/atmosphere.js"
+      - "/modules/spring-boot-starter/frontend"
+      - "/samples/chat/frontend"
+      - "/samples/embedded-jetty-websocket-chat/frontend"
+      - "/samples/grpc-chat/frontend"
+      - "/samples/quarkus-chat/frontend"
+      - "/samples/spring-boot-a2a-agent/frontend"
+      - "/samples/spring-boot-agui-chat/frontend"
+      - "/samples/spring-boot-ai-chat/frontend"
+      - "/samples/spring-boot-ai-classroom/frontend"
+      - "/samples/spring-boot-ai-tools/frontend"
+      - "/samples/spring-boot-chat/frontend"
+      - "/samples/spring-boot-mcp-server/frontend"
+      - "/samples/spring-boot-multi-agent-startup-team/frontend"
+      - "/samples/spring-boot-rag-chat/frontend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 5
+    groups:
+      sample-frontend:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
