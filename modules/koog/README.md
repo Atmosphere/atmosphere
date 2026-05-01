@@ -31,7 +31,7 @@ Add `koog-spring-boot-starter` to auto-configure the `PromptExecutor`:
 <dependency>
     <groupId>ai.koog</groupId>
     <artifactId>koog-spring-boot-starter</artifactId>
-    <version>4.0.41</version>
+    <version>4.0.42</version>
 </dependency>
 ```
 

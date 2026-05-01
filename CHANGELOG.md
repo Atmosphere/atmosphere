@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.42] - 2026-05-01
+
+### Added
+
+- atmosphere-verifier — plan-and-verify (Meijer "Guardians of the Agents") New module modules/verifier/ + sample samples/spring-boot-guarded-email-agent/ — sealed Workflow AST, ServiceLoader-discovered PlanVerifier chain (Allowlist/WellFormed/Capability/Taint/Automaton/SmtChecker SPI), @Sink + @RequiresCapability scanners, PlanAndVerify orchestrator, WorkflowExecutor with partial-env on failure, verify CLI; sample REST + UI exercises the inbox-exfiltration scenario end-to-end (refused before any tool fires) — 74 unit + 4 boot + 6 Playwright tests, all CI green on the feature branch.
+
+### Fixed
+
+- fail-closed verifier empty-chain, JSON-escape govern. deny, deflake wasync PlanAndVerify.withDefaults + VerifyCli runChain throw / emit chain-empty violations when ServiceLoader yields no providers (P1: silent fail-open under shading / native-image / fat-jar relocation); governance-deny tool result routes every interpolated field through ToolBridgeUtils.escapeJson via a new buildGovernanceDenyJson helper (P2: backslash/newline/control char break); ChatIntegrationTest.socketStatusTransitions polls for status transition rather than asserting in the same instant the OPEN handler fires (release-pipeline timing flake). 5 new verifier tests + 6 governance-JSON tests.
+
+### Changed
+
+- drop org.json:json — Jackson 3 only (CVE hygiene) RoomProtocolCodec + SimpleRestInterceptor migrated to tools.jackson; brace-balanced reader preserves SwaggerSocket header/body chunk semantics; ALLOW_SINGLE_QUOTES kept for wire compatibility; org.json removed from parent + 3 spring-boot samples.
+- bump version to 4.0.41
+- prepare for next development iteration 4.0.42-SNAPSHOT
+
 ## [4.0.41] - 2026-04-29
 
 ### Changed — A2A v1.0.0 alignment (wire-breaking)
