@@ -16,16 +16,22 @@
 package org.atmosphere.room.protocol;
 
 import org.atmosphere.room.RoomMember;
-import org.json.JSONArray;
-import org.json.JSONObject;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * JSON encoder/decoder for the room protocol, using {@code org.json}
- * (already a dependency of atmosphere-runtime via {@code SimpleRestInterceptor}).
+ * JSON encoder/decoder for the room protocol, backed by Jackson 3
+ * ({@code tools.jackson.databind}). Jackson is the project's single
+ * JSON dependency; the legacy {@code org.json:json} backend was
+ * retired to avoid the periodic CVE churn that library carries.
  *
  * <h3>Wire format (client → server)</h3>
  * <pre>{@code
@@ -47,6 +53,8 @@ import java.util.Map;
  */
 public final class RoomProtocolCodec {
 
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
+
     private RoomProtocolCodec() {
     }
 
@@ -58,24 +66,29 @@ public final class RoomProtocolCodec {
      * @throws IllegalArgumentException if the JSON is malformed or has an unknown type
      */
     public static RoomProtocolMessage decode(String json) {
-        var obj = new JSONObject(json);
-        var type = obj.getString("type");
-        var room = obj.getString("room");
+        JsonNode obj;
+        try {
+            obj = MAPPER.readTree(json);
+        } catch (JacksonException ex) {
+            throw new IllegalArgumentException("Malformed room protocol JSON: " + ex.getMessage(), ex);
+        }
+        String type = requireText(obj, "type");
+        String room = requireText(obj, "room");
 
         return switch (type) {
             case "join" -> new RoomProtocolMessage.Join(
                     room,
-                    obj.optString("memberId", null),
-                    toMap(obj.optJSONObject("metadata"))
+                    optString(obj, "memberId"),
+                    toMap(obj.get("metadata"))
             );
             case "leave" -> new RoomProtocolMessage.Leave(room);
-            case "broadcast" -> new RoomProtocolMessage.Broadcast(room, obj.get("data"));
+            case "broadcast" -> new RoomProtocolMessage.Broadcast(room, nodeToValue(obj.get("data")));
             case "direct" -> new RoomProtocolMessage.Direct(
                     room,
-                    obj.getString("targetId"),
-                    obj.get("data")
+                    requireText(obj, "targetId"),
+                    nodeToValue(obj.get("data"))
             );
-            case "typing" -> new RoomProtocolMessage.Typing(room, obj.optBoolean("typing", true));
+            case "typing" -> new RoomProtocolMessage.Typing(room, optBoolean(obj, "typing", true));
             default -> throw new IllegalArgumentException("Unknown room protocol type: " + type);
         };
     }
@@ -84,17 +97,15 @@ public final class RoomProtocolCodec {
      * Encode a join acknowledgement with the current member list.
      */
     public static String encodeJoinAck(String room, Collection<RoomMember> members) {
-        var obj = new JSONObject();
+        ObjectNode obj = MAPPER.createObjectNode();
         obj.put("type", "join_ack");
         obj.put("room", room);
-        var arr = new JSONArray();
-        for (var m : members) {
-            var memberObj = new JSONObject();
+        ArrayNode arr = obj.putArray("members");
+        for (RoomMember m : members) {
+            ObjectNode memberObj = arr.addObject();
             memberObj.put("id", m.id());
-            memberObj.put("metadata", new JSONObject(m.metadata()));
-            arr.put(memberObj);
+            memberObj.set("metadata", MAPPER.valueToTree(m.metadata()));
         }
-        obj.put("members", arr);
         return obj.toString();
     }
 
@@ -102,13 +113,13 @@ public final class RoomProtocolCodec {
      * Encode a presence event (join or leave) for broadcast to other members.
      */
     public static String encodePresence(String room, String action, RoomMember member) {
-        var obj = new JSONObject();
+        ObjectNode obj = MAPPER.createObjectNode();
         obj.put("type", "presence");
         obj.put("room", room);
         obj.put("action", action);
         if (member != null) {
             obj.put("memberId", member.id());
-            obj.put("metadata", new JSONObject(member.metadata()));
+            obj.set("metadata", MAPPER.valueToTree(member.metadata()));
         }
         return obj.toString();
     }
@@ -117,13 +128,13 @@ public final class RoomProtocolCodec {
      * Encode a room message for delivery to clients.
      */
     public static String encodeMessage(String room, String fromMemberId, Object data) {
-        var obj = new JSONObject();
+        ObjectNode obj = MAPPER.createObjectNode();
         obj.put("type", "message");
         obj.put("room", room);
         if (fromMemberId != null) {
             obj.put("from", fromMemberId);
         }
-        obj.put("data", data);
+        obj.set("data", MAPPER.valueToTree(data));
         return obj.toString();
     }
 
@@ -131,7 +142,7 @@ public final class RoomProtocolCodec {
      * Encode an error response.
      */
     public static String encodeError(String room, String message) {
-        var obj = new JSONObject();
+        ObjectNode obj = MAPPER.createObjectNode();
         obj.put("type", "error");
         obj.put("room", room);
         obj.put("data", message);
@@ -142,7 +153,7 @@ public final class RoomProtocolCodec {
      * Encode a typing indicator for broadcast to other room members.
      */
     public static String encodeTyping(String room, String memberId, boolean typing) {
-        var obj = new JSONObject();
+        ObjectNode obj = MAPPER.createObjectNode();
         obj.put("type", "typing");
         obj.put("room", room);
         if (memberId != null) {
@@ -152,14 +163,74 @@ public final class RoomProtocolCodec {
         return obj.toString();
     }
 
-    private static Map<String, Object> toMap(JSONObject json) {
-        if (json == null) {
+    private static String requireText(JsonNode obj, String key) {
+        JsonNode node = obj.get(key);
+        if (node == null || node.isNull() || !node.isString()) {
+            throw new IllegalArgumentException(
+                    "Room protocol message missing required string field '" + key + "'");
+        }
+        return node.stringValue();
+    }
+
+    private static String optString(JsonNode obj, String key) {
+        JsonNode node = obj.get(key);
+        if (node == null || node.isNull()) {
             return null;
         }
-        var map = new HashMap<String, Object>();
-        for (var key : json.keySet()) {
-            map.put(key, json.get(key));
+        return node.isString() ? node.stringValue() : node.toString();
+    }
+
+    private static boolean optBoolean(JsonNode obj, String key, boolean defaultValue) {
+        JsonNode node = obj.get(key);
+        if (node == null || node.isNull()) {
+            return defaultValue;
+        }
+        return node.isBoolean() ? node.booleanValue() : defaultValue;
+    }
+
+    private static Map<String, Object> toMap(JsonNode obj) {
+        if (obj == null || !obj.isObject()) {
+            return null;
+        }
+        Map<String, Object> map = new LinkedHashMap<>();
+        for (var entry : obj.properties()) {
+            map.put(entry.getKey(), nodeToValue(entry.getValue()));
         }
         return map;
+    }
+
+    /**
+     * Convert a {@link JsonNode} into the closest plain-Java value: {@code String},
+     * {@code Number}, {@code Boolean}, {@code null}, {@code Map<String, Object>}
+     * for objects, or {@code List<Object>} for arrays. Mirrors the surface
+     * the legacy {@code org.json} backend exposed via {@code obj.get(key)}.
+     */
+    private static Object nodeToValue(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isString()) {
+            return node.stringValue();
+        }
+        if (node.isBoolean()) {
+            return node.booleanValue();
+        }
+        if (node.isInt() || node.isLong()) {
+            return node.longValue();
+        }
+        if (node.isFloat() || node.isDouble() || node.isBigDecimal()) {
+            return node.doubleValue();
+        }
+        if (node.isObject()) {
+            return toMap(node);
+        }
+        if (node.isArray()) {
+            var list = new java.util.ArrayList<Object>(node.size());
+            for (JsonNode child : node) {
+                list.add(nodeToValue(child));
+            }
+            return list;
+        }
+        return node.toString();
     }
 }

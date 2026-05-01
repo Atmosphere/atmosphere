@@ -17,8 +17,8 @@ package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.*;
 import org.atmosphere.util.IOUtils;
-import org.json.JSONObject;
 import org.mockito.Mockito;
+import tools.jackson.databind.JsonNode;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -84,7 +84,7 @@ public class SimpleRestInterceptorTest {
         final String data = "{\"id\": \"123\", \"accept\" : \"text/plain\" }";
         Reader r = new StringReader(data);
 
-        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
+        JsonNode jsonpart = SimpleRestInterceptor.parseJsonPart(r);
 
         Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
@@ -97,7 +97,7 @@ public class SimpleRestInterceptorTest {
         final String data = "{\n 'id':\"123\",'accept'\n: 'text/plain'\r }";
         Reader r = new StringReader(data);
 
-        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
+        JsonNode jsonpart = SimpleRestInterceptor.parseJsonPart(r);
 
         Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
@@ -110,10 +110,10 @@ public class SimpleRestInterceptorTest {
         final String data = "{'id': \"123\", \"size\" : 69124, 'ack' : true }";
         Reader r = new StringReader(data);
 
-        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
+        JsonNode jsonpart = SimpleRestInterceptor.parseJsonPart(r);
         Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
-        expectedHeaders.put("size", 69124);
+        expectedHeaders.put("size", 69124L);
         expectedHeaders.put("ack", true);
         verify(jsonpart, r, expectedHeaders, "");
     }
@@ -123,10 +123,10 @@ public class SimpleRestInterceptorTest {
         final String data = "{'id': \"123\", \"size\":69124, \r\n'ack' :true }";
         Reader r = new StringReader(data);
 
-        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
+        JsonNode jsonpart = SimpleRestInterceptor.parseJsonPart(r);
         Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
-        expectedHeaders.put("size", 69124);
+        expectedHeaders.put("size", 69124L);
         expectedHeaders.put("ack", true);
         verify(jsonpart, r, expectedHeaders, "");
     }
@@ -136,7 +136,7 @@ public class SimpleRestInterceptorTest {
         final String data = "{\"id\": \"123\", \"type\" : \"application/json\"}{\"records\": [{\"value\": \"S2Fma2E=\"}]}";
         Reader r = new StringReader(data);
 
-        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
+        JsonNode jsonpart = SimpleRestInterceptor.parseJsonPart(r);
 
         Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
@@ -150,7 +150,7 @@ public class SimpleRestInterceptorTest {
                 + "{\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}";
         Reader r = new StringReader(data);
 
-        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
+        JsonNode jsonpart = SimpleRestInterceptor.parseJsonPart(r);
 
         Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
@@ -164,7 +164,7 @@ public class SimpleRestInterceptorTest {
                 + "This is just a plain text";
         Reader r = new StringReader(data);
 
-        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
+        JsonNode jsonpart = SimpleRestInterceptor.parseJsonPart(r);
 
         Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
@@ -178,7 +178,7 @@ public class SimpleRestInterceptorTest {
                 + " This is just a plain text";
         Reader r = new StringReader(data);
 
-        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
+        JsonNode jsonpart = SimpleRestInterceptor.parseJsonPart(r);
 
         Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
@@ -186,10 +186,26 @@ public class SimpleRestInterceptorTest {
         verify(jsonpart, r, expectedHeaders, "\n This is just a plain text");
     }
 
-    private void verify(JSONObject headers, Reader body, Map<String, Object> expectedHeaders, String expectedBody) {
-        assertEquals(headers.length(), expectedHeaders.size());
-        for (String key : expectedHeaders.keySet()) {
-            assertEquals(expectedHeaders.get(key), headers.get(key), "value of key " + key + " differs");
+    private void verify(JsonNode headers, Reader body, Map<String, Object> expectedHeaders, String expectedBody) {
+        assertEquals(expectedHeaders.size(), headers.size());
+        for (Map.Entry<String, Object> entry : expectedHeaders.entrySet()) {
+            String key = entry.getKey();
+            Object expected = entry.getValue();
+            JsonNode node = headers.get(key);
+            assertNotNull(node, "missing key " + key);
+            Object actual;
+            if (node.isString()) {
+                actual = node.stringValue();
+            } else if (node.isBoolean()) {
+                actual = node.booleanValue();
+            } else if (node.isInt() || node.isLong()) {
+                actual = node.longValue();
+            } else if (node.isFloat() || node.isDouble() || node.isBigDecimal()) {
+                actual = node.doubleValue();
+            } else {
+                actual = node.toString();
+            }
+            assertEquals(expected, actual, "value of key " + key + " differs");
         }
         assertEquals(expectedBody, extractContent(body));
     }

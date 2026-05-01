@@ -86,11 +86,6 @@
             <artifactId>jakarta.inject-api</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-        </dependency>
-
         <!-- Parent POM restricts logback to test scope; override for runtime logging -->
         <dependency>
             <groupId>ch.qos.logback</groupId>

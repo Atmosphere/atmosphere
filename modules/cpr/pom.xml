@@ -98,9 +98,15 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Jackson 3 (tools.jackson.*) replaces org.json:json — same usage
+             surface, but removes the legacy dep with periodic CVE churn
+             (CVE-2022-45688 / CVE-2023-5072). Optional so callers that
+             don't use SimpleRestInterceptor / RoomProtocolCodec don't
+             pull it transitively. -->
         <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
             <optional>true</optional>
         </dependency>
 

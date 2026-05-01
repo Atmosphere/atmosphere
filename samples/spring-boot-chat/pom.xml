@@ -64,11 +64,6 @@
             <artifactId>jakarta.inject-api</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-        </dependency>
-
         <!-- WebTransport over HTTP/3 — enables the Atmosphere HTTP/3 sidecar server.
              Activate with atmosphere.web-transport.enabled=true in application.yml -->
         <dependency>

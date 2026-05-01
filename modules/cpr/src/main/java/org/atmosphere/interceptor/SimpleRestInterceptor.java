@@ -37,11 +37,14 @@ import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.ChunkConcatReaderPool;
 import org.atmosphere.util.IOUtils;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.JSONTokener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.json.JsonReadFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -80,6 +83,13 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     private final static String HEARTBEAT_SCHEDULED = "heatbeat.scheduled";
     private final static String HEARTBEAT_TEMPLATE = "{\"heartbeat\": \"%s\", \"time\": %d}";
     private final static long DEFAULT_HEARTBEAT_INTERVAL = 60;
+
+    // Lenient parsing — the legacy org.json backend accepted single-quoted
+    // keys/values, so we keep that contract on the wire to avoid breaking
+    // existing SimpleRestInterceptor clients.
+    private static final ObjectMapper MAPPER = JsonMapper.builder()
+            .enable(JsonReadFeature.ALLOW_SINGLE_QUOTES)
+            .build();
 
     private final Map<String, AtmosphereResponse> suspendedResponses = new ConcurrentHashMap<>();
     private final ChunkConcatReaderPool readerPool = new ChunkConcatReaderPool();
@@ -237,7 +247,7 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     protected AtmosphereRequest createAtmosphereRequest(AtmosphereRequest request, String body) throws IOException {
         String uuid = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
         Reader msgreader = new StringReader(body);
-        JSONObject jsonpart = parseJsonPart(msgreader);
+        JsonNode jsonpart = parseJsonPart(msgreader);
         final String id = getString(jsonpart, "id");
         if (id != null) {
             request.localAttributes().put(REQUEST_ID, id);
@@ -308,7 +318,7 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
         var baos = new ByteArrayOutputStream();
         try {
             // {"id":"<id>", "code": code, ...}<payload>
-            var jsonpart = new JSONObject();
+            ObjectNode jsonpart = MAPPER.createObjectNode();
             jsonpart.put("id", id);
             jsonpart.put("code", response.getStatus());
             String ct = response.getContentType();
@@ -371,23 +381,132 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
         return baos.toByteArray();
     }
 
-    protected static JSONObject parseJsonPart(Reader reader) throws JSONException {
-        return (JSONObject)(new JSONTokener(reader).nextValue());
+    /**
+     * Parse the JSON header part of a SwaggerSocket-style request body
+     * into a Jackson tree.
+     *
+     * <p><strong>API change in 4.0.42:</strong> the return type changed
+     * from the legacy {@code org.json.JSONObject} to Jackson's
+     * {@link JsonNode} when the {@code org.json:json} dependency was
+     * dropped (CVE hygiene). External subclasses that read the parsed
+     * JSON should migrate to {@link JsonNode} or
+     * {@link tools.jackson.databind.ObjectMapper#convertValue} for a
+     * typed shape.</p>
+     *
+     * @throws IOException when the input is not parseable JSON.
+     */
+    protected static JsonNode parseJsonPart(Reader reader) throws IOException {
+        String headerJson = readBalancedObject(reader);
+        if (headerJson == null) {
+            throw new IOException("Empty SimpleRest JSON header part");
+        }
+        try {
+            return MAPPER.readTree(headerJson);
+        } catch (JacksonException ex) {
+            throw new IOException("Malformed SimpleRest JSON header part: " + ex.getMessage(), ex);
+        }
     }
 
-    protected static String getString(JSONObject obj, String key) {
-        try {
-            return obj.getString(key);
-        } catch (JSONException e) {
+    /**
+     * Read exactly one balanced JSON object from {@code reader} and
+     * return it as a string, leaving the reader positioned at the first
+     * character after the closing {@code '}'}. The legacy {@code JSONTokener}
+     * backend exposed this property implicitly; Jackson's tree reader
+     * buffers ahead and would otherwise swallow the body that follows
+     * the SwaggerSocket-style header.
+     *
+     * <p>Tracks string quoting (both {@code "} and {@code '}, since the
+     * caller-side parser tolerates single quotes) and backslash escapes
+     * so braces inside strings don't unbalance the depth count.</p>
+     *
+     * @return the JSON object text, or {@code null} if the reader was empty/whitespace-only
+     * @throws IOException if the input does not start with {@code '{'} or is unterminated
+     */
+    private static String readBalancedObject(Reader reader) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        int depth = 0;
+        boolean started = false;
+        boolean inString = false;
+        boolean escaped = false;
+        char quoteChar = 0;
+        int c;
+        while ((c = reader.read()) != -1) {
+            char ch = (char) c;
+            if (!started) {
+                if (Character.isWhitespace(ch)) {
+                    continue;
+                }
+                if (ch != '{') {
+                    throw new IOException(
+                            "SimpleRest JSON header part must start with '{', got '" + ch + "'");
+                }
+                started = true;
+            }
+            sb.append(ch);
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (inString) {
+                if (ch == '\\') {
+                    escaped = true;
+                } else if (ch == quoteChar) {
+                    inString = false;
+                }
+                continue;
+            }
+            if (ch == '"' || ch == '\'') {
+                inString = true;
+                quoteChar = ch;
+                continue;
+            }
+            if (ch == '{') {
+                depth++;
+            } else if (ch == '}') {
+                depth--;
+                if (depth == 0) {
+                    return sb.toString();
+                }
+            }
+        }
+        if (started) {
+            throw new IOException("SimpleRest JSON header part is unterminated");
+        }
+        return null;
+    }
+
+    /**
+     * Read a string field from the parsed JSON header. Returns
+     * {@code null} when the field is absent, null-valued, or
+     * non-textual — matching the legacy {@code getString} swallow-on-miss
+     * semantic.
+     */
+    protected static String getString(JsonNode obj, String key) {
+        if (obj == null) {
             return null;
         }
+        JsonNode node = obj.get(key);
+        if (node == null || node.isNull() || !node.isString()) {
+            return null;
+        }
+        return node.stringValue();
     }
-    protected static boolean getBoolean(JSONObject obj, String key) {
-        try {
-            return obj.getBoolean(key);
-        } catch (JSONException e) {
+
+    /**
+     * Read a boolean field from the parsed JSON header. Returns
+     * {@code false} when the field is absent, null-valued, or
+     * non-boolean — matching the legacy {@code getBoolean} swallow-on-miss
+     * semantic.
+     */
+    protected static boolean getBoolean(JsonNode obj, String key) {
+        if (obj == null) {
             return false;
         }
+        JsonNode node = obj.get(key);
+        if (node == null || node.isNull() || !node.isBoolean()) {
+            return false;
+        }
+        return node.booleanValue();
     }
 
 }

@@ -20,12 +20,16 @@ import java.util.Map;
 
 import org.atmosphere.room.protocol.RoomProtocolCodec;
 import org.atmosphere.room.protocol.RoomProtocolMessage;
-import org.json.JSONObject;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class RoomProtocolCodecTest {
+
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
 
     // --- Decode tests ---
 
@@ -92,101 +96,107 @@ public class RoomProtocolCodecTest {
 
     @Test
     public void testDecodeUnknownType() {
-            assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
             RoomProtocolCodec.decode("""
                     {"type":"unknown","room":"lobby"}""");
-            });
+        });
     }
 
     @Test
     public void testDecodeMalformedJson() {
-            assertThrows(org.json.JSONException.class, () -> {
+        // Jackson 3 raises JacksonException on parse failure; the codec
+        // wraps it in IllegalArgumentException for the boundary contract.
+        assertThrows(IllegalArgumentException.class, () -> {
             RoomProtocolCodec.decode("not json");
-            });
+        });
     }
 
     @Test
     public void testDecodeMissingType() {
-            assertThrows(org.json.JSONException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
             RoomProtocolCodec.decode("""
                     {"room":"lobby"}""");
-            });
+        });
     }
 
     // --- Encode tests ---
 
     @Test
-    public void testEncodeJoinAck() {
+    public void testEncodeJoinAck() throws Exception {
         var members = List.of(
                 new RoomMember("alice", Map.of("avatar", "a.jpg")),
                 new RoomMember("bob")
         );
         var json = RoomProtocolCodec.encodeJoinAck("lobby", members);
-        var obj = new JSONObject(json);
+        var obj = MAPPER.readTree(json);
 
-        assertEquals("join_ack", obj.getString("type"));
-        assertEquals("lobby", obj.getString("room"));
-        assertEquals(2, obj.getJSONArray("members").length());
+        assertEquals("join_ack", obj.get("type").stringValue());
+        assertEquals("lobby", obj.get("room").stringValue());
+        assertEquals(2, obj.get("members").size());
 
-        var first = obj.getJSONArray("members").getJSONObject(0);
-        assertEquals("alice", first.getString("id"));
-        assertEquals("a.jpg", first.getJSONObject("metadata").getString("avatar"));
+        var first = obj.get("members").get(0);
+        assertEquals("alice", first.get("id").stringValue());
+        assertEquals("a.jpg", first.get("metadata").get("avatar").stringValue());
     }
 
     @Test
-    public void testEncodePresence() {
+    public void testEncodePresence() throws Exception {
         var member = new RoomMember("alice", Map.of("display", "Alice"));
         var json = RoomProtocolCodec.encodePresence("lobby", "join", member);
-        var obj = new JSONObject(json);
+        var obj = MAPPER.readTree(json);
 
-        assertEquals("presence", obj.getString("type"));
-        assertEquals("lobby", obj.getString("room"));
-        assertEquals("join", obj.getString("action"));
-        assertEquals("alice", obj.getString("memberId"));
+        assertEquals("presence", obj.get("type").stringValue());
+        assertEquals("lobby", obj.get("room").stringValue());
+        assertEquals("join", obj.get("action").stringValue());
+        assertEquals("alice", obj.get("memberId").stringValue());
     }
 
     @Test
-    public void testEncodePresenceNullMember() {
+    public void testEncodePresenceNullMember() throws Exception {
         var json = RoomProtocolCodec.encodePresence("lobby", "leave", null);
-        var obj = new JSONObject(json);
+        var obj = MAPPER.readTree(json);
 
-        assertEquals("presence", obj.getString("type"));
-        assertFalse(obj.has("memberId"));
+        assertEquals("presence", obj.get("type").stringValue());
+        assertFalse(hasField(obj, "memberId"));
     }
 
     @Test
-    public void testEncodeMessage() {
+    public void testEncodeMessage() throws Exception {
         var json = RoomProtocolCodec.encodeMessage("lobby", "alice", "hello");
-        var obj = new JSONObject(json);
+        var obj = MAPPER.readTree(json);
 
-        assertEquals("message", obj.getString("type"));
-        assertEquals("lobby", obj.getString("room"));
-        assertEquals("alice", obj.getString("from"));
-        assertEquals("hello", obj.getString("data"));
+        assertEquals("message", obj.get("type").stringValue());
+        assertEquals("lobby", obj.get("room").stringValue());
+        assertEquals("alice", obj.get("from").stringValue());
+        assertEquals("hello", obj.get("data").stringValue());
     }
 
     @Test
-    public void testEncodeMessageNullFrom() {
+    public void testEncodeMessageNullFrom() throws Exception {
         var json = RoomProtocolCodec.encodeMessage("lobby", null, "hello");
-        var obj = new JSONObject(json);
+        var obj = MAPPER.readTree(json);
 
-        assertEquals("message", obj.getString("type"));
-        assertFalse(obj.has("from"));
+        assertEquals("message", obj.get("type").stringValue());
+        assertFalse(hasField(obj, "from"));
     }
 
     @Test
-    public void testEncodeError() {
+    public void testEncodeError() throws Exception {
         var json = RoomProtocolCodec.encodeError("lobby", "Unauthorized");
-        var obj = new JSONObject(json);
+        var obj = MAPPER.readTree(json);
 
-        assertEquals("error", obj.getString("type"));
-        assertEquals("lobby", obj.getString("room"));
-        assertEquals("Unauthorized", obj.getString("data"));
+        assertEquals("error", obj.get("type").stringValue());
+        assertEquals("lobby", obj.get("room").stringValue());
+        assertEquals("Unauthorized", obj.get("data").stringValue());
     }
 
     // --- Helpers ---
 
     private void assertInstanceOf(Object obj, Class<?> clazz) {
         assertTrue(clazz.isInstance(obj), "Expected " + clazz.getSimpleName() + " but got " + obj.getClass().getSimpleName());
+    }
+
+    private static boolean hasField(JsonNode node, String key) {
+        return node.get(key) != null;
     }
 }
