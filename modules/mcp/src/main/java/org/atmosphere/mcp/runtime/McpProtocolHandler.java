@@ -447,6 +447,13 @@ public final class McpProtocolHandler {
         var arguments = params.has("arguments") ? params.get("arguments") : null;
         var principal = resolvePrincipal(resource);
 
+        // Snapshot the initial (working) envelope before dispatching the worker
+        // so a fast-completing synchronous tool can't flip the status to
+        // completed/failed before this method returns. CreateTaskResult per
+        // MCP 2025-11-25 is the *initial* state; clients poll tasks/get for
+        // the eventual outcome.
+        var initialEnvelope = task.toWire();
+
         Thread.startVirtualThread(() -> {
             try {
                 var underlying = executeToolCall(id, tool, arguments, principal);
@@ -477,7 +484,7 @@ public final class McpProtocolHandler {
             }
         });
 
-        return JsonRpc.Response.success(id, Map.of("task", task.toWire()));
+        return JsonRpc.Response.success(id, Map.of("task", initialEnvelope));
     }
 
     private JsonRpc.Response handleTasksGet(Object id, JsonNode params) {
