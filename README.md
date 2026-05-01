@@ -250,7 +250,31 @@ Optional: `atmosphere-ai`, `atmosphere-spring-ai`, `atmosphere-langchain4j`, `at
 
 ## Support
 
-Commercial support and consulting available through [Async-IO.org](https://async-io.org).
+[Async-IO](https://async-io.live) — the team that wrote and maintains
+Atmosphere — provides commercial support, consulting, and engineering
+services for production deployments.
+
+- **Production support tiers** with response-time SLAs, emergency
+  patches, and 24×7 coverage available — [tiers & SLA matrix](https://async-io.live/#support).
+- **Compliance evidence package** — OWASP Agentic Top 10, EU AI Act,
+  HIPAA, and SOC 2 control matrices ship in-tree and are CI-pinned via
+  `OwaspMatrixPinTest` / `ComplianceMatrixPinTest` /
+  `EvidenceConsumerGrepPinTest`, so drift between code and the matrices
+  breaks the build.
+- **Microsoft Agent Governance Toolkit interop** — MS's YAML rule
+  schema parsed verbatim by `YamlPolicyParser`; `audit_entry` JSON
+  shape matches MS so SIEM consumers read both. Drop-in for shops
+  standardising on MS Agent OS.
+- **Plan-and-verify** (`atmosphere-verifier`) — refuses unsafe
+  LLM-emitted workflows before any tool fires (Meijer *Guardians of
+  the Agents* pattern, CACM Jan 2026).
+- **A2A v1.0.0** spec alignment — Atmosphere ships the released spec,
+  not a pre-1.0 draft; pre-1.0 method names aliased so existing
+  clients keep working.
+- **Legacy Atmosphere 2.x / 3.x** long-term support and migration
+  engagements — <support@async-io.org>.
+
+Book a 30-min architecture call: [async-io.live/contact](https://async-io.live/contact/).
 
 ## Companion Projects
 
@@ -262,4 +286,4 @@ Commercial support and consulting available through [Async-IO.org](https://async
 
 ## License
 
-Apache 2.0 — @Copyright 2008-2026 [Async-IO.org](https://async-io.org)
+Apache 2.0 — @Copyright 2008-2026 [Async-IO.org](https://async-io.live)
