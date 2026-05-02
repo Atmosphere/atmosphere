@@ -43,10 +43,12 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 | `atmosphere-embabel` | `EmbabelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE, PER_REQUEST_RETRY, TOOL_CALLING, TOOL_APPROVAL, VISION, MULTI_MODAL |
 | `atmosphere-koog` | `KoogAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, TOKEN_USAGE, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY |
 | `atmosphere-agentscope` | `AgentScopeAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE |
-| `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY |
+| `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY *(see runtime caveat below)* |
 | `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY |
 
 Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build.
+
+**Spring AI Alibaba runtime caveat (Spring Boot 4):** the Alibaba `spring-ai-alibaba-agent-framework` line transitively pins `spring-ai-client-chat:1.1.2`, which depends on Spring Boot 3's `RestClientAutoConfiguration`; that class moved in Spring Boot 4. Spring AI 2.0.0-M2 has the Spring Boot 4 fix but ships with a `RetryUtils` API its own `OpenAiChatModel.Builder` cannot use. Result: dropping `atmosphere-spring-ai-alibaba` into a Spring Boot 4 app currently fails at startup. The contract test (`SpringAiAlibabaRuntimeContractTest`) passes against a `Testable…` subclass that bypasses the OpenAI bean wiring; no Spring Boot 4 path runs end-to-end today. AgentScope (`atmosphere-agentscope`) does not share this constraint — it builds its OpenAI-compatible client through `AiConfig` directly and was validated end-to-end on Spring Boot 4 against Ollama.
 
 ### AiInterceptor
 
