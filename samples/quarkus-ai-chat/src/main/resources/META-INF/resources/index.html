@@ -68,11 +68,17 @@
       }
     }
 
+    // Allow tests / curious users to force a specific transport via
+    // ?transport=long-polling (or sse / streaming). Default is WebSocket
+    // with long-polling as the automatic fallback when the upgrade fails.
+    const params = new URLSearchParams(window.location.search);
+    const forcedTransport = params.get('transport');
+
     const request = {
       url: '/atmosphere/ai-chat',
       contentType: 'text/plain',
-      transport: 'websocket',
-      fallbackTransport: 'long-polling',
+      transport: forcedTransport || 'websocket',
+      fallbackTransport: forcedTransport || 'long-polling',
       trackMessageLength: true,
       reconnectInterval: 1500,
     };

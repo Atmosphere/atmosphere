@@ -38,7 +38,13 @@ import org.slf4j.LoggerFactory;
  */
 @AiEndpoint(
         path = "/atmosphere/ai-chat",
-        requires = {AiCapability.TEXT_STREAMING})
+        requires = {AiCapability.TEXT_STREAMING},
+        // Enables InMemoryConversationMemory keyed by AtmosphereResource UUID,
+        // so successive @Prompt invocations on the same WebSocket carry the
+        // prior turns into the LangChain4j ChatRequest. Capped at 20 messages
+        // to bound memory growth on long-lived connections.
+        conversationMemory = true,
+        maxHistoryMessages = 20)
 @AgentScope(unrestricted = true,
         justification = "Quarkus LangChain4j bridge demo — intentionally accepts arbitrary "
                 + "prompts to exercise the SPI auto-wiring path. Production deployments should "
