@@ -28,4 +28,4 @@ jobs:
         run: ./mvnw install -DskipTests -Pfastinstall -q
 
       - name: Submit dependency graph
-        uses: advanced-security/maven-dependency-submission-action@v4
+        uses: advanced-security/maven-dependency-submission-action@v5
