@@ -51,7 +51,41 @@ ai:
 |-------|---------|
 | `KoogAgentRuntime` | `AgentRuntime` SPI implementation (priority 100) |
 | `AtmosphereToolBridge` | Translates Atmosphere `ToolDefinition` to Koog `Tool` with HITL approval gating |
+| `KoogStrategy` | Per-request bridge for swapping the default `chatAgentStrategy()` with a custom `AIAgentGraphStrategy` |
 | `AtmosphereKoogAutoConfiguration` | Spring Boot auto-configuration |
+
+## Per-Request Strategy (`KoogStrategy`)
+
+By default `KoogAgentRuntime` runs prompts through Koog's `chatAgentStrategy()`
+graph. To exercise the framework's distinguishing feature — graph-based
+orchestration via the `strategy {}` DSL (subgraphs, parallel nodes, ReAct
+loops, custom routing) — attach an `AIAgentGraphStrategy` per request:
+
+```kotlin
+val planThenWriteStrategy: AIAgentGraphStrategy<String, String> = strategy("plan-then-write") {
+    val plan by node<String, String> { input ->
+        llm.writeSession { updatePrompt { user("Plan steps to: $input") } }
+        llm.execute().asText()
+    }
+    val write by node<String, String> { plan ->
+        llm.writeSession { updatePrompt { user("Execute the plan:\n$plan") } }
+        llm.execute().asText()
+    }
+    edge(nodeStart forwardTo plan)
+    edge(plan forwardTo write)
+    edge(write forwardTo nodeFinish)
+}
+
+val ctx = KoogStrategy.attach(baseContext, planThenWriteStrategy)
+runtime.execute(ctx, session)
+```
+
+When a strategy is attached, `KoogAgentRuntime` builds an `AIAgent` with the
+custom strategy instead of the default chat one (`maxIterations` doubled to
+allow multi-step graphs); when absent, the default chat-agent fast path is
+unchanged. Feature handlers (`onAfterLLMCall`, `onToolCall`, `onAgentBeforeClosed`,
+…) are wired identically in both paths via a shared `wireFeatureHandlers`
+extension.
 
 ## Capabilities
 

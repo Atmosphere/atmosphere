@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- per-request runtime extension helpers (`f1493c3f9c`) — small `attach(context, ...)` / `from(context)` helpers (modeled on the existing `CacheHint`) that let callers stash framework-native composition objects in `AgentExecutionContext.metadata()`, so a runtime can apply them per-request without growing the unified `AgentRuntime` SPI with framework-specific knobs. Runtimes covered: `SpringAiAdvisors` (Spring AI `Advisor` chain — RAG / memory / guardrails / observability), `LangChain4jAiServices` (LangChain4j `AiServices` / `TokenStream`), `KoogStrategy` (Koog `AIAgentGraphStrategy` DSL), `AdkRootAgent` (ADK `BaseAgent` / `SequentialAgent` / `ParallelAgent` / `LoopAgent` topology), and `ToolLoopPolicies` (per-request `ToolLoopPolicy` honored by `BuiltInAgentRuntime`'s OpenAI-compatible tool loop). The other shipped runtimes (`AgentScope`, `Embabel`, `SemanticKernel`, `SpringAiAlibaba`) do not yet have a per-request bridge — Embabel got native streaming via `StreamingPromptRunnerBuilder.streaming().generateStream()` in the same merge but no sidecar. Also added: `AgentLifecycleListener.onModelStart` / `onModelEnd` / `onModelError` hooks with `fireXxx` fan-out helpers, and `AiEventForwardingListener` adapter that translates lifecycle hooks to wire-format `AiEvent.Progress` frames (opt-in via `context.withListeners(...)`). Each bridge ships with a unit-level `*BridgeTest` proving the runtime honors the sidecar.
+
+### Fixed
+
+- `OpenAiCompatibleClient` Javadoc placement broke JDK 26 strict mode (`28703ea064`) — two stacked Javadoc blocks on `forwardResponsesApiUsage` raised `documentation comment is not attached to any declaration` under `-Xlint:all` `-Werror` on JDK 26 (silent on JDK 21). Merged into a single coherent block; CI: Core (JDK 21/26) green.
+- `cli/samples.json` and `cli/atmosphere` template map referenced deleted `spring-boot-embabel-chat` sample (`3a9373e875`) — `cli/test-cli.sh` failed with "samples missing README.md: spring-boot-embabel-chat". Entry removed from samples.json + template-map case statement.
+
 ## [4.0.42] - 2026-05-01
 
 ### Added

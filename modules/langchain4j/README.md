@@ -42,7 +42,53 @@ model.chat(ChatMessage.userMessage(prompt),
 | `LangChain4jAgentRuntime` | `AgentRuntime` SPI implementation (priority 100) |
 | `LangChain4jEmbeddingRuntime` | `EmbeddingRuntime` SPI wrapping LC4j `EmbeddingModel` (priority 190) |
 | `LangChain4jToolBridge` | Translates Atmosphere `ToolDefinition` to LC4j `ToolSpecification` with HITL approval gating |
+| `LangChain4jAiServices` | Per-request bridge for routing prompts through an `AiServices`-backed interface |
 | `AtmosphereLangChain4jAutoConfiguration` | Spring Boot auto-configuration |
+
+## Per-Request AiServices (`LangChain4jAiServices`)
+
+LangChain4j's `AiServices` is the framework's declarative API: a Java interface
+annotated with `@SystemMessage` / `@UserMessage` that LC4j proxies into a
+fully-wired call (system prompt, conversation memory, tools, RAG, output
+parsing). Without this bridge a caller had to choose between driving everything
+through the Atmosphere pipeline or hand-building an `AiServices` call and
+skipping Atmosphere streaming. `LangChain4jAiServices` lets the user keep their
+`AiServices` interface as the canonical model and still flow tokens through
+`StreamingSession`:
+
+```java
+public interface MovieAssistant {
+    @SystemMessage("You are a movie expert. Reply concisely.")
+    TokenStream chat(@UserMessage String message);
+}
+
+@Bean
+MovieAssistant assistant(StreamingChatModel model) {
+    return AiServices.create(MovieAssistant.class, model);
+}
+
+@Component
+class AssistantInterceptor implements AiInterceptor {
+    private final MovieAssistant assistant;
+    AssistantInterceptor(MovieAssistant assistant) { this.assistant = assistant; }
+
+    @Override
+    public AiRequest preProcess(AiRequest request, AtmosphereResource r) {
+        return request.withMetadata(Map.of(
+                LangChain4jAiServices.METADATA_KEY,
+                LangChain4jAiServices.of(assistant::chat)));
+    }
+}
+```
+
+When the bridge is present, `LangChain4jAgentRuntime` **bypasses** its own
+prompt assembly (no `ChatRequest.builder()`, no system-prompt threading, no
+tool-spec wiring, no history replay) — those concerns belong to the user's
+`AiServices` interface. The runtime just calls `invoker.invoke(context.message())`
+and bridges the returned `TokenStream` into the session
+(`onPartialResponse` → `send`, `onCompleteResponse` → `complete` + token usage,
+`onError` → `error`). Gateway admission, outer retry, and lifecycle listeners
+still wrap the call — the bridge replaces only the dispatch primitive.
 
 ## Samples
 
