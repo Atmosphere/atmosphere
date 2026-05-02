@@ -1092,15 +1092,12 @@ public class OpenAiCompatibleClient implements LlmClient {
     }
 
     /**
-     * Forward usage metadata from the Responses API format.
-     * The Responses API reports usage in a slightly different structure
-     * ({@code input_tokens} / {@code output_tokens}) than Chat Completions.
-     */
-    /**
      * Responses-API equivalent of {@link #forwardUsageMetadata}: emits the
      * usage on the streaming session and returns it so the round can also
-     * fire {@code AgentLifecycleListener.onModelEnd}. Returns {@code null}
-     * when no counted tokens are present.
+     * fire {@code AgentLifecycleListener.onModelEnd}. The Responses API
+     * reports usage in a slightly different structure
+     * ({@code input_tokens} / {@code output_tokens}) than Chat Completions.
+     * Returns {@code null} when no counted tokens are present.
      */
     private static org.atmosphere.ai.TokenUsage forwardResponsesApiUsage(
             tools.jackson.databind.JsonNode usageNode, StreamingSession session) {
