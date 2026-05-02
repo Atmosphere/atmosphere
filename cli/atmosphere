@@ -995,11 +995,10 @@ cmd_new() {
         rag)           source_sample="spring-boot-rag-chat" ;;
         agent)         source_sample="spring-boot-dentist-agent" ;;
         koog)          source_sample="spring-boot-koog-chat" ;;
-        embabel)       source_sample="spring-boot-embabel-chat" ;;
         multi-agent)   source_sample="spring-boot-multi-agent-startup-team" ;;
         classroom)     source_sample="spring-boot-ai-classroom" ;;
         ms-governance) source_sample="spring-boot-ms-governance-chat" ;;
-        *)             die "Unknown template: $template (chat, ai-chat, ai-tools, mcp-server, rag, agent, koog, embabel, multi-agent, classroom, ms-governance)" ;;
+        *)             die "Unknown template: $template (chat, ai-chat, ai-tools, mcp-server, rag, agent, koog, multi-agent, classroom, ms-governance)" ;;
     esac
 
     json=$(get_samples_json)
