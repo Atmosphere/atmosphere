@@ -381,7 +381,7 @@
       "port": 18810,
       "runnable": true,
       "packaging": "quarkus",
-      "hasFrontend": true
+      "hasFrontend": false
     },
     {
       "name": "embedded-jetty-websocket-chat",
