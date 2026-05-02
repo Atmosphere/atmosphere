@@ -16,6 +16,8 @@
 package org.atmosphere.ai.embabel
 
 import com.embabel.agent.api.common.Ai
+import com.embabel.agent.api.common.streaming.StreamingPromptRunner
+import com.embabel.agent.api.streaming.StreamingPromptRunnerBuilder
 import com.embabel.agent.core.AgentPlatform
 import com.embabel.agent.core.ProcessOptions
 import com.embabel.agent.domain.library.HasContent
@@ -244,6 +246,18 @@ class EmbabelAgentRuntime : AgentRuntime {
      * which is the mechanism that makes `SYSTEM_PROMPT` and
      * `CONVERSATION_MEMORY` honest capability declarations.
      *
+     * **Streaming**: When Embabel's underlying LLM service implements the
+     * [com.embabel.agent.spi.streaming.StreamingLlmOperations] contract
+     * (true for the OpenAI / Gemini chat-client backends shipped with
+     * embabel-agent-spring-boot-starter), this path uses
+     * [StreamingPromptRunnerBuilder] to acquire a Reactor `Flux<String>`
+     * of token-level chunks and forwards each chunk to [StreamingSession.send]
+     * — making `TEXT_STREAMING` an honest capability declaration on the
+     * Atmosphere-native path. When streaming is unavailable on the
+     * configured runner, the path falls back to the blocking
+     * [com.embabel.agent.api.common.PromptRunnerOperations.generateText]
+     * call so the dispatch still completes (no silent capability drop).
+     *
      * Token usage reporting is not available on this path — Embabel's
      * PromptRunner surface does not expose an aggregated usage record the
      * way `AgentProcess.usage()` does on the runAgentFrom path. Callers who
@@ -291,20 +305,92 @@ class EmbabelAgentRuntime : AgentRuntime {
         )
         val embabelImages = EmbabelToolBridge.toEmbabelImages(context.parts())
 
-        val result: String = try {
-            var runner = ai.withDefaultLlm()
+        // Build the configured PromptRunner once — both the streaming and
+        // blocking dispatch paths reuse the same withSystemPrompt /
+        // withMessages / withTools / withImages wiring, so the only branch
+        // is the terminal call (generateStream() vs generateText()).
+        val runner = try {
+            var r = ai.withDefaultLlm()
             if (!context.systemPrompt().isNullOrBlank()) {
-                runner = runner.withSystemPrompt(context.systemPrompt())
+                r = r.withSystemPrompt(context.systemPrompt())
             }
             if (historyMessages.isNotEmpty()) {
-                runner = runner.withMessages(historyMessages)
+                r = r.withMessages(historyMessages)
             }
             if (embabelTools.isNotEmpty()) {
-                runner = runner.withTools(embabelTools)
+                r = r.withTools(embabelTools)
             }
             if (embabelImages.isNotEmpty()) {
-                runner = runner.withImages(embabelImages)
+                r = r.withImages(embabelImages)
             }
+            r
+        } catch (t: Throwable) {
+            logger.error("Failed to configure Embabel PromptRunner", t)
+            session.error(t)
+            return
+        }
+
+        // Streaming dispatch path: when Embabel's underlying LLM service
+        // implements the StreamingLlmOperations contract,
+        // StreamingPromptRunnerBuilder exposes a Flux<String> of token-level
+        // chunks. Each chunk lands on session.send() so browser clients see
+        // tokens as they arrive instead of a single end-of-call burst.
+        // Falls back to the blocking generateText() path when streaming is
+        // not supported by the configured model — preserves the
+        // pre-streaming behavior for environments where Embabel's
+        // StreamingChatClientOperations cannot be wired (e.g. some
+        // tool-only or non-OpenAI-compatible providers).
+        val streamingRunner = try {
+            StreamingPromptRunnerBuilder(runner).streaming() as StreamingPromptRunner.Streaming
+        } catch (t: Throwable) {
+            logger.debug(
+                "Embabel StreamingPromptRunnerBuilder unavailable for this PromptRunner; " +
+                    "falling back to blocking generateText() path", t
+            )
+            null
+        }
+
+        if (streamingRunner != null) {
+            try {
+                streamingRunner
+                    .withPrompt(currentMessage)
+                    .generateStream()
+                    .doOnNext { chunk ->
+                        if (!session.isClosed && chunk.isNotEmpty()) {
+                            session.send(chunk)
+                        }
+                    }
+                    .doOnError { t ->
+                        logger.error("Embabel streaming dispatch failed", t)
+                        if (!session.isClosed) {
+                            session.error(t)
+                        }
+                    }
+                    .doOnComplete {
+                        if (!session.isClosed) {
+                            session.complete()
+                        }
+                    }
+                    .blockLast()
+                return
+            } catch (t: Throwable) {
+                // Surface the streaming failure rather than silently retrying
+                // through the blocking path — a mid-stream failure has
+                // already emitted partial content, and re-dispatching as a
+                // fresh blocking call would duplicate output. The doOnError
+                // above already wrote session.error; this catch covers
+                // pre-subscribe construction errors.
+                if (!session.hasErrored() && !session.isClosed) {
+                    session.error(t)
+                }
+                return
+            }
+        }
+
+        // Blocking fallback — used only when StreamingPromptRunnerBuilder
+        // could not build a Streaming instance for this runner (e.g. the
+        // model service does not implement StreamingLlmOperations).
+        val result: String = try {
             runner.generateText(currentMessage)
         } catch (t: Throwable) {
             logger.error("Embabel Ai dispatch failed", t)

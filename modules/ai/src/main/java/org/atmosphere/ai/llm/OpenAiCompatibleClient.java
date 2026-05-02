@@ -61,7 +61,9 @@ public class OpenAiCompatibleClient implements LlmClient {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String DATA_PREFIX = "data: ";
     private static final String DONE_MARKER = "[DONE]";
-    private static final int MAX_TOOL_ROUNDS = 5;
+    // Tool-loop iteration cap is per-request via
+    // ChatCompletionRequest.toolLoopPolicy() (defaults to
+    // ToolLoopPolicy.DEFAULT which preserves the historical 5-iteration cap).
 
     private final String baseUrl;
     private final String apiKey;
@@ -212,8 +214,36 @@ public class OpenAiCompatibleClient implements LlmClient {
                     request.model(), request.messages().size(), request.tools().size(), toolRound);
         }
 
-        var response = sendWithRetry(requestBody, endpoint, session, request.retryPolicy());
+        // Observation hook: model dispatch is about to happen. Fired before
+        // sendWithRetry so listeners see request-level fan-out (one fire per
+        // tool-loop round, matching how Spring AI / LC4j / ADK observability
+        // surfaces count "model calls"). The corresponding onModelEnd fires
+        // when the streaming response has been fully consumed, see below.
+        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
+                request.listeners(), request.model(),
+                request.messages().size(), request.tools().size());
+        var modelStartNanos = System.nanoTime();
+
+        java.net.http.HttpResponse<java.io.InputStream> response;
+        try {
+            response = sendWithRetry(requestBody, endpoint, session, request.retryPolicy());
+        } catch (RuntimeException dispatchError) {
+            // Transport-layer failures must surface to onModelError so
+            // observability consumers can distinguish provider failures from
+            // application-side errors (e.g. tool execution exceptions).
+            org.atmosphere.ai.AgentLifecycleListener.fireModelError(
+                    request.listeners(), request.model(), dispatchError);
+            throw dispatchError;
+        }
         if (response == null) {
+            // sendWithRetry already wrote session.error with the retried
+            // failure cause; mirror that into onModelError so the bridge stays
+            // consistent (an exhausted retry budget IS a model dispatch
+            // failure even though the helper returns null instead of
+            // throwing).
+            org.atmosphere.ai.AgentLifecycleListener.fireModelError(
+                    request.listeners(), request.model(),
+                    new LlmException("Model dispatch failed after retry budget exhausted"));
             return;
         }
 
@@ -250,6 +280,13 @@ public class OpenAiCompatibleClient implements LlmClient {
         if (streamSink != null) {
             streamSink.accept(inFlightStream);
         }
+        // Per-round captured usage, populated as the SSE forwarders parse the
+        // provider's usage block. Fed to the onModelEnd listener fire at the
+        // bottom of this round so observers see the same TokenUsage record
+        // that the wire protocol carries via session.usage(). Single-element
+        // holder mirrors the existing capturedResponseId / toolCallsRequested
+        // mutable-output pattern in this method.
+        org.atmosphere.ai.TokenUsage[] capturedUsage = new org.atmosphere.ai.TokenUsage[1];
         try (var reader = new BufferedReader(new InputStreamReader(inFlightStream, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -258,9 +295,9 @@ public class OpenAiCompatibleClient implements LlmClient {
                 }
                 if (useResponsesApi) {
                     processResponsesApiSSELine(line, session, accumulators,
-                            toolCallsRequested, capturedResponseId);
+                            toolCallsRequested, capturedResponseId, capturedUsage);
                 } else {
-                    processSSELine(line, session, accumulators, toolCallsRequested);
+                    processSSELine(line, session, accumulators, toolCallsRequested, capturedUsage);
                 }
             }
         } catch (java.io.IOException e) {
@@ -292,12 +329,32 @@ public class OpenAiCompatibleClient implements LlmClient {
             logger.debug("Cached response ID {} for conversation {}", capturedResponseId[0], conversationId);
         }
 
+        // Observation hook: this model dispatch round has ended (the SSE
+        // stream is fully consumed). Fires once per round — the caller's tool
+        // loop runs the same wiring on every follow-up round, so observability
+        // consumers see one onModelStart/onModelEnd pair per LLM call.
+        var modelDurationMillis = (System.nanoTime() - modelStartNanos) / 1_000_000L;
+        org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
+                request.listeners(), request.model(), capturedUsage[0], modelDurationMillis);
+
         // If the model requested tool calls, execute them and re-submit
         if (toolCallsRequested[0] && !accumulators.isEmpty() && !request.tools().isEmpty()) {
-            if (toolRound >= MAX_TOOL_ROUNDS) {
-                logger.warn("Max tool rounds ({}) reached, completing response", MAX_TOOL_ROUNDS);
+            // Per-request tool-loop policy controls both the iteration cap and
+            // the overflow behavior. The canonical-constructor default
+            // (ToolLoopPolicy.DEFAULT) preserves the historical 5-iteration
+            // cap with complete-without-tools overflow, so any caller that
+            // does not opt-in keeps the pre-policy behavior bit-identical.
+            var loopPolicy = request.toolLoopPolicy();
+            if (toolRound >= loopPolicy.maxIterations()) {
+                logger.warn("Tool loop cap ({}) reached, applying onMaxIterations={}",
+                        loopPolicy.maxIterations(), loopPolicy.onMaxIterations());
                 if (!session.isClosed()) {
-                    session.complete();
+                    switch (loopPolicy.onMaxIterations()) {
+                        case COMPLETE_WITHOUT_TOOLS -> session.complete();
+                        case FAIL -> session.error(
+                                new ToolLoopPolicy.ToolLoopExhaustedException(
+                                        loopPolicy.maxIterations()));
+                    }
                 }
                 return;
             }
@@ -375,7 +432,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                     request.temperature(), request.maxStreamingTexts(),
                     request.jsonMode(), request.tools(), request.conversationId(),
                     request.approvalStrategy(), request.parts(), request.listeners(),
-                    request.cacheHint(), request.retryPolicy(), request.approvalPolicy());
+                    request.cacheHint(), request.retryPolicy(), request.approvalPolicy(),
+                    request.toolLoopPolicy());
             if (cancelled.get()) {
                 return;
             }
@@ -493,7 +551,8 @@ public class OpenAiCompatibleClient implements LlmClient {
 
     private void processSSELine(String line, StreamingSession session,
                                 Map<Integer, ToolCallAccumulator> accumulators,
-                                boolean[] toolCallsRequested) {
+                                boolean[] toolCallsRequested,
+                                org.atmosphere.ai.TokenUsage[] usageHolder) {
         if (line.isBlank() || !line.startsWith(DATA_PREFIX)) {
             return;
         }
@@ -565,10 +624,15 @@ public class OpenAiCompatibleClient implements LlmClient {
                 }
             }
 
-            // Forward usage metadata if present
+            // Forward usage metadata if present, capturing it for the
+            // per-round AgentLifecycleListener.onModelEnd fire so observability
+            // consumers see the same TokenUsage record the wire protocol carries.
             var usageNode = node.get("usage");
             if (usageNode != null && !usageNode.isNull()) {
-                forwardUsageMetadata(usageNode, session);
+                var captured = forwardUsageMetadata(usageNode, session);
+                if (captured != null && usageHolder != null) {
+                    usageHolder[0] = captured;
+                }
             }
 
             // Forward model metadata
@@ -581,8 +645,15 @@ public class OpenAiCompatibleClient implements LlmClient {
         }
     }
 
-    private static void forwardUsageMetadata(tools.jackson.databind.JsonNode usageNode,
-                                             StreamingSession session) {
+    /**
+     * Build a {@link org.atmosphere.ai.TokenUsage} from a chat-completions
+     * {@code usage} JSON node, emit it on the streaming session, and return
+     * it so the caller can also feed the per-round
+     * {@code AgentLifecycleListener.onModelEnd} fire. Returns {@code null}
+     * when the node has no counted tokens.
+     */
+    private static org.atmosphere.ai.TokenUsage forwardUsageMetadata(
+            tools.jackson.databind.JsonNode usageNode, StreamingSession session) {
         long input = usageNode.has("prompt_tokens") ? usageNode.get("prompt_tokens").asLong() : 0L;
         long output = usageNode.has("completion_tokens") ? usageNode.get("completion_tokens").asLong() : 0L;
         long total = usageNode.has("total_tokens") ? usageNode.get("total_tokens").asLong() : input + output;
@@ -596,7 +667,9 @@ public class OpenAiCompatibleClient implements LlmClient {
         var usage = new org.atmosphere.ai.TokenUsage(input, output, cachedInput, total, null);
         if (usage.hasCounts()) {
             session.usage(usage);
+            return usage;
         }
+        return null;
     }
 
     private String buildRequestBody(ChatCompletionRequest request) throws JacksonException {
@@ -920,7 +993,8 @@ public class OpenAiCompatibleClient implements LlmClient {
     private void processResponsesApiSSELine(String line, StreamingSession session,
                                             Map<Integer, ToolCallAccumulator> accumulators,
                                             boolean[] toolCallsRequested,
-                                            String[] capturedResponseId) {
+                                            String[] capturedResponseId,
+                                            org.atmosphere.ai.TokenUsage[] usageHolder) {
         if (line.isBlank() || !line.startsWith(DATA_PREFIX)) {
             return;
         }
@@ -936,7 +1010,7 @@ public class OpenAiCompatibleClient implements LlmClient {
 
             if (type == null) {
                 // Fallback: treat as Chat Completions format (shouldn't happen normally)
-                processSSELine(line, session, accumulators, toolCallsRequested);
+                processSSELine(line, session, accumulators, toolCallsRequested, usageHolder);
                 return;
             }
 
@@ -994,10 +1068,14 @@ public class OpenAiCompatibleClient implements LlmClient {
                         if (responseNode.has("id")) {
                             capturedResponseId[0] = responseNode.get("id").stringValue();
                         }
-                        // Forward usage metadata
+                        // Forward usage metadata, capturing it for the
+                        // per-round AgentLifecycleListener.onModelEnd fire.
                         var usageNode = responseNode.get("usage");
                         if (usageNode != null && !usageNode.isNull()) {
-                            forwardResponsesApiUsage(usageNode, session);
+                            var captured = forwardResponsesApiUsage(usageNode, session);
+                            if (captured != null && usageHolder != null) {
+                                usageHolder[0] = captured;
+                            }
                         }
                         // Forward model metadata
                         var modelNode = responseNode.get("model");
@@ -1018,8 +1096,14 @@ public class OpenAiCompatibleClient implements LlmClient {
      * The Responses API reports usage in a slightly different structure
      * ({@code input_tokens} / {@code output_tokens}) than Chat Completions.
      */
-    private static void forwardResponsesApiUsage(tools.jackson.databind.JsonNode usageNode,
-                                                  StreamingSession session) {
+    /**
+     * Responses-API equivalent of {@link #forwardUsageMetadata}: emits the
+     * usage on the streaming session and returns it so the round can also
+     * fire {@code AgentLifecycleListener.onModelEnd}. Returns {@code null}
+     * when no counted tokens are present.
+     */
+    private static org.atmosphere.ai.TokenUsage forwardResponsesApiUsage(
+            tools.jackson.databind.JsonNode usageNode, StreamingSession session) {
         long input = usageNode.has("input_tokens") ? usageNode.get("input_tokens").asLong() : 0L;
         long output = usageNode.has("output_tokens") ? usageNode.get("output_tokens").asLong() : 0L;
         long cachedInput = 0L;
@@ -1032,7 +1116,9 @@ public class OpenAiCompatibleClient implements LlmClient {
         var usage = new org.atmosphere.ai.TokenUsage(input, output, cachedInput, input + output, null);
         if (usage.hasCounts()) {
             session.usage(usage);
+            return usage;
         }
+        return null;
     }
 
     /**

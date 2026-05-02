@@ -184,6 +184,16 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
         if (context.approvalPolicy() != null) {
             builder.approvalPolicy(context.approvalPolicy());
         }
+        // Per-request tool-loop policy: caller attaches via
+        // ToolLoopPolicies.attach(context, ToolLoopPolicy.strict(3)) or via
+        // an interceptor that stamps METADATA_KEY. Null-from means the caller
+        // did not opt in — leave the builder default (ToolLoopPolicy.DEFAULT)
+        // which preserves the historical 5-iteration cap with
+        // complete-without-tools overflow behavior.
+        var loopPolicy = ToolLoopPolicies.from(context);
+        if (loopPolicy != null) {
+            builder.toolLoopPolicy(loopPolicy);
+        }
         return builder.build();
     }
 

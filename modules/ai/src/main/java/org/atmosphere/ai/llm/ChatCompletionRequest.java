@@ -45,26 +45,51 @@ public record ChatCompletionRequest(
         List<org.atmosphere.ai.AgentLifecycleListener> listeners,
         CacheHint cacheHint,
         RetryPolicy retryPolicy,
-        ToolApprovalPolicy approvalPolicy
+        ToolApprovalPolicy approvalPolicy,
+        ToolLoopPolicy toolLoopPolicy
 ) {
     /**
      * Canonical constructor. {@code retryPolicy} is a per-request override
      * for {@link OpenAiCompatibleClient}'s instance-level retry default —
      * when null, the client falls back to its constructor-time policy.
+     * {@code toolLoopPolicy} bounds the model→tool→model iteration loop;
+     * defaults to {@link ToolLoopPolicy#DEFAULT} (5 iterations,
+     * complete-without-tools on overflow) when null.
      */
     public ChatCompletionRequest {
         tools = tools != null ? List.copyOf(tools) : List.of();
         parts = parts != null ? List.copyOf(parts) : List.of();
         listeners = listeners != null ? List.copyOf(listeners) : List.of();
         cacheHint = cacheHint != null ? cacheHint : CacheHint.none();
+        toolLoopPolicy = toolLoopPolicy != null ? toolLoopPolicy : ToolLoopPolicy.DEFAULT;
         // retryPolicy stays nullable: null means "inherit the client's
         // configured default", non-null is an explicit per-request override.
     }
 
     /**
-     * Shim constructor accepting the 12-arg form (without approval policy).
-     * Defaults {@code approvalPolicy} to {@code null} so the helper falls
-     * back to annotation-driven approval.
+     * Shim constructor accepting the 13-arg form (without tool-loop policy).
+     * Defaults {@code toolLoopPolicy} to {@link ToolLoopPolicy#DEFAULT} so
+     * existing callers keep the historical 5-iteration cap with
+     * complete-without-tools overflow behavior.
+     */
+    public ChatCompletionRequest(String model, List<ChatMessage> messages,
+                                 double temperature, int maxStreamingTexts,
+                                 boolean jsonMode, List<ToolDefinition> tools,
+                                 String conversationId, ApprovalStrategy approvalStrategy,
+                                 List<org.atmosphere.ai.Content> parts,
+                                 List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+                                 CacheHint cacheHint, RetryPolicy retryPolicy,
+                                 ToolApprovalPolicy approvalPolicy) {
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
+                conversationId, approvalStrategy, parts, listeners, cacheHint, retryPolicy,
+                approvalPolicy, ToolLoopPolicy.DEFAULT);
+    }
+
+    /**
+     * Shim constructor accepting the 12-arg form (without approval policy
+     * or tool-loop policy). Defaults {@code approvalPolicy} to {@code null}
+     * so the helper falls back to annotation-driven approval, and
+     * {@code toolLoopPolicy} to {@link ToolLoopPolicy#DEFAULT}.
      */
     public ChatCompletionRequest(String model, List<ChatMessage> messages,
                                  double temperature, int maxStreamingTexts,
@@ -74,7 +99,8 @@ public record ChatCompletionRequest(
                                  List<org.atmosphere.ai.AgentLifecycleListener> listeners,
                                  CacheHint cacheHint, RetryPolicy retryPolicy) {
         this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
-                conversationId, approvalStrategy, parts, listeners, cacheHint, retryPolicy, null);
+                conversationId, approvalStrategy, parts, listeners, cacheHint, retryPolicy,
+                null, ToolLoopPolicy.DEFAULT);
     }
 
     /**
@@ -180,6 +206,7 @@ public record ChatCompletionRequest(
         private CacheHint cacheHint = CacheHint.none();
         private RetryPolicy retryPolicy;
         private ToolApprovalPolicy approvalPolicy;
+        private ToolLoopPolicy toolLoopPolicy = ToolLoopPolicy.DEFAULT;
 
         private Builder(String model) {
             this.model = model;
@@ -284,9 +311,22 @@ public record ChatCompletionRequest(
             return this;
         }
 
+        /**
+         * Attach a per-request {@link ToolLoopPolicy}. Bounds the
+         * model→tool→model iteration loop and decides what happens when the
+         * cap is reached. Defaults to {@link ToolLoopPolicy#DEFAULT}
+         * (5 iterations, complete-without-tools on overflow). Pass
+         * {@code null} to restore the default.
+         */
+        public Builder toolLoopPolicy(ToolLoopPolicy toolLoopPolicy) {
+            this.toolLoopPolicy = toolLoopPolicy != null ? toolLoopPolicy : ToolLoopPolicy.DEFAULT;
+            return this;
+        }
+
         public ChatCompletionRequest build() {
             return new ChatCompletionRequest(model, List.copyOf(messages),
-                    temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy, parts, listeners, cacheHint, retryPolicy, approvalPolicy);
+                    temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy,
+                    parts, listeners, cacheHint, retryPolicy, approvalPolicy, toolLoopPolicy);
         }
     }
 }

@@ -86,6 +86,53 @@ adapter.stream(new AdkRequest(runner, userId, sessionId, "Tell me about Java 25"
 | `AdkToolBridge` | Translates Atmosphere `ToolDefinition` to ADK `BaseTool` with HITL approval gating |
 | `AdkBroadcastTool` | ADK `BaseTool` that broadcasts messages via Atmosphere `Broadcaster` |
 | `AdkStreamingAdapter` | `AiStreamingAdapter` SPI impl bridging ADK Runner to StreamingSession |
+| `AdkRootAgent` | Per-request override for the `App.rootAgent` slot — wires `SequentialAgent` / `ParallelAgent` / `LoopAgent` topologies |
+
+## Multi-Agent Composition (`AdkRootAgent`)
+
+By default `AdkAgentRuntime` builds a single `LlmAgent` and wires it as the
+ADK `App.rootAgent`. To swap that with one of ADK's orchestration agents
+(`SequentialAgent`, `ParallelAgent`, `LoopAgent`) or any custom `BaseAgent`
+subclass on a **per-request** basis, attach it via `AdkRootAgent`:
+
+```java
+var planner  = LlmAgent.builder().name("planner").model("gemini-2.5-flash")
+        .instruction("Plan the steps.").build();
+var coder    = LlmAgent.builder().name("coder").model("gemini-2.5-flash")
+        .instruction("Write the code.").build();
+var reviewer = LlmAgent.builder().name("reviewer").model("gemini-2.5-flash")
+        .instruction("Review the code.").build();
+
+var pipeline = SequentialAgent.builder()
+        .name("code-pipeline")
+        .subAgents(planner, coder, reviewer)
+        .build();
+
+// Attach via an interceptor so every prompt routes through the pipeline:
+@Component
+class PipelineInterceptor implements AiInterceptor {
+    @Override
+    public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
+        return request.withMetadata(Map.of(
+                AdkRootAgent.METADATA_KEY, pipeline));
+    }
+}
+```
+
+When a custom root is attached, the runtime:
+
+- Forces a per-request `Runner` (App.rootAgent is set at App.Builder time and
+  cannot be swapped on the cached default runner).
+- **Does not** construct an `LlmAgent` of its own and **does not** apply
+  `AdkToolBridge` to the user's sub-tree. Tool wiring belongs on the leaf
+  `LlmAgent` instances at construction time — orchestration shells do not
+  call models.
+- Still applies cache config (`CacheHint`), gateway admission, history
+  seeding, and the `ExecutionHandle` cancel path. The bridge replaces only
+  the root agent slot, not the surrounding Atmosphere safety rail.
+
+For a process-wide custom root, supply your own pre-built `Runner` via
+`AdkAgentRuntime.setRunner(Runner)` instead.
 
 ## Reuse from atmosphere-ai
 

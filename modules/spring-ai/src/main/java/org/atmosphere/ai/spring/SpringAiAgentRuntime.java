@@ -180,6 +180,20 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
             promptSpec = promptSpec.toolCallbacks(callbacks);
         }
 
+        // Per-request Spring AI Advisor chain: caller attaches via
+        // SpringAiAdvisors.attach(context, advisor...) or via an interceptor
+        // that stamps the metadata key. Empty list = caller did not opt in;
+        // promptSpec keeps whatever ChatClient.Builder.defaultAdvisors(...)
+        // installed at bean construction. Spring AI's per-request advisors
+        // are appended to the builder defaults, matching the same additive
+        // semantics SpringAiAdvisors.attach honors at the helper layer.
+        var perRequestAdvisors = SpringAiAdvisors.from(context);
+        if (!perRequestAdvisors.isEmpty()) {
+            promptSpec = promptSpec.advisors(perRequestAdvisors);
+            logger.debug("Attached {} per-request Spring AI Advisor(s)",
+                    perRequestAdvisors.size());
+        }
+
         var flux = promptSpec.stream().chatResponse();
 
         // Phase 2: wrap the Reactor Disposable in an ExecutionHandle so callers

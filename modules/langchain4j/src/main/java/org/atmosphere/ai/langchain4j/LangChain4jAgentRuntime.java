@@ -145,6 +145,18 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         // LangChain4j dispatch — uniform per-user rate limiting and credential
         // resolution across all seven runtimes (Correctness Invariant #3).
         admitThroughGateway(context);
+
+        // Per-request AiServices invoker bypass: when the caller attached an
+        // LC4j AiServices interface via LangChain4jAiServices.attach(...), skip
+        // this runtime's ChatRequest assembly and route the prompt through
+        // the user's AiServices method instead. The user's interface owns
+        // system prompt threading, history replay, tool wiring, and structured
+        // output parsing — that's the entire point of choosing AiServices.
+        var aiServiceInvoker = LangChain4jAiServices.from(context);
+        if (aiServiceInvoker != null) {
+            return dispatchAiService(aiServiceInvoker, context, session);
+        }
+
         var messages = assembleMessages(context).stream()
                 .map(LangChain4jAgentRuntime::toLangChainMessage)
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
@@ -255,6 +267,79 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                     done.completeExceptionally(
                             new java.util.concurrent.CancellationException("cancelled"));
                 }
+            }
+            @Override public boolean isDone() { return done.isDone(); }
+            @Override public java.util.concurrent.CompletableFuture<Void> whenDone() { return done; }
+        };
+    }
+
+    /**
+     * AiServices bypass: subscribe to the user-supplied
+     * {@link dev.langchain4j.service.TokenStream} and forward its callbacks
+     * into the {@link StreamingSession}. Replaces this runtime's full
+     * ChatRequest assembly when {@link LangChain4jAiServices#from} returns a
+     * non-null invoker — see the helper Javadoc for the rationale.
+     */
+    private org.atmosphere.ai.ExecutionHandle dispatchAiService(
+            LangChain4jAiServices.Invoker invoker,
+            AgentExecutionContext context, StreamingSession session) {
+        var done = new java.util.concurrent.CompletableFuture<Void>();
+        try {
+            var tokenStream = invoker.invoke(context.message());
+            tokenStream
+                    .onPartialResponse(partial -> {
+                        if (!session.isClosed() && partial != null && !partial.isEmpty()) {
+                            session.send(partial);
+                        }
+                    })
+                    .onCompleteResponse(response -> {
+                        try {
+                            if (response != null && response.tokenUsage() != null) {
+                                var u = response.tokenUsage();
+                                var usage = new org.atmosphere.ai.TokenUsage(
+                                        u.inputTokenCount() != null ? u.inputTokenCount() : 0L,
+                                        u.outputTokenCount() != null ? u.outputTokenCount() : 0L,
+                                        0L,
+                                        u.totalTokenCount() != null ? u.totalTokenCount() : 0L,
+                                        null);
+                                if (usage.hasCounts()) {
+                                    session.usage(usage);
+                                }
+                            }
+                            if (!session.isClosed()) {
+                                session.complete();
+                            }
+                        } finally {
+                            done.complete(null);
+                        }
+                    })
+                    .onError(error -> {
+                        try {
+                            if (!session.isClosed()) {
+                                session.error(error);
+                            }
+                        } finally {
+                            done.complete(null);
+                        }
+                    })
+                    .start();
+        } catch (RuntimeException e) {
+            // Pre-subscribe construction error: the invoker threw before
+            // start(). Surface to session.error and resolve the handle so
+            // callers don't hang on whenDone().
+            if (!session.isClosed()) {
+                session.error(e);
+            }
+            done.complete(null);
+        }
+        return new org.atmosphere.ai.ExecutionHandle() {
+            @Override
+            public void cancel() {
+                // LC4j's TokenStream contract has no cancel hook — once
+                // start() fires, the model dispatch runs to completion
+                // asynchronously. We resolve done so callers awaiting the
+                // handle don't hang, but the underlying call continues.
+                done.complete(null);
             }
             @Override public boolean isDone() { return done.isDone(); }
             @Override public java.util.concurrent.CompletableFuture<Void> whenDone() { return done; }

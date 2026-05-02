@@ -629,7 +629,6 @@
         <module>samples/spring-boot-checkpoint-agent</module>
         <module>samples/spring-boot-personal-assistant</module>
         <module>samples/spring-boot-coding-agent</module>
-        <module>samples/spring-boot-embabel-chat</module>
         <module>samples/spring-boot-guarded-email-agent</module>
         <module>modules/integration-tests</module>
     </modules>

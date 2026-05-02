@@ -16,6 +16,7 @@
 package org.atmosphere.ai.koog
 
 import ai.koog.agents.core.agent.AIAgent
+import ai.koog.agents.core.agent.GraphAIAgent
 import ai.koog.agents.ext.agent.chatAgentStrategy
 import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.prompt.dsl.Prompt
@@ -323,49 +324,34 @@ class KoogAgentRuntime : AgentRuntime {
         )
         val systemPrompt = buildSystemPrompt(context)
 
-        val agent = AIAgent(
-            promptExecutor = executor,
-            llmModel = model,
-            systemPrompt = systemPrompt,
-            toolRegistry = toolRegistry,
-            maxIterations = MAX_TOOL_ROUNDS * 2
-        ) {
-            handleEvents {
-                onLLMStreamingFrameReceived { ctx ->
-                    if (cancelled.get() || session.isClosed) return@onLLMStreamingFrameReceived
-                    when (val frame = ctx.streamFrame) {
-                        is StreamFrame.TextDelta -> session.emit(AiEvent.TextDelta(frame.text))
-                        is StreamFrame.TextComplete -> session.emit(AiEvent.TextComplete(frame.text))
-                        is StreamFrame.ReasoningDelta -> {
-                            val text = frame.text
-                            if (text != null) session.emit(AiEvent.Progress(text, null))
-                        }
-                        else -> {}
-                    }
-                }
-                onToolCallStarting { ctx ->
-                    session.emit(AiEvent.ToolStart(ctx.toolName, emptyMap()))
-                }
-                onToolCallCompleted { ctx ->
-                    session.emit(AiEvent.ToolResult(ctx.toolName, ctx.toolResult?.toString()))
-                }
-                onToolCallFailed { ctx ->
-                    session.emit(AiEvent.ToolError(ctx.toolName, ctx.error?.message ?: "Tool failed"))
-                }
-                onLLMCallCompleted { ctx ->
-                    // Phase 1: report typed token usage once per LLM call. The default
-                    // StreamingSession.usage() sink re-emits legacy ai.tokens.* metadata keys
-                    // so existing Micrometer / budget consumers keep working.
-                    val responses = ctx.responses
-                    if (responses.isNotEmpty()) {
-                        val meta = responses.last().metaInfo
-                        val input = meta.inputTokensCount?.toLong() ?: 0L
-                        val output = meta.outputTokensCount?.toLong() ?: 0L
-                        val total = meta.totalTokensCount?.toLong() ?: (input + output)
-                        val usage = TokenUsage(input, output, 0L, total, null)
-                        if (usage.hasCounts()) session.usage(usage)
-                    }
-                }
+        // Per-request strategy override: when the caller attached a custom
+        // AIAgentGraphStrategy via KoogStrategy.attach(...), wire it into the
+        // AIAgent factory's strategy slot. Without this branch the helper
+        // would be silently ignored — Koog's default factory uses
+        // chatAgentStrategy() implicitly when the strategy parameter is
+        // omitted. The else branch preserves the pre-bridge behavior
+        // bit-identical for callers who do not opt in.
+        val customStrategy = KoogStrategy.from(context)
+        val agent = if (customStrategy != null) {
+            AIAgent(
+                promptExecutor = executor,
+                llmModel = model,
+                strategy = customStrategy,
+                toolRegistry = toolRegistry,
+                systemPrompt = systemPrompt,
+                maxIterations = MAX_TOOL_ROUNDS * 2
+            ) {
+                wireFeatureHandlers(cancelled, session)
+            }
+        } else {
+            AIAgent(
+                promptExecutor = executor,
+                llmModel = model,
+                systemPrompt = systemPrompt,
+                toolRegistry = toolRegistry,
+                maxIterations = MAX_TOOL_ROUNDS * 2
+            ) {
+                wireFeatureHandlers(cancelled, session)
             }
         }
 
@@ -646,6 +632,63 @@ class KoogAgentRuntime : AgentRuntime {
         // Koog's LLModel carries an id; report the default plus any
         // override. context.model() takes precedence at dispatch time.
         return listOf(defaultModel.id)
+    }
+}
+
+/**
+ * Install the standard Atmosphere event handlers on a Koog
+ * [GraphAIAgent.FeatureContext]. Extracted as a top-level extension so the
+ * default-strategy path and the per-request custom-strategy path share one
+ * source of truth — without it the handler block would have to be duplicated
+ * verbatim inside both branches of the `if (customStrategy != null)` choice
+ * in [KoogAgentRuntime.executeWithAgent], where any future event-handler
+ * change would have to be applied twice and would silently drift.
+ *
+ * Translates Koog's [StreamFrame] / tool / LLM-call events into Atmosphere
+ * [AiEvent] frames on the supplied [StreamingSession]. Honors the
+ * [cancelled] flag at every emission boundary so a caller-initiated cancel
+ * stops emitting promptly.
+ */
+private fun GraphAIAgent.FeatureContext.wireFeatureHandlers(
+    cancelled: AtomicBoolean,
+    session: StreamingSession
+) {
+    handleEvents {
+        onLLMStreamingFrameReceived { ctx ->
+            if (cancelled.get() || session.isClosed) return@onLLMStreamingFrameReceived
+            when (val frame = ctx.streamFrame) {
+                is StreamFrame.TextDelta -> session.emit(AiEvent.TextDelta(frame.text))
+                is StreamFrame.TextComplete -> session.emit(AiEvent.TextComplete(frame.text))
+                is StreamFrame.ReasoningDelta -> {
+                    val text = frame.text
+                    if (text != null) session.emit(AiEvent.Progress(text, null))
+                }
+                else -> {}
+            }
+        }
+        onToolCallStarting { ctx ->
+            session.emit(AiEvent.ToolStart(ctx.toolName, emptyMap()))
+        }
+        onToolCallCompleted { ctx ->
+            session.emit(AiEvent.ToolResult(ctx.toolName, ctx.toolResult?.toString()))
+        }
+        onToolCallFailed { ctx ->
+            session.emit(AiEvent.ToolError(ctx.toolName, ctx.error?.message ?: "Tool failed"))
+        }
+        onLLMCallCompleted { ctx ->
+            // Phase 1: report typed token usage once per LLM call. The default
+            // StreamingSession.usage() sink re-emits legacy ai.tokens.* metadata keys
+            // so existing Micrometer / budget consumers keep working.
+            val responses = ctx.responses
+            if (responses.isNotEmpty()) {
+                val meta = responses.last().metaInfo
+                val input = meta.inputTokensCount?.toLong() ?: 0L
+                val output = meta.outputTokensCount?.toLong() ?: 0L
+                val total = meta.totalTokensCount?.toLong() ?: (input + output)
+                val usage = TokenUsage(input, output, 0L, total, null)
+                if (usage.hasCounts()) session.usage(usage)
+            }
+        }
     }
 }
 

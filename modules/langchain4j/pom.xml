@@ -31,6 +31,17 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- LC4j aggregate JAR carries AiServices / TokenStream — needed for
+             the LangChain4jAiServices bridge which threads a user-supplied
+             AiServices interface through the runtime instead of building
+             its own ChatRequest. -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+            <version>${langchain4j.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-open-ai</artifactId>

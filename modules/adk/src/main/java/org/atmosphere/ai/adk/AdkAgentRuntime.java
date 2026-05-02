@@ -237,34 +237,59 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         if (settings == null) {
             settings = AiConfig.fromEnvironment();
         }
-        var modelName = (context.model() != null && !context.model().isBlank())
-                ? context.model() : settings.model();
-        var gemini = new Gemini(modelName, settings.apiKey());
 
-        var adkTools = AdkToolBridge.toAdkTools(
-                context.tools(), session, context.approvalStrategy(), context.listeners(),
-                context.approvalPolicy());
-        var instruction = context.systemPrompt() != null && !context.systemPrompt().isEmpty()
-                ? context.systemPrompt() : "You are a helpful assistant.";
+        // When the caller attached a per-request root via AdkRootAgent.attach(),
+        // skip the default LlmAgent assembly entirely. The user's BaseAgent
+        // sub-tree (typically SequentialAgent / ParallelAgent / LoopAgent) owns
+        // its own model wiring, instructions, and tool registration on whichever
+        // leaf LlmAgents it composes — we treat the supplied agent as opaque.
+        // Tool wiring via AdkToolBridge is intentionally NOT applied to a
+        // user-provided root: orchestration shells do not call models, so
+        // attaching tools to them silently no-ops, and re-attaching tools to
+        // unknown sub-agents would mutate the user's topology.
+        var customRoot = AdkRootAgent.from(context);
+        com.google.adk.agents.BaseAgent rootAgent;
+        int toolCount;
+        if (customRoot != null) {
+            rootAgent = customRoot;
+            toolCount = 0;
+            if (!context.tools().isEmpty()) {
+                logger.debug("ADK per-request root agent supplied via AdkRootAgent; "
+                        + "{} context.tools() ignored (attach tools to leaf LlmAgents instead)",
+                        context.tools().size());
+            }
+        } else {
+            var modelName = (context.model() != null && !context.model().isBlank())
+                    ? context.model() : settings.model();
+            var gemini = new Gemini(modelName, settings.apiKey());
 
-        var agentBuilder = LlmAgent.builder()
-                .name("atmosphere-agent")
-                .model(gemini)
-                .instruction(instruction);
+            var adkTools = AdkToolBridge.toAdkTools(
+                    context.tools(), session, context.approvalStrategy(), context.listeners(),
+                    context.approvalPolicy());
+            var instruction = context.systemPrompt() != null && !context.systemPrompt().isEmpty()
+                    ? context.systemPrompt() : "You are a helpful assistant.";
 
-        if (!adkTools.isEmpty()) {
-            agentBuilder.tools(adkTools);
+            var agentBuilder = LlmAgent.builder()
+                    .name("atmosphere-agent")
+                    .model(gemini)
+                    .instruction(instruction);
+
+            if (!adkTools.isEmpty()) {
+                agentBuilder.tools(adkTools);
+            }
+            rootAgent = agentBuilder.build();
+            toolCount = adkTools.size();
         }
 
         var appBuilder = com.google.adk.apps.App.builder()
                 .name("atmosphere")
-                .rootAgent(agentBuilder.build());
+                .rootAgent(rootAgent);
         var cacheConfig = resolveCacheConfig(context);
         if (cacheConfig != null) {
             appBuilder.contextCacheConfig(cacheConfig);
         }
-        logger.debug("ADK per-request runner built with {} tools (cacheConfig={})",
-                adkTools.size(), cacheConfig != null);
+        logger.debug("ADK per-request runner built (customRoot={}, tools={}, cacheConfig={})",
+                customRoot != null, toolCount, cacheConfig != null);
         return Runner.builder().app(appBuilder.build()).build();
     }
 
@@ -299,7 +324,12 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         // only usable when neither tools nor a cache hint are present.
         var tools = context.tools();
         var adkHint = org.atmosphere.ai.llm.CacheHint.from(context);
-        var needsPerRequestRunner = !tools.isEmpty() || adkHint.enabled();
+        // A per-request root agent (AdkRootAgent.attach) also forces a fresh
+        // Runner — App.rootAgent is set at App.Builder time and cannot be swapped
+        // on the cached default runner. Without this guard the user's custom
+        // BaseAgent sub-tree would be silently ignored.
+        var customRootPresent = AdkRootAgent.from(context) != null;
+        var needsPerRequestRunner = !tools.isEmpty() || adkHint.enabled() || customRootPresent;
         Runner requestRunner = needsPerRequestRunner
                 ? buildRequestRunner(context, session)
                 : adkRunner;

@@ -46,6 +46,31 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- Koog 0.7.3 ABI requires Kotlin 2.x stdlib (kotlin.time.Clock)
+                 and kotlinx-serialization 1.10.0 (the typeParametersSerializers
+                 method shape changed). Spring Boot 3.5's BOM pins both at older
+                 versions, so we override here so the SB3-profile Koog wiring
+                 below can actually issue LLM calls without ABI errors. -->
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib</artifactId>
+                <version>2.3.10</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-reflect</artifactId>
+                <version>2.3.10</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlinx</groupId>
+                <artifactId>kotlinx-serialization-core-jvm</artifactId>
+                <version>1.10.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlinx</groupId>
+                <artifactId>kotlinx-serialization-json-jvm</artifactId>
+                <version>1.10.0</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -154,6 +179,27 @@
             <version>${langchain4j.version}</version>
         </dependency>
         -->
+
+        <!-- JetBrains Koog runtime (requires -Pspring-boot3 — koog-spring-boot-starter
+             targets Spring Boot 3.5; under SB3 it auto-configures a PromptExecutor
+             from ai.koog.openai.api-key / ai.koog.gemini.api-key env vars).
+             dependencyManagement above pins kotlin-stdlib 2.3.10 and
+             kotlinx-serialization 1.10.0 so Koog's GoogleLLMClient can issue
+             real Gemini calls without ABI errors. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-koog</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ai.koog</groupId>
+            <artifactId>koog-agents-jvm</artifactId>
+            <version>${koog.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.koog</groupId>
+            <artifactId>koog-spring-boot-starter</artifactId>
+            <version>${koog.version}</version>
+        </dependency>
 
         <!-- MCP (required by atmosphere-agent for auto-bridging) -->
         <dependency>

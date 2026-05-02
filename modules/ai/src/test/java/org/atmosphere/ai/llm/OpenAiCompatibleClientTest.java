@@ -458,6 +458,173 @@ public class OpenAiCompatibleClientTest {
     }
 
     @Test
+    public void testModelLifecycleHooksFire() throws Exception {
+        // OpenAiCompatibleClient must fire onModelStart before each LLM
+        // dispatch and onModelEnd after the SSE stream is consumed, on every
+        // tool-loop round. Verifies the wiring at OpenAiCompatibleClient
+        // (the one runtime that owns the tool loop today).
+        var textResponse = """
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}
+
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":12,"completion_tokens":3,"total_tokens":15}}
+
+                data: [DONE]
+
+                """;
+        var httpClient = mockHttpClientSequence(new MockResponse(200, textResponse));
+
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(httpClient)
+                .build();
+
+        var startCount = new java.util.concurrent.atomic.AtomicInteger();
+        var endCount = new java.util.concurrent.atomic.AtomicInteger();
+        var capturedUsage = new java.util.concurrent.atomic.AtomicReference<org.atmosphere.ai.TokenUsage>();
+        var capturedDuration = new java.util.concurrent.atomic.AtomicLong(-1L);
+        var capturedModel = new java.util.concurrent.atomic.AtomicReference<String>();
+
+        var listener = new org.atmosphere.ai.AgentLifecycleListener() {
+            @Override
+            public void onModelStart(String model, int messageCount, int toolCount) {
+                startCount.incrementAndGet();
+                capturedModel.set(model);
+            }
+            @Override
+            public void onModelEnd(String model, org.atmosphere.ai.TokenUsage usage,
+                                   long durationMillis) {
+                endCount.incrementAndGet();
+                capturedUsage.set(usage);
+                capturedDuration.set(durationMillis);
+            }
+        };
+
+        var request = ChatCompletionRequest.builder("test-model")
+                .user("Hi")
+                .listeners(java.util.List.of(listener))
+                .build();
+
+        var session = StreamingSessions.start("test-lifecycle", resource);
+        client.streamChatCompletion(request, session);
+
+        assertEquals(1, startCount.get(), "onModelStart fires once per dispatch");
+        assertEquals(1, endCount.get(), "onModelEnd fires once per dispatch");
+        assertEquals("test-model", capturedModel.get());
+        assertNotNull(capturedUsage.get(),
+                "onModelEnd must carry the captured TokenUsage when the provider reported one");
+        assertEquals(12L, capturedUsage.get().input());
+        assertEquals(3L, capturedUsage.get().output());
+        assertTrue(capturedDuration.get() >= 0L,
+                "duration must be non-negative wall-clock millis");
+    }
+
+    @Test
+    public void testCustomToolLoopCapHonored() throws Exception {
+        // Per-request ToolLoopPolicy must override the default 5-iteration cap.
+        // Build a tool-call response that always asks for more tools, then attach
+        // a strict(2) policy: we expect at most 3 HTTP calls (1 initial + 2
+        // tool rounds), not 6 — proving the per-request cap is honored, not the
+        // legacy constant.
+        var toolCallResponse = """
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"echo","arguments":"{}"}}]},"finish_reason":null}]}
+
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+                data: [DONE]
+
+                """;
+
+        var responses = new MockResponse[6];
+        for (int i = 0; i < 6; i++) {
+            responses[i] = new MockResponse(200, toolCallResponse);
+        }
+        var httpClient = mockHttpClientSequence(responses);
+
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(httpClient)
+                .build();
+
+        var tool = org.atmosphere.ai.tool.ToolDefinition.builder("echo", "Echo tool")
+                .executor(args -> "echoed")
+                .build();
+
+        var request = ChatCompletionRequest.builder("test")
+                .user("loop")
+                .tools(java.util.List.of(tool))
+                .toolLoopPolicy(ToolLoopPolicy.maxIterations(2))
+                .build();
+
+        var session = StreamingSessions.start("test-custom-cap", resource);
+        client.streamChatCompletion(request, session);
+
+        // Custom cap = 2, so at most 3 HTTP calls (initial + 2 follow-ups).
+        // The legacy default would have allowed 6 — this verifies the
+        // per-request override actually fires.
+        verify(httpClient, atMost(3)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
+    @Test
+    public void testStrictPolicyFailsOnOverflow() throws Exception {
+        // FAIL overflow must surface a ToolLoopExhaustedException via
+        // session.error so callers can react instead of receiving a silently
+        // truncated stream. Use a strict(1) policy: any model that asks for
+        // a second tool round trips the cap.
+        var toolCallResponse = """
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"echo","arguments":"{}"}}]},"finish_reason":null}]}
+
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+                data: [DONE]
+
+                """;
+
+        // Two responses: the first triggers a tool call (round 0 -> 1),
+        // the second triggers another tool call (round 1 -> would-be-2,
+        // exceeds strict(1) cap).
+        var httpClient = mockHttpClientSequence(
+                new MockResponse(200, toolCallResponse),
+                new MockResponse(200, toolCallResponse));
+
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(httpClient)
+                .build();
+
+        var tool = org.atmosphere.ai.tool.ToolDefinition.builder("echo", "Echo tool")
+                .executor(args -> "echoed")
+                .build();
+
+        var request = ChatCompletionRequest.builder("test")
+                .user("loop")
+                .tools(java.util.List.of(tool))
+                .toolLoopPolicy(ToolLoopPolicy.strict(1))
+                .build();
+
+        var session = StreamingSessions.start("test-strict-fail", resource);
+        client.streamChatCompletion(request, session);
+
+        // Verify session.error was invoked with a ToolLoopExhaustedException
+        // carrying the cap that was hit. The captor reads the exact frame
+        // delivered to the broadcaster — direct evidence the FAIL branch fired.
+        ArgumentCaptor<RawMessage> messageCaptor = ArgumentCaptor.forClass(RawMessage.class);
+        verify(broadcaster, atLeastOnce()).broadcast(messageCaptor.capture(), any(Set.class));
+
+        boolean sawErrorFrame = false;
+        for (var msg : messageCaptor.getAllValues()) {
+            String json = raw(msg);
+            if (json.contains("\"type\":\"error\"")
+                    && json.contains("Tool loop exhausted")
+                    && json.contains("1")) {
+                sawErrorFrame = true;
+                break;
+            }
+        }
+        assertTrue(sawErrorFrame,
+                "FAIL overflow must emit an error frame mentioning the cap that was hit");
+    }
+
+    @Test
     public void testMaxToolRoundsRespected() throws Exception {
         // Build a response that always requests tool calls
         var toolCallResponse = """

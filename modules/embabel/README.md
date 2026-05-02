@@ -44,6 +44,28 @@ embabelAdapter.stream(AgentRequest("assistant") { channel ->
 | `EmbabelEmbeddingRuntime` | `EmbeddingRuntime` SPI wrapping Embabel `EmbeddingService` (priority 170) |
 | `AtmosphereEmbabelAutoConfiguration` | Spring Boot auto-configuration |
 
+## Native Streaming (Atmosphere-Native Path)
+
+The Atmosphere-native dispatch path (used when `context.agentId()` does not
+match a deployed `@Agent`) drives Embabel via
+[`StreamingPromptRunnerBuilder`](https://github.com/embabel/embabel-agent),
+acquiring a Reactor `Flux<String>` of token-level chunks and forwarding each
+chunk to `StreamingSession.send()`. This is the path that makes
+`TEXT_STREAMING` an honest capability declaration on the Atmosphere-native
+side — without it, the Atmosphere-native path was buffering the model
+response and emitting it as a single end-of-call burst.
+
+When the configured Embabel LLM service does not implement
+`com.embabel.agent.spi.streaming.StreamingLlmOperations` (true for some
+tool-only or non-OpenAI-compatible providers), the path falls back to the
+blocking `PromptRunner.generateText(prompt)` call so dispatch still
+completes — no silent capability drop.
+
+The deployed-agent dispatch path (used when `context.agentId()` matches a
+deployed `@Agent`) continues to route through `AgentPlatform.runAgentFrom`
+and stream events via `AtmosphereOutputChannel`; the Reactor `Flux` path
+applies only to the direct-LLM fallback.
+
 ## Samples
 
 - [Spring Boot AI Chat](../../samples/spring-boot-ai-chat/) -- swap to `atmosphere-embabel` dependency for Embabel support

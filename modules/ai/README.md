@@ -145,6 +145,93 @@ export LLM_MODE=local
 export LLM_MODEL=llama3.2
 ```
 
+## Tool Loop Policy
+
+When the model emits tool-call requests, the runtime runs an iterative
+model→tool→model loop until the model produces a final text response. By
+default the loop is capped at **5 iterations** and on overflow the response
+is completed with whatever text was emitted last (a warning is logged).
+
+`ToolLoopPolicy` exposes both knobs per request:
+
+```java
+// Strict: fail on overflow so callers see the cap was hit instead of
+// receiving a silently-truncated stream.
+var ctx = ToolLoopPolicies.attach(baseContext, ToolLoopPolicy.strict(3));
+
+// Lenient: raise the cap, keep complete-without-tools overflow.
+var ctx = ToolLoopPolicies.attach(baseContext, ToolLoopPolicy.maxIterations(10));
+
+// Or via an interceptor so every request inherits the same policy:
+@Component
+class ToolLoopInterceptor implements AiInterceptor {
+    @Override
+    public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
+        return request.withMetadata(Map.of(
+                ToolLoopPolicies.METADATA_KEY, ToolLoopPolicy.strict(3)));
+    }
+}
+```
+
+When the cap is hit with `OnMaxIterations.FAIL`, the runtime calls
+`session.error(...)` with a `ToolLoopExhaustedException` carrying the cap
+value; the wire protocol surfaces this as a normal error frame
+(`{"type":"error","message":"Tool loop exhausted after 3 iterations"}`).
+
+The **Built-in runtime** owns its tool loop and honors this policy directly
+(`OpenAiCompatibleClient.doStreamWithToolLoop` reads
+`ChatCompletionRequest.toolLoopPolicy()` on every iteration).
+
+Framework runtimes (LangChain4j, Spring AI, ADK, Koog, Embabel) defer to
+their underlying framework's tool loop and inherit that framework's own
+defaults today. The `ToolLoopPolicies.from(context)` reader exists so each
+runtime can translate the policy into the framework's native cap when a
+mapping is available — `LangChain4j AiServices` exposes
+`.maxSequentialToolsInvocations(int)`, for example — but no framework
+runtime is wired against the policy yet. Same posture as
+`PER_REQUEST_RETRY`: Built-in honors it natively; other runtimes inherit
+their own retry layers (Correctness Invariant #5 — Runtime Truth).
+
+## Model-Lifecycle Observation
+
+`AgentLifecycleListener` exposes three model-lifecycle hooks so observability
+consumers (Micrometer recorders, audit appenders, structured-log writers) get
+a uniform per-call event surface regardless of which `AgentRuntime` ran the
+request:
+
+| Hook | Fired by the runtime when... |
+|------|------------------------------|
+| `onModelStart(model, messageCount, toolCount)` | a model dispatch is about to happen |
+| `onModelEnd(model, usage, durationMillis)` | the streaming response has been fully consumed |
+| `onModelError(model, error)` | a transport-layer or provider-layer dispatch failure occurred |
+
+The **Built-in runtime** wires all three today: `OpenAiCompatibleClient`
+fires `onModelStart` before each `sendWithRetry`, `onModelEnd` once the SSE
+stream is consumed (carrying the captured `TokenUsage`), and `onModelError`
+when the retry budget is exhausted or a transport exception escapes.
+
+Framework runtimes (LangChain4j, Spring AI, ADK, Koog, Embabel) inherit
+their own native observability surfaces (Spring AI `ChatClientObservation`,
+LC4j `ChatModelListener`, ADK `BeforeModelCallback`/`AfterModelCallback`,
+Koog `PromptExecutorInterceptor`, Embabel `AgentListener`) and should
+bridge into these hooks from their adapter module — see the per-module
+README for the cross-runtime adoption status. Same posture as
+`PER_REQUEST_RETRY` and `ToolLoopPolicy`: Built-in honors it natively, and
+the SPI is in place for framework-runtime authors to wire up their bridges.
+
+`AiEventForwardingListener` is a built-in adapter that translates these
+hooks into `AiEvent.Progress` frames on the streaming session, so browser
+clients receive uniform observability events on the wire:
+
+```java
+var session = StreamingSessions.start("chat", resource);
+var listeners = List.of(new AiEventForwardingListener(session));
+runtime.execute(context.withListeners(listeners), session);
+// → browser receives:
+//   {"type":"progress","message":"model:start (gpt-4o, msgs=3, tools=2)"}
+//   {"type":"progress","message":"model:end (gpt-4o, in=120, out=85, ms=842)"}
+```
+
 ## StreamingSession Wire Protocol
 
 The client receives JSON messages over WebSocket/SSE:
@@ -590,11 +677,18 @@ Spring AI's `StreamingChatModel` directly via `atmosphere-spring-ai`.
   and `EmbabelToolBridge` translates Atmosphere `ToolDefinition`s into Embabel
   `com.embabel.agent.api.tool.Tool` instances (routing through
   `ToolExecutionHelper.executeWithApproval`), with `Content.Image` parts mapped
-  to `AgentImage`. `AUDIO` / `PROMPT_CACHING` remain undeclared because
-  Embabel's `PromptRunner` surface does not expose audio input or a portable
-  cache-control primitive on the direct-LLM path. `TOKEN_USAGE` is honest on the
-  deployed-agent path only (`AgentProcess.usage()`) — the native path does not
-  surface an aggregated usage record.
+  to `AgentImage`. `TEXT_STREAMING` on the Atmosphere-native path uses
+  `StreamingPromptRunnerBuilder(runner).streaming().withPrompt(message).generateStream()`
+  — Embabel's Reactor `Flux<String>` surface from
+  `com.embabel.agent.spi.streaming.StreamingLlmOperations` — and forwards each
+  chunk to `session.send()`. When the configured model service does not implement
+  `StreamingLlmOperations`, the path falls back to the blocking `generateText()`
+  call so dispatch still completes (no silent capability drop).
+  `AUDIO` / `PROMPT_CACHING` remain undeclared because Embabel's `PromptRunner`
+  surface does not expose audio input or a portable cache-control primitive on
+  the direct-LLM path. `TOKEN_USAGE` is honest on the deployed-agent path only
+  (`AgentProcess.usage()`) — the native path does not surface an aggregated
+  usage record.
 - **Koog** `PROMPT_CACHING` is honored via `CacheControl.Bedrock.{FiveMinutes,OneHour}`
   attached to `Message.User` when the request carries a `CacheHint`. Bedrock-backed
   Koog models observe the cache control on the wire; non-Bedrock providers silently

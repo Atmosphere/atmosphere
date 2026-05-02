@@ -65,6 +65,45 @@ public interface AgentLifecycleListener {
     default void onError(AgentExecutionContext context, Throwable error) { }
 
     /**
+     * Fired when the runtime is about to issue a model call. {@code messageCount}
+     * is the number of messages in the assembled prompt (including history and
+     * system prompt). {@code toolCount} is the number of tool definitions
+     * advertised on the request. Runtime bridges fire this immediately before
+     * the underlying framework dispatches to the LLM — same observation point
+     * Spring AI's {@code ChatClientObservation}, LangChain4j's
+     * {@code ChatModelListener.onRequest}, ADK's {@code BeforeModelCallback},
+     * and Koog's {@code PromptExecutorInterceptor} cover.
+     *
+     * <p>Only the Built-in runtime fires this today (via
+     * {@code OpenAiCompatibleClient}). Framework runtimes inherit their own
+     * native observability surfaces and should bridge into this hook from
+     * their adapter module — see {@code modules/ai/README.md} for the
+     * cross-runtime adoption status.</p>
+     */
+    default void onModelStart(String model, int messageCount, int toolCount) { }
+
+    /**
+     * Fired when the runtime received a final response from a model call.
+     * {@code usage} is the typed token-usage record (may be null if the
+     * provider did not emit usage data). {@code durationMillis} is the
+     * wall-clock time spent in the model dispatch — useful for latency
+     * histograms.
+     */
+    default void onModelEnd(String model,
+                            org.atmosphere.ai.TokenUsage usage,
+                            long durationMillis) { }
+
+    /**
+     * Fired when a model dispatch failed at the transport or provider layer
+     * (network error, auth failure, server 5xx, parsing error). Distinct from
+     * {@link #onError}, which fires for any error reported on the streaming
+     * session — this hook narrows to model dispatch failures so observability
+     * consumers can compute provider error rates without conflating
+     * application-side errors.
+     */
+    default void onModelError(String model, Throwable error) { }
+
+    /**
      * Invoke {@link #onToolCall} on every listener in the list, catching and
      * swallowing any exception so one broken listener cannot abort the
      * execution pipeline. Runtime bridges call this inside their tool-call
@@ -105,6 +144,62 @@ public interface AgentLifecycleListener {
         for (var listener : listeners) {
             try {
                 listener.onToolResult(toolName, resultPreview);
+            } catch (Exception ignored) {
+                // see fireToolCall javadoc
+            }
+        }
+    }
+
+    /**
+     * Invoke {@link #onModelStart} on every listener in the list. Same
+     * swallow-and-continue semantics as {@link #fireToolCall}.
+     */
+    static void fireModelStart(List<AgentLifecycleListener> listeners,
+                               String model, int messageCount, int toolCount) {
+        if (listeners == null || listeners.isEmpty()) {
+            return;
+        }
+        for (var listener : listeners) {
+            try {
+                listener.onModelStart(model, messageCount, toolCount);
+            } catch (Exception ignored) {
+                // see fireToolCall javadoc
+            }
+        }
+    }
+
+    /**
+     * Invoke {@link #onModelEnd} on every listener in the list. Same
+     * swallow-and-continue semantics as {@link #fireToolCall}.
+     */
+    static void fireModelEnd(List<AgentLifecycleListener> listeners,
+                             String model,
+                             org.atmosphere.ai.TokenUsage usage,
+                             long durationMillis) {
+        if (listeners == null || listeners.isEmpty()) {
+            return;
+        }
+        for (var listener : listeners) {
+            try {
+                listener.onModelEnd(model, usage, durationMillis);
+            } catch (Exception ignored) {
+                // see fireToolCall javadoc
+            }
+        }
+    }
+
+    /**
+     * Invoke {@link #onModelError} on every listener in the list. Same
+     * swallow-and-continue semantics as {@link #fireToolCall}.
+     */
+    static void fireModelError(List<AgentLifecycleListener> listeners,
+                               String model, Throwable error) {
+        if (listeners == null || listeners.isEmpty()) {
+            return;
+        }
+        for (var listener : listeners) {
+            try {
+                listener.onModelError(model, error);
             } catch (Exception ignored) {
                 // see fireToolCall javadoc
             }
