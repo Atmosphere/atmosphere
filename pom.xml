@@ -1216,6 +1216,6 @@
              to this matched version so spring-ai-alibaba-agent-framework's
              transitive RetryUtils.DEFAULT_RETRY_TEMPLATE binding resolves. -->
         <spring-ai-alibaba-spring-ai.version>1.1.2</spring-ai-alibaba-spring-ai.version>
-        <langchain4j.version>1.12.2</langchain4j.version>
+        <langchain4j.version>1.14.0</langchain4j.version>
     </properties>
 </project>
