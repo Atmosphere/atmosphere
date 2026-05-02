@@ -20,7 +20,9 @@ import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.IndexDependencyBuildItem;
+import io.quarkus.deployment.builditem.nativeimage.NativeImageResourceBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
+import io.quarkus.undertow.deployment.ServletBuildItem;
 
 /**
  * Quarkus deployment processor for the Atmosphere Admin extension.
@@ -54,6 +56,36 @@ public class AdminProcessor {
         additionalBeans.produce(
                 AdditionalBeanBuildItem.unremovableOf(
                         "org.atmosphere.quarkus.admin.runtime.AdminResource"));
+    }
+
+    /**
+     * Serves the bundled Atmosphere chat Console at {@code /atmosphere/console/*}.
+     * The mapping is more specific than the AtmosphereServlet's {@code /atmosphere/*},
+     * so by Servlet-spec URL pattern resolution this servlet wins inside its
+     * subtree and the SPA bundle is reachable instead of being shadowed by the
+     * 404 path of {@link org.atmosphere.cpr.AtmosphereServlet}. See
+     * {@code AtmosphereConsoleServlet} for the streaming details.
+     */
+    @BuildStep
+    ServletBuildItem registerConsoleServlet() {
+        return ServletBuildItem.builder("AtmosphereConsoleServlet",
+                        "org.atmosphere.quarkus.admin.runtime.AtmosphereConsoleServlet")
+                .addMapping("/atmosphere/console/*")
+                .setLoadOnStartup(2)
+                .build();
+    }
+
+    /**
+     * Make the bundled Console SPA assets reachable in native image.
+     * Without this they get pruned because the resources are read via
+     * reflection-style classpath lookup, not annotation-driven discovery.
+     */
+    @BuildStep
+    NativeImageResourceBuildItem registerConsoleResources() {
+        return new NativeImageResourceBuildItem(
+                "META-INF/resources/atmosphere/console/index.html",
+                "META-INF/resources/atmosphere/console/assets/index-D4Ey4XUD.js",
+                "META-INF/resources/atmosphere/console/assets/index-5mdPW76Z.css");
     }
 
     @BuildStep

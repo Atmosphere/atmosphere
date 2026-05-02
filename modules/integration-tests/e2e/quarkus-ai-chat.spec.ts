@@ -86,21 +86,24 @@ test.describe('Quarkus AI Chat', () => {
       expect(active.capabilities).toContain('TEXT_STREAMING');
     });
 
-  test('chat UI loads and reaches Connected state', async ({ page }) => {
+  test('Atmosphere Console SPA loads and reaches Connected state', async ({ page }) => {
+    // Sample's index.html is a meta-refresh redirect to the bundled Console;
+    // navigating to the root pulls in the Vue SPA served by AtmosphereConsoleServlet
+    // at /atmosphere/console/* (more specific than AtmosphereServlet's /atmosphere/*,
+    // so the SPA wins by Servlet-spec URL pattern resolution).
     await page.goto(server.baseUrl + '/');
+    await page.waitForURL(/\/atmosphere\/console\/$/, { timeout: 15_000 });
 
-    // The status div flips to "Connected" once atmosphere.js has finished
-    // negotiating the WebSocket handshake against /atmosphere/ai-chat,
-    // proving the @AiEndpoint scan in atmosphere-quarkus-extension picked
-    // up the AiChat handler and registered the servlet path.
-    const status = page.locator('#status');
-    await expect(status).toHaveText(/Connected/i, { timeout: 30_000 });
-    await expect(status).toHaveAttribute('data-state', 'Connected');
+    // ConnectionStatus.vue flips to "Connected" once atmosphere.js has
+    // negotiated the WebSocket handshake against the Console's control-plane
+    // SSE endpoint — proving the bundled SPA boots and the runtime is live.
+    const statusLabel = page.locator('[data-testid="status-label"]');
+    await expect(statusLabel).toHaveText(/Connected/i, { timeout: 30_000 });
 
-    // The Send button is initially disabled (status !== Connected); after
-    // the handshake it must be enabled. Visible-and-enabled is enough to
-    // confirm the page is interactive.
-    await expect(page.getByRole('button', { name: /send/i })).toBeEnabled();
+    // The chat tab is the default view; assert its layout renders so the
+    // SPA actually mounted Vue, not just shipped HTML.
+    await expect(page.locator('[data-testid="chat-layout"]')).toBeVisible();
+    await expect(page.locator('[data-testid="message-list"]')).toBeVisible();
   });
 
   // Real-LLM streaming test — runs only when LLM_MODE=real-ollama (or the
