@@ -33,6 +33,23 @@
         { "groupId": "ai.koog", "artifactId": "koog-agents-jvm", "version": "${koog.version}" }
       ]
     },
+    "agentscope": {
+      "description": "AgentScope Java (Tongyi Lab) — Reactor-based ReActAgent with Flux<Event> streaming",
+      "deps": [
+        { "groupId": "org.atmosphere", "artifactId": "atmosphere-agentscope" },
+        { "groupId": "io.agentscope", "artifactId": "agentscope-core", "version": "${agentscope.version}" }
+      ],
+      "note": "Requires a user-supplied ReActAgent @Bean — AgentScope's Model surface (DashScope, OpenAI-compatible) needs provider-specific construction that can't be assembled from generic llm.* properties."
+    },
+    "spring-ai-alibaba": {
+      "description": "Spring AI Alibaba (Alibaba Cloud AI) — Spring AI extension with multi-agent / graph orchestration; buffered streaming",
+      "deps": [
+        { "groupId": "org.atmosphere", "artifactId": "atmosphere-spring-ai-alibaba" },
+        { "groupId": "com.alibaba.cloud.ai", "artifactId": "spring-ai-alibaba-agent-framework", "version": "${spring-ai-alibaba.version}" },
+        { "groupId": "org.springframework.ai", "artifactId": "spring-ai-starter-model-openai", "version": "${spring-ai-alibaba-spring-ai.version}" }
+      ],
+      "note": "Targets Spring Boot 3.5 — build with -Pspring-boot3 (Spring AI Alibaba 1.1.2.0 transitively pulls Spring AI 1.1.2 which references Spring Boot 3.x autoconfigure classes that don't exist in SB4). Streaming is buffered: ReactAgent.call() is sync, so the full reply ships as one chunk through Atmosphere transport (no incremental token deltas from the LLM). Provide your own ReactAgent @Bean to add tools / sub-agents / custom graph compile config; the autoconfig builds a default agent on top of any Spring AI ChatModel bean."
+    },
     "embabel": {
       "description": "Embabel GOAP agent platform (Spring Boot 3.5 only)",
       "deps": [

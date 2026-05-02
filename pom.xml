@@ -373,6 +373,22 @@
                 <checkstyle.skip>true</checkstyle.skip>
             </properties>
         </profile>
+        <!-- Align netty.version with Spring Boot 3.5's transitive Netty
+             baseline. The default 4.2.x pin (above) is the CVE-corrected
+             version for Spring Boot 4 (which ships 4.2.x). Spring Boot 3.5.x
+             ships Netty 4.1.x, so the unconditional pin on netty-codec-http
+             and netty-codec-http2 mixes 4.2.x http codecs with 4.1.x common
+             and triggers NoClassDefFoundError on LeakPresenceDetector when
+             reactor-netty initializes. Sibling samples such as
+             spring-boot-ai-chat declare a matching <profile id="spring-boot3">
+             that switches the starter — this profile completes the swap on
+             the parent side. Activated automatically with -Pspring-boot3. -->
+        <profile>
+            <id>spring-boot3</id>
+            <properties>
+                <netty.version>4.1.122.Final</netty.version>
+            </properties>
+        </profile>
         <profile>
             <id>release-profile</id>
             <properties>
@@ -592,6 +608,7 @@
         <module>samples/embedded-jetty-websocket-chat</module>
         <module>samples/spring-boot-chat</module>
         <module>samples/quarkus-chat</module>
+        <module>samples/quarkus-ai-chat</module>
         <module>samples/spring-boot-ai-chat</module>
         <module>samples/spring-boot-ai-classroom</module>
         <module>samples/spring-boot-ms-governance-chat</module>
@@ -722,6 +739,26 @@
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-koog</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-agentscope</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-spring-ai-alibaba</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-quarkus-langchain4j</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-quarkus-langchain4j-deployment</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -1169,6 +1206,17 @@
         <embabel.version>0.3.4</embabel.version>
         <google-adk.version>1.0.0</google-adk.version>
         <koog.version>0.7.3</koog.version>
+        <agentscope.version>1.0.12</agentscope.version>
+        <spring-ai-alibaba.version>1.1.2.0</spring-ai-alibaba.version>
+        <!-- Quarkus LangChain4j 1.9.2 ships LangChain4j 1.13.0 transitively;
+             our parent already pins langchain4j 1.12.2 (compatible minor). -->
+        <quarkus-langchain4j.version>1.9.2</quarkus-langchain4j.version>
+        <!-- Spring AI Alibaba 1.1.2.0 is compiled against Spring AI 1.1.2 (the
+             current stable line, distinct from the unreleased 2.0.0-Mx
+             milestones we use elsewhere). The overlay pins the OpenAI starter
+             to this matched version so spring-ai-alibaba-agent-framework's
+             transitive RetryUtils.DEFAULT_RETRY_TEMPLATE binding resolves. -->
+        <spring-ai-alibaba-spring-ai.version>1.1.2</spring-ai-alibaba-spring-ai.version>
         <langchain4j.version>1.12.2</langchain4j.version>
     </properties>
 </project>

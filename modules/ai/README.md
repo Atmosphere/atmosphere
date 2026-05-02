@@ -42,6 +42,8 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 | `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, TOKEN_USAGE, PER_REQUEST_RETRY, PROMPT_CACHING |
 | `atmosphere-embabel` | `EmbabelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE, PER_REQUEST_RETRY, TOOL_CALLING, TOOL_APPROVAL, VISION, MULTI_MODAL |
 | `atmosphere-koog` | `KoogAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, TOKEN_USAGE, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY |
+| `atmosphere-agentscope` | `AgentScopeAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE |
+| `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY |
 | `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY |
 
 Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build.
@@ -508,6 +510,7 @@ wrap — zero overhead for deployments that don't need cost tracking.
 - [Dentist Agent](../../samples/spring-boot-dentist-agent/) -- full `@Agent` with commands, tools, and multi-channel
 - [Personal Assistant](../../samples/spring-boot-personal-assistant/) -- `AgentState`, `AgentWorkspace`, `AgentIdentity`, `ToolExtensibilityPoint`, `AiGateway`, `ProtocolBridge` exercised end-to-end through `@Coordinator` + three `@Agent` crew members
 - [Coding Agent](../../samples/spring-boot-coding-agent/) -- `Sandbox` + `AgentResumeHandle`; clones a repo into Docker, reads files, proposes a patch
+- [Quarkus AI Chat](../../samples/quarkus-ai-chat/) -- `@AiEndpoint` over WebSocket on Quarkus; `atmosphere-quarkus-langchain4j` bridges Quarkus LangChain4j's CDI `StreamingChatModel` into `LangChain4jAgentRuntime`
 
 ## AI-MCP Bridge
 
@@ -532,7 +535,7 @@ See [atmosphere-mcp README](../mcp/README.md) for injectable parameter details.
 
 ## Capability Matrix
 
-Unified view of the seven `AgentRuntime` implementations shipped with Atmosphere, derived
+Unified view of the nine `AgentRuntime` implementations shipped with Atmosphere, derived
 from the pinned `expectedCapabilities()` declarations in each runtime's contract test
 (Correctness Invariant #5 — Runtime Truth). `yes` means the capability is declared
 **and** verified by a contract assertion; `—` means the framework does not expose the
@@ -551,7 +554,17 @@ TCD=TOOL_CALL_DELTA.
 | `AdkAgentRuntime`            | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   |
 | `EmbabelAgentRuntime`        | 100 | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | —   | yes | yes | —   |
 | `KoogAgentRuntime`           | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   |
+| `AgentScopeAgentRuntime`     | 100 | yes | —   | yes | yes | —   | yes | —   | —   | —   | —   | —   | yes | —   | —   |
+| `SpringAiAlibabaAgentRuntime`| 100 | yes¹| —   | yes | yes | —   | yes | —   | —   | —   | —   | —   | —   | —   | —   |
 | `SemanticKernelAgentRuntime` | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   |
+
+¹ `SpringAiAlibabaAgentRuntime` declares `TEXT_STREAMING` honestly because the
+final reply ships as a single `session.send()` chunk and Atmosphere's transport
+still streams that chunk to the client over WebSocket / SSE / long-poll. The
+limitation is that the LLM round-trip itself is **buffered** — Spring AI Alibaba's
+`ReactAgent.call()` is synchronous as of v1.1.2.0, so there are no incremental
+token deltas from the LLM. Callers who need token-by-token streaming should drive
+Spring AI's `StreamingChatModel` directly via `atmosphere-spring-ai`.
 
 **Per-runtime gaps, honestly described:**
 
@@ -606,6 +619,36 @@ TCD=TOOL_CALL_DELTA.
   `PROMPT_CACHING` / `AGENT_ORCHESTRATION` remain undeclared because SK 1.4.0's
   `ChatCompletionService.getStreamingChatMessageContentsAsync` does not expose
   those surfaces on the Atmosphere bridge path.
+- **AgentScope Java** declares the minimum honest set: `TEXT_STREAMING` rides
+  `Flux<Event> ReActAgent.stream(List<Msg>, StreamOptions)` (Reactor — each
+  `Event.getMessage().getTextContent()` flows through `session.send()`),
+  `SYSTEM_PROMPT` is threaded as a `Msg` with `MsgRole.SYSTEM` in the
+  `assembleMessages` list, `CONVERSATION_MEMORY` is honored because the same
+  list carries `context.history()`, and `TOKEN_USAGE` is captured from
+  `Msg.getChatUsage()` on the terminal `event.isLast()` event. `TOOL_CALLING` is
+  intentionally not declared in this first cut — bridging AgentScope's
+  `Toolkit` into Atmosphere's `ToolDefinition` surface is a follow-up; declaring
+  it without that bridge would violate Correctness Invariant #5. `VISION` /
+  `AUDIO` / `MULTI_MODAL` / `PROMPT_CACHING` / `PER_REQUEST_RETRY` similarly
+  await translation surfaces. Cancellation rides
+  `Disposable.dispose()` + `agent.interrupt()`.
+- **Spring AI Alibaba** is buffered (see footnote ¹ above). `SYSTEM_PROMPT` is
+  honored two ways defensively — `ReactAgent.setSystemPrompt(context.systemPrompt())`
+  is called per request, and `assembleMessages` also threads a
+  `SystemMessage` into the `List<Message>` dispatched to `call(...)`.
+  `CONVERSATION_MEMORY` is honored because the same message list carries
+  `context.history()`. `TOKEN_USAGE` is **not** declared because
+  `ReactAgent.call()` returns `org.springframework.ai.chat.messages.AssistantMessage`
+  which has no surface for the `ChatResponse` usage metadata as of v1.1.2.0;
+  the agent framework's `CompiledGraph` captures usage internally but does not
+  return it through the `call(...)` API. `TOOL_CALLING` is not declared because
+  Spring AI Alibaba's tool surface bridges Spring AI `FunctionCallback`s, which
+  would need a separate `SpringAiAlibabaToolBridge` to satisfy
+  `TOOL_APPROVAL`. **Spring Boot 3.5 only**: Spring AI Alibaba 1.1.2.0
+  transitively pulls Spring AI 1.1.2 which references Spring Boot 3.x
+  autoconfigure classes (e.g. `RestClientAutoConfiguration`) that don't exist
+  in Spring Boot 4 — the CLI overlay must be applied with `-Pspring-boot3`,
+  same situation as Embabel.
 - **`TOOL_CALL_DELTA`** is declared only by `BuiltInAgentRuntime`. Built-in's
   `OpenAiCompatibleClient` forwards every `delta.tool_calls[].function.arguments`
   fragment through `session.toolCallDelta(acc.id(), argChunk)` on both the

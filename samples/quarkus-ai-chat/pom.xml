@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-project</artifactId>
+        <version>4.0.43-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <groupId>org.atmosphere.samples</groupId>
+    <artifactId>atmosphere-quarkus-ai-chat</artifactId>
+    <packaging>jar</packaging>
+    <name>atmosphere-quarkus-ai-chat</name>
+    <description>Atmosphere AI chat on Quarkus, backed by Quarkus LangChain4j via the atmosphere-quarkus-langchain4j bridge.</description>
+
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <!-- Quarkus 3.31 ships Netty 4.1.x — match the parent's spring-boot3
+             override so reactor-netty stays consistent. -->
+        <netty.version>4.1.130.Final</netty.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-bom</artifactId>
+                <version>${quarkus.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Atmosphere core Quarkus extension (servlet + WebSocket plumbing) -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-quarkus-extension</artifactId>
+        </dependency>
+
+        <!-- AI module brings the @AiEndpoint pipeline. The Quarkus extension's
+             scan picks up @AiEndpoint via the optional-AI-annotation slot. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+        </dependency>
+
+        <!-- Admin console (mounted at /atmosphere/console/) — same UI as
+             spring-boot-ai-chat so the chat round-trip can be driven from
+             the browser. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-quarkus-admin-extension</artifactId>
+        </dependency>
+
+        <!-- atmosphere-langchain4j provides the LangChain4jAgentRuntime SPI; the
+             quarkus-langchain4j bridge wires Quarkus L4j's StreamingChatModel into it. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-quarkus-langchain4j</artifactId>
+        </dependency>
+
+        <!-- Quarkus LangChain4j OpenAI-compatible model — Atmosphere reads
+             quarkus.langchain4j.openai.* config and exposes ChatModel /
+             StreamingChatModel CDI beans. Compatible with Gemini's
+             /v1beta/openai/ endpoint. -->
+        <dependency>
+            <groupId>io.quarkiverse.langchain4j</groupId>
+            <artifactId>quarkus-langchain4j-openai</artifactId>
+            <version>${quarkus-langchain4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-undertow</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-websockets</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jackson</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-jackson</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-maven-plugin</artifactId>
+                <version>${quarkus.version}</version>
+                <extensions>true</extensions>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>native</id>
+            <activation>
+                <property>
+                    <name>native</name>
+                </property>
+            </activation>
+            <properties>
+                <quarkus.native.enabled>true</quarkus.native.enabled>
+                <quarkus.package.jar.enabled>false</quarkus.package.jar.enabled>
+            </properties>
+        </profile>
+    </profiles>
+</project>

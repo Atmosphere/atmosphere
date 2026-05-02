@@ -59,9 +59,17 @@ class AtmosphereProcessor {
 
     private static final String FEATURE = "atmosphere";
 
-    // Source of truth: AtmosphereAnnotations.coreAnnotationNames()
+    // Source of truth: AtmosphereAnnotations.coreAnnotationNames(), augmented with
+    // optional AI annotations resolved by string so atmosphere-cpr keeps no hard
+    // dependency on atmosphere-ai. If the AI module is absent the index simply
+    // returns no instances and the slot is dropped.
+    private static final List<String> OPTIONAL_AI_ANNOTATIONS = List.of(
+            "org.atmosphere.ai.annotation.AiEndpoint");
+
     private static final DotName[] ATMOSPHERE_ANNOTATIONS =
-            AtmosphereAnnotations.coreAnnotationNames().stream()
+            java.util.stream.Stream.concat(
+                            AtmosphereAnnotations.coreAnnotationNames().stream(),
+                            OPTIONAL_AI_ANNOTATIONS.stream())
                     .map(DotName::createSimple)
                     .toArray(DotName[]::new);
 

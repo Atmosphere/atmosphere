@@ -264,7 +264,21 @@ public class AiEndpointProcessor implements Processor<Object> {
                                                   AiCapability[] requiredCapabilities) {
         var allBackends = AgentRuntimeResolver.resolveAll();
         for (var backend : allBackends) {
-            backend.configure(settings);
+            // configure() may throw if a runtime tries to eagerly construct its
+            // native client and the underlying CDI / connection pool / TLS layer
+            // is not yet ready (Quarkus L4j synthetic ChatModel beans pull in
+            // TlsConfigurationRegistry which is not initialised during servlet
+            // init). Swallow the exception with a clear log line so endpoint
+            // registration completes; the runtime will be re-resolved at request
+            // time when the bean graph is fully wired and report isAvailable=false
+            // through the normal capability check if it is still misconfigured.
+            try {
+                backend.configure(settings);
+            } catch (RuntimeException e) {
+                logger.warn("Backend {} failed eager configure() — endpoint registration "
+                                + "will continue and the runtime will be re-resolved at request time. "
+                                + "Reason: {}", backend.name(), e.toString());
+            }
         }
 
         if (strategy != ModelRouter.FallbackStrategy.NONE && allBackends.size() > 1) {

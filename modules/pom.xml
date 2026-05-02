@@ -28,9 +28,11 @@
         <module>agui</module>
         <module>kotlin</module>
         <module>spring-ai</module>
+        <module>spring-ai-alibaba</module>
         <module>langchain4j</module>
         <module>embabel</module>
         <module>koog</module>
+        <module>agentscope</module>
         <module>semantic-kernel</module>
         <module>redis</module>
         <module>kafka</module>
@@ -51,6 +53,7 @@
         <module>sandbox</module>
         <module>quarkus-extension</module>
         <module>quarkus-admin-extension</module>
+        <module>quarkus-langchain4j</module>
         <module>wasync</module>
         <module>skills</module>
     </modules>

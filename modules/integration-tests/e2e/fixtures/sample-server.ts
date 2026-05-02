@@ -177,6 +177,23 @@ export const SAMPLES: Record<string, SampleConfig> = {
     type: 'spring-boot',
     readyPath: '/atmosphere/ai-chat',
   },
+  'quarkus-ai-chat': {
+    name: 'quarkus-ai-chat',
+    dir: 'quarkus-ai-chat',
+    port: 18810,
+    type: 'quarkus',
+    readyPath: '/atmosphere/ai-chat',
+    // The sample defaults the OpenAI key to `dummy`; that lets the Quarkus
+    // LangChain4j synthetic StreamingChatModel bean materialise (so the
+    // atmosphere-quarkus-langchain4j bridge can wire it) without forcing a
+    // real LLM call. Real round-trips happen in dev / chrome-devtools, not
+    // in this admission test. QUARKUS_HTTP_PORT pins the listener — the
+    // Quarkus type does not pass --server.port like the spring-boot type.
+    env: {
+      LLM_API_KEY: 'dummy-not-real',
+      QUARKUS_HTTP_PORT: '18810',
+    },
+  },
 };
 
 /**

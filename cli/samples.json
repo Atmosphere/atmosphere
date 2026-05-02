@@ -368,6 +368,22 @@
       "hasFrontend": true
     },
     {
+      "name": "quarkus-ai-chat",
+      "description": "Quarkus @AiEndpoint streaming via Quarkus LangChain4j",
+      "category": "ai",
+      "tags": [
+        "quarkus",
+        "websocket",
+        "ai",
+        "langchain4j",
+        "streaming"
+      ],
+      "port": 18810,
+      "runnable": true,
+      "packaging": "quarkus",
+      "hasFrontend": true
+    },
+    {
       "name": "embedded-jetty-websocket-chat",
       "description": "Embedded Jetty WebSocket chat (no framework)",
       "category": "chat",

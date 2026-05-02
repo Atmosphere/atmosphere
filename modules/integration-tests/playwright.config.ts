@@ -67,6 +67,10 @@ export default defineConfig({
       testMatch: /spring-boot-ai-chat\.spec\.ts/,
     },
     {
+      name: 'quarkus-ai-chat',
+      testMatch: /quarkus-ai-chat\.spec\.ts/,
+    },
+    {
       name: 'durable-sessions',
       testMatch: /durable-sessions\.spec\.ts/,
     },

@@ -263,14 +263,20 @@ printf "\n${BOLD}Atmosphere CLI --runtime overlay E2E${RESET}\n"
 #     registry, and ignores Atmosphere's `llm.model`. Pass the override via
 #     SPRING_APPLICATION_JSON so the ai-chat template's application.yml
 #     stays untouched.
-test_runtime builtin         "built-in"        18801 ""
-test_runtime spring-ai       "spring-ai"       18802 ""
-test_runtime langchain4j     "langchain4j"     18803 ""
-test_runtime semantic-kernel "semantic-kernel" 18804 ""
-test_runtime adk             "google-adk"      18805 ""
-test_runtime koog            "koog"            18806 ""
-test_runtime embabel         "embabel"         18807 "-Pspring-boot3" "" "" "" \
+test_runtime builtin           "built-in"          18801 ""
+test_runtime spring-ai         "spring-ai"         18802 ""
+test_runtime langchain4j       "langchain4j"       18803 ""
+test_runtime semantic-kernel   "semantic-kernel"   18804 ""
+test_runtime adk               "google-adk"        18805 ""
+test_runtime koog              "koog"              18806 ""
+test_runtime embabel           "embabel"           18807 "-Pspring-boot3" "" "" "" \
     'SPRING_APPLICATION_JSON={"embabel":{"models":{"default-llm":"gemini-2.5-flash"}}}'
+test_runtime agentscope        "agentscope"        18808 ""
+# spring-ai-alibaba 1.1.2.0 transitively pulls Spring AI 1.1.2 which targets
+# Spring Boot 3.x autoconfigure classes (RestClientAutoConfiguration moved
+# in SB4) — same situation as embabel. -Pspring-boot3 routes the parent
+# atmosphere profile to the SB 3.5 starter so the boot succeeds.
+test_runtime spring-ai-alibaba "spring-ai-alibaba" 18809 "-Pspring-boot3"
 
 # Why no --force boot test:
 # Samples that actually pre-pin a non-default adapter (ai-tools, rag) also

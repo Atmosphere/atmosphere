@@ -79,6 +79,16 @@
                 <artifactId>atmosphere-koog</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-agentscope</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-spring-ai-alibaba</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- RAG -->
             <dependency>
@@ -161,6 +171,16 @@
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-quarkus-admin-extension</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-quarkus-langchain4j</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-quarkus-langchain4j-deployment</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

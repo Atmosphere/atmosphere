@@ -18,7 +18,7 @@
 
 ---
 
-A `@Agent` class runs on any of seven AI runtimes (built-in OpenAI, Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, Microsoft Semantic Kernel) and is served over any of five transports (WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC) plus three agent protocols (MCP, A2A, AG-UI) and six channels (web, Slack, Telegram, Discord, WhatsApp, Messenger). Runtime and transport are swapped by changing a Maven dependency.
+A `@Agent` class runs on any of nine AI runtimes (built-in OpenAI, Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, Microsoft Semantic Kernel, Alibaba AgentScope, Spring AI Alibaba) and is served over any of five transports (WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC) plus three agent protocols (MCP, A2A, AG-UI) and six channels (web, Slack, Telegram, Discord, WhatsApp, Messenger). Runtime and transport are swapped by changing a Maven dependency.
 
 Atmosphere owns the broadcaster, which enables capabilities a pure orchestration library cannot provide: per-token PII rewriting in flight, per-tenant cost ceilings that block dispatch at the gateway, durable reconnect that replays mid-stream events after a client drop, triple-gate authorization on the admin control plane.
 
@@ -129,7 +129,7 @@ What this registers depends on which modules are on the classpath:
 
 | Capability | Module | Key types |
 |---|---|---|
-| AI runtimes | `atmosphere-ai`, `atmosphere-spring-ai`, `atmosphere-langchain4j`, `atmosphere-adk`, `atmosphere-koog`, `atmosphere-embabel`, `atmosphere-semantic-kernel` | `AgentRuntime` SPI; capability matrix pinned in `AbstractAgentRuntimeContractTest` |
+| AI runtimes | `atmosphere-ai`, `atmosphere-spring-ai`, `atmosphere-langchain4j`, `atmosphere-adk`, `atmosphere-koog`, `atmosphere-embabel`, `atmosphere-semantic-kernel`, `atmosphere-agentscope`, `atmosphere-spring-ai-alibaba` | `AgentRuntime` SPI; capability matrix pinned in `AbstractAgentRuntimeContractTest` |
 | Multi-agent coordination | `atmosphere-coordinator` | `@Coordinator`, `@Fleet`, `@AgentRef`; parallel / sequential / conditional routing; coordination journal |
 | Agent protocols | `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui` | auto-registered endpoints per `@Agent`; A2A v1.0.0 |
 | Channels | `atmosphere-channels` | Slack, Telegram, Discord, WhatsApp, Messenger dispatch from one `@Command` |
@@ -262,7 +262,7 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 </dependency>
 ```
 
-Optional: `atmosphere-ai`, `atmosphere-spring-ai`, `atmosphere-langchain4j`, `atmosphere-adk`, `atmosphere-koog`, `atmosphere-embabel`, `atmosphere-semantic-kernel`, `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`, `atmosphere-channels`, `atmosphere-coordinator`, `atmosphere-admin`. Add to classpath and features auto-register.
+Optional: `atmosphere-ai`, `atmosphere-spring-ai`, `atmosphere-langchain4j`, `atmosphere-adk`, `atmosphere-koog`, `atmosphere-embabel`, `atmosphere-semantic-kernel`, `atmosphere-agentscope`, `atmosphere-spring-ai-alibaba`, `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`, `atmosphere-channels`, `atmosphere-coordinator`, `atmosphere-admin`. Add to classpath and features auto-register.
 
 **Requirements:** Java 21+ &middot; Spring Boot 4.0.5+ or Quarkus 3.31.3+ &middot; Current release: see the Maven Central badge above
 

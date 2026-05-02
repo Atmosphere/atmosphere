@@ -1,0 +1,13 @@
+name: Atmosphere Quarkus LangChain4j Bridge
+description: Bridges Quarkus LangChain4j's CDI-managed StreamingChatModel into Atmosphere's LangChain4jAgentRuntime so a Quarkus app gets real-time AI streaming through Atmosphere transports without manual SPI wiring.
+metadata:
+  keywords:
+    - atmosphere
+    - langchain4j
+    - quarkus-langchain4j
+    - ai
+    - streaming
+    - websocket
+  categories:
+    - "ai"
+    - "reactive"
