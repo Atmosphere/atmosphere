@@ -29,7 +29,10 @@ on:
       - 'modules/ai/**'
       - 'modules/spring-ai/**'
       - 'modules/langchain4j/**'
+      - 'modules/quarkus-langchain4j/**'
+      - 'modules/quarkus-extension/**'
       - 'modules/integration-tests/**'
+      - 'samples/quarkus-ai-chat/**'
       - '.github/workflows/e2e-real-llm.yml'
   workflow_dispatch:
 
@@ -110,6 +113,14 @@ jobs:
           # runtime bridges the real-LLM handler touches at startup.
           ./mvnw -q install -pl modules/integration-tests -am -DskipTests
 
+      - name: Package quarkus-ai-chat sample
+        run: |
+          # The quarkus-ai-chat playwright project drives the packaged Quarkus
+          # JAR (target/quarkus-app/quarkus-run.jar). The previous step's
+          # install does not run the package phase, so the runnable artifact
+          # would not exist; package once explicitly here.
+          ./mvnw -q package -pl samples/quarkus-ai-chat -DskipTests
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -136,6 +147,20 @@ jobs:
           LLM_API_KEY: ollama-no-key-needed
         run: |
           npx playwright test --project=real-llm-chat --reporter=list
+
+      - name: Run quarkus-ai-chat real-LLM E2E
+        working-directory: modules/integration-tests
+        env:
+          # Same Ollama target — the quarkus-ai-chat application.properties
+          # substitutes ${LLM_BASE_URL}, ${LLM_MODEL}, ${LLM_API_KEY} into
+          # the quarkus.langchain4j.openai.* keys, so propagating these env
+          # vars is enough to point the bridge at the local Ollama service.
+          LLM_MODE: real-ollama
+          LLM_BASE_URL: http://localhost:11434/v1
+          LLM_MODEL: qwen2.5:0.5b
+          LLM_API_KEY: ollama-no-key-needed
+        run: |
+          npx playwright test --project=quarkus-ai-chat --reporter=list
 
       - name: Upload test results
         if: always()

@@ -66,6 +66,12 @@ jobs:
           # runtime bridges the real-LLM handler touches at startup.
           ./mvnw -q install -pl modules/integration-tests -am -DskipTests
 
+      - name: Package quarkus-ai-chat sample
+        run: |
+          # The quarkus-ai-chat playwright project drives the packaged
+          # quarkus-run.jar, which install -DskipTests does not produce.
+          ./mvnw -q package -pl samples/quarkus-ai-chat -DskipTests
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -96,6 +102,20 @@ jobs:
             exit 0
           fi
           npx playwright test --project=real-llm-chat --reporter=list
+
+      - name: Run quarkus-ai-chat real-LLM E2E (${{ matrix.provider.name }})
+        working-directory: modules/integration-tests
+        env:
+          LLM_MODE: real-${{ matrix.provider.name }}
+          LLM_BASE_URL: ${{ matrix.provider.base_url }}
+          LLM_MODEL: ${{ matrix.provider.model }}
+          LLM_API_KEY: ${{ secrets[matrix.provider.secret] }}
+        run: |
+          if [ -z "$LLM_API_KEY" ]; then
+            echo "${{ matrix.provider.secret }} secret not set — skipping" >&2
+            exit 0
+          fi
+          npx playwright test --project=quarkus-ai-chat --reporter=list
 
       - name: Upload test results
         if: always()
