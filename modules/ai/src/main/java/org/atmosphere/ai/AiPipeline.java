@@ -414,6 +414,10 @@ public class AiPipeline {
                 contextProviders, request.metadata(), history,
                 effectiveResponseType, strategy);
 
+        if (Boolean.TRUE.equals(request.metadata().get(AiEventForwardingListener.METADATA_KEY))) {
+            context = context.withListeners(List.of(new AiEventForwardingListener(target)));
+        }
+
         // Pipeline-level response cache: when the request opts in via
         // CacheHint and a ResponseCache is installed, check for a prior
         // identical response first. On hit, replay through the session

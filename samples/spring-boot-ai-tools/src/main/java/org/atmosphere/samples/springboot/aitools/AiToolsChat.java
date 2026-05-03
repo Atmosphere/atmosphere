@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
         conversationMemory = true,
         maxHistoryMessages = 30,
         tools = AssistantTools.class,
-        interceptors = CostMeteringInterceptor.class)
+        interceptors = {CostMeteringInterceptor.class, LifecycleForwardingInterceptor.class})
 @AgentScope(unrestricted = true,
         justification = "Tool-calling demo — accepts arbitrary prompts to exercise @AiTool dispatch across runtimes.")
 public class AiToolsChat {

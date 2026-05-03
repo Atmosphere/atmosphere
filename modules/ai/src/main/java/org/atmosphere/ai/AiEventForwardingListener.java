@@ -30,6 +30,24 @@ import java.util.Map;
  * instance against the request's listener list and the runtime takes care
  * of the wire-protocol fan-out:</p>
  *
+ * <p>The recommended wiring path inside an {@code @AiEndpoint} flow is the
+ * {@link #METADATA_KEY} flag — set it from an {@link AiInterceptor} and
+ * {@link AiPipeline} attaches a fresh listener bound to the live session
+ * for you:</p>
+ *
+ * <pre>{@code
+ * public class LifecycleForwardingInterceptor implements AiInterceptor {
+ *     @Override
+ *     public AiRequest preProcess(AiRequest request, AtmosphereResource r) {
+ *         return request.withMetadata(Map.of(
+ *                 AiEventForwardingListener.METADATA_KEY, Boolean.TRUE));
+ *     }
+ * }
+ * }</pre>
+ *
+ * <p>For raw {@link AgentRuntime#execute} callers (no {@code @AiEndpoint},
+ * no pipeline) the listener can still be wired manually:</p>
+ *
  * <pre>{@code
  * var session = StreamingSessions.start("chat", resource);
  * var listeners = List.of(new AiEventForwardingListener(session));
@@ -44,6 +62,19 @@ import java.util.Map;
  * appenders, structured-log writers) can sit alongside it.</p>
  */
 public class AiEventForwardingListener implements AgentLifecycleListener {
+
+    /**
+     * Metadata key callers set to {@code Boolean.TRUE} on {@link AiRequest#metadata()}
+     * (typically from an {@link AiInterceptor}) to opt into automatic forwarding of
+     * model-lifecycle events to the wire. {@link AiPipeline} reads this key after
+     * running interceptors and, when set, attaches a fresh
+     * {@code AiEventForwardingListener(target)} to the {@link AgentExecutionContext}'s
+     * listener list before dispatching to the runtime — so browser clients receive
+     * {@code progress} frames carrying {@code model:start} / {@code model:end} /
+     * {@code model:error} payloads without the {@code @AiEndpoint} author having to
+     * touch {@code AgentExecutionContext} or instantiate the listener manually.
+     */
+    public static final String METADATA_KEY = "ai.lifecycle.forwardEvents";
 
     private final StreamingSession session;
 
