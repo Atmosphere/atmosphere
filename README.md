@@ -18,7 +18,7 @@
 
 ---
 
-A `@Agent` class runs on any of nine AI runtimes (built-in OpenAI, Spring AI, LangChain4j, Google ADK, Embabel, JetBrains Koog, Microsoft Semantic Kernel, Alibaba AgentScope, Spring AI Alibaba) and is served over any of five transports (WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC) plus three agent protocols (MCP, A2A, AG-UI) and six channels (web, Slack, Telegram, Discord, WhatsApp, Messenger). Runtime and transport are swapped by changing a Maven dependency.
+A `@Agent` class runs on one of nine `AgentRuntime` adapters — a built-in OpenAI-compatible client plus framework integrations for Spring AI, LangChain4j, Google ADK, JetBrains Koog, Microsoft Semantic Kernel, and Alibaba AgentScope on Spring Boot 4, with Embabel and Spring AI Alibaba pinned to Spring Boot 3.5 (see the [adapter table](#ai-runtimes)). The same `@Agent` is served over five transports (WebTransport over HTTP/3, WebSocket, SSE, long-polling, gRPC), three agent protocols (MCP, A2A v1.0.0, AG-UI), and five external messaging channels (Slack, Telegram, Discord, WhatsApp, Messenger) in addition to the default browser endpoint. Runtime, transport, and channel are swapped by changing a Maven dependency.
 
 Atmosphere owns the broadcaster, which enables capabilities a pure orchestration library cannot provide: per-token PII rewriting in flight, per-tenant cost ceilings that block dispatch at the gateway, durable reconnect that replays mid-stream events after a client drop, triple-gate authorization on the admin control plane.
 
@@ -125,15 +125,32 @@ What this registers depends on which modules are on the classpath:
 | Grounded facts | `atmosphere-ai` | `FactResolver` SPI, per-turn; values escaped before prompt injection |
 | Permission modes | `atmosphere-ai` | `PermissionMode.DEFAULT` / `PLAN` / `ACCEPT_EDITS` / `BYPASS` / `DENY_ALL` — runtime config, not redeploy |
 
-### AI runtimes & multi-agent
+### AI runtimes
+
+`atmosphere-ai` ships the `AgentRuntime` SPI plus the **Built-in** OpenAI-compatible adapter (works against OpenAI / Anthropic / Ollama / any OpenAI-compatible endpoint). Eight framework adapters live in their own modules — drop one on the classpath and `@Agent` dispatches through it. Each adapter's capability flags are pinned by a contract test in `AbstractAgentRuntimeContractTest.expectedCapabilities()`, so the rows below cannot drift from the running code.
+
+| Module | Backing framework | Spring Boot | Capability highlights | Notes |
+|---|---|---|---|---|
+| `atmosphere-ai` (Built-in) | OpenAI-compatible HTTP client | 3.5 / 4.0 | tool calling (5 rounds), JSON mode, vision, audio, prompt caching, token usage, native retry, tool-call deltas | Default. No third-party SDK on the classpath required. |
+| `atmosphere-spring-ai` | Spring AI 2.0.0-M2 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | |
+| `atmosphere-langchain4j` | LangChain4j 1.12.2 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | |
+| `atmosphere-adk` | Google ADK 1.0.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching | Multi-agent runtime — exposes `AGENT_ORCHESTRATION`. |
+| `atmosphere-koog` | JetBrains Koog 0.7.3 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching (Bedrock cache control) | Multi-agent runtime. |
+| `atmosphere-semantic-kernel` | Microsoft Semantic Kernel 1.4.0 | 4.0 | tool calling, structured output, token usage | No vision / audio path through the SK Java SDK today. |
+| `atmosphere-agentscope` | Alibaba AgentScope 1.0.12 | 4.0 | structured output, conversation memory, token usage | No native tool-call dispatch in the SDK; tools must be invoked manually. |
+| `atmosphere-embabel` | Embabel 0.3.4 | **3.5 only** | agent orchestration, tool calling, vision, conversation memory | Embabel does not yet support Spring Boot 4. Use `atmosphere-spring-boot3-starter` and the `-Pspring-boot3` profile. |
+| `atmosphere-spring-ai-alibaba` | Spring AI Alibaba 1.1.2.0 (transitively pins Spring AI 1.1.2) | **3.5 only** | structured output, conversation memory | LLM round-trip is buffered by `ReactAgent.call()` — no token deltas; Atmosphere still streams the final reply chunk over WebSocket / SSE. For token-by-token streaming, use `atmosphere-spring-ai`. SB4 path blocked on Alibaba publishing a Spring AI 2.x agent-framework. |
+
+The full capability matrix (text streaming, tool calling, structured output, system prompt, agent orchestration, conversation memory, tool approval, vision, audio, multi-modal, prompt caching, token usage, per-request retry, tool-call deltas) lives in [`modules/ai/README.md`](modules/ai/README.md#capability-matrix); contract tests fail the build if any runtime drifts from its declared row.
+
+### Multi-agent, protocols, channels
 
 | Capability | Module | Key types |
 |---|---|---|
-| AI runtimes | `atmosphere-ai`, `atmosphere-spring-ai`, `atmosphere-langchain4j`, `atmosphere-adk`, `atmosphere-koog`, `atmosphere-embabel`, `atmosphere-semantic-kernel`, `atmosphere-agentscope`, `atmosphere-spring-ai-alibaba` | `AgentRuntime` SPI; capability matrix pinned in `AbstractAgentRuntimeContractTest` |
-| Multi-agent coordination | `atmosphere-coordinator` | `@Coordinator`, `@Fleet`, `@AgentRef`; parallel / sequential / conditional routing; coordination journal |
-| Agent protocols | `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui` | auto-registered endpoints per `@Agent`; A2A v1.0.0 |
-| Channels | `atmosphere-channels` | Slack, Telegram, Discord, WhatsApp, Messenger dispatch from one `@Command` |
-| Evaluation | `atmosphere-ai-test` | `LlmJudge` (`meetsIntent`, `isGroundedIn`, `hasQuality`); `AbstractAgentRuntimeContractTest` |
+| Multi-agent coordination | `atmosphere-coordinator` | `@Coordinator`, `@Fleet`, `@AgentRef`; `LocalAgentTransport` (in-JVM) and `A2aAgentTransport` (HTTP JSON-RPC); parallel / sequential / conditional routing; coordination journal |
+| Agent protocols | `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui` | auto-registered endpoint per `@Agent` per protocol; A2A v1.0.0 with pre-1.0 method aliases |
+| Messaging channels | `atmosphere-channels` | Five `MessagingChannel` implementations: Slack, Telegram, Discord, WhatsApp, Messenger — one `@Command` dispatched to all, plus the default browser endpoint via WebSocket / SSE |
+| Evaluation | `atmosphere-ai-test` | `LlmJudge` (`meetsIntent`, `isGroundedIn`, `hasQuality`); `AbstractAgentRuntimeContractTest` for runtime contract pinning |
 
 ### Governance & compliance
 
@@ -157,9 +174,7 @@ What this registers depends on which modules are on the classpath:
 | Admin control plane | `atmosphere-admin` | `/atmosphere/admin/` UI, `/api/admin/*` REST, MCP tools; triple-gate (feature flag → Principal → `ControlAuthorizer`) |
 | Flow viewer | `atmosphere-admin` | `GET /api/admin/flow` — JSON graph keyed by `coordinationId` (nodes, edges, success / failure / avg duration) |
 | Admin governance surface | `atmosphere-admin` + starter | `GET /governance/{policies,health,decisions,owasp,compliance,agt-verify}`; `POST /governance/{check,reload,kill-switch/arm,kill-switch/disarm}` |
-| Sandbox | `atmosphere-sandbox` | `Sandbox` / `SandboxProvider`; Docker default (`--network none`, argv-form exec, strict mount); `ServiceLoader` for Firecracker / Kata / E2B / Modal |
-
-The AI-runtime capability matrix — which runtimes ship tool calling, structured output, multi-modal input, prompt caching, embeddings, retry — lives in [`modules/ai/README.md`](modules/ai/README.md#capability-matrix) and is enforced by `AbstractAgentRuntimeContractTest.expectedCapabilities()`, so the matrix and the runtime code cannot drift.
+| Sandbox | `atmosphere-sandbox` | `Sandbox` / `SandboxProvider` SPI; two providers ship in-tree — `DockerSandboxProvider` (default; `--network none`, argv-form exec, strict mount validation) and `InProcessSandboxProvider` (tests). The `ServiceLoader` is open for third-party Firecracker / Kata / Vercel Sandbox / E2B / Modal / Blaxel providers; none ship in-tree. |
 
 ## Governance
 
@@ -262,9 +277,23 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 </dependency>
 ```
 
-Optional: `atmosphere-ai`, `atmosphere-spring-ai`, `atmosphere-langchain4j`, `atmosphere-adk`, `atmosphere-koog`, `atmosphere-embabel`, `atmosphere-semantic-kernel`, `atmosphere-agentscope`, `atmosphere-spring-ai-alibaba`, `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`, `atmosphere-channels`, `atmosphere-coordinator`, `atmosphere-admin`. Add to classpath and features auto-register.
+Add only what you need — every module below is opt-in and auto-registers when on the classpath:
 
-**Requirements:** Java 21+ &middot; Spring Boot 4.0.5+ or Quarkus 3.31.3+ &middot; Current release: see the Maven Central badge above
+- **AI runtime** — `atmosphere-ai` (Built-in), or one of the framework adapters listed in the [adapter table](#ai-runtimes)
+- **Protocols** — `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`
+- **External channels** — `atmosphere-channels` (Slack, Telegram, Discord, WhatsApp, Messenger)
+- **Multi-agent** — `atmosphere-coordinator`
+- **Admin / control plane** — `atmosphere-admin`
+- **Plan-and-verify** — `atmosphere-verifier`
+- **Sandbox** — `atmosphere-sandbox` (Docker by default)
+- **Durable sessions / replay** — `atmosphere-durable-sessions` plus `atmosphere-durable-sessions-sqlite` or `atmosphere-durable-sessions-redis`
+- **Checkpoints** — `atmosphere-checkpoint`
+- **Audit sinks** — `atmosphere-ai-audit-kafka`, `atmosphere-ai-audit-postgres`
+- **Policy engines** — `atmosphere-ai-policy-rego` (OPA), `atmosphere-ai-policy-cedar` (AWS Cedar)
+
+For Spring Boot 3.5 deployments (required if you use Embabel or Spring AI Alibaba), substitute `atmosphere-spring-boot3-starter` and build with the `-Pspring-boot3` profile.
+
+**Requirements:** Java 21+ &middot; Spring Boot 4.0.5 (or 3.5 via the `-Pspring-boot3` profile) or Quarkus 3.31.3+ &middot; Current release: see the Maven Central badge above
 
 ## Documentation
 
