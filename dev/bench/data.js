@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777877953255,
+  "lastUpdate": 1777897160805,
   "repoUrl": "https://github.com/Atmosphere/atmosphere",
   "entries": {
     "Atmosphere JMH Benchmarks": [
@@ -27532,6 +27532,276 @@ window.BENCHMARK_DATA = {
           {
             "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.listByCoordination ( {\"snapshotCount\":\"10000\"} )",
             "value": 2497.783054908486,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfarcand@apache.org",
+            "name": "jfarcand",
+            "username": "jfarcand"
+          },
+          "committer": {
+            "email": "jfarcand@apache.org",
+            "name": "jfarcand",
+            "username": "jfarcand"
+          },
+          "distinct": true,
+          "id": "eec98890fe12f756de24d690e8677cbd99411424",
+          "message": "feat(ai): close runtime extension matrix — sidecars + lifecycle hooks + Quarkus sample parity\nCloses 8 half-baked surfaces across modules/ai + framework adapters. (1) Capability-truth fix (374631e7): AgentScope + Spring AI Alibaba now declare PER_REQUEST_RETRY honestly — they were silently inheriting AbstractAgentRuntime.executeWithOuterRetry but advertising '—'; pinned via *RuntimeContractTest.expectedCapabilities. (2) Per-runtime sample violation removed: spring-boot-koog-chat deleted (SPI promise = swap one Maven dep, same sample works); cli/samples.json + cli/atmosphere template map + samples/README.md + e2e fixture + Playwright config + release/e2e workflows updated atomically. (3) Four orphan samples registered in CLI distribution: spring-boot-coding-agent / guarded-email-agent / personal-assistant / reattach-harness — `atmosphere new` can scaffold them and sample-matrix-smoke covers them. (4) ToolLoopPolicy adoption: KoogAgentRuntime now reads ToolLoopPolicies.fromOrDefault(ctx) and translates to AIAgent.maxIterations × 2 (Koog counts LLM rounds + tool steps); 6 honest N/A entries documented for runtimes whose upstream API exposes no mappable knob (Spring AI 2.0.0-M2, Spring AI Alibaba, ADK, SK 1.4.0, AgentScope, Embabel) — modules/koog/README.md adds a 'Per-Request Tool-Loop Cap' section showing the strict + interceptor patterns. (5) AgentLifecycleListener.fireModelStart/End/Error wired in all 8 framework runtimes (was Built-in only): Spring AI from the Reactor flux subscribe path with captured-usage AtomicReference; LC4j from CancelAwareStreamingHandler (translates LC4j TokenUsage → Atmosphere TokenUsage); Koog from onLLMCallStarting/onLLMCallCompleted feature handlers + catch-block fireModelError; ADK via new AdkEventAdapter.bridge(events,session,listeners,modelName,msgs,tools) overload that captures latest TokenUsage from extractUsageMetadata; Embabel from execute() wrapper threading lastUsage through executeDeployedAgent so AgentProcess.usage() ends up on the hook; SK from new SemanticKernelStreamingAdapter.drain(flux,session,listeners,modelName) overload; AgentScope from Reactor subscribe path stashing terminal-msg ChatUsage; Spring AI Alibaba before/after ReactAgent.call() with onModelEnd carrying null TokenUsage (Alibaba's AssistantMessage has no usage surface in v1.1.2.0). (6) Four new per-request sidecar bridges close the framework matrix — every runtime now has an escape hatch: AgentScopeAgent (per-request ReActAgent), SemanticKernelInvocation (per-request InvocationContext — unlocks KernelHooks, withMaxAutoInvokeAttempts, custom PromptExecutionSettings), EmbabelPromptRunner (UnaryOperator<PromptRunner> customizer applied AFTER default wiring so withTemperature/withModel/withGuardrails stack on top — Atmosphere-native dispatch path only), SpringAiAlibabaRunnableConfig (per-request RunnableConfig — Alibaba's natural per-invocation handle for threadId/checkPointId/streamMode/metadata/store; runtime dispatches via agent.call(messages,config) when attached or no-arg otherwise). All eight follow the canonical sidecar contract (METADATA_KEY constant, from(context) returns null on missing slot and throws IAE on wrong-type slot, attach() replaces+preserves-other-metadata, types live inside their own module so modules/ai stays free of framework deps); 27 new bridge-helper tests pin every guarantee. (7) Doc closure: modules/ai/README.md capability matrix corrected, new 'Per-Request Sidecar Bridges' section enumerating all 8 helpers + canonical metadata keys, 'Per-Request Retry Architecture' section documenting the two-tier model; per-module READMEs (agentscope, embabel, semantic-kernel, spring-ai-alibaba) document their new sidecar with Java + Kotlin recipes; SK README's stale 'tool calling deferred' lie replaced with honest 'TOOL_CALLING via SemanticKernelToolBridge — KernelFunction subclass routing through ToolExecutionHelper.executeWithApproval'. (8) Quarkus sample parity: samples/quarkus-ai-chat ports the four missing AI demos (PromptCacheDemoChat / RetryDemoChat / MultiModalChat / ReviewExtractor + MovieReview record) byte-for-byte from spring-boot-ai-chat — proves AgentRuntime SPI is platform-portable; modules/quarkus-extension/README.md adds an honest 14-row Spring↔Quarkus auto-config gap table (4 wired, 8 documented gaps with workaround for each); quarkus.http.port=18810 pinned to match e2e fixture + README. End-to-end validated through the bundled Atmosphere Console UI in chrome-devtools against Ollama qwen2.5:0.5b: AiChat streamed a real LLM reply through the DOM; RetryDemoChat fail-once:<id> emitted retry.attempt=1 + error then retry.attempt=2 + complete; MultiModalChat image:<base64-PNG> emitted a content frame + multimodal.bytes=68 metadata; PromptCacheDemoChat first identical prompt → ai.cache.hit=false, second → ai.cache.hit=true. 318 module tests + 27 new bridge tests pass.",
+          "timestamp": "2026-05-04T07:57:56-04:00",
+          "tree_id": "a35c319a54b5165faf7cdab6723cb7bb7f7103e9",
+          "url": "https://github.com/Atmosphere/atmosphere/commit/eec98890fe12f756de24d690e8677cbd99411424"
+        },
+        "date": 1777897159693,
+        "tool": "jmh",
+        "benches": [
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BroadcasterDispatchBenchmark.broadcastToAll ( {\"subscriberCount\":\"1\"} )",
+            "value": 11361870.826906338,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BroadcasterDispatchBenchmark.broadcastToAll ( {\"subscriberCount\":\"10\"} )",
+            "value": 6088986.640681948,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BroadcasterDispatchBenchmark.broadcastToAll ( {\"subscriberCount\":\"100\"} )",
+            "value": 695731.4565894058,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BroadcasterDispatchBenchmark.broadcastToAll ( {\"subscriberCount\":\"1000\"} )",
+            "value": 264103.0236843098,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.saveHot ( {\"snapshotCount\":\"100\"} )",
+            "value": 300767.0368423422,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.saveHot ( {\"snapshotCount\":\"1000\"} )",
+            "value": 291418.81568108284,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.saveHot ( {\"snapshotCount\":\"10000\"} )",
+            "value": 287200.6780157238,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AgentRuntimeResolverBenchmark.resolveAllSorted",
+            "value": 0.7059799661860028,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AgentRuntimeResolverBenchmark.resolveFirst",
+            "value": 0.8852716449385682,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"0\"} )",
+            "value": 0.7059070847684078,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"1\"} )",
+            "value": 1.8295418384056195,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"4\"} )",
+            "value": 3.6476796510033,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"16\"} )",
+            "value": 9.327316682840339,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"64\"} )",
+            "value": 25.931502265479747,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"0\"} )",
+            "value": 0.8764940057676589,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"1\"} )",
+            "value": 4.005663771654996,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"4\"} )",
+            "value": 6.005106610523092,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"16\"} )",
+            "value": 12.32330156523414,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"64\"} )",
+            "value": 29.122795445622447,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BusinessMdcBenchmark.baseline",
+            "value": 0.36501205924036045,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BusinessMdcBenchmark.snapshotApplyClear",
+            "value": 16.709868957582085,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BusinessMdcBenchmark.snapshotEmptyThenApplyClear",
+            "value": 2.0363756671941218,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.forkChain ( {\"snapshotCount\":\"100\"} )",
+            "value": 7.130805755309955,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.forkChain ( {\"snapshotCount\":\"1000\"} )",
+            "value": 8.802035059273281,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.forkChain ( {\"snapshotCount\":\"10000\"} )",
+            "value": 7.585703141225075,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.loadRandom ( {\"snapshotCount\":\"100\"} )",
+            "value": 54.697149215076934,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.loadRandom ( {\"snapshotCount\":\"1000\"} )",
+            "value": 67.99670628395961,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.loadRandom ( {\"snapshotCount\":\"10000\"} )",
+            "value": 93.18626834247702,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CoordinatorFanOutBenchmark.parallelFanOut ( {\"fanOutCount\":\"2\"} )",
+            "value": 28.321783785570343,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CoordinatorFanOutBenchmark.parallelFanOut ( {\"fanOutCount\":\"4\"} )",
+            "value": 31.215246502842465,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CoordinatorFanOutBenchmark.parallelFanOut ( {\"fanOutCount\":\"8\"} )",
+            "value": 31.571624409567292,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CoordinatorFanOutBenchmark.parallelFanOut ( {\"fanOutCount\":\"16\"} )",
+            "value": 36.26524207262298,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.msAgentOsRuleMatch",
+            "value": 0.09436070793155647,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.ruleBasedInjectionFlagged",
+            "value": 0.7858987972373197,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.ruleBasedInjectionSafe",
+            "value": 5.160136258597545,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.ruleBasedScopeAdmit",
+            "value": 2.4864199783439456,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.ruleBasedScopeDeny",
+            "value": 0.5229642111007219,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.semanticIntentScopeAdmit",
+            "value": 0.09158216181869629,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.listByCoordination ( {\"snapshotCount\":\"100\"} )",
+            "value": 6.097511695459421,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.listByCoordination ( {\"snapshotCount\":\"1000\"} )",
+            "value": 81.38190578077062,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.listByCoordination ( {\"snapshotCount\":\"10000\"} )",
+            "value": 2495.33758672199,
             "unit": "us/op",
             "extra": "iterations: 3\nforks: 1\nthreads: 1"
           }
