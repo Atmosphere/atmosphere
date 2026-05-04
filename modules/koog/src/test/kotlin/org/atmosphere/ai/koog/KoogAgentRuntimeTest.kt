@@ -273,7 +273,7 @@ class KoogAgentRuntimeTest {
     @Test
     fun `ReasoningDelta frame is forwarded as progress AiEvent`() {
         KoogAgentRuntime.setPromptExecutor(fakeExecutor(
-            StreamFrame.ReasoningDelta("Thinking about the answer..."),
+            StreamFrame.ReasoningDelta(text = "Thinking about the answer..."),
             StreamFrame.End()
         ))
 
@@ -340,7 +340,7 @@ class KoogAgentRuntimeTest {
     @Test
     fun `full streaming lifecycle with mixed frame types`() {
         KoogAgentRuntime.setPromptExecutor(fakeExecutor(
-            StreamFrame.ReasoningDelta("Let me think..."),
+            StreamFrame.ReasoningDelta(text = "Let me think..."),
             StreamFrame.TextDelta("Hello, "),
             StreamFrame.TextDelta("world!"),
             StreamFrame.TextDelta(" The time is 3pm."),
