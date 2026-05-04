@@ -373,22 +373,6 @@
                 <checkstyle.skip>true</checkstyle.skip>
             </properties>
         </profile>
-        <!-- Align netty.version with Spring Boot 3.5's transitive Netty
-             baseline. The default 4.2.x pin (above) is the CVE-corrected
-             version for Spring Boot 4 (which ships 4.2.x). Spring Boot 3.5.x
-             ships Netty 4.1.x, so the unconditional pin on netty-codec-http
-             and netty-codec-http2 mixes 4.2.x http codecs with 4.1.x common
-             and triggers NoClassDefFoundError on LeakPresenceDetector when
-             reactor-netty initializes. Sibling samples such as
-             spring-boot-ai-chat declare a matching <profile id="spring-boot3">
-             that switches the starter — this profile completes the swap on
-             the parent side. Activated automatically with -Pspring-boot3. -->
-        <profile>
-            <id>spring-boot3</id>
-            <properties>
-                <netty.version>4.1.122.Final</netty.version>
-            </properties>
-        </profile>
         <profile>
             <id>release-profile</id>
             <properties>
@@ -675,19 +659,6 @@
     </reporting>
     <dependencyManagement>
         <dependencies>
-            <!-- Netty — override Spring Boot's transitive 4.2.9 to fix CVEs
-                 (netty-codec-http ≥ 4.2.10, netty-codec-http2 ≥ 4.2.11) -->
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-codec-http</artifactId>
-                <version>${netty.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-codec-http2</artifactId>
-                <version>${netty.version}</version>
-            </dependency>
-
             <!-- Atmosphere modules — centralized version management -->
             <dependency>
                 <groupId>org.atmosphere</groupId>
@@ -1202,7 +1173,6 @@
         <jakarta-enterprise-cdi-api.version>4.1.0</jakarta-enterprise-cdi-api.version>
         <testcontainers.version>1.20.6</testcontainers.version>
         <awaitility.version>4.2.2</awaitility.version>
-        <netty.version>4.2.12.Final</netty.version>
         <grpc.version>1.80.0</grpc.version>
         <protobuf.version>4.34.1</protobuf.version>
         <tomcat-annotations-api.version>6.0.53</tomcat-annotations-api.version>

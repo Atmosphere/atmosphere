@@ -19,9 +19,6 @@
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
-        <!-- Quarkus 3.31 ships Netty 4.1.x — match the parent's spring-boot3
-             override so reactor-netty stays consistent. -->
-        <netty.version>4.1.130.Final</netty.version>
     </properties>
 
     <dependencyManagement>
