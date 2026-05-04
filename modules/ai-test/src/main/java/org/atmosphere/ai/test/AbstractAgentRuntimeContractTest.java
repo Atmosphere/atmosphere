@@ -720,6 +720,15 @@ public abstract class AbstractAgentRuntimeContractTest {
     protected void errorContextTriggersSessionError() throws Exception {
         var context = createErrorContext();
         if (context == null) {
+            // Surface the gap explicitly — pre-2026-05 every subclass
+            // returned null and the silent return made the test pretend to
+            // run while asserting nothing. Aborting with a reason marks the
+            // test as "skipped" in CI reports so the missing coverage is
+            // visible (Correctness Invariant testing-quality-gates: no
+            // placeholder no-op tests).
+            org.junit.jupiter.api.Assumptions.assumeTrue(false,
+                    createRuntime().name() + " contract test does not provide an error "
+                            + "context — override createErrorContext() to wire this assertion");
             return;
         }
         var runtime = createRuntime();

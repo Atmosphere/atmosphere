@@ -79,9 +79,14 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
                 AiCapability.PER_REQUEST_RETRY);
     }
 
-    // SK execution requires a configured ChatCompletionService — skip live tests.
+    // SK execution requires a configured ChatCompletionService. Aborting with
+    // a reason marks the test as "skipped" in CI reports (TestAbortedException)
+    // instead of silently disappearing — JUnit 5 stops discovering an inherited
+    // @Test when the override has no @Test of its own.
+    @org.junit.jupiter.api.Test
     @Override
     protected void textStreamingCompletesSession() throws Exception {
-        // Skip: requires configured ChatCompletionService with Azure OpenAI client.
+        org.junit.jupiter.api.Assumptions.assumeTrue(false,
+                "SK execution requires a configured ChatCompletionService with Azure OpenAI client");
     }
 }

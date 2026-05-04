@@ -62,6 +62,7 @@ internal class KoogRuntimeContractTest : AbstractAgentRuntimeContractTest() {
         AiCapability.AUDIO,
         AiCapability.MULTI_MODAL,
         AiCapability.PROMPT_CACHING,
+        AiCapability.CANCELLATION,
         AiCapability.PER_REQUEST_RETRY,
     )
 
@@ -92,7 +93,16 @@ internal class KoogRuntimeContractTest : AbstractAgentRuntimeContractTest() {
     }
 
     // Koog execution requires a configured AIAgent with a live PromptExecutor.
+    // Aborting with a reason marks the test as "skipped" in CI reports
+    // (TestAbortedException) instead of silently passing — Correctness Invariant
+    // testing-quality-gates: no placeholder no-op tests. Re-annotate with @Test:
+    // JUnit 5 stops discovering an inherited test when the subclass overrides
+    // without re-annotating.
+    @org.junit.jupiter.api.Test
     override fun textStreamingCompletesSession() {
-        // Skip: requires real AIAgent instance.
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+            false,
+            "Koog execution requires a real AIAgent + PromptExecutor"
+        )
     }
 }

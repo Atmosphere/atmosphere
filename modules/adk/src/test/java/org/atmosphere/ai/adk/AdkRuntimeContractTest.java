@@ -103,12 +103,18 @@ class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
     }
 
-    // ADK execution tests require a configured Runner with API key.
-    // The inherited textStreamingCompletesSession() will fail because
-    // no Runner is configured. Override to skip.
+    // ADK execution requires a configured Runner with API key. The base
+    // assertion would throw IllegalStateException at resolveClient(); we
+    // abort with a reason so the test surfaces as "skipped" in CI reports
+    // (TestAbortedException) instead of silently passing — Correctness
+    // Invariant testing-quality-gates: no placeholder no-op tests.
+    // Re-annotate with @Test: JUnit 5 stops discovering an inherited
+    // test when the subclass overrides the method without re-annotating.
+    @Test
     @Override
     protected void textStreamingCompletesSession() throws Exception {
-        // Skip: requires configured Runner with API key
+        org.junit.jupiter.api.Assumptions.assumeTrue(false,
+                "ADK execution requires a configured Runner with API key");
     }
 
     @Test

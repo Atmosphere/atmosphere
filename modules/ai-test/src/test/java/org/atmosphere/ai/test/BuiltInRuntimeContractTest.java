@@ -148,9 +148,14 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     }
 
     // Built-in execution requires a configured OpenAI API key + remote endpoint.
-    // Skip live streaming assertions; capability parity assertions still run.
+    // Aborting with a reason marks the test as "skipped" in CI reports
+    // (TestAbortedException) instead of silently disappearing — JUnit 5 stops
+    // discovering an inherited @Test when the override has no @Test of its own.
+    // Capability parity assertions still run; only the live streaming assertion is skipped.
+    @org.junit.jupiter.api.Test
     @Override
     protected void textStreamingCompletesSession() throws Exception {
-        // Skip: requires AiConfig with apiKey + endpoint.
+        org.junit.jupiter.api.Assumptions.assumeTrue(false,
+                "Built-in execution requires AiConfig with apiKey + endpoint");
     }
 }

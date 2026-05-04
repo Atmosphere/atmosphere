@@ -148,6 +148,7 @@ class EmbabelAgentRuntime : AgentRuntime {
         try {
             executeWithOuterRetry(effective, session) {
                 if (deployedAgent != null) {
+                    warnIfDeployedAgentDropsRequestFeatures(deployedAgent, effective, session)
                     executeDeployedAgent(platform, deployedAgent, effective, session, lastUsage)
                 } else {
                     executeAtmosphereNative(platform, effective, session, lastUsage)
@@ -205,6 +206,44 @@ class EmbabelAgentRuntime : AgentRuntime {
                 }
             }
         }
+    }
+
+    /**
+     * Embabel's deployed-agent dispatch reads `userMessage` from the input map
+     * but ignores Atmosphere's per-request `tools()` and image `parts()` — the
+     * deployed `@Agent` owns its own configuration. When the caller sends a
+     * context that carries those features, log a WARN and emit a metadata event
+     * so the drop is visible to operators rather than silent. The runtime's
+     * `capabilities()` set advertises TOOL_CALLING / TOOL_APPROVAL / VISION /
+     * MULTI_MODAL because the Atmosphere-native fallback path honors them; this
+     * warning surfaces the drop on the deployed-agent path so partial-matrix
+     * behavior is loud (Correctness Invariant #5 — Runtime Truth, applied to
+     * dispatch-mode semantics).
+     */
+    private fun warnIfDeployedAgentDropsRequestFeatures(
+        agent: com.embabel.agent.core.Agent,
+        context: AgentExecutionContext,
+        session: StreamingSession
+    ) {
+        val droppedTools = context.tools().isNotEmpty()
+        val droppedImages = context.parts().any { it is org.atmosphere.ai.Content.Image }
+        if (!droppedTools && !droppedImages) {
+            return
+        }
+        val dropped = buildList {
+            if (droppedTools) add("${context.tools().size} request-level tool(s)")
+            if (droppedImages) {
+                val n = context.parts().count { it is org.atmosphere.ai.Content.Image }
+                add("$n image part(s)")
+            }
+        }.joinToString(", ")
+        logger.warn(
+            "Embabel deployed-agent dispatch [{}] ignores {} — deployed @Agent classes " +
+                "own their own tool/image configuration. Invoke without agentId() " +
+                "(Atmosphere-native path) to honor request-level features.",
+            agent.name, dropped
+        )
+        session.sendMetadata("ai.embabel.dropped_features", dropped)
     }
 
     /**

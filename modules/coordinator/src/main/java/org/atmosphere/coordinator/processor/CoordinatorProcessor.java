@@ -231,7 +231,7 @@ public class CoordinatorProcessor implements Processor<Object> {
             }
             var responseType = annotation.responseAs() == Void.class
                     ? null : annotation.responseAs();
-            var journalHook = resolveJournalHook(annotation, fleet, journal);
+            var journalHook = resolveJournalHook(framework, annotation, fleet, journal);
             var injectables = new LinkedHashMap<Class<?>, Object>();
             injectables.put(AgentFleet.class, fleet);
             if (responseType != null) {
@@ -541,13 +541,14 @@ public class CoordinatorProcessor implements Processor<Object> {
     }
 
     private org.atmosphere.ai.PostPromptHook resolveJournalHook(
-            Coordinator annotation, AgentFleet fleet, CoordinationJournal journal) {
+            AtmosphereFramework framework, Coordinator annotation,
+            AgentFleet fleet, CoordinationJournal journal) {
         var formatClass = annotation.journalFormat();
         if (formatClass == JournalFormat.class || journal == CoordinationJournal.NOOP) {
             return null;
         }
         try {
-            var format = formatClass.getDeclaredConstructor().newInstance();
+            var format = framework.newClassInstance(JournalFormat.class, formatClass);
             return session -> {
                 var log = fleet.journal().formatLog(format);
                 session.emit(new org.atmosphere.ai.AiEvent.ToolStart(

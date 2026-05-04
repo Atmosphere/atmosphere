@@ -283,6 +283,13 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                 AiCapability.CONVERSATION_MEMORY,
                 // handleEvent forwards Msg.getChatUsage() on isLast().
                 AiCapability.TOKEN_USAGE,
+                // executeWithHandle returns an ExecutionHandle whose cancel()
+                // calls activeAgent.interrupt() (cooperative unwind of the
+                // ReAct loop), disposes the Reactor subscription (drops
+                // in-flight emission), and resolves the done-future
+                // exceptionally with CancellationException — terminal-path
+                // closure per Correctness Invariant #2.
+                AiCapability.CANCELLATION,
                 // Inherits AbstractAgentRuntime.executeWithOuterRetry — does
                 // not override ownsPerRequestRetry(), so context.retryPolicy()
                 // with maxRetries > 0 retries doExecute on pre-stream

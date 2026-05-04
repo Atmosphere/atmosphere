@@ -25,6 +25,7 @@ import org.atmosphere.ai.approval.ToolApprovalPolicy
 import org.atmosphere.ai.tool.ToolDefinition
 import org.atmosphere.ai.tool.ToolExecutionHelper
 import org.atmosphere.ai.tool.ToolParameter
+import org.slf4j.LoggerFactory
 
 /**
  * Bridges Atmosphere's [ToolDefinition] list to Embabel's
@@ -49,6 +50,8 @@ import org.atmosphere.ai.tool.ToolParameter
  * remaining gap by wiring tools + images through the same fallback.</p>
  */
 internal object EmbabelToolBridge {
+
+    private val logger = LoggerFactory.getLogger(EmbabelToolBridge::class.java)
 
     private val mapper: ObjectMapper = ObjectMapper()
 
@@ -133,7 +136,11 @@ internal object EmbabelToolBridge {
      * Deserialize the LLM-produced args JSON string into a
      * `Map<String, Any?>`. Returns an empty map on malformed input so a
      * flaky LLM response degrades to a no-op call instead of throwing
-     * mid-stream.
+     * mid-stream — but logs at WARN with the raw payload so the silent
+     * degradation is visible to operators (per
+     * `feedback_no_swallow_exceptions.md`). Without this, a tool runs on
+     * `{}` args and the failure mode looks identical to a tool that
+     * legitimately accepted empty input.
      */
     @Suppress("UNCHECKED_CAST")
     private fun parseArgs(json: String?): Map<String, Any?> {
@@ -141,6 +148,10 @@ internal object EmbabelToolBridge {
         return try {
             mapper.readValue(json, Map::class.java) as Map<String, Any?>
         } catch (t: Throwable) {
+            logger.warn(
+                "Embabel tool args JSON malformed; degrading to empty-args call. payload={} error={}",
+                json, t.message
+            )
             emptyMap()
         }
     }

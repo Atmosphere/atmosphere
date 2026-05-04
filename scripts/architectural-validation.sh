@@ -338,6 +338,117 @@ else
     pass_validation "No JUnit 4 @Ignore annotations"
 fi
 
+# Detect inherited @Test methods overridden with empty / comment-only bodies
+# AND without @Test or @Disabled on the override. JUnit 5 stops discovering
+# an inherited @Test when the override carries no @Test of its own — the
+# contract assertion silently disappears (Tests run: N drops by 1, no skip
+# count). This is the exact regression that hid behind ADK / Embabel / Koog
+# textStreamingCompletesSession overrides from 2026-04 to 2026-05.
+EMPTY_OVERRIDES=$(python3 - <<'PYTHON_DETECT'
+import re, pathlib
+
+ROOTS = [p for p in pathlib.Path("modules").glob("*/src/test") if p.is_dir()]
+
+JAVA_PATTERN = re.compile(
+    r'((?:^[ \t]*@[A-Za-z][\w.]*(?:\([^)]*\))?\s*\n)*)'
+    r'^[ \t]*@Override\b\s*\n'
+    r'((?:^[ \t]*@[A-Za-z][\w.]*(?:\([^)]*\))?\s*\n)*)'
+    r'^[ \t]*(?:public|protected|private)?\s*'
+    r'(?:final\s+|static\s+)?'
+    r'(?:<[^>]+>\s*)?'
+    r'\w[\w.<>\[\]]*\s+'
+    r'(\w+)\s*\([^)]*\)'
+    r'(?:\s*throws\s+[\w.,\s]+)?\s*'
+    r'\{([^{}]*?)\}',
+    re.MULTILINE,
+)
+
+KOTLIN_PATTERN = re.compile(
+    r'((?:^[ \t]*@[A-Za-z][\w.]*(?:\([^)]*\))?\s*\n)*)'
+    r'^[ \t]*(?:internal\s+|public\s+|private\s+|protected\s+)?'
+    r'override\s+fun\s+'
+    r'(\w+)\s*\([^)]*\)'
+    r'(?:\s*:\s*[\w.<>?]+)?\s*'
+    r'\{([^{}]*?)\}',
+    re.MULTILINE,
+)
+
+# First pass: collect every method name that carries @Test (or its variants)
+# in any test source. The detector only flags overrides whose name appears in
+# this set — that filters out implementations of unrelated interfaces (e.g.
+# fixture stubs implementing AtmosphereHandler.onRequest()).
+TEST_METHOD_PATTERN = re.compile(
+    r'@(?:[\w.]*\.)?(?:Test|ParameterizedTest|RepeatedTest|TestFactory|TestTemplate)\b[^\n]*\n'
+    r'(?:[ \t]*@[A-Za-z][\w.]*(?:\([^)]*\))?\s*\n)*'
+    r'[ \t]*(?:public|protected|private|internal|inline)?\s*'
+    r'(?:abstract\s+|final\s+|static\s+|open\s+)?'
+    r'(?:fun\s+|<[^>]+>\s+)?'
+    r'(?:\w[\w.<>\[\]?]*\s+)?'
+    r'(\w+)\s*\(',
+    re.MULTILINE,
+)
+
+inherited_test_names = set()
+for root in ROOTS:
+    for path in list(root.rglob("*.java")) + list(root.rglob("*.kt")):
+        text = path.read_text(errors="ignore")
+        for m in TEST_METHOD_PATTERN.finditer(text):
+            inherited_test_names.add(m.group(1))
+
+def empty_or_comment_only(body: str) -> bool:
+    stripped = body.strip()
+    if not stripped:
+        return True
+    for line in stripped.split("\n"):
+        s = line.strip()
+        if not s or s.startswith("//") or s.startswith("/*") or s.startswith("*"):
+            continue
+        return False
+    return True
+
+def has_test_or_disabled(annotation_text: str) -> bool:
+    return bool(re.search(
+        r'@(?:[\w.]*\.)?(?:Test|Disabled|Ignore|ParameterizedTest|RepeatedTest|TestFactory|TestTemplate)\b',
+        annotation_text))
+
+violations = []
+EXTENDS_ABSTRACT_TEST_JAVA = re.compile(r'\bextends\s+\w*Abstract\w*Test\w*\b')
+EXTENDS_ABSTRACT_TEST_KOTLIN = re.compile(r':\s*\w*Abstract\w*Test\w*\s*\(')
+for root in ROOTS:
+    for path in list(root.rglob("*.java")) + list(root.rglob("*.kt")):
+        text = path.read_text(errors="ignore")
+        is_kotlin = path.suffix == ".kt"
+        # Only contract-test subclasses are at risk — interface stubs
+        # (AtmosphereHandler.destroy(), Servlet.init(), etc.) legitimately
+        # have empty bodies and are NOT what this detector targets.
+        ext_pattern = EXTENDS_ABSTRACT_TEST_KOTLIN if is_kotlin else EXTENDS_ABSTRACT_TEST_JAVA
+        if not ext_pattern.search(text):
+            continue
+        pattern = KOTLIN_PATTERN if is_kotlin else JAVA_PATTERN
+        for m in pattern.finditer(text):
+            if is_kotlin:
+                anns, method, body = m.group(1) or "", m.group(2), m.group(3)
+            else:
+                anns = (m.group(1) or "") + (m.group(2) or "")
+                method, body = m.group(3), m.group(4)
+            if (method in inherited_test_names
+                    and empty_or_comment_only(body)
+                    and not has_test_or_disabled(anns)):
+                line_no = text[:m.start()].count("\n") + 1
+                violations.append(f"{path}:{line_no}: {method}()")
+
+for v in violations:
+    print(v)
+PYTHON_DETECT
+)
+
+if [ -n "$EMPTY_OVERRIDES" ]; then
+    fail_validation "Found empty-body @Override methods in test files (no @Test/@Disabled). JUnit 5 stops discovering an inherited @Test when the override has none of its own — the contract assertion silently disappears."
+    echo "$EMPTY_OVERRIDES" | head -10
+else
+    pass_validation "No empty-body @Override methods masquerading as skipped tests"
+fi
+
 # ============================================================================
 # 5. DEAD CODE PATTERNS
 # ============================================================================
@@ -387,7 +498,11 @@ echo -e "${BLUE}--- Fluent Builder Misuse Detection ---${NC}"
 # Detect fluent builder calls where the return value is discarded.
 # This was the exact bug in SpringAiSupport: promptSpec.system(...) was called
 # but the result wasn't reassigned, so the system prompt was silently lost.
-AI_SRC="modules/ai/src/main/java modules/spring-ai/src/main/java modules/langchain4j/src/main/java modules/adk/src/main/java"
+# Enumerate every module's main-java source dir so newly added runtimes are
+# checked automatically. Was hardcoded to ai/spring-ai/langchain4j/adk —
+# embabel, koog, agentscope, spring-ai-alibaba, semantic-kernel were silently
+# exempt until the 2026-05 audit caught it.
+AI_SRC=$(find modules -maxdepth 4 -type d -path 'modules/*/src/main/java' 2>/dev/null | sort | tr '\n' ' ')
 FLUENT_MISUSE=0
 for ai_dir in $AI_SRC; do
     [ -d "$ai_dir" ] || continue
@@ -418,16 +533,21 @@ fi
 echo ""
 echo -e "${BLUE}--- DI Bypass Detection ---${NC}"
 
-# Only flag in extension modules (cpr IS the DI framework — raw reflection is correct there)
-DI_MODULES="modules/ai modules/spring-ai modules/langchain4j modules/adk modules/mcp modules/spring-boot-starter modules/quarkus-extension"
+# Only flag in extension modules (cpr IS the DI framework — raw reflection is correct there).
+# Enumerate every module except cpr so newly added runtimes are checked automatically.
+# Was hardcoded — embabel/koog/agentscope/spring-ai-alibaba/semantic-kernel were
+# silently exempt until the 2026-05 audit caught it.
+DI_MODULES=$(find modules -mindepth 1 -maxdepth 1 -type d ! -name cpr 2>/dev/null | sort | tr '\n' ' ')
 RAW_REFLECTION=0
 RAW_REFLECTION_FILES=""
 for mod in $DI_MODULES; do
-    [ -d "$mod/src/main/java" ] || continue
-    count=$(rg 'getDeclaredConstructor\(\)\.newInstance\(\)' "$mod/src/main/java" --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
+    [ -d "$mod/src/main" ] || continue
+    # Scan both java and kotlin sources so Kotlin runtimes (embabel, koog) are
+    # not silently exempt — pre-2026-05 only `--type java` was scanned.
+    count=$(rg 'getDeclaredConstructor\(\)\.newInstance\(\)' "$mod/src/main" --type java --type kotlin -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
     if [ "$count" -gt 0 ]; then
         RAW_REFLECTION=$((RAW_REFLECTION + count))
-        RAW_REFLECTION_FILES="${RAW_REFLECTION_FILES}$(rg 'getDeclaredConstructor\(\)\.newInstance\(\)' "$mod/src/main/java" --type java -n 2>/dev/null)\n"
+        RAW_REFLECTION_FILES="${RAW_REFLECTION_FILES}$(rg 'getDeclaredConstructor\(\)\.newInstance\(\)' "$mod/src/main" --type java --type kotlin -n 2>/dev/null)\n"
     fi
 done
 

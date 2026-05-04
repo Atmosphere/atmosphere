@@ -63,8 +63,17 @@ internal class EmbabelRuntimeContractTest : AbstractAgentRuntimeContractTest() {
         AiCapability.MULTI_MODAL,
     )
 
-    // Embabel execution requires a real AgentPlatform, skip live tests.
+    // Embabel execution requires a real AgentPlatform. Aborting with a
+    // reason marks the test as "skipped" in CI reports (TestAbortedException)
+    // instead of silently passing — Correctness Invariant testing-quality-gates:
+    // no placeholder no-op tests. Re-annotate with @Test: JUnit 5 stops
+    // discovering an inherited test when the subclass overrides without
+    // re-annotating.
+    @org.junit.jupiter.api.Test
     override fun textStreamingCompletesSession() {
-        // Skip: requires configured AgentPlatform.
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+            false,
+            "Embabel execution requires a configured AgentPlatform"
+        )
     }
 }

@@ -56,14 +56,18 @@ import java.util.Set;
  *
  * <p><b>Capabilities:</b> {@link AiCapability#TEXT_STREAMING} (buffered —
  * see above), {@link AiCapability#SYSTEM_PROMPT}
- * ({@code ReactAgent.setSystemPrompt} threaded per-request),
+ * ({@code ReactAgent.setSystemPrompt} threaded per-request, serialized on
+ * the agent monitor to avoid singleton-mutation races),
  * {@link AiCapability#STRUCTURED_OUTPUT} (via the pipeline),
- * {@link AiCapability#CONVERSATION_MEMORY},
- * {@link AiCapability#TOKEN_USAGE} (when the underlying Spring AI
- * {@code ChatResponse} carries usage metadata). Tool calling is NOT
- * declared in this first cut — Spring AI Alibaba's tool surface bridges
- * Spring AI {@code FunctionCallback}s, which would need a separate
- * {@code SpringAiAlibabaToolBridge} to satisfy
+ * {@link AiCapability#CONVERSATION_MEMORY}, and
+ * {@link AiCapability#PER_REQUEST_RETRY}. {@link AiCapability#TOKEN_USAGE}
+ * is NOT declared — {@code ReactAgent.call} returns an
+ * {@code AssistantMessage} that does not surface the underlying
+ * {@code ChatResponse} usage metadata in v1.1.2.0; reading the agent's
+ * {@code CompiledGraph} run state would be brittle across versions.
+ * Tool calling is NOT declared in this first cut — Spring AI Alibaba's
+ * tool surface bridges Spring AI {@code FunctionCallback}s, which would
+ * need a separate {@code SpringAiAlibabaToolBridge} to satisfy
  * {@link AiCapability#TOOL_APPROVAL}.</p>
  */
 public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent> {
@@ -117,17 +121,6 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                              StreamingSession session) {
         admitThroughGateway(context);
 
-        // ReactAgent stores systemPrompt on the agent itself; honor the
-        // per-request value from context so SYSTEM_PROMPT is genuinely
-        // wired, not just declared.
-        if (context.systemPrompt() != null && !context.systemPrompt().isBlank()) {
-            try {
-                agent.setSystemPrompt(context.systemPrompt());
-            } catch (RuntimeException re) {
-                logger.trace("ReactAgent.setSystemPrompt threw — falling back to message-level system role", re);
-            }
-        }
-
         var messages = new ArrayList<Message>();
         for (var chat : assembleMessages(context)) {
             messages.add(toSpringMessage(chat));
@@ -153,11 +146,29 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
         var runnableConfig = SpringAiAlibabaRunnableConfig.from(context);
         AssistantMessage response;
         try {
-            if (runnableConfig != null) {
-                logger.debug("Dispatching with per-request Alibaba RunnableConfig override");
-                response = agent.call(messages, runnableConfig);
-            } else {
-                response = agent.call(messages);
+            // Spring-managed ReactAgent is a singleton; ReactAgent.setSystemPrompt
+            // mutates state on it. Serializing setSystemPrompt + call on the agent
+            // monitor prevents two concurrent requests from clobbering each other's
+            // system prompt. assembleMessages already places the system prompt as
+            // the first SystemMessage in the messages list (defense in depth);
+            // setSystemPrompt is kept because Alibaba's ReactAgent reads its own
+            // field in addition to the input messages.
+            synchronized (agent) {
+                if (context.systemPrompt() != null && !context.systemPrompt().isBlank()) {
+                    try {
+                        agent.setSystemPrompt(context.systemPrompt());
+                    } catch (RuntimeException re) {
+                        logger.trace(
+                                "ReactAgent.setSystemPrompt threw — falling back to message-level system role",
+                                re);
+                    }
+                }
+                if (runnableConfig != null) {
+                    logger.debug("Dispatching with per-request Alibaba RunnableConfig override");
+                    response = agent.call(messages, runnableConfig);
+                } else {
+                    response = agent.call(messages);
+                }
             }
         } catch (com.alibaba.cloud.ai.graph.exception.GraphRunnerException gre) {
             // Boundary safety (Invariant #4): a checked framework failure

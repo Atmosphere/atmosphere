@@ -657,6 +657,12 @@ class KoogAgentRuntime : AgentRuntime {
         // providers silently drop the cache control — the same shape
         // Spring AI / LangChain4j take for OpenAI prompt_cache_key.
         AiCapability.PROMPT_CACHING,
+        // CANCELLATION: executeWithHandle returns an ExecutionHandle whose
+        // cancel() calls Job.cancel() (cooperative coroutine unwind),
+        // Thread.interrupt() (release native blocking reads via NIO interrupt),
+        // and resolves the done-future with synthetic completion — terminal-path
+        // closure per Correctness Invariant #2. See KoogAgentRuntime.kt:158-208.
+        AiCapability.CANCELLATION,
         // PER_REQUEST_RETRY: honored via executeWithOuterRetry which
         // wraps executeInternal in a retry loop respecting
         // context.retryPolicy(). Pre-stream transient failures are
@@ -712,7 +718,7 @@ private fun GraphAIAgent.FeatureContext.wireFeatureHandlers(
             }
         }
         onToolCallStarting { ctx ->
-            session.emit(AiEvent.ToolStart(ctx.toolName, emptyMap()))
+            session.emit(AiEvent.ToolStart(ctx.toolName, unwrapJsonObject(ctx.toolArgs)))
         }
         onToolCallCompleted { ctx ->
             session.emit(AiEvent.ToolResult(ctx.toolName, ctx.toolResult?.toString()))
@@ -760,5 +766,34 @@ private fun GraphAIAgent.FeatureContext.wireFeatureHandlers(
             )
         }
     }
+}
+
+/**
+ * Unwrap Koog's [ai.koog.serialization.JSONObject] tool-args payload into a
+ * plain `Map<String, Any?>` for [AiEvent.ToolStart]. Without this, the bridge
+ * was emitting hardcoded `emptyMap()` for every tool start — downstream
+ * listeners that read `arguments` saw fake-empty args (Correctness Invariant
+ * #5 — Runtime Truth, applied at the event payload boundary). Numbers stay as
+ * `Long`/`Double` where the literal parses cleanly; everything else falls
+ * through to `String`.
+ */
+private fun unwrapJsonObject(json: ai.koog.serialization.JSONObject?): Map<String, Any?> {
+    if (json == null) return emptyMap()
+    return json.entries.mapValues { unwrapJsonElement(it.value) }
+}
+
+private fun unwrapJsonElement(elem: ai.koog.serialization.JSONElement?): Any? = when (elem) {
+    null, is ai.koog.serialization.JSONNull -> null
+    is ai.koog.serialization.JSONLiteral -> if (elem.isString) {
+        elem.content
+    } else {
+        elem.content.toLongOrNull()
+            ?: elem.content.toDoubleOrNull()
+            ?: elem.content.toBooleanStrictOrNull()
+            ?: elem.content
+    }
+    is ai.koog.serialization.JSONArray -> elem.elements.map { unwrapJsonElement(it) }
+    is ai.koog.serialization.JSONObject -> unwrapJsonObject(elem)
+    else -> elem.toString()
 }
 
