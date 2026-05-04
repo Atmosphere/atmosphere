@@ -15,7 +15,7 @@
  */
 package org.atmosphere.quarkus.deployment;
 
-import io.quarkus.test.QuarkusUnitTest;
+import io.quarkus.test.QuarkusExtensionTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class AtmosphereProcessorTest {
 
     @RegisterExtension
-    static final QuarkusUnitTest unitTest = new QuarkusUnitTest()
+    static final QuarkusExtensionTest unitTest = new QuarkusExtensionTest()
             .withApplicationRoot(jar -> jar.addClass(AtmosphereProcessorTest.class))
             .overrideConfigKey("quarkus.atmosphere.packages", "org.atmosphere.quarkus.deployment")
             .overrideConfigKey("quarkus.http.test-port", "0");

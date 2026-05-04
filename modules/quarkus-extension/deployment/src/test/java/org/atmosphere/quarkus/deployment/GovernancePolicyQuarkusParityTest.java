@@ -15,7 +15,7 @@
  */
 package org.atmosphere.quarkus.deployment;
 
-import io.quarkus.test.QuarkusUnitTest;
+import io.quarkus.test.QuarkusExtensionTest;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.governance.DenyListPolicy;
 import org.atmosphere.ai.governance.GovernancePolicy;
@@ -44,7 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>Until this landed, only source parity was proven
  * ({@code PolicyPlaneSourceParityTest} in modules/ai). This runs the
- * same admission path under {@link QuarkusUnitTest}, catching
+ * same admission path under {@link QuarkusExtensionTest}, catching
  * Quarkus-specific failure modes (Jandex indexing, build-time class
  * rewriting, deployment-classloader isolation) that source tests
  * can't.</p>
@@ -52,7 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class GovernancePolicyQuarkusParityTest {
 
     @RegisterExtension
-    static final QuarkusUnitTest unitTest = new QuarkusUnitTest()
+    static final QuarkusExtensionTest unitTest = new QuarkusExtensionTest()
             .withApplicationRoot(jar -> jar
                     .addClass(GovernancePolicyQuarkusParityTest.class))
             .overrideConfigKey("quarkus.http.test-port", "0");
