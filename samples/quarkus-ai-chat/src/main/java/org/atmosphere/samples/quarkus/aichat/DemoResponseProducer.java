@@ -13,25 +13,28 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.samples.springboot.koogchat;
+package org.atmosphere.samples.quarkus.aichat;
 
 import org.atmosphere.ai.StreamingSession;
 
 /**
- * Simulates LLM streaming responses for demo/testing purposes.
- * Used when no API key is configured so the sample works out-of-the-box.
+ * Simulates LLM streaming responses for demo/testing purposes. Used when no
+ * API key is configured so the sample works out-of-box. Mirrors the
+ * Spring Boot sibling sample to keep wire-level behavior identical across
+ * containers.
  */
 public final class DemoResponseProducer {
 
     private DemoResponseProducer() {
     }
 
+    /** Stream a simulated response word-by-word through the session. */
     public static void stream(String userMessage, StreamingSession session) {
         var response = generateResponse(userMessage);
         var words = response.split("(?<=\\s)");
 
         try {
-            session.progress("Demo mode (Koog) — set LLM_API_KEY to enable real responses");
+            session.progress("Demo mode — set LLM_API_KEY to enable real responses");
             for (var word : words) {
                 session.send(word);
                 Thread.sleep(50);
@@ -46,18 +49,18 @@ public final class DemoResponseProducer {
     private static String generateResponse(String userMessage) {
         var lower = userMessage.toLowerCase();
         if (lower.contains("hello") || lower.contains("hi")) {
-            return "Hello! I'm running in demo mode with JetBrains Koog as the AI runtime. "
-                    + "No LLM_API_KEY is configured. Set LLM_API_KEY to connect to OpenAI, "
-                    + "Gemini, or any provider supported by Koog.";
+            return "Hello! I'm running in demo mode because no LLM_API_KEY is configured. "
+                    + "Set LLM_API_KEY to connect to Gemini, OpenAI, or any compatible provider. "
+                    + "For local models, set LLM_MODE=local and run Ollama.";
         }
-        if (lower.contains("atmosphere") || lower.contains("koog")) {
-            return "This sample uses Atmosphere with JetBrains Koog as the AI runtime. "
-                    + "Koog provides streaming via PromptExecutor, tool calling via @Tool, "
-                    + "and agent orchestration via graph/functional strategies. "
-                    + "Atmosphere handles the real-time WebSocket transport to your browser.";
+        if (lower.contains("atmosphere")) {
+            return "Atmosphere is a Java framework for building real-time web applications. "
+                    + "It supports WebSocket, SSE, long-polling, and gRPC transports. "
+                    + "This sample uses the built-in OpenAiCompatibleClient to stream "
+                    + "LLM responses text-by-text through the Broadcaster.";
         }
-        return "This is a demo response from the Koog sample — each word streams in real-time. "
-                + "Try asking about 'atmosphere' or 'koog'. "
-                + "Set LLM_API_KEY to use a real LLM provider.";
+        return "This is a demo response — each word arrives as a separate streaming text. "
+                + "Try asking about 'atmosphere' or say 'hello'. "
+                + "Set LLM_API_KEY to connect to a real LLM provider.";
     }
 }

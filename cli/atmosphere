@@ -994,11 +994,13 @@ cmd_new() {
         mcp-server)    source_sample="spring-boot-mcp-server" ;;
         rag)           source_sample="spring-boot-rag-chat" ;;
         agent)         source_sample="spring-boot-dentist-agent" ;;
-        koog)          source_sample="spring-boot-koog-chat" ;;
         multi-agent)   source_sample="spring-boot-multi-agent-startup-team" ;;
         classroom)     source_sample="spring-boot-ai-classroom" ;;
         ms-governance) source_sample="spring-boot-ms-governance-chat" ;;
-        *)             die "Unknown template: $template (chat, ai-chat, ai-tools, mcp-server, rag, agent, koog, multi-agent, classroom, ms-governance)" ;;
+        coding-agent)  source_sample="spring-boot-coding-agent" ;;
+        guarded-agent) source_sample="spring-boot-guarded-email-agent" ;;
+        assistant)     source_sample="spring-boot-personal-assistant" ;;
+        *)             die "Unknown template: $template (chat, ai-chat, ai-tools, mcp-server, rag, agent, multi-agent, classroom, ms-governance, coding-agent, guarded-agent, assistant)" ;;
     esac
 
     json=$(get_samples_json)

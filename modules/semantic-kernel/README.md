@@ -23,7 +23,7 @@
 
 See the [capability matrix](../ai/README.md#capability-matrix) in the parent `atmosphere-ai` README for the authoritative cross-runtime view.
 
-SK-specific: TEXT_STREAMING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE. TOOL_CALLING and TOOL_APPROVAL are deferred until the SK tool bridge lands (SK's `@DefineKernelFunction` requires compile-time annotation processing that doesn't map cleanly to Atmosphere's `ToolDefinition` builder pattern).
+SK-specific: TEXT_STREAMING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY. Tool calling rides `SemanticKernelToolBridge` — a direct `KernelFunction<String>` subclass (one per Atmosphere tool) whose overridden `invokeAsync` routes through `ToolExecutionHelper.executeWithApproval`, no annotation processor or bytecode synthesis required.
 
 ## EmbeddingRuntime
 
@@ -31,10 +31,38 @@ SK-specific: TEXT_STREAMING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, CONVERSATION_MEMO
 
 `Embedding.getVector()` returns `List<Float>` (not `float[]`); the adapter unwraps to the primitive array the Atmosphere SPI requires.
 
+## Per-Request InvocationContext (`SemanticKernelInvocation`)
+
+By default the runtime builds an `InvocationContext` that carries only
+`ToolCallBehavior.allowAllKernelFunctions(hasTools)`. To unlock SK's
+power features per request — `KernelHooks` for function-invoking
+filters, `withMaxAutoInvokeAttempts(int)` to cap the auto-invoke loop,
+custom `PromptExecutionSettings` (temperature, max tokens, stop
+sequences) — attach a fully-built `InvocationContext` via
+`SemanticKernelInvocation.attach`:
+
+```java
+var invocation = InvocationContext.builder()
+        .withToolCallBehavior(ToolCallBehavior.allowAllKernelFunctions(true))
+        .withPromptExecutionSettings(
+                PromptExecutionSettings.builder()
+                        .withTemperature(0.2)
+                        .withMaxTokens(2_048)
+                        .build())
+        .build();
+
+var ctx = SemanticKernelInvocation.attach(baseContext, invocation);
+runtime.execute(ctx, session);
+```
+
+When attached, the runtime passes the user-supplied context verbatim to
+`ChatCompletionService.getStreamingChatMessageContentsAsync(...)`. When
+absent, it builds the default — preserving prior behavior and keeping
+SK's non-null `ToolCallBehavior` requirement satisfied.
+
 ## Known limitations
 
 - **Sync boundary**: both `AgentRuntime.execute()` and `EmbeddingRuntime.embed()` call Reactor `.block()` inside the SPI. SK 1.4.0 transitively ships `reactor-core:3.4.38` which can pin carrier threads on virtual-thread runtimes. Atmosphere's Spring Boot starter overrides this to Reactor 3.7+ (VT-safe); standalone users without Spring Boot should force `reactor-core >= 3.6.0` via `dependencyManagement`.
-- **Tool calling deferred**: SK's native tool dispatch (`@DefineKernelFunction`) is not yet bridged. Tools declared via `@AiTool` are silently omitted when SK is the active runtime.
 - **Model selection**: `models()` returns the deployment name from the configured `OpenAIAsyncClient` when available, empty list otherwise.
 
 ## Requirements

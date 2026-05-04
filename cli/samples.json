@@ -67,24 +67,6 @@
       }
     },
     {
-      "name": "spring-boot-koog-chat",
-      "description": "Real-time AI chat powered by JetBrains Koog",
-      "category": "ai",
-      "tags": [
-        "spring-boot",
-        "ai",
-        "koog",
-        "jetbrains"
-      ],
-      "port": 8080,
-      "runnable": true,
-      "packaging": "spring-boot",
-      "hasFrontend": false,
-      "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider (optional \u2014 demo mode without)"
-      }
-    },
-    {
       "name": "spring-boot-orchestration-demo",
       "description": "Support Desk \u2014 handoffs, approval gates, commands",
       "category": "agent",
@@ -405,6 +387,80 @@
       "packaging": "jar",
       "hasFrontend": false,
       "note": "Requires gRPC client. See sample README for details."
+    },
+    {
+      "name": "spring-boot-coding-agent",
+      "description": "Coding agent — Sandbox SPI + Git clone + AgentResumeHandle reattach",
+      "category": "agent",
+      "tags": [
+        "spring-boot",
+        "ai",
+        "agent",
+        "sandbox",
+        "reattach"
+      ],
+      "port": 8081,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {
+        "OPENAI_API_KEY": "API key for the LLM provider (optional — sample works without)"
+      }
+    },
+    {
+      "name": "spring-boot-guarded-email-agent",
+      "description": "Plan-and-Verify (Meijer) — statically refuses unsafe LLM-emitted plans before any tool fires",
+      "category": "governance",
+      "tags": [
+        "spring-boot",
+        "ai",
+        "governance",
+        "verifier",
+        "plan-and-verify"
+      ],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {},
+      "note": "Self-contained UI at src/main/resources/static/index.html (Spring-served, no Vite source tree). hasFrontend tracks the Vite convention used by spring-boot-ai-chat etc., not whether a UI exists."
+    },
+    {
+      "name": "spring-boot-personal-assistant",
+      "description": "Long-lived memory-bearing assistant: AgentState + AgentWorkspace + AgentIdentity + ProtocolBridge",
+      "category": "agent",
+      "tags": [
+        "spring-boot",
+        "ai",
+        "agent",
+        "workspace",
+        "memory",
+        "identity"
+      ],
+      "port": 8080,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {
+        "OPENAI_API_KEY": "API key for the LLM provider (optional — demo mode without)"
+      }
+    },
+    {
+      "name": "spring-boot-reattach-harness",
+      "description": "Deterministic harness for the mid-stream reattach contract (RunRegistry + RunEventReplayBuffer)",
+      "category": "infrastructure",
+      "tags": [
+        "spring-boot",
+        "ai",
+        "reattach",
+        "test-harness"
+      ],
+      "port": 8096,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {},
+      "note": "Test harness for the reattach contract — used by Playwright reattach.spec.ts; not a typical user starter."
     }
   ]
 }

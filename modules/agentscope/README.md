@@ -107,6 +107,30 @@ emissions to the session). The `done` `CompletableFuture` resolves with
 `CancellationException`, satisfying Correctness Invariant #2 (Terminal
 Path Completeness).
 
+## Per-Request Agent Override (`AgentScopeAgent`)
+
+By default the runtime dispatches against the `ReActAgent` installed via
+`AgentScopeAgentRuntime.setAgent(...)` (or wired by Spring auto-config).
+When a single application needs to route different prompts through
+different agent topologies (a `planner` agent vs. a vanilla `quick-lookup`
+agent, for example) without re-installing the runtime client globally,
+attach a per-request agent via `AgentScopeAgent.attach`:
+
+```java
+var planner = ReActAgent.builder()
+        .name("planner")
+        .tools(planningToolkit)
+        .build();
+
+var ctx = AgentScopeAgent.attach(baseContext, planner);
+runtime.execute(ctx, session);
+```
+
+When attached, the runtime dispatches `planner.stream(messages, options)`
+instead of the default; cancellation still calls `interrupt()` on the
+active agent. When absent, the runtime falls back to the installed
+default — preserving prior behavior.
+
 ## Capabilities NOT declared (and why)
 
 Bridging these would mean adding a translation seam this first cut
@@ -121,9 +145,6 @@ exists:
   subtypes.
 - `PROMPT_CACHING` — AgentScope does not expose a portable cache-key
   primitive on the `Model` interface as of v1.0.12.
-- `PER_REQUEST_RETRY` — would need wrapping `agent.stream(...)` in the
-  outer retry path; AgentScope's own `ExecutionConfig` is the layer to
-  bridge.
 
 ## Requirements
 

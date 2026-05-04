@@ -13,15 +13,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.samples.springboot.koogchat;
+package org.atmosphere.samples.quarkus.aichat;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-
-@SpringBootApplication
-public class KoogChatApplication {
-
-    public static void main(String[] args) {
-        SpringApplication.run(KoogChatApplication.class, args);
-    }
-}
+/**
+ * Structured output type for movie review extraction. The LLM produces JSON
+ * conforming to this record's schema; the Atmosphere AI pipeline parses the
+ * response and emits {@code EntityStart} / {@code StructuredField} /
+ * {@code EntityComplete} events on the wire. Identical shape to the
+ * Spring Boot sibling sample.
+ */
+public record MovieReview(String title, int rating, String summary, String sentiment) {}

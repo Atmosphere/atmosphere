@@ -42,6 +42,7 @@ embabelAdapter.stream(AgentRequest("assistant") { channel ->
 | `AtmosphereOutputChannel` | Routes Embabel `OutputChannelEvent` to `StreamingSession` |
 | `EmbabelAgentRuntime` | `AgentRuntime` SPI implementation (priority 100) |
 | `EmbabelEmbeddingRuntime` | `EmbeddingRuntime` SPI wrapping Embabel `EmbeddingService` (priority 170) |
+| `EmbabelPromptRunner` | Per-request bridge for stacking framework-native customizers (`withTemperature`, `withModel`, `withGuardrails`, ...) on the runtime's pre-configured `PromptRunner` |
 | `AtmosphereEmbabelAutoConfiguration` | Spring Boot auto-configuration |
 
 ## Native Streaming (Atmosphere-Native Path)
@@ -65,6 +66,38 @@ The deployed-agent dispatch path (used when `context.agentId()` matches a
 deployed `@Agent`) continues to route through `AgentPlatform.runAgentFrom`
 and stream events via `AtmosphereOutputChannel`; the Reactor `Flux` path
 applies only to the direct-LLM fallback.
+
+## Per-Request PromptRunner Customizer (`EmbabelPromptRunner`)
+
+By default the Atmosphere-native dispatch path builds a `PromptRunner` via
+`Ai.withDefaultLlm()` and threads system prompt, history, tools, and image
+parts onto it. To stack Embabel-native modifiers per request without
+growing the unified `AgentRuntime` SPI with framework-specific knobs,
+attach a `UnaryOperator<PromptRunner>` customizer via
+`EmbabelPromptRunner.attach`:
+
+```java
+var ctx = EmbabelPromptRunner.attach(baseContext,
+        runner -> runner.withTemperature(0.2).withModel("gpt-4o"));
+runtime.execute(ctx, session);
+```
+
+Or in Kotlin:
+
+```kotlin
+val ctx = EmbabelPromptRunner.attach(baseContext) { runner ->
+    runner.withTemperature(0.2).withModel("gpt-4o")
+}
+runtime.execute(ctx, session)
+```
+
+The customizer fires **after** the runtime's default wiring, so callers
+override or extend behavior without losing the system prompt + history
+the runtime already installed. Only fires on the Atmosphere-native
+dispatch path — the deployed-`@Agent` path bypasses `PromptRunner`
+entirely (the deployed agent owns its own configuration). The bridge is
+exclusive (one customizer per request); compose multiple customizers
+into one before attaching if needed.
 
 ## Samples
 

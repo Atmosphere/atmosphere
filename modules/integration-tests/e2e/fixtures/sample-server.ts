@@ -170,12 +170,30 @@ export const SAMPLES: Record<string, SampleConfig> = {
     type: 'spring-boot',
     readyPath: '/atmosphere/ai-chat',
   },
-  'spring-boot-koog-chat': {
-    name: 'spring-boot-koog-chat',
-    dir: 'spring-boot-koog-chat',
-    port: 8097,
+  'spring-boot-coding-agent': {
+    name: 'spring-boot-coding-agent',
+    dir: 'spring-boot-coding-agent',
+    port: 8098,
     type: 'spring-boot',
-    readyPath: '/atmosphere/ai-chat',
+    // Sandbox + AgentResumeHandle demo. No websocket endpoint at /
+    // pre-Phase-1.5 — REST-only surface, http-ready probe is enough.
+    httpOnlyReady: true,
+  },
+  'spring-boot-guarded-email-agent': {
+    name: 'spring-boot-guarded-email-agent',
+    dir: 'spring-boot-guarded-email-agent',
+    port: 8099,
+    type: 'spring-boot',
+    // Plan-and-Verify (Meijer). REST endpoint + verifier UI;
+    // no websocket transport needed for the inbox-exfiltration demo.
+    httpOnlyReady: true,
+  },
+  'spring-boot-personal-assistant': {
+    name: 'spring-boot-personal-assistant',
+    dir: 'spring-boot-personal-assistant',
+    port: 8100,
+    type: 'spring-boot',
+    readyPath: '/atmosphere/agent/primary-assistant',
   },
   'quarkus-ai-chat': {
     name: 'quarkus-ai-chat',

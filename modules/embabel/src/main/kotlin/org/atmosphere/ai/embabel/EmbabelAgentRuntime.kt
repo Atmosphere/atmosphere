@@ -121,12 +121,39 @@ class EmbabelAgentRuntime : AgentRuntime {
         val targetAgent = context.agentId() ?: agentName
         val deployedAgent = platform.agents().firstOrNull { it.name == targetAgent }
 
-        executeWithOuterRetry(context, session) {
-            if (deployedAgent != null) {
-                executeDeployedAgent(platform, deployedAgent, context, session)
-            } else {
-                executeAtmosphereNative(platform, context, session)
+        // Model-lifecycle hooks: fire onModelStart before dispatch,
+        // onModelEnd / onModelError on terminal paths. messageCount = history
+        // turns + (system prompt? 1 : 0) + 1 user prompt; toolCount =
+        // context.tools(). Same posture as Spring AI / LC4j / ADK / Koog.
+        // Token usage is captured inside executeDeployedAgent via
+        // process.usage() and stashed in lastUsage so onModelEnd reports the
+        // final aggregate.
+        val listeners = context.listeners()
+        val modelName = context.model() ?: name()
+        val messageCount = context.history().size +
+            (if (context.systemPrompt()?.isNotEmpty() == true) 1 else 0) + 1
+        val toolCount = context.tools().size
+        val startNanos = System.nanoTime()
+        val lastUsage = java.util.concurrent.atomic.AtomicReference<TokenUsage>()
+        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
+            listeners, modelName, messageCount, toolCount
+        )
+
+        try {
+            executeWithOuterRetry(context, session) {
+                if (deployedAgent != null) {
+                    executeDeployedAgent(platform, deployedAgent, context, session, lastUsage)
+                } else {
+                    executeAtmosphereNative(platform, context, session, lastUsage)
+                }
             }
+            val durationMs = (System.nanoTime() - startNanos) / 1_000_000L
+            org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
+                listeners, modelName, lastUsage.get(), durationMs
+            )
+        } catch (t: Throwable) {
+            org.atmosphere.ai.AgentLifecycleListener.fireModelError(listeners, modelName, t)
+            throw t
         }
     }
 
@@ -185,7 +212,8 @@ class EmbabelAgentRuntime : AgentRuntime {
         platform: AgentPlatform,
         agent: com.embabel.agent.core.Agent,
         context: AgentExecutionContext,
-        session: StreamingSession
+        session: StreamingSession,
+        lastUsage: java.util.concurrent.atomic.AtomicReference<TokenUsage>
     ) {
         val channel = AtmosphereOutputChannel(session)
         val process = try {
@@ -216,7 +244,9 @@ class EmbabelAgentRuntime : AgentRuntime {
 
         // Emit typed token usage. Embabel's AgentProcess implements
         // LlmInvocationHistory.usage() which aggregates every LLM call made
-        // during this process into a single Usage record.
+        // during this process into a single Usage record. The usage is also
+        // stashed in lastUsage so the caller's onModelEnd lifecycle hook
+        // reports the final aggregate.
         try {
             val usage = process.usage()
             val input = usage.promptTokens?.toLong() ?: 0L
@@ -225,6 +255,7 @@ class EmbabelAgentRuntime : AgentRuntime {
             val tokenUsage = TokenUsage(input, output, 0L, total, null)
             if (tokenUsage.hasCounts()) {
                 session.usage(tokenUsage)
+                lastUsage.set(tokenUsage)
             }
         } catch (t: Throwable) {
             logger.debug("Failed to extract Embabel token usage (this is non-fatal)", t)
@@ -265,11 +296,18 @@ class EmbabelAgentRuntime : AgentRuntime {
      * `@Agent` class (which routes through runAgentFrom) or (b) select a
      * non-Embabel runtime.
      */
+    @Suppress("UNUSED_PARAMETER")
     private fun executeAtmosphereNative(
         platform: AgentPlatform,
         context: AgentExecutionContext,
-        session: StreamingSession
+        session: StreamingSession,
+        lastUsage: java.util.concurrent.atomic.AtomicReference<TokenUsage>
     ) {
+        // lastUsage is intentionally unused on this path: the Atmosphere-native
+        // path drives Ai.withDefaultLlm directly without an AgentProcess, so
+        // no LlmInvocationHistory.usage() aggregate is available — the per-
+        // streamed-call usage holder stays null. This is documented in the
+        // function-level KDoc above.
         val ai: Ai = try {
             InfrastructureInjectionConfiguration().aiFactory(platform)
         } catch (t: Throwable) {
@@ -309,6 +347,9 @@ class EmbabelAgentRuntime : AgentRuntime {
         // blocking dispatch paths reuse the same withSystemPrompt /
         // withMessages / withTools / withImages wiring, so the only branch
         // is the terminal call (generateStream() vs generateText()).
+        // Per-request customizer (EmbabelPromptRunner.attach) applies AFTER
+        // the runtime's default wiring so callers can override temperature /
+        // model / etc. without losing the system prompt + history we just set.
         val runner = try {
             var r = ai.withDefaultLlm()
             if (!context.systemPrompt().isNullOrBlank()) {
@@ -322,6 +363,11 @@ class EmbabelAgentRuntime : AgentRuntime {
             }
             if (embabelImages.isNotEmpty()) {
                 r = r.withImages(embabelImages)
+            }
+            val customizer = EmbabelPromptRunner.from(context)
+            if (customizer != null) {
+                r = customizer.apply(r)
+                logger.debug("Applied per-request EmbabelPromptRunner customizer")
             }
             r
         } catch (t: Throwable) {

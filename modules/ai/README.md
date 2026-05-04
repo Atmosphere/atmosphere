@@ -42,8 +42,8 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 | `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, TOKEN_USAGE, PER_REQUEST_RETRY, PROMPT_CACHING |
 | `atmosphere-embabel` | `EmbabelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE, PER_REQUEST_RETRY, TOOL_CALLING, TOOL_APPROVAL, VISION, MULTI_MODAL |
 | `atmosphere-koog` | `KoogAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, TOKEN_USAGE, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY |
-| `atmosphere-agentscope` | `AgentScopeAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE |
-| `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY *(see runtime caveat below)* |
+| `atmosphere-agentscope` | `AgentScopeAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, PER_REQUEST_RETRY |
+| `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, PER_REQUEST_RETRY *(see runtime caveat below)* |
 | `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY |
 
 Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build.
@@ -180,19 +180,106 @@ When the cap is hit with `OnMaxIterations.FAIL`, the runtime calls
 value; the wire protocol surfaces this as a normal error frame
 (`{"type":"error","message":"Tool loop exhausted after 3 iterations"}`).
 
-The **Built-in runtime** owns its tool loop and honors this policy directly
-(`OpenAiCompatibleClient.doStreamWithToolLoop` reads
-`ChatCompletionRequest.toolLoopPolicy()` on every iteration).
+### Per-runtime adoption
 
-Framework runtimes (LangChain4j, Spring AI, ADK, Koog, Embabel) defer to
-their underlying framework's tool loop and inherit that framework's own
-defaults today. The `ToolLoopPolicies.from(context)` reader exists so each
-runtime can translate the policy into the framework's native cap when a
-mapping is available — `LangChain4j AiServices` exposes
-`.maxSequentialToolsInvocations(int)`, for example — but no framework
-runtime is wired against the policy yet. Same posture as
-`PER_REQUEST_RETRY`: Built-in honors it natively; other runtimes inherit
-their own retry layers (Correctness Invariant #5 — Runtime Truth).
+| Runtime | Honors `ToolLoopPolicy` | Mechanism |
+|---------|-------------------------|-----------|
+| Built-in (`BuiltInAgentRuntime`) | ✓ | `OpenAiCompatibleClient.doStreamWithToolLoop` reads `ChatCompletionRequest.toolLoopPolicy()` on every iteration |
+| Koog (`KoogAgentRuntime`) | ✓ | `executeWithAgent` reads `ToolLoopPolicies.fromOrDefault(ctx)` and uses `policy.maxIterations() * 2` as `AIAgent.maxIterations` (Koog counts LLM rounds + tool steps) |
+| LangChain4j (`LangChain4jAgentRuntime`) | ✓ (caller-controlled) | The runtime itself runs no manual loop. When the caller routes through the `LangChain4jAiServices` sidecar, the iteration cap lives on the user's `AiServices.builder().maxSequentialToolsInvocations(int).build()` proxy — set once at construction. The runtime cannot override per-request because the proxy is opaque. |
+| Spring AI (`SpringAiAgentRuntime`) | ✗ N/A | Spring AI 2.0.0-M2 `ToolCallingChatOptions` exposes only `internalToolExecutionEnabled` (boolean) and `toolContext` (generic map) — no public iteration knob. The framework's `ChatClient` runs its own loop with no exposed cap. |
+| Spring AI Alibaba | ✗ N/A | Inherits Spring AI's lack of knob (uses `ChatClient` under the hood). |
+| ADK (`AdkAgentRuntime`) | ✗ N/A | ADK's loop is callback-driven (`BeforeModelCallback` / `AfterToolCallback`); enforcing a cap would require a custom counter callback, which the SPI does not expose as a per-request knob. |
+| Semantic Kernel (`SemanticKernelAgentRuntime`) | ✗ N/A | SK 1.4.0 `ToolCallBehavior` has `getMaximumAutoInvokeAttempts()` getter but no public setter on the `allowAllKernelFunctions(...)` factory chain — internal default only. |
+| AgentScope (`AgentScopeAgentRuntime`) | ✗ N/A | AgentScope Java 0.x has no public iteration cap on `ReActAgent`. |
+| Embabel (`EmbabelAgentRuntime`) | ✗ N/A | Embabel's `ToolLoopFactory` exposes an iteration cap, but the user-facing `PromptRunner` API does not surface it. Wiring would require constructing a custom `ToolLoopFactory` and injecting via the platform SPI — out of scope for the per-request bridge. |
+
+The `ToolLoopPolicies.from(context)` reader is the contract: every runtime
+that gains a mappable knob in a future framework release should call it and
+translate. Runtimes marked N/A above should re-evaluate when their
+upstream framework exposes a per-request iteration cap.
+
+## Per-Request Retry Architecture
+
+Every runtime that advertises `PER_REQUEST_RETRY` honors
+`AgentExecutionContext.retryPolicy()` — but via two different
+implementations chosen by where the runtime sits in the dispatch tree:
+
+| Runtime | Where retry happens | Hook |
+|---------|---------------------|------|
+| Built-in (`BuiltInAgentRuntime`) | HTTP layer — `OpenAiCompatibleClient.sendWithRetry` retries each transport request individually | `ownsPerRequestRetry()` returns `true`; outer wrapper skipped |
+| Spring AI / LangChain4j / ADK / Semantic Kernel | Bridge wrapper — `AbstractAgentRuntime.executeWithOuterRetry` retries the whole `doExecute(...)` call on pre-stream `RuntimeException` | Inherits `ownsPerRequestRetry() = false` (default) |
+| Koog / Embabel | Same bridge-wrapper semantics, but implemented privately because they implement `AgentRuntime` directly (not `AbstractAgentRuntime`) — Kotlin idiom + per-request agent construction | Private `executeWithOuterRetry(...)` mirroring the Java base class |
+
+**Safety invariant (all three implementations):** retry is only attempted
+when `session.hasErrored() == false` — i.e., the bridge threw a
+`RuntimeException` *before* calling `StreamingSession.error(...)`, so the
+client has not seen any terminal frame and a retry is observably-safe.
+Once the session reports an error out-of-band (Spring AI reactive,
+ADK async callbacks, LC4j `onError`, Koog error frames), retry is aborted
+and the exception propagates because the caller has already observed
+terminal state. Matches Correctness Invariant #2 (Terminal Path
+Completeness): we never re-emit after an out-of-band terminal.
+
+**Why two implementations not one:** Built-in's HTTP-level retry can
+retry mid-stream when the SSE transport drops between bytes, because it
+controls the connection. Framework runtimes can only retry whole bridge
+calls, because they hand the prompt to a third-party client that owns
+the connection. The two-tier model gives Built-in tighter retry without
+forcing framework runtimes to lie about that capability.
+
+**All 9 runtimes claim `PER_REQUEST_RETRY` honestly.** Earlier capability
+sets for `AgentScope` and `Spring AI Alibaba` omitted the flag, even
+though both extend `AbstractAgentRuntime` and inherit
+`executeWithOuterRetry` for free — that was an under-claim corrected so
+`runtime.capabilities()` matches the runtime's actual behavior
+(Correctness Invariant #5).
+
+## Per-Request Sidecar Bridges
+
+The `AgentRuntime` SPI keeps the unified surface narrow on purpose —
+`message`, `systemPrompt`, `model`, `tools`, `history`, `metadata`,
+nothing framework-specific. To let advanced callers reach
+framework-native knobs without growing the SPI, every framework runtime
+exposes a **sidecar bridge**: a small static helper that reads/writes a
+canonical key in `context.metadata()`. The runtime checks for the slot
+on every call; when present it dispatches against the user-supplied
+override, otherwise it falls back to the runtime's default wiring.
+
+| Runtime | Sidecar | What it overrides | Metadata key |
+|---------|---------|-------------------|--------------|
+| `SpringAiAgentRuntime` | `SpringAiAdvisors` | List of Spring AI `Advisor`s passed to `promptSpec.advisors(...)` (RAG retrievers, guardrails, observability) | `spring-ai.advisors` |
+| `LangChain4jAgentRuntime` | `LangChain4jAiServices` | Caller-built `AiServices` proxy — entire dispatch routes through the proxy's typed interface (gives access to `maxSequentialToolsInvocations`, custom system message provider, etc.) | `langchain4j.aiservice` |
+| `AdkAgentRuntime` | `AdkRootAgent` | Per-request `BaseAgent` root — overrides the configured root agent so a single runtime can dispatch against multiple ADK agent topologies | `adk.rootAgent` |
+| `KoogAgentRuntime` | `KoogStrategy` | Per-request `AIAgentStrategy` — switch between `chatAgentStrategy()`, `singleRunStrategy()`, or a fully custom graph strategy without re-installing the runtime | `koog.strategy` |
+| `SemanticKernelAgentRuntime` | `SemanticKernelInvocation` | Per-request `InvocationContext` — unlocks `KernelHooks`, `withMaxAutoInvokeAttempts`, custom `PromptExecutionSettings` that the runtime's default builder doesn't expose | `semantic-kernel.invocationContext` |
+| `EmbabelAgentRuntime` | `EmbabelPromptRunner` | `UnaryOperator<PromptRunner>` customizer applied AFTER the runtime's default wiring (system-prompt+history+tools+images already installed) — stack `withTemperature` / `withModel` / `withGuardrails` on top. Atmosphere-native dispatch path only; the deployed-`@Agent` path bypasses `PromptRunner` | `embabel.promptRunner` |
+| `AgentScopeAgentRuntime` | `AgentScopeAgent` | Per-request `ReActAgent` — useful when different prompts route through different agent topologies (planner vs. quick lookup) without re-installing the runtime client | `agentscope.agent` |
+| `SpringAiAlibabaAgentRuntime` | `SpringAiAlibabaRunnableConfig` | Per-request `RunnableConfig` — Alibaba's natural per-invocation handle for `threadId` (memory thread continuation), `checkPointId` (resume), `streamMode`, metadata, and store. Runtime dispatches via `agent.call(messages, config)` when attached, no-arg overload otherwise | `spring-ai-alibaba.runnableConfig` |
+
+**Built-in runtime has no sidecar** — it talks raw HTTP to an
+OpenAI-compatible endpoint, so every per-request knob is already
+expressible through the unified SPI (`metadata` for cache hints, etc.).
+
+**Canonical sidecar contract** (every helper above conforms):
+
+- `from(context)` returns `null` (or empty list, where appropriate)
+  when the slot is absent — never throws on missing data.
+- `from(context)` throws `IllegalArgumentException` when the slot is
+  present but the wrong type — silent drops would mask the override
+  never firing, which is exactly the class of bug `SpringAiAdvisors`
+  shipped to fix originally.
+- `attach(context, override)` returns a new `AgentExecutionContext`
+  with the override stored under the canonical key, preserving every
+  other metadata entry. Most bridges are exclusive (one override per
+  request); `SpringAiAdvisors` is the exception (additive — multiple
+  advisors compose into a chain).
+- All sidecar types live inside their own runtime module, so
+  `modules/ai` carries zero framework-specific dependencies.
+
+Each bridge has a dedicated `*BridgeTest` (or `*BridgeTest.kt`) pinning
+all six guarantees: missing slot, wrong-type slot, attach round-trip,
+attach replaces, attach preserves unrelated entries, null-arg guards.
 
 ## Model-Lifecycle Observation
 
@@ -218,8 +305,10 @@ LC4j `ChatModelListener`, ADK `BeforeModelCallback`/`AfterModelCallback`,
 Koog `PromptExecutorInterceptor`, Embabel `AgentListener`) and should
 bridge into these hooks from their adapter module — see the per-module
 README for the cross-runtime adoption status. Same posture as
-`PER_REQUEST_RETRY` and `ToolLoopPolicy`: Built-in honors it natively, and
-the SPI is in place for framework-runtime authors to wire up their bridges.
+`ToolLoopPolicy`: Built-in honors it natively, and the SPI is in place
+for framework-runtime authors to wire up their bridges. (Distinct from
+`PER_REQUEST_RETRY`, which all 7 claimants honor today via two distinct
+implementations — see "Per-Request Retry Architecture" below.)
 
 `AiEventForwardingListener` is a built-in adapter that translates these
 hooks into `AiEvent.Progress` frames on the streaming session, so browser
@@ -643,8 +732,8 @@ TCD=TOOL_CALL_DELTA.
 | `AdkAgentRuntime`            | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   |
 | `EmbabelAgentRuntime`        | 100 | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | —   | yes | yes | —   |
 | `KoogAgentRuntime`           | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   |
-| `AgentScopeAgentRuntime`     | 100 | yes | —   | yes | yes | —   | yes | —   | —   | —   | —   | —   | yes | —   | —   |
-| `SpringAiAlibabaAgentRuntime`| 100 | yes¹| —   | yes | yes | —   | yes | —   | —   | —   | —   | —   | —   | —   | —   |
+| `AgentScopeAgentRuntime`     | 100 | yes | —   | yes | yes | —   | yes | —   | —   | —   | —   | —   | yes | yes | —   |
+| `SpringAiAlibabaAgentRuntime`| 100 | yes¹| —   | yes | yes | —   | yes | —   | —   | —   | —   | —   | —   | yes | —   |
 | `SemanticKernelAgentRuntime` | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   |
 
 ¹ `SpringAiAlibabaAgentRuntime` declares `TEXT_STREAMING` honestly because the
@@ -725,8 +814,9 @@ Spring AI's `StreamingChatModel` directly via `atmosphere-spring-ai`.
   intentionally not declared in this first cut — bridging AgentScope's
   `Toolkit` into Atmosphere's `ToolDefinition` surface is a follow-up; declaring
   it without that bridge would violate Correctness Invariant #5. `VISION` /
-  `AUDIO` / `MULTI_MODAL` / `PROMPT_CACHING` / `PER_REQUEST_RETRY` similarly
-  await translation surfaces. Cancellation rides
+  `AUDIO` / `MULTI_MODAL` / `PROMPT_CACHING` similarly await translation
+  surfaces. `PER_REQUEST_RETRY` is honored via the inherited
+  `AbstractAgentRuntime.executeWithOuterRetry` wrapper. Cancellation rides
   `Disposable.dispose()` + `agent.interrupt()`.
 - **Spring AI Alibaba** is buffered (see footnote ¹ above). `SYSTEM_PROMPT` is
   honored two ways defensively — `ReactAgent.setSystemPrompt(context.systemPrompt())`

@@ -58,8 +58,30 @@ public final class AdkEventAdapter {
     private final java.util.concurrent.atomic.AtomicBoolean completed = new java.util.concurrent.atomic.AtomicBoolean(false);
     private final java.util.concurrent.CompletableFuture<Void> doneFuture = new java.util.concurrent.CompletableFuture<>();
 
+    /**
+     * Lifecycle hook bridge: optional listeners + model name passed in via the
+     * lifecycle-aware {@code bridge(...)} overload. Default empty/{@code "adk"}
+     * keeps the existing 3 bridge factories backward-compatible — when not
+     * provided the fire calls are no-ops.
+     */
+    private final java.util.List<org.atmosphere.ai.AgentLifecycleListener> listeners;
+    private final String modelName;
+    private final long startNanos;
+    private final java.util.concurrent.atomic.AtomicReference<org.atmosphere.ai.TokenUsage>
+            lastUsage = new java.util.concurrent.atomic.AtomicReference<>();
+
     private AdkEventAdapter(StreamingSession session) {
+        this(session, java.util.List.of(), "adk");
+    }
+
+    private AdkEventAdapter(
+            StreamingSession session,
+            java.util.List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+            String modelName) {
         this.session = session;
+        this.listeners = listeners != null ? listeners : java.util.List.of();
+        this.modelName = modelName != null ? modelName : "adk";
+        this.startNanos = System.nanoTime();
     }
 
     /**
@@ -97,6 +119,29 @@ public final class AdkEventAdapter {
      */
     public static AdkEventAdapter bridge(Flowable<Event> events, StreamingSession session) {
         var adapter = new AdkEventAdapter(session);
+        adapter.subscribe(events);
+        return adapter;
+    }
+
+    /**
+     * Bridge an ADK event stream to an existing {@link StreamingSession}, with
+     * model-lifecycle hook firing. Fires {@code fireModelStart} synchronously
+     * before subscribing; {@code fireModelEnd} on normal completion (with the
+     * last captured token usage); {@code fireModelError} on subscription
+     * error. {@code messageCount} and {@code toolCount} are passed-through to
+     * the {@code onModelStart} hook so observability consumers see the
+     * dispatch shape (history depth, tool list size).
+     */
+    public static AdkEventAdapter bridge(
+            Flowable<Event> events,
+            StreamingSession session,
+            java.util.List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+            String modelName,
+            int messageCount,
+            int toolCount) {
+        var adapter = new AdkEventAdapter(session, listeners, modelName);
+        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
+                adapter.listeners, adapter.modelName, messageCount, toolCount);
         adapter.subscribe(events);
         return adapter;
     }
@@ -200,8 +245,11 @@ public final class AdkEventAdapter {
             return;
         }
 
-        // Forward usage metadata if present (ADK 0.9.0+)
-        extractUsageMetadata(event, session);
+        // Forward usage metadata if present (ADK 0.9.0+) and stash the latest
+        // counts for the lifecycle-end hook (fired in onComplete) so consumers
+        // see the final usage figure even when ADK emits multiple usage events
+        // within a single tool-loop run.
+        extractUsageMetadata(event, session).ifPresent(lastUsage::set);
 
         // Handle turn completion
         if (event.turnComplete().orElse(false)) {
@@ -222,6 +270,11 @@ public final class AdkEventAdapter {
 
     private void onError(Throwable t) {
         logger.error("ADK event stream error", t);
+        // Fire model-lifecycle error hook before session.error so audit
+        // appenders / AiEventForwardingListener see the failure even when
+        // session.error short-circuits on already-closed sessions. No-op
+        // when bridge() was called without listeners.
+        org.atmosphere.ai.AgentLifecycleListener.fireModelError(listeners, modelName, t);
         if (completed.compareAndSet(false, true) && !session.isClosed()) {
             session.error(t);
         }
@@ -235,6 +288,14 @@ public final class AdkEventAdapter {
         if (completed.compareAndSet(false, true)) {
             session.emit(new AiEvent.Complete(null, java.util.Map.of()));
         }
+        // Fire model-lifecycle end hook with captured usage + duration. The
+        // usage comes from extractUsageMetadata, which stores the latest
+        // ADK-emitted TokenUsage in the lastUsage holder. Duration is
+        // wall-clock from adapter construction (effectively the dispatch
+        // start, since bridge() constructs and subscribes in the same call).
+        long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
+        org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
+                listeners, modelName, lastUsage.get(), durationMs);
         doneFuture.complete(null);
     }
 
@@ -261,15 +322,18 @@ public final class AdkEventAdapter {
      * sink. The default sink re-emits the legacy {@code ai.tokens.*} metadata
      * keys so existing consumers keep working unchanged.
      */
-    private static void extractUsageMetadata(Event event, StreamingSession session) {
-        event.usageMetadata().ifPresent(usage -> {
+    private static Optional<org.atmosphere.ai.TokenUsage> extractUsageMetadata(
+            Event event, StreamingSession session) {
+        return event.usageMetadata().flatMap(usage -> {
             long input = usage.promptTokenCount().map(Integer::longValue).orElse(0L);
             long output = usage.candidatesTokenCount().map(Integer::longValue).orElse(0L);
             long total = usage.totalTokenCount().map(Integer::longValue).orElse(input + output);
             var tokenUsage = new org.atmosphere.ai.TokenUsage(input, output, 0L, total, null);
             if (tokenUsage.hasCounts()) {
                 session.usage(tokenUsage);
+                return Optional.of(tokenUsage);
             }
+            return Optional.empty();
         });
     }
 }

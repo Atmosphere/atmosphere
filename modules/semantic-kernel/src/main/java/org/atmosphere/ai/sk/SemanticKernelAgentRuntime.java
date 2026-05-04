@@ -131,7 +131,17 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         }
         var kernel = kernelBuilder.build();
 
-        var invocationContext = buildInvocationContext(toolPlugin != null);
+        // Per-request InvocationContext override: when the caller attached
+        // one via SemanticKernelInvocation.attach(...), use it verbatim.
+        // Otherwise build the runtime's default (allowAllKernelFunctions
+        // gated on tool presence, no other overrides).
+        var perRequestInvocation = SemanticKernelInvocation.from(context);
+        var invocationContext = perRequestInvocation != null
+                ? perRequestInvocation
+                : buildInvocationContext(toolPlugin != null);
+        if (perRequestInvocation != null) {
+            logger.debug("Applied per-request SK InvocationContext override");
+        }
 
         logger.debug("SK streaming: model={}, history messages={}, tools={}",
                 context.model(), chatHistory.getMessages().size(),
@@ -140,7 +150,17 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         var flux = service.getStreamingChatMessageContentsAsync(
                 chatHistory, kernel, invocationContext);
 
-        SemanticKernelStreamingAdapter.drain(flux, session);
+        // Model-lifecycle hooks: fire onModelStart synchronously before drain,
+        // onModelEnd / onModelError from the lifecycle-aware drain overload.
+        // Same posture as Spring AI / LC4j / ADK / Koog / Embabel.
+        var listeners = context.listeners();
+        var modelName = context.model() != null ? context.model() : name();
+        var messageCount = chatHistory.getMessages().size();
+        var toolCount = toolPlugin != null ? context.tools().size() : 0;
+        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
+                listeners, modelName, messageCount, toolCount);
+
+        SemanticKernelStreamingAdapter.drain(flux, session, listeners, modelName);
     }
 
     /**

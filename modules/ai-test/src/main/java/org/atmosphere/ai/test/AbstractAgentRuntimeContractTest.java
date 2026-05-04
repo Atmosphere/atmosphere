@@ -294,13 +294,21 @@ public abstract class AbstractAgentRuntimeContractTest {
     /**
      * Every {@link org.atmosphere.ai.AgentExecutionContext} carries a
      * non-null {@link org.atmosphere.ai.RetryPolicy} (defaulting to
-     * {@link org.atmosphere.ai.RetryPolicy#DEFAULT}). Runtimes that wire
-     * the per-request override into their underlying client (today: only
-     * Built-in via {@code OpenAiCompatibleClient.sendWithRetry}) must
-     * accept a context whose {@code retryPolicy} is set to a custom value
-     * without throwing at dispatch. Other runtimes inherit their native
-     * framework retry layer and the assertion verifies they at least
-     * tolerate the field.
+     * {@link org.atmosphere.ai.RetryPolicy#DEFAULT}). All
+     * {@code PER_REQUEST_RETRY}-claiming runtimes wire the per-request
+     * override at one of two layers: Built-in does it at the HTTP layer
+     * via {@code OpenAiCompatibleClient.sendWithRetry}; framework runtimes
+     * extending {@link org.atmosphere.ai.AbstractAgentRuntime} inherit
+     * the {@code executeWithOuterRetry} bridge wrapper for free; Embabel
+     * and Koog implement {@code AgentRuntime} directly and re-implement
+     * the bridge wrapper privately. See {@code modules/ai/README.md}
+     * "Per-Request Retry Architecture" for the full table. The contract
+     * assertion here verifies that any runtime accepts a non-default
+     * policy without throwing at dispatch — functional retry coverage
+     * lives in {@code AbstractAgentRuntimeTest} (
+     * {@code executeStopsRetryingAfterBudgetExhausted},
+     * {@code executeDoesNotRetryWhenPolicyIsInheritSentinel},
+     * {@code executeDoesNotWrapWhenRuntimeOwnsRetryNatively}).
      */
     @Test
     protected void runtimeAcceptsCustomRetryPolicyOnContext() {

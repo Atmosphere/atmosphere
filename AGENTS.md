@@ -342,7 +342,8 @@ This frees up runners for the new push. Without this, stale queued runs accumula
 Samples in `samples/` are **the first thing users see** — they must be production-quality, not stubs.
 
 ### Rules for Samples
-- **Actually use the integration you claim to demonstrate.** If a sample is called `spring-boot-koog-chat`, it MUST use the real Koog `AIAgent` / `chatAgentStrategy()` API — not fake it with a wrapper around a raw LLM client. If you can't make the real integration work, say so and ask for help.
+- **Actually use the integration you claim to demonstrate.** If a sample is called `spring-boot-rag-chat`, it MUST use the real Spring AI `VectorStore` API — not fake it with an in-memory map. If you can't make the real integration work, say so and ask for help.
+- **Never create per-runtime sample apps** (`spring-boot-<runtime>-chat`). The `AgentRuntime` SPI promise is "swap one Maven dep, the same sample works." Document framework-specific extensions in the runtime's module README, not via a dedicated sample.
 - **No mock/stub implementations disguised as real code.** Comments like "in a real app, you would call X" are a red flag — the sample should BE the real app.
 - **Read the third-party library's actual API** (use `javap`, inspect JARs, read source) before writing integration code. Do not guess at APIs.
 - **Each sample must compile.** Run `./mvnw compile -pl samples/<name>` before committing.

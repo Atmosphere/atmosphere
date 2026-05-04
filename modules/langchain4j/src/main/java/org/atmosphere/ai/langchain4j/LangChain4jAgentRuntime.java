@@ -245,12 +245,23 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         var cancelled = new java.util.concurrent.atomic.AtomicBoolean();
         var done = new java.util.concurrent.CompletableFuture<Void>();
 
+        // Model-lifecycle hooks: fire onModelStart before chat() dispatch,
+        // onModelEnd / onModelError from the CancelAwareStreamingHandler's
+        // terminal callbacks. Same posture as Built-in's OpenAiCompatibleClient
+        // — gives Micrometer / AiEventForwardingListener / audit appenders a
+        // uniform per-call event surface across runtimes.
+        var listeners = context.listeners();
+        var modelName = context.model() != null ? context.model() : name();
+        var startNanos = System.nanoTime();
+        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
+                listeners, modelName, messages.size(), toolSpecs.size());
+
         var handler = new CancelAwareStreamingHandler(
                 new ToolAwareStreamingResponseHandler(
                         session, streamingModel, messages, toolSpecs, toolMap,
                         context.approvalStrategy(), context.listeners(), cancelled,
                         context.approvalPolicy()),
-                cancelled, done);
+                cancelled, done, listeners, modelName, startNanos);
         streamingModel.chat(chatRequestBuilder.build(), handler);
 
         return new org.atmosphere.ai.ExecutionHandle() {
@@ -357,14 +368,23 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         private final dev.langchain4j.model.chat.response.StreamingChatResponseHandler inner;
         private final java.util.concurrent.atomic.AtomicBoolean cancelled;
         private final java.util.concurrent.CompletableFuture<Void> done;
+        private final java.util.List<org.atmosphere.ai.AgentLifecycleListener> listeners;
+        private final String modelName;
+        private final long startNanos;
 
         CancelAwareStreamingHandler(
                 dev.langchain4j.model.chat.response.StreamingChatResponseHandler inner,
                 java.util.concurrent.atomic.AtomicBoolean cancelled,
-                java.util.concurrent.CompletableFuture<Void> done) {
+                java.util.concurrent.CompletableFuture<Void> done,
+                java.util.List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+                String modelName,
+                long startNanos) {
             this.inner = inner;
             this.cancelled = cancelled;
             this.done = done;
+            this.listeners = listeners;
+            this.modelName = modelName;
+            this.startNanos = startNanos;
         }
 
         @Override public void onPartialResponse(String partial) {
@@ -378,6 +398,25 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
             try {
                 if (!cancelled.get()) {
                     inner.onCompleteResponse(response);
+                    // Fire model-lifecycle end hook with the captured TokenUsage
+                    // and wall-clock duration. We translate LC4j's TokenUsage
+                    // type to Atmosphere's record so listeners stay framework-
+                    // agnostic.
+                    org.atmosphere.ai.TokenUsage atmoUsage = null;
+                    var lcUsage = response != null ? response.tokenUsage() : null;
+                    if (lcUsage != null) {
+                        long input = lcUsage.inputTokenCount() != null
+                                ? lcUsage.inputTokenCount() : 0L;
+                        long output = lcUsage.outputTokenCount() != null
+                                ? lcUsage.outputTokenCount() : 0L;
+                        long total = lcUsage.totalTokenCount() != null
+                                ? lcUsage.totalTokenCount() : input + output;
+                        atmoUsage = new org.atmosphere.ai.TokenUsage(
+                                input, output, 0L, total, null);
+                    }
+                    long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
+                    org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
+                            listeners, modelName, atmoUsage, durationMs);
                 }
             } finally {
                 done.complete(null);
@@ -396,6 +435,12 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
             try {
                 if (!wasCancelled) {
                     inner.onError(error);
+                    // Mirror onModelEnd: surface the error to lifecycle listeners
+                    // so consumers (audit appenders, AiEventForwardingListener) see
+                    // the failure even when downstream session.error() handling
+                    // varies between transport-level and model-level errors.
+                    org.atmosphere.ai.AgentLifecycleListener.fireModelError(
+                            listeners, modelName, error);
                 } else {
                     logger.trace("Dropping post-cancel LC4j error", error);
                 }

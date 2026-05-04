@@ -54,7 +54,6 @@ class KoogAgentRuntime : AgentRuntime {
 
     companion object {
         private val logger = LoggerFactory.getLogger(KoogAgentRuntime::class.java)
-        private const val MAX_TOOL_ROUNDS = 5
 
         @Volatile
         private var promptExecutor: PromptExecutor? = null
@@ -324,6 +323,17 @@ class KoogAgentRuntime : AgentRuntime {
         )
         val systemPrompt = buildSystemPrompt(context)
 
+        // Per-request tool-loop iteration cap: if the caller attached a
+        // ToolLoopPolicy via ToolLoopPolicies.attach(...), use it as Koog's
+        // AIAgent.maxIterations. Default policy = 5 model→tool rounds,
+        // doubled to 10 because Koog's iteration count covers both LLM
+        // rounds and tool execution steps (one round = one llm call + one
+        // tool dispatch). Koog throws on overflow; executeInternal's
+        // try/catch surfaces it via session.error, matching the policy's
+        // OnMaxIterations.FAIL semantics for callers that opt in.
+        val toolLoopPolicy = org.atmosphere.ai.llm.ToolLoopPolicies.fromOrDefault(context)
+        val maxIterations = toolLoopPolicy.maxIterations() * 2
+
         // Per-request strategy override: when the caller attached a custom
         // AIAgentGraphStrategy via KoogStrategy.attach(...), wire it into the
         // AIAgent factory's strategy slot. Without this branch the helper
@@ -332,6 +342,12 @@ class KoogAgentRuntime : AgentRuntime {
         // omitted. The else branch preserves the pre-bridge behavior
         // bit-identical for callers who do not opt in.
         val customStrategy = KoogStrategy.from(context)
+        // Lifecycle hook bridge args — listeners + model name threaded into
+        // wireFeatureHandlers so onLLMCallStarting/Completed/Failed translate
+        // to AgentLifecycleListener.fireModelStart/End/Error.
+        val lifecycleListeners = context.listeners()
+        val lifecycleModelName = context.model() ?: name()
+
         val agent = if (customStrategy != null) {
             AIAgent(
                 promptExecutor = executor,
@@ -339,9 +355,9 @@ class KoogAgentRuntime : AgentRuntime {
                 strategy = customStrategy,
                 toolRegistry = toolRegistry,
                 systemPrompt = systemPrompt,
-                maxIterations = MAX_TOOL_ROUNDS * 2
+                maxIterations = maxIterations
             ) {
-                wireFeatureHandlers(cancelled, session)
+                wireFeatureHandlers(cancelled, session, lifecycleListeners, lifecycleModelName)
             }
         } else {
             AIAgent(
@@ -349,9 +365,9 @@ class KoogAgentRuntime : AgentRuntime {
                 llmModel = model,
                 systemPrompt = systemPrompt,
                 toolRegistry = toolRegistry,
-                maxIterations = MAX_TOOL_ROUNDS * 2
+                maxIterations = maxIterations
             ) {
-                wireFeatureHandlers(cancelled, session)
+                wireFeatureHandlers(cancelled, session, lifecycleListeners, lifecycleModelName)
             }
         }
 
@@ -378,6 +394,16 @@ class KoogAgentRuntime : AgentRuntime {
             }
             throw ce
         } catch (e: Exception) {
+            // Mirror the Spring AI / LC4j posture: any exception escaping
+            // agent.run() (LLM call failure, tool failure, bridge failure)
+            // surfaces as an onModelError lifecycle event so audit appenders
+            // and AiEventForwardingListener see the failure even when the
+            // session.error path is the primary signal. Koog's
+            // EventHandlerConfig has no onLLMCallFailed callback, so the
+            // catch block is the bridge point.
+            org.atmosphere.ai.AgentLifecycleListener.fireModelError(
+                lifecycleListeners, lifecycleModelName, e
+            )
             logger.error("Koog agent execution failed", e)
             if (!session.isClosed) session.error(e)
         }
@@ -651,8 +677,17 @@ class KoogAgentRuntime : AgentRuntime {
  */
 private fun GraphAIAgent.FeatureContext.wireFeatureHandlers(
     cancelled: AtomicBoolean,
-    session: StreamingSession
+    session: StreamingSession,
+    listeners: List<org.atmosphere.ai.AgentLifecycleListener> = emptyList(),
+    modelName: String = "koog"
 ) {
+    // Per-LLM-call start time for fireModelEnd duration computation. Koog's
+    // AIAgent runs may issue multiple LLM calls (tool loop), so we capture
+    // the start time per call rather than once per agent.run(). AtomicLong
+    // is safe for the single-writer / single-reader pattern Koog uses
+    // (onLLMCallStarting writes; onLLMCallCompleted reads on the same
+    // dispatcher).
+    val callStartNanos = java.util.concurrent.atomic.AtomicLong()
     handleEvents {
         onLLMStreamingFrameReceived { ctx ->
             if (cancelled.get() || session.isClosed) return@onLLMStreamingFrameReceived
@@ -675,19 +710,44 @@ private fun GraphAIAgent.FeatureContext.wireFeatureHandlers(
         onToolCallFailed { ctx ->
             session.emit(AiEvent.ToolError(ctx.toolName, ctx.error?.message ?: "Tool failed"))
         }
+        onLLMCallStarting { ctx ->
+            // Fire model-lifecycle start hook per LLM call. Koog's tool loop
+            // issues one ctx per dispatch, so callers see one start/end pair
+            // per round — matching the Built-in OpenAiCompatibleClient posture
+            // (one fireModelStart per HTTP attempt).
+            callStartNanos.set(System.nanoTime())
+            val messageCount = ctx.prompt.messages.size
+            val toolCount = ctx.tools.size
+            org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
+                listeners, modelName, messageCount, toolCount
+            )
+        }
         onLLMCallCompleted { ctx ->
             // Phase 1: report typed token usage once per LLM call. The default
             // StreamingSession.usage() sink re-emits legacy ai.tokens.* metadata keys
             // so existing Micrometer / budget consumers keep working.
             val responses = ctx.responses
+            var atmoUsage: TokenUsage? = null
             if (responses.isNotEmpty()) {
                 val meta = responses.last().metaInfo
                 val input = meta.inputTokensCount?.toLong() ?: 0L
                 val output = meta.outputTokensCount?.toLong() ?: 0L
                 val total = meta.totalTokensCount?.toLong() ?: (input + output)
                 val usage = TokenUsage(input, output, 0L, total, null)
-                if (usage.hasCounts()) session.usage(usage)
+                if (usage.hasCounts()) {
+                    session.usage(usage)
+                    atmoUsage = usage
+                }
             }
+            // Fire model-lifecycle end hook with the captured TokenUsage and
+            // wall-clock duration. nanos to millis with floor at 0 in case the
+            // start hook didn't fire (defensive — shouldn't happen but Koog's
+            // event ordering is its own).
+            val startNs = callStartNanos.get()
+            val durationMs = if (startNs > 0) (System.nanoTime() - startNs) / 1_000_000L else 0L
+            org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
+                listeners, modelName, atmoUsage, durationMs
+            )
         }
     }
 }

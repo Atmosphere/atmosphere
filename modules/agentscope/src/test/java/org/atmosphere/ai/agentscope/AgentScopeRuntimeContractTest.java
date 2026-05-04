@@ -88,7 +88,8 @@ class AgentScopeRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.SYSTEM_PROMPT,
                 AiCapability.STRUCTURED_OUTPUT,
                 AiCapability.CONVERSATION_MEMORY,
-                AiCapability.TOKEN_USAGE);
+                AiCapability.TOKEN_USAGE,
+                AiCapability.PER_REQUEST_RETRY);
     }
 
     static class TestableAgentScopeRuntime extends AgentScopeAgentRuntime {

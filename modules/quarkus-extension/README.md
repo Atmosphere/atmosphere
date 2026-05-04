@@ -79,6 +79,42 @@ The same `@ManagedService` handler works across WAR, Spring Boot, and Quarkus --
 ## Sample
 
 - [Quarkus Chat](../../samples/quarkus-chat/) -- real-time chat with WebSocket and long-polling fallback
+- [Quarkus AI Chat](../../samples/quarkus-ai-chat/) -- 5 `@AiEndpoint` paths (basic chat / prompt-cache / retry / multi-modal / structured-output) backed by `atmosphere-quarkus-langchain4j`
+
+## Spring Boot ↔ Quarkus Auto-Config Parity
+
+The Spring Boot starter ships **14 auto-configurations** (admin Console, AI
+endpoint discovery, auth, cache, coordinator, favicon, governance metrics,
+gRPC, Micrometer metrics, OpenTelemetry tracing, WebTransport, durable
+sessions, plus the core servlet wiring). The Quarkus extension currently
+covers a strict subset:
+
+| Surface | Spring Boot autoconfig | Quarkus build step | Status |
+|---------|------------------------|---------------------|--------|
+| Core servlet + framework init | `AtmosphereAutoConfiguration` | `AtmosphereProcessor.registerServlet` + `deferredFrameworkInit` + `ignoreAtmosphereScis` | ✓ wired |
+| `@AiEndpoint` discovery | `AtmosphereAiEndpointRegistrar` (in `AtmosphereAiAutoConfiguration`) | `AtmosphereProcessor.scanAnnotations` (annotation goes through Jandex; Atmosphere AI annotation processor picks it up at servlet init) | ✓ wired |
+| Admin Console SPA | `AtmosphereAdminAutoConfiguration` | `AtmosphereConsoleServlet` bundled in `quarkus-admin` (commit 28703ea064) | ✓ wired |
+| WebSocket endpoints | (Spring Boot uses Tomcat's WSCI) | `AtmosphereProcessor.registerWebSocketEndpoints` (`ServerWebSocketContainerBuildItem`) | ✓ wired |
+| Native image reflection | (Spring Boot doesn't need it) | `AtmosphereProcessor.registerReflection` + `registerPoolReflection` + `registerEncoderDecoderClasses` | ✓ wired |
+| Auth (`AtmosphereAuthAutoConfiguration`) | `AuthFilter` chain + `AtmosphereSecurityFilter` | — | **gap** — use Quarkus Security directly (`@RolesAllowed` on `@AiEndpoint`-annotated classes) |
+| Cache (`AtmosphereCacheAutoConfiguration`) | `BroadcasterCache` autowiring | — | **gap** — wire manually via `BroadcasterFactory` listener |
+| Coordinator (`AtmosphereCoordinatorAutoConfiguration`) | `@Coordinator` + `@Fleet` discovery | — | **gap** — `@Coordinator` classes work but `@Fleet` autowiring needs CDI bean producers |
+| Favicon (`AtmosphereFaviconAutoConfiguration`) | `/favicon.ico` handler | — | **gap** — Quarkus serves `META-INF/resources/favicon.ico` natively, so use that |
+| Governance metrics (`AtmosphereGovernanceMetricsAutoConfiguration`) | Per-policy Micrometer counters | — | **gap** — depends on Micrometer auto-config |
+| gRPC (`AtmosphereGrpcAutoConfiguration`) | `GrpcAtmosphereService` registration | — | **gap** — Quarkus gRPC differs (uses Vert.x gRPC, not Netty); needs separate extension |
+| Micrometer metrics (`AtmosphereMetricsAutoConfiguration`) | `MeterRegistry` autowiring + `AiMetrics` binding | — | **gap** — wire manually via `quarkus-micrometer` |
+| OTel tracing (`AtmosphereTracingAutoConfiguration`) | `Tracer` autowiring + `AiTracing` binding | — | **gap** — wire manually via `quarkus-opentelemetry` |
+| WebTransport (`AtmosphereWebTransportAutoConfiguration`) | Reactor Netty sidecar startup | — | **gap** — sidecar architecture works but lifecycle wiring needs a `LifecycleEventBuildItem` consumer |
+| Durable sessions (`DurableSessionAutoConfiguration`) | `DurableSessionStore` SPI + REST control plane | — | **gap** — needs CDI scoping + `@Path` mapping equivalent |
+
+**Honest summary:** the four most-load-bearing Quarkus surfaces (servlet,
+AI endpoint discovery, admin Console, WebSocket) are wired. The eight
+non-core auto-configs are gaps tracked against this README — a Quarkus app
+can still use them but needs to wire the underlying primitives manually
+(via Quarkus Security / Micrometer / OTel / etc.) instead of getting them
+for free. Closure of these gaps is staged work, one `@BuildStep` at a
+time, with the matching Quarkus sample feature porting in lockstep so a
+demo proves the wiring on every PR.
 
 ## Full Documentation
 

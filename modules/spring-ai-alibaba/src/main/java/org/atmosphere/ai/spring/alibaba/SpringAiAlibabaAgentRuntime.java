@@ -133,15 +133,47 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
             messages.add(toSpringMessage(chat));
         }
 
+        // Model-lifecycle hooks: same posture as Spring AI / LC4j / ADK / Koog
+        // / Embabel / SK / AgentScope. Spring AI Alibaba is buffered (no
+        // incremental token deltas), so onModelEnd fires once at completion
+        // with the full duration but no TokenUsage (Alibaba's ReactAgent.call
+        // returns AssistantMessage which has no usage surface in v1.1.2.0).
+        var listeners = context.listeners();
+        var modelName = context.model() != null ? context.model() : name();
+        var startNanos = System.nanoTime();
+        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
+                listeners, modelName, messages.size(), context.tools().size());
+
+        // Per-request RunnableConfig override: when the caller attached one
+        // via SpringAiAlibabaRunnableConfig.attach(...), use the
+        // call(messages, config) overload — that's the natural per-invocation
+        // handle for thread continuation, checkpoint resume, stream mode,
+        // metadata, and store. Without an override we fall back to the no-arg
+        // agent.call(messages) — preserves prior behavior.
+        var runnableConfig = SpringAiAlibabaRunnableConfig.from(context);
         AssistantMessage response;
         try {
-            response = agent.call(messages);
+            if (runnableConfig != null) {
+                logger.debug("Dispatching with per-request Alibaba RunnableConfig override");
+                response = agent.call(messages, runnableConfig);
+            } else {
+                response = agent.call(messages);
+            }
         } catch (com.alibaba.cloud.ai.graph.exception.GraphRunnerException gre) {
             // Boundary safety (Invariant #4): a checked framework failure
             // must surface through session.error and propagate so the
             // outer pipeline records the right lifecycle event.
+            org.atmosphere.ai.AgentLifecycleListener.fireModelError(
+                    listeners, modelName, gre);
             session.error(gre);
             throw new IllegalStateException("Spring AI Alibaba ReactAgent failed", gre);
+        } catch (RuntimeException re) {
+            // Mirror the checked-exception path for any unchecked failure
+            // escaping ReactAgent.call so observers see the dispatch error
+            // before propagation.
+            org.atmosphere.ai.AgentLifecycleListener.fireModelError(
+                    listeners, modelName, re);
+            throw re;
         }
 
         // Buffered delivery: one chunk + complete. The Atmosphere transport
@@ -153,6 +185,9 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 session.send(text);
             }
         }
+        long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
+        org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
+                listeners, modelName, null, durationMs);
         if (!session.isClosed()) {
             session.complete();
         }
@@ -186,7 +221,13 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 AiCapability.STRUCTURED_OUTPUT,
                 // assembleMessages threads context.history() into the Message
                 // list ReactAgent receives, so prior turns are honored.
-                AiCapability.CONVERSATION_MEMORY);
+                AiCapability.CONVERSATION_MEMORY,
+                // Inherits AbstractAgentRuntime.executeWithOuterRetry — does
+                // not override ownsPerRequestRetry(), so context.retryPolicy()
+                // with maxRetries > 0 retries doExecute on pre-stream
+                // RuntimeException. See modules/ai/README.md
+                // "Per-Request Retry Architecture".
+                AiCapability.PER_REQUEST_RETRY);
         // TOKEN_USAGE not declared: ReactAgent.call returns
         // AssistantMessage, which has no surface for the
         // ChatResponse usage metadata. The agent framework's graph

@@ -342,10 +342,6 @@ export default defineConfig({
       name: 'sample-matrix-smoke',
       testMatch: /sample-matrix-smoke\.spec\.ts/,
     },
-    {
-      name: 'koog-chat',
-      testMatch: /koog-chat\.spec\.ts/,
-    },
     // ── P0: Gap analysis coverage ──
     {
       name: 'redis-clustering',

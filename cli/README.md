@@ -162,8 +162,9 @@ Every template sparse-clones the matching sample from `cli/samples.json` into th
 | `mcp-server` | `spring-boot-mcp-server` | MCP server exposing tools, resources, and prompts to AI agents |
 | `rag` | `spring-boot-rag-chat` | RAG chat with vector store |
 | `agent` | `spring-boot-dentist-agent` | `@Agent` skill-file driven (the Dr. Molar demo); implied when `--skill-file` is passed |
-| `koog` | `spring-boot-koog-chat` | JetBrains Koog `@AIAgent` chat integration |
-| `embabel` | `spring-boot-embabel-chat` | Embabel GOAP planning (Kotlin, SB 3.5) |
+| `coding-agent` | `spring-boot-coding-agent` | Sandbox SPI + Git clone + AgentResumeHandle reattach; reads files and proposes patches |
+| `guarded-agent` | `spring-boot-guarded-email-agent` | Plan-and-Verify (Meijer) — refuses unsafe LLM-emitted plans before any tool fires |
+| `assistant` | `spring-boot-personal-assistant` | Long-lived memory-bearing assistant: AgentState + AgentWorkspace + AgentIdentity + ProtocolBridge |
 | `multi-agent` | `spring-boot-multi-agent-startup-team` | Fleet of 5 independent `@Agent` classes collaborating over A2A |
 | `classroom` | `spring-boot-ai-classroom` | Shared streaming AI responses across web + Expo React Native clients |
 

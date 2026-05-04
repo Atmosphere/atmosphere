@@ -394,7 +394,19 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         // the shared-runner path (no tools, no hint), we can only dispose
         // the RxJava subscription; closing the shared Runner would nuke
         // concurrent requests, so we leave it alone.
-        var adapter = AdkEventAdapter.bridge(events, session);
+        // Lifecycle hook bridge: thread listeners + model name + dispatch
+        // shape (history+system+user count, tools count) into the adapter so
+        // it fires fireModelStart synchronously before subscribe and
+        // fireModelEnd / fireModelError on terminal events. Same posture as
+        // Spring AI / LC4j / Koog.
+        var lifecycleListeners = context.listeners();
+        var lifecycleModelName = context.model() != null ? context.model() : name();
+        var lifecycleMessageCount = context.history().size()
+                + (context.systemPrompt() != null && !context.systemPrompt().isEmpty() ? 1 : 0)
+                + 1; // user prompt
+        var adapter = AdkEventAdapter.bridge(
+                events, session, lifecycleListeners, lifecycleModelName,
+                lifecycleMessageCount, tools.size());
         var closeOnCancel = needsPerRequestRunner ? requestRunner : null;
         return new ExecutionHandle() {
             private final java.util.concurrent.atomic.AtomicBoolean cancelled =

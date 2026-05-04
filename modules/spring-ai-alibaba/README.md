@@ -88,6 +88,7 @@ public ReactAgent reactAgent(ChatModel chatModel) throws Exception {
 | Class | Purpose |
 |-------|---------|
 | `SpringAiAlibabaAgentRuntime` | `AgentRuntime` SPI implementation (priority 100) |
+| `SpringAiAlibabaRunnableConfig` | Per-request bridge for overriding the `RunnableConfig` passed to `agent.call(messages, config)` (thread continuation, checkpoint resume, stream mode, metadata, store) |
 | `AtmosphereSpringAiAlibabaAutoConfiguration` | Spring Boot auto-configuration |
 
 ## Capabilities
@@ -106,6 +107,34 @@ authoritative cross-runtime view. Honest declared set:
   complete final frame the wrapper can parse.
 - **Conversation memory** — `assembleMessages` threads
   `context.history()` into the `List<Message>` `ReactAgent` receives.
+- **Per-request retry** — inherited via
+  `AbstractAgentRuntime.executeWithOuterRetry`. The base class wraps
+  `doExecute(...)` so any `RuntimeException` thrown before the first
+  `session.send(...)` is retried up to `policy.maxRetries()`.
+
+## Per-Request RunnableConfig (`SpringAiAlibabaRunnableConfig`)
+
+By default the runtime calls `agent.call(messages)` (no `RunnableConfig`).
+Alibaba's `RunnableConfig` is the natural per-invocation handle for the
+`ReactAgent` graph: it carries `threadId` (for memory thread continuation
+across calls against a checkpointed graph), `checkPointId` (resume from a
+specific checkpoint), `streamMode` (`VALUES` / `UPDATES` / `MESSAGES`),
+arbitrary `metadata` + `context` maps, and a `Store` for cross-thread
+state. Attach a per-request `RunnableConfig` via
+`SpringAiAlibabaRunnableConfig.attach`:
+
+```java
+var ctx = SpringAiAlibabaRunnableConfig.attach(baseContext,
+        RunnableConfig.builder()
+                .threadId("user-42-session-7")
+                .streamMode(CompiledGraph.StreamMode.VALUES)
+                .build());
+runtime.execute(ctx, session);
+```
+
+When attached, the runtime dispatches `agent.call(messages, config)`;
+when absent, it falls back to the no-arg overload — preserving prior
+behavior.
 
 ## Streaming Bridge
 
@@ -136,9 +165,6 @@ authoritative cross-runtime view. Honest declared set:
 - `PROMPT_CACHING` — would need threading `CacheHint` into Spring AI
   Alibaba's per-request `RunnableConfig`; the framework does not
   expose a portable cache-control primitive at the agent level today.
-- `PER_REQUEST_RETRY` — `AbstractAgentRuntime.executeWithOuterRetry`
-  is inherited but the per-request retry policy is not yet threaded
-  into the Spring AI Alibaba dispatch path.
 
 ## Requirements
 

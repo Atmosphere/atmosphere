@@ -20,8 +20,6 @@ All samples inherit their Atmosphere version from the parent POM. The target sta
 |--------|-----------|-------------|-------------|
 | [spring-boot-ai-chat](spring-boot-ai-chat/) | Built-in (Gemini/OpenAI/Ollama) | — | Basic AI streaming with `@AiEndpoint` |
 | [spring-boot-ai-tools](spring-boot-ai-tools/) | Built-in / any `AgentRuntime` | `@AiTool` (portable) | Framework-agnostic tool calling pipeline with live `AiEvent` tool activity |
-| [spring-boot-koog-chat](spring-boot-koog-chat/) | JetBrains Koog | — | Koog `PromptExecutor` via the `AgentRuntime` SPI |
-| [spring-boot-embabel-chat](spring-boot-embabel-chat/) | Embabel GOAP (Kotlin, SB 3.5) | — | Embabel `AgentPlatform` planning via the `AgentRuntime` SPI |
 | [spring-boot-ai-classroom](spring-boot-ai-classroom/) | Built-in | — | Multi-room collaborative AI streaming ([Expo client](spring-boot-ai-classroom/expo-client/)) |
 | [spring-boot-rag-chat](spring-boot-rag-chat/) | Built-in + Spring AI VectorStore | `@AiTool` | RAG agent with knowledge base search tools |
 
@@ -36,8 +34,9 @@ One agent class — slash commands and AI work on Web, Slack, Telegram, Discord,
 | [spring-boot-rag-chat](spring-boot-rag-chat/) | `@Agent`, `@Command`, `@AiTool`, RAG | Web | Knowledge base agent with document search tools |
 | [spring-boot-checkpoint-agent](spring-boot-checkpoint-agent/) | `@Coordinator`, `@Agent`, `CheckpointStore` | Web | Durable HITL workflow — approval-gated agent chaining |
 | [spring-boot-multi-agent-startup-team](spring-boot-multi-agent-startup-team/) | `@Coordinator`, `@Fleet`, A2A, SQLite checkpoints, WebTransport | Web | 5 collaborating agents (CEO + 4 specialists) with parallel/sequential dispatch |
-| [spring-boot-personal-assistant](spring-boot-personal-assistant/) | `@Coordinator`, `@Fleet`, `AgentState`, `AgentWorkspace`, `AgentIdentity`, `ToolExtensibilityPoint`, `AiGateway`, `InMemoryProtocolBridge` | Web | Proof sample #1 for the v0.5 foundation primitives. Primary assistant delegates to scheduler / research / drafter crew over InMemoryProtocolBridge; ships an OpenClaw-compatible workspace |
-| [spring-boot-coding-agent](spring-boot-coding-agent/) | `@Agent`, `Sandbox`, `AgentResumeHandle` | Web | Proof sample #2 for the v0.5 foundation primitives. Clones a repo into a Docker sandbox, reads files, proposes a patch |
+| [spring-boot-personal-assistant](spring-boot-personal-assistant/) | `@Coordinator`, `@Fleet`, `AgentState`, `AgentWorkspace`, `AgentIdentity`, `ToolExtensibilityPoint`, `AiGateway`, `InMemoryProtocolBridge` | Web | Long-lived memory-bearing assistant — primary delegates to scheduler / research / drafter crew over `InMemoryProtocolBridge`; ships an OpenClaw-compatible workspace |
+| [spring-boot-coding-agent](spring-boot-coding-agent/) | `@Agent`, `Sandbox`, `AgentResumeHandle` | Web | Coding agent — clones a repo into a Docker sandbox, reads files, proposes a patch |
+| [spring-boot-guarded-email-agent](spring-boot-guarded-email-agent/) | `PlanVerifier`, `@Sink`, `@RequiresCapability`, `WorkflowExecutor` | Web | Plan-and-Verify (Meijer) — refuses prompt-injection plans before any tool fires |
 
 ### Agent Protocols
 
@@ -53,6 +52,7 @@ One agent class — slash commands and AI work on Web, Slack, Telegram, Discord,
 |--------|-------|-------------|
 | [spring-boot-durable-sessions](spring-boot-durable-sessions/) | Spring Boot 4.0.5 | Persistent sessions with SQLite/Redis |
 | [spring-boot-otel-chat](spring-boot-otel-chat/) | Spring Boot 4.0.5 | OpenTelemetry observability |
+| [spring-boot-reattach-harness](spring-boot-reattach-harness/) | Spring Boot 4.0.5 | Deterministic harness for the mid-stream reattach contract (`RunRegistry` + `RunEventReplayBuffer`); driven by `e2e/tests/reattach.spec.ts` |
 | [shared-resources](shared-resources/) | — | Shared static assets (CSS, Grafana dashboard). Not a Maven module — no `pom.xml`. |
 
 ## Quick Start

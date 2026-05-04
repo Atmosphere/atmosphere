@@ -87,6 +87,35 @@ unchanged. Feature handlers (`onAfterLLMCall`, `onToolCall`, `onAgentBeforeClose
 …) are wired identically in both paths via a shared `wireFeatureHandlers`
 extension.
 
+## Per-Request Tool-Loop Cap (`ToolLoopPolicy`)
+
+`KoogAgentRuntime` honors `ToolLoopPolicies.attach(ctx, policy)` per request:
+the policy's `maxIterations()` is doubled (Koog counts both LLM rounds and
+tool execution steps in its iteration budget) and passed as
+`AIAgent.maxIterations`. Without an attached policy, the runtime falls back
+to `ToolLoopPolicy.DEFAULT.maxIterations() = 5` rounds = 10 Koog iterations,
+preserving the pre-policy behavior bit-identical.
+
+```java
+// Strict tool-driven agent — fail-fast on overflow:
+var ctx = ToolLoopPolicies.attach(baseContext, ToolLoopPolicy.strict(3));
+runtime.execute(ctx, session);
+
+// Or via an interceptor so every request inherits the same cap:
+class CodingAgentToolLoop implements AiInterceptor {
+    @Override
+    public AiRequest preProcess(AiRequest request, AtmosphereResource r) {
+        return request.withMetadata(Map.of(
+                ToolLoopPolicies.METADATA_KEY,
+                ToolLoopPolicy.maxIterations(8)));
+    }
+}
+```
+
+`OnMaxIterations.FAIL` is honored implicitly: Koog throws on overflow, the
+runtime's `executeInternal` try/catch surfaces the failure as
+`session.error(...)` — matching the policy's fail-fast semantics.
+
 ## Capabilities
 
 See the [capability matrix](../ai/README.md#capability-matrix) for the authoritative cross-runtime view.
@@ -99,6 +128,7 @@ See the [capability matrix](../ai/README.md#capability-matrix) for the authorita
 - Conversation memory
 - System prompt
 - Lifecycle listeners (`onToolCall`/`onToolResult` from bridge wrappers)
+- Per-request tool-loop iteration cap via `ToolLoopPolicy`
 
 ## Streaming Bridge
 

@@ -30,12 +30,23 @@ mvn quarkus:dev
 
 ## What's in the box
 
-| File | Role |
-|------|------|
-| `AiChat.java` | `@AiEndpoint` handler — `@Prompt onPrompt(message, session)` calls `session.stream(message)` |
-| `GeminiCompatCustomizer.java` | Drops `frequency_penalty` / `presence_penalty` from the OpenAI request — Gemini's compat endpoint rejects unknown fields. Delete for OpenAI proper. |
-| `application.properties` | `quarkus.atmosphere.packages` + `quarkus.langchain4j.openai.*` |
-| `META-INF/resources/index.html` | Vanilla HTML client using `atmosphere.js@5` from jsDelivr — `WebSocket` transport with `long-polling` fallback |
+| File | Endpoint | Role |
+|------|----------|------|
+| `AiChat.java` | `/atmosphere/ai-chat` | Basic streaming chat — `@Prompt onPrompt(message, session)` calls `session.stream(message)` |
+| `PromptCacheDemoChat.java` | `/atmosphere/ai-chat-with-cache` | Demonstrates `@AiEndpoint(promptCache = CONSERVATIVE)` — second identical prompt emits `ai.cache.hit=true` and replays from `InMemoryResponseCache` (port of the Spring Boot sibling) |
+| `RetryDemoChat.java` | `/atmosphere/ai-chat-with-retry` | Demonstrates `@AiEndpoint(retry = @Retry(...))` — `fail-once:<id>` prompts trigger a deterministic transient failure / recovery sequence with observable `retry.attempt=N` metadata |
+| `MultiModalChat.java` | `/atmosphere/ai-chat-multimodal` | Demonstrates the multi-modal `Content.Image` wire protocol — `image:<base64>` prompts emit a binary content frame followed by a text acknowledgement |
+| `ReviewExtractor.java` + `MovieReview.java` | `/atmosphere/review-extractor` | Demonstrates `@AiEndpoint(responseAs = MovieReview.class)` — framework appends JSON schema to system prompt and emits `EntityStart` / `StructuredField` / `EntityComplete` events |
+| `DemoResponseProducer.java` | — | Helper for demo-mode responses when no `LLM_API_KEY` is configured |
+| `GeminiCompatCustomizer.java` | — | Drops `frequency_penalty` / `presence_penalty` from the OpenAI request — Gemini's compat endpoint rejects unknown fields. Delete for OpenAI proper. |
+| `application.properties` | — | `quarkus.atmosphere.packages` + `quarkus.langchain4j.openai.*` |
+| `META-INF/resources/index.html` | — | Meta-redirect to the bundled Atmosphere Console SPA at `/atmosphere/console/` (per commit f8930d62f4) — drives all five endpoints from one UI |
+
+The four ported endpoints (`PromptCacheDemoChat`, `RetryDemoChat`,
+`MultiModalChat`, `ReviewExtractor`) are byte-for-byte parity with their
+Spring Boot siblings except for the package name — the `AgentRuntime` SPI
+is platform-portable, so the same `@AiEndpoint` source compiles and runs
+identically under either Servlet container.
 
 ## How streaming flows end-to-end
 

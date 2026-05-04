@@ -196,6 +196,26 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
 
         var flux = promptSpec.stream().chatResponse();
 
+        // Model-lifecycle hooks: fire onModelStart/End/Error so consumers
+        // (Micrometer recorders, AiEventForwardingListener, audit appenders)
+        // get a uniform per-call event surface — same posture as Built-in's
+        // OpenAiCompatibleClient. Start fires before subscribe; End fires on
+        // doOnComplete with the latest captured usage + wall-clock duration;
+        // Error fires on doOnError. The captured-usage AtomicReference holds
+        // the last TokenUsage seen during streaming because Spring AI emits
+        // usage on the final ChatResponse, not as a separate event.
+        var listeners = context.listeners();
+        var modelName = context.model() != null ? context.model() : name();
+        var messageCount = context.history().size()
+                + (context.systemPrompt() != null && !context.systemPrompt().isEmpty() ? 1 : 0)
+                + 1; // user message
+        var toolCount = context.tools().size();
+        var startNanos = System.nanoTime();
+        var lastUsage =
+                new java.util.concurrent.atomic.AtomicReference<org.atmosphere.ai.TokenUsage>();
+        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
+                listeners, modelName, messageCount, toolCount);
+
         // Phase 2: wrap the Reactor Disposable in an ExecutionHandle so callers
         // can cancel in-flight Spring AI completions. The Settable helper holds
         // the CompletableFuture<Void> we complete on any terminal path (next,
@@ -224,14 +244,20 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                                 null);
                         if (tokenUsage.hasCounts()) {
                             session.usage(tokenUsage);
+                            lastUsage.set(tokenUsage);
                         }
                     }
                 })
                 .doOnComplete(() -> {
+                    var durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
+                    org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
+                            listeners, modelName, lastUsage.get(), durationMs);
                     session.complete();
                     completion.complete(null);
                 })
                 .doOnError(error -> {
+                    org.atmosphere.ai.AgentLifecycleListener.fireModelError(
+                            listeners, modelName, error);
                     logger.error("Spring AI streaming error: {}", error.getMessage());
                     session.error(error);
                     completion.complete(null);

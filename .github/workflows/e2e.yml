@@ -119,7 +119,7 @@ jobs:
           - name: gap-admin-smoke
             projects: "console-http-check,sample-matrix-smoke"
           - name: gap-agents
-            projects: "dentist-agent,koog-chat,a2a-discovery"
+            projects: "dentist-agent,a2a-discovery"
           - name: cli-runtime
             projects: "cli-runtime"
       fail-fast: false

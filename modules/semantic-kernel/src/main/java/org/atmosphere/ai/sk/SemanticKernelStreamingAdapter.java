@@ -47,15 +47,38 @@ final class SemanticKernelStreamingAdapter {
      * synchronous loop.
      */
     static void drain(Flux<StreamingChatContent<?>> flux, StreamingSession session) {
+        drain(flux, session, java.util.List.of(), "semantic-kernel");
+    }
+
+    /**
+     * Lifecycle-aware drain overload: fires {@code fireModelEnd} on doOnComplete
+     * (with the last captured token usage and wall-clock duration) and
+     * {@code fireModelError} on doOnError. {@code fireModelStart} is fired by
+     * the runtime caller before invoking drain so {@code messageCount} +
+     * {@code toolCount} are visible to consumers from the moment of dispatch.
+     */
+    static void drain(
+            Flux<StreamingChatContent<?>> flux,
+            StreamingSession session,
+            java.util.List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+            String modelName) {
+        var startNanos = System.nanoTime();
+        var lastUsage =
+                new java.util.concurrent.atomic.AtomicReference<TokenUsage>();
         flux.takeWhile(ignored -> !session.isClosed())
-                .doOnNext(frame -> forwardFrame(frame, session))
+                .doOnNext(frame -> forwardFrame(frame, session, lastUsage))
                 .doOnError(error -> {
+                    org.atmosphere.ai.AgentLifecycleListener.fireModelError(
+                            listeners, modelName, error);
                     logger.error("Semantic Kernel streaming error: {}", error.getMessage());
                     if (!session.isClosed()) {
                         session.error(error);
                     }
                 })
                 .doOnComplete(() -> {
+                    long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
+                    org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
+                            listeners, modelName, lastUsage.get(), durationMs);
                     if (!session.isClosed()) {
                         session.complete();
                     }
@@ -63,7 +86,10 @@ final class SemanticKernelStreamingAdapter {
                 .blockLast();
     }
 
-    private static void forwardFrame(StreamingChatContent<?> frame, StreamingSession session) {
+    private static void forwardFrame(
+            StreamingChatContent<?> frame,
+            StreamingSession session,
+            java.util.concurrent.atomic.AtomicReference<TokenUsage> lastUsage) {
         if (frame == null) {
             return;
         }
@@ -79,10 +105,13 @@ final class SemanticKernelStreamingAdapter {
         // read it reflectively so this adapter does not hard-depend on Azure SDK
         // types — any provider whose usage object exposes
         // promptTokens/completionTokens/totalTokens is picked up.
-        extractTokenUsage(frame, session);
+        extractTokenUsage(frame, session, lastUsage);
     }
 
-    private static void extractTokenUsage(StreamingChatContent<?> frame, StreamingSession session) {
+    private static void extractTokenUsage(
+            StreamingChatContent<?> frame,
+            StreamingSession session,
+            java.util.concurrent.atomic.AtomicReference<TokenUsage> lastUsage) {
         try {
             var metadata = frame.getMetadata();
             if (metadata == null) {
@@ -101,6 +130,9 @@ final class SemanticKernelStreamingAdapter {
             var tokenUsage = new TokenUsage(input, output, 0L, total, null);
             if (tokenUsage.hasCounts()) {
                 session.usage(tokenUsage);
+                if (lastUsage != null) {
+                    lastUsage.set(tokenUsage);
+                }
             }
         } catch (Exception e) {
             // Usage extraction is best-effort — do not fail the stream if the

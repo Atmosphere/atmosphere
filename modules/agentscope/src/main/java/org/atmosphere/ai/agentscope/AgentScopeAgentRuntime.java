@@ -133,6 +133,22 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                                                   StreamingSession session) {
         admitThroughGateway(context);
 
+        // Per-request agent override: when the caller attached a different
+        // ReActAgent via AgentScopeAgent.attach(...), dispatch against it
+        // instead of the runtime's installed default. Useful when different
+        // prompts need different agent topologies (e.g. planner vs. quick
+        // lookup) without re-installing the runtime client globally. Bind to
+        // a fresh effectively-final local so the cancel handler's anonymous
+        // ExecutionHandle inner class can capture the resolved agent.
+        var perRequestAgent = AgentScopeAgent.from(context);
+        final ReActAgent activeAgent;
+        if (perRequestAgent != null) {
+            activeAgent = perRequestAgent;
+            logger.debug("Dispatching against per-request AgentScope ReActAgent override");
+        } else {
+            activeAgent = agent;
+        }
+
         var msgs = new ArrayList<Msg>();
         for (var chat : assembleMessages(context)) {
             msgs.add(Msg.builder()
@@ -144,17 +160,35 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         var done = new CompletableFuture<Void>();
         var cancelled = new java.util.concurrent.atomic.AtomicBoolean();
 
-        Disposable subscription = agent.stream(msgs, StreamOptions.defaults())
+        // Model-lifecycle hooks: same posture as Spring AI / LC4j / ADK / Koog
+        // / Embabel / SK. fireModelStart synchronously before subscribe;
+        // fireModelEnd on completion (with the last captured TokenUsage from
+        // handleEvent); fireModelError on the error callback.
+        var listeners = context.listeners();
+        var modelName = context.model() != null ? context.model() : name();
+        var messageCount = msgs.size();
+        var toolCount = context.tools().size();
+        var startNanos = System.nanoTime();
+        var lastUsage = new java.util.concurrent.atomic.AtomicReference<TokenUsage>();
+        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
+                listeners, modelName, messageCount, toolCount);
+
+        Disposable subscription = activeAgent.stream(msgs, StreamOptions.defaults())
                 .subscribe(
-                        event -> handleEvent(event, session),
+                        event -> handleEvent(event, session, lastUsage),
                         error -> {
                             // Boundary safety (Invariant #4): every terminal
                             // path must close the session. error() is
                             // idempotent on Atmosphere's StreamingSession.
+                            org.atmosphere.ai.AgentLifecycleListener.fireModelError(
+                                    listeners, modelName, error);
                             session.error(error);
                             done.completeExceptionally(error);
                         },
                         () -> {
+                            long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
+                            org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
+                                    listeners, modelName, lastUsage.get(), durationMs);
                             if (!session.isClosed()) {
                                 session.complete();
                             }
@@ -170,7 +204,7 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                     // both: interrupt() unwinds the agent's internal loop;
                     // dispose() drops any in-flight emission to the session.
                     try {
-                        agent.interrupt();
+                        activeAgent.interrupt();
                     } catch (RuntimeException re) {
                         logger.trace("ReActAgent.interrupt() threw on cancel", re);
                     }
@@ -193,7 +227,10 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         };
     }
 
-    private static void handleEvent(Event event, StreamingSession session) {
+    private static void handleEvent(
+            Event event,
+            StreamingSession session,
+            java.util.concurrent.atomic.AtomicReference<TokenUsage> lastUsage) {
         if (event == null || event.getMessage() == null) {
             return;
         }
@@ -204,15 +241,18 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         }
         // Token usage rides on the terminal Msg. Forwarding TOKEN_USAGE on
         // every chunk would double-count; AgentScope sets ChatUsage only on
-        // the message that completes the round.
+        // the message that completes the round. Stash to lastUsage so the
+        // caller's onModelEnd lifecycle hook reports it.
         var usage = msg.getChatUsage();
         if (usage != null && event.isLast()) {
-            session.usage(new TokenUsage(
+            var tokenUsage = new TokenUsage(
                     usage.getInputTokens(),
                     usage.getOutputTokens(),
                     0L,
                     usage.getTotalTokens(),
-                    null));
+                    null);
+            session.usage(tokenUsage);
+            lastUsage.set(tokenUsage);
         }
     }
 
@@ -242,7 +282,13 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                 // list the agent receives, so prior turns are honored.
                 AiCapability.CONVERSATION_MEMORY,
                 // handleEvent forwards Msg.getChatUsage() on isLast().
-                AiCapability.TOKEN_USAGE);
+                AiCapability.TOKEN_USAGE,
+                // Inherits AbstractAgentRuntime.executeWithOuterRetry — does
+                // not override ownsPerRequestRetry(), so context.retryPolicy()
+                // with maxRetries > 0 retries doExecute on pre-stream
+                // RuntimeException. See modules/ai/README.md
+                // "Per-Request Retry Architecture".
+                AiCapability.PER_REQUEST_RETRY);
     }
 
     @Override
