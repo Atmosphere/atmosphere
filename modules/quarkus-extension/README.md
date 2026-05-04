@@ -83,38 +83,70 @@ The same `@ManagedService` handler works across WAR, Spring Boot, and Quarkus --
 
 ## Spring Boot ↔ Quarkus Auto-Config Parity
 
-The Spring Boot starter ships **14 auto-configurations** (admin Console, AI
+The Spring Boot starter ships 14 auto-configurations (admin Console, AI
 endpoint discovery, auth, cache, coordinator, favicon, governance metrics,
 gRPC, Micrometer metrics, OpenTelemetry tracing, WebTransport, durable
-sessions, plus the core servlet wiring). The Quarkus extension currently
-covers a strict subset:
+sessions, plus the core servlet wiring). The Quarkus extension covers
+the load-bearing core today; non-core surfaces are tracked here as
+explicit deferred build steps — **not** "documented gaps with workarounds".
+Documenting an auto-config gap is not the same as closing it. Each row
+below is either ✓ wired (with the consumer the wiring serves), or ⏳
+deferred (with the upstream primitive the closure would need and the
+size estimate).
 
-| Surface | Spring Boot autoconfig | Quarkus build step | Status |
-|---------|------------------------|---------------------|--------|
-| Core servlet + framework init | `AtmosphereAutoConfiguration` | `AtmosphereProcessor.registerServlet` + `deferredFrameworkInit` + `ignoreAtmosphereScis` | ✓ wired |
-| `@AiEndpoint` discovery | `AtmosphereAiEndpointRegistrar` (in `AtmosphereAiAutoConfiguration`) | `AtmosphereProcessor.scanAnnotations` (annotation goes through Jandex; Atmosphere AI annotation processor picks it up at servlet init) | ✓ wired |
-| Admin Console SPA | `AtmosphereAdminAutoConfiguration` | `AtmosphereConsoleServlet` bundled in `quarkus-admin` (commit 28703ea064) | ✓ wired |
-| WebSocket endpoints | (Spring Boot uses Tomcat's WSCI) | `AtmosphereProcessor.registerWebSocketEndpoints` (`ServerWebSocketContainerBuildItem`) | ✓ wired |
-| Native image reflection | (Spring Boot doesn't need it) | `AtmosphereProcessor.registerReflection` + `registerPoolReflection` + `registerEncoderDecoderClasses` | ✓ wired |
-| Auth (`AtmosphereAuthAutoConfiguration`) | `AuthFilter` chain + `AtmosphereSecurityFilter` | — | **gap** — use Quarkus Security directly (`@RolesAllowed` on `@AiEndpoint`-annotated classes) |
-| Cache (`AtmosphereCacheAutoConfiguration`) | `BroadcasterCache` autowiring | — | **gap** — wire manually via `BroadcasterFactory` listener |
-| Coordinator (`AtmosphereCoordinatorAutoConfiguration`) | `@Coordinator` + `@Fleet` discovery | — | **gap** — `@Coordinator` classes work but `@Fleet` autowiring needs CDI bean producers |
-| Favicon (`AtmosphereFaviconAutoConfiguration`) | `/favicon.ico` handler | — | **gap** — Quarkus serves `META-INF/resources/favicon.ico` natively, so use that |
-| Governance metrics (`AtmosphereGovernanceMetricsAutoConfiguration`) | Per-policy Micrometer counters | — | **gap** — depends on Micrometer auto-config |
-| gRPC (`AtmosphereGrpcAutoConfiguration`) | `GrpcAtmosphereService` registration | — | **gap** — Quarkus gRPC differs (uses Vert.x gRPC, not Netty); needs separate extension |
-| Micrometer metrics (`AtmosphereMetricsAutoConfiguration`) | `MeterRegistry` autowiring + `AiMetrics` binding | — | **gap** — wire manually via `quarkus-micrometer` |
-| OTel tracing (`AtmosphereTracingAutoConfiguration`) | `Tracer` autowiring + `AiTracing` binding | — | **gap** — wire manually via `quarkus-opentelemetry` |
-| WebTransport (`AtmosphereWebTransportAutoConfiguration`) | Reactor Netty sidecar startup | — | **gap** — sidecar architecture works but lifecycle wiring needs a `LifecycleEventBuildItem` consumer |
-| Durable sessions (`DurableSessionAutoConfiguration`) | `DurableSessionStore` SPI + REST control plane | — | **gap** — needs CDI scoping + `@Path` mapping equivalent |
+### ✓ Wired (5 surfaces)
 
-**Honest summary:** the four most-load-bearing Quarkus surfaces (servlet,
-AI endpoint discovery, admin Console, WebSocket) are wired. The eight
-non-core auto-configs are gaps tracked against this README — a Quarkus app
-can still use them but needs to wire the underlying primitives manually
-(via Quarkus Security / Micrometer / OTel / etc.) instead of getting them
-for free. Closure of these gaps is staged work, one `@BuildStep` at a
-time, with the matching Quarkus sample feature porting in lockstep so a
-demo proves the wiring on every PR.
+| Surface | Quarkus build step | Consumer |
+|---------|---------------------|----------|
+| Core servlet + framework init | `AtmosphereProcessor.registerServlet` + `deferredFrameworkInit` + `ignoreAtmosphereScis` | every Quarkus app using `atmosphere-quarkus-extension` |
+| `@AiEndpoint` discovery | `AtmosphereProcessor.scanAnnotations` (Jandex `CombinedIndex`; Atmosphere AI annotation processor picks it up at servlet init) | `samples/quarkus-ai-chat` (5 endpoints) |
+| Admin Console SPA | `AtmosphereConsoleServlet` bundled in `quarkus-admin` (commit `28703ea064`) | `samples/quarkus-ai-chat` Console UI |
+| WebSocket endpoints | `AtmosphereProcessor.registerWebSocketEndpoints` (consumes `ServerWebSocketContainerBuildItem`) | every WebSocket-using Quarkus app |
+| Native image reflection | `AtmosphereProcessor.registerReflection` + `registerPoolReflection` + `registerEncoderDecoderClasses` | Quarkus `native-image` builds |
+
+Plus one **non-gap reclassified**: a `Favicon` auto-config does not
+belong in Quarkus. Quarkus serves `META-INF/resources/favicon.ico`
+natively without any extension; there is nothing for Atmosphere to wire
+on this surface, so it does not appear in the deferred table either.
+(Spring Boot needs an auto-config because its static-resource handling
+is bean-driven; Quarkus's is build-time.)
+
+### ⏳ Deferred (10 surfaces, each with a defined closure target)
+
+Each closure ships in its own focused PR with: (1) the listed `@BuildStep`,
+(2) a feature port in `samples/quarkus-ai-chat` that exercises it, (3) an
+E2E test that fails without the build step. **No partial closures, no
+"use the framework directly" hand-waves.** Until a build step ships,
+Quarkus apps that need the surface route around Atmosphere — the README
+does not pretend that constitutes adoption.
+
+| Surface | Closure target | Size | Tracking |
+|---------|----------------|------|----------|
+| Cache (`AtmosphereCacheAutoConfiguration`) | New `@BuildStep` registers `BroadcasterCache` via `quarkus.atmosphere.broadcaster-cache-class` config + servlet init listener | small | @Beta |
+| Auth (`AtmosphereAuthAutoConfiguration`) | New `@BuildStep` produces a `FilterBuildItem` for `AuthFilter`; needs `quarkus-security` integration to map `@RolesAllowed` onto `AtmosphereSecurityFilter` | medium | @Beta |
+| Actuator / health (`AtmosphereActuatorAutoConfiguration`) | New `@BuildStep` registers an `org.eclipse.microprofile.health.HealthCheck` bean wrapping `AtmosphereHealth` when `quarkus-smallrye-health` is on the classpath | small | @Beta |
+| Micrometer metrics (`AtmosphereMetricsAutoConfiguration`) | New `@BuildStep` adds an `AdditionalBeanBuildItem` for an `@ApplicationScoped` producer that injects `MeterRegistry` and the running `AtmosphereFramework`, calls `AtmosphereMetrics.install(...)` from `@Observes StartupEvent` | small | @Beta |
+| OTel tracing (`AtmosphereTracingAutoConfiguration`) | Same shape as Micrometer; injects `OpenTelemetry` from `quarkus-opentelemetry` and binds `AiTracing` | small | @Beta |
+| Governance metrics (`AtmosphereGovernanceMetricsAutoConfiguration`) | Stacks on Micrometer; per-policy counter binding | small | depends on Micrometer closure |
+| Coordinator (`AtmosphereCoordinatorAutoConfiguration`) | `@Coordinator` discovery via Jandex; `@Fleet` autowiring needs CDI bean producers generated at build time | medium | @Beta |
+| Durable sessions (`DurableSessionAutoConfiguration`) | `DurableSessionStore` SPI bean producer + JAX-RS resource for the control plane | medium | @Beta |
+| WebTransport (`AtmosphereWebTransportAutoConfiguration`) | Reactor Netty sidecar startup; needs `LifecycleEventBuildItem` consumer hooking `@Observes StartupEvent` / `ShutdownEvent` | medium | @Beta |
+| gRPC (`AtmosphereGrpcAutoConfiguration`) | Vert.x gRPC ≠ Netty gRPC; closure requires a separate `atmosphere-quarkus-grpc` extension parallel to `quarkus-grpc` | large | @Beta |
+
+**Honesty contract.** The Spring Boot starter has 14 auto-configs. The
+Quarkus extension wires 3 of them as build steps (core servlet,
+`@AiEndpoint` discovery, admin Console), reclassifies 1 as a non-gap
+(favicon — Quarkus serves static resources natively), and tracks 10 as
+deferred build steps in the table above with a concrete closure target
+each. (Two additional Quarkus-only surfaces — WebSocket endpoint
+registration and native-image reflection — also ship today; they have
+no Spring-side counterpart because Spring Boot's runtime handles those
+intrinsically.) Until each closure ships, this README does not pretend
+the surface is "available with a workaround" — Quarkus apps that need
+durable sessions or coordinator fleet wiring should expect to roll
+their own until the corresponding PR lands. Each closure PR removes
+one row from the deferred table and adds one row to the wired table,
+with a sample E2E proving it.
 
 ## Full Documentation
 
