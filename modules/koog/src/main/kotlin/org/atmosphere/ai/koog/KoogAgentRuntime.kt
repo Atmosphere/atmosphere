@@ -101,7 +101,14 @@ class KoogAgentRuntime : AgentRuntime {
         // Koog dispatch — uniform per-user rate limiting and credential
         // resolution across all seven runtimes (Correctness Invariant #3).
         org.atmosphere.ai.AbstractAgentRuntime.admitThroughGateway(name(), context)
-        executeWithOuterRetry(context, session)
+        // Install the cross-runtime ToolLoopGuard so attaching a ToolLoopPolicy
+        // produces the same wire-level cap as on AbstractAgentRuntime-based
+        // runtimes (Mode Parity). Koog also honours the policy natively via
+        // AIAgent.maxIterations × 2 inside executeWithAgent; the guard is the
+        // belt for the suspenders, ensuring the cap holds even if the native
+        // path is bypassed (e.g. executeWithExecutor).
+        val effective = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session)
+        executeWithOuterRetry(effective, session)
     }
 
     /**
@@ -163,6 +170,9 @@ class KoogAgentRuntime : AgentRuntime {
         // (Correctness Invariant #7 — mode parity). Prior to this fix the
         // cancel-capable path skipped the gateway.
         org.atmosphere.ai.AbstractAgentRuntime.admitThroughGateway(name(), context)
+        // Install ToolLoopGuard before dispatching — same install pattern as
+        // #execute so the cap behaviour matches across both entry points.
+        val effective = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session)
         val cancelled = AtomicBoolean()
         val done = CompletableFuture<Void>()
         val activeJob = java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?>()
@@ -170,7 +180,7 @@ class KoogAgentRuntime : AgentRuntime {
         Thread.startVirtualThread {
             activeThread.set(Thread.currentThread())
             try {
-                executeInternal(context, session, cancelled, activeJob)
+                executeInternal(effective, session, cancelled, activeJob)
                 done.complete(null)
             } catch (ce: java.util.concurrent.CancellationException) {
                 // Native Job.cancel propagated out. Treat as clean termination

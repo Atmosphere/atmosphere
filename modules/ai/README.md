@@ -182,22 +182,46 @@ value; the wire protocol surfaces this as a normal error frame
 
 ### Per-runtime adoption
 
-| Runtime | Honors `ToolLoopPolicy` | Mechanism |
-|---------|-------------------------|-----------|
-| Built-in (`BuiltInAgentRuntime`) | ✓ | `OpenAiCompatibleClient.doStreamWithToolLoop` reads `ChatCompletionRequest.toolLoopPolicy()` on every iteration |
-| Koog (`KoogAgentRuntime`) | ✓ | `executeWithAgent` reads `ToolLoopPolicies.fromOrDefault(ctx)` and uses `policy.maxIterations() * 2` as `AIAgent.maxIterations` (Koog counts LLM rounds + tool steps) |
-| LangChain4j (`LangChain4jAgentRuntime`) | ✓ (caller-controlled) | The runtime itself runs no manual loop. When the caller routes through the `LangChain4jAiServices` sidecar, the iteration cap lives on the user's `AiServices.builder().maxSequentialToolsInvocations(int).build()` proxy — set once at construction. The runtime cannot override per-request because the proxy is opaque. |
-| Spring AI (`SpringAiAgentRuntime`) | ✗ N/A | Spring AI 2.0.0-M2 `ToolCallingChatOptions` exposes only `internalToolExecutionEnabled` (boolean) and `toolContext` (generic map) — no public iteration knob. The framework's `ChatClient` runs its own loop with no exposed cap. |
-| Spring AI Alibaba | ✗ N/A | Inherits Spring AI's lack of knob (uses `ChatClient` under the hood). |
-| ADK (`AdkAgentRuntime`) | ✗ N/A | ADK's loop is callback-driven (`BeforeModelCallback` / `AfterToolCallback`); enforcing a cap would require a custom counter callback, which the SPI does not expose as a per-request knob. |
-| Semantic Kernel (`SemanticKernelAgentRuntime`) | ✗ N/A | SK 1.4.0 `ToolCallBehavior` has `getMaximumAutoInvokeAttempts()` getter but no public setter on the `allowAllKernelFunctions(...)` factory chain — internal default only. |
-| AgentScope (`AgentScopeAgentRuntime`) | ✗ N/A | AgentScope Java 0.x has no public iteration cap on `ReActAgent`. |
-| Embabel (`EmbabelAgentRuntime`) | ✗ N/A | Embabel's `ToolLoopFactory` exposes an iteration cap, but the user-facing `PromptRunner` API does not surface it. Wiring would require constructing a custom `ToolLoopFactory` and injecting via the platform SPI — out of scope for the per-request bridge. |
+Every runtime honors `ToolLoopPolicy.strict(N)` through the cross-runtime
+`ToolLoopGuard` — a per-execute `AgentLifecycleListener` that counts
+`onModelStart` events and calls `session.error(ToolLoopExhaustedException)`
+once the cap is exceeded. The guard is installed by `AbstractAgentRuntime.execute`
+(automatic for Java runtimes) and by `KoogAgentRuntime` / `EmbabelAgentRuntime`
+explicitly (they implement `AgentRuntime` directly to keep their Kotlin shape).
+Beyond that wire-level hard cap, runtimes layer on native upstream
+enforcement when the upstream library exposes a mappable knob.
 
-The `ToolLoopPolicies.from(context)` reader is the contract: every runtime
-that gains a mappable knob in a future framework release should call it and
-translate. Runtimes marked N/A above should re-evaluate when their
-upstream framework exposes a per-request iteration cap.
+| Runtime | `strict(N)` (FAIL) | `maxIterations(N)` (COMPLETE_WITHOUT_TOOLS) | Native upstream knob |
+|---------|---------------------|---------------------------------------------|----------------------|
+| Built-in (`BuiltInAgentRuntime`) | ✓ native | ✓ native | `OpenAiCompatibleClient.doStreamWithToolLoop` reads `ChatCompletionRequest.toolLoopPolicy()` every iteration |
+| Koog (`KoogAgentRuntime`) | ✓ native + guard | ✓ native | `executeWithAgent` reads `ToolLoopPolicies.fromOrDefault(ctx)` and translates to `AIAgent.maxIterations × 2` (Koog counts LLM rounds + tool steps) |
+| LangChain4j (`LangChain4jAgentRuntime`) | ✓ via guard | hint via sidecar (caller-controlled) | When the caller routes through the `LangChain4jAiServices` sidecar, the cap lives on `AiServices.builder().maxSequentialToolsInvocations(int).build()` (set once at construction) |
+| Spring AI (`SpringAiAgentRuntime`) | ✓ via guard | hint only — falls through to Spring AI default | Spring AI 2.0.0-M2 exposes `OpenAiChatModel.Builder.toolExecutionEligibilityPredicate(...)` at ChatModel construction time (not per-request); per-request wiring would require Atmosphere to wrap user-supplied ChatModels |
+| Spring AI Alibaba | ✓ via guard | hint only | Inherits Spring AI's lack of per-request knob. `ReactAgent` and Alibaba's `RunnableConfig` do not expose an iteration cap |
+| ADK (`AdkAgentRuntime`) | ✓ via guard | hint only — native wiring planned | ADK 1.0.0 ships `LlmAgent.Builder.maxSteps(int)` at agent construction. Native per-request wiring (rebuild leaf `LlmAgent` per request, or counting `BeforeModelCallback` reading session state) is tractable but not yet implemented |
+| Semantic Kernel (`SemanticKernelAgentRuntime`) | ✓ via guard | hint only | SK 1.4.0 `ToolCallBehavior.getMaximumAutoInvokeAttempts()` is a getter only; the constructor and `allowAllKernelFunctions(...)` factory chain do not accept a max-attempts integer. Subclassing requires reflection on package-private fields |
+| AgentScope (`AgentScopeAgentRuntime`) | ✓ via guard | hint only — native wiring planned | AgentScope 1.0.12 ships `ReActAgent.Builder.maxIters(int)` at agent construction. Native per-request wiring (rebuild via builder when policy attached) is tractable but not yet implemented |
+| Embabel (`EmbabelAgentRuntime`) | ✓ via guard | hint only | Embabel 0.3.4 `PromptRunner` does not expose a per-request iteration knob. Embabel 0.3.5 adds `withToolLoopInspectors` + `ToolLoopInspector.afterIteration(AfterIterationContext)` which would translate a policy directly to `MaxIterationsExceededException`; native wiring is staged for the 0.3.5 upgrade |
+
+**Honest distinction.** `strict(N)` is honored on every runtime via a hard
+wire-level abort: when `onModelStart` count exceeds `N`, the guard calls
+`session.error(...)` and the session enters its closed state — subsequent
+output from the runtime is dropped at the wire. The runtime may continue
+spinning upstream (the guard cannot reach into Spring AI's `ChatModel` or
+Embabel's planner to abort their internal flow), but the user-observable
+result is a hard cap.
+
+`COMPLETE_WITHOUT_TOOLS` ("stop tool calling but keep running, complete
+with whatever text you have") can only be synthesized from inside the
+tool loop. Built-in and Koog do this natively; on the other six runtimes
+the upstream's own default cap takes over and the policy serves as a
+hint. Use `ToolLoopPolicy.strict(N)` for safety-critical hard caps (works
+everywhere); reserve `ToolLoopPolicy.maxIterations(N)` for runtimes that
+honor it natively.
+
+`ToolLoopPolicies.from(context)` is the contract: runtimes that gain a
+per-request knob in a future framework release upgrade from "via guard"
+to "✓ native". Tracking issues live in each module's README.
 
 ## Per-Request Retry Architecture
 

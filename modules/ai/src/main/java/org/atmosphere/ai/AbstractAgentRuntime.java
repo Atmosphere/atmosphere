@@ -168,21 +168,25 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     public void execute(AgentExecutionContext context, StreamingSession session) {
         var client = resolveClient();
         session.progress("Connecting to " + name() + "...");
-        fireStart(context);
+        // Install the cross-runtime ToolLoopGuard before fireStart so the guard
+        // observes every onModelStart this runtime emits during the execute.
+        // No-op when no ToolLoopPolicy is attached to context.metadata().
+        var effectiveContext = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session);
+        fireStart(effectiveContext);
         try {
-            executeWithOuterRetry(client, context, session);
+            executeWithOuterRetry(client, effectiveContext, session);
             // If the bridge drained the stream but surfaced an error out-of-band
             // via session.error(...) (Spring AI reactive, ADK async callbacks,
             // LC4j onError, Koog error frames), honour that state instead of
             // reporting completion to listeners.
             if (session.hasErrored()) {
-                fireError(context, new java.util.concurrent.CancellationException(
+                fireError(effectiveContext, new java.util.concurrent.CancellationException(
                         "stream reported error via session.error(...)"));
             } else {
-                fireCompletion(context);
+                fireCompletion(effectiveContext);
             }
         } catch (RuntimeException e) {
-            fireError(context, e);
+            fireError(effectiveContext, e);
             throw e;
         }
     }
@@ -192,9 +196,12 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
             AgentExecutionContext context, StreamingSession session) {
         var client = resolveClient();
         session.progress("Connecting to " + name() + "...");
-        fireStart(context);
+        // Same ToolLoopGuard install as #execute — keeps the cap behavior
+        // identical across sync and cancel-aware entry points (Mode Parity).
+        var effectiveContext = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session);
+        fireStart(effectiveContext);
         try {
-            var handle = doExecuteWithHandle(client, context, session);
+            var handle = doExecuteWithHandle(client, effectiveContext, session);
             handle.whenDone().whenComplete((ok, err) -> {
                 // Three outcomes map to two listener events:
                 //   1. future completed exceptionally  → fireError(err)
@@ -205,17 +212,17 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
                 // bridges can drain a faulted stream while still resolving
                 // whenDone() with a null value.
                 if (err != null) {
-                    fireError(context, err);
+                    fireError(effectiveContext, err);
                 } else if (session.hasErrored()) {
-                    fireError(context, new java.util.concurrent.CancellationException(
+                    fireError(effectiveContext, new java.util.concurrent.CancellationException(
                             "stream reported error via session.error(...)"));
                 } else {
-                    fireCompletion(context);
+                    fireCompletion(effectiveContext);
                 }
             });
             return handle;
         } catch (RuntimeException e) {
-            fireError(context, e);
+            fireError(effectiveContext, e);
             throw e;
         }
     }

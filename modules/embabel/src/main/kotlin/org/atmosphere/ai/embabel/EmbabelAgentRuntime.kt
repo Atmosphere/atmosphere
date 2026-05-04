@@ -110,6 +110,12 @@ class EmbabelAgentRuntime : AgentRuntime {
         // Embabel dispatch — uniform per-user rate limiting and credential
         // resolution across all seven runtimes (Correctness Invariant #3).
         org.atmosphere.ai.AbstractAgentRuntime.admitThroughGateway(name(), context)
+        // Install the cross-runtime ToolLoopGuard before reading listeners so
+        // the guard sees every onModelStart this dispatch fires. No-op when
+        // no ToolLoopPolicy is attached. Same install pattern as the Java
+        // base class (AbstractAgentRuntime.execute) — keeps the cap behaviour
+        // uniform across all runtimes regardless of base class.
+        val effective = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session)
         val platform = agentPlatform
             ?: throw IllegalStateException(
                 "EmbabelAgentRuntime: AgentPlatform not configured. " +
@@ -118,7 +124,7 @@ class EmbabelAgentRuntime : AgentRuntime {
 
         session.progress("Connecting to embabel...")
 
-        val targetAgent = context.agentId() ?: agentName
+        val targetAgent = effective.agentId() ?: agentName
         val deployedAgent = platform.agents().firstOrNull { it.name == targetAgent }
 
         // Model-lifecycle hooks: fire onModelStart before dispatch,
@@ -128,11 +134,11 @@ class EmbabelAgentRuntime : AgentRuntime {
         // Token usage is captured inside executeDeployedAgent via
         // process.usage() and stashed in lastUsage so onModelEnd reports the
         // final aggregate.
-        val listeners = context.listeners()
-        val modelName = context.model() ?: name()
-        val messageCount = context.history().size +
-            (if (context.systemPrompt()?.isNotEmpty() == true) 1 else 0) + 1
-        val toolCount = context.tools().size
+        val listeners = effective.listeners()
+        val modelName = effective.model() ?: name()
+        val messageCount = effective.history().size +
+            (if (effective.systemPrompt()?.isNotEmpty() == true) 1 else 0) + 1
+        val toolCount = effective.tools().size
         val startNanos = System.nanoTime()
         val lastUsage = java.util.concurrent.atomic.AtomicReference<TokenUsage>()
         org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
@@ -140,11 +146,11 @@ class EmbabelAgentRuntime : AgentRuntime {
         )
 
         try {
-            executeWithOuterRetry(context, session) {
+            executeWithOuterRetry(effective, session) {
                 if (deployedAgent != null) {
-                    executeDeployedAgent(platform, deployedAgent, context, session, lastUsage)
+                    executeDeployedAgent(platform, deployedAgent, effective, session, lastUsage)
                 } else {
-                    executeAtmosphereNative(platform, context, session, lastUsage)
+                    executeAtmosphereNative(platform, effective, session, lastUsage)
                 }
             }
             val durationMs = (System.nanoTime() - startNanos) / 1_000_000L
@@ -364,6 +370,12 @@ class EmbabelAgentRuntime : AgentRuntime {
             if (embabelImages.isNotEmpty()) {
                 r = r.withImages(embabelImages)
             }
+            // Native ToolLoopPolicy enforcement is NOT available on Embabel
+            // 0.3.4 (the pinned version): PromptRunner does not yet expose
+            // withToolLoopInspectors / ToolLoopInspector. The cross-runtime
+            // ToolLoopGuard installed in execute() provides strict() cap
+            // semantics at the wire layer. Native upstream enforcement
+            // awaits Embabel 0.3.5 release (tracked in modules/embabel/README.md).
             val customizer = EmbabelPromptRunner.from(context)
             if (customizer != null) {
                 r = customizer.apply(r)
