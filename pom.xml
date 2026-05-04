@@ -1202,7 +1202,7 @@
         <!-- AI framework versions (single source of truth) -->
         <spring-ai.version>2.0.0-M2</spring-ai.version>
         <embabel.version>0.3.5</embabel.version>
-        <google-adk.version>1.0.0</google-adk.version>
+        <google-adk.version>1.2.0</google-adk.version>
         <koog.version>0.7.3</koog.version>
         <agentscope.version>1.0.12</agentscope.version>
         <spring-ai-alibaba.version>1.1.2.2</spring-ai-alibaba.version>
