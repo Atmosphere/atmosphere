@@ -307,18 +307,63 @@ services for production deployments.
 
 - **Production support tiers** with response-time SLAs, emergency
   patches, and 24×7 coverage available — [tiers & SLA matrix](https://async-io.live/#support).
-- **Compliance evidence package** — OWASP Agentic Top 10, EU AI Act,
-  HIPAA, and SOC 2 control matrices ship in-tree and are CI-pinned via
-  `OwaspMatrixPinTest` / `ComplianceMatrixPinTest` /
-  `EvidenceConsumerGrepPinTest`, so drift between code and the matrices
-  breaks the build.
-- **[Microsoft Agent Governance Toolkit](https://github.com/microsoft/agent-governance-toolkit) interop** — MS's YAML rule
-  schema parsed verbatim by `YamlPolicyParser`; `audit_entry` JSON
-  shape matches MS so SIEM consumers read both. Drop-in for shops
-  standardising on MS Agent OS.
-- **Plan-and-verify** (`atmosphere-verifier`) — refuses unsafe
-  LLM-emitted workflows before any tool fires (Meijer *Guardians of
-  the Agents* pattern, CACM Jan 2026).
+- **Compliance evidence package** — control matrices ship in-tree, mapping
+  Atmosphere primitives to specific control IDs in four frameworks, with CI
+  gates that fail the build on drift:
+  - **OWASP Agentic AI Top 10** — `OwaspAgenticMatrix` covers all 10 IDs (T1–T10)
+    with a `Coverage` enum (`COVERED` / `PARTIAL` / `DESIGN` / `NOT_ADDRESSED`)
+    and a list of `Evidence` pointers (feature class, contract test, consumer-grep
+    pattern). Pinned by `OwaspMatrixPinTest`.
+  - **EU AI Act, HIPAA, SOC 2** — `ComplianceMatrix` covers 5 EU AI Act controls
+    (EU-AIA-9 / 12 / 13 / 14 / 15), 5 HIPAA Security Rule safeguards
+    (164.308 / .312), and 5 SOC 2 Trust Services Criteria
+    (CC6.1 / .6, CC7.2 / .3, CC8.1). Pinned by `ComplianceMatrixPinTest`.
+  - **Evidence drift gate** — `EvidenceConsumerGrepPinTest` re-runs every grep
+    pattern against the source tree. If a referenced primitive is renamed,
+    removed, or no longer reachable from a production caller, the test fails —
+    the matrices cannot drift from what's actually running.
+  - **Auditor-ready surface** — the same matrices are exposed at
+    `GET /api/admin/governance/owasp` and `/governance/compliance` with
+    rows, coverage, and evidence pointers in JSON, so an auditor can pull
+    evidence without reading our source tree.
+- **[Microsoft Agent Governance Toolkit](https://github.com/microsoft/agent-governance-toolkit) interop** — drop-in for shops
+  standardising on MS Agent OS:
+  - **YAML schema auto-detect** — `YamlPolicyParser` recognises the MS schema
+    (`rules:` sequence at the document root, each rule carrying `name`,
+    `condition: {field, operator, value}`, and `action`) and parses it verbatim
+    alongside the Atmosphere-native `policies:` shape. The two roots are
+    mutually exclusive, so a single file is unambiguous.
+  - **Operators supported** — `eq`, `contains`, `matches` (regex), with
+    reject-with-context on unknown operators (no silent fallthrough).
+  - **`audit_entry` JSON shape** — the `AuditEntry` record (`timestamp`,
+    `policyName`, `policySource`, `policyVersion`,
+    `decision ∈ admit / transform / deny`, `reason`, `contextSnapshot`)
+    mirrors MS's emitted shape, so a SIEM consumer can ingest both Atmosphere
+    and MS Agent OS audit streams without transforms.
+  - **`agt verify` CLI parity** — `GET /api/admin/governance/agt-verify`
+    returns OWASP coverage in the same `schemaVersion: agt-verify/1` envelope
+    MS's CLI consumes.
+- **Plan-and-verify** (`atmosphere-verifier`) — refuses unsafe LLM-emitted
+  workflows before any tool fires, implementing the architecture from Erik
+  Meijer's *"[Guardians of the Agents: Formal Verification of AI Workflows](https://cacm.acm.org/research/guardians-of-the-agents/)"*
+  (CACM, January 2026):
+  - **Plan upfront, verify, then execute** — instead of letting the LLM call
+    tools one at a time, the LLM emits a structured `Workflow` JSON with
+    symbolic references (placeholders, not real data). A static verifier runs
+    over the plan; only verified plans execute.
+  - **Six built-in `PlanVerifier` SPIs** — `Allowlist` (whitelist of allowed
+    tools), `WellFormedness` (AST shape + symbolic-reference resolution),
+    `Capability` (each call holds the required `@RequiresCapability`), `Taint`
+    (no `@Sink` reads tainted input), `Automaton` (security automaton
+    state-machine), `Smt` (SMT-backed pre / post-condition checks). All
+    discovered via `ServiceLoader`.
+  - **Co-located policy** — `@Sink` and `@RequiresCapability` annotations live
+    on the tool method itself, scanned by `SinkScanner` / `CapabilityScanner`
+    at startup. The policy file lists taint sources and capabilities;
+    verifiers cross-reference annotation + policy + plan.
+  - **`verify` CLI** — `verify --policy email.policy.json --workflow attack.plan.json`
+    for offline auditor / red-team review. Exits 0 (clean), 1 (violation),
+    2 (usage / IO error).
 - **A2A v1.0.0** spec alignment — Atmosphere ships the released spec,
   not a pre-1.0 draft; pre-1.0 method names aliased so existing
   clients keep working.
@@ -333,7 +378,6 @@ Book a 30-min architecture call: [async-io.live/contact](https://async-io.live/c
 |---------|-------------|
 | [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills) | Curated agent skill files — personality, tools, guardrails |
 | [homebrew-tap](https://github.com/Atmosphere/homebrew-tap) | Homebrew formulae for the Atmosphere CLI |
-| [javaclaw-atmosphere](https://github.com/Atmosphere/javaclaw-atmosphere) | Atmosphere chat transport plugin for JavaClaw |
 
 ## License
 
