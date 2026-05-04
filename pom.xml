@@ -938,6 +938,21 @@
                 <version>${micrometer.version}</version>
             </dependency>
             <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-commons</artifactId>
+                <version>${micrometer.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-observation</artifactId>
+                <version>${micrometer.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-jakarta9</artifactId>
+                <version>${micrometer.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.mockito.kotlin</groupId>
                 <artifactId>mockito-kotlin</artifactId>
                 <version>${mockito-kotlin.version}</version>
@@ -1183,7 +1198,7 @@
              advisory. Provided-scope only (DockerSandboxProvider uses
              docker-java), but the advisory closes cleanly on 1.84+. -->
         <bouncycastle.version>1.84</bouncycastle.version>
-        <micrometer.version>1.14.5</micrometer.version>
+        <micrometer.version>1.16.5</micrometer.version>
         <jakarta-enterprise-cdi-api.version>4.1.0</jakarta-enterprise-cdi-api.version>
         <testcontainers.version>1.20.6</testcontainers.version>
         <awaitility.version>4.2.2</awaitility.version>
