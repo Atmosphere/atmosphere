@@ -37,12 +37,10 @@ internal class EmbabelEmbeddingRuntimeContractTest : AbstractEmbeddingRuntimeCon
         override val name: String = "test-embabel"
         override val provider: String = "atmosphere-test"
         override val dimensions: Int = 8
-        // Embabel 0.3.4 EmbeddingService extends AiModel<Any>, which requires
-        // a `model` property exposing the underlying native client. The
-        // contract assertions don't touch this path, so a sentinel string
-        // satisfies the compiler without dragging in a real Spring AI
-        // EmbeddingModel.
-        override val model: Any = "test-embabel-model"
+        // Embabel 0.3.5 dropped the AiModel<Any> super-interface from
+        // EmbeddingService — the `model` property is no longer part of the
+        // contract. The minimal stub now only needs the metadata trio
+        // (name / provider / dimensions) plus the two embed() overloads.
         override fun embed(text: String): FloatArray {
             val vector = FloatArray(8)
             vector[0] = text.length.toFloat()
