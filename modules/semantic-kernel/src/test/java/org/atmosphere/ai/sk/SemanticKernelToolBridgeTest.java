@@ -16,7 +16,7 @@
 package org.atmosphere.ai.sk;
 
 import com.microsoft.semantickernel.contextvariables.ContextVariable;
-import com.microsoft.semantickernel.semanticfunctions.KernelFunctionArguments;
+import com.microsoft.semantickernel.semanticfunctions.KernelArguments;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.StreamingSession;
@@ -142,10 +142,12 @@ class SemanticKernelToolBridgeTest {
                 contextWith(List.of(weather)), nullSession());
         var fn = plugin.get("get_weather");
 
-        // Build KernelFunctionArguments with a single "city" entry — this is
+        // Build KernelArguments with a single "city" entry — this is
         // the shape SK's auto-invoke loop would pass when the LLM produces
-        // {"city": "Montreal"} as a tool call.
-        var args = KernelFunctionArguments.builder()
+        // {"city": "Montreal"} as a tool call. SK 1.5.0 deprecated the
+        // KernelFunctionArguments builder in favor of the parent KernelArguments
+        // builder; both still work but only KernelArguments is non-deprecated.
+        var args = KernelArguments.builder()
                 .withVariable("city", ContextVariable.of("Montreal"))
                 .build();
 

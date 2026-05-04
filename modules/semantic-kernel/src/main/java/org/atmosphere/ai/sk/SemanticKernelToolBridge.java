@@ -24,7 +24,7 @@ import com.microsoft.semantickernel.plugin.KernelPlugin;
 import com.microsoft.semantickernel.plugin.KernelPluginFactory;
 import com.microsoft.semantickernel.semanticfunctions.InputVariable;
 import com.microsoft.semantickernel.semanticfunctions.KernelFunction;
-import com.microsoft.semantickernel.semanticfunctions.KernelFunctionArguments;
+import com.microsoft.semantickernel.semanticfunctions.KernelArguments;
 import com.microsoft.semantickernel.semanticfunctions.KernelFunctionMetadata;
 import com.microsoft.semantickernel.semanticfunctions.OutputVariable;
 import org.atmosphere.ai.AgentExecutionContext;
@@ -155,7 +155,7 @@ final class SemanticKernelToolBridge {
 
         @Override
         public Mono<FunctionResult<String>> invokeAsync(Kernel kernel,
-                                                        KernelFunctionArguments arguments,
+                                                        KernelArguments arguments,
                                                         ContextVariableType<String> variableType,
                                                         InvocationContext invocationContext) {
             return Mono.fromCallable(() -> {
