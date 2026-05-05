@@ -32,14 +32,14 @@ public final class DemoResponseProducer {
     private DemoResponseProducer() {
     }
 
-    public static void stream(String userMessage, StreamingSession session, String room, String model) {
+    public static void stream(String userMessage, StreamingSession session, String model) {
         var response = generateResponse(userMessage);
         var toolName = detectTool(userMessage);
         var words = response.split("(?<=\\s)");
 
         try {
             long startNanos = System.nanoTime();
-            session.progress("Demo mode (no API key) — room: " + room);
+            session.progress("Demo mode (no API key) — model: " + model);
 
             // Emit AiEvent tool events so the frontend can show tool activity
             if (toolName != null) {

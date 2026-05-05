@@ -40,6 +40,7 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.slf4j.Logger;
@@ -255,16 +256,40 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     public void onRequest(AtmosphereResource resource) throws IOException {
         var method = resource.getRequest().getMethod();
 
-        // WebSocket frames arrive as POST requests via SimpleHttpProtocol.
-        // The framework creates a temporary resource for each frame with the handler's
-        // default broadcaster — NOT the per-path broadcaster assigned during connection.
-        // We must look up the per-path broadcaster by URI so the broadcast reaches
-        // the suspended resource(s) in the correct room.
+        // WebSocket frames arrive as POST requests via SimpleHttpProtocol; the framework
+        // creates a temporary resource for each frame with the handler's default
+        // broadcaster — not the per-path broadcaster assigned during connection. We
+        // must dispatch the prompt onto the *originating* suspended resource only,
+        // never the whole per-path broadcaster — fanning out the prompt to every
+        // subscriber on the path causes one tab's prompt to be answered by every
+        // tab's @Prompt handler, including N redundant LLM calls and a leaked
+        // response stream into tabs that never asked anything.
+        //
+        // The originating resource UUID is published two ways:
+        //   • WebSocket: DefaultWebSocketProcessor stashes it on the suspended request
+        //     under SUSPENDED_ATMOSPHERE_RESOURCE_UUID; the temp request inherits via
+        //     attribute delegation to the wrapped original request.
+        //   • SSE / long-polling: the client carries it on every POST as the
+        //     X-Atmosphere-tracking-id header.
         if ("POST".equalsIgnoreCase(method)) {
             AtmosphereRequestImpl.Body body = resource.getRequest().body();
             if (!body.isEmpty()) {
                 var msg = body.hasString() ? body.asString() : new String(body.asBytes());
-                resolvePerPathBroadcaster(resource).broadcast(msg);
+                var target = findOriginatingResource(resource);
+                if (target != null) {
+                    target.getBroadcaster().broadcast(msg, target);
+                } else {
+                    // Pre-fix behavior, retained as a safety net for non-conformant
+                    // clients that ship neither header. Logged so the regression
+                    // is visible rather than silent.
+                    logger.warn("Cannot identify originating resource for prompt on {}; "
+                                    + "falling back to per-path broadcast (will fan out across all "
+                                    + "subscribers — set {} or send {} header to enable targeted dispatch)",
+                            pathTemplate,
+                            ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID,
+                            HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+                    resolvePerPathBroadcaster(resource).broadcast(msg);
+                }
             }
             return;
         }
@@ -852,6 +877,36 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 config.addFilter(filter);
             }
         }
+    }
+
+    /**
+     * Resolves the originating suspended {@link AtmosphereResource} for a
+     * prompt POST. WebSocket frames arrive as freshly-built temp resources; SSE
+     * and long-polling carry the suspended UUID via the
+     * {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID} header. We try the
+     * WebSocket-suspended attribute first (set by
+     * {@code DefaultWebSocketProcessor}) and fall back to the tracking-id
+     * header. Returns {@code null} when neither is present so the caller can
+     * decide whether to fall back to broadcast-all or refuse.
+     */
+    private AtmosphereResource findOriginatingResource(AtmosphereResource resource) {
+        var req = resource.getRequest();
+        var factory = resource.getAtmosphereConfig().resourcesFactory();
+        var suspendedUuid = req.getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+        if (suspendedUuid instanceof String s && !s.isEmpty()) {
+            var found = factory.findResource(s);
+            if (found.isPresent()) {
+                return found.get();
+            }
+        }
+        var headerUuid = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+        if (headerUuid != null && !headerUuid.isEmpty() && !"0".equals(headerUuid)) {
+            var found = factory.findResource(headerUuid);
+            if (found.isPresent()) {
+                return found.get();
+            }
+        }
+        return null;
     }
 
     /**

@@ -21,7 +21,6 @@ import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.config.service.Disconnect;
-import org.atmosphere.config.service.PathParam;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -45,30 +44,26 @@ public class AiToolsChat {
 
     private static final Logger logger = LoggerFactory.getLogger(AiToolsChat.class);
 
-    @PathParam("room")
-    private String room;
-
     @Ready
     public void onReady(AtmosphereResource resource) {
-        logger.info("[room={}] Client {} connected (peers: {})",
-                room, resource.uuid(),
+        logger.info("Client {} connected (peers: {})",
+                resource.uuid(),
                 resource.getBroadcaster().getAtmosphereResources().size());
     }
 
     @Disconnect
     public void onDisconnect(AtmosphereResourceEvent event) {
-        logger.info("[room={}] Client {} disconnected",
-                room, event.getResource().uuid());
+        logger.info("Client {} disconnected", event.getResource().uuid());
     }
 
     @Prompt
     public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
-        logger.info("[room={}] Prompt from {}: {}", room, resource.uuid(), message);
+        logger.info("Prompt from {}: {}", resource.uuid(), message);
 
         var settings = AiConfig.get();
         if (settings == null || settings.apiKey() == null || settings.apiKey().isBlank()) {
             var model = settings != null ? settings.model() : "unknown";
-            DemoResponseProducer.stream(message, session, room, model);
+            DemoResponseProducer.stream(message, session, model);
             return;
         }
 
