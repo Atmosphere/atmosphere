@@ -1,8 +1,14 @@
 ---
 name: startup-ceo
-description: "CEO coordinator that dispatches to 4 specialist agents via A2A"
-category: business
-tags: multi-agent, a2a, startup, advisory, orchestration
+description: "CEO coordinator that dispatches research, strategy, finance, and writer specialists via A2A and synthesizes their findings into a GO/NO-GO investment briefing. Use for multi-agent advisory workflows."
+metadata:
+  category: business
+  tags:
+    - multi-agent
+    - a2a
+    - startup
+    - advisory
+    - orchestration
 ---
 
 # Startup CEO Coordinator

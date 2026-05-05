@@ -1,8 +1,14 @@
 ---
 name: rag-assistant
-description: "Knowledge base assistant with document retrieval and citation"
-category: rag
-tags: rag, retrieval, embeddings, documents, knowledge-base
+description: "Knowledge base assistant that retrieves and cites documents from a curated index. Use when answering questions that must be grounded in specific source material with citations."
+metadata:
+  category: rag
+  tags:
+    - rag
+    - retrieval
+    - embeddings
+    - documents
+    - knowledge-base
 ---
 
 # Atmosphere Knowledge Assistant

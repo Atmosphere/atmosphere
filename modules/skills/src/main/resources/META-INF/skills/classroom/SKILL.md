@@ -1,8 +1,13 @@
 ---
 name: classroom
-description: "Multi-room AI classroom where all students see AI responses simultaneously"
-category: education
-tags: classroom, multi-room, education, broadcast
+description: "Multi-room AI classroom where all students see AI responses simultaneously, with per-room subject focus (math, science, code, general). Use for shared-broadcast educational settings."
+metadata:
+  category: education
+  tags:
+    - classroom
+    - multi-room
+    - education
+    - broadcast
 ---
 
 # AI Classroom Assistant

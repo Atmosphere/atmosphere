@@ -108,9 +108,43 @@ public final class PromptLoader {
     public static String loadSkill(String skillName) {
         var cached = CACHE.computeIfAbsent("skill:" + skillName, k -> {
             var result = resolveSkill(skillName);
-            return result != null ? result : NOT_FOUND_SENTINEL;
+            return result != null ? stripFrontmatter(result) : NOT_FOUND_SENTINEL;
         });
         return NOT_FOUND_SENTINEL.equals(cached) ? null : cached;
+    }
+
+    // Strips an agentskills.io SKILL.md YAML frontmatter block from the head of
+    // the file so the metadata never reaches the LLM as system-prompt text.
+    // Disk cache and integrity verification still operate on the raw bytes.
+    static String stripFrontmatter(String content) {
+        if (content == null || content.length() < 6 || !content.startsWith("---")) {
+            return content;
+        }
+        var firstNewline = content.indexOf('\n');
+        if (firstNewline < 0) {
+            return content;
+        }
+        var firstLine = content.substring(0, firstNewline).trim();
+        if (!"---".equals(firstLine)) {
+            return content;
+        }
+        var cursor = firstNewline + 1;
+        while (cursor < content.length()) {
+            var nextNewline = content.indexOf('\n', cursor);
+            var lineEnd = nextNewline < 0 ? content.length() : nextNewline;
+            var line = content.substring(cursor, lineEnd).trim();
+            if ("---".equals(line)) {
+                var bodyStart = nextNewline < 0 ? content.length() : nextNewline + 1;
+                return content.substring(bodyStart).strip();
+            }
+            if (nextNewline < 0) {
+                break;
+            }
+            cursor = nextNewline + 1;
+        }
+        // Malformed frontmatter (no closing fence) — pass content through unchanged
+        // rather than swallow the body.
+        return content;
     }
 
     /**

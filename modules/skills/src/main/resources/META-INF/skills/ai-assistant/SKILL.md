@@ -1,8 +1,12 @@
 ---
 name: ai-assistant
-description: "Streaming chat assistant with conversation memory"
-category: general
-tags: chat, streaming, general-purpose
+description: "Streaming chat assistant with conversation memory. Use as a general-purpose assistant for multi-turn conversations where streaming output and context retention matter."
+metadata:
+  category: general
+  tags:
+    - chat
+    - streaming
+    - general-purpose
 ---
 
 # AI Chat Assistant

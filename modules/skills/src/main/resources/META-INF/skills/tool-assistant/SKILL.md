@@ -1,8 +1,14 @@
 ---
 name: tool-assistant
-description: "Tool-calling pipeline with cost metering and approval workflows"
-category: tools
-tags: tools, function-calling, weather, time, cost-metering
+description: "Tool-calling assistant with backend functions for time, city time, weather, and temperature conversion, plus cost metering and approval workflows. Use when a question needs real-time data via tool calls."
+metadata:
+  category: tools
+  tags:
+    - tools
+    - function-calling
+    - weather
+    - time
+    - cost-metering
 ---
 
 # Tool-Calling Assistant

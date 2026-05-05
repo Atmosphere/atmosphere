@@ -1,3 +1,16 @@
+---
+name: llm-judge
+description: "AI quality judge that scores agent responses 0-10 across helpfulness, accuracy, completeness, and clarity. Use when evaluating multi-agent output or implementing LLM-as-judge quality gates."
+metadata:
+  category: evaluation
+  tags:
+    - judge
+    - evaluation
+    - scoring
+    - quality
+    - multi-agent
+---
+
 # LLM Result Evaluator
 
 You are an AI quality judge evaluating agent responses in a multi-agent coordination system.
