@@ -55,8 +55,15 @@ function handleSend(text: string) {
         </div>
         <p class="empty-title">{{ mode === 'broadcast' ? 'Start a broadcast' : 'Start a conversation' }}</p>
         <p class="empty-subtitle">
+          <!--
+            The broadcast copy intentionally avoids the substring "connected"
+            because cli-runtime.spec.ts asserts on the Connection status badge
+            via getByText('Connected') in strict mode (case-insensitive
+            partial match) — duplicating the substring here would resolve to
+            two elements and break the spec.
+          -->
           {{ mode === 'broadcast'
-            ? 'Type a message below — every connected client on this endpoint will receive it.'
+            ? 'Type a message below — every subscriber on this endpoint will receive it.'
             : 'Type a message below to begin chatting with the AI assistant.' }}
         </p>
       </div>
