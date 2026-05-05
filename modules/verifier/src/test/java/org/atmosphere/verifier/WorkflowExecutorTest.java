@@ -119,4 +119,68 @@ class WorkflowExecutorTest {
         assertEquals("emails", ex.ref());
         assertEquals(0, ex.stepIndex());
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void symRefsNestedInListAndMapAreResolved() {
+        // Mirrors the Python ref impl's _normalize_refs traversal: SymRefs
+        // inside list elements and map values must be resolved before
+        // dispatch so the tool sees the real bound values.
+        Map<String, Map<String, Object>> captures = new LinkedHashMap<>();
+        var executor = new WorkflowExecutor(
+                new RegistryToolDispatcher(PlanFixtures.fakeRegistry(captures)));
+
+        Workflow wf = new Workflow(
+                "nested refs",
+                List.of(new WorkflowStep("send", new ToolCallNode(
+                        PlanFixtures.SEND,
+                        Map.of(
+                                "recipients", List.of(
+                                        new SymRef("user_email"),
+                                        "static@example.com"),
+                                "headers", Map.of(
+                                        "from", new SymRef("user_email"),
+                                        "subject", "literal value"),
+                                "deeply_nested", List.of(
+                                        Map.of("inner", new SymRef("user_email")))),
+                        null))));
+
+        Map<String, Object> initial = new HashMap<>();
+        initial.put("user_email", "alice@company.com");
+        executor.run(wf, initial);
+
+        Map<String, Object> sendArgs = captures.get(PlanFixtures.SEND);
+        List<Object> recipients = (List<Object>) sendArgs.get("recipients");
+        assertEquals("alice@company.com", recipients.get(0));
+        assertEquals("static@example.com", recipients.get(1));
+        assertFalse(recipients.get(0) instanceof SymRef, "Nested list SymRef leaked through");
+        Map<String, Object> headers = (Map<String, Object>) sendArgs.get("headers");
+        assertEquals("alice@company.com", headers.get("from"));
+        assertEquals("literal value", headers.get("subject"));
+        assertFalse(headers.get("from") instanceof SymRef, "Nested map SymRef leaked through");
+        List<Object> deep = (List<Object>) sendArgs.get("deeply_nested");
+        Map<String, Object> deepMap = (Map<String, Object>) deep.get(0);
+        assertEquals("alice@company.com", deepMap.get("inner"));
+    }
+
+    @Test
+    void unresolvedSymRefNestedInListThrowsTypedException() {
+        // Boundary error (#4): nested SymRef referencing an unbound
+        // identifier must surface as the same typed exception, not NPE.
+        var executor = new WorkflowExecutor(
+                new RegistryToolDispatcher(PlanFixtures.fakeRegistry(null)));
+
+        Workflow wf = new Workflow(
+                "nested forward ref",
+                List.of(new WorkflowStep("send", new ToolCallNode(
+                        PlanFixtures.SEND,
+                        Map.of("recipients", List.of(new SymRef("emails"))),
+                        null))));
+
+        UnresolvedSymRefException ex = assertThrows(
+                UnresolvedSymRefException.class,
+                () -> executor.run(wf, Map.of()));
+        assertEquals("emails", ex.ref());
+        assertEquals(0, ex.stepIndex());
+    }
 }

@@ -596,7 +596,55 @@ else
 fi
 
 # ============================================================================
-# 9. HARDCODED SECRETS
+# 9. @Experimental EXPIRY ENFORCEMENT
+# ============================================================================
+
+echo ""
+echo -e "${BLUE}--- @Experimental Expiry ---${NC}"
+
+# Every formal @Experimental annotation in production javadoc (matched by the
+# bold-label pattern `<b>@Experimental</b>`) must declare an expiry quarter of
+# the form YYYY-Q[1-4] within the same paragraph. The expiry must not be in
+# the past — once it lapses, either freeze the API (drop the label) or push
+# the date with explicit justification. This prevents @Experimental from
+# becoming permanent debt.
+
+CURRENT_YEAR=$(date +%Y)
+CURRENT_QUARTER=$(( ($(date +%-m) - 1) / 3 + 1 ))
+CURRENT_KEY=$((CURRENT_YEAR * 10 + CURRENT_QUARTER))
+
+EXPERIMENTAL_VIOLATIONS=0
+
+# Find every formal `<b>@Experimental</b>` site.
+while IFS=: read -r exp_file exp_line _; do
+    [ -z "$exp_file" ] && continue
+    # Read the next 12 lines after the annotation; expiry must appear in this window.
+    end_line=$((exp_line + 12))
+    window=$(sed -n "${exp_line},${end_line}p" "$exp_file")
+    expiry=$(echo "$window" | grep -oE '20[0-9]{2}-Q[1-4]' | head -1)
+
+    if [ -z "$expiry" ]; then
+        fail_validation "@Experimental at $exp_file:$exp_line missing YYYY-Qn expiry within 12 lines"
+        EXPERIMENTAL_VIOLATIONS=$((EXPERIMENTAL_VIOLATIONS + 1))
+        continue
+    fi
+
+    exp_year=$(echo "$expiry" | cut -d- -f1)
+    exp_q=$(echo "$expiry" | sed 's/.*Q//')
+    exp_key=$((exp_year * 10 + exp_q))
+
+    if [ "$exp_key" -lt "$CURRENT_KEY" ]; then
+        fail_validation "@Experimental at $exp_file:$exp_line expired ($expiry < ${CURRENT_YEAR}-Q${CURRENT_QUARTER}) — freeze the API or push the date"
+        EXPERIMENTAL_VIOLATIONS=$((EXPERIMENTAL_VIOLATIONS + 1))
+    fi
+done < <(rg -n '<b>@Experimental</b>' $SRC_DIRS --type java --type kotlin 2>/dev/null)
+
+if [ "$EXPERIMENTAL_VIOLATIONS" -eq 0 ]; then
+    pass_validation "All @Experimental annotations have a non-expired YYYY-Qn expiry"
+fi
+
+# ============================================================================
+# 10. HARDCODED SECRETS
 # ============================================================================
 
 echo ""

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.agent.command;
 
+import org.atmosphere.channels.IncomingMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +44,10 @@ public final class CommandRouter {
     private final ConcurrentHashMap<String, ReentrantLock> clientLocks = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> clientLastSeen = new ConcurrentHashMap<>();
 
-    record PendingConfirmation(CommandRegistry.CommandEntry command, String args, Instant createdAt) {
+    record PendingConfirmation(CommandRegistry.CommandEntry command,
+                               String args,
+                               IncomingMessage incoming,
+                               Instant createdAt) {
     }
 
     /**
@@ -63,6 +67,25 @@ public final class CommandRouter {
      * @return the routing result
      */
     public CommandResult route(String clientId, String message) {
+        return route(clientId, message, null);
+    }
+
+    /**
+     * Routes a message from a client, carrying the originating
+     * {@link IncomingMessage} so {@code @Command} methods declared with
+     * an {@code IncomingMessage} parameter receive the platform context
+     * (sender, conversation, timestamp). Plain-{@code String} commands
+     * ignore the {@code incoming} argument; {@code IncomingMessage}
+     * commands invoked through the String-only overload reject with a
+     * clear error response.
+     *
+     * @param clientId the unique client identifier (must not be null)
+     * @param message  the raw message text
+     * @param incoming the originating {@link IncomingMessage}; may be null
+     *                 when the caller has no platform context
+     * @return the routing result
+     */
+    public CommandResult route(String clientId, String message, IncomingMessage incoming) {
         if (clientId == null) {
             throw new IllegalArgumentException("clientId must not be null");
         }
@@ -81,7 +104,7 @@ public final class CommandRouter {
         var lock = clientLocks.computeIfAbsent(clientId, k -> new ReentrantLock());
         lock.lock();
         try {
-            return routeUnderLock(clientId, message.trim());
+            return routeUnderLock(clientId, message.trim(), incoming);
         } finally {
             lock.unlock();
         }
@@ -94,12 +117,12 @@ public final class CommandRouter {
         return pending.size();
     }
 
-    private CommandResult routeUnderLock(String clientId, String trimmed) {
+    private CommandResult routeUnderLock(String clientId, String trimmed, IncomingMessage incoming) {
         // Check for pending confirmation response
         if (isConfirmation(trimmed)) {
             var pendingCmd = pending.remove(clientId);
             if (pendingCmd != null && !isExpired(pendingCmd)) {
-                return executeCommand(pendingCmd.command(), pendingCmd.args());
+                return executeCommand(pendingCmd.command(), pendingCmd.args(), pendingCmd.incoming());
             }
             // Expired or no pending — fall through to LLM
         }
@@ -138,20 +161,28 @@ public final class CommandRouter {
 
         // Confirmation flow
         if (!command.confirm().isEmpty()) {
-            pending.put(clientId, new PendingConfirmation(command, args, Instant.now()));
+            pending.put(clientId, new PendingConfirmation(command, args, incoming, Instant.now()));
             return new CommandResult.ConfirmationRequired(command.confirm());
         }
 
-        return executeCommand(command, args);
+        return executeCommand(command, args, incoming);
     }
 
-    private CommandResult executeCommand(CommandRegistry.CommandEntry command, String args) {
+    private CommandResult executeCommand(CommandRegistry.CommandEntry command,
+                                         String args,
+                                         IncomingMessage incoming) {
         try {
             String result = switch (command.paramType()) {
                 case NONE -> (String) command.method().invoke(target);
                 case STRING -> (String) command.method().invoke(target, args);
-                case INCOMING_MESSAGE -> throw new IllegalStateException(
-                        "INCOMING_MESSAGE commands should be rejected at registration time");
+                case INCOMING_MESSAGE -> {
+                    if (incoming == null) {
+                        logger.warn("Command {} requires IncomingMessage context but caller "
+                                + "invoked the String-only route() overload", command.prefix());
+                        yield "Error: command requires platform context (route via IncomingMessage)";
+                    }
+                    yield (String) command.method().invoke(target, incoming);
+                }
             };
             logger.debug("Command {} executed: {}", command.prefix(),
                     result != null ? result.substring(0, Math.min(result.length(), 50)) : "null");

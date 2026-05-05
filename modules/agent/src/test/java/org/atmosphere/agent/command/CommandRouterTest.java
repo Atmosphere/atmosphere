@@ -16,10 +16,14 @@
 package org.atmosphere.agent.command;
 
 import org.atmosphere.agent.annotation.Command;
+import org.atmosphere.channels.ChannelType;
+import org.atmosphere.channels.IncomingMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -31,6 +35,8 @@ public class CommandRouterTest {
     private CommandRouter router;
 
     static class TestAgent {
+        IncomingMessage lastWhoami;
+
         @Command(value = "/status", description = "Show status")
         public String status() {
             return "All systems operational.";
@@ -49,6 +55,13 @@ public class CommandRouterTest {
         @Command(value = "/reset", confirm = "Reset all data?")
         public String reset() {
             return "Data reset.";
+        }
+
+        @Command(value = "/whoami", description = "Identify caller via platform context")
+        public String whoami(IncomingMessage incoming) {
+            lastWhoami = incoming;
+            return "You are " + incoming.senderName().orElse(incoming.senderId())
+                    + " on " + incoming.channelType().id();
         }
     }
 
@@ -325,5 +338,42 @@ public class CommandRouterTest {
         for (var t : threads) t.join(10000);
         assertEquals(clientCount, successes.get(),
                 "All clients should complete their confirmation flow independently");
+    }
+
+    @Test
+    public void incomingMessageOverloadDispatchesPlatformContext() {
+        var incoming = new IncomingMessage(
+                ChannelType.TELEGRAM,
+                "12345",
+                Optional.of("Alice"),
+                "/whoami",
+                "chat-7",
+                "msg-42",
+                Instant.now());
+
+        var result = router.route("telegram:12345", "/whoami", incoming);
+
+        assertInstanceOf(CommandResult.Executed.class, result);
+        assertEquals("You are Alice on telegram",
+                ((CommandResult.Executed) result).response());
+        // The agent received the actual IncomingMessage, not a re-fabricated one
+        assertSame(incoming, agent.lastWhoami,
+                "Original IncomingMessage must reach the @Command method");
+    }
+
+    @Test
+    public void stringOnlyOverloadRejectsIncomingMessageCommands() {
+        // The legacy String-only route() cannot dispatch IncomingMessage
+        // commands — it should return a clear error rather than NPE so
+        // misconfigured callers see something actionable.
+        var result = router.route("client-x", "/whoami");
+
+        assertInstanceOf(CommandResult.Executed.class, result);
+        var response = ((CommandResult.Executed) result).response();
+        assertTrue(response.startsWith("Error:"),
+                "Expected error message, got: " + response);
+        assertTrue(response.contains("platform context"),
+                "Error should mention missing platform context, got: " + response);
+        assertNull(agent.lastWhoami, "@Command must not have been invoked");
     }
 }

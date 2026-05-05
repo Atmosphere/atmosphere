@@ -23,7 +23,9 @@ import org.atmosphere.verifier.ast.WorkflowStep;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -33,13 +35,12 @@ import java.util.Objects;
  * and dispatches each step's tool call through a pluggable
  * {@link ToolDispatcher}.
  *
- * <p><strong>Phase 1 scope</strong> — synchronous, single-threaded
- * execution; shallow SymRef resolution (top-level argument map values
- * only). Deep resolution (SymRefs inside nested lists / maps) is
- * deferred to Phase 5. Async dispatch is additive in Phase 2 via a
- * sibling {@code runAsync()} method that submits to a caller-supplied
- * executor without changing this class's signature (correctness
- * invariant #7 — mode parity).</p>
+ * <p><strong>Scope</strong> — synchronous, single-threaded execution
+ * with deep SymRef resolution (top-level and nested values inside
+ * {@code Map} / {@code List}). Async dispatch is additive via a sibling
+ * {@code runAsync()} method that submits to a caller-supplied executor
+ * without changing this class's signature (correctness invariant #7 —
+ * mode parity).</p>
  *
  * <p><strong>Ownership</strong> (correctness invariant #1) — the
  * executor never closes the {@link ToolDispatcher} it was given;
@@ -138,29 +139,44 @@ public final class WorkflowExecutor {
     }
 
     /**
-     * Resolve top-level SymRef values in the argument map against
-     * {@code env}. Phase 1 is shallow: SymRefs nested inside a List or
-     * Map value are not unwrapped. The Phase 5 deep-resolution pass
-     * mirrors the Python reference implementation's
-     * {@code _normalize_refs} traversal.
+     * Resolve {@link SymRef} values in the argument map against
+     * {@code env}, descending into nested {@link Map} and {@link List}
+     * values. Mirrors the Python reference implementation's
+     * {@code _normalize_refs} traversal: every SymRef encountered at any
+     * depth is replaced with its bound value, while non-SymRef leaves
+     * pass through unchanged.
      */
     private Map<String, Object> resolveArguments(ToolCallNode call,
                                                  int stepIndex,
                                                  Map<String, Object> env) {
         Map<String, Object> resolved = new LinkedHashMap<>(call.arguments().size());
         for (var entry : call.arguments().entrySet()) {
-            Object value = entry.getValue();
-            if (value instanceof SymRef ref) {
-                if (!env.containsKey(ref.ref())) {
-                    throw new UnresolvedSymRefException(ref.ref(), stepIndex);
-                }
-                resolved.put(entry.getKey(), env.get(ref.ref()));
-            } else {
-                // TODO Phase 5: deep resolution for SymRefs nested in
-                // lists / maps (mirror Python reference impl).
-                resolved.put(entry.getKey(), value);
-            }
+            resolved.put(entry.getKey(), resolveValue(entry.getValue(), stepIndex, env));
         }
         return resolved;
+    }
+
+    private Object resolveValue(Object value, int stepIndex, Map<String, Object> env) {
+        if (value instanceof SymRef ref) {
+            if (!env.containsKey(ref.ref())) {
+                throw new UnresolvedSymRefException(ref.ref(), stepIndex);
+            }
+            return env.get(ref.ref());
+        }
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> out = new LinkedHashMap<>(map.size());
+            for (var e : map.entrySet()) {
+                out.put(String.valueOf(e.getKey()), resolveValue(e.getValue(), stepIndex, env));
+            }
+            return out;
+        }
+        if (value instanceof List<?> list) {
+            List<Object> out = new ArrayList<>(list.size());
+            for (Object element : list) {
+                out.add(resolveValue(element, stepIndex, env));
+            }
+            return out;
+        }
+        return value;
     }
 }

@@ -114,20 +114,31 @@ public class ChannelAiBridge {
                                      String systemPrompt, Object aiPipeline,
                                      List<String> allowedChannels) {
         try {
-            var method = router.getClass().getMethod("route", String.class, String.class);
+            // Prefer the IncomingMessage-aware overload when present so
+            // @Command methods declared with an IncomingMessage parameter
+            // receive the originating platform context. Falls back to the
+            // String-only overload for older routers.
+            Method method;
+            try {
+                method = router.getClass().getMethod("route",
+                        String.class, String.class, IncomingMessage.class);
+            } catch (NoSuchMethodException e) {
+                method = router.getClass().getMethod("route", String.class, String.class);
+            }
             var pipeline = aiPipeline instanceof AiPipeline p ? p : null;
             var normalized = allowedChannels != null
                     ? allowedChannels.stream().map(String::toLowerCase).toList()
                     : List.<String>of();
             agentBindings.add(new AgentBinding(name, router, method, systemPrompt,
                     pipeline, normalized));
-            logger.info("ChannelAiBridge: agent '{}' registered (pipeline={}, channels={}) "
-                            + "— {} agent(s) active on channels",
+            logger.info("ChannelAiBridge: agent '{}' registered (pipeline={}, channels={}, "
+                            + "incomingMessageAware={}) — {} agent(s) active on channels",
                     name, pipeline != null,
                     normalized.isEmpty() ? "all" : normalized,
+                    method.getParameterCount() == 3,
                     agentBindings.size());
         } catch (NoSuchMethodException e) {
-            logger.error("CommandRouter for agent '{}' does not have route(String, String) method", name, e);
+            logger.error("CommandRouter for agent '{}' does not have a route(String, String[, IncomingMessage]) method", name, e);
         }
     }
 
@@ -213,7 +224,9 @@ public class ChannelAiBridge {
                 continue;
             }
             try {
-                var result = binding.routeMethod().invoke(binding.router(), clientId, incoming.text());
+                var result = binding.routeMethod().getParameterCount() == 3
+                        ? binding.routeMethod().invoke(binding.router(), clientId, incoming.text(), incoming)
+                        : binding.routeMethod().invoke(binding.router(), clientId, incoming.text());
                 var simpleName = result.getClass().getSimpleName();
 
                 if ("Executed".equals(simpleName)) {

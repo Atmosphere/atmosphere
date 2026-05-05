@@ -15,24 +15,18 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.cache.UUIDBroadcasterCache;
-import org.atmosphere.handler.AtmosphereHandlerAdapter;
 import org.atmosphere.interceptor.AtmosphereResourceStateRecovery;
 
 import jakarta.servlet.ServletException;
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -142,60 +136,6 @@ public class AtmosphereResourceStateRecoveryTest {
         assertEquals(1, recovery.states().size());
         assertEquals(4, recovery.states().get(r.uuid()).ids().size());
 
-    }
-
-    @Disabled("Requires real AsyncSupport — resume()/broadcastOnResume() deadlocks with mock; move to integration tests")
-    @Test
-    public void longPollingAggregatedTest() throws ServletException, IOException, ExecutionException, InterruptedException {
-        final AtomicReference<Object> ref = new AtomicReference<>();
-        AtmosphereResourceImpl r = (AtmosphereResourceImpl) config.resourcesFactory().create(config, "1234567");
-        r.setBroadcaster(config.getBroadcasterFactory().lookup("/1", true));
-
-        recovery.configure(config);
-        recovery.inspect(r);
-
-        config.getBroadcasterFactory().lookup("/1", true).getBroadcasterConfig().setBroadcasterCache(new UUIDBroadcasterCache());
-        config.getBroadcasterFactory().lookup("/2", true).getBroadcasterConfig().setBroadcasterCache(new UUIDBroadcasterCache());
-        config.getBroadcasterFactory().lookup("/3", true).getBroadcasterConfig().setBroadcasterCache(new UUIDBroadcasterCache());
-        config.getBroadcasterFactory().lookup("/4", true).getBroadcasterConfig().setBroadcasterCache(new UUIDBroadcasterCache());
-
-        config.getBroadcasterFactory().lookup("/1", true).addAtmosphereResource(r);
-        config.getBroadcasterFactory().lookup("/2", true).addAtmosphereResource(r);
-        config.getBroadcasterFactory().lookup("/3", true).addAtmosphereResource(r);
-        config.getBroadcasterFactory().lookup("/4", true).addAtmosphereResource(r);
-
-        r.suspend();
-        config.metaBroadcaster().broadcastTo("/1", "Initialize Cache").get();
-        // Resume instead of close — simulates long-polling request completing normally,
-        // which preserves the recovery state for the next request
-        r.resume();
-
-        AtmosphereResourceImpl r2 = (AtmosphereResourceImpl) config.resourcesFactory().create(config, "1234567");
-        // Set a different one to hit caching.
-        r2.setBroadcaster(config.getBroadcasterFactory().lookup("/*", true));
-
-        config.getBroadcasterFactory().lookup("/1", true).broadcast("1").get();
-        config.getBroadcasterFactory().lookup("/2", true).broadcast("2").get();
-        config.getBroadcasterFactory().lookup("/3", true).broadcast("3").get();
-        config.getBroadcasterFactory().lookup("/4", true).broadcast("4").get();
-
-        r2.transport(AtmosphereResource.TRANSPORT.LONG_POLLING).atmosphereHandler(new AtmosphereHandlerAdapter() {
-            @Override
-            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-                ref.set(event.getMessage());
-            }
-        }).suspend();
-
-        recovery.inspect(r2);
-
-        assertTrue(List.class.isAssignableFrom(ref.get().getClass()));
-        assertEquals(4, List.class.cast(ref.get()).size());
-
-        StringBuilder b = new StringBuilder();
-        for (Object o : List.class.cast(ref.get())) {
-            b.append(o.toString());
-        }
-        assertEquals("1234", b.toString());
     }
 
 }

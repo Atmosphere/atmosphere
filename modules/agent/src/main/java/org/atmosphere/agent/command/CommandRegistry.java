@@ -166,13 +166,10 @@ public final class CommandRegistry {
                 return ParamType.STRING;
             }
             if (params[0].getName().equals(INCOMING_MESSAGE_CLASS)) {
-                throw new IllegalArgumentException(
-                        "@Command method with IncomingMessage parameter is not yet supported: "
-                                + method.getDeclaringClass().getName() + "." + method.getName()
-                                + ". Use String parameter instead.");
+                return ParamType.INCOMING_MESSAGE;
             }
             throw new IllegalArgumentException(
-                    "@Command method parameter must be String: "
+                    "@Command method parameter must be String or IncomingMessage: "
                             + method.getDeclaringClass().getName() + "." + method.getName()
                             + " has " + params[0].getName());
         }

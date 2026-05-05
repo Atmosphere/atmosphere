@@ -16,6 +16,7 @@
 package org.atmosphere.agent.command;
 
 import org.atmosphere.agent.annotation.Command;
+import org.atmosphere.channels.IncomingMessage;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -184,5 +185,21 @@ public class CommandRegistryTest {
 
         var all = registry.allCommands();
         assertEquals(2, all.size());
+    }
+
+    static class IncomingMessageAgent {
+        @Command(value = "/whoami")
+        public String whoami(IncomingMessage incoming) {
+            return incoming.senderId();
+        }
+    }
+
+    @Test
+    public void testIncomingMessageParamRegisters() {
+        var registry = new CommandRegistry();
+        registry.scan(IncomingMessageAgent.class);
+
+        var entry = registry.lookup("/whoami").orElseThrow();
+        assertEquals(CommandRegistry.ParamType.INCOMING_MESSAGE, entry.paramType());
     }
 }

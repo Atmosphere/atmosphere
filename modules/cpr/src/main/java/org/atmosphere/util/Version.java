@@ -21,6 +21,9 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Class contains information about Atmosphere framework
  *
@@ -29,6 +32,7 @@ import java.util.regex.Pattern;
  */
 public class Version {
 
+    private static final Logger logger = LoggerFactory.getLogger(Version.class);
     private static final Pattern versionPattern = Pattern.compile("((\\d+)\\.(\\d+)\\.(\\d+)){1}(.+)?");
     private static final String dotedVersion;
     private static final int major;
@@ -46,7 +50,7 @@ public class Version {
         try (InputStream s = Version.class.getResourceAsStream("version.properties")) {
             prop.load(s);
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("Failed to read atmosphere version.properties", e);
         }
         version = prop.getProperty("atmosphere.version");
         Matcher matcher = versionPattern.matcher(version);

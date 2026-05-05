@@ -103,7 +103,7 @@ public class EmbeddedWebSocketHandler {
             try {
                 processor.open(webSocket, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, webSocket));
             } catch (Exception ex) {
-                ex.printStackTrace();
+                logger.error("Failed to open embedded WebSocket for {}", requestURI, ex);
             }
         }
         return webSocket;
