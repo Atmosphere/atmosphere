@@ -8,6 +8,13 @@ import ToolCard from './ToolCard.vue'
 
 const props = defineProps<{
   endpoint?: string
+  // 'ai' (default) for @AiEndpoint / @Agent / @Coordinator endpoints, 'broadcast'
+  // for @ManagedService chats. Server picks this in /api/console/info via
+  // AtmosphereConsoleInfoEndpoint#detectMode by inspecting the registered
+  // handler class — keeps frontend copy honest for samples like
+  // spring-boot-mcp-server / spring-boot-otel-chat where there is no AI
+  // assistant on the other side, just other connected peers.
+  mode?: 'ai' | 'broadcast'
 }>()
 
 const { messages, toolCalls, isConnected, isStreaming, connectionState, send, clearMessages, respondToApproval, stats } = useAtmosphereChat(props.endpoint)
@@ -46,8 +53,12 @@ function handleSend(text: string) {
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
         </div>
-        <p class="empty-title">Start a conversation</p>
-        <p class="empty-subtitle">Type a message below to begin chatting with the AI assistant.</p>
+        <p class="empty-title">{{ mode === 'broadcast' ? 'Start a broadcast' : 'Start a conversation' }}</p>
+        <p class="empty-subtitle">
+          {{ mode === 'broadcast'
+            ? 'Type a message below — every connected client on this endpoint will receive it.'
+            : 'Type a message below to begin chatting with the AI assistant.' }}
+        </p>
       </div>
       <template v-for="(msg, idx) in messages" :key="msg.id">
         <ChatMessage :message="msg" />

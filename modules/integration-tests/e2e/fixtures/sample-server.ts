@@ -212,6 +212,35 @@ export const SAMPLES: Record<string, SampleConfig> = {
       QUARKUS_HTTP_PORT: '18810',
     },
   },
+  'spring-boot-checkpoint-agent': {
+    name: 'spring-boot-checkpoint-agent',
+    dir: 'spring-boot-checkpoint-agent',
+    // Default in application.yml is 8095 (collides with multi-agent-startup-team).
+    // The spring-boot launcher passes --server.port=${config.port}, so this wins.
+    port: 8101,
+    type: 'spring-boot',
+    // @Coordinator(name = "dispatch") registers at /atmosphere/agent/<name>
+    // (CoordinatorProcessor.java:170). Probe that for HTTP+WS readiness so
+    // we know the coordinator is wired before the isolation test connects.
+    readyPath: '/atmosphere/agent/dispatch',
+    // SQLite checkpoint store writes to target/checkpoint.db by default.
+    // Pin to an in-memory store for the isolation test so we don't poison
+    // a real on-disk DB across runs (and so the JVM tear-down is clean).
+    env: {
+      ATMOSPHERE_CHECKPOINT_STORE: 'in-memory',
+    },
+  },
+  'spring-boot-ms-governance-chat': {
+    name: 'spring-boot-ms-governance-chat',
+    dir: 'spring-boot-ms-governance-chat',
+    // Default in application.yml is 8090 (collides with otel-chat).
+    port: 8102,
+    type: 'spring-boot',
+    // @AiEndpoint(path = "/atmosphere/ms-governance") — the sample's
+    // application.yml also points the bundled Console at this path via
+    // atmosphere.console-endpoint, so the same readyPath probes both.
+    readyPath: '/atmosphere/ms-governance',
+  },
 };
 
 /**

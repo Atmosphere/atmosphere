@@ -23,10 +23,13 @@ import { assertCrossTabIsolation, type CrossTabIsolationOptions } from './fixtur
  * <p><b>Out of scope:</b> samples whose endpoint is intentionally
  * broadcast-shared ({@code @ManagedService} chats — {@code spring-boot-chat},
  * {@code spring-boot-mcp-server}, {@code spring-boot-otel-chat},
- * {@code spring-boot-channels-chat}, {@code spring-boot-ai-classroom},
- * {@code chat}, {@code embedded-jetty-chat}, {@code quarkus-chat}). Their
- * fan-out is the design, not a bug; the multi-client broadcast contract is
- * pinned by {@code WAsyncChatIntegrationTest} and {@code multi-client.spec}.</p>
+ * {@code spring-boot-ai-classroom} (wildcard {@code {room}} path is fanout
+ * by design), {@code chat}, {@code embedded-jetty-chat}, {@code quarkus-chat}).
+ * Their fan-out is the design, not a bug; the multi-client broadcast contract
+ * is pinned by {@code WAsyncChatIntegrationTest} and {@code multi-client.spec}.
+ * Also out-of-scope: {@code spring-boot-a2a-agent} — that sample's
+ * {@code @Agent} mounts an A2A JSON-RPC endpoint, not a Console-facing
+ * one, so the two-tab browser scenario doesn't apply.</p>
  */
 
 interface IsolationCase {
@@ -102,6 +105,46 @@ const cases: IsolationCase[] = [
     sampleKey: 'spring-boot-guarded-email-agent',
     shape: '@Agent guarded-email (Plan-and-Verify)',
     opts: { observationMs: 6_000 },
+  },
+
+  // @Coordinator with checkpointed HITL. Same dispatch path as the
+  // multi-agent fleet, but the analyzer/approver split + SQLite-backed
+  // checkpoint store stresses a different startup ordering — pinning
+  // isolation here proves the framework fix is class-level and doesn't
+  // depend on @Coordinator vs plain @AiEndpoint shape.
+  {
+    sampleKey: 'spring-boot-checkpoint-agent',
+    shape: '@Coordinator dispatch with analyzer/approver + checkpoint store',
+  },
+
+  // Microsoft Agent Governance Toolkit demo — @AiEndpoint at a custom
+  // path with @AgentScope classification interceptors stacked in front.
+  // The Console's atmosphere.console-endpoint is repointed to the
+  // governed endpoint, so the leak surface (if any) sits behind the
+  // interceptor chain — the test pins that the chain doesn't accidentally
+  // re-broadcast prompts.
+  {
+    sampleKey: 'spring-boot-ms-governance-chat',
+    shape: '@AiEndpoint /atmosphere/ms-governance with @AgentScope classifier',
+  },
+
+  // Quarkus runtime parity. The Quarkus extension wires AiEndpointHandler
+  // through a different async-support path (QuarkusJSR356AsyncSupport)
+  // than Spring Boot — pinning here proves the targeted-dispatch fix
+  // crosses the runtime boundary instead of being a Spring-only fluke.
+  {
+    sampleKey: 'quarkus-ai-chat',
+    shape: '@AiEndpoint /atmosphere/ai-chat (Quarkus runtime)',
+  },
+
+  // Omnichannel @AiEndpoint — same /atmosphere/ai-chat path is shared with
+  // Telegram/Slack/WhatsApp/Messenger channel bridges. Per-tab isolation
+  // must hold for web clients regardless of channel-adapter activity, so
+  // this case pins that the channel-bridge wiring doesn't accidentally
+  // re-broadcast prompts back through the Atmosphere broadcaster.
+  {
+    sampleKey: 'spring-boot-channels-chat',
+    shape: '@AiEndpoint /atmosphere/ai-chat with channel-bridge adapters',
   },
 ];
 

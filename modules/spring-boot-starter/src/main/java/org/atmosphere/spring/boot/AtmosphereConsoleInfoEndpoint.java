@@ -53,14 +53,61 @@ public class AtmosphereConsoleInfoEndpoint {
     @GetMapping("/api/console/info")
     public Map<String, String> info() {
         var result = new LinkedHashMap<String, String>();
+        var endpoint = detectEndpoint();
+        var mode = detectMode(endpoint);
         var subtitle = properties.getConsoleSubtitle();
         if (subtitle == null || subtitle.isBlank()) {
-            subtitle = "Runtime: " + detectRuntime();
+            // Mode-aware default so broadcast samples (mcp-server, otel-chat,
+            // anything mounting @ManagedService at /atmosphere/ai-chat) don't
+            // inherit the AI runtime label, which would be honest about the
+            // bundled console but not about the sample's actual shape.
+            subtitle = "broadcast".equals(mode)
+                    ? "Multi-client broadcast chat"
+                    : "Runtime: " + detectRuntime();
         }
         result.put("subtitle", subtitle);
-        result.put("endpoint", detectEndpoint());
+        result.put("endpoint", endpoint);
         result.put("runtime", detectRuntime());
+        result.put("mode", mode);
         return result;
+    }
+
+    /**
+     * Reports whether the handler registered at {@code endpoint} is an
+     * AI-shaped handler ({@code AiEndpointHandler} / {@code AgentHandler})
+     * or a plain broadcast handler (e.g. {@code @ManagedService} →
+     * {@code ManagedAtmosphereHandler}). The frontend uses this to render
+     * honest empty-state copy — "Type a message below to begin chatting
+     * with the AI assistant" is only accurate when an assistant exists.
+     *
+     * <p>Detection is class-name based so this controller doesn't drag in
+     * a hard compile-time dep on {@code modules/ai} or {@code modules/agent}
+     * — the AI Console must keep loading even when those JARs are absent.</p>
+     */
+    private String detectMode(String endpoint) {
+        if (endpoint == null) {
+            return "ai";
+        }
+        try {
+            var wrapper = framework.getAtmosphereHandlers().get(endpoint);
+            if (wrapper == null) {
+                return "ai";
+            }
+            var handlerClassName = wrapper.atmosphereHandler().getClass().getName();
+            // AiEndpointHandler (modules/ai), AgentHandler (modules/agent),
+            // and any handler whose package is under org.atmosphere.{ai,agent,
+            // coordinator} count as AI-shaped. Everything else (notably
+            // ManagedAtmosphereHandler from modules/cpr) is broadcast-shaped.
+            if (handlerClassName.startsWith("org.atmosphere.ai.")
+                    || handlerClassName.startsWith("org.atmosphere.agent.")
+                    || handlerClassName.startsWith("org.atmosphere.coordinator.")) {
+                return "ai";
+            }
+            return "broadcast";
+        } catch (Exception e) {
+            logger.debug("Could not classify handler mode for {}", endpoint, e);
+            return "ai";
+        }
     }
 
     private String detectRuntime() {

@@ -11,6 +11,11 @@ type Tab = 'chat' | 'policies' | 'decisions' | 'owasp' | 'commitments'
 
 const subtitle = ref('')
 const endpoint = ref('/atmosphere/ai-chat')
+// 'ai' is the safe default — the bundled console is AI-shaped. Server picks
+// 'broadcast' for endpoints whose registered handler is not in the
+// org.atmosphere.{ai,agent,coordinator} packages (e.g. @ManagedService chats
+// in spring-boot-mcp-server / spring-boot-otel-chat).
+const mode = ref<'ai' | 'broadcast'>('ai')
 const ready = ref(false)
 const activeTab = ref<Tab>('chat')
 const governanceAvailable = ref(false)
@@ -56,6 +61,7 @@ onMounted(async () => {
       const data = await res.json()
       if (data.subtitle) subtitle.value = data.subtitle
       if (data.endpoint) endpoint.value = data.endpoint
+      if (data.mode === 'broadcast' || data.mode === 'ai') mode.value = data.mode
     }
   } catch {
     // Console info not available — use defaults
@@ -90,7 +96,7 @@ onMounted(async () => {
       </nav>
     </header>
     <main class="app-main">
-      <ChatContainer v-if="ready && activeTab === 'chat'" :endpoint="endpoint" />
+      <ChatContainer v-if="ready && activeTab === 'chat'" :endpoint="endpoint" :mode="mode" />
       <GovernancePolicies v-if="ready" v-show="activeTab === 'policies'"
                           :active="activeTab === 'policies'" />
       <GovernanceDecisions v-if="ready" v-show="activeTab === 'decisions'"
