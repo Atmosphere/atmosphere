@@ -53,16 +53,25 @@ BASE_REF="${BASE_REF:-origin/main}"
 # ---------------------------------------------------------------------------
 # Helpers (defined before any caller; --dry-run invokes compute_pl_list early).
 # ---------------------------------------------------------------------------
+# JUnit 5 tag exclusions match what release-4x.yml uses for the release lane:
+# tests tagged `@Tag("flaky")` (e.g. wasync ChatIntegrationTest's
+# longPollingTransportConnectsAndReceivesMessage, pinned in commit
+# ad420c218b) are pre-existing timing-sensitive specs not meant for
+# fail-fast pre-push. Honoring the same exclusion locally keeps
+# pre-push noise-free and matches what gates a release.
+TEST_GROUPS='-Dgroups=!flaky'
+
 run_full() {
-    echo "Running: ./mvnw install -q"
-    ./mvnw install -q
+    echo "Running: ./mvnw install -q $TEST_GROUPS"
+    ./mvnw install -q $TEST_GROUPS
 }
 
 run_gib() {
-    echo "Running: ./mvnw install -q -Dgib.disable=false -Dgib.referenceBranch=refs/remotes/$BASE_REF"
+    echo "Running: ./mvnw install -q -Dgib.disable=false -Dgib.referenceBranch=refs/remotes/$BASE_REF $TEST_GROUPS"
     ./mvnw install -q \
         -Dgib.disable=false \
-        -Dgib.referenceBranch="refs/remotes/$BASE_REF"
+        -Dgib.referenceBranch="refs/remotes/$BASE_REF" \
+        $TEST_GROUPS
 }
 
 # Map each changed file to its enclosing Maven module (nearest ancestor
@@ -92,8 +101,8 @@ $dir"
 run_incremental_worktree() {
     echo "Worktree detected; using manual reactor scoping (GIB doesn't support worktrees)."
     echo "Modules: $PL_LIST"
-    echo "Running: ./mvnw install -q -pl $PL_LIST -am"
-    ./mvnw install -q -pl "$PL_LIST" -am
+    echo "Running: ./mvnw install -q -pl $PL_LIST -am $TEST_GROUPS"
+    ./mvnw install -q -pl "$PL_LIST" -am $TEST_GROUPS
 }
 
 echo ""
