@@ -450,6 +450,17 @@ export default defineConfig({
       name: 'orchestration-primitives',
       testMatch: /orchestration-primitives\.spec\.ts/,
     },
+    // ── Cross-tab isolation regression (commit 1fbb0958f0) ──
+    // One project, one spec file, ~12 sample boots in sequence inside the spec.
+    // Pins that two simultaneous Console tabs against any @AiEndpoint/@Agent
+    // sample never share prompts. The spec sequences the sample lifecycles
+    // itself (test.describe per sample with beforeAll/afterAll), so a single
+    // matrix leg is enough — splitting across legs would re-pay the JVM
+    // warm-up + Maven .m2 cache cost per leg with no parallelism benefit.
+    {
+      name: 'cross-tab-isolation',
+      testMatch: /cross-tab-isolation\.spec\.ts/,
+    },
     // ── Cross-browser (opt-in via E2E_ALL_BROWSERS=true) ──
     ...(process.env.E2E_ALL_BROWSERS ? [
       {

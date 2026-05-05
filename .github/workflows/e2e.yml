@@ -122,6 +122,12 @@ jobs:
             projects: "dentist-agent,a2a-discovery"
           - name: cli-runtime
             projects: "cli-runtime"
+          # Cross-tab isolation regression matrix (commit 1fbb0958f0).
+          # ~12 sample boots in sequence within a single spec — keep this
+          # leg distinct so its slow per-sample JVM warm-up doesn't push
+          # any other leg over the 10-min budget.
+          - name: regression-isolation
+            projects: "cross-tab-isolation"
       fail-fast: false
 
     steps:
