@@ -81,4 +81,21 @@ public interface AtmosphereConfig {
      * Additional Atmosphere init parameters passed to the servlet.
      */
     Map<String, String> initParams();
+
+    /**
+     * Optional subtitle shown by the bundled Atmosphere Console. When blank,
+     * the {@code /api/console/info} servlet picks a mode-aware default
+     * ({@code "Multi-client broadcast chat"} for {@code @ManagedService}
+     * endpoints, {@code "Runtime: <name>"} otherwise).
+     */
+    Optional<String> consoleSubtitle();
+
+    /**
+     * Optional explicit endpoint the bundled Atmosphere Console connects to.
+     * When blank, the {@code /api/console/info} servlet auto-detects via the
+     * registered handler map (prefer {@code /atmosphere/agent/*} over generic
+     * paths, fall back to the first {@code /atmosphere/*} that is not
+     * {@code /atmosphere/admin/*}).
+     */
+    Optional<String> consoleEndpoint();
 }

@@ -40,6 +40,7 @@ import io.quarkus.websockets.client.deployment.ServerWebSocketContainerBuildItem
 import org.atmosphere.cpr.AtmosphereAnnotations;
 import org.atmosphere.cpr.AtmosphereReflectiveTypes;
 import org.atmosphere.quarkus.runtime.AtmosphereConfig;
+import org.atmosphere.quarkus.runtime.AtmosphereConsoleInfoServlet;
 import org.atmosphere.quarkus.runtime.AtmosphereRecorder;
 import org.atmosphere.quarkus.runtime.QuarkusAtmosphereServlet;
 import org.jboss.jandex.AnnotationInstance;
@@ -340,6 +341,32 @@ class AtmosphereProcessor {
             builder.addInitParam(entry.getKey(), entry.getValue());
         }
 
+        return builder.build();
+    }
+
+    /**
+     * Registers the bundled-Console info servlet at {@code /api/console/info}
+     * so the Vue Console UI gets the same {@code subtitle / endpoint /
+     * runtime / mode} payload it gets from the Spring Boot starter's
+     * {@code AtmosphereConsoleInfoEndpoint}. Closes the parity gap that
+     * previously made {@code GET /api/console/info} return 404 on Quarkus
+     * — the Vue app then fell back to AI-mode defaults regardless of
+     * whether the registered handler was AI-shaped or {@code @ManagedService}.
+     */
+    @BuildStep
+    ServletBuildItem registerConsoleInfoServlet(AtmosphereConfig config) {
+        ServletBuildItem.Builder builder = ServletBuildItem.builder(
+                        "AtmosphereConsoleInfoServlet",
+                        AtmosphereConsoleInfoServlet.class.getName())
+                .addMapping("/api/console/info")
+                .setLoadOnStartup(2)
+                .setAsyncSupported(false);
+        config.consoleSubtitle().ifPresent(s ->
+                builder.addInitParam(
+                        AtmosphereConsoleInfoServlet.CONSOLE_SUBTITLE_PARAM, s));
+        config.consoleEndpoint().ifPresent(s ->
+                builder.addInitParam(
+                        AtmosphereConsoleInfoServlet.CONSOLE_ENDPOINT_PARAM, s));
         return builder.build();
     }
 
