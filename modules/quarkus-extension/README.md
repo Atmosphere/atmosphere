@@ -94,16 +94,23 @@ below is either ✓ wired (with the consumer the wiring serves), or ⏳
 deferred (with the upstream primitive the closure would need and the
 size estimate).
 
-### ✓ Wired (6 surfaces)
+### ✓ Wired here in `AtmosphereProcessor` (5 surfaces)
 
 | Surface | Quarkus build step | Consumer |
 |---------|---------------------|----------|
 | Core servlet + framework init | `AtmosphereProcessor.registerServlet` + `deferredFrameworkInit` + `ignoreAtmosphereScis` | every Quarkus app using `atmosphere-quarkus-extension` |
 | `@AiEndpoint` discovery | `AtmosphereProcessor.scanAnnotations` (Jandex `CombinedIndex`; Atmosphere AI annotation processor picks it up at servlet init) | `samples/quarkus-ai-chat` (5 endpoints) |
-| Admin Console SPA | `AtmosphereConsoleServlet` bundled in `modules/quarkus-admin-extension` (commit `f8930d62f4`) | `samples/quarkus-ai-chat` Console UI |
 | Console mode endpoint (`/api/console/info`) | `AtmosphereProcessor.registerConsoleInfoServlet` registers `AtmosphereConsoleInfoServlet` (commit `4be7c7f0ad`) — same handler-class mode-detection heuristic as the Spring Boot starter's `AtmosphereConsoleInfoEndpoint`; new config keys `quarkus.atmosphere.console-subtitle` / `quarkus.atmosphere.console-endpoint` mirror the Spring `atmosphere.console-*` properties | `samples/quarkus-ai-chat` Console UI (Vue frontend reads `mode` to swap empty-state copy and default subtitle) |
 | WebSocket endpoints | `AtmosphereProcessor.registerWebSocketEndpoints` (consumes `ServerWebSocketContainerBuildItem`) | every WebSocket-using Quarkus app |
 | Native image reflection | `AtmosphereProcessor.registerReflection` + `registerPoolReflection` + `registerEncoderDecoderClasses` | Quarkus `native-image` builds |
+
+### Parallel route — `modules/quarkus-admin-extension` (Admin trio)
+
+| Surface | Where it ships | Consumer |
+|---------|----------------|----------|
+| Admin Console SPA | `AdminProcessor.registerConsoleServlet` + `registerConsoleResources` bundles `AtmosphereConsoleServlet` (commit `f8930d62f4`) | `samples/quarkus-ai-chat` Console UI |
+| Admin auto-config beans | `AdminProcessor.registerBeans` (Quarkus parity for `AtmosphereAdminAutoConfiguration`) | every Quarkus app on the admin extension |
+| Admin REST controller | `AdminResource` (JAX-RS, Quarkus parity for `AtmosphereAdminEndpoint`) | admin Console UI + automation |
 
 Plus one **non-gap reclassified**: a `Favicon` auto-config does not
 belong in Quarkus. Quarkus serves `META-INF/resources/favicon.ico`
@@ -138,24 +145,27 @@ does not pretend that constitutes adoption.
 `@AutoConfiguration`-annotated classes (14 named `*AutoConfiguration.java`
 plus three `@AutoConfiguration`-annotated REST controllers:
 `AtmosphereAdminEndpoint`, `AtmosphereConsoleInfoEndpoint`,
-`webtransport/WebTransportInfoController`). The Quarkus extension covers
-those 17 surfaces as follows: 4 are wired here as `@BuildStep`s in
-`AtmosphereProcessor` (core servlet, `@AiEndpoint` discovery, Admin
-Console SPA, Console mode endpoint — `AtmosphereConsoleInfoEndpoint`'s
-parity ships as the new `AtmosphereConsoleInfoServlet` registered
-alongside the core servlet); 1 is reclassified as a non-gap (favicon —
-Quarkus serves static resources natively); 10 are tracked as deferred
-build steps in the table above with a concrete closure target each;
-and 2 ship via parallel routes — the `AtmosphereAdminEndpoint` REST
-controller is mirrored by `modules/quarkus-admin-extension` (it isn't
-ported into this extension because the JAX-RS resource lives where the
-Console SPA does), and `WebTransportInfoController` is rolled into the
-deferred WebTransport row above (a single `@BuildStep` will close both
-the `AtmosphereWebTransportAutoConfiguration` runtime wiring and the
-info-endpoint controller). Two additional Quarkus-only surfaces —
-WebSocket endpoint registration and native-image reflection — also ship
-today; they have no Spring-side counterpart because Spring Boot's
-runtime handles those intrinsically. Until each closure ships, this README does not pretend
+`webtransport/WebTransportInfoController`). The Quarkus side covers
+those 17 surfaces as follows: 3 are wired here as `@BuildStep`s in
+`AtmosphereProcessor` (core servlet for `AtmosphereAutoConfiguration`,
+`@AiEndpoint` discovery for `AtmosphereAiAutoConfiguration`, Console mode
+endpoint for `AtmosphereConsoleInfoEndpoint` — the latter ships as the
+new `AtmosphereConsoleInfoServlet` registered alongside the core
+servlet); 3 ship via the parallel `modules/quarkus-admin-extension`
+route (Admin Console SPA + `AtmosphereAdminAutoConfiguration` bean
+wiring + the `AtmosphereAdminEndpoint` REST controller — they live
+together in that extension because the JAX-RS resource and the Console
+static-resource servlet share its build steps); 1 is reclassified as a
+non-gap (favicon — Quarkus serves static resources natively); and 10
+are tracked as deferred rows in the table above (one row per closure
+target — the WebTransport row covers two Spring classes,
+`AtmosphereWebTransportAutoConfiguration` plus the
+`webtransport/WebTransportInfoController` info endpoint, because a
+single `@BuildStep` will close both). 3 + 3 + 1 + 10 (rows, covering 11
+Spring classes via the WT double-up) = 17. Two additional Quarkus-only
+surfaces — WebSocket endpoint registration and native-image reflection —
+also ship today; they have no Spring-side counterpart because Spring
+Boot's runtime handles those intrinsically. Until each closure ships, this README does not pretend
 the surface is "available with a workaround" — Quarkus apps that need
 durable sessions or coordinator fleet wiring should expect to roll
 their own until the corresponding PR lands. Each closure PR removes
