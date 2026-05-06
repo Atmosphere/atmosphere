@@ -133,13 +133,13 @@ What this registers depends on which modules are on the classpath:
 |---|---|---|---|---|
 | `atmosphere-ai` (Built-in) | OpenAI-compatible HTTP client | 3.5 / 4.0 | tool calling (5 rounds), JSON mode, vision, audio, prompt caching, token usage, native retry, tool-call deltas | Default. No third-party SDK on the classpath required. |
 | `atmosphere-spring-ai` | Spring AI 2.0.0-M2 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | |
-| `atmosphere-langchain4j` | LangChain4j 1.12.2 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | |
-| `atmosphere-adk` | Google ADK 1.0.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching | Multi-agent runtime — exposes `AGENT_ORCHESTRATION`. |
-| `atmosphere-koog` | JetBrains Koog 0.7.3 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching (Bedrock cache control) | Multi-agent runtime. |
-| `atmosphere-semantic-kernel` | Microsoft Semantic Kernel 1.4.0 | 4.0 | tool calling, structured output, token usage | No vision / audio path through the SK Java SDK today. |
-| `atmosphere-agentscope` | Alibaba AgentScope 1.0.12 | 4.0 | structured output, conversation memory, token usage | No native tool-call dispatch in the SDK; tools must be invoked manually. |
-| `atmosphere-embabel` | Embabel 0.3.4 | **3.5 only** | agent orchestration, tool calling, vision, conversation memory | Embabel does not yet support Spring Boot 4. Use `atmosphere-spring-boot3-starter` and the `-Pspring-boot3` profile. |
-| `atmosphere-spring-ai-alibaba` | Spring AI Alibaba 1.1.2.0 (transitively pins Spring AI 1.1.2) | **3.5 only** | structured output, conversation memory | LLM round-trip is buffered by `ReactAgent.call()` — no token deltas; Atmosphere still streams the final reply chunk over WebSocket / SSE. For token-by-token streaming, use `atmosphere-spring-ai`. SB4 path blocked on Alibaba publishing a Spring AI 2.x agent-framework. |
+| `atmosphere-langchain4j` | LangChain4j 1.14.0 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | |
+| `atmosphere-adk` | Google ADK 1.2.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching | Multi-agent runtime — exposes `AGENT_ORCHESTRATION`. |
+| `atmosphere-koog` | JetBrains Koog 0.8.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching (Bedrock cache control), cancellation | Multi-agent runtime. |
+| `atmosphere-semantic-kernel` | Microsoft Semantic Kernel 1.5.0 | 4.0 | tool calling, structured output, token usage | No vision / audio path through the SK Java SDK today. |
+| `atmosphere-agentscope` | Alibaba AgentScope 1.0.12 | 4.0 | structured output, conversation memory, token usage, cancellation | No native tool-call dispatch in the SDK; tools must be invoked manually. |
+| `atmosphere-embabel` | Embabel 0.3.5 | **3.5 only** | agent orchestration, tool calling, vision, conversation memory | Embabel does not yet support Spring Boot 4. Use `atmosphere-spring-boot3-starter` and the `-Pspring-boot3` profile. |
+| `atmosphere-spring-ai-alibaba` | Spring AI Alibaba 1.1.2.2 (transitively pins Spring AI 1.1.2) | **3.5 only** | structured output, conversation memory | LLM round-trip is buffered by `ReactAgent.call()` — no token deltas; Atmosphere still streams the final reply chunk over WebSocket / SSE. For token-by-token streaming, use `atmosphere-spring-ai`. SB4 path blocked on Alibaba publishing a Spring AI 2.x agent-framework. |
 
 The full capability matrix (text streaming, tool calling, structured output, system prompt, agent orchestration, conversation memory, tool approval, vision, audio, multi-modal, prompt caching, token usage, per-request retry, tool-call deltas) lives in [`modules/ai/README.md`](modules/ai/README.md#capability-matrix); contract tests fail the build if any runtime drifts from its declared row.
 
@@ -252,7 +252,7 @@ React, [Vue](atmosphere.js/README.md#vue), [Svelte](atmosphere.js/README.md#svel
 | [checkpoint-agent](samples/spring-boot-checkpoint-agent/) | Durable HITL workflow — @Coordinator + CheckpointStore + REST approval |
 | [ai-classroom](samples/spring-boot-ai-classroom/) | Multi-room collaborative AI |
 | [ms-governance-chat](samples/spring-boot-ms-governance-chat/) | Chat gated by [Microsoft Agent Governance Toolkit](https://github.com/microsoft/agent-governance-toolkit) YAML (MS schema, verbatim) |
-| [channels-chat](samples/spring-boot-channels-chat/) | Slack, Telegram, WhatsApp, Messenger |
+| [channels-chat](samples/spring-boot-channels-chat/) | Slack, Telegram, Discord, WhatsApp, Messenger |
 | [personal-assistant](samples/spring-boot-personal-assistant/) | `@Coordinator` + `AgentFleet` over `InMemoryProtocolBridge`, `@AiTool` → crew dispatch, OpenClaw workspace |
 | [coding-agent](samples/spring-boot-coding-agent/) | Docker `Sandbox` provider — clone, read, stream real file bytes to the client |
 | [guarded-email-agent](samples/spring-boot-guarded-email-agent/) | Plan-and-verify demo — LLM-emitted workflow refused by `TaintVerifier` before any tool fires (Meijer "Guardians of the Agents" pattern) |
@@ -293,7 +293,7 @@ Add only what you need — every module below is opt-in and auto-registers when 
 
 For Spring Boot 3.5 deployments (required if you use Embabel or Spring AI Alibaba), substitute `atmosphere-spring-boot3-starter` and build with the `-Pspring-boot3` profile.
 
-**Requirements:** Java 21+ &middot; Spring Boot 4.0.5 (or 3.5 via the `-Pspring-boot3` profile) or Quarkus 3.31.3+ &middot; Current release: see the Maven Central badge above
+**Requirements:** Java 21+ &middot; Spring Boot 4.0.5 (or 3.5 via the `-Pspring-boot3` profile) or Quarkus 3.35.2+ &middot; Current release: see the Maven Central badge above
 
 ## Documentation
 

@@ -94,13 +94,14 @@ below is either ✓ wired (with the consumer the wiring serves), or ⏳
 deferred (with the upstream primitive the closure would need and the
 size estimate).
 
-### ✓ Wired (5 surfaces)
+### ✓ Wired (6 surfaces)
 
 | Surface | Quarkus build step | Consumer |
 |---------|---------------------|----------|
 | Core servlet + framework init | `AtmosphereProcessor.registerServlet` + `deferredFrameworkInit` + `ignoreAtmosphereScis` | every Quarkus app using `atmosphere-quarkus-extension` |
 | `@AiEndpoint` discovery | `AtmosphereProcessor.scanAnnotations` (Jandex `CombinedIndex`; Atmosphere AI annotation processor picks it up at servlet init) | `samples/quarkus-ai-chat` (5 endpoints) |
 | Admin Console SPA | `AtmosphereConsoleServlet` bundled in `quarkus-admin` (commit `28703ea064`) | `samples/quarkus-ai-chat` Console UI |
+| Console mode endpoint (`/api/console/info`) | `AtmosphereProcessor.registerConsoleInfoServlet` registers `AtmosphereConsoleInfoServlet` (commit `4be7c7f0ad`) — same handler-class mode-detection heuristic as the Spring Boot starter's `AtmosphereConsoleInfoEndpoint`; new config keys `quarkus.atmosphere.console-subtitle` / `quarkus.atmosphere.console-endpoint` mirror the Spring `atmosphere.console-*` properties | `samples/quarkus-ai-chat` Console UI (Vue frontend reads `mode` to swap empty-state copy and default subtitle) |
 | WebSocket endpoints | `AtmosphereProcessor.registerWebSocketEndpoints` (consumes `ServerWebSocketContainerBuildItem`) | every WebSocket-using Quarkus app |
 | Native image reflection | `AtmosphereProcessor.registerReflection` + `registerPoolReflection` + `registerEncoderDecoderClasses` | Quarkus `native-image` builds |
 
@@ -134,14 +135,14 @@ does not pretend that constitutes adoption.
 | gRPC (`AtmosphereGrpcAutoConfiguration`) | Vert.x gRPC ≠ Netty gRPC; closure requires a separate `atmosphere-quarkus-grpc` extension parallel to `quarkus-grpc` | large | @Beta |
 
 **Honesty contract.** The Spring Boot starter has 14 auto-configs. The
-Quarkus extension wires 3 of them as build steps (core servlet,
-`@AiEndpoint` discovery, admin Console), reclassifies 1 as a non-gap
-(favicon — Quarkus serves static resources natively), and tracks 10 as
-deferred build steps in the table above with a concrete closure target
-each. (Two additional Quarkus-only surfaces — WebSocket endpoint
-registration and native-image reflection — also ship today; they have
-no Spring-side counterpart because Spring Boot's runtime handles those
-intrinsically.) Until each closure ships, this README does not pretend
+Quarkus extension wires 4 of them as build steps (core servlet,
+`@AiEndpoint` discovery, admin Console, Console mode endpoint),
+reclassifies 1 as a non-gap (favicon — Quarkus serves static resources
+natively), and tracks 10 as deferred build steps in the table above with
+a concrete closure target each. (Two additional Quarkus-only surfaces —
+WebSocket endpoint registration and native-image reflection — also ship
+today; they have no Spring-side counterpart because Spring Boot's
+runtime handles those intrinsically.) Until each closure ships, this README does not pretend
 the surface is "available with a workaround" — Quarkus apps that need
 durable sessions or coordinator fleet wiring should expect to roll
 their own until the corresponding PR lands. Each closure PR removes

@@ -27,11 +27,11 @@ In `application.properties`:
 # Enable durable sessions
 atmosphere.durable-sessions.enabled=true
 
-# Session TTL (default: 1440 minutes = 24 hours)
-atmosphere.durable-sessions.session-ttl-minutes=1440
+# Session TTL — Spring Boot Duration suffix (default: 24h)
+atmosphere.durable-sessions.session-ttl=1440m
 
-# Cleanup interval (default: 60 seconds)
-atmosphere.durable-sessions.cleanup-interval-seconds=60
+# Cleanup interval — Spring Boot Duration suffix (default: 60s)
+atmosphere.durable-sessions.cleanup-interval=60s
 ```
 
 ## Session Store

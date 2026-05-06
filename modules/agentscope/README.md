@@ -87,6 +87,12 @@ authoritative cross-runtime view. Honest declared set:
   into the `List<Msg>` the agent receives.
 - **Token usage** — captured from `Msg.getChatUsage()` on the terminal
   event and emitted via `session.usage()`.
+- **Cancellation** — `StreamingSession.isCancelled()` is checked before
+  the dispatch loop and on every event tick; cancellation aborts the
+  Reactor subscription cleanly without surfacing as an error.
+- **Per-request retry** — `RetryPolicy.fromOrDefault(ctx)` is honored by
+  the bridge-wrapper `executeWithOuterRetry` path inherited from
+  `AbstractAgentRuntime`.
 
 ## Streaming Bridge
 

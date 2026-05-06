@@ -10,7 +10,8 @@ All samples inherit their Atmosphere version from the parent POM. The target sta
 |--------|-------|-----------|-------|---------|-------------|
 | [chat](chat/) | Servlet (WAR) | WAR | — | — | — |
 | [spring-boot-chat](spring-boot-chat/) | Spring Boot 4.0.5 | JAR | ✅ | ✅ | ✅ |
-| [quarkus-chat](quarkus-chat/) | Quarkus 3.31.3 | JAR | — | — | ✅ |
+| [quarkus-chat](quarkus-chat/) | Quarkus 3.35.2 | JAR | — | — | ✅ |
+| [quarkus-ai-chat](quarkus-ai-chat/) | Quarkus 3.35.2 + LangChain4j | JAR | — | — | ✅ |
 | [embedded-jetty-websocket-chat](embedded-jetty-websocket-chat/) | Embedded Jetty | JAR | — | — | — |
 | [grpc-chat](grpc-chat/) | gRPC + Spring Boot | JAR | — | — | — |
 
@@ -34,8 +35,8 @@ One agent class — slash commands and AI work on Web, Slack, Telegram, Discord,
 | [spring-boot-rag-chat](spring-boot-rag-chat/) | `@Agent`, `@Command`, `@AiTool`, RAG | Web | Knowledge base agent with document search tools |
 | [spring-boot-checkpoint-agent](spring-boot-checkpoint-agent/) | `@Coordinator`, `@Agent`, `CheckpointStore` | Web | Durable HITL workflow — approval-gated agent chaining |
 | [spring-boot-multi-agent-startup-team](spring-boot-multi-agent-startup-team/) | `@Coordinator`, `@Fleet`, A2A, SQLite checkpoints, WebTransport | Web | 5 collaborating agents (CEO + 4 specialists) with parallel/sequential dispatch |
-| [spring-boot-personal-assistant](spring-boot-personal-assistant/) | `@Coordinator`, `@Fleet`, `AgentState`, `AgentWorkspace`, `AgentIdentity`, `ToolExtensibilityPoint`, `AiGateway`, `InMemoryProtocolBridge` | Web | Long-lived memory-bearing assistant — primary delegates to scheduler / research / drafter crew over `InMemoryProtocolBridge`; ships an OpenClaw-compatible workspace |
-| [spring-boot-coding-agent](spring-boot-coding-agent/) | `@Agent`, `Sandbox`, `AgentResumeHandle` | Web | Coding agent — clones a repo into a Docker sandbox, reads files, proposes a patch |
+| [spring-boot-personal-assistant](spring-boot-personal-assistant/) | `@Coordinator`, `@Fleet`, `AgentState`, `AgentWorkspace`, `AgentIdentity`, `ToolExtensibilityPoint`, `InMemoryProtocolBridge` | Web | Long-lived memory-bearing assistant — primary delegates to scheduler / research / drafter crew over `InMemoryProtocolBridge`; ships an OpenClaw-compatible workspace |
+| [spring-boot-coding-agent](spring-boot-coding-agent/) | `@Agent`, `Sandbox` | Web | Coding agent — clones a repo into a Docker sandbox, reads files, proposes a patch |
 | [spring-boot-guarded-email-agent](spring-boot-guarded-email-agent/) | `PlanVerifier`, `@Sink`, `@RequiresCapability`, `WorkflowExecutor` | Web | Plan-and-Verify (Meijer) — refuses prompt-injection plans before any tool fires |
 
 ### Agent Protocols
@@ -85,7 +86,7 @@ atmosphere new my-fleet --template multi-agent
 atmosphere new my-classroom --template classroom
 ```
 
-Available `--template` values: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `koog`, `embabel`, `multi-agent`, `classroom`. See [cli/README.md](../cli/README.md#available-templates) for the template-to-sample mapping.
+Available `--template` values: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `multi-agent`, `classroom`, `ms-governance`, `coding-agent`, `guarded-agent`, `assistant`. See [cli/README.md](../cli/README.md#available-templates) for the template-to-sample mapping.
 
 Or with npx (zero install — delegates to the `atmosphere` CLI):
 

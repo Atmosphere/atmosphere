@@ -31,10 +31,13 @@ not persist agent workflow state. This module fills that gap.
 | `CheckpointEvent` | Sealed `Saved`/`Loaded`/`Forked`/`Deleted` lifecycle events |
 | `CheckpointListener` | Callback for lifecycle events |
 | `InMemoryCheckpointStore` | Default in-memory implementation, thread-safe, with eviction |
+| `SqliteCheckpointStore` | Durable single-file SQLite store — survives JVM restart, used by `spring-boot-checkpoint-agent` for the flagship HITL workflow demo |
 
 Application code owns the workflow state type `S` and its serialization.
-The in-memory store keeps the state as-is; persistent stores (JDBC, Redis)
-will accept a caller-supplied serializer.
+The in-memory store keeps the state as-is; the SQLite store JSON-serializes
+the state through Jackson by default and accepts a caller-supplied
+serializer for non-trivial types. Out-of-tree backends (Redis, JDBC,
+Postgres) can be added by implementing the `CheckpointStore` SPI directly.
 
 ## Quick Start
 
@@ -121,7 +124,7 @@ problems and should be understood together.
 | Lifecycle | One session per client connection; replaced on reconnect | Many snapshots per coordination; form a parent-chained history |
 | Mutation model | Overwrite-on-update | Append-only + fork |
 | Triggered by | `DurableSessionInterceptor` on connect/disconnect | `CheckpointingCoordinationJournal` on `CoordinationEvent` |
-| Backends | In-memory, SQLite, Redis (already shipped) | In-memory (this module); JDBC + Redis planned |
+| Backends | In-memory, SQLite, Redis (already shipped) | In-memory + SQLite (this module); JDBC / Redis / Postgres pluggable via the `CheckpointStore` SPI |
 | Primary consumer | WebSocket/SSE reconnect handler | Agent fleet / HITL approval flow |
 
 ### Why separate modules
@@ -194,9 +197,10 @@ the SPI surface without benefit.
 
 ## Planned Follow-ups
 
-- `atmosphere-checkpoint-jdbc` — persistent JDBC store (PostgreSQL, H2)
-- `atmosphere-checkpoint-redis` — clustered store reusing the existing
-  `atmosphere-redis` infrastructure
+- `atmosphere-checkpoint-jdbc` — first-party JDBC store (PostgreSQL, H2)
+  beyond the SQLite implementation that already ships
+- `atmosphere-checkpoint-redis` — first-party clustered store reusing the
+  existing `atmosphere-redis` infrastructure
 - `fleet.resume(CheckpointId)` convenience API on `AgentFleet`
 - Sample extending `spring-boot-multi-agent-startup-team` with
   long-running HITL pauses

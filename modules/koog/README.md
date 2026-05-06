@@ -127,6 +127,11 @@ See the [capability matrix](../ai/README.md#capability-matrix) for the authorita
 - Agent orchestration (graph-based, functional, ReAct strategies)
 - Conversation memory
 - System prompt
+- Vision, audio, multi-modal (via Koog's `Content` part conversion)
+- Prompt caching (Bedrock cache control)
+- Token usage (`TokenUsage` extracted from `LLMCallCompleted` feature events)
+- Cancellation (`StreamingSession.isCancelled()` honored before each tool round)
+- Per-request retry (via `RetryPolicy.fromOrDefault(ctx)` — bridge-wrapper `executeWithOuterRetry`)
 - Lifecycle listeners (`onToolCall`/`onToolResult` from bridge wrappers)
 - Per-request tool-loop iteration cap via `ToolLoopPolicy`
 
@@ -146,6 +151,6 @@ Koog's `Flow<StreamFrame>` is bridged to Atmosphere's `StreamingSession`:
 
 - Java 21+
 - `atmosphere-ai` (transitive)
-- Koog 0.7.3+
+- Koog 0.8.0+
 - Kotlin runtime
 - kotlinx-coroutines-core
