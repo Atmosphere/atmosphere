@@ -5,6 +5,14 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 3
+    ignore:
+      # org.json:json was retired from this repo in 4.0.42-SNAPSHOT (replaced by
+      # Jackson 3 / tools.jackson.*). GitHub's dependency graph still carries a
+      # stale entry pointing at /modules/runtime — a directory that doesn't
+      # exist (the artifact lives at /modules/cpr) — so security-advisory jobs
+      # for org.json:json keep failing with "path not found". Suppress until
+      # the graph self-heals.
+      - dependency-name: "org.json:json"
 
   # Sample frontends + atmosphere.js + spring-boot-starter front-end.
   # Without watchers here, postcss/react/etc. CVEs in sample lockfiles
