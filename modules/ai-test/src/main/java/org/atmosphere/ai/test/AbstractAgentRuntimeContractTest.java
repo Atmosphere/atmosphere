@@ -720,27 +720,46 @@ public abstract class AbstractAgentRuntimeContractTest {
     protected void errorContextTriggersSessionError() throws Exception {
         var context = createErrorContext();
         if (context == null) {
-            // Surface the gap explicitly — pre-2026-05 every subclass
-            // returned null and the silent return made the test pretend to
-            // run while asserting nothing. Aborting with a reason marks the
-            // test as "skipped" in CI reports so the missing coverage is
-            // visible (Correctness Invariant testing-quality-gates: no
-            // placeholder no-op tests).
+            // Embabel and Koog runtimes do not extend AbstractAgentRuntime
+            // and require heavy framework mocks (AgentPlatform / PromptExecutor
+            // + AIAgent coroutine harness) to drive the error path. Until those
+            // mocks land, skip with a named reason — leaving the gap visible
+            // in CI rather than masking it with a synthetic pass.
             org.junit.jupiter.api.Assumptions.assumeTrue(false,
                     createRuntime().name() + " contract test does not provide an error "
-                            + "context — override createErrorContext() to wire this assertion");
+                            + "context — override createErrorContext() to return a context whose "
+                            + "user message is " + CONTRACT_ERROR_SENTINEL + " so the runtime's "
+                            + "stubbed client can route it through the error path");
             return;
         }
         var runtime = createRuntime();
         var session = new RecordingSession();
 
-        runtime.execute(context, session);
+        try {
+            runtime.execute(context, session);
+        } catch (RuntimeException acceptable) {
+            // Some runtimes additionally rethrow a terminal model error after
+            // surfacing it via {@code session.error(...)} (e.g. SemanticKernel's
+            // blockLast(), SpringAiAlibaba's IllegalStateException wrap). Both
+            // behaviors are honest — the contract this test enforces is "the
+            // error reached the session", not "execute() returned normally".
+        }
 
         assertTrue(session.awaitCompletion(10, TimeUnit.SECONDS),
                 "Session should complete (via error) within 10s");
         assertFalse(session.errors.isEmpty(),
                 "At least one error expected");
     }
+
+    /**
+     * Marker user message subclasses must use as the prompt of any error
+     * context they return from {@link #createErrorContext()}. Each runtime's
+     * mock client inspects the request for this sentinel and routes it
+     * through the runtime's error path so {@code session.error(...)} fires
+     * — mirroring how a real model-side failure would behave without
+     * needing a live API key.
+     */
+    protected static final String CONTRACT_ERROR_SENTINEL = "__contract_force_error__";
 
     /**
      * Test double that captures all session events for assertion.

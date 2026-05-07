@@ -42,6 +42,15 @@ public class UUIDBroadcasterCacheThreadingTest {
         config.framework().setBroadcasterFactory(factory);
         UUIDBroadcasterCache cache = new UUIDBroadcasterCache();
         cache.configure(config);
+        // Disable per-client eviction for the duration of this thread-safety
+        // test. Default maxPerClient=1000 evicts oldest messages once the
+        // queue exceeds that bound — under parallel Maven load the consumer
+        // falls behind the producer (GC / scheduler stalls), the queue grows
+        // past 1000, and old messages get silently dropped, surfacing here as
+        // "expected: <100000> but was: <99761>". The test asserts message
+        // delivery, not eviction policy, so lift the cap to a value larger
+        // than NUM_MESSAGES.
+        cache.setMaxPerClient(NUM_MESSAGES * 2);
 
         Thread t = new Thread(() -> {
             for (int i = 0; i < NUM_MESSAGES; i++) {

@@ -45,12 +45,31 @@ class SpringAiAlibabaRuntimeContractTest extends AbstractAgentRuntimeContractTes
     protected AgentRuntime createRuntime() {
         var agent = mock(ReactAgent.class);
         try {
-            when(agent.call(anyList()))
-                    .thenReturn(new AssistantMessage("Hello world"));
+            when(agent.call(anyList())).thenAnswer(inv -> {
+                List<?> messages = inv.getArgument(0);
+                if (carriesErrorSentinel(messages)) {
+                    throw new com.alibaba.cloud.ai.graph.exception.GraphRunnerException(
+                            "forced contract error");
+                }
+                return new AssistantMessage("Hello world");
+            });
         } catch (com.alibaba.cloud.ai.graph.exception.GraphRunnerException neverThrownByMock) {
             throw new AssertionError(neverThrownByMock);
         }
         return new TestableSpringAiAlibabaRuntime(agent);
+    }
+
+    private static boolean carriesErrorSentinel(List<?> messages) {
+        if (messages == null) {
+            return false;
+        }
+        for (var msg : messages) {
+            if (msg instanceof org.springframework.ai.chat.messages.Message m
+                    && CONTRACT_ERROR_SENTINEL.equals(m.getText())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -69,7 +88,11 @@ class SpringAiAlibabaRuntimeContractTest extends AbstractAgentRuntimeContractTes
 
     @Override
     protected AgentExecutionContext createErrorContext() {
-        return null;
+        return new AgentExecutionContext(
+                CONTRACT_ERROR_SENTINEL, "You are helpful", "qwen-plus",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null);
     }
 
     @Override

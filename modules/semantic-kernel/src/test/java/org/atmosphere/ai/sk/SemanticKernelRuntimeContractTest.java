@@ -15,14 +15,22 @@
  */
 package org.atmosphere.ai.sk;
 
+import com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService;
+import com.microsoft.semantickernel.services.chatcompletion.ChatHistory;
+import com.microsoft.semantickernel.services.chatcompletion.StreamingChatContent;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.test.AbstractAgentRuntimeContractTest;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Concrete TCK subclass for {@link SemanticKernelAgentRuntime}. Previously
@@ -40,7 +48,39 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
 
     @Override
     protected AgentRuntime createRuntime() {
-        return new SemanticKernelAgentRuntime();
+        @SuppressWarnings("unchecked")
+        var frame = (StreamingChatContent<Object>) mock(StreamingChatContent.class);
+        when(frame.getContent()).thenReturn("Hello world");
+        when(frame.getMetadata()).thenReturn(null);
+
+        var service = mock(ChatCompletionService.class);
+        when(service.getStreamingChatMessageContentsAsync(
+                any(ChatHistory.class), any(), any()))
+                .thenAnswer(inv -> {
+                    ChatHistory history = inv.getArgument(0);
+                    if (carriesErrorSentinel(history)) {
+                        return Flux.error(new RuntimeException("forced contract error"));
+                    }
+                    return Flux.just(frame);
+                });
+
+        return new TestableSemanticKernelRuntime(service);
+    }
+
+    private static boolean carriesErrorSentinel(ChatHistory history) {
+        for (var m : history.getMessages()) {
+            var content = m.getContent();
+            if (content != null && content.contains(CONTRACT_ERROR_SENTINEL)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static class TestableSemanticKernelRuntime extends SemanticKernelAgentRuntime {
+        TestableSemanticKernelRuntime(ChatCompletionService service) {
+            setNativeClient(service);
+        }
     }
 
     @Override
@@ -63,7 +103,11 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
 
     @Override
     protected AgentExecutionContext createErrorContext() {
-        return null;
+        return new AgentExecutionContext(
+                CONTRACT_ERROR_SENTINEL, "You are helpful", "gpt-4o-mini",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null);
     }
 
     @Override
@@ -79,14 +123,4 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
                 AiCapability.PER_REQUEST_RETRY);
     }
 
-    // SK execution requires a configured ChatCompletionService. Aborting with
-    // a reason marks the test as "skipped" in CI reports (TestAbortedException)
-    // instead of silently disappearing — JUnit 5 stops discovering an inherited
-    // @Test when the override has no @Test of its own.
-    @org.junit.jupiter.api.Test
-    @Override
-    protected void textStreamingCompletesSession() throws Exception {
-        org.junit.jupiter.api.Assumptions.assumeTrue(false,
-                "SK execution requires a configured ChatCompletionService with Azure OpenAI client");
-    }
 }

@@ -58,8 +58,30 @@ class AgentScopeRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 .build();
         var terminal = new Event(EventType.AGENT_RESULT, msg, true);
         when(agent.stream(anyList(), any(StreamOptions.class)))
-                .thenReturn(Flux.just(terminal));
+                .thenAnswer(inv -> {
+                    List<?> messages = inv.getArgument(0);
+                    if (carriesErrorSentinel(messages)) {
+                        return Flux.<Event>error(
+                                new RuntimeException("forced contract error"));
+                    }
+                    return Flux.just(terminal);
+                });
         return new TestableAgentScopeRuntime(agent);
+    }
+
+    private static boolean carriesErrorSentinel(List<?> messages) {
+        if (messages == null) {
+            return false;
+        }
+        for (var m : messages) {
+            if (m instanceof Msg um) {
+                var text = um.getTextContent();
+                if (text != null && text.contains(CONTRACT_ERROR_SENTINEL)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Override
@@ -78,7 +100,11 @@ class AgentScopeRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
     protected AgentExecutionContext createErrorContext() {
-        return null;
+        return new AgentExecutionContext(
+                CONTRACT_ERROR_SENTINEL, "You are helpful", "qwen-plus",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null);
     }
 
     @Override

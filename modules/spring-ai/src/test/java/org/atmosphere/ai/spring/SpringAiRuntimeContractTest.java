@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -60,7 +61,11 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
     protected AgentExecutionContext createErrorContext() {
-        return null;
+        return new AgentExecutionContext(
+                CONTRACT_ERROR_SENTINEL, "You are helpful", "gpt-4",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null);
     }
 
     @Override
@@ -143,9 +148,25 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
         when(chatClient.prompt()).thenReturn(promptSpec);
         when(promptSpec.stream()).thenReturn(streamSpec);
 
+        // Capture the user text passed via promptSpec.user(String) so the
+        // streamSpec.chatResponse() answer can route the contract sentinel
+        // through Flux.error(...) — Spring AI's fluent chain hides the
+        // request body behind RETURNS_SELF, so a side-channel capture is
+        // the only way the stub can switch on the user prompt.
+        var lastUser = new java.util.concurrent.atomic.AtomicReference<String>();
+        when(promptSpec.user(anyString())).thenAnswer(inv -> {
+            lastUser.set(inv.getArgument(0));
+            return promptSpec;
+        });
+
         var generation = new Generation(new AssistantMessage("Hello world"));
         var chatResponse = new ChatResponse(List.of(generation));
-        when(streamSpec.chatResponse()).thenReturn(Flux.just(chatResponse));
+        when(streamSpec.chatResponse()).thenAnswer(inv -> {
+            if (CONTRACT_ERROR_SENTINEL.equals(lastUser.get())) {
+                return Flux.error(new RuntimeException("forced contract error"));
+            }
+            return Flux.just(chatResponse);
+        });
 
         return chatClient;
     }

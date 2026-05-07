@@ -15,6 +15,15 @@
  */
 package org.atmosphere.ai.adk;
 
+import com.google.adk.events.Event;
+import com.google.adk.events.EventActions;
+import com.google.adk.runner.Runner;
+import com.google.adk.sessions.BaseSessionService;
+import com.google.adk.sessions.Session;
+import com.google.genai.types.Content;
+import com.google.genai.types.Part;
+import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.core.Maybe;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
@@ -26,17 +35,25 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Concrete TCK test for {@link AdkAgentRuntime}. Extends the shared contract
- * base class so capability and name tests are enforced. Execution tests are
- * skipped because ADK requires a live Gemini API key and configured Runner.
+ * base class so capability and name tests are enforced. The text-streaming
+ * contract is exercised against a mocked {@link Runner} whose
+ * {@code runAsync} returns a synthetic {@link Flowable} of one partial-text
+ * event followed by a turn-complete event — same pattern that
+ * {@link AdkAgentRuntimeCancelTest} uses to drive the cancel path without a
+ * live Gemini API key.
  */
 class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
     protected AgentRuntime createRuntime() {
-        return new AdkAgentRuntime();
+        return new TestableAdkAgentRuntime(stubRunner());
     }
 
     @Override
@@ -55,7 +72,11 @@ class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
     protected AgentExecutionContext createErrorContext() {
-        return null;
+        return new AgentExecutionContext(
+                CONTRACT_ERROR_SENTINEL, "You are helpful", "gemini-2.5-flash",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null);
     }
 
     @Override
@@ -83,13 +104,9 @@ class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
      * {@link org.atmosphere.ai.Content.Image} parts into
      * {@code Part.fromBytes(byte[], mimeType)} before handing them to the
      * Gemini runner. The assertion fires the runtime.execute path against
-     * an unconfigured Runner — the message-assembly layer runs before
-     * {@code resolveClient()} throws {@code IllegalStateException}, which
-     * the base assertion catches via {@code Assumptions.assumeTrue(false)}
-     * and marks the test as skipped-with-reason rather than failed.
-     * {@code UnsupportedOperationException} from the part translation
-     * would still surface as a hard failure, which is the contract the
-     * assertion is here to enforce.
+     * the stubbed Runner — message-assembly runs and the synthetic
+     * Flowable terminates so the assertion completes without hitting the
+     * network.
      */
     @Override
     protected AgentExecutionContext createImageContext() {
@@ -101,20 +118,6 @@ class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 List.of(), null, null, List.of(), Map.of(),
                 List.of(), null, null, List.of(), parts,
                 org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
-    }
-
-    // ADK execution requires a configured Runner with API key. The base
-    // assertion would throw IllegalStateException at resolveClient(); we
-    // abort with a reason so the test surfaces as "skipped" in CI reports
-    // (TestAbortedException) instead of silently passing — Correctness
-    // Invariant testing-quality-gates: no placeholder no-op tests.
-    // Re-annotate with @Test: JUnit 5 stops discovering an inherited
-    // test when the subclass overrides the method without re-annotating.
-    @Test
-    @Override
-    protected void textStreamingCompletesSession() throws Exception {
-        org.junit.jupiter.api.Assumptions.assumeTrue(false,
-                "ADK execution requires a configured Runner with API key");
     }
 
     @Test
@@ -130,5 +133,68 @@ class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     @Test
     void adkDeclaresAgentOrchestration() {
         assertTrue(createRuntime().capabilities().contains(AiCapability.AGENT_ORCHESTRATION));
+    }
+
+    /**
+     * Build a {@link Runner} mock whose {@code runAsync} emits one partial
+     * text frame and one turnComplete frame. This drives the AdkEventAdapter
+     * to forward {@code "Hello world"} through {@code session.send(...)}
+     * (via the default {@code emit(TextDelta)} routing) and then terminate
+     * the session via {@code complete()} — same end-state the live Gemini
+     * stream would produce on a successful single-turn response.
+     */
+    private static Runner stubRunner() {
+        var runner = mock(Runner.class);
+        var sessionService = mock(BaseSessionService.class);
+        var session = mock(Session.class);
+        when(runner.sessionService()).thenReturn(sessionService);
+        when(runner.appName()).thenReturn("contract-test-app");
+        when(sessionService.getSession(anyString(), anyString(), anyString(), any()))
+                .thenReturn(Maybe.just(session));
+
+        var textEvent = Event.builder()
+                .id(Event.generateEventId())
+                .author("agent")
+                .actions(EventActions.builder().build())
+                .partial(true)
+                .content(Content.fromParts(Part.fromText("Hello world")))
+                .build();
+        var doneEvent = Event.builder()
+                .id(Event.generateEventId())
+                .author("agent")
+                .actions(EventActions.builder().build())
+                .turnComplete(true)
+                .build();
+
+        when(runner.runAsync(anyString(), anyString(), any(Content.class)))
+                .thenAnswer(inv -> {
+                    Content prompt = inv.getArgument(2);
+                    if (carriesErrorSentinel(prompt)) {
+                        return Flowable.<Event>error(
+                                new RuntimeException("forced contract error"));
+                    }
+                    return Flowable.fromArray(textEvent, doneEvent);
+                });
+        return runner;
+    }
+
+    private static boolean carriesErrorSentinel(Content content) {
+        if (content == null) {
+            return false;
+        }
+        return content.parts().map(parts -> {
+            for (var p : parts) {
+                if (p.text().map(CONTRACT_ERROR_SENTINEL::equals).orElse(false)) {
+                    return true;
+                }
+            }
+            return false;
+        }).orElse(false);
+    }
+
+    static class TestableAdkAgentRuntime extends AdkAgentRuntime {
+        TestableAdkAgentRuntime(Runner runner) {
+            setNativeClient(runner);
+        }
     }
 }

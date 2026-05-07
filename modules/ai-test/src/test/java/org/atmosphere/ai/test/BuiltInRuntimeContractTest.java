@@ -19,10 +19,15 @@ import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.llm.BuiltInAgentRuntime;
+import org.atmosphere.ai.llm.LlmClient;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 
 /**
  * Concrete TCK subclass for {@link BuiltInAgentRuntime}. Lives in
@@ -39,7 +44,36 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
     protected AgentRuntime createRuntime() {
-        return new BuiltInAgentRuntime();
+        var client = mock(LlmClient.class);
+        doAnswer(inv -> {
+            org.atmosphere.ai.llm.ChatCompletionRequest req = inv.getArgument(0);
+            org.atmosphere.ai.StreamingSession session = inv.getArgument(1);
+            if (carriesErrorSentinel(req)) {
+                session.error(new RuntimeException("forced contract error"));
+            } else {
+                session.send("Hello world");
+                session.complete();
+            }
+            return null;
+        }).when(client).streamChatCompletion(
+                any(org.atmosphere.ai.llm.ChatCompletionRequest.class),
+                any(org.atmosphere.ai.StreamingSession.class));
+        return new TestableBuiltInRuntime(client);
+    }
+
+    private static boolean carriesErrorSentinel(org.atmosphere.ai.llm.ChatCompletionRequest req) {
+        for (var m : req.messages()) {
+            if (CONTRACT_ERROR_SENTINEL.equals(m.content())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static class TestableBuiltInRuntime extends BuiltInAgentRuntime {
+        TestableBuiltInRuntime(LlmClient client) {
+            setNativeClient(client);
+        }
     }
 
     @Override
@@ -58,7 +92,11 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
     protected AgentExecutionContext createErrorContext() {
-        return null;
+        return new AgentExecutionContext(
+                CONTRACT_ERROR_SENTINEL, "You are helpful", "gpt-4o-mini",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null);
     }
 
     @Override
@@ -147,15 +185,4 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 .withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE);
     }
 
-    // Built-in execution requires a configured OpenAI API key + remote endpoint.
-    // Aborting with a reason marks the test as "skipped" in CI reports
-    // (TestAbortedException) instead of silently disappearing — JUnit 5 stops
-    // discovering an inherited @Test when the override has no @Test of its own.
-    // Capability parity assertions still run; only the live streaming assertion is skipped.
-    @org.junit.jupiter.api.Test
-    @Override
-    protected void textStreamingCompletesSession() throws Exception {
-        org.junit.jupiter.api.Assumptions.assumeTrue(false,
-                "Built-in execution requires AiConfig with apiKey + endpoint");
-    }
 }

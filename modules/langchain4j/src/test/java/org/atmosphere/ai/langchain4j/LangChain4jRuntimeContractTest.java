@@ -46,6 +46,10 @@ class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
         doAnswer(inv -> {
             ChatRequest req = inv.getArgument(0);
             StreamingChatResponseHandler handler = inv.getArgument(1);
+            if (carriesErrorSentinel(req)) {
+                handler.onError(new RuntimeException("forced contract error"));
+                return null;
+            }
             var hasTools = req.toolSpecifications() != null && !req.toolSpecifications().isEmpty();
             var hasToolResults = req.messages().stream()
                     .anyMatch(m -> m instanceof dev.langchain4j.data.message.ToolExecutionResultMessage);
@@ -87,7 +91,25 @@ class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
     protected AgentExecutionContext createErrorContext() {
-        return null;
+        return new AgentExecutionContext(
+                CONTRACT_ERROR_SENTINEL, "You are helpful", "gpt-4",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null);
+    }
+
+    private static boolean carriesErrorSentinel(ChatRequest req) {
+        for (var msg : req.messages()) {
+            if (msg instanceof dev.langchain4j.data.message.UserMessage um) {
+                for (var content : um.contents()) {
+                    if (content instanceof dev.langchain4j.data.message.TextContent tc
+                            && CONTRACT_ERROR_SENTINEL.equals(tc.text())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     @Override
