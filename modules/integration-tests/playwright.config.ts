@@ -79,6 +79,10 @@ export default defineConfig({
       testMatch: /mcp-server\.spec\.ts/,
     },
     {
+      name: 'mcp-client',
+      testMatch: /mcp-client\.spec\.ts/,
+    },
+    {
       name: 'grpc-browser',
       testMatch: /grpc-browser\.spec\.ts/,
     },

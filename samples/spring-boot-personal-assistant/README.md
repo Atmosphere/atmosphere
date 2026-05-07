@@ -74,11 +74,56 @@ Maven dependency and every primitive still wires the same way.
 5. Inspect what the assistant remembers via the admin control plane at
    `http://localhost:8080/atmosphere/admin/` (memory tab).
 
+## Outbound MCP — `UpstreamMcpAgent`
+
+In addition to the local `@AiTool` crew dispatch demonstrated by
+`PrimaryAssistant`, this sample includes an `UpstreamMcpAgent` endpoint
+that consumes a **remote MCP server's tools** through `atmosphere-mcp-client`.
+This closes the parity gap with [Anthropic's Claude Managed Agents](https://platform.claude.com/docs/en/managed-agents/overview),
+which lists MCP servers as a first-class field on the Agent definition and
+wires remote MCP tools in by default.
+
+```bash
+# Terminal 1: the upstream MCP server (port 8083)
+./mvnw spring-boot:run -pl samples/spring-boot-mcp-server
+
+# Terminal 2: this sample (port 8080)
+LLM_API_KEY=$GEMINI_API_KEY ./mvnw spring-boot:run -pl samples/spring-boot-personal-assistant
+
+# Connect to the outbound-MCP endpoint:
+#   ws://localhost:8080/atmosphere/personal-assistant/upstream-tools
+# The agent advertises the upstream's tools (atmosphere_version, list_users,
+# etc.) and dispatches them as if they were local @AiTool methods.
+```
+
+### Cross-runtime overlay
+
+The endpoint code is runtime-agnostic. Activate the `runtime-langchain4j`
+Maven profile to swap the active `AgentRuntime` from Built-in (priority 0)
+to LangChain4j (priority 100) without changing a line of code:
+
+```bash
+./mvnw spring-boot:run -pl samples/spring-boot-personal-assistant -Pruntime-langchain4j
+```
+
+### Operator visibility
+
+`McpClientAdminController` exposes connection state, tool inventory, and
+per-tool dispatch metrics:
+
+```bash
+curl http://localhost:8080/api/mcp-client/sources | jq
+```
+
+Validated end-to-end by `modules/integration-tests/e2e/mcp-client.spec.ts`
+across both runtimes.
+
 ## Notes
 
 - The crew members return canned artifacts so the sample runs without
   internet access. A production deployment plugs each crew member into
   an MCP server via `ToolExtensibilityPoint`; credentials flow through
-  `AgentIdentity`.
+  `AgentIdentity`. The `UpstreamMcpAgent` above demonstrates the wire
+  protocol of that production pattern against a local upstream.
 - Defaults favor safety: permission mode is `DEFAULT`, network-capable
   tools (`send_message`) require explicit approval.

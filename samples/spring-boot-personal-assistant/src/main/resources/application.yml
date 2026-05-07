@@ -23,6 +23,26 @@ atmosphere:
     # fail-fast default. Production apps should leave fail-fast on.
     fail-fast: false
 
+  # Outbound-MCP demo: UpstreamMcpAgent connects to a remote MCP server at
+  # this URL on startup and surfaces its tools to the agent loop via
+  # McpToolsInterceptor. Default points at the bundled spring-boot-mcp-server
+  # (port 8083) so the two samples can run side-by-side. Override to test
+  # against any external MCP server (Anthropic reference servers, GitHub,
+  # filesystem, etc.).
+  mcp:
+    client:
+      endpoint: ${ATMOSPHERE_MCP_CLIENT_ENDPOINT:http://localhost:8083/atmosphere/mcp}
+
+# LLM wiring — runtime is selected by classpath. With only atmosphere-ai on
+# the default classpath, the Built-in OpenAI-compatible runtime wins. Add
+# atmosphere-langchain4j (via the runtime-langchain4j Maven profile) to swap
+# to that runtime — the @AiEndpoint code stays unchanged.
+llm:
+  mode: ${LLM_MODE:remote}
+  model: ${LLM_MODEL:gemini-2.5-flash-lite}
+  base-url: ${LLM_BASE_URL:}
+  api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
+
 spring:
   application:
     name: atmosphere-personal-assistant

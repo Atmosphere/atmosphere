@@ -78,6 +78,11 @@
 
         <dependency>
             <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-mcp-client</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-admin</artifactId>
         </dependency>
 
@@ -126,4 +131,54 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+          Outbound-MCP runtime overlay. Adds the LangChain4j adapter
+          (priority 100) so it wins the AgentRuntime ServiceLoader race
+          over the Built-in runtime (priority 0). Same {@code @AiEndpoint}
+          code, same outbound-MCP tool dispatch — only the Maven profile
+          differs. Used by modules/integration-tests/e2e/mcp-client.spec.ts
+          to validate the SPI claim across runtimes.
+
+          Run with: ./mvnw spring-boot:run -pl samples/spring-boot-personal-assistant -Pruntime-langchain4j
+        -->
+        <profile>
+            <id>runtime-langchain4j</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.atmosphere</groupId>
+                    <artifactId>atmosphere-langchain4j</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>dev.langchain4j</groupId>
+                    <artifactId>langchain4j-open-ai</artifactId>
+                    <version>${langchain4j.version}</version>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>3.6.0</version>
+                        <executions>
+                            <execution>
+                                <id>add-langchain4j-source</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>add-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>src/main/java-langchain4j</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

@@ -24,6 +24,7 @@
         <module>ai-policy-cedar</module>
         <module>protocol-common</module>
         <module>mcp</module>
+        <module>mcp-client</module>
         <module>a2a</module>
         <module>agui</module>
         <module>kotlin</module>
