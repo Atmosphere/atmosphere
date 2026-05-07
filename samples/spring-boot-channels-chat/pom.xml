@@ -22,6 +22,16 @@
 
     <dependencyManagement>
         <dependencies>
+<!-- netty-bom imported BEFORE spring-boot-dependencies so its
+                 first-wins rule pulls patched netty 4.x for this sample,
+                 overriding Spring Boot's transitively-pinned vulnerable line. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
@@ -92,7 +102,8 @@
         <profile>
             <id>spring-boot3</id>
             <properties>
-                <spring-boot.version>3.5.3</spring-boot.version>
+                <spring-boot.version>3.5.14</spring-boot.version>
+                <netty.version>4.1.133.Final</netty.version>
                 <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
             </properties>
         </profile>
