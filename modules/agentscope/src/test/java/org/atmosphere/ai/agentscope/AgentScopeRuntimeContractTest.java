@@ -116,7 +116,10 @@ class AgentScopeRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.CONVERSATION_MEMORY,
                 AiCapability.TOKEN_USAGE,
                 AiCapability.CANCELLATION,
-                AiCapability.PER_REQUEST_RETRY);
+                AiCapability.PER_REQUEST_RETRY,
+                AiCapability.BUDGET_ENFORCEMENT,
+                AiCapability.CONFIDENCE_SCORES,
+                AiCapability.PASSIVATION);
     }
 
     static class TestableAgentScopeRuntime extends AgentScopeAgentRuntime {

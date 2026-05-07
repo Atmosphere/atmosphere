@@ -263,7 +263,31 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
                 // their high-level streaming APIs — Correctness Invariant #5
                 // (Runtime Truth): only the runtime that actually forwards
                 // chunks to session.toolCallDelta declares the capability.
-                AiCapability.TOOL_CALL_DELTA);
+                AiCapability.TOOL_CALL_DELTA,
+                // BUDGET_ENFORCEMENT: declared by every runtime that streams
+                // through AiPipeline. The budget decorator lives at the pipeline
+                // layer above the runtime, so token/step/wall-clock breaches
+                // are caught regardless of which runtime is dispatching. The
+                // capability flag tells callers "yes, this runtime cooperates
+                // with the framework-level circuit breaker"; honest because
+                // doExecute pushes through StreamingSession.usage() which is
+                // exactly the signal BudgetCapturingSession taps.
+                AiCapability.BUDGET_ENFORCEMENT,
+                // CONFIDENCE_SCORES: framework-level capability — when an
+                // AiConfidenceElicitation is configured, AiPipeline appends
+                // the cue to the system prompt and the
+                // ConfidenceCapturingSession decorator parses the model's
+                // emitted confidence field on stream completion. Honest
+                // because Built-in honors SYSTEM_PROMPT and streams response
+                // text through the session — both signals the elicitation
+                // path needs.
+                AiCapability.CONFIDENCE_SCORES,
+                // PASSIVATION: AgentPassivation (modules/checkpoint) snapshots
+                // context.history() into a CheckpointStore and rehydrates on
+                // resume. Honest because Built-in's assembleMessages threads
+                // history into every outbound request, so a resumed call
+                // observes the same conversation the paused call was seeing.
+                AiCapability.PASSIVATION);
     }
 
     @Override

@@ -120,7 +120,10 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
                 AiCapability.TOKEN_USAGE,
                 AiCapability.TOOL_CALLING,
                 AiCapability.TOOL_APPROVAL,
-                AiCapability.PER_REQUEST_RETRY);
+                AiCapability.PER_REQUEST_RETRY,
+                AiCapability.BUDGET_ENFORCEMENT,
+                AiCapability.CONFIDENCE_SCORES,
+                AiCapability.PASSIVATION);
     }
 
 }

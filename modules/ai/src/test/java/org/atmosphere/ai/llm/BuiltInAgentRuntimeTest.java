@@ -80,7 +80,10 @@ class BuiltInAgentRuntimeTest {
     @Test
     void capabilitiesCountMatchesDeclared() {
         var caps = new BuiltInAgentRuntime().capabilities();
-        assertEquals(13, caps.size());
+        // 13 baseline + 3 (BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION)
+        // added for the predictable-AI primitives. Bump this number when a
+        // new capability lands on Built-in.
+        assertEquals(16, caps.size());
     }
 
     @Test

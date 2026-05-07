@@ -667,7 +667,23 @@ class KoogAgentRuntime : AgentRuntime {
         // wraps executeInternal in a retry loop respecting
         // context.retryPolicy(). Pre-stream transient failures are
         // retried up to maxRetries on top of Koog's native HTTP retry.
-        AiCapability.PER_REQUEST_RETRY
+        AiCapability.PER_REQUEST_RETRY,
+        // BUDGET_ENFORCEMENT: framework-level circuit breaker via the
+        // AiPipeline BudgetCapturingSession decorator — honest because
+        // executeWithAgent emits typed TokenUsage on StreamFrame.End
+        // through session.usage(), the signal BudgetCapturingSession taps
+        // for token / step abort. Wall-clock limits trip universally.
+        AiCapability.BUDGET_ENFORCEMENT,
+        // CONFIDENCE_SCORES: framework-level — AiPipeline's
+        // ConfidenceCapturingSession parses the model-reported
+        // confidence field on stream completion. Honest because Koog
+        // honors SYSTEM_PROMPT and streams response text via
+        // StreamFrame.Append → session.send().
+        AiCapability.CONFIDENCE_SCORES,
+        // PASSIVATION: AgentPassivation snapshots context.history() into
+        // a CheckpointStore. Honest because Koog's buildPrompt DSL threads
+        // history into the Message list on every dispatch.
+        AiCapability.PASSIVATION
     )
 
     override fun models(): List<String> {

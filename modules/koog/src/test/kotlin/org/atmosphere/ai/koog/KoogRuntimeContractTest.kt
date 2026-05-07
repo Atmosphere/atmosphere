@@ -64,6 +64,9 @@ internal class KoogRuntimeContractTest : AbstractAgentRuntimeContractTest() {
         AiCapability.PROMPT_CACHING,
         AiCapability.CANCELLATION,
         AiCapability.PER_REQUEST_RETRY,
+        AiCapability.BUDGET_ENFORCEMENT,
+        AiCapability.CONFIDENCE_SCORES,
+        AiCapability.PASSIVATION,
     )
 
     /**

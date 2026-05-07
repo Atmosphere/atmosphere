@@ -544,6 +544,26 @@ class EmbabelAgentRuntime : AgentRuntime {
         // semantics where a deployed @Agent owns its own multi-modal
         // handling.
         AiCapability.VISION,
-        AiCapability.MULTI_MODAL
+        AiCapability.MULTI_MODAL,
+        // BUDGET_ENFORCEMENT: framework-level circuit breaker via the
+        // AiPipeline BudgetCapturingSession decorator — honest because
+        // the deployed-agent dispatch path emits typed TokenUsage through
+        // session.usage(), the signal BudgetCapturingSession taps for
+        // token / step abort. The Atmosphere-native dispatch path does
+        // not surface usage (Embabel limitation), so token / step limits
+        // are effective only on the deployed-agent path; wall-clock
+        // limits trip on either path.
+        AiCapability.BUDGET_ENFORCEMENT,
+        // CONFIDENCE_SCORES: framework-level — AiPipeline's
+        // ConfidenceCapturingSession parses the model-reported
+        // confidence field on stream completion. Honest on both
+        // dispatch paths (deployed-agent and Atmosphere-native) because
+        // both honor SYSTEM_PROMPT and stream response text.
+        AiCapability.CONFIDENCE_SCORES,
+        // PASSIVATION: AgentPassivation snapshots context.history() into
+        // a CheckpointStore. Honest because the Atmosphere-native dispatch
+        // path threads history into PromptRunner.withMessages — a resumed
+        // call observes the same conversation the paused call saw.
+        AiCapability.PASSIVATION
     )
 }

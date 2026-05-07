@@ -295,7 +295,21 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                 // with maxRetries > 0 retries doExecute on pre-stream
                 // RuntimeException. See modules/ai/README.md
                 // "Per-Request Retry Architecture".
-                AiCapability.PER_REQUEST_RETRY);
+                AiCapability.PER_REQUEST_RETRY,
+                // BUDGET_ENFORCEMENT: framework-level circuit breaker via the
+                // AiPipeline BudgetCapturingSession decorator — honest because
+                // handleEvent forwards Msg.getChatUsage() through session.usage()
+                // which is the signal the decorator taps for token / step abort.
+                AiCapability.BUDGET_ENFORCEMENT,
+                // CONFIDENCE_SCORES: framework-level — AiPipeline's
+                // ConfidenceCapturingSession parses the model-reported
+                // confidence field on stream completion. Honest because
+                // AgentScope honors SYSTEM_PROMPT and streams response text.
+                AiCapability.CONFIDENCE_SCORES,
+                // PASSIVATION: AgentPassivation snapshots context.history()
+                // into a CheckpointStore. Honest because assembleMessages
+                // threads history into the Msg list AgentScope receives.
+                AiCapability.PASSIVATION);
     }
 
     @Override

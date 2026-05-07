@@ -102,7 +102,10 @@ class SpringAiAlibabaRuntimeContractTest extends AbstractAgentRuntimeContractTes
                 AiCapability.SYSTEM_PROMPT,
                 AiCapability.STRUCTURED_OUTPUT,
                 AiCapability.CONVERSATION_MEMORY,
-                AiCapability.PER_REQUEST_RETRY);
+                AiCapability.PER_REQUEST_RETRY,
+                AiCapability.BUDGET_ENFORCEMENT,
+                AiCapability.CONFIDENCE_SCORES,
+                AiCapability.PASSIVATION);
     }
 
     static class TestableSpringAiAlibabaRuntime extends SpringAiAlibabaAgentRuntime {

@@ -332,7 +332,24 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                 // transient failures are retried up to the policy's
                 // maxRetries budget on top of Spring AI's own retry layer,
                 // delivering an "at least N retries" guarantee.
-                AiCapability.PER_REQUEST_RETRY
+                AiCapability.PER_REQUEST_RETRY,
+                // BUDGET_ENFORCEMENT: framework-level circuit breaker via the
+                // AiPipeline BudgetCapturingSession decorator — honest because
+                // doExecuteWithHandle pushes typed TokenUsage through
+                // session.usage() on every Spring AI response, the signal
+                // BudgetCapturingSession taps for token / step abort.
+                AiCapability.BUDGET_ENFORCEMENT,
+                // CONFIDENCE_SCORES: framework-level — AiPipeline's
+                // ConfidenceCapturingSession parses the model-reported
+                // confidence field on stream completion. Honest because
+                // Spring AI honors SYSTEM_PROMPT and the reactive flux
+                // pushes response text through session.send on every chunk.
+                AiCapability.CONFIDENCE_SCORES,
+                // PASSIVATION: AgentPassivation snapshots context.history()
+                // into a CheckpointStore. Honest because Spring AI's
+                // assembleMessages threads history into the Prompt on every
+                // dispatch — a resumed call observes the same conversation.
+                AiCapability.PASSIVATION
         );
     }
 

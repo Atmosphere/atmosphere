@@ -123,5 +123,50 @@ public enum AiCapability {
      * Mode-Parity enforcement — so operators see the gap in startup logs
      * rather than silently getting the runtime's default retry behavior.</p>
      */
-    PER_REQUEST_RETRY
+    PER_REQUEST_RETRY,
+
+    /**
+     * Pipeline enforces a per-call {@link AiBudget} (max input/output/total
+     * tokens, max steps, max wall clock). When the budget is exceeded at any
+     * point during the stream, the {@code BudgetCapturingSession} decorator
+     * routes an {@link AiBudgetExceededException} through
+     * {@link StreamingSession#error(Throwable)} and short-circuits the
+     * remaining stream.
+     *
+     * <p><b>Wall-clock limits</b> trip universally — the decorator samples
+     * elapsed time at every session boundary regardless of which runtime
+     * is dispatching. <b>Token and step limits</b> depend on the runtime
+     * emitting {@link TokenUsage} via {@link StreamingSession#usage}; runtimes
+     * that declare {@link #TOKEN_USAGE} also enforce token / step budgets,
+     * runtimes that do not declare it can only enforce wall-clock budgets.
+     * The pairing is documented in the capability matrix in
+     * {@code modules/ai/README.md} so callers know which dimensions of an
+     * {@link AiBudget} are effective against a given runtime.</p>
+     *
+     * <p>Distinct from {@link org.atmosphere.ai.budget.StreamingTextBudgetManager},
+     * which tracks long-running per-tenant budgets (cumulative streaming-text
+     * counts across many calls) and recommends model fallback. This capability
+     * is the per-call death-spiral guard.</p>
+     */
+    BUDGET_ENFORCEMENT,
+
+    /**
+     * Runtime emits per-response confidence — either native logprobs from the
+     * provider, a model-reported confidence field elicited by prompt, or a
+     * heuristic. Surfaced via {@link StreamingSession#confidence(AiConfidence)}
+     * and the {@code ai.confidence.aggregate} / {@code ai.confidence.source}
+     * metadata keys. {@link AiConfidence#source()} indicates the quality of the
+     * signal so consumers (routers, guardrails) can weight it accordingly.
+     */
+    CONFIDENCE_SCORES,
+
+    /**
+     * Runtime supports passivation: snapshot the in-flight conversation state
+     * to a {@code CheckpointStore} and resume on an external signal hours or
+     * days later. Surfaced via {@link AgentRuntime#passivate} and
+     * {@link AgentRuntime#resume}. Closes the long-pause human-in-the-loop
+     * gap — agents waiting on human approval drop out of RAM, then rehydrate
+     * with full context when the approval arrives.
+     */
+    PASSIVATION
 }

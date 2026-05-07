@@ -233,7 +233,24 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
                 // outer retry wrapper (executeWithOuterRetry). Retries
                 // pre-stream transient failures on top of SK's
                 // OpenAIAsyncClient retry layer.
-                AiCapability.PER_REQUEST_RETRY
+                AiCapability.PER_REQUEST_RETRY,
+                // BUDGET_ENFORCEMENT: framework-level circuit breaker via
+                // the AiPipeline BudgetCapturingSession decorator — honest
+                // because the chat-completion handler emits typed TokenUsage
+                // through session.usage(), the signal BudgetCapturingSession
+                // taps for token / step abort. Wall-clock limits trip on
+                // every runtime universally.
+                AiCapability.BUDGET_ENFORCEMENT,
+                // CONFIDENCE_SCORES: framework-level — AiPipeline's
+                // ConfidenceCapturingSession parses the model-reported
+                // confidence field on stream completion. Honest because SK
+                // honors SYSTEM_PROMPT and the streaming adapter pushes
+                // response text via session.send.
+                AiCapability.CONFIDENCE_SCORES,
+                // PASSIVATION: AgentPassivation snapshots context.history()
+                // into a CheckpointStore. Honest because SK threads history
+                // into the ChatHistory before invoking the chat completion.
+                AiCapability.PASSIVATION
         );
     }
 

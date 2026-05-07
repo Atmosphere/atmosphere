@@ -493,7 +493,24 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 // outer retry wrapper (executeWithOuterRetry). Retries
                 // pre-stream transient failures on top of LC4j's own
                 // RetryUtils layer.
-                AiCapability.PER_REQUEST_RETRY
+                AiCapability.PER_REQUEST_RETRY,
+                // BUDGET_ENFORCEMENT: framework-level circuit breaker via the
+                // AiPipeline BudgetCapturingSession decorator — honest because
+                // ToolAwareStreamingResponseHandler emits typed TokenUsage on
+                // every chat completion through session.usage(), the signal
+                // BudgetCapturingSession taps for token / step abort.
+                AiCapability.BUDGET_ENFORCEMENT,
+                // CONFIDENCE_SCORES: framework-level — AiPipeline's
+                // ConfidenceCapturingSession parses the model-reported
+                // confidence field on stream completion. Honest because LC4j
+                // honors SYSTEM_PROMPT and streams response text through the
+                // StreamingChatResponseHandler.onPartialResponse → session.send.
+                AiCapability.CONFIDENCE_SCORES,
+                // PASSIVATION: AgentPassivation snapshots context.history()
+                // into a CheckpointStore. Honest because LC4j's
+                // assembleMessages threads history into the LC4j ChatRequest
+                // — a resumed call observes the same conversation.
+                AiCapability.PASSIVATION
         );
     }
 

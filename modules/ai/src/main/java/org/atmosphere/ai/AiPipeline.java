@@ -78,6 +78,25 @@ public class AiPipeline {
      */
     private volatile org.atmosphere.ai.llm.CacheHint.CachePolicy defaultCachePolicy;
     /**
+     * Pipeline-level default {@link AiBudget}. When set and {@link AiBudget#enforced()},
+     * every {@link #execute(String, String, StreamingSession)} call wraps its
+     * session in a {@link BudgetCapturingSession}. Per-request callers can
+     * override via the {@code ai.budget} metadata key supplied to the
+     * 4-arg execute overload, mirroring how {@link org.atmosphere.ai.llm.CacheHint}
+     * is threaded.
+     */
+    private volatile AiBudget defaultBudget;
+    /**
+     * Pipeline-level default {@link AiConfidenceElicitation}. When set,
+     * every {@link #execute(String, String, StreamingSession)} call wraps
+     * its session in a {@link ConfidenceCapturingSession} and augments
+     * the system prompt with the elicitation cue. Per-request callers
+     * can override via the {@code ai.confidence.elicitation} metadata
+     * key, mirroring how {@link AiBudget} and
+     * {@link org.atmosphere.ai.llm.CacheHint} are threaded.
+     */
+    private volatile AiConfidenceElicitation defaultConfidenceElicitation;
+    /**
      * Metadata key emitted on both cache hit ({@code true}) and cache miss
      * ({@code false}) when the pipeline's cache gate fires. Mirrors the
      * naming convention of {@code ai.tokens.input}/{@code ai.tokens.output}
@@ -197,6 +216,57 @@ public class AiPipeline {
         this.defaultCachePolicy = policy;
     }
 
+    /**
+     * Install a pipeline-level default {@link AiBudget}. The budget is the
+     * framework-level circuit breaker that prevents runaway tool-loops and
+     * cost spirals — when an in-flight call exceeds any configured limit
+     * (input/output/total tokens, step count, wall clock), the pipeline
+     * routes an {@link AiBudgetExceededException} through
+     * {@link StreamingSession#error(Throwable)} and short-circuits the
+     * remaining stream.
+     *
+     * <p>Pass {@code null} or {@link AiBudget#UNLIMITED} to disable enforcement.
+     * Per-request callers can supply their own budget via the {@code ai.budget}
+     * metadata key in the 4-arg {@link #execute(String, String, StreamingSession, java.util.Map)}
+     * overload — caller-supplied budgets win over the pipeline default.</p>
+     *
+     * @param budget budget to enforce, or {@code null} to disable
+     */
+    public void setDefaultBudget(AiBudget budget) {
+        this.defaultBudget = budget;
+    }
+
+    /** The currently configured pipeline default budget; {@code null} when none. */
+    public AiBudget defaultBudget() {
+        return defaultBudget;
+    }
+
+    /**
+     * Install a pipeline-level default {@link AiConfidenceElicitation}.
+     * When non-null, every {@link #execute(String, String, StreamingSession)}
+     * call wraps its session in a {@link ConfidenceCapturingSession} that
+     * (a) parses the model-reported confidence field on stream completion
+     * and (b) fires {@link StreamingSession#confidence(AiConfidence)} with
+     * {@link AiConfidence.Source#MODEL_REPORTED_FIELD}. The pipeline also
+     * augments the system prompt with {@link AiConfidenceElicitation#effectiveCue()}
+     * so the model knows to emit the field.
+     *
+     * <p>Per-request callers can override via the
+     * {@code ai.confidence.elicitation} metadata key in the 4-arg
+     * {@link #execute(String, String, StreamingSession, java.util.Map)}
+     * overload — caller-supplied elicitations win.</p>
+     *
+     * @param elicitation elicitation to install, or {@code null} to disable
+     */
+    public void setDefaultConfidenceElicitation(AiConfidenceElicitation elicitation) {
+        this.defaultConfidenceElicitation = elicitation;
+    }
+
+    /** The currently configured pipeline default elicitation; {@code null} when none. */
+    public AiConfidenceElicitation defaultConfidenceElicitation() {
+        return defaultConfidenceElicitation;
+    }
+
     /** Exposed so callers can share the registry for cross-pipeline deduplication. */
     public ApprovalRegistry approvalRegistry() {
         return approvalRegistry;
@@ -267,6 +337,20 @@ public class AiPipeline {
                     org.atmosphere.ai.llm.CacheHint.METADATA_KEY,
                     new org.atmosphere.ai.llm.CacheHint(pipelinePolicy,
                             java.util.Optional.empty(), java.util.Optional.empty()));
+        }
+        // Seed the pipeline-level default budget into request metadata only
+        // when the caller has not provided their own. Caller wins, identical
+        // semantics to the cache-hint seeding above.
+        var pipelineBudget = this.defaultBudget;
+        if (pipelineBudget != null && pipelineBudget.enforced()) {
+            baseMetadata.putIfAbsent(AiBudget.METADATA_KEY, pipelineBudget);
+        }
+        // Same seeding pattern for the confidence elicitation. Caller-supplied
+        // elicitation wins over the pipeline default.
+        var pipelineElicitation = this.defaultConfidenceElicitation;
+        if (pipelineElicitation != null) {
+            baseMetadata.putIfAbsent(
+                    AiConfidenceElicitation.METADATA_KEY, pipelineElicitation);
         }
 
         // Per-request ScopePolicy install — an interceptor (e.g., classroom's
@@ -377,6 +461,16 @@ public class AiPipeline {
         if (metrics != AiMetrics.NOOP) {
             target = new MetricsCapturingSession(target, metrics, model);
         }
+        // Budget circuit breaker — wraps the session so token/step/wall-clock
+        // accounting taps every runtime turn. Slotted after MetricsCapturingSession
+        // so the metrics layer still sees raw counts on the breaching call (the
+        // budget event is data, not a reason to drop the metric). Caller-supplied
+        // budget in request metadata wins over the pipeline default; both flow
+        // through {@code baseMetadata} above.
+        var requestBudget = AiBudget.from(baseMetadata);
+        if (requestBudget != null && requestBudget.enforced()) {
+            target = new BudgetCapturingSession(target, requestBudget);
+        }
         // Post-response evaluation: guardrails + policies (the latter wrapped so
         // their post-response path flows through the existing capturing session).
         var postResponseChecks = mergeForPostResponse(guardrails, effectivePolicies);
@@ -391,6 +485,21 @@ public class AiPipeline {
             target = new StructuredOutputCapturingSession(target, parser, effectiveResponseType);
             request = request.withSystemPrompt(
                     request.systemPrompt() + "\n\n" + parser.schemaInstructions(effectiveResponseType));
+        }
+
+        // Confidence elicitation — model-reported-field path. Skipped when
+        // structured output is in play because the structured-output parser
+        // expects the entire response to be a single JSON object matching
+        // the declared schema; appending a separate {"confidence": …} block
+        // would break the parse. Callers that want confidence alongside
+        // structured output should add a {@code confidence} field to their
+        // record schema and read it post-parse.
+        var requestElicitation = AiConfidenceElicitation.from(baseMetadata);
+        if (requestElicitation != null
+                && (effectiveResponseType == null || effectiveResponseType == Void.class)) {
+            target = new ConfidenceCapturingSession(target, requestElicitation);
+            request = request.withSystemPrompt(
+                    request.systemPrompt() + "\n\n" + requestElicitation.effectiveCue());
         }
 
         // Build execution context from the (potentially guardrail-modified) request

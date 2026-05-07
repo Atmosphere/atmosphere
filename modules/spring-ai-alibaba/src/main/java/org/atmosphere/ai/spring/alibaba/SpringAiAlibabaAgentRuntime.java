@@ -238,7 +238,27 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 // with maxRetries > 0 retries doExecute on pre-stream
                 // RuntimeException. See modules/ai/README.md
                 // "Per-Request Retry Architecture".
-                AiCapability.PER_REQUEST_RETRY);
+                AiCapability.PER_REQUEST_RETRY,
+                // BUDGET_ENFORCEMENT: framework-level circuit breaker via the
+                // AiPipeline BudgetCapturingSession decorator. Wall-clock
+                // limits trip universally; token / step limits require the
+                // runtime to emit TOKEN_USAGE through session.usage(), which
+                // this runtime does NOT (see comment below). So callers
+                // configuring a token-based AiBudget against this runtime
+                // will see wall-clock breaches but not token breaches —
+                // documented in modules/ai/README.md alongside the
+                // capability matrix.
+                AiCapability.BUDGET_ENFORCEMENT,
+                // CONFIDENCE_SCORES: framework-level — AiPipeline's
+                // ConfidenceCapturingSession parses the model-reported
+                // confidence field on stream completion. Honest because
+                // Alibaba honors SYSTEM_PROMPT and the buffered AssistantMessage
+                // text reaches session.send before complete().
+                AiCapability.CONFIDENCE_SCORES,
+                // PASSIVATION: AgentPassivation snapshots context.history()
+                // into a CheckpointStore. Honest because Alibaba threads
+                // history into the Message list ReactAgent receives.
+                AiCapability.PASSIVATION);
         // TOKEN_USAGE not declared: ReactAgent.call returns
         // AssistantMessage, which has no surface for the
         // ChatResponse usage metadata. The agent framework's graph

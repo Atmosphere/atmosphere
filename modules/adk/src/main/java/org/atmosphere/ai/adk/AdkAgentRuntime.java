@@ -572,7 +572,24 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 // fresh per-request Runner via buildRequestRunner so the
                 // ContextCacheConfig wires into a new App.Builder — working
                 // around ADK's App-scoped caching limitation.
-                AiCapability.PROMPT_CACHING
+                AiCapability.PROMPT_CACHING,
+                // BUDGET_ENFORCEMENT: framework-level capability — every runtime
+                // streaming through AiPipeline is gated by the BudgetCapturingSession
+                // decorator on the configured AiBudget. Honest because AdkEventAdapter
+                // emits typed TokenUsage on every event, which the decorator taps to
+                // accrue token / step counters and abort on breach.
+                AiCapability.BUDGET_ENFORCEMENT,
+                // CONFIDENCE_SCORES: framework-level — AiPipeline's
+                // ConfidenceCapturingSession decorator parses the model-reported
+                // confidence field on stream completion. Honest because ADK
+                // honors SYSTEM_PROMPT (the elicitation cue is delivered) and
+                // streams response text through session.send().
+                AiCapability.CONFIDENCE_SCORES,
+                // PASSIVATION: AgentPassivation snapshots context.history()
+                // through CheckpointStore. Honest because ADK threads history
+                // through assembleMessages on every dispatch, so a resumed
+                // call observes the same conversation the paused call saw.
+                AiCapability.PASSIVATION
         );
     }
 

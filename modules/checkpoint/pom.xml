@@ -19,6 +19,18 @@
     </properties>
 
     <dependencies>
+        <!-- atmosphere-ai is the SPI home for AgentRuntime / AgentSnapshot /
+             AgentExecutionContext, which the AgentPassivation helper
+             reads from and writes back to. Optional so apps that use the
+             core CheckpointStore for non-AI workflows don't pull
+             modules/ai transitively. Callers that use AgentPassivation
+             already depend on modules/ai. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Optional: users who bring coordinator on the classpath can use
              the CheckpointingCoordinationJournal decorator bridge. The core
              SPI has no dependency on the coordinator. -->

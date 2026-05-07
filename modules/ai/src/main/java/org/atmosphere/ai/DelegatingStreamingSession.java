@@ -55,6 +55,7 @@ public abstract class DelegatingStreamingSession implements StreamingSession {
     @Override public void sendContent(Content content) { delegate.sendContent(content); }
     @Override public void sendMetadata(String key, Object value) { delegate.sendMetadata(key, value); }
     @Override public void usage(TokenUsage usage) { delegate.usage(usage); }
+    @Override public void confidence(AiConfidence confidence) { delegate.confidence(confidence); }
     @Override public void toolCallDelta(String toolCallId, String argsChunk) {
         delegate.toolCallDelta(toolCallId, argsChunk);
     }

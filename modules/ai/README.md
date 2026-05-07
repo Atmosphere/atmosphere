@@ -36,15 +36,15 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 
 | Adapter JAR | `AgentRuntime` implementation | Priority | Capabilities |
 |-------------|-------------------------------|----------|-------------|
-| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA |
-| `atmosphere-spring-ai` | `SpringAiAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY |
-| `atmosphere-langchain4j` | `LangChain4jAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY |
-| `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, TOKEN_USAGE, PER_REQUEST_RETRY, PROMPT_CACHING |
-| `atmosphere-embabel` | `EmbabelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE, PER_REQUEST_RETRY, TOOL_CALLING, TOOL_APPROVAL, VISION, MULTI_MODAL |
-| `atmosphere-koog` | `KoogAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, TOKEN_USAGE, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, CANCELLATION, PER_REQUEST_RETRY |
-| `atmosphere-agentscope` | `AgentScopeAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, CANCELLATION, PER_REQUEST_RETRY |
-| `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, PER_REQUEST_RETRY *(see runtime caveat below)* |
-| `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY |
+| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
+| `atmosphere-spring-ai` | `SpringAiAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
+| `atmosphere-langchain4j` | `LangChain4jAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
+| `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, TOKEN_USAGE, PER_REQUEST_RETRY, PROMPT_CACHING, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
+| `atmosphere-embabel` | `EmbabelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE, PER_REQUEST_RETRY, TOOL_CALLING, TOOL_APPROVAL, VISION, MULTI_MODAL, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
+| `atmosphere-koog` | `KoogAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, TOKEN_USAGE, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, CANCELLATION, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
+| `atmosphere-agentscope` | `AgentScopeAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, CANCELLATION, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
+| `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT (wall-clock only), CONFIDENCE_SCORES, PASSIVATION *(see runtime caveats below)* |
+| `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
 
 Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build.
 
@@ -814,19 +814,19 @@ feature through a path the Atmosphere bridge can honor today.
 Legend: TS=TEXT_STREAMING, TC=TOOL_CALLING, SO=STRUCTURED_OUTPUT, SP=SYSTEM_PROMPT,
 AO=AGENT_ORCHESTRATION, CM=CONVERSATION_MEMORY, TA=TOOL_APPROVAL, V=VISION, A=AUDIO,
 MM=MULTI_MODAL, PC=PROMPT_CACHING, TU=TOKEN_USAGE, PRR=PER_REQUEST_RETRY,
-TCD=TOOL_CALL_DELTA.
+TCD=TOOL_CALL_DELTA, BE=BUDGET_ENFORCEMENT, CS=CONFIDENCE_SCORES, PSV=PASSIVATION.
 
-| Runtime | Priority | TS | TC | SO | SP | AO | CM | TA | V | A | MM | PC | TU | PRR | TCD |
-|---------|---------:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:-:|:-:|:--:|:--:|:--:|:--:|:--:|
-| `BuiltInAgentRuntime`        |   0 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-| `SpringAiAgentRuntime`       | 100 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes | —   |
-| `LangChain4jAgentRuntime`    | 100 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes | —   |
-| `AdkAgentRuntime`            | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   |
-| `EmbabelAgentRuntime`        | 100 | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | —   | yes | yes | —   |
-| `KoogAgentRuntime`           | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   |
-| `AgentScopeAgentRuntime`     | 100 | yes | —   | yes | yes | —   | yes | —   | —   | —   | —   | —   | yes | yes | —   |
-| `SpringAiAlibabaAgentRuntime`| 100 | yes¹| —   | yes | yes | —   | yes | —   | —   | —   | —   | —   | —   | yes | —   |
-| `SemanticKernelAgentRuntime` | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   |
+| Runtime | Priority | TS | TC | SO | SP | AO | CM | TA | V | A | MM | PC | TU | PRR | TCD | BE | CS | PSV |
+|---------|---------:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:-:|:-:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| `BuiltInAgentRuntime`        |   0 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| `SpringAiAgentRuntime`       | 100 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | yes | yes |
+| `LangChain4jAgentRuntime`    | 100 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | yes | yes |
+| `AdkAgentRuntime`            | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | yes | yes |
+| `EmbabelAgentRuntime`        | 100 | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | —   | yes | yes | —   | yes | yes | yes |
+| `KoogAgentRuntime`           | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | yes | yes |
+| `AgentScopeAgentRuntime`     | 100 | yes | —   | yes | yes | —   | yes | —   | —   | —   | —   | —   | yes | yes | —   | yes | yes | yes |
+| `SpringAiAlibabaAgentRuntime`| 100 | yes¹| —   | yes | yes | —   | yes | —   | —   | —   | —   | —   | —   | yes | —   | yes² | yes | yes |
+| `SemanticKernelAgentRuntime` | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   | yes | yes | yes |
 
 ¹ `SpringAiAlibabaAgentRuntime` declares `TEXT_STREAMING` honestly because the
 final reply ships as a single `session.send()` chunk and Atmosphere's transport
@@ -835,6 +835,55 @@ limitation is that the LLM round-trip itself is **buffered** — Spring AI Aliba
 `ReactAgent.call()` is synchronous as of v1.1.2.0, so there are no incremental
 token deltas from the LLM. Callers who need token-by-token streaming should drive
 Spring AI's `StreamingChatModel` directly via `atmosphere-spring-ai`.
+
+² `SpringAiAlibabaAgentRuntime` declares `BUDGET_ENFORCEMENT` because wall-clock
+limits trip universally on every runtime that streams through `AiPipeline`.
+Token / step limits depend on the runtime emitting `TOKEN_USAGE`, which Alibaba
+does not (its `ReactAgent.call()` returns an `AssistantMessage` with no usage
+surface as of v1.1.2.0). Callers configuring a token-based `AiBudget` against
+this runtime get wall-clock breaches but not token breaches — the matrix
+captures the cooperation, the prose captures the limit.
+
+### Predictable-AI primitives (`BUDGET_ENFORCEMENT`, `CONFIDENCE_SCORES`, `PASSIVATION`)
+
+Three framework-level capabilities added in 4.0.44 that close gaps Bonér's
+"Herding LLMs" deck flagged for distributed-system reliability — death-spiral
+prevention, dynamic routing, and long-pause human-in-the-loop:
+
+- **`BUDGET_ENFORCEMENT`** — `AiPipeline` installs a `BudgetCapturingSession`
+  decorator when an `AiBudget` (token / step / wall-clock) is in scope. On
+  breach the decorator routes an `AiBudgetExceededException` through
+  `session.error(...)` and short-circuits the remaining stream. Wire-level
+  contract: a single error frame, never a flurry. Set the budget either as a
+  pipeline default via `pipeline.setDefaultBudget(AiBudget.ofTokens(20_000))` or
+  per-request via the `ai.budget` metadata key (caller wins on collision).
+  Wall-clock applies on every runtime; token / step limits apply where
+  `TOKEN_USAGE` is honored (every runtime except Spring AI Alibaba).
+
+- **`CONFIDENCE_SCORES`** — `AiPipeline` augments the system prompt with an
+  `AiConfidenceElicitation` cue when one is configured, then installs a
+  `ConfidenceCapturingSession` decorator that parses the model-emitted
+  `{"confidence": 0.x}` field on stream completion and fires
+  `session.confidence(AiConfidence)` ahead of the terminal frame. Three sources
+  documented in `AiConfidence.Source`: `LOGPROBS_NATIVE` (native token logprobs
+  from runtimes that override and call `session.confidence()` directly with
+  richer signal — none ship today), `MODEL_REPORTED_FIELD` (the framework's
+  universal-fallback path), `HEURISTIC` (caller-computed). The decorator is
+  skipped when structured-output mode is in play because the schema parser owns
+  the response shape — callers add a `confidence` field to their record schema
+  in that mode.
+
+- **`PASSIVATION`** — `org.atmosphere.checkpoint.AgentPassivation` captures the
+  persistable subset of `AgentExecutionContext` into an `AgentSnapshot` and
+  writes it via `CheckpointStore`; `resume()` reads the snapshot back, merges
+  it onto a caller-supplied base context (which carries the runtime references
+  — tools, memory, listeners — that don't survive a JVM restart), and re-runs
+  `runtime.execute(...)`. The helper lives in `modules/checkpoint` rather than
+  on `AgentRuntime` itself because `modules/ai → modules/checkpoint` introduces
+  a dependency cycle (`ai → checkpoint → coordinator → ai`); the reverse
+  direction is acyclic. Capability flag declared on every runtime because
+  every runtime threads `context.history()` through its dispatch path — a
+  resumed call observes the same conversation the paused call saw.
 
 **Per-runtime gaps, honestly described:**
 

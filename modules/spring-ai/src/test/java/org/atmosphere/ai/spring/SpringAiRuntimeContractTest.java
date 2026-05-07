@@ -82,7 +82,10 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.PROMPT_CACHING,
                 AiCapability.TOKEN_USAGE,
                 AiCapability.CONVERSATION_MEMORY,
-                AiCapability.PER_REQUEST_RETRY);
+                AiCapability.PER_REQUEST_RETRY,
+                AiCapability.BUDGET_ENFORCEMENT,
+                AiCapability.CONFIDENCE_SCORES,
+                AiCapability.PASSIVATION);
     }
 
     @Override

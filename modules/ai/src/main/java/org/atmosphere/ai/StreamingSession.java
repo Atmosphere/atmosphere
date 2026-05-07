@@ -122,6 +122,42 @@ public interface StreamingSession extends AutoCloseable {
     }
 
     /**
+     * Report a per-response confidence signal — the routing primitive
+     * behind Bonér's "high-confidence auto-execute, low-confidence
+     * escalate" pattern. Fired at most once per chat completion, after
+     * the model has produced a final response.
+     *
+     * <p>The default implementation re-emits the aggregate value plus the
+     * source under {@code ai.confidence.aggregate}, {@code ai.confidence.source},
+     * and {@code ai.confidence.tokens} metadata keys, mirroring the
+     * convention {@link #usage(TokenUsage)} established with
+     * {@code ai.tokens.*}. Sessions that want to capture the full record
+     * (including per-token logprobs) override this method.</p>
+     *
+     * <p>Runtimes that natively expose logprobs invoke this directly with
+     * {@link AiConfidence.Source#LOGPROBS_NATIVE}. Runtimes that don't
+     * expose logprobs still get coverage via the framework-level
+     * {@code ConfidenceCapturingSession} decorator — when an elicitation
+     * policy is installed, the decorator parses the model-emitted
+     * confidence field on stream completion and fires this method with
+     * {@link AiConfidence.Source#MODEL_REPORTED_FIELD}.</p>
+     *
+     * @param confidence the typed confidence record; ignored when {@code null}
+     */
+    default void confidence(AiConfidence confidence) {
+        if (confidence == null) {
+            return;
+        }
+        if (confidence.aggregate().isPresent()) {
+            sendMetadata(AiConfidence.AGGREGATE_METADATA_KEY, confidence.aggregate().getAsDouble());
+        }
+        sendMetadata(AiConfidence.SOURCE_METADATA_KEY, confidence.source().name());
+        if (!confidence.tokens().isEmpty()) {
+            sendMetadata(AiConfidence.TOKENS_METADATA_KEY, confidence.tokens().size());
+        }
+    }
+
+    /**
      * Emit an incremental tool-argument fragment as the model streams JSON for
      * a tool call, so browser UIs can render "typing" state on tool-argument
      * fields before the consolidated {@link AiEvent.ToolStart} event fires.
