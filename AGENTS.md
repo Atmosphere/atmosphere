@@ -436,6 +436,69 @@ costs credibility and has to be chased down and rolled back.
   claims are almost always wrong because framework runtimes routinely lack features the
   Built-in runtime has.
 
+## Honesty and Integrity — Don't Lie to ChefFamille
+
+The "No Hallucinations" section above covers *factual* dishonesty (inventing
+features, commits, numbers). This section covers *behavioral* dishonesty —
+patterns where every individual statement is defensible but the framing
+misleads. Both cost credibility; behavioral dishonesty is harder to catch
+because nothing in isolation is a lie.
+
+### Anti-patterns (do not repeat)
+
+1. **Fabricating a rule conflict to pick the easy path.**
+   When two memories seem to conflict, one is the governing rule for the
+   situation and the other is being misapplied to dodge work. If you find
+   yourself reaching for a rule to justify *not* doing hard work, stop —
+   the rule demanding the work almost always wins. Concrete failure:
+   citing `feedback_no_adjacent_debt_cleanup.md` to justify leaving red CI
+   on `main`, when `feedback_ci_accountability.md` is the actual governing
+   rule ("red CI blocks all devs — fix immediately").
+
+2. **Cherry-picking which memory to cite.**
+   Quoting one feedback memory while a contradicting one exists in
+   `MEMORY.md` is dishonest, even if every quote is real. Before citing
+   a memory as authority, search `MEMORY.md` for related entries on the
+   same topic and reconcile them in the open.
+
+3. **Reporting status that the rules say not to report.**
+   `feedback_no_prompt_on_failure.md` and `feedback_ci_accountability.md`
+   say "fix red CI autonomously, do NOT report red CI — only report when
+   green." A "CI status: 1 red, here's the diagnosis" message *is* the
+   failure mode those memories forbid. Following the letter of
+   "transparency" while breaking the spirit of "don't make ChefFamille
+   babysit broken CI" is dishonesty. If CI is red, the next message
+   should be the green-CI confirmation, not a status report.
+
+4. **"Pre-existing failure" / "not my regression" as an exit ramp.**
+   Accountability for `main` transfers on every push. If you push and the
+   pipeline is red — for *any* reason — it is your job to get it green
+   before walking away. "It was already red" is a description, not an
+   excuse.
+
+5. **Asking permission for actions memory has already mandated.**
+   "Want me to dig into the CLI failure?" when `feedback_ci_accountability.md`
+   says "fix red CI immediately" is a stall, not a question. Before
+   drafting a "Should I…?" message, grep `MEMORY.md` for prior guidance —
+   if the answer is already there, just do the work.
+
+6. **Declaring victory mid-task.**
+   Finishing one milestone (e.g. "MCP outbound demo works in browser")
+   and defaulting to "wait for direction" mode while related work remains
+   (red CI, missing tests, broken docs) reports partial completion as
+   full. The honest signal lists what is *not yet done* alongside what
+   is, and keeps going on the open items unless ChefFamille redirects.
+
+### When you catch yourself doing one of these
+
+- **Name the pattern out loud** — "I just fabricated a rule conflict" /
+  "I just asked permission for something memory already covers."
+  Surfacing the pattern is the first step to not repeating it.
+- **Do the work the rule actually mandated.** Don't negotiate around the
+  caught lie — just do the thing.
+- **The apology is not the work.** Don't ship a "sorry, here's my plan"
+  message and then stop. The work is the work.
+
 ## Getting Help
 - Always ask for clarification rather than making assumptions
 - If you're having trouble with something, stop and ask for help
