@@ -637,7 +637,10 @@ describe('WebTransportTransport', () => {
 
       mockReader.pushDone();
 
-      // Wait for the async read loop to process done and call handleClose
+      // Wait for the async read loop to process done and call handleClose.
+      // 5s timeout (vs vitest's 1s default) absorbs readLoop scheduling
+      // jitter observed on busy CI runners — same remediation pattern as
+      // 25a9c25aeb's earlier timeout bump in this file.
       await vi.waitFor(() => {
         expect(mockHandlers.failureToReconnect).toHaveBeenCalledWith(
           request,
@@ -646,7 +649,7 @@ describe('WebTransportTransport', () => {
             transport: 'webtransport',
           }),
         );
-      });
+      }, { timeout: 5000 });
 
       // With maxReconnectOnClose=0, reconnectAttempts (0) < 0 is false,
       // so reconnect should NOT be scheduled.
@@ -666,10 +669,11 @@ describe('WebTransportTransport', () => {
 
       mockReader.pushDone();
 
-      // Wait for close handler to fire
+      // Wait for close handler to fire — 5s buffer for the same readLoop
+      // scheduling jitter that trips CI on the failureToReconnect test above.
       await vi.waitFor(() => {
         expect(mockHandlers.close).toHaveBeenCalled();
-      });
+      }, { timeout: 5000 });
 
       expect(mockHandlers.reconnect).not.toHaveBeenCalled();
     });
@@ -712,10 +716,10 @@ describe('WebTransportTransport', () => {
       transport = new WebTransportTransport(request, mockHandlers);
       await transport.connect();
 
-      // Wait for reconnect to fire
+      // Wait for reconnect to fire — 5s buffer for CI scheduling jitter.
       await vi.waitFor(() => {
         expect(connectCount).toBeGreaterThanOrEqual(2);
-      });
+      }, { timeout: 5000 });
 
       await transport.disconnect();
     });
@@ -751,10 +755,10 @@ describe('WebTransportTransport', () => {
       // First open should call open handler
       expect(mockHandlers.open).toHaveBeenCalledTimes(1);
 
-      // Wait for reconnect to succeed
+      // Wait for reconnect to succeed — 5s buffer for CI scheduling jitter.
       await vi.waitFor(() => {
         expect(mockHandlers.reopen).toHaveBeenCalled();
-      });
+      }, { timeout: 5000 });
 
       expect(mockHandlers.reopen).toHaveBeenCalledWith(
         expect.objectContaining({
