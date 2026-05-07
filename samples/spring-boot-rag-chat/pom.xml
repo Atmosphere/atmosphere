@@ -16,6 +16,9 @@
     <description>Real-time RAG chat using Atmosphere + Spring AI VectorStore</description>
 
     <properties>
+        <!-- Self-contained netty pin: covers samples scaffolded standalone against
+             a released parent POM that may not yet declare netty.version. -->
+        <netty.version>4.2.13.Final</netty.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
     </properties>

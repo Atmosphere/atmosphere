@@ -16,6 +16,9 @@
     <description>Real-time AI chat using Atmosphere + OpenAI-compatible APIs (Gemini, Ollama, OpenAI)</description>
 
     <properties>
+        <!-- Self-contained netty pin: covers samples scaffolded standalone against
+             a released parent POM that may not yet declare netty.version. -->
+        <netty.version>4.2.13.Final</netty.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
     </properties>

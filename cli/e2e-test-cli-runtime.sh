@@ -126,10 +126,10 @@ trap cleanup EXIT
 # which would fail `mvn compile` when the source uses a post-release API. In
 # CI, the workflow installs the current SNAPSHOT into local m2 before this
 # script runs, so point the CLI at that version for the scaffold-then-compile
-# checks. ATMOSPHERE_CLI_VERSION is honored by cli/atmosphere.
+# checks. ATMOSPHERE_VERSION_OVERRIDE is honored by cli/atmosphere.
 ROOT_POM_VERSION=$(grep -m1 '<version>' "$REPO_ROOT/pom.xml" | sed -E 's|.*<version>([^<]+)</version>.*|\1|')
 if [ -n "$ROOT_POM_VERSION" ]; then
-    export ATMOSPHERE_CLI_VERSION="$ROOT_POM_VERSION"
+    export ATMOSPHERE_VERSION_OVERRIDE="$ROOT_POM_VERSION"
 fi
 
 # ── Prerequisites ───────────────────────────────────────────────────────────
@@ -297,7 +297,7 @@ if [ -d "$new_tmp/chat-test" ]; then
     pass "chat-test project directory created"
     grep -q 'atmosphere-project' "$new_tmp/chat-test/pom.xml" && pass "chat-test pom.xml inherits atmosphere-project" || fail "chat-test pom.xml inherits atmosphere-project"
     ! grep -q 'relativePath' "$new_tmp/chat-test/pom.xml" && pass "chat-test pom.xml relativePath stripped (resolves from Central)" || fail "chat-test pom.xml relativePath stripped"
-    if [ -z "${ATMOSPHERE_CLI_VERSION:-}" ] || ! printf '%s' "${ATMOSPHERE_CLI_VERSION}" | grep -q 'SNAPSHOT'; then
+    if [ -z "${ATMOSPHERE_VERSION_OVERRIDE:-}" ] || ! printf '%s' "${ATMOSPHERE_VERSION_OVERRIDE}" | grep -q 'SNAPSHOT'; then
         ! grep -q 'SNAPSHOT' "$new_tmp/chat-test/pom.xml" && pass "chat-test pom.xml version pinned (no SNAPSHOT)" || fail "chat-test pom.xml version pinned"
     fi
     grep -q '<checkstyle.skip>true</checkstyle.skip>' "$new_tmp/chat-test/pom.xml" && pass "chat-test pom.xml disables repo-local checkstyle" || fail "chat-test pom.xml disables repo-local checkstyle"
