@@ -153,7 +153,13 @@ export function App() {
   );
 
   const { fullText, isStreaming, progress, metadata, routing, aiEvents, error, send, reset } =
-    useStreaming({ request, enabled: wtLoaded });
+    useStreaming({
+      request,
+      enabled: wtLoaded,
+      onClose: () => console.info('[atmosphere] transport closed'),
+      onReconnect: () => console.info('[atmosphere] reconnecting…'),
+      onClientTimeout: () => console.warn('[atmosphere] heartbeat timeout'),
+    });
 
   // When streaming text updates, update/append the assistant message
   useEffect(() => {

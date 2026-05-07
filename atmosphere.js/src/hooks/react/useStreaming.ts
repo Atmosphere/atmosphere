@@ -28,7 +28,40 @@ export interface UseStreamingOptions {
   request: AtmosphereRequest;
   /** If false, the connection is not opened automatically (default: true). */
   enabled?: boolean;
+  /**
+   * Called when the underlying transport opens (initial connect or reconnect
+   * succeeds). Pairs with the server-side @AiEndpoint disconnect /
+   * stream-resume work — UI clears any "reconnecting" indicator here.
+   */
+  onOpen?: () => void;
+  /**
+   * Called when the underlying transport closes. The server's
+   * AiStreamingSession.cancelInflight fires this on the client when a
+   * disconnect aborts the in-flight LLM call.
+   */
+  onClose?: () => void;
+  /**
+   * Called every time the client begins a reconnection attempt. With
+   * @AiEndpoint(streamCache=UUIDBroadcasterCache.class), the server
+   * replays cached frames on reconnect — keep the existing conversation
+   * visible and surface a transient indicator.
+   */
+  onReconnect?: () => void;
+  /**
+   * Called when the client-side heartbeat watchdog expires before the
+   * next server heartbeat lands. Pairs with @AiEndpoint(heartbeatSeconds=N).
+   */
+  onClientTimeout?: () => void;
 }
+
+/** Connection-state classification surfaced to consumers of {@link useStreaming}. */
+export type StreamingConnectionState =
+  | 'idle'
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'closed'
+  | 'error';
 
 /**
  * A structured AI event received from the server.
@@ -68,6 +101,14 @@ export interface UseStreamingResult {
   reset: () => void;
   /** Close the streaming connection. */
   close: () => void;
+  /**
+   * Current transport-layer connection state. Drives "Connecting…",
+   * "Reconnecting…", "Connection lost" UI banners that pair with the
+   * server-side @AiEndpoint disconnect / stream-resume primitives.
+   */
+  connectionState: StreamingConnectionState;
+  /** True iff the transport is currently mid-reconnection. */
+  isReconnecting: boolean;
 }
 
 /**
@@ -91,7 +132,7 @@ export interface UseStreamingResult {
  */
 export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   const atmosphere = useAtmosphereContext();
-  const { request, enabled = true } = options;
+  const { request, enabled = true, onOpen, onClose, onReconnect, onClientTimeout } = options;
 
   const [streamingTexts, setStreamingTexts] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -101,17 +142,45 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   const [routing, setRouting] = useState<RoutingInfo>({});
   const [aiEvents, setAiEvents] = useState<AiEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [connectionState, setConnectionState] = useState<StreamingConnectionState>('idle');
 
   const handleRef = useRef<StreamingHandle | null>(null);
+
+  // Keep external lifecycle callbacks in a ref so the subscribe effect doesn't
+  // re-run when callers pass fresh closures every render. Mirrors the existing
+  // useAtmosphereCore pattern.
+  const lifecycleRef = useRef({ onOpen, onClose, onReconnect, onClientTimeout });
+  lifecycleRef.current = { onOpen, onClose, onReconnect, onClientTimeout };
 
   useEffect(() => {
     if (!enabled) return;
 
     let cancelled = false;
+    setConnectionState('connecting');
 
     (async () => {
       try {
         const handle = await subscribeStreaming(atmosphere, request, {
+          onOpen: () => {
+            if (cancelled) return;
+            setConnectionState('connected');
+            lifecycleRef.current.onOpen?.();
+          },
+          onClose: () => {
+            if (cancelled) return;
+            setConnectionState('closed');
+            lifecycleRef.current.onClose?.();
+          },
+          onReconnect: () => {
+            if (cancelled) return;
+            setConnectionState('reconnecting');
+            lifecycleRef.current.onReconnect?.();
+          },
+          onClientTimeout: () => {
+            if (cancelled) return;
+            setConnectionState('reconnecting');
+            lifecycleRef.current.onClientTimeout?.();
+          },
           onStreamingText: (text) => {
             if (cancelled) return;
             setIsStreaming(true);
@@ -131,6 +200,7 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
               setError(err);
               setIsStreaming(false);
               setProgress(null);
+              setConnectionState('error');
             }
           },
           onMetadata: (key, value) => {
@@ -198,9 +268,16 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   }, []);
 
   const fullText = useMemo(() => streamingTexts.join(''), [streamingTexts]);
+  const isReconnecting = connectionState === 'reconnecting';
 
   return useMemo(
-    () => ({ fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, aiEvents, error, send, reset, close }),
-    [fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, aiEvents, error, send, reset, close],
+    () => ({
+      fullText, streamingTexts, isStreaming, progress, metadata, stats, routing,
+      aiEvents, error, send, reset, close, connectionState, isReconnecting,
+    }),
+    [
+      fullText, streamingTexts, isStreaming, progress, metadata, stats, routing,
+      aiEvents, error, send, reset, close, connectionState, isReconnecting,
+    ],
   );
 }

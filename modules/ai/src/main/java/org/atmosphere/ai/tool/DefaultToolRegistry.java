@@ -186,6 +186,18 @@ public class DefaultToolRegistry implements ToolRegistry {
             approvalTimeout = approvalAnnotation.timeoutSeconds();
         }
 
+        // Check for @Authorize on the method — registered side-table to keep
+        // ToolDefinition's canonical constructor stable. Empty annotations are
+        // dropped at register-time so no-op decorations cost nothing.
+        var authorizeAnnotation = method.getAnnotation(
+                org.atmosphere.ai.annotation.Authorize.class);
+        if (authorizeAnnotation != null) {
+            var authorization = new ToolAuthorization(
+                    java.util.Set.of(authorizeAnnotation.roles()),
+                    java.util.Set.of(authorizeAnnotation.permissions()));
+            ToolAuthorizationRegistry.register(annotation.name(), authorization);
+        }
+
         return new ToolDefinition(
                 annotation.name(),
                 annotation.description(),

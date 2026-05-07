@@ -566,4 +566,89 @@ describe('session stats and routing', () => {
       hints: { maxCost: 0.01, maxLatencyMs: undefined },
     });
   });
+
+  // -- Lifecycle hooks: pair with @AiEndpoint disconnect / streamCache /
+  // -- heartbeat primitives so UI can render reconnect / lost-connection state.
+
+  it('should dispatch onOpen when transport opens', async () => {
+    const onOpen = vi.fn();
+    await subscribeStreaming(
+      mockAtmosphere,
+      { url: '/ai/chat', transport: 'websocket' },
+      { onOpen },
+    );
+
+    capturedHandlers.open!({
+      responseBody: '',
+      status: 200,
+      reasonPhrase: 'OK',
+      messages: [],
+      headers: {},
+      state: 'opening',
+      transport: 'websocket',
+      error: null,
+    });
+
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it('should dispatch onClose when transport closes', async () => {
+    const onClose = vi.fn();
+    await subscribeStreaming(
+      mockAtmosphere,
+      { url: '/ai/chat', transport: 'websocket' },
+      { onClose },
+    );
+
+    capturedHandlers.close!({
+      responseBody: '',
+      status: 200,
+      reasonPhrase: 'OK',
+      messages: [],
+      headers: {},
+      state: 'closed',
+      transport: 'websocket',
+      error: null,
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('should dispatch onReconnect on reconnection attempt', async () => {
+    const onReconnect = vi.fn();
+    await subscribeStreaming(
+      mockAtmosphere,
+      { url: '/ai/chat', transport: 'websocket' },
+      { onReconnect },
+    );
+
+    capturedHandlers.reconnect!(
+      { url: '/ai/chat', transport: 'websocket' },
+      {
+        responseBody: '',
+        status: 200,
+        reasonPhrase: 'OK',
+        messages: [],
+        headers: {},
+        state: 'reconnect',
+        transport: 'websocket',
+        error: null,
+      },
+    );
+
+    expect(onReconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('should dispatch onClientTimeout on heartbeat watchdog expiry', async () => {
+    const onClientTimeout = vi.fn();
+    await subscribeStreaming(
+      mockAtmosphere,
+      { url: '/ai/chat', transport: 'websocket' },
+      { onClientTimeout },
+    );
+
+    capturedHandlers.clientTimeout!({ url: '/ai/chat', transport: 'websocket' });
+
+    expect(onClientTimeout).toHaveBeenCalledTimes(1);
+  });
 });

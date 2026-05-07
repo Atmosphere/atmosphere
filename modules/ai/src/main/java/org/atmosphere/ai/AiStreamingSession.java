@@ -109,6 +109,17 @@ public class AiStreamingSession implements StreamingSession {
     private volatile String runId;
 
     /**
+     * Handle returned by the runtime for the currently in-flight prompt.
+     * Captured inside {@link #stream(String)} so {@link #cancelInflight()}
+     * (called from the disconnect cleanup path) can abort the upstream LLM
+     * HTTP request and refund any tokens that would otherwise have been
+     * burned for a client who is no longer listening. Volatile because the
+     * disconnect path runs on a different thread (Atmosphere's lifecycle
+     * dispatcher) than the @Prompt VT.
+     */
+    private volatile ExecutionHandle currentHandle;
+
+    /**
      * @param delegate     the underlying streaming session
      * @param runtime    the resolved AI support implementation
      * @param systemPrompt the system prompt from {@code @AiEndpoint}
@@ -258,11 +269,104 @@ public class AiStreamingSession implements StreamingSession {
      * {@code AiEndpointHandler#handleDisconnect} when the underlying socket
      * is going away and all prompts on it are done.
      *
+     * <p>Each removed session has {@link #cancelInflight()} fired before the
+     * map entry is dropped so any in-flight LLM call is aborted (refunding
+     * tokens for a client that is no longer listening) and any virtual
+     * thread parked on a {@code @RequiresApproval} future unblocks instead
+     * of waiting out its 5-minute timeout. Closes Correctness Invariant #2
+     * (Terminal Path Completeness) for the disconnect-while-streaming
+     * scenario.</p>
+     *
      * @param resourceUuid the atmosphere resource UUID (may be null)
      */
     public static void removeAllForResource(String resourceUuid) {
-        if (resourceUuid != null) {
-            ACTIVE_SESSIONS.remove(resourceUuid);
+        if (resourceUuid == null) {
+            return;
+        }
+        var sessions = ACTIVE_SESSIONS.remove(resourceUuid);
+        if (sessions == null) {
+            return;
+        }
+        for (var session : sessions) {
+            try {
+                session.cancelInflight();
+            } catch (RuntimeException e) {
+                // Best-effort cleanup. Swallowing here would violate the
+                // project's no-swallow rule, so log at TRACE — the disconnect
+                // path is already past the point where errors can be returned
+                // to the client.
+                logger.trace("cancelInflight threw during disconnect cleanup for {}: {}",
+                        resourceUuid, e.getMessage(), e);
+            }
+        }
+    }
+
+    /**
+     * Abort the in-flight LLM call (if any) and release every pending tool
+     * approval registered on this session. Called from the disconnect cleanup
+     * path so the upstream HTTP request to the model provider is cancelled
+     * — refunding tokens for a client who has gone away — and any virtual
+     * thread parked on {@link ApprovalRegistry#awaitApproval} unblocks
+     * immediately with a denial outcome instead of waiting out its
+     * per-approval timeout.
+     *
+     * <p>Idempotent: subsequent calls are no-ops once {@link ExecutionHandle}
+     * is done. Safe to invoke from any thread.</p>
+     */
+    public void cancelInflight() {
+        var handle = this.currentHandle;
+        if (handle != null && !handle.isDone()) {
+            handle.cancel();
+        }
+        int cancelledApprovals = approvalRegistry.cancelAllPending();
+        if (cancelledApprovals > 0 && logger.isDebugEnabled()) {
+            logger.debug("Disconnect cancelled {} pending approval(s) for resource {}",
+                    cancelledApprovals, resource != null ? resource.uuid() : "null");
+        }
+    }
+
+    /**
+     * @param resourceUuid the atmosphere resource UUID
+     * @return {@code true} if at least one {@link AiStreamingSession} is
+     *     registered for that uuid; {@code false} otherwise. Used by the admin
+     *     {@code cancel-inflight} endpoint to distinguish "no such session"
+     *     (404) from "session present, cancellation fired" (200).
+     */
+    public static boolean resourceHasActiveSessions(String resourceUuid) {
+        if (resourceUuid == null) {
+            return false;
+        }
+        var sessions = ACTIVE_SESSIONS.get(resourceUuid);
+        return sessions != null && !sessions.isEmpty();
+    }
+
+    /**
+     * Cancel the in-flight LLM call on every session registered for
+     * {@code resourceUuid} WITHOUT removing them from the active map. Used by
+     * the admin {@code POST /sessions/{uuid}/cancel-inflight} endpoint when
+     * an operator wants to abort the upstream call (refunding tokens,
+     * releasing approval futures) but keep the socket open for the next
+     * turn.
+     *
+     * <p>Contrast with {@link #removeAllForResource} which is fired from the
+     * full disconnect path — that variant cancels AND drops the map entry
+     * because the transport itself is going away.</p>
+     */
+    public static void cancelInflightForResource(String resourceUuid) {
+        if (resourceUuid == null) {
+            return;
+        }
+        var sessions = ACTIVE_SESSIONS.get(resourceUuid);
+        if (sessions == null) {
+            return;
+        }
+        for (var session : sessions) {
+            try {
+                session.cancelInflight();
+            } catch (RuntimeException e) {
+                logger.trace("cancelInflight threw during admin cancel-inflight for {}: {}",
+                        resourceUuid, e.getMessage(), e);
+            }
         }
     }
 
@@ -537,6 +641,19 @@ public class AiStreamingSession implements StreamingSession {
             target = new MemoryCapturingSession(target, memory, resource.uuid(), message);
         }
 
+        // LineageCapturingSession ties the prompt → tool calls → RAG → cost
+        // chain into a single audit row per @Prompt invocation. NOOP recorder
+        // is the framework default so unmounted code paths cost nothing; admin
+        // / Spring / Quarkus auto-config installs a real recorder via
+        // LineageRecorderHolder.install. Wrapped after MemoryCapturingSession
+        // so the lineage entry's terminal classification reflects what the
+        // memory capture sees (memory persists only on success).
+        var lineageRecorder = org.atmosphere.ai.lineage.LineageRecorderHolder.get();
+        if (lineageRecorder != org.atmosphere.ai.lineage.LineageRecorder.NOOP) {
+            target = new org.atmosphere.ai.lineage.LineageCapturingSession(
+                    target, lineageRecorder, userId, agentId, conversationId, message);
+        }
+
         // Wrap in MetricsCapturingSession for latency/streaming text tracking
         if (metrics != AiMetrics.NOOP) {
             target = new MetricsCapturingSession(target, metrics, model);
@@ -611,7 +728,29 @@ public class AiStreamingSession implements StreamingSession {
         }
         var streamingTarget = target;
         try {
-            runtime.execute(context, streamingTarget);
+            // executeWithHandle returns a handle the disconnect path can
+            // use to abort the upstream LLM call. For runtimes that haven't
+            // overridden it (default impl) execute() runs synchronously and
+            // a COMPLETED handle is returned — whenDone().join() is a no-op
+            // and the cancel knob is harmless. Runtimes that override it
+            // (BuiltInAgentRuntime, etc.) return a real handle backed by
+            // their native cancel primitive, so cancelInflight() actually
+            // closes the HTTP stream and unwinds the tool loop.
+            var handle = runtime.executeWithHandle(context, streamingTarget);
+            this.currentHandle = handle;
+            try {
+                handle.whenDone().join();
+            } catch (java.util.concurrent.CompletionException ce) {
+                // Runtime completed exceptionally via Settable.completeExceptionally.
+                // The streamingTarget.error(...) path was already invoked by the
+                // runtime, so the client has been notified — no further action.
+                if (logger.isTraceEnabled()) {
+                    var cause = ce.getCause();
+                    logger.trace("Execution completed exceptionally for {}: {}",
+                            resource != null ? resource.uuid() : "null",
+                            cause != null ? cause.getMessage() : ce.getMessage());
+                }
+            }
         } catch (Exception e) {
             metrics.recordError(model != null ? model : "unknown", "stream_error");
             logger.error("Streaming error", e);

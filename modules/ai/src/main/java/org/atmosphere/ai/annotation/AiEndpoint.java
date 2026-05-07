@@ -266,6 +266,63 @@ public @interface AiEndpoint {
     Retry retry() default @Retry;
 
     /**
+     * Per-endpoint {@link org.atmosphere.cpr.BroadcasterCache} class. Streaming
+     * AI responses cached here are replayed to a reconnecting client whose
+     * UUID matches the original session — closing the "mobile drop loses
+     * mid-stream output" gap without requiring the application to track
+     * partial responses.
+     *
+     * <p>Defaults to {@link org.atmosphere.cache.DefaultBroadcasterCache}
+     * (no-op). Set to {@link org.atmosphere.cache.UUIDBroadcasterCache} to
+     * enable per-client replay on reconnect:</p>
+     *
+     * <pre>{@code
+     * @AiEndpoint(path = "/atmosphere/chat",
+     *             streamCache = UUIDBroadcasterCache.class)
+     * }</pre>
+     *
+     * <p><b>Global-state caveat.</b> The cache class is set framework-wide
+     * via {@code AtmosphereFramework.setBroadcasterCacheClassName} before the
+     * endpoint's broadcaster is created (mirroring {@code @ManagedService}
+     * semantics). Mixing endpoints that declare different
+     * {@code streamCache} values is supported as long as each endpoint is
+     * processed before any of its requests land — once a broadcaster has
+     * been created with one cache class, that cache instance is bound to
+     * the broadcaster.</p>
+     *
+     * <p>The {@link org.atmosphere.ai.processor.AiEndpointHandler} also
+     * registers a {@link org.atmosphere.cache.BroadcasterCacheInspector}
+     * that filters cached frames to streaming AI output only — user prompts
+     * routed through the broadcaster are never replayed.</p>
+     */
+    Class<? extends org.atmosphere.cpr.BroadcasterCache> streamCache()
+            default org.atmosphere.cache.DefaultBroadcasterCache.class;
+
+    /**
+     * Per-endpoint server-side heartbeat frequency, in seconds. When set to
+     * a positive value, the framework's
+     * {@link org.atmosphere.interceptor.HeartbeatInterceptor} attached to
+     * this endpoint is reconfigured to emit a keep-alive padding frame
+     * every N seconds, overriding the framework-wide default.
+     *
+     * <p>Use this for endpoints whose {@code @Prompt} flow can park a
+     * virtual thread for a long time — typically when a tool is
+     * {@link RequiresApproval}-gated and the human reviewer takes minutes
+     * to respond. Without a heartbeat, intermediate proxies (CloudFront,
+     * Cloudflare, NGINX) close the streaming connection at their own idle
+     * threshold (often 60 s) and the parked approval future never receives
+     * the response.</p>
+     *
+     * <p>Default: {@code 0} (inherit the framework-wide
+     * {@code HEARTBEAT_INTERVAL_IN_SECONDS} init param, which defaults to
+     * 60 s). Set to a positive value to override per endpoint; set
+     * explicitly to {@code -1} to disable heartbeat for this endpoint.</p>
+     *
+     * <p>Example: {@code @AiEndpoint(path = "/long-tools", heartbeatSeconds = 30)}</p>
+     */
+    int heartbeatSeconds() default 0;
+
+    /**
      * Inline retry-policy configuration for {@link AiEndpoint#retry()}.
      * Default values match {@link org.atmosphere.ai.RetryPolicy#DEFAULT}
      * except for the sentinel {@code maxRetries = -1} which signals "use

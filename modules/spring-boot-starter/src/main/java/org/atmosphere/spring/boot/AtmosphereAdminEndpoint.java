@@ -313,6 +313,49 @@ public class AtmosphereAdminEndpoint {
         return ResponseEntity.notFound().build();
     }
 
+    // ── AI Streaming Session Operations ──
+
+    /**
+     * Cancel an in-flight LLM call on an AI streaming session WITHOUT
+     * disconnecting the underlying transport. Surfaces
+     * {@link org.atmosphere.ai.AiStreamingSession#cancelInflight} to operators
+     * who want to abort just the upstream call (refunding tokens, releasing
+     * approval futures) while keeping the socket open for follow-up turns.
+     *
+     * <p>For "kill the whole connection" semantics, prefer
+     * {@code DELETE /resources/{uuid}} which fires a full transport
+     * disconnect — that path automatically triggers cancelInflight via the
+     * removeAllForResource fan-out, but also closes the socket.</p>
+     *
+     * @param request the servlet request (for guardWrite + audit)
+     * @param uuid    the AtmosphereResource UUID whose AI sessions to cancel
+     * @return 200 with the count of sessions cancelled, 404 when no AI
+     *     sessions are registered for that uuid
+     */
+    @PostMapping("/sessions/{uuid}/cancel-inflight")
+    public ResponseEntity<Map<String, Object>> cancelSessionInflight(
+            HttpServletRequest request,
+            @PathVariable("uuid") String uuid) {
+        var denied = guardWrite(request, "cancel_inflight", uuid);
+        if (denied != null) return denied;
+        var principalName = resolvePrincipalName(request);
+
+        // Pre-check: is there a session registered? AiStreamingSession does
+        // not expose a public "size" accessor for the per-uuid list, so we
+        // route through the static cancel path which is itself idempotent —
+        // a 404 here is informational, not load-bearing.
+        var hadSessions = org.atmosphere.ai.AiStreamingSession
+                .resourceHasActiveSessions(uuid);
+        org.atmosphere.ai.AiStreamingSession.cancelInflightForResource(uuid);
+        admin.auditLog().record(principalName, "cancel_inflight", uuid, hadSessions, null);
+        if (hadSessions) {
+            return ResponseEntity.ok(Map.of(
+                    "status", "in-flight LLM call cancelled",
+                    "uuid", uuid));
+        }
+        return ResponseEntity.notFound().build();
+    }
+
     // ── Agents ──
 
     @GetMapping("/agents")

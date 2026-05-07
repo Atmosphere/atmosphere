@@ -56,6 +56,18 @@ export async function subscribeStreaming(
   let routing: RoutingInfo = {};
 
   const sub: Subscription = await atmosphere.subscribe<string>(request, {
+    open: () => {
+      handlers.onOpen?.();
+    },
+    close: () => {
+      handlers.onClose?.();
+    },
+    reconnect: () => {
+      handlers.onReconnect?.();
+    },
+    clientTimeout: () => {
+      handlers.onClientTimeout?.();
+    },
     message: (response) => {
       const raw = response.responseBody;
       if (typeof raw !== 'string') return;

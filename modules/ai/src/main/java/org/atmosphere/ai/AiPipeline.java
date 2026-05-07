@@ -497,10 +497,30 @@ public class AiPipeline {
         }
 
         try {
-            runtime.execute(context, effectiveTarget);
-            // Commit the captured response only after runtime.execute returns
-            // without throwing AND the session was not marked errored during
-            // the stream. A cancel-shaped session.complete() (from a runtime
+            // executeWithHandle parity with AiStreamingSession: runtimes that
+            // override get a real cancel handle, default-impl runtimes return a
+            // pre-completed handle so whenDone().join() is a no-op. This
+            // matches Mode Parity (Invariant #7) — the pipeline path now
+            // exposes the same cancel seam @AiEndpoint uses, even though the
+            // pipeline has no AtmosphereResource and therefore no transport
+            // disconnect to drive cancel. Direct callers can now hold the
+            // handle externally if they want it.
+            var handle = runtime.executeWithHandle(context, effectiveTarget);
+            try {
+                handle.whenDone().join();
+            } catch (java.util.concurrent.CompletionException ce) {
+                // Runtime completed exceptionally — the captured target's
+                // hasErrored() check below skips the commit. The original
+                // error was already routed to session.error() by the runtime.
+                if (logger.isTraceEnabled()) {
+                    var cause = ce.getCause();
+                    logger.trace("Pipeline execution completed exceptionally: {}",
+                            cause != null ? cause.getMessage() : ce.getMessage());
+                }
+            }
+            // Commit the captured response only after the runtime has
+            // terminated AND the session was not marked errored during the
+            // stream. A cancel-shaped session.complete() (from a runtime
             // bridge's caller-initiated cancel path) is NOT a valid commit
             // signal because the captured text is guaranteed partial. The
             // cache captor no longer auto-persists on complete() — the

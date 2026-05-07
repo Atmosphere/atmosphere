@@ -123,6 +123,39 @@ public final class ApprovalRegistry {
     }
 
     /**
+     * Cancel every pending approval by completing each future with {@code false}
+     * (denied). Called by {@link org.atmosphere.ai.AiStreamingSession#cancelInflight}
+     * when the client transport disconnects so parked virtual threads waiting
+     * on {@link #awaitApproval} unblock immediately instead of waiting out the
+     * per-approval timeout (default 5 min) on a now-orphaned connection.
+     *
+     * <p>Closes Correctness Invariant #2 (Terminal Path Completeness) for the
+     * approval-blocked VT case — every disconnect path now releases the lock
+     * synchronously rather than parking the VT until expiry.</p>
+     *
+     * <p>The upstream LLM HTTP call is aborted separately by
+     * {@link org.atmosphere.ai.ExecutionHandle#cancel} before this is called,
+     * so the "denied" tool result lands in a runtime that has already begun
+     * to unwind — no further LLM I/O is issued.</p>
+     *
+     * @return the number of approvals that were pending and have now been resolved
+     */
+    public int cancelAllPending() {
+        int cancelled = 0;
+        var it = pending.values().iterator();
+        while (it.hasNext()) {
+            var entry = it.next();
+            it.remove();
+            entry.future.complete(false);
+            cancelled++;
+        }
+        if (cancelled > 0) {
+            logger.debug("cancelAllPending cancelled {} pending approval(s)", cancelled);
+        }
+        return cancelled;
+    }
+
+    /**
      * Wait for approval, blocking the current (virtual) thread.
      * The VT parks cheaply — no carrier thread is consumed.
      *

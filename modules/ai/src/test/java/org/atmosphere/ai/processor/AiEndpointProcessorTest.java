@@ -300,6 +300,116 @@ public class AiEndpointProcessorTest {
     }
 
     @Test
+    public void testStreamCacheAppliedToFramework() throws Exception {
+        // @AiEndpoint(streamCache = UUIDBroadcasterCache.class) must call
+        // setBroadcasterCacheClassName before addAtmosphereHandler so the
+        // newly-created broadcaster picks up the cache class.
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new StreamCacheEndpoint());
+
+        processor.handle(framework, (Class) StreamCacheEndpoint.class);
+
+        verify(framework).setBroadcasterCacheClassName(
+                eq("org.atmosphere.cache.UUIDBroadcasterCache"));
+    }
+
+    @Test
+    public void testStreamCacheDefaultDoesNotMutateFramework() throws Exception {
+        // @AiEndpoint without streamCache (or with the default) must NOT touch
+        // setBroadcasterCacheClassName so the framework-wide default is preserved.
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new ValidEndpoint());
+
+        processor.handle(framework, (Class) ValidEndpoint.class);
+
+        verify(framework, never()).setBroadcasterCacheClassName(anyString());
+    }
+
+    @Test
+    public void testHeartbeatOverrideAppliedToInterceptor() throws Exception {
+        // Verify @AiEndpoint.heartbeatSeconds reconfigures the per-endpoint
+        // HeartbeatInterceptor instance produced by defaultManagedServiceInterceptors.
+        // Closes the long-tool-approval gap where intermediate proxies close
+        // idle streams while a parked virtual thread waits on @RequiresApproval.
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new HeartbeatOverrideEndpoint());
+        when(framework.excludedInterceptors()).thenReturn(java.util.Collections.emptyList());
+        when(framework.newClassInstance(eq(org.atmosphere.cpr.AtmosphereInterceptor.class), any()))
+                .thenAnswer(inv -> {
+                    Class<?> clazz = inv.getArgument(1);
+                    return clazz.getDeclaredConstructor().newInstance();
+                });
+
+        processor.handle(framework, (Class) HeartbeatOverrideEndpoint.class);
+
+        var interceptorsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(framework).addAtmosphereHandler(anyString(), any(AtmosphereHandler.class),
+                interceptorsCaptor.capture());
+
+        var heartbeat = ((List<?>) interceptorsCaptor.getValue()).stream()
+                .filter(i -> i instanceof org.atmosphere.interceptor.HeartbeatInterceptor)
+                .map(i -> (org.atmosphere.interceptor.HeartbeatInterceptor) i)
+                .findFirst()
+                .orElseThrow(() ->
+                        new AssertionError("HeartbeatInterceptor expected in default chain"));
+
+        assertEquals(45, heartbeat.heartbeatFrequencyInSeconds(),
+                "@AiEndpoint(heartbeatSeconds=45) must reconfigure the HeartbeatInterceptor");
+    }
+
+    @Test
+    public void testHeartbeatDisabledViaNegativeOne() throws Exception {
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new HeartbeatDisabledEndpoint());
+        when(framework.excludedInterceptors()).thenReturn(java.util.Collections.emptyList());
+        when(framework.newClassInstance(eq(org.atmosphere.cpr.AtmosphereInterceptor.class), any()))
+                .thenAnswer(inv -> {
+                    Class<?> clazz = inv.getArgument(1);
+                    return clazz.getDeclaredConstructor().newInstance();
+                });
+
+        processor.handle(framework, (Class) HeartbeatDisabledEndpoint.class);
+
+        var interceptorsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(framework).addAtmosphereHandler(anyString(), any(AtmosphereHandler.class),
+                interceptorsCaptor.capture());
+
+        var heartbeats = ((List<?>) interceptorsCaptor.getValue()).stream()
+                .filter(i -> i instanceof org.atmosphere.interceptor.HeartbeatInterceptor)
+                .toList();
+        assertTrue(heartbeats.isEmpty(),
+                "@AiEndpoint(heartbeatSeconds=-1) must NOT attach a per-endpoint HeartbeatInterceptor");
+    }
+
+    @Test
+    public void testHeartbeatZeroDoesNotAttachInterceptor() throws Exception {
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new ValidEndpoint());
+        when(framework.excludedInterceptors()).thenReturn(java.util.Collections.emptyList());
+        when(framework.newClassInstance(eq(org.atmosphere.cpr.AtmosphereInterceptor.class), any()))
+                .thenAnswer(inv -> {
+                    Class<?> clazz = inv.getArgument(1);
+                    return clazz.getDeclaredConstructor().newInstance();
+                });
+
+        processor.handle(framework, (Class) ValidEndpoint.class);
+
+        var interceptorsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(framework).addAtmosphereHandler(anyString(), any(AtmosphereHandler.class),
+                interceptorsCaptor.capture());
+
+        var heartbeats = ((List<?>) interceptorsCaptor.getValue()).stream()
+                .filter(i -> i instanceof org.atmosphere.interceptor.HeartbeatInterceptor)
+                .toList();
+        // Default (heartbeatSeconds=0) inherits the framework-wide configuration.
+        // No per-endpoint HeartbeatInterceptor is added; the endpoint either uses
+        // the global one (if HEARTBEAT_INTERVAL_IN_SECONDS init param is set) or
+        // has no heartbeat at all.
+        assertTrue(heartbeats.isEmpty(),
+                "default heartbeatSeconds=0 must not attach a per-endpoint HeartbeatInterceptor");
+    }
+
+    @Test
     public void testAutoDiscoverContextProvidersOptIn() throws Exception {
         when(framework.newClassInstance(eq(Object.class), any()))
                 .thenReturn(new AutoDiscoverEndpoint());
@@ -406,6 +516,28 @@ public class AiEndpointProcessorTest {
 
     @AiEndpoint(path = "/atmosphere/auto-discover", autoDiscoverContextProviders = true)
     public static class AutoDiscoverEndpoint {
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/stream-cache",
+                streamCache = org.atmosphere.cache.UUIDBroadcasterCache.class)
+    public static class StreamCacheEndpoint {
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/heartbeat-override", heartbeatSeconds = 45)
+    public static class HeartbeatOverrideEndpoint {
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/heartbeat-disabled", heartbeatSeconds = -1)
+    public static class HeartbeatDisabledEndpoint {
         @Prompt
         public void onPrompt(String message, StreamingSession session) {
         }

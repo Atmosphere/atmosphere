@@ -38,9 +38,31 @@ import { Atmosphere } from '../../core/atmosphere';
  * </template>
  * ```
  */
+/**
+ * Optional lifecycle callbacks paired with the server-side @AiEndpoint
+ * resilience primitives (disconnect cancellation, streamCache replay,
+ * heartbeat). Identical surface to the React hook for parity.
+ */
+export interface VueStreamingLifecycle {
+  onOpen?: () => void;
+  onClose?: () => void;
+  onReconnect?: () => void;
+  onClientTimeout?: () => void;
+}
+
+/** Connection-state classification surfaced to consumers. */
+export type StreamingConnectionState =
+  | 'idle'
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'closed'
+  | 'error';
+
 export function useStreaming(
   request: AtmosphereRequest,
   instance?: Atmosphere,
+  lifecycle?: VueStreamingLifecycle,
 ) {
   const atmosphere = instance ?? new Atmosphere();
 
@@ -51,14 +73,35 @@ export function useStreaming(
   const stats: Ref<SessionStats | null> = ref(null);
   const routing: Ref<RoutingInfo> = ref({});
   const error: Ref<string | null> = ref(null);
+  const connectionState: Ref<StreamingConnectionState> = ref('idle');
+  const isReconnecting: ComputedRef<boolean> = computed(
+    () => connectionState.value === 'reconnecting',
+  );
 
   const fullText: ComputedRef<string> = computed(() => streamingTexts.value.join(''));
 
   let handle: StreamingHandle | null = null;
 
   const connect = async () => {
+    connectionState.value = 'connecting';
     try {
       handle = await subscribeStreaming(atmosphere, request, {
+        onOpen: () => {
+          connectionState.value = 'connected';
+          lifecycle?.onOpen?.();
+        },
+        onClose: () => {
+          connectionState.value = 'closed';
+          lifecycle?.onClose?.();
+        },
+        onReconnect: () => {
+          connectionState.value = 'reconnecting';
+          lifecycle?.onReconnect?.();
+        },
+        onClientTimeout: () => {
+          connectionState.value = 'reconnecting';
+          lifecycle?.onClientTimeout?.();
+        },
         onStreamingText: (text) => {
           isStreaming.value = true;
           streamingTexts.value = [...streamingTexts.value, text];
@@ -72,6 +115,7 @@ export function useStreaming(
         onError: (err) => {
           error.value = err;
           isStreaming.value = false;
+          connectionState.value = 'error';
         },
         onMetadata: (key, value) => {
           metadata.value = { ...metadata.value, [key]: value };
@@ -87,6 +131,7 @@ export function useStreaming(
       });
     } catch (err) {
       error.value = err instanceof Error ? err.message : String(err);
+      connectionState.value = 'error';
     }
   };
 
@@ -112,5 +157,8 @@ export function useStreaming(
     handle?.close();
   });
 
-  return { fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, error, send, reset };
+  return {
+    fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, error,
+    send, reset, connectionState, isReconnecting,
+  };
 }

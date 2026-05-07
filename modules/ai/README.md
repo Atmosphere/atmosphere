@@ -104,6 +104,74 @@ public interface AiConversationMemory {
 }
 ```
 
+## Distributed Memory & Stream Replication
+
+Conversation memory (above) is per-process by default. When the same conversation id can land on different pods between turns — load-balanced WebSocket reconnects, blue/green deploys, autoscaling fan-out — every pod must see the same history or the model loses context mid-conversation.
+
+Atmosphere ships two primitives that close the gap without dragging in a new SPI:
+
+### 1. `streamCache = UUIDBroadcasterCache.class`
+
+```java
+@AiEndpoint(path = "/ai/chat",
+            streamCache = UUIDBroadcasterCache.class)
+public class ResilientChat {
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        session.stream(message);
+    }
+}
+```
+
+When a mobile client drops mid-stream, `UUIDBroadcasterCache` buffers the cached frames keyed by client UUID. On reconnect with the same UUID (or via the `X-Atmosphere-Run-Id` header `DurableSessionInterceptor` reads), the un-acked frames replay so the client catches up on what it missed. The matching JS hook is `onReconnect` — see the sample wiring under `samples/spring-boot-ai-chat/frontend/`.
+
+### 2. `ClusterBroadcastFilter` for cross-pod memory replication
+
+`ClusterBroadcastFilter` is the SPI Atmosphere has shipped for cluster-wide broadcast replication since 2.x — it fits cleanly under `@AiEndpoint(filters = …)`. The filter sees every broadcast that flows through the endpoint's broadcaster, including the `MemoryCapturingSession`'s memory-update side-effects, so wiring it for AI is purely additive.
+
+```java
+public final class RedisMemoryReplicationFilter
+        implements ClusterBroadcastFilter {
+
+    private Broadcaster broadcaster;
+    private RedisClient redis;
+
+    @Override public void init() {
+        // Subscribe to memory-update events from peers and replay locally.
+        redis.subscribe("ai:memory:" + broadcaster.getID(), this::onPeerEvent);
+    }
+
+    @Override public BroadcastAction filter(String broadcasterId,
+                                            AtmosphereResource r,
+                                            Object originalMessage,
+                                            Object message) {
+        // Outbound: publish to peers (only memory-shaped messages).
+        if (message instanceof MemoryEvent event) {
+            redis.publish("ai:memory:" + broadcasterId, serialize(event));
+        }
+        return new BroadcastAction(message);
+    }
+
+    private void onPeerEvent(byte[] payload) {
+        // Inbound: hand off to the local conversation memory.
+        var event = deserialize(payload);
+        AiConversationMemoryHolder.get().addMessage(event.conversationId(), event.message());
+    }
+
+    @Override public void setUri(String uri) { this.redis = RedisClient.create(uri); }
+    @Override public void setBroadcaster(Broadcaster bc) { this.broadcaster = bc; }
+    @Override public Broadcaster getBroadcaster() { return broadcaster; }
+    @Override public void destroy() { redis.close(); }
+}
+
+@AiEndpoint(path = "/ai/chat",
+            conversationMemory = true,
+            filters = {RedisMemoryReplicationFilter.class})
+public class ClusteredChat { ... }
+```
+
+The same shape works with Hazelcast, JGroups, NATS — anything that lets you fan a tiny event out to peers. Pair this with a clustered `AiConversationMemory` SPI (Redis / Postgres-backed implementations are a single class each) and a sticky-session-free deployment is feasible.
+
 ## Key Components
 
 | Class | Description |

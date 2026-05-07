@@ -32,6 +32,7 @@ vi.mock('vue', async () => {
 const { useAtmosphere } = await import('../../../src/hooks/vue/useAtmosphere');
 const { useRoom } = await import('../../../src/hooks/vue/useRoom');
 const { usePresence } = await import('../../../src/hooks/vue/usePresence');
+const { useStreaming } = await import('../../../src/hooks/vue/useStreaming');
 
 function createMockSubscription(): Subscription & { pushed: string[] } {
   const pushed: string[] = [];
@@ -261,5 +262,54 @@ describe('Vue: usePresence', () => {
     expect(count.value).toBe(2);
     expect(isOnline('user-2')).toBe(true);
     expect(isOnline('user-99')).toBe(false);
+  });
+});
+
+describe('Vue: useStreaming lifecycle hooks', () => {
+  let mock: ReturnType<typeof createMockAtmosphere>;
+
+  beforeEach(() => {
+    mock = createMockAtmosphere();
+    unmountCallbacks.length = 0;
+  });
+
+  it('connectionState transitions through connecting → connected on open', async () => {
+    const { connectionState } = useStreaming(baseRequest, mock.atmosphere);
+    await vi.waitFor(() => expect(connectionState.value).toBe('connecting'));
+    mock.triggerOpen();
+    await vi.waitFor(() => expect(connectionState.value).toBe('connected'));
+  });
+
+  it('connectionState becomes reconnecting on reconnect event', async () => {
+    const { connectionState, isReconnecting } = useStreaming(baseRequest, mock.atmosphere);
+    await vi.waitFor(() => expect(mock.handlers().open).toBeDefined());
+    mock.triggerOpen();
+    await vi.waitFor(() => expect(connectionState.value).toBe('connected'));
+    mock.triggerReconnect();
+    await vi.waitFor(() => expect(connectionState.value).toBe('reconnecting'));
+    expect(isReconnecting.value).toBe(true);
+  });
+
+  it('connectionState becomes closed on close event', async () => {
+    const { connectionState } = useStreaming(baseRequest, mock.atmosphere);
+    await vi.waitFor(() => expect(mock.handlers().close).toBeDefined());
+    mock.triggerClose();
+    await vi.waitFor(() => expect(connectionState.value).toBe('closed'));
+  });
+
+  it('lifecycle callbacks fire on transport events', async () => {
+    const onOpen = vi.fn();
+    const onClose = vi.fn();
+    const onReconnect = vi.fn();
+    useStreaming(baseRequest, mock.atmosphere, { onOpen, onClose, onReconnect });
+    await vi.waitFor(() => expect(mock.handlers().open).toBeDefined());
+
+    mock.triggerOpen();
+    mock.triggerReconnect();
+    mock.triggerClose();
+
+    await vi.waitFor(() => expect(onOpen).toHaveBeenCalled());
+    expect(onReconnect).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
   });
 });

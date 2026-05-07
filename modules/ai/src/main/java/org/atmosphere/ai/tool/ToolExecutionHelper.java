@@ -207,6 +207,26 @@ public final class ToolExecutionHelper {
             }
         }
 
+        // Tool-level @Authorize check (Correctness Invariant #6: default-deny
+        // when caller's roles/permissions cannot satisfy the requirement).
+        // Runs AFTER governance admission and BEFORE the ToolStart frame so a
+        // denied call never shows up in the UI as started-but-never-finished
+        // and never reaches the approval registry where a disconnect would
+        // have to release it.
+        var authorization = ToolAuthorizationRegistry.get(toolName);
+        if (!authorization.isEmpty()) {
+            var callerRoles = extractCallerSet(resource, "ai.userRoles");
+            var callerPermissions = extractCallerSet(resource, "ai.userPermissions");
+            if (!authorization.isAuthorized(callerRoles, callerPermissions)) {
+                logger.info("Tool {} denied by @Authorize: required roles={}, "
+                                + "required permissions={}, caller roles={}, caller permissions={}",
+                        toolName, authorization.requiredRoles(), authorization.requiredPermissions(),
+                        callerRoles, callerPermissions);
+                return finishAndEmit(toolName, session,
+                        "{\"status\":\"cancelled\",\"message\":\"Tool execution denied: insufficient authorization\"}");
+            }
+        }
+
         // Emit a single ToolStart frame at the shared execution seam so all
         // runtime bridges (LC4j, Spring AI, ADK, SK) surface tool activity to
         // the client uniformly. OpenAiCompatibleClient used to emit its own
@@ -391,6 +411,52 @@ public final class ToolExecutionHelper {
         return "{\"error\":\"invalid_arguments\",\"tool\":\""
                 + ToolBridgeUtils.escapeJson(toolName)
                 + "\",\"details\":[" + details + "]}";
+    }
+
+    /**
+     * Extract a set of strings from an {@link org.atmosphere.cpr.AtmosphereResource}
+     * request attribute. Used by the {@link org.atmosphere.ai.annotation.Authorize}
+     * gate to read {@code ai.userRoles} and {@code ai.userPermissions}.
+     *
+     * <p>Accepts three concrete shapes: a {@link java.util.Set Set&lt;String&gt;},
+     * any other {@link java.util.Collection} of strings, or a comma-separated
+     * {@link String}. Anything else (including null) yields an empty set so
+     * the authorization check is the single source of decision — every
+     * pathological shape becomes an unauthenticated caller, which fails
+     * closed against any non-empty {@link ToolAuthorization}.</p>
+     */
+    @SuppressWarnings("unchecked")
+    private static java.util.Set<String> extractCallerSet(
+            org.atmosphere.cpr.AtmosphereResource resource, String attributeName) {
+        if (resource == null || resource.getRequest() == null) {
+            return java.util.Set.of();
+        }
+        var raw = resource.getRequest().getAttribute(attributeName);
+        if (raw == null) {
+            return java.util.Set.of();
+        }
+        if (raw instanceof java.util.Set<?> set) {
+            return set.stream()
+                    .filter(java.util.Objects::nonNull)
+                    .map(Object::toString)
+                    .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        }
+        if (raw instanceof java.util.Collection<?> collection) {
+            return collection.stream()
+                    .filter(java.util.Objects::nonNull)
+                    .map(Object::toString)
+                    .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        }
+        if (raw instanceof String csv) {
+            if (csv.isBlank()) {
+                return java.util.Set.of();
+            }
+            return java.util.Arrays.stream(csv.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        }
+        return java.util.Set.of();
     }
 
     /**

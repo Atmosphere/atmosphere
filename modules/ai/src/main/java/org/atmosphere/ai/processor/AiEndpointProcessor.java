@@ -179,8 +179,22 @@ public class AiEndpointProcessor implements Processor<Object> {
                         org.atmosphere.ai.RetryPolicy.DEFAULT.retryableErrors()));
             }
 
+            // Per-endpoint stream cache: set the framework's cache class name
+            // before the broadcaster is created so the new broadcaster picks up
+            // the requested cache (matches @ManagedService precedent). Skipped
+            // when the annotation keeps the default DefaultBroadcasterCache.
+            applyStreamCache(annotation.streamCache(), annotation.path(), framework);
+
             List<AtmosphereInterceptor> frameworkInterceptors = new LinkedList<>();
             AnnotationUtil.defaultManagedServiceInterceptors(framework, frameworkInterceptors);
+            // Per-endpoint heartbeat override: if @AiEndpoint.heartbeatSeconds is
+            // non-zero, reconfigure the HeartbeatInterceptor instance attached to
+            // *this* endpoint without touching the framework default. Closes the
+            // long-tool-approval gap where CloudFront / Cloudflare / NGINX close
+            // idle streams after ~60 s while a parked virtual thread is waiting
+            // out a @RequiresApproval that takes minutes to resolve.
+            applyHeartbeatOverride(annotation.heartbeatSeconds(), annotation.path(),
+                    framework, frameworkInterceptors);
             framework.addAtmosphereHandler(annotation.path(), handler, frameworkInterceptors);
 
             logger.info("AI endpoint registered at {} (class: {}, runtime: {}, interceptors: {}, "
@@ -485,6 +499,76 @@ public class AiEndpointProcessor implements Processor<Object> {
             }
         }
         return List.copyOf(filters);
+    }
+
+    /**
+     * Apply the per-endpoint {@link org.atmosphere.cpr.BroadcasterCache} class
+     * so streaming AI responses are buffered and replayed to a reconnecting
+     * client whose UUID matches the original session. Sets the framework-wide
+     * cache class name (mirroring {@code @ManagedService} precedent) before
+     * the broadcaster is created so the new broadcaster picks up the
+     * requested cache.
+     *
+     * <p>No-op when the annotation keeps the default
+     * {@link org.atmosphere.cache.DefaultBroadcasterCache} so apps that
+     * declare {@code @AiEndpoint} without a {@code streamCache} field never
+     * mutate framework state.</p>
+     */
+    private void applyStreamCache(Class<? extends org.atmosphere.cpr.BroadcasterCache> cacheClass,
+                                  String path, AtmosphereFramework framework) {
+        if (cacheClass == null
+                || cacheClass.equals(org.atmosphere.cache.DefaultBroadcasterCache.class)) {
+            return;
+        }
+        framework.setBroadcasterCacheClassName(cacheClass.getName());
+        logger.info("AI endpoint {} attached BroadcasterCache: {}",
+                path, cacheClass.getName());
+    }
+
+    /**
+     * Attach a per-endpoint {@link org.atmosphere.interceptor.HeartbeatInterceptor}
+     * configured at the requested frequency. The default ManagedService chain
+     * does not include the heartbeat interceptor, so we add it explicitly here
+     * when the annotation requests one.
+     *
+     * @param heartbeatSeconds the {@code @AiEndpoint.heartbeatSeconds} value:
+     *                         {@code 0} = no per-endpoint heartbeat (default),
+     *                         positive = attach interceptor at that frequency,
+     *                         negative = explicit no-op (cosmetic, future-proofing)
+     * @param path             the endpoint path (logging only)
+     * @param framework        the framework, used to instantiate the interceptor
+     * @param interceptors     the interceptor list to append to
+     */
+    private void applyHeartbeatOverride(int heartbeatSeconds, String path,
+                                        AtmosphereFramework framework,
+                                        List<AtmosphereInterceptor> interceptors) {
+        if (heartbeatSeconds == 0) {
+            return; // no per-endpoint heartbeat
+        }
+        if (heartbeatSeconds < 0) {
+            logger.info("AI endpoint {} heartbeatSeconds=-1 (no per-endpoint heartbeat)", path);
+            return;
+        }
+        try {
+            var instance = framework.newClassInstance(AtmosphereInterceptor.class,
+                    org.atmosphere.interceptor.HeartbeatInterceptor.class);
+            if (instance instanceof org.atmosphere.interceptor.HeartbeatInterceptor hb) {
+                hb.heartbeatFrequencyInSeconds(heartbeatSeconds);
+                interceptors.add(hb);
+                logger.info("AI endpoint {} attached HeartbeatInterceptor at {} seconds",
+                        path, heartbeatSeconds);
+            } else {
+                logger.warn("AI endpoint {} could not attach HeartbeatInterceptor: "
+                                + "framework returned {} instead",
+                        path, instance == null ? "null" : instance.getClass().getName());
+            }
+        } catch (Throwable t) {
+            // Best-effort: if the interceptor can't be instantiated (e.g. CDI
+            // issues), log loudly and continue — the endpoint still works,
+            // it just won't have a per-endpoint heartbeat.
+            logger.warn("AI endpoint {} failed to attach HeartbeatInterceptor at {} seconds",
+                    path, heartbeatSeconds, t);
+        }
     }
 
     private AiConversationMemory resolveMemory(int maxHistory) {

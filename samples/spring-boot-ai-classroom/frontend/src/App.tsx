@@ -180,7 +180,12 @@ function Classroom({ room, onLeave }: { room: string; onLeave: () => void }) {
   );
 
   const { fullText, isStreaming, progress, metadata, stats, error, send, reset } =
-    useStreaming({ request });
+    useStreaming({
+      request,
+      onClose: () => console.info('[atmosphere] transport closed'),
+      onReconnect: () => console.info('[atmosphere] reconnecting…'),
+      onClientTimeout: () => console.warn('[atmosphere] heartbeat timeout'),
+    });
 
   useEffect(() => {
     if (!fullText) return;

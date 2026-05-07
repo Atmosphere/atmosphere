@@ -142,4 +142,64 @@ class ApprovalRegistryTest {
         var fresh = pending("f1", 300);
         assertFalse(fresh.isExpired());
     }
+
+    // -- cancelAllPending: disconnect-driven cleanup (Correctness Invariant #2) --
+
+    @Test
+    void cancelAllPending_completesPendingFuturesAsDenied() throws Exception {
+        var registry = new ApprovalRegistry();
+        var f1 = registry.register(pending("apr_d1", 600));
+        var f2 = registry.register(pending("apr_d2", 600));
+
+        var cancelled = registry.cancelAllPending();
+
+        assertEquals(2, cancelled);
+        assertTrue(f1.isDone());
+        assertTrue(f2.isDone());
+        assertFalse(f1.get(), "disconnect-cancelled approval must resolve as denied");
+        assertFalse(f2.get(), "disconnect-cancelled approval must resolve as denied");
+    }
+
+    @Test
+    void cancelAllPending_returnsZeroOnEmptyRegistry() {
+        var registry = new ApprovalRegistry();
+        assertEquals(0, registry.cancelAllPending());
+    }
+
+    @Test
+    void cancelAllPending_idempotentSecondCallReturnsZero() {
+        var registry = new ApprovalRegistry();
+        registry.register(pending("apr_x", 600));
+        registry.register(pending("apr_y", 600));
+
+        assertEquals(2, registry.cancelAllPending());
+        assertEquals(0, registry.cancelAllPending(), "second cancel must be a no-op");
+    }
+
+    @Test
+    void cancelAllPending_unblocksAwaitApprovalSynchronously() throws Exception {
+        // The bug this regression test pins: before cancelAllPending existed,
+        // a client disconnect left awaitApproval parked on its CompletableFuture
+        // for the full per-approval timeout (default 5 min) — orphaning a virtual
+        // thread and leaving the @RequiresApproval lock held. cancelAllPending
+        // must unblock the parked thread within milliseconds.
+        var registry = new ApprovalRegistry();
+        var approval = pending("apr_disco", 600);
+        var future = registry.register(approval);
+
+        var done = new CompletableFuture<Boolean>();
+        Thread.startVirtualThread(() -> {
+            done.complete(registry.awaitApproval(approval, future));
+        });
+
+        // Simulate transport disconnect.
+        Thread.sleep(50); // let the VT park
+        var cancelled = registry.cancelAllPending();
+
+        assertEquals(1, cancelled);
+        // If the regression returns, this get(...) hits the timeout and the
+        // test fails loudly instead of waiting for the 600-second approval.
+        assertFalse(done.get(2, java.util.concurrent.TimeUnit.SECONDS),
+                "awaitApproval must unblock with denial outcome on disconnect");
+    }
 }

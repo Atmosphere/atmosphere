@@ -77,7 +77,13 @@ export function App() {
   }), [wtInfo]);
 
   const { fullText, isStreaming, progress, aiEvents, error, send, reset } =
-    useStreaming({ request, enabled: wtLoaded });
+    useStreaming({
+      request,
+      enabled: wtLoaded,
+      onClose: () => console.info('[atmosphere] transport closed'),
+      onReconnect: () => console.info('[atmosphere] reconnecting…'),
+      onClientTimeout: () => console.warn('[atmosphere] heartbeat timeout'),
+    });
 
   // Track tool calls from AI events
   useEffect(() => {

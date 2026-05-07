@@ -51,8 +51,22 @@ export function App() {
     [wtInfo],
   );
 
-  const { fullText, isStreaming, progress, metadata, stats, routing, error, send, reset } =
-    useStreaming({ request, enabled: wtLoaded });
+  const { fullText, isStreaming, progress, metadata, stats, routing, error, send, reset,
+          connectionState, isReconnecting } =
+    useStreaming({
+      request,
+      enabled: wtLoaded,
+      // Pair with the server-side @AiEndpoint primitives:
+      // - onClose fires when AiStreamingSession.cancelInflight aborts mid-stream
+      // - onReconnect fires when the client retries; @AiEndpoint(streamCache=
+      //   UUIDBroadcasterCache.class) replays cached frames on the server side
+      // - onClientTimeout fires when the heartbeat watchdog expires; pair
+      //   with @AiEndpoint(heartbeatSeconds=N) on long-tool flows
+      onOpen: () => console.info('[atmosphere] transport open'),
+      onClose: () => console.info('[atmosphere] transport closed'),
+      onReconnect: () => console.info('[atmosphere] reconnecting…'),
+      onClientTimeout: () => console.warn('[atmosphere] client heartbeat timeout'),
+    });
 
   // When streaming text updates, update/append the assistant message
   useEffect(() => {
@@ -113,12 +127,38 @@ export function App() {
       : null,
   );
 
+  // Connection-state banner: surfaces reconnect / closed / error states
+  // produced by the new transport lifecycle hooks. Pairs with the server-side
+  // @AiEndpoint disconnect, streamCache, and heartbeat primitives so the user
+  // sees what's happening rather than a frozen UI.
+  const connectionBanner = (() => {
+    if (isReconnecting) {
+      return createElement('div', {
+        style: { background: '#f59e0b', color: '#1f2937', padding: '6px 12px',
+          fontSize: 12, textAlign: 'center' as const, fontWeight: 600 },
+      }, 'Reconnecting… cached frames will replay');
+    }
+    if (connectionState === 'closed') {
+      return createElement('div', {
+        style: { background: '#ef4444', color: '#fff', padding: '6px 12px',
+          fontSize: 12, textAlign: 'center' as const, fontWeight: 600 },
+      }, 'Connection closed');
+    }
+    if (connectionState === 'error') {
+      return createElement('div', {
+        style: { background: '#dc2626', color: '#fff', padding: '6px 12px',
+          fontSize: 12, textAlign: 'center' as const, fontWeight: 600 },
+      }, 'Connection error — retrying…');
+    }
+    return null;
+  })();
+
   return (
     <ChatLayout
       title={<><img src="/logo.png" alt="" style={{ height: '1.2em', verticalAlign: 'middle', marginRight: 8 }} />Atmosphere AI Chat</>}
       subtitle="Real-time streaming via WebSocket"
       theme="ai"
-      headerExtra={headerBadges}
+      headerExtra={<>{headerBadges}{connectionBanner}</>}
     >
       <div style={{
         flex: 1,

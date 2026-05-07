@@ -725,6 +725,36 @@ await handle.close();
 
 For framework-specific wrappers, see `useStreaming` (React/Vue) and `createStreamingStore` (Svelte) in the [Framework Hooks](#framework-hooks) section above.
 
+### Lifecycle hooks (resilience)
+
+`subscribeStreaming` and `useStreaming` expose four lifecycle callbacks that pair
+with the server-side `@AiEndpoint` resilience primitives. Wire these on every
+sample so the user sees what's happening rather than a frozen UI:
+
+| Hook | Server primitive | UI cue |
+|------|------------------|--------|
+| `onOpen` | initial connect / reconnect succeeds | clear any "reconnecting" indicator |
+| `onClose` | `AiStreamingSession.cancelInflight` aborts in-flight LLM | surface "session interrupted" |
+| `onReconnect` | `@AiEndpoint(streamCache=UUIDBroadcasterCache.class)` replays cached frames | keep conversation visible, show transient banner |
+| `onClientTimeout` | `@AiEndpoint(heartbeatSeconds=N)` watchdog expired | "connection lost — retrying" |
+
+```typescript
+const { fullText, connectionState, isReconnecting, send } = useStreaming({
+  request: { url: '/ai/chat', transport: 'websocket', reconnect: true },
+  onOpen: () => console.info('connected'),
+  onClose: () => console.info('closed'),
+  onReconnect: () => console.info('reconnecting'),
+  onClientTimeout: () => console.warn('heartbeat watchdog'),
+});
+
+// connectionState: 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'closed' | 'error'
+{isReconnecting && <Banner>Reconnecting… cached frames will replay</Banner>}
+{connectionState === 'closed' && <Banner severity="error">Connection closed</Banner>}
+```
+
+The `samples/spring-boot-ai-chat/frontend` reference wires this end-to-end and
+is the template for every other AI sample frontend.
+
 ---
 
 ## Browser Compatibility

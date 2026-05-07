@@ -134,6 +134,34 @@ export interface StreamingHandlers {
   onAiEvent?: (event: string, data: Record<string, unknown>) => void;
   /** Called when the session completes or errors, with aggregated stats and routing info. */
   onSessionComplete?: (stats: SessionStats, routing: RoutingInfo) => void;
+  /**
+   * Called when the underlying transport opens (initial connect or reconnect
+   * succeeds). Pairs with the server-side @AiEndpoint disconnect /
+   * stream-resume work — UI can clear any "reconnecting" indicator here.
+   */
+  onOpen?: () => void;
+  /**
+   * Called when the underlying transport closes. Server-side cancellation
+   * (AiStreamingSession.cancelInflight) fires this on the client, letting
+   * the UI surface "session interrupted" without waiting for a heartbeat
+   * timeout.
+   */
+  onClose?: () => void;
+  /**
+   * Called every time the client begins a reconnection attempt. With
+   * @AiEndpoint(streamCache = UUIDBroadcasterCache.class), the server
+   * replays cached frames on reconnect — UI should keep the existing
+   * conversation visible and show a transient "reconnecting" indicator
+   * rather than clearing state.
+   */
+  onReconnect?: () => void;
+  /**
+   * Called when the client-side heartbeat watchdog expires before the next
+   * server heartbeat lands. Pairs with @AiEndpoint(heartbeatSeconds=N).
+   * UI typically surfaces "connection lost — retrying" and lets the
+   * reconnect loop run.
+   */
+  onClientTimeout?: () => void;
 }
 
 /**

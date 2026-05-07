@@ -5,9 +5,10 @@ import GovernancePolicies from './components/GovernancePolicies.vue'
 import GovernanceDecisions from './components/GovernanceDecisions.vue'
 import GovernanceOwasp from './components/GovernanceOwasp.vue'
 import GovernanceCommitments from './components/GovernanceCommitments.vue'
+import Sessions from './components/Sessions.vue'
 import logoUrl from './assets/logo.svg'
 
-type Tab = 'chat' | 'policies' | 'decisions' | 'owasp' | 'commitments'
+type Tab = 'chat' | 'sessions' | 'policies' | 'decisions' | 'owasp' | 'commitments'
 
 const subtitle = ref('')
 const endpoint = ref('/atmosphere/ai-chat')
@@ -20,6 +21,7 @@ const ready = ref(false)
 const activeTab = ref<Tab>('chat')
 const governanceAvailable = ref(false)
 const governancePolicyCount = ref<number | null>(null)
+const agentsAvailable = ref(false)
 
 async function probeGovernance() {
   try {
@@ -36,10 +38,24 @@ async function probeGovernance() {
   }
 }
 
+async function probeAgents() {
+  try {
+    const res = await fetch('/api/admin/agents', { headers: { Accept: 'application/json' } })
+    if (res.ok) {
+      agentsAvailable.value = true
+    }
+  } catch {
+    // /api/admin/agents not wired — hide the Sessions tab.
+  }
+}
+
 const tabs = computed(() => {
   const list: Array<{ id: Tab; label: string; badge?: string }> = [
     { id: 'chat', label: 'Chat' },
   ]
+  if (agentsAvailable.value) {
+    list.push({ id: 'sessions', label: 'Sessions' })
+  }
   if (governanceAvailable.value) {
     list.push({
       id: 'policies',
@@ -66,7 +82,7 @@ onMounted(async () => {
   } catch {
     // Console info not available — use defaults
   }
-  await probeGovernance()
+  await Promise.all([probeGovernance(), probeAgents()])
   ready.value = true
 })
 </script>
@@ -97,6 +113,8 @@ onMounted(async () => {
     </header>
     <main class="app-main">
       <ChatContainer v-if="ready && activeTab === 'chat'" :endpoint="endpoint" :mode="mode" />
+      <Sessions v-if="ready && agentsAvailable" v-show="activeTab === 'sessions'"
+                :active="activeTab === 'sessions'" />
       <GovernancePolicies v-if="ready" v-show="activeTab === 'policies'"
                           :active="activeTab === 'policies'" />
       <GovernanceDecisions v-if="ready" v-show="activeTab === 'decisions'"
