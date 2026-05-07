@@ -48,6 +48,17 @@ public class AiFeatureTestServer {
             framework.addAtmosphereHandler("/ai/cache", new CacheTestHandler());
             framework.addAtmosphereHandler("/ai/routing", new RoutingTestHandler());
             framework.addAtmosphereHandler("/ai/budget", new BudgetTestHandler());
+            // Predictable-AI primitives — three framework-level capabilities
+            // that close gaps Bonér's "Herding LLMs" deck flagged for
+            // distributed-system reliability. Each handler exercises the full
+            // AiPipeline session-decorator stack so the e2e specs see the
+            // wire-level effect, not a unit-test stub.
+            framework.addAtmosphereHandler("/ai/budget-circuit-breaker",
+                    new BudgetCircuitBreakerTestHandler());
+            framework.addAtmosphereHandler("/ai/confidence-elicitation",
+                    new ConfidenceElicitationTestHandler());
+            framework.addAtmosphereHandler("/ai/passivation",
+                    new PassivationTestHandler());
             framework.addAtmosphereHandler("/ai/cache-coalescing", new CacheCoalescingTestHandler());
             framework.addAtmosphereHandler("/ai/cost-routing", new CostLatencyRoutingTestHandler());
             framework.addAtmosphereHandler("/ai/combined-cost-cache", new CombinedCostCacheTestHandler());

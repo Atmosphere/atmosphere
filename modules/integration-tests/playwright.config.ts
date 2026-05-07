@@ -107,6 +107,18 @@ export default defineConfig({
       testMatch: /ai-budget\.spec\.ts/,
     },
     {
+      name: 'ai-budget-circuit-breaker',
+      testMatch: /ai-budget-circuit-breaker\.spec\.ts/,
+    },
+    {
+      name: 'ai-confidence-elicitation',
+      testMatch: /ai-confidence-elicitation\.spec\.ts/,
+    },
+    {
+      name: 'ai-passivation',
+      testMatch: /ai-passivation\.spec\.ts/,
+    },
+    {
       name: 'ai-cache-coalescing',
       testMatch: /ai-cache-coalescing\.spec\.ts/,
     },
