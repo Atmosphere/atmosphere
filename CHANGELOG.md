@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - off-by-one in `modules/ai/README.md` § ToolLoopPolicy "the other six runtimes" → "the other seven runtimes". With Built-in and Koog handling `COMPLETE_WITHOUT_TOOLS` natively and 9 runtimes total, the count of "other" runtimes is 7, not 6. Surfaced by the new capability-matrix verification work.
 
+### Documentation
+
+- `atmosphere.github.io` capability claims aligned with the snapshot. Cross-validated against `.harness/capabilities.snapshot.json`; fixed `docs/.../reference/ai.md` TOOL_APPROVAL list (Embabel and SK were wrongly excluded), `docs/.../tutorial/26-foundation-primitives.md` gateway-consumer count ("seven of nine" → all nine — every runtime calls `admitThroughGateway`), added 5 missing capability rows (`BUDGET_ENFORCEMENT`, `CONFIDENCE_SCORES`, `PASSIVATION`, `MODEL_ENUMERATION`, `MULTI_AGENT_HANDOFF`) to `tutorial/11-ai-adapters.md`, and refreshed four pre-Koog/SK/AgentScope/Alibaba narrative enumerations to the current 9-runtime set. Website main: `13fe8c4`.
+
 ## [4.0.44] - 2026-05-08
 
 ### Added
