@@ -1,0 +1,79 @@
+# AI-Assisted Engineering — Drift Log
+
+Append-only record of every agent claim that diverged from ground truth (the
+code, the git history, or the runtime state). The diff-reviewable curve of
+hallucinations-over-time, framed as the impact metric Justin Reock's DX
+measurement framework (InfoQ, *AI-Assisted Engineering*, 2026-05) calls for —
+not utilization, not "% of code AI-authored," but **change failure rate by
+agent claim**.
+
+**Format per entry:**
+
+- **date** — when the drift was caught
+- **session** — what the agent was doing when the drift surfaced
+- **claim** — exactly what the agent stated
+- **truth** — what the code or repo state actually said
+- **slip path** — how the drift bypassed existing gates
+- **gate added** — the regression-class fix (validator, test, memory update,
+  prose grep). `none` is a legitimate value — not every drift admits an
+  automated gate, and writing `none` is honest record.
+
+The log is **append-only**. Don't edit older entries to correct or soften
+them; write a new entry that points back if the context changes.
+
+---
+
+## 2026-05-08 — Capability-matrix snapshot session
+
+The morning of building `.harness/capabilities.snapshot.json` and the
+companion validator surfaced eight distinct factual drifts and two
+behavioral anti-patterns. Root cause for the factual half: project memory
+files (`project_orchestration_primitives.md`, `project_quarkus_parity_gap.md`,
+`project_webtransport.md`, `phase_roadmap_blockers.md`) dated 2026-03-30 to
+2026-05-03 were quoted as fact without verifying against the post-4.0.44
+codebase. The 4.0.41 → 4.0.44 sprint shipped roughly two months of features
+in nine days; every project memory written before 4.0.44 was at risk and at
+least four were actively wrong.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 1 | Quarkus extension ships 1 `@BuildStep` | **14** in `AtmosphereProcessor.java` (`grep -c "@BuildStep"`) | Quoted `project_quarkus_parity_gap.md` (audit dated 2026-05-03, already 5 days stale at session time) without verifying against current source | Memory rewritten with verified count; this drift log added |
+| 2 | 6 framework runtimes | **9** — BuiltIn, SpringAi, LangChain4j, ADK, Embabel, Koog, AgentScope, SpringAiAlibaba, SemanticKernel | `project_orchestration_primitives.md` (2026-03-30) listed 6; missed AgentScope, Spring AI Alibaba, Semantic Kernel which landed in 4.0.43–4.0.44 | `.harness/capabilities.snapshot.json` + `CapabilitySnapshotTest` (modules/ai-test) + `scripts/validate-capability-claims.sh` (wired into pre-push Tier 1) |
+| 3 | `AiCapability` enum has ~17 entries | **20** — `BUDGET_ENFORCEMENT`, `CONFIDENCE_SCORES`, `PASSIVATION` shipped in 4.0.44 (same-day) | Same memory staleness | Same as #2; snapshot pins the enum count |
+| 4 | Approval Gates: PENDING | SHIPPED — `RequiresApproval`, `ApprovalStrategy`, `VirtualThreadApprovalStrategy`, `ApprovalRegistry`, `ToolApprovalPolicy` all on disk + `AdkToolBridgeApprovalTest` exercising the path | Memory dated 2026-03-30 listed feature as PENDING; did not `git grep` code before quoting | Memory rewritten with disk-verified state |
+| 5 | Long-Term Memory: PENDING | SHIPPED — `LongTermMemory`, `LongTermMemoryInterceptor`, `SemanticRecallInterceptor`, `InMemoryLongTermMemory` + `*Test.java` for each | Same as #4 | Same as #4 |
+| 6 | TOOL_APPROVAL on 5 runtimes (Built-in, Spring AI, LC4j, ADK, Koog); SK and Embabel "excluded" | **7 runtimes** — adds Embabel + SK; the actual exclusions are AgentScope + Spring AI Alibaba (no native tool-call dispatch loop) | Stale narrative in `atmosphere.github.io/.../reference/ai.md:498` predating Embabel and SK adopting TOOL_APPROVAL | Website prose corrected (`13fe8c4`); validator pattern `\bAll \d+ runtimes\b` does not catch enumerations like this — flagged as out-of-scope for the validator |
+| 7 | "the other **six** runtimes" lack native `COMPLETE_WITHOUT_TOOLS` | **seven** — 9 total minus Built-in + Koog (which handle it natively) = 7 | Off-by-one in `modules/ai/README.md` predating recent runtime additions | Prose fixed in same commit as snapshot infrastructure (`d22d18a7cd`); validator only catches `All N runtimes` pattern, not subset descriptors |
+| 8 | "**seven of nine** runtimes consume the gateway" with AgentScope + Alibaba listed as not-yet | **All 9** call `admitThroughGateway` (verified per-runtime via grep) | Stale narrative in `tutorial/26-foundation-primitives.md` predating gateway adoption on the two newer runtimes | Website prose corrected (`13fe8c4`); manual grep confirmed each runtime's call site |
+
+### Behavioral anti-patterns
+
+| # | Pattern | Cost | Gate added |
+|---|---|---|---|
+| 9 | "Did not push / Did not X / Did not Y" enumeration in reports as defensive shield masquerading as transparency | ChefFamille had to override with "push we are wasting time"; the `feedback_no_pr_direct_merge.md` "ask first" clause was the upstream cause | `feedback_no_did_not_listing.md` added; `feedback_no_pr_direct_merge.md` rewritten to remove the "ask first" friction when work is under explicit Go instruction |
+| 10 | `ScheduleWakeup` invoked as "ping me when Maven build finishes" | Wasted a wakeup slot; `feedback_no_misuse_schedulewakeup.md` already covered this exact misuse 1 day ago and was ignored | None — pre-existing rule applies; this is a repetition of a known failure mode. Recurrence to be revisited if it happens again |
+
+---
+
+## How to append a new entry
+
+1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /
+   `find` after spotting memory ↔ code disagreement).
+2. **Verify against current code first** — re-read the source, do not trust
+   memory files older than the most recent CHANGELOG bump.
+3. State the correction transparently in the conversation — quote the false
+   claim verbatim, quote the ground truth verbatim.
+4. Append an entry to this log in the current dated section. If today
+   doesn't have a section yet, start one with `## YYYY-MM-DD — <session>`.
+5. Add a regression-class gate where feasible (validator, JUnit test,
+   memory update, prose-grep). `none` is a legitimate gate value when no
+   automated check makes sense.
+6. Bundle log update + gate + prose fix in **a single commit** — that commit
+   is the review unit.
+
+The point of this log is not blame; it is **measurement**. The Reock data
+shows that orgs separating into "+20% AI productivity" vs. "−20% AI
+productivity" do so based on whether they have an instrumented feedback
+loop on AI claim quality. This log is Atmosphere's loop.
