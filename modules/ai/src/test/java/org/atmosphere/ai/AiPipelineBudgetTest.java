@@ -156,8 +156,11 @@ class AiPipelineBudgetTest {
         assertTrue(session.failed());
         var ex = assertInstanceOf(AiBudgetExceededException.class, session.failure());
         assertEquals(AiBudgetExceededException.Reason.WALL_CLOCK, ex.reason());
-        assertTrue(ex.observed() > ex.limit(),
-                "observed " + ex.observed() + " must exceed limit " + ex.limit());
+        // Greater-than-or-equal because the scheduled deadline task can fire
+        // exactly at the limit on a fast scheduler — observed == limit is a
+        // legitimate trip outcome, not a flake.
+        assertTrue(ex.observed() >= ex.limit(),
+                "observed " + ex.observed() + " must meet/exceed limit " + ex.limit());
     }
 
     @Test
