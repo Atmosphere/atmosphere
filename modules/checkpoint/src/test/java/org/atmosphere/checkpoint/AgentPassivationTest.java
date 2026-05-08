@@ -191,6 +191,44 @@ class AgentPassivationTest {
         assertTrue(caps.contains(AiCapability.PASSIVATION));
     }
 
+    /**
+     * Regression: when a structured-output agent is passivated, its
+     * {@code responseType} must round-trip through the snapshot. Earlier
+     * the snapshot captured {@code responseTypeName} but resume rebuilt
+     * the context using {@code base.responseType()}, so an agent resumed
+     * with a base context that lacks the type lost typed parsing despite
+     * the snapshot carrying the field.
+     */
+    @Test
+    void resumeRestoresResponseTypeFromSnapshot() {
+        var store = new InMemoryCheckpointStore();
+        var runtime = new RecordingRuntime();
+        // Passivate an agent whose context has a response type. We use
+        // String.class because it is guaranteed to be on every classpath.
+        var paused = new AgentExecutionContext(
+                "structured prompt", "system", "test-model",
+                null, "session-1", null, null,
+                List.of(), null, null, List.of(),
+                new HashMap<>(), List.of(), String.class, null);
+        var id = AgentPassivation.passivate(runtime, paused, store, "needs human review");
+
+        // Base context lacks the response type — earlier this would lose
+        // typed parsing on resume; with the fix the snapshot's type wins.
+        var freshBase = new AgentExecutionContext(
+                "msg", "system", "test-model",
+                null, "session-1", null, null,
+                List.of(), null, null, List.of(),
+                new HashMap<>(), List.of(), /* responseType */ null, null);
+
+        AgentPassivation.resume(runtime, store, id, "approved",
+                freshBase, new NoopSession());
+
+        var resumed = runtime.lastContext.get();
+        assertNotNull(resumed);
+        assertEquals(String.class, resumed.responseType(),
+                "snapshot responseType must override the (null) base responseType on resume");
+    }
+
     @Test
     void nullArgsRejected() {
         var store = new InMemoryCheckpointStore();

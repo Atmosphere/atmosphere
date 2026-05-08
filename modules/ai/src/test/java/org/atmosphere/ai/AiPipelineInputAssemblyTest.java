@@ -225,4 +225,35 @@ class AiPipelineInputAssemblyTest {
         var system = metrics.stage(InputAssemblyTelemetry.STAGE_SYSTEM);
         assertEquals("system".length(), system.chars());
     }
+
+    /**
+     * Regression: when a guardrail mutates the system prompt via
+     * {@link AiGuardrail.GuardrailResult.Modify}, the per-stage telemetry
+     * must reflect the post-mutation prompt — earlier the snapshot was
+     * captured before guardrails ran, so the stage was under- or
+     * over-reported relative to what the runtime actually consumed.
+     */
+    @Test
+    void systemStageReflectsGuardrailMutationOfSystemPrompt() {
+        var runtime = new RecordingRuntime();
+        var metrics = new RecordingMetrics();
+        // Guardrail rewrites the system prompt to a longer string
+        AiGuardrail systemRewrite = new AiGuardrail() {
+            @Override
+            public AiGuardrail.GuardrailResult inspectRequest(AiRequest request) {
+                return new AiGuardrail.GuardrailResult.Modify(
+                        request.withSystemPrompt(request.systemPrompt()
+                                + " — extended by guardrail"));
+            }
+        };
+        var pipeline = new AiPipeline(runtime, "base", "gpt-4",
+                null, null, List.of(systemRewrite), List.of(), metrics);
+
+        pipeline.execute("client-1", "hi", new CapturingSession());
+
+        var system = metrics.stage(InputAssemblyTelemetry.STAGE_SYSTEM);
+        var expected = "base — extended by guardrail".length();
+        assertEquals(expected, system.chars(),
+                "system stage must reflect the guardrail-mutated prompt, not the pre-guardrail base");
+    }
 }

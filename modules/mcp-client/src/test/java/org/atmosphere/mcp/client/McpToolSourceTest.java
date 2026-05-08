@@ -16,17 +16,21 @@
 package org.atmosphere.mcp.client;
 
 import io.modelcontextprotocol.client.McpSyncClient;
+import io.modelcontextprotocol.spec.McpClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Mono;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -207,6 +211,49 @@ class McpToolSourceTest {
                 "toDefinition", McpSchema.Tool.class, McpSyncClient.class, String.class, McpToolMetrics.class);
         translate.setAccessible(true);
         return (org.atmosphere.ai.tool.ToolDefinition) translate.invoke(null, tool, client, label, metrics);
+    }
+
+    /**
+     * Regression: when {@code initialize()} throws, the underlying client
+     * (and therefore its transport) must be closed. Earlier the failure
+     * propagated without closing, leaking the transport for the JVM
+     * lifetime (subprocess pipes, sockets, HTTP connection pool).
+     *
+     * <p>We use a real {@link McpClientTransport} stub whose
+     * {@code connect()} returns {@link Mono#error} so {@code initialize()}
+     * fails. The transport's {@code close()} (called transitively by
+     * {@code closeGracefully}) flips a flag we assert on.</p>
+     */
+    @Test
+    void connectClosesTransportOnInitializeFailure() {
+        var closed = new AtomicBoolean(false);
+        McpClientTransport transport = new McpClientTransport() {
+            @Override
+            public Mono<Void> connect(java.util.function.Function<
+                    Mono<McpSchema.JSONRPCMessage>,
+                    Mono<McpSchema.JSONRPCMessage>> handler) {
+                return Mono.error(new IllegalStateException("transport refused"));
+            }
+            @Override
+            public Mono<Void> closeGracefully() {
+                closed.set(true);
+                return Mono.empty();
+            }
+            @Override
+            public Mono<Void> sendMessage(McpSchema.JSONRPCMessage message) {
+                return Mono.error(new IllegalStateException("transport refused"));
+            }
+            @Override
+            public <T> T unmarshalFrom(Object data, io.modelcontextprotocol.json.TypeRef<T> typeRef) {
+                throw new UnsupportedOperationException();
+            }
+        };
+
+        assertThrows(RuntimeException.class,
+                () -> McpToolSource.connect(transport, "leak-test"));
+        assertTrue(closed.get(),
+                "transport.closeGracefully() must be called when initialize() throws — "
+                        + "ownership leak otherwise (Correctness Invariant #1)");
     }
 
     @Test

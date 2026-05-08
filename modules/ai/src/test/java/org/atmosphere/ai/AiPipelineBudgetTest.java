@@ -229,6 +229,43 @@ class AiPipelineBudgetTest {
         assertInstanceOf(AiBudgetExceededException.class, session.failure());
     }
 
+    /**
+     * Regression: wall-clock budget must trip even when the runtime hangs
+     * without ever calling back into the session. Earlier the wall-clock
+     * cap was sampled lazily at session-method boundaries, so a provider
+     * that blocked silently after dispatch never fired the deadline. Now
+     * the deadline is scheduled at construction and trips independently.
+     */
+    @Test
+    void wallClockBudgetTripsWhenRuntimeMakesNoSessionCallbacks() throws Exception {
+        var runtime = streamingRuntime(session -> {
+            // Simulate a hung provider: block well past the wall-clock deadline
+            // without any session.send / session.complete / session.usage calls.
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            // Even after the sleep, only call complete (no send/usage in between)
+            // — the scheduled task should already have tripped before this lands.
+            session.complete();
+        });
+        var session = new CollectingSession("budget-no-callbacks");
+
+        long start = System.nanoTime();
+        newPipeline(runtime).execute("c1", "go", session,
+                Map.of(AiBudget.METADATA_KEY, AiBudget.ofWallClock(Duration.ofMillis(50))));
+        long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+
+        assertTrue(session.failed(),
+                "Wall-clock budget must trip even with no session callbacks. "
+                        + "Elapsed " + elapsedMs + "ms");
+        var ex = assertInstanceOf(AiBudgetExceededException.class, session.failure());
+        assertEquals(AiBudgetExceededException.Reason.WALL_CLOCK, ex.reason());
+        assertTrue(ex.observed() >= ex.limit(),
+                "observed " + ex.observed() + " must meet/exceed limit " + ex.limit());
+    }
+
     @Test
     void aiBudgetFromMetadataReturnsNullWhenAbsent() {
         assertNull(AiBudget.from((Map<String, Object>) null));

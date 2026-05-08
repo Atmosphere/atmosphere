@@ -375,17 +375,6 @@ public class AiPipeline {
                 null, clientId, null, clientId,
                 java.util.Map.copyOf(baseMetadata), history);
 
-        // Snapshot of the system prompt as the developer (and ScopePolicy)
-        // shaped it, before any pipeline-driven augmentation. The
-        // structured-output and confidence branches below append schema /
-        // cue text onto the prompt; we capture each augmentation separately
-        // so InputAssemblyTelemetry can attribute the input bill to the
-        // stage that introduced it instead of lumping everything into
-        // "system".
-        var baseSystemPrompt = request.systemPrompt();
-        String structuredSchemaText = null;
-        String confidenceCueText = null;
-
         // Attach available tools
         if (toolRegistry != null && !toolRegistry.allTools().isEmpty()) {
             request = request.withTools(toolRegistry.allTools());
@@ -479,8 +468,10 @@ public class AiPipeline {
         // budget in request metadata wins over the pipeline default; both flow
         // through {@code baseMetadata} above.
         var requestBudget = AiBudget.from(baseMetadata);
+        BudgetCapturingSession budgetSession = null;
         if (requestBudget != null && requestBudget.enforced()) {
-            target = new BudgetCapturingSession(target, requestBudget);
+            budgetSession = new BudgetCapturingSession(target, requestBudget);
+            target = budgetSession;
         }
         // Post-response evaluation: guardrails + policies (the latter wrapped so
         // their post-response path flows through the existing capturing session).
@@ -488,6 +479,19 @@ public class AiPipeline {
         if (!postResponseChecks.isEmpty()) {
             target = new GuardrailCapturingSession(target, postResponseChecks);
         }
+
+        // Snapshot of the system prompt as the developer (ScopePolicy +
+        // guardrails + governance policies) shaped it, captured AFTER all
+        // request-mutating evaluations have run but BEFORE any pipeline-driven
+        // augmentation. The structured-output and confidence branches below
+        // append schema / cue text onto the prompt; we capture each
+        // augmentation separately so InputAssemblyTelemetry can attribute the
+        // input bill to the stage that introduced it instead of lumping
+        // everything into "system" (or worse, missing guardrail / policy
+        // mutations entirely — which a snapshot taken before the loops would).
+        var baseSystemPrompt = request.systemPrompt();
+        String structuredSchemaText = null;
+        String confidenceCueText = null;
 
         // Wrap in StructuredOutputCapturingSession for typed response parsing
         var effectiveResponseType = responseType != null ? responseType : request.responseType();
@@ -636,6 +640,12 @@ public class AiPipeline {
             // disconnect to drive cancel. Direct callers can now hold the
             // handle externally if they want it.
             var handle = runtime.executeWithHandle(context, effectiveTarget);
+            // Bind the budget's cancel hook to the runtime handle so a
+            // wall-clock or token trip cancels the in-flight runtime call
+            // instead of leaving the provider hung after the error frame.
+            if (budgetSession != null) {
+                budgetSession.setOnTrip(handle::cancel);
+            }
             try {
                 handle.whenDone().join();
             } catch (java.util.concurrent.CompletionException ce) {

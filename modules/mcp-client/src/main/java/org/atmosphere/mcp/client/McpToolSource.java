@@ -145,19 +145,35 @@ public final class McpToolSource implements AutoCloseable {
     public static McpToolSource connect(McpClientTransport transport, String label) {
         Objects.requireNonNull(transport, "transport");
         var client = McpClient.sync(transport).build();
-        client.initialize();
-        var listResult = client.listTools();
-        var tools = listResult == null ? List.<McpSchema.Tool>of() : listResult.tools();
-        var defs = new ArrayList<ToolDefinition>(tools.size());
-        Map<String, McpToolMetrics> perTool = new ConcurrentHashMap<>();
-        for (var tool : tools) {
-            var toolMetrics = new McpToolMetrics();
-            perTool.put(tool.name(), toolMetrics);
-            defs.add(toDefinition(tool, client, label, toolMetrics));
+        // Ownership: this method created the client, so the transport is
+        // ours to close on any failure path until the constructed
+        // McpToolSource takes over ownership on the success branch
+        // (Correctness Invariant #1). Without this guard, a failure inside
+        // initialize() or listTools() leaks the underlying transport
+        // (subprocess pipes, sockets, HTTP connection pool) for the lifetime
+        // of the JVM.
+        try {
+            client.initialize();
+            var listResult = client.listTools();
+            var tools = listResult == null ? List.<McpSchema.Tool>of() : listResult.tools();
+            var defs = new ArrayList<ToolDefinition>(tools.size());
+            Map<String, McpToolMetrics> perTool = new ConcurrentHashMap<>();
+            for (var tool : tools) {
+                var toolMetrics = new McpToolMetrics();
+                perTool.put(tool.name(), toolMetrics);
+                defs.add(toDefinition(tool, client, label, toolMetrics));
+            }
+            LOG.info("McpToolSource connected to {} — loaded {} tool(s)", label, defs.size());
+            return new McpToolSource(client, Collections.unmodifiableList(defs), label,
+                    Collections.unmodifiableMap(perTool));
+        } catch (RuntimeException re) {
+            try {
+                client.closeGracefully();
+            } catch (RuntimeException closeFailure) {
+                re.addSuppressed(closeFailure);
+            }
+            throw re;
         }
-        LOG.info("McpToolSource connected to {} — loaded {} tool(s)", label, defs.size());
-        return new McpToolSource(client, Collections.unmodifiableList(defs), label,
-                Collections.unmodifiableMap(perTool));
     }
 
     /**

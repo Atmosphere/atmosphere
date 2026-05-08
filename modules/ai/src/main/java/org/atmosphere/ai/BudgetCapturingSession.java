@@ -21,9 +21,14 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Per-call budget enforcement decorator. Sits in the
@@ -51,6 +56,19 @@ class BudgetCapturingSession extends DelegatingStreamingSession {
 
     private static final Logger logger = LoggerFactory.getLogger(BudgetCapturingSession.class);
 
+    /**
+     * Process-wide single-thread scheduler for wall-clock deadline tasks.
+     * Daemon-threaded so it never blocks JVM shutdown. Each wall-clock-bounded
+     * call schedules exactly one task at session construction and cancels it
+     * when the session terminates (success, error, or token-limit trip).
+     */
+    private static final ScheduledExecutorService WALL_CLOCK_SCHEDULER =
+            Executors.newSingleThreadScheduledExecutor(r -> {
+                var t = new Thread(r, "atmosphere-ai-budget-wall-clock");
+                t.setDaemon(true);
+                return t;
+            });
+
     private final AiBudget budget;
     private final Instant startedAt;
     private final AtomicLong inputTokens = new AtomicLong();
@@ -58,6 +76,24 @@ class BudgetCapturingSession extends DelegatingStreamingSession {
     private final AtomicLong totalTokens = new AtomicLong();
     private final AtomicInteger steps = new AtomicInteger();
     private final AtomicBoolean tripped = new AtomicBoolean();
+
+    /**
+     * Cancel hook supplied by {@link AiPipeline} after the runtime handle is
+     * bound. Invoked on a wall-clock or token trip so a hung provider's
+     * runtime handle is cancelled rather than just left dangling.
+     * {@code null} until {@link #setOnTrip(Runnable)} is called; if the
+     * budget trips before setup completes, the cancel hook is skipped (the
+     * trip still routes an error frame, which is the minimum contract).
+     */
+    private final AtomicReference<Runnable> onTrip = new AtomicReference<>();
+
+    /**
+     * Active wall-clock deadline task. {@code null} when the budget is not
+     * wall-clock-bounded. Cancelled on terminal session methods so the
+     * scheduler thread is freed promptly even when the call finishes well
+     * before the deadline.
+     */
+    private final ScheduledFuture<?> wallClockTask;
 
     BudgetCapturingSession(StreamingSession delegate, AiBudget budget) {
         super(delegate);
@@ -68,6 +104,41 @@ class BudgetCapturingSession extends DelegatingStreamingSession {
                             + "Skip the decorator entirely instead of installing a no-op.");
         }
         this.startedAt = Instant.now();
+
+        // Schedule the wall-clock deadline up front. Without this, a provider
+        // that hangs silently after dispatch would never call back into the
+        // session, the lazy boundary sampling would never fire, and the
+        // deadline would not be enforced — turning the wall-clock budget into
+        // a soft suggestion rather than a hard cap.
+        var wallClock = budget.maxWallClock();
+        if (wallClock != null && !wallClock.isZero() && !wallClock.isNegative()) {
+            this.wallClockTask = WALL_CLOCK_SCHEDULER.schedule(
+                    () -> {
+                        var elapsed = Duration.between(startedAt, Instant.now()).toMillis();
+                        trip(new AiBudgetExceededException(
+                                AiBudgetExceededException.Reason.WALL_CLOCK,
+                                elapsed, wallClock.toMillis()));
+                    },
+                    wallClock.toMillis(), TimeUnit.MILLISECONDS);
+        } else {
+            this.wallClockTask = null;
+        }
+    }
+
+    /**
+     * Bind a cancel hook (typically {@code handle::cancel}) so a budget trip
+     * cancels the runtime handle in addition to routing an error frame.
+     * Invoked by {@link AiPipeline} once {@code runtime.executeWithHandle}
+     * returns. Idempotent: only the first non-null hook is retained.
+     */
+    void setOnTrip(Runnable hook) {
+        if (hook != null) {
+            onTrip.compareAndSet(null, hook);
+            // If we already tripped before the hook was bound, fire it now.
+            if (tripped.get()) {
+                hook.run();
+            }
+        }
     }
 
     @Override
@@ -157,6 +228,7 @@ class BudgetCapturingSession extends DelegatingStreamingSession {
 
     @Override
     public void complete() {
+        cancelWallClockTask();
         if (tripped.get()) {
             return;
         }
@@ -165,6 +237,7 @@ class BudgetCapturingSession extends DelegatingStreamingSession {
 
     @Override
     public void complete(String summary) {
+        cancelWallClockTask();
         if (tripped.get()) {
             return;
         }
@@ -173,6 +246,7 @@ class BudgetCapturingSession extends DelegatingStreamingSession {
 
     @Override
     public void error(Throwable t) {
+        cancelWallClockTask();
         // If we tripped, the error has already been routed to the delegate —
         // swallowing this second error keeps the wire protocol's "one
         // terminal frame" invariant intact. We log at TRACE so the
@@ -185,6 +259,12 @@ class BudgetCapturingSession extends DelegatingStreamingSession {
             return;
         }
         delegate.error(t);
+    }
+
+    private void cancelWallClockTask() {
+        if (wallClockTask != null) {
+            wallClockTask.cancel(false);
+        }
     }
 
     /**
@@ -210,13 +290,25 @@ class BudgetCapturingSession extends DelegatingStreamingSession {
         return false;
     }
 
-    /** Atomically flip the tripped flag and route the cause through
-     * {@link StreamingSession#error(Throwable)} exactly once. */
+    /** Atomically flip the tripped flag, route the cause through
+     * {@link StreamingSession#error(Throwable)} exactly once, fire the
+     * pipeline-supplied cancel hook (so the runtime handle is cancelled,
+     * not just the wire) and cancel the wall-clock task so its thread is
+     * freed. */
     private void trip(AiBudgetExceededException cause) {
         if (tripped.compareAndSet(false, true)) {
             logger.warn("AI budget exceeded ({}): observed={} limit={} — aborting stream",
                     cause.reason(), cause.observed(), cause.limit());
             delegate.error(cause);
+            var hook = onTrip.get();
+            if (hook != null) {
+                try {
+                    hook.run();
+                } catch (RuntimeException re) {
+                    logger.warn("BudgetCapturingSession onTrip hook threw — ignoring", re);
+                }
+            }
+            cancelWallClockTask();
         }
     }
 }

@@ -19,6 +19,8 @@ import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AgentSnapshot;
 import org.atmosphere.ai.StreamingSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -51,6 +53,8 @@ import java.util.Objects;
  * threads {@code context.history()} into the outgoing model request).</p>
  */
 public final class AgentPassivation {
+
+    private static final Logger logger = LoggerFactory.getLogger(AgentPassivation.class);
 
     private AgentPassivation() { /* static helper */ }
 
@@ -144,7 +148,7 @@ public final class AgentPassivation {
                 base.contextProviders(),
                 mergeMetadata(base.metadata(), snapshot.metadata()),
                 snapshot.history(),
-                base.responseType(),
+                resolveResponseType(snapshot, base),
                 base.approvalStrategy(),
                 base.listeners(),
                 base.parts(),
@@ -170,6 +174,37 @@ public final class AgentPassivation {
                 .orElseThrow(() -> new IllegalStateException(
                         "Passivated checkpoint not found: " + checkpointId))
                 .state();
+    }
+
+    /**
+     * Restore the structured-output response type from the snapshot when
+     * possible. {@link AgentSnapshot} stores the type as a fully-qualified
+     * class name (the actual {@code Class<?>} doesn't survive the durable
+     * round-trip), so we resolve it back via the thread-context classloader.
+     * If the class is not on the resumer's classpath, fall back to
+     * {@code base.responseType()} and log a single WARN — silently dropping
+     * the typed parser for a structured-output agent would surprise the
+     * caller, who is paying the snapshot bytes for the type metadata.
+     */
+    private static Class<?> resolveResponseType(AgentSnapshot snapshot,
+                                                AgentExecutionContext base) {
+        var name = snapshot.responseTypeName();
+        if (name == null || name.isBlank()) {
+            return base.responseType();
+        }
+        try {
+            var loader = Thread.currentThread().getContextClassLoader();
+            if (loader == null) {
+                loader = AgentPassivation.class.getClassLoader();
+            }
+            return Class.forName(name, false, loader);
+        } catch (ClassNotFoundException | LinkageError ex) {
+            logger.warn("Passivated response type '{}' not loadable on resumer classpath; "
+                    + "falling back to base.responseType() (which may be null). "
+                    + "Structured-output agents resumed in an environment that lacks the "
+                    + "type will lose typed parsing.", name, ex);
+            return base.responseType();
+        }
     }
 
     private static Map<String, Object> mergeMetadata(Map<String, Object> base,
