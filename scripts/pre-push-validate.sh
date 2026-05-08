@@ -148,6 +148,14 @@ if [ "$DRY_RUN" = false ]; then
         exit 1
     fi
     echo ""
+
+    echo "--- Tier 1: drift-log structure ---"
+    if ! ./scripts/validate-drift-log.sh; then
+        echo ""
+        echo "Drift-log structural violation — fix .harness/drift-log.md before pushing."
+        exit 1
+    fi
+    echo ""
 fi
 
 # ---------------------------------------------------------------------------
