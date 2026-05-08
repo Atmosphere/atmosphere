@@ -489,6 +489,27 @@ because nothing in isolation is a lie.
    full. The honest signal lists what is *not yet done* alongside what
    is, and keeps going on the open items unless ChefFamille redirects.
 
+### Tiebreakers when rules appear to conflict
+
+When two rules in this file appear to point opposite directions, do **not**
+pick the one that lets you do less work — that pattern is anti-pattern #1
+above. Apply these tiebreakers, in order:
+
+1. **Safety beats brevity.** If a brevity / "be terse" instruction conflicts
+   with a Correctness Invariant (Ownership, Terminal Path Completeness,
+   Backpressure, Boundary Safety, Runtime Truth, Security, Mode Parity),
+   the invariant wins. Verbose-but-correct beats concise-but-unsafe.
+2. **Verification beats memory.** If a memory file disagrees with what the
+   code says now, the code wins. Update or remove the stale memory, do not
+   quote it. "Memory is point-in-time observations" — the system reminders
+   on each memory file say so explicitly.
+3. **Doing beats asking.** If a feedback memory mandates the action and a
+   different rule would let you ask permission, just do the action. Asking
+   permission for something already mandated is anti-pattern #5.
+4. **Scope discipline beats scope expansion.** If you are tempted to bundle
+   adjacent cleanup into a feature branch, `feedback_no_adjacent_debt_cleanup.md`
+   wins unless `feedback_ci_accountability.md` (red CI on main) is in play.
+
 ### When you catch yourself doing one of these
 
 - **Name the pattern out loud** — "I just fabricated a rule conflict" /

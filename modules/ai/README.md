@@ -46,7 +46,18 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 | `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT (wall-clock only), CONFIDENCE_SCORES, PASSIVATION *(see runtime caveats below)* |
 | `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
 
-Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build.
+Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build. The aggregate counts ("9 runtimes") and the per-row capability lists are additionally pinned against `.harness/capabilities.snapshot.json` by `CapabilitySnapshotTest` and `scripts/validate-capability-claims.sh` (run from pre-push), so prose claims about the matrix break the build alongside code drift.
+
+#### What capability flags do *not* claim
+
+Capability flags advertise a coarse contract: "this runtime cooperates with the named pipeline feature." They deliberately do **not** assert:
+
+- **Implementation parity across runtimes.** Two runtimes that both declare `TOOL_CALLING` may differ on tool-call timeout handling, parallel-tool-call dispatch, max iteration default, and partial-result behaviour on failure. The flag covers the SPI contract, not byte-for-byte behavioural identity.
+- **Limit numbers.** `BUDGET_ENFORCEMENT` (wall-clock-only on Spring AI Alibaba) and `PER_REQUEST_RETRY` (only the Built-in runtime threads the policy into its HTTP client; framework runtimes inherit native retry layers) are the canonical examples — the per-row footnotes above carry the specifics.
+- **Provider-side guarantees.** `PROMPT_CACHING` means the runtime forwards Anthropic / OpenAI / Gemini cache hints; it does not promise the upstream provider honored them.
+- **Production fitness for any specific workload.** A capability flag is necessary but not sufficient — sample apps, integration tests, and your own load tests are the only signals for fitness.
+
+If a per-runtime cell needs a caveat, document it in the row footnote (Spring AI Alibaba already does for buffered streaming and wall-clock-only budgets) rather than weakening the capability semantics across all rows.
 
 **Spring AI Alibaba runtime — Spring Boot 3 only today.** Spring AI Alibaba `1.1.2.0` is compiled against Spring AI `1.1.2` and `spring-ai-alibaba-graph-core-1.1.2.0` hardcodes references to Spring AI 1.1.2-only types (e.g. `org.springframework.ai.deepseek.DeepSeekAssistantMessage`), so the runtime requires Spring AI 1.1.2 on the classpath. Spring AI 1.1.2 in turn requires Spring Boot 3 (it references the SB3-era FQN `org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration`; Spring Boot 4 has the same class but at the renamed FQN `org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration`). Net result: `atmosphere-spring-ai-alibaba` runs end-to-end on Spring Boot 3 today (verified via chrome-devtools through the bundled Console against Ollama, qwen2.5:0.5b round-trip succeeded); a Spring Boot 4 path will become possible once Alibaba publishes a Spring AI 2.x-aligned `spring-ai-alibaba-agent-framework`. Forcing Spring AI 2.0.0-M2 across the classpath today fails at `ReactAgent` construction with `NoClassDefFoundError`. AgentScope (`atmosphere-agentscope`) is unaffected — it builds its OpenAI-compatible client through `AiConfig` directly and is validated end-to-end on Spring Boot 4.
 
@@ -281,7 +292,7 @@ result is a hard cap.
 
 `COMPLETE_WITHOUT_TOOLS` ("stop tool calling but keep running, complete
 with whatever text you have") can only be synthesized from inside the
-tool loop. Built-in and Koog do this natively; on the other six runtimes
+tool loop. Built-in and Koog do this natively; on the other seven runtimes
 the upstream's own default cap takes over and the policy serves as a
 hint. Use `ToolLoopPolicy.strict(N)` for safety-critical hard caps (works
 everywhere); reserve `ToolLoopPolicy.maxIterations(N)` for runtimes that

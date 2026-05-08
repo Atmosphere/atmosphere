@@ -140,6 +140,14 @@ if [ "$DRY_RUN" = false ]; then
         exit 1
     fi
     echo ""
+
+    echo "--- Tier 1: capability snapshot claims ---"
+    if ! ./scripts/validate-capability-claims.sh; then
+        echo ""
+        echo "Capability snapshot drift — fix README counts or regenerate the snapshot."
+        exit 1
+    fi
+    echo ""
 fi
 
 # ---------------------------------------------------------------------------
