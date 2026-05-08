@@ -213,4 +213,45 @@ public class MicrometerAiMetricsTest {
         assertEquals(1, summary.count());
         assertEquals(0.05, summary.totalAmount(), 0.001);
     }
+
+    @Test
+    public void testInputAssemblyEmitsTokensAndCharsTaggedByStage() {
+        metrics.recordInputAssembly("gpt-4", InputAssemblyTelemetry.STAGE_SYSTEM, 25, 100);
+        metrics.recordInputAssembly("gpt-4", InputAssemblyTelemetry.STAGE_TOOL_SCHEMA, 200, 800);
+        // Two consecutive turns should accumulate on the same stage tag
+        metrics.recordInputAssembly("gpt-4", InputAssemblyTelemetry.STAGE_SYSTEM, 25, 100);
+
+        var systemTokens = registry.find("atmosphere.ai.input.tokens")
+                .tag("model", "gpt-4")
+                .tag("stage", InputAssemblyTelemetry.STAGE_SYSTEM)
+                .tag("provider", "spring-ai")
+                .counter();
+        assertNotNull(systemTokens, "tokens counter for system stage missing");
+        assertEquals(50.0, systemTokens.count(),
+                "two turns of 25 tokens should accumulate to 50");
+
+        var systemChars = registry.find("atmosphere.ai.input.chars")
+                .tag("model", "gpt-4")
+                .tag("stage", InputAssemblyTelemetry.STAGE_SYSTEM)
+                .counter();
+        assertNotNull(systemChars);
+        assertEquals(200.0, systemChars.count());
+
+        var toolTokens = registry.find("atmosphere.ai.input.tokens")
+                .tag("stage", InputAssemblyTelemetry.STAGE_TOOL_SCHEMA)
+                .counter();
+        assertNotNull(toolTokens);
+        assertEquals(200.0, toolTokens.count());
+    }
+
+    @Test
+    public void testInputAssemblyTagsUnknownStageWhenNullProvided() {
+        metrics.recordInputAssembly("gpt-4", null, 5, 20);
+
+        var counter = registry.find("atmosphere.ai.input.tokens")
+                .tag("stage", "unknown")
+                .counter();
+        assertNotNull(counter);
+        assertEquals(5.0, counter.count());
+    }
 }

@@ -479,6 +479,40 @@ public class AiStreamingSessionTest {
         verify(delegate).sendContent(file);
     }
 
+    @Test
+    public void testInputAssemblyEmittedOnWebsocketPath() {
+        var metricsRecorder = new RecordingMetrics();
+        var aiSupport = new AgentRuntime() {
+            @Override public String name() { return "test"; }
+            @Override public boolean isAvailable() { return true; }
+            @Override public int priority() { return 0; }
+            @Override public void configure(AiConfig.LlmSettings settings) { }
+            @Override
+            public void execute(AgentExecutionContext context, StreamingSession session) {
+                session.send("ok");
+                session.complete();
+            }
+        };
+
+        var session = new AiStreamingSession(delegate, aiSupport,
+                "you are concise", "test-model", List.of(), resource, null,
+                null, List.of(), List.of(), metricsRecorder, null);
+
+        session.stream("hello");
+
+        // Mode parity (Invariant #7): the @AiEndpoint websocket path emits
+        // the same per-stage breakdown as AiPipeline. System and user_message
+        // are always present; tool/scrollback/structured/confidence stages
+        // only appear when the corresponding pipeline feature was used.
+        var stages = metricsRecorder.assemblyStages;
+        assertTrue(stages.contains(InputAssemblyTelemetry.STAGE_SYSTEM),
+                "system stage missing: " + stages);
+        assertTrue(stages.contains(InputAssemblyTelemetry.STAGE_USER_MESSAGE),
+                "user_message stage missing: " + stages);
+        assertEquals("test-model", metricsRecorder.assemblyModel,
+                "assembly entries should carry the runtime model label");
+    }
+
     static class RecordingMetrics implements AiMetrics {
         boolean streamingTextUsageRecorded;
         boolean latencyRecorded;
@@ -487,6 +521,8 @@ public class AiStreamingSessionTest {
         String errorModel;
         int promptStreamingTexts;
         int completionStreamingTexts;
+        final List<String> assemblyStages = new ArrayList<>();
+        String assemblyModel;
 
         @Override
         public void recordStreamingTextUsage(String model, int promptStreamingTexts, int completionStreamingTexts) {
@@ -511,6 +547,13 @@ public class AiStreamingSessionTest {
         public void recordError(String model, String errorType) {
             this.errorRecorded = true;
             this.errorModel = model;
+        }
+
+        @Override
+        public void recordInputAssembly(String model, String stage,
+                                        int approximateTokens, int approximateChars) {
+            this.assemblyStages.add(stage);
+            this.assemblyModel = model;
         }
     }
 

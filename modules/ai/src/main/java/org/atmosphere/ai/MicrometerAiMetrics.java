@@ -36,6 +36,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  *   <li>{@code atmosphere.ai.prompt.duration} &mdash; time from prompt to first streaming text</li>
  *   <li>{@code atmosphere.ai.response.duration} &mdash; full response wall-clock time</li>
  *   <li>{@code atmosphere.ai.active_sessions} &mdash; gauge of currently active streaming sessions</li>
+ *   <li>{@code atmosphere.ai.input.tokens} &mdash; per-stage approximate input tokens, tagged by {@code stage}
+ *       (system / tool_schema / structured_output_schema / confidence_cue / scrollback / user_message)</li>
+ *   <li>{@code atmosphere.ai.input.chars} &mdash; per-stage exact character count, same tagging</li>
  * </ul>
  *
  * <p>All metrics are tagged with {@code model} and {@code provider}. Because
@@ -103,6 +106,14 @@ public final class MicrometerAiMetrics implements AiMetrics {
     public void recordError(String model, String errorType) {
         var tags = tags(model).and("error_type", errorType);
         counter("atmosphere.ai.errors.total", tags).increment();
+    }
+
+    @Override
+    public void recordInputAssembly(String model, String stage,
+                                    int approximateTokens, int approximateChars) {
+        var tags = tags(model).and("stage", stage != null ? stage : "unknown");
+        counter("atmosphere.ai.input.tokens", tags).increment(approximateTokens);
+        counter("atmosphere.ai.input.chars", tags).increment(approximateChars);
     }
 
     @Override

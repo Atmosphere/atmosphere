@@ -375,6 +375,17 @@ public class AiPipeline {
                 null, clientId, null, clientId,
                 java.util.Map.copyOf(baseMetadata), history);
 
+        // Snapshot of the system prompt as the developer (and ScopePolicy)
+        // shaped it, before any pipeline-driven augmentation. The
+        // structured-output and confidence branches below append schema /
+        // cue text onto the prompt; we capture each augmentation separately
+        // so InputAssemblyTelemetry can attribute the input bill to the
+        // stage that introduced it instead of lumping everything into
+        // "system".
+        var baseSystemPrompt = request.systemPrompt();
+        String structuredSchemaText = null;
+        String confidenceCueText = null;
+
         // Attach available tools
         if (toolRegistry != null && !toolRegistry.allTools().isEmpty()) {
             request = request.withTools(toolRegistry.allTools());
@@ -483,8 +494,9 @@ public class AiPipeline {
         if (effectiveResponseType != null && effectiveResponseType != Void.class) {
             var parser = StructuredOutputParser.resolve();
             target = new StructuredOutputCapturingSession(target, parser, effectiveResponseType);
+            structuredSchemaText = parser.schemaInstructions(effectiveResponseType);
             request = request.withSystemPrompt(
-                    request.systemPrompt() + "\n\n" + parser.schemaInstructions(effectiveResponseType));
+                    request.systemPrompt() + "\n\n" + structuredSchemaText);
         }
 
         // Confidence elicitation — model-reported-field path. Skipped when
@@ -498,8 +510,9 @@ public class AiPipeline {
         if (requestElicitation != null
                 && (effectiveResponseType == null || effectiveResponseType == Void.class)) {
             target = new ConfidenceCapturingSession(target, requestElicitation);
+            confidenceCueText = requestElicitation.effectiveCue();
             request = request.withSystemPrompt(
-                    request.systemPrompt() + "\n\n" + requestElicitation.effectiveCue());
+                    request.systemPrompt() + "\n\n" + confidenceCueText);
         }
 
         // Build execution context from the (potentially guardrail-modified) request
@@ -604,6 +617,14 @@ public class AiPipeline {
                             + "hasStructured={} hasRag={} hasGuardrails={}",
                     hasTools, registryHasTools, hasStructured, hasRag, hasGuardrails);
         }
+
+        // Per-stage input breakdown — only emitted on the path that actually
+        // dispatches to the runtime (the cache-hit branch returned above).
+        // Cache misses through CachingStreamingSession DO reach the runtime,
+        // so the breakdown is correctly attributed there.
+        InputAssemblyTelemetry.emit(metrics, request.model(),
+                baseSystemPrompt, structuredSchemaText, confidenceCueText,
+                tools, history, request.message());
 
         try {
             // executeWithHandle parity with AiStreamingSession: runtimes that

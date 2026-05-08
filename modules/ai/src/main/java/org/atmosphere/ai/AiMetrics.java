@@ -102,6 +102,35 @@ public interface AiMetrics {
      */
     default void sessionEnded(String model) { }
 
+    /**
+     * Report the per-stage breakdown of input the pipeline assembled before
+     * dispatching the turn to the runtime. Emitted once per stage per turn,
+     * just before the runtime call. Stage names are the constants in
+     * {@link InputAssemblyTelemetry} ({@code system}, {@code tool_schema},
+     * {@code structured_output_schema}, {@code confidence_cue},
+     * {@code scrollback}, {@code user_message}).
+     *
+     * <p>The token count is a {@code chars / 4} heuristic — the rule of
+     * thumb for English BPE tokenizers. It is wrong by at most a small
+     * factor for any single stage and is meant for relative comparison
+     * (which stage dominates), not for billing. Authoritative counts still
+     * arrive after the runtime returns through the {@code ai.tokens.input}
+     * metadata stream.</p>
+     *
+     * <p>This signal answers the "where do agents spend tokens?" question
+     * raised in <em>How Do AI Agents Spend Your Money?</em> (Bai et al.,
+     * arXiv 2604.22750) at the framework layer, where users cannot
+     * instrument it themselves: models cannot reliably predict their own
+     * token spend pre-call, so the pipeline must.</p>
+     *
+     * @param model              the model name (or {@code "unknown"})
+     * @param stage              one of {@link InputAssemblyTelemetry}'s STAGE_* constants
+     * @param approximateTokens  estimated tokens for this stage ({@code chars / 4})
+     * @param approximateChars   exact character count of this stage's contribution
+     */
+    default void recordInputAssembly(String model, String stage,
+                                     int approximateTokens, int approximateChars) { }
+
     /** No-op implementation for when metrics are disabled. */
     AiMetrics NOOP = new AiMetrics() {
         @Override

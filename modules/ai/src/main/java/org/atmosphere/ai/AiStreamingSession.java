@@ -679,13 +679,21 @@ public class AiStreamingSession implements StreamingSession {
             target = new GuardrailCapturingSession(target, effectiveGuardrails);
         }
 
+        // Snapshot the system prompt as the developer (and ScopePolicy) shaped
+        // it, before structured-output augmentation appends schema text. The
+        // per-stage telemetry below attributes the input bill to the stage
+        // that introduced it instead of lumping schema into "system".
+        var baseSystemPrompt = request.systemPrompt();
+        String structuredSchemaText = null;
+
         // Wrap in StructuredOutputCapturingSession for typed response parsing
         var effectiveResponseType = responseType != null ? responseType : request.responseType();
         if (effectiveResponseType != null && effectiveResponseType != Void.class) {
             var parser = StructuredOutputParser.resolve();
             target = new StructuredOutputCapturingSession(target, parser, effectiveResponseType);
+            structuredSchemaText = parser.schemaInstructions(effectiveResponseType);
             request = request.withSystemPrompt(
-                    request.systemPrompt() + "\n\n" + parser.schemaInstructions(effectiveResponseType));
+                    request.systemPrompt() + "\n\n" + structuredSchemaText);
         }
 
         // Expose the session to interceptors via request attribute
@@ -726,6 +734,16 @@ public class AiStreamingSession implements StreamingSession {
         if (endpointRetry != null) {
             context = context.withRetryPolicy(endpointRetry);
         }
+        // Per-stage input breakdown — emitted on the websocket @AiEndpoint
+        // path to match AiPipeline's channel-bridge instrumentation. Mode
+        // parity (Invariant #7): runtime turn-cost telemetry must look the
+        // same regardless of which entry the request came in on. Confidence
+        // elicitation only ships through the pipeline path today, so it is
+        // intentionally absent here.
+        InputAssemblyTelemetry.emit(metrics, request.model(),
+                baseSystemPrompt, structuredSchemaText, null,
+                tools, request.history(), request.message());
+
         var streamingTarget = target;
         try {
             // executeWithHandle returns a handle the disconnect path can
