@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.44] - 2026-05-08
+
 ### Added
 
 - predictable-AI primitives — three framework-level capabilities that close gaps Bonér's "Herding LLMs" deck flagged for distributed-system reliability, all declared on every framework runtime so the matrix closes without `@Beta` shims:
