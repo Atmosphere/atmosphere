@@ -23,33 +23,6 @@ them; write a new entry that points back if the context changes.
 
 ---
 
-## 2026-05-11 — InfoQ Java news roundup follow-up + Spring AI 2.0.0-M6 bump
-
-Working through the "worth tracking" items from the InfoQ Java News
-Roundup May 04 2026 (CVE-2026-39852, Spring AI M6, Quarkus Agent MCP).
-CVE verification surfaced one doc-version drift caught against the
-`pom.xml` ground truth.
-
-### Factual drift
-
-| # | Claim | Truth | Slip path | Gate added |
-|---|---|---|---|---|
-| 12 | `AGENTS.md:327` and `samples/README.md:5` claimed Quarkus extension "tested on 3.31.3"; this also appeared verbatim in `MEMORY.md` ("tested on 3.31.3") | `pom.xml:1196` and `modules/quarkus-extension/pom.xml` pin `quarkus.version=3.35.2`; sample table rows (`samples/README.md:13–14`) already listed 3.35.2 correctly | When the Quarkus version was bumped from 3.31.3 → 3.35.2 (commit history not chased), the bumper updated `pom.xml` and the sample table rows but missed the two narrative-prose mentions and the inline memory quote. Three weeks of partial truth followed | `docs: refresh Quarkus version reference to 3.35.2` (commit `98b047419a`) — prose lines fixed. No automated gate added: doc-version drift against a `pom.xml` property has no clean structural check beyond "update narrative docs when bumping a version property," which is already convention. Manual surface scan (`git grep "3.31.3"` post-bump) is the only honest gate, and it is already implied by the existing pre-push validation discipline |
-
-### Process miss
-
-The drift-log entry is being appended in a **separate commit** from the
-prose fix (`98b047419a`) rather than bundled per the "How to append"
-discipline at the bottom of this file (step 6: "Bundle log update + gate
-+ prose fix in a single commit"). Reason: the prose fix shipped earlier
-in the session as part of clearing the tree before the Spring AI 2.0.0-M6
-worktree work; the drift-log requirement surfaced via Stop hook only after
-the prose commit had already landed on `main`. Future fix: when an in-flight
-session catches a prose-only drift, append the drift-log entry **before**
-the prose commit so the bundle stays atomic.
-
----
-
 ## 2026-05-08 — Capability-matrix snapshot session
 
 The morning of building `.harness/capabilities.snapshot.json` and the
@@ -87,6 +60,33 @@ least four were actively wrong.
 | # | Claim | Truth | Slip path | Gate added |
 |---|---|---|---|---|
 | 11 | The `wall-clock budget scheduled-task fix` would not break any existing test | `AiPipelineBudgetTest.wallClockBudgetTripsOnNextCallAfterDeadline` failed on JDK 21 + JDK 26 CI: the existing test asserted `observed > limit` (strict greater-than), but the new scheduled-task path fires precisely at the deadline so `observed == limit` on a fast scheduler | Wrote the fix without re-reading the existing test's assertion shape; ran the new regression test locally (which passed because the new test used `>=`) but did not re-run the full module test suite locally before pushing | Existing test's assertion loosened from `>` to `>=` (commit `09b2d2b6`); the gate already worked — JDK 21/26 CI matrix caught it within 12 min of push |
+
+---
+
+## 2026-05-11 — InfoQ Java news roundup follow-up + Spring AI 2.0.0-M6 bump
+
+Working through the "worth tracking" items from the InfoQ Java News
+Roundup May 04 2026 (CVE-2026-39852, Spring AI M6, Quarkus Agent MCP).
+CVE verification surfaced one doc-version drift caught against the
+`pom.xml` ground truth.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 12 | `AGENTS.md:327` and `samples/README.md:5` claimed Quarkus extension "tested on 3.31.3"; this also appeared verbatim in `MEMORY.md` ("tested on 3.31.3") | `pom.xml:1196` and `modules/quarkus-extension/pom.xml` pin `quarkus.version=3.35.2`; sample table rows (`samples/README.md:13–14`) already listed 3.35.2 correctly | When the Quarkus version was bumped from 3.31.3 → 3.35.2 (commit history not chased), the bumper updated `pom.xml` and the sample table rows but missed the two narrative-prose mentions and the inline memory quote. Three weeks of partial truth followed | `docs: refresh Quarkus version reference to 3.35.2` (commit `98b047419a`) — prose lines fixed. No automated gate added: doc-version drift against a `pom.xml` property has no clean structural check beyond "update narrative docs when bumping a version property," which is already convention. Manual surface scan (`git grep "3.31.3"` post-bump) is the only honest gate, and it is already implied by the existing pre-push validation discipline |
+
+### Process miss
+
+The drift-log entry is being appended in a **separate commit** from the
+prose fix (`98b047419a`) rather than bundled per the "How to append"
+discipline at the bottom of this file (step 6: "Bundle log update + gate
++ prose fix in a single commit"). Reason: the prose fix shipped earlier
+in the session as part of clearing the tree before the Spring AI 2.0.0-M6
+worktree work; the drift-log requirement surfaced via Stop hook only after
+the prose commit had already landed on `main`. Future fix: when an in-flight
+session catches a prose-only drift, append the drift-log entry **before**
+the prose commit so the bundle stays atomic.
 
 ---
 
