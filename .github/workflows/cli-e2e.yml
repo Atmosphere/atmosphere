@@ -7,6 +7,15 @@ on:
       - 'samples/**'
       - 'generator/**'
       - 'modules/spring-boot-starter/**'
+      - 'modules/ai/**'
+      - 'modules/spring-ai/**'
+      - 'modules/spring-ai-alibaba/**'
+      - 'modules/langchain4j/**'
+      - 'modules/adk/**'
+      - 'modules/koog/**'
+      - 'modules/embabel/**'
+      - 'modules/semantic-kernel/**'
+      - 'modules/agentscope/**'
       - '.github/workflows/cli-e2e.yml'
     branches: [main]
   pull_request:
@@ -15,6 +24,15 @@ on:
       - 'samples/**'
       - 'generator/**'
       - 'modules/spring-boot-starter/**'
+      - 'modules/ai/**'
+      - 'modules/spring-ai/**'
+      - 'modules/spring-ai-alibaba/**'
+      - 'modules/langchain4j/**'
+      - 'modules/adk/**'
+      - 'modules/koog/**'
+      - 'modules/embabel/**'
+      - 'modules/semantic-kernel/**'
+      - 'modules/agentscope/**'
       - '.github/workflows/cli-e2e.yml'
   workflow_dispatch:
 
