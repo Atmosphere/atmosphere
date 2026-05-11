@@ -45,6 +45,7 @@ export type {
   ConnectionPhase,
   ConnectionStatusOptions,
   ConnectionStatusSnapshot,
+  ConnectionTransportName,
 } from '../../resilience';
 
 // Re-export core hooks that work as-is in RN

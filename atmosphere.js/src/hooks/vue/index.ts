@@ -29,4 +29,5 @@ export type {
   ConnectionPhase,
   ConnectionStatusOptions,
   ConnectionStatusSnapshot,
+  ConnectionTransportName,
 } from '../../resilience';

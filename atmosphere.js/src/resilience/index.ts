@@ -20,4 +20,5 @@ export type {
   ConnectionPhase,
   ConnectionStatusOptions,
   ConnectionStatusSnapshot,
+  ConnectionTransportName,
 } from './types';

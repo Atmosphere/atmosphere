@@ -1,5 +1,7 @@
-import { useState, useRef, useEffect, useCallback, createElement } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, createElement } from 'react';
 import { ChatLayout, ChatInput, StreamingMessage, StreamingProgress, StreamingError } from 'atmosphere.js/chat';
+import { ConnectionStatusBadge } from 'atmosphere.js/react';
+import type { ConnectionPhase, ConnectionStatusSnapshot } from 'atmosphere.js/react';
 
 interface AgUiEvent {
   type: string;
@@ -34,7 +36,15 @@ export function App() {
   const [input, setInput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [threadId] = useState(() => crypto.randomUUID());
+  const [phase, setPhase] = useState<ConnectionPhase>('idle');
+  const [phaseSince, setPhaseSince] = useState<number>(() => Date.now());
+  const [lastError, setLastError] = useState<Error | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+
+  const bumpPhase = useCallback((next: ConnectionPhase) => {
+    setPhase(next);
+    setPhaseSince(Date.now());
+  }, []);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -114,6 +124,8 @@ export function App() {
       role: 'assistant', content: '', toolCalls: [], steps: [], isStreaming: true,
     };
     setMessages(prev => [...prev, assistantMsg]);
+    setLastError(null);
+    bumpPhase('connecting');
 
     try {
       const response = await fetch('/agui', {
@@ -127,6 +139,7 @@ export function App() {
       });
 
       if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+      bumpPhase('open');
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -156,6 +169,8 @@ export function App() {
       }
     } catch (err: unknown) {
       if ((err as Error).name !== 'AbortError') {
+        setLastError(err instanceof Error ? err : new Error(String(err)));
+        bumpPhase('lost');
         setMessages(prev => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
@@ -164,11 +179,15 @@ export function App() {
           }
           return updated;
         });
+      } else {
+        bumpPhase('closed');
       }
     } finally {
       setIsRunning(false);
+      // Clean exit (no error path) → mark closed.
+      setPhase((p) => (p === 'open' || p === 'connecting') ? 'closed' : p);
     }
-  }, [isRunning, threadId, handleEvent]);
+  }, [isRunning, threadId, handleEvent, bumpPhase]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -177,11 +196,29 @@ export function App() {
     }
   };
 
+  // Build a ConnectionStatusSnapshot from the AG-UI SSE stream lifecycle so
+  // the unified Badge can sit alongside atmosphere.js samples. Transport tag
+  // is 'ag-ui' (request-response — phase resets to idle/closed between turns).
+  const connectionStatus: ConnectionStatusSnapshot = useMemo(() => ({
+    phase,
+    lastEvent: phase === 'open' ? 'open'
+      : phase === 'connecting' ? null
+      : phase === 'lost' ? 'failureToReconnect'
+      : phase === 'closed' ? 'close'
+      : null,
+    transport: 'ag-ui',
+    attempt: 0,
+    lastError,
+    viaFallback: false,
+    since: phaseSince,
+  }), [phase, phaseSince, lastError]);
+
   return (
     <ChatLayout
       title="Atmosphere AG-UI Chat"
       subtitle="CopilotKit-compatible SSE streaming"
       theme="ai"
+      headerExtra={createElement(ConnectionStatusBadge, { status: connectionStatus })}
     >
       <div style={{
         flex: 1,

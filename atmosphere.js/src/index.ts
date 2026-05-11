@@ -50,6 +50,7 @@ export type {
   ConnectionPhase,
   ConnectionStatusOptions,
   ConnectionStatusSnapshot,
+  ConnectionTransportName,
 } from './resilience';
 
 // Export logger for configuration

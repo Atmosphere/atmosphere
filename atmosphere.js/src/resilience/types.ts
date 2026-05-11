@@ -17,6 +17,18 @@
 import type { TransportType } from '../types';
 
 /**
+ * Transport name surfaced by the Badge / snapshot. Accepts every
+ * {@link TransportType} (with IDE auto-complete) plus any other string
+ * for non-atmosphere protocols that reuse the resilience surface —
+ * e.g. samples that drive gRPC, A2A, or AG-UI through their own client
+ * but want a uniform connection-status pill.
+ */
+// The `(string & {})` trick widens the union to `string` at the type
+// level while preserving auto-complete for the literal TransportType
+// values in editors.
+export type ConnectionTransportName = TransportType | (string & Record<never, never>);
+
+/**
  * Steady-state phase of an Atmosphere connection.
  *
  * The state machine is intentionally small so UIs can render a single
@@ -66,7 +78,7 @@ export interface ConnectionStatusSnapshot {
   /** Last lifecycle event, or null if nothing has happened yet. */
   readonly lastEvent: ConnectionEvent | null;
   /** Currently-active transport. Updates after transport fallback. */
-  readonly transport: TransportType;
+  readonly transport: ConnectionTransportName;
   /** Reconnect attempt counter; resets to 0 on successful open. */
   readonly attempt: number;
   /** Most recent error, if any. */

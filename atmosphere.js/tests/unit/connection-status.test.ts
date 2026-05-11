@@ -31,6 +31,14 @@ function makeResponse(
 }
 
 describe('ConnectionStatus', () => {
+  it('accepts non-atmosphere transport names via ConnectionTransportName', () => {
+    // Snapshot.transport is typed ConnectionTransportName = TransportType | (string & {}),
+    // so samples that drive gRPC / A2A / AG-UI through their own client can build a
+    // snapshot without casting. Type-level guarantee; the test just pins the runtime path.
+    const status = new ConnectionStatus({ initialTransport: 'grpc' as never });
+    expect(status.snapshot.transport).toBe('grpc');
+  });
+
   it('starts in idle phase with sensible defaults', () => {
     const status = new ConnectionStatus();
     expect(status.snapshot.phase).toBe('idle');

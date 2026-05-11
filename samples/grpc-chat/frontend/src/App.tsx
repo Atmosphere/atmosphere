@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { create } from '@bufbuild/protobuf';
@@ -9,6 +9,8 @@ import {
 } from './gen/atmosphere_pb';
 import { ChatLayout, MessageList, ChatInput } from 'atmosphere.js/chat';
 import type { ChatMessage, ChatTheme } from 'atmosphere.js/chat';
+import { ConnectionStatusBadge } from 'atmosphere.js/react';
+import type { ConnectionStatusSnapshot } from 'atmosphere.js/react';
 
 const grpcTheme: ChatTheme = {
   gradient: ['#065f46', '#047857'],
@@ -28,11 +30,15 @@ export function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [name, setName] = useState<string | null>(null);
   const [state, setState] = useState<ConnectionState>('disconnected');
+  const [lastError, setLastError] = useState<Error | null>(null);
+  const [since, setSince] = useState<number>(() => Date.now());
   const trackingIdRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const connect = useCallback(async (userName: string) => {
     setState('connecting');
+    setLastError(null);
+    setSince(Date.now());
     const abort = new AbortController();
     abortRef.current = abort;
 
@@ -48,6 +54,7 @@ export function App() {
         if (msg.type === MessageType.ACK) {
           trackingIdRef.current = msg.trackingId;
           setState('connected');
+          setSince(Date.now());
           setMessages((prev) => [
             ...prev,
             { author: 'system', message: `Connected (${msg.trackingId.substring(0, 8)}...)`, time: Date.now() },
@@ -70,6 +77,7 @@ export function App() {
     } catch (e) {
       if (!abort.signal.aborted) {
         const errMsg = e instanceof Error ? e.message : String(e);
+        setLastError(e instanceof Error ? e : new Error(errMsg));
         setMessages((prev) => [
           ...prev,
           { author: 'system', message: `Disconnected: ${errMsg}`, time: Date.now() },
@@ -77,6 +85,7 @@ export function App() {
       }
     } finally {
       setState('disconnected');
+      setSince(Date.now());
       trackingIdRef.current = null;
     }
   }, []);
@@ -120,12 +129,35 @@ export function App() {
     : state === 'connecting' ? 'connecting'
     : 'disconnected';
 
+  // Build a ConnectionStatusSnapshot from the gRPC stream state so the
+  // unified Badge can sit alongside atmosphere.js samples. Transport tag
+  // is `grpc` (ConnectionTransportName widens to any string for non-atmo
+  // protocols).
+  const connectionStatus: ConnectionStatusSnapshot = useMemo(() => ({
+    phase: state === 'connected'
+      ? 'open'
+      : state === 'connecting'
+        ? 'connecting'
+        : lastError ? 'lost' : 'closed',
+    lastEvent: state === 'connected'
+      ? 'open'
+      : state === 'connecting'
+        ? null
+        : lastError ? 'failureToReconnect' : 'close',
+    transport: 'grpc',
+    attempt: 0,
+    lastError,
+    viaFallback: false,
+    since,
+  }), [state, lastError, since]);
+
   return (
     <ChatLayout
       title="Atmosphere gRPC Chat"
       subtitle="Connect Protocol (gRPC-Web) — real-time multi-user chat"
       theme={grpcTheme}
       state={layoutState}
+      headerExtra={<ConnectionStatusBadge status={connectionStatus} />}
     >
       <MessageList messages={messages} currentUser={name ?? undefined} theme={grpcTheme} />
       <ChatInput
