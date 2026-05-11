@@ -16,18 +16,21 @@
 package org.atmosphere.ai.spring;
 
 import com.openai.client.OpenAIClient;
-import com.openai.client.okhttp.OpenAIOkHttpClient;
+import com.openai.client.OpenAIClientAsync;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.setup.OpenAiSetup;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
+
+import java.util.Map;
 
 /**
  * Auto-configuration for the Spring AI agent runtime.
@@ -36,10 +39,14 @@ import org.springframework.context.annotation.Bean;
  * Spring AI 2.0 autoconfig is not yet compatible).
  *
  * <p>Spring AI 2.0 (M5+) routes all OpenAI traffic through the official
- * {@code com.openai:openai-java} SDK instead of the previous bespoke
- * {@code OpenAiApi} client. This bean constructs an {@link OpenAIClient} via
- * {@link OpenAIOkHttpClient#builder()} and hands it to
- * {@code OpenAiChatModel.builder().openAiClient(...)}.</p>
+ * {@code com.openai:openai-java} SDK. {@code OpenAiChatModel$Builder.build()}
+ * requires <strong>both</strong> a sync ({@link OpenAIClient}) and an async
+ * ({@link OpenAIClientAsync}) OpenAI client; when only one is provided the
+ * constructor falls back to {@code OpenAiSetup.setupAsyncClient(null, ...)}
+ * which throws {@code IllegalStateException("At least one credential source
+ * must be specified")}. We mirror the canonical
+ * {@code OpenAiChatAutoConfiguration#openAiChatModel} pattern by building
+ * both clients through {@link OpenAiSetup}.</p>
  */
 @AutoConfiguration
 @ConditionalOnClass(name = "org.springframework.ai.chat.client.ChatClient")
@@ -63,12 +70,15 @@ public class AtmosphereSpringAiAutoConfiguration {
             logger.info("No API key configured — Spring AI ChatClient not created");
             return null;
         }
-        OpenAIClient client = OpenAIOkHttpClient.builder()
-                .apiKey(apiKey)
-                .baseUrl(baseUrl)
-                .build();
+        OpenAIClient syncClient = OpenAiSetup.setupSyncClient(
+                baseUrl, apiKey, null, null, null, null, false, false, model,
+                null, 0, null, Map.of());
+        OpenAIClientAsync asyncClient = OpenAiSetup.setupAsyncClient(
+                baseUrl, apiKey, null, null, null, null, false, false, model,
+                null, 0, null, Map.of());
         var chatModel = OpenAiChatModel.builder()
-                .openAiClient(client)
+                .openAiClient(syncClient)
+                .openAiClientAsync(asyncClient)
                 .options(OpenAiChatOptions.builder().model(model).build())
                 .build();
         logger.info("Spring AI ChatClient auto-configured: model={}, endpoint={}", model, baseUrl);
