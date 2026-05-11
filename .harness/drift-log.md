@@ -118,6 +118,41 @@ sibling commit hash).
 
 ---
 
+## 2026-05-11 — JS resilience hooks session: state-machine + flake + claim-vs-truth drifts
+
+Working through the consumer-side ConnectionStatus / Badge wiring across
+atmosphere.js, framework hooks, samples, and the admin console. Five drifts
+caught in-session — three were *my* slips, two were verification wins
+where I challenged a claim and the verification flipped it.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 19 | `ConnectionStatus.wrap()`'s `reopen` handler set `lastEvent='reopen'` but left `phase='reconnecting'` because `markEvent` does not touch phase. Initial tests + first browser screenshot showed `phase=open` so I assumed the steady-state transition was correct | Chrome-devtools E2E against `embedded-jetty-websocket-chat` (kill server → restart → observe Badge) showed `phase=reconnecting, event=reopen` *after* the connection had re-established. Some transports emit only `reopen` on reconnect (no preceding `open`), so the phase machine left the Badge stuck on "Reconnecting…" forever | My unit-test coverage only exercised the `open` event for transitions, not `reopen` in isolation. The state-machine design assumed `open` would always fire on reconnect (true for WebSocket, not true universally) | Fixed at `atmosphere.js/src/resilience/connection-status.ts:96-108` (commit `e7f59714aa`): `reopen` now also drives `phase: 'open'`. **Gate**: new vitest case `reopen-only reconnect (no preceding open) still transitions phase back to open` in `connection-status.test.ts` pins the regression class |
+| 20 | "Branch is merged (double check) so you can delete it" — about `feat/http3-coverage`. I would have deleted it on the user's authorisation alone if I trusted the claim | `git merge-base --is-ancestor origin/feat/http3-coverage origin/main` returned non-zero. Six unmerged commits: `45de54559f`, `85670a039e`, `2dcee39919`, `61a6c3157f`, `135dfd9a98`, `0040bb0f1b` — substantial work including a `fix(webtransport): server bind regression` and 26 new unit tests | The "double-check" instruction was the safety net. The right discipline is to always verify branch-merge status with `git merge-base --is-ancestor` before deleting any remote branch, regardless of how the user phrased the authorisation. Verification beats memory beat verbal authorisation in this class of action | **No code gate** — branch-deletion verification is a procedural discipline, not a structural check. Captured here as a habit pin; the user-facing reply quoted the six unmerged SHAs and stopped the deletion. (User then directed: merge first, delete after.) |
+| 21 | Pre-push validation marker is shared across all checkouts of the same repo — first squash-merge attempt from main checkout failed with "No validation marker found" even though validation had just run green in the worktree | The marker lives in `<repo>/.git/worktrees/<worktree-name>/validation-passed`, not in `<repo>/.git/validation-passed`. The pre-push hook resolves `git rev-parse --git-dir` per checkout, so a marker stamped in a worktree only satisfies pushes from that worktree | Lost ~50 minutes to two unnecessary re-validations (15 min each) before figuring out that pushing directly from the worktree via `git push origin <worktree-branch>:main` reuses the existing marker and avoids the rebase loop | Memory addition: `reference_pre_push_marker_per_worktree.md` (added to project MEMORY.md in this session) documents the refspec-push pattern. **No code gate** — this is a workflow discipline, not a structural property of the codebase |
+| 22 | `AiStreamingSessionCancelInflightTest.cancelInflight_cancelsRuntimeExecutionHandleFromAnotherThread` was treated as a stable invariant after the disconnect-cancel work landed (`9300428c6c`) | Test has timed out at the 2-second `streamDone.get(...)` wall twice in four days under loaded CI runners: 2.023s on JDK 21 (2026-05-07), 2.017s on JDK 26 (2026-05-11). Both slips are <30ms past the cutoff — classic VT-scheduling jitter, not a regression in the cancellation logic itself | The test's 2s timeouts were tight by design — they fail fast if the VT never returns. But the design didn't account for GitHub-hosted runner load adding scheduling jitter to virtual-thread cancellation. Per `feedback_no_flaky_tests.md` the right move is to fix it, not quarantine | Both timeouts bumped to 10s in `modules/ai/src/test/java/org/atmosphere/ai/AiStreamingSessionCancelInflightTest.java:103,111` (this commit). **Gate property**: if `cancelInflight` actually regresses, the parked VT never returns and any timeout fires — the assertion stays meaningful; the 10s margin only protects against scheduling jitter. Drift-log enforces visibility so the next jitter recurrence triggers a structural fix (custom VT-scheduler in test, or `Awaitility` poll instead of `Future.get`) rather than another timeout bump |
+| 23 | After the `feat(samples): unified ConnectionStatusBadge for gRPC, A2A, and AG-UI transports` push I claimed "every sample with a frontend renders the unified Badge" | Three frontends — `grpc-chat`, `spring-boot-a2a-agent`, `spring-boot-agui-chat` — were not wired. They use atmosphere.js for *visual chat primitives only* (ChatLayout / MessageList / ChatInput); the wire is Connect-RPC / JSON-RPC SSE / AG-UI SSE respectively. The first claim was correct narrowly (atmosphere.js *transport* samples were covered) but `feedback_readme_honesty.md` says claims must be unambiguous without footnotes | Stopped at "every sample using atmosphere.js as transport" without rechecking whether the broader "every sample with a frontend" claim was true. The verification pass that surfaced the gap was triggered by ChefFamille's "Yes" to the proactive offer — the catch only worked because I asked the right question, not because I verified first | Closed by extending the Badge to accept arbitrary protocol names via `ConnectionTransportName = TransportType \| (string & {})` (widening commit, atmosphere.js types) and wiring each non-atmosphere sample to build its own `ConnectionStatusSnapshot`. **Gate**: vitest case `accepts non-atmosphere transport names via ConnectionTransportName` pins the type-level contract |
+
+### Process win
+
+Two of the drifts above (#20, #23) were caught because the verification
+pass *preceded* the action that would have shipped the wrong claim:
+- #20: ChefFamille's "double check" instruction triggered `git merge-base
+  --is-ancestor`, which flipped the answer from "merged" to "6 commits
+  unmerged" before the destructive `git push --delete` fired.
+- #23: The proactive "Want me to add a Badge equivalent for the
+  non-atmosphere.js samples?" question forced an audit that surfaced the
+  three uncovered frontends. Without that question, the misleadingly-narrow
+  claim "every sample with a frontend has it" would have shipped.
+
+Both are evidence that the *order* — verify-before-claim, ask-before-act
+— is the actual feedback-loop instrumentation. Memory files and discipline
+rules are the substrate; the act of pausing for verification is the gate.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /

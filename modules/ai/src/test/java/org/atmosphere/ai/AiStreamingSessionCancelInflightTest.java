@@ -100,7 +100,12 @@ public class AiStreamingSessionCancelInflightTest {
         });
 
         // Wait for the runtime to receive the request and publish its handle.
-        runtime.handlePublished.get(2, TimeUnit.SECONDS);
+        // Generous timeout — VT scheduling on loaded CI runners has been
+        // observed to slip just past 2s twice in 4 days (2.023s on JDK 21
+        // 2026-05-07, 2.017s on JDK 26 2026-05-11). If cancellation actually
+        // regresses, the VT parks indefinitely so any timeout still surfaces
+        // the bug; the 10s margin only protects against scheduling jitter.
+        runtime.handlePublished.get(10, TimeUnit.SECONDS);
 
         // Disconnect path: cancellation must unblock the parked VT and fire
         // the runtime's native cancel primitive (here, Settable's CAS).
@@ -108,7 +113,7 @@ public class AiStreamingSessionCancelInflightTest {
 
         // If T1.3 regresses, this get(...) hits the timeout and the test fails
         // loudly instead of waiting for the runtime to never complete.
-        streamDone.get(2, TimeUnit.SECONDS);
+        streamDone.get(10, TimeUnit.SECONDS);
 
         assertEquals(ExecutionHandle.TerminalReason.CANCELLED,
                 runtime.handle.terminalReason(),
