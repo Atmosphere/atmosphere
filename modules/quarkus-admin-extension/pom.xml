@@ -16,10 +16,24 @@
 
     <properties>
         <quarkus.version>3.35.2</quarkus.version>
+        <netty.version>4.1.133.Final</netty.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <!-- Netty BOM imported BEFORE quarkus-bom so its 4.1.133.Final pins
+                 win over Quarkus 3.35.2's hardcoded 4.1.132.Final. 4.1.133
+                 patches CVE-2026-42577 (handler-proxy header injection),
+                 CVE-2026-42578 (chunked-extension request smuggling), and
+                 CVE-2026-41417 (Transfer-Encoding smuggling). Maven
+                 dependencyManagement is first-declared-wins for imported BOMs. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-bom</artifactId>
