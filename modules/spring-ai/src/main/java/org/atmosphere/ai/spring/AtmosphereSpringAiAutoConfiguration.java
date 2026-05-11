@@ -20,6 +20,7 @@ import com.openai.client.OpenAIClientAsync;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.openai.AbstractOpenAiOptions;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.setup.OpenAiSetup;
@@ -70,12 +71,16 @@ public class AtmosphereSpringAiAutoConfiguration {
             logger.info("No API key configured — Spring AI ChatClient not created");
             return null;
         }
+        // OpenAi SDK Kotlin builders reject null Duration/int for timeout/maxRetries;
+        // use the SDK's published defaults rather than guessing values.
         OpenAIClient syncClient = OpenAiSetup.setupSyncClient(
                 baseUrl, apiKey, null, null, null, null, false, false, model,
-                null, 0, null, Map.of());
+                AbstractOpenAiOptions.DEFAULT_TIMEOUT, AbstractOpenAiOptions.DEFAULT_MAX_RETRIES,
+                null, Map.of());
         OpenAIClientAsync asyncClient = OpenAiSetup.setupAsyncClient(
                 baseUrl, apiKey, null, null, null, null, false, false, model,
-                null, 0, null, Map.of());
+                AbstractOpenAiOptions.DEFAULT_TIMEOUT, AbstractOpenAiOptions.DEFAULT_MAX_RETRIES,
+                null, Map.of());
         var chatModel = OpenAiChatModel.builder()
                 .openAiClient(syncClient)
                 .openAiClientAsync(asyncClient)
