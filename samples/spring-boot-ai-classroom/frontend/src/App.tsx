@@ -158,17 +158,33 @@ function RoomSelector({ onJoin }: { onJoin: (room: string) => void }) {
   );
 }
 
+async function fetchWebTransportInfo(): Promise<{enabled?: boolean; port?: number; certificateHash?: string}> {
+  try {
+    const res = await fetch('/api/webtransport-info');
+    if (res.ok) return res.json();
+  } catch { /* WebTransport not available — fall through to WebSocket */ }
+  return {};
+}
+
 function Classroom({ room, onLeave }: { room: string; onLeave: () => void }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
   const roomConfig = ROOMS.find((r) => r.id === room);
   const accent = roomConfig?.color ?? PALETTE.accent;
+  const [wtInfo, setWtInfo] = useState<{enabled?: boolean; port?: number; certificateHash?: string}>({});
+  const [wtLoaded, setWtLoaded] = useState(false);
+
+  useEffect(() => {
+    fetchWebTransportInfo().then((info) => { setWtInfo(info); setWtLoaded(true); });
+  }, []);
 
   const request = useMemo(
     () => ({
       url: `${window.location.protocol}//${window.location.host}/atmosphere/classroom/${room}`,
-      transport: 'websocket' as const,
-      fallbackTransport: 'long-polling' as const,
+      transport: 'webtransport' as const,
+      fallbackTransport: 'websocket' as const,
+      ...(wtInfo.enabled && wtInfo.port ? { webTransportUrl: `https://${window.location.hostname}:${wtInfo.port}/atmosphere/classroom/${room}` } : {}),
+      ...(wtInfo.certificateHash ? { serverCertificateHashes: [wtInfo.certificateHash] } : {}),
       reconnect: true,
       maxReconnectOnClose: 10,
       reconnectInterval: 5000,
@@ -176,12 +192,13 @@ function Classroom({ room, onLeave }: { room: string; onLeave: () => void }) {
       enableProtocol: false,
       contentType: 'application/json',
     }),
-    [room],
+    [room, wtInfo],
   );
 
   const { fullText, isStreaming, progress, metadata, stats, error, send, reset, connectionStatus } =
     useStreaming({
       request,
+      enabled: wtLoaded,
       onClose: () => console.info('[atmosphere] transport closed'),
       onReconnect: () => console.info('[atmosphere] reconnecting…'),
       onReopen: () => console.info('[atmosphere] reopened'),

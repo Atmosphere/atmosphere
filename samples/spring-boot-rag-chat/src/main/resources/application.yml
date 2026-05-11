@@ -4,6 +4,9 @@
 atmosphere:
   console-subtitle: RAG-powered AI chat with document retrieval
   packages: org.atmosphere.samples.springboot.ragchat
+  web-transport:
+    enabled: true
+    port: 4445
 
 # LLM Configuration
 # Set via .envrc, environment variables, or override here.

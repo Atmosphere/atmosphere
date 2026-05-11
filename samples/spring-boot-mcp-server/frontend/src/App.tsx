@@ -3,26 +3,43 @@ import { useAtmosphere, ConnectionStatusBadge } from 'atmosphere.js/react';
 import { ChatLayout, MessageList, ChatInput } from 'atmosphere.js/chat';
 import type { ChatMessage } from 'atmosphere.js/chat';
 
+async function fetchWebTransportInfo(): Promise<{enabled?: boolean; port?: number; certificateHash?: string}> {
+  try {
+    const res = await fetch('/api/webtransport-info');
+    if (res.ok) return res.json();
+  } catch { /* WebTransport not available — fall through to WebSocket */ }
+  return {};
+}
+
 export function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [name, setName] = useState<string | null>(null);
+  const [wtInfo, setWtInfo] = useState<{enabled?: boolean; port?: number; certificateHash?: string}>({});
+  const [wtLoaded, setWtLoaded] = useState(false);
+
+  useEffect(() => {
+    fetchWebTransportInfo().then((info) => { setWtInfo(info); setWtLoaded(true); });
+  }, []);
 
   const request = useMemo(
     () => ({
       url: `${window.location.protocol}//${window.location.host}/atmosphere/chat`,
-      transport: 'websocket' as const,
-      fallbackTransport: 'long-polling' as const,
+      transport: 'webtransport' as const,
+      fallbackTransport: 'websocket' as const,
+      ...(wtInfo.enabled && wtInfo.port ? { webTransportUrl: `https://${window.location.hostname}:${wtInfo.port}/atmosphere/chat` } : {}),
+      ...(wtInfo.certificateHash ? { serverCertificateHashes: [wtInfo.certificateHash] } : {}),
       reconnect: true,
       reconnectInterval: 5000,
       maxReconnectOnClose: 10,
       trackMessageLength: true,
       contentType: 'application/json',
     }),
-    [],
+    [wtInfo],
   );
 
   const { data, state, push, connectionStatus } = useAtmosphere<ChatMessage>({
     request,
+    enabled: wtLoaded,
     onReopen: () => console.info('[atmosphere] reopened'),
     onTransportFailure: (reason) =>
       console.warn('[atmosphere] transport failed, falling back:', reason),

@@ -2,6 +2,9 @@
 
 atmosphere:
   packages: org.atmosphere.samples.springboot.aiclassroom
+  web-transport:
+    enabled: true
+    port: 4446
 
 # LLM Configuration (same as spring-boot-ai-chat)
 llm:

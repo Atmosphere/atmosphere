@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /** Cross-browser specs run on Firefox/WebKit when E2E_ALL_BROWSERS is set. */
-const crossBrowserSpecs = /\/(chat|multi-client|sse-transport|long-polling-transport|transport-fallback)\.spec\.ts/;
+const crossBrowserSpecs = /\/(chat|multi-client|sse-transport|long-polling-transport|transport-fallback|webtransport-fallback)\.spec\.ts/;
 
 /**
  * Smoke / Deep CI split:

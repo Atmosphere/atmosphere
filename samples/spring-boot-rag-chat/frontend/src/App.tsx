@@ -15,15 +15,31 @@ interface AssistantMessage {
 
 type Message = UserMessage | AssistantMessage;
 
+async function fetchWebTransportInfo(): Promise<{enabled?: boolean; port?: number; certificateHash?: string}> {
+  try {
+    const res = await fetch('/api/webtransport-info');
+    if (res.ok) return res.json();
+  } catch { /* WebTransport not available — fall through to WebSocket */ }
+  return {};
+}
+
 export function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
+  const [wtInfo, setWtInfo] = useState<{enabled?: boolean; port?: number; certificateHash?: string}>({});
+  const [wtLoaded, setWtLoaded] = useState(false);
+
+  useEffect(() => {
+    fetchWebTransportInfo().then((info) => { setWtInfo(info); setWtLoaded(true); });
+  }, []);
 
   const request = useMemo(
     () => ({
       url: `${window.location.protocol}//${window.location.host}/atmosphere/agent/rag-assistant`,
-      transport: 'websocket' as const,
-      fallbackTransport: 'long-polling' as const,
+      transport: 'webtransport' as const,
+      fallbackTransport: 'websocket' as const,
+      ...(wtInfo.enabled && wtInfo.port ? { webTransportUrl: `https://${window.location.hostname}:${wtInfo.port}/atmosphere/agent/rag-assistant` } : {}),
+      ...(wtInfo.certificateHash ? { serverCertificateHashes: [wtInfo.certificateHash] } : {}),
       reconnect: true,
       maxReconnectOnClose: 10,
       reconnectInterval: 5000,
@@ -31,12 +47,13 @@ export function App() {
       enableProtocol: false,
       contentType: 'application/json',
     }),
-    [],
+    [wtInfo],
   );
 
   const { fullText, isStreaming, progress, error, send, reset, connectionStatus } =
     useStreaming({
       request,
+      enabled: wtLoaded,
       onClose: () => console.info('[atmosphere] transport closed'),
       onReconnect: () => console.info('[atmosphere] reconnecting…'),
       onReopen: () => console.info('[atmosphere] reopened'),

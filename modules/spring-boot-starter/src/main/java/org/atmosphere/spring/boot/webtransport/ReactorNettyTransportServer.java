@@ -109,9 +109,15 @@ public class ReactorNettyTransportServer {
                     .enableH3Datagram(true)            // 0x33 = 1 (RFC 9297)
                     .qpackMaxTableCapacity(0)          // Disable QPACK dynamic table
                     .qpackBlockedStreams(0);
-            // WebTransport draft version — configurable for interop with evolving specs
-            var draftId = Long.parseLong(System.getProperty(
-                    "atmosphere.http3.webtransport.draft-setting", "0x2b603742"), 16);
+            // WebTransport draft version — configurable for interop with evolving specs.
+            // Long.decode handles both "0x..." prefixed and plain-hex values, so
+            // the default literal "0x2b603742" parses correctly regardless of
+            // whether the override property carries the prefix. The previous
+            // Long.parseLong(..., 16) call rejected the "0x" prefix and made
+            // server.start() fail every time the default was used — surfaced
+            // by ReactorNettyTransportServerTest in a clean lifecycle bind.
+            var draftId = Long.decode(System.getProperty(
+                    "atmosphere.http3.webtransport.draft-setting", "0x2b603742"));
             settings.put(draftId, 1L);       // SETTINGS_WEBTRANS_DRAFT (default: draft-02)
             settings.put(0xc671706aL, 256L); // SETTINGS_WEBTRANS_MAX_SESSIONS (draft-07)
             var settingsFrame = new DefaultHttp3SettingsFrame(settings);

@@ -4,6 +4,9 @@ server:
 atmosphere:
   console-subtitle: AG-UI Protocol Demo — streaming assistant with tool calls
   packages: org.atmosphere.samples.springboot.agui
+  web-transport:
+    enabled: true
+    port: 4447
 
 logging:
   level:
