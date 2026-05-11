@@ -15,12 +15,13 @@
  */
 package org.atmosphere.ai.spring;
 
+import com.openai.client.OpenAIClient;
+import com.openai.client.okhttp.OpenAIOkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -33,6 +34,12 @@ import org.springframework.context.annotation.Bean;
  * Creates a {@link ChatClient} bean from environment config when no other
  * Spring AI auto-configuration provides one (e.g., Spring Boot 4.0 where
  * Spring AI 2.0 autoconfig is not yet compatible).
+ *
+ * <p>Spring AI 2.0 (M5+) routes all OpenAI traffic through the official
+ * {@code com.openai:openai-java} SDK instead of the previous bespoke
+ * {@code OpenAiApi} client. This bean constructs an {@link OpenAIClient} via
+ * {@link OpenAIOkHttpClient#builder()} and hands it to
+ * {@code OpenAiChatModel.builder().openAiClient(...)}.</p>
  */
 @AutoConfiguration
 @ConditionalOnClass(name = "org.springframework.ai.chat.client.ChatClient")
@@ -51,59 +58,21 @@ public class AtmosphereSpringAiAutoConfiguration {
     public ChatClient atmosphereChatClient(
             @Value("${spring.ai.openai.api-key:${LLM_API_KEY:}}") String apiKey,
             @Value("${spring.ai.openai.base-url:${LLM_BASE_URL:https://api.openai.com}}") String baseUrl,
-            @Value("${spring.ai.openai.chat.options.model:${LLM_MODEL:gpt-4o-mini}}") String model,
-            @Value("${spring.ai.openai.chat.completions-path:}") String completionsPathOverride) {
+            @Value("${spring.ai.openai.chat.options.model:${LLM_MODEL:gpt-4o-mini}}") String model) {
         if (apiKey == null || apiKey.isBlank()) {
             logger.info("No API key configured — Spring AI ChatClient not created");
             return null;
         }
-        var apiBuilder = OpenAiApi.builder().apiKey(apiKey).baseUrl(baseUrl);
-        // Spring AI defaults completions path to "/v1/chat/completions". When the
-        // base URL already encodes the API path prefix (Gemini's OpenAI-compat
-        // ".../v1beta/openai", Anthropic's ".../v1", etc.), the default produces
-        // ".../v1beta/openai/v1/chat/completions" which 400s. Strip the leading
-        // "/v1" for these endpoints so the natural URL forms correctly. An
-        // explicit spring.ai.openai.chat.completions-path always wins.
-        String completionsPath = !completionsPathOverride.isBlank()
-                ? completionsPathOverride
-                : resolveCompletionsPath(baseUrl);
-        if (completionsPath != null) {
-            apiBuilder.completionsPath(completionsPath);
-        }
-        var api = apiBuilder.build();
-        var chatModel = OpenAiChatModel.builder()
-                .openAiApi(api)
-                .defaultOptions(OpenAiChatOptions.builder().model(model).build())
+        OpenAIClient client = OpenAIOkHttpClient.builder()
+                .apiKey(apiKey)
+                .baseUrl(baseUrl)
                 .build();
-        logger.info("Spring AI ChatClient auto-configured: model={}, endpoint={}, completionsPath={}",
-                model, baseUrl, completionsPath != null ? completionsPath : "(default /v1/chat/completions)");
+        var chatModel = OpenAiChatModel.builder()
+                .openAiClient(client)
+                .options(OpenAiChatOptions.builder().model(model).build())
+                .build();
+        logger.info("Spring AI ChatClient auto-configured: model={}, endpoint={}", model, baseUrl);
         return ChatClient.builder(chatModel).build();
-    }
-
-    /**
-     * Choose a completions path for {@link OpenAiApi.Builder#completionsPath}
-     * based on the base URL. Returns {@code null} to keep Spring AI's
-     * default ({@code /v1/chat/completions}) for OpenAI proper or unknown
-     * endpoints; returns {@code /chat/completions} when the base URL already
-     * encodes a vendored API path (Gemini's {@code /v1beta/openai}, Azure
-     * OpenAI's deployment URLs).
-     */
-    static String resolveCompletionsPath(String baseUrl) {
-        if (baseUrl == null) {
-            return null;
-        }
-        String trimmed = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-        // Gemini OpenAI-compat: https://generativelanguage.googleapis.com/v1beta/openai
-        if (trimmed.endsWith("/v1beta/openai")) {
-            return "/chat/completions";
-        }
-        // Generic heuristic: any base URL ending in "/openai" already carries a
-        // vendor-specific API prefix; the canonical OpenAI proxy convention is
-        // to expose chat completions directly under that segment.
-        if (trimmed.endsWith("/openai")) {
-            return "/chat/completions";
-        }
-        return null;
     }
 
     @Bean

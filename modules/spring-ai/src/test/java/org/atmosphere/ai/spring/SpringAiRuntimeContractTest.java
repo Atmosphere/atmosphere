@@ -104,10 +104,11 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
      * Exercise the {@code runtimeWithPromptCachingAcceptsCacheHint} assertion
      * on Spring AI. The context carries a {@link org.atmosphere.ai.llm.CacheHint#conservative()}
      * under the canonical metadata key; {@code doExecuteWithHandle} reads it
-     * via {@code CacheHint.from(context)} and attaches an
-     * {@code OpenAiChatOptions.promptCacheKey} to the prompt spec. Dispatch
-     * continues through Spring AI's reactor pipeline; downstream network
-     * failures are caught and treated as a skip per the base contract.
+     * via {@code CacheHint.from(context)} and rides it through
+     * {@code OpenAiChatOptions.extraBody(Map.of("prompt_cache_key", ...))}
+     * on the prompt spec. Dispatch continues through Spring AI's reactor
+     * pipeline; downstream network failures are caught and treated as a
+     * skip per the base contract.
      */
     @Override
     protected AgentExecutionContext createCacheContext() {

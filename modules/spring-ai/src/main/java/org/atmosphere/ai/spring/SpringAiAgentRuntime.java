@@ -158,17 +158,21 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
         var cacheKey = cacheHint.resolvedKey(context);
         if (cacheHint.enabled() && cacheKey.isPresent()
                 && org.atmosphere.ai.llm.CacheHint.endpointAcceptsPromptCacheKey(endpointUrl)) {
+            // Spring AI 2.0 (M5+) replaced OpenAiChatOptions.Builder.promptCacheKey(String)
+            // with the generic extraBody(Map) escape hatch so OpenAI extension fields
+            // (prompt_cache_key, store, service_tier, ...) ride through without
+            // per-field builder methods. ChatClient.options() also now takes a
+            // ChatOptions.Builder<?> rather than the built options.
             var openAiOpts = org.springframework.ai.openai.OpenAiChatOptions.builder()
-                    .promptCacheKey(cacheKey.get());
+                    .extraBody(java.util.Map.of("prompt_cache_key", cacheKey.get()));
             if (context.model() != null && !context.model().isBlank()) {
                 openAiOpts.model(context.model());
             }
-            promptSpec = promptSpec.options(openAiOpts.build());
+            promptSpec = promptSpec.options(openAiOpts);
             logger.debug("Applied prompt_cache_key={} (model={})",
                     cacheKey.get(), context.model());
         } else if (context.model() != null && !context.model().isBlank()) {
-            promptSpec = promptSpec.options(
-                    ChatOptions.builder().model(context.model()).build());
+            promptSpec = promptSpec.options(ChatOptions.builder().model(context.model()));
             logger.debug("Using per-request model override: {}", context.model());
         }
 
@@ -315,9 +319,12 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                 AiCapability.AUDIO,
                 AiCapability.MULTI_MODAL,
                 // PROMPT_CACHING is honest on the OpenAI path: doExecuteWithHandle
-                // reads context.metadata()'s CacheHint and attaches an
-                // OpenAiChatOptions.promptCacheKey to the prompt spec.
-                // Non-OpenAI providers ignore the OpenAI-specific option.
+                // reads context.metadata()'s CacheHint and rides it through
+                // OpenAiChatOptions.extraBody(Map.of("prompt_cache_key", ...))
+                // on the prompt spec. (Spring AI 2.0 M5+ replaced the typed
+                // promptCacheKey(String) builder method with the generic
+                // extraBody escape hatch.) Non-OpenAI providers ignore the
+                // OpenAI-specific extension field.
                 AiCapability.PROMPT_CACHING,
                 // TOKEN_USAGE: doExecuteWithHandle emits a typed TokenUsage
                 // record via session.usage() when the Spring AI response
