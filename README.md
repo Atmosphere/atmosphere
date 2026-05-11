@@ -132,7 +132,7 @@ What this registers depends on which modules are on the classpath:
 | Module | Backing framework | Spring Boot | Capability highlights | Notes |
 |---|---|---|---|---|
 | `atmosphere-ai` (Built-in) | OpenAI-compatible HTTP client | 3.5 / 4.0 | tool calling (5 rounds), JSON mode, vision, audio, prompt caching, token usage, native retry, tool-call deltas | Default. No third-party SDK on the classpath required. |
-| `atmosphere-spring-ai` | Spring AI 2.0.0-M2 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | |
+| `atmosphere-spring-ai` | Spring AI 2.0.0-M6 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | |
 | `atmosphere-langchain4j` | LangChain4j 1.14.0 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | |
 | `atmosphere-adk` | Google ADK 1.2.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching | Multi-agent runtime — exposes `AGENT_ORCHESTRATION`. |
 | `atmosphere-koog` | JetBrains Koog 0.8.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching (Bedrock cache control), cancellation | Multi-agent runtime. |

@@ -82,4 +82,4 @@ across all runtimes.
 
 - Java 21+
 - `atmosphere-ai` (transitive)
-- Spring AI 2.0.0-M2+
+- Spring AI 2.0.0-M6+
