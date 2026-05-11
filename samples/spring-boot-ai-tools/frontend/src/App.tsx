@@ -114,7 +114,7 @@ function CostBadge({ info }: { info: CostInfo }) {
   }, parts.join(' \u00b7 '));
 }
 
-async function fetchWebTransportInfo(): Promise<{port?: number; certificateHash?: string}> {
+async function fetchWebTransportInfo(): Promise<{enabled?: boolean; port?: number; certificateHash?: string}> {
   try {
     const res = await fetch('/api/webtransport-info');
     if (res.ok) return res.json();
@@ -125,7 +125,7 @@ async function fetchWebTransportInfo(): Promise<{port?: number; certificateHash?
 export function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
-  const [wtInfo, setWtInfo] = useState<{port?: number; certificateHash?: string}>({});
+  const [wtInfo, setWtInfo] = useState<{enabled?: boolean; port?: number; certificateHash?: string}>({});
   const [wtLoaded, setWtLoaded] = useState(false);
 
   useEffect(() => {

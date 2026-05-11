@@ -28,8 +28,8 @@ const ATMOSPHERE_LOGO_SVG = "data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xml
 export interface ChatLayoutProps {
   /** Main title shown in the header. Accepts a string or ReactNode (e.g. an image + text). */
   title: ReactNode;
-  /** Subtitle shown below the title. */
-  subtitle?: string;
+  /** Subtitle shown below the title. Accepts a string or ReactNode for richer layouts. */
+  subtitle?: ReactNode;
   /** Theme name (preset key) or custom ChatTheme object. */
   theme?: ChatTheme | string;
   /** Current connection state for the status bar. */

@@ -22,6 +22,7 @@ export type { UseAtmosphereCoreResult, CoreSubscriptionHandlers } from '../share
 export { useRoom } from './useRoom';
 export { usePresence } from './usePresence';
 export { useStreaming } from './useStreaming';
+export type { AiEvent, StreamingConnectionState, UseStreamingOptions, UseStreamingResult } from './useStreaming';
 export { useConnectionStatus } from './useConnectionStatus';
 export type { UseConnectionStatusResult } from './useConnectionStatus';
 export {

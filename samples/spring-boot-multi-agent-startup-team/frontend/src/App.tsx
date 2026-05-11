@@ -37,7 +37,7 @@ interface ToolCallState {
 
 /* ── WebTransport discovery ── */
 
-async function fetchWebTransportInfo(): Promise<{port?: number; certificateHash?: string}> {
+async function fetchWebTransportInfo(): Promise<{enabled?: boolean; port?: number; certificateHash?: string}> {
   try {
     const res = await fetch('/api/webtransport-info');
     if (res.ok) return res.json();
@@ -52,7 +52,7 @@ export function App() {
   const [toolCalls, setToolCalls] = useState<ToolCallState[]>([]);
   const [agentActivity, setAgentActivity] = useState<Record<string, string>>({});
   const endRef = useRef<HTMLDivElement>(null);
-  const [wtInfo, setWtInfo] = useState<{port?: number; certificateHash?: string}>({});
+  const [wtInfo, setWtInfo] = useState<{enabled?: boolean; port?: number; certificateHash?: string}>({});
   const [wtLoaded, setWtLoaded] = useState(false);
 
   useEffect(() => {

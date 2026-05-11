@@ -401,7 +401,7 @@ export function App() {
               ...prev,
               {
                 author: 'system',
-                message: `Joined room. Members: ${parsed.members.map((m: { id: string }) => m.id).join(', ')}`,
+                message: `Joined room. Members: ${parsed.members.join(', ')}`,
                 time: Date.now(),
               },
             ]);
