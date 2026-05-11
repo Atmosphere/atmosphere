@@ -19,6 +19,7 @@ import type { StreamingHandlers, StreamingHandle, StreamingMessage, SessionStats
 import { parseStreamingMessage } from './decoder';
 import { parsePolicyDenial } from './policy-denial';
 import { Atmosphere } from '../core/atmosphere';
+import { ConnectionStatus } from '../resilience';
 
 /**
  * Creates a streaming subscription to an Atmosphere endpoint that speaks the
@@ -55,7 +56,9 @@ export async function subscribeStreaming(
   let startTime: number | null = null;
   let routing: RoutingInfo = {};
 
-  const sub: Subscription = await atmosphere.subscribe<string>(request, {
+  const connectionStatus = new ConnectionStatus({ initialTransport: request.transport });
+
+  const sub: Subscription = await atmosphere.subscribe<string>(request, connectionStatus.wrap({
     open: () => {
       handlers.onOpen?.();
     },
@@ -65,8 +68,17 @@ export async function subscribeStreaming(
     reconnect: () => {
       handlers.onReconnect?.();
     },
+    reopen: () => {
+      handlers.onReopen?.();
+    },
     clientTimeout: () => {
       handlers.onClientTimeout?.();
+    },
+    transportFailure: (reason) => {
+      handlers.onTransportFailure?.(reason);
+    },
+    failureToReconnect: () => {
+      handlers.onFailureToReconnect?.();
     },
     message: (response) => {
       const raw = response.responseBody;
@@ -94,12 +106,13 @@ export async function subscribeStreaming(
     error: (err) => {
       handlers.onError?.(err.message);
     },
-  });
+  }));
 
   return {
     get sessionId() {
       return sessionId;
     },
+    connectionStatus,
     send(message: string | object, options?: SendOptions) {
       // Reset tracking state for new session
       sessionId = null;

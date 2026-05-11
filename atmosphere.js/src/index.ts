@@ -43,6 +43,15 @@ export { OfflineQueue } from './queue/offline-queue';
 export { subscribeStreaming } from './streaming';
 export type { StreamingMessage, StreamingHandlers, StreamingHandle, SessionStats, RoutingInfo, SendOptions } from './streaming/types';
 
+// Export resilience primitives (transport-fallback + reconnect status tracking)
+export { ConnectionStatus } from './resilience';
+export type {
+  ConnectionEvent,
+  ConnectionPhase,
+  ConnectionStatusOptions,
+  ConnectionStatusSnapshot,
+} from './resilience';
+
 // Export logger for configuration
 export { logger } from './utils/logger';
 

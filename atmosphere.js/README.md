@@ -576,6 +576,112 @@ bun add @react-native-community/netinfo  # optional, for network-aware reconnect
 
 ---
 
+## Resilience: disconnect, reconnect, transport fallback
+
+Atmosphere's signature strength is keeping a connection alive across network blips,
+server restarts, and transport-level failures. Every subscription exposes the full
+classic Atmosphere 3.x lifecycle so your UI can react to every step:
+
+| Hook                    | Fires when                                                              |
+|-------------------------|-------------------------------------------------------------------------|
+| `open`                  | Initial transport is established                                        |
+| `reopen`                | Connection re-established after a disconnect                            |
+| `reconnect`             | A reconnection attempt has begun                                        |
+| `close`                 | Transport closed (clean shutdown)                                       |
+| `error`                 | Transport-level error (not necessarily fatal)                           |
+| `transportFailure`      | Primary transport failed; client is falling back to `fallbackTransport` |
+| `clientTimeout`         | Client-side heartbeat watchdog expired                                  |
+| `failureToReconnect`    | `maxReconnectOnClose` exhausted — terminal state                        |
+
+### `ConnectionStatus` — the unified view
+
+Wiring eight hooks per consumer is busywork, so atmosphere.js ships a `ConnectionStatus`
+primitive that collapses them into a small state machine plus a transient event indicator:
+
+```typescript
+import { Atmosphere, ConnectionStatus } from 'atmosphere.js';
+
+const status = new ConnectionStatus();
+status.onChange((snap) => {
+  console.log(snap.phase, snap.lastEvent, snap.transport, snap.attempt);
+  // phase:      'idle' | 'connecting' | 'open' | 'reconnecting' | 'closed' | 'lost'
+  // lastEvent:  one of the 8 hooks above (or null)
+  // transport:  currently active transport (updates after fallback)
+  // attempt:    reconnect attempt counter (resets to 0 on open)
+  // viaFallback: true once a transportFailure has been observed
+  // lastError:  most recent error, or null
+});
+
+const atmosphere = new Atmosphere();
+const sub = await atmosphere.subscribe(request, status.wrap({
+  message: (msg) => console.log(msg),
+}));
+```
+
+`status.wrap()` preserves any handlers you already had — you can mix your own `message`,
+`error`, etc. with the resilience tracking. No double-subscription, no duplicated callbacks.
+
+### Framework integration
+
+Every framework hook now exposes a reactive `connectionStatus` snapshot and a matching
+`<ConnectionStatusBadge />` component (vanilla styles by default, easy to override):
+
+```tsx
+// React
+import { useStreaming, ConnectionStatusBadge } from 'atmosphere.js/react';
+
+const { connectionStatus, fullText, send } = useStreaming({
+  request,
+  onTransportFailure: (reason) => console.warn('Fell back:', reason),
+  onFailureToReconnect: () => alert('Connection lost — refresh to retry'),
+});
+
+return <ConnectionStatusBadge status={connectionStatus} />;
+// Renders: "Connected · websocket" / "Reconnecting… · websocket" / "Connection lost · websocket"
+```
+
+```vue
+<!-- Vue -->
+<script setup lang="ts">
+import { useAtmosphere, ConnectionStatusBadge } from 'atmosphere.js/vue';
+const { data, connectionStatus, push } = useAtmosphere({ url, transport: 'websocket' });
+</script>
+<template>
+  <ConnectionStatusBadge :status="connectionStatus" />
+</template>
+```
+
+```tsx
+// React Native (Expo)
+import { useStreamingRN, ConnectionStatusBadgeRN } from 'atmosphere.js/react-native';
+
+const { connectionStatus, send } = useStreamingRN({ request });
+return <ConnectionStatusBadgeRN status={connectionStatus} />;
+```
+
+### Configuring fallback + reconnect
+
+Resilience behavior is driven by the request options:
+
+```typescript
+const request = {
+  url: '/atmosphere/chat',
+  transport: 'websocket',
+  fallbackTransport: 'long-polling',  // tried if WebSocket fails
+  reconnect: true,                     // default
+  reconnectInterval: 5000,             // ms between attempts
+  maxReconnectOnClose: 10,             // give up after N attempts
+  heartbeat: { client: 30000 },        // watchdog interval (ms)
+};
+```
+
+The classic fallback chain — WebSocket → SSE → streaming → long-polling — is implemented
+end-to-end. On `transportFailure`, the client tears down the failed transport, fires the
+hook, and connects via `fallbackTransport`. Subsequent reconnects use the fallback unless
+the server signals otherwise.
+
+---
+
 ## Rooms and Presence
 
 The room system provides a high-level API for joining named rooms, broadcasting messages,

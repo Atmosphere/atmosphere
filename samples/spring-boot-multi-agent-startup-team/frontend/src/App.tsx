@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, createElement } from 'react';
-import { useStreaming } from 'atmosphere.js/react';
+import { useStreaming, ConnectionStatusBadge } from 'atmosphere.js/react';
 import type { AiEvent } from 'atmosphere.js/react';
 import { ChatLayout, ChatInput, StreamingMessage, StreamingProgress, StreamingError } from 'atmosphere.js/chat';
 
@@ -76,13 +76,18 @@ export function App() {
     contentType: 'application/json',
   }), [wtInfo]);
 
-  const { fullText, isStreaming, progress, aiEvents, error, send, reset } =
+  const { fullText, isStreaming, progress, aiEvents, error, send, reset, connectionStatus } =
     useStreaming({
       request,
       enabled: wtLoaded,
       onClose: () => console.info('[atmosphere] transport closed'),
       onReconnect: () => console.info('[atmosphere] reconnecting…'),
+      onReopen: () => console.info('[atmosphere] reopened'),
       onClientTimeout: () => console.warn('[atmosphere] heartbeat timeout'),
+      onTransportFailure: (reason) =>
+        console.warn('[atmosphere] transport failed, falling back:', reason),
+      onFailureToReconnect: () =>
+        console.error('[atmosphere] reconnect attempts exhausted'),
     });
 
   // Track tool calls from AI events
@@ -170,6 +175,7 @@ export function App() {
       title="Atmosphere A2A Multi-Agent Team"
       subtitle="WebTransport/HTTP3 + A2A JSON-RPC multi-agent orchestration"
       theme="ai"
+      headerExtra={<ConnectionStatusBadge status={connectionStatus} />}
     >
       <div style={{
         flex: 1,

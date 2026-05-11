@@ -162,6 +162,23 @@ export interface StreamingHandlers {
    * reconnect loop run.
    */
   onClientTimeout?: () => void;
+  /**
+   * Called when a connection is re-established after a disconnect (not on
+   * first open). Use this to dismiss a "reconnecting" toast or show a
+   * brief "back online" confirmation.
+   */
+  onReopen?: () => void;
+  /**
+   * Called when the primary transport fails and a fallback is attempted.
+   * The reason string is the underlying error message.
+   */
+  onTransportFailure?: (reason: string) => void;
+  /**
+   * Called when reconnect attempts have been exhausted. UI should
+   * surface a terminal "connection lost" state and offer a manual
+   * retry button.
+   */
+  onFailureToReconnect?: () => void;
 }
 
 /**
@@ -170,6 +187,12 @@ export interface StreamingHandlers {
 export interface StreamingHandle {
   /** The session ID assigned by the server. */
   readonly sessionId: string | null;
+  /**
+   * Resilience tracker for this session. Subscribe to its `onChange` to
+   * receive reactive connection-status updates, or read its `snapshot`
+   * for the current phase.
+   */
+  readonly connectionStatus: import('../resilience').ConnectionStatus;
   /** Send a prompt/message to the server to start or continue streaming. */
   send(message: string | object, options?: SendOptions): void;
   /** Close the streaming session. */

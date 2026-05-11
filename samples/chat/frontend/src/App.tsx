@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useAtmosphere } from 'atmosphere.js/react';
+import { useAtmosphere, ConnectionStatusBadge } from 'atmosphere.js/react';
 import { ChatLayout, MessageList, ChatInput } from 'atmosphere.js/chat';
 import type { ChatMessage } from 'atmosphere.js/chat';
 
@@ -21,7 +21,14 @@ export function App() {
     [],
   );
 
-  const { data, state, push } = useAtmosphere<ChatMessage>({ request });
+  const { data, state, push, connectionStatus } = useAtmosphere<ChatMessage>({
+    request,
+    onReopen: () => console.info('[atmosphere] reopened'),
+    onTransportFailure: (reason) =>
+      console.warn('[atmosphere] transport failed, falling back:', reason),
+    onFailureToReconnect: () =>
+      console.error('[atmosphere] reconnect attempts exhausted'),
+  });
 
   useEffect(() => {
     if (!data) return;
@@ -50,6 +57,7 @@ export function App() {
       subtitle="Managed Service • JDK 21 Virtual Threads • WebSocket with Long-Polling Fallback"
       theme="ai"
       state={state}
+      headerExtra={<ConnectionStatusBadge status={connectionStatus} />}
     >
       <MessageList messages={messages} currentUser={name ?? undefined} theme="ai" />
       <ChatInput

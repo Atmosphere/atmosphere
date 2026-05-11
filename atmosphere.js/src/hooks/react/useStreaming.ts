@@ -19,6 +19,8 @@ import type { AtmosphereRequest } from '../../types';
 import type { StreamingHandle, SessionStats, RoutingInfo, SendOptions } from '../../streaming/types';
 import { subscribeStreaming } from '../../streaming';
 import { useAtmosphereContext } from './provider';
+import { ConnectionStatus } from '../../resilience';
+import type { ConnectionStatusSnapshot } from '../../resilience';
 
 /**
  * Options for {@link useStreaming}.
@@ -52,6 +54,23 @@ export interface UseStreamingOptions {
    * next server heartbeat lands. Pairs with @AiEndpoint(heartbeatSeconds=N).
    */
   onClientTimeout?: () => void;
+  /**
+   * Called when the connection is re-established after a disconnect
+   * (not on first open). Pair with a "Reconnected" toast.
+   */
+  onReopen?: () => void;
+  /**
+   * Called when the primary transport fails and a fallback is attempted.
+   * The reason string is the underlying error message — UI typically
+   * surfaces a "degraded mode" indicator showing which transport is now in use.
+   */
+  onTransportFailure?: (reason: string) => void;
+  /**
+   * Called when reconnect attempts have been exhausted. UI should
+   * surface a terminal "connection lost" state and offer a manual
+   * retry button (e.g. by re-mounting the hook via `enabled` toggle).
+   */
+  onFailureToReconnect?: () => void;
 }
 
 /** Connection-state classification surfaced to consumers of {@link useStreaming}. */
@@ -105,10 +124,20 @@ export interface UseStreamingResult {
    * Current transport-layer connection state. Drives "Connecting…",
    * "Reconnecting…", "Connection lost" UI banners that pair with the
    * server-side @AiEndpoint disconnect / stream-resume primitives.
+   *
+   * For the richer resilience view (transport in use, fallback flag,
+   * reconnect attempt counter, last lifecycle event), use
+   * {@link UseStreamingResult.connectionStatus} instead.
    */
   connectionState: StreamingConnectionState;
   /** True iff the transport is currently mid-reconnection. */
   isReconnecting: boolean;
+  /**
+   * Reactive snapshot of the resilience state (phase + last event +
+   * transport + attempt counter + viaFallback flag). Pass directly to
+   * {@code <ConnectionStatusBadge status={connectionStatus} />}.
+   */
+  connectionStatus: ConnectionStatusSnapshot;
 }
 
 /**
@@ -132,7 +161,11 @@ export interface UseStreamingResult {
  */
 export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   const atmosphere = useAtmosphereContext();
-  const { request, enabled = true, onOpen, onClose, onReconnect, onClientTimeout } = options;
+  const {
+    request, enabled = true,
+    onOpen, onClose, onReconnect, onClientTimeout,
+    onReopen, onTransportFailure, onFailureToReconnect,
+  } = options;
 
   const [streamingTexts, setStreamingTexts] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -144,13 +177,29 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   const [error, setError] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<StreamingConnectionState>('idle');
 
+  // ConnectionStatus instance lives across re-renders; the snapshot is the
+  // reactive view of it. We seed with idle so consumers can render a badge
+  // before the first connect resolves.
+  const statusInstanceRef = useRef<ConnectionStatus>(
+    new ConnectionStatus({ initialTransport: request.transport }),
+  );
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusSnapshot>(
+    statusInstanceRef.current.snapshot,
+  );
+
   const handleRef = useRef<StreamingHandle | null>(null);
 
   // Keep external lifecycle callbacks in a ref so the subscribe effect doesn't
   // re-run when callers pass fresh closures every render. Mirrors the existing
   // useAtmosphereCore pattern.
-  const lifecycleRef = useRef({ onOpen, onClose, onReconnect, onClientTimeout });
-  lifecycleRef.current = { onOpen, onClose, onReconnect, onClientTimeout };
+  const lifecycleRef = useRef({
+    onOpen, onClose, onReconnect, onClientTimeout,
+    onReopen, onTransportFailure, onFailureToReconnect,
+  });
+  lifecycleRef.current = {
+    onOpen, onClose, onReconnect, onClientTimeout,
+    onReopen, onTransportFailure, onFailureToReconnect,
+  };
 
   useEffect(() => {
     if (!enabled) return;
@@ -176,10 +225,24 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
             setConnectionState('reconnecting');
             lifecycleRef.current.onReconnect?.();
           },
+          onReopen: () => {
+            if (cancelled) return;
+            setConnectionState('connected');
+            lifecycleRef.current.onReopen?.();
+          },
           onClientTimeout: () => {
             if (cancelled) return;
             setConnectionState('reconnecting');
             lifecycleRef.current.onClientTimeout?.();
+          },
+          onTransportFailure: (reason: string) => {
+            if (cancelled) return;
+            lifecycleRef.current.onTransportFailure?.(reason);
+          },
+          onFailureToReconnect: () => {
+            if (cancelled) return;
+            setConnectionState('error');
+            lifecycleRef.current.onFailureToReconnect?.();
           },
           onStreamingText: (text) => {
             if (cancelled) return;
@@ -227,6 +290,10 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
 
         if (!cancelled) {
           handleRef.current = handle;
+          // Adopt the underlying handle's ConnectionStatus so the
+          // snapshot reflects real lifecycle events from the transport.
+          statusInstanceRef.current = handle.connectionStatus;
+          setConnectionStatus(handle.connectionStatus.snapshot);
         } else {
           await handle.close();
         }
@@ -244,6 +311,13 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [atmosphere, request.url, request.transport, request.authToken, request.sessionToken, enabled]);
+
+  // Mirror status changes into React state. The ref may swap to the real
+  // handle's status once subscribe resolves, so re-subscribe on every change.
+  useEffect(() => {
+    const unsubscribe = statusInstanceRef.current.onChange(setConnectionStatus);
+    return unsubscribe;
+  }, [connectionState]);
 
   const send = useCallback((message: string | object, options?: SendOptions) => {
     setIsStreaming(true);
@@ -274,10 +348,12 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
     () => ({
       fullText, streamingTexts, isStreaming, progress, metadata, stats, routing,
       aiEvents, error, send, reset, close, connectionState, isReconnecting,
+      connectionStatus,
     }),
     [
       fullText, streamingTexts, isStreaming, progress, metadata, stats, routing,
       aiEvents, error, send, reset, close, connectionState, isReconnecting,
+      connectionStatus,
     ],
   );
 }

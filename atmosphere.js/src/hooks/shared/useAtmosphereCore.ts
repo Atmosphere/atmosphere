@@ -22,10 +22,18 @@ import type {
   SubscriptionHandlers,
 } from '../../types';
 import type { Atmosphere } from '../../core/atmosphere';
+import { ConnectionStatus } from '../../resilience';
+import type { ConnectionStatusSnapshot } from '../../resilience';
 
 /**
  * Additional event handlers that callers can supply to
  * {@link useAtmosphereCore} without altering the subscription lifecycle.
+ *
+ * Covers the full classic Atmosphere 3.x lifecycle surface — the same
+ * eight hooks tracked by {@link ConnectionStatus} — so consumers can
+ * surface "reconnecting…", "fallback engaged", or "connection lost"
+ * UI affordances without subscribing to the underlying transport
+ * themselves.
  */
 export interface CoreSubscriptionHandlers<T> {
   onOpen?: () => void;
@@ -33,6 +41,14 @@ export interface CoreSubscriptionHandlers<T> {
   onClose?: () => void;
   onError?: (error: Error) => void;
   onReconnect?: () => void;
+  /** Called when a connection is re-established after a disconnect (not on first open). */
+  onReopen?: () => void;
+  /** Called when the primary transport fails and a fallback is attempted. */
+  onTransportFailure?: (reason: string) => void;
+  /** Called when the client-side heartbeat watchdog expires. */
+  onClientTimeout?: () => void;
+  /** Called when reconnect attempts are exhausted. */
+  onFailureToReconnect?: () => void;
 }
 
 /**
@@ -51,6 +67,11 @@ export interface UseAtmosphereCoreResult<T> {
   data: T | null;
   /** The last error, if any. */
   error: Error | null;
+  /**
+   * Reactive snapshot of the resilience state (phase + last event +
+   * transport + attempt counter). Updated on every lifecycle hook.
+   */
+  connectionStatus: ConnectionStatusSnapshot;
   /** Send a message on the subscription. */
   push: (message: string | object | ArrayBuffer) => void;
   /** Close the subscription. */
@@ -69,7 +90,8 @@ export interface UseAtmosphereCoreResult<T> {
  * This is the foundational hook used by both `useAtmosphere` (web) and
  * `useAtmosphereRN` (React Native). It handles:
  * - State management (`subscription`, `state`, `data`, `error`)
- * - The subscribe effect with open/message/close/error/reconnect handlers
+ * - The subscribe effect with all eight lifecycle handlers wired to a
+ *   {@link ConnectionStatus} for unified resilience tracking
  * - Cleanup on unmount or dependency change
  * - Manual control callbacks (`push`, `disconnect`, `suspend`, `resume`)
  *
@@ -86,6 +108,19 @@ export function useAtmosphereCore<T = unknown>(
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const subRef = useRef<Subscription | null>(null);
+
+  // One ConnectionStatus per hook instance; its lifetime matches the hook.
+  const statusRef = useRef<ConnectionStatus>(
+    new ConnectionStatus({ initialTransport: request.transport }),
+  );
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusSnapshot>(
+    statusRef.current.snapshot,
+  );
+
+  // Mirror status changes into React state so the component re-renders.
+  useEffect(() => {
+    return statusRef.current.onChange(setConnectionStatus);
+  }, []);
 
   // Keep handlers in a ref so the effect doesn't re-run when handlers change
   const handlersRef = useRef(handlers);
@@ -104,7 +139,7 @@ export function useAtmosphereCore<T = unknown>(
 
     (async () => {
       try {
-        const subscriptionHandlers: SubscriptionHandlers<T> = {
+        const baseHandlers: SubscriptionHandlers<T> = {
           open: () => {
             if (!cancelled) {
               setState('connected');
@@ -137,7 +172,32 @@ export function useAtmosphereCore<T = unknown>(
               handlersRef.current?.onReconnect?.();
             }
           },
+          reopen: () => {
+            if (!cancelled) {
+              setState('connected');
+              handlersRef.current?.onReopen?.();
+            }
+          },
+          transportFailure: (reason) => {
+            if (!cancelled) {
+              handlersRef.current?.onTransportFailure?.(reason);
+            }
+          },
+          clientTimeout: () => {
+            if (!cancelled) {
+              handlersRef.current?.onClientTimeout?.();
+            }
+          },
+          failureToReconnect: () => {
+            if (!cancelled) {
+              setState('error');
+              handlersRef.current?.onFailureToReconnect?.();
+            }
+          },
         };
+
+        // Wrap with ConnectionStatus so the resilience snapshot stays in sync.
+        const subscriptionHandlers = statusRef.current.wrap(baseHandlers);
 
         const sub = await atmosphere.subscribe<T>(request, subscriptionHandlers);
         if (!cancelled) {
@@ -158,6 +218,8 @@ export function useAtmosphereCore<T = unknown>(
       cancelled = true;
       subRef.current?.close();
       subRef.current = null;
+      // Reset status so a re-subscribe (e.g. on URL change) starts clean.
+      statusRef.current.reset();
     };
     // Reconnect when URL, transport, auth, or headers change
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -194,6 +256,7 @@ export function useAtmosphereCore<T = unknown>(
     state,
     data,
     error,
+    connectionStatus,
     push,
     disconnect,
     suspend,

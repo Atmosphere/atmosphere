@@ -1,5 +1,5 @@
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
-import { useAtmosphere } from 'atmosphere.js/react';
+import { useAtmosphere, ConnectionStatusBadge } from 'atmosphere.js/react';
 import { ChatLayout, MessageList, ChatInput } from 'atmosphere.js/chat';
 import type { ChatMessage } from 'atmosphere.js/chat';
 
@@ -378,7 +378,15 @@ export function App() {
     [wtInfo],
   );
 
-  const { data, state, push } = useAtmosphere<unknown>({ request, enabled: wtLoaded });
+  const { data, state, push, connectionStatus } = useAtmosphere<unknown>({
+    request,
+    enabled: wtLoaded,
+    onReopen: () => console.info('[atmosphere] reopened'),
+    onTransportFailure: (reason) =>
+      console.warn('[atmosphere] transport failed, falling back:', reason),
+    onFailureToReconnect: () =>
+      console.error('[atmosphere] reconnect attempts exhausted'),
+  });
 
   useEffect(() => {
     if (!data) return;
@@ -454,6 +462,7 @@ export function App() {
       subtitle="Spring Boot • WebTransport/HTTP3 • Room Protocol • Presence • Health Check"
       theme="ai"
       state={state}
+      headerExtra={<ConnectionStatusBadge status={connectionStatus} />}
     >
       <div style={tabBarStyle}>
         <div style={tabStyle(activeTab === 'chat')} onClick={() => setActiveTab('chat')}>

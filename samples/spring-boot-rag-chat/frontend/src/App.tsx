@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, createElement } from 'react';
-import { useStreaming } from 'atmosphere.js/react';
+import { useStreaming, ConnectionStatusBadge } from 'atmosphere.js/react';
 import { ChatLayout, ChatInput, StreamingMessage, StreamingProgress, StreamingError } from 'atmosphere.js/chat';
 
 interface UserMessage {
@@ -34,12 +34,17 @@ export function App() {
     [],
   );
 
-  const { fullText, isStreaming, progress, error, send, reset } =
+  const { fullText, isStreaming, progress, error, send, reset, connectionStatus } =
     useStreaming({
       request,
       onClose: () => console.info('[atmosphere] transport closed'),
       onReconnect: () => console.info('[atmosphere] reconnecting…'),
+      onReopen: () => console.info('[atmosphere] reopened'),
       onClientTimeout: () => console.warn('[atmosphere] heartbeat timeout'),
+      onTransportFailure: (reason) =>
+        console.warn('[atmosphere] transport failed, falling back:', reason),
+      onFailureToReconnect: () =>
+        console.error('[atmosphere] reconnect attempts exhausted'),
     });
 
   useEffect(() => {
@@ -80,6 +85,7 @@ export function App() {
       title={<><img src="/logo.png" alt="" style={{ height: '1.2em', verticalAlign: 'middle', marginRight: 8 }} />Atmosphere RAG Agent</>}
       subtitle="@Agent + AI Tools + RAG Retrieval + Spring AI VectorStore"
       theme="ai"
+      headerExtra={<ConnectionStatusBadge status={connectionStatus} />}
     >
       <div style={{
         flex: 1,

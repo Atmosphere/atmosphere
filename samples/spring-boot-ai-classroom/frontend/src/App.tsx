@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, createElement } from 'react';
-import { useStreaming } from 'atmosphere.js/react';
+import { useStreaming, ConnectionStatusBadge } from 'atmosphere.js/react';
 import { ChatLayout, ChatInput, StreamingMessage, StreamingProgress, StreamingError } from 'atmosphere.js/chat';
 
 interface UserMessage {
@@ -179,12 +179,17 @@ function Classroom({ room, onLeave }: { room: string; onLeave: () => void }) {
     [room],
   );
 
-  const { fullText, isStreaming, progress, metadata, stats, error, send, reset } =
+  const { fullText, isStreaming, progress, metadata, stats, error, send, reset, connectionStatus } =
     useStreaming({
       request,
       onClose: () => console.info('[atmosphere] transport closed'),
       onReconnect: () => console.info('[atmosphere] reconnecting…'),
+      onReopen: () => console.info('[atmosphere] reopened'),
       onClientTimeout: () => console.warn('[atmosphere] heartbeat timeout'),
+      onTransportFailure: (reason) =>
+        console.warn('[atmosphere] transport failed, falling back:', reason),
+      onFailureToReconnect: () =>
+        console.error('[atmosphere] reconnect attempts exhausted'),
     });
 
   useEffect(() => {
@@ -280,24 +285,26 @@ function Classroom({ room, onLeave }: { room: string; onLeave: () => void }) {
       }
       theme={chatTheme}
       headerExtra={
-        displayModel
-          ? createElement(
-              'div',
-              {
-                style: {
-                  fontSize: 11,
-                  color: PALETTE.textSecondary,
-                  background: PALETTE.bgTertiary,
-                  padding: '3px 10px',
-                  borderRadius: 9999,
-                  marginTop: 4,
-                  border: `1px solid ${PALETTE.borderColor}`,
-                  fontFamily: FONT_STACK,
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+          {displayModel
+            ? createElement(
+                'div',
+                {
+                  style: {
+                    fontSize: 11,
+                    color: PALETTE.textSecondary,
+                    background: PALETTE.bgTertiary,
+                    padding: '3px 10px',
+                    borderRadius: 9999,
+                    border: `1px solid ${PALETTE.borderColor}`,
+                    fontFamily: FONT_STACK,
+                  },
                 },
-              },
-              displayModel,
-            )
-          : null
+                displayModel,
+              )
+            : null}
+          <ConnectionStatusBadge status={connectionStatus} />
+        </div>
       }
     >
       <div

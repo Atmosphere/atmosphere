@@ -1,6 +1,10 @@
-import { ref, onMounted, onUnmounted } from 'vue'
-import { Atmosphere } from 'atmosphere.js'
-import type { Subscription, AtmosphereResponse } from 'atmosphere.js'
+import { ref, onMounted, onUnmounted, type Ref } from 'vue'
+import { Atmosphere, ConnectionStatus } from 'atmosphere.js'
+import type {
+  Subscription,
+  AtmosphereResponse,
+  ConnectionStatusSnapshot,
+} from 'atmosphere.js'
 
 export interface ChatMessage {
   id: string
@@ -38,6 +42,12 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
   const isStreaming = ref(false)
   const connectionState = ref<string>('disconnected')
   const stats = ref<SessionStats | null>(null)
+
+  // Resilience tracker — surfaces fallback, reconnect-attempts and the
+  // terminal "lost" state to the operator UI via ConnectionStatusBadge.
+  const status = new ConnectionStatus({ initialTransport: 'websocket' })
+  const connectionStatus: Ref<ConnectionStatusSnapshot> = ref(status.snapshot)
+  const unsubscribeStatus = status.onChange((s) => { connectionStatus.value = s })
 
   let atmosphere: Atmosphere | null = null
   let subscription: Subscription | null = null
@@ -365,7 +375,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
         trackMessageLength: true,
         enableProtocol: true,
       },
-      {
+      status.wrap({
         open: () => {
           isConnected.value = true
           connectionState.value = 'connected'
@@ -398,7 +408,19 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
           connectionState.value = 'connected'
           reconnectAttempts = 0
         },
-      }
+        transportFailure: (reason) => {
+          console.warn('[atmosphere] transport failure, falling back:', reason)
+        },
+        clientTimeout: () => {
+          // Heartbeat watchdog tripped — atmosphere.js will reconnect.
+          connectionState.value = 'reconnecting'
+        },
+        failureToReconnect: () => {
+          // Reconnect quota exhausted. Make this visible in the operator UI.
+          isConnected.value = false
+          connectionState.value = 'disconnected'
+        },
+      })
     )
   }
 
@@ -444,6 +466,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
   })
 
   onUnmounted(() => {
+    unsubscribeStatus()
     if (atmosphere) {
       atmosphere.closeAll()
     }
@@ -455,6 +478,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
     isConnected,
     isStreaming,
     connectionState,
+    connectionStatus,
     send,
     clearMessages,
     respondToApproval,

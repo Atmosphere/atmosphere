@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, createElement } from 'react';
-import { useStreaming } from 'atmosphere.js/react';
+import { useStreaming, ConnectionStatusBadge } from 'atmosphere.js/react';
 import type { RoutingInfo } from 'atmosphere.js';
 import { ChatLayout, ChatInput, StreamingMessage, StreamingProgress, StreamingError } from 'atmosphere.js/chat';
 
@@ -152,13 +152,18 @@ export function App() {
     [wtInfo],
   );
 
-  const { fullText, isStreaming, progress, metadata, routing, aiEvents, error, send, reset } =
+  const { fullText, isStreaming, progress, metadata, routing, aiEvents, error, send, reset, connectionStatus } =
     useStreaming({
       request,
       enabled: wtLoaded,
       onClose: () => console.info('[atmosphere] transport closed'),
       onReconnect: () => console.info('[atmosphere] reconnecting…'),
+      onReopen: () => console.info('[atmosphere] reopened'),
       onClientTimeout: () => console.warn('[atmosphere] heartbeat timeout'),
+      onTransportFailure: (reason) =>
+        console.warn('[atmosphere] transport failed, falling back:', reason),
+      onFailureToReconnect: () =>
+        console.error('[atmosphere] reconnect attempts exhausted'),
     });
 
   // When streaming text updates, update/append the assistant message
@@ -209,7 +214,6 @@ export function App() {
           background: 'rgba(255,255,255,0.15)',
           padding: '3px 10px',
           borderRadius: 10,
-          marginTop: 6,
           display: 'inline-block',
         },
       }, String(metadata.model))
@@ -220,7 +224,12 @@ export function App() {
       title={<><img src="/logo.png" alt="" style={{ height: '1.2em', verticalAlign: 'middle', marginRight: 8 }} />Atmosphere @AiTool Pipeline</>}
       subtitle="Tool calling with cost metering"
       theme="aitool"
-      headerExtra={modelBadge}
+      headerExtra={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+          {modelBadge}
+          <ConnectionStatusBadge status={connectionStatus} />
+        </div>
+      }
     >
       <div style={{
         flex: 1,

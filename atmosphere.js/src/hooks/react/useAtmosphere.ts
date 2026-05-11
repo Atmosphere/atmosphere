@@ -14,18 +14,21 @@
  * limitations under the License.
  */
 
+import { useMemo } from 'react';
 import type {
   AtmosphereRequest,
   ConnectionState,
   Subscription,
 } from '../../types';
+import type { ConnectionStatusSnapshot } from '../../resilience';
 import { useAtmosphereContext } from './provider';
 import { useAtmosphereCore } from '../shared/useAtmosphereCore';
+import type { CoreSubscriptionHandlers } from '../shared/useAtmosphereCore';
 
 /**
  * Options for {@link useAtmosphere}.
  */
-export interface UseAtmosphereOptions {
+export interface UseAtmosphereOptions<T = unknown> extends CoreSubscriptionHandlers<T> {
   /** Atmosphere request configuration (url, transport, etc.). */
   request: AtmosphereRequest;
   /** If false, the connection is not opened automatically (default: true). */
@@ -44,6 +47,12 @@ export interface UseAtmosphereResult<T> {
   data: T | null;
   /** The last error, if any. */
   error: Error | null;
+  /**
+   * Reactive snapshot of the resilience state (phase + last event +
+   * transport + attempt counter + viaFallback flag). Pass directly to
+   * {@code <ConnectionStatusBadge status={connectionStatus} />}.
+   */
+  connectionStatus: ConnectionStatusSnapshot;
   /** Send a message on the subscription. */
   push: (message: string | object | ArrayBuffer) => void;
   /** Close the subscription. */
@@ -58,30 +67,86 @@ export interface UseAtmosphereResult<T> {
  * React hook that manages an Atmosphere subscription lifecycle.
  *
  * Connects on mount, disconnects on unmount, and re-connects when the
- * request URL or transport changes.
+ * request URL or transport changes. Surfaces the full resilience event
+ * stream via `connectionStatus` and optional callbacks
+ * (`onReopen`, `onTransportFailure`, `onClientTimeout`,
+ * `onFailureToReconnect`).
  *
  * ```tsx
- * const { data, state, push, disconnect, suspend, resume } = useAtmosphere<ChatMessage>({
- *   request: { url: '/chat', transport: 'websocket' },
+ * const { data, connectionStatus, push } = useAtmosphere<ChatMessage>({
+ *   request: { url: '/chat', transport: 'websocket', fallbackTransport: 'sse' },
+ *   onTransportFailure: (reason) => console.warn('WS failed:', reason),
  * });
+ *
+ * return <ConnectionStatusBadge status={connectionStatus} />;
  * ```
  *
  * Requires an {@link AtmosphereProvider} ancestor.
  */
 export function useAtmosphere<T = unknown>(
-  options: UseAtmosphereOptions,
+  options: UseAtmosphereOptions<T>,
 ): UseAtmosphereResult<T> {
   const atmosphere = useAtmosphereContext();
-  const { request, enabled = true } = options;
+  const {
+    request,
+    enabled = true,
+    onOpen,
+    onMessage,
+    onClose,
+    onError,
+    onReconnect,
+    onReopen,
+    onTransportFailure,
+    onClientTimeout,
+    onFailureToReconnect,
+  } = options;
 
-  const { subscription, state, data, error, push, disconnect, suspend, resume } =
-    useAtmosphereCore<T>(atmosphere, request, undefined, enabled);
+  // Pack the lifecycle callbacks into a single object the core hook can
+  // read through a ref; rebuilding it on every render is fine because
+  // the core hook stores the latest ref, not the value.
+  const handlers = useMemo<CoreSubscriptionHandlers<T>>(
+    () => ({
+      onOpen,
+      onMessage,
+      onClose,
+      onError,
+      onReconnect,
+      onReopen,
+      onTransportFailure,
+      onClientTimeout,
+      onFailureToReconnect,
+    }),
+    [
+      onOpen,
+      onMessage,
+      onClose,
+      onError,
+      onReconnect,
+      onReopen,
+      onTransportFailure,
+      onClientTimeout,
+      onFailureToReconnect,
+    ],
+  );
+
+  const {
+    subscription,
+    state,
+    data,
+    error,
+    connectionStatus,
+    push,
+    disconnect,
+    suspend,
+    resume,
+  } = useAtmosphereCore<T>(atmosphere, request, handlers, enabled);
 
   return {
     subscription,
     state,
     data,
     error,
+    connectionStatus,
     push,
     disconnect,
     suspend,

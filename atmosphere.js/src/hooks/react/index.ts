@@ -22,3 +22,18 @@ export type { UseAtmosphereCoreResult, CoreSubscriptionHandlers } from '../share
 export { useRoom } from './useRoom';
 export { usePresence } from './usePresence';
 export { useStreaming } from './useStreaming';
+export { useConnectionStatus } from './useConnectionStatus';
+export type { UseConnectionStatusResult } from './useConnectionStatus';
+export {
+  ConnectionStatusBadge,
+  DEFAULT_LABELS as CONNECTION_STATUS_LABELS,
+  DEFAULT_COLORS as CONNECTION_STATUS_COLORS,
+} from './ConnectionStatusBadge';
+export type { ConnectionStatusBadgeProps } from './ConnectionStatusBadge';
+// Re-export resilience types so consumers can `import type { ConnectionStatusSnapshot } from 'atmosphere.js/react'`.
+export type {
+  ConnectionEvent,
+  ConnectionPhase,
+  ConnectionStatusOptions,
+  ConnectionStatusSnapshot,
+} from '../../resilience';

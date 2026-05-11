@@ -29,6 +29,24 @@ export type { UseAtmosphereRNOptions, UseAtmosphereRNResult, BackgroundBehavior 
 export { useStreamingRN } from './useStreamingRN';
 export type { UseStreamingRNOptions, UseStreamingRNResult } from './useStreamingRN';
 
+// ConnectionStatus surface — useConnectionStatus is identical to the
+// web version (pure React, no RN-specific behavior); re-export under
+// the RN entry so consumers don't have to mix imports.
+export { useConnectionStatus } from '../react/useConnectionStatus';
+export type { UseConnectionStatusResult } from '../react/useConnectionStatus';
+export {
+  ConnectionStatusBadgeRN,
+  DEFAULT_LABELS_RN as CONNECTION_STATUS_LABELS_RN,
+  DEFAULT_COLORS_RN as CONNECTION_STATUS_COLORS_RN,
+} from './ConnectionStatusBadgeRN';
+export type { ConnectionStatusBadgeRNProps } from './ConnectionStatusBadgeRN';
+export type {
+  ConnectionEvent,
+  ConnectionPhase,
+  ConnectionStatusOptions,
+  ConnectionStatusSnapshot,
+} from '../../resilience';
+
 // Re-export core hooks that work as-is in RN
 export { AtmosphereProvider, useAtmosphereContext } from '../react/provider';
 export { useRoom } from '../react/useRoom';

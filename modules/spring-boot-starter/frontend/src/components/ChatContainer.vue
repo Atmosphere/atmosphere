@@ -17,7 +17,7 @@ const props = defineProps<{
   mode?: 'ai' | 'broadcast'
 }>()
 
-const { messages, toolCalls, isConnected, isStreaming, connectionState, send, clearMessages, respondToApproval, stats } = useAtmosphereChat(props.endpoint)
+const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats } = useAtmosphereChat(props.endpoint)
 const messagesContainer = ref<HTMLElement | null>(null)
 
 function scrollToBottom() {
@@ -41,7 +41,7 @@ function handleSend(text: string) {
 <template>
   <div class="chat-container" data-testid="chat-layout">
     <div class="chat-toolbar">
-      <ConnectionStatus :state="connectionState" />
+      <ConnectionStatus :state="connectionState" :status="connectionStatus" />
       <button class="clear-btn" @click="clearMessages" title="Clear messages">
         Clear
       </button>

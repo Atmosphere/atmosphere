@@ -21,26 +21,54 @@ import type {
   Subscription,
 } from '../../types';
 import { Atmosphere } from '../../core/atmosphere';
+import { ConnectionStatus } from '../../resilience';
+import type { ConnectionStatusSnapshot } from '../../resilience';
+
+/**
+ * Optional lifecycle callbacks paired with the server-side
+ * resilience primitives. Full classic Atmosphere 3.x surface so
+ * consumers can show transport-failure, reopen, and exhaustion
+ * indicators without inspecting the subscription themselves.
+ */
+export interface VueAtmosphereLifecycle<T = unknown> {
+  onOpen?: () => void;
+  onMessage?: (data: T) => void;
+  onClose?: () => void;
+  onError?: (err: Error) => void;
+  onReconnect?: () => void;
+  onReopen?: () => void;
+  onTransportFailure?: (reason: string) => void;
+  onClientTimeout?: () => void;
+  onFailureToReconnect?: () => void;
+}
 
 /**
  * Vue composable that manages an Atmosphere subscription lifecycle.
  *
  * Connects on call, disconnects when the component is unmounted.
+ * Exposes a reactive `connectionStatus` ref containing the unified
+ * resilience snapshot (phase + last event + transport + attempt counter).
  *
  * ```vue
  * <script setup lang="ts">
- * import { useAtmosphere } from 'atmosphere.js/vue';
+ * import { useAtmosphere, ConnectionStatusBadge } from 'atmosphere.js/vue';
  *
- * const { data, state, push } = useAtmosphere<ChatMessage>({
+ * const { data, connectionStatus, push } = useAtmosphere<ChatMessage>({
  *   url: '/chat',
  *   transport: 'websocket',
+ *   fallbackTransport: 'sse',
  * });
  * </script>
+ *
+ * <template>
+ *   <ConnectionStatusBadge :status="connectionStatus" />
+ * </template>
  * ```
  */
 export function useAtmosphere<T = unknown>(
   request: AtmosphereRequest,
   instance?: Atmosphere,
+  lifecycle?: VueAtmosphereLifecycle<T>,
 ) {
   const atmosphere = instance ?? new Atmosphere();
   const state: Ref<ConnectionState> = ref('disconnected');
@@ -48,21 +76,50 @@ export function useAtmosphere<T = unknown>(
   const error: Ref<Error | null> = ref(null);
   const subscription: ShallowRef<Subscription | null> = shallowRef(null);
 
+  const status = new ConnectionStatus({ initialTransport: request.transport });
+  const connectionStatus: Ref<ConnectionStatusSnapshot> = ref(status.snapshot);
+  const unsubscribeStatus = status.onChange((s) => { connectionStatus.value = s; });
+
   const connect = async () => {
     try {
-      const sub = await atmosphere.subscribe<T>(request, {
-        open: () => { state.value = 'connected'; },
+      const sub = await atmosphere.subscribe<T>(request, status.wrap({
+        open: () => {
+          state.value = 'connected';
+          lifecycle?.onOpen?.();
+        },
         message: (response) => {
           state.value = 'connected';
           data.value = response.responseBody;
+          lifecycle?.onMessage?.(response.responseBody);
         },
-        close: () => { state.value = 'closed'; },
+        close: () => {
+          state.value = 'closed';
+          lifecycle?.onClose?.();
+        },
         error: (err) => {
           state.value = 'error';
           error.value = err;
+          lifecycle?.onError?.(err);
         },
-        reconnect: () => { state.value = 'reconnecting'; },
-      });
+        reconnect: () => {
+          state.value = 'reconnecting';
+          lifecycle?.onReconnect?.();
+        },
+        reopen: () => {
+          state.value = 'connected';
+          lifecycle?.onReopen?.();
+        },
+        transportFailure: (reason) => {
+          lifecycle?.onTransportFailure?.(reason);
+        },
+        clientTimeout: () => {
+          lifecycle?.onClientTimeout?.();
+        },
+        failureToReconnect: () => {
+          state.value = 'error';
+          lifecycle?.onFailureToReconnect?.();
+        },
+      }));
       subscription.value = sub;
       state.value = sub.state;
     } catch (err) {
@@ -78,9 +135,10 @@ export function useAtmosphere<T = unknown>(
   connect();
 
   onUnmounted(() => {
+    unsubscribeStatus();
     subscription.value?.close();
     subscription.value = null;
   });
 
-  return { subscription, state, data, error, push };
+  return { subscription, state, data, error, push, connectionStatus };
 }

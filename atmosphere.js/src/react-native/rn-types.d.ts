@@ -15,6 +15,16 @@ declare module 'react-native' {
   }
 
   export const AppState: AppStateStatic;
+
+  // Minimal stubs for ConnectionStatusBadgeRN — full surface lives in @types/react-native
+  // (not a devDependency here; consumers' RN bundler resolves the real package at build time).
+  export type ViewStyle = Record<string, unknown>;
+  export type TextStyle = Record<string, unknown>;
+  export const View: import('react').ComponentType<{ style?: ViewStyle; testID?: string; children?: import('react').ReactNode }>;
+  export const Text: import('react').ComponentType<{ style?: TextStyle; testID?: string; children?: import('react').ReactNode }>;
+  export const StyleSheet: {
+    create<T extends Record<string, ViewStyle | TextStyle>>(styles: T): T;
+  };
 }
 
 declare module '@react-native-community/netinfo' {

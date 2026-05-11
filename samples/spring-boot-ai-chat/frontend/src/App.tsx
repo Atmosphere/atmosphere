@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, createElement } from 'react';
-import { useStreaming } from 'atmosphere.js/react';
+import { useStreaming, ConnectionStatusBadge } from 'atmosphere.js/react';
 import { ChatLayout, ChatInput, StreamingMessage, StreamingProgress, StreamingError } from 'atmosphere.js/chat';
 
 interface UserMessage {
@@ -52,7 +52,7 @@ export function App() {
   );
 
   const { fullText, isStreaming, progress, metadata, stats, routing, error, send, reset,
-          connectionState, isReconnecting } =
+          connectionState, isReconnecting, connectionStatus } =
     useStreaming({
       request,
       enabled: wtLoaded,
@@ -62,10 +62,17 @@ export function App() {
       //   UUIDBroadcasterCache.class) replays cached frames on the server side
       // - onClientTimeout fires when the heartbeat watchdog expires; pair
       //   with @AiEndpoint(heartbeatSeconds=N) on long-tool flows
+      // - onTransportFailure fires when WebTransport handshake fails and the
+      //   client falls back to WebSocket — the Badge surfaces this to the user.
       onOpen: () => console.info('[atmosphere] transport open'),
       onClose: () => console.info('[atmosphere] transport closed'),
       onReconnect: () => console.info('[atmosphere] reconnecting…'),
+      onReopen: () => console.info('[atmosphere] reopened'),
       onClientTimeout: () => console.warn('[atmosphere] client heartbeat timeout'),
+      onTransportFailure: (reason) =>
+        console.warn('[atmosphere] transport failed, falling back:', reason),
+      onFailureToReconnect: () =>
+        console.error('[atmosphere] reconnect attempts exhausted'),
     });
 
   // When streaming text updates, update/append the assistant message
@@ -158,7 +165,7 @@ export function App() {
       title={<><img src="/logo.png" alt="" style={{ height: '1.2em', verticalAlign: 'middle', marginRight: 8 }} />Atmosphere AI Chat</>}
       subtitle="Real-time streaming via WebSocket"
       theme="ai"
-      headerExtra={<>{headerBadges}{connectionBanner}</>}
+      headerExtra={<>{headerBadges}<ConnectionStatusBadge status={connectionStatus} />{connectionBanner}</>}
     >
       <div style={{
         flex: 1,

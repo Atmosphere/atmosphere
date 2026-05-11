@@ -18,3 +18,15 @@ export { useAtmosphere } from './useAtmosphere';
 export { useRoom } from './useRoom';
 export { usePresence } from './usePresence';
 export { useStreaming } from './useStreaming';
+export { useConnectionStatus } from './useConnectionStatus';
+export {
+  ConnectionStatusBadge,
+  DEFAULT_LABELS as CONNECTION_STATUS_LABELS,
+  DEFAULT_COLORS as CONNECTION_STATUS_COLORS,
+} from './ConnectionStatusBadge';
+export type {
+  ConnectionEvent,
+  ConnectionPhase,
+  ConnectionStatusOptions,
+  ConnectionStatusSnapshot,
+} from '../../resilience';

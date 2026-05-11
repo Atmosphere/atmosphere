@@ -19,6 +19,8 @@ import type { AtmosphereRequest } from '../../types';
 import type { StreamingHandle, SessionStats, RoutingInfo, SendOptions } from '../../streaming/types';
 import { subscribeStreaming } from '../../streaming';
 import { Atmosphere } from '../../core/atmosphere';
+import { ConnectionStatus } from '../../resilience';
+import type { ConnectionStatusSnapshot } from '../../resilience';
 
 /**
  * Vue composable for AI/LLM streaming via Atmosphere.
@@ -48,6 +50,12 @@ export interface VueStreamingLifecycle {
   onClose?: () => void;
   onReconnect?: () => void;
   onClientTimeout?: () => void;
+  /** Called when the connection is re-established after a disconnect. */
+  onReopen?: () => void;
+  /** Called when the primary transport fails and a fallback is attempted. */
+  onTransportFailure?: (reason: string) => void;
+  /** Called when reconnect attempts have been exhausted. */
+  onFailureToReconnect?: () => void;
 }
 
 /** Connection-state classification surfaced to consumers. */
@@ -80,6 +88,12 @@ export function useStreaming(
 
   const fullText: ComputedRef<string> = computed(() => streamingTexts.value.join(''));
 
+  // Seed ConnectionStatus; replaced once subscribeStreaming returns the
+  // handle's own instance (so events from the transport drive the snapshot).
+  let statusInstance: ConnectionStatus = new ConnectionStatus({ initialTransport: request.transport });
+  const connectionStatus: Ref<ConnectionStatusSnapshot> = ref(statusInstance.snapshot);
+  let unsubscribeStatus: () => void = statusInstance.onChange((s) => { connectionStatus.value = s; });
+
   let handle: StreamingHandle | null = null;
 
   const connect = async () => {
@@ -98,9 +112,20 @@ export function useStreaming(
           connectionState.value = 'reconnecting';
           lifecycle?.onReconnect?.();
         },
+        onReopen: () => {
+          connectionState.value = 'connected';
+          lifecycle?.onReopen?.();
+        },
         onClientTimeout: () => {
           connectionState.value = 'reconnecting';
           lifecycle?.onClientTimeout?.();
+        },
+        onTransportFailure: (reason: string) => {
+          lifecycle?.onTransportFailure?.(reason);
+        },
+        onFailureToReconnect: () => {
+          connectionState.value = 'error';
+          lifecycle?.onFailureToReconnect?.();
         },
         onStreamingText: (text) => {
           isStreaming.value = true;
@@ -129,6 +154,12 @@ export function useStreaming(
           routing.value = r;
         },
       });
+      // Adopt the handle's ConnectionStatus so the snapshot reflects
+      // real transport-layer events.
+      unsubscribeStatus();
+      statusInstance = handle.connectionStatus;
+      connectionStatus.value = statusInstance.snapshot;
+      unsubscribeStatus = statusInstance.onChange((s) => { connectionStatus.value = s; });
     } catch (err) {
       error.value = err instanceof Error ? err.message : String(err);
       connectionState.value = 'error';
@@ -154,11 +185,12 @@ export function useStreaming(
   connect();
 
   onUnmounted(() => {
+    unsubscribeStatus();
     handle?.close();
   });
 
   return {
     fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, error,
-    send, reset, connectionState, isReconnecting,
+    send, reset, connectionState, isReconnecting, connectionStatus,
   };
 }

@@ -19,6 +19,7 @@ import {
   setupReactNative,
   AtmosphereProvider,
   useStreamingRN,
+  ConnectionStatusBadgeRN,
 } from 'atmosphere.js/react-native';
 
 // --- Initialize atmosphere.js for React Native ---
@@ -142,9 +143,19 @@ function Classroom({
     stats,
     error,
     isConnected,
+    connectionStatus,
     send,
     reset,
-  } = useStreamingRN({ request });
+  } = useStreamingRN({
+    request,
+    // Surface the resilience lifecycle to the console so operators can
+    // see fallback / reconnect / exhausted events alongside the badge.
+    onReopen: () => console.info('[atmosphere] reopened'),
+    onTransportFailure: (reason: string) =>
+      console.warn('[atmosphere] transport failed, falling back:', reason),
+    onFailureToReconnect: () =>
+      console.error('[atmosphere] reconnect attempts exhausted'),
+  });
 
   // Update assistant message as tokens arrive
   useEffect(() => {
@@ -238,6 +249,11 @@ function Classroom({
         <TouchableOpacity onPress={onLeave} style={styles.leaveButton}>
           <Text style={styles.leaveButtonText}>Leave</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Atmosphere resilience badge — shows transport, reconnect attempt, fallback flag. */}
+      <View style={styles.statusRow}>
+        <ConnectionStatusBadgeRN status={connectionStatus} />
       </View>
 
       {/* Connection status */}
@@ -485,6 +501,14 @@ const styles = StyleSheet.create({
   leaveButtonText: {
     fontSize: 13,
     color: ATMOSPHERE.goldLight,
+  },
+
+  // Resilience badge row
+  statusRow: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    alignItems: 'flex-start',
+    backgroundColor: ATMOSPHERE.bgCard,
   },
 
   // Banners
