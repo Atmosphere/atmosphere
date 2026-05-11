@@ -20,12 +20,12 @@ test.describe('Spring Boot Chat', () => {
 
   test('console connects to chat handler', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
+    await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
   });
 
   test('user can send a message', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
+    await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
 
     await page.getByTestId('chat-input').fill('Hello from Playwright!');
     await page.getByTestId('chat-send').click();
@@ -36,7 +36,7 @@ test.describe('Spring Boot Chat', () => {
 
   test('input clears after sending', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
+    await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
 
     await page.getByTestId('chat-input').fill('test message');
     await page.getByTestId('chat-send').click();
@@ -50,7 +50,7 @@ test.describe('Spring Boot Chat', () => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-layout')).toBeVisible();
     // Once connected, send button should be usable with non-empty input
-    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
+    await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
     // With empty input, send should be disabled
     await expect(page.getByTestId('chat-send')).toBeDisabled();
   });

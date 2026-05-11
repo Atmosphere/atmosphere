@@ -28,7 +28,7 @@ export class ChatPage {
 
   /** Wait for the WebSocket connection to be established. */
   async waitForConnected(): Promise<void> {
-    await expect(this.statusLabel).toHaveText('Connected', { timeout: 15_000 });
+    await expect(this.statusLabel).toHaveText(/^Connected/, { timeout: 15_000 });
   }
 
   /** Type text into the chat input and press Enter to send. */

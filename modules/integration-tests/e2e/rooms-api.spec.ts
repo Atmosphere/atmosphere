@@ -190,7 +190,7 @@ test.describe('Room API & Protocol', () => {
   test('console connects and can send a message', async ({ page }) => {
     // Verify the console UI works — replaces the old "rooms tab" browser test
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
+    await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
 
     await page.getByTestId('chat-input').fill('room test message');
     await page.getByTestId('chat-send').click();

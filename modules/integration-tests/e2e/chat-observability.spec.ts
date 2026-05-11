@@ -57,7 +57,7 @@ test.describe('Chat Observability & Actuator', () => {
   test('health endpoint returns UP after client activity', async ({ page, request }) => {
     // First, connect a client via the console to generate some activity
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
+    await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
 
     await page.getByTestId('chat-input').fill('hello for metrics');
     await page.getByTestId('chat-send').click();
@@ -73,7 +73,7 @@ test.describe('Chat Observability & Actuator', () => {
   test('atmosphere metrics reflect activity after console usage', async ({ page, request }) => {
     // Generate activity via the console
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
+    await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
 
     await page.getByTestId('chat-input').fill('metric trigger');
     await page.getByTestId('chat-send').click();

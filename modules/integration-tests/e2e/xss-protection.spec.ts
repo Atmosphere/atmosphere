@@ -20,7 +20,7 @@ const CONSOLE_PATH = '/atmosphere/console/';
 async function openConsole(page: import('@playwright/test').Page, baseUrl: string) {
   await page.goto(baseUrl + CONSOLE_PATH);
   await expect(page.getByTestId('chat-layout')).toBeVisible();
-  await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
+  await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
 }
 
 /** Type a message into the console textarea and press Enter to send. */

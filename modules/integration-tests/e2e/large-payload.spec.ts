@@ -68,7 +68,7 @@ test.describe('Large Payload', () => {
 
   test('large message in console renders without crashing', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
+    await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
 
     // Send a 5KB message through the console UI
     const largeMsg = 'Test_' + 'B'.repeat(5_000);

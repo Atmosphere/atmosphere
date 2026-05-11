@@ -30,7 +30,7 @@ test.describe('Transport Fallback', () => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
 
     // The console should fall back to SSE/long-polling and still connect
-    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
+    await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
 
     // Verify the chat still works — send a message and check it appears
     await page.getByTestId('chat-input').fill('Fallback works!');
@@ -52,7 +52,7 @@ test.describe('Transport Fallback', () => {
     });
 
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 15_000 });
+    await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
 
     // Send multiple messages
     await page.getByTestId('chat-input').fill('First message');
