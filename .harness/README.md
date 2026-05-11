@@ -1,16 +1,19 @@
 # `.harness/` — AI-Assisted Engineering Instrumentation
 
-Atmosphere's instance of Reock's DX impact-metric framework
-(InfoQ, *AI-Assisted Engineering*, 2026-05). The point of this directory is
+Atmosphere's harness — the engineering scaffold around the AI agents that
+contribute to this repo. The framing comes from the harness-engineering
+pattern documented by Anthropic ([*Effective harnesses for long-running
+agents*](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents),
+[*Harness design for long-running application development*](https://www.anthropic.com/engineering/harness-design-long-running-apps))
+and OpenAI ([*Harness engineering: leveraging Codex in an agent-first
+world*](https://openai.com/index/harness-engineering/)): the model is the
+engine, the harness is the rails — instructions, state, verification,
+scope, and session lifecycle around the model. This directory is the
+**verification** rail for AI prose claims about this repo. The point is
 **not** utilization metrics — that's Goodhart's-Law-bait. The point is to
 keep prose claims honest against running code, and to record every agent
-claim that diverged from ground truth so the *rate* of divergence over time
-is a diff-reviewable curve.
-
-If you've never heard the framing, the one-line summary is: **the model is
-the engine; the harness is the rails.** The orgs that get +20% from AI
-have an instrumented feedback loop on claim quality. The orgs that get −20%
-don't. This directory is our loop.
+claim that diverged from ground truth so the *rate* of divergence over
+time is a diff-reviewable curve.
 
 ---
 
@@ -124,9 +127,8 @@ memory↔code disagreement):
    commit is the review unit.
 
 The log is **append-only**. Don't edit older entries to "improve" them;
-write a new entry pointing back if context changes. Per the Reock framing,
-the signal is the *rate* of entries over time, not the cleanliness of any
-single one.
+write a new entry pointing back if context changes. The signal is the
+*rate* of entries over time, not the cleanliness of any single one.
 
 ---
 
@@ -159,11 +161,19 @@ ask first whether it should live here instead.
 
 ## Further reading
 
-- Justin Reock, *AI-Assisted Engineering* — InfoQ, 2026-05. The DX
-  measurement framework (utilization vs. impact vs. cost) and the
-  Goodhart's-Law warning on naive utilization metrics.
-- `walkinglabs/learn-harness-engineering` — the five-subsystem framework
-  (Instructions, State, Verification, Scope, Lifecycle) that motivates
-  treating the harness as engineering work, not just configuration.
-- `juliusbrussee/caveman` — the snapshot-as-source-of-truth + CI-sync
-  pattern that inspired the snapshot file's diff-reviewable shape.
+- Anthropic, [*Effective harnesses for long-running agents*](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
+  (Justin Young, 2025-11-26) — initializer-agent + coding-agent + feature-list
+  + progress-log pattern; the controlled experiment showing the same model
+  goes from "unreliable" to "reliable" when given a proper harness.
+- Anthropic, [*Harness design for long-running application development*](https://www.anthropic.com/engineering/harness-design-long-running-apps)
+  — companion piece on harness design choices for app-development agents.
+- OpenAI, [*Harness engineering: leveraging Codex in an agent-first world*](https://openai.com/index/harness-engineering/)
+  — the harness-as-environment framing applied to Codex.
+- [`walkinglabs/learn-harness-engineering`](https://github.com/walkinglabs/learn-harness-engineering)
+  — beginner tutorial / course that synthesises the above sources into a
+  five-subsystem teaching structure (instructions, state, verification,
+  scope, session lifecycle). Useful as an onboarding read; the canonical
+  references are the Anthropic and OpenAI posts above.
+- [`juliusbrussee/caveman`](https://github.com/juliusbrussee/caveman) — the
+  snapshot-as-source-of-truth + CI-sync pattern that inspired the snapshot
+  file's diff-reviewable shape.
