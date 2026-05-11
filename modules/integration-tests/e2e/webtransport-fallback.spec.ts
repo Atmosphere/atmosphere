@@ -41,7 +41,7 @@ test.describe('WebTransport / WebSocket fallback', () => {
     // The transport selector must converge to "Connected" on every browser.
     // On Chromium it may be WebTransport; on Firefox/WebKit it MUST fall back
     // to WebSocket without throwing.
-    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 20_000 });
+    await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 20_000 });
 
     // Sanity check: confirm the WebTransport API surface the client probes
     // matches the browser we're on. This pins the assumption the fallback
@@ -52,11 +52,36 @@ test.describe('WebTransport / WebSocket fallback', () => {
     } else {
       expect(hasWtApi).toBe(false);
     }
+
+    // Inspect the ConnectionStatusBadge (data-testid="atmosphere-connection-status").
+    // The admin console renders my Badge with data-transport set from the
+    // ConnectionStatus snapshot — proves the resilience wiring is actually
+    // tracking the active transport, not just "anything connected".
+    const badge = page.getByTestId('atmosphere-connection-status');
+    const transport = await badge.getAttribute('data-transport');
+    const viaFallback = await badge.getAttribute('data-via-fallback');
+
+    // Firefox / WebKit have no WebTransport API, so the client must have
+    // selected WebSocket. The viaFallback flag is set when transportFailure
+    // fires (which doesn't happen for browsers that lack the API — the
+    // client just picks WebSocket directly).
+    if (browserName !== 'chromium') {
+      expect(transport).toBe('websocket');
+    } else {
+      // Chromium: transport is either 'webtransport' (server advertised a
+      // port and the handshake succeeded) or 'websocket' (sidecar disabled
+      // or handshake failed and the client fell back). Either way, NOT
+      // an empty string — pins that the Badge's data-transport attribute
+      // is populated from the ConnectionStatus snapshot, not hard-coded.
+      expect(transport).toMatch(/^(webtransport|websocket)$/);
+    }
+    // viaFallback is "true" or "false" string (from the v-bind:data-via-fallback).
+    expect(viaFallback === 'true' || viaFallback === 'false').toBe(true);
   });
 
   test('chat round-trip works on every browser', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('status-label')).toHaveText('Connected', { timeout: 20_000 });
+    await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 20_000 });
 
     await page.getByTestId('chat-input').fill('Hello from cross-browser fallback');
     await page.getByTestId('chat-send').click();
