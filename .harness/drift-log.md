@@ -217,6 +217,29 @@ reconnect bug yet again.
 
 ---
 
+## 2026-05-12 — JS resilience roadmap item #3: presence
+
+The gist plan for #3 said "swap manual `'presence'` parsing in
+spring-boot-chat for the `usePresence` hook." Reading the code first
+flipped the move.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 31 | The gist plan DOD said "spring-boot-chat swap manual `'presence'` message parsing for `usePresence` hook" — implying a clean drop-in | `usePresence` is implemented as a thin wrapper over `useRoom`, which constructs an `AtmosphereRooms` and calls `atmosphere.subscribe(...)` to open **its own** transport connection. spring-boot-chat already uses `useAtmosphere` for chat; switching to `usePresence` would open a second WebSocket against `/atmosphere/chat`, doubling connections per page. The atmosphere.js singleton does not multiplex two subscribes over the same socket | The gist DOD assumed `usePresence` was a derived hook (consume an existing stream and project membership). It is actually a self-contained hook (own subscription). Without re-reading `AtmosphereRooms.connect` I would have shipped a sample that visibly opens two WebSockets to the same endpoint on first paint — exactly the "primitive exists but contract is wrong for this consumer" failure class | Skipped the `usePresence`-in-sample swap (would have been wrong); kept the same-connection manual parsing path but extended it to maintain a `Set<string>` of members derived from `join_ack` + `presence` events, and added a `data-testid="presence-count"` chip in the header. **Hook side**: confirmed `usePresence` reachable via `atmosphere.js/react-native` (re-export from `../react/usePresence` already in place since April); new vitest case in `tests/unit/react-native/hooks.test.ts` reads the RN entry file and asserts the re-export contract textually (importing it pulls in the optional `react-native` peerDep). New `presence-count.spec.ts` Playwright E2E drives two browser contexts (alice + bob) and asserts the badge cycles 1 → 2 → 1 as bob joins and disconnects. **Gist updated** to record the trade-off: `usePresence` ships and is reachable on every framework, but the sample sticks with derived presence; future "shared-subscription presence" hook (e.g. `useDerivedPresence(messageStream)`) is the right next-step primitive |
+
+### Process win
+
+The audit-first habit caught a "swap A for B" recommendation that would
+have introduced a connection-doubling regression at the demo entrypoint.
+The drift wasn't in code I wrote — it was in my own gist plan from earlier
+today. Re-reading `AtmosphereRooms.connect` *before* drafting the diff
+exposed the false equivalence between "hook exists" and "hook is the right
+fit for this sample."
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /

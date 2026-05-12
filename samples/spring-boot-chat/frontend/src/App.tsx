@@ -366,6 +366,15 @@ export function App() {
   const [wtInfo, setWtInfo] = useState<{port?: number; certificateHash?: string}>({});
   const [wtLoaded, setWtLoaded] = useState(false);
 
+  // Presence: members currently in the room, derived from the Room Protocol
+  // 'join_ack' / 'presence' events on the SAME atmosphere subscription as
+  // the chat. We deliberately do NOT use `usePresence` / `useRoom` here
+  // because those hooks open their own subscription via `AtmosphereRooms`,
+  // which would double the WebSocket against /atmosphere/chat. Sharing the
+  // subscription with `useAtmosphere` keeps the sample a single-connection
+  // demo while still showcasing real-time presence.
+  const [presentMembers, setPresentMembers] = useState<Set<string>>(() => new Set());
+
   // Offline queue: messages typed while disconnected are enqueued here and
   // drained automatically on reconnect. The transport reads this instance
   // from `request.offlineQueue` and calls `queue.drain(...)` on `open`.
@@ -436,6 +445,7 @@ export function App() {
       if (isRoomProtocol(parsed)) {
         switch (parsed.type) {
           case 'join_ack':
+            setPresentMembers(new Set(parsed.members));
             setMessages((prev) => [
               ...prev,
               {
@@ -446,6 +456,12 @@ export function App() {
             ]);
             break;
           case 'presence':
+            setPresentMembers((prev) => {
+              const next = new Set(prev);
+              if (parsed.action === 'join') next.add(parsed.memberId);
+              else next.delete(parsed.memberId);
+              return next;
+            });
             setMessages((prev) => [
               ...prev,
               {
@@ -520,6 +536,22 @@ export function App() {
       headerExtra={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <ConnectionStatusBadge status={connectionStatus} />
+          {presentMembers.size > 0 && (
+            <span
+              data-testid="presence-count"
+              title={Array.from(presentMembers).sort().join(', ')}
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                color: '#fff',
+                background: '#0284c7',
+                padding: '2px 8px',
+                borderRadius: 10,
+              }}
+            >
+              {presentMembers.size} online
+            </span>
+          )}
           {offline.size > 0 && (
             <span
               data-testid="offline-queue-size"

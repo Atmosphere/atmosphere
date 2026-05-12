@@ -182,6 +182,25 @@ describe('AppState integration', () => {
   });
 });
 
+describe('RN re-exports', () => {
+  // Reads the RN entry file directly because importing it pulls in
+  // `react-native` (an optional peerDep not installed in this test env).
+  // The contract we care about is "these names are re-exported", which
+  // a static read verifies without exercising the import graph.
+  it('exposes the presence and history hooks under the react-native entry', async () => {
+    const { readFileSync } = await import('fs');
+    const { resolve } = await import('path');
+    const src = readFileSync(
+      resolve(process.cwd(), 'src/hooks/react-native/index.ts'),
+      'utf8',
+    );
+    expect(src).toMatch(/export\s*\{[^}]*usePresence[^}]*\}\s*from\s*['"]\.\.\/react\/usePresence['"]/);
+    expect(src).toMatch(/export\s*\{[^}]*useOfflineQueue[^}]*\}\s*from\s*['"]\.\.\/react\/useOfflineQueue['"]/);
+    expect(src).toMatch(/export\s*\{[^}]*useMessageHistory[^}]*\}\s*from\s*['"]\.\.\/react\/useMessageHistory['"]/);
+    expect(src).toMatch(/export\s*\{[^}]*useRoom[^}]*\}\s*from\s*['"]\.\.\/react\/useRoom['"]/);
+  });
+});
+
 describe('NetInfo integration (conceptual)', () => {
   let mock: ReturnType<typeof createMockAtmosphere>;
 
