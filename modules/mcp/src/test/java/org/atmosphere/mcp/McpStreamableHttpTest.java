@@ -295,6 +295,59 @@ public class McpStreamableHttpTest {
         verify(resource.getResponse()).setStatus(200);
     }
 
+    // ── Protocol-Version mismatch: response JSON must be safely encoded ──
+
+    /**
+     * Regression test for the JSON-injection variant of code-scanning alert
+     * #48 (java/xss in McpHandler:checkProtocolVersion). A malicious header
+     * value containing a {@code "} character must not break out of the
+     * {@code message} string in the JSON-RPC error response.
+     */
+    @Test
+    public void testProtocolVersionMismatchErrorIsJsonSafe() throws Exception {
+        // First initialize to create a session with a negotiated protocol.
+        var initBody = """
+                {"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+                    "protocolVersion":"2025-03-26",
+                    "clientInfo":{"name":"test","version":"1.0"}
+                }}""";
+        var initOut = new StringWriter();
+        var initResource = mockResource("POST", initBody, "application/json", null);
+        when(initResource.getResponse().getWriter()).thenReturn(new PrintWriter(initOut));
+        handler.onRequest(initResource);
+        var sessionId = handler.sessions().keySet().iterator().next();
+
+        // Send notifications/initialized to flip the session to initialized
+        // state — the protocol-version enforcement only fires post-handshake.
+        var notifBody = """
+                {"jsonrpc":"2.0","method":"notifications/initialized"}""";
+        var notifResource = mockResource("POST", notifBody, "application/json", sessionId);
+        handler.onRequest(notifResource);
+
+        // Now send a request with a hostile MCP-Protocol-Version header that
+        // would have broken raw string concatenation: contains `"` and a
+        // would-be injected JSON property.
+        String hostile = "999-fake\",\"injected\":\"yes";
+        var followBody = """
+                {"jsonrpc":"2.0","id":2,"method":"ping"}""";
+        var followOut = new StringWriter();
+        var followResource = mockResource("POST", followBody, "application/json", sessionId);
+        when(followResource.getRequest().getHeader(McpHandler.PROTOCOL_VERSION_HEADER))
+                .thenReturn(hostile);
+        when(followResource.getResponse().getWriter()).thenReturn(new PrintWriter(followOut));
+
+        handler.onRequest(followResource);
+
+        verify(followResource.getResponse()).setStatus(400);
+        var node = mapper.readTree(followOut.toString());
+        assertNotNull(node.get("error"), "Response must be valid JSON with error field");
+        assertNull(node.get("injected"),
+                "Hostile header value must not escape the message string and inject JSON fields");
+        // Sanity-check the message echoes the hostile string (now safely escaped).
+        var msg = node.get("error").get("message").asString();
+        assertTrue(msg.contains("999-fake"), "Message should still echo the hostile header value (escaped)");
+    }
+
     // ── Helper ───────────────────────────────────────────────────────────
 
     private AtmosphereResource mockResource(String method, String body,

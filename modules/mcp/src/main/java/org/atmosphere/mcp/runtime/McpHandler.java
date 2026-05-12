@@ -21,6 +21,7 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.List;
@@ -51,6 +52,7 @@ public final class McpHandler implements AtmosphereHandler {
     private static final String TEXT_EVENT_STREAM = "text/event-stream";
     private static final int DEFAULT_MAX_SESSIONS = 10_000;
     private static final int MAX_BODY_SIZE = 10 * 1024 * 1024;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
      * Header name for MCP protocol version negotiation, required on all
@@ -165,10 +167,16 @@ public final class McpHandler implements AtmosphereHandler {
             var response = resource.getResponse();
             response.setStatus(400);
             response.setContentType(APPLICATION_JSON);
-            response.getWriter().write(
-                    "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32600,\"message\":\""
-                            + "MCP-Protocol-Version mismatch: session=" + negotiated
-                            + ", header=" + presented + "\"}}");
+            // JSON-encode via Jackson so a malicious header value (e.g. one
+            // containing `"` or backslashes) cannot break out of the message
+            // string and inject extra JSON fields. CodeQL flags raw string
+            // concatenation of user-controlled headers (java/xss).
+            response.getWriter().write(MAPPER.writeValueAsString(Map.of(
+                    "jsonrpc", "2.0",
+                    "error", Map.of(
+                            "code", -32600,
+                            "message", "MCP-Protocol-Version mismatch: session="
+                                    + negotiated + ", header=" + presented))));
             return false;
         }
         return true;

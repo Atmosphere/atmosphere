@@ -17,6 +17,7 @@ package org.atmosphere.quarkus.admin.runtime;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.regex.Pattern;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
@@ -51,6 +52,15 @@ public class AtmosphereConsoleServlet extends HttpServlet {
 
     private static final String CLASSPATH_ROOT = "/META-INF/resources/atmosphere/console";
 
+    /**
+     * Allow-list for resource path segments. The bundled Vue/Vite SPA only
+     * needs alphanumerics, {@code /}, {@code _}, {@code -}, and {@code .}.
+     * Anything else (backslashes, null bytes, control chars, query/fragment
+     * markers, encoded escapes left over from the container) is rejected
+     * to keep the classpath lookup pinned to bundle resources.
+     */
+    private static final Pattern SAFE_PATH = Pattern.compile("/[A-Za-z0-9_./-]*");
+
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -59,9 +69,14 @@ public class AtmosphereConsoleServlet extends HttpServlet {
                 ? "/index.html"
                 : pathInfo;
 
-        // Strict allow-list of characters — pathInfo from the container is
-        // already URL-decoded but we still defensively reject path traversal.
-        if (relative.contains("..") || relative.contains("//")) {
+        // Allow-list pathInfo characters and reject any traversal-style
+        // sequences. pathInfo from the container is already URL-decoded;
+        // the regex bounds it to a-z/A-Z/0-9/./-/_/ so a path like
+        // /../etc/passwd, /foo%00bar, or /foo\..\bar can never reach the
+        // classpath lookup. CodeQL java/path-injection.
+        if (!SAFE_PATH.matcher(relative).matches()
+                || relative.contains("..")
+                || relative.contains("//")) {
             resp.sendError(HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
