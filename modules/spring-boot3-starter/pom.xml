@@ -17,10 +17,23 @@
     <properties>
         <atmosphere.module.name>org.atmosphere.spring.boot3</atmosphere.module.name>
         <spring-boot.version>3.5.3</spring-boot.version>
+        <spring-framework.version>6.2.17</spring-framework.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <!-- Spring Framework BOM imported BEFORE spring-boot-dependencies
+                 so 6.2.17 wins over Spring Boot 3.5.3's hardcoded 6.2.8 pin.
+                 6.2.17 patches CVE-2025-22735 (static-resource DoS) and the
+                 webmvc/webflux cache-poisoning advisory. Maven first-declared-
+                 wins for imported BOMs. -->
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-framework-bom</artifactId>
+                <version>${spring-framework.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>

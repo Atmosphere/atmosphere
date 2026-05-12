@@ -1077,6 +1077,18 @@
                 <artifactId>opennlp-tools</artifactId>
                 <version>2.5.9</version>
             </dependency>
+            <!-- Force commons-compress to 1.27.1 (transitively pulled at 1.24.0 in
+                 test scope by durable-sessions-redis + integration-tests). 1.26.0
+                 patches CVE-2024-25710 (infinite loop in PumpStreamHandler) and
+                 CVE-2024-26308 (allocation-of-resources DoS in pack200 parser).
+                 1.27.1 is the latest stable in the 1.27.x line; no breaking changes
+                 from 1.24 since we use the library only via Testcontainers' archive
+                 utilities. -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>1.27.1</version>
+            </dependency>
             <!-- NOTE: spring-webflux is intentionally NOT force-pinned here.
                  Globally pinning to 6.2.17 (the patched 6.x) drags Spring 6's
                  webflux into modules using Spring 7 (Spring Boot 4) and
@@ -1214,7 +1226,11 @@
              milestones we use elsewhere). The overlay pins the OpenAI starter
              to this matched version so spring-ai-alibaba-agent-framework's
              transitive RetryUtils.DEFAULT_RETRY_TEMPLATE binding resolves. -->
-        <spring-ai-alibaba-spring-ai.version>1.1.2</spring-ai-alibaba-spring-ai.version>
+        <!-- Bumped from 1.1.2 to 1.1.3 to clear CVE-2026-22729 (Spring AI
+             vector-store path-traversal). spring-ai-alibaba 1.1.2.2 is
+             source-compatible with the 1.1.3 Spring AI line since both share
+             the same 1.1.x ABI. -->
+        <spring-ai-alibaba-spring-ai.version>1.1.3</spring-ai-alibaba-spring-ai.version>
         <langchain4j.version>1.14.0</langchain4j.version>
     </properties>
 </project>
