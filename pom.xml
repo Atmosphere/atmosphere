@@ -1107,13 +1107,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.ning</groupId>
-            <artifactId>async-http-client</artifactId>
-            <version>${ahc.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j-version}</version>
@@ -1161,7 +1154,6 @@
         <tomcat-version>11.0.21</tomcat-version>
         <shade-version>1.2.1</shade-version>
         <bnd-maven-plugin.version>7.2.3</bnd-maven-plugin.version>
-        <ahc.version>1.9.40</ahc.version>
         <jakarta-servlet-api.version>5.0.0</jakarta-servlet-api.version>
         <jakarta-websocket-api.version>2.0.0</jakarta-websocket-api.version>
         <jakarta-inject-api.version>2.0.1</jakarta-inject-api.version>
