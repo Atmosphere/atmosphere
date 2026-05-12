@@ -665,12 +665,20 @@ describe('WebTransportTransport', () => {
       transport = new WebTransportTransport(request, mockHandlers);
 
       await transport.connect();
-      await new Promise((r) => setTimeout(r, 0));
+
+      // Wait deterministically for the readLoop to be parked at its first
+      // `await reader.read()` before pushing done. `setTimeout(0)` is not
+      // reliable on Node 22 CI runners — the readLoop microtask may not
+      // have reached its await point, leaving pushDone to enqueue rather
+      // than resolve, and the loop never observes the done signal in time
+      // for vi.waitFor's window. (Flake: run 25744894544 on commit
+      // 8af88cb3e1 timed out at exactly 5003ms.)
+      await vi.waitFor(() => {
+        expect(mockReader.read).toHaveBeenCalled();
+      }, { timeout: 5000 });
 
       mockReader.pushDone();
 
-      // Wait for close handler to fire — 5s buffer for the same readLoop
-      // scheduling jitter that trips CI on the failureToReconnect test above.
       await vi.waitFor(() => {
         expect(mockHandlers.close).toHaveBeenCalled();
       }, { timeout: 5000 });
