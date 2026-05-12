@@ -39,7 +39,8 @@ export { AtmosphereRooms } from './room/rooms';
 // Export offline queue and message tracking
 export { OfflineQueue } from './queue/offline-queue';
 
-// Export history-sync primitive (sinceId cursor tracking for reconnect dedupe)
+// Export history-sync primitive (sinceId cursor tracking for reconnect dedupe).
+// Also available via the `atmosphere.js/history` subpath for tree-shaking.
 export { MessageHistorySync } from './history/message-history-sync';
 export type {
   HistoryStorage,

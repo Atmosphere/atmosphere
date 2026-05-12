@@ -96,8 +96,11 @@ jobs:
         ls -lh dist/
         SIZE=$(stat -f%z dist/index.js 2>/dev/null || stat -c%s dist/index.js)
         echo "Bundle size: $SIZE bytes"
-        if [ $SIZE -gt 40960 ]; then
-          echo "❌ Bundle size ($SIZE bytes) exceeds 40KB limit!"
+        # Cap raised from 40KB → 50KB on 2026-05-12 after the resilience
+        # suite (OfflineQueue, MessageHistorySync, ConnectionStatus,
+        # useOptimistic) legitimately grew the core surface.
+        if [ $SIZE -gt 51200 ]; then
+          echo "❌ Bundle size ($SIZE bytes) exceeds 50KB limit!"
           exit 1
         fi
         echo "✅ Bundle size OK: $SIZE bytes"
