@@ -1230,7 +1230,7 @@
              vector-store path-traversal). spring-ai-alibaba 1.1.2.2 is
              source-compatible with the 1.1.3 Spring AI line since both share
              the same 1.1.x ABI. -->
-        <spring-ai-alibaba-spring-ai.version>1.1.3</spring-ai-alibaba-spring-ai.version>
+        <spring-ai-alibaba-spring-ai.version>1.1.5</spring-ai-alibaba-spring-ai.version>
         <langchain4j.version>1.14.0</langchain4j.version>
     </properties>
 </project>
