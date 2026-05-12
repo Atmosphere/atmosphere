@@ -25,6 +25,8 @@ export { useOfflineQueue } from './useOfflineQueue';
 export type { UseOfflineQueueOptions, UseOfflineQueueResult } from './useOfflineQueue';
 export { useMessageHistory } from './useMessageHistory';
 export type { UseMessageHistoryOptions, UseMessageHistoryResult } from './useMessageHistory';
+export { useOptimistic } from './useOptimistic';
+export type { UseOptimisticOptions, UseOptimisticResult } from './useOptimistic';
 export { useStreaming } from './useStreaming';
 export type { AiEvent, StreamingConnectionState, UseStreamingOptions, UseStreamingResult } from './useStreaming';
 export { useConnectionStatus } from './useConnectionStatus';

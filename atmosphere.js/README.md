@@ -789,6 +789,53 @@ Svelte (`createMessageHistoryStore`, readable store of `lastSeenId`), and React 
 (re-exported from the React entry point). The cursor is optional persistence: pass
 `storage: window.localStorage` for survive-reload semantics; omit for in-memory only.
 
+### Optimistic updates — render before the round-trip resolves
+
+For chat-style UIs where the user expects their message to appear instantly,
+`useOptimistic` wraps the same `OfflineQueue.track` primitive into a reactive
+"sending → confirmed | failed" state machine.
+
+```tsx
+// React
+import { useOptimistic } from 'atmosphere.js/react';
+
+function Chat() {
+  // confirmAfterMs auto-confirms if no rollback fires within the window —
+  // useful when the server does not echo broadcasts back to the sender.
+  const optimistic = useOptimistic<{ text: string }>({ confirmAfterMs: 600 });
+
+  const send = (text: string) => {
+    const handle = optimistic.send({ text });
+    push(JSON.stringify({ type: 'broadcast', room: 'lobby', data: text }));
+    // If the server *does* echo a confirmation: optimistic.commit(handle.id)
+    // If the server returns an error:           optimistic.rollback(handle.id, 'reason')
+  };
+
+  return optimistic.messages.map((m) => (
+    <ChatBubble
+      key={m.id}
+      text={m.data.text}
+      sending={m.state === 'sent'}
+      failed={m.state === 'failed'}
+      error={m.error}
+    />
+  ));
+}
+```
+
+Same surface for Vue (`useOptimistic` composable with `ComputedRef`s),
+Svelte (`createOptimisticStore`), and React Native (re-export). The hook
+ships with these states (`MessageState`):
+
+| State        | Meaning                                                                |
+|--------------|------------------------------------------------------------------------|
+| `sent`       | In flight — render the bubble in an "optimistic" visual                |
+| `confirmed`  | Server-ack'd via `commit(id)` or auto-confirmed via `confirmAfterMs`   |
+| `failed`     | Rolled back via `rollback(id, error)` — show retry / undo affordance   |
+
+The optimistic and offline-queue layers share the same `OfflineQueue`
+primitive under the hood, so message ids are namespaced consistently.
+
 ---
 
 ## Rooms and Presence

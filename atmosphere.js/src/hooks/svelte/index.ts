@@ -22,3 +22,5 @@ export { createOfflineQueueStore } from './offlineQueue';
 export type { OfflineQueueStoreState, OfflineQueueStoreHandle } from './offlineQueue';
 export { createMessageHistoryStore } from './messageHistory';
 export type { MessageHistoryStoreHandle } from './messageHistory';
+export { createOptimisticStore } from './optimistic';
+export type { OptimisticStoreState, OptimisticStoreHandle } from './optimistic';

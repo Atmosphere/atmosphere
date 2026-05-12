@@ -240,6 +240,29 @@ fit for this sample."
 
 ---
 
+## 2026-05-12 — JS resilience roadmap item #4: optimistic updates
+
+Closes the last item on the secret-gist plan. The pattern caught here
+was hiding in plain sight in `OfflineQueue.acknowledge`.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 32 | First-pass `useOptimistic.commit` had `if (current.state !== 'confirmed') { mirror.set(...); reconcile(); }` — a defensive guard against double-reconcile | The guard was always true at the point it ran. `OfflineQueue.acknowledge` **mutates** the tracked record's state field in place (the queue's `pendingAcks` map holds the same reference as the caller's `track(data)` return value, and the React mirror's `recordsRef.current.get(id)` is yet another alias for the same object). So by the time `commit` looks up `current.state`, the queue's side-effect has already set it to `'confirmed'`. The `!== 'confirmed'` short-circuit then skipped `reconcile()`, leaving the React `messages` array pointing at the same identity it had before. The unit test caught it: `messages[0].state` read `'confirmed'` (correct, via the mutation) but `inFlightCount` stayed at the previous render's value because no new array was set in state | "Defensive guard" was actually a load-bearing bug — the same shared-mutable-reference pattern that hurts React state-equality elsewhere in the ecosystem. The drift class is "primitive looks pure but mutates" — `OfflineQueue.acknowledge`'s body says `msg.state = 'confirmed'; this.pendingAcks.delete(messageId)`, and the docstring "Acknowledge a message by ID" reads as a transactional update, not an in-place mutation | Fixed in `useOptimistic` (React, Vue, Svelte) by removing the equality guard and always materializing a fresh `{ ...current, state: 'confirmed' }` record into the mirror, so the framework's state-equality check fires. The vitest case `commit flips a message to confirmed and lowers inFlightCount` is the regression test — would have failed silently before the fix. **Cross-cutting**: also noted that `OfflineQueue.fail` does the same in-place mutation; `rollback` already creates a fresh object (`{...current, state: 'failed', error}`), so the same fix was not needed there |
+
+### Process win
+
+The test-first approach surfaced this: writing the test ("commit flips to
+confirmed AND inFlightCount drops to 0") immediately caught the disagreement
+between the mutation-via-alias view and the React-state-equality view.
+Without the assertion on `inFlightCount`, the bug would have shipped — the
+visible "state === 'confirmed'" check passes, but the derived count stays
+stale, and consumers depending on `inFlightCount` for "still sending..."
+banners would have seen them stuck on forever.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /

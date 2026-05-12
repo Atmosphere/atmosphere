@@ -24,6 +24,11 @@ export type {
   UseMessageHistoryOptions as UseMessageHistoryOptionsVue,
   UseMessageHistoryResult as UseMessageHistoryResultVue,
 } from './useMessageHistory';
+export { useOptimistic } from './useOptimistic';
+export type {
+  UseOptimisticOptions as UseOptimisticOptionsVue,
+  UseOptimisticResult as UseOptimisticResultVue,
+} from './useOptimistic';
 export { useStreaming } from './useStreaming';
 export { useConnectionStatus } from './useConnectionStatus';
 export {

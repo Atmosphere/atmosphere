@@ -35,6 +35,7 @@ const { usePresence } = await import('../../../src/hooks/vue/usePresence');
 const { useStreaming } = await import('../../../src/hooks/vue/useStreaming');
 const { useOfflineQueue } = await import('../../../src/hooks/vue/useOfflineQueue');
 const { useMessageHistory } = await import('../../../src/hooks/vue/useMessageHistory');
+const { useOptimistic } = await import('../../../src/hooks/vue/useOptimistic');
 
 function createMockSubscription(): Subscription & { pushed: string[] } {
   const pushed: string[] = [];
@@ -339,6 +340,41 @@ describe('Vue: useMessageHistory', () => {
     observe({ id: 9 });
     reset();
     expect(lastSeenId.value).toBe(0);
+  });
+});
+
+describe('Vue: useOptimistic', () => {
+  it('send appends a sent record and counts it as in-flight', () => {
+    const { send, messages, inFlightCount } = useOptimistic<string>();
+    send('hi');
+    expect(messages.value).toHaveLength(1);
+    expect(messages.value[0].state).toBe('sent');
+    expect(inFlightCount.value).toBe(1);
+  });
+
+  it('commit flips state to confirmed', () => {
+    const { send, commit, messages, inFlightCount } = useOptimistic<string>();
+    const handle = send('hi');
+    commit(handle.id);
+    expect(messages.value[0].state).toBe('confirmed');
+    expect(inFlightCount.value).toBe(0);
+  });
+
+  it('rollback flips state to failed and exposes the error', () => {
+    const { send, rollback, messages } = useOptimistic<string>();
+    const handle = send('oops');
+    rollback(handle.id, 'bad');
+    expect(messages.value[0].state).toBe('failed');
+    expect(messages.value[0].error).toBe('bad');
+  });
+
+  it('clear empties the message list', () => {
+    const { send, clear, messages } = useOptimistic<string>();
+    send('a');
+    send('b');
+    expect(messages.value).toHaveLength(2);
+    clear();
+    expect(messages.value).toHaveLength(0);
   });
 });
 

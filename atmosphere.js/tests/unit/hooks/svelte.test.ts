@@ -21,6 +21,8 @@ import { createPresenceStore } from '../../../src/hooks/svelte/presence';
 import { createOfflineQueueStore } from '../../../src/hooks/svelte/offlineQueue';
 import type { OfflineQueueStoreState } from '../../../src/hooks/svelte/offlineQueue';
 import { createMessageHistoryStore } from '../../../src/hooks/svelte/messageHistory';
+import { createOptimisticStore } from '../../../src/hooks/svelte/optimistic';
+import type { OptimisticStoreState } from '../../../src/hooks/svelte/optimistic';
 import type { AtmosphereRequest, Subscription, RoomMessage } from '../../../src/types';
 import { Atmosphere } from '../../../src/core/atmosphere';
 
@@ -379,5 +381,31 @@ describe('Svelte: createMessageHistoryStore', () => {
     history.observe({ id: 4 });
     history.reset();
     expect(seen[seen.length - 1]).toBe(0);
+  });
+});
+
+describe('Svelte: createOptimisticStore', () => {
+  it('notifies on send/commit/rollback/clear with the right state transitions', () => {
+    const opt = createOptimisticStore<string>();
+    let latest: OptimisticStoreState<string> = { messages: [], inFlightCount: 0 };
+    const unsub = opt.store.subscribe((v) => { latest = v; });
+
+    const a = opt.send('a');
+    expect(latest.messages).toHaveLength(1);
+    expect(latest.inFlightCount).toBe(1);
+
+    opt.commit(a.id);
+    expect(latest.messages[0].state).toBe('confirmed');
+    expect(latest.inFlightCount).toBe(0);
+
+    const b = opt.send('b');
+    opt.rollback(b.id, 'nope');
+    const bRecord = latest.messages.find((m) => m.id === b.id)!;
+    expect(bRecord.state).toBe('failed');
+    expect(bRecord.error).toBe('nope');
+
+    opt.clear();
+    expect(latest.messages).toHaveLength(0);
+    unsub();
   });
 });

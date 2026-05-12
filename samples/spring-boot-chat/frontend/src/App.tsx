@@ -1,7 +1,20 @@
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
-import { useAtmosphere, useOfflineQueue, useMessageHistory, ConnectionStatusBadge } from 'atmosphere.js/react';
+import {
+  useAtmosphere,
+  useOfflineQueue,
+  useMessageHistory,
+  useOptimistic,
+  ConnectionStatusBadge,
+} from 'atmosphere.js/react';
 import { ChatLayout, MessageList, ChatInput } from 'atmosphere.js/chat';
-import type { ChatMessage } from 'atmosphere.js/chat';
+import type { ChatMessage as BaseChatMessage } from 'atmosphere.js/chat';
+
+// Sample extension: tag locally-echoed user bubbles with the optimistic
+// tracker id so the renderer can flip them from "sending…" to "delivered"
+// once `useOptimistic` resolves the round-trip.
+interface ChatMessage extends BaseChatMessage {
+  optimisticId?: string;
+}
 
 type Tab = 'chat' | 'rooms' | 'observability';
 
@@ -375,6 +388,16 @@ export function App() {
   // demo while still showcasing real-time presence.
   const [presentMembers, setPresentMembers] = useState<Set<string>>(() => new Set());
 
+  // Optimistic UI: render outbound user messages as "sending…" the moment
+  // the user hits Enter, then flip them to "delivered" once the round-trip
+  // settles. Atmosphere's room broadcast excludes the sender (no server
+  // echo on the wire to correlate against), so we use the `confirmAfterMs`
+  // fallback: anything that hasn't been rolled back within 600ms is
+  // implicitly delivered. `useOptimistic` wraps the same `OfflineQueue`
+  // tracking primitive `useOfflineQueue` uses, so the ids are namespaced
+  // correctly and there is no chance of cross-pollination.
+  const optimistic = useOptimistic<{ text: string }>({ confirmAfterMs: 600 });
+
   // Offline queue: messages typed while disconnected are enqueued here and
   // drained automatically on reconnect. The transport reads this instance
   // from `request.offlineQueue` and calls `queue.drain(...)` on `open`.
@@ -499,6 +522,34 @@ export function App() {
     }
   }, [data]);
 
+  // Project the optimistic state map onto the rendered chat list. Bubbles
+  // whose corresponding optimistic record is still `'sent'` get a
+  // "(sending…)" suffix; once the record flips to `'confirmed'` (after
+  // confirmAfterMs) or `'failed'` the suffix is removed or replaced.
+  const optimisticById = useMemo(() => {
+    const m = new Map<string, 'sent' | 'confirmed' | 'failed'>();
+    for (const rec of optimistic.messages) {
+      if (rec.state === 'sent' || rec.state === 'confirmed' || rec.state === 'failed') {
+        m.set(rec.id, rec.state);
+      }
+    }
+    return m;
+  }, [optimistic.messages]);
+
+  const displayMessages = useMemo<ChatMessage[]>(() => {
+    return messages.map((msg) => {
+      if (!msg.optimisticId) return msg;
+      const state = optimisticById.get(msg.optimisticId);
+      if (state === 'sent') {
+        return { ...msg, message: `${msg.message}  (sending…)` };
+      }
+      if (state === 'failed') {
+        return { ...msg, message: `${msg.message}  (failed to send)` };
+      }
+      return msg;
+    });
+  }, [messages, optimisticById]);
+
   const handleSend = (text: string) => {
     if (!name) {
       setName(text);
@@ -509,8 +560,12 @@ export function App() {
     // Connected: send live. Disconnected: enqueue locally — the transport
     // will drain the queue on the next `open` event.
     const isOnline = connectionStatus.phase === 'open';
+    let optimisticId: string | undefined;
     if (isOnline) {
       sendBroadcast(push, ROOM, text);
+      // Track this outbound message optimistically so the UI can render
+      // it as "sending…" until the confirmAfterMs deadline auto-confirms.
+      optimisticId = optimistic.send({ text }).id;
     } else {
       const payload: RoomBroadcast = { type: 'broadcast', room: ROOM, data: text };
       offline.enqueue(JSON.stringify(payload));
@@ -523,6 +578,7 @@ export function App() {
         author: name,
         message: isOnline ? text : `${text}  (queued — offline)`,
         time: Date.now(),
+        optimisticId,
       },
     ]);
   };
@@ -585,7 +641,7 @@ export function App() {
 
       {activeTab === 'chat' && (
         <>
-          <MessageList messages={messages} currentUser={name ?? undefined} theme="ai" />
+          <MessageList messages={displayMessages} currentUser={name ?? undefined} theme="ai" />
           <ChatInput
             onSend={handleSend}
             placeholder={name ? 'Type a message…' : 'Enter your name to join…'}

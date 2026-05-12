@@ -60,3 +60,6 @@ export type { UseOfflineQueueOptions, UseOfflineQueueResult } from '../react/use
 // useMessageHistory is also pure React — same reason.
 export { useMessageHistory } from '../react/useMessageHistory';
 export type { UseMessageHistoryOptions, UseMessageHistoryResult } from '../react/useMessageHistory';
+// useOptimistic is pure React (no DOM access, no browser-only globals).
+export { useOptimistic } from '../react/useOptimistic';
+export type { UseOptimisticOptions, UseOptimisticResult } from '../react/useOptimistic';
