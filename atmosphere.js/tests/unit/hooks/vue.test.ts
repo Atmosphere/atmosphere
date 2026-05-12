@@ -34,6 +34,7 @@ const { useRoom } = await import('../../../src/hooks/vue/useRoom');
 const { usePresence } = await import('../../../src/hooks/vue/usePresence');
 const { useStreaming } = await import('../../../src/hooks/vue/useStreaming');
 const { useOfflineQueue } = await import('../../../src/hooks/vue/useOfflineQueue');
+const { useMessageHistory } = await import('../../../src/hooks/vue/useMessageHistory');
 
 function createMockSubscription(): Subscription & { pushed: string[] } {
   const pushed: string[] = [];
@@ -315,6 +316,29 @@ describe('Vue: useOfflineQueue', () => {
     const external = new OfflineQueue<string>({ maxSize: 3 });
     const { queue } = useOfflineQueue<string>({ instance: external });
     expect(queue).toBe(external);
+  });
+});
+
+describe('Vue: useMessageHistory', () => {
+  it('starts at 0 and advances on observe', () => {
+    const { lastSeenId, observe } = useMessageHistory();
+    expect(lastSeenId.value).toBe(0);
+    observe({ id: 7 });
+    expect(lastSeenId.value).toBe(7);
+  });
+
+  it('out-of-order observe does not regress the cursor', () => {
+    const { lastSeenId, observe } = useMessageHistory();
+    observe({ id: 5 });
+    expect(observe({ id: 3 })).toBe(false);
+    expect(lastSeenId.value).toBe(5);
+  });
+
+  it('reset returns to zero', () => {
+    const { lastSeenId, observe, reset } = useMessageHistory();
+    observe({ id: 9 });
+    reset();
+    expect(lastSeenId.value).toBe(0);
   });
 });
 

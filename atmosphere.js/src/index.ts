@@ -39,6 +39,14 @@ export { AtmosphereRooms } from './room/rooms';
 // Export offline queue and message tracking
 export { OfflineQueue } from './queue/offline-queue';
 
+// Export history-sync primitive (sinceId cursor tracking for reconnect dedupe)
+export { MessageHistorySync } from './history/message-history-sync';
+export type {
+  HistoryStorage,
+  HistorySyncMessage,
+  MessageHistorySyncConfig,
+} from './history/message-history-sync';
+
 // Export AI streaming support
 export { subscribeStreaming } from './streaming';
 export type { StreamingMessage, StreamingHandlers, StreamingHandle, SessionStats, RoutingInfo, SendOptions } from './streaming/types';

@@ -1,5 +1,5 @@
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
-import { useAtmosphere, useOfflineQueue, ConnectionStatusBadge } from 'atmosphere.js/react';
+import { useAtmosphere, useOfflineQueue, useMessageHistory, ConnectionStatusBadge } from 'atmosphere.js/react';
 import { ChatLayout, MessageList, ChatInput } from 'atmosphere.js/chat';
 import type { ChatMessage } from 'atmosphere.js/chat';
 
@@ -12,6 +12,8 @@ interface RoomJoin {
   room: string;
   memberId: string;
   metadata: { joinedAt: number };
+  /** History cursor for reconnect dedupe. Omitted on first join. */
+  sinceId?: number;
 }
 
 interface RoomBroadcast {
@@ -40,6 +42,8 @@ interface RoomMessage {
   type: 'message';
   from: string;
   data: string;
+  /** Server-assigned monotonic id. Used to drive history-sync on reconnect. */
+  id?: number;
 }
 
 interface RoomError {
@@ -94,12 +98,19 @@ const panelStyle: CSSProperties = {
 
 // --- Room Protocol helpers ---
 
-function sendJoin(push: (msg: string) => void, room: string, memberId: string) {
+function sendJoin(
+  push: (msg: string) => void,
+  room: string,
+  memberId: string,
+  sinceId?: number,
+) {
   const msg: RoomJoin = {
     type: 'join',
     room,
     memberId,
     metadata: { joinedAt: Date.now() },
+    // sinceId > 0 → server replays only entries newer than this cursor.
+    ...(sinceId && sinceId > 0 ? { sinceId } : {}),
   };
   push(JSON.stringify(msg));
 }
@@ -360,6 +371,16 @@ export function App() {
   // from `request.offlineQueue` and calls `queue.drain(...)` on `open`.
   const offline = useOfflineQueue<string>({ maxSize: 50 });
 
+  // History sync: track the server-assigned message id so the next join
+  // after a reconnect can carry sinceId and the server replays only the
+  // messages we missed (instead of duplicating everything in the cache).
+  // localStorage persists the cursor across reloads so a hard refresh
+  // mid-conversation does not silently drop history coherence.
+  const history = useMessageHistory({
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    storageKey: `atmosphere:chat:${ROOM}:lastSeenId`,
+  });
+
   useEffect(() => {
     fetchWebTransportInfo().then((info) => {
       setWtInfo(info);
@@ -389,7 +410,17 @@ export function App() {
   const { data, state, push, connectionStatus } = useAtmosphere<unknown>({
     request,
     enabled: wtLoaded,
-    onReopen: () => console.info('[atmosphere] reopened'),
+    onReopen: () => {
+      console.info('[atmosphere] reopened, sinceId=', history.lastSeenId);
+      // Re-join carrying the last-seen cursor so the server replays only
+      // the messages we missed during the disconnect. Without this, the
+      // server's BroadcasterCache replays everything and the UI shows
+      // duplicates. The name we joined under is captured below; for a
+      // fresh-name first connection sinceId is implicitly 0 (omitted).
+      if (name) {
+        sendJoin(push, ROOM, name, history.lastSeenId);
+      }
+    },
     onTransportFailure: (reason) =>
       console.warn('[atmosphere] transport failed, falling back:', reason),
     onFailureToReconnect: () =>
@@ -425,6 +456,8 @@ export function App() {
             ]);
             break;
           case 'message':
+            // Advance the history cursor so the next reconnect's sinceId is fresh.
+            history.observe(parsed as { id?: number });
             setMessages((prev) => [
               ...prev,
               { author: parsed.from, message: parsed.data, time: Date.now() },

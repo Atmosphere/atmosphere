@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
-export { createAtmosphereStore } from './atmosphere';
-export { createRoomStore } from './room';
-export { createPresenceStore } from './presence';
-export { createStreamingStore } from './streaming';
-export { createOfflineQueueStore } from './offlineQueue';
-export type { OfflineQueueStoreState, OfflineQueueStoreHandle } from './offlineQueue';
-export { createMessageHistoryStore } from './messageHistory';
-export type { MessageHistoryStoreHandle } from './messageHistory';
+/**
+ * Subpath entry point for the history-sync primitive.
+ *
+ * ```ts
+ * import { MessageHistorySync } from 'atmosphere.js/history';
+ * ```
+ */
+export { MessageHistorySync } from './history/message-history-sync';
+export type {
+  HistoryStorage,
+  HistorySyncMessage,
+  MessageHistorySyncConfig,
+} from './history/message-history-sync';

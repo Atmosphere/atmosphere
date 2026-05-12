@@ -19,6 +19,11 @@ export { useRoom } from './useRoom';
 export { usePresence } from './usePresence';
 export { useOfflineQueue } from './useOfflineQueue';
 export type { UseOfflineQueueResult as UseOfflineQueueResultVue } from './useOfflineQueue';
+export { useMessageHistory } from './useMessageHistory';
+export type {
+  UseMessageHistoryOptions as UseMessageHistoryOptionsVue,
+  UseMessageHistoryResult as UseMessageHistoryResultVue,
+} from './useMessageHistory';
 export { useStreaming } from './useStreaming';
 export { useConnectionStatus } from './useConnectionStatus';
 export {

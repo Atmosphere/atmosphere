@@ -51,6 +51,11 @@
       "types": "./dist/queue.d.ts",
       "import": "./dist/queue.js",
       "require": "./dist/queue.cjs"
+    },
+    "./history": {
+      "types": "./dist/history.d.ts",
+      "import": "./dist/history.js",
+      "require": "./dist/history.cjs"
     }
   },
   "peerDependencies": {

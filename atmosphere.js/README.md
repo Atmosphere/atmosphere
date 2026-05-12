@@ -738,6 +738,57 @@ samples — call `queue.acknowledge(messageId)` from your `onMessage` handler wh
 recognize your own message. A future `RoomProtocolCodec` change will surface
 server-confirmed ids automatically; until then the `'confirmed'` state is opt-in.
 
+### History sync — exactly-what-you-missed replay on reconnect
+
+When a client reconnects after a disconnect, naive cache replay sends *every* buffered
+message and the UI shows duplicates. atmosphere.js's `MessageHistorySync` primitive
+tracks the largest server-assigned `id` you've seen and sends it back as `sinceId` on
+the next join — the server then replays only entries with `id > sinceId`.
+
+```tsx
+// React
+import { useAtmosphere, useMessageHistory } from 'atmosphere.js/react';
+
+function Chat() {
+  const history = useMessageHistory({
+    storage: window.localStorage,                 // persist across reloads
+    storageKey: 'atmosphere:chat:lobby:lastSeenId',
+  });
+
+  const { push } = useAtmosphere<string>({
+    request: { url: '/atmosphere/chat', transport: 'websocket' },
+    onMessage: (raw) => {
+      const parsed = JSON.parse(String(raw.responseBody));
+      history.observe(parsed);                    // advances on `id` fields
+      // … render message …
+    },
+    onReopen: () => {
+      // Re-join carrying the cursor so the server skips messages we already have
+      push(JSON.stringify({
+        type: 'join', room: 'lobby', memberId, sinceId: history.lastSeenId,
+      }));
+    },
+  });
+}
+```
+
+Server-side, enable history on the room:
+
+```java
+Room lobby = roomManager.room("lobby");
+lobby.enableHistory(50);  // ring buffer of the last 50 broadcasts
+```
+
+`RoomProtocolCodec` now emits an `id` field on every message and accepts `sinceId`
+on the join frame; `RoomProtocolInterceptor` replays history entries with
+`id > sinceId` when the cursor is present, falling back to the legacy
+`BroadcasterCache` replay when `sinceId` is omitted (legacy clients keep working).
+
+The same primitive ships for Vue (`useMessageHistory` composable returning a `Ref<number>`),
+Svelte (`createMessageHistoryStore`, readable store of `lastSeenId`), and React Native
+(re-exported from the React entry point). The cursor is optional persistence: pass
+`storage: window.localStorage` for survive-reload semantics; omit for in-memory only.
+
 ---
 
 ## Rooms and Presence

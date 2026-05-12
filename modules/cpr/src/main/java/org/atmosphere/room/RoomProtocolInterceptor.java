@@ -136,10 +136,32 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
         var presence = RoomProtocolCodec.encodePresence(join.room(), "join", member);
         room.broadcast(presence, r);
 
-        // Replay cached messages if history is enabled
-        replayCachedMessages(r, room);
+        // Replay history. If the client supplied a sinceId cursor and the
+        // room supports it, send only entries with id > sinceId (avoids the
+        // duplicate-message-on-reconnect problem). Otherwise fall back to
+        // the legacy BroadcasterCache-driven replay.
+        if (join.sinceId() != null && room instanceof DefaultRoom defaultRoom
+                && defaultRoom.historySize() > 0) {
+            replayHistorySince(r, defaultRoom, join);
+        } else {
+            replayCachedMessages(r, room);
+        }
 
         logger.debug("Handled JOIN for {} in room '{}'", r.uuid(), join.room());
+    }
+
+    private void replayHistorySince(AtmosphereResource r, DefaultRoom room,
+                                    RoomProtocolMessage.Join join) {
+        var entries = room.historySince(join.sinceId());
+        for (var entry : entries) {
+            var encoded = RoomProtocolCodec.encodeMessage(
+                    join.room(), entry.id(), entry.fromMemberId(), entry.data());
+            sendToResource(r, encoded);
+        }
+        if (logger.isDebugEnabled()) {
+            logger.debug("Replayed {} entries to {} (sinceId={})",
+                    entries.size(), r.uuid(), join.sinceId());
+        }
     }
 
     private void handleLeave(AtmosphereResource r, RoomProtocolMessage.Leave leave) {
@@ -167,7 +189,11 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
 
         // Look up sender's member ID for the "from" field
         var fromId = room.memberOf(r).map(RoomMember::id).orElse(null);
-        var encoded = RoomProtocolCodec.encodeMessage(broadcast.room(), fromId, broadcast.data());
+        long id = (room instanceof DefaultRoom defaultRoom) ? defaultRoom.nextMessageId() : 0L;
+        var encoded = RoomProtocolCodec.encodeMessage(broadcast.room(), id, fromId, broadcast.data());
+        if (room instanceof DefaultRoom defaultRoom) {
+            defaultRoom.recordHistory(id, fromId, broadcast.data());
+        }
         room.broadcast(encoded, r);
 
         logger.debug("Handled BROADCAST from {} in room '{}'", r.uuid(), broadcast.room());

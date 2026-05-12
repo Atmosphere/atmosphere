@@ -190,6 +190,55 @@ public class RoomProtocolCodecTest {
         assertEquals("Unauthorized", obj.get("data").stringValue());
     }
 
+    // --- History sync (sinceId + monotonic message id) ---
+
+    @Test
+    public void testDecodeJoinWithSinceId() {
+        var msg = RoomProtocolCodec.decode(
+                "{\"type\":\"join\",\"room\":\"lobby\",\"memberId\":\"alice\",\"sinceId\":42}");
+        assertInstanceOf(msg, RoomProtocolMessage.Join.class);
+        var join = (RoomProtocolMessage.Join) msg;
+        assertEquals(Long.valueOf(42L), join.sinceId());
+    }
+
+    @Test
+    public void testDecodeJoinWithoutSinceIdIsBackwardCompatible() {
+        var msg = RoomProtocolCodec.decode(
+                "{\"type\":\"join\",\"room\":\"lobby\",\"memberId\":\"alice\"}");
+        var join = (RoomProtocolMessage.Join) msg;
+        assertNull(join.sinceId(), "missing sinceId must decode as null (legacy clients)");
+    }
+
+    @Test
+    public void testEncodeMessageWithIdEmitsIdField() throws Exception {
+        var json = RoomProtocolCodec.encodeMessage("lobby", 42L, "alice", "hello");
+        var obj = MAPPER.readTree(json);
+
+        assertEquals("message", obj.get("type").stringValue());
+        assertEquals(42L, obj.get("id").longValue());
+        assertEquals("alice", obj.get("from").stringValue());
+        assertEquals("hello", obj.get("data").stringValue());
+    }
+
+    @Test
+    public void testEncodeMessageWithIdZeroOmitsField() throws Exception {
+        // id<=0 means "no server-assigned id" — legacy 3-arg callers and rooms
+        // without history must not surprise consumers with a new field.
+        var json = RoomProtocolCodec.encodeMessage("lobby", 0L, "alice", "hello");
+        var obj = MAPPER.readTree(json);
+
+        assertFalse(hasField(obj, "id"), "id field must be suppressed for id<=0");
+    }
+
+    @Test
+    public void testLegacyEncodeMessageHasNoIdField() throws Exception {
+        var json = RoomProtocolCodec.encodeMessage("lobby", "alice", "hello");
+        var obj = MAPPER.readTree(json);
+
+        assertFalse(hasField(obj, "id"),
+                "the 3-arg legacy overload must produce id-free output");
+    }
+
     // --- Helpers ---
 
     private void assertInstanceOf(Object obj, Class<?> clazz) {

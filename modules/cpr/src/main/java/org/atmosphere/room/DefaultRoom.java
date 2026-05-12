@@ -57,6 +57,33 @@ public class DefaultRoom implements Room {
     private volatile int historySize;
 
     /**
+     * Monotonic id sequence for broadcast messages. Assigned at broadcast
+     * time so clients can drive history-sync on reconnect via {@code sinceId}
+     * in the next {@code join} frame.
+     */
+    private final java.util.concurrent.atomic.AtomicLong messageIdSeq =
+            new java.util.concurrent.atomic.AtomicLong();
+
+    /**
+     * Ring-buffer of recent {@link RoomHistoryEntry} for {@code sinceId}-driven
+     * replay. Sized by {@link #enableHistory(int)} — entries beyond the cap
+     * fall off the front. {@link java.util.concurrent.ConcurrentLinkedDeque
+     * ConcurrentLinkedDeque} is thread-safe for the add/poll/iteration patterns
+     * used by {@link #recordHistory(long, String, Object)} and
+     * {@link #historySince(long)}.
+     */
+    private final java.util.concurrent.ConcurrentLinkedDeque<RoomHistoryEntry> historyBuffer =
+            new java.util.concurrent.ConcurrentLinkedDeque<>();
+
+    /**
+     * One entry in the {@link #historyBuffer}. Captured at broadcast time so
+     * a later {@code historySince} call can re-encode the message for a
+     * reconnecting client without depending on the broadcaster cache's
+     * resource-bucketing.
+     */
+    public record RoomHistoryEntry(long id, String fromMemberId, Object data, long timestamp) { }
+
+    /**
      * Create a room backed by the given broadcaster.
      *
      * @param name        the room name
@@ -202,6 +229,55 @@ public class DefaultRoom implements Room {
      */
     public int historySize() {
         return historySize;
+    }
+
+    /**
+     * Allocate the next monotonic message id for this room. Called from the
+     * {@code RoomProtocolInterceptor} broadcast handler so every wire
+     * message carries a server-assigned id usable for history-sync.
+     *
+     * @return a strictly increasing positive long unique within this room
+     */
+    public long nextMessageId() {
+        return messageIdSeq.incrementAndGet();
+    }
+
+    /**
+     * Append a broadcast to the in-memory history ring buffer (no-op when
+     * {@link #enableHistory(int)} has not been called). The buffer trims
+     * itself to {@link #historySize}; the oldest entries are evicted.
+     *
+     * @param id          the server-assigned message id from {@link #nextMessageId()}
+     * @param fromMemberId the broadcast originator's member id, may be null
+     * @param data        the payload as decoded by the protocol layer
+     */
+    public void recordHistory(long id, String fromMemberId, Object data) {
+        if (historySize <= 0) {
+            return;
+        }
+        historyBuffer.addLast(new RoomHistoryEntry(id, fromMemberId, data, System.currentTimeMillis()));
+        while (historyBuffer.size() > historySize) {
+            historyBuffer.pollFirst();
+        }
+    }
+
+    /**
+     * Return the history entries strictly newer than {@code sinceId}, oldest first.
+     * Used by the {@code RoomProtocolInterceptor} join handler when a client
+     * carries a {@code sinceId} cursor — only the messages it missed are
+     * replayed instead of the full buffer.
+     *
+     * @param sinceId the last id the client already has; pass 0 to replay all
+     * @return an immutable in-order list of newer entries
+     */
+    public java.util.List<RoomHistoryEntry> historySince(long sinceId) {
+        java.util.List<RoomHistoryEntry> out = new java.util.ArrayList<>();
+        for (var entry : historyBuffer) {
+            if (entry.id() > sinceId) {
+                out.add(entry);
+            }
+        }
+        return java.util.Collections.unmodifiableList(out);
     }
 
     @Override

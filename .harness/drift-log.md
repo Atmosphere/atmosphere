@@ -196,6 +196,27 @@ which immediately exposed what "next step" actually meant.
 
 ---
 
+## 2026-05-12 — JS resilience roadmap item #2: history sync
+
+The audit table in the gist plan had history sync flagged as "server
+partial, client ❌, sample ❌". Walking the partial:
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 30 | A pre-existing reading of the codebase said "the server has history-replay" (referring to `Room.enableHistory(int)` + `RoomProtocolInterceptor.replayCachedMessages`) | The replay path is **unconditional** — every reconnect (every fresh resource uuid that joins) gets the full BroadcasterCache for that uuid replayed. There is no concept of `sinceId`, no server-assigned monotonic message id on the wire, and the client has no way to say "skip what I already have." Net effect: a client reconnecting mid-session sees every cached broadcast twice (once before disconnect, once on replay). The server "supports history" only in the sense that it has a buffer — the dedupe contract was missing entirely | "Server has history" was true for the buffer but misleading for the user-facing semantics. The fix is structural: add monotonic ids, a `sinceId` cursor on join, and a server-side filter that respects it. The hallucination class is "feature exists" vs. "feature does the thing users would expect" — same shape as the AgentRuntime SPI-vs-runtime drift documented in `feedback_primitive_needs_consumer.md` | Closed item #2 of the gist plan in a single feature branch: `RoomProtocolMessage.Join` gets an optional `Long sinceId` field; `RoomProtocolCodec.encodeMessage` gets a `long id` overload that emits an `id` JSON field; `DefaultRoom` gets `AtomicLong messageIdSeq` + `ConcurrentLinkedDeque<RoomHistoryEntry>` + `historySince(long)`; `RoomProtocolInterceptor.handleBroadcast` allocates ids and records history, `handleJoin` filters by `sinceId` when present (falling back to legacy `replayCachedMessages` otherwise — legacy clients keep working). Client side: `MessageHistorySync` primitive with `lastSeenId` + optional `storage` adapter for cross-reload persistence; framework hooks `useMessageHistory` (React, Vue composable, Svelte store, RN re-export); `samples/spring-boot-chat` retrofitted to observe `parsed.id` and re-send join with `sinceId` from `onReopen`. **Gates**: 4 new RoomTest cases pin the buffer semantics, 5 new RoomProtocolCodecTest cases pin the wire format (including backward-compat: legacy 3-arg `encodeMessage` must produce id-free output), 11 vitest cases on the primitive, 6 on the React hook, 3 each on Vue and Svelte. New `history-sync.spec.ts` Playwright E2E drives the round trip via `context.setOffline(true)` and asserts "msg-1 / msg-2 each appear exactly once after reconnect" |
+
+### Process win
+
+The gist plan's audit table again caught the slip *before* coding: writing
+"server partial, client ❌" in the status row forced a precise read of what
+"partial" meant. Without that pause, the work would have started from
+"history replay just works on reconnect" and shipped the duplicate-on-
+reconnect bug yet again.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /

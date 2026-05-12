@@ -57,3 +57,6 @@ export { usePresence } from '../react/usePresence';
 // atmosphere.js/react-native without crossing entry points.
 export { useOfflineQueue } from '../react/useOfflineQueue';
 export type { UseOfflineQueueOptions, UseOfflineQueueResult } from '../react/useOfflineQueue';
+// useMessageHistory is also pure React — same reason.
+export { useMessageHistory } from '../react/useMessageHistory';
+export type { UseMessageHistoryOptions, UseMessageHistoryResult } from '../react/useMessageHistory';

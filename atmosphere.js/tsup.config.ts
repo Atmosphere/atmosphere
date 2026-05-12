@@ -11,6 +11,7 @@ export default defineConfig([
       room: 'src/room.ts',
       streaming: 'src/streaming-entry.ts',
       queue: 'src/queue.ts',
+      history: 'src/history.ts',
     },
     format: ['esm', 'cjs'],
     dts: true,

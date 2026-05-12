@@ -79,7 +79,8 @@ public final class RoomProtocolCodec {
             case "join" -> new RoomProtocolMessage.Join(
                     room,
                     optString(obj, "memberId"),
-                    toMap(obj.get("metadata"))
+                    toMap(obj.get("metadata")),
+                    optLong(obj, "sinceId")
             );
             case "leave" -> new RoomProtocolMessage.Leave(room);
             case "broadcast" -> new RoomProtocolMessage.Broadcast(room, nodeToValue(obj.get("data")));
@@ -125,12 +126,28 @@ public final class RoomProtocolCodec {
     }
 
     /**
-     * Encode a room message for delivery to clients.
+     * Encode a room message for delivery to clients. Backward-compatible
+     * variant that does not include a server-assigned monotonic id.
      */
     public static String encodeMessage(String room, String fromMemberId, Object data) {
+        return encodeMessage(room, 0L, fromMemberId, data);
+    }
+
+    /**
+     * Encode a room message with a server-assigned monotonic id. Clients
+     * use the id to drive history-sync on reconnect: the next {@code join}
+     * frame carries {@code sinceId = lastSeenId} so the server skips
+     * messages the client already has. {@code id <= 0} omits the field
+     * entirely so consumers of the legacy 3-arg overload aren't surprised
+     * by a new field appearing in their on-the-wire payloads.
+     */
+    public static String encodeMessage(String room, long id, String fromMemberId, Object data) {
         ObjectNode obj = MAPPER.createObjectNode();
         obj.put("type", "message");
         obj.put("room", room);
+        if (id > 0) {
+            obj.put("id", id);
+        }
         if (fromMemberId != null) {
             obj.put("from", fromMemberId);
         }
@@ -186,6 +203,24 @@ public final class RoomProtocolCodec {
             return defaultValue;
         }
         return node.isBoolean() ? node.booleanValue() : defaultValue;
+    }
+
+    private static Long optLong(JsonNode obj, String key) {
+        JsonNode node = obj.get(key);
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isInt() || node.isLong()) {
+            return node.longValue();
+        }
+        if (node.isString()) {
+            try {
+                return Long.parseLong(node.stringValue());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private static Map<String, Object> toMap(JsonNode obj) {

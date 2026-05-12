@@ -20,6 +20,7 @@ import { createRoomStore } from '../../../src/hooks/svelte/room';
 import { createPresenceStore } from '../../../src/hooks/svelte/presence';
 import { createOfflineQueueStore } from '../../../src/hooks/svelte/offlineQueue';
 import type { OfflineQueueStoreState } from '../../../src/hooks/svelte/offlineQueue';
+import { createMessageHistoryStore } from '../../../src/hooks/svelte/messageHistory';
 import type { AtmosphereRequest, Subscription, RoomMessage } from '../../../src/types';
 import { Atmosphere } from '../../../src/core/atmosphere';
 
@@ -355,5 +356,28 @@ describe('Svelte: createOfflineQueueStore', () => {
     const external = new OfflineQueue<string>();
     const offline = createOfflineQueueStore<string>({ instance: external });
     expect(offline.queue).toBe(external);
+  });
+});
+
+describe('Svelte: createMessageHistoryStore', () => {
+  it('emits the current cursor on subscribe and on each advance', () => {
+    const history = createMessageHistoryStore();
+    const seen: number[] = [];
+    const unsub = history.store.subscribe((v) => seen.push(v));
+    expect(seen).toEqual([0]);
+    history.observe({ id: 3 });
+    history.observe({ id: 7 });
+    history.observe({ id: 5 }); // older, no notify
+    expect(seen).toEqual([0, 3, 7]);
+    unsub();
+  });
+
+  it('reset emits zero', () => {
+    const history = createMessageHistoryStore();
+    const seen: number[] = [];
+    history.store.subscribe((v) => seen.push(v));
+    history.observe({ id: 4 });
+    history.reset();
+    expect(seen[seen.length - 1]).toBe(0);
   });
 });

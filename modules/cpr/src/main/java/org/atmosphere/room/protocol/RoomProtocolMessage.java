@@ -32,15 +32,26 @@ public sealed interface RoomProtocolMessage {
     String room();
 
     /**
-     * Join a room with optional member metadata.
+     * Join a room with optional member metadata and optional history cursor.
      *
      * @param room     the room to join
      * @param memberId application-level member identifier
      * @param metadata optional key-value pairs
+     * @param sinceId  optional last-seen server message id; when present the
+     *                 server replays only history entries with {@code id > sinceId}.
+     *                 {@code null} (the legacy behavior) replays whatever the
+     *                 {@link org.atmosphere.cache.BroadcasterCache BroadcasterCache}
+     *                 returns for this resource.
      */
-    record Join(String room, String memberId, Map<String, Object> metadata) implements RoomProtocolMessage {
+    record Join(String room, String memberId, Map<String, Object> metadata, Long sinceId)
+            implements RoomProtocolMessage {
         public Join {
             metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
+        }
+
+        /** Backward-compatible constructor: no history cursor. */
+        public Join(String room, String memberId, Map<String, Object> metadata) {
+            this(room, memberId, metadata, null);
         }
     }
 

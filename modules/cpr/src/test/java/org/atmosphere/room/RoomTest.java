@@ -373,6 +373,63 @@ public class RoomTest {
         assertEquals("test", meta.get("type"));
     }
 
+    // --- History (sinceId) sync ---
+
+    @Test
+    public void testNextMessageIdIsStrictlyIncreasing() {
+        var room = (DefaultRoom) roomManager.room("history-id-seq");
+        long a = room.nextMessageId();
+        long b = room.nextMessageId();
+        long c = room.nextMessageId();
+        assertTrue(b > a && c > b, "ids must strictly increase: " + a + ", " + b + ", " + c);
+    }
+
+    @Test
+    public void testRecordHistoryIsNoOpWhenHistoryDisabled() {
+        var room = (DefaultRoom) roomManager.room("history-disabled");
+        // No enableHistory() call → buffer must stay empty even after record
+        room.recordHistory(1L, "alice", "msg-1");
+        room.recordHistory(2L, "alice", "msg-2");
+        assertTrue(room.historySince(0L).isEmpty(),
+                "history must be empty when enableHistory is not called");
+    }
+
+    @Test
+    public void testHistorySinceReturnsOnlyEntriesAfterCursor() {
+        var room = (DefaultRoom) roomManager.room("history-since");
+        room.enableHistory(10);
+        for (long i = 1; i <= 5; i++) {
+            room.recordHistory(i, "alice", "msg-" + i);
+        }
+
+        var afterTwo = room.historySince(2L);
+        assertEquals(3, afterTwo.size(), "only entries with id > 2 should survive the cursor");
+        assertEquals(3L, afterTwo.get(0).id());
+        assertEquals(5L, afterTwo.get(2).id());
+
+        // sinceId=0 replays everything
+        assertEquals(5, room.historySince(0L).size());
+
+        // sinceId past the tail returns empty
+        assertTrue(room.historySince(99L).isEmpty());
+    }
+
+    @Test
+    public void testHistorySizeCapEvictsOldestFirst() {
+        var room = (DefaultRoom) roomManager.room("history-cap");
+        room.enableHistory(3);
+        for (long i = 1; i <= 5; i++) {
+            room.recordHistory(i, "alice", "msg-" + i);
+        }
+
+        // Cap of 3 → only ids 3, 4, 5 should remain
+        var all = room.historySince(0L);
+        assertEquals(3, all.size());
+        assertEquals(3L, all.get(0).id());
+        assertEquals(4L, all.get(1).id());
+        assertEquals(5L, all.get(2).id());
+    }
+
     // --- Helpers ---
 
     private static class TestVirtualMember implements VirtualRoomMember {
