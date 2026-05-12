@@ -24,6 +24,7 @@ import org.atmosphere.config.service.PathParam;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,7 +99,12 @@ public class AiClassroom {
         String json = String.format(
                 "{\"type\":\"presence\",\"action\":\"%s\",\"memberId\":\"%s\",\"count\":%d}",
                 action, resource.uuid(), count);
-        broadcaster.broadcast(json);
+        // Wrap in RawMessage so AiEndpointHandler.onStateChange writes it
+        // out to the client transports instead of feeding it back into the
+        // @Prompt handler as a new user prompt (plain-String broadcasts get
+        // routed to the prompt-dispatch path; RawMessage signals
+        // "server-to-client", not "client-to-server").
+        broadcaster.broadcast(new RawMessage(json));
     }
 
     @Prompt
