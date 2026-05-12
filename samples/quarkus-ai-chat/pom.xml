@@ -23,17 +23,13 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Netty BOM imported BEFORE quarkus-bom so 4.1.133.Final wins
-                 over Quarkus 3.35.2's hardcoded 4.1.132.Final. Closes the
-                 sample-scope netty-codec-http / netty-handler-proxy CVE
-                 family that the Quarkus module fix doesn't reach. -->
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-bom</artifactId>
-                <version>4.1.133.Final</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
+            <!-- Sample stays on Quarkus 3.35.2's netty 4.1.132.Final pin.
+                 The netty-bom 4.1.133 override pulls BrotliDecoder.pull(int)
+                 which needs a newer brotli4j signature than is on this
+                 sample's classpath; that breaks native-image build with
+                 "unresolved method ... DecoderJNI$Wrapper.pull(int)".
+                 The CVE fix for production code lives in
+                 modules/quarkus-extension*/pom.xml (which DO pin 4.1.133). -->
             <dependency>
                 <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-bom</artifactId>
