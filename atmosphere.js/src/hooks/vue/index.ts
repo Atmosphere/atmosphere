@@ -17,6 +17,8 @@
 export { useAtmosphere } from './useAtmosphere';
 export { useRoom } from './useRoom';
 export { usePresence } from './usePresence';
+export { useOfflineQueue } from './useOfflineQueue';
+export type { UseOfflineQueueResult as UseOfflineQueueResultVue } from './useOfflineQueue';
 export { useStreaming } from './useStreaming';
 export { useConnectionStatus } from './useConnectionStatus';
 export {

@@ -680,6 +680,64 @@ end-to-end. On `transportFailure`, the client tears down the failed transport, f
 hook, and connects via `fallbackTransport`. Subsequent reconnects use the fallback unless
 the server signals otherwise.
 
+### Offline queue — survive disconnect without losing user input
+
+Messages typed while the transport is disconnected can be queued locally and drained
+automatically on the next `open` event. The shipped primitive is `OfflineQueue` and
+each framework exposes a reactive hook around it.
+
+```tsx
+// React
+import { useAtmosphere, useOfflineQueue, ConnectionStatusBadge } from 'atmosphere.js/react';
+
+function Chat() {
+  const offline = useOfflineQueue<string>({ maxSize: 50 });
+
+  const { push, connectionStatus } = useAtmosphere<string>({
+    request: {
+      url: '/atmosphere/chat',
+      transport: 'websocket',
+      fallbackTransport: 'sse',
+      offlineQueue: offline.queue,         // ← transport drains this on reconnect
+    },
+  });
+
+  const send = (text: string) => {
+    if (connectionStatus.phase === 'open') {
+      push(text);
+    } else {
+      offline.enqueue(text);                // ← queued offline, drained on reopen
+    }
+  };
+
+  return (
+    <div>
+      <ConnectionStatusBadge status={connectionStatus} />
+      {offline.size > 0 && <span>{offline.size} queued</span>}
+      {/* … */}
+    </div>
+  );
+}
+```
+
+The same hook ships for Vue (`useOfflineQueue`, composable returning refs), Svelte
+(`createOfflineQueueStore`, readable store), and React Native (re-exported from the
+React entry point — pure-React, no DOM-only globals). The underlying `OfflineQueue`
+primitive owns:
+
+| State        | Meaning                                                    |
+|--------------|------------------------------------------------------------|
+| `pending`    | Queued offline, waiting for the next reconnect             |
+| `sent`       | Delivered to the transport, awaiting server confirmation   |
+| `confirmed`  | Server acknowledged delivery via `queue.acknowledge(id)`   |
+| `failed`     | Drain or send failed; surfaced via `onFailed` handler      |
+
+`drain on reconnect` is enabled by default and runs inside `BaseTransport`'s `open`
+handler. Server-side ACKs ride on the broadcast echo back to the sender for chat-style
+samples — call `queue.acknowledge(messageId)` from your `onMessage` handler when you
+recognize your own message. A future `RoomProtocolCodec` change will surface
+server-confirmed ids automatically; until then the `'confirmed'` state is opt-in.
+
 ---
 
 ## Rooms and Presence

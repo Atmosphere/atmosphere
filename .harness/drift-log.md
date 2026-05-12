@@ -176,6 +176,26 @@ wall.
 
 ---
 
+## 2026-05-12 — JS resilience roadmap item #1: offline queue end-to-end
+
+Working through the gist plan (`atmosphere-js-resilience-completion-plan.md`).
+Item #1 was "offline queue end-to-end" — primitive existed since April but
+had no framework hooks and no sample consumers.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 29 | An earlier project memory referenced the JS resilience roadmap as "auth → offline queue → history sync → presence → optimistic updates" and an admin-side conversation summary described "auth completed" as if the rest were straightforward follow-ups | The OfflineQueue primitive shipped in April with full tests (149-line unit test + integration test) and transport-side `drainOfflineQueue` wired into `BaseTransport`, but **zero framework hooks** (`useOfflineQueue` did not exist for any framework), **zero sample consumers** (`git grep useOfflineQueue samples/` returned no source hits), and **zero admin console use**. Same shape as the post-mortem of entry #27 (primitive ✅, consumer ❌) | The "roadmap memory" pinned status at the *primitive* level — accurate when written but stale because finished-primitive ≠ finished-feature. Without a sweep across hooks + samples + admin console, a "shipped" claim on item #1 would have been a hallucination of the exact class `feedback_primitive_needs_consumer.md` warns about | Closed item #1 of the gist plan: added `useOfflineQueue` for React, Vue (`useOfflineQueue` composable), Svelte (`createOfflineQueueStore`), with re-export under `atmosphere.js/react-native`. Retrofitted `samples/spring-boot-chat` to enqueue offline-typed messages and render a "N queued" badge that drains visibly on reconnect. **Gates**: 9 vitest cases in `tests/unit/hooks/use-offline-queue.test.ts`, 5 Vue cases added to `tests/unit/hooks/vue.test.ts`, 3 Svelte cases added to `tests/unit/hooks/svelte.test.ts` (55 hook tests total green, 542/542 atmosphere.js suite green); new `modules/integration-tests/e2e/offline-queue-browser.spec.ts` Playwright spec drives the sample through `context.setOffline(true)` and asserts the badge cycles 0 → 2 → 0 on reconnect; gist `Status tracker` table updated with the audit result and DOD verification commands |
+
+### Process win
+
+The gist plan caught the slip-class *before* the work started: the audit
+table forced enumerating "primitive ✅, hooks ❌, sample ❌, console ❌"
+which immediately exposed what "next step" actually meant.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /

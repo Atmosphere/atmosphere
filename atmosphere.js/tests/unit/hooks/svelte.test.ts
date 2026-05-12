@@ -18,6 +18,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createAtmosphereStore } from '../../../src/hooks/svelte/atmosphere';
 import { createRoomStore } from '../../../src/hooks/svelte/room';
 import { createPresenceStore } from '../../../src/hooks/svelte/presence';
+import { createOfflineQueueStore } from '../../../src/hooks/svelte/offlineQueue';
+import type { OfflineQueueStoreState } from '../../../src/hooks/svelte/offlineQueue';
 import type { AtmosphereRequest, Subscription, RoomMessage } from '../../../src/types';
 import { Atmosphere } from '../../../src/core/atmosphere';
 
@@ -308,5 +310,50 @@ describe('Svelte: createPresenceStore', () => {
     expect(latest.members).toHaveLength(2); // self + user-2
     expect(latest.count).toBe(2);
     unsub();
+  });
+});
+
+describe('Svelte: createOfflineQueueStore', () => {
+  it('exposes a readable store that fires on every queue mutation', () => {
+    const offline = createOfflineQueueStore<string>();
+    const seen: OfflineQueueStoreState<string>[] = [];
+    const unsub = offline.store.subscribe((v) => seen.push(v));
+    expect(seen).toHaveLength(1);            // initial snapshot
+    expect(seen[0].size).toBe(0);
+
+    offline.enqueue('hello');
+    expect(seen.length).toBeGreaterThan(1);
+    expect(seen[seen.length - 1].size).toBe(1);
+    expect(seen[seen.length - 1].messages[0].data).toBe('hello');
+
+    offline.clear();
+    expect(seen[seen.length - 1].size).toBe(0);
+    unsub();
+  });
+
+  it('drain transitions queued messages to sent and notifies', () => {
+    const offline = createOfflineQueueStore<string>();
+    let latest: OfflineQueueStoreState<string> | null = null;
+    const unsub = offline.store.subscribe((v) => { latest = v; });
+
+    offline.enqueue('one');
+    offline.enqueue('two');
+    expect(latest!.size).toBe(2);
+
+    const sent: string[] = [];
+    offline.queue.drain((d) => { sent.push(d); });
+
+    expect(sent).toEqual(['one', 'two']);
+    expect(latest!.size).toBe(0);
+    expect(latest!.pendingCount).toBe(2);
+    expect(latest!.pending.every((m) => m.state === 'sent')).toBe(true);
+    unsub();
+  });
+
+  it('reuses an externally-supplied OfflineQueue instance', async () => {
+    const { OfflineQueue } = await import('../../../src/queue/offline-queue');
+    const external = new OfflineQueue<string>();
+    const offline = createOfflineQueueStore<string>({ instance: external });
+    expect(offline.queue).toBe(external);
   });
 });

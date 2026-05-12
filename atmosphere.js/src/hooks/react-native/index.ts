@@ -52,3 +52,8 @@ export type {
 export { AtmosphereProvider, useAtmosphereContext } from '../react/provider';
 export { useRoom } from '../react/useRoom';
 export { usePresence } from '../react/usePresence';
+// useOfflineQueue is pure React — same hook works in RN (no DOM access, no
+// browser-only globals). Re-exported so RN consumers can import from
+// atmosphere.js/react-native without crossing entry points.
+export { useOfflineQueue } from '../react/useOfflineQueue';
+export type { UseOfflineQueueOptions, UseOfflineQueueResult } from '../react/useOfflineQueue';

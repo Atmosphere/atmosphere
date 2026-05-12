@@ -21,6 +21,8 @@ export { useAtmosphereCore } from '../shared/useAtmosphereCore';
 export type { UseAtmosphereCoreResult, CoreSubscriptionHandlers } from '../shared/useAtmosphereCore';
 export { useRoom } from './useRoom';
 export { usePresence } from './usePresence';
+export { useOfflineQueue } from './useOfflineQueue';
+export type { UseOfflineQueueOptions, UseOfflineQueueResult } from './useOfflineQueue';
 export { useStreaming } from './useStreaming';
 export type { AiEvent, StreamingConnectionState, UseStreamingOptions, UseStreamingResult } from './useStreaming';
 export { useConnectionStatus } from './useConnectionStatus';

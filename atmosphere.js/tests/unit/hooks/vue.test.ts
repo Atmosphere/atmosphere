@@ -33,6 +33,7 @@ const { useAtmosphere } = await import('../../../src/hooks/vue/useAtmosphere');
 const { useRoom } = await import('../../../src/hooks/vue/useRoom');
 const { usePresence } = await import('../../../src/hooks/vue/usePresence');
 const { useStreaming } = await import('../../../src/hooks/vue/useStreaming');
+const { useOfflineQueue } = await import('../../../src/hooks/vue/useOfflineQueue');
 
 function createMockSubscription(): Subscription & { pushed: string[] } {
   const pushed: string[] = [];
@@ -262,6 +263,58 @@ describe('Vue: usePresence', () => {
     expect(count.value).toBe(2);
     expect(isOnline('user-2')).toBe(true);
     expect(isOnline('user-99')).toBe(false);
+  });
+});
+
+describe('Vue: useOfflineQueue', () => {
+  beforeEach(() => {
+    unmountCallbacks.length = 0;
+  });
+
+  it('starts empty and surfaces reactive size + messages', () => {
+    const { queue, messages, size, pendingCount } = useOfflineQueue<string>();
+    expect(queue).toBeDefined();
+    expect(size.value).toBe(0);
+    expect(pendingCount.value).toBe(0);
+    expect(messages.value).toEqual([]);
+  });
+
+  it('enqueue advances size reactively', () => {
+    const { enqueue, size, messages } = useOfflineQueue<string>();
+    enqueue('one');
+    enqueue('two');
+    expect(size.value).toBe(2);
+    expect(messages.value.map((m) => m.data)).toEqual(['one', 'two']);
+  });
+
+  it('drain (called externally) flips messages from pending to sent', () => {
+    const { queue, enqueue, size, pendingCount, pending } = useOfflineQueue<string>();
+    enqueue('a');
+    enqueue('b');
+    const sent: string[] = [];
+    queue.drain((d) => { sent.push(d); });
+    expect(sent).toEqual(['a', 'b']);
+    expect(size.value).toBe(0);
+    expect(pendingCount.value).toBe(2);
+    expect(pending.value.every((m) => m.state === 'sent')).toBe(true);
+  });
+
+  it('clear empties both buckets', () => {
+    const { enqueue, track, clear, size, pendingCount } = useOfflineQueue<string>();
+    enqueue('x');
+    track('y');
+    expect(size.value).toBe(1);
+    expect(pendingCount.value).toBe(1);
+    clear();
+    expect(size.value).toBe(0);
+    expect(pendingCount.value).toBe(0);
+  });
+
+  it('honors an externally-supplied OfflineQueue instance', async () => {
+    const { OfflineQueue } = await import('../../../src/queue/offline-queue');
+    const external = new OfflineQueue<string>({ maxSize: 3 });
+    const { queue } = useOfflineQueue<string>({ instance: external });
+    expect(queue).toBe(external);
   });
 });
 

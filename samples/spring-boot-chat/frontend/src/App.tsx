@@ -1,5 +1,5 @@
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
-import { useAtmosphere, ConnectionStatusBadge } from 'atmosphere.js/react';
+import { useAtmosphere, useOfflineQueue, ConnectionStatusBadge } from 'atmosphere.js/react';
 import { ChatLayout, MessageList, ChatInput } from 'atmosphere.js/chat';
 import type { ChatMessage } from 'atmosphere.js/chat';
 
@@ -355,6 +355,11 @@ export function App() {
   const [wtInfo, setWtInfo] = useState<{port?: number; certificateHash?: string}>({});
   const [wtLoaded, setWtLoaded] = useState(false);
 
+  // Offline queue: messages typed while disconnected are enqueued here and
+  // drained automatically on reconnect. The transport reads this instance
+  // from `request.offlineQueue` and calls `queue.drain(...)` on `open`.
+  const offline = useOfflineQueue<string>({ maxSize: 50 });
+
   useEffect(() => {
     fetchWebTransportInfo().then((info) => {
       setWtInfo(info);
@@ -374,8 +379,11 @@ export function App() {
       maxReconnectOnClose: 10,
       trackMessageLength: true,
       contentType: 'application/json',
+      offlineQueue: offline.queue,
     }),
-    [wtInfo],
+    // The queue identity is stable across renders (useOfflineQueue uses a
+    // ref), so depending on `offline.queue` does not re-trigger subscribe.
+    [wtInfo, offline.queue],
   );
 
   const { data, state, push, connectionStatus } = useAtmosphere<unknown>({
@@ -446,14 +454,28 @@ export function App() {
     if (!name) {
       setName(text);
       sendJoin(push, ROOM, text);
-    } else {
-      sendBroadcast(push, ROOM, text);
-      // Add our own message locally — server excludes sender from broadcast
-      setMessages((prev) => [
-        ...prev,
-        { author: name, message: text, time: Date.now() },
-      ]);
+      return;
     }
+
+    // Connected: send live. Disconnected: enqueue locally — the transport
+    // will drain the queue on the next `open` event.
+    const isOnline = connectionStatus.phase === 'open';
+    if (isOnline) {
+      sendBroadcast(push, ROOM, text);
+    } else {
+      const payload: RoomBroadcast = { type: 'broadcast', room: ROOM, data: text };
+      offline.enqueue(JSON.stringify(payload));
+    }
+
+    // Always echo locally so the UI shows the message immediately.
+    setMessages((prev) => [
+      ...prev,
+      {
+        author: name,
+        message: isOnline ? text : `${text}  (queued — offline)`,
+        time: Date.now(),
+      },
+    ]);
   };
 
   return (
@@ -462,7 +484,27 @@ export function App() {
       subtitle="Spring Boot • WebTransport/HTTP3 • Room Protocol • Presence • Health Check"
       theme="ai"
       state={state}
-      headerExtra={<ConnectionStatusBadge status={connectionStatus} />}
+      headerExtra={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <ConnectionStatusBadge status={connectionStatus} />
+          {offline.size > 0 && (
+            <span
+              data-testid="offline-queue-size"
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                color: '#fff',
+                background: '#d97706',
+                padding: '2px 8px',
+                borderRadius: 10,
+              }}
+              title="Messages typed offline, waiting to drain on reconnect"
+            >
+              {offline.size} queued
+            </span>
+          )}
+        </div>
+      }
     >
       <div style={tabBarStyle}>
         <div style={tabStyle(activeTab === 'chat')} onClick={() => setActiveTab('chat')}>
