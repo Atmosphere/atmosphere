@@ -16,7 +16,10 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.spring.boot3</atmosphere.module.name>
-        <spring-boot.version>3.5.3</spring-boot.version>
+        <!-- 3.5.14 (latest 3.5.x patch line) closes spring-boot-starter-actuator
+             CVE-2026-22733 + spring-boot CVE-2026-40973, plus assertj-core
+             CVE-2026-24400 by pulling 3.27.7. -->
+        <spring-boot.version>3.5.14</spring-boot.version>
         <spring-framework.version>6.2.17</spring-framework.version>
     </properties>
 

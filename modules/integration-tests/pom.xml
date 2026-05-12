@@ -19,6 +19,20 @@
         <kafka.version>3.9.2</kafka.version>
     </properties>
 
+    <dependencyManagement>
+        <dependencies>
+            <!-- Pin netty 4.1.x to 4.1.133.Final. Integration tests pull
+                 lettuce/grpc-netty-shaded transitively with older netty. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.1.133.Final</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <!-- Atmosphere Core -->
         <dependency>
