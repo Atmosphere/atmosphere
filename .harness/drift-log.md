@@ -153,6 +153,29 @@ rules are the substrate; the act of pausing for verification is the gate.
 
 ---
 
+## 2026-05-11 — Cancel-race root cause (corrects entry #26)
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 28 | Entry #26 framed `AiStreamingSessionCancelInflightTest` slips as "VT scheduling jitter" and bumped the timeout from 2s to 10s as the gate. The pattern of "2.023s, 2.017s — classic jitter" was plausible. | The 10s bump did not hold. The very next JDK 21 CI run (`25706065128`) timed out at exactly 10.02s on the same assertion — not 30ms past, fully 8 seconds past. A deterministic 10s wait means the parked VT was never unblocked, which means `handle.cancel()` never reached the runtime. Reading the source revealed the race: `executeWithHandle` publishes `handlePublished` *inside* the runtime, and the AiStreamingSession then assigns `this.currentHandle = handle` on the next line. A `cancelInflight` call that races in between (test main thread woken by `handlePublished.get`) reads `currentHandle == null`, skips the cancel, and the VT parks on `whenDone().join()` forever. Not jitter — a real production race in the cancellation path | Entry #26 stopped at "VT scheduling jitter" without tracing the actual call graph. The fix should have been to instrument the cancel path (assertion on `cancelPending` flag, or interleaved logging) rather than bumping a wall-clock guard. The test's 10s wait was the symptom; the race was the disease | Latch added to `AiStreamingSession`: `volatile AtomicBoolean cancelPending` set first inside `cancelInflight()` and re-checked in `stream()` after `this.currentHandle = handle` is assigned. Closes the publish-before-assign window. **Gate**: new test `cancelInflight_winsRaceWhenFiredBetweenPublishAndCurrentHandleAssignment` uses a `RaceableRuntime` whose `executeWithHandle` parks on a release future after publishing — deterministically opens the race window and asserts the latch catches up. Local: 8/8 in 594ms |
+
+### Process lesson
+
+Entry #26's "jitter" framing was a *plausible-but-wrong* root cause. The
+two slips (2.023s and 2.017s) clustered <30ms past the deadline, which
+*looks* like Gaussian noise — but the underlying mechanism was the race
+window, and the slip width was a function of how long the VT happened to
+spend in the gap between `executeWithHandle` returning and `currentHandle`
+being assigned. When the runner was more loaded the gap widened until the
+test main thread reliably won. The lesson: a flake that consistently lands
+within a narrow band past a deadline is usually a deterministic ordering
+bug masquerading as jitter — re-read the call graph before bumping the
+wall.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /

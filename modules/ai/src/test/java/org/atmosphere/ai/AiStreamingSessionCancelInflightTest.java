@@ -100,24 +100,71 @@ public class AiStreamingSessionCancelInflightTest {
         });
 
         // Wait for the runtime to receive the request and publish its handle.
-        // Generous timeout — VT scheduling on loaded CI runners has been
-        // observed to slip just past 2s twice in 4 days (2.023s on JDK 21
-        // 2026-05-07, 2.017s on JDK 26 2026-05-11). If cancellation actually
-        // regresses, the VT parks indefinitely so any timeout still surfaces
-        // the bug; the 10s margin only protects against scheduling jitter.
+        // 10s is intentionally generous; the actual bug this test guards is
+        // "cancel races publish and is lost" — see AiStreamingSession's
+        // cancelPending latch — not "VT is slow to start."
         runtime.handlePublished.get(10, TimeUnit.SECONDS);
 
         // Disconnect path: cancellation must unblock the parked VT and fire
-        // the runtime's native cancel primitive (here, Settable's CAS).
+        // the runtime's native cancel primitive (here, Settable's CAS). The
+        // cancelInflight call may arrive before stream() has assigned
+        // this.currentHandle (the race that caused 10s-flake-then-timeout on
+        // loaded JDK 21 runners) — AiStreamingSession's cancelPending latch
+        // catches it and self-cancels post-publish.
         session.cancelInflight();
 
-        // If T1.3 regresses, this get(...) hits the timeout and the test fails
-        // loudly instead of waiting for the runtime to never complete.
+        // If the cancel-race regresses, this get(...) times out and the test
+        // fails loudly instead of waiting for a never-completing handle.
         streamDone.get(10, TimeUnit.SECONDS);
 
         assertEquals(ExecutionHandle.TerminalReason.CANCELLED,
                 runtime.handle.terminalReason(),
                 "runtime handle must observe CANCELLED terminal reason");
+    }
+
+    @Test
+    public void cancelInflight_winsRaceWhenFiredBetweenPublishAndCurrentHandleAssignment()
+            throws Exception {
+        // Deterministically reproduces the JDK 21 CI flake (#25706065128):
+        // executeWithHandle() publishes the handle and then BLOCKS before
+        // returning, simulating a runtime that hands off control to a side
+        // channel before the AiStreamingSession can assign currentHandle.
+        // The disconnect path fires cancelInflight while currentHandle is
+        // still null. Without the cancelPending latch the cancel is silently
+        // dropped and the VT parks on whenDone().join() forever. With the
+        // latch the post-assignment re-check fires the cancel and the VT
+        // unwinds normally.
+        when(resource.uuid()).thenReturn("uuid-race");
+        var runtime = new RaceableRuntime();
+        var session = new AiStreamingSession(delegate, runtime,
+                "", null, List.of(), resource);
+
+        var streamDone = new CompletableFuture<Void>();
+        Thread.startVirtualThread(() -> {
+            try {
+                session.stream("hello");
+                streamDone.complete(null);
+            } catch (Throwable t) {
+                streamDone.completeExceptionally(t);
+            }
+        });
+
+        // Wait until executeWithHandle has published the handle but is still
+        // parked (currentHandle has NOT been assigned yet on the VT).
+        runtime.handlePublished.get(5, TimeUnit.SECONDS);
+
+        // Fire cancel while the race window is open.
+        session.cancelInflight();
+
+        // Release executeWithHandle so the VT can return and assign
+        // currentHandle, then observe cancelPending and self-cancel.
+        runtime.release.complete(null);
+
+        streamDone.get(5, TimeUnit.SECONDS);
+
+        assertEquals(ExecutionHandle.TerminalReason.CANCELLED,
+                runtime.handle.terminalReason(),
+                "post-publish race cancel must reach the runtime handle");
     }
 
     @Test
@@ -234,6 +281,35 @@ public class AiStreamingSessionCancelInflightTest {
         @Override
         public ExecutionHandle executeWithHandle(AgentExecutionContext context, StreamingSession session) {
             handlePublished.complete(handle);
+            return handle;
+        }
+    }
+
+    /**
+     * Like {@link CancellableRuntime} but {@code executeWithHandle} parks on
+     * {@code release} after publishing the handle, so the test can fire
+     * {@code cancelInflight} while {@code currentHandle} is still null and
+     * deterministically exercise the cancel-publish race window.
+     */
+    static final class RaceableRuntime implements AgentRuntime {
+        final ExecutionHandle.Settable handle = new ExecutionHandle.Settable(null);
+        final CompletableFuture<ExecutionHandle> handlePublished = new CompletableFuture<>();
+        final CompletableFuture<Void> release = new CompletableFuture<>();
+
+        @Override public String name() { return "raceable"; }
+        @Override public boolean isAvailable() { return true; }
+        @Override public int priority() { return 0; }
+        @Override public void configure(AiConfig.LlmSettings s) { }
+
+        @Override
+        public void execute(AgentExecutionContext c, StreamingSession s) { }
+
+        @Override
+        public ExecutionHandle executeWithHandle(AgentExecutionContext context, StreamingSession session) {
+            handlePublished.complete(handle);
+            // Block here until the test releases — currentHandle is still
+            // unassigned on the AiStreamingSession side.
+            release.join();
             return handle;
         }
     }

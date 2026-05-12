@@ -120,6 +120,20 @@ public class AiStreamingSession implements StreamingSession {
     private volatile ExecutionHandle currentHandle;
 
     /**
+     * Latches a {@link #cancelInflight()} call that arrived before
+     * {@link #currentHandle} was published. Runtimes that publish their
+     * handle from a side channel (e.g. by completing a {@code CompletableFuture}
+     * inside {@code executeWithHandle}) can unblock the disconnect path
+     * before the @Prompt VT has assigned {@code this.currentHandle}. Without
+     * this latch the cancellation would be silently dropped and the VT would
+     * park on {@code whenDone().join()} forever. After assigning
+     * {@code currentHandle}, {@link #stream(String)} re-reads this flag and
+     * fires the cancel if it was set during the race window.
+     */
+    private final java.util.concurrent.atomic.AtomicBoolean cancelPending =
+            new java.util.concurrent.atomic.AtomicBoolean();
+
+    /**
      * @param delegate     the underlying streaming session
      * @param runtime    the resolved AI support implementation
      * @param systemPrompt the system prompt from {@code @AiEndpoint}
@@ -314,6 +328,10 @@ public class AiStreamingSession implements StreamingSession {
      * is done. Safe to invoke from any thread.</p>
      */
     public void cancelInflight() {
+        // Set the latch BEFORE reading currentHandle so that a concurrent
+        // stream() VT publishing its handle after this read still observes
+        // the cancel intent and self-cancels post-publish.
+        cancelPending.set(true);
         var handle = this.currentHandle;
         if (handle != null && !handle.isDone()) {
             handle.cancel();
@@ -756,6 +774,13 @@ public class AiStreamingSession implements StreamingSession {
             // closes the HTTP stream and unwinds the tool loop.
             var handle = runtime.executeWithHandle(context, streamingTarget);
             this.currentHandle = handle;
+            // Close the publish-then-cancel race: a disconnect that fired
+            // between executeWithHandle returning and currentHandle being
+            // assigned would have read null and dropped the cancel. Re-check
+            // the latch here so we catch up on that intent before parking.
+            if (cancelPending.get() && !handle.isDone()) {
+                handle.cancel();
+            }
             try {
                 handle.whenDone().join();
             } catch (java.util.concurrent.CompletionException ce) {
