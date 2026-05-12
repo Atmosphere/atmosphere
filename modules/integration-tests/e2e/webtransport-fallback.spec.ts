@@ -43,40 +43,35 @@ test.describe('WebTransport / WebSocket fallback', () => {
     // to WebSocket without throwing.
     await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 20_000 });
 
-    // Sanity check: confirm the WebTransport API surface the client probes
-    // matches the browser we're on. This pins the assumption the fallback
-    // path is actually being taken on FF / WebKit (not silently skipped).
+    // Inspect the WebTransport API surface and the ConnectionStatusBadge
+    // (data-testid="atmosphere-connection-status"). The admin console renders
+    // the Badge with data-transport set from the ConnectionStatus snapshot —
+    // pins that the resilience wiring is tracking the active transport, not
+    // just "anything connected".
+    //
+    // WebTransport API availability is browser-version-dependent:
+    //   - Chromium: always.
+    //   - Firefox: 114+ behind a flag, 122+ on by default.
+    //   - WebKit: not shipping at the time of writing.
+    // So we don't assert hasWtApi rigidly per browser — the test pins the
+    // Badge contract instead: when the API is absent, transport MUST be
+    // 'websocket'; when present, transport is either 'webtransport' (handshake
+    // succeeded) or 'websocket' (sidecar disabled or handshake failed).
     const hasWtApi = await page.evaluate(() => typeof (window as { WebTransport?: unknown }).WebTransport !== 'undefined');
-    if (browserName === 'chromium') {
-      expect(hasWtApi).toBe(true);
-    } else {
-      expect(hasWtApi).toBe(false);
-    }
-
-    // Inspect the ConnectionStatusBadge (data-testid="atmosphere-connection-status").
-    // The admin console renders my Badge with data-transport set from the
-    // ConnectionStatus snapshot — proves the resilience wiring is actually
-    // tracking the active transport, not just "anything connected".
     const badge = page.getByTestId('atmosphere-connection-status');
     const transport = await badge.getAttribute('data-transport');
     const viaFallback = await badge.getAttribute('data-via-fallback');
 
-    // Firefox / WebKit have no WebTransport API, so the client must have
-    // selected WebSocket. The viaFallback flag is set when transportFailure
-    // fires (which doesn't happen for browsers that lack the API — the
-    // client just picks WebSocket directly).
-    if (browserName !== 'chromium') {
+    if (!hasWtApi) {
       expect(transport).toBe('websocket');
     } else {
-      // Chromium: transport is either 'webtransport' (server advertised a
-      // port and the handshake succeeded) or 'websocket' (sidecar disabled
-      // or handshake failed and the client fell back). Either way, NOT
-      // an empty string — pins that the Badge's data-transport attribute
-      // is populated from the ConnectionStatus snapshot, not hard-coded.
       expect(transport).toMatch(/^(webtransport|websocket)$/);
     }
-    // viaFallback is "true" or "false" string (from the v-bind:data-via-fallback).
     expect(viaFallback === 'true' || viaFallback === 'false').toBe(true);
+
+    // Keep browserName referenced so the per-browser fork stays visible
+    // in the playwright report metadata.
+    expect(['chromium', 'firefox', 'webkit']).toContain(browserName);
   });
 
   test('chat round-trip works on every browser', async ({ page }) => {
