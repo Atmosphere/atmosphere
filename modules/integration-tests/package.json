@@ -21,5 +21,8 @@
     "@types/ws": "^8.18.1",
     "eventsource": "^4.1.0",
     "ws": "^8.19.0"
+  },
+  "dependencies": {
+    "protobufjs": "7.5.6"
   }
 }
