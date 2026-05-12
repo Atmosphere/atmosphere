@@ -23,13 +23,62 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Sample stays on Quarkus 3.35.2's netty 4.1.132.Final pin.
-                 The netty-bom 4.1.133 override pulls BrotliDecoder.pull(int)
-                 which needs a newer brotli4j signature than is on this
-                 sample's classpath; that breaks native-image build with
-                 "unresolved method ... DecoderJNI$Wrapper.pull(int)".
-                 The CVE fix for production code lives in
-                 modules/quarkus-extension*/pom.xml (which DO pin 4.1.133). -->
+            <!-- Netty BOM 4.1.133.Final imported BEFORE quarkus-bom so its
+                 pins win over Quarkus 3.35.2's hardcoded 4.1.132.Final.
+                 Closes sample-scope CVE-2026-42577 (handler-proxy header
+                 injection), CVE-2026-42578 (chunked-extension request
+                 smuggling), CVE-2026-41417 (TE smuggling), and the
+                 netty-codec / codec-http / codec-http2 / codec-dns CVE
+                 family. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.1.133.Final</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Netty 4.1.133's BrotliDecoder.decompress was recompiled
+                 against brotli4j 1.23.0 (calls DecoderJNI$Wrapper.pull(int)
+                 which only exists in 1.23+). Quarkus 3.35.2 pins brotli4j
+                 1.16.0 which has only no-arg pull() — that mismatch breaks
+                 native-image build with "unresolved method during parsing".
+                 Override every brotli4j artifact to 1.23.0 to keep the
+                 native-image graph closed. -->
+            <dependency>
+                <groupId>com.aayushatharva.brotli4j</groupId>
+                <artifactId>brotli4j</artifactId>
+                <version>1.23.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.aayushatharva.brotli4j</groupId>
+                <artifactId>service</artifactId>
+                <version>1.23.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.aayushatharva.brotli4j</groupId>
+                <artifactId>native-linux-x86_64</artifactId>
+                <version>1.23.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.aayushatharva.brotli4j</groupId>
+                <artifactId>native-linux-aarch64</artifactId>
+                <version>1.23.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.aayushatharva.brotli4j</groupId>
+                <artifactId>native-osx-x86_64</artifactId>
+                <version>1.23.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.aayushatharva.brotli4j</groupId>
+                <artifactId>native-osx-aarch64</artifactId>
+                <version>1.23.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.aayushatharva.brotli4j</groupId>
+                <artifactId>native-windows-x86_64</artifactId>
+                <version>1.23.0</version>
+            </dependency>
             <dependency>
                 <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-bom</artifactId>
