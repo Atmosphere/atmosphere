@@ -290,6 +290,29 @@ a checkbox in the "validated" claim, not an assumption.
 
 ---
 
+## 2026-05-12 — Classroom resilience retrofit (samples coverage expansion)
+
+After landing the 4-piece resilience suite in `spring-boot-chat`, the
+honest answer to "what other sample exercises this?" was "only one."
+Retrofitting `spring-boot-ai-classroom` surfaced a real SDK gap.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 34 | The original plan for the classroom retrofit assumed `useStreaming` would expose enough of the underlying subscription that presence frames broadcast by the server's `@Ready` / `@Disconnect` hooks would naturally reach the client | `useStreaming` (correctly) ignores any message that fails `parseStreamingMessage` — non-streaming frames (no `sessionId`, no whitelisted `type`) get silently dropped in `streaming/index.ts:88`. Presence broadcasts had no path to the React layer. Two options: (a) open a parallel `useAtmosphere` subscription on the same URL (the double-WebSocket footgun from drift-log entry #31), or (b) extend `useStreaming` to passthrough non-streaming frames | "Hook surface is enough" was a guess, not a verified fact. Reading `subscribeStreaming.message` showed the gap inside 30 seconds — should have been step one of the retrofit plan, not surfaced as a "discovered while wiring" | Added `onRawMessage?: (raw: string) => void` to both `StreamingHandlers` (`atmosphere.js/src/streaming/types.ts`) and `UseStreamingOptions` (`atmosphere.js/src/hooks/react/useStreaming.ts`); wired through `subscribeStreaming` *before* the early return in `streaming/index.ts`. The classroom hooks it to extract `{type:"presence","count":N}` frames; streaming chunks continue to flow through the existing typed callbacks. **Gate**: existing 579/579 vitest suite still passes (additive change); new E2E `classroom-resilience.spec.ts` asserts the presence-count chip lights up to "1 online" after a single browser joins, validating the round-trip end-to-end |
+
+### Process note
+
+This entry is the same shape as drift-log #31 (`usePresence` would
+double-subscribe in spring-boot-chat). Pattern: "hook A looks like it
+covers use-case B, but you need to read hook A's message dispatch path
+to verify before claiming it does." The atmosphere.js hook surface has
+several similar passthroughs now — when wiring future samples, default
+to grep'ing for the consumer-callback name first.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /

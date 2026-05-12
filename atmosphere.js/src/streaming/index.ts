@@ -84,6 +84,12 @@ export async function subscribeStreaming(
       const raw = response.responseBody;
       if (typeof raw !== 'string') return;
 
+      // Fire the raw passthrough first — auxiliary frames (presence,
+      // room state) ride on the same broadcaster as the streaming
+      // protocol and need to reach consumer code even when they don't
+      // parse as streaming messages.
+      handlers.onRawMessage?.(raw);
+
       const msg = parseStreamingMessage(raw);
       if (!msg) return;
 

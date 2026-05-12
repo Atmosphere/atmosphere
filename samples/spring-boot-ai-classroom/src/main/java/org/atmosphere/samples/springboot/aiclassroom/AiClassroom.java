@@ -65,11 +65,40 @@ public class AiClassroom {
     public void onReady(AtmosphereResource resource) {
         logger.info("Student {} joined room '{}' (broadcaster: {})",
                 resource.uuid(), room, resource.getBroadcaster().getID());
+        broadcastPresence(resource, "join");
     }
 
     @Disconnect
     public void onDisconnect(AtmosphereResourceEvent event) {
-        logger.info("Student {} left room '{}'", event.getResource().uuid(), room);
+        var resource = event.getResource();
+        logger.info("Student {} left room '{}'", resource.uuid(), room);
+        broadcastPresence(resource, "leave");
+    }
+
+    /**
+     * Emit a presence event to everyone in the room so the classroom UI
+     * can render an "{N} online" chip. Format mirrors the Room Protocol
+     * {@code presence} frame:
+     *
+     * <pre>{"type":"presence","action":"join","memberId":"&lt;uuid&gt;","count":N}</pre>
+     *
+     * Count is computed at broadcast time so a reconnecting student sees
+     * the correct snapshot from the first event after rejoin, without a
+     * separate query endpoint.
+     */
+    private void broadcastPresence(AtmosphereResource resource, String action) {
+        var broadcaster = resource.getBroadcaster();
+        int count = broadcaster.getAtmosphereResources().size();
+        // @Disconnect fires before the resource is removed from the set
+        // in some transports, so subtract one when the leaver is still
+        // present. This keeps the wire payload monotonically sensible.
+        if ("leave".equals(action) && broadcaster.getAtmosphereResources().contains(resource)) {
+            count = Math.max(0, count - 1);
+        }
+        String json = String.format(
+                "{\"type\":\"presence\",\"action\":\"%s\",\"memberId\":\"%s\",\"count\":%d}",
+                action, resource.uuid(), count);
+        broadcaster.broadcast(json);
     }
 
     @Prompt

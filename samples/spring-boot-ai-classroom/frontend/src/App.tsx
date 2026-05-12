@@ -1,10 +1,22 @@
 import { useState, useEffect, useRef, useMemo, createElement } from 'react';
-import { useStreaming, ConnectionStatusBadge } from 'atmosphere.js/react';
+import {
+  useStreaming,
+  useOfflineQueue,
+  useOptimistic,
+  ConnectionStatusBadge,
+} from 'atmosphere.js/react';
 import { ChatLayout, ChatInput, StreamingMessage, StreamingProgress, StreamingError } from 'atmosphere.js/chat';
 
 interface UserMessage {
   role: 'user';
   text: string;
+  /**
+   * Optimistic tracker id. While the corresponding {@code useOptimistic}
+   * record is in state `'sent'`, the bubble renders with an "(asking…)"
+   * suffix; once the first assistant chunk arrives we `commit(id)` and
+   * the suffix is removed.
+   */
+  optimisticId?: string;
 }
 
 interface AssistantMessage {
@@ -174,6 +186,22 @@ function Classroom({ room, onLeave }: { room: string; onLeave: () => void }) {
   const [wtInfo, setWtInfo] = useState<{enabled?: boolean; port?: number; certificateHash?: string}>({});
   const [wtLoaded, setWtLoaded] = useState(false);
 
+  // Live presence count, parsed from the server's presence frames
+  // (`{"type":"presence","action":"join|leave","memberId":"…","count":N}`).
+  // Each frame ships the current room headcount so we don't need to
+  // maintain a member set on the client.
+  const [presenceCount, setPresenceCount] = useState<number>(0);
+
+  // Offline queue: questions typed while the classroom transport is down
+  // queue locally and drain on the next reconnect.
+  const offline = useOfflineQueue<string>({ maxSize: 25 });
+
+  // Optimistic UI: the student's question shows "(asking…)" until the
+  // first AI chunk arrives. We `commit(id)` from the streaming handler;
+  // the confirmAfterMs fallback covers cases where the server replies
+  // with progress before the streaming chunk lands.
+  const optimistic = useOptimistic<{ text: string }>({ confirmAfterMs: 8_000 });
+
   useEffect(() => {
     fetchWebTransportInfo().then((info) => { setWtInfo(info); setWtLoaded(true); });
   }, []);
@@ -191,9 +219,16 @@ function Classroom({ room, onLeave }: { room: string; onLeave: () => void }) {
       trackMessageLength: true,
       enableProtocol: false,
       contentType: 'application/json',
+      offlineQueue: offline.queue,
     }),
-    [room, wtInfo],
+    // offline.queue identity is stable across renders (useOfflineQueue
+    // uses a ref), so referencing it here does not re-trigger subscribe.
+    [room, wtInfo, offline.queue],
   );
+
+  // Track the most recently sent optimistic id so the first streaming
+  // chunk can commit it without state churn in the streaming hook.
+  const pendingOptimisticIdRef = useRef<string | null>(null);
 
   const { fullText, isStreaming, progress, metadata, stats, error, send, reset, connectionStatus } =
     useStreaming({
@@ -207,10 +242,31 @@ function Classroom({ room, onLeave }: { room: string; onLeave: () => void }) {
         console.warn('[atmosphere] transport failed, falling back:', reason),
       onFailureToReconnect: () =>
         console.error('[atmosphere] reconnect attempts exhausted'),
+      // Presence frames ride on the same broadcaster as the AI streaming
+      // protocol — they fail the streaming-message parse so they would
+      // otherwise be silently dropped. onRawMessage gives us a hook to
+      // pick them out.
+      onRawMessage: (raw: string) => {
+        if (!raw || raw.charAt(0) !== '{') return;
+        try {
+          const parsed = JSON.parse(raw) as { type?: string; count?: number };
+          if (parsed.type === 'presence' && typeof parsed.count === 'number') {
+            setPresenceCount(parsed.count);
+          }
+        } catch {
+          /* not JSON, not our concern */
+        }
+      },
     });
 
   useEffect(() => {
     if (!fullText) return;
+    // First AI chunk for this turn → commit the student's optimistic
+    // question. After this, the "(asking…)" suffix drops on next render.
+    if (pendingOptimisticIdRef.current) {
+      optimistic.commit(pendingOptimisticIdRef.current);
+      pendingOptimisticIdRef.current = null;
+    }
     setMessages((prev) => {
       const last = prev[prev.length - 1];
       if (last && last.role === 'assistant' && !last.complete) {
@@ -218,7 +274,7 @@ function Classroom({ room, onLeave }: { room: string; onLeave: () => void }) {
       }
       return [...prev, { role: 'assistant', text: fullText, complete: false }];
     });
-  }, [fullText]);
+  }, [fullText, optimistic]);
 
   useEffect(() => {
     if (!isStreaming && fullText) {
@@ -237,10 +293,35 @@ function Classroom({ room, onLeave }: { room: string; onLeave: () => void }) {
   }, [messages, fullText]);
 
   const handleSend = (text: string) => {
-    setMessages((prev) => [...prev, { role: 'user', text }]);
-    reset();
-    send(text);
+    const isOnline = connectionStatus.phase === 'open';
+    let optimisticId: string | undefined;
+    if (isOnline) {
+      // Track for "(asking…)" visual until first AI chunk arrives. The
+      // 8s confirmAfterMs is generous — the streaming hook flips state to
+      // confirmed on first chunk; the deadline is a safety net for the
+      // long-tail case where the server returns a metadata frame before
+      // any streaming text.
+      optimisticId = optimistic.send({ text }).id;
+      pendingOptimisticIdRef.current = optimisticId;
+      reset();
+      send(text);
+    } else {
+      // Offline: queue the question. The transport drains the queue on
+      // the next 'open' event; the @AiEndpoint receives it normally.
+      offline.enqueue(text);
+    }
+    setMessages((prev) => [...prev, { role: 'user', text, optimisticId }]);
   };
+
+  // Project useOptimistic state onto the bubble suffix. A `'sent'` record
+  // means the AI hasn't responded yet → render "(asking…)" inline.
+  const optimisticById = useMemo(() => {
+    const m = new Map<string, 'sent' | 'confirmed' | 'failed'>();
+    for (const rec of optimistic.messages) {
+      m.set(rec.id, rec.state as 'sent' | 'confirmed' | 'failed');
+    }
+    return m;
+  }, [optimistic.messages]);
 
   const displayModel = metadata.model as string | undefined;
 
@@ -321,6 +402,40 @@ function Classroom({ room, onLeave }: { room: string; onLeave: () => void }) {
               )
             : null}
           <ConnectionStatusBadge status={connectionStatus} />
+          {presenceCount > 0 && (
+            <span
+              data-testid="presence-count"
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: '#fff',
+                background: accent,
+                padding: '3px 10px',
+                borderRadius: 9999,
+                fontFamily: FONT_STACK,
+              }}
+              title="Students currently connected to this room"
+            >
+              {presenceCount} online
+            </span>
+          )}
+          {offline.size > 0 && (
+            <span
+              data-testid="offline-queue-size"
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: '#fff',
+                background: '#d97706',
+                padding: '3px 10px',
+                borderRadius: 9999,
+                fontFamily: FONT_STACK,
+              }}
+              title="Questions typed offline, waiting to drain on reconnect"
+            >
+              {offline.size} queued
+            </span>
+          )}
         </div>
       }
     >
@@ -335,34 +450,41 @@ function Classroom({ room, onLeave }: { room: string; onLeave: () => void }) {
           background: PALETTE.bgPrimary,
         }}
       >
-        {messages.map((msg, i) =>
-          msg.role === 'user'
-            ? createElement(
-                'div',
-                {
-                  key: i,
-                  style: {
-                    alignSelf: 'flex-end',
-                    background: accent,
-                    color: '#fff',
-                    padding: '10px 14px',
-                    borderRadius: '12px 12px 4px 12px',
-                    maxWidth: '85%',
-                    wordBreak: 'break-word',
-                    fontSize: 14,
-                    lineHeight: 1.5,
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
-                  },
-                },
-                msg.text,
-              )
-            : createElement(StreamingMessage, {
+        {messages.map((msg, i) => {
+          if (msg.role === 'user') {
+            const optState = msg.optimisticId ? optimisticById.get(msg.optimisticId) : undefined;
+            const suffix =
+              optState === 'sent' ? '  (asking…)' :
+              optState === 'failed' ? '  (failed)' : '';
+            return createElement(
+              'div',
+              {
                 key: i,
-                text: msg.text,
-                isStreaming: !msg.complete,
-                dark: true,
-              }),
-        )}
+                'data-testid': msg.optimisticId ? `user-bubble-${msg.optimisticId}` : 'user-bubble',
+                style: {
+                  alignSelf: 'flex-end',
+                  background: accent,
+                  color: '#fff',
+                  padding: '10px 14px',
+                  borderRadius: '12px 12px 4px 12px',
+                  maxWidth: '85%',
+                  wordBreak: 'break-word' as const,
+                  fontSize: 14,
+                  lineHeight: 1.5,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                  opacity: optState === 'sent' ? 0.75 : 1,
+                },
+              },
+              msg.text + suffix,
+            );
+          }
+          return createElement(StreamingMessage, {
+            key: i,
+            text: msg.text,
+            isStreaming: !msg.complete,
+            dark: true,
+          });
+        })}
         {progress && createElement(StreamingProgress, { message: progress })}
         {error && createElement(StreamingError, { message: error })}
         <div ref={endRef} />

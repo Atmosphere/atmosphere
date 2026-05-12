@@ -71,6 +71,14 @@ export interface UseStreamingOptions {
    * retry button (e.g. by re-mounting the hook via `enabled` toggle).
    */
   onFailureToReconnect?: () => void;
+  /**
+   * Called for every raw message on the subscription, including
+   * non-streaming auxiliary frames (presence, room state). Streaming
+   * frames continue to flow through the typed `onText`/`onComplete`
+   * paths — this is purely additive. Use when an {@code @AiEndpoint}
+   * also broadcasts protocol frames on the same broadcaster.
+   */
+  onRawMessage?: (raw: string) => void;
 }
 
 /** Connection-state classification surfaced to consumers of {@link useStreaming}. */
@@ -165,6 +173,7 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
     request, enabled = true,
     onOpen, onClose, onReconnect, onClientTimeout,
     onReopen, onTransportFailure, onFailureToReconnect,
+    onRawMessage,
   } = options;
 
   const [streamingTexts, setStreamingTexts] = useState<string[]>([]);
@@ -194,11 +203,11 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   // useAtmosphereCore pattern.
   const lifecycleRef = useRef({
     onOpen, onClose, onReconnect, onClientTimeout,
-    onReopen, onTransportFailure, onFailureToReconnect,
+    onReopen, onTransportFailure, onFailureToReconnect, onRawMessage,
   });
   lifecycleRef.current = {
     onOpen, onClose, onReconnect, onClientTimeout,
-    onReopen, onTransportFailure, onFailureToReconnect,
+    onReopen, onTransportFailure, onFailureToReconnect, onRawMessage,
   };
 
   useEffect(() => {
@@ -243,6 +252,10 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
             if (cancelled) return;
             setConnectionState('error');
             lifecycleRef.current.onFailureToReconnect?.();
+          },
+          onRawMessage: (raw: string) => {
+            if (cancelled) return;
+            lifecycleRef.current.onRawMessage?.(raw);
           },
           onStreamingText: (text) => {
             if (cancelled) return;

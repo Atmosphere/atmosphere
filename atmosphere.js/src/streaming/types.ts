@@ -179,6 +179,17 @@ export interface StreamingHandlers {
    * retry button.
    */
   onFailureToReconnect?: () => void;
+  /**
+   * Called for *every* raw message received on the subscription, including
+   * frames that are not part of the streaming protocol (presence events,
+   * room broadcasts, etc.). Use this when an {@code @AiEndpoint} also
+   * publishes auxiliary protocol frames over the same broadcaster — the
+   * classroom sample broadcasts presence join/leave alongside AI
+   * streaming and the same hook consumes both. Streaming frames are still
+   * dispatched through the typed callbacks above; this hook is purely
+   * additive.
+   */
+  onRawMessage?: (raw: string) => void;
 }
 
 /**
