@@ -125,6 +125,7 @@
     "esbuild": ">=0.25.0"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@vitest/coverage-v8": "^4.1.2",

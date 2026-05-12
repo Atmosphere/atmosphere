@@ -25,6 +25,11 @@ export { useStreaming } from './useStreaming';
 export type { AiEvent, StreamingConnectionState, UseStreamingOptions, UseStreamingResult } from './useStreaming';
 export { useConnectionStatus } from './useConnectionStatus';
 export type { UseConnectionStatusResult } from './useConnectionStatus';
+export { useExternalConnectionStatus } from './useExternalConnectionStatus';
+export type {
+  UseExternalConnectionStatusOptions,
+  UseExternalConnectionStatusResult,
+} from './useExternalConnectionStatus';
 export {
   ConnectionStatusBadge,
   DEFAULT_LABELS as CONNECTION_STATUS_LABELS,

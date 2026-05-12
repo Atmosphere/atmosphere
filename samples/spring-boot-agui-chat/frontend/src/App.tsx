@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect, useCallback, useMemo, createElement } from 'react';
+import { useState, useRef, useEffect, useCallback, createElement } from 'react';
 import { ChatLayout, ChatInput, StreamingMessage, StreamingProgress, StreamingError } from 'atmosphere.js/chat';
-import { ConnectionStatusBadge } from 'atmosphere.js/react';
-import type { ConnectionPhase, ConnectionStatusSnapshot } from 'atmosphere.js/react';
+import { ConnectionStatusBadge, useExternalConnectionStatus } from 'atmosphere.js/react';
 
 interface AgUiEvent {
   type: string;
@@ -36,15 +35,14 @@ export function App() {
   const [input, setInput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [threadId] = useState(() => crypto.randomUUID());
-  const [phase, setPhase] = useState<ConnectionPhase>('idle');
-  const [phaseSince, setPhaseSince] = useState<number>(() => Date.now());
-  const [lastError, setLastError] = useState<Error | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
-  const bumpPhase = useCallback((next: ConnectionPhase) => {
-    setPhase(next);
-    setPhaseSince(Date.now());
-  }, []);
+  // Unified Badge adapter — drives the same ConnectionStatusSnapshot
+  // atmosphere.js transports emit, but from AG-UI's SSE stream lifecycle.
+  const {
+    status: connectionStatus,
+    markConnecting, markOpen, markClosed, markLost,
+  } = useExternalConnectionStatus({ transport: 'ag-ui' });
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -124,8 +122,7 @@ export function App() {
       role: 'assistant', content: '', toolCalls: [], steps: [], isStreaming: true,
     };
     setMessages(prev => [...prev, assistantMsg]);
-    setLastError(null);
-    bumpPhase('connecting');
+    markConnecting();
 
     try {
       const response = await fetch('/agui', {
@@ -139,7 +136,7 @@ export function App() {
       });
 
       if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
-      bumpPhase('open');
+      markOpen();
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -169,8 +166,7 @@ export function App() {
       }
     } catch (err: unknown) {
       if ((err as Error).name !== 'AbortError') {
-        setLastError(err instanceof Error ? err : new Error(String(err)));
-        bumpPhase('lost');
+        markLost(err instanceof Error ? err : new Error(String(err)));
         setMessages(prev => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
@@ -180,14 +176,16 @@ export function App() {
           return updated;
         });
       } else {
-        bumpPhase('closed');
+        markClosed();
       }
     } finally {
       setIsRunning(false);
       // Clean exit (no error path) → mark closed.
-      setPhase((p) => (p === 'open' || p === 'connecting') ? 'closed' : p);
+      if (connectionStatus.phase === 'open' || connectionStatus.phase === 'connecting') {
+        markClosed();
+      }
     }
-  }, [isRunning, threadId, handleEvent, bumpPhase]);
+  }, [isRunning, threadId, handleEvent, markConnecting, markOpen, markClosed, markLost, connectionStatus.phase]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -195,23 +193,6 @@ export function App() {
       sendMessage(input);
     }
   };
-
-  // Build a ConnectionStatusSnapshot from the AG-UI SSE stream lifecycle so
-  // the unified Badge can sit alongside atmosphere.js samples. Transport tag
-  // is 'ag-ui' (request-response — phase resets to idle/closed between turns).
-  const connectionStatus: ConnectionStatusSnapshot = useMemo(() => ({
-    phase,
-    lastEvent: phase === 'open' ? 'open'
-      : phase === 'connecting' ? null
-      : phase === 'lost' ? 'failureToReconnect'
-      : phase === 'closed' ? 'close'
-      : null,
-    transport: 'ag-ui',
-    attempt: 0,
-    lastError,
-    viaFallback: false,
-    since: phaseSince,
-  }), [phase, phaseSince, lastError]);
 
   return (
     <ChatLayout

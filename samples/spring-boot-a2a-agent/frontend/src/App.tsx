@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef, useCallback, useMemo, createElement } from 'react';
+import { useState, useEffect, useRef, useCallback, createElement } from 'react';
 import { ChatLayout, ChatInput, StreamingMessage, StreamingProgress, StreamingError } from 'atmosphere.js/chat';
 import type { ChatTheme } from 'atmosphere.js/chat';
-import { ConnectionStatusBadge } from 'atmosphere.js/react';
-import type { ConnectionPhase, ConnectionStatusSnapshot } from 'atmosphere.js/react';
+import { ConnectionStatusBadge, useExternalConnectionStatus } from 'atmosphere.js/react';
 
 const a2aTheme: ChatTheme = {
   gradient: ['#4338ca', '#6d28d9'],
@@ -51,15 +50,15 @@ export function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [phase, setPhase] = useState<ConnectionPhase>('idle');
-  const [phaseSince, setPhaseSince] = useState<number>(() => Date.now());
   const endRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const bumpPhase = useCallback((next: ConnectionPhase) => {
-    setPhase(next);
-    setPhaseSince(Date.now());
-  }, []);
+  // Unified Badge adapter — drives the same ConnectionStatusSnapshot
+  // atmosphere.js transports emit, but from A2A's request-response lifecycle.
+  const {
+    status: connectionStatus,
+    markConnecting, markOpen, markClosed, markLost,
+  } = useExternalConnectionStatus({ transport: 'a2a' });
 
   // Fetch agent card on mount
   useEffect(() => {
@@ -77,7 +76,7 @@ export function App() {
     setError(null);
     setIsStreaming(true);
     setProgress('Thinking...');
-    bumpPhase('connecting');
+    markConnecting();
 
     // Cancel any previous stream
     abortRef.current?.abort();
@@ -118,7 +117,7 @@ export function App() {
       let buffer = '';
 
       setProgress(null);
-      bumpPhase('open');
+      markOpen();
 
       while (true) {
         const { value, done } = await reader.read();
@@ -163,7 +162,7 @@ export function App() {
       });
     } catch (err) {
       if ((err as Error).name === 'AbortError') {
-        bumpPhase('closed');
+        markClosed();
         return;
       }
 
@@ -187,19 +186,21 @@ export function App() {
           ...prev,
           { role: 'assistant', text: responseText, complete: true, taskId: task.id, statusMessage: task.status.message },
         ]);
-        bumpPhase('closed');
+        markClosed();
       } catch (syncErr) {
         setError(syncErr instanceof Error ? syncErr.message : String(syncErr));
-        bumpPhase('lost');
+        markLost(syncErr instanceof Error ? syncErr : new Error(String(syncErr)));
       }
     } finally {
       setIsStreaming(false);
       setProgress(null);
-      // If the streaming path succeeded (no error, no fallback), mark closed.
-      // The bumpPhase('lost') in the inner catch wins if it ran.
-      setPhase((p) => (p === 'open' || p === 'connecting') ? 'closed' : p);
+      // If neither branch fired a terminal transition (streaming path
+      // succeeded normally), mark the Badge as closed.
+      if (connectionStatus.phase === 'open' || connectionStatus.phase === 'connecting') {
+        markClosed();
+      }
     }
-  }, [bumpPhase]);
+  }, [markConnecting, markOpen, markClosed, markLost, connectionStatus.phase]);
 
   const skillBadges = skills.length > 0
     ? createElement('div', {
@@ -217,23 +218,6 @@ export function App() {
         }, s.name),
       ))
     : null;
-
-  // Build a ConnectionStatusSnapshot from the A2A stream lifecycle so the
-  // unified Badge can sit alongside atmosphere.js samples. Transport tag is
-  // 'a2a' (request-response model — phase resets to idle/closed between turns).
-  const connectionStatus: ConnectionStatusSnapshot = useMemo(() => ({
-    phase,
-    lastEvent: phase === 'open' ? 'open'
-      : phase === 'connecting' ? null
-      : phase === 'lost' ? 'failureToReconnect'
-      : phase === 'closed' ? 'close'
-      : null,
-    transport: 'a2a',
-    attempt: 0,
-    lastError: error ? new Error(error) : null,
-    viaFallback: false,
-    since: phaseSince,
-  }), [phase, phaseSince, error]);
 
   return (
     <ChatLayout
