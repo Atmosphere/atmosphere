@@ -1065,6 +1065,18 @@
                 <artifactId>jackson-annotations</artifactId>
                 <version>${jackson2.version}</version>
             </dependency>
+            <!-- Force opennlp-tools to 2.5.9 (transitively pulled by langchain4j 1.14.0
+                 at 2.5.4). 2.5.9 patches CVE-2026-42027 (ExtensionLoader arbitrary
+                 class instantiation, critical), CVE-2026-40682 (DictionaryEntryPersistor
+                 XXE, critical), and CVE-2026-42440 (AbstractModelReader OOM DoS, high).
+                 langchain4j only uses opennlp transitively via langchain4j-easy-rag
+                 (sentence detection); upgrading the artifact directly is safe because
+                 the public sentence/tokenizer APIs are unchanged from 2.5.4 to 2.5.9. -->
+            <dependency>
+                <groupId>org.apache.opennlp</groupId>
+                <artifactId>opennlp-tools</artifactId>
+                <version>2.5.9</version>
+            </dependency>
             <!-- NOTE: spring-webflux is intentionally NOT force-pinned here.
                  Globally pinning to 6.2.17 (the patched 6.x) drags Spring 6's
                  webflux into modules using Spring 7 (Spring Boot 4) and
