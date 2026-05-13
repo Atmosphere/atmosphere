@@ -144,4 +144,43 @@ describe('WebSocket heartbeat after reconnect (issue #294)', () => {
     vi.advanceTimersByTime(2000);
     expect(mocks[1].send).toHaveBeenCalledWith('Y');
   });
+
+  it('restarts heartbeat on reconnect when server does not resend handshake', async () => {
+    const transport = new WebSocketTransport(
+      {
+        url: 'ws://localhost:8080/chat',
+        transport: 'websocket',
+        enableProtocol: true,
+        trackMessageLength: false,
+        reconnect: true,
+        reconnectInterval: 100,
+        maxReconnectOnClose: 5,
+      },
+      mockHandlers,
+    );
+    const p1 = transport.connect();
+    mocks[0].onopen?.();
+    await p1;
+
+    // Initial handshake establishes uuid + heartbeat config
+    mocks[0].onmessage?.({ data: 'uuid-1|1000|X|' });
+    expect(mockHandlers.open).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1000);
+    expect(mocks[0].send).toHaveBeenCalledWith('X');
+    mocks[0].send.mockClear();
+
+    // Drop and reconnect
+    mocks[0].onclose?.({ code: 1006, reason: '' });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.length).toBe(2);
+
+    // Server resumes the existing tracking-id and does NOT resend the protocol
+    // handshake — only the open event fires. The cached heartbeat config from
+    // the first connection must be reused so the heartbeat restarts.
+    mocks[1].onopen?.();
+    expect(mockHandlers.reopen).toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1000);
+    expect(mocks[1].send).toHaveBeenCalledWith('X');
+  });
 });
