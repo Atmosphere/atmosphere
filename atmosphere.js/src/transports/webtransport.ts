@@ -256,22 +256,13 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
 
     if (result === null) {
       // Handshake processed or partial message buffered
-      if (this.request.enableProtocol && this._state !== 'connected') {
-        const openResponse: AtmosphereResponse<T> = {
-          status: 200,
-          reasonPhrase: 'OK',
-          responseBody: '' as T,
-          messages: [],
-          headers: {},
-          state: 'open',
-          transport: 'webtransport',
-          error: null,
-          request: this.request,
-        };
-        this.notifyOpen(openResponse);
-        this.protocol.startHeartbeat();
-      }
+      this.notifyHandshakeOpen();
       return;
+    }
+
+    // Handshake may also arrive with trailing payload (issue #294).
+    if (result.wasHandshake) {
+      this.notifyHandshakeOpen();
     }
 
     for (const msg of result.messages) {

@@ -168,15 +168,15 @@ export class AtmosphereProtocol {
   processMessage(
     rawMessage: string,
     request: AtmosphereRequest,
-  ): { body: string; messages: string[] } | null {
-    const { message } = this.handleProtocol(request, rawMessage);
+  ): { body: string; messages: string[]; wasHandshake: boolean } | null {
+    const { message, wasHandshake } = this.handleProtocol(request, rawMessage);
 
     if (message.length === 0) {
       return null; // Handshake-only or empty
     }
 
     if (!request.trackMessageLength) {
-      return { body: message, messages: [message] };
+      return { body: message, messages: [message], wasHandshake };
     }
 
     // Length-delimited message parsing (mirrors legacy _trackMessageSize)
@@ -191,7 +191,7 @@ export class AtmosphereProtocol {
     // a delimiter (e.g. WebSocket padding) are returned as-is and do
     // NOT accumulate in partialMessage.
     if (delimIdx === -1) {
-      return { body: message, messages: [message] };
+      return { body: message, messages: [message], wasHandshake };
     }
 
     while (delimIdx !== -1) {
@@ -220,7 +220,7 @@ export class AtmosphereProtocol {
       return null; // Still buffering
     }
 
-    return { body: messages.join(delimiter), messages };
+    return { body: messages.join(delimiter), messages, wasHandshake };
   }
 
   /**

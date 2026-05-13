@@ -162,6 +162,32 @@ export abstract class BaseTransport<T = unknown> {
     return result;
   }
 
+  /**
+   * Fire `open`/`reopen` and start the protocol heartbeat in response to an
+   * Atmosphere handshake. Used by every transport that supports
+   * `enableProtocol`. Idempotent — does nothing when the transport is already
+   * `connected`, so it is safe to call from both the handshake-only branch
+   * and the handshake-with-trailing-data branch (issue #294).
+   */
+  protected notifyHandshakeOpen(): void {
+    if (!this.request.enableProtocol || this._state === 'connected') {
+      return;
+    }
+    const openResponse: AtmosphereResponse<T> = {
+      status: 200,
+      reasonPhrase: 'OK',
+      responseBody: '' as T,
+      messages: [],
+      headers: {},
+      state: 'open',
+      transport: this.name as AtmosphereResponse<T>['transport'],
+      error: null,
+      request: this.request,
+    };
+    this.notifyOpen(openResponse);
+    this.protocol.startHeartbeat();
+  }
+
   protected notifyOpen(response: AtmosphereResponse<T>): void {
     if (this._hasOpened) {
       // This is a reopen after reconnect
