@@ -3,13 +3,12 @@
 #
 # Strategy (matches the industry norm for Maven multi-module repos):
 #
-#   1. Architectural-validation tier (fast, always runs).
+#   1. Lightweight validation tier, selected from committed files that will be
+#      pushed. Local dirty/untracked files are intentionally ignored.
 #   2. Reactor build tier, scoped to the affected modules:
-#        - Main checkout  -> Gitflow Incremental Builder (GIB) extension
-#                            computes the module set from the git diff.
-#        - Worktree       -> GIB's JGit backend doesn't support separate
-#                            worktree checkouts, so we fall back to a
-#                            git-diff -> `-pl ... -am` classifier here.
+#        - git-diff -> nearest Maven module -> explicit `-pl ... -am`.
+#          We avoid opaque GIB runs so the module list and Maven command are
+#          visible before the build starts.
 #        - Any high-blast-radius path (root pom.xml, config/, .mvn/,
 #          modules/pom.xml) forces a full reactor build regardless.
 #
@@ -26,7 +25,6 @@ set -euo pipefail
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 GIT_DIR="$(git rev-parse --git-dir)"
-GIT_COMMON_DIR="$(git rev-parse --git-common-dir)"
 MARKER_FILE="$GIT_DIR/validation-passed"
 VALIDATION_TTL_MINUTES=30
 
@@ -62,16 +60,8 @@ BASE_REF="${BASE_REF:-origin/main}"
 TEST_GROUPS='-Dgroups=!flaky'
 
 run_full() {
-    echo "Running: ./mvnw install -q $TEST_GROUPS"
-    ./mvnw install -q $TEST_GROUPS
-}
-
-run_gib() {
-    echo "Running: ./mvnw install -q -Dgib.disable=false -Dgib.referenceBranch=refs/remotes/$BASE_REF $TEST_GROUPS"
-    ./mvnw install -q \
-        -Dgib.disable=false \
-        -Dgib.referenceBranch="refs/remotes/$BASE_REF" \
-        $TEST_GROUPS
+    echo "Running: ./mvnw install -B -ntp $TEST_GROUPS"
+    ./mvnw install -B -ntp $TEST_GROUPS
 }
 
 # Map each changed file to its enclosing Maven module (nearest ancestor
@@ -98,11 +88,10 @@ $dir"
     echo "$modules" | sed '/^$/d' | sort -u | paste -sd, -
 }
 
-run_incremental_worktree() {
-    echo "Worktree detected; using manual reactor scoping (GIB doesn't support worktrees)."
+run_incremental_scoped() {
     echo "Modules: $PL_LIST"
-    echo "Running: ./mvnw install -q -pl $PL_LIST -am $TEST_GROUPS"
-    ./mvnw install -q -pl "$PL_LIST" -am $TEST_GROUPS
+    echo "Running: ./mvnw install -B -ntp -pl $PL_LIST -am $TEST_GROUPS"
+    ./mvnw install -B -ntp -pl "$PL_LIST" -am $TEST_GROUPS
 }
 
 echo ""
@@ -122,44 +111,8 @@ echo "Branch:   $CURRENT_BRANCH"
 echo "Commit:   ${CURRENT_COMMIT:0:8}"
 echo "Base ref: $BASE_REF"
 
-IS_WORKTREE=false
-if [ "$GIT_DIR" != "$GIT_COMMON_DIR" ]; then
-    IS_WORKTREE=true
-fi
-echo "Worktree: $IS_WORKTREE"
-echo ""
-
 # ---------------------------------------------------------------------------
-# Tier 1 — architectural validation (always runs; fast fail).
-# ---------------------------------------------------------------------------
-if [ "$DRY_RUN" = false ]; then
-    echo "--- Tier 1: architectural validation ---"
-    if ! ./scripts/architectural-validation.sh; then
-        echo ""
-        echo "Architectural validation failed — fix issues before pushing."
-        exit 1
-    fi
-    echo ""
-
-    echo "--- Tier 1: capability snapshot claims ---"
-    if ! ./scripts/validate-capability-claims.sh; then
-        echo ""
-        echo "Capability snapshot drift — fix README counts or regenerate the snapshot."
-        exit 1
-    fi
-    echo ""
-
-    echo "--- Tier 1: drift-log structure ---"
-    if ! ./scripts/validate-drift-log.sh; then
-        echo ""
-        echo "Drift-log structural violation — fix .harness/drift-log.md before pushing."
-        exit 1
-    fi
-    echo ""
-fi
-
-# ---------------------------------------------------------------------------
-# Tier 2 — compute reactor scope from the diff.
+# Compute validation scope from committed changes only.
 # ---------------------------------------------------------------------------
 # Resolve the diff base. Prefer the merge-base with $BASE_REF so rebases
 # don't re-report main commits as branch-owned.
@@ -174,26 +127,51 @@ fi
 CHANGED_FILES=""
 if [ "$FORCE_FULL" = false ]; then
     COMMITTED=$(git diff --name-only "$DIFF_BASE" HEAD 2>/dev/null || true)
-    WORKING=$(git diff --name-only HEAD 2>/dev/null || true)
-    UNTRACKED=$(git ls-files --others --exclude-standard 2>/dev/null || true)
-    CHANGED_FILES=$(printf '%s\n%s\n%s\n' "$COMMITTED" "$WORKING" "$UNTRACKED")
+    CHANGED_FILES="$COMMITTED"
 fi
+CHANGED_FILES=$(echo "$CHANGED_FILES" | sed '/^$/d' | sort -u)
+
+echo "Diff base: $(git rev-parse --short "$DIFF_BASE" 2>/dev/null || echo "$DIFF_BASE")"
+echo "Scope:     committed changes only (working tree and untracked files ignored)"
+echo ""
 
 # High-blast-radius paths force a full build.
 HIGH_BLAST_REGEX='^(pom\.xml|modules/pom\.xml|\.mvn/.*|config/.*|bom/pom\.xml|assembly/pom\.xml)$'
 
 # Paths that can never cause Java/Maven behavior change. Filtered out before
-# module computation so a docs-only push is a no-op (beyond Tier 1).
+# module computation so a docs-only push is a no-op for Maven.
 IGNORE_REGEX='(^|/)(\.gitignore|\.editorconfig|LICENSE|NOTICE|README(\.md)?|.*\.md|.*\.txt)$|^docs/|^\.github/|^atmosphere\.js/|^\.claude/|^scripts/'
 
+# Tier-1 checks are selected by committed paths. This keeps README/docs pushes
+# fast while preserving the heavier architectural scan for Java/config/workflow
+# changes that can affect runtime behavior.
+ARCHITECTURAL_REGEX='^pom\.xml$|^(modules|samples)/.*(pom\.xml|src/(main|test)/.*\.(java|kt|kts))$|^(bom|assembly)/pom\.xml$|^config/|^\.mvn/|^\.github/workflows/|^scripts/(architectural-validation|pre-push-validate)\.sh$'
+CAPABILITY_CLAIMS_REGEX='(^|/)(README\.md|.*capabilit.*\.md)$|^modules/ai/README\.md$|^\.harness/capabilities\.snapshot\.json$|^scripts/validate-capability-claims\.sh$'
+DRIFT_LOG_REGEX='^\.harness/drift-log\.md$|^scripts/validate-drift-log\.sh$'
+
 SIGNIFICANT_FILES=""
+IGNORED_FILES=""
 HAS_HIGH_BLAST=false
+RUN_ARCHITECTURAL=false
+RUN_CAPABILITY_CLAIMS=false
+RUN_DRIFT_LOG=false
 while IFS= read -r file; do
     [ -z "$file" ] && continue
+    if echo "$file" | grep -qE "$ARCHITECTURAL_REGEX"; then
+        RUN_ARCHITECTURAL=true
+    fi
+    if echo "$file" | grep -qE "$CAPABILITY_CLAIMS_REGEX"; then
+        RUN_CAPABILITY_CLAIMS=true
+    fi
+    if echo "$file" | grep -qE "$DRIFT_LOG_REGEX"; then
+        RUN_DRIFT_LOG=true
+    fi
     if echo "$file" | grep -qE "$HIGH_BLAST_REGEX"; then
         HAS_HIGH_BLAST=true
     fi
     if echo "$file" | grep -qE "$IGNORE_REGEX"; then
+        IGNORED_FILES="$IGNORED_FILES
+$file"
         continue
     fi
     SIGNIFICANT_FILES="$SIGNIFICANT_FILES
@@ -201,6 +179,13 @@ $file"
 done <<<"$CHANGED_FILES"
 
 SIGNIFICANT_FILES=$(echo "$SIGNIFICANT_FILES" | sed '/^$/d' | sort -u)
+IGNORED_FILES=$(echo "$IGNORED_FILES" | sed '/^$/d' | sort -u)
+
+if [ "$FORCE_FULL" = true ]; then
+    RUN_ARCHITECTURAL=true
+    RUN_CAPABILITY_CLAIMS=true
+    RUN_DRIFT_LOG=true
+fi
 
 PL_LIST=""
 if [ "$FORCE_FULL" = true ] || [ "$HAS_HIGH_BLAST" = true ]; then
@@ -218,18 +203,86 @@ else
     fi
 fi
 
+echo "--- Tier 1: selected validation ---"
+
+if [ "$DRY_RUN" = false ]; then
+    if [ "$RUN_ARCHITECTURAL" = true ]; then
+        echo "Running architectural validation (Java/config/workflow/script changes detected)."
+        if ! ./scripts/architectural-validation.sh; then
+            echo ""
+            echo "Architectural validation failed — fix issues before pushing."
+            exit 1
+        fi
+    else
+        echo "Skipping architectural validation (no Java/config/workflow changes in pushed commits)."
+    fi
+    echo ""
+
+    if [ "$RUN_CAPABILITY_CLAIMS" = true ]; then
+        echo "Running capability snapshot claims validation."
+        if ! ./scripts/validate-capability-claims.sh; then
+            echo ""
+            echo "Capability snapshot drift — fix README counts or regenerate the snapshot."
+            exit 1
+        fi
+    else
+        echo "Skipping capability snapshot claims validation."
+    fi
+    echo ""
+
+    if [ "$RUN_DRIFT_LOG" = true ]; then
+        echo "Running drift-log structure validation."
+        if ! ./scripts/validate-drift-log.sh; then
+            echo ""
+            echo "Drift-log structural violation — fix .harness/drift-log.md before pushing."
+            exit 1
+        fi
+    else
+        echo "Skipping drift-log structure validation."
+    fi
+    echo ""
+else
+    echo "Dry-run — selected Tier 1 checks:"
+    echo "  architectural validation : $RUN_ARCHITECTURAL"
+    echo "  capability claims        : $RUN_CAPABILITY_CLAIMS"
+    echo "  drift log                : $RUN_DRIFT_LOG"
+    echo ""
+fi
+
 echo "--- Tier 2: reactor build (mode: $REACTOR_MODE) ---"
 
 if [ "$DRY_RUN" = true ]; then
     echo ""
     echo "Dry-run — classifier output only:"
+    echo "  diff base               : $(git rev-parse --short "$DIFF_BASE" 2>/dev/null || echo "$DIFF_BASE")"
     echo "  high-blast path changed : $HAS_HIGH_BLAST"
     echo "  reactor mode            : $REACTOR_MODE"
-    if [ "$REACTOR_MODE" = "incremental" ] && [ "$IS_WORKTREE" = true ]; then
+    if [ "$REACTOR_MODE" = "incremental" ]; then
         echo "  modules (-pl)           : $PL_LIST"
+        echo "  maven command           : ./mvnw install -B -ntp -pl $PL_LIST -am $TEST_GROUPS"
+    elif [ "$REACTOR_MODE" = "full" ]; then
+        echo "  maven command           : ./mvnw install -B -ntp $TEST_GROUPS"
+    else
+        echo "  maven command           : (none)"
     fi
-    echo "  changed files:"
-    echo "$SIGNIFICANT_FILES" | sed 's/^/    /'
+    echo "  committed files:"
+    if [ -n "$CHANGED_FILES" ]; then
+        echo "$CHANGED_FILES" | sed 's/^/    /'
+    else
+        echo "    (none)"
+    fi
+    echo "  ignored for Maven:"
+    if [ -n "$IGNORED_FILES" ]; then
+        echo "$IGNORED_FILES" | sed 's/^/    /'
+    else
+        echo "    (none)"
+    fi
+    echo "  Maven-significant files:"
+    if [ -n "$SIGNIFICANT_FILES" ]; then
+        echo "$SIGNIFICANT_FILES" | sed 's/^/    /'
+    else
+        echo "    (none)"
+    fi
     exit 0
 fi
 
@@ -250,11 +303,7 @@ case "$REACTOR_MODE" in
         echo "No build-affecting files changed — skipping reactor build."
         ;;
     incremental)
-        if [ "$IS_WORKTREE" = true ]; then
-            run_incremental_worktree
-        else
-            run_gib
-        fi
+        run_incremental_scoped
         ;;
 esac
 
