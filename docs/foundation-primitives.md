@@ -2,8 +2,9 @@
 
 Atmosphere 4.x ships a set of named primitives — nouns every Java AI agent
 needs regardless of what the agent does. Each primitive is runtime-agnostic:
-it works across the seven hosted runtimes (Built-in, Spring AI, LangChain4j,
-Google ADK, Koog, Semantic Kernel, Embabel) through the same interface.
+it works across the nine runtimes (Built-in, Spring AI, LangChain4j,
+Google ADK, Koog, Semantic Kernel, Embabel, AgentScope, Spring AI Alibaba)
+through the same interface.
 
 The governing analogy is Atmosphere 1.0 (2008-2013). 1.0 didn't build a chat
 app; it built `AtmosphereResource`, `Broadcaster`, `CometSupport`, and the

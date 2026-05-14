@@ -39,7 +39,7 @@ atmosphere new my-agent --template ai-chat
 
 # Swap the AI runtime by injecting the matching adapter (`builtin` is the default).
 # Add `--force` to strip pre-pinned adapters first — useful on samples like ai-tools
-# that already ship with one provider wired up.
+# that already ship with one runtime adapter wired up.
 atmosphere new my-agent --template ai-chat --runtime spring-ai
 
 # Import a skill from an allowed skills repo
@@ -58,8 +58,8 @@ One annotation. The framework wires everything based on what's in the class and 
 @Agent(name = "my-agent", description = "What this agent does")
 public class MyAgent {
 
-    // Handles user messages. The message is forwarded to whichever AI runtime
-    // is on the classpath (Spring AI, LangChain4j, ADK, etc.) and the LLM
+    // Handles user messages. The message is forwarded to the selected
+    // AgentRuntime on the classpath and the LLM
     // response is streamed back token-by-token through the session.
     @Prompt
     public void onMessage(String message, StreamingSession session) {

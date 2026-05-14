@@ -2,14 +2,14 @@
 
 Example applications demonstrating Atmosphere 4.0 across different deployment targets.
 
-All samples inherit their Atmosphere version from the parent POM. The target stack is Java 21, Spring Boot 4.0.5, Spring Framework 6.2.8, and Quarkus 3.35.2.
+All samples inherit their Atmosphere version from the parent POM. The target stack is Java 21, Spring Boot 4.0.6, and Quarkus 3.35.2.
 
 ### Chat & Messaging
 
 | Sample | Stack | Packaging | Rooms | Metrics | Native Image |
 |--------|-------|-----------|-------|---------|-------------|
 | [chat](chat/) | Servlet (WAR) | WAR | — | — | — |
-| [spring-boot-chat](spring-boot-chat/) | Spring Boot 4.0.5 | JAR | ✅ | ✅ | ✅ |
+| [spring-boot-chat](spring-boot-chat/) | Spring Boot 4.0.6 | JAR | ✅ | ✅ | ✅ |
 | [quarkus-chat](quarkus-chat/) | Quarkus 3.35.2 | JAR | — | — | ✅ |
 | [quarkus-ai-chat](quarkus-ai-chat/) | Quarkus 3.35.2 + LangChain4j | JAR | — | — | ✅ |
 | [embedded-jetty-websocket-chat](embedded-jetty-websocket-chat/) | Embedded Jetty | JAR | — | — | — |
@@ -51,9 +51,9 @@ One agent class — slash commands and AI work on Web, Slack, Telegram, Discord,
 
 | Sample | Stack | Description |
 |--------|-------|-------------|
-| [spring-boot-durable-sessions](spring-boot-durable-sessions/) | Spring Boot 4.0.5 | Persistent sessions with SQLite/Redis |
-| [spring-boot-otel-chat](spring-boot-otel-chat/) | Spring Boot 4.0.5 | OpenTelemetry observability |
-| [spring-boot-reattach-harness](spring-boot-reattach-harness/) | Spring Boot 4.0.5 | Deterministic harness for the mid-stream reattach contract (`RunRegistry` + `RunEventReplayBuffer`); driven by `e2e/tests/reattach.spec.ts` |
+| [spring-boot-durable-sessions](spring-boot-durable-sessions/) | Spring Boot 4.0.6 | Persistent sessions with SQLite/Redis |
+| [spring-boot-otel-chat](spring-boot-otel-chat/) | Spring Boot 4.0.6 | OpenTelemetry observability |
+| [spring-boot-reattach-harness](spring-boot-reattach-harness/) | Spring Boot 4.0.6 | Deterministic harness for the mid-stream reattach contract (`RunRegistry` + `RunEventReplayBuffer`); driven by `e2e/tests/reattach.spec.ts` |
 | [shared-resources](shared-resources/) | — | Shared static assets (CSS, Grafana dashboard). Not a Maven module — no `pom.xml`. |
 
 ## Quick Start

@@ -1,5 +1,5 @@
 {
-  "_comment": "Runtime overlay registry consumed by 'atmosphere new <name> --runtime <X>'. Each overlay declares the Maven dependencies (and optional repository) that must be appended to the scaffolded sample's pom.xml so the named AgentRuntime is on the classpath. Atmosphere's AgentRuntime SPI picks the highest-priority runtime present, so adding the overlay deps to a transparent sample like spring-boot-ai-chat is enough to swap providers.",
+  "_comment": "Runtime overlay registry consumed by 'atmosphere new <name> --runtime <X>'. Each overlay declares the Maven dependencies (and optional repository) that must be appended to the scaffolded sample's pom.xml so the named AgentRuntime is on the classpath. Atmosphere's AgentRuntime SPI picks the highest-priority runtime present, so adding the overlay deps to a transparent sample like spring-boot-ai-chat is enough to swap runtime adapters.",
   "overlays": {
     "builtin": {
       "description": "Built-in OpenAI-compatible runtime (no extra deps; default)",

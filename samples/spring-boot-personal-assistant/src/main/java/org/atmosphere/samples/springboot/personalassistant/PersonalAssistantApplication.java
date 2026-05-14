@@ -24,7 +24,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 /**
  * Personal assistant proof sample — demonstrates how the v0.5 foundation
  * primitives compose into a single, long-lived, memory-bearing agent that
- * runs on any of Atmosphere's seven hosted runtimes.
+ * runs on any of Atmosphere's nine runtimes.
  *
  * <h2>What this sample exercises</h2>
  *

@@ -993,8 +993,8 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   chat-completions and responses-API streaming paths (see
   `OpenAiCompatibleClient.java` lines ~530 and ~892), so browser UIs receive
   `ai.toolCall.delta.*` metadata frames before the consolidated `AiEvent.ToolStart`
-  fires. The six framework bridges (Spring AI, LangChain4j, ADK, Embabel, Koog,
-  Semantic Kernel) honor the default `StreamingSession.toolCallDelta()` no-op
+  fires. The tool-capable framework bridges (Spring AI, LangChain4j, ADK,
+  Embabel, Koog, Semantic Kernel) honor the default `StreamingSession.toolCallDelta()` no-op
   contract but do not emit chunks from their streaming loops — their high-level
   APIs surface only consolidated tool calls, and the negative assertion in
   `modules/integration-tests/e2e/ai-tool-call-delta.spec.ts` pins the gap

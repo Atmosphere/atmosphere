@@ -49,15 +49,19 @@ match a crew member.
 ## Switching runtimes
 
 The sample defaults to Spring AI. Atmosphere discovers runtimes via
-`ServiceLoader`; add any of the other six runtime artifacts to the POM and
-set `atmosphere.ai.runtime` in `application.yml` to switch:
+`ServiceLoader`; add one runtime artifact to the POM and set
+`atmosphere.ai.runtime` in `application.yml` to switch:
 
+- _(fallback)_ — Built-in OpenAI-compatible client
 - `atmosphere-adk` — Google ADK
 - `atmosphere-langchain4j` — LangChain4j
 - `atmosphere-koog` — Koog (Kotlin)
 - `atmosphere-semantic-kernel` — Semantic Kernel
+- `atmosphere-agentscope` — Alibaba AgentScope
 - `atmosphere-embabel` — Embabel
-- _(default)_ — Built-in OpenAI-compatible client
+- `atmosphere-spring-ai-alibaba` — Spring AI Alibaba
+
+Embabel and Spring AI Alibaba currently require the Spring Boot 3.5 profile.
 
 The assistant's behavior does not change with the runtime — swap the
 Maven dependency and every primitive still wires the same way.

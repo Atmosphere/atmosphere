@@ -50,12 +50,18 @@ Implementations include:
 - `SpringAiVectorStoreContextProvider` — bridges Spring AI VectorStore
 - `LangChain4jEmbeddingStoreContextProvider` — bridges LangChain4j ContentRetriever
 
-## Supported AI Providers
+## Supported AI Runtime Adapters
 
-Through `AgentRuntime` implementations (the unified AI SPI — six runtimes share a common baseline: tool calling, structured output, progress events, usage metadata):
+Through `AgentRuntime` implementations, Atmosphere supports nine AI runtimes:
+- **Built-in** — OpenAI-compatible client that works with Gemini, OpenAI, Ollama, etc.
 - **Spring AI** (`atmosphere-spring-ai`) — integrates with Spring AI ChatClient
 - **LangChain4j** (`atmosphere-langchain4j`) — integrates with LangChain4j streaming models
 - **Google ADK** (`atmosphere-adk`) — Google Agent Development Kit
 - **Embabel** (`atmosphere-embabel`) — Embabel Agent Framework
 - **JetBrains Koog** (`atmosphere-koog`) — Koog multi-provider runtime
-- **Built-in** — OpenAI-compatible client that works with Gemini, OpenAI, Ollama, etc. (full tool calling)
+- **Semantic Kernel** (`atmosphere-semantic-kernel`) — Microsoft Semantic Kernel
+- **AgentScope** (`atmosphere-agentscope`) — Alibaba AgentScope
+- **Spring AI Alibaba** (`atmosphere-spring-ai-alibaba`) — Alibaba Cloud AI on Spring AI
+
+Capability sets vary by runtime; the adapter matrix in `modules/ai/README.md`
+pins the current source of truth.

@@ -61,7 +61,7 @@ java -jar target/quarkus-app/quarkus-run.jar
 # Dev mode (live reload)
 mvn quarkus:dev
 
-# Native image (requires GraalVM 21+ or Mandrel)
+# Native image (requires GraalVM JDK 21+ or Mandrel)
 mvn clean package -Pnative
 ./target/atmosphere-quarkus-chat-*-runner
 
@@ -77,7 +77,7 @@ Open http://localhost:8080/admin/ for the admin dashboard with live event stream
 
 ```
 quarkus-chat/
-├── pom.xml                                  # Quarkus 3.31.3 BOM
+├── pom.xml                                  # Quarkus 3.35.2 BOM
 └── src/main/
     ├── java/org/atmosphere/samples/quarkus/chat/
     │   ├── Chat.java                        # @ManagedService handler

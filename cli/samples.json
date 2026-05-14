@@ -111,7 +111,7 @@
     },
     {
       "name": "spring-boot-ai-chat",
-      "description": "AI streaming chat \u2014 swap backend via one dependency (Spring AI, LangChain4j, ADK, Embabel)",
+      "description": "AI streaming chat \u2014 swap backend via one dependency (any of the 9 AgentRuntime adapters)",
       "category": "ai",
       "tags": [
         "spring-boot",

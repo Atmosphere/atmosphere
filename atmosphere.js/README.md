@@ -1,6 +1,6 @@
 # atmosphere.js
 
-TypeScript client for the Atmosphere Framework. Supports WebSocket, SSE, and Long-Polling transports.
+TypeScript client for the Atmosphere Framework. Supports WebSocket, SSE, Long-Polling, Streaming, and WebTransport transports.
 
 [![npm version](https://img.shields.io/npm/v/atmosphere.js)](https://www.npmjs.com/package/atmosphere.js)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)](https://www.typescriptlang.org/)
@@ -9,10 +9,10 @@ TypeScript client for the Atmosphere Framework. Supports WebSocket, SSE, and Lon
 ## Features
 
 - TypeScript with full type safety and IntelliSense support
-- Multiple transports: WebSocket, SSE, Long-polling, Streaming
+- Multiple transports: WebSocket, SSE, Long-polling, Streaming, WebTransport
 - Automatic reconnection with exponential backoff
 - Tree-shakeable — import only what you need
-- No runtime dependencies (React, Vue, and Svelte are optional peer dependencies)
+- Lightweight runtime dependencies; React, Vue, and Svelte integrations are optional peer dependencies
 - Promise-based API with async/await
 - Comprehensive test coverage
 
@@ -100,7 +100,7 @@ const subscription = await atmosphere.subscribe(
 ```typescript
 interface AtmosphereRequest {
   url: string;                      // Endpoint URL
-  transport: TransportType;         // 'websocket' | 'sse' | 'long-polling' | 'streaming' | 'jsonp'
+  transport: TransportType;         // 'websocket' | 'sse' | 'long-polling' | 'streaming' | 'webtransport'
   fallbackTransport?: TransportType;// Transport to use if primary fails
   contentType?: string;             // Content-Type header
   timeout?: number;                 // Request timeout in milliseconds

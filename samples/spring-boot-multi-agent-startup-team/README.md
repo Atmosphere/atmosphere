@@ -17,7 +17,7 @@ This sample demonstrates:
 - **Skill files from GitHub** — `skill:` prefix loads prompts from [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills) with SHA-256 integrity verification
 - **WebTransport over HTTP/3** — self-signed cert auto-discovery via `/api/webtransport-info`
 - **Admin Control Plane** — live dashboard at `/atmosphere/admin/` with kill-switch, hot-reload, OWASP matrix, `agt verify` export
-- **4 swappable AI runtimes**: ADK (default), Embabel, Spring AI, LangChain4j
+- **Sample runtime toggles**: ADK (default), Embabel, Spring AI, and LangChain4j. Atmosphere has nine `AgentRuntime` adapters; this sample ships ready-made dependency toggles for these four.
 
 ## Prerequisites
 
@@ -202,7 +202,8 @@ Set `atmosphere.skills.offline=true` for air-gapped environments.
 
 ## Switching AI Runtimes
 
-The sample supports 4 AI runtimes. Only one is active at a time — swap by
+Atmosphere has nine `AgentRuntime` adapters. This sample ships ready-made
+dependency toggles for four of them, and only one is active at a time — swap by
 editing the dependencies in `pom.xml`:
 
 | Runtime | Default | Profile | Notes |

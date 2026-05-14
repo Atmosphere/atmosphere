@@ -106,7 +106,7 @@ cd modules/mcp && mvn package -Pstdio-bridge -DskipTests
 curl -s -X POST http://localhost:8083/atmosphere/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","clientInfo":{"name":"curl","version":"1.0"}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","clientInfo":{"name":"curl","version":"1.0"}}}'
 
 # List tools (include Mcp-Session-Id from initialize response header)
 curl -s -X POST http://localhost:8083/atmosphere/mcp \

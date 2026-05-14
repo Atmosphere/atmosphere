@@ -19,8 +19,8 @@ package org.atmosphere.admin;
  * SPI for authorizing control plane operations. Implementations decide whether
  * a given principal may execute a control action.
  *
- * <p>The default implementation allows all operations. In production, bind a
- * concrete authorizer that checks tokens, roles, or other credentials.</p>
+ * <p>The core admin default is fail-closed. Production deployments should bind
+ * a concrete authorizer that checks tokens, roles, or other credentials.</p>
  *
  * @since 4.0
  */

@@ -43,7 +43,7 @@ import java.util.concurrent.TimeUnit;
  * and replayed when a client reconnects with the same {@code Mcp-Session-Id}.
  * Idle sessions are evicted after a configurable TTL (default 30 min).
  * <p>
- * Registered at the path specified by {@code @McpServer}.
+ * Registered at the MCP path resolved from {@code @Agent}.
  */
 public final class McpHandler implements AtmosphereHandler {
 
