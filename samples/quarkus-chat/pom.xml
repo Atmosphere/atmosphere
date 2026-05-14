@@ -148,7 +148,7 @@
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-api</artifactId>
-            <version>1.45.0</version>
+            <version>1.62.0</version>
         </dependency>
 
         <!-- REST implementation for admin endpoints -->
