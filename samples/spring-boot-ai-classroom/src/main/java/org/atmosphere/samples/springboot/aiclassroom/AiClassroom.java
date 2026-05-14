@@ -72,6 +72,10 @@ public class AiClassroom {
     @Disconnect
     public void onDisconnect(AtmosphereResourceEvent event) {
         var resource = event.getResource();
+        if (resource == null) {
+            logger.debug("Ignoring disconnect for room '{}' because resource is null", room);
+            return;
+        }
         logger.info("Student {} left room '{}'", resource.uuid(), room);
         broadcastPresence(resource, "leave");
     }
@@ -89,6 +93,11 @@ public class AiClassroom {
      */
     private void broadcastPresence(AtmosphereResource resource, String action) {
         var broadcaster = resource.getBroadcaster();
+        if (broadcaster == null) {
+            logger.debug("Skipping presence {} for resource {} in room '{}' because broadcaster is null",
+                    action, resource.uuid(), room);
+            return;
+        }
         int count = broadcaster.getAtmosphereResources().size();
         // @Disconnect fires before the resource is removed from the set
         // in some transports, so subtract one when the leaver is still
