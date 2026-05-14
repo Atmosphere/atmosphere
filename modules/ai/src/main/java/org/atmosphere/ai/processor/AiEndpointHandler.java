@@ -28,6 +28,7 @@ import org.atmosphere.ai.PostPromptHook;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.ai.TracingCapturingSession;
+import org.atmosphere.ai.cache.AiResponseCacheInspector;
 import org.atmosphere.ai.approval.ApprovalRegistry;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
@@ -851,7 +852,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     private void registerCacheInspector(Broadcaster broadcaster) {
         var cache = broadcaster.getBroadcasterConfig().getBroadcasterCache();
         if (cache != null) {
-            cache.inspector(message -> message.message() instanceof RawMessage);
+            cache.inspector(new AiResponseCacheInspector(false));
         }
     }
 

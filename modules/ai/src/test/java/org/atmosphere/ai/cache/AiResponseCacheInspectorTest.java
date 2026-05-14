@@ -32,10 +32,10 @@ class AiResponseCacheInspectorTest {
     }
 
     @Test
-    void rawMessageWithNonStringReturnsTrue() {
+    void rawMessageWithNonStringReturnsFalse() {
         var inspector = new AiResponseCacheInspector();
         var message = new BroadcastMessage(new RawMessage(42));
-        assertTrue(inspector.inspect(message));
+        assertFalse(inspector.inspect(message));
     }
 
     @Test
@@ -55,18 +55,26 @@ class AiResponseCacheInspectorTest {
     }
 
     @Test
-    void nonProgressMessageAlwaysCached() {
+    void streamingTextMessageAlwaysCached() {
         var inspector = new AiResponseCacheInspector();
-        var json = "{\"type\":\"text\",\"content\":\"Hello\"}";
+        var json = "{\"type\":\"streaming-text\",\"data\":\"Hello\",\"sessionId\":\"s1\",\"seq\":1}";
         var message = new BroadcastMessage(new RawMessage(json));
         assertTrue(inspector.inspect(message));
     }
 
     @Test
-    void nonProgressMessageCachedWithFlagEnabled() {
+    void streamingTextMessageCachedWithFlagEnabled() {
         var inspector = new AiResponseCacheInspector(true);
-        var json = "{\"type\":\"text\",\"content\":\"Hello\"}";
+        var json = "{\"type\":\"streaming-text\",\"data\":\"Hello\",\"sessionId\":\"s1\",\"seq\":1}";
         var message = new BroadcastMessage(new RawMessage(json));
         assertTrue(inspector.inspect(message));
+    }
+
+    @Test
+    void presenceControlFrameIsNotCacheable() {
+        var inspector = new AiResponseCacheInspector();
+        var json = "{\"type\":\"presence\",\"action\":\"join\",\"memberId\":\"u-1\",\"count\":3}";
+        var message = new BroadcastMessage(new RawMessage(json));
+        assertFalse(inspector.inspect(message));
     }
 }

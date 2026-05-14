@@ -17,6 +17,7 @@ package org.atmosphere.ai.cache;
 
 import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.BroadcasterCacheInspector;
+import org.atmosphere.ai.filter.AiStreamMessage;
 import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,11 +61,27 @@ public class AiResponseCacheInspector implements BroadcasterCacheInspector {
 
         var inner = raw.message();
         if (!(inner instanceof String json)) {
-            return true;
+            return false;
         }
 
-        // Quick check without full JSON parsing — look for "type":"progress"
-        if (!cacheProgressMessages && json.contains("\"type\":\"progress\"")) {
+        AiStreamMessage streamMessage;
+        try {
+            streamMessage = AiStreamMessage.parse(json);
+        } catch (RuntimeException e) {
+            return false;
+        }
+        if (streamMessage == null) {
+            return false;
+        }
+        if (!(streamMessage.isStreamingText()
+                || streamMessage.isMetadata()
+                || streamMessage.isComplete()
+                || streamMessage.isError()
+                || streamMessage.isProgress())) {
+            return false;
+        }
+
+        if (!cacheProgressMessages && streamMessage.isProgress()) {
             logger.debug("Skipping progress message from cache");
             return false;
         }
