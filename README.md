@@ -27,7 +27,8 @@ Atmosphere is built for teams that need AI agents to behave like production serv
 | Stream to real clients | WebTransport over HTTP/3, WebSocket, SSE, long-polling, and gRPC through the same broadcaster pipeline |
 | Swap AI integrations | One `AgentRuntime` SPI with nine runtime adapters and contract-tested capability flags |
 | Govern execution | Policy admission, `@AgentScope`, human approval, plan-and-verify, cost ceilings, PII rewriting, and admin kill switches |
-| Resume long runs | Durable sessions, run IDs, replay buffers, checkpoints, and REST approval/resume surfaces |
+| Pause for humans | Durable HITL approvals park virtual threads, persist workflow state, and resume through REST approval surfaces |
+| Resume long runs | Durable sessions, run IDs, replay buffers, checkpoints, and reconnect-safe continuation |
 | Expose the same agent everywhere | Browser endpoints plus MCP, A2A, AG-UI, Slack, Telegram, Discord, WhatsApp, and Messenger modules |
 
 ## Quick Start
@@ -149,6 +150,7 @@ Atmosphere keeps governance on the critical path rather than as an afterthought.
 | Policy admission | `atmosphere-ai` | `GovernancePolicy`, `PolicyRing`, allow/deny lists, rate limits, time windows, metadata requirements |
 | Scope enforcement | `atmosphere-ai` | `@AgentScope` blocks out-of-purpose prompts before runtime dispatch |
 | Human approval | `atmosphere-agent`, `atmosphere-ai` | command confirmations, permission modes, tool approval policies |
+| Durable HITL workflows | `atmosphere-checkpoint`, `atmosphere-durable-sessions` | checkpointed approval gates, REST approve/reject/resume endpoints, and reconnect-safe replay for long-running agent work |
 | Plan-and-verify | `atmosphere-verifier` | verifies LLM-emitted tool workflows before execution; supports allowlist, well-formedness, capability, taint, automaton, and SMT verifiers |
 | PII and cost controls | `atmosphere-ai` | stream-level PII redaction, token usage, per-tenant cost ceilings |
 | Admin control plane | `atmosphere-admin` | dashboard, REST/MCP control surfaces, kill switches, flow viewer, governance decisions |
@@ -218,6 +220,8 @@ For Java/Kotlin clients, use [wAsync](modules/wasync/) for async WebSocket, SSE,
 | [startup team](samples/spring-boot-multi-agent-startup-team/) | `@Coordinator` with A2A specialists, governance, checkpoints, skills, admin control plane |
 | [ai-chat](samples/spring-boot-ai-chat/) | Streaming AI chat with auth, WebTransport, caching, and runtime adapter portability |
 | [ai-tools](samples/spring-boot-ai-tools/) | Framework-agnostic `@AiTool` methods and approval gates |
+| [durable-hitl](samples/spring-boot-durable-hitl/) | Human approval gates that persist, resume, and replay across reconnects |
+| [checkpoint-agent](samples/spring-boot-checkpoint-agent/) | Checkpointed `@Coordinator` workflow with REST approval/resume |
 | [ai-classroom](samples/spring-boot-ai-classroom/) | Multi-room collaborative AI with React Native / Expo client |
 | [guarded-email-agent](samples/spring-boot-guarded-email-agent/) | Plan-and-verify taint protection before any email tool fires |
 | [ms-governance-chat](samples/spring-boot-ms-governance-chat/) | Microsoft Agent Governance Toolkit-compatible YAML and decision endpoint |
