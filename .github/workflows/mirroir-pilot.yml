@@ -56,7 +56,11 @@ jobs:
       - name: Build mirroir-run from source
         run: |
           if [ ! -x /tmp/mirroir-mcp/runner/target/release/mirroir-run ]; then
-            git clone --depth 1 https://github.com/jfarcand/iphone-mirroir-mcp.git /tmp/mirroir-mcp
+            # Pinned to feature/runner-cli-smoke until the runner branch merges
+            # to mirroir-mcp/main; that branch carries the empty-verdict guard
+            # and CSS-selector pass-through (mirroir-mcp@3edc89c, b3096c2).
+            git clone --depth 1 --branch feature/runner-cli-smoke \
+              https://github.com/jfarcand/mirroir-mcp.git /tmp/mirroir-mcp
             (cd /tmp/mirroir-mcp/runner && cargo build --release --bin mirroir-run)
           fi
           sudo cp /tmp/mirroir-mcp/runner/target/release/mirroir-run /usr/local/bin/
