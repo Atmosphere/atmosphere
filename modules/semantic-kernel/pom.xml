@@ -34,6 +34,24 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- Pin reactor-netty to 1.2.17 (last 1.2.x). Azure SDK's
+                 azure-core-http-netty 1.15.11 ships reactor-netty-http 1.0.48,
+                 which is in the deprecated 1.0.x line and lacks the credential-
+                 leak-on-chained-redirects patch shipped in 1.2.8+. Newer
+                 azure-core-http-netty 1.16.4 already uses reactor-netty-http
+                 1.2.16; pinning 1.2.17 stays on the API-stable 1.2.x branch
+                 that azure-core supports without forcing an azure-ai-openai
+                 upgrade. -->
+            <dependency>
+                <groupId>io.projectreactor.netty</groupId>
+                <artifactId>reactor-netty-http</artifactId>
+                <version>1.2.17</version>
+            </dependency>
+            <dependency>
+                <groupId>io.projectreactor.netty</groupId>
+                <artifactId>reactor-netty-core</artifactId>
+                <version>1.2.17</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

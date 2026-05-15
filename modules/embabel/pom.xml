@@ -19,6 +19,71 @@
         <kotlin.version>2.1.10</kotlin.version>
     </properties>
 
+    <dependencyManagement>
+        <dependencies>
+            <!-- Pin Spring AI 1.1.x transitives pulled by embabel-agent-api
+                 0.3.5 to 1.1.6. Closes vector-store FilterExpression Converter
+                 injection (< 1.1.5) and the SpEL FilterExpression-key injection
+                 (< 1.1.4). embabel ships against the Spring AI 1.1.x line; 1.1.6
+                 is binary-compatible within the 1.1.x ABI. -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-vector-store</artifactId>
+                <version>${spring-ai-alibaba-spring-ai.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-commons</artifactId>
+                <version>${spring-ai-alibaba-spring-ai.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-client-chat</artifactId>
+                <version>${spring-ai-alibaba-spring-ai.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-model</artifactId>
+                <version>${spring-ai-alibaba-spring-ai.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-retry</artifactId>
+                <version>${spring-ai-alibaba-spring-ai.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-template-st</artifactId>
+                <version>${spring-ai-alibaba-spring-ai.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-starter-mcp-client</artifactId>
+                <version>${spring-ai-alibaba-spring-ai.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-autoconfigure-mcp-client-httpclient</artifactId>
+                <version>${spring-ai-alibaba-spring-ai.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-autoconfigure-mcp-client-common</artifactId>
+                <version>${spring-ai-alibaba-spring-ai.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-mcp</artifactId>
+                <version>${spring-ai-alibaba-spring-ai.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-mcp-annotations</artifactId>
+                <version>${spring-ai-alibaba-spring-ai.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>

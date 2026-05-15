@@ -140,7 +140,7 @@
     "prettier": "^3.8.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "svelte": "^5.55.0",
+    "svelte": "^5.55.7",
     "tsup": "^8.5.1",
     "typescript": "^6.0.2",
     "vitest": "^4.1.2",

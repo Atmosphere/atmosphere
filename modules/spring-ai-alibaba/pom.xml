@@ -20,10 +20,12 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Pin Spring AI 1.1.x transitives to 1.1.3 (closes CVE-2026-22729
-                 vector-store path traversal). spring-ai-alibaba-agent-framework
-                 1.1.2.2 hard-pins Spring AI 1.1.2; we override the vulnerable
-                 sub-artifacts directly. -->
+            <!-- Pin Spring AI 1.1.x transitives to 1.1.6 to close:
+                 CVE-2026-22729 (vector-store path traversal, < 1.1.3),
+                 SpEL injection in FilterExpression key (< 1.1.4),
+                 FilterExpression Converter injection (< 1.1.5).
+                 spring-ai-alibaba-agent-framework 1.1.2.2 hard-pins Spring AI
+                 1.1.2; we override the vulnerable sub-artifacts directly. -->
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-vector-store</artifactId>
@@ -39,13 +41,14 @@
                 <artifactId>spring-ai-rag</artifactId>
                 <version>${spring-ai-alibaba-spring-ai.version}</version>
             </dependency>
-            <!-- Pin Spring Framework 6.x to 6.2.17 (Spring AI 1.1.x still pulls
-                 6.2.14 transitively). Closes CVE-2025-22735 + webmvc/webflux
-                 cache-poisoning advisory. -->
+            <!-- Pin Spring Framework 6.x to 6.2.18 (Spring AI 1.1.x still pulls
+                 6.2.14 transitively). Closes spring-webflux/webmvc static-
+                 resource DoS + cache-poisoning + Multipart Temp Files DoS
+                 advisories patched in 6.2.18. -->
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>
-                <version>6.2.17</version>
+                <version>6.2.18</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

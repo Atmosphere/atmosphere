@@ -20,16 +20,16 @@
              CVE-2026-22733 + spring-boot CVE-2026-40973, plus assertj-core
              CVE-2026-24400 by pulling 3.27.7. -->
         <spring-boot.version>3.5.14</spring-boot.version>
-        <spring-framework.version>6.2.17</spring-framework.version>
+        <spring-framework.version>6.2.18</spring-framework.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
             <!-- Spring Framework BOM imported BEFORE spring-boot-dependencies
-                 so 6.2.17 wins over Spring Boot 3.5.3's hardcoded 6.2.8 pin.
-                 6.2.17 patches CVE-2025-22735 (static-resource DoS) and the
-                 webmvc/webflux cache-poisoning advisory. Maven first-declared-
-                 wins for imported BOMs. -->
+                 so 6.2.18 wins over Spring Boot 3.5.x's older transitive pin.
+                 6.2.18 patches the spring-webmvc/webflux static-resource DoS
+                 + cache-poisoning + Multipart Temp Files DoS advisories.
+                 Maven first-declared-wins for imported BOMs. -->
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>
