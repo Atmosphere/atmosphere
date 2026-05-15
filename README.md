@@ -135,9 +135,9 @@ Capabilities are intentionally not identical. The authoritative matrix is pinned
 | `atmosphere-adk` | Google ADK 1.2.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching | Multi-agent runtime with `AGENT_ORCHESTRATION`. |
 | `atmosphere-koog` | JetBrains Koog 0.8.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching, cancellation | Multi-agent runtime. |
 | `atmosphere-semantic-kernel` | Microsoft Semantic Kernel 1.5.0 | 4.0 | tool calling, structured output, token usage | No vision/audio path through the SK Java SDK today. |
-| `atmosphere-agentscope` | Alibaba AgentScope 1.0.12 | 4.0 | structured output, conversation memory, token usage, cancellation | No native tool-call dispatch in the SDK; tools must be invoked manually. |
+| `atmosphere-agentscope` | Alibaba AgentScope 1.0.12 | 4.0 | tool calling, structured output, conversation memory, token usage, cancellation | `AgentScopeToolBridge` routes every `@AiTool` invocation through `ToolExecutionHelper.executeWithApproval`. |
 | `atmosphere-embabel` | Embabel 0.3.5 | 3.5 only | agent orchestration, tool calling, vision, conversation memory | Requires `atmosphere-spring-boot3-starter` and the `-Pspring-boot3` profile. |
-| `atmosphere-spring-ai-alibaba` | Spring AI Alibaba 1.1.2.2 | 3.5 only | structured output, conversation memory | Buffered by `ReactAgent.call()`; token-by-token streaming should use another adapter until Alibaba ships a Spring AI 2.x-aligned agent framework. |
+| `atmosphere-spring-ai-alibaba` | Spring AI Alibaba 1.1.2.2 | 3.5 only | tool calling, structured output, conversation memory, token usage | Buffered streaming (the upstream `ReactAgent.call()` returns one `AssistantMessage`); `UsageCapturingChatModel` decorator threads token usage. Token-by-token streaming should use another adapter until Alibaba ships a Spring AI 2.x-aligned agent framework. |
 
 See the full [capability matrix](modules/ai/README.md#capability-matrix) for text streaming, tool calling, structured output, system prompts, agent orchestration, conversation memory, tool approval, vision, audio, multi-modal, prompt caching, token usage, retry, passivation, and tool-call deltas.
 
@@ -153,7 +153,8 @@ Atmosphere keeps governance on the critical path rather than as an afterthought.
 | Durable HITL workflows | `atmosphere-checkpoint`, `atmosphere-durable-sessions` | checkpointed approval gates, REST approve/reject/resume endpoints, and reconnect-safe replay for long-running agent work |
 | Plan-and-verify | `atmosphere-verifier` | verifies LLM-emitted tool workflows before execution; supports allowlist, well-formedness, capability, taint, automaton, and SMT verifiers |
 | PII and cost controls | `atmosphere-ai` | stream-level PII redaction, token usage, per-tenant cost ceilings |
-| Admin control plane | `atmosphere-admin` | dashboard, REST/MCP control surfaces, kill switches, flow viewer, governance decisions |
+| Admin control plane | `atmosphere-admin` | dashboard, REST/MCP control surfaces, kill switches, journal flow viewer, governance decisions, **workflow authoring UI**, **eval dashboard** |
+| Enterprise console bundle | `atmosphere-admin-bundle` | single Maven dep aggregating `spring-boot-starter` + `admin` + `ai` + `coordinator` + `agent` + `rag` + `checkpoint` + `durable-sessions` |
 | Compliance evidence | `atmosphere-ai`, `atmosphere-admin` | OWASP Agentic Top 10, EU AI Act, HIPAA, SOC 2 matrices and AGT-compatible verification output |
 | Sandbox execution | `atmosphere-sandbox` | `DockerSandboxProvider` default and `SandboxProvider` SPI for isolated code execution |
 

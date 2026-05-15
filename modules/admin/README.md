@@ -236,6 +236,51 @@ Mutating governance operations, including the kill switch, require
 `atmosphere.admin.http-write-enabled=true`, an authenticated principal, and a
 grant from `ControlAuthorizer`.
 
+### Workflow Authoring
+
+`WorkflowManifest` is the JSON record the runtime executes through
+`@Coordinator` + `AgentFleet`. The admin endpoint lets operators
+list / create / edit / delete workflows from the UI at
+`/atmosphere/admin/workflow.html`:
+
+```bash
+curl http://localhost:8080/api/admin/workflow                  # list
+curl http://localhost:8080/api/admin/workflow/{id}             # one
+curl -X POST http://localhost:8080/api/admin/workflow \         # save
+     -H 'Content-Type: application/json' -d '{…manifest…}'
+curl -X DELETE http://localhost:8080/api/admin/workflow/{id}    # delete
+```
+
+`POST` and `DELETE` route through `ControlAuthorizer` (`workflow.write`
+/ `workflow.delete`) and emit a `ControlAuditLog` entry. The
+caller-supplied `version` field implements optimistic concurrency —
+the server returns `409` when it does not equal `existing.version + 1`.
+
+`WorkflowStore` is the persistence SPI. `InMemoryWorkflowStore` is the
+default (loses state on JVM restart); production deployments register a
+JDBC- / Redis-backed implementation via a Spring `@Bean` (the auto-config
+picks it up via `ObjectProvider<WorkflowStore>`).
+
+### Eval Dashboard
+
+The eval dashboard surfaces LLM-as-judge results submitted by CI so an
+operator sees pass-rate trends per `GoldenEvalBaseline` without leaving
+the control plane. CI pipelines `POST` an `EvalRun` JSON after every
+golden-eval run:
+
+```bash
+curl http://localhost:8080/api/admin/evals/runs                # most-recent runs
+curl 'http://localhost:8080/api/admin/evals/runs?baseline=intent-support'
+curl http://localhost:8080/api/admin/evals/baselines           # pass-rate per baseline
+curl -X POST http://localhost:8080/api/admin/evals/runs \       # record (CI)
+     -H 'Content-Type: application/json' -d '{…run…}'
+```
+
+UI lives at `/atmosphere/admin/evals.html`. `EvalRunStore` is the SPI;
+the default `InMemoryEvalRunStore` is a bounded ring buffer (500 runs
+per baseline, oldest evicted) so a long-running deployment does not
+accumulate unbounded history.
+
 ## WebSocket Event Stream
 
 Connect to `/atmosphere/admin/events` to receive real-time `AdminEvent` JSON:
