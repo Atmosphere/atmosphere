@@ -19,7 +19,7 @@ description: |
 session:
   boot_once: true
   boot_ready_port: 8080
-  boot_ready_timeout_s: 120
+  boot_ready_timeout_s: 240
   boot:
     command: "./mvnw -q spring-boot:run -pl samples/spring-boot-ai-chat"
     cwd: "../.."
