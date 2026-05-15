@@ -1,20 +1,24 @@
-name: mirroir-run pilot (spring-boot-ai-chat)
+name: mirroir-run replay (sample matrix)
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - 'samples/spring-boot-ai-chat/**'
+      - 'samples/*/SAMPLE.md'
+      - 'samples/*/scenarios/**'
       - 'modules/cpr/**'
       - 'modules/spring-boot-starter/**'
+      - 'modules/quarkus-extension/**'
       - 'modules/ai/**'
       - '.github/workflows/mirroir-pilot.yml'
   pull_request:
     paths:
-      - 'samples/spring-boot-ai-chat/**'
+      - 'samples/*/SAMPLE.md'
+      - 'samples/*/scenarios/**'
       - 'modules/cpr/**'
       - 'modules/spring-boot-starter/**'
+      - 'modules/quarkus-extension/**'
       - 'modules/ai/**'
       - '.github/workflows/mirroir-pilot.yml'
 
@@ -23,11 +27,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pilot:
-    name: ${{ matrix.os }}
+  replay:
+    name: ${{ matrix.sample }} / ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        sample: [spring-boot-ai-chat, spring-boot-chat, quarkus-chat, quarkus-ai-chat]
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -88,23 +93,23 @@ jobs:
           npx playwright install --with-deps chromium firefox webkit
 
       - name: Install everything the sample needs (sample + all -am deps)
-        run: ./mvnw -B -q install -pl samples/spring-boot-ai-chat -am -DskipTests
+        run: ./mvnw -B -q install -pl samples/${{ matrix.sample }} -am -DskipTests
 
-      - name: Warm spring-boot-maven-plugin (avoid plugin-download stretch inside boot wait)
-        run: ./mvnw -B -q dependency:resolve-plugins -pl samples/spring-boot-ai-chat
+      - name: Warm Maven plugins (avoid plugin-download stretch inside boot wait)
+        run: ./mvnw -B -q dependency:resolve-plugins -pl samples/${{ matrix.sample }}
 
       - name: Drive sample through mirroir-run
         env:
           MIRROIR_PLAYWRIGHT_HOME: /tmp/playwright-home
           MIRROIR_REPO_ROOT: ${{ github.workspace }}
           RUST_LOG: info
-        run: mirroir-run --sample samples/spring-boot-ai-chat --scenarios must-pass
+        run: mirroir-run --sample samples/${{ matrix.sample }} --scenarios must-pass
 
       - name: Upload mirroir-run + session logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: mirroir-run-report-${{ runner.os }}
+          name: mirroir-run-report-${{ matrix.sample }}-${{ runner.os }}
           path: |
             mirroir-run-report.json
             playwright-report.json
