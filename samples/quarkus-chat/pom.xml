@@ -146,9 +146,11 @@
              references without pulling in the SDK autoconfigure that has its
              own GraalVM native image issues. -->
         <dependency>
+            <!-- Version managed by parent atmosphere-project pom.xml — keeps
+                 this sample on the same patched OpenTelemetry as the rest of
+                 the reactor (closes the W3C Baggage unbounded-memory CVE). -->
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-api</artifactId>
-            <version>1.45.0</version>
         </dependency>
 
         <!-- REST implementation for admin endpoints -->
