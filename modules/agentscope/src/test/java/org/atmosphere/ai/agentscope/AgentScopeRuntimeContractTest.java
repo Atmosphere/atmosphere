@@ -95,7 +95,11 @@ class AgentScopeRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
     protected AgentExecutionContext createToolCallContext() {
-        return null; // AgentScope runtime does not declare TOOL_CALLING
+        // Tool-call coverage is exercised by AgentScopeToolBridgeTest; the
+        // contract suite's helper-level HITL fallback also drives the bridge.
+        // A direct trigger context requires a Toolkit-bearing mock that the
+        // 1.0.12 SDK does not let us easily stub here.
+        return null;
     }
 
     @Override
@@ -115,6 +119,8 @@ class AgentScopeRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.STRUCTURED_OUTPUT,
                 AiCapability.CONVERSATION_MEMORY,
                 AiCapability.TOKEN_USAGE,
+                AiCapability.TOOL_CALLING,
+                AiCapability.TOOL_APPROVAL,
                 AiCapability.CANCELLATION,
                 AiCapability.PER_REQUEST_RETRY,
                 AiCapability.BUDGET_ENFORCEMENT,

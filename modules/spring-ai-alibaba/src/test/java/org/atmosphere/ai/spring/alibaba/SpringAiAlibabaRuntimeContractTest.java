@@ -83,7 +83,7 @@ class SpringAiAlibabaRuntimeContractTest extends AbstractAgentRuntimeContractTes
 
     @Override
     protected AgentExecutionContext createToolCallContext() {
-        return null; // runtime does not declare TOOL_CALLING
+        return null; // default test runtime has no ChatModel for per-request tool agent construction
     }
 
     @Override
@@ -102,6 +102,9 @@ class SpringAiAlibabaRuntimeContractTest extends AbstractAgentRuntimeContractTes
                 AiCapability.SYSTEM_PROMPT,
                 AiCapability.STRUCTURED_OUTPUT,
                 AiCapability.CONVERSATION_MEMORY,
+                AiCapability.TOOL_CALLING,
+                AiCapability.TOOL_APPROVAL,
+                AiCapability.TOKEN_USAGE,
                 AiCapability.PER_REQUEST_RETRY,
                 AiCapability.BUDGET_ENFORCEMENT,
                 AiCapability.CONFIDENCE_SCORES,

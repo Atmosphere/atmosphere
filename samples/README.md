@@ -88,6 +88,48 @@ atmosphere new my-classroom --template classroom
 
 Available `--template` values: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `multi-agent`, `classroom`, `ms-governance`, `coding-agent`, `guarded-agent`, `assistant`. See [cli/README.md](../cli/README.md#available-templates) for the template-to-sample mapping.
 
+### Flagship enterprise templates
+
+Five production-shaped templates that demonstrate the canonical enterprise
+agent shapes. Each is a real sample with a working backend, a working frontend,
+and end-to-end tests — not a stub. Pick the one whose use case is closest to
+yours; the rest of the catalog covers transport variants, observability
+patterns, and framework-specific demos.
+
+| Template | Sample | Use case | Key capabilities |
+|----------|--------|----------|------------------|
+| `rag` | [`spring-boot-rag-chat`](spring-boot-rag-chat) | RAG support bot over a chunked Markdown knowledge base | `ContextProvider` SPI, `RagChunker`, vector-store bridge, slash commands |
+| `ai-tools` | [`spring-boot-ai-tools`](spring-boot-ai-tools) | Internal tool agent — portable `@AiTool` calls, cost metering, audit listener | `@AiTool`, `@RequiresApproval`, `CostMeteringInterceptor`, audit log |
+| `guarded-agent` | [`spring-boot-guarded-email-agent`](spring-boot-guarded-email-agent) | Approval workflow — Plan-and-Verify gate that refuses unsafe LLM-emitted plans before any tool fires | `PlanAndVerifyInterceptor`, durable HITL, `CheckpointStore`, replay |
+| `coding-agent` | [`spring-boot-coding-agent`](spring-boot-coding-agent) | Coding agent — sandboxed git clone + file edit + AgentResumeHandle reattach | Sandbox SPI, `@Agent` skill files, reattach on disconnect |
+| `ms-governance` | [`spring-boot-ms-governance-chat`](spring-boot-ms-governance-chat) | Governance demo — Microsoft Agent Governance Toolkit alignment, decision viewer, kill switch | `PolicyAdmissionGate`, `ControlAuthorizer`, decision log, mutating-endpoint auth |
+
+```bash
+atmosphere new my-support-bot      --template rag --runtime spring-ai
+atmosphere new my-tool-agent       --template ai-tools
+atmosphere new my-approval-agent   --template guarded-agent
+atmosphere new my-coding-agent     --template coding-agent
+atmosphere new my-governance-demo  --template ms-governance
+```
+
+### 10-minute enterprise agent
+
+For a production-shaped AI service, start from the tool template instead of the
+plain chat template:
+
+```bash
+atmosphere new support-agent --template ai-tools --runtime builtin
+cd support-agent
+export LLM_API_KEY=...
+mvn spring-boot:run
+```
+
+That gives you streaming, portable `@AiTool` calls, HITL approval points, cost
+metering, an audit listener, and `atmosphere-admin` via the Spring Boot starter
+for the operator console, `/api/admin/runtimes`, governance decisions, and A2A
+flow viewer. Add the `rag` template when proprietary documents need chunked
+vector-store retrieval.
+
 Or with npx (zero install — delegates to the `atmosphere` CLI):
 
 ```bash

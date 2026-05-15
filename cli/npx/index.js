@@ -31,6 +31,10 @@ const TEMPLATES = {
   'embabel':         'Embabel GOAP planning (Kotlin, SB 3.5)',
   'multi-agent':     'Multi-agent fleet — 5 independent @Agents via A2A protocol',
   'classroom':       'AI classroom — shared streaming responses (web + Expo RN)',
+  'ms-governance':   'Microsoft Agent Governance policy chat',
+  'coding-agent':    'Coding agent with guarded filesystem tools',
+  'guarded-agent':   'Guarded email agent with approval flows',
+  'assistant':       'Personal assistant with memory and tools',
 };
 
 function die(msg) { console.error(`${RED}error:${RESET} ${msg}`); process.exit(1); }
@@ -46,7 +50,8 @@ ${BOLD}Usage:${RESET}
 ${BOLD}Options:${RESET}
   --template, -t <name>     Template to use (default: chat)
   --runtime, -r <name>      AI runtime adapter to inject (builtin | spring-ai |
-                            langchain4j | adk | koog | embabel | semantic-kernel)
+                            langchain4j | adk | koog | agentscope | embabel |
+                            spring-ai-alibaba | semantic-kernel)
   --skill-file, -s <path>   Scaffold an @Agent that loads this skill file
   --list-templates          List available templates
   --help, -h                Show this help
@@ -61,6 +66,7 @@ ${BOLD}Examples:${RESET}
   npx create-atmosphere-app my-ai-app --template ai-chat
   npx create-atmosphere-app my-fleet --template multi-agent
   npx create-atmosphere-app my-classroom --template classroom
+  npx create-atmosphere-app my-agent --template guarded-agent
 
 ${BOLD}Requires:${RESET} the ${BOLD}atmosphere${RESET} CLI on PATH.
   Install: ${CYAN}brew install Atmosphere/tap/atmosphere${RESET}

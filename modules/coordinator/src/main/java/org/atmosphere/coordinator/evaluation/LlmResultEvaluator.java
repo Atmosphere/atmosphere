@@ -101,21 +101,31 @@ public final class LlmResultEvaluator implements ResultEvaluator {
                     Map.of("skipped", true));
         }
 
-        var judgePrompt = String.format(
-                "Evaluate this agent response.\n\nSkill: %s\nArguments: %s\n\nResponse:\n%s",
-                originalCall.skill(),
-                originalCall.args(),
-                truncate(result.text(), 2000));
+        var judgePrompt = buildJudgePrompt(result, originalCall);
+        var settings = AiConfig.get();
+        var model = settings != null ? settings.model() : null;
 
         try {
             var response = callLlm(rt, judgePrompt);
-            return parseScore(response, result.agentName());
+            return parseScore(response, result, originalCall, judgePrompt, model);
         } catch (Exception e) {
             logger.debug("LLM evaluation failed for agent '{}': {}",
                     result.agentName(), e.getMessage());
             return Evaluation.pass(1.0, "LLM judge error: " + e.getMessage(),
-                    Map.of("error", e.getMessage()));
+                    Map.of("error", e.getMessage(),
+                            "judgePrompt", judgePrompt,
+                            "agent", result.agentName(),
+                            "skill", originalCall.skill(),
+                            "model", nullToEmpty(model)));
         }
+    }
+
+    static String buildJudgePrompt(AgentResult result, AgentCall originalCall) {
+        return String.format(
+                "Evaluate this agent response.\n\nSkill: %s\nArguments: %s\n\nResponse:\n%s",
+                originalCall.skill(),
+                originalCall.args(),
+                truncate(result.text(), 2000));
     }
 
     private String callLlm(AgentRuntime rt, String message) {
@@ -129,40 +139,81 @@ public final class LlmResultEvaluator implements ResultEvaluator {
         return rt.generate(context, timeout);
     }
 
-    private Evaluation parseScore(String response, String agentName) {
+    static Evaluation parseScore(
+            String response, AgentResult result, AgentCall originalCall, String judgePrompt, String model) {
         if (response == null || response.isBlank()) {
-            return Evaluation.pass(1.0, "Empty judge response");
+            return Evaluation.pass(1.0, "Empty judge response",
+                    metadata(judgePrompt, "", null, "empty", result, originalCall, model));
         }
 
+        var cleaned = stripFences(response);
         // Try JSON score pattern: {"score": 8, ...}
-        var matcher = SCORE_PATTERN.matcher(response);
+        var matcher = SCORE_PATTERN.matcher(cleaned);
         if (matcher.find()) {
             var raw = Double.parseDouble(matcher.group(1));
             var score = Math.min(1.0, Math.max(0.0, raw / 10.0));
-            var reason = extractReason(response);
+            var reason = extractReason(cleaned);
+            var metadata = metadata(judgePrompt, response, raw, "json", result, originalCall, model);
             return score >= 0.5
-                    ? Evaluation.pass(score, reason, Map.of("rawScore", raw, "agent", agentName))
-                    : Evaluation.fail(score, reason, Map.of("rawScore", raw, "agent", agentName));
+                    ? Evaluation.pass(score, reason, metadata)
+                    : Evaluation.fail(score, reason, metadata);
         }
 
         // Try bare number: "8" or "8/10"
-        var bareMatcher = BARE_NUMBER.matcher(response);
+        var bareMatcher = BARE_NUMBER.matcher(cleaned);
         if (bareMatcher.find()) {
             var raw = Double.parseDouble(bareMatcher.group(1));
             var score = raw > 1.0 ? raw / 10.0 : raw;
             score = Math.min(1.0, Math.max(0.0, score));
+            var metadata = metadata(judgePrompt, response, raw, "bare", result, originalCall, model);
             return score >= 0.5
-                    ? Evaluation.pass(score, response.trim())
-                    : Evaluation.fail(score, response.trim());
+                    ? Evaluation.pass(score, cleaned.trim(), metadata)
+                    : Evaluation.fail(score, cleaned.trim(), metadata);
         }
 
-        logger.debug("Could not parse score from LLM response: {}", truncate(response, 200));
-        return Evaluation.pass(0.7, "Unparseable judge response: " + truncate(response, 100));
+        logger.debug("Could not parse score from LLM response: {}", truncate(cleaned, 200));
+        return Evaluation.pass(0.7, "Unparseable judge response: " + truncate(cleaned, 100),
+                metadata(judgePrompt, response, null, "fallback", result, originalCall, model));
+    }
+
+    static String stripFences(String response) {
+        var cleaned = response.trim();
+        if (cleaned.startsWith("```")) {
+            cleaned = cleaned.replaceFirst("^```(?:json)?\\s*", "")
+                    .replaceFirst("\\s*```$", "")
+                    .trim();
+        }
+        return cleaned;
     }
 
     private static String extractReason(String response) {
         var reasonMatcher = Pattern.compile("\"reason\"\\s*:\\s*\"([^\"]+)\"").matcher(response);
         return reasonMatcher.find() ? reasonMatcher.group(1) : response.trim();
+    }
+
+    private static Map<String, Object> metadata(
+            String judgePrompt,
+            String judgeResponse,
+            Double rawScore,
+            String scoreSource,
+            AgentResult result,
+            AgentCall originalCall,
+            String model) {
+        var metadata = new java.util.HashMap<String, Object>();
+        metadata.put("judgePrompt", judgePrompt);
+        metadata.put("judgeResponse", judgeResponse);
+        metadata.put("scoreSource", scoreSource);
+        metadata.put("agent", result.agentName());
+        metadata.put("skill", originalCall.skill());
+        metadata.put("model", nullToEmpty(model));
+        if (rawScore != null) {
+            metadata.put("rawScore", rawScore);
+        }
+        return Map.copyOf(metadata);
+    }
+
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     private AgentRuntime resolveRuntime() {

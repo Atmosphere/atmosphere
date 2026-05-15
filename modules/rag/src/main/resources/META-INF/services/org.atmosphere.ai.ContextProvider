@@ -1,1 +1,2 @@
 org.atmosphere.ai.rag.spring.SpringAiVectorStoreContextProvider
+org.atmosphere.ai.rag.langchain4j.LangChain4jEmbeddingStoreContextProvider

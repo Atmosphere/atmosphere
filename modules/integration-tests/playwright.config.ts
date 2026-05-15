@@ -232,6 +232,10 @@ export default defineConfig({
       testMatch: /ai-embedding\.spec\.ts/,
     },
     {
+      name: 'ai-gap-coverage',
+      testMatch: /ai-gap-coverage\.spec\.ts/,
+    },
+    {
       name: 'ai-retry-policy',
       testMatch: /ai-retry-policy\.spec\.ts/,
     },

@@ -87,7 +87,7 @@ jobs:
           - name: ai-tools
             projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow,ai-cancel"
           - name: ai-advanced
-            projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding"
+            projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding,ai-gap-coverage"
           - name: ai-routing
             projects: "ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
           # checkpoint-agent lives under gap-coordinator with the other

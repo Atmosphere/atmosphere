@@ -64,7 +64,16 @@ public class LangChain4jEmbeddingStoreContextProvider implements ContextProvider
     }
 
     @Override
+    public boolean isAvailable() {
+        return contentRetriever != null;
+    }
+
+    @Override
     public List<Document> retrieve(String query, int maxResults) {
+        if (query == null || query.isBlank() || maxResults <= 0) {
+            return List.of();
+        }
+
         var retriever = contentRetriever;
         if (retriever == null) {
             logger.warn("ContentRetriever not configured; returning empty results");
@@ -90,7 +99,8 @@ public class LangChain4jEmbeddingStoreContextProvider implements ContextProvider
             }
 
             var source = metadata.getOrDefault("source",
-                    metadata.getOrDefault("file_name", "langchain4j"));
+                    metadata.getOrDefault("source_document",
+                            metadata.getOrDefault("file_name", "langchain4j")));
 
             results.add(new Document(text, source, score, metadata));
             count++;

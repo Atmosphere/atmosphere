@@ -141,7 +141,7 @@ public final class PolicyAdmissionGate {
                 GovernanceDecisionLog.installed().record(
                         GovernanceDecisionLog.entry(policy, ctx, "error",
                                 "evaluate threw: " + e.getMessage(), evalMs));
-                tracer.end("error", e.getMessage());
+                tracer.end("error", e.getMessage(), e);
                 return new Result.Denied(policy.name(),
                         "policy evaluation failed: " + e.getMessage());
             }

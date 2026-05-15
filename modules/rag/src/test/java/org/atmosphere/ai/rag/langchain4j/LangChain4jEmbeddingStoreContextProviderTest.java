@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class LangChain4jEmbeddingStoreContextProviderTest {
@@ -70,6 +71,29 @@ class LangChain4jEmbeddingStoreContextProviderTest {
         var results = provider.retrieve("test query", 5);
 
         assertTrue(results.isEmpty());
+        assertTrue(!provider.isAvailable());
+    }
+
+    @Test
+    void isAvailableReflectsConfiguredRetriever() {
+        var provider = new LangChain4jEmbeddingStoreContextProvider();
+        assertTrue(!provider.isAvailable());
+
+        LangChain4jEmbeddingStoreContextProvider.setContentRetriever(mock(ContentRetriever.class));
+
+        assertTrue(provider.isAvailable());
+    }
+
+    @Test
+    void retrieveReturnsEmptyForBlankQueryWithoutCallingRetriever() {
+        var retriever = mock(ContentRetriever.class);
+        LangChain4jEmbeddingStoreContextProvider.setContentRetriever(retriever);
+        var provider = new LangChain4jEmbeddingStoreContextProvider();
+
+        var results = provider.retrieve("   ", 5);
+
+        assertTrue(results.isEmpty());
+        verifyNoInteractions(retriever);
     }
 
     @Test
@@ -114,6 +138,27 @@ class LangChain4jEmbeddingStoreContextProviderTest {
         assertEquals("transport.md", result.source());
         assertEquals("networking", result.metadata().get("category"));
         assertEquals("4.0", result.metadata().get("version"));
+    }
+
+    @Test
+    void retrieveUsesSourceDocumentMetadataWhenSourceMissing() {
+        var retriever = mock(ContentRetriever.class);
+        var metadata = new Metadata();
+        metadata.put("source_document", "manual.md");
+        metadata.put("chunk_index", "3");
+        var segment = TextSegment.from("Chunk text", metadata);
+
+        when(retriever.retrieve(any(Query.class)))
+                .thenReturn(List.of(Content.from(segment)));
+
+        LangChain4jEmbeddingStoreContextProvider.setContentRetriever(retriever);
+        var provider = new LangChain4jEmbeddingStoreContextProvider();
+
+        var results = provider.retrieve("chunk", 5);
+
+        assertEquals(1, results.size());
+        assertEquals("manual.md", results.get(0).source());
+        assertEquals("3", results.get(0).metadata().get("chunk_index"));
     }
 
     @Test

@@ -36,6 +36,7 @@ const { useStreaming } = await import('../../../src/hooks/vue/useStreaming');
 const { useOfflineQueue } = await import('../../../src/hooks/vue/useOfflineQueue');
 const { useMessageHistory } = await import('../../../src/hooks/vue/useMessageHistory');
 const { useOptimistic } = await import('../../../src/hooks/vue/useOptimistic');
+const { useChat } = await import('../../../src/hooks/vue/useChat');
 
 function createMockSubscription(): Subscription & { pushed: string[] } {
   const pushed: string[] = [];
@@ -81,6 +82,10 @@ const baseRequest: AtmosphereRequest = {
   url: 'ws://localhost:8080/chat',
   transport: 'websocket',
 };
+
+function streamingFrame(type: string, seq: number, data?: string): string {
+  return JSON.stringify({ type, data, sessionId: 'chat-session', seq });
+}
 
 describe('Vue: useAtmosphere', () => {
   let mock: ReturnType<typeof createMockAtmosphere>;
@@ -154,6 +159,59 @@ describe('Vue: useAtmosphere', () => {
     expect(unmountCallbacks).toHaveLength(1);
     unmountCallbacks[0]();
     expect(mock.mockSub.close).toHaveBeenCalled();
+  });
+});
+
+describe('Vue: useChat', () => {
+  let mock: ReturnType<typeof createMockAtmosphere>;
+  let nextId: number;
+
+  beforeEach(() => {
+    mock = createMockAtmosphere();
+    unmountCallbacks.length = 0;
+    nextId = 0;
+  });
+
+  it('appends a user/assistant pair and streams assistant text', async () => {
+    const chat = useChat({
+      request: baseRequest,
+      instance: mock.atmosphere,
+      generateId: () => `vue-chat-${nextId++}`,
+    });
+    await vi.waitFor(() => expect(mock.atmosphere.subscribe).toHaveBeenCalled());
+    await Promise.resolve();
+
+    chat.append('hello');
+    expect(mock.mockSub.push).toHaveBeenCalledWith('hello');
+    expect(chat.messages.value.map((message) => message.role)).toEqual(['user', 'assistant']);
+    expect(chat.messages.value[1].status).toBe('submitted');
+
+    mock.triggerMessage(streamingFrame('streaming-text', 1, 'Bonjour'));
+    await vi.waitFor(() => expect(chat.messages.value[1].content).toBe('Bonjour'));
+    expect(chat.messages.value[1].status).toBe('streaming');
+
+    mock.triggerMessage(streamingFrame('complete', 2));
+    await vi.waitFor(() => expect(chat.messages.value[1].status).toBe('complete'));
+  });
+
+  it('handleSubmit trims input and reset restores the initial messages', async () => {
+    const initialMessages = [{ id: 'system-1', role: 'system' as const, content: 'ready' }];
+    const chat = useChat({
+      request: baseRequest,
+      instance: mock.atmosphere,
+      initialMessages,
+      generateId: () => `vue-chat-${nextId++}`,
+    });
+    await vi.waitFor(() => expect(mock.atmosphere.subscribe).toHaveBeenCalled());
+    await Promise.resolve();
+
+    chat.input.value = '  hi from form  ';
+    chat.handleSubmit({ preventDefault: vi.fn() });
+    expect(chat.input.value).toBe('');
+    expect(mock.mockSub.push).toHaveBeenCalledWith('hi from form');
+
+    chat.reset();
+    expect(chat.messages.value).toEqual(initialMessages);
   });
 });
 

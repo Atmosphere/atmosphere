@@ -369,6 +369,40 @@ function AiChat() {
 
 Returns `{ fullText, streamingTexts, isStreaming, progress, metadata, error, send, reset, close }`.
 
+#### `useChat` -- AI chat state on top of streaming
+
+`useChat` wraps `useStreaming` with an AI-SDK-style chat contract: `messages`,
+`input`, `setInput`, `append`, `handleSubmit`, `reload`, and `stop`. Use it when
+you want optimistic user bubbles plus token-level assistant rendering without
+hand-writing message bookkeeping in every sample.
+
+```tsx
+import { useChat } from 'atmosphere.js/react';
+
+function AiChat() {
+  const { messages, input, setInput, handleSubmit, isLoading, error } = useChat({
+    request: { url: '/ai/chat', transport: 'websocket' },
+    sendOptions: { maxCost: 0.10, maxLatencyMs: 5000 },
+  });
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {messages.map((message) => (
+        <p key={message.id} data-role={message.role}>{message.content}</p>
+      ))}
+      {error && <p role="alert">{error}</p>}
+      <input value={input} onChange={(e) => setInput(e.target.value)} />
+      <button disabled={isLoading}>Send</button>
+    </form>
+  );
+}
+```
+
+Returns `{ messages, input, setInput, append, handleSubmit, reload, stop,
+isLoading, progress, metadata, stats, routing, aiEvents, connectionStatus }`.
+`stop()` closes the active streaming subscription; remount the hook or toggle
+`enabled` to open a fresh transport after a hard stop.
+
 ### Vue
 
 Import from `atmosphere.js/vue`. Vue composables do not require a provider -- they create

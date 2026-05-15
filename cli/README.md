@@ -72,6 +72,30 @@ Available runtimes (`--runtime`): `builtin` (default — no extra deps), `spring
 
 `--force` (only valid with `--runtime`) wipes every adapter dep declared in `cli/runtime-overlays.json` from the scaffolded `pom.xml` *before* injecting the chosen overlay. This makes the swap deterministic on samples that already pin a non-default adapter (e.g. `ai-tools` ships with `atmosphere-langchain4j`) — without `--force`, both adapters would land on the classpath and the SPI resolver would pick one based on `ServiceLoader` iteration order. Note: samples whose Java code imports a specific provider's API directly (e.g. `OpenAiStreamingChatModel`) will still need manual edits after force-swap; transparent templates (`ai-chat`, `multi-agent`) work end-to-end with no code changes.
 
+### 10-minute enterprise agent path
+
+Use this path when the goal is a production-shaped JVM agent rather than a
+minimal chat demo:
+
+```bash
+atmosphere new support-agent --template ai-tools --runtime builtin
+cd support-agent
+export LLM_API_KEY=...
+mvn spring-boot:run
+```
+
+The Spring Boot starter already brings in `atmosphere-admin`, so the generated
+app has the dashboard, `/api/admin/runtimes`, audit log, A2A flow viewer, and
+governance decision endpoints on the classpath. Then harden the control plane:
+
+1. Turn on mutating admin operations only behind auth:
+   `atmosphere.admin.http-write-enabled=true` plus a `ControlAuthorizer`.
+2. Move proprietary documents into the `rag` template when retrieval is needed;
+   it chunks documents with `RagChunker` before embedding them.
+3. Pick the runtime by capability, not by brand. For portable tools and HITL,
+   use a runtime that declares `TOOL_CALLING` and `TOOL_APPROVAL` in
+   `modules/ai/README.md`.
+
 Or with npx (zero install):
 
 ```bash
@@ -158,15 +182,23 @@ Every template sparse-clones the matching sample from `cli/samples.json` into th
 |---|---|---|
 | `chat` (default) | `spring-boot-chat` | Real-time WebSocket chat with rooms, observability, integration tests |
 | `ai-chat` | `spring-boot-ai-chat` | AI streaming chat (Spring AI / LangChain4j / Gemini / Ollama) with structured-output demo |
-| `ai-tools` | `spring-boot-ai-tools` | AI chat with `@AiTool` function calling, cost metering, audit listener |
+| `ai-tools` ⭐ | `spring-boot-ai-tools` | Enterprise starter: `@AiTool` function calling, HITL approval, cost metering, audit listener |
 | `mcp-server` | `spring-boot-mcp-server` | MCP server exposing tools, resources, and prompts to AI agents |
-| `rag` | `spring-boot-rag-chat` | RAG chat with vector store |
+| `rag` ⭐ | `spring-boot-rag-chat` | RAG agent with chunked vector-store ingestion and explicit document-search tools |
 | `agent` | `spring-boot-dentist-agent` | `@Agent` skill-file driven (the Dr. Molar demo); implied when `--skill-file` is passed |
-| `coding-agent` | `spring-boot-coding-agent` | Sandbox SPI + Git clone + AgentResumeHandle reattach; reads files and proposes patches |
-| `guarded-agent` | `spring-boot-guarded-email-agent` | Plan-and-Verify (Meijer) — refuses unsafe LLM-emitted plans before any tool fires |
+| `coding-agent` ⭐ | `spring-boot-coding-agent` | Sandbox SPI + Git clone + AgentResumeHandle reattach; reads files and proposes patches |
+| `guarded-agent` ⭐ | `spring-boot-guarded-email-agent` | Plan-and-Verify (Meijer) — refuses unsafe LLM-emitted plans before any tool fires |
+| `ms-governance` ⭐ | `spring-boot-ms-governance-chat` | Governance demo: policy admission, decision viewer, kill switch, write-gated admin endpoints |
 | `assistant` | `spring-boot-personal-assistant` | Long-lived memory-bearing assistant: AgentState + AgentWorkspace + AgentIdentity + ProtocolBridge |
 | `multi-agent` | `spring-boot-multi-agent-startup-team` | Fleet of 5 independent `@Agent` classes collaborating over A2A |
 | `classroom` | `spring-boot-ai-classroom` | Shared streaming AI responses across web + Expo React Native clients |
+
+⭐ marks the five **flagship enterprise templates** — the canonical agent
+shapes most teams reach for first. Each one is a real sample with a working
+backend, a working frontend, and end-to-end tests; pick the one whose use
+case is closest to yours and substitute model/data accordingly. See
+[samples/README.md#flagship-enterprise-templates](../samples/README.md#flagship-enterprise-templates)
+for the full breakdown.
 
 ## Requirements
 

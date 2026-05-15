@@ -121,6 +121,14 @@
                 <version>${project.version}</version>
             </dependency>
 
+            <!-- Admin Bundle (Enterprise Console — single-dep aggregator) -->
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-admin-bundle</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+            </dependency>
+
             <!-- Checkpoint (Durable Agent Execution) -->
             <dependency>
                 <groupId>org.atmosphere</groupId>

@@ -187,6 +187,78 @@ class LlmJudgeTest {
     }
 
     @Test
+    void goldenIntentBaselinePinsPromptAndVerdictParsing() throws Exception {
+        var baseline = GoldenEvalBaseline.intent(
+                "time-intent",
+                "What time is it in Tokyo?",
+                "It is 3pm in Tokyo.",
+                "Tells the current time in Tokyo",
+                "{\"verdict\": true}");
+
+        var path = java.nio.file.Files.createTempFile("atmosphere-golden-eval", ".json");
+        try {
+            baseline.write(path);
+            var loaded = GoldenEvalBaseline.read(path);
+
+            loaded.assertMatches(GoldenEvalBaseline.intent(
+                    "time-intent",
+                    "What time is it in Tokyo?",
+                    "It is 3pm in Tokyo.",
+                    "Tells the current time in Tokyo",
+                    "{\"verdict\": true}"));
+        } finally {
+            java.nio.file.Files.deleteIfExists(path);
+        }
+    }
+
+    @Test
+    void goldenQualityBaselinePinsScoreParsing() {
+        var baseline = GoldenEvalBaseline.quality(
+                "quality",
+                "Explain Atmosphere",
+                "Atmosphere streams AI responses over WebSocket or SSE.",
+                "{\"relevance\": 0.9, \"coherence\": 0.8, \"safety\": 1.0}");
+
+        baseline.assertMatches(GoldenEvalBaseline.quality(
+                "quality",
+                "Explain Atmosphere",
+                "Atmosphere streams AI responses over WebSocket or SSE.",
+                "{\"relevance\": 0.9, \"coherence\": 0.8, \"safety\": 1.0}"));
+    }
+
+    @Test
+    void goldenBaselineDiffShowsPromptDrift() {
+        var baseline = GoldenEvalBaseline.intent(
+                "time-intent",
+                "What time is it in Tokyo?",
+                "It is 3pm in Tokyo.",
+                "Tells the current time in Tokyo",
+                "{\"verdict\": true}");
+        var changed = GoldenEvalBaseline.intent(
+                "time-intent",
+                "What time is it in Tokyo now?",
+                "It is 3pm in Tokyo.",
+                "Tells the current time in Tokyo",
+                "{\"verdict\": true}");
+
+        var diff = baseline.diff(changed);
+
+        assertTrue(diff.contains("Golden eval drift in prompt"));
+        assertThrows(AssertionError.class, () -> baseline.assertMatches(changed));
+    }
+
+    @Test
+    void goldenBaselineCanBeBuiltFromJudgeRun() {
+        var judge = new LlmJudge(new FakeJudgeRuntime("{\"verdict\": true}"), "test-model");
+
+        var baseline = GoldenEvalBaseline.fromRun("intent",
+                judge.judgeIntent("What time?", "It's 3pm.", "Tell the time"));
+
+        assertTrue(baseline.prompt().contains("Expected intent: Tell the time"));
+        assertEquals(Boolean.TRUE, baseline.verdict());
+    }
+
+    @Test
     void isGroundedInWithoutMatchingToolsFails() {
         var judge = new LlmJudge(new FakeJudgeRuntime("{\"verdict\": true}"), "test-model");
         var response = new AiResponse("text",

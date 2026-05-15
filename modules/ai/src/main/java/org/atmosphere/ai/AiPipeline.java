@@ -446,7 +446,7 @@ public class AiPipeline {
                 GovernanceDecisionLog.installed().record(
                         GovernanceDecisionLog.entry(policy, ctx, "error",
                                 "evaluate threw: " + e.getMessage(), evalMs));
-                tracer.end("error", e.getMessage());
+                tracer.end("error", e.getMessage(), e);
                 session.error(new SecurityException("Policy " + policy.name()
                         + " evaluation failed: " + e.getMessage(), e));
                 return;

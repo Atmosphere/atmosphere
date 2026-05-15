@@ -130,7 +130,7 @@ silently regress either side.
 - Graph workflow DSL (LangGraph territory; `@Coordinator` + `AgentFleet` +
   `CheckpointStore.fork()` already cover orchestration).
 - Voice / realtime pipeline (specific modality, deferred).
-- New LLM client abstraction (our clients are the seven runtimes).
+- New LLM client abstraction (the `AgentRuntime` adapters remain the LLM client layer).
 - Backward-compatibility shims for deprecated SPIs, except the documented
   `AiConversationMemory` thin delegation to `AgentState`.
 - Custom Atmosphere YAML manifest format (OpenClaw workspace IS the
@@ -139,3 +139,34 @@ silently regress either side.
   already ship.
 - Product-level positioning — samples prove the foundation; the foundation
   is the product.
+
+## Prompt regression workflow
+
+`modules/ai-test` includes `GoldenEvalBaseline` for pinning LLM-as-judge prompts
+and verdict parsing in tests. The helper writes the exact judge prompt, raw
+judge response fixture, parsed verdict, and quality scores as JSON so prompt
+template changes produce a small diff instead of silently changing eval
+behavior.
+
+```java
+var baseline = GoldenEvalBaseline.intent(
+    "support-answer",
+    "How do I reconnect?",
+    "Use Atmosphere reconnect with bounded replay.",
+    "Explains reconnect behavior",
+    "{\"verdict\": true}");
+
+baseline.write(Path.of("src/test/resources/golden/support-answer.json"));
+
+var golden = GoldenEvalBaseline.read(Path.of("src/test/resources/golden/support-answer.json"));
+golden.assertMatches(GoldenEvalBaseline.intent(
+    "support-answer",
+    "How do I reconnect?",
+    "Use Atmosphere reconnect with bounded replay.",
+    "Explains reconnect behavior",
+    "{\"verdict\": true}"));
+```
+
+Use this next to `LlmJudge` tests whenever prompt text is part of the contract.
+The golden file captures deterministic fixtures; live model judging remains an
+integration test choice and should be separated from template-regression tests.

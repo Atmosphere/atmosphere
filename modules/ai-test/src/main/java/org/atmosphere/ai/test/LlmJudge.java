@@ -67,9 +67,16 @@ public class LlmJudge {
      * @return true if the judge determines the response meets the intent
      */
     public boolean meetsIntent(String userMessage, String agentResponse, String intent) {
+        return judgeIntent(userMessage, agentResponse, intent).verdict();
+    }
+
+    /**
+     * Run intent judging and return the full prompt/response artifact for golden comparisons.
+     */
+    public JudgeRun judgeIntent(String userMessage, String agentResponse, String intent) {
         var prompt = strategy.buildIntentPrompt(userMessage, agentResponse, intent);
         var judgeResponse = executeJudge(prompt);
-        return strategy.parseVerdict(judgeResponse);
+        return JudgeRun.verdict(prompt, judgeResponse, strategy.parseVerdict(judgeResponse), judgeModel);
     }
 
     /**
@@ -80,9 +87,16 @@ public class LlmJudge {
      * @return true if the judge determines the response is grounded
      */
     public boolean isGrounded(String agentResponse, String toolOutputs) {
+        return judgeGrounding(agentResponse, toolOutputs).verdict();
+    }
+
+    /**
+     * Run grounding judging and return the full prompt/response artifact for golden comparisons.
+     */
+    public JudgeRun judgeGrounding(String agentResponse, String toolOutputs) {
         var prompt = strategy.buildGroundingPrompt(agentResponse, toolOutputs);
         var judgeResponse = executeJudge(prompt);
-        return strategy.parseVerdict(judgeResponse);
+        return JudgeRun.verdict(prompt, judgeResponse, strategy.parseVerdict(judgeResponse), judgeModel);
     }
 
     /**
@@ -93,9 +107,16 @@ public class LlmJudge {
      * @return quality scores (relevance, coherence, safety)
      */
     public EvalStrategy.QualityScores scoreQuality(String userMessage, String agentResponse) {
+        return judgeQuality(userMessage, agentResponse).quality();
+    }
+
+    /**
+     * Run quality judging and return the full prompt/response artifact for golden comparisons.
+     */
+    public JudgeRun judgeQuality(String userMessage, String agentResponse) {
         var prompt = strategy.buildQualityPrompt(userMessage, agentResponse);
         var judgeResponse = executeJudge(prompt);
-        return strategy.parseQualityScores(judgeResponse);
+        return JudgeRun.quality(prompt, judgeResponse, strategy.parseQualityScores(judgeResponse), judgeModel);
     }
 
     private String executeJudge(String prompt) {
@@ -117,6 +138,26 @@ public class LlmJudge {
             throw new AssertionError("LLM judge returned empty response");
         }
         return response;
+    }
+
+    /**
+     * Captured judge run suitable for golden eval baselines.
+     */
+    public record JudgeRun(
+            String prompt,
+            String judgeResponse,
+            Boolean verdict,
+            EvalStrategy.QualityScores quality,
+            String judgeModel
+    ) {
+        static JudgeRun verdict(String prompt, String judgeResponse, boolean verdict, String judgeModel) {
+            return new JudgeRun(prompt, judgeResponse, verdict, null, judgeModel);
+        }
+
+        static JudgeRun quality(
+                String prompt, String judgeResponse, EvalStrategy.QualityScores quality, String judgeModel) {
+            return new JudgeRun(prompt, judgeResponse, null, quality, judgeModel);
+        }
     }
 
     /**

@@ -28,6 +28,8 @@ export type { UseAtmosphereRNOptions, UseAtmosphereRNResult, BackgroundBehavior 
 
 export { useStreamingRN } from './useStreamingRN';
 export type { UseStreamingRNOptions, UseStreamingRNResult } from './useStreamingRN';
+export { useChatRN } from './useChatRN';
+export type { UseChatRNOptions, UseChatRNResult } from './useChatRN';
 
 // ConnectionStatus surface — useConnectionStatus is identical to the
 // web version (pure React, no RN-specific behavior); re-export under

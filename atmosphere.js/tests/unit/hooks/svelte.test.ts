@@ -22,6 +22,7 @@ import { createOfflineQueueStore } from '../../../src/hooks/svelte/offlineQueue'
 import type { OfflineQueueStoreState } from '../../../src/hooks/svelte/offlineQueue';
 import { createMessageHistoryStore } from '../../../src/hooks/svelte/messageHistory';
 import { createOptimisticStore } from '../../../src/hooks/svelte/optimistic';
+import { createChatStore } from '../../../src/hooks/svelte/chat';
 import type { OptimisticStoreState } from '../../../src/hooks/svelte/optimistic';
 import type { AtmosphereRequest, Subscription, RoomMessage } from '../../../src/types';
 import { Atmosphere } from '../../../src/core/atmosphere';
@@ -70,6 +71,10 @@ const baseRequest: AtmosphereRequest = {
   url: 'ws://localhost:8080/chat',
   transport: 'websocket',
 };
+
+function streamingFrame(type: string, seq: number, data?: string): string {
+  return JSON.stringify({ type, data, sessionId: 'chat-session', seq });
+}
 
 describe('Svelte: createAtmosphereStore', () => {
   let mock: ReturnType<typeof createMockAtmosphere>;
@@ -195,6 +200,68 @@ describe('Svelte: createAtmosphereStore', () => {
     push('test-msg');
     expect(mock.mockSub.push).toHaveBeenCalledWith('test-msg');
     unsub();
+  });
+});
+
+describe('Svelte: createChatStore', () => {
+  let mock: ReturnType<typeof createMockAtmosphere>;
+  let nextId: number;
+
+  beforeEach(() => {
+    mock = createMockAtmosphere();
+    nextId = 0;
+  });
+
+  it('appends a user/assistant pair and streams assistant text', async () => {
+    const { store, append, destroy } = createChatStore({
+      request: baseRequest,
+      instance: mock.atmosphere,
+      generateId: () => `svelte-chat-${nextId++}`,
+    });
+    let latest: { messages: Array<{ role: string; content: string; status?: string }> } = { messages: [] };
+    const unsub = store.subscribe((value) => { latest = value; });
+    await vi.waitFor(() => expect(mock.atmosphere.subscribe).toHaveBeenCalled());
+    await Promise.resolve();
+
+    append('hello');
+    expect(mock.mockSub.push).toHaveBeenCalledWith('hello');
+    expect(latest.messages.map((message) => message.role)).toEqual(['user', 'assistant']);
+    expect(latest.messages[1].status).toBe('streaming');
+
+    mock.triggerMessage(streamingFrame('streaming-text', 1, 'Salut'));
+    await vi.waitFor(() => expect(latest.messages[1].content).toBe('Salut'));
+    expect(latest.messages[1].status).toBe('streaming');
+
+    mock.triggerMessage(streamingFrame('complete', 2));
+    await vi.waitFor(() => expect(latest.messages[1].status).toBe('complete'));
+
+    unsub();
+    destroy();
+  });
+
+  it('handleSubmit trims input and reset restores initial messages', async () => {
+    const initialMessages = [{ id: 'system-1', role: 'system' as const, content: 'ready' }];
+    const { store, setInput, handleSubmit, reset, destroy } = createChatStore({
+      request: baseRequest,
+      instance: mock.atmosphere,
+      initialMessages,
+      generateId: () => `svelte-chat-${nextId++}`,
+    });
+    let latest: { messages: unknown[]; input: string } = { messages: [], input: '' };
+    const unsub = store.subscribe((value) => { latest = value; });
+    await vi.waitFor(() => expect(mock.atmosphere.subscribe).toHaveBeenCalled());
+    await Promise.resolve();
+
+    setInput('  hi from form  ');
+    handleSubmit({ preventDefault: vi.fn() });
+    expect(latest.input).toBe('');
+    expect(mock.mockSub.push).toHaveBeenCalledWith('hi from form');
+
+    reset();
+    expect(latest.messages).toEqual(initialMessages);
+
+    unsub();
+    destroy();
   });
 });
 

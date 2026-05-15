@@ -313,6 +313,98 @@ to grep'ing for the consumer-callback name first.
 
 ---
 
+## 2026-05-15 — Doc alignment review (`feat/ai-gap-fixes` + `atmosphere.github.io@e26cf76`)
+
+Deep review requested for the doc updates pushed against
+`feat/ai-gap-fixes` (Atmosphere `f8cee932f9`, "CI Samples green") and
+`atmosphere.github.io main` (`e26cf76`, "Deploy website succeeded"). The
+prose was internally consistent and CI green on both sides, but a
+release-ordering check against npm + a re-read of each runtime's
+`capabilities()` surfaced three claims that diverge from ground truth.
+All three are "advertise ahead of release" failures — Correctness
+Invariant #5 (Runtime Truth) and the No-Hallucinations §3a rule that
+"shipped" requires a published consumer surface.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 35 | `atmosphere.github.io/docs/src/content/docs/whats-new.md:16,407`, `clients/javascript.md:8,59,712`, `clients/react-native.md:8`, `tutorial/04-transports.md:207,223` all advertise **atmosphere.js 5.0.24** as the currently-available client (`atm.version; // '5.0.24'`, "TypeScript client (currently `5.0.24`)", "atmosphere.js `5.0.24` supports React Native") | `npm view atmosphere.js versions` ends at **5.0.23**. Commit `573a33fd41` is explicitly labeled `chore(js): prepare next development version 5.0.24` — the SNAPSHOT pointer set after the 5.0.23 release tag, never published. `npm install atmosphere.js@5.0.24` returns "no matching version". `useChat` / `createChatStore` / `useChatRN` only exist in 5.0.24-dev, so following the docs gets the user `5.0.23` (no chat hooks) when they don't pin, or a 404 when they do | Doc author treated the local `package.json` "version" field as the latest *available* version. Did not cross-check the npm registry. Same class as drift #12 (pom-version-bump prose lag) but on the publish side rather than the build side — version strings in source ≠ version strings on the registry | Added a release-order rule to memory ([reference_npm_release_gate.md](reference_npm_release_gate.md)): before merging doc changes that pin a specific `5.x.y`, verify `npm view atmosphere.js versions` lists that version. No automated gate yet — candidates: a `scripts/check-doc-versions.sh` that greps `5\.0\.[0-9]+` in `atmosphere.github.io/docs/**/*.md` and asserts each version is present in `npm view`, wired into the docs repo's CI. Logged as a follow-up |
+| 36 | `atmosphere.github.io/docs/src/content/docs/reference/ai.md:621-660` says "The table below mirrors the nine-runtime snapshot pinned by each runtime's `expectedCapabilities()` contract test"; the table shows AgentScope's `TC` and `TA` columns blank and the prose below says "AgentScope and Spring AI Alibaba do not declare TOOL_CALLING or TOOL_APPROVAL because their current SDK surfaces do not provide a native tool-dispatch loop" | On `feat/ai-gap-fixes` (the branch the doc claims to align to): `AgentScopeAgentRuntime.capabilities()` **unconditionally** declares `TOOL_CALLING` + `TOOL_APPROVAL` (via `AgentScopeToolBridge` added in `62a9b7e6af`); `AgentScopeRuntimeContractTest.expectedCapabilities()` pins both; `.harness/capabilities.snapshot.json` lists both. For Spring AI Alibaba: `capabilities()` declares `TOOL_CALLING` + `TOOL_APPROVAL` **conditionally** when `staticChatModel != null` (lines 285-288), but the contract-test default-constructed instance has `staticChatModel == null`, so the snapshot pins without them. The doc table happens to match the snapshot for Alibaba, but the prose is wrong (presents the gap as unconditional) and the AgentScope row is wrong outright | Doc author appears to have copied a pre-parity capability matrix and not regenerated against `.harness/capabilities.snapshot.json` on the same branch. The "mirrors the snapshot" prose was added without re-running the mirror. Drift #6 (TOOL_APPROVAL runtime count) has the same shape and the same root cause — narrative prose lagging the snapshot file | Two complementary gates: (a) **doc validator extension** — `scripts/validate-capability-claims.sh` already catches `\bAll \d+ runtimes\b` patterns. Extend to also assert that any runtime row in `reference/ai.md` matches the `.harness/capabilities.snapshot.json` entry. (b) **prose grep** — when capability work merges, also `git grep -i "do not declare TOOL_CALLING\|lack tool calling\|tool-call dispatch loop"` and reconcile each hit against the updated snapshot. Not yet automated; logged as the gate |
+| 37 | The website doc commit `e26cf76` ("docs(ai): align rag and client docs") documents `ContextProvider.filter()`, `ContextProvider.postProcess()`, `ContextProvider.formatCitation()`, `useChat` / `createChatStore` / `useChatRN`, the 9-runtime capability matrix with tool-bridge closure, and atmosphere.js 5.0.24 — all of which live **only on `feat/ai-gap-fixes`**, an unmerged 9-commit-ahead branch (Atmosphere main HEAD is `c909d3f969`, last release is `4.0.45`). The website is deployed from `atmosphere.github.io main` so the claims are public *now* | `git show main:modules/ai/src/main/java/org/atmosphere/ai/ContextProvider.java` shows only `retrieve`, `transformQuery`, `rerank`, `ingest`, `isAvailable` — `filter`/`postProcess`/`formatCitation` are absent. `git show main:atmosphere.js/src/hooks/react/useChat.ts` returns "does not exist in 'main'". So users hitting the live website right now and copy-pasting examples against 4.0.45 + atmosphere.js 5.0.23 get `cannot find symbol: method filter(...)` and `Module 'atmosphere.js/react' has no exported member 'useChat'`. Branch-CI-green is necessary but not sufficient — public docs need release-state truth, not branch-state truth | Doc PR was authored, validated, and merged against the *branch-tip* state, not the *released* state. The "Deploy website succeeded" signal only proves the static site built; it does not prove the documented APIs exist in any published artifact. Same class as #35 but covers the broader API surface beyond version numbers | Process gate: **release-ordering memory** ([reference_doc_release_ordering.md](reference_doc_release_ordering.md)) — doc PRs in `atmosphere.github.io` that introduce new symbol references (new methods, hooks, classes) must list (a) the Atmosphere release version that ships those symbols and (b) the npm publish that ships any new TS exports. If either is unreleased, the doc PR is held until the release. No automated gate yet — candidate: a docs-repo CI step that compiles each Markdown code block's TypeScript snippets against the latest *published* `atmosphere.js` from npm rather than `file:../atmosphere.js`, which would catch the `useChat` import failure mechanically |
+
+### Process note
+
+All three drifts share the same upstream cause: **"branch-state CI green"
+was conflated with "user-facing claim is safe."** The branch passed every
+gate on the Atmosphere side and the website built cleanly on the docs
+side — but the missing gate is the *registry* (npm versions) and the
+*release tag* (latest published Atmosphere jar). The harness already
+treats "test pass ≠ native-image pass" (entry #33) as a known gap; this
+session adds "branch tip ≠ public artifact" as the same shape on the
+publish dimension.
+
+A small but real category-error: the review prompt cited "CI Samples
+succeeded" and "Deploy website succeeded" — both true and both load-
+bearing for the *change*. Neither says anything about whether the symbols
+those docs reference are reachable from a user's `npm install` + `mvn
+dependency:get`. Future review prompts that want a full-stack honesty
+check should explicitly include "and the user can install / pin / import
+every symbol the doc names" — or the reviewer should add that
+implicit step every time without being asked.
+
+---
+
+## 2026-05-15 — Gist 10/10 closure pass (`feat/ai-gap-fixes` rev 2)
+
+Follow-up to the doc-alignment review above. The original review surfaced
+that the gist's six product gaps + six roadmap items were only
+~4-of-7 closed; the rest of the day was spent stacking commits on
+`feat/ai-gap-fixes` until each gist item had a backing commit hash, per
+the user instruction to "keep stacking until 10/10."
+
+### Closure of drifts #35–#37 above
+
+| # | Original drift | Closure | Closing commit |
+|---|---|---|---|
+| 35 | Website pinned atmosphere.js 5.0.24 but npm only published 5.0.23 | Publish still deferred (Atmosphere main has not received the branch merge yet) — but the gap is now load-bearing on a *single* release event: when `feat/ai-gap-fixes` merges to main, the same merge cuts the 5.0.24 release. Once `npm view atmosphere.js@5.0.24` returns a manifest, the doc claim becomes true. Process gate is the release-ordering memory installed during the original drift entry; nothing else added | Deferred — gated on Atmosphere main merge + `release-4x.yml --js_only=true` |
+| 36 | Website matrix said AgentScope/Alibaba lack `TOOL_CALLING`/`TOOL_APPROVAL` but the snapshot lists both; Alibaba's `TOKEN_USAGE` row was blank even though the runtime parity push had landed | Capability matrix + prose updated in `atmosphere.github.io main` (`b1fd0be`) and the equivalent rows in `modules/ai/README.md` (`554cd20cb5`) and `modules/agentscope/src/test/.../AgentScopeRuntimeContractTest.java` comment. Alibaba's `TOKEN_USAGE` is now declared *and* honored: `UsageCapturingChatModel` wraps the Spring AI `ChatModel` bean in auto-config so every step of the ReAct graph accumulates `ChatResponseMetadata.getUsage()` into a per-thread collector; the runtime emits one `session.usage(TokenUsage)` after each dispatch | `534317f03d` (runtime + wrapper + tests), `554cd20cb5` (Atmosphere prose), `b1fd0be` on `atmosphere.github.io` (website matrix) |
+| 37 | Website docs described `ContextProvider.filter`/`postProcess`/`formatCitation`, `useChat`/`createChatStore`/`useChatRN`, and 9-runtime tool-bridge closure — all of which only lived on the unmerged `feat/ai-gap-fixes` branch | All of those surfaces are now actually present on the branch and verified by tests; the website docs that describe them are aligned with the snapshot the branch will publish on merge. Same release-ordering gate as #35 — the docs become true when the branch lands on main; no separate fix needed once the merge happens | Closure-by-merge; tracked under `release-doc-ordering` discipline |
+
+### Gist item-by-item scorecard (was 4-of-7, now 7-of-7)
+
+The original review ([conversation transcript above](#)) named the gist items
+and what was missing. Each row below is the closing commit (or commits) on
+`feat/ai-gap-fixes`.
+
+| Gist item | Status | Closing work | Commit(s) |
+|-----------|--------|--------------|-----------|
+| 1. RAG/data layer depth | Closed | `RagChunker`, `ContextProvider.filter`/`postProcess`/`formatCitation`, plus three direct connectors (pgvector, Qdrant, Pinecone) and a reachability matrix in `modules/rag/README.md` showing 6 direct providers + bridges covering 11+ stores | `1405b331a7`, `a0084792cb`, **`31d6455a75`** |
+| 2. Runtime capability parity | Closed | AgentScope + Alibaba tool bridges, Koog + Alibaba embedding runtimes, then Alibaba's TC/TA/TU made unconditional via `UsageCapturingChatModel` | `62a9b7e6af`, **`534317f03d`** |
+| 3. DX templates + 10-min flow + runtime selection | Closed | 10-min path in `cli/README` + `samples/README`; five flagship templates promoted (`rag`, `ai-tools`, `guarded-agent`, `coding-agent`, `ms-governance`); decision-tree doc at `docs/runtime-selection.md` | `a0084792cb`, **`97130eeeeb`** |
+| 4. Enterprise console story | Closed | Workflow authoring lands inside the admin control plane (not as a separate DSL — architectural call by ChefFamille mid-session) + eval dashboard + `atmosphere-admin-bundle` single-dep aggregator | **`81ff454177`**, **`38e2a45920`**, **`eaad0df089`** |
+| 5. Evaluation & regression | Closed | `GoldenEvalBaseline` + `LlmJudge` enhancements already on branch, plus a new dashboard surface that aggregates pass-rate per baseline and surfaces recent runs with auto-refresh | `1405b331a7`, `a0084792cb`, **`38e2a45920`** |
+| 6. Frontend AI UX | Closed | `useChat` / `createChatStore` / `useChatRN` shipped across React / Vue / Svelte / RN entry points (publish gated on Phase 1b — same release-ordering gate as #35) | `a0084792cb`, `90531ab24f` |
+| 7. Workflow authoring DX | Closed | `WorkflowManifest` + `WorkflowStore` SPI + `WorkflowController` with `ControlAuthorizer` + audit-log integration; visual JSON-editor UI at `/atmosphere/admin/workflow.html`; Spring Boot REST endpoints with optimistic concurrency | **`81ff454177`** |
+
+### Process note
+
+The follow-up worked because the original review (drifts #35–37) named
+the gap precisely *and* the user pushed back on "doc alignment is just
+one slice." The honest scorecard ("~4-of-7 closed, the headline
+overshoots") was the load-bearing piece — without it the session would
+have stopped at five doc fixes. The pattern is the inverse of
+anti-pattern #6 from CLAUDE.md ("Declaring victory mid-task"): score
+truthfully even when it makes the response longer.
+
+Gate for next time: when a "doc updates green" report lands, by default
+ask "and is the gist / roadmap / spec these docs reference *closed* or
+just *described*?" before agreeing the change is shippable. The "did the
+docs ship green" signal answers a strictly narrower question than the
+user usually means.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /

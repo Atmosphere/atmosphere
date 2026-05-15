@@ -31,6 +31,7 @@ export interface StreamingStoreState {
   metadata: Record<string, unknown>;
   stats: SessionStats | null;
   routing: RoutingInfo;
+  aiEvents: { event: string; data: Record<string, unknown> }[];
   error: string | null;
 }
 
@@ -66,6 +67,7 @@ export function createStreamingStore(
     metadata: {},
     stats: null,
     routing: {},
+    aiEvents: [],
     error: null,
   };
 
@@ -111,6 +113,9 @@ export function createStreamingStore(
         onSessionComplete: (s, r) => {
           update({ stats: s, routing: r });
         },
+        onAiEvent: (event, data) => {
+          update({ aiEvents: [...current.aiEvents, { event, data }] });
+        },
       });
     } catch (err) {
       update({
@@ -151,9 +156,10 @@ export function createStreamingStore(
       metadata: {},
       stats: null,
       routing: {},
+      aiEvents: [],
       error: null,
     });
   }
 
-  return { store, send, reset };
+  return { store, send, reset, close: disconnect };
 }

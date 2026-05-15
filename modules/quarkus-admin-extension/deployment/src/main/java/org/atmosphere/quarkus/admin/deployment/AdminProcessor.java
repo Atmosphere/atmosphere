@@ -76,13 +76,15 @@ public class AdminProcessor {
     }
 
     /**
-     * Make the bundled Console SPA assets reachable in native image.
+     * Make the bundled Admin and Console SPA assets reachable in native image.
      * Without this they get pruned because the resources are read via
-     * reflection-style classpath lookup, not annotation-driven discovery.
+     * reflection-style classpath lookup or Quarkus static-resource lookup, not
+     * annotation-driven discovery.
      */
     @BuildStep
     NativeImageResourceBuildItem registerConsoleResources() {
         return new NativeImageResourceBuildItem(
+                "META-INF/resources/admin/index.html",
                 "META-INF/resources/atmosphere/console/index.html",
                 "META-INF/resources/atmosphere/console/assets/index-D4Ey4XUD.js",
                 "META-INF/resources/atmosphere/console/assets/index-5mdPW76Z.css");

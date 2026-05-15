@@ -59,6 +59,7 @@ export interface UseStreamingRNResult {
   metadata: Record<string, unknown>;
   stats: SessionStats | null;
   routing: RoutingInfo;
+  aiEvents: { event: string; data: Record<string, unknown> }[];
   error: string | null;
   isConnected: boolean;
   /**
@@ -102,6 +103,7 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
   const [metadata, setMetadata] = useState<Record<string, unknown>>({});
   const [stats, setStats] = useState<SessionStats | null>(null);
   const [routing, setRouting] = useState<RoutingInfo>({});
+  const [aiEvents, setAiEvents] = useState<{ event: string; data: Record<string, unknown> }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(true);
 
@@ -195,6 +197,9 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
               }
             }
           },
+          onAiEvent: (event, data) => {
+            if (!cancelled) setAiEvents((prev) => [...prev, { event, data }]);
+          },
           onSessionComplete: (s, r) => {
             if (!cancelled) {
               setStats(s);
@@ -274,6 +279,7 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
     setMetadata({});
     setStats(null);
     setRouting({});
+    setAiEvents([]);
     setError(null);
   }, []);
 
@@ -286,10 +292,10 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
 
   return useMemo(
     () => ({
-      fullText, streamingTexts, isStreaming, progress, metadata, stats, routing,
+      fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, aiEvents,
       error, isConnected, connectionStatus, send, reset, close,
     }),
-    [fullText, streamingTexts, isStreaming, progress, metadata, stats, routing,
+    [fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, aiEvents,
      error, isConnected, connectionStatus, send, reset, close],
   );
 }

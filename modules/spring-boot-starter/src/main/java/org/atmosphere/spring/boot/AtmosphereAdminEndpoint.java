@@ -466,6 +466,181 @@ public class AtmosphereAdminEndpoint {
         return ResponseEntity.ok(controller.renderRun(coordinationId));
     }
 
+    // ── Workflow Authoring ──
+
+    @GetMapping("/workflow")
+    public ResponseEntity<List<org.atmosphere.admin.workflow.WorkflowManifest>> listWorkflows() {
+        org.atmosphere.admin.workflow.WorkflowController controller = admin.workflowController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(controller.list());
+    }
+
+    @GetMapping("/workflow/{id}")
+    public ResponseEntity<org.atmosphere.admin.workflow.WorkflowManifest> getWorkflow(
+            @PathVariable("id") String id) {
+        org.atmosphere.admin.workflow.WorkflowController controller = admin.workflowController();
+        if (controller == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return controller.get(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/workflow")
+    public ResponseEntity<Map<String, Object>> saveWorkflow(
+            @org.springframework.web.bind.annotation.RequestBody
+            org.atmosphere.admin.workflow.WorkflowManifest manifest,
+            HttpServletRequest request) {
+        var guard = guardWrite(request, "workflow.write", manifest.id());
+        if (guard != null) {
+            return guard;
+        }
+        org.atmosphere.admin.workflow.WorkflowController controller = admin.workflowController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "error", "Workflow controller not wired"));
+        }
+        try {
+            var saved = controller.save(manifest, resolvePrincipal(request));
+            return ResponseEntity.ok(Map.of(
+                    "id", saved.id(),
+                    "name", saved.name(),
+                    "version", saved.version(),
+                    "updatedAt", saved.updatedAt().toString()));
+        } catch (org.atmosphere.admin.workflow.WorkflowStoreException wse) {
+            if (wse.kind() == org.atmosphere.admin.workflow.WorkflowStoreException.Kind.VERSION_CONFLICT) {
+                return ResponseEntity.status(409).body(Map.of(
+                        "error", wse.getMessage(),
+                        "kind", wse.kind().name()));
+            }
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", wse.getMessage(),
+                    "kind", wse.kind().name()));
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.badRequest().body(Map.of("error", iae.getMessage()));
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("error", se.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/workflow/{id}")
+    public ResponseEntity<Map<String, Object>> deleteWorkflow(
+            @PathVariable("id") String id,
+            HttpServletRequest request) {
+        var guard = guardWrite(request, "workflow.delete", id);
+        if (guard != null) {
+            return guard;
+        }
+        org.atmosphere.admin.workflow.WorkflowController controller = admin.workflowController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "error", "Workflow controller not wired"));
+        }
+        try {
+            controller.delete(id, resolvePrincipal(request));
+            return ResponseEntity.ok(Map.of("deleted", id));
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("error", se.getMessage()));
+        }
+    }
+
+    private String resolvePrincipal(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        var principal = request.getUserPrincipal();
+        if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
+            return principal.getName();
+        }
+        var attr = request.getAttribute("ai.userId");
+        return attr != null ? attr.toString() : null;
+    }
+
+    // ── Eval Dashboard ──
+
+    @GetMapping("/evals/runs")
+    public ResponseEntity<List<org.atmosphere.admin.evals.EvalRun>> listEvalRuns(
+            @RequestParam(value = "baseline", required = false) String baseline) {
+        org.atmosphere.admin.evals.EvalController controller = admin.evalController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(
+                baseline != null ? controller.listRuns(baseline) : controller.listRuns());
+    }
+
+    @GetMapping("/evals/baselines")
+    public ResponseEntity<List<Map<String, Object>>> baselineSummary() {
+        org.atmosphere.admin.evals.EvalController controller = admin.evalController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(controller.baselineSummary());
+    }
+
+    @GetMapping("/evals/runs/{id}")
+    public ResponseEntity<org.atmosphere.admin.evals.EvalRun> getEvalRun(
+            @PathVariable("id") String id) {
+        org.atmosphere.admin.evals.EvalController controller = admin.evalController();
+        if (controller == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return controller.getRun(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/evals/runs")
+    public ResponseEntity<Map<String, Object>> recordEvalRun(
+            @org.springframework.web.bind.annotation.RequestBody
+            org.atmosphere.admin.evals.EvalRun run,
+            HttpServletRequest request) {
+        var guard = guardWrite(request, "evals.write", run.baseline());
+        if (guard != null) {
+            return guard;
+        }
+        org.atmosphere.admin.evals.EvalController controller = admin.evalController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "error", "Eval controller not wired"));
+        }
+        try {
+            var saved = controller.record(run, resolvePrincipal(request));
+            return ResponseEntity.ok(Map.of(
+                    "id", saved.id(),
+                    "baseline", saved.baseline(),
+                    "passed", saved.passed()));
+        } catch (IllegalArgumentException | IllegalStateException invalid) {
+            return ResponseEntity.badRequest().body(Map.of("error", invalid.getMessage()));
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("error", se.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/evals/runs/{id}")
+    public ResponseEntity<Map<String, Object>> deleteEvalRun(
+            @PathVariable("id") String id,
+            HttpServletRequest request) {
+        var guard = guardWrite(request, "evals.delete", id);
+        if (guard != null) {
+            return guard;
+        }
+        org.atmosphere.admin.evals.EvalController controller = admin.evalController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "error", "Eval controller not wired"));
+        }
+        try {
+            controller.delete(id, resolvePrincipal(request));
+            return ResponseEntity.ok(Map.of("deleted", id));
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("error", se.getMessage()));
+        }
+    }
+
     // ── A2A Tasks ──
 
     @GetMapping("/tasks")

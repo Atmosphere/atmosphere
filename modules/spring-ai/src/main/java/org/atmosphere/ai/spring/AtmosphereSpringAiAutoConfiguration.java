@@ -20,6 +20,7 @@ import com.openai.client.OpenAIClientAsync;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.openai.AbstractOpenAiOptions;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
@@ -100,5 +101,15 @@ public class AtmosphereSpringAiAutoConfiguration {
         }
         SpringAiAgentRuntime.setChatClient(chatClient);
         return new SpringAiAgentRuntime();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SpringAiEmbeddingRuntime.class)
+    public SpringAiEmbeddingRuntime springAiEmbeddingRuntime(ObjectProvider<EmbeddingModel> embeddingModelProvider) {
+        var embeddingModel = embeddingModelProvider.getIfAvailable();
+        if (embeddingModel != null) {
+            SpringAiEmbeddingRuntime.setEmbeddingModel(embeddingModel);
+        }
+        return new SpringAiEmbeddingRuntime();
     }
 }

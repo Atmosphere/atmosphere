@@ -487,14 +487,18 @@ class KoogAgentRuntime : AgentRuntime {
                 val ragContext = StringBuilder()
                 for (provider in context.contextProviders()) {
                     if (!provider.isAvailable) continue
-                    val query = provider.transformQuery(context.message())
+                    val query = org.atmosphere.ai.ContextProvider.normalizeQuery(
+                        provider.transformQuery(context.message())
+                    )
+                    if (!org.atmosphere.ai.ContextProvider.shouldRetrieve(query)) continue
                     val docs = provider.retrieve(query, 5)
-                    val reranked = provider.rerank(query, docs)
-                    for (doc in reranked) {
+                    val filtered = provider.filter(query, docs)
+                    val reranked = provider.rerank(query, filtered)
+                    val finalDocs = provider.postProcess(query, reranked)
+                    for (doc in finalDocs) {
                         ragContext.append("\n---\n").append(doc.content())
-                        if (doc.source() != null) {
-                            ragContext.append("\n[Source: ").append(doc.source()).append("]")
-                        }
+                        ragContext.append("\n")
+                            .append(org.atmosphere.ai.ContextProvider.formatCitation(doc))
                     }
                 }
                 if (ragContext.isNotEmpty()) {
@@ -600,12 +604,18 @@ class KoogAgentRuntime : AgentRuntime {
             val ragContext = StringBuilder()
             for (provider in context.contextProviders()) {
                 if (!provider.isAvailable) continue
-                val query = provider.transformQuery(context.message())
+                val query = org.atmosphere.ai.ContextProvider.normalizeQuery(
+                    provider.transformQuery(context.message())
+                )
+                if (!org.atmosphere.ai.ContextProvider.shouldRetrieve(query)) continue
                 val docs = provider.retrieve(query, 5)
-                val reranked = provider.rerank(query, docs)
-                for (doc in reranked) {
+                val filtered = provider.filter(query, docs)
+                val reranked = provider.rerank(query, filtered)
+                val finalDocs = provider.postProcess(query, reranked)
+                for (doc in finalDocs) {
                     ragContext.append("\n---\n").append(doc.content())
-                    if (doc.source() != null) ragContext.append("\n[Source: ").append(doc.source()).append("]")
+                    ragContext.append("\n")
+                        .append(org.atmosphere.ai.ContextProvider.formatCitation(doc))
                 }
             }
             if (ragContext.isNotEmpty()) {
@@ -812,4 +822,3 @@ private fun unwrapJsonElement(elem: ai.koog.serialization.JSONElement?): Any? = 
     is ai.koog.serialization.JSONObject -> unwrapJsonObject(elem)
     else -> elem.toString()
 }
-

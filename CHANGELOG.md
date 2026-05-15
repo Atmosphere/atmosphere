@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Spring AI Alibaba: unconditional `TOOL_CALLING` / `TOOL_APPROVAL` /
+  `TOKEN_USAGE` (`534317f03d`) — `UsageCapturingChatModel` wraps the
+  configured Spring AI `ChatModel` bean at auto-configuration time;
+  per-thread accumulator captures `ChatResponseMetadata.getUsage()` across
+  every step of the ReAct graph and emits a single
+  `session.usage(TokenUsage)` after each dispatch. Tool calling is no
+  longer gated on `staticChatModel != null` — `SpringAiAlibabaToolBridge`
+  is wired on every dispatch with tools, and the runtime fails fast with
+  `configurationHint()` if `ChatModel` is missing. Closes the last
+  conditional capability gap from the runtime parity push (`62a9b7e6af`).
+- RAG vector-store matrix expanded with three direct connectors
+  (`31d6455a75`): `PgVectorContextProvider` (Postgres + pgvector via
+  JDBC), `QdrantContextProvider` (Qdrant REST over
+  `java.net.http.HttpClient`), and `PineconeContextProvider` (Pinecone
+  REST). Each connector embeds the user query through
+  `EmbeddingRuntime`, validates caller-controlled identifiers at
+  construction time per Boundary-Safety invariant, and ships with a
+  Mockito-backed unit-test suite. `modules/rag/README.md` adds a
+  reachability matrix showing the six direct providers plus the
+  Spring AI / LangChain4j bridges covering the long tail (Weaviate,
+  Milvus, Chroma, Elasticsearch, Redis Stack, MongoDB Atlas, OpenSearch,
+  Cassandra).
+- Workflow authoring inside the admin control plane (`81ff454177`) —
+  `WorkflowManifest` JSON record, `WorkflowStore` SPI with
+  `InMemoryWorkflowStore` default and optimistic-concurrency version
+  conflict detection, `WorkflowController` with `ControlAuthorizer`
+  gating plus audit-log entries on every save / delete, Spring Boot
+  endpoint exposes `GET/POST/DELETE /api/admin/workflow`, and
+  `/atmosphere/admin/workflow.html` ships a vanilla-JS authoring UI
+  that lists / creates / edits manifests against the REST surface.
+- Eval dashboard inside the admin control plane (`38e2a45920`) —
+  `EvalRun` JSON record, `EvalRunStore` SPI with bounded-ring-buffer
+  `InMemoryEvalRunStore` default (500 runs per baseline,
+  oldest-evicted), `EvalController` aggregates pass-rate per baseline,
+  Spring Boot endpoint exposes
+  `GET/POST/DELETE /api/admin/evals/{runs,baselines}`, and
+  `/atmosphere/admin/evals.html` surfaces pass-rate meters + recent-run
+  table with auto-refresh. CI submits a JSON body per LLM-as-judge run
+  and the dashboard surfaces the trend without leaving the control
+  plane.
+- `atmosphere-admin-bundle` enterprise console aggregator
+  (`eaad0df089`) — single Maven `pom`-packaging artifact that
+  transitively pulls in `atmosphere-spring-boot-starter`,
+  `atmosphere-admin`, `atmosphere-ai`, `atmosphere-coordinator`,
+  `atmosphere-agent`, `atmosphere-rag`, `atmosphere-checkpoint`,
+  `atmosphere-durable-sessions`, and
+  `atmosphere-durable-sessions-sqlite`. Adding one dep gives operators
+  the dashboard, journal flow viewer, workflow authoring, eval
+  dashboard, and governance decision viewer; deliberately does not pin
+  an `AgentRuntime` adapter or a vector-store driver so operators
+  choose those independently.
+- `docs/runtime-selection.md` (`97130eeeeb`) — nine-runtime decision
+  tree walking the questions an architect should answer before picking
+  an `AgentRuntime`, cross-referenced against the pinned capability
+  snapshot. Companion to the cli / samples "flagship enterprise
+  templates" promotion that calls out `rag`, `ai-tools`,
+  `guarded-agent`, `coding-agent`, and `ms-governance` as the canonical
+  agent shapes.
+
+### Tests
+
+- AI gap Playwright coverage (`e91b8084fd`) — `ai-gap-coverage.spec.ts`
+  exercises the deterministic RAG, input-assembly telemetry, and evaluator
+  artifact paths through `AiFeatureTestServer`; Vue, Svelte, and React Native
+  hook tests pin the new chat-hook parity surface.
+- `UsageCapturingChatModelTest`, `SpringAiAlibabaRuntimeContractTest`
+  (TC/TA/TU pinned), `WorkflowManifestTest`, `WorkflowControllerTest`,
+  `EvalControllerTest`, `PgVectorContextProviderTest`,
+  `QdrantContextProviderTest`, `PineconeContextProviderTest`
+  (`534317f03d`, `31d6455a75`, `81ff454177`, `38e2a45920`).
+
 ## [4.0.45] - 2026-05-12
 
 ### Added

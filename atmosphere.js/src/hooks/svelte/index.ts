@@ -18,6 +18,8 @@ export { createAtmosphereStore } from './atmosphere';
 export { createRoomStore } from './room';
 export { createPresenceStore } from './presence';
 export { createStreamingStore } from './streaming';
+export { createChatStore } from './chat';
+export type { ChatStoreState, CreateChatStoreOptions } from './chat';
 export { createOfflineQueueStore } from './offlineQueue';
 export type { OfflineQueueStoreState, OfflineQueueStoreHandle } from './offlineQueue';
 export { createMessageHistoryStore } from './messageHistory';

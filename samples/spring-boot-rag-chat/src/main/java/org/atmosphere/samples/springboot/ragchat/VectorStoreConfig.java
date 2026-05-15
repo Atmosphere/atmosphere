@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.ragchat;
 
 import org.atmosphere.ai.ContextProvider;
+import org.atmosphere.ai.rag.RagChunker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
@@ -94,13 +95,17 @@ public class VectorStoreConfig {
     public VectorStore vectorStore(EmbeddingModel embeddingModel) {
         var store = SimpleVectorStore.builder(embeddingModel).build();
 
-        var springDocs = KnowledgeBase.instance().documents().stream()
-                .map(d -> new Document(d.content(), Map.of("source", d.source())))
+        var springDocs = RagChunker.chunkAll(KnowledgeBase.instance().documents()).stream()
+                .map(d -> {
+                    var metadata = new java.util.HashMap<String, Object>();
+                    metadata.putAll(d.metadata());
+                    metadata.put("source", d.source());
+                    return new Document(d.content(), Map.copyOf(metadata));
+                })
                 .toList();
         if (!springDocs.isEmpty()) {
-            store.doAdd(springDocs);
-            logger.info("Loaded {} documents into SimpleVectorStore with embeddings",
-                    springDocs.size());
+            store.add(springDocs);
+            logger.info("Loaded {} chunks into SimpleVectorStore with embeddings", springDocs.size());
         }
 
         return store;

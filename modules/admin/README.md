@@ -24,6 +24,20 @@ Add this alongside your Atmosphere starter. The admin control plane auto-configu
 | `/atmosphere/admin/events` | WebSocket event stream (via Atmosphere itself) |
 | MCP tools | `atmosphere_overview`, `atmosphere_list_agents`, etc. |
 
+## Packaging Matrix
+
+| Packaging | Dashboard | REST API | Event stream | Notes |
+|-----------|-----------|----------|--------------|-------|
+| Spring Boot starter | `/atmosphere/admin/` | `/api/admin/*` | `/atmosphere/admin/events` | Add `atmosphere-admin`; `AtmosphereAdminEndpoint` wires the dashboard, flow viewer, governance endpoints, and event handler. |
+| Quarkus extension | `/admin/` | `/api/admin/*` | `/atmosphere/admin/events` | Add the Quarkus admin extension; Quarkus serves the console at the shorter `/admin/` path while preserving the REST API. |
+| Servlet / embedded | `/atmosphere/admin/` when registered | `/api/admin/*` when registered | `/atmosphere/admin/events` | Register the admin handlers explicitly with the framework. |
+
+The Spring Boot starter is the blessed enterprise packaging path today because
+it wires admin, governance, runtime discovery, and coordinator journal bridges
+from regular Spring beans. Quarkus is supported for operator inspection and
+native-image deployments; mutating endpoints use the same `ControlAuthorizer`
+SPI and fail closed unless write operations are explicitly enabled.
+
 ## Dashboard
 
 The admin dashboard is a self-contained HTML/CSS/JS page served at `/atmosphere/admin/`. No build step required.
@@ -174,6 +188,14 @@ without extra wiring. Atmosphere `AuthInterceptor` populates the
 | `GET /api/admin/flow[?lookbackMinutes=N]` | Render the coordination journal as a graph (nodes=agents, edges=dispatches) |
 | `GET /api/admin/flow/{coordinationId}` | Same graph scoped to a single run |
 
+Operator checks:
+
+```bash
+curl http://localhost:8080/api/admin/flow?lookbackMinutes=30
+curl http://localhost:8080/api/admin/flow/<coordination-id>
+curl http://localhost:8080/api/admin/journal/<coordination-id>/log
+```
+
 Payload shape:
 
 ```json
@@ -197,6 +219,22 @@ Backed by `atmosphere-coordinator`'s `CoordinationJournal` (Spring bean
 bridge via `AtmosphereCoordinatorAutoConfiguration`). When no journal
 is installed the endpoint returns empty nodes/edges rather than
 failing.
+
+### Governance Decision Viewer
+
+When `atmosphere-ai` governance is on the classpath, the admin module exposes
+read-side decision inspection and health checks:
+
+```bash
+curl http://localhost:8080/api/admin/governance/policies
+curl http://localhost:8080/api/admin/governance/health
+curl http://localhost:8080/api/admin/governance/decisions
+curl http://localhost:8080/api/admin/governance/agt-verify
+```
+
+Mutating governance operations, including the kill switch, require
+`atmosphere.admin.http-write-enabled=true`, an authenticated principal, and a
+grant from `ControlAuthorizer`.
 
 ## WebSocket Event Stream
 

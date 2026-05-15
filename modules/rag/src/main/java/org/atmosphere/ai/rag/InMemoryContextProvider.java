@@ -76,6 +76,25 @@ public class InMemoryContextProvider implements ContextProvider {
         return new InMemoryContextProvider(docs);
     }
 
+    /**
+     * Loads text files from the classpath and chunks each resource for retrieval.
+     *
+     * @param maxChars maximum characters per chunk
+     * @param overlapChars characters to overlap between adjacent chunks
+     * @param resources classpath resource paths (e.g. "docs/websocket.md")
+     * @return a new provider containing chunked documents
+     * @throws IllegalArgumentException if a resource cannot be found or read
+     */
+    public static InMemoryContextProvider fromClasspathChunked(
+            int maxChars, int overlapChars, String... resources) {
+        var docs = new ArrayList<Document>();
+        for (var resource : resources) {
+            var content = readClasspathResource(resource);
+            docs.addAll(RagChunker.chunk(new Document(content, resource, 1.0), maxChars, overlapChars));
+        }
+        return new InMemoryContextProvider(docs);
+    }
+
     @Override
     public List<Document> retrieve(String query, int maxResults) {
         if (query == null || query.isBlank() || documents.isEmpty() || maxResults <= 0) {

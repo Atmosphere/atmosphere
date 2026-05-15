@@ -67,6 +67,11 @@ export type StreamingConnectionState =
   | 'closed'
   | 'error';
 
+export interface VueAiEvent {
+  event: string;
+  data: Record<string, unknown>;
+}
+
 export function useStreaming(
   request: AtmosphereRequest,
   instance?: Atmosphere,
@@ -80,6 +85,7 @@ export function useStreaming(
   const metadata: Ref<Record<string, unknown>> = ref({});
   const stats: Ref<SessionStats | null> = ref(null);
   const routing: Ref<RoutingInfo> = ref({});
+  const aiEvents: Ref<VueAiEvent[]> = ref([]);
   const error: Ref<string | null> = ref(null);
   const connectionState: Ref<StreamingConnectionState> = ref('idle');
   const isReconnecting: ComputedRef<boolean> = computed(
@@ -149,6 +155,9 @@ export function useStreaming(
             routing.value = { ...routing.value, [field]: value };
           }
         },
+        onAiEvent: (event, data) => {
+          aiEvents.value = [...aiEvents.value, { event, data }];
+        },
         onSessionComplete: (s, r) => {
           stats.value = s;
           routing.value = r;
@@ -179,7 +188,13 @@ export function useStreaming(
     metadata.value = {};
     stats.value = null;
     routing.value = {};
+    aiEvents.value = [];
     error.value = null;
+  };
+
+  const close = () => {
+    handle?.close();
+    isStreaming.value = false;
   };
 
   connect();
@@ -190,7 +205,7 @@ export function useStreaming(
   });
 
   return {
-    fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, error,
-    send, reset, connectionState, isReconnecting, connectionStatus,
+    fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, aiEvents, error,
+    send, reset, close, connectionState, isReconnecting, connectionStatus,
   };
 }

@@ -510,5 +510,48 @@ public class AtmosphereAdminAutoConfiguration {
                     journal.getClass().getSimpleName());
             return controller;
         }
+
+        /**
+         * Wires the workflow-authoring controller backing the
+         * {@code /api/admin/workflow} endpoints. Uses an in-memory store
+         * by default; production deployments should provide a
+         * {@link org.atmosphere.admin.workflow.WorkflowStore} bean
+         * (JDBC, Redis, etc.) which this method picks up automatically.
+         */
+        @Bean
+        org.atmosphere.admin.workflow.WorkflowController atmosphereAdminWorkflowController(
+                AtmosphereAdmin admin,
+                org.springframework.beans.factory.ObjectProvider<
+                        org.atmosphere.admin.workflow.WorkflowStore> storeProvider) {
+            var store = storeProvider.getIfAvailable(
+                    org.atmosphere.admin.workflow.InMemoryWorkflowStore::new);
+            var controller = new org.atmosphere.admin.workflow.WorkflowController(
+                    store, admin.authorizer(), admin.auditLog());
+            admin.setWorkflowController(controller);
+            logger.debug("Atmosphere Admin: Workflow controller wired (store={})", store.name());
+            return controller;
+        }
+
+        /**
+         * Wires the eval-dashboard controller backing the
+         * {@code /api/admin/evals/*} endpoints. Uses a bounded in-memory
+         * store by default (500 runs per baseline, oldest evicted);
+         * production deployments override with a JDBC-backed
+         * {@link org.atmosphere.admin.evals.EvalRunStore} bean for
+         * durable history across replicas.
+         */
+        @Bean
+        org.atmosphere.admin.evals.EvalController atmosphereAdminEvalController(
+                AtmosphereAdmin admin,
+                org.springframework.beans.factory.ObjectProvider<
+                        org.atmosphere.admin.evals.EvalRunStore> storeProvider) {
+            var store = storeProvider.getIfAvailable(
+                    org.atmosphere.admin.evals.InMemoryEvalRunStore::new);
+            var controller = new org.atmosphere.admin.evals.EvalController(
+                    store, admin.authorizer(), admin.auditLog());
+            admin.setEvalController(controller);
+            logger.debug("Atmosphere Admin: Eval controller wired (store={})", store.name());
+            return controller;
+        }
     }
 }

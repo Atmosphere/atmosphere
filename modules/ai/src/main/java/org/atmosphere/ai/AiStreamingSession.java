@@ -533,16 +533,21 @@ public class AiStreamingSession implements StreamingSession {
             }
         }
 
-        // Context providers: RAG augmentation with query transform + reranking
+        // Context providers: RAG augmentation with query transform + filter/rerank/post-process
         if (!contextProviders.isEmpty()) {
             var contextBuilder = new StringBuilder();
             for (var provider : contextProviders) {
                 try {
-                    var query = provider.transformQuery(request.message());
+                    var query = ContextProvider.normalizeQuery(provider.transformQuery(request.message()));
+                    if (!ContextProvider.shouldRetrieve(query)) {
+                        continue;
+                    }
                     var docs = provider.retrieve(query, 5);
+                    docs = provider.filter(query, docs);
                     docs = provider.rerank(query, docs);
+                    docs = provider.postProcess(query, docs);
                     for (var doc : docs) {
-                        contextBuilder.append("\n---\nSource: ").append(doc.source())
+                        contextBuilder.append("\n---\nSource: ").append(ContextProvider.formatCitation(doc))
                                 .append("\n").append(doc.content());
                     }
                 } catch (Exception e) {
@@ -628,7 +633,7 @@ public class AiStreamingSession implements StreamingSession {
                         org.atmosphere.ai.governance.GovernanceDecisionLog.entry(
                                 requestScopePolicy, ctx, "error",
                                 "evaluate threw: " + e.getMessage(), evalMs));
-                tracer.end("error", e.getMessage());
+                tracer.end("error", e.getMessage(), e);
                 delegate.error(new SecurityException("Per-request scope " + requestScopePolicy.name()
                         + " evaluation failed: " + e.getMessage(), e));
                 return;

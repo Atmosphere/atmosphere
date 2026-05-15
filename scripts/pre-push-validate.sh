@@ -90,6 +90,12 @@ $dir"
 
 run_incremental_scoped() {
     echo "Modules: $PL_LIST"
+    case ",$PL_LIST," in
+        *,modules/quarkus-extension/deployment,*|*,modules/quarkus-admin-extension/deployment,*)
+            echo "Pre-installing Quarkus deployment artifact for extension-test bootstrap."
+            ./mvnw install -B -ntp -pl modules/quarkus-extension/deployment -am -DskipTests
+            ;;
+    esac
     echo "Running: ./mvnw install -B -ntp -pl $PL_LIST -am $TEST_GROUPS"
     ./mvnw install -B -ntp -pl "$PL_LIST" -am $TEST_GROUPS
 }
@@ -259,6 +265,11 @@ if [ "$DRY_RUN" = true ]; then
     echo "  reactor mode            : $REACTOR_MODE"
     if [ "$REACTOR_MODE" = "incremental" ]; then
         echo "  modules (-pl)           : $PL_LIST"
+        case ",$PL_LIST," in
+            *,modules/quarkus-extension/deployment,*|*,modules/quarkus-admin-extension/deployment,*)
+                echo "  preinstall              : ./mvnw install -B -ntp -pl modules/quarkus-extension/deployment -am -DskipTests"
+                ;;
+        esac
         echo "  maven command           : ./mvnw install -B -ntp -pl $PL_LIST -am $TEST_GROUPS"
     elif [ "$REACTOR_MODE" = "full" ]; then
         echo "  maven command           : ./mvnw install -B -ntp $TEST_GROUPS"

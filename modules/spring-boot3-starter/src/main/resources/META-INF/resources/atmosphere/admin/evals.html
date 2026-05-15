@@ -1,0 +1,196 @@
+<!--
+  Copyright 2008-2026 Async-IO.org
+
+  Licensed under the Apache License, Version 2.0 (the "License"); you may not
+  use this file except in compliance with the License. You may obtain a copy of
+  the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+  License for the specific language governing permissions and limitations under
+  the License.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Atmosphere Admin — Eval Dashboard</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         margin: 0; padding: 24px; max-width: 1200px; margin-inline: auto; }
+  header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 16px; }
+  header h1 { margin: 0; font-size: 1.4rem; }
+  header nav a { font-size: 0.9rem; margin-right: 12px; }
+  section { margin-bottom: 24px; border: 1px solid #ddd; border-radius: 6px; padding: 16px; }
+  section h2 { margin-top: 0; font-size: 1rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #eee; }
+  th { background: rgba(0, 100, 200, 0.05); font-weight: 600; }
+  tr.pass td.verdict { color: #006633; font-weight: 600; }
+  tr.fail td.verdict { color: #cc0033; font-weight: 600; }
+  .empty { color: #888; font-style: italic; }
+  .meter { display: inline-block; width: 80px; height: 8px; background: #eee; border-radius: 4px;
+           vertical-align: middle; margin-right: 6px; overflow: hidden; }
+  .meter-fill { display: block; height: 100%; }
+  .meter-fill.good { background: #006633; }
+  .meter-fill.bad { background: #cc0033; }
+  .status { font-size: 0.85rem; min-height: 1.2em; }
+  .status.error { color: #cc0033; }
+  details { margin-top: 12px; }
+  details pre { font-size: 0.8rem; overflow-x: auto; background: rgba(0,0,0,0.04); padding: 8px;
+                border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Atmosphere — Eval Dashboard</h1>
+  <nav>
+    <a href="./">Dashboard</a>
+    <a href="./flow.html">Journal Flow</a>
+    <a href="./workflow.html">Workflows</a>
+    <a href="./evals.html" aria-current="page"><strong>Evals</strong></a>
+  </nav>
+</header>
+
+<section>
+  <h2>Baselines</h2>
+  <table id="baseline-table">
+    <thead><tr>
+      <th>Baseline</th><th>Total runs</th><th>Pass rate</th>
+      <th>Last verdict</th><th>Last run at</th>
+    </tr></thead>
+    <tbody><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Recent runs</h2>
+  <table id="runs-table">
+    <thead><tr>
+      <th>Timestamp</th><th>Baseline</th><th>Verdict</th>
+      <th>Judge model</th><th>Agent version</th><th>Details</th>
+    </tr></thead>
+    <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+  </table>
+  <p class="status" id="status"></p>
+</section>
+
+<section>
+  <h2>How to record runs</h2>
+  <p>Wire your CI pipeline to POST a JSON body to
+    <code>/api/admin/evals/runs</code> after each LLM-as-judge run:</p>
+  <pre><code>POST /api/admin/evals/runs
+{
+  "id": "ci-2026-05-15-1734",
+  "baseline": "intent-support",
+  "timestamp": "2026-05-15T17:34:00Z",
+  "agentVersion": "atmosphere-4.0.46",
+  "prompt": "...the judge prompt that was sent...",
+  "judgeResponse": "{\"verdict\": true}",
+  "verdict": true,
+  "scores": {"relevance": 0.9, "groundedness": 0.95},
+  "judgeModel": "gpt-4o-mini",
+  "passed": true,
+  "notes": "promoted to main"
+}</code></pre>
+  <p>The endpoint requires
+    <code>atmosphere.admin.http-write-enabled=true</code> plus an
+    authenticated principal whose <code>ControlAuthorizer</code> grants
+    <code>evals.write</code>. Every accepted submission is recorded in the
+    control audit log so an operator can reconstruct who submitted what.</p>
+</section>
+
+<script>
+  async function getJson(path) {
+    const r = await fetch(path);
+    if (!r.ok) throw new Error('GET ' + path + ' returned ' + r.status);
+    return r.json();
+  }
+
+  function setStatus(text, kind) {
+    const el = document.getElementById('status');
+    el.textContent = text || '';
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function renderBaselines(rows) {
+    const tbody = document.querySelector('#baseline-table tbody');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">No eval runs yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '';
+    for (const row of rows) {
+      const pct = Math.round(row.passRate * 100);
+      const isGood = row.passRate >= 0.8;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(row.baseline)}</td>
+        <td>${row.total}</td>
+        <td>
+          <span class="meter"><span class="meter-fill ${isGood ? 'good' : 'bad'}"
+            style="width:${pct}%"></span></span>
+          ${pct}% (${row.passed}/${row.total})
+        </td>
+        <td>${row.lastVerdict === true ? '✓' : row.lastVerdict === false ? '✗' : '—'}</td>
+        <td>${row.lastRunAt ? escapeHtml(row.lastRunAt) : '—'}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderRuns(rows) {
+    const tbody = document.querySelector('#runs-table tbody');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">No eval runs yet — POST one to /api/admin/evals/runs</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '';
+    for (const run of rows.slice(0, 50)) {
+      const tr = document.createElement('tr');
+      tr.className = run.passed ? 'pass' : 'fail';
+      tr.innerHTML = `
+        <td>${escapeHtml(run.timestamp)}</td>
+        <td>${escapeHtml(run.baseline)}</td>
+        <td class="verdict">${run.passed ? 'PASS' : 'FAIL'}</td>
+        <td>${escapeHtml(run.judgeModel || '—')}</td>
+        <td>${escapeHtml(run.agentVersion || '—')}</td>
+        <td><details><summary>view</summary><pre>${escapeHtml(JSON.stringify(run, null, 2))}</pre></details></td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  async function refresh() {
+    setStatus('Loading…');
+    try {
+      const [baselines, runs] = await Promise.all([
+        getJson('/api/admin/evals/baselines'),
+        getJson('/api/admin/evals/runs'),
+      ]);
+      renderBaselines(baselines);
+      renderRuns(runs);
+      setStatus('');
+    } catch (e) {
+      setStatus('Failed to load eval data: ' + e.message, 'error');
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 30_000); // refresh every 30 seconds
+</script>
+</body>
+</html>

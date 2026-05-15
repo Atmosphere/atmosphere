@@ -30,6 +30,7 @@ export type {
   UseOptimisticResult as UseOptimisticResultVue,
 } from './useOptimistic';
 export { useStreaming } from './useStreaming';
+export { useChat } from './useChat';
 export { useConnectionStatus } from './useConnectionStatus';
 export {
   ConnectionStatusBadge,

@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class SpringAiVectorStoreContextProviderTest {
@@ -45,6 +46,28 @@ class SpringAiVectorStoreContextProviderTest {
         var results = provider.retrieve("test query", 5);
 
         assertTrue(results.isEmpty());
+    }
+
+    @Test
+    void isAvailableReflectsConfiguredVectorStore() {
+        var provider = new SpringAiVectorStoreContextProvider();
+        assertTrue(!provider.isAvailable());
+
+        SpringAiVectorStoreContextProvider.setVectorStore(mock(VectorStore.class));
+
+        assertTrue(provider.isAvailable());
+    }
+
+    @Test
+    void retrieveReturnsEmptyForBlankQueryWithoutCallingStore() {
+        var vectorStore = mock(VectorStore.class);
+        SpringAiVectorStoreContextProvider.setVectorStore(vectorStore);
+        var provider = new SpringAiVectorStoreContextProvider();
+
+        var results = provider.retrieve("   ", 5);
+
+        assertTrue(results.isEmpty());
+        verifyNoInteractions(vectorStore);
     }
 
     @Test
@@ -66,6 +89,25 @@ class SpringAiVectorStoreContextProviderTest {
         assertEquals("Atmosphere supports WebSocket", result.content());
         assertEquals("websocket.md", result.source());
         assertEquals("transport", result.metadata().get("category"));
+    }
+
+    @Test
+    void retrieveUsesSourceDocumentMetadataWhenSourceMissing() {
+        var vectorStore = mock(VectorStore.class);
+        var springDoc = new Document("my-doc-id", "Chunk content",
+                Map.of("source_document", "manual.md", "chunk_index", "2"));
+
+        when(vectorStore.similaritySearch(any(SearchRequest.class)))
+                .thenReturn(List.of(springDoc));
+
+        SpringAiVectorStoreContextProvider.setVectorStore(vectorStore);
+        var provider = new SpringAiVectorStoreContextProvider();
+
+        var results = provider.retrieve("content", 5);
+
+        assertEquals(1, results.size());
+        assertEquals("manual.md", results.get(0).source());
+        assertEquals("2", results.get(0).metadata().get("chunk_index"));
     }
 
     @Test

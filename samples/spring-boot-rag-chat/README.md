@@ -14,6 +14,11 @@ This sample demonstrates the progression from a passive RAG chatbot to an active
 
 The LLM gets both automatic context (retrieved docs injected before the call) and explicit tools it can invoke to search, read specific documents, refine its query, and search again.
 
+The vector-store ingestion path chunks each Markdown document with
+`RagChunker` before embedding it. Chunk metadata preserves the original source
+document and chunk offsets, so citations point to the right passage instead of
+an entire file.
+
 ## Architecture
 
 ```
@@ -43,7 +48,7 @@ cd samples/spring-boot-rag-chat
 ../../mvnw spring-boot:run
 ```
 
-Open http://localhost:8080. Try `/sources` and `/help` for instant commands.
+Open http://localhost:8080/atmosphere/console/. Try `/sources` and `/help` for instant commands.
 
 ### With Gemini API Key
 
@@ -70,7 +75,7 @@ cd samples/spring-boot-rag-chat
 |------|-------------|
 | `RagAgent.java` | `@Agent` with slash commands, AI tools, and prompt handler |
 | `KnowledgeBase.java` | Thread-safe singleton for document storage and word-overlap search |
-| `VectorStoreConfig.java` | Loads docs into KnowledgeBase + Spring AI VectorStore |
+| `VectorStoreConfig.java` | Loads docs into KnowledgeBase + chunked Spring AI VectorStore |
 | `LlmConfig.java` | Bridges Spring properties to `AiConfig` |
 | `docs/*.md` | Knowledge base documents about Atmosphere |
 | `prompts/rag-agent-skill.md` | Skill file defining the agent persona and tools |
@@ -99,3 +104,7 @@ Five documentation files in `src/main/resources/docs/`:
 - `atmosphere-ai-module.md` — AI module (@AiEndpoint, StreamingSession, ContextProvider)
 - `atmosphere-getting-started.md` — Getting started with Maven and examples
 - `atmosphere-agents.md` — Agent framework (@Agent, @Command, @AiTool, @Coordinator)
+
+`KnowledgeBase` keeps full documents for the explicit `@AiTool` methods, while
+the Spring AI `SimpleVectorStore` receives retrieval-sized chunks. That split
+keeps tool responses readable and makes automatic RAG retrieval more precise.

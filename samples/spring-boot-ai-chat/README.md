@@ -40,10 +40,11 @@ public class AiChat {
 
 ### Client — React + atmosphere.js
 
-Uses the `useStreaming` hook from `atmosphere.js/react`:
+Uses the `useChat` hook from `atmosphere.js/react`:
 
 - Connects to `/atmosphere/ai-chat` over WebSocket
 - Parses streaming JSON messages and `AiEvent` frames
+- Keeps optimistic user and assistant message state in one hook
 - Renders streaming texts as they arrive with markdown support
 - Shows model name, cost, and latency badges
 
@@ -117,7 +118,7 @@ spring-boot-ai-chat/
 ├── pom.xml
 ├── frontend/                        # React + Vite frontend
 │   └── src/
-│       ├── App.tsx                  # Chat UI with useStreaming hook
+│       ├── App.tsx                  # Chat UI with useChat hook
 │       └── main.tsx                 # AtmosphereProvider wrapper
 └── src/main/
     ├── java/.../aichat/

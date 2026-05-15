@@ -1,21 +1,8 @@
 import { useState, useEffect, useRef, useMemo, createElement } from 'react';
-import { useStreaming, ConnectionStatusBadge } from 'atmosphere.js/react';
+import { useChat, ConnectionStatusBadge } from 'atmosphere.js/react';
 import { ChatLayout, ChatInput, StreamingMessage, StreamingProgress, StreamingError } from 'atmosphere.js/chat';
 
-interface UserMessage {
-  role: 'user';
-  text: string;
-}
-
-interface AssistantMessage {
-  role: 'assistant';
-  text: string;
-  complete: boolean;
-}
-
-type Message = UserMessage | AssistantMessage;
-
-async function fetchWebTransportInfo(): Promise<{port?: number; certificateHash?: string}> {
+async function fetchWebTransportInfo(): Promise<{enabled?: boolean; port?: number; certificateHash?: string}> {
   try {
     const res = await fetch('/api/webtransport-info');
     if (res.ok) return res.json();
@@ -24,9 +11,8 @@ async function fetchWebTransportInfo(): Promise<{port?: number; certificateHash?
 }
 
 export function App() {
-  const [messages, setMessages] = useState<Message[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
-  const [wtInfo, setWtInfo] = useState<{port?: number; certificateHash?: string}>({});
+  const [wtInfo, setWtInfo] = useState<{enabled?: boolean; port?: number; certificateHash?: string}>({});
   const [wtLoaded, setWtLoaded] = useState(false);
 
   useEffect(() => {
@@ -51,9 +37,9 @@ export function App() {
     [wtInfo],
   );
 
-  const { fullText, isStreaming, progress, metadata, stats, routing, error, send, reset,
+  const { messages, isLoading, progress, metadata, stats, routing, error, append,
           connectionState, isReconnecting, connectionStatus } =
-    useStreaming({
+    useChat({
       request,
       enabled: wtLoaded,
       // Pair with the server-side @AiEndpoint primitives:
@@ -75,39 +61,12 @@ export function App() {
         console.error('[atmosphere] reconnect attempts exhausted'),
     });
 
-  // When streaming text updates, update/append the assistant message
-  useEffect(() => {
-    if (!fullText) return;
-    setMessages((prev) => {
-      const last = prev[prev.length - 1];
-      if (last && last.role === 'assistant' && !last.complete) {
-        return [...prev.slice(0, -1), { role: 'assistant', text: fullText, complete: false }];
-      }
-      return [...prev, { role: 'assistant', text: fullText, complete: false }];
-    });
-  }, [fullText]);
-
-  // When streaming completes, mark the message as complete
-  useEffect(() => {
-    if (!isStreaming && fullText) {
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last && last.role === 'assistant' && !last.complete) {
-          return [...prev.slice(0, -1), { ...last, complete: true }];
-        }
-        return prev;
-      });
-    }
-  }, [isStreaming, fullText]);
-
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, fullText]);
+  }, [messages]);
 
   const handleSend = (text: string) => {
-    setMessages((prev) => [...prev, { role: 'user', text }]);
-    reset();
-    send(text, { maxCost: 0.10, maxLatencyMs: 5000 });
+    append(text, { maxCost: 0.10, maxLatencyMs: 5000 });
   };
 
   const displayModel = routing.model ?? (metadata.model as string | undefined);
@@ -179,7 +138,7 @@ export function App() {
         {messages.map((msg, i) =>
           msg.role === 'user'
             ? createElement('div', {
-                key: i,
+                key: msg.id,
                 style: {
                   alignSelf: 'flex-end',
                   background: 'linear-gradient(135deg, #667eea, #764ba2)',
@@ -189,11 +148,11 @@ export function App() {
                   maxWidth: '85%',
                   wordBreak: 'break-word',
                 },
-              }, msg.text)
+              }, msg.content)
             : createElement(StreamingMessage, {
-                key: i,
-                text: msg.text,
-                isStreaming: !msg.complete,
+                key: msg.id,
+                text: msg.content,
+                isStreaming: msg.status === 'streaming' || msg.status === 'submitted',
                 dark: true,
               }),
         )}
@@ -201,7 +160,7 @@ export function App() {
         {error && createElement(StreamingError, { message: error })}
         <div ref={endRef} />
       </div>
-      {stats && !isStreaming && (
+      {stats && !isLoading && (
         <div style={{
           fontSize: 11,
           color: 'rgba(255,255,255,0.5)',
@@ -220,7 +179,7 @@ export function App() {
       <ChatInput
         onSend={handleSend}
         placeholder="Ask me anything…"
-        disabled={isStreaming}
+        disabled={isLoading}
         theme="ai"
       />
     </ChatLayout>

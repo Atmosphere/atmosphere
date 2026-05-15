@@ -63,23 +63,28 @@ public class SemanticRecallInterceptor implements AiInterceptor {
         }
 
         try {
-            var query = provider.transformQuery(request.message());
+            var query = ContextProvider.normalizeQuery(provider.transformQuery(request.message()));
+            if (!ContextProvider.shouldRetrieve(query)) {
+                return request;
+            }
             var docs = provider.retrieve(query, maxResults);
+            docs = provider.filter(query, docs);
             var reranked = provider.rerank(query, docs);
+            var processed = provider.postProcess(query, reranked);
 
-            if (reranked.isEmpty()) {
+            if (processed.isEmpty()) {
                 return request;
             }
 
-            var context = reranked.stream()
+            var context = processed.stream()
                     .map(doc -> doc.content()
-                            + (doc.source() != null ? " [Source: " + doc.source() + "]" : ""))
+                            + " [Source: " + ContextProvider.formatCitation(doc) + "]")
                     .collect(Collectors.joining("\n---\n"));
 
             var augmentedPrompt = (request.systemPrompt() != null ? request.systemPrompt() + "\n\n" : "")
                     + "Relevant context from past conversations:\n" + context;
 
-            logger.debug("Injected {} semantic recall fragments", reranked.size());
+            logger.debug("Injected {} semantic recall fragments", processed.size());
             return request.withSystemPrompt(augmentedPrompt);
         } catch (Exception e) {
             logger.warn("Semantic recall failed: {}", e.getMessage());

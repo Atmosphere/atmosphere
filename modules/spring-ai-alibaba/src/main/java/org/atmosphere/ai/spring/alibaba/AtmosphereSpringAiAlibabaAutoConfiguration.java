@@ -19,6 +19,8 @@ import com.alibaba.cloud.ai.graph.agent.ReactAgent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -71,9 +73,14 @@ public class AtmosphereSpringAiAlibabaAutoConfiguration {
         logger.info("Auto-building Spring AI Alibaba ReactAgent with chatModel={}",
                 chatModel.getClass().getSimpleName());
         try {
+            // Wrap once so every dispatch path — singleton agent OR per-request
+            // tool agent — pushes ChatResponse.getMetadata().getUsage() into the
+            // per-thread accumulator the runtime reads for TOKEN_USAGE.
+            var captured = wrap(chatModel);
+            SpringAiAlibabaAgentRuntime.setChatModel(captured);
             return ReactAgent.builder()
                     .name("atmosphere-spring-ai-alibaba")
-                    .model(chatModel)
+                    .model(captured)
                     .systemPrompt(systemPrompt)
                     .build();
         } catch (Exception e) {
@@ -86,8 +93,34 @@ public class AtmosphereSpringAiAlibabaAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(ReactAgent.class)
-    SpringAiAlibabaAgentRuntime springAiAlibabaAgentRuntime(ReactAgent agent) {
+    SpringAiAlibabaAgentRuntime springAiAlibabaAgentRuntime(
+            ReactAgent agent, ObjectProvider<ChatModel> chatModelProvider) {
         SpringAiAlibabaAgentRuntime.setAgent(agent);
+        var chatModel = chatModelProvider.getIfAvailable();
+        if (chatModel != null) {
+            // User-supplied ReactAgent path: we still wrap their ChatModel so
+            // the per-request tool agent we build in doExecute captures usage.
+            // The user's singleton ReactAgent may have been built with the
+            // unwrapped bean — that singleton path will not emit TOKEN_USAGE
+            // for tool-free calls; documented in SpringAiAlibabaAgentRuntime
+            // class javadoc.
+            SpringAiAlibabaAgentRuntime.setChatModel(wrap(chatModel));
+        }
         return new SpringAiAlibabaAgentRuntime();
+    }
+
+    private static ChatModel wrap(ChatModel raw) {
+        return raw instanceof UsageCapturingChatModel ? raw : new UsageCapturingChatModel(raw);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SpringAiAlibabaEmbeddingRuntime.class)
+    SpringAiAlibabaEmbeddingRuntime springAiAlibabaEmbeddingRuntime(
+            ObjectProvider<EmbeddingModel> embeddingModelProvider) {
+        var embeddingModel = embeddingModelProvider.getIfAvailable();
+        if (embeddingModel != null) {
+            SpringAiAlibabaEmbeddingRuntime.setEmbeddingModel(embeddingModel);
+        }
+        return new SpringAiAlibabaEmbeddingRuntime();
     }
 }

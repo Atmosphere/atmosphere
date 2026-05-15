@@ -64,6 +64,10 @@ public class SpringAiVectorStoreContextProvider implements ContextProvider {
 
     @Override
     public List<Document> retrieve(String query, int maxResults) {
+        if (query == null || query.isBlank() || maxResults <= 0) {
+            return List.of();
+        }
+
         var store = vectorStore;
         if (store == null) {
             logger.warn("VectorStore not configured; returning empty results");
@@ -84,7 +88,8 @@ public class SpringAiVectorStoreContextProvider implements ContextProvider {
             }
 
             var score = springDoc.getScore() != null ? springDoc.getScore() : 0.0;
-            var source = metadata.getOrDefault("source", springDoc.getId());
+            var source = metadata.getOrDefault("source",
+                    metadata.getOrDefault("source_document", springDoc.getId()));
 
             results.add(new Document(
                     springDoc.getText(),

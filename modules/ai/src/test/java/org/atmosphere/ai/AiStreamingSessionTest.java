@@ -306,6 +306,86 @@ public class AiStreamingSessionTest {
     }
 
     @Test
+    public void testContextProviderPipelineFiltersReranksAndPostProcesses() {
+        var aiSupport = new RecordingRuntime();
+        var calls = new ArrayList<String>();
+        var originalDocs = List.of(
+                new ContextProvider.Document("discard", "old.md", 0.1),
+                new ContextProvider.Document("keep", "guide.md", 0.9,
+                        Map.of("source_document", "guide.md", "chunk_index", "2",
+                                "chunk_count", "4", "chunk_start", "120", "chunk_end", "240")));
+        var filteredDocs = List.of(originalDocs.get(1));
+        var processedDocs = List.of(new ContextProvider.Document(
+                "processed keep", "guide.md#chunk-2", 0.95, originalDocs.get(1).metadata()));
+        var provider = new ContextProvider() {
+            @Override
+            public String transformQuery(String originalQuery) {
+                calls.add("transform");
+                return "  " + originalQuery + "  ";
+            }
+
+            @Override
+            public List<Document> retrieve(String query, int maxResults) {
+                calls.add("retrieve:" + query + ":" + maxResults);
+                return originalDocs;
+            }
+
+            @Override
+            public List<Document> filter(String query, List<Document> documents) {
+                calls.add("filter:" + documents.size());
+                return filteredDocs;
+            }
+
+            @Override
+            public List<Document> rerank(String query, List<Document> documents) {
+                calls.add("rerank:" + documents.size());
+                return documents;
+            }
+
+            @Override
+            public List<Document> postProcess(String query, List<Document> documents) {
+                calls.add("postProcess:" + documents.size());
+                return processedDocs;
+            }
+        };
+
+        var session = new AiStreamingSession(delegate, aiSupport,
+                "", null, List.of(), resource, null, null, List.of(), List.of(provider));
+
+        session.stream("question");
+
+        assertEquals(List.of("transform", "retrieve:question:5", "filter:2", "rerank:1", "postProcess:1"),
+                calls);
+        var message = aiSupport.requests.get(0).message();
+        assertTrue(message.contains("Relevant context:"));
+        assertTrue(message.contains("Source: guide.md#chunk-2 (document: guide.md) chunk 2/4 chars 120-240 score 0.950"));
+        assertTrue(message.contains("processed keep"));
+    }
+
+    @Test
+    public void testContextProviderSkipsBlankTransformedQuery() {
+        var aiSupport = new RecordingRuntime();
+        var provider = new ContextProvider() {
+            @Override
+            public String transformQuery(String originalQuery) {
+                return "   ";
+            }
+
+            @Override
+            public List<Document> retrieve(String query, int maxResults) {
+                throw new AssertionError("blank query should not be retrieved");
+            }
+        };
+
+        var session = new AiStreamingSession(delegate, aiSupport,
+                "", null, List.of(), resource, null, null, List.of(), List.of(provider));
+
+        session.stream("question");
+
+        assertEquals("question", aiSupport.requests.get(0).message());
+    }
+
+    @Test
     public void testStreamWrapsInMemoryCapturingSession() {
         // Verify that the session passed to aiSupport.stream() is a MemoryCapturingSession
         var memory = new InMemoryConversationMemory();

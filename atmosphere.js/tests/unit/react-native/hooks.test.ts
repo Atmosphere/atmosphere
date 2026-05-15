@@ -198,6 +198,20 @@ describe('RN re-exports', () => {
     expect(src).toMatch(/export\s*\{[^}]*useOfflineQueue[^}]*\}\s*from\s*['"]\.\.\/react\/useOfflineQueue['"]/);
     expect(src).toMatch(/export\s*\{[^}]*useMessageHistory[^}]*\}\s*from\s*['"]\.\.\/react\/useMessageHistory['"]/);
     expect(src).toMatch(/export\s*\{[^}]*useRoom[^}]*\}\s*from\s*['"]\.\.\/react\/useRoom['"]/);
+    expect(src).toMatch(/export\s*\{[^}]*useChatRN[^}]*\}\s*from\s*['"]\.\/useChatRN['"]/);
+  });
+
+  it('keeps useChatRN aligned with the streaming parity surface', async () => {
+    const { readFileSync } = await import('fs');
+    const { resolve } = await import('path');
+    const src = readFileSync(
+      resolve(process.cwd(), 'src/hooks/react-native/useChatRN.ts'),
+      'utf8',
+    );
+    expect(src).toContain('metadata: Record<string, unknown>');
+    expect(src).toContain("aiEvents: UseStreamingRNResult['aiEvents']");
+    expect(src).toContain("connectionStatus: UseStreamingRNResult['connectionStatus']");
+    expect(src).toContain('stop: () => void');
   });
 });
 

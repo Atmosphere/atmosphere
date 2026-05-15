@@ -62,6 +62,8 @@ public final class AtmosphereAdmin {
     private Object mcpController;
     private Object metricsController;
     private FlowController flowController;
+    private org.atmosphere.admin.workflow.WorkflowController workflowController;
+    private org.atmosphere.admin.evals.EvalController evalController;
 
     public AtmosphereAdmin(AtmosphereFramework framework, int auditLogSize) {
         this.frameworkController = framework != null ? new FrameworkController(framework) : null;
@@ -218,6 +220,22 @@ public final class AtmosphereAdmin {
 
     public FlowController flowController() {
         return flowController;
+    }
+
+    public void setWorkflowController(org.atmosphere.admin.workflow.WorkflowController controller) {
+        this.workflowController = controller;
+    }
+
+    public org.atmosphere.admin.workflow.WorkflowController workflowController() {
+        return workflowController;
+    }
+
+    public void setEvalController(org.atmosphere.admin.evals.EvalController controller) {
+        this.evalController = controller;
+    }
+
+    public org.atmosphere.admin.evals.EvalController evalController() {
+        return evalController;
     }
 
     /**

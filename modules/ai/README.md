@@ -42,8 +42,8 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 | `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, TOKEN_USAGE, PER_REQUEST_RETRY, PROMPT_CACHING, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
 | `atmosphere-embabel` | `EmbabelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE, PER_REQUEST_RETRY, TOOL_CALLING, TOOL_APPROVAL, VISION, MULTI_MODAL, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
 | `atmosphere-koog` | `KoogAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, TOKEN_USAGE, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, CANCELLATION, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
-| `atmosphere-agentscope` | `AgentScopeAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, CANCELLATION, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
-| `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT (wall-clock only), CONFIDENCE_SCORES, PASSIVATION *(see runtime caveats below)* |
+| `atmosphere-agentscope` | `AgentScopeAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, CANCELLATION, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
+| `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOOL_CALLING, TOOL_APPROVAL, TOKEN_USAGE, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION *(see runtime caveats below)* |
 | `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
 
 Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build. The aggregate counts ("9 runtimes") and the per-row capability lists are additionally pinned against `.harness/capabilities.snapshot.json` by `CapabilitySnapshotTest` and `scripts/validate-capability-claims.sh` (run from pre-push), so prose claims about the matrix break the build alongside code drift.
@@ -53,11 +53,11 @@ Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underly
 Capability flags advertise a coarse contract: "this runtime cooperates with the named pipeline feature." They deliberately do **not** assert:
 
 - **Implementation parity across runtimes.** Two runtimes that both declare `TOOL_CALLING` may differ on tool-call timeout handling, parallel-tool-call dispatch, max iteration default, and partial-result behaviour on failure. The flag covers the SPI contract, not byte-for-byte behavioural identity.
-- **Limit numbers.** `BUDGET_ENFORCEMENT` (wall-clock-only on Spring AI Alibaba) and `PER_REQUEST_RETRY` (only the Built-in runtime threads the policy into its HTTP client; framework runtimes inherit native retry layers) are the canonical examples — the per-row footnotes above carry the specifics.
+- **Limit numbers.** `PER_REQUEST_RETRY` (only the Built-in runtime threads the policy into its HTTP client; framework runtimes inherit native retry layers) is the canonical example — the per-row footnotes above carry the specifics.
 - **Provider-side guarantees.** `PROMPT_CACHING` means the runtime forwards Anthropic / OpenAI / Gemini cache hints; it does not promise the upstream provider honored them.
 - **Production fitness for any specific workload.** A capability flag is necessary but not sufficient — sample apps, integration tests, and your own load tests are the only signals for fitness.
 
-If a per-runtime cell needs a caveat, document it in the row footnote (Spring AI Alibaba already does for buffered streaming and wall-clock-only budgets) rather than weakening the capability semantics across all rows.
+If a per-runtime cell needs a caveat, document it in the row footnote (Spring AI Alibaba already does for buffered streaming) rather than weakening the capability semantics across all rows.
 
 **Spring AI Alibaba runtime — Spring Boot 3 only today.** Spring AI Alibaba `1.1.2.0` is compiled against Spring AI `1.1.2` and `spring-ai-alibaba-graph-core-1.1.2.0` hardcodes references to Spring AI 1.1.2-only types (e.g. `org.springframework.ai.deepseek.DeepSeekAssistantMessage`), so the runtime requires Spring AI 1.1.2 on the classpath. Spring AI 1.1.2 in turn requires Spring Boot 3 (it references the SB3-era FQN `org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration`; Spring Boot 4 has the same class but at the renamed FQN `org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration`). Net result: `atmosphere-spring-ai-alibaba` runs end-to-end on Spring Boot 3 today (verified via chrome-devtools through the bundled Console against Ollama, qwen2.5:0.5b round-trip succeeded); a Spring Boot 4 path will become possible once Alibaba publishes a Spring AI 2.x-aligned `spring-ai-alibaba-agent-framework`. Forcing Spring AI 2.0.0-M6 across the classpath today fails at `ReactAgent` construction with `NoClassDefFoundError`. AgentScope (`atmosphere-agentscope`) is unaffected — it builds its OpenAI-compatible client through `AiConfig` directly and is validated end-to-end on Spring Boot 4.
 
@@ -835,8 +835,8 @@ TCD=TOOL_CALL_DELTA, BE=BUDGET_ENFORCEMENT, CS=CONFIDENCE_SCORES, PSV=PASSIVATIO
 | `AdkAgentRuntime`            | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | yes | yes |
 | `EmbabelAgentRuntime`        | 100 | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | —   | yes | yes | —   | yes | yes | yes |
 | `KoogAgentRuntime`           | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | yes | yes |
-| `AgentScopeAgentRuntime`     | 100 | yes | —   | yes | yes | —   | yes | —   | —   | —   | —   | —   | yes | yes | —   | yes | yes | yes |
-| `SpringAiAlibabaAgentRuntime`| 100 | yes¹| —   | yes | yes | —   | yes | —   | —   | —   | —   | —   | —   | yes | —   | yes² | yes | yes |
+| `AgentScopeAgentRuntime`     | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   | yes | yes | yes |
+| `SpringAiAlibabaAgentRuntime`| 100 | yes¹| yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   | yes | yes | yes |
 | `SemanticKernelAgentRuntime` | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   | yes | yes | yes |
 
 ¹ `SpringAiAlibabaAgentRuntime` declares `TEXT_STREAMING` honestly because the
@@ -847,13 +847,31 @@ limitation is that the LLM round-trip itself is **buffered** — Spring AI Aliba
 token deltas from the LLM. Callers who need token-by-token streaming should drive
 Spring AI's `StreamingChatModel` directly via `atmosphere-spring-ai`.
 
-² `SpringAiAlibabaAgentRuntime` declares `BUDGET_ENFORCEMENT` because wall-clock
-limits trip universally on every runtime that streams through `AiPipeline`.
-Token / step limits depend on the runtime emitting `TOKEN_USAGE`, which Alibaba
-does not (its `ReactAgent.call()` returns an `AssistantMessage` with no usage
-surface as of v1.1.2.0). Callers configuring a token-based `AiBudget` against
-this runtime get wall-clock breaches but not token breaches — the matrix
-captures the cooperation, the prose captures the limit.
+² (Removed in 4.0.46-SNAPSHOT.) `SpringAiAlibabaAgentRuntime` previously declared
+`BUDGET_ENFORCEMENT` with wall-clock-only honesty because `ReactAgent.call()`
+returns an `AssistantMessage` with no usage surface. Token / step budgets now
+trip uniformly because `AtmosphereSpringAiAlibabaAutoConfiguration` wraps the
+Spring AI `ChatModel` bean in `UsageCapturingChatModel`, which accumulates
+`ChatResponseMetadata.getUsage()` across every step of the ReAct graph into a
+per-thread collector that the runtime emits via `session.usage(...)` after
+each dispatch — see the `TOKEN_USAGE` row above.
+
+### Runtime selection for feature parity
+
+Start with the feature your agent must have, then choose an adapter whose row
+declares it. The flags above are runtime truth, not roadmap intent.
+
+| Need | Prefer today | Avoid when this is mandatory |
+|------|--------------|------------------------------|
+| Portable `@AiTool` execution with HITL approval | All nine runtimes — every adapter ships a tool bridge that routes through `ToolExecutionHelper.executeWithApproval` | — |
+| Token-by-token UI deltas | Built-in, Spring AI, LangChain4j, ADK, Embabel, Koog, Semantic Kernel, AgentScope | Spring AI Alibaba, whose `ReactAgent.call()` is buffered |
+| Embeddings through Atmosphere's `EmbeddingRuntime` SPI | Built-in, Spring AI, LangChain4j, Embabel, Semantic Kernel, Koog, Spring AI Alibaba | ADK, AgentScope (no embedding-runtime impl yet) |
+| Tool-call argument deltas before consolidated `ToolStart` | Built-in | Framework adapters whose upstream APIs expose consolidated tool calls only |
+
+When a feature is missing, keep the adapter on the classpath only for the
+capabilities it declares and compose the missing piece through Atmosphere's
+portable SPI (`@AiTool`, `EmbeddingRuntime`, `ContextProvider`) rather than
+claiming parity in docs or code.
 
 ### Predictable-AI primitives (`BUDGET_ENFORCEMENT`, `CONFIDENCE_SCORES`, `PASSIVATION`)
 
@@ -869,7 +887,9 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   pipeline default via `pipeline.setDefaultBudget(AiBudget.ofTokens(20_000))` or
   per-request via the `ai.budget` metadata key (caller wins on collision).
   Wall-clock applies on every runtime; token / step limits apply where
-  `TOKEN_USAGE` is honored (every runtime except Spring AI Alibaba).
+  `TOKEN_USAGE` is honored — currently every runtime (Spring AI Alibaba
+  closes the gap via the `UsageCapturingChatModel` decorator wired by
+  `AtmosphereSpringAiAlibabaAutoConfiguration`).
 
 - **`CONFIDENCE_SCORES`** — `AiPipeline` augments the system prompt with an
   `AiConfidenceElicitation` cue when one is configured, then installs a

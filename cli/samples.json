@@ -111,7 +111,7 @@
     },
     {
       "name": "spring-boot-ai-chat",
-      "description": "AI streaming chat \u2014 swap backend via one dependency (any of the 9 AgentRuntime adapters)",
+      "description": "AI streaming chat \u2014 React useChat UI, WebTransport fallback, swap backend via one dependency",
       "category": "ai",
       "tags": [
         "spring-boot",
@@ -176,7 +176,7 @@
     },
     {
       "name": "spring-boot-ai-tools",
-      "description": "Framework-agnostic AI tool calling \u2014 swap backend via one dependency",
+      "description": "Enterprise AI starter \u2014 portable @AiTool calls, HITL approval, cost metering, audit listener",
       "category": "tools",
       "tags": [
         "spring-boot",
@@ -195,7 +195,7 @@
     },
     {
       "name": "spring-boot-rag-chat",
-      "description": "RAG agent \u2014 @Agent with AI tools for knowledge base search, slash commands, and document retrieval",
+      "description": "RAG agent \u2014 chunked vector-store ingestion, @Agent tools for knowledge search, slash commands",
       "category": "agent",
       "tags": [
         "spring-boot",

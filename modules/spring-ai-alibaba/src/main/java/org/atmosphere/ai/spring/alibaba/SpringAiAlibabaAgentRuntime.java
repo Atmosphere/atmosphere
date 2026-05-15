@@ -27,6 +27,7 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatModel;
 
 import java.util.ArrayList;
 import java.util.Set;
@@ -54,31 +55,50 @@ import java.util.Set;
  * is on the classpath. The agent itself is wired via Spring (
  * {@link AtmosphereSpringAiAlibabaAutoConfiguration}).</p>
  *
- * <p><b>Capabilities:</b> {@link AiCapability#TEXT_STREAMING} (buffered —
- * see above), {@link AiCapability#SYSTEM_PROMPT}
+ * <p><b>Capabilities (all unconditional):</b>
+ * {@link AiCapability#TEXT_STREAMING} (buffered — see above),
+ * {@link AiCapability#SYSTEM_PROMPT}
  * ({@code ReactAgent.setSystemPrompt} threaded per-request, serialized on
  * the agent monitor to avoid singleton-mutation races),
  * {@link AiCapability#STRUCTURED_OUTPUT} (via the pipeline),
- * {@link AiCapability#CONVERSATION_MEMORY}, and
- * {@link AiCapability#PER_REQUEST_RETRY}. {@link AiCapability#TOKEN_USAGE}
- * is NOT declared — {@code ReactAgent.call} returns an
- * {@code AssistantMessage} that does not surface the underlying
- * {@code ChatResponse} usage metadata in v1.1.2.0; reading the agent's
- * {@code CompiledGraph} run state would be brittle across versions.
- * Tool calling is NOT declared in this first cut — Spring AI Alibaba's
- * tool surface bridges Spring AI {@code FunctionCallback}s, which would
- * need a separate {@code SpringAiAlibabaToolBridge} to satisfy
- * {@link AiCapability#TOOL_APPROVAL}.</p>
+ * {@link AiCapability#CONVERSATION_MEMORY},
+ * {@link AiCapability#PER_REQUEST_RETRY},
+ * {@link AiCapability#TOOL_CALLING} / {@link AiCapability#TOOL_APPROVAL}
+ * (via {@link SpringAiAlibabaToolBridge} attached to a per-request
+ * {@code ReactAgent} built around the configured Spring AI
+ * {@code ChatModel}), and {@link AiCapability#TOKEN_USAGE}.</p>
+ *
+ * <p><b>How TOKEN_USAGE works.</b> {@code ReactAgent.call} returns an
+ * {@link AssistantMessage} that does not surface the underlying
+ * {@code ChatResponse} usage metadata. Atmosphere therefore wraps the
+ * Spring AI {@code ChatModel} bean once at auto-configuration time in a
+ * {@link UsageCapturingChatModel} decorator. Every underlying
+ * {@code ChatModel.call(Prompt)} performed by the ReAct graph during a
+ * single {@code agent.call(messages)} run pushes its
+ * {@code ChatResponseMetadata.getUsage()} into a per-thread accumulator;
+ * the runtime resets the accumulator on entry to {@link #doExecute} and
+ * reads it on exit, emitting a single {@link org.atmosphere.ai.TokenUsage}
+ * record via {@link StreamingSession#usage(org.atmosphere.ai.TokenUsage)}.
+ * Custom {@code ReactAgent} beans that bypass auto-configuration may also
+ * bypass the wrapper — see
+ * {@link AtmosphereSpringAiAlibabaAutoConfiguration} for the wrapping
+ * point.</p>
  */
 public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent> {
 
     private static final Logger logger = LoggerFactory.getLogger(SpringAiAlibabaAgentRuntime.class);
 
     private static volatile ReactAgent staticAgent;
+    private static volatile ChatModel staticChatModel;
 
     /** Inject a pre-built {@link ReactAgent} from Spring auto-configuration. */
     public static void setAgent(ReactAgent agent) {
         staticAgent = agent;
+    }
+
+    /** Inject the {@link ChatModel} used to build per-request tool-enabled agents. */
+    public static void setChatModel(ChatModel chatModel) {
+        staticChatModel = chatModel;
     }
 
     @Override
@@ -137,6 +157,35 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
         org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
                 listeners, modelName, messages.size(), context.tools().size());
 
+        var activeAgent = agent;
+        if (!context.tools().isEmpty()) {
+            if (staticChatModel == null) {
+                throw new IllegalStateException(
+                        "Spring AI Alibaba runtime received an @AiTool-bearing request but no "
+                                + "Spring AI ChatModel bean is configured. "
+                                + configurationHint());
+            }
+            activeAgent = ReactAgent.builder()
+                    .name("atmosphere-spring-ai-alibaba-tools")
+                    .model(staticChatModel)
+                    .systemPrompt(context.systemPrompt())
+                    .tools(SpringAiAlibabaToolBridge.toToolCallbacks(
+                            context.tools(), session, context.approvalStrategy(),
+                            context.listeners(), context.approvalPolicy()))
+                    .build();
+        }
+
+        // TOKEN_USAGE capture: scope a UsageCollector to this dispatch.
+        // UsageCapturingChatModel.call(Prompt) accumulates into this collector
+        // on every underlying ChatModel call the ReAct graph performs.
+        // Skip when the wired ChatModel is not our wrapper (e.g. a user-
+        // supplied ReactAgent bypassed auto-config) — TOKEN_USAGE will then
+        // be a no-op on this path, consistent with the singleton ReactAgent
+        // never seeing the wrapper.
+        var captureUsage = staticChatModel instanceof UsageCapturingChatModel;
+        UsageCapturingChatModel.UsageCollector collector =
+                captureUsage ? UsageCapturingChatModel.beginCapture() : null;
+
         // Per-request RunnableConfig override: when the caller attached one
         // via SpringAiAlibabaRunnableConfig.attach(...), use the
         // call(messages, config) overload — that's the natural per-invocation
@@ -153,10 +202,10 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
             // the first SystemMessage in the messages list (defense in depth);
             // setSystemPrompt is kept because Alibaba's ReactAgent reads its own
             // field in addition to the input messages.
-            synchronized (agent) {
+            synchronized (activeAgent) {
                 if (context.systemPrompt() != null && !context.systemPrompt().isBlank()) {
                     try {
-                        agent.setSystemPrompt(context.systemPrompt());
+                        activeAgent.setSystemPrompt(context.systemPrompt());
                     } catch (RuntimeException re) {
                         logger.trace(
                                 "ReactAgent.setSystemPrompt threw — falling back to message-level system role",
@@ -165,15 +214,18 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 }
                 if (runnableConfig != null) {
                     logger.debug("Dispatching with per-request Alibaba RunnableConfig override");
-                    response = agent.call(messages, runnableConfig);
+                    response = activeAgent.call(messages, runnableConfig);
                 } else {
-                    response = agent.call(messages);
+                    response = activeAgent.call(messages);
                 }
             }
         } catch (com.alibaba.cloud.ai.graph.exception.GraphRunnerException gre) {
             // Boundary safety (Invariant #4): a checked framework failure
             // must surface through session.error and propagate so the
             // outer pipeline records the right lifecycle event.
+            if (captureUsage) {
+                UsageCapturingChatModel.endCapture();
+            }
             org.atmosphere.ai.AgentLifecycleListener.fireModelError(
                     listeners, modelName, gre);
             session.error(gre);
@@ -182,6 +234,9 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
             // Mirror the checked-exception path for any unchecked failure
             // escaping ReactAgent.call so observers see the dispatch error
             // before propagation.
+            if (captureUsage) {
+                UsageCapturingChatModel.endCapture();
+            }
             org.atmosphere.ai.AgentLifecycleListener.fireModelError(
                     listeners, modelName, re);
             throw re;
@@ -196,9 +251,31 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 session.send(text);
             }
         }
+
+        // TOKEN_USAGE: read the accumulator now that the ReAct graph has
+        // finished its underlying ChatModel calls. Emit a single typed
+        // TokenUsage record via session.usage(...) and ride it on the
+        // onModelEnd lifecycle event so listeners observe consistent counts.
+        org.atmosphere.ai.TokenUsage tokenUsage = null;
+        if (collector != null) {
+            try {
+                if (collector.hasCounts()) {
+                    tokenUsage = new org.atmosphere.ai.TokenUsage(
+                            collector.promptTokens(),
+                            collector.completionTokens(),
+                            0L,
+                            collector.totalTokens(),
+                            collector.model() != null ? collector.model() : modelName);
+                    session.usage(tokenUsage);
+                }
+            } finally {
+                UsageCapturingChatModel.endCapture();
+            }
+        }
+
         long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
         org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
-                listeners, modelName, null, durationMs);
+                listeners, modelName, tokenUsage, durationMs);
         if (!session.isClosed()) {
             session.complete();
         }
@@ -233,6 +310,26 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 // assembleMessages threads context.history() into the Message
                 // list ReactAgent receives, so prior turns are honored.
                 AiCapability.CONVERSATION_MEMORY,
+                // TOOL_CALLING: doExecute builds a per-request ReactAgent
+                // with SpringAiAlibabaToolBridge attached when context.tools()
+                // is non-empty. The bridge routes every tool invocation
+                // through ToolExecutionHelper.executeWithApproval so
+                // @RequiresApproval gates fire uniformly. AtmosphereSpring-
+                // AiAlibabaAutoConfiguration guarantees staticChatModel is
+                // set whenever a Spring AI ChatModel bean is available; the
+                // runtime fails fast with configurationHint() at first tool-
+                // bearing dispatch otherwise.
+                AiCapability.TOOL_CALLING,
+                AiCapability.TOOL_APPROVAL,
+                // TOKEN_USAGE: AtmosphereSpringAiAlibabaAutoConfiguration
+                // wraps the Spring AI ChatModel bean in a
+                // UsageCapturingChatModel decorator at startup. doExecute
+                // scopes a per-thread UsageCollector before agent.call(...),
+                // every ChatModel.call inside the ReAct graph accumulates
+                // ChatResponseMetadata.getUsage() into it, and the runtime
+                // emits a single typed TokenUsage record via
+                // session.usage(...) after the agent returns.
+                AiCapability.TOKEN_USAGE,
                 // Inherits AbstractAgentRuntime.executeWithOuterRetry — does
                 // not override ownsPerRequestRetry(), so context.retryPolicy()
                 // with maxRetries > 0 retries doExecute on pre-stream
@@ -240,14 +337,9 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 // "Per-Request Retry Architecture".
                 AiCapability.PER_REQUEST_RETRY,
                 // BUDGET_ENFORCEMENT: framework-level circuit breaker via the
-                // AiPipeline BudgetCapturingSession decorator. Wall-clock
-                // limits trip universally; token / step limits require the
-                // runtime to emit TOKEN_USAGE through session.usage(), which
-                // this runtime does NOT (see comment below). So callers
-                // configuring a token-based AiBudget against this runtime
-                // will see wall-clock breaches but not token breaches —
-                // documented in modules/ai/README.md alongside the
-                // capability matrix.
+                // AiPipeline BudgetCapturingSession decorator. Both wall-
+                // clock and token / step budgets now trip because TOKEN_USAGE
+                // is declared and populated through the wrapper above.
                 AiCapability.BUDGET_ENFORCEMENT,
                 // CONFIDENCE_SCORES: framework-level — AiPipeline's
                 // ConfidenceCapturingSession parses the model-reported
@@ -259,13 +351,6 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 // into a CheckpointStore. Honest because Alibaba threads
                 // history into the Message list ReactAgent receives.
                 AiCapability.PASSIVATION);
-        // TOKEN_USAGE not declared: ReactAgent.call returns
-        // AssistantMessage, which has no surface for the
-        // ChatResponse usage metadata. The agent framework's graph
-        // execution captures usage internally but does not return it
-        // through the call(...) API as of v1.1.2.0. Adding a
-        // TOKEN_USAGE bridge requires reading the agent's CompiledGraph
-        // run state, which is brittle across versions.
     }
 
     @Override

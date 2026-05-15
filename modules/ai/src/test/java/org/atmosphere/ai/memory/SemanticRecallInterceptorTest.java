@@ -22,6 +22,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.anyInt;
@@ -68,7 +69,9 @@ class SemanticRecallInterceptorTest {
                 new Document("more info", "faq.md", 0.8)
         );
         when(provider.retrieve("hello", 5)).thenReturn(docs);
+        when(provider.filter("hello", docs)).thenReturn(docs);
         when(provider.rerank("hello", docs)).thenReturn(docs);
+        when(provider.postProcess("hello", docs)).thenReturn(docs);
 
         var interceptor = new SemanticRecallInterceptor(provider);
         var request = new AiRequest("hello", "system prompt");
@@ -76,7 +79,7 @@ class SemanticRecallInterceptorTest {
         var result = interceptor.preProcess(request, resource);
 
         var expected = "system prompt\n\nRelevant context from past conversations:\n"
-                + "relevant info [Source: doc.md]\n---\nmore info [Source: faq.md]";
+                + "relevant info [Source: doc.md score 0.900]\n---\nmore info [Source: faq.md score 0.800]";
         assertEquals(expected, result.systemPrompt());
     }
 
@@ -86,7 +89,9 @@ class SemanticRecallInterceptorTest {
         when(provider.isAvailable()).thenReturn(true);
         when(provider.transformQuery("hello")).thenReturn("hello");
         when(provider.retrieve("hello", 5)).thenReturn(List.of());
+        when(provider.filter("hello", List.of())).thenReturn(List.of());
         when(provider.rerank("hello", List.of())).thenReturn(List.of());
+        when(provider.postProcess("hello", List.of())).thenReturn(List.of());
 
         var interceptor = new SemanticRecallInterceptor(provider);
         var request = new AiRequest("hello", "prompt");
@@ -140,7 +145,9 @@ class SemanticRecallInterceptorTest {
         when(provider.isAvailable()).thenReturn(true);
         when(provider.transformQuery("hello")).thenReturn("hello");
         when(provider.retrieve("hello", 3)).thenReturn(List.of());
+        when(provider.filter("hello", List.of())).thenReturn(List.of());
         when(provider.rerank("hello", List.of())).thenReturn(List.of());
+        when(provider.postProcess("hello", List.of())).thenReturn(List.of());
 
         var interceptor = new SemanticRecallInterceptor(provider, 3);
         var request = new AiRequest("hello", "prompt");
@@ -157,7 +164,9 @@ class SemanticRecallInterceptorTest {
         when(provider.transformQuery("hello")).thenReturn("hello");
         var docs = List.of(new Document("context", "src.md", 0.95));
         when(provider.retrieve("hello", 5)).thenReturn(docs);
+        when(provider.filter("hello", docs)).thenReturn(docs);
         when(provider.rerank("hello", docs)).thenReturn(docs);
+        when(provider.postProcess("hello", docs)).thenReturn(docs);
 
         var interceptor = new SemanticRecallInterceptor(provider);
         var request = new AiRequest("hello", null, null, null,
@@ -165,7 +174,7 @@ class SemanticRecallInterceptorTest {
 
         var result = interceptor.preProcess(request, resource);
 
-        assertEquals("Relevant context from past conversations:\ncontext [Source: src.md]",
+        assertEquals("Relevant context from past conversations:\ncontext [Source: src.md score 0.950]",
                 result.systemPrompt());
     }
 
@@ -175,7 +184,9 @@ class SemanticRecallInterceptorTest {
         when(provider.isAvailable()).thenReturn(true);
         when(provider.transformQuery("hello")).thenReturn("transformed query");
         when(provider.retrieve("transformed query", 5)).thenReturn(List.of());
+        when(provider.filter("transformed query", List.of())).thenReturn(List.of());
         when(provider.rerank("transformed query", List.of())).thenReturn(List.of());
+        when(provider.postProcess("transformed query", List.of())).thenReturn(List.of());
 
         var interceptor = new SemanticRecallInterceptor(provider);
         var request = new AiRequest("hello", "prompt");
@@ -183,6 +194,44 @@ class SemanticRecallInterceptorTest {
         interceptor.preProcess(request, resource);
 
         verify(provider).retrieve("transformed query", 5);
+        verify(provider).filter("transformed query", List.of());
         verify(provider).rerank("transformed query", List.of());
+        verify(provider).postProcess("transformed query", List.of());
+    }
+
+    @Test
+    void blankTransformedQuerySkipsRetrieval() {
+        var provider = mock(ContextProvider.class);
+        when(provider.isAvailable()).thenReturn(true);
+        when(provider.transformQuery("hello")).thenReturn("   ");
+
+        var interceptor = new SemanticRecallInterceptor(provider);
+        var request = new AiRequest("hello", "prompt");
+
+        var result = interceptor.preProcess(request, resource);
+
+        assertEquals(request, result);
+        verify(provider, never()).retrieve(anyString(), anyInt());
+    }
+
+    @Test
+    void citationIncludesChunkMetadata() {
+        var provider = mock(ContextProvider.class);
+        when(provider.isAvailable()).thenReturn(true);
+        when(provider.transformQuery("hello")).thenReturn("hello");
+        var docs = List.of(new Document("context", "guide.md#chunk-2", 0.93,
+                Map.of("source_document", "guide.md", "chunk_index", "2",
+                        "chunk_count", "5", "chunk_start", "100", "chunk_end", "220")));
+        when(provider.retrieve("hello", 5)).thenReturn(docs);
+        when(provider.filter("hello", docs)).thenReturn(docs);
+        when(provider.rerank("hello", docs)).thenReturn(docs);
+        when(provider.postProcess("hello", docs)).thenReturn(docs);
+
+        var interceptor = new SemanticRecallInterceptor(provider);
+        var result = interceptor.preProcess(new AiRequest("hello", "prompt"), resource);
+
+        assertEquals("prompt\n\nRelevant context from past conversations:\n"
+                        + "context [Source: guide.md#chunk-2 (document: guide.md) chunk 2/5 chars 100-220 score 0.930]",
+                result.systemPrompt());
     }
 }

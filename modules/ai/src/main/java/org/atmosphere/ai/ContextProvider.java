@@ -72,6 +72,18 @@ public interface ContextProvider {
     }
 
     /**
+     * Filter retrieved documents before reranking. Override to apply score
+     * thresholds, tenant filters, metadata predicates, or safety filters.
+     *
+     * @param query     the normalized query used for retrieval
+     * @param documents the initially retrieved documents
+     * @return filtered documents
+     */
+    default List<Document> filter(String query, List<Document> documents) {
+        return safeDocuments(documents);
+    }
+
+    /**
      * Re-rank retrieved documents after initial retrieval. Override to
      * implement cross-encoder reranking, LLM-based reranking, or
      * reciprocal rank fusion across multiple retrievers.
@@ -83,7 +95,20 @@ public interface ContextProvider {
      * @return the re-ranked document list
      */
     default List<Document> rerank(String query, List<Document> documents) {
-        return documents;
+        return safeDocuments(documents);
+    }
+
+    /**
+     * Post-process retrieved documents after filtering and reranking. Override
+     * to merge adjacent chunks, truncate context, deduplicate sources, or enrich
+     * attribution metadata before prompt injection.
+     *
+     * @param query     the normalized query used for retrieval
+     * @param documents the filtered and reranked documents
+     * @return documents to inject into the prompt
+     */
+    default List<Document> postProcess(String query, List<Document> documents) {
+        return safeDocuments(documents);
     }
 
     /**
@@ -109,6 +134,71 @@ public interface ContextProvider {
      */
     default boolean isAvailable() {
         return true;
+    }
+
+    /**
+     * Normalize a retrieval query at the SPI boundary.
+     *
+     * @param query raw or transformed query
+     * @return trimmed query, or the empty string for null input
+     */
+    static String normalizeQuery(String query) {
+        return query == null ? "" : query.trim();
+    }
+
+    /**
+     * Whether a normalized query should be sent to a retriever.
+     *
+     * @param query raw or transformed query
+     * @return true when retrieval should proceed
+     */
+    static boolean shouldRetrieve(String query) {
+        return !normalizeQuery(query).isBlank();
+    }
+
+    /**
+     * Format citation metadata consistently for prompt injection.
+     *
+     * @param document retrieved document
+     * @return source attribution string
+     */
+    static String formatCitation(Document document) {
+        var metadata = document.metadata() == null ? java.util.Map.<String, String>of() : document.metadata();
+        var source = firstNonBlank(document.source(), metadata.get("source"), metadata.get("source_document"), "unknown");
+        var sourceDocument = metadata.get("source_document");
+        var chunkIndex = metadata.get("chunk_index");
+        var chunkCount = metadata.get("chunk_count");
+        var chunkStart = metadata.get("chunk_start");
+        var chunkEnd = metadata.get("chunk_end");
+
+        var citation = new StringBuilder(source);
+        if (sourceDocument != null && !sourceDocument.isBlank() && !sourceDocument.equals(source)) {
+            citation.append(" (document: ").append(sourceDocument).append(')');
+        }
+        if (chunkIndex != null && !chunkIndex.isBlank()) {
+            citation.append(" chunk ").append(chunkIndex);
+            if (chunkCount != null && !chunkCount.isBlank()) {
+                citation.append('/').append(chunkCount);
+            }
+        }
+        if (chunkStart != null && chunkEnd != null && !chunkStart.isBlank() && !chunkEnd.isBlank()) {
+            citation.append(" chars ").append(chunkStart).append('-').append(chunkEnd);
+        }
+        citation.append(" score ").append(String.format(java.util.Locale.ROOT, "%.3f", document.score()));
+        return citation.toString();
+    }
+
+    private static List<Document> safeDocuments(List<Document> documents) {
+        return documents == null ? List.of() : documents;
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (var value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "unknown";
     }
 
     /**

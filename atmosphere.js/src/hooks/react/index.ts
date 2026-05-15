@@ -29,6 +29,8 @@ export { useOptimistic } from './useOptimistic';
 export type { UseOptimisticOptions, UseOptimisticResult } from './useOptimistic';
 export { useStreaming } from './useStreaming';
 export type { AiEvent, StreamingConnectionState, UseStreamingOptions, UseStreamingResult } from './useStreaming';
+export { useChat } from './useChat';
+export type { ChatInputMessage, ChatMessage, ChatMessageStatus, ChatRole, UseChatOptions, UseChatResult } from './useChat';
 export { useConnectionStatus } from './useConnectionStatus';
 export type { UseConnectionStatusResult } from './useConnectionStatus';
 export { useExternalConnectionStatus } from './useExternalConnectionStatus';

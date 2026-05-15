@@ -15,6 +15,8 @@
  */
 package org.atmosphere.ai.governance;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Small helper that emits an OpenTelemetry span per policy evaluation when
  * {@code io.opentelemetry.api} is on the classpath and a non-noop tracer is
@@ -78,6 +80,7 @@ public final class GovernanceTracer {
     public static final class Handle {
         static final Handle NOOP = new Handle(null);
         private final Object span;
+        private final AtomicBoolean ended = new AtomicBoolean();
 
         private Handle(Object span) {
             this.span = span;
@@ -88,18 +91,33 @@ public final class GovernanceTracer {
          * to call multiple times; only the first call records.
          */
         public void end(String decision, String reason) {
-            if (span == null) return;
+            end(decision, reason, null);
+        }
+
+        /**
+         * Tag the span with an exception before ending it. Safe to call multiple
+         * times; only the first call records.
+         */
+        public void end(String decision, String reason, Throwable error) {
+            if (span == null || !ended.compareAndSet(false, true)) return;
             try {
                 var setAttribute = span.getClass().getMethod("setAttribute", String.class, String.class);
                 setAttribute.invoke(span, "policy.decision", decision == null ? "" : decision);
                 setAttribute.invoke(span, "policy.reason", reason == null ? "" : reason);
+                if (error != null) {
+                    try {
+                        span.getClass().getMethod("recordException", Throwable.class).invoke(span, error);
+                    } catch (Throwable ignored) {
+                        // older OTel API shape — skip exception recording
+                    }
+                }
                 if ("deny".equalsIgnoreCase(decision) || "error".equalsIgnoreCase(decision)) {
                     // Mark span as error so Jaeger/Tempo surfaces it clearly.
                     try {
                         var statusCodeClass = Class.forName("io.opentelemetry.api.trace.StatusCode");
-                        var error = statusCodeClass.getField("ERROR").get(null);
+                        var errorStatus = statusCodeClass.getField("ERROR").get(null);
                         span.getClass().getMethod("setStatus", statusCodeClass, String.class)
-                                .invoke(span, error, reason == null ? "" : reason);
+                                .invoke(span, errorStatus, reason == null ? "" : reason);
                     } catch (Throwable ignored) {
                         // older OTel API shape — skip status setting
                     }
@@ -108,6 +126,10 @@ public final class GovernanceTracer {
             } catch (Throwable ignored) {
                 // span end failure should never break the turn
             }
+        }
+
+        static Handle forSpan(Object span) {
+            return new Handle(span);
         }
     }
 }

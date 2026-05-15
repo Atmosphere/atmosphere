@@ -49,6 +49,7 @@
         <module>coordinator</module>
         <module>verifier</module>
         <module>admin</module>
+        <module>admin-bundle</module>
         <module>checkpoint</module>
         <module>channels</module>
         <module>sandbox</module>

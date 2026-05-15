@@ -52,11 +52,10 @@ import java.util.concurrent.CompletableFuture;
  * <p><b>Capabilities:</b> {@link AiCapability#TEXT_STREAMING},
  * {@link AiCapability#SYSTEM_PROMPT}, {@link AiCapability#STRUCTURED_OUTPUT}
  * (via the pipeline), {@link AiCapability#CONVERSATION_MEMORY},
- * {@link AiCapability#TOKEN_USAGE}. Tool calling is intentionally NOT
- * declared in this first cut — AgentScope's {@code Toolkit} bridge into
- * Atmosphere's {@link org.atmosphere.ai.tool.ToolDefinition} surface is a
- * follow-up; declaring {@link AiCapability#TOOL_CALLING} without a real
- * bridge would violate Correctness Invariant #5 (Runtime Truth).</p>
+ * {@link AiCapability#TOKEN_USAGE}, {@link AiCapability#TOOL_CALLING}, and
+ * {@link AiCapability#TOOL_APPROVAL}. Tools are bridged per request into an
+ * AgentScope {@code Toolkit} through {@link AgentScopeToolBridge}, so
+ * Atmosphere's validation and HITL gate remain authoritative.</p>
  */
 public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
 
@@ -141,13 +140,17 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         // a fresh effectively-final local so the cancel handler's anonymous
         // ExecutionHandle inner class can capture the resolved agent.
         var perRequestAgent = AgentScopeAgent.from(context);
-        final ReActAgent activeAgent;
+        ReActAgent resolvedAgent;
         if (perRequestAgent != null) {
-            activeAgent = perRequestAgent;
+            resolvedAgent = perRequestAgent;
             logger.debug("Dispatching against per-request AgentScope ReActAgent override");
         } else {
-            activeAgent = agent;
+            resolvedAgent = agent;
         }
+        if (!context.tools().isEmpty()) {
+            resolvedAgent = agentWithTools(resolvedAgent, context, session);
+        }
+        final ReActAgent activeAgent = resolvedAgent;
 
         var msgs = new ArrayList<Msg>();
         for (var chat : assembleMessages(context)) {
@@ -256,6 +259,21 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         }
     }
 
+    private static ReActAgent agentWithTools(
+            ReActAgent baseAgent, AgentExecutionContext context, StreamingSession session) {
+        var toolkit = AgentScopeToolBridge.toToolkit(
+                context.tools(), session, context.approvalStrategy(), context.approvalPolicy());
+        return ReActAgent.builder()
+                .name(baseAgent.getClass().getSimpleName())
+                .sysPrompt(baseAgent.getSysPrompt())
+                .model(baseAgent.getModel())
+                .toolkit(toolkit)
+                .memory(baseAgent.getMemory())
+                .maxIters(baseAgent.getMaxIters())
+                .generateOptions(baseAgent.getGenerateOptions())
+                .build();
+    }
+
     private static MsgRole toRole(String role) {
         if (role == null) {
             return MsgRole.USER;
@@ -283,6 +301,12 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                 AiCapability.CONVERSATION_MEMORY,
                 // handleEvent forwards Msg.getChatUsage() on isLast().
                 AiCapability.TOKEN_USAGE,
+                // AgentScopeToolBridge registers Atmosphere ToolDefinition
+                // instances as AgentScope AgentTool objects on a per-request
+                // Toolkit, then routes each invocation through the shared
+                // ToolExecutionHelper approval/validation seam.
+                AiCapability.TOOL_CALLING,
+                AiCapability.TOOL_APPROVAL,
                 // executeWithHandle returns an ExecutionHandle whose cancel()
                 // calls activeAgent.interrupt() (cooperative unwind of the
                 // ReAct loop), disposes the Reactor subscription (drops

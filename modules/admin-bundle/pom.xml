@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-project</artifactId>
+        <version>4.0.46-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>atmosphere-admin-bundle</artifactId>
+    <packaging>pom</packaging>
+    <name>atmosphere-admin-bundle</name>
+    <description>Atmosphere Enterprise Console — single-dependency bundle aggregating admin (dashboard, flow viewer, governance decision viewer), workflow authoring, eval dashboard, RAG providers, and the AI runtime SPI. Add this to a Spring Boot project to get the full operator-grade control plane.</description>
+    <url>https://github.com/Atmosphere/atmosphere</url>
+
+    <properties>
+        <atmosphere.module.name>org.atmosphere.admin.bundle</atmosphere.module.name>
+    </properties>
+
+    <dependencies>
+        <!-- Spring Boot starter: brings the framework + AtmosphereAdmin + the
+             admin dashboard / flow viewer / workflow authoring / eval dashboard
+             auto-configurations. Transitive deps include atmosphere-runtime,
+             atmosphere-ai, atmosphere-coordinator, atmosphere-admin. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-spring-boot-starter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Admin control plane proper. Transitively included via the starter
+             but pinned here so a non-Spring-Boot user (Quarkus, plain Servlet)
+             still picks it up when they swap atmosphere-spring-boot-starter
+             for atmosphere-runtime. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-admin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- AI surfaces: AgentRuntime SPI, AiPipeline, governance primitives,
+             ContextProvider SPI. The bundle does NOT pin a runtime adapter
+             (Spring AI, LangChain4j, etc.) — operators choose one. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- @Coordinator + AgentFleet — load-bearing for the workflow
+             authoring UI's manifest → dispatch path. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-coordinator</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- @Agent annotation + AgentState. Operators with declarative agents
+             still want the bundle's admin surface. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-agent</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- RAG context providers (InMemory + Spring AI + LangChain4j +
+             pgvector + Qdrant + Pinecone). The bundle pulls them all in;
+             auto-config wires the providers whose backing beans are present. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-rag</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Durable checkpoint SPI — passivation surface for long-running
+             agents that the admin UI surfaces. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-checkpoint</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Durable sessions — admin can resume disconnected sessions; the
+             SQLite default backs everything without external state. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-durable-sessions</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-durable-sessions-sqlite</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+</project>

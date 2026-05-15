@@ -502,7 +502,7 @@ else
     fail "runtime-overlays.json is valid JSON"
 fi
 
-expected_runtimes="builtin spring-ai langchain4j adk koog embabel semantic-kernel"
+expected_runtimes="builtin spring-ai langchain4j adk koog agentscope spring-ai-alibaba embabel semantic-kernel"
 for rt in $expected_runtimes; do
     if jq -e ".overlays[\"$rt\"]" "$OVERLAYS_JSON" >/dev/null 2>&1; then
         pass "registry has '$rt' overlay"
@@ -731,6 +731,8 @@ if [ -z "$SKIP_NPX" ]; then
     assert_contains "$out" "ai-chat" "npx help lists ai-chat template"
     assert_contains "$out" "multi-agent" "npx help lists multi-agent template"
     assert_contains "$out" "classroom" "npx help lists classroom template"
+    assert_contains "$out" "guarded-agent" "npx help lists guarded-agent template"
+    assert_contains "$out" "spring-ai-alibaba" "npx help lists spring-ai-alibaba runtime"
 
     # List templates
     out=$(node "$NPX" --list-templates 2>&1)
@@ -738,6 +740,8 @@ if [ -z "$SKIP_NPX" ]; then
     assert_contains "$out" "rag" "npx --list-templates shows rag"
     assert_contains "$out" "multi-agent" "npx --list-templates shows multi-agent"
     assert_contains "$out" "classroom" "npx --list-templates shows classroom"
+    assert_contains "$out" "ms-governance" "npx --list-templates shows ms-governance"
+    assert_contains "$out" "assistant" "npx --list-templates shows assistant"
 
     # No name
     out=$(node "$NPX" 2>&1) && ec=0 || ec=$?
