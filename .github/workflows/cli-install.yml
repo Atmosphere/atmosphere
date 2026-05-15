@@ -76,6 +76,14 @@ jobs:
         java-version: 21
         distribution: 'temurin'
 
+    # The npx wrapper delegates to the `atmosphere` CLI on PATH; install
+    # the in-repo CLI before invoking npx so the PATH check passes.
+    # (Without this, --help and --list-templates pass because they never
+    # exec the CLI, but the first scaffold step fails with
+    # "the atmosphere CLI is required but is not on PATH".)
+    - name: Put in-repo atmosphere CLI on PATH
+      run: echo "$GITHUB_WORKSPACE/cli" >> "$GITHUB_PATH"
+
     - name: npx create-atmosphere-app --help
       run: npx create-atmosphere-app --help
 
