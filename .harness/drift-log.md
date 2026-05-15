@@ -405,6 +405,40 @@ user usually means.
 
 ---
 
+## 2026-05-15 — mirroir-run pilot SAMPLE.md authoring (`feat/mirroir-pilot-ai-chat`)
+
+Phase A of the §15 expansion (drive all 25 Atmosphere samples through
+`mirroir-run`). Pilot is `samples/spring-boot-ai-chat`. The work itself
+is a SAMPLE.md + two scenario YAMLs + a CI lane — but in the *first
+draft* I propagated a sample-README claim into the SAMPLE.md `env:` block
+without grepping the runtime that interprets it. Self-caught against the
+actual `AiConfig.configure` modes table before the gist or the file
+shipped to Atmosphere `main`, but after the gist was already published —
+so the false claim escaped the local check.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 38 | First draft of `samples/spring-boot-ai-chat/SAMPLE.md` + the published secret gist [d1eddc8…](https://gist.github.com/jfarcand/d1eddc8305951c607ba3e845024ee3e6) declared `LLM_MODE: "demo"` as the no-API-key boot env and asserted "Demo mode lets CI run on a fresh runner with zero secrets" — citing the sample README's prose "works out-of-the-box without an API key (simulated streaming)" | `AiConfig.configure(String mode, …)` (line 150 of `modules/ai/src/main/java/org/atmosphere/ai/AiConfig.java`) only branches on three values: `remote` (default, real provider), `local` (Ollama), and `fake` (line 153: `if ("fake".equalsIgnoreCase(mode)) { instance = new LlmSettings(new FakeLlmClient(model), …); }`). There is no `demo` mode — passing `LLM_MODE=demo` would fall through to the `remote` branch with no API key, log "No API key configured for remote mode" and fail at request time. The README's "demo mode" phrasing is colloquial; the actual mode token is `fake` | Trusted the sample README's natural-language framing ("demo mode") as the literal env-var value instead of grepping the runtime's switch. Same class as drift #36 (prose-vs-snapshot lag) — narrative ahead of code. Compounded by writing the gist *before* the local validate step, so the false token propagated to a published artifact before any executable check could catch it | Memory rule installed ([feedback_grep_env_tokens.md](feedback_grep_env_tokens.md)): when a new SAMPLE.md or scenario env var names a *mode/strategy* value, grep the consuming code (`grep -n "equalsIgnoreCase\|equals\|=" <ConfigClass>.java`) for the literal accepted set before writing the YAML. README prose is documentation, not contract. Mechanical gate candidate: `scripts/validate-sample-manifest.sh` — parse `samples/*/SAMPLE.md` YAML, extract `env:` keys ending in `_MODE`, grep the runtime modules for the literal value as a string constant. Logged as a follow-up; not yet implemented |
+
+### Process note
+
+The catch was self-driven by a single `grep -n LLM_MODE LlmConfig.java`
+that I should have run *before* writing the SAMPLE.md, not after. The
+catch happened ~3 minutes after the gist was published — the gist has
+been updated in place. No public-doc rollout occurred. Net cost: one
+extra `gh gist edit` and this drift entry. Net win: the gate is now
+named, so the next sample's env block gets the grep first.
+
+The "trust README prose" reflex is the same shape as drifts #5 (CHANGELOG
+prose vs code) and #36 (capability matrix prose vs snapshot). The
+recurring fix is the same: when prose names a *literal value the runtime
+will compare with `equalsIgnoreCase`*, that value must come from the
+runtime's source, not from any human-readable description of it.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /
