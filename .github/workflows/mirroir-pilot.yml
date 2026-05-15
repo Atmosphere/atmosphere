@@ -1,0 +1,99 @@
+name: mirroir-run pilot (spring-boot-ai-chat)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'samples/spring-boot-ai-chat/**'
+      - 'modules/cpr/**'
+      - 'modules/spring-boot-starter/**'
+      - 'modules/ai/**'
+      - '.github/workflows/mirroir-pilot.yml'
+  pull_request:
+    paths:
+      - 'samples/spring-boot-ai-chat/**'
+      - 'modules/cpr/**'
+      - 'modules/spring-boot-starter/**'
+      - 'modules/ai/**'
+      - '.github/workflows/mirroir-pilot.yml'
+
+concurrency:
+  group: mirroir-pilot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pilot:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - name: Cache Cargo + mirroir-run target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            /tmp/mirroir-mcp/runner/target
+          key: mirroir-run-${{ runner.os }}-v1
+
+      - name: Build mirroir-run from source
+        run: |
+          if [ ! -x /tmp/mirroir-mcp/runner/target/release/mirroir-run ]; then
+            git clone --depth 1 https://github.com/jfarcand/iphone-mirroir-mcp.git /tmp/mirroir-mcp
+            (cd /tmp/mirroir-mcp/runner && cargo build --release --bin mirroir-run)
+          fi
+          sudo cp /tmp/mirroir-mcp/runner/target/release/mirroir-run /usr/local/bin/
+          mirroir-run --help | head -5
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/Library/Caches/ms-playwright
+          key: playwright-${{ runner.os }}-v1
+
+      - name: Install Playwright (chromium + firefox + webkit)
+        run: |
+          mkdir -p /tmp/playwright-home
+          cd /tmp/playwright-home
+          npm init -y
+          npm install --save-dev @playwright/test
+          npx playwright install --with-deps chromium firefox webkit
+
+      - name: Build atmosphere-runtime + spring-boot-starter + ai (skip tests)
+        run: ./mvnw -B -q install -pl modules/cpr,modules/spring-boot-starter,modules/ai -am -DskipTests
+
+      - name: Drive sample through mirroir-run
+        env:
+          MIRROIR_PLAYWRIGHT_HOME: /tmp/playwright-home
+          MIRROIR_REPO_ROOT: ${{ github.workspace }}
+          RUST_LOG: info
+        run: mirroir-run --sample samples/spring-boot-ai-chat --scenarios must-pass
+
+      - name: Upload mirroir-run report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirroir-run-report-${{ runner.os }}
+          path: |
+            mirroir-run-report.json
+            playwright-report.json
+          if-no-files-found: ignore
