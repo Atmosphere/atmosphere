@@ -20,10 +20,10 @@
   "devDependencies": {
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
+    "@vitejs/plugin-react": "^6.0.2",
     "@bufbuild/buf": "^1.69.0",
     "@bufbuild/protoc-gen-es": "^2.12.0",
     "typescript": "^5.9.3",
-    "vite": "^8.0.11"
+    "vite": "^8.0.13"
   }
 }
