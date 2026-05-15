@@ -51,20 +51,25 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             /tmp/mirroir-mcp/runner/target
-          key: mirroir-run-${{ runner.os }}-v1
+          # Key tied to the pinned mirroir-mcp branch + the runner-fix commit
+          # SHA. Bump when the pin changes so prior caches (which may hold the
+          # scaffold-only binary from mirroir-mcp/main) cannot satisfy the hit.
+          key: mirroir-run-${{ runner.os }}-b3096c2
 
       - name: Build mirroir-run from source
         run: |
-          if [ ! -x /tmp/mirroir-mcp/runner/target/release/mirroir-run ]; then
-            # Pinned to feature/runner-cli-smoke until the runner branch merges
-            # to mirroir-mcp/main; that branch carries the empty-verdict guard
-            # and CSS-selector pass-through (mirroir-mcp@3edc89c, b3096c2).
-            git clone --depth 1 --branch feature/runner-cli-smoke \
-              https://github.com/jfarcand/mirroir-mcp.git /tmp/mirroir-mcp
-            (cd /tmp/mirroir-mcp/runner && cargo build --release --bin mirroir-run)
-          fi
+          # Pinned to feature/runner-cli-smoke until the runner branch merges
+          # to mirroir-mcp/main; that branch carries the empty-verdict guard
+          # and CSS-selector pass-through (mirroir-mcp@3edc89c, b3096c2).
+          # We always clone (don't gate on cached binary): the cache restores
+          # the build target dir + Cargo registry to speed up the rebuild,
+          # but we rebuild from source so the binary always matches the pin.
+          rm -rf /tmp/mirroir-mcp
+          git clone --depth 1 --branch feature/runner-cli-smoke \
+            https://github.com/jfarcand/mirroir-mcp.git /tmp/mirroir-mcp
+          (cd /tmp/mirroir-mcp/runner && cargo build --release --bin mirroir-run)
           sudo cp /tmp/mirroir-mcp/runner/target/release/mirroir-run /usr/local/bin/
-          mirroir-run --help | head -5
+          mirroir-run --help | head -10
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
