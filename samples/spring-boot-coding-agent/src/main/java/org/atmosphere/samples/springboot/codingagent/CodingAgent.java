@@ -132,9 +132,18 @@ public class CodingAgent {
             }
 
             session.progress("Reading README...");
-            var readme = tryReadFile(sandbox, Path.of("/workspace/repo/README.md"));
-            if (readme == null) {
-                readme = tryReadFile(sandbox, Path.of("/workspace/repo/README"));
+            // Case-insensitive probe: GitHub treats README/readme/Readme as
+            // equivalent for rendering, but the sandbox filesystem is
+            // case-sensitive. sindresorhus/awesome and many other popular
+            // repos ship `readme.md` lowercase.
+            String readme = null;
+            for (var name : List.of(
+                    "README.md", "readme.md", "Readme.md",
+                    "README", "readme", "Readme")) {
+                readme = tryReadFile(sandbox, Path.of("/workspace/repo/" + name));
+                if (readme != null) {
+                    break;
+                }
             }
             if (readme == null) {
                 session.send("Cloned " + repo + " but no README found at the root.");
