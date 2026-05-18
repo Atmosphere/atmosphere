@@ -143,7 +143,8 @@ public class AiPipeline {
         this.guardrails = guardrails != null ? guardrails : List.of();
         this.policies = policies != null ? List.copyOf(policies) : List.of();
         this.contextProviders = contextProviders != null ? contextProviders : List.of();
-        this.metrics = metrics != null ? metrics : AiMetrics.NOOP;
+        this.metrics = org.atmosphere.ai.jfr.CompositeAiMetrics.withJfr(
+                metrics != null ? metrics : AiMetrics.NOOP);
         this.responseType = responseType;
     }
 
@@ -582,6 +583,8 @@ public class AiPipeline {
             if (hit.isPresent()) {
                 logger.debug("Pipeline response-cache HIT: key={}", key);
                 var cached = hit.get();
+                var cacheTurn = newTurnEvent(clientId, request.model(), true);
+                cacheTurn.begin();
                 // Fire lifecycle listeners so observers registered on the
                 // context see a clean start/completion pair even on the hit
                 // path — matches the cache-miss path where
@@ -603,9 +606,14 @@ public class AiPipeline {
                     }
                     target.complete();
                     AbstractAgentRuntime.fireCompletion(context);
+                    cacheTurn.status = "success";
                 } catch (RuntimeException e) {
+                    cacheTurn.status = "error";
+                    cacheTurn.errorType = e.getClass().getSimpleName();
                     AbstractAgentRuntime.fireError(context, e);
                     throw e;
+                } finally {
+                    cacheTurn.commit();
                 }
                 return;
             }
@@ -630,6 +638,8 @@ public class AiPipeline {
                 baseSystemPrompt, structuredSchemaText, confidenceCueText,
                 tools, history, request.message());
 
+        var turnEvent = newTurnEvent(clientId, request.model(), false);
+        turnEvent.begin();
         try {
             // executeWithHandle parity with AiStreamingSession: runtimes that
             // override get a real cancel handle, default-impl runtimes return a
@@ -669,10 +679,26 @@ public class AiPipeline {
                     && !effectiveTarget.hasErrored()) {
                 captor.commit();
             }
+            turnEvent.status = effectiveTarget.hasErrored() ? "error" : "success";
         } catch (Exception e) {
+            turnEvent.status = "error";
+            turnEvent.errorType = e.getClass().getSimpleName();
             metrics.recordError(model != null ? model : "unknown", "stream_error");
             throw e;
+        } finally {
+            turnEvent.commit();
         }
+    }
+
+    private org.atmosphere.ai.jfr.AgentTurnEvent newTurnEvent(String clientId,
+                                                              String requestModel,
+                                                              boolean cacheHit) {
+        var event = new org.atmosphere.ai.jfr.AgentTurnEvent();
+        event.runtime = runtime != null ? runtime.name() : "unknown";
+        event.model = requestModel != null ? requestModel : (model != null ? model : "unknown");
+        event.clientId = clientId;
+        event.cacheHit = cacheHit;
+        return event;
     }
 
     private static List<AiGuardrail> mergeForPostResponse(List<AiGuardrail> guardrails,

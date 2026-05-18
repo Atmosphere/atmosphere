@@ -272,6 +272,28 @@ public final class ToolExecutionHelper {
             }
         }
 
+        // Config-driven per-tool permission gate. ToolPermissionPolicy.global()
+        // resolves to ALLOW_ALL by default so existing deployments are
+        // unaffected; opt-in via atmosphere.tools.permissions.<tool>=deny|confirm
+        // (or a ServiceLoader-registered ToolPermissionPolicy) lets operators
+        // restrict trusted-by-default tools without re-annotating @AiTool
+        // methods. DENY emits a JFR ToolInvocationEvent with outcome=DENIED so
+        // observers can distinguish refusals from failed executions.
+        var permissionDecision = org.atmosphere.ai.tool.ToolPermissionPolicy.global()
+                .decide(toolName, args);
+        switch (permissionDecision) {
+            case DENY -> {
+                logger.info("Tool {} denied by ToolPermissionPolicy", toolName);
+                emitDeniedJfrEvent(toolName);
+                return finishAndEmit(toolName, session,
+                        "{\"status\":\"cancelled\",\"message\":\"Tool execution denied by ToolPermissionPolicy\"}");
+            }
+            case CONFIRM -> forceApproval = true;
+            case ALLOW -> {
+                // No-op; per-tool @RequiresApproval / effectivePolicy still apply.
+            }
+        }
+
         // Fast-path: nothing requires approval — execute directly.
         if (!forceApproval && !effectivePolicy.requiresApproval(tool)) {
             return finishAndEmit(toolName, session,
@@ -473,5 +495,17 @@ public final class ToolExecutionHelper {
                 + "': " + (reason == null ? "" : reason);
         return "{\"status\":\"cancelled\",\"message\":\""
                 + ToolBridgeUtils.escapeJson(message) + "\"}";
+    }
+
+    private static void emitDeniedJfrEvent(String toolName) {
+        var event = new org.atmosphere.ai.jfr.ToolInvocationEvent();
+        if (!event.shouldCommit()) {
+            return;
+        }
+        event.tool = toolName != null ? toolName : "unknown";
+        event.model = "unknown";
+        event.outcome = org.atmosphere.ai.jfr.ToolInvocationEvent.OUTCOME_DENIED;
+        event.durationNanos = 0L;
+        event.commit();
     }
 }

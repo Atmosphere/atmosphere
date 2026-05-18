@@ -77,6 +77,14 @@ public class AiFeatureTestServer {
             framework.addAtmosphereHandler("/ai/embedding", new EmbeddingTestHandler());
             framework.addAtmosphereHandler("/ai/retry-policy", new RetryPolicyTestHandler());
             framework.addAtmosphereHandler("/ai/tool-call-delta", new ToolCallDeltaTestHandler());
+            framework.addAtmosphereHandler("/ai/jfr-observability",
+                    new JfrObservabilityTestHandler());
+            framework.addAtmosphereHandler("/ai/tool-permission",
+                    new ToolPermissionTestHandler());
+            framework.addAtmosphereHandler("/ai/coordinator-first-run",
+                    new CoordinatorFirstRunTestHandler());
+            framework.addAtmosphereHandler("/ai/episodic-memory",
+                    new EpisodicMemoryTestHandler());
             // Runtime-truth capability reflection — enumerates every
             // AgentRuntime discovered via ServiceLoader on this classpath,
             // used by ai-tool-call-delta.spec.ts for the Gap #8 negative

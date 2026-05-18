@@ -439,6 +439,25 @@ runtime's source, not from any human-readable description of it.
 
 ---
 
+## 2026-05-18 — Agent-runtime JFR/permissions/memory branch e2e validation
+
+Closing the e2e matrix on `feat/agent-runtime-jfr-permissions-memory`. Three of the four spec suites passed first try; the EpisodicMemoryStore spec caught a JFR consumer-side assumption.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 51 | The unit tests for JFR observability use `event.getValue("operation")` and call `String.valueOf(...)` on the result to switch on the enum-style outcome (`SUCCESS` / `FAILURE` / `DENIED` / `STORE` / `RECALL` / `FORGET`). I generalized this pattern across all four e2e handlers expecting it to work the same way at the live RecordingFile boundary. | `RecordedEvent.getValue(String)` on a JFR `String` field returns the **internal char-array view** (`char[]`), not a `java.lang.String`. `String.valueOf(char[])` returns the array contents as a String *by accident* in some cases but throws `ClassCastException: class java.lang.String cannot be cast to class [C` for others mid-iteration when the JFR parser tries to coerce. The unit tests didn't catch this because they used `event.getValue(...).equals(CONSTANT)` (a single `Object.equals(...)` call which works on either representation). The e2e Episodic spec failed only when iterating with a switch that demanded the String coercion. The correct accessor is `event.getString("operation")` — JFR returns a real `java.lang.String` and the cast is internal. | Unit-test pattern (single `.equals` comparison) accidentally hid the issue. The e2e handler was the first consumer to materialize the value as a String and switch on it; that exposed the storage-vs-value distinction. The unit tests were honest about what they asserted — they didn't lie — but they didn't exercise the consumer surface that real code (logging, JFC parsers, JMC users) hits. | (1) `EpisodicMemoryTestHandler.emitJfrBreakdown` now uses `event.getString("operation")` and a diagnostic metadata frame surfaces any future parser exception out to the spec; the spec asserts `diagnostic === 'ok'`. (2) Renamed the event field `String store` → `String storeClass` in `EpisodicMemoryAccessEvent` after a parallel hypothesis (turned out unrelated to the cast, but `storeClass` is the clearer name). (3) No standalone validator — the e2e spec itself is the gate: any future JFR event that exposes a String field through `getValue` will fail the diagnostic assertion. |
+
+### Process win
+
+The unit tests went green first, the e2e spec failed second — exactly the
+order the testing pyramid promises. The cost of running all four e2e specs
+through real Jetty (~27 seconds) bought a real-consumer assertion the
+RecordingFile-based unit tests could not.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /

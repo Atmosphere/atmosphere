@@ -244,6 +244,22 @@ export default defineConfig({
       testMatch: /ai-tool-call-delta\.spec\.ts/,
     },
     {
+      name: 'ai-jfr-observability',
+      testMatch: /ai-jfr-observability\.spec\.ts/,
+    },
+    {
+      name: 'ai-tool-permission',
+      testMatch: /ai-tool-permission\.spec\.ts/,
+    },
+    {
+      name: 'ai-coordinator-first-run',
+      testMatch: /ai-coordinator-first-run\.spec\.ts/,
+    },
+    {
+      name: 'ai-episodic-memory',
+      testMatch: /ai-episodic-memory\.spec\.ts/,
+    },
+    {
       name: 'ai-lifecycle-listener',
       testMatch: /ai-lifecycle-listener\.spec\.ts/,
     },

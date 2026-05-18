@@ -205,7 +205,8 @@ public class AiStreamingSession implements StreamingSession {
         this.toolRegistry = toolRegistry;
         this.guardrails = guardrails != null ? guardrails : List.of();
         this.contextProviders = contextProviders != null ? contextProviders : List.of();
-        this.metrics = metrics != null ? metrics : AiMetrics.NOOP;
+        this.metrics = org.atmosphere.ai.jfr.CompositeAiMetrics.withJfr(
+                metrics != null ? metrics : AiMetrics.NOOP);
         this.responseType = responseType;
     }
 
@@ -768,6 +769,12 @@ public class AiStreamingSession implements StreamingSession {
                 tools, request.history(), request.message());
 
         var streamingTarget = target;
+        var turnEvent = new org.atmosphere.ai.jfr.AgentTurnEvent();
+        turnEvent.runtime = runtime != null ? runtime.name() : "unknown";
+        turnEvent.model = request.model() != null ? request.model() : (model != null ? model : "unknown");
+        turnEvent.clientId = resource != null ? resource.uuid() : null;
+        turnEvent.cacheHit = false;
+        turnEvent.begin();
         try {
             // executeWithHandle returns a handle the disconnect path can
             // use to abort the upstream LLM call. For runtimes that haven't
@@ -788,21 +795,28 @@ public class AiStreamingSession implements StreamingSession {
             }
             try {
                 handle.whenDone().join();
+                turnEvent.status = streamingTarget.hasErrored() ? "error" : "success";
             } catch (java.util.concurrent.CompletionException ce) {
                 // Runtime completed exceptionally via Settable.completeExceptionally.
                 // The streamingTarget.error(...) path was already invoked by the
                 // runtime, so the client has been notified — no further action.
+                turnEvent.status = "error";
+                var cause = ce.getCause();
+                turnEvent.errorType = cause != null ? cause.getClass().getSimpleName() : ce.getClass().getSimpleName();
                 if (logger.isTraceEnabled()) {
-                    var cause = ce.getCause();
                     logger.trace("Execution completed exceptionally for {}: {}",
                             resource != null ? resource.uuid() : "null",
                             cause != null ? cause.getMessage() : ce.getMessage());
                 }
             }
         } catch (Exception e) {
+            turnEvent.status = "error";
+            turnEvent.errorType = e.getClass().getSimpleName();
             metrics.recordError(model != null ? model : "unknown", "stream_error");
             logger.error("Streaming error", e);
             streamingTarget.error(e);
+        } finally {
+            turnEvent.commit();
         }
         try {
             // Post-process follows execution

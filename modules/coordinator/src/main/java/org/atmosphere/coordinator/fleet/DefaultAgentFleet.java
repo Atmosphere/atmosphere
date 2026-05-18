@@ -26,7 +26,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +45,28 @@ public final class DefaultAgentFleet implements AgentFleet {
 
     /** Default per-agent timeout for parallel calls: 2 minutes. */
     public static final long DEFAULT_PARALLEL_TIMEOUT_MS = 120_000L;
+
+    /**
+     * System property toggling the first-run-sequential warm-up. Defaults to
+     * {@code false} — Atmosphere's typical websocket/HTTP deployment routes
+     * approval prompts through {@code ApprovalStrategy} on per-session
+     * transports, so cross-thread stdout collisions are not a concern. Opt
+     * in with {@code -Datmosphere.coordinator.first-run-sequential=true}
+     * when the coordinator drives interactive prompts on a shared channel
+     * (CLI, embedded scripts, single-terminal demos) and a cold-start
+     * dispatch of multiple {@code ToolPermission.CONFIRM} tools could race.
+     */
+    public static final String FIRST_RUN_SEQUENTIAL_PROPERTY =
+            "atmosphere.coordinator.first-run-sequential";
+
+    /**
+     * In-process record of sub-agents that have completed at least one
+     * successful dispatch. The first dispatch of each name runs sequentially
+     * so confirm prompts do not collide; subsequent dispatches fan out in
+     * parallel as before. Static because the warm-up is per-JVM, not
+     * per-fleet-instance.
+     */
+    private static final Set<String> FIRST_RUN_COMPLETED = ConcurrentHashMap.newKeySet();
 
     private final Map<String, AgentProxy> proxies;
     private final List<ResultEvaluator> evaluators;
@@ -137,29 +161,60 @@ public final class DefaultAgentFleet implements AgentFleet {
     public Map<String, AgentResult> parallel(AgentCall... calls) {
         logger.debug("Parallel fan-out to {} agents", calls.length);
 
-        ExecutorService vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
-        var futures = new LinkedHashMap<String, CompletableFuture<AgentResult>>();
-        var timeouts = new HashMap<String, Long>();
+        // Stable-key assignment up front so warm-up and parallel phases agree
+        // on result-map keys regardless of which phase processed which entry.
         var nameCount = new HashMap<String, Integer>();
+        var ordered = new ArrayList<KeyedCall>(calls.length);
         for (var agentCall : calls) {
             var name = agentCall.agentName();
             var count = nameCount.merge(name, 1, Integer::sum);
             var key = count == 1 ? name : name + "#" + count;
-            var proxy = agent(name);
+            ordered.add(new KeyedCall(key, agentCall));
+        }
+
+        var results = new LinkedHashMap<String, AgentResult>();
+
+        // First-run warm-up: any sub-agent that has not completed a successful
+        // dispatch in this JVM runs sequentially before the parallel fan-out
+        // begins. This prevents CONFIRM-shaped tool prompts from colliding
+        // across virtual threads on the cold path. Same-name duplicates
+        // within a single parallel() call still pay the warm-up once.
+        if (firstRunSequentialEnabled()) {
+            var warmedThisCall = new java.util.HashSet<String>();
+            for (var entry : ordered) {
+                var name = entry.call().agentName();
+                if (FIRST_RUN_COMPLETED.contains(name) || warmedThisCall.contains(name)) {
+                    continue;
+                }
+                var warm = dispatchOne(entry.call(), true);
+                results.put(entry.key(), warm);
+                warmedThisCall.add(name);
+                if (warm.success()) {
+                    FIRST_RUN_COMPLETED.add(name);
+                }
+            }
+        }
+
+        ExecutorService vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
+        var futures = new LinkedHashMap<String, CompletableFuture<AgentResult>>();
+        var timeouts = new HashMap<String, Long>();
+        for (var entry : ordered) {
+            if (results.containsKey(entry.key())) {
+                continue;
+            }
+            var proxy = agent(entry.call().agentName());
             // Use per-agent timeout if configured, otherwise fleet default
             var agentTimeoutMs = proxy instanceof DefaultAgentProxy dap
                     && !dap.limits().isDefaultTimeout()
                     ? dap.limits().timeout().toMillis()
                     : parallelTimeoutMs;
-            timeouts.put(key, agentTimeoutMs);
-            futures.put(key,
+            timeouts.put(entry.key(), agentTimeoutMs);
+            futures.put(entry.key(),
                     CompletableFuture.supplyAsync(
-                            () -> proxy.call(agentCall.skill(), agentCall.args()),
+                            () -> dispatchOne(entry.call(), false),
                             vtExecutor)
                             .orTimeout(agentTimeoutMs, TimeUnit.MILLISECONDS));
         }
-
-        var results = new LinkedHashMap<String, AgentResult>();
         try {
             for (var entry : futures.entrySet()) {
                 try {
@@ -213,6 +268,53 @@ public final class DefaultAgentFleet implements AgentFleet {
         logger.debug("Parallel fan-out complete: {} results", results.size());
         return results;
     }
+
+    /**
+     * Dispatch a single sub-agent call with JFR instrumentation. Used by both
+     * the first-run warm-up and the parallel fan-out so a recording shows
+     * which dispatches took the sequential path ({@code firstRun=true}) and
+     * which took the parallel path ({@code firstRun=false}).
+     */
+    private AgentResult dispatchOne(AgentCall agentCall, boolean firstRun) {
+        var event = new org.atmosphere.ai.jfr.SubAgentDispatchEvent();
+        event.subAgent = agentCall.agentName();
+        event.skill = agentCall.skill();
+        event.firstRun = firstRun;
+        event.begin();
+        AgentResult result = null;
+        try {
+            result = agent(agentCall.agentName()).call(agentCall.skill(), agentCall.args());
+            return result;
+        } finally {
+            event.success = result != null && result.success();
+            event.commit();
+        }
+    }
+
+    /**
+     * Read the {@link #FIRST_RUN_SEQUENTIAL_PROPERTY} system property on every
+     * invocation so tests can flip the toggle per case without restarting the
+     * JVM. Defaults to {@code false} when the property is absent or blank.
+     */
+    private static boolean firstRunSequentialEnabled() {
+        var raw = System.getProperty(FIRST_RUN_SEQUENTIAL_PROPERTY);
+        if (raw == null || raw.isBlank()) {
+            return false;
+        }
+        return Boolean.parseBoolean(raw);
+    }
+
+    /**
+     * Visible for testing. Clears the in-process record of warmed-up
+     * sub-agents so the next {@link #parallel} call exercises the
+     * sequential warm-up path again.
+     */
+    public static void resetFirstRunStateForTesting() {
+        FIRST_RUN_COMPLETED.clear();
+    }
+
+    /** Internal pairing of an {@link AgentCall} with its stable result-map key. */
+    private record KeyedCall(String key, AgentCall call) { }
 
     @Override
     public AgentResult pipeline(AgentCall... calls) {
