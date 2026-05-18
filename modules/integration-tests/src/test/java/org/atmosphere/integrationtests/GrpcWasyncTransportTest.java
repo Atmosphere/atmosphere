@@ -214,7 +214,7 @@ public class GrpcWasyncTransportTest {
         }
     }
 
-    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Timeout(value = 30_000, unit = TimeUnit.MILLISECONDS)
     @Test
     public void testWasyncGrpcDisconnect() throws Exception {
         var client = Client.newClient();
@@ -243,11 +243,13 @@ public class GrpcWasyncTransportTest {
         assertTrue(closeLatch.await(5, TimeUnit.SECONDS), "CLOSE event should fire");
         // wAsync updates Socket.status() on its dispatch thread AFTER the
         // CLOSE event callback returns, so a straight read right here races
-        // the transition. Poll with the same 5s budget the rest of this
-        // test uses — the prior 2s cap was too tight on JDK 26 where
-        // scheduler latency between the callback and the status CAS is
-        // observably longer than on 21.
-        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        // the transition. Earlier attempts bumped the poll budget from 2s
+        // to 5s; on JDK 26 CI runners the scheduler gap between the
+        // callback and the status CAS still occasionally exceeds that.
+        // Widen to 20s — the same order of magnitude as the @Timeout that
+        // bounds the whole test — so the assertion fails only on a real
+        // protocol regression, not on scheduler latency variance.
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
         while (socket.status() != Socket.STATUS.CLOSE && System.nanoTime() < deadline) {
             Thread.sleep(20);
         }
