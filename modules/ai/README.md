@@ -46,7 +46,7 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 | `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOOL_CALLING, TOOL_APPROVAL, TOKEN_USAGE, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION *(see runtime caveats below)* |
 | `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
 
-Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build. The aggregate counts ("9 runtimes") and the per-row capability lists are additionally pinned against `.harness/capabilities.snapshot.json` by `CapabilitySnapshotTest` and `scripts/validate-capability-claims.sh` (run from pre-push), so prose claims about the matrix break the build alongside code drift.
+Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build. The aggregate counts ("10 runtimes") and the per-row capability lists are additionally pinned against `.harness/capabilities.snapshot.json` by `CapabilitySnapshotTest` and `scripts/validate-capability-claims.sh` (run from pre-push), so prose claims about the matrix break the build alongside code drift.
 
 #### What capability flags do *not* claim
 
@@ -331,12 +331,13 @@ calls, because they hand the prompt to a third-party client that owns
 the connection. The two-tier model gives Built-in tighter retry without
 forcing framework runtimes to lie about that capability.
 
-**All 9 runtimes claim `PER_REQUEST_RETRY` honestly.** Earlier capability
+**All 10 runtimes claim `PER_REQUEST_RETRY` honestly.** Earlier capability
 sets for `AgentScope` and `Spring AI Alibaba` omitted the flag, even
 though both extend `AbstractAgentRuntime` and inherit
 `executeWithOuterRetry` for free — that was an under-claim corrected so
 `runtime.capabilities()` matches the runtime's actual behavior
-(Correctness Invariant #5).
+(Correctness Invariant #5). The Anthropic runtime added in
+4.0.47-SNAPSHOT follows the same posture.
 
 ## Per-Request Sidecar Bridges
 
@@ -838,6 +839,7 @@ TCD=TOOL_CALL_DELTA, BE=BUDGET_ENFORCEMENT, CS=CONFIDENCE_SCORES, PSV=PASSIVATIO
 | `AgentScopeAgentRuntime`     | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   | yes | yes | yes |
 | `SpringAiAlibabaAgentRuntime`| 100 | yes¹| yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   | yes | yes | yes |
 | `SemanticKernelAgentRuntime` | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   | yes | yes | yes |
+| `AnthropicAgentRuntime`      | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   | yes | yes | yes |
 
 ¹ `SpringAiAlibabaAgentRuntime` declares `TEXT_STREAMING` honestly because the
 final reply ships as a single `session.send()` chunk and Atmosphere's transport

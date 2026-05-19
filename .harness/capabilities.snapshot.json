@@ -6,7 +6,7 @@
     "names": ["AGENT_ORCHESTRATION","AUDIO","BUDGET_ENFORCEMENT","CANCELLATION","CONFIDENCE_SCORES","CONVERSATION_MEMORY","MODEL_ENUMERATION","MULTI_AGENT_HANDOFF","MULTI_MODAL","PASSIVATION","PER_REQUEST_RETRY","PROMPT_CACHING","STRUCTURED_OUTPUT","SYSTEM_PROMPT","TEXT_STREAMING","TOKEN_USAGE","TOOL_APPROVAL","TOOL_CALLING","TOOL_CALL_DELTA","VISION"]
   },
   "runtimes": {
-    "count": 9,
+    "count": 10,
     "items": [
     {
       "name": "AdkAgentRuntime",
@@ -28,6 +28,13 @@
       "language": "java",
       "contract_test": "modules/ai-test/src/test/java/org/atmosphere/ai/test/BuiltInRuntimeContractTest.java",
       "expected_capabilities": ["AUDIO","BUDGET_ENFORCEMENT","CONFIDENCE_SCORES","CONVERSATION_MEMORY","MULTI_MODAL","PASSIVATION","PER_REQUEST_RETRY","PROMPT_CACHING","STRUCTURED_OUTPUT","SYSTEM_PROMPT","TEXT_STREAMING","TOKEN_USAGE","TOOL_APPROVAL","TOOL_CALLING","TOOL_CALL_DELTA","VISION"]
+    },
+    {
+      "name": "AnthropicAgentRuntime",
+      "module": "modules/anthropic",
+      "language": "java",
+      "contract_test": "modules/anthropic/src/test/java/org/atmosphere/ai/anthropic/AnthropicRuntimeContractTest.java",
+      "expected_capabilities": ["BUDGET_ENFORCEMENT","CONFIDENCE_SCORES","CONVERSATION_MEMORY","PASSIVATION","PER_REQUEST_RETRY","STRUCTURED_OUTPUT","SYSTEM_PROMPT","TEXT_STREAMING","TOKEN_USAGE","TOOL_APPROVAL","TOOL_CALLING"]
     },
     {
       "name": "EmbabelAgentRuntime",
