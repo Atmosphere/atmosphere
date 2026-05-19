@@ -55,6 +55,28 @@ class ToolExecutionHelperTest {
     }
 
     @Test
+    void executeAndFormatFallsBackToClassNameOnNullMessage() {
+        // NullPointerException without a message used to surface as
+        // "error":"null" on the wire, which masks the actual failure class
+        // from both the model and any observer. The fallback now reports
+        // the exception's simple class name.
+        var result = ToolExecutionHelper.executeAndFormat(
+                "npe", args -> { throw new NullPointerException(); }, Map.of());
+        assertTrue(result.contains("\"error\":\"NullPointerException\""),
+                "null-message exception must surface its class name, got: " + result);
+        assertFalse(result.contains("\"error\":\"null\""),
+                "must not emit literal 'null' as the error body");
+    }
+
+    @Test
+    void executeAndFormatFallsBackToClassNameOnBlankMessage() {
+        var result = ToolExecutionHelper.executeAndFormat(
+                "blank", args -> { throw new IllegalStateException("   "); }, Map.of());
+        assertTrue(result.contains("\"error\":\"IllegalStateException\""),
+                "blank-message exception must surface its class name, got: " + result);
+    }
+
+    @Test
     void executeAndFormatEscapesQuotesInErrorMessage() {
         var result = ToolExecutionHelper.executeAndFormat(
                 "esc", args -> { throw new RuntimeException("say \"hi\""); }, Map.of());

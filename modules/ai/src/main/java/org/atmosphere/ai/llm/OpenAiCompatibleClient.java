@@ -70,6 +70,16 @@ public class OpenAiCompatibleClient implements LlmClient {
     private final HttpClient httpClient;
     private final Duration timeout;
     private final RetryPolicy retryPolicy;
+    /**
+     * Caller-supplied headers attached to every outgoing HTTP request, in
+     * insertion order. Used for proxy routing (Helicone, OpenRouter), per-
+     * tenant identifiers, request tracing, or any provider-specific header
+     * the rest of the builder API does not surface explicitly. Reserved
+     * names ({@code Authorization}, {@code Content-Type}, {@code Accept})
+     * are filtered out at request-build time so the client's own protocol
+     * headers cannot be overridden accidentally.
+     */
+    private final java.util.Map<String, String> customHeaders;
 
     /**
      * Max cached conversation IDs for Responses API stateful continuation.
@@ -86,12 +96,22 @@ public class OpenAiCompatibleClient implements LlmClient {
             });
 
     private OpenAiCompatibleClient(String baseUrl, String apiKey, HttpClient httpClient,
-                                   Duration timeout, RetryPolicy retryPolicy) {
+                                   Duration timeout, RetryPolicy retryPolicy,
+                                   java.util.Map<String, String> customHeaders) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.apiKey = apiKey;
         this.httpClient = httpClient;
         this.timeout = timeout;
         this.retryPolicy = retryPolicy;
+        this.customHeaders = customHeaders;
+    }
+
+    /**
+     * Returns the caller-supplied headers attached to every outgoing
+     * request. Immutable view; never {@code null}.
+     */
+    public java.util.Map<String, String> customHeaders() {
+        return customHeaders;
     }
 
     /**
@@ -862,8 +882,39 @@ public class OpenAiCompatibleClient implements LlmClient {
         if (apiKey != null && !apiKey.isBlank()) {
             builder.header("Authorization", "Bearer " + apiKey);
         }
+        applyCustomHeaders(builder);
 
         return builder.build();
+    }
+
+    /**
+     * Attach any builder-supplied custom headers to the request, skipping
+     * the three protocol headers the client owns ({@code Authorization},
+     * {@code Content-Type}, {@code Accept}). Skipping prevents a misuse
+     * where a caller sets {@code customHeaders("Authorization", "...")}
+     * and quietly displaces the apiKey-derived value.
+     */
+    private void applyCustomHeaders(HttpRequest.Builder builder) {
+        if (customHeaders == null || customHeaders.isEmpty()) {
+            return;
+        }
+        for (var entry : customHeaders.entrySet()) {
+            var name = entry.getKey();
+            if (name == null || name.isBlank()) {
+                continue;
+            }
+            if (name.equalsIgnoreCase("Authorization")
+                    || name.equalsIgnoreCase("Content-Type")
+                    || name.equalsIgnoreCase("Accept")) {
+                logger.debug("Skipping reserved header {} from customHeaders", name);
+                continue;
+            }
+            var value = entry.getValue();
+            if (value == null) {
+                continue;
+            }
+            builder.header(name, value);
+        }
     }
 
     private String extractErrorMessage(String errorBody) {
@@ -1177,6 +1228,7 @@ public class OpenAiCompatibleClient implements LlmClient {
         private RetryPolicy retryPolicy;
         private int maxRetries = 3;
         private Duration retryBaseDelay = Duration.ofMillis(500);
+        private final java.util.LinkedHashMap<String, String> customHeaders = new java.util.LinkedHashMap<>();
 
         private Builder() {
         }
@@ -1228,6 +1280,44 @@ public class OpenAiCompatibleClient implements LlmClient {
             return this;
         }
 
+        /**
+         * Add a single header attached to every outgoing HTTP request.
+         * Useful for proxy routing (Helicone, OpenRouter, LiteLLM), per-
+         * tenant identifiers, request tracing, and any provider-specific
+         * header the rest of this builder does not surface explicitly.
+         *
+         * <p>The protocol headers {@code Authorization}, {@code Content-Type},
+         * and {@code Accept} are reserved — entries with those names are
+         * dropped at request-build time so a caller-supplied
+         * {@code Authorization} cannot accidentally displace the apiKey-
+         * derived value.</p>
+         *
+         * @param name  header name; null or blank entries are ignored
+         * @param value header value; null entries are ignored
+         */
+        public Builder customHeader(String name, String value) {
+            if (name != null && !name.isBlank() && value != null) {
+                this.customHeaders.put(name, value);
+            }
+            return this;
+        }
+
+        /**
+         * Bulk variant of {@link #customHeader(String, String)}. Replaces
+         * any previously-configured custom headers with the entries of the
+         * supplied map (order preserved). Passing {@code null} clears the
+         * map.
+         */
+        public Builder customHeaders(java.util.Map<String, String> headers) {
+            this.customHeaders.clear();
+            if (headers != null) {
+                for (var entry : headers.entrySet()) {
+                    customHeader(entry.getKey(), entry.getValue());
+                }
+            }
+            return this;
+        }
+
         public OpenAiCompatibleClient build() {
             var client = this.httpClient != null ? this.httpClient : HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(30))
@@ -1235,7 +1325,8 @@ public class OpenAiCompatibleClient implements LlmClient {
             var policy = this.retryPolicy != null ? this.retryPolicy
                     : new RetryPolicy(maxRetries, retryBaseDelay, Duration.ofSeconds(30),
                             2.0, RetryPolicy.DEFAULT.retryableErrors());
-            return new OpenAiCompatibleClient(baseUrl, apiKey, client, timeout, policy);
+            return new OpenAiCompatibleClient(baseUrl, apiKey, client, timeout, policy,
+                    java.util.Map.copyOf(customHeaders));
         }
     }
 }

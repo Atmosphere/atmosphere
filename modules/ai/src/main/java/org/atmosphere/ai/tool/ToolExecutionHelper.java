@@ -84,8 +84,23 @@ public final class ToolExecutionHelper {
             return result != null ? result.toString() : "null";
         } catch (Exception e) {
             logger.error("Tool {} execution failed", toolName, e);
-            return "{\"error\":\"" + ToolBridgeUtils.escapeJson(e.getMessage()) + "\"}";
+            return "{\"error\":\"" + ToolBridgeUtils.escapeJson(errorMessage(e)) + "\"}";
         }
+    }
+
+    /**
+     * Return a non-null, useful error description for a thrown exception.
+     * Falls back to the simple class name when {@link Throwable#getMessage()}
+     * is null or blank — NPEs and other no-message throws would otherwise
+     * surface to the model as {@code "error":"null"}, which is opaque on
+     * the wire and hides the actual failure class from observers.
+     */
+    private static String errorMessage(Throwable t) {
+        var msg = t.getMessage();
+        if (msg != null && !msg.isBlank()) {
+            return msg;
+        }
+        return t.getClass().getSimpleName();
     }
 
     /**

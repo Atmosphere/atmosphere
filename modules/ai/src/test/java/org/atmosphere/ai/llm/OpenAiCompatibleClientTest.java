@@ -1180,6 +1180,74 @@ public class OpenAiCompatibleClientTest {
         assertNotNull(client);
     }
 
+    @Test
+    public void testCustomHeadersReachTheWire() throws Exception {
+        var httpClient = mockHttpClient(200, "data: [DONE]\n\n");
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .customHeader("Helicone-Auth", "sk-helicone-xyz")
+                .customHeader("X-Tenant-Id", "tenant-7")
+                .build();
+
+        var session = StreamingSessions.start("custom-headers", resource);
+        var request = ChatCompletionRequest.of("test-model", "ping");
+        client.streamChatCompletion(request, session);
+
+        var captor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(httpClient).send(captor.capture(), any(HttpResponse.BodyHandler.class));
+        var sent = captor.getValue();
+        assertEquals(java.util.List.of("sk-helicone-xyz"),
+                sent.headers().allValues("Helicone-Auth"));
+        assertEquals(java.util.List.of("tenant-7"),
+                sent.headers().allValues("X-Tenant-Id"));
+        // Reserved protocol headers stay under the client's control:
+        assertEquals(java.util.List.of("Bearer test-key"),
+                sent.headers().allValues("Authorization"));
+    }
+
+    @Test
+    public void testCustomHeadersCannotOverrideReservedHeaders() throws Exception {
+        var httpClient = mockHttpClient(200, "data: [DONE]\n\n");
+        // A misconfigured caller tries to displace the apiKey-derived
+        // Authorization header via customHeaders. The builder must drop the
+        // reserved entry so the protocol header stays under client control.
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .apiKey("real-key")
+                .httpClient(httpClient)
+                .customHeader("Authorization", "Bearer attacker-key")
+                .customHeader("Content-Type", "text/plain")
+                .customHeader("Accept", "*/*")
+                .build();
+
+        var session = StreamingSessions.start("reserved-headers", resource);
+        var request = ChatCompletionRequest.of("test-model", "ping");
+        client.streamChatCompletion(request, session);
+
+        var captor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(httpClient).send(captor.capture(), any(HttpResponse.BodyHandler.class));
+        var sent = captor.getValue();
+        assertEquals(java.util.List.of("Bearer real-key"),
+                sent.headers().allValues("Authorization"));
+        assertEquals(java.util.List.of("application/json"),
+                sent.headers().allValues("Content-Type"));
+        assertEquals(java.util.List.of("text/event-stream"),
+                sent.headers().allValues("Accept"));
+    }
+
+    @Test
+    public void testCustomHeadersBulkMapReplacesPrior() {
+        var client = OpenAiCompatibleClient.builder()
+                .customHeader("X-One", "one")
+                .customHeaders(java.util.Map.of("X-Two", "two"))
+                .build();
+        // The bulk overload replaces prior entries — only X-Two survives.
+        assertEquals(1, client.customHeaders().size());
+        assertEquals("two", client.customHeaders().get("X-Two"));
+    }
+
     @SuppressWarnings("unchecked")
     private HttpClient mockHttpClient(int statusCode, String body) throws Exception {
         var httpClient = mock(HttpClient.class);

@@ -48,6 +48,66 @@ public interface AgentFleet {
     AgentResult pipeline(AgentCall... calls);
 
     /**
+     * Consensus dispatch — runs every supplied call in parallel and returns
+     * the {@link AgentResult} whose normalized text is shared by the most
+     * peers (the "majority answer"). Ties are broken by insertion order:
+     * the first agent whose vote belongs to a top-tier cohort wins.
+     *
+     * <p>Normalization for the count is {@code text.strip().toLowerCase(Locale.ROOT)}
+     * so trivial whitespace / capitalisation differences across providers
+     * collapse to the same vote. The returned result is the original,
+     * un-normalised {@link AgentResult} — text and metadata preserved.</p>
+     *
+     * <p>When every dispatched call fails, returns a synthetic failure
+     * result attributed to {@code "vote"} so callers do not have to
+     * separately null-check or scan the input list.</p>
+     *
+     * @param calls the calls to fan out — typically the same prompt across
+     *              different model bindings (e.g. one sub-agent per model)
+     * @return the winning result, or a synthetic failure if every peer failed
+     */
+    default AgentResult vote(AgentCall... calls) {
+        if (calls == null || calls.length == 0) {
+            return AgentResult.failure("vote", "",
+                    "vote() requires at least one AgentCall",
+                    java.time.Duration.ZERO);
+        }
+        var results = parallel(calls);
+        var successful = results.values().stream()
+                .filter(AgentResult::success)
+                .toList();
+        if (successful.isEmpty()) {
+            return AgentResult.failure("vote", "",
+                    "All " + results.size() + " peer(s) failed",
+                    java.time.Duration.ZERO);
+        }
+        // Tally normalised text → count. LinkedHashMap preserves the
+        // first-seen order so the tie-breaker remains deterministic.
+        var tally = new java.util.LinkedHashMap<String, Integer>();
+        for (var r : successful) {
+            tally.merge(normaliseForVote(r.text()), 1, Integer::sum);
+        }
+        var maxVotes = tally.values().stream().max(Integer::compare).orElse(0);
+        for (var r : successful) {
+            if (tally.get(normaliseForVote(r.text())) == maxVotes) {
+                return r;
+            }
+        }
+        // Unreachable: maxVotes came from this same set. Defensive return.
+        return successful.get(0);
+    }
+
+    /** Normalisation used by {@link #vote} so trivial whitespace / case
+     *  differences across providers do not split the vote.
+     *
+     *  @param text raw response text; may be null
+     *  @return trimmed, lower-cased text suitable for equality comparison
+     */
+    private static String normaliseForVote(String text) {
+        return text == null ? "" : text.strip().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /**
      * Route based on a previous agent result. Evaluates conditions in the
      * routing spec in order; the first match wins. If no condition matches,
      * the {@code otherwise} fallback runs, or a failure result is returned.
