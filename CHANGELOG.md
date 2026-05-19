@@ -7,6 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Native Anthropic Messages API runtime in a new `atmosphere-anthropic`
+  module (`1195845304`). `AnthropicMessagesClient` posts directly to
+  `https://api.anthropic.com/v1/messages`, parses the SSE stream
+  (`message_start`, `content_block_start`, `content_block_delta` with
+  `text_delta` and `input_json_delta`, `message_delta` carrying
+  `usage.input_tokens`/`output_tokens`, `message_stop`), and drives the
+  `tool_use` → `tool_result` loop through the shared
+  `ToolExecutionHelper.executeWithApproval` (max five rounds,
+  cancellation-aware). `AnthropicAgentRuntime` is registered via
+  `ServiceLoader` at priority 100 — same posture as every other
+  framework runtime — and inherits `executeWithOuterRetry` so it claims
+  `PER_REQUEST_RETRY` honestly alongside `TEXT_STREAMING`,
+  `SYSTEM_PROMPT`, `STRUCTURED_OUTPUT`, `TOOL_CALLING`, `TOOL_APPROVAL`,
+  `TOKEN_USAGE`, `CONVERSATION_MEMORY`, `BUDGET_ENFORCEMENT`,
+  `CONFIDENCE_SCORES`, and `PASSIVATION`. `isAvailable()` returns true
+  only when `anthropic.api.key` (system property or `AiConfig.LlmSettings`)
+  is present, satisfying Correctness Invariant #5 (Runtime Truth). The
+  capability snapshot, capability matrix, and `modules/ai/README.md`
+  prose were regenerated in the same commit; runtime count is now ten.
+- LangChain4j 1.15.0 parity (`9e72c6c6f7`): tool-error fallback in
+  `ToolExecutionHelper.executeWithApproval` wraps null/blank exception
+  messages with the throwable's simple class name so NPEs surface as
+  `{"error":"NullPointerException"}` to the model instead of opaque
+  `{"error":"null"}`. Custom HTTP headers on `OpenAiCompatibleClient`
+  carry proxy / per-tenant / tracing metadata (Helicone, OpenRouter, …);
+  reserved names (`Authorization`, `Content-Type`, `Accept`) are
+  filtered at request-build time. `AgentFleet.vote(...)` adds consensus
+  dispatch — fans every call out in parallel and returns the result
+  whose normalized text (`strip().toLowerCase(Locale.ROOT)`) is shared
+  by the most peers, with deterministic insertion-order tie-breaking
+  and a synthetic `"vote"` failure when every peer fails.
+- JFR observability, declarative tool permissions, first-run sub-agent
+  guard, and episodic memory (`63e34f11a4`):
+    - JFR events under `org.atmosphere.ai.jfr` — `AiCallEvent`,
+      `AgentTurnEvent`, `ToolInvocationEvent`, `SubAgentDispatchEvent`,
+      `EpisodicMemoryAccessEvent`, `SessionLifecycleEvent`,
+      `AiErrorEvent` — emitted by `JfrAiMetrics`. `CompositeAiMetrics`
+      lets JFR coexist with Micrometer (and any other backend) instead
+      of one replacing the other.
+    - `ToolPermissionPolicy` SPI with the `PropertiesToolPermissionPolicy`
+      reference impl: declarative ALLOW/DENY rules layered on top of the
+      existing `@RequiresApproval` annotation gate. Reachable from
+      `ToolExecutionHelper` so every runtime inherits it.
+    - First-run sub-agent dispatch guard in `DefaultAgentFleet` — the
+      bootstrap pass sequences the first call through every peer
+      individually before the parallel fan-out path is unlocked, so a
+      cold-cache misconfiguration is caught against one peer instead of
+      fanned out N× simultaneously.
+    - `EpisodicMemoryStore` SPI with `InMemoryEpisodicMemoryStore` and
+      `JsonFileEpisodicMemoryStore` backends, the `MemoryEntry` /
+      `EpisodicMemoryQuery` / `EpisodicMemoryType` records, and the
+      `EpisodicMemoryAccessEventBridge` JFR fan-out.
+
+### Changed
+
+- `GrpcWasyncTransportTest` status-poll widened from 5 s to 20 s and
+  the `@Timeout` from 10 s to 30 s for JDK 26 scheduler variance
+  (`df19027ab8`). Closes a recurring "Core (JDK 21/26)" flake.
+
+### Fixed
+
+- `samples/spring-boot-coding-agent`: case-insensitive README probe
+  (`38565e43ef`). Repos like `sindresorhus/awesome` ship `readme.md`
+  lowercase, which the old `README.md`-only lookup missed silently. The
+  redundant `application.properties` and the unused
+  `atmosphere.ai.runtime` setting were also dropped — the sample is
+  deterministic and never invokes an LLM.
+
 ## [4.0.46] - 2026-05-16
 
 ### Added

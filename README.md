@@ -25,7 +25,7 @@ Atmosphere is built for teams that need AI agents to behave like production serv
 | Need | What Atmosphere provides |
 |---|---|
 | Stream to real clients | WebTransport over HTTP/3, WebSocket, SSE, long-polling, and gRPC through the same broadcaster pipeline |
-| Swap AI integrations | One `AgentRuntime` SPI with nine runtime adapters and contract-tested capability flags |
+| Swap AI integrations | One `AgentRuntime` SPI with ten runtime adapters and contract-tested capability flags |
 | Govern execution | Policy admission, `@AgentScope`, human approval, plan-and-verify, cost ceilings, PII rewriting, and admin kill switches |
 | Pause for humans | Durable HITL approvals park virtual threads, persist workflow state, and resume through REST approval surfaces |
 | Resume long runs | Durable sessions, run IDs, replay buffers, checkpoints, and reconnect-safe continuation |
@@ -123,7 +123,7 @@ public class MyAgent {
 
 ## AI Runtime Adapters
 
-`atmosphere-ai` ships the `AgentRuntime` SPI plus the Built-in OpenAI-compatible adapter. Eight framework adapters live in separate modules. Drop one runtime adapter on the classpath and the same `@Agent` code dispatches through it.
+`atmosphere-ai` ships the `AgentRuntime` SPI plus the Built-in OpenAI-compatible adapter. Nine additional adapters live in separate modules — eight wrap a third-party framework, and one (`atmosphere-anthropic`) is a native client for the Anthropic Messages API. Drop one runtime adapter on the classpath and the same `@Agent` code dispatches through it.
 
 Capabilities are intentionally not identical. The authoritative matrix is pinned by `AbstractAgentRuntimeContractTest.expectedCapabilities()`, so a runtime cannot drift from its declared feature set without breaking tests.
 
@@ -138,6 +138,7 @@ Capabilities are intentionally not identical. The authoritative matrix is pinned
 | `atmosphere-agentscope` | Alibaba AgentScope 1.0.12 | 4.0 | tool calling, structured output, conversation memory, token usage, cancellation | `AgentScopeToolBridge` routes every `@AiTool` invocation through `ToolExecutionHelper.executeWithApproval`. |
 | `atmosphere-embabel` | Embabel 0.3.5 | 3.5 only | agent orchestration, tool calling, vision, conversation memory | Requires `atmosphere-spring-boot3-starter` and the `-Pspring-boot3` profile. |
 | `atmosphere-spring-ai-alibaba` | Spring AI Alibaba 1.1.2.2 | 3.5 only | tool calling, structured output, conversation memory, token usage | Buffered streaming (the upstream `ReactAgent.call()` returns one `AssistantMessage`); `UsageCapturingChatModel` decorator threads token usage. Token-by-token streaming should use another adapter until Alibaba ships a Spring AI 2.x-aligned agent framework. |
+| `atmosphere-anthropic` | Anthropic Messages API (no third-party SDK) | 3.5 / 4.0 | tool calling, structured output, conversation memory, token usage, per-request retry | Native HTTP+SSE client; tool loop capped at five rounds, cancellation-aware. Configure via `anthropic.api.key` (system property or `AiConfig.LlmSettings`); custom headers (`Helicone-Auth`, tenant IDs, tracing) are passthrough with reserved-header filtering. |
 
 See the full [capability matrix](modules/ai/README.md#capability-matrix) for text streaming, tool calling, structured output, system prompts, agent orchestration, conversation memory, tool approval, vision, audio, multi-modal, prompt caching, token usage, retry, passivation, and tool-call deltas.
 
