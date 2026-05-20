@@ -458,6 +458,34 @@ RecordingFile-based unit tests could not.
 
 ---
 
+## 2026-05-19 — AnthropicAgentRuntime introduction (`feat/anthropic-runtime`)
+
+Adding the native Anthropic Messages API runtime as the 10th `AgentRuntime`.
+Most of the work was straightforward; one under-claim slipped past the
+initial capability set and only surfaced when the pre-push capability-claims
+gate forced the runtime count from 9 to 10 to be reconciled with prose.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 52 | First-draft `AnthropicAgentRuntime.capabilities()` omitted `PER_REQUEST_RETRY` with a comment reading "only Built-in routes retry per-request". Mirrored in `AnthropicRuntimeContractTest.expectedCapabilities()`. | `AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessagesClient>` and does not override `ownsPerRequestRetry()`, so the default `false` is in force. That puts the runtime on the `executeWithOuterRetry` path verbatim — same posture as `AgentScopeAgentRuntime` and `SpringAiAlibabaAgentRuntime`, which both *do* claim `PER_REQUEST_RETRY` honestly. The original comment misread `modules/ai/README.md` line 334 ("All 9 runtimes claim `PER_REQUEST_RETRY` honestly") as a statement about the OpenAI-compatible client's `sendWithRetry` only, when the prose explicitly covers the inherited outer wrapper for every `AbstractAgentRuntime` subclass. The bug was the same shape as the original `AgentScope` / `Spring AI Alibaba` under-claim the same README paragraph documents — repeating a fixed mistake. | The capability-claims validator (`scripts/validate-capability-claims.sh`) caught the symptom indirectly: regenerating `.harness/capabilities.snapshot.json` for the new runtime bumped the count from 9 to 10, which broke the prose claim "All 9 runtimes claim `PER_REQUEST_RETRY`" — and forcing that prose to be honest required asking "is Anthropic actually one of the 10, or is it the exception that keeps the count at 9?". Without that gate, the runtime would have shipped under-claiming PER_REQUEST_RETRY while quietly honouring the policy through the inherited outer wrapper — `runtime.capabilities()` lying about behavior the bytecode already implements (Correctness Invariant #5 violation). | (1) Added `PER_REQUEST_RETRY` to both `AnthropicAgentRuntime.capabilities()` and `AnthropicRuntimeContractTest.expectedCapabilities()`; in-line comment now points at `AbstractAgentRuntime.executeWithOuterRetry` explicitly. (2) Regenerated `.harness/capabilities.snapshot.json`. (3) Updated `modules/ai/README.md` § Adapter Runtimes table to add the Anthropic row and the prose at lines 49 and 334 to say "10 runtimes" — `validate-capability-claims.sh` now passes against `10 runtimes, 20 capabilities`. The pre-existing snapshot gate + claims validator were sufficient — no new gate added, but this entry pins the lesson for the next runtime: when extending `AbstractAgentRuntime` without overriding `ownsPerRequestRetry()`, `PER_REQUEST_RETRY` belongs in the capability set. |
+
+### Process win
+
+The capability-claims validator earned its keep. Without the prose-grep
+gate, the new runtime would have shipped with an honest-looking but
+under-claimed capability set — exactly the documented "Adapter under-claims
+a capability the inherited bytecode already supports" pattern. The gate
+caught the count mismatch first; chasing that mismatch surfaced the real
+PER_REQUEST_RETRY oversight before the commit landed on main. This is the
+shape the harness is supposed to enable: drift surfaces as a count
+mismatch, the count mismatch forces re-reading the inherited behavior,
+the re-read corrects the capability set, the snapshot regenerates, the
+gate goes green.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /
