@@ -12,7 +12,7 @@ dispatch on Atmosphere.
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-ai-policy-cedar</artifactId>
-    <version>4.0.46</version>
+    <version>4.0.47</version>
 </dependency>
 ```
 

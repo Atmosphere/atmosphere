@@ -15,7 +15,7 @@ against any JSR-221 `DataSource`. Tests exercise H2 in-memory.
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-ai-audit-postgres</artifactId>
-    <version>4.0.46</version>
+    <version>4.0.47</version>
 </dependency>
 ```
 
