@@ -21,7 +21,7 @@ time is a diff-reviewable curve.
 
 | Path | Purpose | Source of truth | Append-only? |
 |------|---------|-----------------|---------------|
-| `capabilities.snapshot.json` | Canonical aggregate of `AiCapability` enum (currently 20 entries) and each runtime's pinned `expectedCapabilities()` (currently 9 runtimes). Used to validate aggregate count claims in `modules/ai/README.md`. | `modules/ai/src/main/java/org/atmosphere/ai/AiCapability.java` + every `*RuntimeContractTest.{java,kt}` | No — regenerated whenever a capability or runtime is added/removed. |
+| `capabilities.snapshot.json` | Canonical aggregate of `AiCapability` enum (currently 20 entries) and each runtime's pinned `expectedCapabilities()` (currently 10 runtimes). Used to validate aggregate count claims in `modules/ai/README.md` and to drive per-runtime `modules/<X>/SKILLCARD.yaml` regeneration. | `modules/ai/src/main/java/org/atmosphere/ai/AiCapability.java` + every `*RuntimeContractTest.{java,kt}` | No — regenerated whenever a capability or runtime is added/removed. |
 | `drift-log.md` | Structured record of every agent claim that diverged from ground truth (claim, truth, slip path, gate added). The diff-reviewable curve of hallucinations-over-time. | Appended by the agent during sessions; reviewed by the maintainer. | **Yes** — pre-existing date sections are immutable. New entries go in today's section (or a new section at the bottom). |
 
 Adding new files here means adding a new instrument. If you can't articulate
@@ -38,13 +38,48 @@ catches the highest-leverage drift class.
 
 ### `scripts/validate-capability-claims.sh`
 1. Re-derives the snapshot from source (calls `regen-capability-snapshot.sh --check`).
-2. Greps `modules/ai/README.md` for tight count patterns (`\bAll \d+ runtimes?\b`,
+2. Re-derives every `modules/<X>/SKILLCARD.yaml` from the snapshot (calls
+   `regen-skillcards.sh --check`).
+3. Greps `modules/ai/README.md` for tight count patterns (`\bAll \d+ runtimes?\b`,
    `\b\d+ AiCapability\b`, `\b\d+ capabilities total\b`).
-3. Asserts every match equals the snapshot count.
+4. Asserts every match equals the snapshot count.
 
 Loose patterns (e.g. "the other N runtimes" — a subset count that depends
 on which runtimes opt into a feature) are deliberately not validated;
 those need human review.
+
+### `scripts/regen-skillcards.sh`, `scripts/scan-skillcards.sh`, `scripts/sign-skillcards.sh`, `scripts/verify-skillcards.sh`
+Four-script pipeline for the per-runtime `SKILLCARD.yaml` manifests
+(`modules/<X>/SKILLCARD.yaml`), the repo-root `SKILLCARDS.md` catalog
+index, and the OpenSSF Model Signing signatures (`SKILLCARD.yaml.sig`):
+
+1. `regen-skillcards.sh` emits the YAML from the snapshot plus each
+   module's `pom.xml` and `META-INF/services/org.atmosphere.ai.AgentRuntime`,
+   and also rewrites `SKILLCARDS.md` — the repo-root catalog index of
+   every runtime + signature state. The catalog model is "git IS the
+   sync" — every push to `main` replicates the cards to every clone.
+2. `scan-skillcards.sh` runs the SkillSpector-equivalent pre-publish
+   gate: prompt-injection patterns, hidden Unicode (zero-width, Bidi
+   overrides), capability-safety (TOOL_CALLING ⇒ TOOL_APPROVAL, OWASP
+   excessive-agency), SPI class existence on disk, path-shaped-field
+   safety. HIGH-severity findings fail pre-push and the signing
+   workflow.
+3. `sign-skillcards.sh` produces `.sig` files via
+   `model_signing sign` — defaults to Sigstore keyless OIDC (the
+   production path; same toolchain NVIDIA's verified-agent-skills
+   programme uses; reads `SIGSTORE_IDENTITY_TOKEN` env in CI), with
+   `--key` and `--certificate` fallback modes for developer proof and
+   regulated environments.
+4. `verify-skillcards.sh` is the symmetric verifier — runs
+   `model_signing verify` against each card / `.sig` pair, mirrors
+   the verification command from the NVIDIA blog post.
+
+Production signing is performed by `.github/workflows/sign-skillcards.yml`
+on tag push: the workflow has `id-token: write`, obtains a short-lived
+Fulcio cert via GitHub's OIDC provider, logs the signature to Rekor,
+and attaches the `.sig` files to the GitHub release. Cards on `main`
+between releases are unsigned by design — `SkillCardSnapshotTest`
+skips signature verification when no `.sig` is present.
 
 ### `scripts/validate-drift-log.sh`
 Structural hygiene only — the validator does **not** enforce that drift
@@ -62,6 +97,18 @@ Pure-Java mirror of the bash validator, so `mvn test` catches the same
 drift the pre-push hook would. Re-derives the snapshot from source,
 deep-equals against the committed JSON, then greps `modules/ai/README.md`
 for `\bAll \d+ runtimes?\b` and asserts against the snapshot count.
+
+### `modules/ai-test/.../SkillCardSnapshotTest`
+Three contracts on every `modules/<X>/SKILLCARD.yaml`:
+1. Capability set + count match `.harness/capabilities.snapshot.json`.
+2. Top-level shape (required keys, field patterns, `signature_file`
+   slot) conforms to `spec: atmosphere/skillcard/v1`.
+3. When `SKILLCARD.yaml.sig` exists, the OMS signature verifies
+   against the Atmosphere CI workflow's Sigstore identity. Skipped
+   silently when no `.sig` is present (the normal state on `main`
+   between tags) or when `model_signing` is not installed locally.
+
+Refuses to pass when a snapshot runtime has no SKILLCARD on disk.
 
 ---
 

@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Per-runtime `SKILLCARD.yaml` manifests with OpenSSF Model Signing
+  (`32a8e8b935` + this commit) — capability + provenance documents
+  signed and verified through the same Sigstore-keyless toolchain
+  NVIDIA's verified-agent-skills programme uses.
+  `scripts/regen-skillcards.sh` emits one card per
+  snapshot-pinned runtime (10 today: adk, agentscope, anthropic,
+  ai/built-in, embabel, koog, langchain4j, semantic-kernel, spring-ai,
+  spring-ai-alibaba) at `modules/<X>/SKILLCARD.yaml`, derived from
+  `.harness/capabilities.snapshot.json` and each module's `pom.xml`.
+  Each card declares `spec: atmosphere/skillcard/v1` with artifact
+  coordinates, the registered `AgentRuntime` SPI implementation FQN,
+  the alphabetical+count-pinned `AiCapability` set, contract-test
+  path, license (Apache-2.0), and a `signing` block referencing
+  `signature_file: SKILLCARD.yaml.sig` with `envelope:
+  openssf-model-signing/v1` and `bundle_format: sigstore`.
+  `.github/workflows/sign-skillcards.yml` signs every card on tag
+  push via `model_signing sign sigstore` — short-lived Fulcio cert
+  + Rekor transparency-log entry, OIDC identity bound to the
+  workflow path — and uploads the `.sig` files as a GitHub release
+  asset and as a workflow artifact for downstream bundling. Cards
+  AND signatures are bundled into each runtime jar at
+  `META-INF/atmosphere/` via a root-pom `<resource>` declaration so
+  consumers can verify integrity without unpacking the source tree;
+  modules without a SKILLCARD (cpr, mcp, channels…) see the include
+  filter match nothing and are unaffected. `SkillCardSnapshotTest`
+  in `atmosphere-ai-test` enforces three contracts: (a) capability
+  set + count drift against the snapshot, (b) every snapshot runtime
+  has a card on disk, (c) shape conformance with required top-level
+  keys (`schema_version`, `spec`, `status`, `name`, `language`,
+  `description`, `license`, `artifact`, `spi`, `capabilities`,
+  `contract_test`, `provenance`, `signing`) and required signing
+  fields (`envelope`, `signature_file`). When a `.sig` is present
+  beside a card, the test shells out to `model_signing verify
+  sigstore` with the Atmosphere workflow's identity pin and fails
+  on any signature mismatch; sigs are skipped silently when absent
+  (the normal state on `main` between tagged releases) or when the
+  `model_signing` CLI is not installed locally.
+  `scripts/scan-skillcards.sh` is the SkillSpector-equivalent
+  pre-publish gate — scans every card for prompt-injection markers
+  (regex set: "ignore previous instructions", `[INST]`, ChatML role
+  tags), hidden Unicode (zero-width chars, Bidi overrides),
+  capability-safety violations (TOOL_CALLING ⇒ TOOL_APPROVAL per OWASP
+  excessive-agency), missing SPI classes (FQN doesn't resolve to a
+  source file on disk), and path-shaped-field safety. HIGH-severity
+  findings fail pre-push and the signing workflow, so a compromised
+  manifest can never be published as "signed".
+  `scripts/validate-capability-claims.sh` runs all three of
+  `regen-skillcards.sh --check`, `scan-skillcards.sh --check`, and
+  the snapshot freshness check; `scripts/sign-skillcards.sh` +
+  `verify-skillcards.sh` are the local CLI wrappers (key / certificate
+  / sigstore modes). `regen-skillcards.sh` additionally emits
+  `SKILLCARDS.md` at the repo root — the catalog index that lists
+  every runtime, its signature state, and links to the card +
+  contract test. Distribution model: git itself is the daily sync,
+  consistent with the rest of this repository; release-time
+  signatures are also attached to the GitHub release as workflow
+  artifacts. Pre-push validator regex covers `SKILLCARD.yaml(.sig)?`,
+  `(regen|sign|verify|scan)-skillcards.sh`, the signing workflow,
+  and `SKILLCARDS.md`. Curated runtime-specific risk and mitigation
+  prose remains in each runtime's module README.
+
 ## [4.0.47] - 2026-05-21
 
 ### Added

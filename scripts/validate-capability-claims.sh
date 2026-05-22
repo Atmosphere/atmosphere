@@ -43,6 +43,28 @@ if [ "$fail" -ne 0 ]; then
     exit 1
 fi
 
+# 1b. Per-runtime SKILLCARD.yaml freshness — same gate as the snapshot since
+# every card is derived from it. Drift here means a runtime's pinned
+# capability set changed but the card wasn't regenerated.
+if ! ./scripts/regen-skillcards.sh --check >/dev/null 2>&1; then
+    ./scripts/regen-skillcards.sh --check >&2 || true
+    fail=1
+fi
+
+# 1c. SkillSpector pre-publish scan — HIGH-severity gate. Same Tier 1
+# as freshness because a card pointing at a removed SPI class or
+# carrying prompt-injection markers should fail pre-push, not slip
+# through to the tag-time signing workflow that would then publish a
+# compromised manifest as "signed".
+if ! ./scripts/scan-skillcards.sh --check >/dev/null 2>&1; then
+    ./scripts/scan-skillcards.sh --check >&2 || true
+    fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+    exit 1
+fi
+
 # Parse expected counts from the snapshot. python3 is on every dev box
 # (Atmosphere already shells out to it via promote-changelog.py).
 runtime_count=$(python3 -c 'import json,sys; print(json.load(open(".harness/capabilities.snapshot.json"))["runtimes"]["count"])')

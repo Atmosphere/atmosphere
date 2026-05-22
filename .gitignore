@@ -1,5 +1,8 @@
 *.class
 *~
+
+# Runtime output of scripts/scan-skillcards.sh — regenerated per run, not tracked
+.harness/skillcard-scan-report.json
 .*.swp
 .*.swo
 .loadpath

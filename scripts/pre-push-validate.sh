@@ -152,7 +152,7 @@ IGNORE_REGEX='(^|/)(\.gitignore|\.editorconfig|LICENSE|NOTICE|README(\.md)?|.*\.
 # fast while preserving the heavier architectural scan for Java/config/workflow
 # changes that can affect runtime behavior.
 ARCHITECTURAL_REGEX='^pom\.xml$|^(modules|samples)/.*(pom\.xml|src/(main|test)/.*\.(java|kt|kts))$|^(bom|assembly)/pom\.xml$|^config/|^\.mvn/|^\.github/workflows/|^scripts/(architectural-validation|pre-push-validate)\.sh$'
-CAPABILITY_CLAIMS_REGEX='(^|/)(README\.md|.*capabilit.*\.md)$|^modules/ai/README\.md$|^\.harness/capabilities\.snapshot\.json$|^scripts/validate-capability-claims\.sh$'
+CAPABILITY_CLAIMS_REGEX='(^|/)(README\.md|.*capabilit.*\.md)$|^modules/ai/README\.md$|^\.harness/capabilities\.snapshot\.json$|^scripts/validate-capability-claims\.sh$|^scripts/(regen|sign|verify|scan)-skillcards\.sh$|^modules/[^/]+/SKILLCARD\.yaml(\.sig)?$|^\.github/workflows/sign-skillcards\.yml$|^SKILLCARDS\.md$'
 DRIFT_LOG_REGEX='^\.harness/drift-log\.md$|^scripts/validate-drift-log\.sh$'
 
 SIGNIFICANT_FILES=""
