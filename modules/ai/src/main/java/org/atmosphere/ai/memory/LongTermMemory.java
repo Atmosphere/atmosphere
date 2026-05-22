@@ -22,7 +22,16 @@ import java.util.List;
  * about a user (preferences, context, relationships) so agents can recall
  * them in future conversations.
  *
- * <p>Backed by a {@code FactStore} implementation (in-memory, Redis, SQLite).</p>
+ * <p>Retrieval is recency-ordered ({@link #getFacts(String, int)} returns
+ * the most recent {@code max} facts). For relevance-ranked retrieval over
+ * past conversations, compose with
+ * {@link SemanticRecallInterceptor} and a user-supplied
+ * {@link org.atmosphere.ai.ContextProvider}.</p>
+ *
+ * <p>The only implementation shipped in-tree is
+ * {@link InMemoryLongTermMemory}; production deployments are expected to
+ * provide their own implementation backed by their preferred store
+ * (database, key-value store, vector store, etc.).</p>
  */
 public interface LongTermMemory {
 

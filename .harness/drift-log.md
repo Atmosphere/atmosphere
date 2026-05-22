@@ -486,6 +486,31 @@ gate goes green.
 
 ---
 
+## 2026-05-22 — LongTermMemory backend overclaim (`fix/long-term-memory-audit`)
+
+Triggered by ChefFamille forwarding the InfoQ Cloudflare agent-platform
+piece (https://www.infoq.com/news/2026/05/cloudflare-agent-platform-stack/)
+and asking what we could learn. The honest comparison required first
+asking what *we* actually ship — which surfaced a backend-list overclaim
+in the `LongTermMemory` Javadoc and on the public website tutorial.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 53 | `modules/ai/src/main/java/org/atmosphere/ai/memory/LongTermMemory.java:25` Javadoc read "Backed by a `FactStore` implementation (in-memory, Redis, SQLite)." `InMemoryLongTermMemory.java:26–27` said "For production, use a `SessionStore`-backed implementation." `atmosphere.github.io/docs/src/content/docs/agents/coordinator.md:457` repeated the same shape verbatim: "Backed by `InMemoryLongTermMemory` (dev) or any `SessionStore` implementation (Redis, SQLite)." | `git grep 'implements LongTermMemory' -- ':!**/test/**'` returns exactly **one** hit: `InMemoryLongTermMemory.java`. There is no `FactStore` interface, no `SessionStore`-backed `LongTermMemory`, and no Redis or SQLite `LongTermMemory` implementation anywhere in the reactor. `SessionStore` itself does ship with Redis + SQLite backends (`modules/durable-sessions-redis`, `modules/durable-sessions-sqlite`), but no class bridges it to the `LongTermMemory` SPI — and the bridge would be non-trivial since `SessionStore` stores session blobs, not per-user fact lists. Same drift class as #2 in this log ("enumerating SQLite, Redis, Postgres when only SQLite ships is a classic") — the Javadoc named two backends that do not exist, and the website tutorial repeated it word-for-word. | I wrote the original `LongTermMemory` Javadoc and the coordinator tutorial paragraph in the same drafting session as the SPI implementation, sketching the "obvious" future backends as if they were already there. The `SemanticRecallInterceptor` story (single-channel BYO-vector RAG) is real and shipped; the future-backend list got tacked on by intuition rather than by `ls modules/`. The drift sat for ~2 weeks until the Cloudflare comparison forced a side-by-side read of our memory primitive against theirs ("five-channel parallel search with Reciprocal Rank Fusion"). Reading the actual SPI to write the honest comparison surfaced the lie. | (1) Prose fix in this commit — Javadoc on `LongTermMemory.java` rewritten to describe what the SPI actually does (recency-ordered fact retrieval; one in-tree implementation; users bring their own persistent backend); Javadoc on `InMemoryLongTermMemory.java` rewritten to drop the "SessionStore-backed" hint; tutorial paragraph in `coordinator.md` rewritten to describe the actual scope of the primitive and how to compose it with `SemanticRecallInterceptor` for relevance-ranked recall. (2) **Gate: none** — same precedent as #12 and #18 (narrative-prose backend lists have no clean structural check). A future structural gate could grep `git grep 'implements LongTermMemory' -- ':!**/test/**'` against any prose that enumerates Long-Term Memory backends; not added in this commit to keep the bundle scoped. Discipline going forward: any "Backed by X, Y, Z" sentence about an Atmosphere SPI must come from `git grep 'implements <SPI>' -- ':!**/test/**'`, not from intuition about what the SPI *could* support. |
+
+### Process win
+
+The Cloudflare InfoQ piece was the trigger but the value was the side-by-side
+read. When a user-facing question forces you to compare your primitive
+against a named competitor, you read the code with fresh eyes — and prose
+that has been hiding for two weeks gets re-checked against `git grep`. The
+honest answer to "what can we learn" was not in the article; it was in our
+own javadoc that we had not re-read since shipping.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /

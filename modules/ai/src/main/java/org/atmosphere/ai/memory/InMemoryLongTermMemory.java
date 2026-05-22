@@ -23,8 +23,10 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * In-memory implementation of {@link LongTermMemory}. Facts are lost on restart.
- * Suitable for development and testing. For production, use a
- * {@code SessionStore}-backed implementation.
+ * Suitable for development and testing. For production deployments, provide
+ * your own {@link LongTermMemory} implementation backed by a persistent store
+ * (database, key-value store, vector store, etc.); no persistent implementation
+ * ships in-tree today.
  */
 public class InMemoryLongTermMemory implements LongTermMemory {
 
