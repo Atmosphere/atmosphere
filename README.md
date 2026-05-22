@@ -31,6 +31,24 @@ Atmosphere is built for teams that need AI agents to behave like production serv
 | Resume long runs | Durable sessions, run IDs, replay buffers, checkpoints, and reconnect-safe continuation |
 | Expose the same agent everywhere | Browser endpoints plus MCP, A2A, AG-UI, Slack, Telegram, Discord, WhatsApp, and Messenger modules |
 
+## Scope
+
+Atmosphere is a JVM framework, not an agent-hosting platform. We ship the primitives your application uses at runtime; the host you choose (Tomcat, Jetty, Netty, Undertow, Quarkus, Spring Boot, or any servlet container) owns compute and scheduling. Compared to the agent-platform stack vocabulary that has emerged around offerings like Cloudflare Agents, AWS Bedrock Agents, and Vertex AI Agents:
+
+| Layer | What Atmosphere ships | What Atmosphere does not ship |
+|---|---|---|
+| Compute / scheduling | — | Your JVM host or container scheduler |
+| Streaming transport | `atmosphere-runtime` over WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC | — |
+| Runtime dispatch | `atmosphere-ai` `AgentRuntime` SPI + 10 adapters with contract-tested capability flags | Model hosting (we call providers; we do not host weights) |
+| Orchestration | `@Coordinator`, `AgentFleet`, handoffs, conditional routing, coordination journal, result evaluation | Durable hibernating workflows (compose with Temporal for that shape; or keep sessions session-bounded) |
+| Memory | `AiConversationMemory` per-conversation history (in-memory or SQLite/Redis via `atmosphere-durable-sessions`), `LongTermMemory` per-user facts (`InMemoryLongTermMemory`, `SqliteLongTermMemory`, `RedisLongTermMemory`), `SemanticRecallInterceptor` for BYO vector-store recall | Managed vector stores (use Spring AI's `VectorStore`, LangChain4j embeddings, or your own) |
+| Governance | Policy admission, `@AgentScope`, plan-and-verify, PII redaction, cost ceilings, durable HITL approvals, admin kill switches | — |
+| Protocol surface | MCP, A2A, AG-UI, Slack/Telegram/Discord/WhatsApp/Messenger channel adapters | Payment rails / commerce primitives |
+| Code execution | `atmosphere-sandbox` `SandboxProvider` SPI + `DockerSandboxProvider` default | Browser automation, headless Chromium |
+| SDK | `atmosphere.js` (React, Vue, Svelte, React Native, vanilla TS), `wasync` (JVM client) | — |
+
+The differentiator is the streaming + JVM + governance combination: long-lived stateful agent sessions over real-time transports, with policy admission on the critical path. For stateless, bursty, autonomous agents that should hibernate when idle, a serverless agent platform is usually the better fit. For human-in-the-loop, multi-channel, governed agents inside an existing JVM stack, Atmosphere is the fit.
+
 ## Quick Start
 
 ### Run a sample
