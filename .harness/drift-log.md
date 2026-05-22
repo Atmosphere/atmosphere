@@ -511,6 +511,41 @@ own javadoc that we had not re-read since shipping.
 
 ---
 
+## 2026-05-22 — Close the LongTermMemory backend gap (`fix/long-term-memory-sqlite-redis-bridges`)
+
+Continuation of the same day's drift #53. ChefFamille pushed back: shrinking
+the Javadoc claim from "Backed by in-memory, Redis, SQLite" down to "only
+InMemory ships" was the easy way out — the right answer was to *ship* the
+backends so the original claim becomes accurate. Two production backends
+plus a structural gate to close the entire drift class were the asks.
+
+### Gap closure (not a drift entry — a fix for drift #53)
+
+| Component | Where | Notes |
+|---|---|---|
+| `SqliteLongTermMemory` | `modules/durable-sessions-sqlite/src/main/java/org/atmosphere/session/sqlite/SqliteLongTermMemory.java` | Mirrors the `SqliteConversationPersistence` constructor surface (default file, custom path, shared `Connection`, `inMemory()` factory). Schema: `ai_user_facts(id PK, user_id, fact_text, created_at)` with an index on `(user_id, id DESC)`. Per-user cap enforced via `DELETE ... WHERE id NOT IN (SELECT id ORDER BY id DESC LIMIT n)` on every save. Tests pin contract parity with `InMemoryLongTermMemoryTest` (same seven behaviors) plus a file-backed persistence-across-close case. |
+| `RedisLongTermMemory` | `modules/durable-sessions-redis/src/main/java/org/atmosphere/session/redis/RedisLongTermMemory.java` | Lettuce LIST per user under key `atmosphere:facts:<userId>`. `RPUSH` for insertion-order append, `LTRIM -maxFacts -1` for cap, `LRANGE -max -1` for retrieval (matches `InMemoryLongTermMemory` "oldest-of-recent-N first" order). Tests use Testcontainers with `redis:7-alpine`, gated by Docker availability (same skip pattern as `RedisSessionStoreTest`). |
+| Gate | `scripts/validate-backend-class-refs.sh` + `.harness/external-class-allowlist.txt` | Greps `*.java` and `*.md` for tokens matching `(Sqlite|SQLite|Redis|Postgres|PostgreSQL|Mongo|MongoDB|Cassandra|Hazelcast|JGroups|Kafka|Nats|NATS)[A-Z][A-Za-z0-9_]+`. Each unique token must either declare a class under `modules/**/src/{main,test}/java/` or `samples/**/src/{main,test}/java/`, or appear in `.harness/external-class-allowlist.txt` (seeded with Lettuce, Kafka, Testcontainers, MongoDB/PostgreSQL brand names, and the three external Atmosphere plugin repos). Markdown fenced code blocks are stripped before scanning so example-class names in tutorials don't trigger the gate. Wired into `scripts/pre-push-validate.sh` Tier-1: runs whenever `*.java`, `*.md`, the script itself, or the allowlist changes. |
+| Docs restored honestly | `modules/ai/src/main/java/org/atmosphere/ai/memory/LongTermMemory.java`, `modules/ai/src/main/java/org/atmosphere/ai/memory/InMemoryLongTermMemory.java`, `atmosphere.github.io/docs/src/content/docs/agents/coordinator.md` | Javadoc now lists the three real implementations with their containing artifact and what they share connections with. Website tutorial now names the same three with the same artifact / connection-sharing notes. |
+
+### Process win
+
+ChefFamille's "this is embarrassing and really damaging" framing was the
+forcing function. Drift #53 caught the lie; this fix made the original
+prose *true* by shipping the missing artifacts, and the gate ensures the
+class of bug — a class name in Javadoc or docs that doesn't resolve to a
+real declaration — fails the build going forward, not just for
+`LongTermMemory` but for any future SPI with backend-prefixed
+implementations.
+
+The lesson for `feedback_*` discipline: **when caught hallucinating a
+shipped feature, the bias should be toward shipping the feature, not
+shrinking the claim.** Shrinking is honest but it leaves the original
+user expectation unmet; shipping closes the gap on both axes. Only fall
+back to shrinking when the missing feature is genuinely out of scope.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /

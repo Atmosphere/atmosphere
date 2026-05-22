@@ -28,10 +28,19 @@ import java.util.List;
  * {@link SemanticRecallInterceptor} and a user-supplied
  * {@link org.atmosphere.ai.ContextProvider}.</p>
  *
- * <p>The only implementation shipped in-tree is
- * {@link InMemoryLongTermMemory}; production deployments are expected to
- * provide their own implementation backed by their preferred store
- * (database, key-value store, vector store, etc.).</p>
+ * <p>Implementations shipped in-tree:</p>
+ * <ul>
+ *   <li>{@link InMemoryLongTermMemory} in {@code atmosphere-ai} — facts
+ *       lost on restart; suitable for development and testing.</li>
+ *   <li>{@code SqliteLongTermMemory} in
+ *       {@code atmosphere-durable-sessions-sqlite} — embedded SQLite file,
+ *       can share a connection with {@code SqliteSessionStore} and
+ *       {@code SqliteConversationPersistence}.</li>
+ *   <li>{@code RedisLongTermMemory} in
+ *       {@code atmosphere-durable-sessions-redis} — Lettuce-backed LIST
+ *       per user, can share a connection with {@code RedisSessionStore}
+ *       and {@code RedisConversationPersistence}.</li>
+ * </ul>
  */
 public interface LongTermMemory {
 

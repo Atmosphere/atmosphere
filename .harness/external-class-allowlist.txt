@@ -1,0 +1,45 @@
+# Allowlist for validate-backend-class-refs.sh
+#
+# Tokens listed here are *legitimate* references that do not need to
+# resolve to a class declared in modules/ or samples/. Three categories
+# are accepted:
+#
+#   1. Third-party library classes mentioned in our Javadoc / docs
+#      (Lettuce, Kafka, Hazelcast, JGroups, etc. — we depend on them but
+#      do not declare them).
+#   2. Brand / product names (MongoDB, PostgreSQL) that happen to match
+#      the gate's prefix regex.
+#   3. Classes provided by an Atmosphere-external plugin repo
+#      (atmosphere-jgroups, atmosphere-mongo, etc. — not in this reactor).
+#
+# Add one token per line. Inline `# comment` after the token is
+# stripped. Keep alphabetical within sections for diff hygiene.
+
+# --- Lettuce (Redis client) ---
+RedisClient
+RedisClusterClient
+RedisCommands
+RedisCommandsTimeoutException
+RedisConnectionException
+RedisFuture
+RedisPubSubAdapter
+RedisURI
+
+# --- Apache Kafka ---
+KafkaConsumer
+KafkaException
+KafkaProducer
+KafkaStreams
+KafkaTemplate
+
+# --- Testcontainers ---
+KafkaContainer
+
+# --- Brand / product names that match the prefix regex ---
+MongoDB
+PostgreSQL
+
+# --- External Atmosphere plugin repos (not in this reactor) ---
+HazelcastBroadcaster
+JGroupsBroadcaster
+MongoBroadcaster

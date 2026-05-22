@@ -154,6 +154,7 @@ IGNORE_REGEX='(^|/)(\.gitignore|\.editorconfig|LICENSE|NOTICE|README(\.md)?|.*\.
 ARCHITECTURAL_REGEX='^pom\.xml$|^(modules|samples)/.*(pom\.xml|src/(main|test)/.*\.(java|kt|kts))$|^(bom|assembly)/pom\.xml$|^config/|^\.mvn/|^\.github/workflows/|^scripts/(architectural-validation|pre-push-validate)\.sh$'
 CAPABILITY_CLAIMS_REGEX='(^|/)(README\.md|.*capabilit.*\.md)$|^modules/ai/README\.md$|^\.harness/capabilities\.snapshot\.json$|^scripts/validate-capability-claims\.sh$|^scripts/(regen|sign|verify|scan)-skillcards\.sh$|^modules/[^/]+/SKILLCARD\.yaml(\.sig)?$|^\.github/workflows/sign-skillcards\.yml$|^SKILLCARDS\.md$'
 DRIFT_LOG_REGEX='^\.harness/drift-log\.md$|^scripts/validate-drift-log\.sh$'
+BACKEND_CLASS_REFS_REGEX='\.java$|\.md$|^scripts/validate-backend-class-refs\.sh$|^\.harness/external-class-allowlist\.txt$'
 
 SIGNIFICANT_FILES=""
 IGNORED_FILES=""
@@ -161,6 +162,7 @@ HAS_HIGH_BLAST=false
 RUN_ARCHITECTURAL=false
 RUN_CAPABILITY_CLAIMS=false
 RUN_DRIFT_LOG=false
+RUN_BACKEND_CLASS_REFS=false
 while IFS= read -r file; do
     [ -z "$file" ] && continue
     if echo "$file" | grep -qE "$ARCHITECTURAL_REGEX"; then
@@ -171,6 +173,9 @@ while IFS= read -r file; do
     fi
     if echo "$file" | grep -qE "$DRIFT_LOG_REGEX"; then
         RUN_DRIFT_LOG=true
+    fi
+    if echo "$file" | grep -qE "$BACKEND_CLASS_REFS_REGEX"; then
+        RUN_BACKEND_CLASS_REFS=true
     fi
     if echo "$file" | grep -qE "$HIGH_BLAST_REGEX"; then
         HAS_HIGH_BLAST=true
@@ -191,6 +196,7 @@ if [ "$FORCE_FULL" = true ]; then
     RUN_ARCHITECTURAL=true
     RUN_CAPABILITY_CLAIMS=true
     RUN_DRIFT_LOG=true
+    RUN_BACKEND_CLASS_REFS=true
 fi
 
 PL_LIST=""
@@ -245,6 +251,19 @@ if [ "$DRY_RUN" = false ]; then
         fi
     else
         echo "Skipping drift-log structure validation."
+    fi
+    echo ""
+
+    if [ "$RUN_BACKEND_CLASS_REFS" = true ]; then
+        echo "Running backend-class reference validation."
+        if ! ./scripts/validate-backend-class-refs.sh; then
+            echo ""
+            echo "Backend-class reference drift — fix the Javadoc/doc, ship the class,"
+            echo "or allowlist a verified third-party token in .harness/external-class-allowlist.txt."
+            exit 1
+        fi
+    else
+        echo "Skipping backend-class reference validation."
     fi
     echo ""
 else

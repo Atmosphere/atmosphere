@@ -23,10 +23,10 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * In-memory implementation of {@link LongTermMemory}. Facts are lost on restart.
- * Suitable for development and testing. For production deployments, provide
- * your own {@link LongTermMemory} implementation backed by a persistent store
- * (database, key-value store, vector store, etc.); no persistent implementation
- * ships in-tree today.
+ * Suitable for development and testing. For persistent storage, depend on
+ * {@code atmosphere-durable-sessions-sqlite} (embedded SQLite) or
+ * {@code atmosphere-durable-sessions-redis} (Lettuce-backed LIST per user)
+ * and use {@code SqliteLongTermMemory} or {@code RedisLongTermMemory}.
  */
 public class InMemoryLongTermMemory implements LongTermMemory {
 
