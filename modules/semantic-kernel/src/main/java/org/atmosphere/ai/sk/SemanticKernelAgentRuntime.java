@@ -209,12 +209,18 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         for (var part : (context.parts() != null ? context.parts() : java.util.List.<org.atmosphere.ai.Content>of())) {
             if (part instanceof org.atmosphere.ai.Content.Image img) {
                 try {
+                    // SK's withImage(subtype, bytes) formats `data:image/%s;base64,%s`
+                    // — the first argument is the IMAGE SUBTYPE, not the full mime
+                    // type. Passing "image/png" verbatim produces the malformed URI
+                    // `data:image/image/png;base64,...`. Strip the `image/` prefix
+                    // so the wire payload is the canonical `data:image/png;base64,...`.
+                    var subtype = imageSubtype(img.mimeType());
                     @SuppressWarnings({"unchecked", "rawtypes"})
                     com.microsoft.semantickernel.services.chatcompletion.ChatMessageContent<?> imageContent =
                             (com.microsoft.semantickernel.services.chatcompletion.ChatMessageContent<?>) (com.microsoft.semantickernel.services.chatcompletion.ChatMessageContent)
                                     com.microsoft.semantickernel.services.chatcompletion.message.ChatMessageImageContent
                                             .<byte[]>builder()
-                                            .withImage(img.mimeType(), img.data())
+                                            .withImage(subtype, img.data())
                                             .build();
                     history.addMessage(imageContent);
                 } catch (RuntimeException re) {
@@ -230,6 +236,24 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
             }
         }
         return history;
+    }
+
+    /**
+     * Extract the subtype from a full image mime type so it can be passed
+     * to SK's {@code withImage(subtype, bytes)} which prepends {@code image/}
+     * internally. {@code image/png} → {@code png}; an unprefixed string is
+     * returned unchanged so callers that already pass a subtype keep working.
+     */
+    private static String imageSubtype(String mimeType) {
+        if (mimeType == null) {
+            return "png";
+        }
+        var lower = mimeType.toLowerCase(java.util.Locale.ROOT);
+        var prefix = "image/";
+        if (lower.startsWith(prefix)) {
+            return mimeType.substring(prefix.length());
+        }
+        return mimeType;
     }
 
     @Override

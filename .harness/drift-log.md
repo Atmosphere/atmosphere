@@ -600,6 +600,49 @@ both READMEs *before* declaring the merge ready.
 
 ---
 
+## 2026-05-23 — SK vision declared without wire-shape test; double `image/` prefix shipped (`test/vision-wire-shape-parity`)
+
+A "no more hallucinations" review pressed on the vision-parity claim
+from earlier today. Self-audit caught that only 2 of 5 vision runtimes
+(Anthropic, Cohere) had wire-shape tests. Writing the missing three
+surfaced a real bug: the SK runtime translation shipped in
+`1dfebcb5ff` was producing a malformed data URI.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 57 | `1dfebcb5ff` ("native Cohere runtime + close vision parity across 5 runtimes") declared `AiCapability.VISION` on `SemanticKernelAgentRuntime.capabilities()` and asserted in `docs/audits/vision-parity-2026-05-22.md` that "all five gap runtimes now forward `Content.Image` to the model and declare `VISION` + `MULTI_MODAL` in `capabilities()`. The capability matrix and contract-test pinning flipped in lockstep — `CapabilitySnapshotTest`, `validate-capability-claims.sh`, and `regen-skillcards.sh` all green." | The SK runtime's `buildChatHistory` was calling `ChatMessageImageContent.builder().withImage(img.mimeType(), img.data())` with `img.mimeType()` = `"image/png"`. The `withImage(String, byte[])` API expects the IMAGE SUBTYPE (`"png"`), not the full mime type — it prepends `image/` internally via the format string `"data:image/%s;base64,%s"`. Verified by decompiling `ChatMessageImageContent$Builder.class` with `javap -c -p`. The wire payload actually shipped to vision-capable Azure OpenAI deployments would have been `data:image/image/png;base64,iVBORw==` — a malformed data URI any conformant server would reject. New `SemanticKernelVisionWireShapeTest.contentImageAppendsChatMessageImageContentToHistory` reproduced the bug on its first run with the exact assertion failure `expected base64 data URI prefix, got: data:image/image/png;base64,iVBORw==`. | (1) `1dfebcb5ff` shipped vision wire-translation code for SAA / AgentScope / SK based on pattern-matching against the upstream SDK Java API surface, without driving a `Content.Image` end-to-end through any of them. Only Anthropic and Cohere got `VisionWireShapeTest`-equivalent coverage in that commit. (2) The contract test layer caught the capability *declaration* but not the wire-payload shape — `CapabilitySnapshotTest` only asserts `capabilities().contains(VISION)`, which the SK runtime's malformed-URI bug passed trivially. (3) SK's `withImage(String, byte[])` method signature `(mimeType, bytes)` looked self-evident from the name and types; only reading the bytecode revealed the actual contract. The lesson is `feedback_primitive_needs_consumer.md` applied to my own work: SPI presence (capability declared) ≠ runtime presence (wire bytes correct). | (1) Three new `*VisionWireShapeTest` classes — one per gap runtime — that drive a real PNG-magic `byte[]` through `runtime.execute()` and assert the wire payload byte-exactly. SAA: `Media.getDataAsByteArray()` matches the original `byte[]` and `MimeType.toString()` == `image/png`. AgentScope: trailing `Msg` content blocks are `[TextBlock("text"), ImageBlock(Base64Source("image/png", <base64>))]` with the base64 string compared against `Base64.getEncoder().encodeToString(original)`. SK: `ChatHistory.getMessages()` contains a `ChatMessageImageContent<?>` whose content `startsWith("data:image/png;base64,")` AND `endsWith("iVBORw==")` (PNG magic). (2) Runtime fix: `SemanticKernelAgentRuntime.imageSubtype(String)` extracts the SK-expected subtype from a full mime type so `"image/png"` → `"png"`, normalising the wire payload to the canonical `data:image/png;base64,...`. (3) Lesson encoded for future runtime-add work: every new VISION declaration must ship with a wire-shape test that drives `Content.Image` through `runtime.execute()` to mock-captured upstream payload bytes — capability declaration alone is unsafe. |
+
+### Why this slipped through the existing gates
+
+`CapabilitySnapshotTest` and `validate-capability-claims.sh` enforce
+capability-declaration / prose consistency. Neither asserts the runtime
+actually produces correct wire bytes when handed a `Content.Image`. The
+contract test base class doesn't either — it asserts behaviour at the
+session level (does text stream, do tools fire) and at the capability
+level (is the set declared correctly), not at the upstream-payload
+level. The wire-shape tests fill the third axis.
+
+The Anthropic and Cohere runtimes in `1dfebcb5ff` shipped with focused
+wire-shape tests because I wrote those runtimes from scratch and the
+test-first habit kicked in. The SAA / AgentScope / SK paths were
+*retrofits* over existing runtimes — I added the capability and the
+translation code without writing a corresponding wire-shape test,
+treating the upstream-SDK API as self-documenting. The slip is the
+classic asymmetry between greenfield and retrofit work.
+
+### Process win
+
+Pressing on "no more hallucinations" reproducibly forces a
+verify-before-claim sweep. The sweep this time produced a concrete
+catch: not just stale prose, but actually-malformed wire bytes that
+would have failed in production against any conformant Azure OpenAI
+vision deployment. The test that caught it is the gate that prevents
+the recurrence.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /
