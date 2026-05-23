@@ -546,6 +546,34 @@ back to shrinking when the missing feature is genuinely out of scope.
 
 ---
 
+## 2026-05-22 — Hallucinated head SHA in `gh run cancel` filter (`docs/drift-log-sha-hallucination`)
+
+Closing-out drift for the same session. After pushing the README scope
+section (commit `28c1ce6dfd`), I needed to cancel superseded CI runs on
+prior SHAs to free runners. The cancel command exclusion filter used a
+40-character SHA I had not queried — I wrote down `28c1ce6dfd06bb...` as
+the "full" SHA from intuition, since I had only seen the 8-character
+short form (`28c1ce6dfd`) in the push output.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 54 | The cancel filter `select(... and .headSha != "28c1ce6dfd06bb01f59c6efbf6dad6f3b1eccfd4")` was meant to spare the runs on the new push from being cancelled. | The actual full SHA of the new push was `28c1ce6dfd1345f290d757b77a020be3e7c9e2d4`. My hallucinated SHA matched nothing, so the filter excluded zero of the new push's runs, and the bulk-cancel proceeded to cancel two of them (`CI: Dependency Graph` run `26315616685` and `Security: CodeQL` run `26315616693`) alongside the truly superseded runs from prior SHAs. CI on `main` ended up in a state where the latest commit had zero live workflow results — a footgun for `feedback_ci_accountability.md`. | I treated a short SHA as if I knew the long form. The short SHA `28c1ce6dfd` came from `git push` output (`835a88d252..28c1ce6dfd`) and the `HEAD is now at` line — both truncated. I composed the rest of the 40 characters from intuition rather than running `git rev-parse HEAD` or piping through the same query I was filtering. Mirror image of the `Sqlite/Redis backend` drift earlier in the day: invented a token that *looked* plausible instead of querying for the real one. | (1) Recovery: re-triggered both cancelled runs via `gh run rerun`; both came back green. (2) **Workflow gate**: future cancel filters MUST derive the protected SHA from a query (`git rev-parse HEAD` or the output of the same `gh run list` invocation), never from a memorized string. (3) **Pattern pin**: this is the same class as drift #16 (fabricated attribution) and #23 (fabricated commit) — making up identifiers that *look* like the real thing because the real thing was visible in truncated form. Any cancel/protection filter that references an external identifier (SHA, run ID, PR number) must `--json` the source and grep it; never type the identifier from memory. |
+
+### Process win
+
+The gh-monitor that I re-armed on the corrected SHA caught the
+problem within a minute — I noticed only two workflows ran on the new
+SHA and both were `cancelled`, which made no sense for a docs-only
+change. The 8-character vs 40-character mismatch became obvious the
+moment I queried `gh run list --json headSha` and read the actual long
+form. Recovery took two `gh run rerun` commands and one fresh monitor.
+The cost was the time, not the credibility — but the same shape will
+hit harder next time if a real merge gets cancelled.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /
