@@ -574,6 +574,31 @@ hit harder next time if a real merge gets cancelled.
 
 ---
 
+## 2026-05-23 — Top-level README runtime-count stale after Cohere landed (`docs/readme-runtime-count-drift`)
+
+ChefFamille asked "no more hallucination of features right?". The honest
+self-audit caught a count drift in the top-level `README.md` introduced
+by *both* my push and a concurrent push earlier the same day.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 55 | Top-level `README.md` claimed `AgentRuntime` SPI + **10** adapters in the Scope section (line 42, written by me in `docs/readme-scope-section`) and "Nine additional adapters" in the runtime-adapters intro (line 144, pre-existing prose). The runtime adapter table (lines 148–159) listed 10 rows. The "Why Atmosphere" table on line 28 already said "eleven runtime adapters" — only ONE of four prose spots had been updated. | `find modules -path '*/src/main/*' -name '*AgentRuntime.{java,kt}'` returns 11 production runtimes (Built-in, Spring AI, LangChain4j, ADK, Embabel, Koog, Semantic Kernel, AgentScope, Spring AI Alibaba, Anthropic, Cohere). `.harness/capabilities.snapshot.json` is the source of truth at `runtimes.count = 11`. `CohereAgentRuntime` landed on `main` in commit `1dfebcb5ff` ("native Cohere runtime + close vision parity across 5 runtimes") on 2026-05-23 — between my `docs/readme-scope-section` push and ChefFamille's audit request. The drift class is the same shape as #5 / #18 / #29: prose lags a numeric source of truth and only some surfaces get swept. | I shipped my Scope section with "10 adapters" when 10 was correct at write-time. Cohere then landed and updated the "Why Atmosphere" table (line 28) but not lines 42, 144, or the adapter table itself — three of four prose spots stayed stale. My push went green and CI didn't catch it because `validate-capability-claims.sh` only scanned `modules/ai/README.md`, not the top-level `README.md`. When ChefFamille asked the honesty question, the sweep revealed the gap. | (1) Prose fix in this commit — lines 42, 44, and 144 of `README.md` now say "11 adapters" / "Ten additional adapters" with `atmosphere-cohere` explicitly named alongside `atmosphere-anthropic` as the two native HTTP+SSE runtimes; the runtime adapter table gains a `atmosphere-cohere` row matching `CohereAgentRuntime.capabilities()`; the Memory cell now correctly names `ConversationPersistence` as the SPI underneath `PersistentConversationMemory` (the previous wording elided the intermediate SPI). (2) **Gate**: `scripts/validate-capability-claims.sh` extended to scan top-level `README.md` for the patterns `[0-9]+ (runtime )?adapters` and the word-form equivalents (`eleven adapters`, `ten runtime adapters`, …). Singular `one runtime adapter` (article use, not enumeration) is excluded by requiring plural. Proven against the original drift: rolling the file back to "10 adapters" makes the gate fail with the exact diagnostic. (3) Pre-push validation will now block any new adapter merge that doesn't sweep the top-level README's count claims. |
+
+### Process win
+
+The "no more hallucinations right?" question forced a verify-before-claim
+sweep that I should have done before saying "10/10". The single source
+of truth (`capabilities.snapshot.json`) plus a wider grep scope was all
+it took to catch three stale prose spots. The fix is small; the gate
+that catches the recurrence is smaller. The lesson for future
+runtime-add commits: bump the snapshot, then `git grep -E '[0-9]+
+(runtime )?adapters'` and `git grep -E '[A-Za-z]+ (runtime )?adapters'`
+both READMEs *before* declaring the merge ready.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (ChefFamille flags it, or self-caught via `git grep` /

@@ -39,9 +39,9 @@ Atmosphere is a JVM framework, not an agent-hosting platform. We ship the primit
 |---|---|---|
 | Compute / scheduling | — | Your JVM host or container scheduler |
 | Streaming transport | `atmosphere-runtime` over WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC | — |
-| Runtime dispatch | `atmosphere-ai` `AgentRuntime` SPI + 10 adapters with contract-tested capability flags | Model hosting (we call providers; we do not host weights) |
+| Runtime dispatch | `atmosphere-ai` `AgentRuntime` SPI + 11 adapters with contract-tested capability flags | Model hosting (we call providers; we do not host weights) |
 | Orchestration | `@Coordinator`, `AgentFleet`, handoffs, conditional routing, coordination journal, result evaluation | Durable hibernating workflows (compose with Temporal for that shape; or keep sessions session-bounded) |
-| Memory | `AiConversationMemory` per-conversation history (in-memory or SQLite/Redis via `atmosphere-durable-sessions`), `LongTermMemory` per-user facts (`InMemoryLongTermMemory`, `SqliteLongTermMemory`, `RedisLongTermMemory`), `SemanticRecallInterceptor` for BYO vector-store recall | Managed vector stores (use Spring AI's `VectorStore`, LangChain4j embeddings, or your own) |
+| Memory | `AiConversationMemory` per-conversation history (in-memory, plus durable SQLite/Redis through the `ConversationPersistence` SPI in `atmosphere-durable-sessions{-sqlite,-redis}`), `LongTermMemory` per-user facts (`InMemoryLongTermMemory`, `SqliteLongTermMemory`, `RedisLongTermMemory`), `SemanticRecallInterceptor` for BYO vector-store recall | Managed vector stores (use Spring AI's `VectorStore`, LangChain4j embeddings, or your own) |
 | Governance | Policy admission, `@AgentScope`, plan-and-verify, PII redaction, cost ceilings, durable HITL approvals, admin kill switches | — |
 | Protocol surface | MCP, A2A, AG-UI, Slack/Telegram/Discord/WhatsApp/Messenger channel adapters | Payment rails / commerce primitives |
 | Code execution | `atmosphere-sandbox` `SandboxProvider` SPI + `DockerSandboxProvider` default | Browser automation, headless Chromium |
@@ -141,7 +141,7 @@ public class MyAgent {
 
 ## AI Runtime Adapters
 
-`atmosphere-ai` ships the `AgentRuntime` SPI plus the Built-in OpenAI-compatible adapter. Nine additional adapters live in separate modules — eight wrap a third-party framework, and one (`atmosphere-anthropic`) is a native client for the Anthropic Messages API. Drop one runtime adapter on the classpath and the same `@Agent` code dispatches through it.
+`atmosphere-ai` ships the `AgentRuntime` SPI plus the Built-in OpenAI-compatible adapter. Ten additional adapters live in separate modules — eight wrap a third-party framework, and two (`atmosphere-anthropic`, `atmosphere-cohere`) are native HTTP+SSE clients for the Anthropic Messages API and the Cohere v2 chat API respectively. Drop one runtime adapter on the classpath and the same `@Agent` code dispatches through it.
 
 Capabilities are intentionally not identical. The authoritative matrix is pinned by `AbstractAgentRuntimeContractTest.expectedCapabilities()`, so a runtime cannot drift from its declared feature set without breaking tests.
 
@@ -157,6 +157,7 @@ Capabilities are intentionally not identical. The authoritative matrix is pinned
 | `atmosphere-embabel` | Embabel 0.3.5 | 3.5 only | agent orchestration, tool calling, vision, conversation memory | Requires `atmosphere-spring-boot3-starter` and the `-Pspring-boot3` profile. |
 | `atmosphere-spring-ai-alibaba` | Spring AI Alibaba 1.1.2.2 | 3.5 only | tool calling, structured output, conversation memory, token usage | Buffered streaming (the upstream `ReactAgent.call()` returns one `AssistantMessage`); `UsageCapturingChatModel` decorator threads token usage. Token-by-token streaming should use another adapter until Alibaba ships a Spring AI 2.x-aligned agent framework. |
 | `atmosphere-anthropic` | Anthropic Messages API (no third-party SDK) | 3.5 / 4.0 | tool calling, structured output, conversation memory, token usage, per-request retry | Native HTTP+SSE client; tool loop capped at five rounds, cancellation-aware. Configure via `anthropic.api.key` (system property or `AiConfig.LlmSettings`); custom headers (`Helicone-Auth`, tenant IDs, tracing) are passthrough with reserved-header filtering. |
+| `atmosphere-cohere` | Cohere v2 chat API (no third-party SDK) | 3.5 / 4.0 | tool calling, structured output, vision, multi-modal, conversation memory, token usage, per-request retry | Native HTTP+SSE client against `POST /v2/chat`; tool dispatch routes through `ToolExecutionHelper.executeWithApproval`. Configure via `cohere.api.key` (system property or `AiConfig.LlmSettings`). |
 
 See the full [capability matrix](modules/ai/README.md#capability-matrix) for text streaming, tool calling, structured output, system prompts, agent orchestration, conversation memory, tool approval, vision, audio, multi-modal, prompt caching, token usage, retry, passivation, and tool-call deltas.
 

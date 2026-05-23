@@ -26,6 +26,7 @@ cd "$REPO_ROOT"
 
 SNAPSHOT=".harness/capabilities.snapshot.json"
 README="modules/ai/README.md"
+TOP_README="README.md"
 fail=0
 
 # 1. Snapshot freshness.
@@ -93,6 +94,44 @@ while IFS=: read -r lineno text; do
         fail=1
     fi
 done < <(grep -nE '[0-9]+ (AiCapability|capabilities total|capabilities count)' "$README" || true)
+
+# 3. Top-level README count claims. The same drift class bit us when
+# the eleventh adapter (Cohere) landed and prose on README.md was only
+# updated in one of four spots. Patterns guarded here:
+#   - `N runtime adapters`     (matches "11 runtime adapters")
+#   - `SPI + N adapters`       (matches "AgentRuntime SPI + 11 adapters")
+# Patterns deliberately NOT guarded structurally:
+#   - "N additional adapters"  (offset by 1, depends on Built-in being
+#                                counted separately — too ambiguous for
+#                                a structural check without false hits)
+# Both numeric and word forms ("eleven") are normalized to numeric
+# before comparison.
+if [ -f "$TOP_README" ]; then
+    declare -A word_to_num=(
+        [one]=1 [two]=2 [three]=3 [four]=4 [five]=5
+        [six]=6 [seven]=7 [eight]=8 [nine]=9 [ten]=10
+        [eleven]=11 [twelve]=12 [thirteen]=13 [fourteen]=14 [fifteen]=15
+    )
+    while IFS=: read -r lineno text; do
+        # Match either "<digit>+ <something> adapters" or
+        # "<word> <something> adapters" where <something> is empty
+        # or 'runtime'.
+        raw=$(echo "$text" | grep -oE '\b([0-9]+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen) (runtime )?adapters\b' | head -1)
+        [ -z "$raw" ] && continue
+        token=$(echo "$raw" | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
+        if [[ "$token" =~ ^[0-9]+$ ]]; then
+            n=$token
+        else
+            n="${word_to_num[$token]:-}"
+        fi
+        [ -z "$n" ] && continue
+        if [ "$n" != "$runtime_count" ]; then
+            echo "validate-capability-claims.sh: $TOP_README:$lineno claims '$raw' but snapshot has $runtime_count runtimes" >&2
+            echo "    line: $text" >&2
+            fail=1
+        fi
+    done < <(grep -nE '\b([0-9]+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen) (runtime )?adapters\b' "$TOP_README" -i || true)
+fi
 
 if [ "$fail" -ne 0 ]; then
     echo "" >&2
