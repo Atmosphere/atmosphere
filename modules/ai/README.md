@@ -46,7 +46,7 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 | `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOOL_CALLING, TOOL_APPROVAL, TOKEN_USAGE, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION *(see runtime caveats below)* |
 | `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
 
-Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build. The aggregate counts ("10 runtimes") and the per-row capability lists are additionally pinned against `.harness/capabilities.snapshot.json` by `CapabilitySnapshotTest` and `scripts/validate-capability-claims.sh` (run from pre-push), so prose claims about the matrix break the build alongside code drift.
+Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build. The aggregate counts ("11 runtimes") and the per-row capability lists are additionally pinned against `.harness/capabilities.snapshot.json` by `CapabilitySnapshotTest` and `scripts/validate-capability-claims.sh` (run from pre-push), so prose claims about the matrix break the build alongside code drift.
 
 Each runtime additionally ships a portable signed manifest at `modules/<X>/SKILLCARD.yaml` (and `SKILLCARD.yaml.sig` after a tagged release). `scripts/regen-skillcards.sh` emits the YAML from the snapshot + module `pom.xml`; `.github/workflows/sign-skillcards.yml` signs every card on tag push via OpenSSF Model Signing (Sigstore keyless OIDC — short-lived Fulcio cert + Rekor transparency-log entry, OIDC identity bound to the workflow path). Both the card and its `.sig` bundle are packaged into each runtime jar at `META-INF/atmosphere/` so a downstream consumer can verify integrity without unpacking the source tree. `SkillCardSnapshotTest` enforces drift detection, shape conformance, and signature verification when a `.sig` is present; verify locally with `./scripts/verify-skillcards.sh --identity https://github.com/Atmosphere/atmosphere/.github/workflows/sign-skillcards.yml@refs/tags/<TAG> --identity-provider https://token.actions.githubusercontent.com`. Cards on `main` between releases are unsigned by design — the workflow runs at tag time.
 
@@ -333,7 +333,7 @@ calls, because they hand the prompt to a third-party client that owns
 the connection. The two-tier model gives Built-in tighter retry without
 forcing framework runtimes to lie about that capability.
 
-**All 10 runtimes claim `PER_REQUEST_RETRY` honestly.** Earlier capability
+**All 11 runtimes claim `PER_REQUEST_RETRY` honestly.** Earlier capability
 sets for `AgentScope` and `Spring AI Alibaba` omitted the flag, even
 though both extend `AbstractAgentRuntime` and inherit
 `executeWithOuterRetry` for free — that was an under-claim corrected so
@@ -819,7 +819,7 @@ See [atmosphere-mcp README](../mcp/README.md) for injectable parameter details.
 
 ## Capability Matrix
 
-Unified view of the nine `AgentRuntime` implementations shipped with Atmosphere, derived
+Unified view of the eleven `AgentRuntime` implementations shipped with Atmosphere, derived
 from the pinned `expectedCapabilities()` declarations in each runtime's contract test
 (Correctness Invariant #5 — Runtime Truth). `yes` means the capability is declared
 **and** verified by a contract assertion; `—` means the framework does not expose the
@@ -838,10 +838,11 @@ TCD=TOOL_CALL_DELTA, BE=BUDGET_ENFORCEMENT, CS=CONFIDENCE_SCORES, PSV=PASSIVATIO
 | `AdkAgentRuntime`            | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | yes | yes |
 | `EmbabelAgentRuntime`        | 100 | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | —   | yes | yes | —   | yes | yes | yes |
 | `KoogAgentRuntime`           | 100 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | —   | yes | yes | yes |
-| `AgentScopeAgentRuntime`     | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   | yes | yes | yes |
-| `SpringAiAlibabaAgentRuntime`| 100 | yes¹| yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   | yes | yes | yes |
-| `SemanticKernelAgentRuntime` | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   | yes | yes | yes |
-| `AnthropicAgentRuntime`      | 100 | yes | yes | yes | yes | —   | yes | yes | —   | —   | —   | —   | yes | yes | —   | yes | yes | yes |
+| `AgentScopeAgentRuntime`     | 100 | yes | yes | yes | yes | —   | yes | yes | yes | yes | yes | —   | yes | yes | —   | yes | yes | yes |
+| `SpringAiAlibabaAgentRuntime`| 100 | yes¹| yes | yes | yes | —   | yes | yes | yes | yes | yes | —   | yes | yes | —   | yes | yes | yes |
+| `SemanticKernelAgentRuntime` | 100 | yes | yes | yes | yes | —   | yes | yes | yes | —   | yes | —   | yes | yes | —   | yes | yes | yes |
+| `AnthropicAgentRuntime`      | 100 | yes | yes | yes | yes | —   | yes | yes | yes | —   | yes | —   | yes | yes | —   | yes | yes | yes |
+| `CohereAgentRuntime`         | 100 | yes | yes | yes | yes | —   | yes | yes | yes | —   | yes | —   | yes | yes | —   | yes | yes | yes |
 
 ¹ `SpringAiAlibabaAgentRuntime` declares `TEXT_STREAMING` honestly because the
 final reply ships as a single `session.send()` chunk and Atmosphere's transport
@@ -867,8 +868,8 @@ declares it. The flags above are runtime truth, not roadmap intent.
 
 | Need | Prefer today | Avoid when this is mandatory |
 |------|--------------|------------------------------|
-| Portable `@AiTool` execution with HITL approval | All nine runtimes — every adapter ships a tool bridge that routes through `ToolExecutionHelper.executeWithApproval` | — |
-| Token-by-token UI deltas | Built-in, Spring AI, LangChain4j, ADK, Embabel, Koog, Semantic Kernel, AgentScope | Spring AI Alibaba, whose `ReactAgent.call()` is buffered |
+| Portable `@AiTool` execution with HITL approval | All eleven runtimes — every adapter ships a tool bridge that routes through `ToolExecutionHelper.executeWithApproval` | — |
+| Token-by-token UI deltas | Built-in, Spring AI, LangChain4j, ADK, Embabel, Koog, Semantic Kernel, AgentScope, Anthropic, Cohere | Spring AI Alibaba, whose `ReactAgent.call()` is buffered |
 | Embeddings through Atmosphere's `EmbeddingRuntime` SPI | Built-in, Spring AI, LangChain4j, Embabel, Semantic Kernel, Koog, Spring AI Alibaba | ADK, AgentScope (no embedding-runtime impl yet) |
 | Tool-call argument deltas before consolidated `ToolStart` | Built-in | Framework adapters whose upstream APIs expose consolidated tool calls only |
 

@@ -25,7 +25,7 @@ Atmosphere is built for teams that need AI agents to behave like production serv
 | Need | What Atmosphere provides |
 |---|---|
 | Stream to real clients | WebTransport over HTTP/3, WebSocket, SSE, long-polling, and gRPC through the same broadcaster pipeline |
-| Swap AI integrations | One `AgentRuntime` SPI with ten runtime adapters and contract-tested capability flags |
+| Swap AI integrations | One `AgentRuntime` SPI with eleven runtime adapters and contract-tested capability flags |
 | Govern execution | Policy admission, `@AgentScope`, human approval, plan-and-verify, cost ceilings, PII rewriting, and admin kill switches |
 | Pause for humans | Durable HITL approvals park virtual threads, persist workflow state, and resume through REST approval surfaces |
 | Resume long runs | Durable sessions, run IDs, replay buffers, checkpoints, and reconnect-safe continuation |

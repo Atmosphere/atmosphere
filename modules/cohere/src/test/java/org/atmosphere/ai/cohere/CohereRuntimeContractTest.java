@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.ai.anthropic;
+package org.atmosphere.ai.cohere;
 
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
@@ -37,43 +37,41 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Concrete TCK test for {@link AnthropicAgentRuntime}. The native HTTP client
+ * Concrete TCK test for {@link CohereAgentRuntime}. The native HTTP client
  * is replaced with a Mockito-built {@link HttpClient} returning canned SSE
- * frames so every assertion runs without touching the real Anthropic API.
+ * frames so every assertion runs without touching the real Cohere API.
  */
-class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
+class CohereRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     private static final String TEXT_SSE = """
-            data: {"type":"message_start","message":{"id":"msg_1"}}
+            data: {"type":"message-start","id":"msg_1"}
 
-            data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+            data: {"type":"content-start","index":0}
 
-            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}
+            data: {"type":"content-delta","index":0,"delta":{"message":{"content":{"text":"Hello"}}}}
 
-            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" world"}}
+            data: {"type":"content-delta","index":0,"delta":{"message":{"content":{"text":" world"}}}}
 
-            data: {"type":"content_block_stop","index":0}
+            data: {"type":"content-end","index":0}
 
-            data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":12,"output_tokens":3}}
-
-            data: {"type":"message_stop"}
+            data: {"type":"message-end","delta":{"finish_reason":"COMPLETE","usage":{"tokens":{"input_tokens":12,"output_tokens":3}}}}
 
             """;
 
     @Override
     protected AgentRuntime createRuntime() {
         var httpClient = mockHttpClient(200, TEXT_SSE);
-        var client = AnthropicMessagesClient.builder()
+        var client = CohereChatClient.builder()
                 .apiKey("test-key")
                 .httpClient(httpClient)
                 .build();
-        return new TestableAnthropicRuntime(client);
+        return new TestableCohereRuntime(client);
     }
 
     @Override
     protected AgentExecutionContext createTextContext() {
         return new AgentExecutionContext(
-                "Hello", "You are helpful", "claude-opus-4-7",
+                "Hello", "You are helpful", "command-a-plus-05-2026",
                 null, "session-1", "user-1", "conv-1",
                 List.of(), null, null, List.of(), Map.of(),
                 List.of(), null, null);
@@ -81,11 +79,11 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
     protected AgentExecutionContext createToolCallContext() {
-        // Tool-call round-trip is exercised in AnthropicMessagesClientTest
-        // with a multi-round mock; skipping at the contract level so the
-        // shared TCK does not need to wire a tool definition into every
-        // assertion. Tool calling is still declared in capabilities() and
-        // verified by a dedicated assertion below.
+        // Tool-call round-trip is exercised in CohereChatClientTest with a
+        // multi-round mock; skipping at the contract level so the shared TCK
+        // does not need to wire a tool definition into every assertion. Tool
+        // calling is still declared in capabilities() and verified by a
+        // dedicated assertion below.
         return null;
     }
 
@@ -93,9 +91,7 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     protected AgentExecutionContext createErrorContext() {
         // A second runtime wired to a 500-returning HttpClient drives the
         // error path; the canned 200/SSE httpClient above can't error on
-        // demand. We override the assertion to construct that runtime
-        // inline rather than threading a per-context HttpClient into the
-        // TCK shape.
+        // demand. CohereChatClientTest covers that path directly.
         return null;
     }
 
@@ -118,16 +114,12 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     }
 
     @Test
-    void runtimeNameIsAnthropic() {
-        assertEquals("anthropic", createRuntime().name());
+    void runtimeNameIsCohere() {
+        assertEquals("cohere", createRuntime().name());
     }
 
     @Test
     void runtimePriorityMatchesFrameworkConvention() {
-        // Framework runtimes (LC4j, Spring AI, ADK, Koog, Embabel, Semantic
-        // Kernel) all use 100 so the resolver picks any of them over the
-        // built-in OAI-compat fallback at priority 0. Anthropic follows the
-        // same convention.
         assertEquals(100, createRuntime().priority());
     }
 
@@ -153,8 +145,8 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     }
 
     /** Test subclass that injects the mocked client directly. */
-    static class TestableAnthropicRuntime extends AnthropicAgentRuntime {
-        TestableAnthropicRuntime(AnthropicMessagesClient client) {
+    static class TestableCohereRuntime extends CohereAgentRuntime {
+        TestableCohereRuntime(CohereChatClient client) {
             setNativeClient(client);
         }
 

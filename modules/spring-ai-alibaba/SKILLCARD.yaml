@@ -41,11 +41,13 @@ spi:
   service_loader: META-INF/services/org.atmosphere.ai.AgentRuntime
 
 capabilities:
-  count: 11
+  count: 14
   declared:
+    - AUDIO
     - BUDGET_ENFORCEMENT
     - CONFIDENCE_SCORES
     - CONVERSATION_MEMORY
+    - MULTI_MODAL
     - PASSIVATION
     - PER_REQUEST_RETRY
     - STRUCTURED_OUTPUT
@@ -54,6 +56,7 @@ capabilities:
     - TOKEN_USAGE
     - TOOL_APPROVAL
     - TOOL_CALLING
+    - VISION
 
 contract_test:
   path: modules/spring-ai-alibaba/src/test/java/org/atmosphere/ai/spring/alibaba/SpringAiAlibabaRuntimeContractTest.java

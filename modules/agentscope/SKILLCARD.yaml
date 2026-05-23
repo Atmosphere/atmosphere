@@ -41,12 +41,14 @@ spi:
   service_loader: META-INF/services/org.atmosphere.ai.AgentRuntime
 
 capabilities:
-  count: 12
+  count: 15
   declared:
+    - AUDIO
     - BUDGET_ENFORCEMENT
     - CANCELLATION
     - CONFIDENCE_SCORES
     - CONVERSATION_MEMORY
+    - MULTI_MODAL
     - PASSIVATION
     - PER_REQUEST_RETRY
     - STRUCTURED_OUTPUT
@@ -55,6 +57,7 @@ capabilities:
     - TOKEN_USAGE
     - TOOL_APPROVAL
     - TOOL_CALLING
+    - VISION
 
 contract_test:
   path: modules/agentscope/src/test/java/org/atmosphere/ai/agentscope/AgentScopeRuntimeContractTest.java

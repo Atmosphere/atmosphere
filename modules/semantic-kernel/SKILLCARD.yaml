@@ -41,11 +41,12 @@ spi:
   service_loader: META-INF/services/org.atmosphere.ai.AgentRuntime
 
 capabilities:
-  count: 11
+  count: 13
   declared:
     - BUDGET_ENFORCEMENT
     - CONFIDENCE_SCORES
     - CONVERSATION_MEMORY
+    - MULTI_MODAL
     - PASSIVATION
     - PER_REQUEST_RETRY
     - STRUCTURED_OUTPUT
@@ -54,6 +55,7 @@ capabilities:
     - TOKEN_USAGE
     - TOOL_APPROVAL
     - TOOL_CALLING
+    - VISION
 
 contract_test:
   path: modules/semantic-kernel/src/test/java/org/atmosphere/ai/sk/SemanticKernelRuntimeContractTest.java

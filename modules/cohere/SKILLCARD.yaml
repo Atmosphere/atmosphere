@@ -19,25 +19,25 @@ schema_version: 1
 spec: atmosphere/skillcard/v1
 status: unsigned
 
-name: AnthropicAgentRuntime
+name: CohereAgentRuntime
 language: java
 
 description: |
-  Native Anthropic Messages API runtime for Atmosphere Framework
+  Native Cohere v2 Chat API runtime for Atmosphere Framework
 
 license:
   spdx: Apache-2.0
 
 artifact:
   group_id: org.atmosphere
-  artifact_id: atmosphere-anthropic
+  artifact_id: atmosphere-cohere
   version: 4.0.48-SNAPSHOT
   packaging: jar
-  module_path: modules/anthropic
+  module_path: modules/cohere
 
 spi:
   interface: org.atmosphere.ai.AgentRuntime
-  implementation: org.atmosphere.ai.anthropic.AnthropicAgentRuntime
+  implementation: org.atmosphere.ai.cohere.CohereAgentRuntime
   service_loader: META-INF/services/org.atmosphere.ai.AgentRuntime
 
 capabilities:
@@ -58,7 +58,7 @@ capabilities:
     - VISION
 
 contract_test:
-  path: modules/anthropic/src/test/java/org/atmosphere/ai/anthropic/AnthropicRuntimeContractTest.java
+  path: modules/cohere/src/test/java/org/atmosphere/ai/cohere/CohereRuntimeContractTest.java
   pins: expectedCapabilities()
 
 provenance:

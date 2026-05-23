@@ -145,6 +145,11 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
         for (var chat : assembleMessages(context)) {
             messages.add(toSpringMessage(chat));
         }
+        // Attach multi-modal parts to the trailing user message. Spring AI
+        // Alibaba's ReactAgent.call(List<Message>) forwards Messages straight
+        // to the underlying ChatModel, so vision-capable models (Qwen-VL,
+        // DashScope vision models) see the Media attachments natively.
+        attachMediaToTrailingUserMessage(messages, context.parts());
 
         // Model-lifecycle hooks: same posture as Spring AI / LC4j / ADK / Koog
         // / Embabel / SK / AgentScope. Spring AI Alibaba is buffered (no
@@ -289,6 +294,55 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
         };
     }
 
+    /**
+     * Replace the trailing {@link UserMessage} with a rebuilt copy that
+     * carries any image / audio {@link org.atmosphere.ai.Content} parts as
+     * Spring AI {@link org.springframework.ai.content.Media} attachments.
+     * No-op when {@code parts} is empty or the trailing message is not a
+     * user message (defensive — assembleMessages always places the active
+     * user turn last today, but a future shim could change that).
+     *
+     * <p>{@link org.atmosphere.ai.Content.File} is dropped with a debug
+     * log: Spring AI's {@link org.springframework.ai.content.Media} carries
+     * a mime type but no file name, and the user-message path is not the
+     * conventional surface for arbitrary file uploads (those typically
+     * ride tool calls). Same posture as {@code SpringAiAgentRuntime}.</p>
+     */
+    private static void attachMediaToTrailingUserMessage(
+            java.util.List<Message> messages, java.util.List<org.atmosphere.ai.Content> parts) {
+        if (parts == null || parts.isEmpty() || messages.isEmpty()) {
+            return;
+        }
+        var lastIndex = messages.size() - 1;
+        if (!(messages.get(lastIndex) instanceof UserMessage existing)) {
+            return;
+        }
+        var media = new ArrayList<org.springframework.ai.content.Media>();
+        for (var part : parts) {
+            if (part instanceof org.atmosphere.ai.Content.Image img) {
+                media.add(new org.springframework.ai.content.Media(
+                        org.springframework.util.MimeType.valueOf(img.mimeType()),
+                        new org.springframework.core.io.ByteArrayResource(img.data())));
+            } else if (part instanceof org.atmosphere.ai.Content.Audio audio) {
+                media.add(new org.springframework.ai.content.Media(
+                        org.springframework.util.MimeType.valueOf(audio.mimeType()),
+                        new org.springframework.core.io.ByteArrayResource(audio.data())));
+            } else if (!(part instanceof org.atmosphere.ai.Content.Text)) {
+                logger.debug("Dropping unsupported multi-modal part {} — "
+                        + "Spring AI Media has no matching surface on UserMessage",
+                        part.getClass().getSimpleName());
+            }
+        }
+        if (media.isEmpty()) {
+            return;
+        }
+        var rebuilt = UserMessage.builder()
+                .text(existing.getText() != null ? existing.getText() : "")
+                .media(media.toArray(new org.springframework.ai.content.Media[0]))
+                .build();
+        messages.set(lastIndex, rebuilt);
+    }
+
     @Override
     public Set<AiCapability> capabilities() {
         return Set.of(
@@ -350,7 +404,17 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 // PASSIVATION: AgentPassivation snapshots context.history()
                 // into a CheckpointStore. Honest because Alibaba threads
                 // history into the Message list ReactAgent receives.
-                AiCapability.PASSIVATION);
+                AiCapability.PASSIVATION,
+                // VISION / AUDIO / MULTI_MODAL: attachMediaToTrailingUserMessage
+                // rebuilds the active user-turn UserMessage with Spring AI Media
+                // attachments. ReactAgent.call forwards Messages straight to the
+                // underlying ChatModel, so vision-capable Qwen / DashScope models
+                // see image bytes natively. Same posture as
+                // SpringAiAgentRuntime — declaring on the Atmosphere SPI side;
+                // whether the configured ChatModel honors Media is upstream.
+                AiCapability.VISION,
+                AiCapability.AUDIO,
+                AiCapability.MULTI_MODAL);
     }
 
     @Override

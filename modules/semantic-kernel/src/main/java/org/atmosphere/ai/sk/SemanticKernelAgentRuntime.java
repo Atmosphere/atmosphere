@@ -199,6 +199,36 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         }
 
         history.addUserMessage(context.message());
+        // Multi-modal parts: SK Java's ChatMessageImageContent is its own
+        // ChatMessageContent (no in-message text/image multipart). Append
+        // each image as a follow-up user-role message — the underlying
+        // OpenAI / Azure OpenAI chat completion sees text first, then image,
+        // both on the user side, which vision-capable deployments accept.
+        // Content.File has no SK image-equivalent and is dropped with a
+        // debug log; Content.Audio similarly (SK 1.5.0 has no audio block).
+        for (var part : (context.parts() != null ? context.parts() : java.util.List.<org.atmosphere.ai.Content>of())) {
+            if (part instanceof org.atmosphere.ai.Content.Image img) {
+                try {
+                    @SuppressWarnings({"unchecked", "rawtypes"})
+                    com.microsoft.semantickernel.services.chatcompletion.ChatMessageContent<?> imageContent =
+                            (com.microsoft.semantickernel.services.chatcompletion.ChatMessageContent<?>) (com.microsoft.semantickernel.services.chatcompletion.ChatMessageContent)
+                                    com.microsoft.semantickernel.services.chatcompletion.message.ChatMessageImageContent
+                                            .<byte[]>builder()
+                                            .withImage(img.mimeType(), img.data())
+                                            .build();
+                    history.addMessage(imageContent);
+                } catch (RuntimeException re) {
+                    logger.warn("Failed to attach Content.Image part to SK ChatHistory "
+                            + "(mime={}, bytes={}): {}", img.mimeType(), img.data().length, re.toString());
+                }
+            } else if (part instanceof org.atmosphere.ai.Content.Text t) {
+                history.addUserMessage(t.text());
+            } else {
+                logger.debug("Dropping unsupported multi-modal part {} — "
+                        + "Semantic Kernel 1.5.0 has no matching ChatMessageContent type",
+                        part.getClass().getSimpleName());
+            }
+        }
         return history;
     }
 
@@ -250,7 +280,17 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
                 // PASSIVATION: AgentPassivation snapshots context.history()
                 // into a CheckpointStore. Honest because SK threads history
                 // into the ChatHistory before invoking the chat completion.
-                AiCapability.PASSIVATION
+                AiCapability.PASSIVATION,
+                // VISION / MULTI_MODAL: buildChatHistory appends a
+                // ChatMessageImageContent (via withImage(mime, bytes)) for
+                // every Content.Image part. SK's OpenAI / Azure OpenAI
+                // adapter translates the image to the wire-level
+                // image_url block, so vision-capable deployments see the
+                // bytes. AUDIO is NOT declared — SK 1.5.0 has no audio
+                // content type today (Content.Audio is dropped with a
+                // debug log).
+                AiCapability.VISION,
+                AiCapability.MULTI_MODAL
         );
     }
 

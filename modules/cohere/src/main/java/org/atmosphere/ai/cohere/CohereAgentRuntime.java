@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.ai.anthropic;
+package org.atmosphere.ai.cohere;
 
 import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AgentExecutionContext;
@@ -28,27 +28,32 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * {@link org.atmosphere.ai.AgentRuntime} backed by a native
- * {@link AnthropicMessagesClient} that posts directly to
- * {@code https://api.anthropic.com/v1/messages}. Picked up via
+ * {@link CohereChatClient} that posts directly to
+ * {@code https://api.cohere.com/v2/chat}. Picked up via
  * {@link java.util.ServiceLoader} when this module's jar is on the
- * classpath alongside an {@code anthropic.api.key} configuration.
+ * classpath alongside a {@code cohere.api.key} configuration.
  *
- * <p>Priority is {@code 100} — the same convention every framework
- * runtime adapter (LangChain4j, Spring AI, ADK, Koog, Embabel,
- * Semantic Kernel) uses. The built-in OpenAI-compatible client at
- * priority {@code 0} remains the fallback when no provider-specific
- * runtime is available.</p>
+ * <p>The {@code cohere.base.url} system property overrides the default
+ * Cohere cloud endpoint so a self-hosted Command A+ deployment that
+ * speaks the v2 Chat wire protocol can be addressed without code
+ * changes — the same posture {@link org.atmosphere.ai.anthropic.AnthropicAgentRuntime}
+ * takes for Anthropic-compatible proxies.</p>
+ *
+ * <p>Priority is {@code 100} — the same convention every other
+ * provider-specific runtime adapter uses. The built-in OpenAI-compatible
+ * client at priority {@code 0} remains the fallback when no
+ * provider-specific runtime is available.</p>
  */
-public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessagesClient> {
+public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
 
-    private static final String API_KEY_PROPERTY = "anthropic.api.key";
-    private static final String VERSION_PROPERTY = "anthropic.version";
-    private static final String BASE_URL_PROPERTY = "anthropic.base.url";
-    private static final String MAX_TOKENS_PROPERTY = "anthropic.max.tokens";
+    private static final String API_KEY_PROPERTY = "cohere.api.key";
+    private static final String BASE_URL_PROPERTY = "cohere.base.url";
+    private static final String MAX_TOKENS_PROPERTY = "cohere.max.tokens";
+    private static final String DEFAULT_MODEL = "command-a-plus-05-2026";
 
     @Override
     public String name() {
-        return "anthropic";
+        return "cohere";
     }
 
     @Override
@@ -58,31 +63,32 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
 
     @Override
     protected String nativeClientClassName() {
-        return "org.atmosphere.ai.anthropic.AnthropicMessagesClient";
+        return "org.atmosphere.ai.cohere.CohereChatClient";
     }
 
     @Override
     protected String clientDescription() {
-        return "AnthropicMessagesClient";
+        return "CohereChatClient";
     }
 
     /**
      * Build the client from {@link AiConfig.LlmSettings} when the framework
      * has resolved one. Falls back to system-property configuration so
      * standalone tests and CLI usage work without an Atmosphere-wide config
-     * (mirrors how the built-in runtime reads its own settings).
+     * (mirrors how the built-in and Anthropic runtimes read their own
+     * settings).
      */
     @Override
-    protected AnthropicMessagesClient createNativeClient(AiConfig.LlmSettings settings) {
-        var builder = AnthropicMessagesClient.builder()
+    protected CohereChatClient createNativeClient(AiConfig.LlmSettings settings) {
+        var builder = CohereChatClient.builder()
                 .apiKey(systemProperty(API_KEY_PROPERTY,
-                        settings != null ? settings.apiKey() : null))
-                .anthropicVersion(systemProperty(VERSION_PROPERTY, "2023-06-01"));
-        // Sovereign-deploy story: {@code anthropic.base.url} system property
-        // wins outright; otherwise honor framework-resolved settings.baseUrl()
-        // so the existing {@code LLM_BASE_URL} env var routes to an Anthropic-
-        // compatible proxy without per-runtime config. Closes the Runtime
-        // Truth gap surfaced by docs/sovereign-deploy.md (recipe section).
+                        settings != null ? settings.apiKey() : null));
+        // Sovereign-deploy story: the {@code cohere.base.url} system property
+        // wins outright; otherwise the framework-resolved settings.baseUrl()
+        // is honored so the existing {@code LLM_BASE_URL} env var works
+        // without per-runtime config. This is the missing link that lets the
+        // spring-boot-ai-chat sample target a self-hosted Command A+ endpoint
+        // without code changes.
         var baseUrl = systemProperty(BASE_URL_PROPERTY,
                 settings != null && settings.baseUrl() != null
                         && !settings.baseUrl().isBlank() ? settings.baseUrl() : null);
@@ -121,7 +127,7 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
     }
 
     @Override
-    protected void doExecute(AnthropicMessagesClient client,
+    protected void doExecute(CohereChatClient client,
                              AgentExecutionContext context,
                              StreamingSession session) {
         admitThroughGateway(context);
@@ -137,7 +143,7 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
 
     @Override
     protected org.atmosphere.ai.ExecutionHandle doExecuteWithHandle(
-            AnthropicMessagesClient client, AgentExecutionContext context,
+            CohereChatClient client, AgentExecutionContext context,
             StreamingSession session) {
         admitThroughGateway(context);
         var cancelled = new AtomicBoolean();
@@ -176,7 +182,7 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
         if (settings != null && settings.model() != null && !settings.model().isBlank()) {
             return settings.model();
         }
-        return "claude-opus-4-7";
+        return DEFAULT_MODEL;
     }
 
     private static String systemProperty(String key, String fallback) {
@@ -186,42 +192,49 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
 
     @Override
     public Set<AiCapability> capabilities() {
-        // Honest floor — every entry here corresponds to a code path
-        // AnthropicMessagesClient actually exercises:
-        //   TEXT_STREAMING        — SSE text_delta forwarding via session.send()
-        //   SYSTEM_PROMPT         — top-level "system" field on every request
+        // Honest floor — every entry corresponds to a code path
+        // CohereChatClient actually exercises:
+        //   TEXT_STREAMING        — content-delta forwarding via session.send()
+        //   SYSTEM_PROMPT         — system role threaded into messages[] head
         //   STRUCTURED_OUTPUT     — pipeline-layer schema injection via
-        //                            StructuredOutputCapturingSession works
-        //                            for any runtime that honors SYSTEM_PROMPT
-        //   TOOL_CALLING          — tool_use → tool_result loop with shared
+        //                            StructuredOutputCapturingSession; the
+        //                            runtime honors SYSTEM_PROMPT and Cohere
+        //                            response_format={"type":"json_object"}
+        //                            could be added later if the pipeline
+        //                            asks for it
+        //   TOOL_CALLING          — tool-call-start → tool-call-delta →
+        //                            tool-call-end loop with shared
         //                            ToolExecutionHelper.executeWithApproval
         //   TOOL_APPROVAL         — every tool dispatch routes through the
-        //                            executeWithApproval gate, so
-        //                            @RequiresApproval fires uniformly
-        //   TOKEN_USAGE           — message_delta.usage parsed and emitted via
-        //                            session.usage()
+        //                            executeWithApproval gate
+        //   TOKEN_USAGE           — message-end.delta.usage parsed and
+        //                            emitted via session.usage()
         //   CONVERSATION_MEMORY   — assembleMessages threads context.history()
         //                            into every outbound request
         //   BUDGET_ENFORCEMENT    — pipeline-level decorator taps session.usage()
         //   CONFIDENCE_SCORES     — pipeline-level cue appended to the system
         //                            prompt; runtime honors SYSTEM_PROMPT
         //   PASSIVATION           — assembleMessages-based; checkpoint module
-        //                            rehydrates context.history() unchanged.
+        //                            rehydrates context.history() unchanged
         //   PER_REQUEST_RETRY     — AbstractAgentRuntime.executeWithOuterRetry
         //                            wraps doExecute when context.retryPolicy()
-        //                            requests retries; same posture as
-        //                            AgentScope / Spring AI Alibaba.
-        //   VISION                — Content.Image translates to a native
-        //                            image_block (base64 inline) in
-        //                            AnthropicMessagesClient.userMessageWithParts
-        //   MULTI_MODAL           — same code path; an Anthropic user message
-        //                            can interleave text + image blocks
+        //                            requests retries
+        //   VISION                — Content.Image translates to an
+        //                            OpenAI-compatible image_url block
+        //                            (data: URI) in CohereChatClient
+        //                            .userMessageWithParts; Command A+ /
+        //                            Command A Vision honor this shape
+        //   MULTI_MODAL           — same code path; a Cohere user message
+        //                            can interleave text + image_url blocks
         // NOT claimed:
-        //   TOOL_CALL_DELTA       — input_json_delta arrives but is not
-        //                            forwarded via session.toolCallDelta yet
-        //   AUDIO                 — Anthropic Messages has no audio block
-        //                            (Content.Audio is dropped with a debug log)
-        //   PROMPT_CACHING        — cache_control blocks deferred
+        //   AUDIO                 — Cohere v2 chat content array has no
+        //                            audio block (Content.Audio is dropped
+        //                            with a debug log)
+        //   PROMPT_CACHING        — Cohere documents prompt caching but the
+        //                            cache_control wire shape is not wired
+        //   TOOL_CALL_DELTA       — tool-call-delta arrives and could be
+        //                            forwarded via session.toolCallDelta; not
+        //                            wired in this release
         return Set.of(
                 AiCapability.TEXT_STREAMING,
                 AiCapability.SYSTEM_PROMPT,

@@ -32,6 +32,7 @@
         <module>spring-ai-alibaba</module>
         <module>langchain4j</module>
         <module>anthropic</module>
+        <module>cohere</module>
         <module>embabel</module>
         <module>koog</module>
         <module>agentscope</module>

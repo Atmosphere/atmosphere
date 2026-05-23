@@ -153,12 +153,19 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         final ReActAgent activeAgent = resolvedAgent;
 
         var msgs = new ArrayList<Msg>();
-        for (var chat : assembleMessages(context)) {
+        var assembled = assembleMessages(context);
+        for (var chat : assembled) {
             msgs.add(Msg.builder()
                     .role(toRole(chat.role()))
                     .textContent(chat.content())
                     .build());
         }
+        // Replace the trailing user message with a content-block-bearing copy
+        // when multi-modal parts are present. AgentScope's native ImageBlock
+        // / AudioBlock + Base64Source wire to the underlying ChatModel
+        // formatter (DashScope / OpenAI / Ollama), so vision-capable models
+        // see the image bytes through the same flow non-multimodal text takes.
+        attachPartsToTrailingUserMessage(msgs, context.message(), context.parts());
 
         var done = new CompletableFuture<Void>();
         var cancelled = new java.util.concurrent.atomic.AtomicBoolean();
@@ -286,6 +293,64 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         };
     }
 
+    /**
+     * Rebuild the trailing {@link Msg} as a content-block list when
+     * multi-modal parts are present. The new message preserves the user
+     * text alongside native {@link io.agentscope.core.message.ImageBlock}
+     * / {@link io.agentscope.core.message.AudioBlock} instances backed by
+     * {@link io.agentscope.core.message.Base64Source} so AgentScope's
+     * formatter layer can route the bytes to the model.
+     *
+     * <p>{@link org.atmosphere.ai.Content.File} is dropped with a debug
+     * log: AgentScope has no FileBlock in 1.0.12 (only Image / Audio /
+     * Video / Thinking / Tool blocks). Declaring file support without a
+     * wire path would lie about runtime truth.</p>
+     */
+    private static void attachPartsToTrailingUserMessage(
+            java.util.List<Msg> msgs, String userMessage,
+            java.util.List<org.atmosphere.ai.Content> parts) {
+        if (parts == null || parts.isEmpty() || msgs.isEmpty()) {
+            return;
+        }
+        var lastIndex = msgs.size() - 1;
+        var trailing = msgs.get(lastIndex);
+        if (trailing.getRole() != io.agentscope.core.message.MsgRole.USER) {
+            return;
+        }
+        var blocks = new ArrayList<io.agentscope.core.message.ContentBlock>();
+        if (userMessage != null && !userMessage.isEmpty()) {
+            blocks.add(io.agentscope.core.message.TextBlock.builder().text(userMessage).build());
+        }
+        for (var part : parts) {
+            if (part instanceof org.atmosphere.ai.Content.Image img) {
+                var source = io.agentscope.core.message.Base64Source.builder()
+                        .mediaType(img.mimeType())
+                        .data(java.util.Base64.getEncoder().encodeToString(img.data()))
+                        .build();
+                blocks.add(io.agentscope.core.message.ImageBlock.builder().source(source).build());
+            } else if (part instanceof org.atmosphere.ai.Content.Audio audio) {
+                var source = io.agentscope.core.message.Base64Source.builder()
+                        .mediaType(audio.mimeType())
+                        .data(java.util.Base64.getEncoder().encodeToString(audio.data()))
+                        .build();
+                blocks.add(io.agentscope.core.message.AudioBlock.builder().source(source).build());
+            } else if (part instanceof org.atmosphere.ai.Content.Text t) {
+                blocks.add(io.agentscope.core.message.TextBlock.builder().text(t.text()).build());
+            } else {
+                logger.debug("Dropping unsupported multi-modal part {} — "
+                        + "AgentScope 1.0.12 has no matching ContentBlock type",
+                        part.getClass().getSimpleName());
+            }
+        }
+        if (blocks.isEmpty()) {
+            return;
+        }
+        msgs.set(lastIndex, Msg.builder()
+                .role(io.agentscope.core.message.MsgRole.USER)
+                .content(blocks)
+                .build());
+    }
+
     @Override
     public Set<AiCapability> capabilities() {
         return Set.of(
@@ -333,7 +398,15 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                 // PASSIVATION: AgentPassivation snapshots context.history()
                 // into a CheckpointStore. Honest because assembleMessages
                 // threads history into the Msg list AgentScope receives.
-                AiCapability.PASSIVATION);
+                AiCapability.PASSIVATION,
+                // VISION / AUDIO / MULTI_MODAL: attachPartsToTrailingUserMessage
+                // rebuilds the active user Msg with native ImageBlock /
+                // AudioBlock content blocks (Base64Source). AgentScope's
+                // formatter layer routes these blocks through to the
+                // underlying ChatModel for vision-capable providers.
+                AiCapability.VISION,
+                AiCapability.AUDIO,
+                AiCapability.MULTI_MODAL);
     }
 
     @Override

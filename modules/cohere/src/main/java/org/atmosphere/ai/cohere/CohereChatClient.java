@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.ai.anthropic;
+package org.atmosphere.ai.cohere;
 
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiEvent;
@@ -47,53 +47,62 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Stateless HTTP client for the Anthropic Messages API
- * ({@code POST /v1/messages}). Owns the streaming SSE parse and the
- * client-side tool loop; everything observability-related (JFR,
- * AiMetrics, approval gates) is delegated to the {@link AnthropicAgentRuntime}
- * caller and the shared {@link ToolExecutionHelper}.
+ * Stateless HTTP client for the Cohere v2 Chat API
+ * ({@code POST /v2/chat}). Owns the SSE parse and the client-side tool
+ * loop; everything observability-related (JFR, AiMetrics, approval gates)
+ * is delegated to the {@link CohereAgentRuntime} caller and the shared
+ * {@link ToolExecutionHelper}.
  *
- * <p>Wire shape verified against the Anthropic Messages API docs:</p>
+ * <p>Wire shape verified against the Cohere v2 Chat API docs:</p>
  * <ul>
- *   <li>Headers: {@code x-api-key}, {@code anthropic-version} (default
- *       {@code 2023-06-01}), {@code content-type: application/json}.</li>
- *   <li>Required body fields: {@code model}, {@code max_tokens},
- *       {@code messages}.</li>
- *   <li>Optional body fields used here: {@code system}, {@code tools},
- *       {@code stream}, {@code temperature}.</li>
- *   <li>Content block types: {@code text}, {@code tool_use},
- *       {@code tool_result}.</li>
- *   <li>SSE events: {@code message_start}, {@code content_block_start},
- *       {@code content_block_delta} (with {@code text_delta} or
- *       {@code input_json_delta}), {@code content_block_stop},
- *       {@code message_delta} (carries {@code usage.output_tokens} and
- *       {@code delta.stop_reason}), {@code message_stop}.</li>
+ *   <li>Headers: {@code Authorization: Bearer &lt;key&gt;},
+ *       {@code Content-Type: application/json},
+ *       {@code Accept: text/event-stream}.</li>
+ *   <li>Required body fields: {@code model}, {@code messages},
+ *       {@code stream: true}.</li>
+ *   <li>Optional body fields used here: {@code max_tokens},
+ *       {@code temperature}, {@code tools}.</li>
+ *   <li>Message roles: {@code system}, {@code user}, {@code assistant},
+ *       {@code tool} (tool result carries {@code tool_call_id} and
+ *       {@code content}).</li>
+ *   <li>SSE events: {@code message-start}, {@code content-start},
+ *       {@code content-delta} (text in {@code delta.message.content.text}),
+ *       {@code content-end}, {@code tool-plan-delta},
+ *       {@code tool-call-start} (carries
+ *       {@code delta.message.tool_calls[N]} with {@code id}, {@code function.name}),
+ *       {@code tool-call-delta} (argument fragment in
+ *       {@code delta.message.tool_calls[N].function.arguments}),
+ *       {@code tool-call-end}, {@code citation-start},
+ *       {@code citation-end}, {@code message-end} (carries
+ *       {@code delta.usage.billed_units}/{@code tokens} and
+ *       {@code delta.finish_reason}).</li>
  * </ul>
+ *
+ * <p>Vision / multi-modal input is staged for the end-of-phase parity
+ * pass — text and tool calling ship first per the
+ * {@code docs/audits/vision-parity-2026-05-22.md} plan.</p>
  */
-public final class AnthropicMessagesClient {
+public final class CohereChatClient {
 
-    private static final Logger logger = LoggerFactory.getLogger(AnthropicMessagesClient.class);
+    private static final Logger logger = LoggerFactory.getLogger(CohereChatClient.class);
     private static final ObjectMapper MAPPER = JsonMapper.builder().build();
     private static final String DATA_PREFIX = "data: ";
-    private static final String DEFAULT_BASE_URL = "https://api.anthropic.com";
-    private static final String DEFAULT_VERSION = "2023-06-01";
+    private static final String DEFAULT_BASE_URL = "https://api.cohere.com";
     private static final int DEFAULT_MAX_TOKENS = 4096;
     private static final int DEFAULT_TOOL_ROUND_CAP = 5;
 
     private final String baseUrl;
     private final String apiKey;
-    private final String anthropicVersion;
     private final HttpClient httpClient;
     private final Duration timeout;
     private final Map<String, String> customHeaders;
     private final int maxTokens;
 
-    private AnthropicMessagesClient(Builder b) {
+    private CohereChatClient(Builder b) {
         this.baseUrl = b.baseUrl.endsWith("/")
                 ? b.baseUrl.substring(0, b.baseUrl.length() - 1)
                 : b.baseUrl;
         this.apiKey = b.apiKey;
-        this.anthropicVersion = b.anthropicVersion;
         this.httpClient = b.httpClient != null ? b.httpClient
                 : HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
         this.timeout = b.timeout;
@@ -112,19 +121,21 @@ public final class AnthropicMessagesClient {
 
     /**
      * Run one or more rounds of: build request → POST → SSE-parse → if the
-     * model emitted {@code tool_use} blocks, dispatch them and feed
-     * {@code tool_result} blocks back into the next round. Forwards text
-     * deltas via {@link StreamingSession#send} and tool start/result frames
-     * via {@link AiEvent}. Calls {@link StreamingSession#complete} once the
-     * final round emits no further tool requests.
+     * model emitted tool calls, dispatch them and feed
+     * {@code role: "tool"} result messages back into the next round.
+     * Forwards text deltas via {@link StreamingSession#send} and tool
+     * start/result frames via {@link AiEvent}. Calls
+     * {@link StreamingSession#complete} once the final round emits no
+     * further tool requests.
      *
-     * @param model    Anthropic model identifier (e.g. {@code claude-opus-4-7})
+     * @param model    Cohere model identifier (e.g. {@code command-a-plus-05-2026})
      * @param history  conversation history threaded by the framework
-     * @param system   system prompt; null or blank is sent as an empty system
+     * @param system   system prompt; null or blank is skipped
      * @param userMessage incoming user turn text
-     * @param context  pipeline execution context (carries tools, approval policy,
-     *                 strategy, injectables, listeners — exactly the surface
-     *                 {@link ToolExecutionHelper#executeWithApproval} needs)
+     * @param context  pipeline execution context (carries tools, approval
+     *                 policy, strategy, injectables, listeners — exactly the
+     *                 surface {@link ToolExecutionHelper#executeWithApproval}
+     *                 needs)
      * @param session  streaming sink the runtime writes through
      * @param cancelled cooperative cancel flag set by the caller's handle
      */
@@ -139,24 +150,27 @@ public final class AnthropicMessagesClient {
         Objects.requireNonNull(session, "session");
         var effectiveCancel = cancelled != null ? cancelled : new AtomicBoolean();
         var rounds = 0;
-        // Working message list starts with the framework-managed history
-        // converted to Anthropic blocks, then accumulates assistant
-        // tool_use blocks and tool_result blocks across rounds.
+        // Working messages list starts with optional system prompt + history,
+        // then accumulates assistant + tool messages across rounds.
         var working = new ArrayList<ObjectNode>();
+        if (system != null && !system.isBlank()) {
+            working.add(textMessage("system", system));
+        }
         for (var msg : (history != null ? history : List.<ChatMessage>of())) {
-            var converted = toAnthropicMessage(msg);
+            var converted = toCohereMessage(msg);
             if (converted != null) {
                 working.add(converted);
             }
         }
         var parts = context != null ? context.parts() : List.<org.atmosphere.ai.Content>of();
         if (!parts.isEmpty()) {
-            // Multi-modal path: a user message that interleaves text + image
-            // blocks must carry a content array.
+            // Multi-modal path: Cohere v2 chat expects a content array when
+            // any part of the message is non-text.
             working.add(userMessageWithParts(userMessage, parts));
         } else if (userMessage != null && !userMessage.isEmpty()) {
-            // Text-only fast path preserves the legacy single-block shape so
-            // existing wire-format assertions continue to hold.
+            // Text-only fast path: keep the legacy string-content shape so
+            // existing wire-format assertions and lighter-weight inference
+            // backends that don't parse content arrays continue to work.
             working.add(textMessage("user", userMessage));
         }
 
@@ -166,12 +180,12 @@ public final class AnthropicMessagesClient {
                 return;
             }
             if (rounds > DEFAULT_TOOL_ROUND_CAP) {
-                logger.warn("Anthropic tool loop cap ({}) reached — completing without tools",
+                logger.warn("Cohere tool loop cap ({}) reached — completing without tools",
                         DEFAULT_TOOL_ROUND_CAP);
                 session.complete();
                 return;
             }
-            var requestBody = buildRequestBody(model, working, system, context.tools());
+            var requestBody = buildRequestBody(model, working, context.tools());
             HttpRequest httpRequest;
             try {
                 httpRequest = buildHttpRequest(requestBody);
@@ -185,14 +199,15 @@ public final class AnthropicMessagesClient {
                 // The round already emitted session.error / session.complete.
                 return;
             }
-            // Append the assistant message that contained the (possibly
-            // tool_use) blocks plus any tool_result blocks we just computed.
-            working.add(buildAssistantBlocks(roundOutcome.assistantBlocks()));
-            if (roundOutcome.toolUses().isEmpty()) {
+            working.add(buildAssistantMessage(roundOutcome.assistantText(),
+                    roundOutcome.toolCalls()));
+            if (roundOutcome.toolCalls().isEmpty()) {
                 session.complete();
                 return;
             }
-            working.add(buildToolResultsBlocks(roundOutcome.toolResults()));
+            for (var entry : roundOutcome.toolResults().entrySet()) {
+                working.add(toolResultMessage(entry.getKey(), entry.getValue()));
+            }
             rounds++;
         }
     }
@@ -210,7 +225,7 @@ public final class AnthropicMessagesClient {
         }
         if (response.statusCode() / 100 != 2) {
             var bodySnippet = readSnippet(response.body());
-            session.error(new RuntimeException("Anthropic API returned "
+            session.error(new RuntimeException("Cohere API returned "
                     + response.statusCode() + ": " + bodySnippet));
             return RoundOutcome.failure();
         }
@@ -228,12 +243,10 @@ public final class AnthropicMessagesClient {
                                   AgentExecutionContext context,
                                   StreamingSession session,
                                   AtomicBoolean cancelled) throws Exception {
-        // Per-content-block accumulators keyed by SSE index (Anthropic
-        // assigns a stable index per content_block_start within a message).
-        // text_delta entries accumulate into a single text buffer; tool_use
-        // entries accumulate their partial_json into a single JSON string.
-        var textBuffers = new LinkedHashMap<Integer, StringBuilder>();
-        var toolBuffers = new LinkedHashMap<Integer, ToolUseAccumulator>();
+        var assistantText = new StringBuilder();
+        // Tool-call accumulators keyed by tool-call index (Cohere assigns
+        // a stable index on tool-call-start within a stream).
+        var toolBuffers = new LinkedHashMap<Integer, ToolCallAccumulator>();
         TokenUsage usage = null;
 
         String line;
@@ -257,17 +270,21 @@ public final class AnthropicMessagesClient {
             }
             var type = event.path("type").asString("");
             switch (type) {
-                case "content_block_start" -> handleContentBlockStart(event, textBuffers, toolBuffers);
-                case "content_block_delta" -> handleContentBlockDelta(event, session, textBuffers, toolBuffers);
-                case "content_block_stop" -> { /* finalisation handled lazily */ }
-                case "message_delta" -> {
-                    var parsed = parseMessageDelta(event, usage);
+                case "content-delta" -> handleContentDelta(event, session, assistantText);
+                case "tool-call-start" -> handleToolCallStart(event, toolBuffers);
+                case "tool-call-delta" -> handleToolCallDelta(event, toolBuffers);
+                case "message-end" -> {
+                    var parsed = parseUsage(event, usage);
                     if (parsed != null) {
                         usage = parsed;
                     }
                 }
-                case "message_start", "message_stop", "ping" -> { /* no-op */ }
-                default -> logger.trace("Unhandled Anthropic SSE event: {}", type);
+                // Lifecycle / RAG events with no SPI mapping yet — silently
+                // tracked so future capability passes can wire them up.
+                case "message-start", "content-start", "content-end",
+                        "tool-plan-delta", "tool-call-end",
+                        "citation-start", "citation-end" -> { /* no-op */ }
+                default -> logger.trace("Unhandled Cohere SSE event: {}", type);
             }
         }
 
@@ -275,124 +292,117 @@ public final class AnthropicMessagesClient {
             session.usage(usage);
         }
 
-        // Materialise the assistant blocks in original index order so the
-        // tool round-trip preserves Anthropic's expectation that the
-        // tool_use blocks in the assistant message keep their original
-        // id mapping for the subsequent tool_result lookup.
-        var assistantBlocks = new ArrayList<ObjectNode>();
-        var ordered = new LinkedHashMap<Integer, ObjectNode>();
-        for (var entry : textBuffers.entrySet()) {
-            ordered.put(entry.getKey(), textBlock(entry.getValue().toString()));
-        }
+        // Dispatch every tool call via the shared ToolExecutionHelper so
+        // @RequiresApproval gates, ToolPermissionPolicy, and JFR events fire
+        // uniformly across runtimes.
+        var toolResults = new LinkedHashMap<String, String>();
+        var toolCalls = new ArrayList<ToolCallAccumulator>();
         for (var entry : toolBuffers.entrySet()) {
             var acc = entry.getValue();
-            ordered.put(entry.getKey(), toolUseBlock(acc.id, acc.name, acc.parseInput()));
-        }
-        // Insertion order in LinkedHashMap is not numeric — sort by index.
-        ordered.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .forEach(e -> assistantBlocks.add(e.getValue()));
-
-        // Dispatch any tool_use blocks via the shared ToolExecutionHelper
-        // so @RequiresApproval gates, ToolPermissionPolicy, and JFR events
-        // fire uniformly across runtimes.
-        var toolResults = new ArrayList<ObjectNode>();
-        for (var entry : toolBuffers.entrySet()) {
-            var acc = entry.getValue();
-            session.emit(new AiEvent.ToolStart(acc.name, acc.parseInput()));
-            var resultText = dispatchTool(context, session, acc);
+            toolCalls.add(acc);
+            var args = acc.parseArguments();
+            session.emit(new AiEvent.ToolStart(acc.name, args));
+            var resultText = dispatchTool(context, session, acc, args);
             session.emit(new AiEvent.ToolResult(acc.name, resultText));
-            toolResults.add(toolResultBlock(acc.id, resultText));
+            toolResults.put(acc.id, resultText);
         }
 
-        return new RoundOutcome(assistantBlocks, List.copyOf(toolBuffers.values()),
-                toolResults, false);
+        return new RoundOutcome(assistantText.toString(), toolCalls, toolResults, false);
     }
 
-    private void handleContentBlockStart(JsonNode event,
-                                         Map<Integer, StringBuilder> textBuffers,
-                                         Map<Integer, ToolUseAccumulator> toolBuffers) {
+    private void handleContentDelta(JsonNode event,
+                                    StreamingSession session,
+                                    StringBuilder assistantText) {
+        // Cohere streams text under delta.message.content.text. Defensive
+        // path-walk: the SDK has shifted these field names across betas
+        // (content.text vs content[0].text) — accept either.
+        var delta = event.path("delta").path("message").path("content");
+        String chunk = "";
+        if (delta.isObject() && delta.has("text")) {
+            chunk = delta.path("text").asString("");
+        } else if (delta.isArray() && delta.size() > 0) {
+            chunk = delta.get(0).path("text").asString("");
+        }
+        if (!chunk.isEmpty()) {
+            session.send(chunk);
+            assistantText.append(chunk);
+        }
+    }
+
+    private void handleToolCallStart(JsonNode event,
+                                     Map<Integer, ToolCallAccumulator> toolBuffers) {
         var index = event.path("index").asInt(-1);
         if (index < 0) {
             return;
         }
-        var block = event.path("content_block");
-        switch (block.path("type").asString("")) {
-            case "text" -> textBuffers.put(index,
-                    new StringBuilder(block.path("text").asString("")));
-            case "tool_use" -> {
-                var acc = new ToolUseAccumulator();
-                acc.id = block.path("id").asString("");
-                acc.name = block.path("name").asString("");
-                // Anthropic's streaming protocol always sends an empty
-                // `"input":{}` placeholder on content_block_start and then
-                // streams the real JSON via input_json_delta events. Seeding
-                // from the placeholder would concatenate "{}" with the first
-                // delta and produce invalid JSON. Only capture the seed when
-                // the model returned a non-empty object up front — that path
-                // exists for non-streaming responses but is never used inside
-                // an SSE round.
-                var seedInput = block.path("input");
-                if (!seedInput.isMissingNode() && !seedInput.isNull()
-                        && seedInput.isObject() && !seedInput.isEmpty()) {
-                    acc.rawJson.append(seedInput.toString());
-                }
-                toolBuffers.put(index, acc);
-            }
-            default -> { /* thinking / image / unsupported — ignored */ }
+        var toolCall = event.path("delta").path("message").path("tool_calls");
+        // Cohere documents tool_calls as an object in delta on tool-call-start;
+        // some SDK versions ship an array — accept either.
+        JsonNode call = toolCall.isArray() && toolCall.size() > 0
+                ? toolCall.get(0) : toolCall;
+        if (call.isMissingNode() || call.isNull()) {
+            return;
         }
+        var acc = new ToolCallAccumulator();
+        acc.id = call.path("id").asString("");
+        acc.name = call.path("function").path("name").asString("");
+        var seedArgs = call.path("function").path("arguments");
+        if (seedArgs.isString()) {
+            acc.rawJson.append(seedArgs.asString(""));
+        } else if (seedArgs.isObject() && !seedArgs.isEmpty()) {
+            acc.rawJson.append(seedArgs.toString());
+        }
+        toolBuffers.put(index, acc);
     }
 
-    private void handleContentBlockDelta(JsonNode event,
-                                         StreamingSession session,
-                                         Map<Integer, StringBuilder> textBuffers,
-                                         Map<Integer, ToolUseAccumulator> toolBuffers) {
+    private void handleToolCallDelta(JsonNode event,
+                                     Map<Integer, ToolCallAccumulator> toolBuffers) {
         var index = event.path("index").asInt(-1);
-        var delta = event.path("delta");
-        var deltaType = delta.path("type").asString("");
-        switch (deltaType) {
-            case "text_delta" -> {
-                var chunk = delta.path("text").asString("");
-                if (!chunk.isEmpty()) {
-                    session.send(chunk);
-                    textBuffers.computeIfAbsent(index, k -> new StringBuilder()).append(chunk);
-                }
+        var toolCall = event.path("delta").path("message").path("tool_calls");
+        JsonNode call = toolCall.isArray() && toolCall.size() > 0
+                ? toolCall.get(0) : toolCall;
+        var chunk = call.path("function").path("arguments").asString("");
+        if (!chunk.isEmpty()) {
+            var acc = toolBuffers.get(index);
+            if (acc != null) {
+                acc.rawJson.append(chunk);
             }
-            case "input_json_delta" -> {
-                var chunk = delta.path("partial_json").asString("");
-                if (!chunk.isEmpty()) {
-                    var acc = toolBuffers.get(index);
-                    if (acc != null) {
-                        acc.rawJson.append(chunk);
-                    }
-                }
-            }
-            default -> { /* thinking_delta / signature_delta — ignored for now */ }
         }
     }
 
-    private TokenUsage parseMessageDelta(JsonNode event, TokenUsage prior) {
-        var usage = event.path("usage");
+    private TokenUsage parseUsage(JsonNode event, TokenUsage prior) {
+        // Cohere reports usage under two parallel shapes:
+        //   delta.usage.billed_units.{input_tokens,output_tokens}
+        //   delta.usage.tokens.{input_tokens,output_tokens}
+        // Both can appear together; prefer the `tokens` block (raw counts)
+        // when present, since `billed_units` reflects pricing model and
+        // may exclude cached tokens.
+        var usage = event.path("delta").path("usage");
         if (usage.isMissingNode() || usage.isNull()) {
             return prior;
         }
-        long input = usage.has("input_tokens") ? usage.get("input_tokens").asLong()
+        var tokens = usage.has("tokens") ? usage.get("tokens")
+                : usage.path("billed_units");
+        if (tokens.isMissingNode() || tokens.isNull()) {
+            return prior;
+        }
+        long input = tokens.has("input_tokens") ? tokens.get("input_tokens").asLong()
                 : (prior != null ? prior.input() : 0L);
-        long output = usage.has("output_tokens") ? usage.get("output_tokens").asLong()
+        long output = tokens.has("output_tokens") ? tokens.get("output_tokens").asLong()
                 : (prior != null ? prior.output() : 0L);
-        long cached = usage.has("cache_read_input_tokens")
-                ? usage.get("cache_read_input_tokens").asLong()
+        long cached = usage.has("cached_tokens") ? usage.get("cached_tokens").asLong()
                 : (prior != null ? prior.cachedInput() : 0L);
         return new TokenUsage(input, output, cached, input + output, null);
     }
 
-    private String dispatchTool(AgentExecutionContext context, StreamingSession session,
-                                ToolUseAccumulator acc) {
+    private String dispatchTool(AgentExecutionContext context,
+                                StreamingSession session,
+                                ToolCallAccumulator acc,
+                                Map<String, Object> args) {
         var definition = findToolDefinition(context.tools(), acc.name);
         if (definition == null) {
             return "{\"error\":\"Unknown tool: " + acc.name + "\"}";
         }
-        var args = acc.parseInput();
         var injectables = Map.<Class<?>, Object>of(StreamingSession.class, session);
         var approvalPolicy = context.approvalPolicy() != null
                 ? context.approvalPolicy() : ToolApprovalPolicy.annotated();
@@ -413,24 +423,16 @@ public final class AnthropicMessagesClient {
         return null;
     }
 
-    private ObjectNode toAnthropicMessage(ChatMessage msg) {
+    private ObjectNode toCohereMessage(ChatMessage msg) {
         if (msg == null || msg.role() == null) {
             return null;
         }
         return switch (msg.role()) {
             case "user" -> textMessage("user", msg.content() != null ? msg.content() : "");
             case "assistant" -> textMessage("assistant", msg.content() != null ? msg.content() : "");
-            case "tool" -> {
-                // Anthropic carries tool_result on a user-role message.
-                var message = MAPPER.createObjectNode();
-                message.put("role", "user");
-                var content = message.putArray("content");
-                content.add(toolResultBlock(msg.toolCallId(), msg.content() != null ? msg.content() : ""));
-                yield message;
-            }
-            // System messages are extracted to the top-level `system` field
-            // by the request builder, not added to the messages array.
-            case "system" -> null;
+            case "system" -> textMessage("system", msg.content() != null ? msg.content() : "");
+            case "tool" -> toolResultMessage(msg.toolCallId() != null ? msg.toolCallId() : "",
+                    msg.content() != null ? msg.content() : "");
             default -> null;
         };
     }
@@ -438,110 +440,86 @@ public final class AnthropicMessagesClient {
     private ObjectNode textMessage(String role, String text) {
         var message = MAPPER.createObjectNode();
         message.put("role", role);
-        var content = message.putArray("content");
-        content.add(textBlock(text));
+        message.put("content", text != null ? text : "");
         return message;
-    }
-
-    private ObjectNode textBlock(String text) {
-        var block = MAPPER.createObjectNode();
-        block.put("type", "text");
-        block.put("text", text != null ? text : "");
-        return block;
-    }
-
-    /**
-     * Anthropic Messages image block — base64 inline source. Anthropic
-     * accepts {@code image/jpeg}, {@code image/png}, {@code image/gif},
-     * and {@code image/webp}; mime types outside that set are forwarded
-     * as-is and the API will reject them at request time.
-     */
-    private ObjectNode imageBlock(byte[] data, String mimeType) {
-        var block = MAPPER.createObjectNode();
-        block.put("type", "image");
-        var source = block.putObject("source");
-        source.put("type", "base64");
-        source.put("media_type", mimeType != null ? mimeType : "application/octet-stream");
-        source.put("data", java.util.Base64.getEncoder().encodeToString(data));
-        return block;
     }
 
     /**
      * Assemble a user-role message that combines optional text with any
-     * multi-modal parts. {@link org.atmosphere.ai.Content.Image} translates
-     * to a native image block; {@link org.atmosphere.ai.Content.Audio} and
+     * multi-modal parts. Cohere v2 chat uses OpenAI-compatible content
+     * arrays — text blocks ({@code {"type":"text"}}) and image_url blocks
+     * ({@code {"type":"image_url","image_url":{"url":"data:..."}}}) — when
+     * a single message carries multiple parts.
+     *
+     * <p>{@link org.atmosphere.ai.Content.Image} translates to an
+     * {@code image_url} block with a base64 data URI;
+     * {@link org.atmosphere.ai.Content.Audio} and
      * {@link org.atmosphere.ai.Content.File} are dropped with a debug log
-     * because Anthropic Messages does not accept audio or arbitrary file
-     * blocks today — declaring AUDIO without that wire path would lie
-     * about runtime truth.
+     * because the Cohere v2 chat content array has no audio or file block
+     * type. Declaring AUDIO without the wire path would lie about runtime
+     * truth.</p>
      */
     private ObjectNode userMessageWithParts(String text, List<org.atmosphere.ai.Content> parts) {
         var message = MAPPER.createObjectNode();
         message.put("role", "user");
         var content = message.putArray("content");
         if (text != null && !text.isEmpty()) {
-            content.add(textBlock(text));
+            var textBlock = content.addObject();
+            textBlock.put("type", "text");
+            textBlock.put("text", text);
         }
         for (var part : parts) {
             if (part instanceof org.atmosphere.ai.Content.Image img) {
-                content.add(imageBlock(img.data(), img.mimeType()));
+                var imageBlock = content.addObject();
+                imageBlock.put("type", "image_url");
+                var imageUrl = imageBlock.putObject("image_url");
+                imageUrl.put("url", "data:" + img.mimeType() + ";base64,"
+                        + java.util.Base64.getEncoder().encodeToString(img.data()));
             } else if (part instanceof org.atmosphere.ai.Content.Text t) {
-                content.add(textBlock(t.text()));
+                var textBlock = content.addObject();
+                textBlock.put("type", "text");
+                textBlock.put("text", t.text());
             } else {
                 logger.debug("Dropping unsupported multi-modal part {} — "
-                        + "Anthropic Messages API has no matching content block",
+                        + "Cohere v2 chat content array has no matching block type",
                         part.getClass().getSimpleName());
             }
         }
         return message;
     }
 
-    private ObjectNode toolUseBlock(String id, String name, Map<String, Object> input) {
-        var block = MAPPER.createObjectNode();
-        block.put("type", "tool_use");
-        block.put("id", id);
-        block.put("name", name);
-        block.set("input", MAPPER.valueToTree(input != null ? input : Map.of()));
-        return block;
-    }
-
-    private ObjectNode toolResultBlock(String toolUseId, String content) {
-        var block = MAPPER.createObjectNode();
-        block.put("type", "tool_result");
-        block.put("tool_use_id", toolUseId != null ? toolUseId : "");
-        block.put("content", content != null ? content : "");
-        return block;
-    }
-
-    private ObjectNode buildAssistantBlocks(List<ObjectNode> blocks) {
+    private ObjectNode toolResultMessage(String toolCallId, String content) {
         var message = MAPPER.createObjectNode();
-        message.put("role", "assistant");
-        var content = message.putArray("content");
-        for (var b : blocks) {
-            content.add(b);
-        }
+        message.put("role", "tool");
+        message.put("tool_call_id", toolCallId != null ? toolCallId : "");
+        message.put("content", content != null ? content : "");
         return message;
     }
 
-    private ObjectNode buildToolResultsBlocks(List<ObjectNode> results) {
+    private ObjectNode buildAssistantMessage(String text, List<ToolCallAccumulator> toolCalls) {
         var message = MAPPER.createObjectNode();
-        message.put("role", "user");
-        var content = message.putArray("content");
-        for (var r : results) {
-            content.add(r);
+        message.put("role", "assistant");
+        message.put("content", text != null ? text : "");
+        if (toolCalls != null && !toolCalls.isEmpty()) {
+            var array = message.putArray("tool_calls");
+            for (var call : toolCalls) {
+                var node = array.addObject();
+                node.put("id", call.id);
+                node.put("type", "function");
+                var fn = node.putObject("function");
+                fn.put("name", call.name);
+                fn.put("arguments", call.rawJson.toString());
+            }
         }
         return message;
     }
 
     private String buildRequestBody(String model, List<ObjectNode> messages,
-                                    String system, List<ToolDefinition> tools) {
+                                    List<ToolDefinition> tools) {
         var root = MAPPER.createObjectNode();
         root.put("model", model);
         root.put("max_tokens", maxTokens);
         root.put("stream", true);
-        if (system != null && !system.isBlank()) {
-            root.put("system", system);
-        }
         var msgs = root.putArray("messages");
         for (var m : messages) {
             msgs.add(m);
@@ -555,21 +533,19 @@ public final class AnthropicMessagesClient {
         try {
             return MAPPER.writeValueAsString(root);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to serialise Anthropic request body", e);
+            throw new RuntimeException("Failed to serialise Cohere request body", e);
         }
     }
 
     private ObjectNode toolDefinitionNode(ToolDefinition def) {
-        var node = MAPPER.createObjectNode();
-        node.put("name", def.name());
-        node.put("description", def.description());
-        // ToolDefinition stores its JSON Schema fragment on the parameters
-        // list. Anthropic expects an {@code input_schema} object — synthesise
-        // one from the parameter list so callers do not have to know
-        // Anthropic's schema shape.
-        var schema = node.putObject("input_schema");
-        schema.put("type", "object");
-        var properties = schema.putObject("properties");
+        var root = MAPPER.createObjectNode();
+        root.put("type", "function");
+        var function = root.putObject("function");
+        function.put("name", def.name());
+        function.put("description", def.description());
+        var parameters = function.putObject("parameters");
+        parameters.put("type", "object");
+        var properties = parameters.putObject("properties");
         var required = MAPPER.createArrayNode();
         for (var param : def.parameters()) {
             var prop = properties.putObject(param.name());
@@ -582,35 +558,34 @@ public final class AnthropicMessagesClient {
             }
         }
         if (!required.isEmpty()) {
-            schema.set("required", required);
+            parameters.set("required", required);
         }
-        return node;
+        return root;
     }
 
     private HttpRequest buildHttpRequest(String body) {
         var builder = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/messages"))
+                .uri(URI.create(baseUrl + "/v2/chat"))
                 .header("content-type", "application/json")
-                .header("anthropic-version", anthropicVersion)
                 .header("accept", "text/event-stream")
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .timeout(timeout);
         if (apiKey != null && !apiKey.isBlank()) {
-            builder.header("x-api-key", apiKey);
+            builder.header("authorization", "Bearer " + apiKey);
         }
         // Custom headers carry observability / proxy / tenant metadata.
         // Reserved protocol headers are filtered out — same posture as
-        // OpenAiCompatibleClient.applyCustomHeaders.
+        // OpenAiCompatibleClient.applyCustomHeaders and
+        // AnthropicMessagesClient.buildHttpRequest.
         for (var entry : customHeaders.entrySet()) {
             var name = entry.getKey();
             if (name == null || name.isBlank()) {
                 continue;
             }
-            if (name.equalsIgnoreCase("x-api-key")
-                    || name.equalsIgnoreCase("anthropic-version")
+            if (name.equalsIgnoreCase("authorization")
                     || name.equalsIgnoreCase("content-type")
                     || name.equalsIgnoreCase("accept")) {
-                logger.debug("Skipping reserved Anthropic header {} from customHeaders", name);
+                logger.debug("Skipping reserved Cohere header {} from customHeaders", name);
                 continue;
             }
             var value = entry.getValue();
@@ -634,14 +609,14 @@ public final class AnthropicMessagesClient {
         }
     }
 
-    /** Per-tool accumulator that gathers partial_json fragments and exposes
-     *  a parsed {@code Map<String, Object>} once the block is closed. */
-    private static final class ToolUseAccumulator {
+    /** Per-tool accumulator that gathers tool-call-delta argument fragments
+     *  and exposes a parsed {@code Map<String, Object>} once the call closes. */
+    private static final class ToolCallAccumulator {
         String id = "";
         String name = "";
         final StringBuilder rawJson = new StringBuilder();
 
-        Map<String, Object> parseInput() {
+        Map<String, Object> parseArguments() {
             if (rawJson.length() == 0) {
                 return Map.of();
             }
@@ -655,23 +630,23 @@ public final class AnthropicMessagesClient {
         }
     }
 
-    /** Per-round outcome — assistant blocks, raw tool_use accumulators, and
-     *  the materialised tool_result blocks ready for the next round. */
+    /** Per-round outcome — accumulated assistant text, tool calls dispatched
+     *  during the round, and the {@code tool_call_id → result} map ready for
+     *  the next round. */
     private record RoundOutcome(
-            List<ObjectNode> assistantBlocks,
-            List<ToolUseAccumulator> toolUses,
-            List<ObjectNode> toolResults,
+            String assistantText,
+            List<ToolCallAccumulator> toolCalls,
+            Map<String, String> toolResults,
             boolean errored) {
         static RoundOutcome failure() {
-            return new RoundOutcome(List.of(), List.of(), List.of(), true);
+            return new RoundOutcome("", List.of(), Map.of(), true);
         }
     }
 
-    /** Builder for {@link AnthropicMessagesClient}. */
+    /** Builder for {@link CohereChatClient}. */
     public static final class Builder {
         private String baseUrl = DEFAULT_BASE_URL;
         private String apiKey;
-        private String anthropicVersion = DEFAULT_VERSION;
         private HttpClient httpClient;
         private Duration timeout = Duration.ofSeconds(120);
         private int maxTokens = DEFAULT_MAX_TOKENS;
@@ -687,11 +662,6 @@ public final class AnthropicMessagesClient {
 
         public Builder apiKey(String apiKey) {
             this.apiKey = apiKey;
-            return this;
-        }
-
-        public Builder anthropicVersion(String version) {
-            this.anthropicVersion = version;
             return this;
         }
 
@@ -727,8 +697,8 @@ public final class AnthropicMessagesClient {
             return this;
         }
 
-        public AnthropicMessagesClient build() {
-            return new AnthropicMessagesClient(this);
+        public CohereChatClient build() {
+            return new CohereChatClient(this);
         }
     }
 }
