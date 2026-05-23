@@ -47,6 +47,18 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Durable session backends, for LongTermMemory backend integration tests -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-durable-sessions-sqlite</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-durable-sessions-redis</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Atmosphere Kafka (optional, for clustering tests) -->
         <dependency>
             <groupId>org.atmosphere</groupId>
