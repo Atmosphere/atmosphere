@@ -187,5 +187,25 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- Used by LongTermMemoryHttpE2eTest to drive a real
+             HTTP roundtrip against a persistent LongTermMemory backend
+             and assert the framework's onDisconnect fires through the
+             real AiEndpointHandler chain. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-durable-sessions-sqlite</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-wasync</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
