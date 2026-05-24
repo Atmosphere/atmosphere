@@ -132,7 +132,7 @@ class LongTermMemoryHttpE2eTest {
         DisconnectRecorder.LAST.set(null);
     }
 
-    @Timeout(value = 30, unit = TimeUnit.SECONDS)
+    @Timeout(value = 120, unit = TimeUnit.SECONDS)
     @Test
     void disconnectFiresInterceptorAndPersistsFactsViaRealFramework() throws Exception {
         var userId = "user-http-e2e";
@@ -186,8 +186,12 @@ class LongTermMemoryHttpE2eTest {
         // real AiEndpointHandler resource-disconnect lifecycle. The
         // DisconnectRecorder captures the exact (userId, conversationId,
         // history) tuple the framework hands the interceptor — no
-        // mocking, no in-process invocation.
-        await().atMost(Duration.ofSeconds(15))
+        // mocking, no in-process invocation. Generous timeout (60s):
+        // local Mac/Docker runners fire onDisconnect within ~1s, but
+        // GitHub Actions Ubuntu runners can take 15-20s for the
+        // WebSocket close to fully propagate through Tomcat's NIO
+        // selector → Atmosphere's onStateChange path.
+        await().atMost(Duration.ofSeconds(60))
                 .pollInterval(Duration.ofMillis(250))
                 .untilAsserted(() -> assertNotNull(DisconnectRecorder.LAST.get(),
                         "framework should have fired onDisconnect on socket.close()"));
