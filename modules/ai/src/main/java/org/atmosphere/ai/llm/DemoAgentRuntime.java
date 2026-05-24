@@ -131,7 +131,8 @@ public final class DemoAgentRuntime implements AgentRuntime {
                 : "";
         return echoed
                 + "**Demo mode** — this response is a canned placeholder because no "
-                + "`LLM_API_KEY` is configured. Export a Gemini, OpenAI, or Ollama key "
-                + "(see the sample README) and restart to get a real AI reply.";
+                + "`LLM_API_KEY` is configured. Export an API key for your chosen "
+                + "provider (OpenAI / Gemini / Anthropic / Cohere / Ollama / etc.; "
+                + "see the sample README) and restart to get a real AI reply.";
     }
 }

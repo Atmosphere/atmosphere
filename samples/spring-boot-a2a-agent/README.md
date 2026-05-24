@@ -53,7 +53,7 @@ curl -X POST http://localhost:8084/atmosphere/a2a \
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `LLM_API_KEY` / `GEMINI_API_KEY` | — | API key for Gemini, OpenAI, or Ollama |
+| `LLM_API_KEY` / `GEMINI_API_KEY` | — | API key for the chosen provider (OpenAI / Gemini / Anthropic / Cohere / Ollama / etc.) |
 | `LLM_MODEL` | `gemini-2.5-flash` | Model name |
 | `LLM_BASE_URL` | (auto-detected) | Custom API endpoint |
 

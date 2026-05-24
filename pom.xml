@@ -747,6 +747,16 @@
             </dependency>
             <dependency>
                 <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-anthropic</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-cohere</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-quarkus-langchain4j</artifactId>
                 <version>${project.version}</version>
             </dependency>

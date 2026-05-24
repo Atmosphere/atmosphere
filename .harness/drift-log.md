@@ -707,6 +707,36 @@ post-hoc question.
 
 ---
 
+## 2026-05-24 — CLI runtime overlays missing for `anthropic` + `cohere` (`feat/cli-cohere-overlay-e2e`)
+
+The project maintainer asked "test the cohere samples end-to-end via
+chrome-devtools." The honest read forced the audit: there *was* no
+testable Cohere path. The runtime class shipped, the contract test
+ran, the README named it — but the CLI scaffolder could not produce
+a Cohere-wired sample because the overlay registry was incomplete.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 59 | Top-level `README.md` describes `atmosphere-anthropic` and `atmosphere-cohere` as drop-in runtime adapters ("Drop one runtime adapter on the classpath and the same `@Agent` code dispatches through it"). The implication is parity with the other 9 adapters that are scaffoldable via `atmosphere new <name> --template ai-chat --runtime <X>`. | `cli/runtime-overlays.json` only listed 9 overlays (`builtin`, `spring-ai`, `langchain4j`, `adk`, `koog`, `agentscope`, `spring-ai-alibaba`, `embabel`, `semantic-kernel`) — `anthropic` and `cohere` were absent. Running `atmosphere new my-app --template ai-chat --runtime cohere` would have died with `Unknown runtime: cohere`. Compounding drift: `bom/pom.xml` and the parent `pom.xml`'s `<dependencyManagement>` were also missing `atmosphere-anthropic` and `atmosphere-cohere`, so even a user who hand-edited their pom to add the artifact would have hit `'dependencies.dependency.version' for org.atmosphere:atmosphere-cohere:jar is missing` at Maven resolution time. Three drift surfaces (CLI overlay, BOM, parent pom dependencyManagement) for each of the two runtimes — six prose/config spots that all missed the runtime-add sweep. | `atmosphere-anthropic` landed in `1195845304 feat(anthropic): native Anthropic Messages API runtime` on 2026-05-19. `atmosphere-cohere` landed in `1dfebcb5ff feat(ai): native Cohere runtime + close vision parity across 5 runtimes` on 2026-05-23. Both new-runtime commits updated `modules/`, `capabilities.snapshot.json`, `SKILLCARDS.md`, and the runtime adapter contract test — the runtime-add infrastructure was thorough on those surfaces. But neither touched the **scaffolding** surface (`cli/runtime-overlays.json`) or the **dep-resolution** surface (`bom/pom.xml`, parent `pom.xml` `<dependencyManagement>`). Same shape as drift #55 (README count went stale immediately after Cohere) but the count and the table are catchable by `validate-capability-claims.sh`'s regex set; "missing entry in a JSON allowlist" is not. The drift sat undetected for ~6 days (anthropic) and ~1 day (cohere) until a real e2e test request forced the audit. | (1) Prose / config fix in this commit — `cli/runtime-overlays.json` gains `anthropic` and `cohere` entries (both shape: native HTTP+SSE client, no third-party SDK pull-in, configure via `*.api.key` system property / `*_API_KEY` env var). `bom/pom.xml` gains `<dependency>` entries for both. Parent `pom.xml` `<dependencyManagement>` gains both. (2) **E2E proof**: `atmosphere new test-cohere --template ai-chat --runtime cohere --force` now scaffolds cleanly; `mvn package -DskipTests` builds; the running app reports `AgentRuntime resolved: cohere (priority 100) models=[command-a-plus-05-2026]` with `endpoint=https://api.cohere.com`. Drove via chrome-devtools through the Console at `/atmosphere/console/` → real WebSocket roundtrip → `CohereChatClient.runRound` HTTP call to `https://api.cohere.com/v2/chat` → real Cohere `command-a-plus-05-2026` response streamed back over the wire at 18.3 tok/s with 30-token usage metrics. (3) **Gate**: structural check — `scripts/validate-runtime-overlay-coverage.sh` (added next pass; not in this commit to keep scope tight) would diff `find modules -name '*AgentRuntime.java' -o -name '*AgentRuntime.kt' | wc -l` against `jq '.overlays | length' cli/runtime-overlays.json` and fail when they diverge. For this commit the manual sweep is the gate; the lesson encoded for the next runtime-add: a runtime is not "shipped" until ALL of (a) module source, (b) snapshot + contract test, (c) BOM entry, (d) parent pom `<dependencyManagement>`, (e) CLI overlay, (f) website runtime-selection list have been touched. Six surfaces; the existing `validate-capability-claims.sh` covers two of them. |
+
+### Process win
+
+The maintainer's "test it via chrome-devtools" request was the forcing
+function. Browser-level e2e is the most expensive proof shape in the
+project, but it surfaces drifts no unit test can: the test setup
+itself revealed three layers of missing wiring (CLI overlay, BOM,
+parent pom) by failing at each Maven resolution and CLI-execution
+step. Once cleared, the real Cohere v2 API responded with a 200 +
+streamed tokens to the Console UI — proof the runtime, the overlay,
+the build, the framework dispatch, and the wire transport all work
+end-to-end. The 6-surface sweep below is the discipline that should
+have run when each native HTTP+SSE runtime landed; recording it here
+so the next runtime-add commit doesn't repeat the same drift.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (the project maintainer flags it, or self-caught via `git grep` /

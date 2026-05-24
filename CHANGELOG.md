@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- CLI runtime overlays for `anthropic` and `cohere`
+  (`cli/runtime-overlays.json`). Both runtimes had been shipped in
+  `modules/` and documented in the top-level README — `atmosphere-anthropic`
+  since 2026-05-19 (`1195845304`), `atmosphere-cohere` since 2026-05-23
+  (`1dfebcb5ff`) — but neither had a CLI scaffolding overlay. The
+  command `atmosphere new my-app --template ai-chat --runtime cohere`
+  (or `--runtime anthropic`) now works. Same change adds both artifacts
+  to `bom/pom.xml` and the parent `pom.xml`'s
+  `<dependencyManagement>` so a Maven build resolves their version
+  without an explicit `<version>` in the consuming pom. Verified
+  end-to-end via chrome-devtools against the Atmosphere Console: real
+  Cohere `command-a-plus-05-2026` LLM response over WebSocket with
+  18.3 tok/s streaming through the `CohereChatClient` → real
+  `https://api.cohere.com/v2/chat` HTTP call.
 - Durable hibernating `Workflow<S>` primitive in
   `atmosphere-checkpoint` (`a0ac15f1e3`). Orders `WorkflowStep<S>`
   instances over an application-owned state type and composes the

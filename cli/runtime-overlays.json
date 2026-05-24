@@ -70,6 +70,20 @@
         { "groupId": "com.microsoft.semantic-kernel", "artifactId": "semantickernel-api", "version": "1.4.0" },
         { "groupId": "com.microsoft.semantic-kernel", "artifactId": "semantickernel-aiservices-openai", "version": "1.4.0" }
       ]
+    },
+    "anthropic": {
+      "description": "Anthropic Messages API (native HTTP+SSE client, no third-party SDK)",
+      "deps": [
+        { "groupId": "org.atmosphere", "artifactId": "atmosphere-anthropic" }
+      ],
+      "note": "Configure via anthropic.api.key system property or ANTHROPIC_API_KEY environment variable. Tool loop capped at five rounds, cancellation-aware. Custom headers (Helicone-Auth, tenant IDs) passthrough with reserved-header filtering."
+    },
+    "cohere": {
+      "description": "Cohere v2 chat API (native HTTP+SSE client, no third-party SDK)",
+      "deps": [
+        { "groupId": "org.atmosphere", "artifactId": "atmosphere-cohere" }
+      ],
+      "note": "Configure via cohere.api.key system property or COHERE_API_KEY environment variable. Native HTTP+SSE client against POST /v2/chat; tool dispatch routes through ToolExecutionHelper.executeWithApproval."
     }
   }
 }

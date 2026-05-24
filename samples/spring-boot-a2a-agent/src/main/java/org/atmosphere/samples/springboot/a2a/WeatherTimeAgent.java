@@ -167,7 +167,8 @@ public class WeatherTimeAgent {
                     + "Example: {\"skillId\": \"get-time\", \"timezone\": \"America/New_York\"}";
         } else {
             return "I received your message: \"" + message + "\". "
-                    + "This is a demo response. Configure LLM_API_KEY (Gemini, OpenAI, or Ollama) "
+                    + "This is a demo response. Configure LLM_API_KEY for your chosen "
+                    + "provider (OpenAI / Gemini / Anthropic / Cohere / Ollama / etc.) "
                     + "to get real AI-powered answers via the A2A protocol.";
         }
     }
