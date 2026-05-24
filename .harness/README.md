@@ -156,7 +156,7 @@ capability list and the JUnit test's `TreeSet<String>` view diverge.
 
 ### Appending a drift entry
 
-When ChefFamille catches an agent claim that diverged from ground truth
+When the project maintainer catches an agent claim that diverged from ground truth
 (or you self-catch via `git grep` / `find` / file read after spotting
 memory↔code disagreement):
 

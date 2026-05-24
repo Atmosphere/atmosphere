@@ -43,7 +43,7 @@ class AdkAgentRuntimeHistorySeedTest {
                 .model("gemini-2.5-flash")
                 .build();
         var runner = new InMemoryRunner(agent, "history-seed-test");
-        var userId = "ChefFamille";
+        var userId = "Alice";
         var sessionId = "sess-" + System.nanoTime();
 
         // Create an empty session — the real call path uses ensureSession but

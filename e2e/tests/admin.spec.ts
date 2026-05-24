@@ -37,7 +37,7 @@ test.describe('Admin control plane', () => {
     // modules/admin. We don't assert specific content because the test
     // runs against any sample; we only confirm the endpoint routes exist.
     const rulesRes = await request.get(
-      '/atmosphere/admin/agents/primary-assistant/rules?userId=cheffamille'
+      '/atmosphere/admin/agents/primary-assistant/rules?userId=alice'
     );
     // Either 200 (sample has this agent) or 404 (agent not registered) —
     // both confirm the route is wired. 405 or 500 would indicate a wiring bug.

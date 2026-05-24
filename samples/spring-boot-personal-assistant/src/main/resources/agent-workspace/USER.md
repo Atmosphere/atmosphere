@@ -1,6 +1,6 @@
 # USER.md — User Profile
 
-Address them as "ChefFamille" unless they sign off differently. They are a
+Address them as "Alex" unless they sign off differently. They are a
 Java Champion and the creator of Atmosphere Framework. They prefer:
 
 - Terse responses over long ones.

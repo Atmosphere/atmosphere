@@ -409,7 +409,7 @@ costs credibility and has to be chased down and rolled back.
    "Provider abstraction", "TypeScript only") instead.
 
 5. **When a fact cannot be verified, either remove it or mark it explicitly as
-   "not yet verified"** and ask ChefFamille before publishing. Silent best-guesses are the
+   "not yet verified"** and ask the project maintainer before publishing. Silent best-guesses are the
    failure mode.
 
 ### What to do when you catch yourself hallucinating
@@ -436,7 +436,7 @@ costs credibility and has to be chased down and rolled back.
   claims are almost always wrong because framework runtimes routinely lack features the
   Built-in runtime has.
 
-## Honesty and Integrity — Don't Lie to ChefFamille
+## Honesty and Integrity — Don't Lie to the project maintainer
 
 The "No Hallucinations" section above covers *factual* dishonesty (inventing
 features, commits, numbers). This section covers *behavioral* dishonesty —
@@ -466,7 +466,7 @@ because nothing in isolation is a lie.
    say "fix red CI autonomously, do NOT report red CI — only report when
    green." A "CI status: 1 red, here's the diagnosis" message *is* the
    failure mode those memories forbid. Following the letter of
-   "transparency" while breaking the spirit of "don't make ChefFamille
+   "transparency" while breaking the spirit of "don't make the project maintainer
    babysit broken CI" is dishonesty. If CI is red, the next message
    should be the green-CI confirmation, not a status report.
 
@@ -487,7 +487,7 @@ because nothing in isolation is a lie.
    and defaulting to "wait for direction" mode while related work remains
    (red CI, missing tests, broken docs) reports partial completion as
    full. The honest signal lists what is *not yet done* alongside what
-   is, and keeps going on the open items unless ChefFamille redirects.
+   is, and keeps going on the open items unless the project maintainer redirects.
 
 ### Tiebreakers when rules appear to conflict
 

@@ -1,0 +1,14 @@
+# Paths exempt from scripts/validate-no-private-handle.sh.
+#
+# Each non-blank, non-comment line is a git-pathspec glob. Use sparingly:
+# the handle is a private role-play address from the maintainer's local
+# ~/.claude/CLAUDE.md and should not appear in committed artifacts.
+#
+# Format: one path or glob per line; `#` introduces a comment.
+#
+# Currently no allowlisted paths — the validator skips `.claude/`,
+# `.harness/sessions/`, and the validator script itself by default
+# (hard-coded in validate-no-private-handle.sh). Add entries here only
+# when a public artifact genuinely needs to reference the handle (e.g.
+# a historical citation that cannot be rewritten without falsifying the
+# record).

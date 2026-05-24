@@ -13,7 +13,7 @@ prove the transport layer cooperates.
 `@AiEndpoint(path = "/atmosphere/agent/harness")`. The `@Prompt` method
 emits six events with `Thread.sleep(500)` between each `session.send(...)`.
 Every event is captured by `RunEventCapturingSession` into the run's
-`RunEventReplayBuffer`. This is the literal harness spec ChefFamille
+`RunEventReplayBuffer`. This is the literal harness spec the project maintainer
 asked for — useful for manual verification and future timing-tolerant
 integration tests.
 

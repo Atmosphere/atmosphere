@@ -86,7 +86,7 @@ public class EpisodicMemoryTestHandler implements AtmosphereHandler {
             recording.start();
 
             var store = EpisodicMemoryStore.inMemory();
-            var first = MemoryEntry.of(EpisodicMemoryType.USER, "ChefFamille writes Java");
+            var first = MemoryEntry.of(EpisodicMemoryType.USER, "Alice writes Java");
             store.store(first);
             store.store(MemoryEntry.of(EpisodicMemoryType.FEEDBACK, "Never use --no-verify"));
             store.store(MemoryEntry.of(EpisodicMemoryType.PROJECT, "Atmosphere coordinator GA"));

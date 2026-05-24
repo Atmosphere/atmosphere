@@ -155,6 +155,7 @@ ARCHITECTURAL_REGEX='^pom\.xml$|^(modules|samples)/.*(pom\.xml|src/(main|test)/.
 CAPABILITY_CLAIMS_REGEX='(^|/)(README\.md|.*capabilit.*\.md)$|^modules/ai/README\.md$|^\.harness/capabilities\.snapshot\.json$|^scripts/validate-capability-claims\.sh$|^scripts/(regen|sign|verify|scan)-skillcards\.sh$|^modules/[^/]+/SKILLCARD\.yaml(\.sig)?$|^\.github/workflows/sign-skillcards\.yml$|^SKILLCARDS\.md$'
 DRIFT_LOG_REGEX='^\.harness/drift-log\.md$|^scripts/validate-drift-log\.sh$'
 BACKEND_CLASS_REFS_REGEX='\.java$|\.md$|^scripts/validate-backend-class-refs\.sh$|^\.harness/external-class-allowlist\.txt$'
+PRIVATE_HANDLE_REGEX='\.(java|kt|kts|md|yml|yaml|ts|tsx|js|json|properties|xml|sh)$|^scripts/validate-no-private-handle\.sh$|^\.harness/private-handle-allowlist\.txt$'
 
 SIGNIFICANT_FILES=""
 IGNORED_FILES=""
@@ -163,6 +164,7 @@ RUN_ARCHITECTURAL=false
 RUN_CAPABILITY_CLAIMS=false
 RUN_DRIFT_LOG=false
 RUN_BACKEND_CLASS_REFS=false
+RUN_PRIVATE_HANDLE=false
 while IFS= read -r file; do
     [ -z "$file" ] && continue
     if echo "$file" | grep -qE "$ARCHITECTURAL_REGEX"; then
@@ -176,6 +178,9 @@ while IFS= read -r file; do
     fi
     if echo "$file" | grep -qE "$BACKEND_CLASS_REFS_REGEX"; then
         RUN_BACKEND_CLASS_REFS=true
+    fi
+    if echo "$file" | grep -qE "$PRIVATE_HANDLE_REGEX"; then
+        RUN_PRIVATE_HANDLE=true
     fi
     if echo "$file" | grep -qE "$HIGH_BLAST_REGEX"; then
         HAS_HIGH_BLAST=true
@@ -197,6 +202,7 @@ if [ "$FORCE_FULL" = true ]; then
     RUN_CAPABILITY_CLAIMS=true
     RUN_DRIFT_LOG=true
     RUN_BACKEND_CLASS_REFS=true
+    RUN_PRIVATE_HANDLE=true
 fi
 
 PL_LIST=""
@@ -266,11 +272,27 @@ if [ "$DRY_RUN" = false ]; then
         echo "Skipping backend-class reference validation."
     fi
     echo ""
+
+    if [ "$RUN_PRIVATE_HANDLE" = true ]; then
+        echo "Running private-handle leak validation."
+        if ! ./scripts/validate-no-private-handle.sh; then
+            echo ""
+            echo "Private maintainer-address handle leaked into a committed artifact."
+            echo "Replace with a neutral identifier (the project maintainer / Alice / Alex)"
+            echo "or allowlist the path in .harness/private-handle-allowlist.txt."
+            exit 1
+        fi
+    else
+        echo "Skipping private-handle leak validation."
+    fi
+    echo ""
 else
     echo "Dry-run — selected Tier 1 checks:"
     echo "  architectural validation : $RUN_ARCHITECTURAL"
     echo "  capability claims        : $RUN_CAPABILITY_CLAIMS"
     echo "  drift log                : $RUN_DRIFT_LOG"
+    echo "  backend-class refs       : $RUN_BACKEND_CLASS_REFS"
+    echo "  private-handle leak      : $RUN_PRIVATE_HANDLE"
     echo ""
 fi
 

@@ -73,7 +73,7 @@ class OpenClawCompatTest {
 
         assertTrue(def.identity().contains("name: pierre"));
         assertTrue(def.persona().contains("Calm"));
-        assertTrue(def.userProfile().contains("ChefFamille"));
+        assertTrue(def.userProfile().contains("Alice"));
         assertTrue(def.operatingRules().contains("Cite the crew member"));
 
         // Composed system prompt contains all four sections.

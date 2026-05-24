@@ -48,7 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *       returns with the real tool result streamed to the session.</li>
  * </ol>
  *
- * <p>This is the regression test ChefFamille's review asked for: previously
+ * <p>This is the regression test the project maintainer's review asked for: previously
  * the guard in {@link org.atmosphere.ai.processor.AiEndpointHandler} was
  * untested end-to-end against a parked virtual thread. Now there's explicit
  * proof that the guard actually wakes the waiting VT within the same JVM —

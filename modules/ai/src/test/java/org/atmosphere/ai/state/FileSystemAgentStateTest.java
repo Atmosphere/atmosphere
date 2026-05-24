@@ -71,10 +71,10 @@ class FileSystemAgentStateTest {
     @Test
     void addFactReturnsEntryWithId(@TempDir Path root) {
         var state = new FileSystemAgentState(root);
-        var entry = state.addFact("u1", "a1", "ChefFamille prefers bun");
+        var entry = state.addFact("u1", "a1", "Alice prefers bun");
 
         assertFalse(entry.id().isBlank());
-        assertEquals("ChefFamille prefers bun", entry.content());
+        assertEquals("Alice prefers bun", entry.content());
     }
 
     @Test
@@ -136,7 +136,7 @@ class FileSystemAgentStateTest {
     void rulesAssembleFromWorkspaceFiles(@TempDir Path root) throws Exception {
         Files.writeString(root.resolve("IDENTITY.md"), "I am Pierre", StandardCharsets.UTF_8);
         Files.writeString(root.resolve("SOUL.md"), "calm, direct", StandardCharsets.UTF_8);
-        Files.writeString(root.resolve("USER.md"), "call them ChefFamille", StandardCharsets.UTF_8);
+        Files.writeString(root.resolve("USER.md"), "call them Alice", StandardCharsets.UTF_8);
         Files.writeString(root.resolve("AGENTS.md"), "be helpful", StandardCharsets.UTF_8);
 
         var state = new FileSystemAgentState(root);
@@ -144,7 +144,7 @@ class FileSystemAgentStateTest {
 
         assertEquals("I am Pierre", rules.identity());
         assertEquals("calm, direct", rules.persona());
-        assertEquals("call them ChefFamille", rules.userProfile());
+        assertEquals("call them Alice", rules.userProfile());
         assertEquals("be helpful", rules.operatingRules());
         assertTrue(rules.systemPrompt().contains("## Identity"));
         assertTrue(rules.systemPrompt().contains("I am Pierre"));

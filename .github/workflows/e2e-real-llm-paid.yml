@@ -11,7 +11,7 @@ name: "CI: E2E (Real LLM — Paid nightly)"
 #
 # Secrets required: OPENAI_API_KEY, GEMINI_API_KEY
 #
-# ADVISORY / NON-GATING (per ChefFamille, 4.0.37 release cycle):
+# ADVISORY / NON-GATING (per the project maintainer, 4.0.37 release cycle):
 # Paid-API hiccups (OpenAI/Gemini transient 5xx, rate limits, model
 # deprecations) must NEVER block a release. This nightly canary surfaces
 # real wire-protocol regressions, but `continue-on-error: true` at the job
@@ -20,7 +20,7 @@ name: "CI: E2E (Real LLM — Paid nightly)"
 # the job page itself — that is the signal we watch.
 #
 # NOTE: these jobs are NOT in main's required status checks. Do NOT add
-# them to branch protection without checking with ChefFamille first.
+# them to branch protection without checking with the project maintainer first.
 
 on:
   schedule:

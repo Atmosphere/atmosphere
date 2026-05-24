@@ -31,7 +31,7 @@ import java.util.Optional;
  *       per {@code agentId} × {@code sessionId}. Replaces the existing
  *       {@code AiConversationMemory} surface.</li>
  *   <li><b>Durable facts</b> — long-lived things the agent has learned about
- *       the user (e.g. "ChefFamille prefers bun over npm"). Keyed by
+ *       the user (e.g. "Alice prefers bun over npm"). Keyed by
  *       {@code userId} × {@code agentId}.</li>
  *   <li><b>Daily notes</b> — running per-day notes the agent maintains as it
  *       works. Keyed by {@code userId} × {@code agentId} × {@link LocalDate}.</li>

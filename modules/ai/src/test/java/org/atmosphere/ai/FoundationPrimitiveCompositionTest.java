@@ -67,7 +67,7 @@ class FoundationPrimitiveCompositionTest {
         Files.writeString(workspaceRoot.resolve("SOUL.md"),
                 "Calm, focused, terse.", StandardCharsets.UTF_8);
         Files.writeString(workspaceRoot.resolve("USER.md"),
-                "Address the user as ChefFamille.", StandardCharsets.UTF_8);
+                "Address the user as Alice.", StandardCharsets.UTF_8);
         Files.writeString(workspaceRoot.resolve("IDENTITY.md"),
                 "name: pierre\nvibe: focused", StandardCharsets.UTF_8);
 
@@ -89,7 +89,7 @@ class FoundationPrimitiveCompositionTest {
                 ChatMessage.assistant("Noted — will remember that."));
 
         // Agent writes a fact the user just revealed
-        var fact = state.addFact(userId, agentId, "ChefFamille prefers bun over npm");
+        var fact = state.addFact(userId, agentId, "Alice prefers bun over npm");
         assertTrue(state.getFacts(userId, agentId).stream()
                 .anyMatch(e -> e.id().equals(fact.id())));
 
@@ -100,7 +100,7 @@ class FoundationPrimitiveCompositionTest {
         var rules = state.getRules(userId, agentId);
         assertTrue(rules.systemPrompt().contains("## Identity"));
         assertTrue(rules.systemPrompt().contains("name: pierre"));
-        assertTrue(rules.systemPrompt().contains("ChefFamille"));
+        assertTrue(rules.systemPrompt().contains("Alice"));
 
         // --- AgentIdentity: per-user permission mode + audit --------------
         AgentIdentity identity = new InMemoryAgentIdentity(new InMemoryCredentialStore());

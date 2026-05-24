@@ -29,7 +29,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *   <li>{@link SlowEmitterChat} — an {@code @AiEndpoint} whose
  *       {@code @Prompt} method emits events on a fixed 500ms cadence
  *       via {@code session.send(...)}. Matches the literal harness spec
- *       ChefFamille asked for; useful for manual verification and
+ *       the project maintainer asked for; useful for manual verification and
  *       future timing-tolerant integration tests.</li>
  *   <li>{@link SyntheticRunController} — a tiny REST surface that
  *       pre-registers a run with a known set of buffered events and

@@ -37,11 +37,11 @@ class AgentWorkspaceLoaderTest {
         Files.writeString(root.resolve("SOUL.md"),
                 "Calm and focused.", StandardCharsets.UTF_8);
         Files.writeString(root.resolve("USER.md"),
-                "Address the user as ChefFamille.", StandardCharsets.UTF_8);
+                "Address the user as Alice.", StandardCharsets.UTF_8);
         Files.writeString(root.resolve("IDENTITY.md"),
                 "name: pierre\nI am Pierre.", StandardCharsets.UTF_8);
         Files.writeString(root.resolve("MEMORY.md"),
-                "- [id:xyz|at:2026-04-15T00:00:00Z] ChefFamille prefers bun",
+                "- [id:xyz|at:2026-04-15T00:00:00Z] Alice prefers bun",
                 StandardCharsets.UTF_8);
 
         // Atmosphere extensions colocated
@@ -67,7 +67,7 @@ class AgentWorkspaceLoaderTest {
         assertEquals(root.toAbsolutePath().normalize(), def.workspaceRoot());
         assertTrue(def.identity().contains("I am Pierre"));
         assertEquals("Calm and focused.", def.persona());
-        assertEquals("Address the user as ChefFamille.", def.userProfile());
+        assertEquals("Address the user as Alice.", def.userProfile());
         assertEquals("Be helpful and direct.", def.operatingRules());
         assertTrue(def.systemPrompt().contains("## Identity"));
         assertTrue(def.systemPrompt().contains("I am Pierre"));

@@ -45,7 +45,7 @@ class EpisodicMemoryStoreTest {
     @Test
     void inMemoryStoreAndRecallByType() {
         var store = EpisodicMemoryStore.inMemory();
-        store.store(MemoryEntry.of(EpisodicMemoryType.USER, "ChefFamille is a Java Champion"));
+        store.store(MemoryEntry.of(EpisodicMemoryType.USER, "Alice is a Java Champion"));
         store.store(MemoryEntry.of(EpisodicMemoryType.FEEDBACK, "Never use --no-verify"));
         store.store(MemoryEntry.of(EpisodicMemoryType.PROJECT, "Spring AI 2.0.0-M6 landed"));
 
