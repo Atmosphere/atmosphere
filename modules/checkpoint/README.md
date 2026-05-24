@@ -63,6 +63,67 @@ var latest = store.list(CheckpointQuery.forCoordination("coord-42"))
 var branch = store.fork(latest.id(), alternativeState);
 ```
 
+## Workflow Primitive (durable hibernation)
+
+The `org.atmosphere.checkpoint.workflow` package composes the
+`CheckpointStore` SPI into a multi-step workflow runner with first-class
+hibernation and resume.
+
+| Type | Purpose |
+|------|---------|
+| `Workflow<S>` | Ordered `List<WorkflowStep<S>>` over an application-owned state `S`. `run(initial)` either starts fresh or resumes from the last persisted snapshot for the workflow's `coordinationId` |
+| `WorkflowStep<S>` | Single step: `name()` + `execute(S) → StepOutcome<S>` + `maxRetries()` + `retryDelay()` |
+| `StepOutcome<S>` | Sealed: `Advance(next)` / `Hibernate(saved)` / `Done(final)` / `Fail(reason)` |
+| `WorkflowResult<S>` | Sealed terminal return value: `Completed` / `Hibernated(lastStepName)` / `Failed(lastStepName, reason)` |
+
+Hibernation is a return-not-park primitive: a step returning
+`StepOutcome.hibernate(state)` causes `run()` to persist a snapshot and
+return `WorkflowResult.Hibernated` to the caller. No platform thread is
+held while the workflow is dormant. A later `run()` against the same
+`coordinationId` and `CheckpointStore` resumes at the step *after* the
+last completed one — including across JVM restarts when the store is
+persistent (`SqliteCheckpointStore`, etc.).
+
+Step names are the resume key — they MUST be stable and unique inside
+the workflow. Reordering or renaming steps between runs is an
+incompatible change and will restart from step 0.
+
+Steps MUST be idempotent. Both retries on transient exceptions and
+resumes after restart re-execute the last step.
+
+```java
+var store = new SqliteCheckpointStore(Path.of("./workflow.db"));
+store.start();
+
+var workflow = new Workflow<>(
+        "doc-pipeline", "coord-123",
+        List.of(
+                step("ingest",  s -> StepOutcome.advance(s + ":ingested")),
+                step("review",  s -> StepOutcome.hibernate(s)),    // wait for human
+                step("publish", s -> StepOutcome.done(s + ":published"))),
+        store);
+
+var result = workflow.run("doc-42");
+// → WorkflowResult.Hibernated; no thread held while we wait for a human.
+
+// Later — same JVM or fresh JVM, same store + coordinationId:
+var resumed = workflow.run(null);
+// → WorkflowResult.Completed; only `publish` runs.
+```
+
+Tests pin every claim:
+
+| Test | Proves |
+|------|--------|
+| `WorkflowTest.linearExecutionAdvancesThroughEverySteps` | Advance → Advance → Done runs every step exactly once |
+| `WorkflowTest.hibernateReturnsImmediatelyAndPersistsState` | Hibernate returns control and writes a snapshot |
+| `WorkflowTest.resumeAfterHibernateContinuesAtNextStep` | Resume skips already-completed steps; only un-completed steps execute |
+| `WorkflowTest.retrySucceedsWithinBudget` | Transient exceptions retry up to `maxRetries()` |
+| `WorkflowTest.retryExhaustedReturnsFailed` | Exhausted retries surface as `WorkflowResult.Failed` |
+| `WorkflowTest.explicitFailIsPropagated` | `StepOutcome.fail("reason")` ends with `Failed` carrying the reason verbatim |
+| `WorkflowTest.duplicateStepNamesRejected` | Constructor rejects duplicate step names (the resume key contract) |
+| `WorkflowSqliteResumeTest.workflowResumesAcrossSqliteStoreClose` | Closes the `SqliteCheckpointStore` entirely between runs, opens a fresh store on the same file, and proves only the un-completed step runs — the cold-restart scenario the primitive exists for |
+
 ## CoordinationJournal Bridge (optional)
 
 If the `atmosphere-coordinator` module is on your classpath, wrap its

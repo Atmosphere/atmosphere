@@ -9,6 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Durable hibernating `Workflow<S>` primitive in
+  `atmosphere-checkpoint` (`a0ac15f1e3`). Orders `WorkflowStep<S>`
+  instances over an application-owned state type and composes the
+  existing `CheckpointStore` SPI for persistence. Sealed
+  `StepOutcome<S>` (`Advance` / `Hibernate` / `Done` / `Fail`) and
+  `WorkflowResult<S>` (`Completed` / `Hibernated` / `Failed`) drive
+  the runner; per-step `maxRetries()` + `retryDelay()` cover
+  transient failures. Hibernation is return-not-park: a step that
+  returns `StepOutcome.hibernate(state)` writes a snapshot and the
+  call returns to the caller with no platform thread held; a later
+  `run()` against the same coordination resumes at the next
+  un-completed step, including across JVM restarts when the store
+  is persistent. `WorkflowSqliteResumeTest` pins the cold-restart
+  contract — closes `SqliteCheckpointStore`, opens a fresh handle
+  on the same file, builds a fresh `Workflow` instance, and asserts
+  only the un-completed step executes. Ten unit tests cover linear
+  execution, hibernate-and-resume, retry-success, retry-exhaustion,
+  explicit fail, duplicate-step-name rejection, snapshot-precedence
+  over `initialState`, and `deleteAllSnapshots`.
+- `SqliteLongTermMemory` and `RedisLongTermMemory` (`835a88d252`,
+  rebased to `fbbfa457a2`) — persistent backends for the
+  `LongTermMemory` SPI in `atmosphere-durable-sessions-sqlite` and
+  `atmosphere-durable-sessions-redis`. Both can share a connection
+  with their sibling `SessionStore` / `ConversationPersistence`
+  implementations. `LongTermMemoryBackendIntegrationTest`
+  parameterizes the full `LongTermMemoryInterceptor` round-trip
+  over all three backends; `LongTermMemoryMultiInstanceTest`
+  (`d4609cf0fc`) proves the pod-A-writes / pod-B-reads scenario the
+  persistent backends exist for, using two independent
+  `LongTermMemory` handles against the same shared store.
+- `scripts/validate-backend-class-refs.sh` (`835a88d252`) —
+  structural gate scanning `*.java` Javadoc and `*.md` documentation
+  for `(Sqlite|Redis|Postgres|Mongo|Cassandra|Hazelcast|JGroups|Kafka|Nats)<Word>`
+  tokens that don't resolve to a declared class in
+  `modules/**/src/{main,test}/java/`. `.harness/external-class-allowlist.txt`
+  whitelists genuine third-party types (Lettuce, Kafka, Testcontainers,
+  brand names). Wired into `pre-push-validate.sh` Tier-1. Catches
+  future SPI-backend overclaim drift before it merges (the class of
+  bug that drift #53 logged on the original `LongTermMemory`
+  Javadoc).
 - Per-runtime `SKILLCARD.yaml` manifests with OpenSSF Model Signing
   (`32a8e8b935` + this commit) — capability + provenance documents
   signed and verified through the same Sigstore-keyless toolchain

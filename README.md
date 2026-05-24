@@ -40,7 +40,7 @@ Atmosphere is a JVM framework, not an agent-hosting platform. We ship the primit
 | Compute / scheduling | — | Your JVM host or container scheduler |
 | Streaming transport | `atmosphere-runtime` over WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC | — |
 | Runtime dispatch | `atmosphere-ai` `AgentRuntime` SPI + 11 adapters with contract-tested capability flags | Model hosting (we call providers; we do not host weights) |
-| Orchestration | `@Coordinator`, `AgentFleet`, handoffs, conditional routing, coordination journal, result evaluation | Durable hibernating workflows (compose with Temporal for that shape; or keep sessions session-bounded) |
+| Orchestration | `@Coordinator`, `AgentFleet`, handoffs, conditional routing, coordination journal, result evaluation, and durable hibernating `Workflow<S>` over `CheckpointStore` (per-step retry, resume across JVM restart, no thread held while hibernated) | Long-running cron / scheduled execution (use a dedicated scheduler) |
 | Memory | `AiConversationMemory` per-conversation history (in-memory, plus durable SQLite/Redis through the `ConversationPersistence` SPI in `atmosphere-durable-sessions{-sqlite,-redis}`), `LongTermMemory` per-user facts (`InMemoryLongTermMemory`, `SqliteLongTermMemory`, `RedisLongTermMemory`), `SemanticRecallInterceptor` for BYO vector-store recall | Managed vector stores (use Spring AI's `VectorStore`, LangChain4j embeddings, or your own) |
 | Governance | Policy admission, `@AgentScope`, plan-and-verify, PII redaction, cost ceilings, durable HITL approvals, admin kill switches | — |
 | Protocol surface | MCP, A2A, AG-UI, Slack/Telegram/Discord/WhatsApp/Messenger channel adapters | Payment rails / commerce primitives |

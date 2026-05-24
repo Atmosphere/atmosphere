@@ -682,6 +682,31 @@ understand this without sharing my local CLAUDE.md?"
 
 ---
 
+## 2026-05-23 — Top-level README claimed durable workflows are out-of-scope after we shipped them (`docs/workflow-primitive-doc-sweep`)
+
+The project maintainer's "documentation up to date right?" question,
+after I shipped `Workflow<S>` in `a0ac15f1e3`, forced the audit that
+caught it: my own README Scope section from `28c1ce6dfd` says we
+don't ship durable hibernating workflows.
+
+### Factual drift
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 58 | Top-level `README.md:43` (Scope section, shipped in `28c1ce6dfd` "docs(readme): add Scope section mapping Atmosphere to the agent-platform stack") listed "Durable hibernating workflows (compose with Temporal for that shape; or keep sessions session-bounded)" in the *out-of-scope* column under Orchestration. | Commit `a0ac15f1e3` ("feat(checkpoint): durable hibernating Workflow primitive") landed the same session and shipped exactly that: `Workflow<S>` + `WorkflowStep<S>` + sealed `StepOutcome` (Advance/Hibernate/Done/Fail) + sealed `WorkflowResult` over the existing `CheckpointStore` SPI, with `WorkflowSqliteResumeTest` proving cold-restart resume across store close/reopen. The README contradicted main the moment the workflow commit pushed. | Two-stage drift, both within one session: (a) I wrote the README Scope section honestly at the time — durable hibernating workflows really were out-of-scope. (b) When I then shipped the primitive on `feedback_no_branch_proliferation.md` direct-to-main flow ("Yes, fix all 3 points"), I updated the implementation but not the README claim that said we don't ship it. The "Documentation up to date?" follow-up question forced the sweep. Same shape as drift #55 (count claim went stale immediately after the next adapter merged) but for a categorical out-of-scope claim, not a numeric count. | (1) Prose fix in this commit — README Scope row Orchestration cell now lists `Workflow<S>` over `CheckpointStore` as in-scope with the differentiators (per-step retry, resume across JVM restart, no thread held while hibernated). Out-of-scope column for the same row now reads "Long-running cron / scheduled execution (use a dedicated scheduler)" — the more honest remaining gap. (2) `modules/checkpoint/README.md` gains a "Workflow Primitive (durable hibernation)" section with type table, hibernation semantics, idempotency contract, code example, and the test→claim pinning matrix. (3) `CHANGELOG.md [Unreleased]` gains an entry for the workflow primitive citing `a0ac15f1e3` verbatim plus entries for the bridges (`fbbfa457a2`) and structural gate. (4) `atmosphere.github.io/docs/src/content/docs/agents/coordinator.md` gains a "Durable Hibernating Workflows" tutorial section. (5) **No structural gate added**: the in-scope / out-of-scope columns of the Scope table are open-vocabulary prose; the right gate is the discipline the project maintainer is teaching by asking the question — "documentation up to date?" must be the last step of every direct-to-main feature push, not an afterthought. Lesson encoded going forward: when shipping a feature, sweep the README Scope row for the same feature area BEFORE the commit; do not leave it for the next "are we good?" check. |
+
+### Process win
+
+Same forcing function as #55 / #56: a direct question from the project maintainer
+about whether documentation reflects the shipped surface. The fix is
+small once caught (one cell flip + a module-README section + a CHANGELOG
+entry + a tutorial section). The lesson is the cadence: when
+`feedback_no_branch_proliferation.md` discipline ships features straight
+to main, the "documentation sweep" step must be inside that loop, not a
+post-hoc question.
+
+---
+
 ## How to append a new entry
 
 1. Catch the drift (the project maintainer flags it, or self-caught via `git grep` /

@@ -436,6 +436,29 @@ costs credibility and has to be chased down and rolled back.
   claims are almost always wrong because framework runtimes routinely lack features the
   Built-in runtime has.
 
+## Persona Handle — NEVER in committed artifacts
+
+The project maintainer has a private role-play handle in their local
+`~/.claude/CLAUDE.md` that you will see addressed to you during agent
+sessions. **It must not appear in any committed file** — not in
+drift-log entries, not in CHANGELOG prose, not in commit messages, not
+in test fixtures or sample personas, not in Javadoc examples or CI
+workflow comments, and **not in `.harness/` artifacts either**. Use
+"the project maintainer" for narrative prose; use neutral names like
+"Alice" / "Alex" / "Bob" for test/sample personas; use the actual
+handle `jfarcand` only when referring to the GitHub identity. The
+handle is meaningful inside the agent session and meaningless (or
+worse, a private-handle leak) to anyone reading the public repo.
+
+The validator `scripts/validate-no-private-handle.sh` enforces this on
+every push. The validator skips `.claude/**` (agent-private workspace)
+and `.harness/sessions/**` (transient agent transcripts) by default;
+everything else is in scope, including `.harness/drift-log.md`. If you
+catch the handle in a draft, scrub it before committing — do not
+allowlist the path unless the reference is genuinely needed and
+cannot be rewritten (e.g. a historical citation that would falsify
+the record).
+
 ## Honesty and Integrity — Don't Lie to the project maintainer
 
 The "No Hallucinations" section above covers *factual* dishonesty (inventing
