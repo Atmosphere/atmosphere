@@ -1062,9 +1062,14 @@
                  dependencyManagement level overrides the transitive choice
                  in every leaf module reactor-wide. -->
             <dependency>
-                <!-- Tomcat 11.0.20 had GHSA-x4m4-345f-5h5g, GHSA-rv64-5gf8-9qq8,
-                     GHSA-24j9-x2wg-9qv6 (info disclosure / log encoding /
-                     escape). Fixed in 11.0.21. -->
+                <!-- Tomcat 11.0.21 had 3 critical (security-constraint bypass
+                     GHSA-5m62-pw8w-7w9f, digest-auth bypass GHSA-h6fc-48rj-7qqh,
+                     HTTP/2 header validation GHSA-r29c-68gh-xp6x) plus
+                     GHSA-5mp6-jrq3-r938, GHSA-fv25-8xcx-gqjc,
+                     GHSA-gx5v-xp9w-j4cg, GHSA-9m89-8frq-c98c. Fixed in 11.0.22.
+                     Only tomcat-embed-core is pinned here — tomcat-embed-el
+                     and -websocket follow their respective Spring Boot BOMs so
+                     the 3.5.x starter can keep its 10.1.x line. -->
                 <groupId>org.apache.tomcat.embed</groupId>
                 <artifactId>tomcat-embed-core</artifactId>
                 <version>${tomcat-version}</version>
@@ -1193,7 +1198,7 @@
         <maven-plugin.version>1.0.0</maven-plugin.version>
         <servlet-version-range>6.0.0</servlet-version-range>
         <jetty-version>12.0.33</jetty-version>
-        <tomcat-version>11.0.21</tomcat-version>
+        <tomcat-version>11.0.22</tomcat-version>
         <shade-version>1.2.1</shade-version>
         <bnd-maven-plugin.version>7.2.3</bnd-maven-plugin.version>
         <jakarta-servlet-api.version>5.0.0</jakarta-servlet-api.version>
