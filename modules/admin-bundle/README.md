@@ -45,14 +45,14 @@ Add the bundle to your Spring Boot project:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-admin-bundle</artifactId>
-    <version>4.0.47</version>
+    <version>4.0.48</version>
 </dependency>
 
 <!-- Pick exactly one AgentRuntime adapter -->
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-ai</artifactId>
-    <version>4.0.47</version>
+    <version>4.0.48</version>
 </dependency>
 ```
 
