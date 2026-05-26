@@ -41,6 +41,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   atmosphere-crewai-bridge → crewai 1.14 → litellm → Ollama`. Console
   zero errors, sidecar log confirms `POST /v1/chat/completions
   HTTP/1.1 200 OK` against the local Ollama instance.
+- `modules/coordinator/journal` — **event-sourced execution log** for
+  the coordinator. Layers four additive pieces onto the existing
+  `CoordinationJournal` SPI without breaking any of the 94 existing
+  `new CoordinationEvent.*` call sites across coordinator / admin /
+  checkpoint / integration-tests / samples:
+  1. `EventEnvelope(eventId, parentEventId, event)` + default-method
+     `recordEnveloped` / `retrieveEnveloped` on `CoordinationJournal`.
+     `JournalingAgentFleet` threads parent IDs through every dispatch
+     path (`parallel` / `pipeline` / `route` / `proxy.call` /
+     `callAsync` / `stream`): `CoordinationStarted` → `AgentDispatched`
+     → `AgentCompleted`/`AgentFailed` → `AgentEvaluated`. Legacy
+     `record(event)` callers continue working — events are wrapped as
+     root envelopes with no parent.
+  2. `CoordinationProjection.from(journal, coordinationId)` — pure
+     read-only causal DAG built from `retrieveEnveloped`. Exposes
+     `roots()`, `children(eventId)`, `walk(visitor)`, `agents()`,
+     `failedDispatches()`, `evaluations()`. No execution, no LLM, no
+     side effects.
+  3. `FileCoordinationJournal(Path)` — append-only NDJSON file backend,
+     one JSON object per line. Replays on `start()` into an in-memory
+     index for queries; tolerates a truncated final line from a JVM
+     kill mid-append (logs and skips). Single-writer locked appends;
+     polymorphic ser/deser of the sealed `CoordinationEvent` hierarchy
+     via a Jackson 3 mix-in so the event records stay annotation-free.
+  4. `CoordinationFork` + new `ForkCreated` event variant — what-if
+     branching primitive. `fork.from(coordId, eventId).reason(...).with(altCall).execute(fleet)`
+     creates a new coordination id (or accepts an explicit one),
+     records a `ForkCreated` envelope linking back to the parent event,
+     and runs the alternate dispatch via
+     `JournalingAgentFleet.withCoordinationId(...)`. The parent
+     coordination is immutable; the fork is a peer with its own future.
+     Pre-flight check rejects unknown `parentEventId` with a fast
+     `IllegalArgumentException`.
+
+  Backed by 38 tests in `modules/coordinator/src/test/java/.../journal/`
+  including a three-process integration test that runs a parallel
+  coordination, restart-replays from disk, projects the DAG, forks an
+  alternate, restart-replays again, and verifies both the original and
+  the forked branch survive across two simulated JVM kills.
+  `modules/coordinator/README.md` documents the new surface.
 
 ### Fixed
 
