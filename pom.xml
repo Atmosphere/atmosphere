@@ -225,7 +225,14 @@
                 <configuration>
                     <forkCount>1</forkCount>
                     <reuseForks>false</reuseForks>
-                    <forkedProcessTimeoutInSeconds>300</forkedProcessTimeoutInSeconds>
+                    <!-- 600s (10min) accommodates heavy full-reactor builds where
+                         module tests boot real infrastructure (Quarkus extension
+                         tests start an entire @QuarkusExtensionTest app; gRPC
+                         tests spin up a Netty server). The 5-minute default
+                         tripped on modules/mcp under that load even though the
+                         tests themselves complete in milliseconds — fork wall
+                         clock, not test runtime. -->
+                    <forkedProcessTimeoutInSeconds>600</forkedProcessTimeoutInSeconds>
                     <argLine>-Djdk.attach.allowAttachSelf=true --add-opens java.base/java.util.concurrent.locks=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED</argLine>
                     <excludes>
                     </excludes>
@@ -757,6 +764,11 @@
             </dependency>
             <dependency>
                 <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-crewai</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-quarkus-langchain4j</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -863,6 +875,16 @@
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-quarkus-admin-extension-deployment</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-quarkus-grpc</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-quarkus-grpc-deployment</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

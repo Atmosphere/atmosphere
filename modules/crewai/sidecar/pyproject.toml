@@ -1,0 +1,78 @@
+# Copyright 2008-2026 Async-IO.org
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "atmosphere-crewai-bridge"
+version = "0.1.0"
+description = "Python sidecar speaking the Atmosphere CrewAI runtime wire protocol (HTTP + SSE)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Async-IO.org" }]
+keywords = ["atmosphere", "crewai", "sidecar", "sse", "fastapi", "ai-agents"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: FastAPI",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    # Minimum CrewAI version pinned to what was verified at development time.
+    # The sidecar uses crew.stream + StreamChunk + CrewStreamingOutput which
+    # are present in 1.x; older 0.x releases do not expose this surface.
+    "crewai>=1.14.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+atmosphere-crewai-bridge = "atmosphere_crewai_bridge.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/Atmosphere/atmosphere"
+Source = "https://github.com/Atmosphere/atmosphere/tree/main/modules/crewai/sidecar"
+Issues = "https://github.com/Atmosphere/atmosphere/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/atmosphere_crewai_bridge"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/atmosphere_crewai_bridge",
+    "tests",
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

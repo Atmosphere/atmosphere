@@ -1,0 +1,70 @@
+# Atmosphere runtime skill card — generated artifact, do not edit by hand.
+# Regenerate with: ./scripts/regen-skillcards.sh
+# Drift between this file and .harness/capabilities.snapshot.json breaks
+# SkillCardSnapshotTest (mvn test) and pre-push validation.
+#
+# Signing convention follows the OpenSSF Model Signing project
+# (https://github.com/sigstore/model-transparency) — the same envelope
+# format NVIDIA's verified-agent-skills programme consumes. Cards on
+# main are unsigned; `.github/workflows/sign-skillcards.yml` produces
+# a Sigstore-keyless signature for every card on tag push and attaches
+# the .sig files to the GitHub release + as workflow artifacts.
+# Verify locally with:
+#   ./scripts/verify-skillcards.sh \
+#       --identity \
+#       https://github.com/Atmosphere/atmosphere/.github/workflows/sign-skillcards.yml@refs/tags/vX.Y.Z \
+#       --identity-provider https://token.actions.githubusercontent.com
+
+schema_version: 1
+spec: atmosphere/skillcard/v1
+status: unsigned
+
+name: CrewAiAgentRuntime
+language: java
+
+description: |
+  CrewAI (Python) sidecar runtime for Atmosphere Framework — bridges @Agent execution to a CrewAI sidecar process over HTTP+SSE
+
+license:
+  spdx: Apache-2.0
+
+artifact:
+  group_id: org.atmosphere
+  artifact_id: atmosphere-crewai
+  version: 4.0.49-SNAPSHOT
+  packaging: jar
+  module_path: modules/crewai
+
+spi:
+  interface: org.atmosphere.ai.AgentRuntime
+  implementation: org.atmosphere.ai.crewai.CrewAiAgentRuntime
+  service_loader: META-INF/services/org.atmosphere.ai.AgentRuntime
+
+capabilities:
+  count: 9
+  declared:
+    - AGENT_ORCHESTRATION
+    - CANCELLATION
+    - PER_REQUEST_RETRY
+    - STRUCTURED_OUTPUT
+    - SYSTEM_PROMPT
+    - TEXT_STREAMING
+    - TOKEN_USAGE
+    - TOOL_APPROVAL
+    - TOOL_CALLING
+
+contract_test:
+  path: modules/crewai/src/test/java/org/atmosphere/ai/crewai/CrewAiRuntimeContractTest.java
+  pins: expectedCapabilities()
+
+provenance:
+  source_repo: https://github.com/Atmosphere/atmosphere
+  generated_by: scripts/regen-skillcards.sh
+  source_snapshot: .harness/capabilities.snapshot.json
+
+signing:
+  status: unsigned
+  envelope: openssf-model-signing/v1
+  bundle_format: sigstore
+  signature_file: SKILLCARD.yaml.sig
+  signed_by_workflow: .github/workflows/sign-skillcards.yml

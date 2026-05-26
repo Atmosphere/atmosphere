@@ -63,6 +63,38 @@
             <artifactId>slf4j-api</artifactId>
             <version>2.0.17</version>
         </dependency>
+
+        <!-- Optional observability deps. The producer classes
+             (AtmosphereHealthCheck, AtmosphereMetricsProducer,
+             AtmosphereTracingProducer, AtmosphereGovernanceMetricsProducer)
+             import these types directly, but the build steps only register
+             them as CDI beans when the user app actually pulls the
+             corresponding Quarkus extension onto its classpath. Marking
+             these optional keeps the runtime jar's effective dependency
+             graph minimal — consumers without the extensions never see
+             these jars at runtime. -->
+        <dependency>
+            <groupId>org.eclipse.microprofile.health</groupId>
+            <artifactId>microprofile-health-api</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+
     </dependencies>
 
     <build>

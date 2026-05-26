@@ -98,4 +98,73 @@ public interface AtmosphereConfig {
      * {@code /atmosphere/admin/*}).
      */
     Optional<String> consoleEndpoint();
+
+    /**
+     * Whether to enable the bounded-memory {@link org.atmosphere.cache.BoundedMemoryCache}
+     * and {@link org.atmosphere.interceptor.MessageAckInterceptor}. Mirrors the Spring
+     * Boot starter's {@code atmosphere.cache.enabled} property; when {@code true} the
+     * deployment processor registers {@link org.atmosphere.cache.BoundedMemoryCache} as
+     * the default broadcaster cache via the {@code broadcaster-cache-class} init param.
+     */
+    @WithDefault("false")
+    boolean cacheEnabled();
+
+    /**
+     * WebTransport over HTTP/3 configuration.
+     *
+     * @return the WebTransport sub-configuration block
+     */
+    WebTransport webTransport();
+
+    /**
+     * WebTransport over HTTP/3 configuration block. Mirrors the Spring Boot
+     * starter's {@code atmosphere.web-transport.*} keys.
+     */
+    interface WebTransport {
+
+        /**
+         * Whether to start the Netty HTTP/3 sidecar on application startup.
+         * Defaults to {@code false}; users opting in must also pull in the
+         * {@code atmosphere-webtransport-reactor-netty} module.
+         *
+         * @return {@code true} if the sidecar should be started
+         */
+        @WithDefault("false")
+        boolean enabled();
+
+        /**
+         * UDP port for the HTTP/3 sidecar. Default {@code 4443}.
+         *
+         * @return the configured UDP port
+         */
+        @WithDefault("4443")
+        int port();
+    }
+
+    /**
+     * Durable sessions configuration.
+     *
+     * @return the durable-sessions sub-configuration block
+     */
+    DurableSessions durableSessions();
+
+    /**
+     * Durable sessions sub-configuration. Mirrors the Spring Boot starter's
+     * {@code atmosphere.durable-sessions.*} keys; the actual runtime
+     * behaviour is exercised by {@link org.atmosphere.session.DurableSessionInterceptor}
+     * and the SPI's pluggable {@code SessionStore} CDI beans.
+     */
+    interface DurableSessions {
+
+        /**
+         * Whether to install the {@link org.atmosphere.session.DurableSessionInterceptor}
+         * on startup. Defaults to {@code false}; users opting in pick up the
+         * default {@code InMemorySessionStore} unless they ship a pluggable
+         * {@code SessionStore} CDI bean.
+         *
+         * @return {@code true} if the interceptor should be installed
+         */
+        @WithDefault("false")
+        boolean enabled();
+    }
 }

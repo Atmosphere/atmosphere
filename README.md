@@ -25,7 +25,7 @@ Atmosphere is built for teams that need AI agents to behave like production serv
 | Need | What Atmosphere provides |
 |---|---|
 | Stream to real clients | WebTransport over HTTP/3, WebSocket, SSE, long-polling, and gRPC through the same broadcaster pipeline |
-| Swap AI integrations | One `AgentRuntime` SPI with eleven runtime adapters and contract-tested capability flags |
+| Swap AI integrations | One `AgentRuntime` SPI with twelve runtime adapters and contract-tested capability flags |
 | Govern execution | Policy admission, `@AgentScope`, human approval, plan-and-verify, cost ceilings, PII rewriting, and admin kill switches |
 | Pause for humans | Durable HITL approvals park virtual threads, persist workflow state, and resume through REST approval surfaces |
 | Resume long runs | Durable sessions, run IDs, replay buffers, checkpoints, and reconnect-safe continuation |
@@ -39,7 +39,7 @@ Atmosphere is a JVM framework, not an agent-hosting platform. We ship the primit
 |---|---|---|
 | Compute / scheduling | — | Your JVM host or container scheduler |
 | Streaming transport | `atmosphere-runtime` over WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC | — |
-| Runtime dispatch | `atmosphere-ai` `AgentRuntime` SPI + 11 adapters with contract-tested capability flags | Model hosting (we call providers; we do not host weights) |
+| Runtime dispatch | `atmosphere-ai` `AgentRuntime` SPI + 12 adapters with contract-tested capability flags | Model hosting (we call providers; we do not host weights) |
 | Orchestration | `@Coordinator`, `AgentFleet`, handoffs, conditional routing, coordination journal, result evaluation, and durable hibernating `Workflow<S>` over `CheckpointStore` (per-step retry, resume across JVM restart, no thread held while hibernated) | Long-running cron / scheduled execution (use a dedicated scheduler) |
 | Memory | `AiConversationMemory` per-conversation history (in-memory, plus durable SQLite/Redis through the `ConversationPersistence` SPI in `atmosphere-durable-sessions{-sqlite,-redis}`), `LongTermMemory` per-user facts (`InMemoryLongTermMemory`, `SqliteLongTermMemory`, `RedisLongTermMemory`), `SemanticRecallInterceptor` for BYO vector-store recall | Managed vector stores (use Spring AI's `VectorStore`, LangChain4j embeddings, or your own) |
 | Governance | Policy admission, `@AgentScope`, plan-and-verify, PII redaction, cost ceilings, durable HITL approvals, admin kill switches | — |

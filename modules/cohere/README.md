@@ -95,9 +95,9 @@ Runtime Truth):
 | `PER_REQUEST_RETRY` | ✅ | `AbstractAgentRuntime.executeWithOuterRetry` wraps `doExecute` |
 | `VISION` | ✅ | `Content.Image` translates to an OpenAI-compatible `image_url` block with a base64 data URI (Command A+ / Command A Vision honor this shape) |
 | `MULTI_MODAL` | ✅ | Same code path — a single user message interleaves text + image_url blocks |
+| `TOOL_CALL_DELTA` | ✅ | `tool-call-delta.delta.message.tool_calls.function.arguments` fragments forward to `session.toolCallDelta(toolCallId, chunk)` so browser UIs render partial tool-argument JSON before the consolidated `AiEvent.ToolStart` frame fires |
 | `AUDIO` | ❌ | Cohere v2 chat content array has no audio block; `Content.Audio` is dropped with a debug log |
-| `PROMPT_CACHING` | ⏳ | Cohere documents prompt caching; `cache_control` wire shape not wired yet |
-| `TOOL_CALL_DELTA` | ⏳ | `tool-call-delta` arrives and could be forwarded; deferred |
+| `PROMPT_CACHING` | ❌ | The [Cohere v2 Chat API](https://docs.cohere.com/v2/reference/chat) does not document a prompt-caching wire shape — no `cache_control`, no ephemeral block, no top-level TTL field on `messages[]` / `tools[]` / the request root. Declaring `PROMPT_CACHING` against a synthesized wire field would violate Correctness Invariant #5 (Runtime Truth). The capability stays off until Cohere ships an API surface that [`CacheHint`](../ai/src/main/java/org/atmosphere/ai/llm/CacheHint.java) can drive |
 
 See [`docs/audits/vision-parity-2026-05-22.md`](../../docs/audits/vision-parity-2026-05-22.md)
 for the cross-runtime parity audit that drove the staging decision.

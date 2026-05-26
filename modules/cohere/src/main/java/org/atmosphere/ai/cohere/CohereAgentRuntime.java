@@ -226,15 +226,32 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
         //                            Command A Vision honor this shape
         //   MULTI_MODAL           — same code path; a Cohere user message
         //                            can interleave text + image_url blocks
+        //   TOOL_CALL_DELTA       — CohereChatClient.handleToolCallDelta
+        //                            forwards every {@code tool-call-delta}
+        //                            event's argument fragment via
+        //                            session.toolCallDelta(toolCallId, chunk)
+        //                            so browser UIs can render partial tool-
+        //                            argument JSON before the consolidated
+        //                            AiEvent.ToolStart frame fires. Same
+        //                            posture as BuiltInAgentRuntime's
+        //                            OpenAiCompatibleClient chat-completions
+        //                            loop.
         // NOT claimed:
         //   AUDIO                 — Cohere v2 chat content array has no
         //                            audio block (Content.Audio is dropped
         //                            with a debug log)
-        //   PROMPT_CACHING        — Cohere documents prompt caching but the
-        //                            cache_control wire shape is not wired
-        //   TOOL_CALL_DELTA       — tool-call-delta arrives and could be
-        //                            forwarded via session.toolCallDelta; not
-        //                            wired in this release
+        //   PROMPT_CACHING        — Cohere v2 Chat API
+        //                            ({@code https://docs.cohere.com/v2/reference/chat})
+        //                            does not document a prompt-caching wire
+        //                            shape. No {@code cache_control}, no
+        //                            ephemeral-block, no top-level TTL field
+        //                            appears in the OpenAPI schema. Until
+        //                            Cohere ships an API surface we can drive
+        //                            from {@link org.atmosphere.ai.llm.CacheHint},
+        //                            this capability stays off — declaring it
+        //                            from a {@code Class.forName} check would
+        //                            lie about runtime state (Correctness
+        //                            Invariant #5, Runtime Truth).
         return Set.of(
                 AiCapability.TEXT_STREAMING,
                 AiCapability.SYSTEM_PROMPT,
@@ -248,7 +265,8 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
                 AiCapability.PASSIVATION,
                 AiCapability.PER_REQUEST_RETRY,
                 AiCapability.VISION,
-                AiCapability.MULTI_MODAL);
+                AiCapability.MULTI_MODAL,
+                AiCapability.TOOL_CALL_DELTA);
     }
 
     @Override

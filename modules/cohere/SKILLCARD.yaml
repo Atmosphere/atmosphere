@@ -31,7 +31,7 @@ license:
 artifact:
   group_id: org.atmosphere
   artifact_id: atmosphere-cohere
-  version: 4.0.48-SNAPSHOT
+  version: 4.0.49-SNAPSHOT
   packaging: jar
   module_path: modules/cohere
 
@@ -41,7 +41,7 @@ spi:
   service_loader: META-INF/services/org.atmosphere.ai.AgentRuntime
 
 capabilities:
-  count: 13
+  count: 14
   declared:
     - BUDGET_ENFORCEMENT
     - CONFIDENCE_SCORES
@@ -55,6 +55,7 @@ capabilities:
     - TOKEN_USAGE
     - TOOL_APPROVAL
     - TOOL_CALLING
+    - TOOL_CALL_DELTA
     - VISION
 
 contract_test:

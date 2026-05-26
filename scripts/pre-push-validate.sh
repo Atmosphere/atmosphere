@@ -156,6 +156,7 @@ CAPABILITY_CLAIMS_REGEX='(^|/)(README\.md|.*capabilit.*\.md)$|^modules/ai/README
 DRIFT_LOG_REGEX='^\.harness/drift-log\.md$|^scripts/validate-drift-log\.sh$'
 BACKEND_CLASS_REFS_REGEX='\.java$|\.md$|^scripts/validate-backend-class-refs\.sh$|^\.harness/external-class-allowlist\.txt$'
 PRIVATE_HANDLE_REGEX='\.(java|kt|kts|md|yml|yaml|ts|tsx|js|json|properties|xml|sh)$|^scripts/validate-no-private-handle\.sh$|^\.harness/private-handle-allowlist\.txt$'
+NO_BETA_REGEX='\.(java|kt|kts|md|mdx|yml|yaml|ts|tsx|js|json|properties|xml|sh|py|astro)$|^scripts/validate-no-beta-on-main\.sh$|^\.harness/no-beta-allowlist\.txt$|^CHANGELOG\.md$'
 
 SIGNIFICANT_FILES=""
 IGNORED_FILES=""
@@ -165,6 +166,7 @@ RUN_CAPABILITY_CLAIMS=false
 RUN_DRIFT_LOG=false
 RUN_BACKEND_CLASS_REFS=false
 RUN_PRIVATE_HANDLE=false
+RUN_NO_BETA=false
 while IFS= read -r file; do
     [ -z "$file" ] && continue
     if echo "$file" | grep -qE "$ARCHITECTURAL_REGEX"; then
@@ -181,6 +183,9 @@ while IFS= read -r file; do
     fi
     if echo "$file" | grep -qE "$PRIVATE_HANDLE_REGEX"; then
         RUN_PRIVATE_HANDLE=true
+    fi
+    if echo "$file" | grep -qE "$NO_BETA_REGEX"; then
+        RUN_NO_BETA=true
     fi
     if echo "$file" | grep -qE "$HIGH_BLAST_REGEX"; then
         HAS_HIGH_BLAST=true
@@ -203,6 +208,7 @@ if [ "$FORCE_FULL" = true ]; then
     RUN_DRIFT_LOG=true
     RUN_BACKEND_CLASS_REFS=true
     RUN_PRIVATE_HANDLE=true
+    RUN_NO_BETA=true
 fi
 
 PL_LIST=""
@@ -286,6 +292,20 @@ if [ "$DRY_RUN" = false ]; then
         echo "Skipping private-handle leak validation."
     fi
     echo ""
+
+    if [ "$RUN_NO_BETA" = true ]; then
+        echo "Running no-@Beta-on-main validation."
+        if ! BASE_REF="$BASE_REF" ./scripts/validate-no-beta-on-main.sh; then
+            echo ""
+            echo "@Beta / ⏳ / deferred-framing introduced on main."
+            echo "Per feedback_no_beta_on_main.md, main is always release-ready;"
+            echo "close the matrix or rewrite the prose without 'deferred to' / 'next session' / 'Phase N'."
+            exit 1
+        fi
+    else
+        echo "Skipping no-@Beta-on-main validation."
+    fi
+    echo ""
 else
     echo "Dry-run — selected Tier 1 checks:"
     echo "  architectural validation : $RUN_ARCHITECTURAL"
@@ -293,6 +313,7 @@ else
     echo "  drift log                : $RUN_DRIFT_LOG"
     echo "  backend-class refs       : $RUN_BACKEND_CLASS_REFS"
     echo "  private-handle leak      : $RUN_PRIVATE_HANDLE"
+    echo "  no-@Beta-on-main         : $RUN_NO_BETA"
     echo ""
 fi
 

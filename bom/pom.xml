@@ -99,6 +99,11 @@
                 <artifactId>atmosphere-cohere</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-crewai</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- RAG -->
             <dependency>
@@ -199,6 +204,16 @@
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-quarkus-langchain4j-deployment</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-quarkus-grpc</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-quarkus-grpc-deployment</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

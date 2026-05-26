@@ -88,6 +88,44 @@ class CohereChatClientTest {
 
             """;
 
+    /**
+     * Three-fragment {@code tool-call-delta} stream. Mirrors the wire shape
+     * Cohere emits when {@code function.arguments} is too large to fit in a
+     * single SSE frame — the model streams the JSON in chunks. Pinning all
+     * three so the test fails if any one chunk is dropped or coalesced
+     * (Correctness Invariant #7 — Mode Parity with BuiltInAgentRuntime's
+     * OpenAI chat-completions delta path).
+     */
+    private static final String TOOL_DELTA_ROUND = """
+            data: {"type":"message-start","id":"msg_d1"}
+
+            data: {"type":"tool-call-start","index":0,"delta":{"message":{"tool_calls":{"id":"call_42","type":"function","function":{"name":"search","arguments":""}}}}}
+
+            data: {"type":"tool-call-delta","index":0,"delta":{"message":{"tool_calls":{"function":{"arguments":"{\\"q"}}}}}
+
+            data: {"type":"tool-call-delta","index":0,"delta":{"message":{"tool_calls":{"function":{"arguments":"uery\\":\\"at"}}}}}
+
+            data: {"type":"tool-call-delta","index":0,"delta":{"message":{"tool_calls":{"function":{"arguments":"mos\\"}"}}}}}
+
+            data: {"type":"tool-call-end","index":0}
+
+            data: {"type":"message-end","delta":{"finish_reason":"TOOL_CALL","usage":{"tokens":{"input_tokens":20,"output_tokens":4}}}}
+
+            """;
+
+    private static final String FINAL_AFTER_DELTA = """
+            data: {"type":"message-start","id":"msg_d2"}
+
+            data: {"type":"content-start","index":0}
+
+            data: {"type":"content-delta","index":0,"delta":{"message":{"content":{"text":"done"}}}}
+
+            data: {"type":"content-end","index":0}
+
+            data: {"type":"message-end","delta":{"finish_reason":"COMPLETE","usage":{"tokens":{"input_tokens":25,"output_tokens":1}}}}
+
+            """;
+
     @Test
     void streamForwardsTextDeltasAndCompletes() {
         var httpClient = mockSingleResponse(200, TEXT_RESPONSE);
@@ -223,6 +261,53 @@ class CohereChatClientTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void toolCallDeltaFragmentsDispatchedToSession() throws Exception {
+        // Cohere streams large {@code function.arguments} in multiple
+        // {@code tool-call-delta} events. Pin that every fragment forwards
+        // intact (and in order) to {@link StreamingSession#toolCallDelta} so
+        // browser UIs can render partial tool-argument JSON before the
+        // consolidated {@link org.atmosphere.ai.AiEvent.ToolStart} frame
+        // fires — same wire posture as BuiltInAgentRuntime's OpenAI chat-
+        // completions loop (Correctness Invariant #7 — Mode Parity).
+        var httpClient = mockTwoRoundResponse(TOOL_DELTA_ROUND, FINAL_AFTER_DELTA);
+        var client = CohereChatClient.builder()
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+        var search = ToolDefinition.builder("search", "look something up")
+                .parameter("query", "search query", "string")
+                .executor(args -> "ok")
+                .build();
+        var context = new AgentExecutionContext(
+                "lookup", "You are helpful", "command-a-plus-05-2026",
+                null, "session-delta", "user-1", "conv-delta",
+                List.of(search), null, null, List.of(), Map.of(),
+                List.of(), null, null);
+        var session = new ToolDeltaRecordingSession();
+        client.stream("command-a-plus-05-2026", List.of(), context.systemPrompt(),
+                context.message(), context, session, null);
+        session.await(java.time.Duration.ofSeconds(5));
+        assertEquals(null, session.failure(),
+                "session must complete without an error");
+
+        // Three tool-call-delta events → three session.toolCallDelta(...) calls,
+        // each carrying the same tool-call id and the original fragment text.
+        assertEquals(3, session.deltaFragments.size(),
+                "every tool-call-delta SSE event must surface as one "
+                        + "session.toolCallDelta call");
+        assertEquals("call_42", session.deltaIds.get(0));
+        assertEquals("call_42", session.deltaIds.get(1));
+        assertEquals("call_42", session.deltaIds.get(2));
+        assertEquals("{\"q", session.deltaFragments.get(0));
+        assertEquals("uery\":\"at", session.deltaFragments.get(1));
+        assertEquals("mos\"}", session.deltaFragments.get(2));
+        // The accumulator must still reconstruct the full JSON for tool
+        // dispatch — sanity-check via the final text round.
+        assertEquals("done", session.text());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void visionPartsTranslateToImageUrlBlock() throws Exception {
         var httpClient = mockSingleResponse(200, TEXT_RESPONSE);
         var client = CohereChatClient.builder()
@@ -332,5 +417,92 @@ class CohereChatClientTest {
         when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                 .thenReturn(first, second);
         return httpClient;
+    }
+
+    /**
+     * Minimal {@link org.atmosphere.ai.StreamingSession} that records every
+     * {@code toolCallDelta(id, chunk)} call so the
+     * {@code tool-call-delta} → {@code session.toolCallDelta} mapping can be
+     * asserted with order-preserving fidelity. {@link CollectingSession} is
+     * {@code final} so we cannot extend it — re-implementing the surface here
+     * keeps the recording slot independent of the production session.
+     */
+    private static final class ToolDeltaRecordingSession
+            implements org.atmosphere.ai.StreamingSession {
+        final java.util.List<String> deltaIds =
+                java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        final java.util.List<String> deltaFragments =
+                java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        private final StringBuffer buffer = new StringBuffer();
+        private final java.util.concurrent.CountDownLatch latch =
+                new java.util.concurrent.CountDownLatch(1);
+        private volatile boolean closed;
+        private volatile Throwable failure;
+        private final String sessionId = "tool-delta-recording-" + System.nanoTime();
+
+        @Override
+        public String sessionId() { return sessionId; }
+
+        @Override
+        public void send(String text) {
+            if (text != null) {
+                buffer.append(text);
+            }
+        }
+
+        @Override
+        public void sendMetadata(String key, Object value) { /* no-op */ }
+
+        @Override
+        public void toolCallDelta(String toolCallId, String argsChunk) {
+            if (toolCallId == null || argsChunk == null || argsChunk.isEmpty()) {
+                return;
+            }
+            deltaIds.add(toolCallId);
+            deltaFragments.add(argsChunk);
+        }
+
+        @Override
+        public void progress(String message) { /* no-op */ }
+
+        @Override
+        public void complete() {
+            if (!closed) {
+                closed = true;
+                latch.countDown();
+            }
+        }
+
+        @Override
+        public void complete(String summary) {
+            if (summary != null) {
+                buffer.append(summary);
+            }
+            complete();
+        }
+
+        @Override
+        public void error(Throwable t) {
+            if (!closed) {
+                closed = true;
+                failure = t;
+                latch.countDown();
+            }
+        }
+
+        @Override
+        public boolean isClosed() { return closed; }
+
+        void await(java.time.Duration timeout) {
+            try {
+                latch.await(timeout.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        String text() { return buffer.toString(); }
+
+        Throwable failure() { return failure; }
     }
 }

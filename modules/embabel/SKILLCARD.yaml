@@ -31,7 +31,7 @@ license:
 artifact:
   group_id: org.atmosphere
   artifact_id: atmosphere-embabel
-  version: 4.0.48-SNAPSHOT
+  version: 4.0.49-SNAPSHOT
   packaging: jar
   module_path: modules/embabel
 

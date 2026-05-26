@@ -6,7 +6,7 @@
     "names": ["AGENT_ORCHESTRATION","AUDIO","BUDGET_ENFORCEMENT","CANCELLATION","CONFIDENCE_SCORES","CONVERSATION_MEMORY","MODEL_ENUMERATION","MULTI_AGENT_HANDOFF","MULTI_MODAL","PASSIVATION","PER_REQUEST_RETRY","PROMPT_CACHING","STRUCTURED_OUTPUT","SYSTEM_PROMPT","TEXT_STREAMING","TOKEN_USAGE","TOOL_APPROVAL","TOOL_CALLING","TOOL_CALL_DELTA","VISION"]
   },
   "runtimes": {
-    "count": 11,
+    "count": 12,
     "items": [
     {
       "name": "AdkAgentRuntime",
@@ -41,7 +41,14 @@
       "module": "modules/cohere",
       "language": "java",
       "contract_test": "modules/cohere/src/test/java/org/atmosphere/ai/cohere/CohereRuntimeContractTest.java",
-      "expected_capabilities": ["BUDGET_ENFORCEMENT","CONFIDENCE_SCORES","CONVERSATION_MEMORY","MULTI_MODAL","PASSIVATION","PER_REQUEST_RETRY","STRUCTURED_OUTPUT","SYSTEM_PROMPT","TEXT_STREAMING","TOKEN_USAGE","TOOL_APPROVAL","TOOL_CALLING","VISION"]
+      "expected_capabilities": ["BUDGET_ENFORCEMENT","CONFIDENCE_SCORES","CONVERSATION_MEMORY","MULTI_MODAL","PASSIVATION","PER_REQUEST_RETRY","STRUCTURED_OUTPUT","SYSTEM_PROMPT","TEXT_STREAMING","TOKEN_USAGE","TOOL_APPROVAL","TOOL_CALLING","TOOL_CALL_DELTA","VISION"]
+    },
+    {
+      "name": "CrewAiAgentRuntime",
+      "module": "modules/crewai",
+      "language": "java",
+      "contract_test": "modules/crewai/src/test/java/org/atmosphere/ai/crewai/CrewAiRuntimeContractTest.java",
+      "expected_capabilities": ["AGENT_ORCHESTRATION","CANCELLATION","PER_REQUEST_RETRY","STRUCTURED_OUTPUT","SYSTEM_PROMPT","TEXT_STREAMING","TOKEN_USAGE","TOOL_APPROVAL","TOOL_CALLING"]
     },
     {
       "name": "EmbabelAgentRuntime",

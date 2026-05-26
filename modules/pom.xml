@@ -33,6 +33,7 @@
         <module>langchain4j</module>
         <module>anthropic</module>
         <module>cohere</module>
+        <module>crewai</module>
         <module>embabel</module>
         <module>koog</module>
         <module>agentscope</module>
@@ -57,6 +58,7 @@
         <module>sandbox</module>
         <module>quarkus-extension</module>
         <module>quarkus-admin-extension</module>
+        <module>quarkus-grpc</module>
         <module>quarkus-langchain4j</module>
         <module>wasync</module>
         <module>skills</module>

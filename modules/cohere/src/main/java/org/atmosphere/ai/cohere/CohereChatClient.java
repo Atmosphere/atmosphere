@@ -272,7 +272,7 @@ public final class CohereChatClient {
             switch (type) {
                 case "content-delta" -> handleContentDelta(event, session, assistantText);
                 case "tool-call-start" -> handleToolCallStart(event, toolBuffers);
-                case "tool-call-delta" -> handleToolCallDelta(event, toolBuffers);
+                case "tool-call-delta" -> handleToolCallDelta(event, session, toolBuffers);
                 case "message-end" -> {
                     var parsed = parseUsage(event, usage);
                     if (parsed != null) {
@@ -356,6 +356,7 @@ public final class CohereChatClient {
     }
 
     private void handleToolCallDelta(JsonNode event,
+                                     StreamingSession session,
                                      Map<Integer, ToolCallAccumulator> toolBuffers) {
         var index = event.path("index").asInt(-1);
         var toolCall = event.path("delta").path("message").path("tool_calls");
@@ -366,6 +367,14 @@ public final class CohereChatClient {
             var acc = toolBuffers.get(index);
             if (acc != null) {
                 acc.rawJson.append(chunk);
+                // Forward the incremental fragment so browser UIs can render
+                // partial tool-argument JSON as the model types it — same
+                // posture as OpenAiCompatibleClient's chat-completions loop.
+                // The accumulator id is set by tool-call-start; if Cohere ever
+                // ships a tool-call-delta before tool-call-start (it does not
+                // today), the empty id is dropped by StreamingSession's null/
+                // empty guard rather than producing a stray frame.
+                session.toolCallDelta(acc.id, chunk);
             }
         }
     }

@@ -86,6 +86,34 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- atmosphere-runtime resolves opentelemetry-api 1.62.0 via the
+                 root POM, but quarkus-micrometer-registry-prometheus' OTel
+                 exemplar sampler was compiled against the OTel API 1.60.x
+                 shape Quarkus 3.35.2 ships. The 1.62.0 API jar moved its
+                 internal ApiUsageLogger from io.opentelemetry.api.internal
+                 to io.opentelemetry.common.impl — running the prom exemplar
+                 code against the 1.62.0 API jar paired with the older
+                 opentelemetry-common throws NoClassDefFoundError. Direct
+                 pins on opentelemetry-api / -common keep Maven dependency
+                 resolution from picking the cpr-side 1.62.0 over Quarkus's
+                 1.60.1 baseline (direct dependencyManagement entries beat
+                 BOM-imported ones, which would otherwise lose to a transitive
+                 direct dep at any reasonable depth). -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-api</artifactId>
+                <version>1.60.1</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-common</artifactId>
+                <version>1.60.1</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-context</artifactId>
+                <version>1.60.1</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -118,6 +146,21 @@
             <artifactId>atmosphere-quarkus-langchain4j</artifactId>
         </dependency>
 
+        <!-- Atmosphere gRPC transport (Quarkus extension). Adds a Netty-backed
+             gRPC server on port 19090 alongside the WebSocket / SSE / Long-Polling
+             surfaces already exposed via Undertow. Any client subscribing to the
+             same Broadcaster topic (e.g. "/atmosphere/ai-chat") receives the
+             AI tokens broadcast by the @Prompt method — proving transport
+             parity between WebSocket and gRPC subscribers.
+
+             Enabled via quarkus.atmosphere.grpc.enabled=true in
+             application.properties; see this sample's README "gRPC subscriber"
+             section for a grpcurl walkthrough. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-quarkus-grpc</artifactId>
+        </dependency>
+
         <!-- Quarkus LangChain4j OpenAI-compatible model — Atmosphere reads
              quarkus.langchain4j.openai.* config and exposes ChatModel /
              StreamingChatModel CDI beans. Compatible with Gemini's
@@ -146,6 +189,25 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
+        </dependency>
+
+        <!-- Observability stack — the Atmosphere Quarkus deployment processor
+             registers AtmosphereHealthCheck / AtmosphereMetricsProducer /
+             AtmosphereTracingProducer / AtmosphereGovernanceMetricsProducer
+             when these extensions are on the classpath. Mirrors the
+             atmosphere-spring-boot-ai-chat dependency set so dashboards and
+             health probes are platform-portable. -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-opentelemetry</artifactId>
         </dependency>
     </dependencies>
 

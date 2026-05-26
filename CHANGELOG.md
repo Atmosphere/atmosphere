@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `atmosphere-crewai` — `AgentRuntime` for the
+  [CrewAI](https://www.crewai.com/) multi-agent framework via an
+  out-of-process Python sidecar. First non-Java runtime adapter in the
+  project; the boundary is `HTTP + SSE` for the request stream plus a
+  loopback `ToolCallbackServer` for Java→Python tool RPC. Pins 9
+  capabilities (`TEXT_STREAMING`, `TOKEN_USAGE`, `AGENT_ORCHESTRATION`,
+  `CANCELLATION`, `TOOL_CALLING`, `SYSTEM_PROMPT`,
+  `STRUCTURED_OUTPUT`, `TOOL_APPROVAL`, `PER_REQUEST_RETRY`) via
+  `CrewAiRuntimeContractTest` + the capability snapshot (which now
+  enumerates 12 runtimes). Like every other runtime, `isAvailable()`
+  is config-gated — requires `ATMOSPHERE_CREWAI_SIDECAR_URL` pointing
+  at a running sidecar that responds OK to `GET /health`.
+- `modules/crewai/sidecar/` — companion Python package
+  `atmosphere-crewai-bridge` (FastAPI + uvicorn + crewai 1.14)
+  speaking the documented wire protocol. Materialises Java
+  `ToolDefinition`s as `crewai.tools.BaseTool` subclasses via
+  `pydantic.create_model`, injects them into agents, and threads
+  `context.systemPrompt()` into each agent's `backstory` inside a
+  delimited block. Ships with a working `examples/ollama_crew.py`
+  factory that targets `qwen2.5:0.5b` (no API key required).
+- CLI runtime overlay (`cli/runtime-overlays.json`) for `crewai`, so
+  `atmosphere new my-app --template ai-chat --runtime crewai`
+  scaffolds with the dependency wired and the sidecar setup
+  documented inline.
+- End-to-end validation captured at
+  `.harness/crewai-e2e-success.png`: chrome-devtools drove
+  `/atmosphere/console/` against a real Ollama-backed crew; the
+  browser rendered 25 tokens at 46.8 tok/s through the full chain
+  `WebSocket → @AiEndpoint(runtime=crewai) → HttpSseSidecarClient →
+  atmosphere-crewai-bridge → crewai 1.14 → litellm → Ollama`. Console
+  zero errors, sidecar log confirms `POST /v1/chat/completions
+  HTTP/1.1 200 OK` against the local Ollama instance.
+
+### Fixed
+
+- `HttpSseSidecarClient` now pins `HttpClient.Version.HTTP_1_1`. The
+  JDK's `java.net.http.HttpClient` defaults to HTTP/2 for plain HTTP
+  and attempts an `Upgrade: h2c` negotiation; uvicorn (the FastAPI
+  host for the CrewAI sidecar) does not implement the h2c upgrade and
+  the resulting request lands with an empty body, which FastAPI
+  rejects as `422 Field required, loc=["body"], input=null`. The
+  bridge-test `FakeSidecar` (a
+  `com.sun.net.httpserver.HttpServer`) tolerated the upgrade preamble
+  and parsed the body anyway, so the bug only surfaced under real
+  uvicorn — exactly the gap `feedback_chrome_devtools_only.md` warns
+  about. Added a regression test
+  (`CrewAiAgentRuntimeBridgeTest.httpClient_pinnedToHttp11`) that
+  reflects into the client and asserts the version, so a future "just
+  use the default `HttpClient`" refactor breaks the build before it
+  breaks production. Drift recorded as `.harness/drift-log.md` #64.
+
 ## [4.0.48] - 2026-05-25
 
 ### Added

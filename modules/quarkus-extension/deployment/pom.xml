@@ -34,6 +34,21 @@
             <artifactId>quarkus-websockets-client-deployment</artifactId>
         </dependency>
 
+        <!-- Deployment-side SPI for the smallrye-health build step. NOT
+             optional: Quarkus's ExtensionLoader resolves every @BuildStep
+             class in the deployment jar at extension-load time and reads
+             the method signatures to discover BuildItem types. The
+             registerHealthCheck step's signature references
+             HealthBuildItem, so the SPI must be on the build-time
+             classpath of every downstream Quarkus extension that
+             transitively depends on atmosphere-quarkus-extension-deployment
+             (e.g. atmosphere-quarkus-grpc-deployment). Capability.SMALLRYE_HEALTH
+             gating handles the runtime side. -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-health-spi</artifactId>
+        </dependency>
+
         <!-- Override parent's SLF4J 1.x with Quarkus-compatible version -->
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -58,6 +73,26 @@
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-ai</artifactId>
             <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Test-scope: the observability build-step tests pull these in
+             via setForcedDependencies on the per-test QuarkusExtensionTest
+             instance rather than relying on the flat reactor classpath
+             (which previously caused Prometheus' OpenTelemetry exemplar
+             sampler to crash because Quarkus 3.35.2 pins OTel-API 1.55.0
+             while atmosphere-runtime resolves 1.62.0). The dependencies
+             stay declared here so Maven downloads them; test code uses
+             setForcedDependencies(...) to scope them to a single test
+             rather than the reactor classpath. -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-health-deployment</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-micrometer-deployment</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

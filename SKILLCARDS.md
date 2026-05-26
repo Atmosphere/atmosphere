@@ -24,7 +24,8 @@ NVIDIA uses (`https://github.com/sigstore/model-transparency`).
 | `AgentScopeAgentRuntime` | `modules/agentscope` | java | 15 | [card](modules/agentscope/SKILLCARD.yaml) | [test](modules/agentscope/src/test/java/org/atmosphere/ai/agentscope/AgentScopeRuntimeContractTest.java) | unsigned |
 | `AnthropicAgentRuntime` | `modules/anthropic` | java | 13 | [card](modules/anthropic/SKILLCARD.yaml) | [test](modules/anthropic/src/test/java/org/atmosphere/ai/anthropic/AnthropicRuntimeContractTest.java) | unsigned |
 | `BuiltInAgentRuntime` | `modules/ai-test` | java | 16 | [card](modules/ai/SKILLCARD.yaml) | [test](modules/ai-test/src/test/java/org/atmosphere/ai/test/BuiltInRuntimeContractTest.java) | unsigned |
-| `CohereAgentRuntime` | `modules/cohere` | java | 13 | [card](modules/cohere/SKILLCARD.yaml) | [test](modules/cohere/src/test/java/org/atmosphere/ai/cohere/CohereRuntimeContractTest.java) | unsigned |
+| `CohereAgentRuntime` | `modules/cohere` | java | 14 | [card](modules/cohere/SKILLCARD.yaml) | [test](modules/cohere/src/test/java/org/atmosphere/ai/cohere/CohereRuntimeContractTest.java) | unsigned |
+| `CrewAiAgentRuntime` | `modules/crewai` | java | 9 | [card](modules/crewai/SKILLCARD.yaml) | [test](modules/crewai/src/test/java/org/atmosphere/ai/crewai/CrewAiRuntimeContractTest.java) | unsigned |
 | `EmbabelAgentRuntime` | `modules/embabel` | kotlin | 14 | [card](modules/embabel/SKILLCARD.yaml) | [test](modules/embabel/src/test/kotlin/org/atmosphere/ai/embabel/EmbabelRuntimeContractTest.kt) | unsigned |
 | `KoogAgentRuntime` | `modules/koog` | kotlin | 17 | [card](modules/koog/SKILLCARD.yaml) | [test](modules/koog/src/test/kotlin/org/atmosphere/ai/koog/KoogRuntimeContractTest.kt) | unsigned |
 | `LangChain4jAgentRuntime` | `modules/langchain4j` | java | 15 | [card](modules/langchain4j/SKILLCARD.yaml) | [test](modules/langchain4j/src/test/java/org/atmosphere/ai/langchain4j/LangChain4jRuntimeContractTest.java) | unsigned |

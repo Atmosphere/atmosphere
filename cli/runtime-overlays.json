@@ -84,6 +84,13 @@
         { "groupId": "org.atmosphere", "artifactId": "atmosphere-cohere" }
       ],
       "note": "Configure via cohere.api.key system property or COHERE_API_KEY environment variable. Native HTTP+SSE client against POST /v2/chat; tool dispatch routes through ToolExecutionHelper.executeWithApproval."
+    },
+    "crewai": {
+      "description": "CrewAI multi-agent framework via Python sidecar process — Java owns transport + tool execution, Python owns the crew graph",
+      "deps": [
+        { "groupId": "org.atmosphere", "artifactId": "atmosphere-crewai" }
+      ],
+      "note": "Requires a running CrewAI sidecar. Install with 'pipx install atmosphere-crewai-bridge' (or 'pip install -e modules/crewai/sidecar' from source), then launch via 'atmosphere-crewai-bridge --crew my_crew:make_crew'. Point ATMOSPHERE_CREWAI_SIDECAR_URL at http://127.0.0.1:8765 (or wherever the sidecar binds). Runtime stays isAvailable()=false until /health responds OK."
     }
   }
 }

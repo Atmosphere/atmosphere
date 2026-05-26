@@ -23,6 +23,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
+import io.quarkus.deployment.Capabilities;
+import io.quarkus.deployment.Capability;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.annotations.ExecutionTime;
@@ -34,6 +37,7 @@ import io.quarkus.deployment.builditem.ShutdownContextBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.NativeImageResourceBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.RuntimeInitializedClassBuildItem;
+import io.quarkus.smallrye.health.deployment.spi.HealthBuildItem;
 import io.quarkus.undertow.deployment.IgnoredServletContainerInitializerBuildItem;
 import io.quarkus.undertow.deployment.ServletBuildItem;
 import io.quarkus.websockets.client.deployment.ServerWebSocketContainerBuildItem;
@@ -330,8 +334,26 @@ class AtmosphereProcessor {
         config.broadcasterClass().ifPresent(b ->
                 builder.addInitParam("org.atmosphere.cpr.broadcasterClass", b));
 
-        config.broadcasterCacheClass().ifPresent(b ->
-                builder.addInitParam("org.atmosphere.cpr.broadcasterCacheClass", b));
+        // Explicit broadcaster-cache-class config wins. Otherwise, when
+        // quarkus.atmosphere.cache-enabled=true (Spring Boot parity for
+        // AtmosphereCacheAutoConfiguration), default to BoundedMemoryCache
+        // and install MessageAckInterceptor so missed-message recovery
+        // works out of the box.
+        if (config.broadcasterCacheClass().isPresent()) {
+            builder.addInitParam("org.atmosphere.cpr.broadcasterCacheClass",
+                    config.broadcasterCacheClass().get());
+        } else if (config.cacheEnabled()) {
+            builder.addInitParam("org.atmosphere.cpr.broadcasterCacheClass",
+                    "org.atmosphere.cache.BoundedMemoryCache");
+            // AtmosphereInterceptor init params accept a comma-separated list of
+            // FQNs that AtmosphereFramework.configureAtmosphereInterceptor() expands
+            // into the running interceptor chain — same hook Spring Boot's
+            // @Bean MessageAckInterceptor uses, just plumbed through the servlet
+            // init param instead of an autoconfigured bean.
+            builder.addInitParam("org.atmosphere.cpr.AtmosphereInterceptor",
+                    "org.atmosphere.interceptor.MessageAckInterceptor");
+            logger.info("Atmosphere cache enabled — installing BoundedMemoryCache + MessageAckInterceptor");
+        }
 
         config.heartbeatInterval().ifPresent(h ->
                 builder.addInitParam("org.atmosphere.cpr.AtmosphereResource.heartbeatFrequencyInSeconds",
@@ -374,4 +396,138 @@ class AtmosphereProcessor {
      * Registers admin control plane classes for reflection and CDI discovery
      * when {@code atmosphere-admin} is on the classpath.
      */
+
+    /**
+     * Registers {@code BoundedMemoryCache} and {@code MessageAckInterceptor}
+     * for GraalVM reflection when {@code quarkus.atmosphere.cache-enabled=true}.
+     * The servlet wiring (see {@link #registerServlet}) sets the {@code broadcasterCacheClass}
+     * and {@code AtmosphereInterceptor} init params so Atmosphere instantiates them
+     * via reflection at servlet init; the build step above keeps that reflection path
+     * working in native image builds. Quarkus parity for the Spring Boot starter's
+     * {@code AtmosphereCacheAutoConfiguration}.
+     */
+    @BuildStep
+    void registerCacheReflection(AtmosphereConfig config,
+                                 BuildProducer<ReflectiveClassBuildItem> reflectiveClasses) {
+        if (!config.cacheEnabled() && config.broadcasterCacheClass().isEmpty()) {
+            return;
+        }
+        reflectiveClasses.produce(
+                ReflectiveClassBuildItem.builder(
+                                "org.atmosphere.cache.BoundedMemoryCache",
+                                "org.atmosphere.interceptor.MessageAckInterceptor")
+                        .constructors()
+                        .methods()
+                        .reason("Atmosphere cache enabled (quarkus.atmosphere.cache-enabled=true)")
+                        .build());
+        logger.info("Atmosphere cache reflection registered for native image");
+    }
+
+    /**
+     * Quarkus parity for {@code AtmosphereActuatorAutoConfiguration}. When
+     * {@code quarkus-smallrye-health} is on the classpath the health check bean
+     * is registered with the Quarkus Arc container and surfaced under
+     * {@code /q/health}, {@code /q/health/live}, and {@code /q/health/ready}
+     * by the SmallRye Health processor. Gated on {@link Capability#SMALLRYE_HEALTH}
+     * so users without smallrye-health pay no startup cost.
+     */
+    @BuildStep
+    void registerHealthCheck(Capabilities capabilities,
+                             BuildProducer<AdditionalBeanBuildItem> beans,
+                             BuildProducer<HealthBuildItem> health) {
+        if (!capabilities.isPresent(Capability.SMALLRYE_HEALTH)) {
+            logger.debug("quarkus-smallrye-health absent — skipping AtmosphereHealthCheck registration");
+            return;
+        }
+        beans.produce(AdditionalBeanBuildItem.unremovableOf(
+                "org.atmosphere.quarkus.runtime.AtmosphereHealthCheck"));
+        health.produce(new HealthBuildItem(
+                "org.atmosphere.quarkus.runtime.AtmosphereHealthCheck",
+                true));
+        logger.info("Atmosphere SmallRye Health check registered at /q/health/atmosphere");
+    }
+
+    /**
+     * Quarkus parity for {@code AtmosphereMetricsAutoConfiguration}. When the
+     * Quarkus Micrometer extension is on the classpath, registers the
+     * {@code AtmosphereMetricsProducer} bean. The producer injects the
+     * Micrometer {@link io.micrometer.core.instrument.MeterRegistry} bean
+     * Quarkus has already wired and binds Atmosphere's per-resource gauges,
+     * broadcast counters, and timers on {@code @Observes StartupEvent}.
+     * Gating on a class lookup keeps the build step inert in classpaths that
+     * do not pull {@code quarkus-micrometer}.
+     */
+    @BuildStep
+    void registerMetricsProducer(BuildProducer<AdditionalBeanBuildItem> beans) {
+        if (!isClassPresent("io.micrometer.core.instrument.MeterRegistry")) {
+            logger.debug("micrometer-core absent — skipping AtmosphereMetricsProducer registration");
+            return;
+        }
+        beans.produce(AdditionalBeanBuildItem.unremovableOf(
+                "org.atmosphere.quarkus.runtime.AtmosphereMetricsProducer"));
+        logger.info("Atmosphere Micrometer metrics producer registered (atmosphere.* metrics)");
+    }
+
+    /**
+     * Quarkus parity for {@code AtmosphereTracingAutoConfiguration}. When
+     * {@code quarkus-opentelemetry} is on the classpath, registers the
+     * {@code AtmosphereTracingProducer} bean. On {@code @Observes StartupEvent}
+     * the producer instantiates {@code AtmosphereTracing} with the running
+     * {@link io.opentelemetry.api.OpenTelemetry} bean and binds it as an
+     * interceptor on the framework. Gated on
+     * {@link Capability#OPENTELEMETRY_TRACER} so users without the OTel
+     * extension are unaffected.
+     */
+    @BuildStep
+    void registerTracingProducer(Capabilities capabilities,
+                                 BuildProducer<AdditionalBeanBuildItem> beans) {
+        if (!capabilities.isPresent(Capability.OPENTELEMETRY_TRACER)) {
+            logger.debug("quarkus-opentelemetry absent — skipping AtmosphereTracingProducer registration");
+            return;
+        }
+        beans.produce(AdditionalBeanBuildItem.unremovableOf(
+                "org.atmosphere.quarkus.runtime.AtmosphereTracingProducer"));
+        logger.info("Atmosphere OpenTelemetry tracing producer registered");
+    }
+
+    /**
+     * Quarkus parity for {@code AtmosphereGovernanceMetricsAutoConfiguration}.
+     * Stacks on the Micrometer step (the producer injects {@link io.micrometer.core.instrument.MeterRegistry})
+     * and additionally requires {@code atmosphere-ai} on the classpath
+     * ({@code GovernanceMetricsHolder} lives there). When both are present the
+     * producer wraps the running {@link io.micrometer.core.instrument.MeterRegistry}
+     * in a {@code QuarkusMicrometerGovernanceMetrics} and installs it via
+     * {@code GovernanceMetricsHolder.install(...)}, so per-policy similarity
+     * histograms and evaluation timers show up under
+     * {@code atmosphere.governance.*} alongside the rest of Atmosphere's
+     * meters.
+     */
+    @BuildStep
+    void registerGovernanceMetricsProducer(BuildProducer<AdditionalBeanBuildItem> beans) {
+        if (!isClassPresent("io.micrometer.core.instrument.MeterRegistry")) {
+            return;
+        }
+        if (!isClassPresent("org.atmosphere.ai.governance.GovernanceMetricsHolder")) {
+            return;
+        }
+        beans.produce(AdditionalBeanBuildItem.unremovableOf(
+                "org.atmosphere.quarkus.runtime.AtmosphereGovernanceMetricsProducer"));
+        logger.info("Atmosphere governance metrics producer registered "
+                + "(atmosphere.governance.* meters via GovernanceMetricsHolder)");
+    }
+
+    /**
+     * Build-time classpath detection for optional integrations. Quarkus
+     * extensions resolve dependencies through their own classloader, which
+     * matches the build classpath for the extension processor; this is the
+     * canonical pattern used across the Quarkus codebase for soft deps.
+     */
+    private static boolean isClassPresent(String name) {
+        try {
+            Class.forName(name, false, AtmosphereProcessor.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException ex) {
+            return false;
+        }
+    }
 }

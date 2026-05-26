@@ -84,7 +84,7 @@ For the Spring Boot interceptor pattern, see
   binary tool returns. Callers needing binary returns should subclass and
   override.
 * **No per-runtime registration.** This module produces `ToolDefinition`s
-  through Atmosphere's framework-agnostic tool layer; the nine runtimes
+  through Atmosphere's framework-agnostic tool layer; the twelve runtimes
   consume them through the same code path that handles local `@AiTool`s.
 
 ## Security note — bring-your-own-credentials
