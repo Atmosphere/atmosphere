@@ -102,6 +102,7 @@ public void onPrompt(String message, AgentFleet fleet, StreamingSession session)
 | `AgentEvaluated` | coordinationId, agentName, evaluatorName, score, passed, timestamp |
 | `AgentActivityChanged` | coordinationId, agentName, activityType, detail, timestamp |
 | `CoordinationCompleted` | coordinationId, totalDuration, agentCallCount, timestamp |
+| `ForkCreated` | coordinationId (new), parentCoordinationId, parentEventId, reason, timestamp |
 
 `CoordinationQuery` factory methods: `CoordinationQuery.all()`, `CoordinationQuery.forCoordination(id)`, `CoordinationQuery.forAgent(agentName)`. Null fields in a query are wildcards. Set `limit` to cap result count; `0` means unlimited.
 
@@ -115,6 +116,67 @@ journal.inspector(event ->
 ```
 
 The `JournalingAgentFleet` decorator wraps the fleet transparently — all `parallel()`, `pipeline()`, and individual `agent().call()` paths record events automatically.
+
+### Causal lineage (event-sourced runtime)
+
+Every event is also recorded as an `EventEnvelope(eventId, parentEventId, event)` so consumers can reconstruct the causal DAG. The journal exposes a lineage-aware view alongside the flat event view:
+
+```java
+journal.recordEnveloped(EventEnvelope.childOf(parentId, event));
+List<EventEnvelope> envelopes = journal.retrieveEnveloped(coordinationId);
+```
+
+`JournalingAgentFleet` threads the parent IDs through every dispatch path: `CoordinationStarted` → `AgentDispatched` → `AgentCompleted`/`AgentFailed` → `AgentEvaluated`. `route()` and `proxy.call()` paths emit roots (no surrounding `Started`). Legacy `record(event)` callers continue to work — events are wrapped as root envelopes with no parent.
+
+### CoordinationProjection — DAG from log
+
+`CoordinationProjection.from(journal, coordinationId)` builds a read-only causal DAG from the stored envelopes. Pure projection: no execution, no LLM calls.
+
+```java
+var projection = CoordinationProjection.from(journal, "ceo");
+projection.walk((env, depth) -> {
+    var pad = " ".repeat(depth * 2);
+    System.out.println(pad + env.event().toLogLine());
+});
+// Aggregates
+projection.agents();          // distinct agents participating
+projection.failedDispatches();
+projection.evaluations();
+```
+
+### Persistent backend — `FileCoordinationJournal`
+
+Append-only NDJSON file, one JSON object per line, replays into an in-memory index on `start()`:
+
+```java
+var journal = new FileCoordinationJournal(Path.of("coord.ndjson"));
+journal.start();
+// ... record events ...
+journal.stop();
+// Process restart later — replay survives:
+var sameJournal = new FileCoordinationJournal(Path.of("coord.ndjson"));
+sameJournal.start();
+var envelopes = sameJournal.retrieveEnveloped("ceo");  // full lineage restored
+```
+
+A malformed (truncated) final line from a JVM kill mid-append is logged and skipped — the rest of the file is still loaded.
+
+### `CoordinationFork` — what-if branching
+
+Branches a new coordination off any event in an existing one. The parent coordination is immutable; the fork is a peer with its own id and its own future.
+
+```java
+var fork = new CoordinationFork(journal);
+var result = fork
+    .from("ceo", parentEventId)
+    .reason("try beta instead of alpha")
+    .with(new AgentCall("beta", "answer", Map.of("q", "...")))
+    .execute(fleet);
+// result.newCoordinationId() identifies the forked branch
+// CoordinationProjection.from(journal, result.newCoordinationId()) shows the alternate's events
+```
+
+Typical use cases: evaluation tooling (compare agent A vs B for a logged prompt), debugging (rewind to a decision point and rerun with different args), regression isolation (replay a flaky coordination with deterministic inputs).
 
 ## Agent Activity Streaming
 
