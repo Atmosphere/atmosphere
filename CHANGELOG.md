@@ -60,6 +60,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   use the default `HttpClient`" refactor breaks the build before it
   breaks production. Drift recorded as `.harness/drift-log.md` #64.
 
+### Security
+
+- Bumped `tomcat-embed-core` `11.0.21 → 11.0.22` (root pom
+  `tomcat-version` property) to close 7 Dependabot advisories — 3
+  critical (security-constraint bypass `GHSA-5m62-pw8w-7w9f`,
+  digest-auth bypass `GHSA-h6fc-48rj-7qqh`, HTTP/2 header validation
+  `GHSA-r29c-68gh-xp6x`), 3 high (LockOutRealm case-sensitivity
+  `GHSA-5mp6-jrq3-r938`, WebSocket auth-header exposure
+  `GHSA-fv25-8xcx-gqjc`, WebDAV `LOCK`/`PROPFIND` unbounded read
+  `GHSA-gx5v-xp9w-j4cg`), and 1 low (AJP secret non-constant-time
+  compare `GHSA-9m89-8frq-c98c`). The pin stays scoped to
+  `tomcat-embed-core`; `tomcat-embed-el` and `tomcat-embed-websocket`
+  continue to follow each Spring Boot BOM (3.5.x keeps the 10.1.x
+  line, 4.0.x stays on 11.0.x).
+- Bumped `protobufjs` `7.5.6 → 7.5.8` in
+  `modules/integration-tests/package.json` + lockfile to close
+  `GHSA-jggg-4jg4-v7c6`.
+
 ## [4.0.48] - 2026-05-25
 
 ### Added
