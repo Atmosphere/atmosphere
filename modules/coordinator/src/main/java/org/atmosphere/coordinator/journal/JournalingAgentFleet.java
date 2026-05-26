@@ -148,14 +148,19 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
     public Map<String, AgentResult> parallel(AgentCall... calls) {
         var coordId = coordinationId();
         var start = Instant.now();
-        journal.record(new CoordinationEvent.CoordinationStarted(
-                coordId, coordinatorName, start));
+        var startedId = journal.recordEnveloped(EventEnvelope.root(
+                new CoordinationEvent.CoordinationStarted(
+                        coordId, coordinatorName, start)));
 
+        var dispatchIds = new java.util.ArrayList<String>(calls.length);
         for (var agentCall : calls) {
-            journal.record(new CoordinationEvent.AgentDispatched(
-                    coordId, agentCall.agentName(), agentCall.skill(),
-                    agentCall.args(), Instant.now()));
-            emitCommitmentRecord(coordId, agentCall, "started");
+            var dispatchId = journal.recordEnveloped(EventEnvelope.childOf(
+                    startedId,
+                    new CoordinationEvent.AgentDispatched(
+                            coordId, agentCall.agentName(), agentCall.skill(),
+                            agentCall.args(), Instant.now())));
+            dispatchIds.add(dispatchId);
+            emitCommitmentRecord(coordId, dispatchId, agentCall, "started");
         }
 
         var results = delegate.parallel(calls);
@@ -163,14 +168,18 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
         int idx = 0;
         for (var entry : results.entrySet()) {
             var result = entry.getValue();
-            recordResult(coordId, result);
-            autoEvaluate(coordId, result, idx < calls.length ? calls[idx] : null);
+            var parentDispatchId = idx < dispatchIds.size() ? dispatchIds.get(idx) : startedId;
+            var completedId = recordResult(coordId, parentDispatchId, result);
+            autoEvaluate(coordId, completedId, result,
+                    idx < calls.length ? calls[idx] : null);
             idx++;
         }
 
-        journal.record(new CoordinationEvent.CoordinationCompleted(
-                coordId, Duration.between(start, Instant.now()),
-                calls.length, Instant.now()));
+        journal.recordEnveloped(EventEnvelope.childOf(
+                startedId,
+                new CoordinationEvent.CoordinationCompleted(
+                        coordId, Duration.between(start, Instant.now()),
+                        calls.length, Instant.now())));
 
         return results;
     }
@@ -179,8 +188,9 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
     public AgentResult pipeline(AgentCall... calls) {
         var coordId = coordinationId();
         var start = Instant.now();
-        journal.record(new CoordinationEvent.CoordinationStarted(
-                coordId, coordinatorName, start));
+        var startedId = journal.recordEnveloped(EventEnvelope.root(
+                new CoordinationEvent.CoordinationStarted(
+                        coordId, coordinatorName, start)));
 
         AgentResult last = null;
         for (var agentCall : calls) {
@@ -192,15 +202,17 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
                 args = Map.copyOf(merged);
             }
 
-            journal.record(new CoordinationEvent.AgentDispatched(
-                    coordId, agentCall.agentName(), agentCall.skill(),
-                    args, Instant.now()));
-            emitCommitmentRecord(coordId, agentCall, "started");
+            var dispatchId = journal.recordEnveloped(EventEnvelope.childOf(
+                    startedId,
+                    new CoordinationEvent.AgentDispatched(
+                            coordId, agentCall.agentName(), agentCall.skill(),
+                            args, Instant.now())));
+            emitCommitmentRecord(coordId, dispatchId, agentCall, "started");
 
             var proxy = delegate.agent(agentCall.agentName());
             last = proxy.call(agentCall.skill(), args);
-            recordResult(coordId, last);
-            autoEvaluate(coordId, last, agentCall);
+            var completedId = recordResult(coordId, dispatchId, last);
+            autoEvaluate(coordId, completedId, last, agentCall);
 
             if (!last.success()) {
                 break;
@@ -210,9 +222,11 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
         var completedCount = last != null
                 ? (int) results(calls, last)
                 : 0;
-        journal.record(new CoordinationEvent.CoordinationCompleted(
-                coordId, Duration.between(start, Instant.now()),
-                completedCount, Instant.now()));
+        journal.recordEnveloped(EventEnvelope.childOf(
+                startedId,
+                new CoordinationEvent.CoordinationCompleted(
+                        coordId, Duration.between(start, Instant.now()),
+                        completedCount, Instant.now())));
 
         return last;
     }
@@ -224,13 +238,16 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
         spec.accept(routing);
         var outcome = routing.evaluate(input, this);
 
-        journal.record(new CoordinationEvent.RouteEvaluated(
-                coordId,
-                input.agentName(),
-                outcome.matchedIndex(),
-                outcome.result().agentName(),
-                outcome.matched(),
-                Instant.now()));
+        // route() is a standalone decision — no surrounding CoordinationStarted,
+        // so the RouteEvaluated envelope is itself a root in the causal DAG.
+        journal.recordEnveloped(EventEnvelope.root(
+                new CoordinationEvent.RouteEvaluated(
+                        coordId,
+                        input.agentName(),
+                        outcome.matchedIndex(),
+                        outcome.result().agentName(),
+                        outcome.matched(),
+                        Instant.now())));
 
         return outcome.result();
     }
@@ -279,7 +296,8 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
      * HSM-backed signer with higher latency should wrap via a custom
      * async {@link CommitmentSigner}.
      */
-    private void emitCommitmentRecord(String coordId, AgentCall call, String outcome) {
+    private void emitCommitmentRecord(String coordId, String parentDispatchId,
+                                      AgentCall call, String outcome) {
         // Flag-off default: even when a signer is wired, emission is gated
         // on the runtime flag so operators explicitly opt into the
         // @Experimental schema.
@@ -311,8 +329,10 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
                     unsigned.scope(), unsigned.delegationChain(),
                     unsigned.issuedAt(), unsigned.expiresAt(), unsigned.outcome(),
                     unsigned.properties(), proof);
-            journal.record(new CoordinationEvent.CommitmentRecorded(
-                    coordId, signed, Instant.now()));
+            journal.recordEnveloped(EventEnvelope.childOf(
+                    parentDispatchId,
+                    new CoordinationEvent.CommitmentRecorded(
+                            coordId, signed, Instant.now())));
         } catch (RuntimeException e) {
             logger.warn("Commitment-record emission failed for dispatch {}/{}: {} — "
                     + "skipping (signing is best-effort, does not block dispatch)",
@@ -320,19 +340,21 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
         }
     }
 
-    private void recordResult(String coordId, AgentResult result) {
-        if (result.success()) {
-            journal.record(new CoordinationEvent.AgentCompleted(
-                    coordId, result.agentName(), result.skillId(),
-                    result.text(), result.duration(), Instant.now()));
-        } else {
-            journal.record(new CoordinationEvent.AgentFailed(
-                    coordId, result.agentName(), result.skillId(),
-                    result.text(), result.duration(), Instant.now()));
-        }
+    private String recordResult(String coordId, String parentDispatchId, AgentResult result) {
+        var envelope = EventEnvelope.childOf(
+                parentDispatchId,
+                result.success()
+                        ? new CoordinationEvent.AgentCompleted(
+                                coordId, result.agentName(), result.skillId(),
+                                result.text(), result.duration(), Instant.now())
+                        : new CoordinationEvent.AgentFailed(
+                                coordId, result.agentName(), result.skillId(),
+                                result.text(), result.duration(), Instant.now()));
+        return journal.recordEnveloped(envelope);
     }
 
-    private void autoEvaluate(String coordId, AgentResult result, AgentCall call) {
+    private void autoEvaluate(String coordId, String parentCompletedId,
+                              AgentResult result, AgentCall call) {
         if (!result.success() || call == null) {
             return;
         }
@@ -343,10 +365,12 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
                 for (var eval : evaluations) {
                     var evalName = eval.metadata().getOrDefault("evaluator",
                             "auto").toString();
-                    journal.record(new CoordinationEvent.AgentEvaluated(
-                            coordId, result.agentName(), evalName,
-                            eval.score(), eval.passed(), eval.reason(),
-                            Instant.now()));
+                    journal.recordEnveloped(EventEnvelope.childOf(
+                            parentCompletedId,
+                            new CoordinationEvent.AgentEvaluated(
+                                    coordId, result.agentName(), evalName,
+                                    eval.score(), eval.passed(), eval.reason(),
+                                    Instant.now())));
                     emitEvalActivity(result.agentName(), evalName, eval);
                 }
             } catch (Exception e) {
@@ -425,12 +449,15 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
 
         @Override
         public AgentResult call(String skill, Map<String, Object> args) {
-            journal.record(new CoordinationEvent.AgentDispatched(
-                    coordId, delegate.name(), skill, args, Instant.now()));
+            // No surrounding CoordinationStarted on the proxy path — each
+            // dispatch is itself a root in the causal DAG.
+            var dispatchId = journal.recordEnveloped(EventEnvelope.root(
+                    new CoordinationEvent.AgentDispatched(
+                            coordId, delegate.name(), skill, args, Instant.now())));
 
             var result = delegate.call(skill, args);
-            recordResult(coordId, result);
-            autoEvaluate(coordId, result,
+            var completedId = recordResult(coordId, dispatchId, result);
+            autoEvaluate(coordId, completedId, result,
                     new org.atmosphere.coordinator.fleet.AgentCall(
                             delegate.name(), skill, args));
             return result;
@@ -439,17 +466,21 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
         @Override
         public CompletableFuture<AgentResult> callAsync(String skill,
                                                          Map<String, Object> args) {
-            journal.record(new CoordinationEvent.AgentDispatched(
-                    coordId, delegate.name(), skill, args, Instant.now()));
+            var dispatchId = journal.recordEnveloped(EventEnvelope.root(
+                    new CoordinationEvent.AgentDispatched(
+                            coordId, delegate.name(), skill, args, Instant.now())));
 
             return delegate.callAsync(skill, args)
                     .whenComplete((result, error) -> {
                         if (result != null) {
-                            recordResult(coordId, result);
+                            recordResult(coordId, dispatchId, result);
                         } else if (error != null) {
-                            journal.record(new CoordinationEvent.AgentFailed(
-                                    coordId, delegate.name(), skill,
-                                    error.getMessage(), Duration.ZERO, Instant.now()));
+                            journal.recordEnveloped(EventEnvelope.childOf(
+                                    dispatchId,
+                                    new CoordinationEvent.AgentFailed(
+                                            coordId, delegate.name(), skill,
+                                            error.getMessage(), Duration.ZERO,
+                                            Instant.now())));
                         }
                     });
         }
@@ -457,14 +488,18 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
         @Override
         public void stream(String skill, Map<String, Object> args,
                            Consumer<String> onToken, Runnable onComplete) {
-            journal.record(new CoordinationEvent.AgentDispatched(
-                    coordId, delegate.name(), skill, args, Instant.now()));
+            var dispatchId = journal.recordEnveloped(EventEnvelope.root(
+                    new CoordinationEvent.AgentDispatched(
+                            coordId, delegate.name(), skill, args, Instant.now())));
 
             var start = Instant.now();
             delegate.stream(skill, args, onToken, () -> {
-                journal.record(new CoordinationEvent.AgentCompleted(
-                        coordId, delegate.name(), skill, "(streamed)",
-                        Duration.between(start, Instant.now()), Instant.now()));
+                journal.recordEnveloped(EventEnvelope.childOf(
+                        dispatchId,
+                        new CoordinationEvent.AgentCompleted(
+                                coordId, delegate.name(), skill, "(streamed)",
+                                Duration.between(start, Instant.now()),
+                                Instant.now())));
                 onComplete.run();
             });
         }

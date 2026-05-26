@@ -36,8 +36,35 @@ public interface CoordinationJournal {
     /** Record a coordination event. Inspectors are consulted before storage. */
     void record(CoordinationEvent event);
 
+    /**
+     * Lineage-aware variant of {@link #record(CoordinationEvent)}: stores the
+     * envelope (with its {@code eventId}/{@code parentEventId}) so consumers
+     * can later reconstruct a causal DAG via {@link #retrieveEnveloped(String)}.
+     * The default implementation drops the envelope identity and falls back to
+     * {@link #record(CoordinationEvent)} — implementations that want real
+     * lineage support (e.g. {@code InMemoryCoordinationJournal}) override.
+     *
+     * @return the {@code eventId} of the recorded envelope
+     */
+    default String recordEnveloped(EventEnvelope envelope) {
+        record(envelope.event());
+        return envelope.eventId();
+    }
+
     /** Retrieve all events for a specific coordination. */
     List<CoordinationEvent> retrieve(String coordinationId);
+
+    /**
+     * Lineage-aware variant of {@link #retrieve(String)}: returns envelopes
+     * preserving each event's identity and parent link. The default
+     * implementation wraps each event in a fresh root envelope (lineage
+     * unknown) — implementations that store envelopes natively override.
+     */
+    default List<EventEnvelope> retrieveEnveloped(String coordinationId) {
+        return retrieve(coordinationId).stream()
+                .map(EventEnvelope::ofUnknownLineage)
+                .toList();
+    }
 
     /** Query events matching the given filter. */
     List<CoordinationEvent> query(CoordinationQuery query);
@@ -79,7 +106,17 @@ final class NoopCoordinationJournal implements CoordinationJournal {
     public void record(CoordinationEvent event) {}
 
     @Override
+    public String recordEnveloped(EventEnvelope envelope) {
+        return envelope.eventId();
+    }
+
+    @Override
     public List<CoordinationEvent> retrieve(String coordinationId) {
+        return List.of();
+    }
+
+    @Override
+    public List<EventEnvelope> retrieveEnveloped(String coordinationId) {
         return List.of();
     }
 

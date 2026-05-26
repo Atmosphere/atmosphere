@@ -25,6 +25,11 @@ import java.util.stream.Stream;
  * In-memory {@link CoordinationJournal} implementation. Thread-safe via
  * {@link ConcurrentHashMap} and {@link CopyOnWriteArrayList}.
  *
+ * <p>Stores {@link EventEnvelope} natively so {@link #retrieveEnveloped(String)}
+ * preserves causal lineage. Legacy {@link #record(CoordinationEvent)} callers
+ * are wrapped as root envelopes with no parent link, matching the contract
+ * documented on {@link CoordinationJournal#recordEnveloped(EventEnvelope)}.</p>
+ *
  * <p>Enforces a maximum number of coordinations to prevent unbounded memory
  * growth. When the limit is exceeded, the oldest coordinations are evicted.</p>
  */
@@ -33,7 +38,7 @@ public final class InMemoryCoordinationJournal implements CoordinationJournal {
     private static final int DEFAULT_MAX_COORDINATIONS = 10_000;
 
     private final int maxCoordinations;
-    private final ConcurrentHashMap<String, CopyOnWriteArrayList<CoordinationEvent>> store =
+    private final ConcurrentHashMap<String, CopyOnWriteArrayList<EventEnvelope>> store =
             new ConcurrentHashMap<>();
     private final ConcurrentLinkedDeque<String> insertionOrder = new ConcurrentLinkedDeque<>();
     private final CopyOnWriteArrayList<CoordinationJournalInspector> inspectors =
@@ -61,16 +66,23 @@ public final class InMemoryCoordinationJournal implements CoordinationJournal {
 
     @Override
     public void record(CoordinationEvent event) {
+        recordEnveloped(EventEnvelope.root(event));
+    }
+
+    @Override
+    public String recordEnveloped(EventEnvelope envelope) {
+        var event = envelope.event();
         for (var inspector : inspectors) {
             if (!inspector.shouldRecord(event)) {
-                return;
+                return envelope.eventId();
             }
         }
         store.computeIfAbsent(event.coordinationId(), k -> {
             insertionOrder.addLast(k);
             return new CopyOnWriteArrayList<>();
-        }).add(event);
+        }).add(envelope);
         evictIfNeeded();
+        return envelope.eventId();
     }
 
     private void evictIfNeeded() {
@@ -86,35 +98,46 @@ public final class InMemoryCoordinationJournal implements CoordinationJournal {
 
     @Override
     public List<CoordinationEvent> retrieve(String coordinationId) {
-        var events = store.get(coordinationId);
-        return events != null ? List.copyOf(events) : List.of();
+        var envelopes = store.get(coordinationId);
+        if (envelopes == null) {
+            return List.of();
+        }
+        return envelopes.stream().map(EventEnvelope::event).toList();
+    }
+
+    @Override
+    public List<EventEnvelope> retrieveEnveloped(String coordinationId) {
+        var envelopes = store.get(coordinationId);
+        return envelopes != null ? List.copyOf(envelopes) : List.of();
     }
 
     @Override
     public List<CoordinationEvent> query(CoordinationQuery query) {
-        Stream<CoordinationEvent> stream;
+        Stream<EventEnvelope> stream;
 
         if (query.coordinationId() != null) {
-            var events = store.get(query.coordinationId());
-            stream = events != null ? events.stream() : Stream.empty();
+            var envelopes = store.get(query.coordinationId());
+            stream = envelopes != null ? envelopes.stream() : Stream.empty();
         } else {
             stream = store.values().stream().flatMap(List::stream);
         }
 
+        var events = stream.map(EventEnvelope::event);
+
         if (query.agentName() != null) {
-            stream = stream.filter(e -> matchesAgent(e, query.agentName()));
+            events = events.filter(e -> matchesAgent(e, query.agentName()));
         }
         if (query.since() != null) {
-            stream = stream.filter(e -> !e.timestamp().isBefore(query.since()));
+            events = events.filter(e -> !e.timestamp().isBefore(query.since()));
         }
         if (query.until() != null) {
-            stream = stream.filter(e -> !e.timestamp().isAfter(query.until()));
+            events = events.filter(e -> !e.timestamp().isAfter(query.until()));
         }
         if (query.limit() > 0) {
-            stream = stream.limit(query.limit());
+            events = events.limit(query.limit());
         }
 
-        return stream.toList();
+        return events.toList();
     }
 
     @Override
