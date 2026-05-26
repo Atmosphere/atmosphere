@@ -55,6 +55,13 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
     private final AgentFleet delegate;
     private final CoordinationJournal journal;
     private final String coordinatorName;
+    /**
+     * Optional explicit coordination id. When non-null, overrides the default
+     * derived from {@link #coordinatorName}. Used by {@code CoordinationFork}
+     * to scope a re-execution under a fresh (forked) coordination id without
+     * mutating the original coordinator's identity.
+     */
+    private final String coordinationIdOverride;
     // Single-threaded: serialize eval calls to avoid rate-limiting LLM APIs
     private final ExecutorService evalExecutor;
     private final boolean ownsExecutor;
@@ -75,17 +82,32 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
         this(delegate, journal, coordinatorName,
                 Executors.newSingleThreadExecutor(
                         Thread.ofVirtual().name("eval-", 0).factory()),
-                true);
+                true, null);
     }
 
     private JournalingAgentFleet(AgentFleet delegate, CoordinationJournal journal,
                                  String coordinatorName, ExecutorService evalExecutor,
-                                 boolean ownsExecutor) {
+                                 boolean ownsExecutor, String coordinationIdOverride) {
         this.delegate = delegate;
         this.journal = journal;
         this.coordinatorName = coordinatorName;
         this.evalExecutor = evalExecutor;
         this.ownsExecutor = ownsExecutor;
+        this.coordinationIdOverride = coordinationIdOverride;
+    }
+
+    /**
+     * Returns a fleet decorator that records under an explicit coordination id
+     * rather than the coordinator-name-derived default. Shares the executor
+     * (does not own it) so the caller's lifecycle stays unaffected.
+     *
+     * <p>Used by {@link CoordinationFork} to re-execute a forked branch under
+     * a fresh coordination id, but exposed publicly so any caller needing to
+     * pin journal output to a known coordination id can use it.</p>
+     */
+    public JournalingAgentFleet withCoordinationId(String coordinationId) {
+        return new JournalingAgentFleet(delegate, journal, coordinatorName,
+                evalExecutor, false, coordinationId);
     }
 
     /**
@@ -267,7 +289,7 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
         // Share the parent's executor — don't create a new one per session
         return new JournalingAgentFleet(
                 delegate.withActivityListener(listener), journal, coordinatorName,
-                evalExecutor, false);
+                evalExecutor, false, coordinationIdOverride);
     }
 
     /**
@@ -277,6 +299,11 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
      * requests (Correctness Invariant #2 — terminal paths must reset state).
      */
     private String coordinationId() {
+        // Explicit override (forked sub-coordination) wins over the default
+        // coordinator-name-derived id.
+        if (coordinationIdOverride != null && !coordinationIdOverride.isEmpty()) {
+            return coordinationIdOverride;
+        }
         // Use the @Coordinator(name="...") value as the canonical
         // coordination id so REST/journal consumers can filter by the
         // logical coordinator name (e.g. `?coordination=dispatch`).

@@ -162,6 +162,7 @@ public final class InMemoryCoordinationJournal implements CoordinationJournal {
                     agentName.equals(e.record().subject());
             case CoordinationEvent.CoordinationStarted ignored -> false;
             case CoordinationEvent.CoordinationCompleted ignored -> false;
+            case CoordinationEvent.ForkCreated ignored -> false;
         };
     }
 }

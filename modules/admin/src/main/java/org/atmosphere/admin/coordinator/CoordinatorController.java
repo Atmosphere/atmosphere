@@ -224,6 +224,13 @@ public final class CoordinatorController {
                 info.put("signatureKeyId", e.record().proof().keyId());
                 info.put("signed", e.record().isSigned());
             }
+            case CoordinationEvent.ForkCreated e -> {
+                info.put("parentCoordinationId", e.parentCoordinationId());
+                info.put("parentEventId", e.parentEventId());
+                if (e.reason() != null) {
+                    info.put("reason", e.reason());
+                }
+            }
         }
         return info;
     }

@@ -97,6 +97,12 @@ public interface JournalFormat {
                                     e.record().outcome() + " (" + e.record().proof().scheme()
                                             + " keyId=" + e.record().proof().keyId() + ")",
                                     "\u2014");
+                    case CoordinationEvent.ForkCreated e ->
+                            row(sb, "FORK", "\u2014",
+                                    "from " + e.parentCoordinationId() + "@" + e.parentEventId()
+                                            + (e.reason() != null && !e.reason().isEmpty()
+                                                    ? " (" + e.reason() + ")" : ""),
+                                    "\u2014");
                 }
             }
             return sb.toString();

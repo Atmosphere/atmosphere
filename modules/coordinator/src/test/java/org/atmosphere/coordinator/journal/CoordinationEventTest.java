@@ -104,6 +104,7 @@ class CoordinationEventTest {
             case CoordinationEvent.CircuitStateChanged ignored -> false;
             case CoordinationEvent.CommitmentRecorded ignored -> false;
             case CoordinationEvent.CoordinationCompleted ignored -> false;
+            case CoordinationEvent.ForkCreated ignored -> false;
         };
         assertTrue(matched);
     }

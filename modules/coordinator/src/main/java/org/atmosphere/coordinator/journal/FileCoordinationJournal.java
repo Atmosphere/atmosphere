@@ -218,7 +218,8 @@ public final class FileCoordinationJournal implements CoordinationJournal {
             @JsonSubTypes.Type(value = CoordinationEvent.CoordinationCompleted.class, name = "CoordinationCompleted"),
             @JsonSubTypes.Type(value = CoordinationEvent.AgentActivityChanged.class, name = "AgentActivityChanged"),
             @JsonSubTypes.Type(value = CoordinationEvent.CircuitStateChanged.class, name = "CircuitStateChanged"),
-            @JsonSubTypes.Type(value = CoordinationEvent.CommitmentRecorded.class, name = "CommitmentRecorded")
+            @JsonSubTypes.Type(value = CoordinationEvent.CommitmentRecorded.class, name = "CommitmentRecorded"),
+            @JsonSubTypes.Type(value = CoordinationEvent.ForkCreated.class, name = "ForkCreated")
     })
     private abstract static class CoordinationEventMixIn {
     }

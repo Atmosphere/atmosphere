@@ -158,6 +158,7 @@ public final class CoordinationProjection {
             case CoordinationEvent.CommitmentRecorded e -> e.record().subject();
             case CoordinationEvent.CoordinationStarted ignored -> null;
             case CoordinationEvent.CoordinationCompleted ignored -> null;
+            case CoordinationEvent.ForkCreated ignored -> null;
         };
     }
 

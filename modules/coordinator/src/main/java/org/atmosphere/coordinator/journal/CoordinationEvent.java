@@ -208,4 +208,25 @@ public sealed interface CoordinationEvent {
                     + ")";
         }
     }
+
+    /**
+     * A new coordination forked off an existing one at a specific event.
+     * {@link #parentCoordinationId} and {@link #parentEventId} identify the
+     * branch point; {@link #coordinationId} is the new (forked) coordination.
+     * Emitted by {@code CoordinationFork} when a what-if branch is created
+     * from a prior decision point.
+     */
+    record ForkCreated(
+            String coordinationId,
+            String parentCoordinationId,
+            String parentEventId,
+            String reason,
+            Instant timestamp
+    ) implements CoordinationEvent {
+        @Override
+        public String toLogLine() {
+            return "FORK  from " + parentCoordinationId + "@" + parentEventId
+                    + (reason != null && !reason.isEmpty() ? " (" + reason + ")" : "");
+        }
+    }
 }
