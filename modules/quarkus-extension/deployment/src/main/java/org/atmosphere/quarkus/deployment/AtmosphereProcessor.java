@@ -393,11 +393,6 @@ class AtmosphereProcessor {
     }
 
     /**
-     * Registers admin control plane classes for reflection and CDI discovery
-     * when {@code atmosphere-admin} is on the classpath.
-     */
-
-    /**
      * Registers {@code BoundedMemoryCache} and {@code MessageAckInterceptor}
      * for GraalVM reflection when {@code quarkus.atmosphere.cache-enabled=true}.
      * The servlet wiring (see {@link #registerServlet}) sets the {@code broadcasterCacheClass}
