@@ -1290,6 +1290,6 @@
              spring-ai-alibaba 1.1.2.2 is source-compatible with the 1.1.x
              Spring AI line since both share the same 1.1.x ABI. -->
         <spring-ai-alibaba-spring-ai.version>1.1.6</spring-ai-alibaba-spring-ai.version>
-        <langchain4j.version>1.14.0</langchain4j.version>
+        <langchain4j.version>1.15.0</langchain4j.version>
     </properties>
 </project>
