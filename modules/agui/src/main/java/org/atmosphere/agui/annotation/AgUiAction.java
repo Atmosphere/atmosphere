@@ -21,9 +21,16 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a method as the AG-UI action handler within an {@link AgUiEndpoint}-annotated
- * class. The method receives a {@link org.atmosphere.agui.runtime.RunContext} and an
- * {@link org.atmosphere.agui.runtime.AgUiStreamingSession} to produce AG-UI events.
+ * Marks a method as an AG-UI action handler bound through {@link
+ * org.atmosphere.agui.runtime.AgUiHandler}. The method receives a {@link
+ * org.atmosphere.agui.runtime.RunContext} and an {@link
+ * org.atmosphere.agui.runtime.AgUiStreamingSession} to produce AG-UI events.
+ *
+ * <p>The everyday wiring path is automatic: an {@code @Agent} class with a
+ * {@code @Prompt} method is auto-bridged into AG-UI without needing this
+ * annotation. {@code @AgUiAction} is the explicit hook used when a handler
+ * needs direct access to the {@code RunContext} instead of going through the
+ * default {@code @Prompt} bridge.</p>
  *
  * <p>Expected signature:</p>
  * <pre>{@code

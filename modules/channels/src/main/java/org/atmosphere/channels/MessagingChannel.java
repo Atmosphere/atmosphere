@@ -21,9 +21,9 @@ import java.util.Map;
 /**
  * Unified messaging channel interface for external chat platforms.
  * <p>
- * Each channel adapter (Telegram, Slack, Discord, WhatsApp) implements this
- * to provide webhook verification, inbound message parsing, and outbound
- * message delivery with platform-specific formatting.
+ * Each channel adapter (Telegram, Slack, Discord, WhatsApp, Messenger)
+ * implements this to provide webhook verification, inbound message parsing,
+ * and outbound message delivery with platform-specific formatting.
  * <p>
  * Inspired by <a href="https://github.com/dravr-ai/dravr-canot">Canot</a>'s
  * {@code MessagingChannel} trait.
