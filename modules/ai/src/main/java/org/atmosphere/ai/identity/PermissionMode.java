@@ -42,9 +42,16 @@ public enum PermissionMode {
     PLAN,
 
     /**
-     * Auto-approve edit-shaped tools (file writes, patches, edits) but
-     * still prompt for sensitive operations (shell, network, deletions).
-     * Matches Claude Code's {@code acceptEdits}.
+     * Intended posture: auto-approve edit-shaped tools (file writes, patches,
+     * edits) while still prompting for sensitive operations (shell, network,
+     * deletions), matching Claude Code's {@code acceptEdits}.
+     *
+     * <p><strong>Current behaviour:</strong> identical to {@link #DEFAULT}
+     * (per-tool {@code @RequiresApproval} routing) — see
+     * {@code ToolExecutionHelper.executeAll}. Until structured tool-kind tags
+     * ship, the outer gate intentionally does not silently widen the attack
+     * surface; auto-approval kicks in once edit-shaped tools can be identified
+     * by metadata rather than by trusting caller-declared intent.</p>
      */
     ACCEPT_EDITS,
 

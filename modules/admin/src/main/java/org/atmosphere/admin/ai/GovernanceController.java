@@ -37,15 +37,21 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Read-only admin introspection for the Atmosphere governance policy plane.
- * Enumerates policies currently installed on the framework via
- * {@link GovernancePolicy#POLICIES_PROPERTY} and reports their identity so
- * operators can answer "which policies are active on this deployment?" from
- * the admin console without reaching into framework internals.
+ * Admin-plane controller for the Atmosphere governance policy stack. Mixed
+ * read + mutating surface: most endpoints enumerate policies currently
+ * installed on the framework via {@link GovernancePolicy#POLICIES_PROPERTY}
+ * so operators can answer "which policies are active on this deployment?"
+ * without reaching into framework internals; the
+ * {@link #armKillSwitch(String, String)} / {@link #disarmKillSwitch()} /
+ * {@link #reloadSwappable(String, String)} methods change runtime state
+ * and are guarded at the HTTP layer by the admin module's authentication
+ * chain (Correctness Invariant #6, Security — every mutating surface
+ * requires explicit authorization).
  *
  * <p>Reports runtime-confirmed state only (Correctness Invariant #5, Runtime
- * Truth): the list reflects what {@code AiEndpointProcessor} will actually
- * apply on a turn, not what the YAML file or Spring beans might intend.</p>
+ * Truth): the policy list reflects what {@code AiEndpointProcessor} will
+ * actually apply on a turn, not what the YAML file or Spring beans might
+ * intend.</p>
  */
 public final class GovernanceController {
 
@@ -317,7 +323,7 @@ public final class GovernanceController {
      *   "findings": [
      *     {
      *       "framework": "OWASP_AGENTIC_TOP_10",
-     *       "controlId": "AG-1",
+     *       "controlId": "A01",
      *       "title": "Goal Hijacking",
      *       "status": "COVERED",
      *       "evidence": [

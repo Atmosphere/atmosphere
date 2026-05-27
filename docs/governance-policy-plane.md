@@ -84,21 +84,35 @@ Implementations must be thread-safe, side-effect-free (except for metrics/loggin
 
 ### `PolicyParser` SPI
 
-`org.atmosphere.ai.governance.PolicyParser` — parse a declarative artifact into `List<GovernancePolicy>`. Discovered via `java.util.ServiceLoader`. One implementation ships in-tree:
+`org.atmosphere.ai.governance.PolicyParser` — parse a declarative artifact into `List<GovernancePolicy>`. The SPI contract supports `java.util.ServiceLoader` discovery; three implementations ship in-tree:
 
-- **`YamlPolicyParser`** (`format() = "yaml"`) — SnakeYAML `SafeConstructor` (no arbitrary class instantiation). Auto-detects Atmosphere-native vs Microsoft Agent Governance Toolkit schema by inspecting the root keys.
+- **`YamlPolicyParser`** (`format() = "yaml"`, `modules/ai`) — SnakeYAML `SafeConstructor` (no arbitrary class instantiation). Auto-detects Atmosphere-native vs Microsoft Agent Governance Toolkit schema by inspecting the root keys. Registered via `META-INF/services/org.atmosphere.ai.governance.PolicyParser`, so adding `atmosphere-ai` to the classpath is enough to wire it up.
+- **`RegoPolicyParser`** (`modules/ai-policy-rego`) — wraps an external OPA process via `RegoEvaluator`. **Wired programmatically**: instantiate with `new RegoPolicyParser(registry)` and pass it where you'd otherwise consume a `YamlPolicyParser`. No `META-INF/services` entry ships today, so adding the dependency alone does not auto-discover it.
+- **`CedarPolicyParser`** (`modules/ai-policy-cedar`) — Cedar policy text via `CedarAuthorizer` / `CedarCliAuthorizer`. Same posture as Rego: programmatic wiring, no `META-INF/services` entry.
 
-Additional parsers (Rego, Cedar, etc.) plug in by shipping a `PolicyParser` implementation plus a `META-INF/services/org.atmosphere.ai.governance.PolicyParser` entry.
+Third-party parsers can register either path. ServiceLoader auto-discovery is the SPI-level recipe (ship a `PolicyParser` impl plus a `META-INF/services/org.atmosphere.ai.governance.PolicyParser` entry); programmatic wiring is the recipe the in-tree Rego/Cedar adapters use today.
+
+The audit-sink family follows the same posture: `AsyncAuditSink` ships in `modules/ai`; `KafkaAuditSink` (`modules/ai-audit-kafka`) and `JdbcAuditSink` (`modules/ai-audit-postgres`) are wired programmatically as well — no `META-INF/services` entries.
 
 ### `PolicyRegistry` and built-in types
 
-`org.atmosphere.ai.governance.PolicyRegistry` maps YAML `type:` names to factory functions. Three built-in types ship:
+`org.atmosphere.ai.governance.PolicyRegistry` maps YAML `type:` names to factory functions. Eleven built-in types ship (`PolicyRegistry.java:80-91`):
 
-| `type:` | Wraps | Config keys |
+| `type:` | Wraps / produces | Required config keys |
 |---|---|---|
-| `pii-redaction` | `PiiRedactionGuardrail` | `mode: redact \| block` |
+| `pii-redaction` | `PiiRedactionGuardrail` | `mode: redact \| block` (default `redact`) |
 | `cost-ceiling` | `CostCeilingGuardrail` | `budget-usd: <number>` |
 | `output-length-zscore` | `OutputLengthZScoreGuardrail` | `window-size`, `z-threshold`, `min-samples` |
+| `deny-list` | `DenyListPolicy` | at least one of `phrases: [...]`, `regex: [...]` |
+| `allow-list` | `AllowListPolicy` | at least one of `phrases: [...]`, `regex: [...]` |
+| `message-length` | `MessageLengthPolicy` | `max-chars: <positive int>` |
+| `rate-limit` | `RateLimitPolicy` | `limit: <positive int>`, `window-seconds: <positive int>` |
+| `concurrency-limit` | `ConcurrencyLimitPolicy` | `max-concurrent: <positive int>` |
+| `time-window` | `TimeWindowPolicy` | `start`, `end` (HH:mm), `zone`, `days: [MONDAY, ...]` (defaults Mon–Fri UTC 09:00–17:00) |
+| `metadata-presence` | `MetadataPresencePolicy` | `required-keys: [...]` |
+| `authorization` | `AuthorizationPolicy` | `required-roles: [...]` |
+
+Unknown `type:` names fail-closed at parse time with `IllegalArgumentException` — silent drops are not an option.
 
 Register a custom type in code:
 
@@ -108,6 +122,30 @@ registry.register("my-domain-policy", descriptor ->
         new MyDomainPolicy(descriptor.name(), descriptor.source(),
                 descriptor.version(), descriptor.config()));
 var parser = new YamlPolicyParser(registry);
+```
+
+### `PolicyRing` — concentric-ring composition
+
+`org.atmosphere.ai.governance.PolicyRing` composes a list of policies into evaluation rings, cheapest first, short-circuiting on the first terminal decision. Purpose-built for stacks where a rule-based scope check can reject the bulk of traffic in sub-millisecond time before paying for a 100–500 ms LLM-classifier tier.
+
+Evaluation order (lower ring index = evaluated first):
+
+1. **Ring 1 (outermost / cheapest)** — rule-based, regex, keyword
+2. **Ring 2** — embedding-similarity, hash lookups, cached classifiers
+3. **Ring 3 (innermost / most expensive)** — LLM-classifier, remote RAG scans
+
+Ring indices are operator-defined integers; within a ring, policies evaluate in insertion order. A `PolicyDecision.Deny` from any ring terminates evaluation; a `PolicyDecision.Transform` rewrites the request and the next ring sees the rewritten form; `PolicyDecision.Admit` moves on.
+
+Error isolation is fail-closed by default: a policy that throws is treated as a `Deny` (same semantics as the `AiPipeline`'s per-policy error handling). Operators who want "log and continue" wrap the errant policy in `DryRunPolicy` first.
+
+```java
+var ring = PolicyRing.builder("layered-defence")
+        .source("inline")
+        .version("1.0.0")
+        .ring(1, denyListPolicy, allowListPolicy)               // rule-based
+        .ring(2, embeddingSimilarityPolicy)                     // similarity
+        .ring(3, llmClassifierPolicy)                           // LLM tier
+        .build();
 ```
 
 ### `PolicyAdmissionGate`
