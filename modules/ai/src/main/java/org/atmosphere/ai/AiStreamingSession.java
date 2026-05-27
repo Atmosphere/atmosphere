@@ -45,7 +45,10 @@ import java.util.concurrent.atomic.AtomicReference;
  *   <li>Builds an {@link AiRequest} from the message + stored system prompt + model + history</li>
  *   <li>Runs {@link AiInterceptor#preProcess} in FIFO order</li>
  *   <li>Wraps the delegate in a {@link MemoryCapturingSession} to capture the response</li>
- *   <li>Delegates to {@link AgentRuntime#stream(AiRequest, StreamingSession)}</li>
+ *   <li>Wraps the {@link AiRequest} in an {@link AgentExecutionContext} and delegates to
+ *       {@link AgentRuntime#executeWithHandle(AgentExecutionContext, StreamingSession)},
+ *       retaining the returned {@link ExecutionHandle} so a client disconnect can cancel
+ *       the in-flight upstream call</li>
  *   <li>Runs {@link AiInterceptor#postProcess} in LIFO order</li>
  * </ol>
  */
