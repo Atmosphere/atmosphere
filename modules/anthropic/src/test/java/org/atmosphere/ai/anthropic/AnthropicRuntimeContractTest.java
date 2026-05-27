@@ -25,10 +25,12 @@ import java.io.ByteArrayInputStream;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Flow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -91,12 +93,19 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
     protected AgentExecutionContext createErrorContext() {
-        // A second runtime wired to a 500-returning HttpClient drives the
-        // error path; the canned 200/SSE httpClient above can't error on
-        // demand. We override the assertion to construct that runtime
-        // inline rather than threading a per-context HttpClient into the
-        // TCK shape.
-        return null;
+        // The createRuntime() HttpClient mock inspects the outgoing request
+        // body — when it spots CONTRACT_ERROR_SENTINEL it returns a 500
+        // response instead of the canned SSE stream so the runtime's error
+        // path (AnthropicMessagesClient.runRound -> session.error on non-2xx)
+        // actually fires. Carrying the sentinel as the user message wires
+        // the base contract's errorContextTriggersSessionError assertion
+        // without giving up the canned-SSE happy path the other assertions
+        // depend on.
+        return new AgentExecutionContext(
+                CONTRACT_ERROR_SENTINEL, "You are helpful", "claude-opus-4-7",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null);
     }
 
     @Override
@@ -140,15 +149,75 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     private static HttpClient mockHttpClient(int statusCode, String body) {
         try {
             var httpClient = mock(HttpClient.class);
-            var response = mock(HttpResponse.class);
-            when(response.statusCode()).thenReturn(statusCode);
-            when(response.body()).thenReturn(
-                    new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
+            // Per-invocation answer: inspect the outgoing request body for the
+            // contract error sentinel. When present, return a 500 with an
+            // error payload so the runtime's session.error(...) path fires
+            // (errorContextTriggersSessionError). Otherwise return the canned
+            // 200/SSE body the happy-path assertions consume.
             when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                    .thenReturn(response);
+                    .thenAnswer(inv -> {
+                        HttpRequest req = inv.getArgument(0);
+                        var requestBody = readBody(req);
+                        var response = mock(HttpResponse.class);
+                        if (requestBody.contains(CONTRACT_ERROR_SENTINEL)) {
+                            when(response.statusCode()).thenReturn(500);
+                            when(response.body()).thenReturn(new ByteArrayInputStream(
+                                    "{\"error\":\"forced contract error\"}"
+                                            .getBytes(StandardCharsets.UTF_8)));
+                        } else {
+                            when(response.statusCode()).thenReturn(statusCode);
+                            when(response.body()).thenReturn(new ByteArrayInputStream(
+                                    body.getBytes(StandardCharsets.UTF_8)));
+                        }
+                        return response;
+                    });
             return httpClient;
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Subscribe to the request's body publisher and accumulate the bytes into
+     * a UTF-8 string. Mirrors the wire-level boundary inspection the runtime's
+     * actual HttpClient does, so the sentinel detection lives at the same
+     * layer as the production error-routing logic.
+     */
+    private static String readBody(HttpRequest req) {
+        var publisher = req.bodyPublisher().orElse(null);
+        if (publisher == null) {
+            return "";
+        }
+        var collector = new BodyCollector();
+        publisher.subscribe(collector);
+        return collector.toString();
+    }
+
+    private static final class BodyCollector implements Flow.Subscriber<ByteBuffer> {
+        private final java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        @Override
+        public void onSubscribe(Flow.Subscription subscription) {
+            subscription.request(Long.MAX_VALUE);
+        }
+        @Override
+        public void onNext(ByteBuffer item) {
+            var copy = new byte[item.remaining()];
+            item.get(copy);
+            out.write(copy, 0, copy.length);
+        }
+        @Override
+        public void onError(Throwable throwable) {
+            // Body capture is best-effort for contract testing; downstream
+            // sentinel match falls through to the happy path when capture
+            // partially fails — preferable to crashing the test.
+        }
+        @Override
+        public void onComplete() {
+            // No-op — toString() reads whatever has been buffered.
+        }
+        @Override
+        public String toString() {
+            return out.toString(StandardCharsets.UTF_8);
         }
     }
 

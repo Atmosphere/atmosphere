@@ -449,6 +449,89 @@ else
     pass_validation "No empty-body @Override methods masquerading as skipped tests"
 fi
 
+# Detect contract-test skip patterns that hide the errorContextTriggersSessionError
+# assertion behind a silent skip. Two complementary surfaces:
+#   1. createErrorContext() override whose body is `return null` — the base
+#      contract test reads the null and calls Assumptions.assumeTrue(false),
+#      so the runtime claims "error reaches session" parity it never asserts.
+#   2. assumeTrue(false) / assumeFalse(true) used anywhere in a *RuntimeContractTest
+#      file — same silent-skip outcome via a different surface.
+# Allowlist NONE — this is exactly the pattern closed in fix/error-context-skips
+# and the gate must prevent regression. Skipped paths are listed honestly via
+# `@org.junit.jupiter.api.Disabled("reason")` with a tracking comment, not via
+# assumeTrue(false).
+# Only concrete contract-test subclasses are in scope — the abstract base
+# (AbstractAgentRuntimeContractTest) legitimately uses assumeTrue(false) inside
+# the assertion body to fire a structured TestAbortedException when a SUBCLASS
+# fails to override a hook (e.g. createImageContext() returning null). The
+# closure this gate enforces is that no SUBCLASS shadows
+# errorContextTriggersSessionError with a silent skip — which is exactly what
+# "createErrorContext returns null" and "assumeTrue(false) in a subclass"
+# encode.
+CONTRACT_TEST_FILES=$(find modules -path '*/src/test/*RuntimeContractTest*' \
+    \( -name '*.java' -o -name '*.kt' \) 2>/dev/null)
+
+NULL_ERROR_CTX_HITS=""
+ASSUME_FALSE_HITS=""
+
+if [ -n "$CONTRACT_TEST_FILES" ]; then
+    # Pattern A: createErrorContext() override whose body is only `return null`.
+    # Matches both Java (`return null;`) and Kotlin (`= null` or `return null`).
+    NULL_ERROR_CTX_HITS=$(python3 - <<'PYTHON_NULL_CTX'
+import re, pathlib, sys
+
+JAVA_PATTERN = re.compile(
+    r'protected\s+AgentExecutionContext\s+createErrorContext\s*\(\s*\)\s*\{\s*(?://[^\n]*\n\s*)*'
+    r'return\s+null\s*;\s*\}',
+    re.MULTILINE,
+)
+KOTLIN_PATTERN = re.compile(
+    r'override\s+fun\s+createErrorContext\s*\(\s*\)\s*:\s*AgentExecutionContext\??\s*'
+    r'(?:=\s*null|\{\s*(?://[^\n]*\n\s*)*return\s+null\s*\})',
+    re.MULTILINE,
+)
+
+violations = []
+for path in pathlib.Path("modules").rglob("*RuntimeContractTest*"):
+    if not (path.suffix == ".java" or path.suffix == ".kt"):
+        continue
+    # Only concrete contract-test subclasses (under src/test/) are in scope.
+    # The abstract base class under src/main/ legitimately uses assumeTrue(false)
+    # to signal "subclass did not override this hook" — that's the mechanism
+    # this gate exists to prevent subclasses from triggering, not the base.
+    if "/src/test/" not in str(path):
+        continue
+    text = path.read_text(errors="ignore")
+    pattern = KOTLIN_PATTERN if path.suffix == ".kt" else JAVA_PATTERN
+    for m in pattern.finditer(text):
+        line_no = text[:m.start()].count("\n") + 1
+        violations.append(f"{path}:{line_no}: createErrorContext() returns null")
+
+for v in violations:
+    print(v)
+PYTHON_NULL_CTX
+)
+
+    # Pattern B: assumeTrue(false) / assumeFalse(true) anywhere in a contract
+    # test. Both surfaces fire the same silent-skip outcome. Wrap in || true
+    # so rg's empty-match exit code 1 doesn't trip the surrounding set -e.
+    ASSUME_FALSE_HITS=$(rg -n \
+        'assumeTrue\s*\(\s*false\b|assumeFalse\s*\(\s*true\b' \
+        $CONTRACT_TEST_FILES 2>/dev/null || true)
+fi
+
+if [ -n "$NULL_ERROR_CTX_HITS" ] || [ -n "$ASSUME_FALSE_HITS" ]; then
+    fail_validation "Found contract-test skip patterns that silently disable errorContextTriggersSessionError (or sibling parity tests). Wire the runtime's mock to route CONTRACT_ERROR_SENTINEL to session.error(...) instead of returning null / asserting assumeTrue(false)."
+    if [ -n "$NULL_ERROR_CTX_HITS" ]; then
+        echo "$NULL_ERROR_CTX_HITS" | head -10
+    fi
+    if [ -n "$ASSUME_FALSE_HITS" ]; then
+        echo "$ASSUME_FALSE_HITS" | head -10
+    fi
+else
+    pass_validation "No contract-test silent-skip patterns (createErrorContext null / assumeTrue(false))"
+fi
+
 # ============================================================================
 # 5. DEAD CODE PATTERNS
 # ============================================================================
