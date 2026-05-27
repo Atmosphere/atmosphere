@@ -117,6 +117,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bumped `protobufjs` `7.5.6 → 7.5.8` in
   `modules/integration-tests/package.json` + lockfile to close
   `GHSA-jggg-4jg4-v7c6`.
+- Dismissed 3 remaining open Dependabot alerts that have no in-tree
+  fix path. Two `org.json:json` alerts (`GHSA-3vqj-43w4-2q58`,
+  `GHSA-4jq9-2xhw-jpx7`) cited `modules/runtime/pom.xml` — a manifest
+  that no longer exists; `org.json:json` was removed reactor-wide in
+  commit `4f40968d4d` (4.0.42-SNAPSHOT, "drop org.json:json — Jackson
+  3 only"). Dismissed as `not_used`. One `opentelemetry-api` alert
+  (`GHSA-rcgg-9c38-7xpx` / `CVE-2026-45292`, medium DoS via unbounded
+  W3C Baggage Propagation) is blocked upstream: Quarkus 3.35.x and
+  3.36.0 both ship OTel `1.60.1`, and the `samples/quarkus-ai-chat`
+  pin must follow the BOM to keep `quarkus-micrometer-registry-prometheus`
+  working. Dismissed as `tolerable_risk` (sample, baggage propagation
+  not enabled, Vert.x enforces the 8 KiB header limit recommended in
+  the advisory). Re-evaluate when Quarkus's BOM picks up OTel 1.62+.
 
 ## [4.0.48] - 2026-05-25
 

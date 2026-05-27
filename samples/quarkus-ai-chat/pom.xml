@@ -89,16 +89,25 @@
             <!-- atmosphere-runtime resolves opentelemetry-api 1.62.0 via the
                  root POM, but quarkus-micrometer-registry-prometheus' OTel
                  exemplar sampler was compiled against the OTel API 1.60.x
-                 shape Quarkus 3.35.2 ships. The 1.62.0 API jar moved its
-                 internal ApiUsageLogger from io.opentelemetry.api.internal
-                 to io.opentelemetry.common.impl — running the prom exemplar
-                 code against the 1.62.0 API jar paired with the older
-                 opentelemetry-common throws NoClassDefFoundError. Direct
-                 pins on opentelemetry-api / -common keep Maven dependency
-                 resolution from picking the cpr-side 1.62.0 over Quarkus's
-                 1.60.1 baseline (direct dependencyManagement entries beat
-                 BOM-imported ones, which would otherwise lose to a transitive
-                 direct dep at any reasonable depth). -->
+                 shape Quarkus 3.35.x and 3.36.0 both still ship. The 1.62.0
+                 API jar moved its internal ApiUsageLogger from
+                 io.opentelemetry.api.internal to io.opentelemetry.common.impl
+                 — running the prom exemplar code against the 1.62.0 API jar
+                 paired with the older opentelemetry-common throws
+                 NoClassDefFoundError. Direct pins on opentelemetry-api /
+                 -common keep Maven dependency resolution from picking the
+                 cpr-side 1.62.0 over Quarkus's 1.60.1 baseline (direct
+                 dependencyManagement entries beat BOM-imported ones, which
+                 would otherwise lose to a transitive direct dep at any
+                 reasonable depth).
+
+                 GHSA-rcgg-9c38-7xpx / CVE-2026-45292 (medium, unbounded
+                 memory in W3C Baggage Propagation) is fixed in 1.62.0 but
+                 cannot be picked up here until Quarkus's BOM moves off 1.60.1.
+                 Dependabot alert #1146 is dismissed as tolerable_risk
+                 (sample, baggage propagation not enabled, Vert.x enforces
+                 the 8 KiB header limit recommended by the advisory).
+                 Re-evaluate when Quarkus ships OTel 1.62+. -->
             <dependency>
                 <groupId>io.opentelemetry</groupId>
                 <artifactId>opentelemetry-api</artifactId>
