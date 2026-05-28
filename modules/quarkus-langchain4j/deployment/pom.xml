@@ -3,7 +3,7 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-quarkus-langchain4j-parent</artifactId>
-        <version>4.0.49-SNAPSHOT</version>
+        <version>4.0.49</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
