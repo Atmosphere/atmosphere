@@ -205,7 +205,8 @@ public class DefaultToolRegistry implements ToolRegistry {
                 returnType,
                 executor,
                 approvalMessage,
-                approvalTimeout
+                approvalTimeout,
+                annotation.kind()
         );
     }
 

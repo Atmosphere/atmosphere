@@ -42,16 +42,21 @@ public enum PermissionMode {
     PLAN,
 
     /**
-     * Intended posture: auto-approve edit-shaped tools (file writes, patches,
-     * edits) while still prompting for sensitive operations (shell, network,
-     * deletions), matching Claude Code's {@code acceptEdits}.
+     * Auto-approve edit-shaped tools (file writes, patches, edits) while still
+     * prompting for sensitive operations (shell, network, deletions), matching
+     * Claude Code's {@code acceptEdits}.
      *
-     * <p><strong>Current behaviour:</strong> identical to {@link #DEFAULT}
-     * (per-tool {@code @RequiresApproval} routing) — see
-     * {@code ToolExecutionHelper.executeAll}. Until structured tool-kind tags
-     * ship, the outer gate intentionally does not silently widen the attack
-     * surface; auto-approval kicks in once edit-shaped tools can be identified
-     * by metadata rather than by trusting caller-declared intent.</p>
+     * <p><strong>Behaviour:</strong> a tool whose author declared
+     * {@link org.atmosphere.ai.annotation.AiTool#kind()} ==
+     * {@link org.atmosphere.ai.tool.ToolKind#EDIT} has its per-tool
+     * {@code @RequiresApproval} prompt auto-approved; every other tool routes
+     * exactly like {@link #DEFAULT} — see {@code ToolExecutionHelper.executeAll}.
+     * The classification is compile-time author metadata, never the runtime
+     * caller's asserted intent, so the gate does not trust an LLM's per-call
+     * claim. The default tool kind is {@link org.atmosphere.ai.tool.ToolKind#OTHER},
+     * so an untagged tool is never auto-approved, and the relaxation never
+     * overrides an operator-configured {@code ToolPermissionPolicy} DENY/CONFIRM
+     * or a DenyAll policy — it only relaxes the tool's own approval prompt.</p>
      */
     ACCEPT_EDITS,
 

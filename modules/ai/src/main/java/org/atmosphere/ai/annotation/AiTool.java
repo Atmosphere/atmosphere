@@ -21,6 +21,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import org.atmosphere.ai.tool.ToolKind;
+
 /**
  * Marks a method as an AI-callable tool/function. Tools annotated with this
  * are registered globally in the {@link org.atmosphere.ai.tool.ToolRegistry}
@@ -69,4 +71,18 @@ public @interface AiTool {
      * the AI model to help it decide when to call the tool.
      */
     String description();
+
+    /**
+     * The behavioural category of this tool. Lets the outer
+     * {@link org.atmosphere.ai.identity.PermissionMode} make a structured
+     * approval decision — notably
+     * {@link org.atmosphere.ai.identity.PermissionMode#ACCEPT_EDITS}, which
+     * auto-approves {@link ToolKind#EDIT} tools while still prompting for
+     * everything else.
+     *
+     * <p>Defaults to {@link ToolKind#OTHER}: a tool is never auto-approved
+     * unless its author explicitly classifies it, so the default keeps the
+     * approval posture exactly as restrictive as before.</p>
+     */
+    ToolKind kind() default ToolKind.OTHER;
 }

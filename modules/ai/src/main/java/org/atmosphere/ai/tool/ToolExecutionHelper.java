@@ -263,6 +263,7 @@ public final class ToolExecutionHelper {
         // gate below.
         var permissionMode = resolveMode(scope);
         boolean forceApproval = false;
+        boolean acceptEdits = false;
         switch (permissionMode) {
             case DENY_ALL -> {
                 logger.info("Tool {} blocked by AgentIdentity PermissionMode.DENY_ALL", toolName);
@@ -279,11 +280,17 @@ public final class ToolExecutionHelper {
                 // @RequiresApproval — the mode IS the approval gate.
                 forceApproval = true;
             }
-            case ACCEPT_EDITS, DEFAULT -> {
-                // Fall through to per-tool @RequiresApproval. ACCEPT_EDITS is
-                // intended to auto-approve edit-shaped tools — until we have
-                // structured tool-kind tags, behaviour matches DEFAULT so the
-                // outer gate never silently widens the attack surface.
+            case ACCEPT_EDITS -> {
+                // Auto-approve edit-shaped tools (kind == EDIT); every other
+                // tool falls through to the per-tool @RequiresApproval gate,
+                // identical to DEFAULT. The bypass is applied at the approval
+                // gate below so it still honours an explicit ToolPermissionPolicy
+                // DENY/CONFIRM and a DenyAll policy — ACCEPT_EDITS relaxes a
+                // tool's own approval prompt, never an operator-configured deny.
+                acceptEdits = true;
+            }
+            case DEFAULT -> {
+                // Fall through to per-tool @RequiresApproval.
             }
         }
 
@@ -309,8 +316,20 @@ public final class ToolExecutionHelper {
             }
         }
 
-        // Fast-path: nothing requires approval — execute directly.
-        if (!forceApproval && !effectivePolicy.requiresApproval(tool)) {
+        // ACCEPT_EDITS auto-approves edit-shaped tools: it relaxes the tool's
+        // own @RequiresApproval prompt, but never a DenyAll policy (which still
+        // denies below) nor an explicit forceApproval from PLAN mode or a
+        // CONFIRM policy decision.
+        boolean acceptEditAutoApprove = acceptEdits
+                && tool.kind() == ToolKind.EDIT
+                && !(effectivePolicy instanceof ToolApprovalPolicy.DenyAll);
+
+        // Fast-path: nothing requires approval (or it is auto-approved by
+        // ACCEPT_EDITS) — execute directly.
+        if (!forceApproval && (acceptEditAutoApprove || !effectivePolicy.requiresApproval(tool))) {
+            if (acceptEditAutoApprove && effectivePolicy.requiresApproval(tool)) {
+                logger.info("Tool {} auto-approved under PermissionMode.ACCEPT_EDITS (kind=EDIT)", toolName);
+            }
             return finishAndEmit(toolName, session,
                     executeAndFormat(toolName, tool.executor(), args, scope));
         }

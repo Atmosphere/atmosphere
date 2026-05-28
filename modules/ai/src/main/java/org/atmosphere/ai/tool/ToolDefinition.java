@@ -33,6 +33,10 @@ import java.util.List;
  * @param executor        the function that executes the tool
  * @param approvalMessage if non-null, this tool requires human approval before execution
  * @param approvalTimeout approval timeout in seconds (0 = use default)
+ * @param kind            behavioural category used by the outer
+ *                        {@link org.atmosphere.ai.identity.PermissionMode}
+ *                        (e.g. {@code ACCEPT_EDITS} auto-approves
+ *                        {@link ToolKind#EDIT} tools); never {@code null}
  */
 public record ToolDefinition(
         String name,
@@ -41,7 +45,8 @@ public record ToolDefinition(
         String returnType,
         ToolExecutor executor,
         String approvalMessage,
-        long approvalTimeout
+        long approvalTimeout,
+        ToolKind kind
 ) {
     public ToolDefinition {
         if (name == null || name.isBlank()) {
@@ -51,6 +56,20 @@ public record ToolDefinition(
             throw new IllegalArgumentException("tool description must not be null or blank");
         }
         parameters = List.copyOf(parameters);
+        if (kind == null) {
+            kind = ToolKind.OTHER;
+        }
+    }
+
+    /**
+     * Backwards-compatible constructor for callers predating the {@code kind}
+     * component. Defaults the tool kind to {@link ToolKind#OTHER}.
+     */
+    public ToolDefinition(String name, String description, List<ToolParameter> parameters,
+                          String returnType, ToolExecutor executor, String approvalMessage,
+                          long approvalTimeout) {
+        this(name, description, parameters, returnType, executor, approvalMessage,
+                approvalTimeout, ToolKind.OTHER);
     }
 
     /**
@@ -73,6 +92,7 @@ public record ToolDefinition(
         private ToolExecutor executor;
         private String approvalMessage;
         private long approvalTimeout;
+        private ToolKind kind = ToolKind.OTHER;
 
         private Builder(String name, String description) {
             this.name = name;
@@ -109,12 +129,18 @@ public record ToolDefinition(
             return this;
         }
 
+        /** Set the tool's behavioural category. Defaults to {@link ToolKind#OTHER}. */
+        public Builder kind(ToolKind kind) {
+            this.kind = kind == null ? ToolKind.OTHER : kind;
+            return this;
+        }
+
         public ToolDefinition build() {
             if (executor == null) {
                 throw new IllegalStateException("executor must be set");
             }
             return new ToolDefinition(name, description, parameters, returnType,
-                    executor, approvalMessage, approvalTimeout);
+                    executor, approvalMessage, approvalTimeout, kind);
         }
     }
 }

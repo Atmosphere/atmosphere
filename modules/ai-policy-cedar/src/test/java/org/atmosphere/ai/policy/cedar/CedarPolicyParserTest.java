@@ -18,6 +18,7 @@ package org.atmosphere.ai.policy.cedar;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.governance.PolicyContext;
 import org.atmosphere.ai.governance.PolicyDecision;
+import org.atmosphere.ai.governance.PolicyParser;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -25,6 +26,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -181,6 +183,23 @@ class CedarPolicyParserTest {
 
     private static ByteArrayInputStream streamOf(String s) {
         return new ByteArrayInputStream(s.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void registeredForServiceLoaderDiscovery() {
+        // The cedar module ships META-INF/services/...PolicyParser so a Cedar
+        // policy artifact is auto-discovered the same way YAML is. The lazy
+        // no-arg constructor (the cedar CLI is touched only at evaluation)
+        // makes discovery safe even on runners without the cedar binary.
+        PolicyParser cedar = null;
+        for (var p : ServiceLoader.load(PolicyParser.class)) {
+            if ("cedar".equals(p.format())) {
+                cedar = p;
+                break;
+            }
+        }
+        assertNotNull(cedar, "CedarPolicyParser must be discoverable via ServiceLoader");
+        assertInstanceOf(CedarPolicyParser.class, cedar);
     }
 
     private record StubAuthorizer(CedarAuthorizer.Result fixed) implements CedarAuthorizer {
