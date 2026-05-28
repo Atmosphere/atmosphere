@@ -81,6 +81,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   alternate, restart-replays again, and verifies both the original and
   the forked branch survive across two simulated JVM kills.
   `modules/coordinator/README.md` documents the new surface.
+- Cohere `TOOL_CALL_DELTA` streaming capability (`3327425d50`).
+  `CohereChatClient.handleToolCallDelta` surfaces incremental tool-call
+  argument fragments as they arrive, and `CohereAgentRuntime`
+  (line 269) now declares `TOOL_CALL_DELTA`. The same honesty pass
+  *removed* `PROMPT_CACHING` from Cohere — the v2 API exposes no
+  prompt-cache control, so advertising it was Runtime-Truth drift; the
+  capability snapshot was re-pinned accordingly.
+- Quarkus extension integration parity: five optional surfaces, each
+  gated on classpath presence and covered by a dedicated build-step
+  test (`3327425d50`). `AtmosphereProcessor` registers Cache, Health
+  (`HealthBuildItem`), Micrometer metrics
+  (`AtmosphereMetricsProducer`), OpenTelemetry tracing
+  (`AtmosphereTracingProducer`), and governance metrics
+  (`AtmosphereGovernanceMetricsProducer`) producers — see
+  `AtmosphereProcessor.java:432-510` and the
+  `Atmosphere{Cache,Health,Metrics,Tracing,GovernanceMetrics}BuildStepTest`
+  suite.
+- `modules/quarkus-grpc` — Quarkus gRPC bridge extension (`runtime` +
+  `deployment` submodules) (`3327425d50`).
+- `scripts/validate-no-beta-on-main.sh` — push-time gate enforcing the
+  release-frequency rule: pre-GA escape-hatch framing (beta annotations,
+  hourglass deferral markers, phased planning labels, or roadmap-deferral
+  prose) introduced relative to `origin/main` fails the build, so `main`
+  stays release-ready (`3327425d50`).
+
+### Changed
+
+- Bumped JetBrains **Koog `0.8.0 → 1.0.0`** (`4685a844bb`, root pom
+  `koog.version`) — Koog's first GA. The adapter configures via
+  Koog 1.0's stable `OpenAILLMClient` / `MultiLLMPromptExecutor`
+  (`AtmosphereKoogAutoConfiguration.kt`); the full Koog capability set
+  (`VISION`, `AUDIO`, `MULTI_MODAL`, `PROMPT_CACHING`, `TOOL_CALLING`,
+  `TOOL_APPROVAL`, …) is unchanged and re-pinned by
+  `KoogRuntimeContractTest` + the capability snapshot.
+- Bumped `langchain4j.version` `1.14.0 → 1.15.0` (`abd774f68d`),
+  `logback-version` `1.5.25 → 1.5.32` (`58f2e6d373`), and
+  `commons-lang3` `3.18.0 → 3.20.0` (`8dea5788ac`).
 
 ### Fixed
 
@@ -99,6 +136,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reflects into the client and asserts the version, so a future "just
   use the default `HttpClient`" refactor breaks the build before it
   breaks production. Drift recorded as `.harness/drift-log.md` #64.
+- Koog runtime reaches **Gemini via Google's OpenAI-compatible base
+  URL** (`87aa2cc824`). Koog 1.0's native Google client ships only on a
+  JVM-incompatible path, so `AtmosphereKoogAutoConfiguration` points the
+  stable `OpenAILLMClient` at any OpenAI-compatible endpoint when
+  `atmosphere.koog.base-url` / `LLM_BASE_URL` is set (e.g.
+  `https://generativelanguage.googleapis.com/v1beta/openai` for
+  `gemini-2.5-flash`). Regression-gated by
+  `AtmosphereKoogAutoConfigurationTest`. Drift recorded as
+  `.harness/drift-log.md` #77 — the `0.8.0 → 1.0.0` bump had been
+  reported done on CI alone, which hid the dropped-Gemini regression.
+- Spring Boot **JDK 26 long-term-memory disconnect hang** resolved via
+  an idle-reaper fallback (`b2e9e09e71`).
+  `LongTermMemoryHttpE2eTest`'s disconnect path intermittently hung on
+  the JDK 26 lane because the WebSocket-close → `onDisconnect` lifecycle
+  could be dropped under fork contention; an
+  `IdleResourceInterceptor`-based reaper (platform-thread scheduler,
+  `maxInactiveActivity=5000`) now fires the disconnect lifecycle
+  independently, so suspended resources are reaped and facts persisted
+  even when the close frame is lost. Drift recorded as
+  `.harness/drift-log.md` #78–#79 — an earlier 60s → 120s await bump was
+  ineffective (a timeout cannot fix a hang).
 
 ### Security
 
