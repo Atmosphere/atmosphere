@@ -331,12 +331,6 @@ class LongTermMemoryHttpE2eTest {
     }
 
     /**
-     * Test-only Atmosphere interceptor that copies the {@code userId}
-     * query parameter into the {@code ai.userId} request attribute the
-     * framework reads. Avoids standing up a Spring Security stack just
-     * to drive different users from the client.
-     */
-    /**
      * Disconnect-detection fallback. Atmosphere's {@link IdleResourceInterceptor}
      * reaps a suspended resource that has seen no activity for
      * {@code maxInactiveActivity} ms (set to 5000 via the init-param above) and
@@ -351,6 +345,12 @@ class LongTermMemoryHttpE2eTest {
     @AtmosphereInterceptorService
     public static class IdleReaper extends IdleResourceInterceptor { }
 
+    /**
+     * Test-only Atmosphere interceptor that copies the {@code userId}
+     * query parameter into the {@code ai.userId} request attribute the
+     * framework reads. Avoids standing up a Spring Security stack just
+     * to drive different users from the client.
+     */
     @AtmosphereInterceptorService
     public static class UserIdAttributeInterceptor extends AtmosphereInterceptorAdapter {
         @Override
