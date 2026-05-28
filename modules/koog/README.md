@@ -26,8 +26,10 @@ public class MyChat {
 ```
 
 The bundled `AtmosphereKoogAutoConfiguration` wires a `PromptExecutor` from
-the `OPENAI_API_KEY` (or `LLM_API_KEY`) environment variable using Koog 1.0's
-`OpenAILLMClient(apiKey)` factory and `MultiLLMPromptExecutor`:
+environment variables using Koog 1.0's `OpenAILLMClient` factory and
+`MultiLLMPromptExecutor`. Two modes:
+
+**OpenAI** (default — no base URL):
 
 ```yaml
 atmosphere:
@@ -36,10 +38,22 @@ atmosphere:
     api-key: ${OPENAI_API_KEY}
 ```
 
-For other Koog stable clients (Anthropic, Bedrock, Ollama) or for the beta
-Google/Gemini client (`prompt-executor-google-client-jvm:1.0.0-beta-preview7`,
-which targets Koog's beta module track), build the `PromptExecutor`
-explicitly and inject it via the runtime's companion API:
+**OpenAI-compatible** (`base-url` set) — the supported path for Gemini, since
+Koog 1.0's native Google client ships only on the beta track
+(`prompt-executor-google-client-jvm:1.0.0-beta-preview7`, whose `1.0.0-preview7`
+transitives conflict with stable `1.0.0`). The requested `model` id is used
+verbatim with GPT-4o's capability profile:
+
+```yaml
+atmosphere:
+  koog:
+    model: gemini-2.5-flash
+    base-url: https://generativelanguage.googleapis.com/v1beta/openai
+    api-key: ${GEMINI_API_KEY}
+```
+
+For non-OpenAI-compatible Koog stable clients (Anthropic, Bedrock, Ollama),
+build the `PromptExecutor` explicitly and inject it via the companion API:
 
 ```kotlin
 val client = AnthropicLLMClient(apiKey)
