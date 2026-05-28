@@ -25,24 +25,26 @@ public class MyChat {
 }
 ```
 
-Add `koog-spring-boot-starter` to auto-configure the `PromptExecutor`:
-
-```xml
-<dependency>
-    <groupId>ai.koog</groupId>
-    <artifactId>koog-spring-boot-starter</artifactId>
-    <version>4.0.48</version>
-</dependency>
-```
-
-Configure your LLM provider in `application.yml`:
+The bundled `AtmosphereKoogAutoConfiguration` wires a `PromptExecutor` from
+the `OPENAI_API_KEY` (or `LLM_API_KEY`) environment variable using Koog 1.0's
+`OpenAILLMClient(apiKey)` factory and `MultiLLMPromptExecutor`:
 
 ```yaml
-ai:
+atmosphere:
   koog:
-    openai:
-      enabled: true
-      api-key: ${OPENAI_API_KEY}
+    model: gpt-4o          # any OpenAIModels.models id
+    api-key: ${OPENAI_API_KEY}
+```
+
+For other Koog stable clients (Anthropic, Bedrock, Ollama) or for the beta
+Google/Gemini client (`prompt-executor-google-client-jvm:1.0.0-beta-preview7`,
+which targets Koog's beta module track), build the `PromptExecutor`
+explicitly and inject it via the runtime's companion API:
+
+```kotlin
+val client = AnthropicLLMClient(apiKey)
+val executor = MultiLLMPromptExecutor(client)
+KoogAgentRuntime.setPromptExecutor(executor)
 ```
 
 ## Key Classes
@@ -151,6 +153,6 @@ Koog's `Flow<StreamFrame>` is bridged to Atmosphere's `StreamingSession`:
 
 - Java 21+
 - `atmosphere-ai` (transitive)
-- Koog 0.8.0+
+- Koog 1.0.0+ (stable stream: agents-core, prompt-model, anthropic / bedrock / ollama / openai clients)
 - Kotlin runtime
 - kotlinx-coroutines-core

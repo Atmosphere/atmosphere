@@ -15,23 +15,26 @@
  */
 package org.atmosphere.ai.koog
 
-import ai.koog.prompt.executor.clients.google.GoogleModels
+import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
 import ai.koog.prompt.executor.clients.openai.OpenAIModels
-import ai.koog.prompt.executor.llms.all.simpleGoogleAIExecutor
-import ai.koog.prompt.executor.llms.all.simpleOpenAIExecutor
+import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
-import ai.koog.prompt.llm.LLMProvider
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 
 /**
- * Auto-configuration that creates a Koog [PromptExecutor] from environment
- * variables and wires it into the [KoogAgentRuntime] SPI. Uses the simple
- * executor factories from koog-agents (same as Koog's own examples) to
- * bypass the Spring Boot starter's multi-executor complexity.
+ * Auto-configuration that wires a Koog [PromptExecutor] into [KoogAgentRuntime]
+ * from environment variables. Defaults to OpenAI — the only LLM client family
+ * published under Koog 1.0's stable stream (Anthropic, Bedrock, Ollama, OpenAI).
+ *
+ * Gemini / Google support requires Koog's google-client artifact, which JetBrains
+ * still ships on the beta track (`1.0.0-beta-preview7` against `prompt-llm-jvm:1.0.0-preview7`)
+ * and is intentionally not on Atmosphere's stable classpath. Users who need
+ * Gemini through Koog can construct their own [PromptExecutor] and inject it via
+ * [KoogAgentRuntime.setPromptExecutor].
  */
 @AutoConfiguration
 @ConditionalOnClass(name = ["ai.koog.prompt.executor.model.PromptExecutor"])
@@ -43,30 +46,20 @@ open class AtmosphereKoogAutoConfiguration {
 
     @org.springframework.context.annotation.Bean
     open fun koogAgentRuntime(
-        @Value("\${atmosphere.koog.model:gemini-2.5-flash}") modelName: String,
-        @Value("\${atmosphere.koog.api-key:\${LLM_API_KEY:\${GEMINI_API_KEY:\${OPENAI_API_KEY:}}}}") apiKey: String
+        @Value("\${atmosphere.koog.model:gpt-4o}") modelName: String,
+        @Value("\${atmosphere.koog.api-key:\${LLM_API_KEY:\${OPENAI_API_KEY:}}}") apiKey: String
     ): KoogAgentRuntime {
-        val model: LLModel
-        val executor: PromptExecutor
-
         if (apiKey.isBlank()) {
-            logger.warn("No API key configured for Koog. Set LLM_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY.")
-            // Return runtime without executor — sample will use DemoResponseProducer
+            logger.warn("No API key configured for Koog. Set LLM_API_KEY or OPENAI_API_KEY.")
             return KoogAgentRuntime()
         }
 
-        if (modelName.startsWith("gemini")) {
-            executor = simpleGoogleAIExecutor(apiKey)
-            model = GoogleModels.models.firstOrNull { it.id == modelName }
-                ?: GoogleModels.Gemini2_5Flash
-            logger.info("Koog runtime configured: model '{}' via GoogleLLMClient", model.id)
-        } else {
-            executor = simpleOpenAIExecutor(apiKey)
-            model = OpenAIModels.models.firstOrNull { it.id == modelName }
-                ?: OpenAIModels.Chat.GPT4o
-            logger.info("Koog runtime configured: model '{}' via OpenAILLMClient", model.id)
-        }
+        val client = OpenAILLMClient(apiKey)
+        val executor: PromptExecutor = MultiLLMPromptExecutor(client)
+        val model: LLModel = OpenAIModels.models.firstOrNull { it.id == modelName }
+            ?: OpenAIModels.Chat.GPT4o
 
+        logger.info("Koog runtime configured: model '{}' via OpenAILLMClient", model.id)
         KoogAgentRuntime.setPromptExecutor(executor)
         KoogAgentRuntime.setDefaultModel(model)
         return KoogAgentRuntime()

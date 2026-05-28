@@ -97,8 +97,8 @@ object AtmosphereToolBridge {
                 }
             }
 
-            override fun decodeArgs(jsonObject: JSONObject, serializer: JSONSerializer): JSONObject {
-                return jsonObject
+            override fun decodeArgs(rawArgs: JSONObject, serializer: JSONSerializer): JSONObject {
+                return rawArgs
             }
 
             override fun encodeResult(result: String, serializer: JSONSerializer): JSONElement {

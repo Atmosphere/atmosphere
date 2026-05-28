@@ -16,11 +16,14 @@
 package org.atmosphere.ai.koog
 
 import ai.koog.agents.core.tools.ToolDescriptor
+import ai.koog.prompt.Prompt
+import ai.koog.prompt.dsl.ModerationCategory
+import ai.koog.prompt.dsl.ModerationCategoryResult
 import ai.koog.prompt.dsl.ModerationResult
-import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
+import ai.koog.prompt.message.ResponseMetaInfo
 import ai.koog.prompt.streaming.StreamFrame
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -179,16 +182,19 @@ internal class KoogRuntimeContractTest : AbstractAgentRuntimeContractTest() {
             prompt: Prompt,
             model: LLModel,
             tools: List<ToolDescriptor>
-        ): List<Message.Response> = emptyList()
+        ): Message.Assistant = Message.Assistant(
+            content = "",
+            metaInfo = ResponseMetaInfo.Empty
+        )
 
         override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult =
-            ModerationResult(false, emptyMap())
+            ModerationResult(false, emptyMap<ModerationCategory, ModerationCategoryResult>())
 
         override fun close() {}
 
         private fun carriesErrorSentinel(prompt: Prompt): Boolean {
             for (msg in prompt.messages) {
-                if (msg.content.contains(CONTRACT_ERROR_SENTINEL)) {
+                if (msg.textContent().contains(CONTRACT_ERROR_SENTINEL)) {
                     return true
                 }
             }

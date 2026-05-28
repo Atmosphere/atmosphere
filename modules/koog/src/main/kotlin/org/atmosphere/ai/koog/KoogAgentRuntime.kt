@@ -19,14 +19,16 @@ import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.agent.GraphAIAgent
 import ai.koog.agents.ext.agent.chatAgentStrategy
 import ai.koog.agents.features.eventHandler.feature.handleEvents
-import ai.koog.prompt.dsl.Prompt
+import ai.koog.prompt.Prompt
 import ai.koog.prompt.dsl.prompt
+import ai.koog.prompt.executor.clients.bedrock.BedrockCacheControl
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.message.AttachmentContent
+import ai.koog.prompt.message.AttachmentSource
 import ai.koog.prompt.message.CacheControl
-import ai.koog.prompt.message.ContentPart
+import ai.koog.prompt.message.MessagePart
 import ai.koog.prompt.streaming.StreamFrame
 import org.atmosphere.ai.llm.CacheHint
 import java.util.Base64
@@ -267,32 +269,35 @@ class KoogAgentRuntime : AgentRuntime {
 
     /**
      * Translate Atmosphere's [org.atmosphere.ai.Content] parts into Koog's
-     * [ContentPart] hierarchy for multi-modal user-message assembly. Image
-     * and Audio parts use [AttachmentContent.Binary.Base64] (Koog's preferred
-     * on-the-wire encoding for binary attachments); File parts are not
-     * translated because Koog's chat models do not accept generic file input
-     * on the user-message surface — that maps to the tool-calling path
-     * instead, which we degrade gracefully in [executeInternal].
+     * [MessagePart.ContentPart] hierarchy for multi-modal user-message
+     * assembly. Image and Audio parts use [AttachmentContent.Binary.Base64]
+     * wrapped in [AttachmentSource] (Koog 1.0's preferred on-the-wire shape
+     * for binary attachments); File parts are not translated because Koog's
+     * chat models do not accept generic file input on the user-message
+     * surface — that maps to the tool-calling path instead, which we
+     * degrade gracefully in [executeInternal].
      */
     private fun atmosphereContentsToKoogParts(
         parts: List<org.atmosphere.ai.Content>
-    ): List<ContentPart> {
+    ): List<MessagePart.ContentPart> {
         if (parts.isEmpty()) return emptyList()
-        val result = mutableListOf<ContentPart>()
+        val result = mutableListOf<MessagePart.ContentPart>()
         for (part in parts) {
             when (part) {
-                is org.atmosphere.ai.Content.Text -> result.add(ContentPart.Text(part.text()))
+                is org.atmosphere.ai.Content.Text -> result.add(MessagePart.Text(part.text()))
                 is org.atmosphere.ai.Content.Image -> {
                     val base64 = Base64.getEncoder().encodeToString(part.data())
                     val content = AttachmentContent.Binary.Base64(base64)
                     val format = part.mimeType().substringAfter("/", "png")
-                    result.add(ContentPart.Image(content, format, part.mimeType(), "image.$format"))
+                    val source = AttachmentSource.Image(content, format, part.mimeType(), "image.$format")
+                    result.add(MessagePart.Attachment(source))
                 }
                 is org.atmosphere.ai.Content.Audio -> {
                     val base64 = Base64.getEncoder().encodeToString(part.data())
                     val content = AttachmentContent.Binary.Base64(base64)
                     val format = part.mimeType().substringAfter("/", "wav")
-                    result.add(ContentPart.Audio(content, format, part.mimeType(), "audio.$format"))
+                    val source = AttachmentSource.Audio(content, format, part.mimeType(), "audio.$format")
+                    result.add(MessagePart.Attachment(source))
                 }
                 is org.atmosphere.ai.Content.File -> {
                     // Koog's chat surface does not accept generic file input —
@@ -385,7 +390,7 @@ class KoogAgentRuntime : AgentRuntime {
             runBlocking {
                 activeJob.set(coroutineContext[kotlinx.coroutines.Job])
                 val result = agent.run(context.message())
-                if (result != null && result.isNotBlank()) {
+                if (result.isNotBlank()) {
                     logger.debug("Agent completed with result length: {}", result.length)
                 }
                 agent.close()
@@ -533,49 +538,40 @@ class KoogAgentRuntime : AgentRuntime {
 
             // Multi-modal + prompt-caching dispatch.
             //
-            // Four combinations:
-            //   1. no cache, no parts          → user(text)                    (fast path)
-            //   2. no cache, parts             → user(text) { part(...) }      (DSL block)
-            //   3. cache, no parts             → user([Text(text)], cacheCtl)  (cache on text-only)
-            //   4. cache, parts                → user([Text(text), parts...], cacheCtl)
-            //
-            // Koog 0.7.3's CacheControl interface only exposes Bedrock impls
-            // (FiveMinutes / OneHour / Default singletons), so this path is
-            // honest on Bedrock-backed Koog models and silently ignored by
-            // every other provider — the same "honored on one path,
-            // no-op elsewhere" shape Spring AI / LangChain4j take for the
-            // OpenAI prompt_cache_key field (Correctness Invariant #5 —
-            // Runtime Truth: capability is declared because it works for at
-            // least one provider through the same code path every caller
-            // takes).
+            // Koog 1.0's MessagePart hierarchy splits user-turn content into
+            // Text and Attachment parts. CacheControl is per-MessagePart, so
+            // we apply it to the leading Text — semantically equivalent to
+            // the old whole-turn cacheControl while letting individual
+            // attachments stay uncached. BedrockCacheControl is the only
+            // concrete impl in Koog 1.0 stable, so this remains honest on
+            // Bedrock-backed models and silently ignored elsewhere (same
+            // "honored on one path, no-op elsewhere" shape Spring AI /
+            // LangChain4j take for OpenAI prompt_cache_key).
             val koogParts = atmosphereContentsToKoogParts(context.parts())
             val cacheControl = resolveBedrockCacheControl(context)
 
-            if (koogParts.isEmpty() && cacheControl == null) {
-                user(context.message())
-            } else if (cacheControl == null) {
-                user(context.message()) {
-                    for (p in koogParts) {
-                        part(p)
-                    }
-                }
+            if (koogParts.isEmpty()) {
+                if (cacheControl == null) user(context.message())
+                else user(context.message(), cacheControl)
             } else {
-                val allParts = mutableListOf<ContentPart>(ContentPart.Text(context.message()))
+                val allParts = mutableListOf<MessagePart.RequestPart>(
+                    MessagePart.Text(context.message(), cacheControl)
+                )
                 allParts.addAll(koogParts)
-                user(allParts, cacheControl)
+                user(allParts)
             }
         }
     }
 
     /**
-     * Translate an Atmosphere [CacheHint] into one of Koog 0.7.3's Bedrock
-     * cache-control variants. Returns {@code null} when caching is disabled
-     * or the hint cannot be honored — callers take the no-cache branch of
-     * [buildPrompt].
+     * Translate an Atmosphere [CacheHint] into one of Koog 1.0's
+     * [BedrockCacheControl] variants. Returns {@code null} when caching is
+     * disabled or the hint cannot be honored — callers take the no-cache
+     * branch of [buildPrompt].
      *
      * Policy mapping (Bedrock ships only two TTL buckets):
-     *   - [CacheHint.CachePolicy.CONSERVATIVE] → [CacheControl.Bedrock.FiveMinutes]
-     *   - [CacheHint.CachePolicy.AGGRESSIVE]   → [CacheControl.Bedrock.OneHour]
+     *   - [CacheHint.CachePolicy.CONSERVATIVE] → [BedrockCacheControl.FiveMinutes]
+     *   - [CacheHint.CachePolicy.AGGRESSIVE]   → [BedrockCacheControl.OneHour]
      *
      * When the caller supplies an explicit TTL hint we pick the closest
      * Bedrock bucket (<=5 min → FiveMinutes, otherwise OneHour) so TTL
@@ -586,10 +582,10 @@ class KoogAgentRuntime : AgentRuntime {
         if (!hint.enabled()) return null
         val ttl = hint.ttl().orElse(null)
         return when {
-            ttl != null && ttl.toMinutes() <= 5 -> CacheControl.Bedrock.FiveMinutes
-            ttl != null                         -> CacheControl.Bedrock.OneHour
-            hint.policy() == CacheHint.CachePolicy.AGGRESSIVE -> CacheControl.Bedrock.OneHour
-            else                                -> CacheControl.Bedrock.FiveMinutes
+            ttl != null && ttl.toMinutes() <= 5 -> BedrockCacheControl.FiveMinutes
+            ttl != null                         -> BedrockCacheControl.OneHour
+            hint.policy() == CacheHint.CachePolicy.AGGRESSIVE -> BedrockCacheControl.OneHour
+            else                                -> BedrockCacheControl.FiveMinutes
         }
     }
 
@@ -767,11 +763,13 @@ private fun GraphAIAgent.FeatureContext.wireFeatureHandlers(
         onLLMCallCompleted { ctx ->
             // Phase 1: report typed token usage once per LLM call. The default
             // StreamingSession.usage() sink re-emits legacy ai.tokens.* metadata keys
-            // so existing Micrometer / budget consumers keep working.
-            val responses = ctx.responses
+            // so existing Micrometer / budget consumers keep working. Koog 1.0
+            // collapsed the per-call response list into a single (nullable)
+            // Message.Assistant on LLMCallCompletedContext — null on failure
+            // paths where the model never produced an Assistant message.
             var atmoUsage: TokenUsage? = null
-            if (responses.isNotEmpty()) {
-                val meta = responses.last().metaInfo
+            val meta = ctx.response?.metaInfo
+            if (meta != null) {
                 val input = meta.inputTokensCount?.toLong() ?: 0L
                 val output = meta.outputTokensCount?.toLong() ?: 0L
                 val total = meta.totalTokensCount?.toLong() ?: (input + output)
@@ -820,5 +818,4 @@ private fun unwrapJsonElement(elem: ai.koog.serialization.JSONElement?): Any? = 
     }
     is ai.koog.serialization.JSONArray -> elem.elements.map { unwrapJsonElement(it) }
     is ai.koog.serialization.JSONObject -> unwrapJsonObject(elem)
-    else -> elem.toString()
 }

@@ -193,12 +193,12 @@
         </dependency>
         -->
 
-        <!-- JetBrains Koog runtime (requires -Pspring-boot3 — koog-spring-boot-starter
-             targets Spring Boot 3.5; under SB3 it auto-configures a PromptExecutor
-             from ai.koog.openai.api-key / ai.koog.gemini.api-key env vars).
-             dependencyManagement above pins kotlin-stdlib 2.3.10 and
-             kotlinx-serialization 1.10.0 so Koog's GoogleLLMClient can issue
-             real Gemini calls without ABI errors. -->
+        <!-- JetBrains Koog runtime. AtmosphereKoogAutoConfiguration wires a
+             PromptExecutor from OPENAI_API_KEY / LLM_API_KEY using Koog 1.0's
+             OpenAILLMClient factory — koog-spring-boot-starter is no longer
+             pulled in: it lives on Koog's beta track (1.0.0-beta-preview7),
+             whose transitive 1.0.0-preview7 modules conflict with stable
+             1.0.0. dependencyManagement above pins kotlin-stdlib 2.3.10. -->
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-koog</artifactId>
@@ -206,11 +206,6 @@
         <dependency>
             <groupId>ai.koog</groupId>
             <artifactId>koog-agents-jvm</artifactId>
-            <version>${koog.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.koog</groupId>
-            <artifactId>koog-spring-boot-starter</artifactId>
             <version>${koog.version}</version>
         </dependency>
 

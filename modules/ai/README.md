@@ -970,14 +970,16 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   the direct-LLM path. `TOKEN_USAGE` is honest on the deployed-agent path only
   (`AgentProcess.usage()`) — the native path does not surface an aggregated
   usage record.
-- **Koog** `PROMPT_CACHING` is honored via `CacheControl.Bedrock.{FiveMinutes,OneHour}`
-  attached to `Message.User` when the request carries a `CacheHint`. Bedrock-backed
-  Koog models observe the cache control on the wire; non-Bedrock providers silently
-  drop it — the same "honored on one provider, no-op elsewhere" shape Spring AI /
-  LangChain4j take for the OpenAI `prompt_cache_key` field. Multi-modal + tool
-  calling in the same request: Koog's `AIAgent.run(String)` tool-loop surface only
-  accepts a plain text message, so the bridge logs a WARN and the tool-calling
-  path wins when both tools and multi-modal parts are present.
+- **Koog** `PROMPT_CACHING` is honored via `BedrockCacheControl.{FiveMinutes,OneHour}`
+  (Koog 1.0 moved the Bedrock cache-control variants from `CacheControl.Bedrock` to
+  the `prompt-executor-bedrock-client-jvm` module) attached to the leading
+  `MessagePart.Text` of `Message.User` when the request carries a `CacheHint`.
+  Bedrock-backed Koog models observe the cache control on the wire; non-Bedrock
+  providers silently drop it — the same "honored on one provider, no-op elsewhere"
+  shape Spring AI / LangChain4j take for the OpenAI `prompt_cache_key` field.
+  Multi-modal + tool calling in the same request: Koog's `AIAgent.run(String)`
+  tool-loop surface only accepts a plain text message, so the bridge logs a WARN
+  and the tool-calling path wins when both tools and multi-modal parts are present.
 - **ADK** `PROMPT_CACHING` is honored via `resolveCacheConfig(context)` which
   reads `CacheHint.from(context)` and builds a per-request `ContextCacheConfig`
   with the hint's TTL. Since ADK's caching wires at `App.Builder` level, the

@@ -16,11 +16,14 @@
 package org.atmosphere.ai.koog
 
 import ai.koog.agents.core.tools.ToolDescriptor
-import ai.koog.prompt.dsl.Prompt
+import ai.koog.prompt.Prompt
+import ai.koog.prompt.dsl.ModerationCategory
+import ai.koog.prompt.dsl.ModerationCategoryResult
 import ai.koog.prompt.dsl.ModerationResult
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
+import ai.koog.prompt.message.ResponseMetaInfo
 import ai.koog.prompt.streaming.StreamFrame
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -107,12 +110,15 @@ class KoogAgentRuntimeTest {
                 prompt: Prompt,
                 model: LLModel,
                 tools: List<ToolDescriptor>
-            ): List<Message.Response> = emptyList()
+            ): Message.Assistant = Message.Assistant(
+                content = "",
+                metaInfo = ResponseMetaInfo.Empty
+            )
 
             override suspend fun moderate(
                 prompt: Prompt,
                 model: LLModel
-            ): ModerationResult = ModerationResult(false, emptyMap())
+            ): ModerationResult = ModerationResult(false, emptyMap<ModerationCategory, ModerationCategoryResult>())
 
             override fun close() {}
         }
@@ -138,12 +144,12 @@ class KoogAgentRuntimeTest {
             prompt: Prompt,
             model: LLModel,
             tools: List<ToolDescriptor>
-        ): List<Message.Response> {
+        ): Message.Assistant {
             capturedPrompt = prompt
-            return emptyList()
+            return Message.Assistant(content = "", metaInfo = ResponseMetaInfo.Empty)
         }
         override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult =
-            ModerationResult(false, emptyMap())
+            ModerationResult(false, emptyMap<ModerationCategory, ModerationCategoryResult>())
         override fun close() {}
     }
 
@@ -160,12 +166,12 @@ class KoogAgentRuntimeTest {
                 prompt: Prompt,
                 model: LLModel,
                 tools: List<ToolDescriptor>
-            ): List<Message.Response> = throw error
+            ): Message.Assistant = throw error
 
             override suspend fun moderate(
                 prompt: Prompt,
                 model: LLModel
-            ): ModerationResult = ModerationResult(false, emptyMap())
+            ): ModerationResult = ModerationResult(false, emptyMap<ModerationCategory, ModerationCategoryResult>())
 
             override fun close() {}
         }
@@ -390,13 +396,13 @@ class KoogAgentRuntimeTest {
     /**
      * Regression test for the Koog multi-modal bridge: a
      * [org.atmosphere.ai.Content.Image] part on the context must land on
-     * the outgoing Koog [Prompt] as a [ai.koog.prompt.message.ContentPart.Image]
-     * attached to the current user message. Without this bridge, declaring
-     * `VISION` on [KoogAgentRuntime] would be runtime-truth dishonest
-     * (Correctness Invariant #5).
+     * the outgoing Koog [Prompt] as a [MessagePart.Attachment] wrapping an
+     * [AttachmentSource.Image] on the current user message. Without this
+     * bridge, declaring `VISION` on [KoogAgentRuntime] would be
+     * runtime-truth dishonest (Correctness Invariant #5).
      */
     @Test
-    fun `Image part is translated to Koog ContentPart Image on the user message`() {
+    fun `Image part is translated to Koog Attachment Image on the user message`() {
         val capturing = CapturingExecutor()
         KoogAgentRuntime.setPromptExecutor(capturing)
 
@@ -421,33 +427,33 @@ class KoogAgentRuntimeTest {
         assertTrue(userMessages.isNotEmpty(), "at least one user message expected")
 
         val last = userMessages.last()
-        val messageParts = last.parts
-        val imageParts = messageParts.filterIsInstance<ai.koog.prompt.message.ContentPart.Image>()
+        val attachments = last.parts.filterIsInstance<ai.koog.prompt.message.MessagePart.Attachment>()
+        val imageAttachments = attachments.filter { it.source is ai.koog.prompt.message.AttachmentSource.Image }
         assertTrue(
-            imageParts.isNotEmpty(),
-            "user message must carry at least one ContentPart.Image — multi-modal bridge failed"
+            imageAttachments.isNotEmpty(),
+            "user message must carry at least one Attachment(AttachmentSource.Image) — multi-modal bridge failed"
         )
-        val firstImage = imageParts.first()
-        assertEquals("image/png", firstImage.mimeType)
+        val imageSource = imageAttachments.first().source as ai.koog.prompt.message.AttachmentSource.Image
+        assertEquals("image/png", imageSource.mimeType)
 
-        val attachment = firstImage.content
+        val content = imageSource.content
         assertTrue(
-            attachment is ai.koog.prompt.message.AttachmentContent.Binary.Base64,
+            content is ai.koog.prompt.message.AttachmentContent.Binary.Base64,
             "image attachment should use AttachmentContent.Binary.Base64 encoding"
         )
         val expectedBase64 = java.util.Base64.getEncoder().encodeToString(pngBytes)
         assertEquals(expectedBase64,
-            (attachment as ai.koog.prompt.message.AttachmentContent.Binary.Base64).base64)
+            (content as ai.koog.prompt.message.AttachmentContent.Binary.Base64).base64)
     }
 
     /**
      * Regression test for the Koog audio bridge: a [org.atmosphere.ai.Content.Audio]
-     * part must land as a [ai.koog.prompt.message.ContentPart.Audio] on the user
-     * message. Koog 0.7 exposes a dedicated Audio ContentPart; declaring the
-     * `AUDIO` capability would be dishonest without this path.
+     * part must land as a [MessagePart.Attachment] wrapping an
+     * [AttachmentSource.Audio] on the user message. Declaring the `AUDIO`
+     * capability would be dishonest without this path.
      */
     @Test
-    fun `Audio part is translated to Koog ContentPart Audio on the user message`() {
+    fun `Audio part is translated to Koog Attachment Audio on the user message`() {
         val capturing = CapturingExecutor()
         KoogAgentRuntime.setPromptExecutor(capturing)
 
@@ -465,13 +471,16 @@ class KoogAgentRuntimeTest {
         assertTrue(prompt != null)
 
         val last = prompt!!.messages.filterIsInstance<ai.koog.prompt.message.Message.User>().last()
-        val audioParts = last.parts.filterIsInstance<ai.koog.prompt.message.ContentPart.Audio>()
-        assertTrue(audioParts.isNotEmpty(), "user message must carry ContentPart.Audio")
-        assertEquals("audio/wav", audioParts.first().mimeType)
+        val audioAttachments = last.parts
+            .filterIsInstance<ai.koog.prompt.message.MessagePart.Attachment>()
+            .filter { it.source is ai.koog.prompt.message.AttachmentSource.Audio }
+        assertTrue(audioAttachments.isNotEmpty(), "user message must carry Attachment(AttachmentSource.Audio)")
+        val audioSource = audioAttachments.first().source as ai.koog.prompt.message.AttachmentSource.Audio
+        assertEquals("audio/wav", audioSource.mimeType)
     }
 
     /**
-     * Text-only context must NOT go through the multi-modal user(text, parts)
+     * Text-only context must NOT go through the multi-modal user(parts)
      * overload — we preserve the plain user(text) wire shape for existing
      * clients so the Koog provider drivers don't unexpectedly observe a
      * multi-content-array message for a simple text prompt.
@@ -488,16 +497,18 @@ class KoogAgentRuntimeTest {
         assertTrue(prompt != null)
 
         val last = prompt!!.messages.filterIsInstance<ai.koog.prompt.message.Message.User>().last()
-        // hasAttachments() is Koog's own predicate that returns true when the
-        // message carries any non-Text ContentPart. A text-only dispatch must
-        // leave this false so the wire format matches the pre-Phase-4 path.
+        // Koog 1.0 collapsed all non-text content into MessagePart.Attachment.
+        // A text-only dispatch must carry zero Attachment parts so the wire
+        // format matches the plain-text user-message path that pre-1.0
+        // clients still expect.
+        val hasAttachments = last.parts.any { it is ai.koog.prompt.message.MessagePart.Attachment }
         assertTrue(
-            !last.hasAttachments(),
+            !hasAttachments,
             "text-only dispatch must not attach multi-modal parts"
         )
     }
 
-    // ── Prompt caching: CacheHint → CacheControl.Bedrock.* ──
+    // ── Prompt caching: CacheHint → BedrockCacheControl.* ──
 
     private fun contextWithCacheHint(
         policy: org.atmosphere.ai.llm.CacheHint.CachePolicy,
@@ -520,11 +531,13 @@ class KoogAgentRuntimeTest {
 
     /**
      * CONSERVATIVE policy with no explicit TTL must attach
-     * [ai.koog.prompt.message.CacheControl.Bedrock.FiveMinutes] to the
-     * outgoing user message. This is the single user-visible contract of
-     * the Koog PROMPT_CACHING capability — Bedrock-backed Koog models will
-     * see the cache control on the wire; other providers will silently
-     * ignore it (matching Spring AI / LangChain4j's OpenAI-only behavior).
+     * [ai.koog.prompt.executor.clients.bedrock.BedrockCacheControl.FiveMinutes]
+     * to the outgoing user message's leading text part. This is the single
+     * user-visible contract of the Koog PROMPT_CACHING capability —
+     * Bedrock-backed Koog models will see the cache control on the wire;
+     * other providers will silently ignore it (matching Spring AI /
+     * LangChain4j's OpenAI-only behavior). Koog 1.0 moved CacheControl from
+     * the User message onto individual MessagePart.Text/Attachment parts.
      */
     @Test
     fun `conservative cache hint attaches FiveMinutes Bedrock cache control`() {
@@ -540,17 +553,19 @@ class KoogAgentRuntimeTest {
         val prompt = capturing.capturedPrompt
         assertTrue(prompt != null)
         val last = prompt!!.messages.filterIsInstance<ai.koog.prompt.message.Message.User>().last()
-        val cache = last.cacheControl
+        val leadingText = last.parts.filterIsInstance<ai.koog.prompt.message.MessagePart.Text>().first()
+        val cache = leadingText.cacheControl
         assertTrue(
-            cache is ai.koog.prompt.message.CacheControl.Bedrock.FiveMinutes,
-            "CONSERVATIVE hint must map to CacheControl.Bedrock.FiveMinutes; got: $cache"
+            cache is ai.koog.prompt.executor.clients.bedrock.BedrockCacheControl.FiveMinutes,
+            "CONSERVATIVE hint must map to BedrockCacheControl.FiveMinutes; got: $cache"
         )
     }
 
     /**
      * AGGRESSIVE policy must attach
-     * [ai.koog.prompt.message.CacheControl.Bedrock.OneHour] — the longer
-     * Bedrock TTL bucket for caller-intent "maximum reuse".
+     * [ai.koog.prompt.executor.clients.bedrock.BedrockCacheControl.OneHour]
+     * — the longer Bedrock TTL bucket for caller-intent "maximum reuse" —
+     * to the leading [MessagePart.Text] of the outgoing user message.
      */
     @Test
     fun `aggressive cache hint attaches OneHour Bedrock cache control`() {
@@ -566,17 +581,18 @@ class KoogAgentRuntimeTest {
         val prompt = capturing.capturedPrompt
         assertTrue(prompt != null)
         val last = prompt!!.messages.filterIsInstance<ai.koog.prompt.message.Message.User>().last()
+        val leadingText = last.parts.filterIsInstance<ai.koog.prompt.message.MessagePart.Text>().first()
         assertTrue(
-            last.cacheControl is ai.koog.prompt.message.CacheControl.Bedrock.OneHour,
-            "AGGRESSIVE hint must map to CacheControl.Bedrock.OneHour"
+            leadingText.cacheControl is ai.koog.prompt.executor.clients.bedrock.BedrockCacheControl.OneHour,
+            "AGGRESSIVE hint must map to BedrockCacheControl.OneHour"
         )
     }
 
     /**
      * NONE policy must leave the outgoing user message unchanged —
-     * specifically, no cache control attached. Proves the zero-cache fast
-     * path still works and doesn't accidentally attach a control just
-     * because the metadata slot is present.
+     * specifically, no cache control attached to the leading text part.
+     * Proves the zero-cache fast path still works and doesn't accidentally
+     * attach a control just because the metadata slot is present.
      */
     @Test
     fun `none policy leaves user message without cache control`() {
@@ -592,9 +608,10 @@ class KoogAgentRuntimeTest {
         val prompt = capturing.capturedPrompt
         assertTrue(prompt != null)
         val last = prompt!!.messages.filterIsInstance<ai.koog.prompt.message.Message.User>().last()
+        val leadingText = last.parts.filterIsInstance<ai.koog.prompt.message.MessagePart.Text>().first()
         assertTrue(
-            last.cacheControl == null,
-            "NONE policy must leave cacheControl unset on the user message"
+            leadingText.cacheControl == null,
+            "NONE policy must leave cacheControl unset on the leading text part"
         )
     }
 }
