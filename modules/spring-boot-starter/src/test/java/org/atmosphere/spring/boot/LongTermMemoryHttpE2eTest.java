@@ -186,12 +186,17 @@ class LongTermMemoryHttpE2eTest {
         // real AiEndpointHandler resource-disconnect lifecycle. The
         // DisconnectRecorder captures the exact (userId, conversationId,
         // history) tuple the framework hands the interceptor — no
-        // mocking, no in-process invocation. Generous timeout (60s):
-        // local Mac/Docker runners fire onDisconnect within ~1s, but
-        // GitHub Actions Ubuntu runners can take 15-20s for the
-        // WebSocket close to fully propagate through Tomcat's NIO
-        // selector → Atmosphere's onStateChange path.
-        await().atMost(Duration.ofSeconds(60))
+        // mocking, no in-process invocation. Generous timeout (120s):
+        // onDisconnect always fires (local JDK 25 ~2s, normal GitHub
+        // Actions ~15-20s) — but the "Build & Test (JDK 26)" lane runs
+        // 18 modules' tests in one non-reused Surefire fork
+        // (forkCount=1, reuseForks=false), and under that CPU contention
+        // the Tomcat NIO selector → Atmosphere onStateChange path that
+        // delivers the WebSocket close can occasionally exceed 60s.
+        // Bumped 60s → 120s to absorb that load variance; this is a
+        // timing accommodation for a confirmed-working async path, not a
+        // masked disconnect bug (a single-job rerun goes green).
+        await().atMost(Duration.ofSeconds(120))
                 .pollInterval(Duration.ofMillis(250))
                 .untilAsserted(() -> assertNotNull(DisconnectRecorder.LAST.get(),
                         "framework should have fired onDisconnect on socket.close()"));
