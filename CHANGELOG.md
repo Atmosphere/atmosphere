@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `ToolKind` + `@AiTool(kind = …)` — tools declare a behavioural category
+  (`EDIT`, `READ`, `EXECUTE`, `NETWORK`, `DELETE`, `OTHER`; default `OTHER`).
+  This makes `PermissionMode.ACCEPT_EDITS` a real behaviour instead of a
+  `DEFAULT` alias: it now auto-approves a tool's own `@RequiresApproval`
+  prompt when `kind == EDIT`, while every other tool still routes through the
+  per-tool approval gate. The classification is compile-time author metadata
+  (not runtime caller-asserted intent), the default `OTHER` keeps the approval
+  posture exactly as restrictive as before, and the relaxation never overrides
+  an operator-configured `ToolPermissionPolicy` `DENY`/`CONFIRM` or a `DenyAll`
+  policy. `ToolExecutionHelperAcceptEditsTest` pins all four cases.
+
+### Changed
+
+- `ai-policy-rego` and `ai-policy-cedar` now ship a
+  `META-INF/services/org.atmosphere.ai.governance.PolicyParser` registration,
+  so Rego and Cedar policy artifacts are auto-discovered by `ServiceLoader`
+  the same way YAML always has been — no programmatic parser wiring required.
+  Safe because both parsers have lazy no-arg constructors (the `opa` / `cedar`
+  binary is only touched at evaluation, and parse failure is already
+  fail-closed). The Kafka/Postgres **audit sinks** are deliberately left on
+  programmatic `GovernanceDecisionLog.addSink()` wiring: they need a live
+  broker / JDBC connection, so auto-activating them on classpath presence
+  would advertise capability that cannot run (Runtime-Truth, Correctness
+  Invariant #5). `RegoPolicyParserTest` / `CedarPolicyParserTest` pin the
+  discovery.
+
 ## [4.0.49] - 2026-05-28
 
 ### Added
