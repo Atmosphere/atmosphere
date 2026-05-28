@@ -24,6 +24,18 @@ import java.util.List;
  * <p>Follows the {@code BroadcasterCache} pattern: pluggable via ServiceLoader
  * with start/stop lifecycle, record/retrieve operations, and inspector hooks
  * for filtering.</p>
+ *
+ * <p><strong>Default is {@link #NOOP} — journaling is opt-in.</strong> Out of
+ * the box, no journal implementation is registered as a {@code ServiceLoader}
+ * provider in the framework artifact, so {@code AgentCompleted} /
+ * {@code AgentFailed} / etc. events are silently discarded. To capture
+ * coordination events, register an implementation by shipping a
+ * {@code META-INF/services/org.atmosphere.coordinator.journal.CoordinationJournal}
+ * resource pointing at e.g. {@link InMemoryCoordinationJournal} (in-tree) or
+ * your own backing store. The only in-tree {@code ServiceLoader} registration
+ * today lives in {@code samples/spring-boot-multi-agent-startup-team} — treat
+ * it as the recipe, not as automatic framework behaviour. Any "journaling is
+ * automatic" claim in adjacent docs is wrong against this default.</p>
  */
 public interface CoordinationJournal {
 

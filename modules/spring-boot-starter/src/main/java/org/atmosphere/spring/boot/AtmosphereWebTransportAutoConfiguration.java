@@ -30,12 +30,14 @@ import org.springframework.context.annotation.Bean;
  * Activates when Reactor Netty HTTP/3 is on the classpath and
  * {@code atmosphere.web-transport.enabled=true} is set.
  *
- * <p>The HTTP/3 sidecar is now managed by
+ * <p>The HTTP/3 server runs in-JVM on a Reactor Netty event loop — not a
+ * separate process — and is managed by
  * {@link org.atmosphere.spring.boot.webtransport.ReactorNettyHttp3AsyncSupport}
- * (detected via {@link org.atmosphere.cpr.DefaultAsyncSupportResolver}), so this
- * auto-configuration only bridges Spring Boot properties to Atmosphere init
+ * (detected via {@link org.atmosphere.cpr.DefaultAsyncSupportResolver}). This
+ * auto-configuration bridges Spring Boot properties to Atmosphere init
  * parameters and registers the {@link AltSvcFilter} for Alt-Svc header
- * advertisement.</p>
+ * advertisement. The legacy {@code sidecar} naming on internal flags and
+ * methods is preserved only to keep field surfaces stable.</p>
  */
 @AutoConfiguration(after = AtmosphereAutoConfiguration.class)
 @ConditionalOnClass(name = {
@@ -88,8 +90,8 @@ public class AtmosphereWebTransportAutoConfiguration {
     }
 
     /**
-     * Start the Reactor Netty HTTP/3 sidecar AFTER the servlet container is
-     * fully started. This avoids blocking framework init and ensures the
+     * Start the in-JVM Reactor Netty HTTP/3 server AFTER the servlet container
+     * is fully started. This avoids blocking framework init and ensures the
      * BroadcasterFactory and WebSocket endpoints are ready.
      */
     @Bean

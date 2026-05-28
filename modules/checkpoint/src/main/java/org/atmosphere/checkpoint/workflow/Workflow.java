@@ -52,10 +52,17 @@ import java.util.Optional;
  * incorrectly; treat names as part of the workflow's persistent
  * contract.</p>
  *
- * <p>Steps must be idempotent. Retries on transient exceptions and
- * resumes after restart will both replay the last step, so
- * <em>operations the step performs must be safe to repeat</em> (or the
- * step must guard against double-effect internally).</p>
+ * <p>Steps must be idempotent. Two paths in {@link #run} can re-apply
+ * work: (a) transient-failure <em>retries</em> re-invoke the
+ * <em>same</em> step until it succeeds or the retry budget is exhausted
+ * — this is what the "replay the last step" phrasing refers to;
+ * (b) <em>resumes</em> after a restart pick up at the step
+ * <em>after</em> the last successfully persisted one, so the resumed
+ * step does not re-execute — but the prior step's external effect may
+ * have already landed before the snapshot was written, so the step
+ * still needs to be safe under repetition. In both cases, operations
+ * the step performs must be safe to repeat (or the step must guard
+ * against double-effect internally).</p>
  *
  * @param <S> the application-owned state type
  */
