@@ -56,9 +56,10 @@ import java.util.Optional;
  * <h2>Runtime-agnostic</h2>
  *
  * {@code AgentState} lives in the Atmosphere platform layer above every
- * {@link org.atmosphere.ai.AgentRuntime}. Six of the seven runtimes already
- * consume {@code AgentExecutionContext.history()} (which this SPI supplies);
- * the ADK runtime gains the same behavior via the contract-test-enforced fix.
+ * {@link org.atmosphere.ai.AgentRuntime}. All twelve contract-tested runtimes
+ * consume {@code AgentExecutionContext.history()} — the SPI supplies the
+ * pre-render conversation history each runtime then passes through to its
+ * upstream framework.
  *
  * @see FileSystemAgentState
  * @see AutoMemoryStrategy

@@ -21,7 +21,7 @@ time is a diff-reviewable curve.
 
 | Path | Purpose | Source of truth | Append-only? |
 |------|---------|-----------------|---------------|
-| `capabilities.snapshot.json` | Canonical aggregate of `AiCapability` enum (currently 20 entries) and each runtime's pinned `expectedCapabilities()` (currently 10 runtimes). Used to validate aggregate count claims in `modules/ai/README.md` and to drive per-runtime `modules/<X>/SKILLCARD.yaml` regeneration. | `modules/ai/src/main/java/org/atmosphere/ai/AiCapability.java` + every `*RuntimeContractTest.{java,kt}` | No — regenerated whenever a capability or runtime is added/removed. |
+| `capabilities.snapshot.json` | Canonical aggregate of `AiCapability` enum (currently 20 entries) and each runtime's pinned `expectedCapabilities()` (currently 12 contract-tested runtimes — `DemoAgentRuntime` is the no-key fallback and is excluded from the snapshot by design). Used to validate aggregate count claims in `modules/ai/README.md` and to drive per-runtime `modules/<X>/SKILLCARD.yaml` regeneration. | `modules/ai/src/main/java/org/atmosphere/ai/AiCapability.java` + every `*RuntimeContractTest.{java,kt}` | No — regenerated whenever a capability or runtime is added/removed. |
 | `drift-log.md` | Structured record of every agent claim that diverged from ground truth (claim, truth, slip path, gate added). The diff-reviewable curve of hallucinations-over-time. | Appended by the agent during sessions; reviewed by the maintainer. | **Yes** — pre-existing date sections are immutable. New entries go in today's section (or a new section at the bottom). |
 
 Adding new files here means adding a new instrument. If you can't articulate

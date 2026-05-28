@@ -20,7 +20,7 @@ Add this alongside your Atmosphere starter. The admin control plane auto-configu
 |-----|-------------|
 | `/atmosphere/admin/` | Real-time dashboard UI with live event feed |
 | `/api/admin/overview` | System overview JSON (status, connections, agents, tasks, runtime) |
-| `/api/admin/*` | Full REST API (~25 endpoints) |
+| `/api/admin/*` | Full REST API (54 endpoints across `AtmosphereAdminEndpoint`'s `@GetMapping` / `@PostMapping` / `@PutMapping` / `@DeleteMapping` declarations) |
 | `/atmosphere/admin/events` | WebSocket event stream (via Atmosphere itself) |
 | MCP tools | `atmosphere_overview`, `atmosphere_list_agents`, etc. |
 

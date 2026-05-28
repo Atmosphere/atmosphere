@@ -99,7 +99,7 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
             ChatClient client, AgentExecutionContext context, StreamingSession session) {
         // Admit through the process-wide AiGateway before issuing the native
         // Spring AI dispatch — uniform per-user rate limiting and credential
-        // resolution across all seven runtimes. A rejected admission throws
+        // resolution across all twelve contract-tested runtimes. A rejected admission throws
         // (Correctness Invariant #3 — never ignore backpressure).
         admitThroughGateway(context);
         var promptSpec = client.prompt();

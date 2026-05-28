@@ -108,7 +108,7 @@ class EmbabelAgentRuntime : AgentRuntime {
     override fun execute(context: AgentExecutionContext, session: StreamingSession) {
         // Admit through the process-wide AiGateway before issuing the native
         // Embabel dispatch — uniform per-user rate limiting and credential
-        // resolution across all seven runtimes (Correctness Invariant #3).
+        // resolution across all twelve contract-tested runtimes (Correctness Invariant #3).
         org.atmosphere.ai.AbstractAgentRuntime.admitThroughGateway(name(), context)
         // Install the cross-runtime ToolLoopGuard before reading listeners so
         // the guard sees every onModelStart this dispatch fires. No-op when
@@ -409,12 +409,13 @@ class EmbabelAgentRuntime : AgentRuntime {
             if (embabelImages.isNotEmpty()) {
                 r = r.withImages(embabelImages)
             }
-            // Native ToolLoopPolicy enforcement is NOT available on Embabel
-            // 0.3.4 (the pinned version): PromptRunner does not yet expose
-            // withToolLoopInspectors / ToolLoopInspector. The cross-runtime
-            // ToolLoopGuard installed in execute() provides strict() cap
-            // semantics at the wire layer. Native upstream enforcement
-            // awaits Embabel 0.3.5 release (tracked in modules/embabel/README.md).
+            // Native ToolLoopPolicy enforcement is NOT yet wired against
+            // Embabel 0.3.5 (the pinned version): PromptRunner does not
+            // expose withToolLoopInspectors / ToolLoopInspector on the
+            // 0.3.x line. The cross-runtime ToolLoopGuard installed in
+            // execute() provides strict() cap semantics at the wire layer.
+            // Native upstream enforcement awaits the Embabel release that
+            // adds the inspector API (tracked in modules/embabel/README.md).
             val customizer = EmbabelPromptRunner.from(context)
             if (customizer != null) {
                 r = customizer.apply(r)

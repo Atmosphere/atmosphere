@@ -143,7 +143,7 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
             AgentExecutionContext context, StreamingSession session) {
         // Admit through the process-wide AiGateway before issuing the native
         // LangChain4j dispatch — uniform per-user rate limiting and credential
-        // resolution across all seven runtimes (Correctness Invariant #3).
+        // resolution across all twelve contract-tested runtimes (Correctness Invariant #3).
         admitThroughGateway(context);
 
         // Per-request AiServices invoker bypass: when the caller attached an
