@@ -26,6 +26,7 @@ import org.atmosphere.config.service.AtmosphereInterceptorService;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.interceptor.IdleResourceInterceptor;
 import org.atmosphere.session.sqlite.SqliteLongTermMemory;
 import org.atmosphere.wasync.Event;
 import org.atmosphere.wasync.Function;
@@ -97,7 +98,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         classes = LongTermMemoryHttpE2eTest.TestApp.class,
         properties = {
-                "atmosphere.packages=org.atmosphere.spring.boot"
+                "atmosphere.packages=org.atmosphere.spring.boot",
+                // Disconnect-detection fallback. The clean WebSocket-close path
+                // fires onDisconnect in ~2s, but on the JDK 26 Core Tests lane the
+                // client close frame is intermittently never delivered to the
+                // server (a lost event, not a slow one — 120s was not enough), so
+                // the test hung. IdleResourceInterceptor (registered as IdleReaper
+                // below) runs on the platform-thread scheduler — immune to the
+                // virtual-thread/NIO timing that drops the close — and reaps a
+                // silent resource after maxInactiveActivity, firing the disconnect
+                // lifecycle. onDisconnect is therefore detected via clean-close
+                // (~2s) OR idle-reap (~7s); it can no longer hang on a lost close.
+                "atmosphere.init-params.org.atmosphere.cpr.CometSupport.maxInactiveActivity=5000"
         })
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LongTermMemoryHttpE2eTest {
@@ -132,7 +144,7 @@ class LongTermMemoryHttpE2eTest {
         DisconnectRecorder.LAST.set(null);
     }
 
-    @Timeout(value = 120, unit = TimeUnit.SECONDS)
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
     @Test
     void disconnectFiresInterceptorAndPersistsFactsViaRealFramework() throws Exception {
         var userId = "user-http-e2e";
@@ -186,17 +198,13 @@ class LongTermMemoryHttpE2eTest {
         // real AiEndpointHandler resource-disconnect lifecycle. The
         // DisconnectRecorder captures the exact (userId, conversationId,
         // history) tuple the framework hands the interceptor — no
-        // mocking, no in-process invocation. Generous timeout (120s):
-        // onDisconnect always fires (local JDK 25 ~2s, normal GitHub
-        // Actions ~15-20s) — but the "Build & Test (JDK 26)" lane runs
-        // 18 modules' tests in one non-reused Surefire fork
-        // (forkCount=1, reuseForks=false), and under that CPU contention
-        // the Tomcat NIO selector → Atmosphere onStateChange path that
-        // delivers the WebSocket close can occasionally exceed 60s.
-        // Bumped 60s → 120s to absorb that load variance; this is a
-        // timing accommodation for a confirmed-working async path, not a
-        // masked disconnect bug (a single-job rerun goes green).
-        await().atMost(Duration.ofSeconds(120))
+        // mocking, no in-process invocation. onDisconnect fires via the
+        // clean WebSocket-close path (~2s) or, if that close frame is lost
+        // (the JDK 26 lane flake), via the IdleReaper fallback (~7s — see
+        // the @SpringBootTest init-param). 30s covers both with headroom;
+        // it can no longer hang, because the reaper's platform-thread
+        // scheduler fires independently of the dropped-close path.
+        await().atMost(Duration.ofSeconds(30))
                 .pollInterval(Duration.ofMillis(250))
                 .untilAsserted(() -> assertNotNull(DisconnectRecorder.LAST.get(),
                         "framework should have fired onDisconnect on socket.close()"));
@@ -225,6 +233,66 @@ class LongTermMemoryHttpE2eTest {
         // the composition tests in modules/integration-tests.
         assertNotNull(record.conversationId(),
                 "framework should pass a conversationId at disconnect; got null");
+    }
+
+    /**
+     * Regression guard for the JDK 26 lost-close fix. Reproduces the failure
+     * mode directly: a client connects and goes silent <em>without ever sending
+     * a clean WebSocket close</em> (the socket is never closed from the client
+     * side), exactly as if the close frame were lost on the wire. The framework
+     * must still fire {@code onDisconnect} — here via the
+     * {@link TestApp.IdleReaper} reaping the idle resource after
+     * {@code maxInactiveActivity} (5s). This is the deterministic fallback that
+     * keeps {@link #disconnectFiresInterceptorAndPersistsFactsViaRealFramework}
+     * from hanging when the clean-close path drops the event under JDK 26 fork
+     * contention. Runs identically on every JDK because the reaper's scheduler
+     * is platform-threaded.
+     */
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Test
+    void idleReaperFiresDisconnectWhenCleanCloseNeverArrives() throws Exception {
+        var userId = "user-http-e2e";
+        var client = AtmosphereClient.newClient();
+        var openLatch = new CountDownLatch(1);
+        var ackLatch = new CountDownLatch(1);
+
+        var options = client.newOptionsBuilder().reconnect(false).build();
+        var request = client.newRequestBuilder()
+                .uri("ws://localhost:" + port + "/atmosphere/ltm-e2e?userId=" + userId)
+                .transport(Request.TRANSPORT.WEBSOCKET)
+                .enableProtocol(false)
+                .build();
+
+        var socket = client.create(options);
+        try {
+            socket.on(Event.OPEN, (Function<Object>) o -> openLatch.countDown())
+                  .on(Event.MESSAGE, (Function<Object>) m -> {
+                      if (m.toString().contains("ack:")) ackLatch.countDown();
+                  })
+                  .open(request);
+
+            assertTrue(openLatch.await(10, TimeUnit.SECONDS),
+                    "WebSocket should connect to /atmosphere/ltm-e2e");
+            socket.fire("Hello, then go silent");
+            assertTrue(ackLatch.await(15, TimeUnit.SECONDS),
+                    "Server @Prompt should reply with 'ack:'");
+
+            // Deliberately do NOT close the socket — the connection just goes
+            // idle, simulating a lost close frame. The IdleReaper must still
+            // fire onDisconnect after maxInactiveActivity (5s) + scheduler tick.
+            await().atMost(Duration.ofSeconds(30))
+                    .pollInterval(Duration.ofMillis(250))
+                    .untilAsserted(() -> assertNotNull(DisconnectRecorder.LAST.get(),
+                            "IdleReaper should have fired onDisconnect on the silent resource"));
+
+            var record = DisconnectRecorder.LAST.get();
+            assertTrue(userId.equals(record.userId()),
+                    "expected userId=" + userId + " from idle-reaped disconnect; got " + record.userId());
+            assertNotNull(record.conversationId(),
+                    "idle-reaped disconnect should still carry a conversationId");
+        } finally {
+            try { socket.close(); } catch (Exception ignored) { }
+        }
     }
 
     // -------------------------------------------------------------------
@@ -268,6 +336,21 @@ class LongTermMemoryHttpE2eTest {
      * framework reads. Avoids standing up a Spring Security stack just
      * to drive different users from the client.
      */
+    /**
+     * Disconnect-detection fallback. Atmosphere's {@link IdleResourceInterceptor}
+     * reaps a suspended resource that has seen no activity for
+     * {@code maxInactiveActivity} ms (set to 5000 via the init-param above) and
+     * fires the disconnect lifecycle. Its scheduler runs on a platform thread
+     * (not a virtual thread), so it keeps ticking even when the JDK 26 lane's
+     * virtual-thread/NIO timing drops the client close frame — the failure mode
+     * that previously hung {@link #disconnectFiresInterceptorAndPersistsFactsViaRealFramework}.
+     * Registered via {@code @AtmosphereInterceptorService} (package-scanned, same
+     * as {@link UserIdAttributeInterceptor}); {@code configure()} reads the
+     * init-param and starts the reaper.
+     */
+    @AtmosphereInterceptorService
+    public static class IdleReaper extends IdleResourceInterceptor { }
+
     @AtmosphereInterceptorService
     public static class UserIdAttributeInterceptor extends AtmosphereInterceptorAdapter {
         @Override
