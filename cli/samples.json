@@ -150,7 +150,7 @@
       "port": 8090,
       "runnable": true,
       "packaging": "spring-boot",
-      "hasFrontend": true,
+      "hasFrontend": false,
       "envVars": {
         "COHERE_API_KEY": "Cohere API key (Command models support tool calling)",
         "ATMO_CODE_EXEC": "Enable code execution (default: true)"
