@@ -20,6 +20,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an operator-configured `ToolPermissionPolicy` `DENY`/`CONFIRM` or a `DenyAll`
   policy. `ToolExecutionHelperAcceptEditsTest` pins all four cases.
 
+- **Code-as-action sandbox** (`org.atmosphere.ai.code`) — a `code_exec` tool that
+  lets a model accomplish tasks by writing a block of code (bash / JavaScript /
+  Python) instead of negotiating many fine-grained tool calls. Each session gets
+  an isolated, ephemeral container (`CodeSandbox` SPI, `ContainerCodeSandbox` over
+  Docker/Podman) with hardening applied — `--network none` by default, non-root,
+  `--cap-drop ALL`, `--security-opt no-new-privileges`, read-only rootfs + a bounded
+  writable workspace, and memory/cpu/pid caps — provisioned lazily on first use and
+  torn down on every terminal path via the new `StreamingSession.onTerminate(AutoCloseable)`
+  primitive. **Default-deny**: code execution is off unless
+  `org.atmosphere.ai.code.enabled=true` and a container engine is confirmed present
+  at runtime (Correctness Invariant #5); the tool is registered into `@AiEndpoint`
+  dispatch only then, with the tool-loop ceiling lifted to 25 write→run→observe
+  rounds. Each round streams an `AiEvent.AgentStep` plus any screenshots the code
+  produced, rendered inline in the Console as markdown data-URI images. New
+  `samples/spring-boot-browser-agent` demonstrates it (Cohere-backed, requires
+  Docker): the agent drives a headless browser with Playwright and you watch the
+  screenshots arrive live.
+
 ### Changed
 
 - `ai-policy-rego` and `ai-policy-cedar` now ship a

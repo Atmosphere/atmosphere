@@ -304,6 +304,50 @@ honor it natively.
 per-request knob in a future framework release upgrade from "via guard"
 to "✓ native". Tracking issues live in each module's README.
 
+## Code-as-Action Sandbox (`code_exec`)
+
+Instead of negotiating many fine-grained tool calls, a model can accomplish a
+task by **writing a block of code** and running it. The `code_exec` tool
+(`org.atmosphere.ai.code`) executes that code — bash, JavaScript, or Python — in
+an isolated, ephemeral container and streams the logs, exit code, and any
+artifacts (screenshots, files) back as observations. The model iterates:
+write → run → observe → revise.
+
+**Default-deny.** Code execution is off unless explicitly enabled, and the
+`code_exec` tool is offered only when a container engine is confirmed present at
+runtime (Correctness Invariant #5 — not merely configured):
+
+```bash
+org.atmosphere.ai.code.enabled=true                 # master switch (default false)
+org.atmosphere.ai.code.image=mcr.microsoft.com/playwright:v1.60.0-noble
+org.atmosphere.ai.code.network=none                 # 'none' (default) | bridge | <name>
+org.atmosphere.ai.code.memory=512m
+org.atmosphere.ai.code.cpus=1.0
+org.atmosphere.ai.code.execTimeoutSeconds=60
+org.atmosphere.ai.code.setup=<one-time bootstrap command, e.g. npm install playwright>
+```
+
+Each session gets one container, provisioned lazily on the first `code_exec`
+call and reused across rounds. Hardening: `--network none` by default, non-root,
+`--cap-drop ALL`, `--security-opt no-new-privileges`, read-only rootfs plus a
+bounded writable workspace. The container is torn down on every terminal
+path — success, error, cancel, timeout — via
+`StreamingSession.onTerminate(AutoCloseable)`, so the creator (and only the
+creator) releases it (Correctness Invariants #1, #2). Output is bounded
+(Invariant #3) and the command line is built from discrete arguments with model
+code piped through stdin, never shell-concatenated (Invariant #4).
+
+When `code_exec` is present the tool-loop ceiling is lifted to 25 rounds, and
+each round streams an `AiEvent.AgentStep` plus any screenshots (as markdown
+data-URI images the Console renders inline). See
+`samples/spring-boot-browser-agent` for an agent that drives a headless browser
+with Playwright, live in the Console.
+
+> **Security.** Executing model-written code is the largest boundary Atmosphere
+> exposes. It is opt-in, container-isolated, and default-deny. Choose the network
+> policy deliberately (`none`, an allowlisted proxy, or `bridge`), pin the image,
+> and size the resource caps for your workload before enabling it in production.
+
 ## Per-Request Retry Architecture
 
 Every runtime that advertises `PER_REQUEST_RETRY` honors
