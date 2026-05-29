@@ -1,0 +1,23 @@
+# Atmosphere Code-as-Action Browser Agent Sample
+# The AI writes Playwright code that drives a headless browser in an isolated
+# sandbox container; screenshots stream back to the Console live.
+
+atmosphere:
+  console-subtitle: Code-as-action agent driving a headless browser
+  packages: org.atmosphere.samples.springboot.browseragent
+  web-transport:
+    enabled: true
+    port: 4446
+
+# Cohere Command (tool-calling capable, no aggressive free-tier rate limit).
+# The Cohere AgentRuntime is priority 100, so with COHERE_API_KEY set the SPI
+# resolver forces it over the built-in fallback.
+llm:
+  mode: remote
+  # Pinned to a Cohere model (not ${LLM_MODEL:...}) so an ambient LLM_MODEL set
+  # for another provider on the dev machine cannot leak in and 404 the Cohere API.
+  model: command-a-03-2025
+  api-key: ${COHERE_API_KEY:}
+
+server:
+  port: 8090

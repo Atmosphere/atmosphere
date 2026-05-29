@@ -361,6 +361,37 @@ public interface StreamingSession extends AutoCloseable {
                         + "Use @AiEndpoint or create an AiStreamingSession explicitly.");
     }
 
+    /**
+     * Register a resource to be closed exactly once when this session reaches
+     * a terminal state — {@link #complete()}, {@link #complete(String)},
+     * {@link #error(Throwable)}, or {@link #close()}. This is the session-scoped
+     * ownership primitive: a feature that provisions a resource for the lifetime
+     * of a run (e.g. a code-execution sandbox container) registers its teardown
+     * here so every exit path — success, failure, cancel, timeout — releases it
+     * (Correctness Invariants #1 Ownership and #2 Terminal Path Completeness).
+     *
+     * <p>If the session has <em>already</em> terminated when this is called, the
+     * resource is closed immediately rather than leaked. Closing is best-effort
+     * per resource: a failure closing one registered resource does not prevent
+     * the others from being closed.</p>
+     *
+     * <p>Only supported on agent-backed sessions created by the {@code @Agent} /
+     * {@code @AiEndpoint} infrastructure, which guarantee a single terminal
+     * dispatch. The default throws so a caller can never silently leak a
+     * resource against a session type that has no terminal hook — mirroring the
+     * fail-loud contract of {@link #handoff(String, String)} and
+     * {@link #stream(String)}.</p>
+     *
+     * @param resource the resource to close on session termination
+     * @throws UnsupportedOperationException if this session does not support
+     *         session-scoped teardown
+     */
+    default void onTerminate(AutoCloseable resource) {
+        throw new UnsupportedOperationException(
+                "onTerminate() is only supported on agent-backed sessions. "
+                        + "Use @Agent or @AiEndpoint to enable session-scoped teardown.");
+    }
+
     @Override
     default void close() {
         if (!isClosed()) {

@@ -91,6 +91,15 @@ public class AiStreamingSession implements StreamingSession {
     private final AtomicReference<PostPromptHook> preStreamHook = new AtomicReference<>();
     private final AtomicBoolean handoffInProgress = new AtomicBoolean();
     private final ApprovalRegistry approvalRegistry = new ApprovalRegistry();
+    /**
+     * Session-scoped resources registered via {@link #onTerminate(AutoCloseable)},
+     * closed exactly once when the session reaches a terminal state. Copy-on-write
+     * because registration (a @Prompt VT) and teardown (complete/error, possibly a
+     * different thread) race.
+     */
+    private final java.util.concurrent.CopyOnWriteArrayList<AutoCloseable> terminateHooks =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final AtomicBoolean terminated = new AtomicBoolean();
     /** Endpoint-configured prompt cache policy from {@code @AiEndpoint.promptCache()}. */
     private volatile org.atmosphere.ai.llm.CacheHint.CachePolicy cachePolicy;
     /** Endpoint-configured per-request retry policy from {@code @AiEndpoint.retry()}. */
@@ -761,6 +770,17 @@ public class AiStreamingSession implements StreamingSession {
         if (endpointRetry != null) {
             context = context.withRetryPolicy(endpointRetry);
         }
+        // Lift the tool-loop ceiling for code-as-action: an agent that drives a
+        // sandbox iterates many write→run→observe rounds, far more than the
+        // default five. Keyed off the tool's presence (only registered when the
+        // feature is enabled); an explicitly-attached policy is left untouched.
+        if (org.atmosphere.ai.llm.ToolLoopPolicies.from(context) == null
+                && tools.stream().anyMatch(
+                        t -> org.atmosphere.ai.code.CodeExecTool.TOOL_NAME.equals(t.name()))) {
+            context = org.atmosphere.ai.llm.ToolLoopPolicies.attach(context,
+                    org.atmosphere.ai.llm.ToolLoopPolicy.maxIterations(
+                            org.atmosphere.ai.code.CodeExecSupport.CODE_ACTION_MAX_ROUNDS));
+        }
         // Per-stage input breakdown — emitted on the websocket @AiEndpoint
         // path to match AiPipeline's channel-bridge instrumentation. Mode
         // parity (Invariant #7): runtime turn-cost telemetry must look the
@@ -940,19 +960,64 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     @Override
+    public void onTerminate(AutoCloseable resource) {
+        if (resource == null) {
+            return;
+        }
+        if (terminated.get()) {
+            // Already terminated — close immediately rather than leak.
+            closeQuietly(resource);
+            return;
+        }
+        terminateHooks.add(resource);
+        if (terminated.get() && terminateHooks.remove(resource)) {
+            // Lost the race with fireTerminate(); ensure it still gets closed.
+            closeQuietly(resource);
+        }
+    }
+
+    /**
+     * Close every registered teardown resource exactly once. Invoked from all
+     * terminal paths so a session-scoped resource is released on success,
+     * failure, and cancel alike (Correctness Invariant #2).
+     */
+    private void fireTerminate() {
+        if (!terminated.compareAndSet(false, true)) {
+            return;
+        }
+        for (var resource : terminateHooks) {
+            closeQuietly(resource);
+        }
+        terminateHooks.clear();
+    }
+
+    private void closeQuietly(AutoCloseable resource) {
+        try {
+            resource.close();
+        } catch (Exception e) {
+            // Best-effort per resource: one failure must not block the rest.
+            logger.warn("Failed to close session-scoped resource {}: {}",
+                    resource.getClass().getName(), e.getMessage(), e);
+        }
+    }
+
+    @Override
     public void complete() {
+        fireTerminate();
         removeActiveSession(this);
         delegate.complete();
     }
 
     @Override
     public void complete(String summary) {
+        fireTerminate();
         removeActiveSession(this);
         delegate.complete(summary);
     }
 
     @Override
     public void error(Throwable t) {
+        fireTerminate();
         removeActiveSession(this);
         delegate.error(t);
     }

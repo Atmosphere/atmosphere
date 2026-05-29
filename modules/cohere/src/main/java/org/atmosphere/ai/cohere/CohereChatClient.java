@@ -412,7 +412,13 @@ public final class CohereChatClient {
         if (definition == null) {
             return "{\"error\":\"Unknown tool: " + acc.name + "\"}";
         }
-        var injectables = Map.<Class<?>, Object>of(StreamingSession.class, session);
+        // Forward the session's framework injectables (AgentFleet, AgentIdentity,
+        // CodeSandbox, ...) to the tool, plus the live session — mirroring the
+        // built-in runtime's OpenAiCompatibleClient. Without this, @AiTool methods
+        // that declare framework types (or the code_exec tool's CodeSandbox) would
+        // be unavailable on the Cohere path (Correctness Invariant #7 — Mode Parity).
+        var injectables = new java.util.LinkedHashMap<Class<?>, Object>(session.injectables());
+        injectables.putIfAbsent(StreamingSession.class, session);
         var approvalPolicy = context.approvalPolicy() != null
                 ? context.approvalPolicy() : ToolApprovalPolicy.annotated();
         return ToolExecutionHelper.executeWithApproval(

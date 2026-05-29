@@ -66,7 +66,7 @@ atmosphere new my-kotlin-ai --template ai-chat --runtime embabel
 atmosphere new my-ai-app --template ai-tools --runtime spring-ai --force
 ```
 
-Available templates: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `koog`, `embabel`, `multi-agent`, `classroom`. Each template sparse-clones the matching sample from `cli/samples.json` into a directory you name.
+Available templates: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `koog`, `embabel`, `multi-agent`, `classroom`, `browser-agent`. Each template sparse-clones the matching sample from `cli/samples.json` into a directory you name.
 
 Available runtimes (`--runtime`): `builtin` (default — no extra deps), `spring-ai`, `langchain4j`, `adk`, `koog`, `semantic-kernel`, `agentscope`, `embabel`, `spring-ai-alibaba`. The CLI appends the matching adapter dependencies (and any required repository, such as Embabel's release repository) to the scaffolded `pom.xml` — Atmosphere's `AgentRuntime` SPI then picks the highest-priority runtime present, so transparent templates like `ai-chat` swap runtime adapters without code changes. `embabel` and `spring-ai-alibaba` currently target the Spring Boot 3.5 profile.
 

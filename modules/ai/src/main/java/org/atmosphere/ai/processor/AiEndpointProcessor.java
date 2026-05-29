@@ -339,6 +339,15 @@ public class AiEndpointProcessor implements Processor<Object> {
                 logger.error("Failed to register tool provider: {}", toolClass.getName(), e);
             }
         }
+        // Offer the code-as-action tool only when code execution is enabled and a
+        // container engine is confirmed present (Correctness Invariant #5). The
+        // per-session sandbox is installed at dispatch time by AiEndpointHandler.
+        var codeExec = org.atmosphere.ai.code.CodeExecSupport.shared();
+        if (codeExec.isEnabled()) {
+            registry.register(codeExec.tool());
+            logger.info("Code-as-action enabled: registered '{}' tool",
+                    org.atmosphere.ai.code.CodeExecTool.TOOL_NAME);
+        }
         return registry;
     }
 

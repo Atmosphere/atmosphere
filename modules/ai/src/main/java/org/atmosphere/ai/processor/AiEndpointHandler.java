@@ -444,10 +444,21 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // these types as parameters — no ThreadLocal shim required.
         // Include the live AtmosphereResource so tools can reach request
         // attributes (user id, session id) without a separate accessor.
-        if (!injectables.isEmpty() || resource != null) {
+        var codeExec = org.atmosphere.ai.code.CodeExecSupport.shared();
+        boolean codeExecEnabled = codeExec.isEnabled();
+        if (!injectables.isEmpty() || resource != null || codeExecEnabled) {
             var toolScope = new java.util.LinkedHashMap<Class<?>, Object>(injectables);
             if (resource != null) {
                 toolScope.putIfAbsent(AtmosphereResource.class, resource);
+            }
+            // Provision a lazy, session-scoped sandbox for the code_exec tool and
+            // bind its teardown to this session's terminal path (Invariants #1/#2).
+            // No container is started unless the model actually calls code_exec.
+            if (codeExecEnabled) {
+                var sandbox = codeExec.install(session, session.sessionId());
+                if (sandbox != null) {
+                    toolScope.put(org.atmosphere.ai.code.CodeSandbox.class, sandbox);
+                }
             }
             session.setInjectables(toolScope);
         }

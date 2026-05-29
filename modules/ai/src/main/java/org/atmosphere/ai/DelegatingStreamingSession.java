@@ -70,6 +70,7 @@ public abstract class DelegatingStreamingSession implements StreamingSession {
     @Override public void handoff(String agentName, String message) {
         delegate.handoff(agentName, message);
     }
+    @Override public void onTerminate(AutoCloseable resource) { delegate.onTerminate(resource); }
     @Override public void close() {
         try {
             delegate.close();

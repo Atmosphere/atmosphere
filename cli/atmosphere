@@ -1000,7 +1000,8 @@ cmd_new() {
         coding-agent)  source_sample="spring-boot-coding-agent" ;;
         guarded-agent) source_sample="spring-boot-guarded-email-agent" ;;
         assistant)     source_sample="spring-boot-personal-assistant" ;;
-        *)             die "Unknown template: $template (chat, ai-chat, ai-tools, mcp-server, rag, agent, multi-agent, classroom, ms-governance, coding-agent, guarded-agent, assistant)" ;;
+        browser-agent) source_sample="spring-boot-browser-agent" ;;
+        *)             die "Unknown template: $template (chat, ai-chat, ai-tools, mcp-server, rag, agent, multi-agent, classroom, ms-governance, coding-agent, guarded-agent, assistant, browser-agent)" ;;
     esac
 
     json=$(get_samples_json)

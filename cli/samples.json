@@ -136,6 +136,27 @@
       }
     },
     {
+      "name": "spring-boot-browser-agent",
+      "description": "Code-as-action agent \u2014 the model writes Playwright that drives a headless browser in an isolated sandbox container; screenshots stream to the Console live (requires Docker)",
+      "category": "ai",
+      "tags": [
+        "spring-boot",
+        "ai",
+        "agent",
+        "code-execution",
+        "playwright",
+        "cohere"
+      ],
+      "port": 8090,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": true,
+      "envVars": {
+        "COHERE_API_KEY": "Cohere API key (Command models support tool calling)",
+        "ATMO_CODE_EXEC": "Enable code execution (default: true)"
+      }
+    },
+    {
       "name": "spring-boot-ai-classroom",
       "description": "AI classroom \u2014 multiple clients share streaming AI responses",
       "category": "ai",

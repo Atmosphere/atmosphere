@@ -23,6 +23,7 @@ All samples inherit their Atmosphere version from the parent POM. The target sta
 | [spring-boot-ai-tools](spring-boot-ai-tools/) | Built-in / any `AgentRuntime` | `@AiTool` (portable) | Framework-agnostic tool calling pipeline with live `AiEvent` tool activity |
 | [spring-boot-ai-classroom](spring-boot-ai-classroom/) | Built-in | — | Multi-room collaborative AI streaming ([Expo client](spring-boot-ai-classroom/expo-client/)) |
 | [spring-boot-rag-chat](spring-boot-rag-chat/) | Built-in + Spring AI VectorStore | `@AiTool` | RAG agent with knowledge base search tools |
+| [spring-boot-browser-agent](spring-boot-browser-agent/) | Cohere (Command) | `code_exec` (sandboxed) | Code-as-action agent — writes Playwright that drives a headless browser in an isolated container; screenshots stream to the Console live (**requires Docker**) |
 
 ### Agents (`@Agent` + `@Command`)
 
@@ -157,7 +158,7 @@ cd quarkus-chat && mvn clean package && java -jar target/quarkus-app/quarkus-run
 cd embedded-jetty-websocket-chat && mvn clean install && mvn -Pserver
 ```
 
-Most samples run on **http://localhost:8080**. A few AI samples use different ports so they can run simultaneously (for example `spring-boot-mcp-server` on 8083, `spring-boot-a2a-agent` on 8084, `spring-boot-agui-chat` on 8085, `spring-boot-ai-tools` on 8090). Check each sample's `application.yml` / `application.properties` for the exact port.
+Most samples run on **http://localhost:8080**. A few AI samples use different ports so they can run simultaneously (for example `spring-boot-mcp-server` on 8083, `spring-boot-a2a-agent` on 8084, `spring-boot-agui-chat` on 8085, `spring-boot-ai-tools` and `spring-boot-browser-agent` on 8090 — run these two individually). Check each sample's `application.yml` / `application.properties` for the exact port.
 
 ### Picking an LLM provider
 
