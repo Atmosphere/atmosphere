@@ -88,6 +88,7 @@ public class InteractionService {
     private final ExecutorService executor;
     private final boolean ownsExecutor;
     private final RunRegistry runRegistry;
+    private final java.util.function.Supplier<String> defaultModelSupplier;
 
     public InteractionService(AgentRuntime runtime, InteractionStore store) {
         this(runtime, store, null, new InteractionStepMapper(), DEFAULT_MAX_STEPS,
@@ -128,6 +129,25 @@ public class InteractionService {
                               AiConversationMemory memory, InteractionStepMapper mapper,
                               int maxSteps, Duration syncTimeout, Clock clock,
                               ExecutorService executor, RunRegistry runRegistry) {
+        this(runtime, store, memory, mapper, maxSteps, syncTimeout, clock,
+                executor, runRegistry, null);
+    }
+
+    /**
+     * Canonical constructor with a lazily-resolved default model.
+     *
+     * @param defaultModelSupplier supplies the model applied when a request omits
+     *                             one, resolved at request time (not construction)
+     *                             so a configuration source initialized after this
+     *                             bean — e.g. {@code AiConfig} — is still seen. May
+     *                             be {@code null} to leave model resolution entirely
+     *                             to the runtime; may itself return {@code null}.
+     */
+    public InteractionService(AgentRuntime runtime, InteractionStore store,
+                              AiConversationMemory memory, InteractionStepMapper mapper,
+                              int maxSteps, Duration syncTimeout, Clock clock,
+                              ExecutorService executor, RunRegistry runRegistry,
+                              java.util.function.Supplier<String> defaultModelSupplier) {
         this.runtime = Objects.requireNonNull(runtime, "runtime");
         this.store = Objects.requireNonNull(store, "store");
         this.memory = memory;
@@ -141,6 +161,7 @@ public class InteractionService {
         this.ownsExecutor = executor == null;
         this.executor = executor != null ? executor : Executors.newVirtualThreadPerTaskExecutor();
         this.runRegistry = runRegistry != null ? runRegistry : new RunRegistry();
+        this.defaultModelSupplier = defaultModelSupplier;
     }
 
     /** Initialize service-owned resources. */
@@ -391,14 +412,22 @@ public class InteractionService {
                     + "continuing as a single turn", request.previousInteractionId());
         }
 
+        // Fall back to the configured default model when the caller omits one,
+        // so a runtime that does not self-default (e.g. the built-in OpenAI-
+        // compatible client) still receives a model on the request. Resolved
+        // lazily so a config source initialized after construction is seen.
+        var configuredModel = defaultModelSupplier != null ? defaultModelSupplier.get() : null;
+        var model = request.model() != null && !request.model().isBlank()
+                ? request.model() : configuredModel;
+
         var id = InteractionIds.mint();
         var now = Instant.now(clock);
         var initial = new Interaction(id, parentId, conversationId, request.agentId(), owner,
-                request.model(), InteractionStatus.RUNNING, request.background(), request.store(),
+                model, InteractionStatus.RUNNING, request.background(), request.store(),
                 List.of(), null, null, null, now, now);
 
         var context = new AgentExecutionContext(
-                request.message(), request.systemPrompt(), request.model(), request.agentId(),
+                request.message(), request.systemPrompt(), model, request.agentId(),
                 id, owner, conversationId, request.tools(), null, null, null,
                 request.metadata(), history, null, null);
         return new Plan(id, conversationId, owner, request, initial, context);

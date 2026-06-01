@@ -6,9 +6,10 @@ import GovernanceDecisions from './components/GovernanceDecisions.vue'
 import GovernanceOwasp from './components/GovernanceOwasp.vue'
 import GovernanceCommitments from './components/GovernanceCommitments.vue'
 import Sessions from './components/Sessions.vue'
+import Interactions from './components/Interactions.vue'
 import logoUrl from './assets/logo.svg'
 
-type Tab = 'chat' | 'sessions' | 'policies' | 'decisions' | 'owasp' | 'commitments'
+type Tab = 'chat' | 'sessions' | 'interactions' | 'policies' | 'decisions' | 'owasp' | 'commitments'
 
 const subtitle = ref('')
 const endpoint = ref('/atmosphere/ai-chat')
@@ -22,6 +23,7 @@ const activeTab = ref<Tab>('chat')
 const governanceAvailable = ref(false)
 const governancePolicyCount = ref<number | null>(null)
 const agentsAvailable = ref(false)
+const interactionsAvailable = ref(false)
 
 async function probeGovernance() {
   try {
@@ -49,12 +51,28 @@ async function probeAgents() {
   }
 }
 
+async function probeInteractions() {
+  try {
+    // GET /api/interactions is the ownership-scoped read surface — a 200 (even
+    // an empty list) means the Interactions API is wired on this sample.
+    const res = await fetch('/api/interactions', { headers: { Accept: 'application/json' } })
+    if (res.ok) {
+      interactionsAvailable.value = true
+    }
+  } catch {
+    // atmosphere-interactions not on the classpath — hide the Interactions tab.
+  }
+}
+
 const tabs = computed(() => {
   const list: Array<{ id: Tab; label: string; badge?: string }> = [
     { id: 'chat', label: 'Chat' },
   ]
   if (agentsAvailable.value) {
     list.push({ id: 'sessions', label: 'Sessions' })
+  }
+  if (interactionsAvailable.value) {
+    list.push({ id: 'interactions', label: 'Interactions' })
   }
   if (governanceAvailable.value) {
     list.push({
@@ -82,7 +100,7 @@ onMounted(async () => {
   } catch {
     // Console info not available — use defaults
   }
-  await Promise.all([probeGovernance(), probeAgents()])
+  await Promise.all([probeGovernance(), probeAgents(), probeInteractions()])
   ready.value = true
 })
 </script>
@@ -115,6 +133,8 @@ onMounted(async () => {
       <ChatContainer v-if="ready && activeTab === 'chat'" :endpoint="endpoint" :mode="mode" />
       <Sessions v-if="ready && agentsAvailable" v-show="activeTab === 'sessions'"
                 :active="activeTab === 'sessions'" />
+      <Interactions v-if="ready && interactionsAvailable" v-show="activeTab === 'interactions'"
+                    :active="activeTab === 'interactions'" />
       <GovernancePolicies v-if="ready" v-show="activeTab === 'policies'"
                           :active="activeTab === 'policies'" />
       <GovernanceDecisions v-if="ready" v-show="activeTab === 'decisions'"

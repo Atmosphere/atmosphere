@@ -151,6 +151,13 @@
                 <version>${project.version}</version>
             </dependency>
 
+            <!-- Interactions (stateful agent turns over AgentRuntime) -->
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-interactions</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <!-- Durable Sessions -->
             <dependency>
                 <groupId>org.atmosphere</groupId>
