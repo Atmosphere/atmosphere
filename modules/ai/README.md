@@ -535,8 +535,26 @@ var metrics = new MicrometerAiMetrics(meterRegistry, "spring-ai");
 | `atmosphere.ai.tool.duration` | Timer | Tool call execution time |
 | `atmosphere.ai.active_sessions` | Gauge | Currently active streaming sessions |
 | `atmosphere.ai.cost` | Summary | Cost per request |
+| `atmosphere.ai.tokens` | Counter | Authoritative provider token usage, tagged by `type` (`input` / `output`) |
 
-All metrics are tagged with `model` and `provider`.
+All `atmosphere.ai.*` metrics are tagged with `model` and `provider`.
+
+#### OpenTelemetry GenAI convention dual-emit
+
+Alongside the `atmosphere.ai.*` series, `MicrometerAiMetrics` also emits the
+[OpenTelemetry GenAI semantic-convention](https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/)
+instruments, so token and latency data lands in Langfuse / LangSmith / Grafana
+GenAI dashboards with no per-metric remapping. This applies to **any** runtime
+that reports usage through `StreamingSession.usage(TokenUsage)` — the capture
+point is the pipeline-level `MetricsCapturingSession`, not a single adapter.
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `gen_ai.client.token.usage` | Distribution | Token counts, split by `gen_ai.token.type` (`input` / `output`) |
+| `gen_ai.client.operation.duration` | Timer | Full operation wall-clock time |
+
+Convention instruments carry the `gen_ai.operation.name`, `gen_ai.provider.name`,
+and `gen_ai.request.model` attributes.
 
 ### TracingCapturingSession
 

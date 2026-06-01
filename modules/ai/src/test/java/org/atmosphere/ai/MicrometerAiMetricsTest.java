@@ -254,4 +254,67 @@ public class MicrometerAiMetricsTest {
         assertNotNull(counter);
         assertEquals(5.0, counter.count());
     }
+
+    @Test
+    public void testTokenUsageEmitsAtmosphereCounterByType() {
+        metrics.recordTokenUsage("gpt-4", 120, 80, 200);
+        metrics.recordTokenUsage("gpt-4", 30, 20, 50);
+
+        var input = registry.find("atmosphere.ai.tokens")
+                .tag("model", "gpt-4")
+                .tag("provider", "spring-ai")
+                .tag("type", "input")
+                .counter();
+        assertNotNull(input, "input token counter missing");
+        assertEquals(150.0, input.count(), "two turns of input tokens should accumulate");
+
+        var output = registry.find("atmosphere.ai.tokens")
+                .tag("type", "output")
+                .counter();
+        assertNotNull(output);
+        assertEquals(100.0, output.count());
+    }
+
+    @Test
+    public void testTokenUsageDualEmitsGenAiConventionInstrument() {
+        metrics.recordTokenUsage("gpt-4", 120, 80, 200);
+
+        var input = registry.find("gen_ai.client.token.usage")
+                .tag("gen_ai.operation.name", "chat")
+                .tag("gen_ai.provider.name", "spring-ai")
+                .tag("gen_ai.request.model", "gpt-4")
+                .tag("gen_ai.token.type", "input")
+                .summary();
+        assertNotNull(input, "gen_ai.client.token.usage input series missing");
+        assertEquals(1, input.count());
+        assertEquals(120.0, input.totalAmount(), 0.001);
+
+        var output = registry.find("gen_ai.client.token.usage")
+                .tag("gen_ai.token.type", "output")
+                .summary();
+        assertNotNull(output);
+        assertEquals(80.0, output.totalAmount(), 0.001);
+    }
+
+    @Test
+    public void testTokenUsageSkipsZeroCounts() {
+        metrics.recordTokenUsage("gpt-4", 0, 0, 0);
+
+        assertNull(registry.find("atmosphere.ai.tokens").counter());
+        assertNull(registry.find("gen_ai.client.token.usage").summary());
+    }
+
+    @Test
+    public void testLatencyDualEmitsGenAiOperationDuration() {
+        metrics.recordLatency("gpt-4", Duration.ofMillis(200), Duration.ofMillis(1000));
+
+        var timer = registry.find("gen_ai.client.operation.duration")
+                .tag("gen_ai.operation.name", "chat")
+                .tag("gen_ai.provider.name", "spring-ai")
+                .tag("gen_ai.request.model", "gpt-4")
+                .timer();
+        assertNotNull(timer, "gen_ai.client.operation.duration missing");
+        assertEquals(1, timer.count());
+        assertEquals(1000.0, timer.totalTime(TimeUnit.MILLISECONDS), 1.0);
+    }
 }

@@ -105,6 +105,17 @@ public final class CompositeAiMetrics implements AiMetrics {
     }
 
     @Override
+    public void recordTokenUsage(String model, long inputTokens, long outputTokens, long totalTokens) {
+        for (var delegate : delegates) {
+            try {
+                delegate.recordTokenUsage(model, inputTokens, outputTokens, totalTokens);
+            } catch (RuntimeException e) {
+                logFailure(delegate, "recordTokenUsage", e);
+            }
+        }
+    }
+
+    @Override
     public void recordCost(String model, BigDecimal cost) {
         for (var delegate : delegates) {
             try {

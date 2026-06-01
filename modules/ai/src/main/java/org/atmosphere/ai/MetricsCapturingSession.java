@@ -70,6 +70,19 @@ class MetricsCapturingSession extends DelegatingStreamingSession {
     }
 
     @Override
+    public void usage(TokenUsage usage) {
+        // Tap the authoritative provider token counts here rather than from the
+        // re-emitted ai.tokens.* metadata: DelegatingStreamingSession forwards
+        // usage() straight to the delegate, so the metadata fan-out never
+        // re-enters this decorator's sendMetadata. The typed signal is the only
+        // reliable capture point for gen_ai.client.token.usage.
+        if (usage != null && usage.hasCounts()) {
+            metrics.recordTokenUsage(model, usage.input(), usage.output(), usage.total());
+        }
+        delegate.usage(usage);
+    }
+
+    @Override
     public void complete() {
         recordMetrics();
         delegate.complete();

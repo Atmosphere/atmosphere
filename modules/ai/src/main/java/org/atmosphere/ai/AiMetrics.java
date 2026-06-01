@@ -52,6 +52,28 @@ public interface AiMetrics {
     void recordStreamingTextUsage(String model, int promptStreamingTexts, int completionStreamingTexts);
 
     /**
+     * Record authoritative token usage as reported by the provider, fired once
+     * per chat completion from the typed {@link StreamingSession#usage(TokenUsage)}
+     * signal. Distinct from {@link #recordStreamingTextUsage}, which counts
+     * streamed text chunks — this method carries the real prompt/completion
+     * token counts used for billing and capacity.
+     *
+     * <p>Implementations that target OpenTelemetry should map this to the
+     * <a href="https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/">{@code gen_ai.client.token.usage}</a>
+     * instrument, splitting input and output via the {@code gen_ai.token.type}
+     * attribute, so Atmosphere's counts line up with Langfuse / LangSmith /
+     * Grafana GenAI dashboards without per-metric remapping.</p>
+     *
+     * <p>Default is a no-op so existing implementations stay source-compatible.</p>
+     *
+     * @param model        the model name (or {@code "unknown"})
+     * @param inputTokens  prompt tokens consumed (0 when unknown)
+     * @param outputTokens completion tokens produced (0 when unknown)
+     * @param totalTokens  total tokens for the completion (0 when unknown)
+     */
+    default void recordTokenUsage(String model, long inputTokens, long outputTokens, long totalTokens) { }
+
+    /**
      * Record latency metrics.
      *
      * @param model         the model name

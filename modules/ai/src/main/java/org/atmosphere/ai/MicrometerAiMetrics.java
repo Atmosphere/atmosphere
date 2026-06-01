@@ -39,11 +39,28 @@ import java.util.concurrent.atomic.AtomicInteger;
  *   <li>{@code atmosphere.ai.input.tokens} &mdash; per-stage approximate input tokens, tagged by {@code stage}
  *       (system / tool_schema / structured_output_schema / confidence_cue / scrollback / user_message)</li>
  *   <li>{@code atmosphere.ai.input.chars} &mdash; per-stage exact character count, same tagging</li>
+ *   <li>{@code atmosphere.ai.tokens} &mdash; authoritative provider token usage, tagged by
+ *       {@code type} (input / output)</li>
  * </ul>
  *
- * <p>All metrics are tagged with {@code model} and {@code provider}. Because
- * Micrometer is an optional dependency, this class is only usable when
- * {@code micrometer-core} is on the classpath.</p>
+ * <p>All Atmosphere-namespaced metrics are tagged with {@code model} and
+ * {@code provider}. Because Micrometer is an optional dependency, this class is
+ * only usable when {@code micrometer-core} is on the classpath.</p>
+ *
+ * <p>In addition to the {@code atmosphere.ai.*} series above, this class
+ * <em>dual-emits</em> the
+ * <a href="https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/">OpenTelemetry
+ * GenAI semantic-convention</a> instruments so the same data lands in Langfuse /
+ * LangSmith / Grafana GenAI dashboards without per-metric remapping:</p>
+ * <ul>
+ *   <li>{@code gen_ai.client.token.usage} &mdash; token counts split by
+ *       {@code gen_ai.token.type} (input / output)</li>
+ *   <li>{@code gen_ai.client.operation.duration} &mdash; full operation wall-clock time</li>
+ * </ul>
+ * <p>The convention instruments carry the {@code gen_ai.operation.name},
+ * {@code gen_ai.provider.name}, and {@code gen_ai.request.model} attributes. The
+ * existing {@code atmosphere.ai.*} series is retained unchanged so dashboards
+ * built on it keep working.</p>
  */
 public final class MicrometerAiMetrics implements AiMetrics {
 
@@ -86,6 +103,34 @@ public final class MicrometerAiMetrics implements AiMetrics {
         counter("atmosphere.ai.prompts.total", tags).increment();
         timer("atmosphere.ai.prompt.duration", tags).record(timeToFirstStreamingText);
         timer("atmosphere.ai.response.duration", tags).record(totalDuration);
+        // OTel GenAI convention: gen_ai.client.operation.duration. Micrometer
+        // exporters emit Timer durations in seconds, matching the convention's
+        // unit, so this surfaces directly in GenAI dashboards.
+        timer("gen_ai.client.operation.duration", genAiTags(model)).record(totalDuration);
+    }
+
+    @Override
+    public void recordTokenUsage(String model, long inputTokens, long outputTokens, long totalTokens) {
+        var tags = tags(model);
+        // Atmosphere-namespaced counter, tagged by token type, consistent with
+        // the rest of the atmosphere.ai.* series.
+        if (inputTokens > 0) {
+            counter("atmosphere.ai.tokens", tags.and("type", "input")).increment(inputTokens);
+        }
+        if (outputTokens > 0) {
+            counter("atmosphere.ai.tokens", tags.and("type", "output")).increment(outputTokens);
+        }
+        // OTel GenAI convention: gen_ai.client.token.usage, split by
+        // gen_ai.token.type. The convention defines input/output token types
+        // only — total is derivable and not a distinct series.
+        if (inputTokens > 0) {
+            registry.summary("gen_ai.client.token.usage", genAiTags(model).and("gen_ai.token.type", "input"))
+                    .record(inputTokens);
+        }
+        if (outputTokens > 0) {
+            registry.summary("gen_ai.client.token.usage", genAiTags(model).and("gen_ai.token.type", "output"))
+                    .record(outputTokens);
+        }
     }
 
     @Override
@@ -137,6 +182,20 @@ public final class MicrometerAiMetrics implements AiMetrics {
 
     private Tags tags(String model) {
         return Tags.of("model", model != null ? model : "unknown", "provider", provider);
+    }
+
+    /**
+     * Tags for the OpenTelemetry GenAI convention instruments. Uses the
+     * convention attribute keys ({@code gen_ai.operation.name},
+     * {@code gen_ai.provider.name}, {@code gen_ai.request.model}) rather than
+     * the Atmosphere {@code model}/{@code provider} keys so the emitted series
+     * matches what GenAI-aware backends expect.
+     */
+    private Tags genAiTags(String model) {
+        return Tags.of(
+                "gen_ai.operation.name", "chat",
+                "gen_ai.provider.name", provider,
+                "gen_ai.request.model", model != null ? model : "unknown");
     }
 
     private Counter counter(String name, Tags tags) {

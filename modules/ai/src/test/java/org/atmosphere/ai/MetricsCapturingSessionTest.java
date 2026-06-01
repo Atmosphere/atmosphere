@@ -20,7 +20,9 @@ import org.mockito.Mockito;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -138,6 +140,28 @@ class MetricsCapturingSessionTest {
         session.sendMetadata("usage.completionStreamingTexts", 50);
         session.complete();
         verify(metrics).recordStreamingTextUsage("gpt-4", 100, 50);
+    }
+
+    @Test
+    void usageRecordsTokenUsageAndForwardsToDelegate() {
+        var metrics = mockMetrics();
+        var delegate = mockDelegate();
+        var session = new MetricsCapturingSession(delegate, metrics, "gpt-4");
+        var usage = new TokenUsage(120, 80, 0, 200, "gpt-4");
+        session.usage(usage);
+        verify(metrics).recordTokenUsage("gpt-4", 120L, 80L, 200L);
+        verify(delegate).usage(usage);
+    }
+
+    @Test
+    void usageWithNoCountsSkipsMetricButStillForwards() {
+        var metrics = mockMetrics();
+        var delegate = mockDelegate();
+        var session = new MetricsCapturingSession(delegate, metrics, "gpt-4");
+        var empty = new TokenUsage(0, 0, 0, 0, null);
+        session.usage(empty);
+        verify(metrics, never()).recordTokenUsage(any(), anyLong(), anyLong(), anyLong());
+        verify(delegate).usage(empty);
     }
 
     @Test
