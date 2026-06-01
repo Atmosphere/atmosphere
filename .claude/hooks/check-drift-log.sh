@@ -71,34 +71,53 @@ if ! grep -qiE "$re" "$TRANSCRIPT" 2>/dev/null; then
 fi
 
 # Drift correction signal present. Was drift-log.md modified this session?
+#
+# Worktree-aware: the project mandates branch work in `.claude/worktrees/*`
+# (feedback_worktree_first), so the entry is usually committed on a feature
+# branch in a separate worktree that the main checkout's HEAD never sees until
+# merge. Checking only $REPO_ROOT's current branch produced false positives
+# (it blocked even after the entry was correctly logged on the worktree branch).
+# Scan every worktree, using the path relative to each root so `git -C` resolves
+# it in that worktree's tree, not the main checkout's.
 log_changed=false
+LOG_REL=".harness/drift-log.md"
 
-# (a) staged or unstaged changes in the working tree
-if ! git -C "$REPO_ROOT" diff --quiet -- "$LOG" 2>/dev/null; then
-    log_changed=true
-fi
-if ! git -C "$REPO_ROOT" diff --cached --quiet -- "$LOG" 2>/dev/null; then
-    log_changed=true
+# Collect all worktree roots (the porcelain listing includes the main checkout).
+roots=()
+while IFS= read -r line; do
+    case "$line" in
+        worktree\ *) roots+=("${line#worktree }") ;;
+    esac
+done < <(git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null || true)
+if [ "${#roots[@]}" -eq 0 ]; then
+    roots=("$REPO_ROOT")
 fi
 
-# (b) untracked path (file added but not yet staged). Capture first to avoid
-# the same pipefail/SIGPIPE pitfall as below.
-if [ "$log_changed" = "false" ]; then
-    porcelain="$(git -C "$REPO_ROOT" status --porcelain -- "$LOG" 2>/dev/null || true)"
+for root in "${roots[@]}"; do
+    [ -d "$root" ] || continue
+
+    # (a) staged or unstaged changes in this worktree's tree
+    if ! git -C "$root" diff --quiet -- "$LOG_REL" 2>/dev/null; then
+        log_changed=true; break
+    fi
+    if ! git -C "$root" diff --cached --quiet -- "$LOG_REL" 2>/dev/null; then
+        log_changed=true; break
+    fi
+
+    # (b) untracked path (added but not yet staged)
+    porcelain="$(git -C "$root" status --porcelain -- "$LOG_REL" 2>/dev/null || true)"
     if echo "$porcelain" | grep -q '^??'; then
-        log_changed=true
+        log_changed=true; break
     fi
-fi
 
-# (c) modified in any of the last 3 commits on the current branch.
-# Capture output first because `git log | grep -q` triggers SIGPIPE that
-# `set -o pipefail` reports as a non-zero pipeline exit (false negative).
-if [ "$log_changed" = "false" ]; then
-    recent_files="$(git -C "$REPO_ROOT" log -3 --name-only --pretty=format: 2>/dev/null || true)"
+    # (c) modified in any of the last 3 commits on this worktree's branch.
+    # Capture output first because `git log | grep -q` triggers SIGPIPE that
+    # `set -o pipefail` reports as a non-zero pipeline exit (false negative).
+    recent_files="$(git -C "$root" log -3 --name-only --pretty=format: 2>/dev/null || true)"
     if echo "$recent_files" | grep -q '^\.harness/drift-log\.md$'; then
-        log_changed=true
+        log_changed=true; break
     fi
-fi
+done
 
 if [ "$log_changed" = "true" ]; then
     echo '{}'
