@@ -114,6 +114,13 @@ jobs:
     - name: Tier 1 — scaffold + compile (all 7 runtimes)
       env:
         ATMOSPHERE_NETWORK_TESTS: '1'
+        # Compile the scaffold against the locally-built SNAPSHOT (installed
+        # above), not the last release. A sample on main may depend on a module
+        # added since the last release (e.g. atmosphere-interactions), which by
+        # definition cannot resolve against the released parent — the override
+        # is exactly the mechanism for validating the in-repo reactor. Tier 2
+        # already uses it.
+        ATMOSPHERE_VERSION_OVERRIDE: ${{ steps.version.outputs.snapshot }}
       run: sh cli/test-cli.sh
 
     - name: Tier 2 — boot + assert AgentRuntime.name() (7 runtimes)
