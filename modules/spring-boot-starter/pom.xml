@@ -126,6 +126,13 @@
 
         <dependency>
             <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-interactions</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-agent</artifactId>
             <optional>true</optional>
         </dependency>
