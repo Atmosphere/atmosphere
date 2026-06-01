@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-project</artifactId>
+        <version>4.0.50-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>atmosphere-interactions</artifactId>
+    <packaging>jar</packaging>
+    <name>atmosphere-interactions</name>
+    <description>Stateful, runtime-agnostic Interaction resource over the AgentRuntime SPI — create/get/continue/cancel agent turns with a durable steps[] event log, previous_interaction_id chaining, and detached background execution</description>
+    <url>https://github.com/Atmosphere/atmosphere</url>
+
+    <properties>
+        <atmosphere.module.name>org.atmosphere.interactions</atmosphere.module.name>
+    </properties>
+
+    <dependencies>
+        <!-- atmosphere-ai is the SPI home for AgentRuntime / AgentExecutionContext /
+             StreamingSession / AiEvent / TokenUsage / ConversationPersistence and the
+             RunRegistry reattach machinery this module layers on top of. Optional so
+             a build that only wants the InteractionStore data types does not pull
+             modules/ai transitively; callers that use InteractionService already
+             depend on modules/ai. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Optional: SQLite-backed durable InteractionStore -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.49.1.0</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j-version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback-version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
