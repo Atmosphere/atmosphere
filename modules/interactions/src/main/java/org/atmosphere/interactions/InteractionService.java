@@ -18,9 +18,13 @@ package org.atmosphere.interactions;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AiConversationMemory;
+import org.atmosphere.ai.CollectingSession;
 import org.atmosphere.ai.ExecutionHandle;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.llm.ChatMessage;
+import org.atmosphere.ai.resume.RunEventCapturingSession;
+import org.atmosphere.ai.resume.RunEventReplayBuffer;
+import org.atmosphere.ai.resume.RunRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +35,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * The Interactions API facade: stateful agent turns layered over any
@@ -77,21 +85,49 @@ public class InteractionService {
     private final int maxSteps;
     private final Duration syncTimeout;
     private final Clock clock;
+    private final ExecutorService executor;
+    private final boolean ownsExecutor;
+    private final RunRegistry runRegistry;
 
     public InteractionService(AgentRuntime runtime, InteractionStore store) {
         this(runtime, store, null, new InteractionStepMapper(), DEFAULT_MAX_STEPS,
-                DEFAULT_SYNC_TIMEOUT, Clock.systemUTC());
+                DEFAULT_SYNC_TIMEOUT, Clock.systemUTC(), null, null);
     }
 
     public InteractionService(AgentRuntime runtime, InteractionStore store,
                               AiConversationMemory memory) {
         this(runtime, store, memory, new InteractionStepMapper(), DEFAULT_MAX_STEPS,
-                DEFAULT_SYNC_TIMEOUT, Clock.systemUTC());
+                DEFAULT_SYNC_TIMEOUT, Clock.systemUTC(), null, null);
     }
 
+    /** Tuning convenience: a service that owns its executor and run registry. */
     public InteractionService(AgentRuntime runtime, InteractionStore store,
                               AiConversationMemory memory, InteractionStepMapper mapper,
                               int maxSteps, Duration syncTimeout, Clock clock) {
+        this(runtime, store, memory, mapper, maxSteps, syncTimeout, clock, null, null);
+    }
+
+    /**
+     * Canonical constructor.
+     *
+     * @param runtime     the agent runtime to dispatch to
+     * @param store       durable interaction store (lifecycle owned by the caller)
+     * @param memory      conversation memory for chaining, or {@code null} for single-turn
+     * @param mapper      event-to-step mapper
+     * @param maxSteps    durable step cap per interaction
+     * @param syncTimeout wall-clock ceiling for a synchronous turn
+     * @param clock       time source
+     * @param executor    executor for background runs; {@code null} creates and owns a
+     *                    virtual-thread executor that {@link #stop()} shuts down. A
+     *                    supplied executor is borrowed and never shut down here
+     *                    (Correctness Invariant #1 — Ownership)
+     * @param runRegistry the in-flight run registry for reattach/cancel; {@code null}
+     *                    creates a private one
+     */
+    public InteractionService(AgentRuntime runtime, InteractionStore store,
+                              AiConversationMemory memory, InteractionStepMapper mapper,
+                              int maxSteps, Duration syncTimeout, Clock clock,
+                              ExecutorService executor, RunRegistry runRegistry) {
         this.runtime = Objects.requireNonNull(runtime, "runtime");
         this.store = Objects.requireNonNull(store, "store");
         this.memory = memory;
@@ -102,16 +138,25 @@ public class InteractionService {
         this.maxSteps = maxSteps;
         this.syncTimeout = Objects.requireNonNull(syncTimeout, "syncTimeout");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.ownsExecutor = executor == null;
+        this.executor = executor != null ? executor : Executors.newVirtualThreadPerTaskExecutor();
+        this.runRegistry = runRegistry != null ? runRegistry : new RunRegistry();
     }
 
     /** Initialize service-owned resources. */
     public void start() {
-        // No service-owned resources yet; symmetric with stop().
+        // No service-owned resources require initialization; symmetric with stop().
     }
 
-    /** Release service-owned resources. */
+    /**
+     * Release service-owned resources. Shuts down the background executor only
+     * when this service created it — a borrowed executor is left untouched
+     * (Correctness Invariant #1 — Ownership).
+     */
     public void stop() {
-        // No service-owned resources yet; symmetric with start().
+        if (ownsExecutor) {
+            executor.shutdown();
+        }
     }
 
     /**
@@ -164,6 +209,109 @@ public class InteractionService {
                                            InteractionRequest request,
                                            StreamingSession clientSession, String principal) {
         return create(request.withPrevious(previousInteractionId), clientSession, principal);
+    }
+
+    /**
+     * Launch a detached background interaction. The run executes on the service
+     * executor decoupled from any live connection; this method returns
+     * immediately with the {@link InteractionStatus#RUNNING} record. The result
+     * and durable {@code steps[]} are retrievable later via {@link #get} (poll),
+     * and a client may reattach for live streaming by sending the interaction id
+     * as the {@code X-Atmosphere-Run-Id} header — the run is registered in the
+     * {@link RunRegistry} under the interaction id for exactly that purpose.
+     *
+     * <p>Because the same {@link InteractionCapturingSession} captures here as on
+     * the synchronous path, the persisted {@code steps[]} are identical between
+     * modes (Correctness Invariant #7 — Mode Parity).</p>
+     *
+     * @param request   the turn description ({@code background} is forced true)
+     * @param principal the authenticated caller, or {@code null} for anonymous
+     * @return the RUNNING interaction record (its id is also the run id)
+     */
+    public Interaction createBackground(InteractionRequest request, String principal) {
+        var req = request.withBackground(true);
+        var plan = prepare(req, principal);
+        if (req.store()) {
+            store.save(plan.initial());
+        }
+
+        var collecting = new CollectingSession("interaction-" + plan.id());
+        var replayBuffer = new RunEventReplayBuffer();
+        StreamingSession replaying = new RunEventCapturingSession(collecting, replayBuffer);
+        var capturing = new InteractionCapturingSession(replaying, plan.id(),
+                req.store() ? store : null, mapper, maxSteps);
+
+        // A control handle bridges the runtime's native handle (obtained only once
+        // the task runs) to the registry and to cancel(): cancelling the control
+        // fires the runtime cancel and marks the run CANCELLED. finalize runs once,
+        // on whatever terminal path the control resolves through (Invariant #2).
+        var realHandle = new AtomicReference<ExecutionHandle>();
+        var cancelled = new AtomicBoolean();
+        var control = new ExecutionHandle.Settable(() -> {
+            cancelled.set(true);
+            var h = realHandle.get();
+            if (h != null) {
+                h.cancel();
+            }
+        });
+        var finalized = new AtomicBoolean();
+        control.whenDone().whenComplete((v, e) -> {
+            if (finalized.compareAndSet(false, true)) {
+                finalizeBackground(plan, capturing, control, cancelled.get());
+            }
+        });
+
+        var agentId = req.agentId() != null && !req.agentId().isBlank() ? req.agentId() : plan.id();
+        runRegistry.register(agentId, plan.owner(), plan.id(), control, replayBuffer, plan.id());
+
+        executor.execute(() -> {
+            try {
+                var h = runtime.executeWithHandle(plan.context(), capturing);
+                realHandle.set(h);
+                if (cancelled.get()) {
+                    // cancel() arrived before the native handle existed — apply it now.
+                    h.cancel();
+                }
+                h.whenDone().whenComplete((v, e) -> {
+                    if (e != null) {
+                        control.completeExceptionally(e);
+                    } else {
+                        control.complete();
+                    }
+                });
+            } catch (RuntimeException ex) {
+                capturing.error(ex);
+                control.completeExceptionally(ex);
+            }
+        });
+
+        return plan.initial();
+    }
+
+    /**
+     * Request cancellation of an in-flight background interaction the caller owns.
+     * The run is marked {@link InteractionStatus#CANCELLED} with whatever steps
+     * were captured so far. Returns {@code false} if the interaction is unknown,
+     * not owned by the caller, or no longer in flight (already terminal).
+     *
+     * @param interactionId the run to cancel
+     * @param principal     the caller; must own the run
+     * @return {@code true} if a cancel was requested, {@code false} otherwise
+     * @throws IllegalArgumentException if the id is malformed
+     */
+    public boolean cancel(String interactionId, String principal) {
+        InteractionIds.requireValid(interactionId);
+        var owner = normalize(principal);
+        var stored = store.load(interactionId);
+        if (stored.isPresent() && !ownedBy(stored.get(), owner)) {
+            return false;
+        }
+        var handle = runRegistry.lookup(interactionId);
+        if (handle.isEmpty() || !owner.equals(handle.get().userId())) {
+            return false;
+        }
+        handle.get().executionHandle().cancel();
+        return true;
     }
 
     /**
@@ -256,27 +404,51 @@ public class InteractionService {
         return new Plan(id, conversationId, owner, request, initial, context);
     }
 
-    /** Build the terminal record from the capturing session and persist the turn. */
+    /** Build the terminal record for a synchronous turn and persist it. */
     Interaction finalizeTurn(Plan plan, InteractionCapturingSession capturing, boolean terminated) {
         // The capturing session's terminal status is authoritative when present;
         // its absence means the run never signalled completion (timeout) → FAILED.
         var status = capturing.terminalStatus() != null
                 ? capturing.terminalStatus() : InteractionStatus.FAILED;
-        var steps = capturing.steps();
-        var finalText = capturing.finalText();
-        var usage = capturing.usage().orElse(null);
         var error = status == InteractionStatus.FAILED
                 ? Optional.ofNullable(capturing.errorMessage())
                         .orElse(terminated ? "unknown error" : "timed out after " + syncTimeout)
                 : null;
+        return persistResult(plan, capturing, status, error);
+    }
 
-        var result = plan.initial().withResult(status, steps,
-                finalText.isEmpty() ? null : finalText, usage, error, Instant.now(clock));
+    /** Build the terminal record from a capturing session snapshot and persist the turn. */
+    private Interaction persistResult(Plan plan, InteractionCapturingSession capturing,
+                                      InteractionStatus status, String error) {
+        var finalText = capturing.finalText();
+        var result = plan.initial().withResult(status, capturing.steps(),
+                finalText.isEmpty() ? null : finalText, capturing.usage().orElse(null),
+                error, Instant.now(clock));
         if (plan.request().store()) {
             store.save(result);
         }
         persistHistory(plan, status, finalText);
         return result;
+    }
+
+    /** Build the terminal record for a background run, honoring cancellation. */
+    private void finalizeBackground(Plan plan, InteractionCapturingSession capturing,
+                                    ExecutionHandle.Settable control, boolean cancelled) {
+        InteractionStatus status;
+        if (cancelled || control.terminalReason() == ExecutionHandle.TerminalReason.CANCELLED) {
+            status = InteractionStatus.CANCELLED;
+        } else if (capturing.terminalStatus() != null) {
+            status = capturing.terminalStatus();
+        } else {
+            // Native handle resolved without the session signalling a terminal —
+            // classify by the control's terminal reason.
+            status = control.terminalReason() == ExecutionHandle.TerminalReason.ERROR
+                    ? InteractionStatus.FAILED : InteractionStatus.COMPLETED;
+        }
+        var error = status == InteractionStatus.FAILED
+                ? Optional.ofNullable(capturing.errorMessage()).orElse("execution failed")
+                : null;
+        persistResult(plan, capturing, status, error);
     }
 
     private void persistHistory(Plan plan, InteractionStatus status, String finalText) {
@@ -297,6 +469,11 @@ public class InteractionService {
 
     private String normalize(String principal) {
         return principal == null || principal.isBlank() ? ANONYMOUS : principal;
+    }
+
+    /** The background executor (test hook for ownership assertions). */
+    ExecutorService executorForTest() {
+        return executor;
     }
 
     /** A prepared turn: minted id, resolved chain, initial record, and runtime context. */
