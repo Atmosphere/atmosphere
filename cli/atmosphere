@@ -441,6 +441,24 @@ install_with_menu() {
     printf '%s' "$selected"
 }
 
+# Copy the jarless Maven wrapper from a source repo/archive root into a scaffold
+# so the generated project runs with just a JDK — no system Maven, version
+# pinned by maven-wrapper.properties (portable + reproducible). Deliberately
+# copies ONLY the wrapper; never the reactor-internal GIB files
+# (.mvn/extensions.xml, .mvn/gib.properties, .mvn/maven.config), which assume
+# the multi-module reactor and would break a standalone build.
+#   $1 = source root containing mvnw + .mvn/   $2 = target project dir
+copy_maven_wrapper() {
+    src="$1"; dst="$2"
+    cp "$src/mvnw" "$dst/" 2>/dev/null || true
+    cp "$src/mvnw.cmd" "$dst/" 2>/dev/null || true
+    if [ -f "$src/.mvn/wrapper/maven-wrapper.properties" ]; then
+        mkdir -p "$dst/.mvn/wrapper"
+        cp "$src/.mvn/wrapper/maven-wrapper.properties" "$dst/.mvn/wrapper/" 2>/dev/null || true
+    fi
+    chmod +x "$dst/mvnw" 2>/dev/null || true
+}
+
 install_source() {
     sample="$1"
     json="$2"
@@ -466,10 +484,13 @@ install_source() {
             https://github.com/Atmosphere/atmosphere.git "$tmp_dir/repo" 2>/dev/null
 
         cd "$tmp_dir/repo"
-        git sparse-checkout set "samples/$sample" 2>/dev/null
+        # Include the sample plus the jarless Maven wrapper dir; root-level files
+        # (mvnw, mvnw.cmd) come along automatically in cone-mode sparse checkout.
+        git sparse-checkout set "samples/$sample" ".mvn/wrapper" 2>/dev/null
 
         if [ -d "samples/$sample" ]; then
             cp -r "samples/$sample" "$OLDPWD/$target_dir"
+            copy_maven_wrapper "." "$OLDPWD/$target_dir"
             cd "$OLDPWD"
             ok "Installed source to $target_dir/"
         else
@@ -485,6 +506,8 @@ install_source() {
 
         if [ -n "$src_dir" ] && [ -d "$src_dir" ]; then
             cp -r "$src_dir" "$target_dir"
+            # archive layout: <tmp>/atmosphere-main/samples/<sample>
+            copy_maven_wrapper "$(dirname "$(dirname "$src_dir")")" "$target_dir"
             ok "Installed source to $target_dir/"
         else
             die "Sample '$sample' not found in archive"

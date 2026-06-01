@@ -395,6 +395,25 @@ if [ "${ATMOSPHERE_NETWORK_TESTS:-0}" = "1" ]; then
         fail "clones pom.xml from sample"
     fi
 
+    # Portable Maven wrapper: scaffold must be runnable with just a JDK (the
+    # printed './mvnw spring-boot:run' has to actually exist), version pinned.
+    if [ -x "$tmp_dir/net-chat/mvnw" ]; then
+        pass "scaffold ships executable mvnw"
+    else
+        fail "scaffold ships executable mvnw"
+    fi
+    if [ -f "$tmp_dir/net-chat/.mvn/wrapper/maven-wrapper.properties" ]; then
+        pass "scaffold ships .mvn/wrapper/maven-wrapper.properties"
+    else
+        fail "scaffold ships .mvn/wrapper/maven-wrapper.properties"
+    fi
+    # Reactor-internal GIB files must NOT leak into a standalone scaffold.
+    if [ ! -e "$tmp_dir/net-chat/.mvn/extensions.xml" ]; then
+        pass "scaffold excludes reactor-internal .mvn/extensions.xml"
+    else
+        fail "scaffold excludes reactor-internal .mvn/extensions.xml"
+    fi
+
     # Skill-file + agent template copies the skill into the cloned project
     cat > "$tmp_dir/test-skill.md" <<'SKILLEOF'
 # Support Agent
