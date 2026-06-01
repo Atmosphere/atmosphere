@@ -63,6 +63,12 @@
             <artifactId>atmosphere-ai</artifactId>
         </dependency>
 
+        <!-- Stateful Interactions API (background runs, durable steps[]) -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-interactions</artifactId>
+        </dependency>
+
         <!-- Required by atmosphere-agent for @Agent auto-bridging -->
         <dependency>
             <groupId>org.atmosphere</groupId>

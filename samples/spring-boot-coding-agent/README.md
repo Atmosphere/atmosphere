@@ -59,3 +59,16 @@ annotation wires a method to a sandbox backend, and `Sandbox.writeFile` +
   from boolean to `NetworkPolicy` (`NONE` / `GIT_ONLY` / `ALLOWLIST`) so
   the clone step can reach GitHub while downstream tool calls cannot reach
   the wider internet.
+
+## Stateful Interactions (Console → Interactions tab)
+
+This sample includes `atmosphere-interactions`, so the Atmosphere Console
+(`/atmosphere/console/`) gains an **Interactions** tab over
+`POST/GET /api/interactions`. A coding task is long-running, so launching it as
+a **background** interaction — returning immediately and polling the durable
+`steps[]` timeline — is the natural pattern; the run is retrievable after a
+disconnect and can be **continued** via `previous_interaction_id`.
+
+The mutating endpoints are default-deny (Correctness Invariant #6); for this
+local demo `application.yml` sets `atmosphere.interactions.http-write-enabled=true`
+and `demo-principal: demo-user` — **never enable either in production.**

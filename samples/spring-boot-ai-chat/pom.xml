@@ -61,6 +61,12 @@
             <artifactId>atmosphere-channels</artifactId>
         </dependency>
 
+        <!-- Stateful Interactions API (durable steps[], background runs, chaining) -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-interactions</artifactId>
+        </dependency>
+
         <!-- Admin control plane dashboard -->
         <dependency>
             <groupId>org.atmosphere</groupId>

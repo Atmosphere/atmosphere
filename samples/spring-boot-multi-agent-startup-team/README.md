@@ -351,3 +351,17 @@ When you send a prompt, the console shows:
 3. **Coordination Journal** — full execution table with EVAL rows showing evaluator name, score, reason, and PASS/FAIL
 4. **CEO Briefing** — the LLM-generated executive summary with GO/NO-GO recommendation, key risks, and next steps
 5. **Agent Status Bar** — bottom bar with per-agent status (thinking/completed) and green checkmarks
+
+## Stateful Interactions (Console → Interactions tab)
+
+This sample includes `atmosphere-interactions`, so the Atmosphere Console
+(`/atmosphere/console/`) gains an **Interactions** tab over
+`POST/GET /api/interactions`. Launch a turn in the **background** and the
+detached run returns immediately while its durable `steps[]` timeline streams
+in — the natural fit for a long-running multi-agent task you kick off and poll
+(or reattach to) rather than hold a connection open. Finished interactions can
+be **continued**, chaining context via `previous_interaction_id`.
+
+The mutating endpoints are default-deny (Correctness Invariant #6); for this
+local demo `application.yml` sets `atmosphere.interactions.http-write-enabled=true`
+and `demo-principal: demo-user` — **never enable either in production.**

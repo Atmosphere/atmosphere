@@ -1,5 +1,11 @@
 atmosphere:
   packages: org.atmosphere.samples.springboot.a2astartup
+  # Stateful Interactions API in the Console "Interactions" tab — launch the
+  # team run as a background interaction and watch its durable steps[] timeline.
+  # http-write-enabled + demo-principal are DEMO-ONLY (default-deny otherwise).
+  interactions:
+    http-write-enabled: true
+    demo-principal: demo-user
   web-transport:
     enabled: true
     port: 4446

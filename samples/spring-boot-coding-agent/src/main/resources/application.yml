@@ -14,6 +14,13 @@ atmosphere:
     # without keys; production apps should leave fail-fast on (the default).
     fail-fast: false
 
+  # Stateful Interactions API in the Console "Interactions" tab — submit a
+  # long-running coding task as a background interaction and poll its durable
+  # steps[]. http-write-enabled + demo-principal are DEMO-ONLY (default-deny).
+  interactions:
+    http-write-enabled: true
+    demo-principal: demo-user
+
 spring:
   application:
     name: atmosphere-coding-agent
