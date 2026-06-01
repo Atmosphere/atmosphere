@@ -90,6 +90,33 @@ and bridges the returned `TokenStream` into the session
 `onError` → `error`). Gateway admission, outer retry, and lifecycle listeners
 still wrap the call — the bridge replaces only the dispatch primitive.
 
+## Observability — native `ChatModelListener`s
+
+LangChain4j's own observability contract is the `ChatModelListener` SPI, and
+modules like `langchain4j-opentelemetry` (`OpenTelemetryChatModelListener`) and
+`langchain4j-micrometer-metrics` are implemented as listeners. They instrument
+any model **at build time**.
+
+- **You build the model** (`LangChain4jAgentRuntime.setModel(...)`): attach your
+  listeners on the model builder as usual — they run unchanged.
+- **The runtime auto-builds the model** (zero-config path from `AiConfig`):
+  register listeners so they are attached to that model:
+
+  ```java
+  LangChain4jAgentRuntime.registerChatModelListener(
+          OpenTelemetryChatModelListener.create(openTelemetry));
+  ```
+
+  Registrations apply to the next auto-build; an already-built model keeps the
+  snapshot of listeners present at its build time.
+
+This is orthogonal to Atmosphere's own observability: the framework still emits
+the `gen_ai.*` / `atmosphere.ai.*` metrics (see
+[atmosphere-ai metrics](../ai/README.md#metrics-recorded)) and fires
+`AgentLifecycleListener` events for every runtime. The `ChatModelListener` path
+adds LangChain4j-native instrumentation on top, so a `gen_ai`-aware backend sees
+both Atmosphere's transport/pipeline spans and LangChain4j's model spans.
+
 ## Samples
 
 - [Spring Boot AI Chat](../../samples/spring-boot-ai-chat/) -- swap to `atmosphere-langchain4j` dependency for LangChain4j support

@@ -19,6 +19,7 @@ import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.chat.listener.ChatModelListener;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AiCapability;
@@ -88,11 +89,23 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         eagerLoad("dev.langchain4j.http.client.SuccessfulHttpResponse$Builder");
         eagerLoad("dev.langchain4j.http.client.HttpException");
 
-        var model = dev.langchain4j.model.openai.OpenAiStreamingChatModel.builder()
+        var builder = dev.langchain4j.model.openai.OpenAiStreamingChatModel.builder()
                 .baseUrl(settings.baseUrl())
                 .apiKey(apiKey)
-                .modelName(settings.model())
-                .build();
+                .modelName(settings.model());
+        // Attach any registered native ChatModelListeners so LangChain4j's own
+        // observability contract is live on the model Atmosphere auto-builds —
+        // this is the integration point langchain4j-opentelemetry and
+        // langchain4j-micrometer-metrics hook into. Models supplied via
+        // setModel() instead carry whatever listeners the caller wired at their
+        // own build time. The listener list is copied so the model holds a
+        // stable snapshot rather than the live registry.
+        var listeners = chatModelListeners();
+        if (!listeners.isEmpty()) {
+            builder.listeners(listeners);
+            logger.info("Attached {} ChatModelListener(s) to the auto-built LangChain4j model", listeners.size());
+        }
+        var model = builder.build();
         logger.info("LangChain4j auto-configured: model={}, endpoint={}", settings.model(), settings.baseUrl());
         return model;
     }
@@ -114,6 +127,48 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
 
     // Held for static setter compatibility with Spring auto-configuration
     private static volatile StreamingChatModel staticModel;
+
+    // Native LangChain4j ChatModelListeners attached to models this runtime
+    // auto-builds (createNativeClient). CopyOnWriteArrayList because registration
+    // happens during application wiring while reads happen on model-build paths.
+    private static final java.util.List<ChatModelListener> chatModelListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * Register a LangChain4j {@link ChatModelListener} to be attached to models
+     * this runtime auto-builds via its zero-config path. This is how
+     * {@code langchain4j-opentelemetry} (the {@code OpenTelemetryChatModelListener})
+     * and {@code langchain4j-micrometer-metrics} instrument an
+     * Atmosphere-auto-built model — without it those modules only observe models
+     * the caller builds and wires themselves.
+     *
+     * <p>Registrations take effect on the next {@code createNativeClient} call;
+     * a model already built holds a stable snapshot of the listeners present at
+     * its build time. Models supplied through {@link #setModel} are unaffected —
+     * attach listeners to them at their own build time instead.</p>
+     *
+     * @param listener the listener to attach; ignored when {@code null}
+     */
+    public static void registerChatModelListener(ChatModelListener listener) {
+        if (listener != null) {
+            chatModelListeners.add(listener);
+        }
+    }
+
+    /**
+     * Snapshot of the registered native {@link ChatModelListener}s. Package-private
+     * so the build path and tests share one source of truth.
+     *
+     * @return an immutable copy of the currently registered listeners
+     */
+    static java.util.List<ChatModelListener> chatModelListeners() {
+        return java.util.List.copyOf(chatModelListeners);
+    }
+
+    /** Visible for testing — clears the registry so static state cannot leak between tests. */
+    static void clearChatModelListeners() {
+        chatModelListeners.clear();
+    }
 
     @Override
     public void configure(AiConfig.LlmSettings settings) {
