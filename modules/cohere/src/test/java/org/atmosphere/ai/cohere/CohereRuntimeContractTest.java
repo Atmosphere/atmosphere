@@ -121,7 +121,8 @@ class CohereRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.PER_REQUEST_RETRY,
                 AiCapability.VISION,
                 AiCapability.MULTI_MODAL,
-                AiCapability.TOOL_CALL_DELTA);
+                AiCapability.TOOL_CALL_DELTA,
+                AiCapability.CANCELLATION);
     }
 
     @Test

@@ -41,31 +41,31 @@ final class SemanticKernelStreamingAdapter {
     }
 
     /**
-     * Subscribe to the SK flux synchronously, forwarding every content frame
-     * through the session. Blocks the calling thread until the flux terminates.
-     * Safe under virtual threads because the subscription is effectively a
-     * synchronous loop.
-     */
-    static void drain(Flux<StreamingChatContent<?>> flux, StreamingSession session) {
-        drain(flux, session, java.util.List.of(), "semantic-kernel");
-    }
-
-    /**
-     * Lifecycle-aware drain overload: fires {@code fireModelEnd} on doOnComplete
+     * Subscribe to the SK flux <em>without</em> blocking the calling thread and
+     * return the Reactor {@link reactor.core.Disposable} so the caller can abort
+     * the in-flight stream via {@code dispose()} — disposing propagates an
+     * upstream cancel to the Azure / OpenAI streaming call. Every content frame
+     * is forwarded through the session exactly as the prior blocking path did.
+     * {@code completion} is resolved on any terminal signal (complete, error,
+     * cancel) so the caller's {@link org.atmosphere.ai.ExecutionHandle} can
+     * settle {@code whenDone()}.
+     *
+     * <p>{@code fireModelStart} is fired by the runtime caller before this call
+     * so {@code messageCount} + {@code toolCount} are visible to consumers from
+     * the moment of dispatch; {@code fireModelEnd} fires on {@code doOnComplete}
      * (with the last captured token usage and wall-clock duration) and
-     * {@code fireModelError} on doOnError. {@code fireModelStart} is fired by
-     * the runtime caller before invoking drain so {@code messageCount} +
-     * {@code toolCount} are visible to consumers from the moment of dispatch.
+     * {@code fireModelError} on {@code doOnError}.</p>
      */
-    static void drain(
+    static reactor.core.Disposable drainCancellable(
             Flux<StreamingChatContent<?>> flux,
             StreamingSession session,
             java.util.List<org.atmosphere.ai.AgentLifecycleListener> listeners,
-            String modelName) {
+            String modelName,
+            java.util.concurrent.CompletableFuture<Void> completion) {
         var startNanos = System.nanoTime();
         var lastUsage =
                 new java.util.concurrent.atomic.AtomicReference<TokenUsage>();
-        flux.takeWhile(ignored -> !session.isClosed())
+        return flux.takeWhile(ignored -> !session.isClosed())
                 .doOnNext(frame -> forwardFrame(frame, session, lastUsage))
                 .doOnError(error -> {
                     org.atmosphere.ai.AgentLifecycleListener.fireModelError(
@@ -74,6 +74,7 @@ final class SemanticKernelStreamingAdapter {
                     if (!session.isClosed()) {
                         session.error(error);
                     }
+                    completion.complete(null);
                 })
                 .doOnComplete(() -> {
                     long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
@@ -82,8 +83,10 @@ final class SemanticKernelStreamingAdapter {
                     if (!session.isClosed()) {
                         session.complete();
                     }
+                    completion.complete(null);
                 })
-                .blockLast();
+                .doOnCancel(() -> completion.complete(null))
+                .subscribe();
     }
 
     private static void forwardFrame(

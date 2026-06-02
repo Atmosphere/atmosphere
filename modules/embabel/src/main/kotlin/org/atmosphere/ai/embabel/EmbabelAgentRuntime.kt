@@ -30,9 +30,13 @@ import org.atmosphere.ai.AiCapability
 import org.atmosphere.ai.AiConfig
 import org.atmosphere.ai.AgentExecutionContext
 import org.atmosphere.ai.AgentRuntime
+import org.atmosphere.ai.ExecutionHandle
 import org.atmosphere.ai.StreamingSession
 import org.atmosphere.ai.TokenUsage
 import org.slf4j.LoggerFactory
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * [AgentRuntime] implementation backed by the Embabel Agent Platform.
@@ -161,6 +165,72 @@ class EmbabelAgentRuntime : AgentRuntime {
         } catch (t: Throwable) {
             org.atmosphere.ai.AgentLifecycleListener.fireModelError(listeners, modelName, t)
             throw t
+        }
+    }
+
+    /**
+     * Cooperative cancellation entry point. Embabel implements [AgentRuntime]
+     * directly (it does not extend `AbstractAgentRuntime`), so — like the Koog
+     * runtime — it overrides [executeWithHandle] rather than a `doExecute*`
+     * template method. The blocking [execute] dispatch runs on a dedicated
+     * virtual thread so this method returns promptly with a live handle that a
+     * client disconnect can [ExecutionHandle.cancel] (Correctness Invariant #2).
+     *
+     * **Cancel semantics differ by dispatch path:**
+     *  - *Atmosphere-native streaming* ([executeAtmosphereNative]) blocks on a
+     *    Reactor `blockLast()`. Interrupting the worker disposes that
+     *    subscription, which propagates an upstream cancel to the LLM stream —
+     *    a real abort.
+     *  - *Deployed-agent* ([executeDeployedAgent] → [AgentPlatform.runAgentFrom])
+     *    and the *blocking `generateText` fallback* have no native cancel
+     *    primitive. There the interrupt is best-effort: [cancel] frees the
+     *    client immediately (`session.complete`) and settles [whenDone], while
+     *    the upstream call may run to completion in the background. This is the
+     *    "cooperative" guarantee [AiCapability.CANCELLATION] documents — not
+     *    hard preemption.
+     *
+     * [whenDone] is resolved immediately on [cancel] as a backstop so a worker
+     * stuck in non-interruptible native code cannot hang the disconnect path;
+     * `CompletableFuture` semantics drop the later real completion harmlessly.
+     */
+    override fun executeWithHandle(
+        context: AgentExecutionContext,
+        session: StreamingSession
+    ): ExecutionHandle {
+        val cancelled = AtomicBoolean()
+        val done = CompletableFuture<Void>()
+        val activeThread = AtomicReference<Thread?>()
+        Thread.startVirtualThread {
+            activeThread.set(Thread.currentThread())
+            try {
+                execute(context, session)
+                done.complete(null)
+            } catch (ie: InterruptedException) {
+                // Cooperative cancel: a blocking dispatch (Reactor blockLast /
+                // Thread.sleep in the runAgentFrom planner) unwinds via
+                // interruption. Treat as clean termination, not an error.
+                if (!session.isClosed) session.complete()
+                done.complete(null)
+            } catch (t: Throwable) {
+                // execute() already fired fireModelError + (on the streaming
+                // path) session.error before propagating; settle whenDone with
+                // the cause so callers observe the failure.
+                done.completeExceptionally(t)
+            } finally {
+                activeThread.set(null)
+            }
+        }
+        return object : ExecutionHandle {
+            override fun cancel() {
+                if (!cancelled.compareAndSet(false, true)) return
+                activeThread.get()?.interrupt()
+                if (!session.isClosed) session.complete()
+                done.complete(null)
+            }
+
+            override fun isDone(): Boolean = done.isDone
+
+            override fun whenDone(): CompletableFuture<Void> = done
         }
     }
 
@@ -565,6 +635,16 @@ class EmbabelAgentRuntime : AgentRuntime {
         // a CheckpointStore. Honest because the Atmosphere-native dispatch
         // path threads history into PromptRunner.withMessages — a resumed
         // call observes the same conversation the paused call saw.
-        AiCapability.PASSIVATION
+        AiCapability.PASSIVATION,
+        // CANCELLATION: executeWithHandle runs the blocking dispatch on a
+        // virtual thread and returns a live ExecutionHandle. cancel()
+        // interrupts the worker — a real upstream abort on the
+        // Atmosphere-native Reactor streaming path (interrupt disposes
+        // blockLast), best-effort on the deployed-agent / blocking-generateText
+        // paths (no native cancel primitive; the client is freed immediately
+        // and whenDone settles, but the upstream call may finish in the
+        // background). "Cooperative" cancellation per the capability's
+        // contract. Pinned by EmbabelAgentRuntimeCancelTest.
+        AiCapability.CANCELLATION
     )
 }

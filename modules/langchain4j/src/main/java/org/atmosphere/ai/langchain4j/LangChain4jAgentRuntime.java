@@ -565,7 +565,12 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 // into a CheckpointStore. Honest because LC4j's
                 // assembleMessages threads history into the LC4j ChatRequest
                 // — a resumed call observes the same conversation.
-                AiCapability.PASSIVATION
+                AiCapability.PASSIVATION,
+                // CANCELLATION: doExecuteWithHandle returns a live handle whose
+                // cancel() flips a `cancelled` flag the streaming response
+                // handler polls (dropping remaining tokens) and resolves
+                // whenDone() so the caller unblocks immediately.
+                AiCapability.CANCELLATION
         );
     }
 

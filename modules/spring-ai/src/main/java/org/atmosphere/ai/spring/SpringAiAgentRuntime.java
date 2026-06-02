@@ -356,7 +356,12 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                 // into a CheckpointStore. Honest because Spring AI's
                 // assembleMessages threads history into the Prompt on every
                 // dispatch — a resumed call observes the same conversation.
-                AiCapability.PASSIVATION
+                AiCapability.PASSIVATION,
+                // CANCELLATION: doExecuteWithHandle wraps the Reactor
+                // subscription's Disposable in the ExecutionHandle; cancel()
+                // disposes it, propagating an upstream cancel to the streaming
+                // chat completion and settling whenDone().
+                AiCapability.CANCELLATION
         );
     }
 

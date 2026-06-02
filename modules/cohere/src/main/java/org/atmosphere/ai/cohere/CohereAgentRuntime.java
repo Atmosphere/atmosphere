@@ -266,7 +266,11 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
                 AiCapability.PER_REQUEST_RETRY,
                 AiCapability.VISION,
                 AiCapability.MULTI_MODAL,
-                AiCapability.TOOL_CALL_DELTA);
+                AiCapability.TOOL_CALL_DELTA,
+                // CANCELLATION: doExecuteWithHandle returns a live handle whose
+                // cancel() flips a `cancelled` flag the streaming worker polls,
+                // stopping token forwarding and settling whenDone().
+                AiCapability.CANCELLATION);
     }
 
     @Override

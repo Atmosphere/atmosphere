@@ -85,7 +85,8 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.PER_REQUEST_RETRY,
                 AiCapability.BUDGET_ENFORCEMENT,
                 AiCapability.CONFIDENCE_SCORES,
-                AiCapability.PASSIVATION);
+                AiCapability.PASSIVATION,
+                AiCapability.CANCELLATION);
     }
 
     @Override

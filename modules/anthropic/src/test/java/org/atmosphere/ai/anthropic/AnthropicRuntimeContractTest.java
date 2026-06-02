@@ -123,7 +123,8 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.PASSIVATION,
                 AiCapability.PER_REQUEST_RETRY,
                 AiCapability.VISION,
-                AiCapability.MULTI_MODAL);
+                AiCapability.MULTI_MODAL,
+                AiCapability.CANCELLATION);
     }
 
     @Test

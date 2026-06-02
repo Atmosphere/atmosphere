@@ -589,7 +589,13 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 // through CheckpointStore. Honest because ADK threads history
                 // through assembleMessages on every dispatch, so a resumed
                 // call observes the same conversation the paused call saw.
-                AiCapability.PASSIVATION
+                AiCapability.PASSIVATION,
+                // CANCELLATION: doExecuteWithHandle wires AdkEventAdapter's
+                // cancel() + whenDone() into the ExecutionHandle; on the
+                // per-request Runner path cancel() also closes that Runner
+                // (Runner.close releases compute since the request owns it).
+                // Pinned by AdkAgentRuntimeCancelTest.
+                AiCapability.CANCELLATION
         );
     }
 

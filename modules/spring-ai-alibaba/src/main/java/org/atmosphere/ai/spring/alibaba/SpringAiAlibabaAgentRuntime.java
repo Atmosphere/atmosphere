@@ -20,6 +20,7 @@ import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.ExecutionHandle;
 import org.atmosphere.ai.StreamingSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -286,6 +287,84 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
         }
     }
 
+    /**
+     * Cooperative cancellation entry point. Spring AI Alibaba's
+     * {@link ReactAgent#call} runs the entire ReAct graph as a single blocking,
+     * buffered call with no native cancel primitive and no incremental stream,
+     * so this override cannot truly abort the upstream run the way the Reactor-
+     * based runtimes can. Instead it dispatches {@link #doExecute} on a
+     * dedicated virtual thread so the method returns promptly with a live
+     * handle, and {@link ExecutionHandle#cancel()}:
+     *
+     * <ul>
+     *   <li>frees the client immediately ({@code session.complete}) and settles
+     *       {@link ExecutionHandle#whenDone()} <em>without</em> waiting for the
+     *       upstream call to return; and</li>
+     *   <li>interrupts the worker as a best-effort signal — {@code ReactAgent.call}
+     *       does not observe interruption, so the graph may run to completion in
+     *       the background, where its {@code session.send}/{@code complete} land
+     *       on the already-closed session as no-ops.</li>
+     * </ul>
+     *
+     * <p>This is the "cooperative" guarantee {@link AiCapability#CANCELLATION}
+     * documents — the client disconnect is honoured — not hard preemption of the
+     * upstream completion (Correctness Invariant #2 — Terminal Path Completeness,
+     * applied within the runtime's native limits). Pinned by
+     * {@code SpringAiAlibabaAgentRuntimeCancelTest}.</p>
+     */
+    @Override
+    protected ExecutionHandle doExecuteWithHandle(ReactAgent agent,
+                                                  AgentExecutionContext context,
+                                                  StreamingSession session) {
+        var done = new java.util.concurrent.CompletableFuture<Void>();
+        var worker = new java.util.concurrent.atomic.AtomicReference<Thread>();
+        Thread.startVirtualThread(() -> {
+            worker.set(Thread.currentThread());
+            try {
+                doExecute(agent, context, session);
+                done.complete(null);
+            } catch (RuntimeException e) {
+                // doExecute fires fireModelError + session.error on its failure
+                // paths before propagating; settle whenDone with the cause.
+                done.completeExceptionally(e);
+            } finally {
+                worker.set(null);
+            }
+        });
+        return new ExecutionHandle() {
+            private final java.util.concurrent.atomic.AtomicBoolean fired =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+
+            @Override
+            public void cancel() {
+                if (!fired.compareAndSet(false, true)) {
+                    return;
+                }
+                var t = worker.get();
+                if (t != null) {
+                    // Best-effort: ReactAgent.call is uninterruptible, but the
+                    // interrupt flips the worker's status so any interruptible
+                    // wait it later enters unwinds promptly.
+                    t.interrupt();
+                }
+                if (!session.isClosed()) {
+                    session.complete();
+                }
+                done.complete(null);
+            }
+
+            @Override
+            public boolean isDone() {
+                return done.isDone();
+            }
+
+            @Override
+            public java.util.concurrent.CompletableFuture<Void> whenDone() {
+                return done;
+            }
+        };
+    }
+
     private static Message toSpringMessage(org.atmosphere.ai.llm.ChatMessage msg) {
         return switch (msg.role()) {
             case "system" -> new SystemMessage(msg.content());
@@ -414,7 +493,16 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 // whether the configured ChatModel honors Media is upstream.
                 AiCapability.VISION,
                 AiCapability.AUDIO,
-                AiCapability.MULTI_MODAL);
+                AiCapability.MULTI_MODAL,
+                // CANCELLATION: doExecuteWithHandle returns a live handle that
+                // honours a client disconnect — cancel() frees the client and
+                // settles whenDone() immediately. This is cooperative, not
+                // preemptive: ReactAgent.call is a blocking, uninterruptible
+                // graph run, so the upstream may finish in the background (its
+                // output lands on the closed session as a no-op). See the
+                // doExecuteWithHandle Javadoc; pinned by
+                // SpringAiAlibabaAgentRuntimeCancelTest.
+                AiCapability.CANCELLATION);
     }
 
     @Override

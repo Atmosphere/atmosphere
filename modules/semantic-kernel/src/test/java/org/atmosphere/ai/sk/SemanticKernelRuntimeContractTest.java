@@ -125,7 +125,8 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
                 AiCapability.CONFIDENCE_SCORES,
                 AiCapability.PASSIVATION,
                 AiCapability.VISION,
-                AiCapability.MULTI_MODAL);
+                AiCapability.MULTI_MODAL,
+                AiCapability.CANCELLATION);
     }
 
 }

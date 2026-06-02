@@ -24,6 +24,7 @@ import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.ExecutionHandle;
 import org.atmosphere.ai.StreamingSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,9 +112,31 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
     @Override
     protected void doExecute(ChatCompletionService service,
                              AgentExecutionContext context, StreamingSession session) {
+        // Single execution path: doExecuteWithHandle owns the dispatch and the
+        // cancellable subscription. The blocking entry point just awaits the
+        // handle's terminal signal so the sync and cancel-aware callers share
+        // identical setup, lifecycle, and streaming semantics (Invariant #7 —
+        // Mode Parity). Same posture as the Spring AI runtime.
+        var handle = doExecuteWithHandle(service, context, session);
+        try {
+            handle.whenDone().join();
+        } catch (RuntimeException e) {
+            // whenDone() resolves normally even on stream error (drainCancellable
+            // fires session.error before completing it), so an exception here is
+            // unexpected — ensure the session still closes.
+            if (!session.isClosed()) {
+                session.error(e);
+            }
+        }
+    }
+
+    @Override
+    protected ExecutionHandle doExecuteWithHandle(ChatCompletionService service,
+                                                  AgentExecutionContext context,
+                                                  StreamingSession session) {
         // Admit through the process-wide AiGateway before issuing the native
         // Semantic Kernel dispatch — uniform per-user rate limiting and
-        // credential resolution across all twelve contract-tested runtimes
+        // credential resolution across all contract-tested runtimes
         // (Correctness Invariant #3).
         admitThroughGateway(context);
         var chatHistory = buildChatHistory(context);
@@ -150,9 +173,9 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         var flux = service.getStreamingChatMessageContentsAsync(
                 chatHistory, kernel, invocationContext);
 
-        // Model-lifecycle hooks: fire onModelStart synchronously before drain,
-        // onModelEnd / onModelError from the lifecycle-aware drain overload.
-        // Same posture as Spring AI / LC4j / ADK / Koog / Embabel.
+        // Model-lifecycle hooks: fire onModelStart synchronously before subscribe;
+        // onModelEnd / onModelError fire from drainCancellable on the matching
+        // terminal signal. Same posture as Spring AI / LC4j / ADK / Koog / Embabel.
         var listeners = context.listeners();
         var modelName = context.model() != null ? context.model() : name();
         var messageCount = chatHistory.getMessages().size();
@@ -160,7 +183,40 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
                 listeners, modelName, messageCount, toolCount);
 
-        SemanticKernelStreamingAdapter.drain(flux, session, listeners, modelName);
+        // Wrap the Reactor Disposable in an ExecutionHandle so a client
+        // disconnect can dispose the in-flight SK subscription — disposing
+        // propagates an upstream cancel to the Azure / OpenAI streaming call
+        // (Correctness Invariant #2 — Terminal Path Completeness). The handle
+        // settles whenDone() on any terminal signal; cancel() is CAS-guarded
+        // so dispose + session.complete fire at most once.
+        var completion = new java.util.concurrent.CompletableFuture<Void>();
+        var disposable = SemanticKernelStreamingAdapter.drainCancellable(
+                flux, session, listeners, modelName, completion);
+        return new ExecutionHandle() {
+            private final java.util.concurrent.atomic.AtomicBoolean cancelled =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+
+            @Override
+            public void cancel() {
+                if (cancelled.compareAndSet(false, true)) {
+                    disposable.dispose();
+                    if (!session.isClosed()) {
+                        session.complete();
+                    }
+                    completion.complete(null);
+                }
+            }
+
+            @Override
+            public boolean isDone() {
+                return completion.isDone();
+            }
+
+            @Override
+            public java.util.concurrent.CompletableFuture<Void> whenDone() {
+                return completion;
+            }
+        };
     }
 
     /**
@@ -314,7 +370,14 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
                 // content type today (Content.Audio is dropped with a
                 // debug log).
                 AiCapability.VISION,
-                AiCapability.MULTI_MODAL
+                AiCapability.MULTI_MODAL,
+                // CANCELLATION: doExecuteWithHandle returns an ExecutionHandle
+                // wrapping the Reactor subscription's Disposable. cancel()
+                // disposes it, which propagates an upstream cancel to the
+                // Azure / OpenAI streaming call so a client disconnect aborts
+                // the in-flight completion (Invariant #2 — Terminal Path
+                // Completeness). Pinned by SemanticKernelAgentRuntimeCancelTest.
+                AiCapability.CANCELLATION
         );
     }
 

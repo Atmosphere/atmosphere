@@ -287,7 +287,11 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
                 // resume. Honest because Built-in's assembleMessages threads
                 // history into every outbound request, so a resumed call
                 // observes the same conversation the paused call was seeing.
-                AiCapability.PASSIVATION);
+                AiCapability.PASSIVATION,
+                // CANCELLATION: doExecuteWithHandle returns a live handle whose
+                // cancel() closes the in-flight SSE InputStream, aborting the
+                // OpenAI-compatible streaming request and settling whenDone().
+                AiCapability.CANCELLATION);
     }
 
     @Override

@@ -117,7 +117,8 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.TOOL_CALL_DELTA,
                 AiCapability.BUDGET_ENFORCEMENT,
                 AiCapability.CONFIDENCE_SCORES,
-                AiCapability.PASSIVATION);
+                AiCapability.PASSIVATION,
+                AiCapability.CANCELLATION);
     }
 
     /**

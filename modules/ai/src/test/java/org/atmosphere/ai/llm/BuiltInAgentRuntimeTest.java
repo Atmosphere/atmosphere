@@ -75,15 +75,17 @@ class BuiltInAgentRuntimeTest {
         assertTrue(caps.contains(AiCapability.TOKEN_USAGE));
         assertTrue(caps.contains(AiCapability.CONVERSATION_MEMORY));
         assertTrue(caps.contains(AiCapability.TOOL_CALL_DELTA));
+        assertTrue(caps.contains(AiCapability.CANCELLATION));
     }
 
     @Test
     void capabilitiesCountMatchesDeclared() {
         var caps = new BuiltInAgentRuntime().capabilities();
         // 13 baseline + 3 (BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION)
-        // added for the predictable-AI primitives. Bump this number when a
-        // new capability lands on Built-in.
-        assertEquals(16, caps.size());
+        // added for the predictable-AI primitives + CANCELLATION (cooperative
+        // cancel via the SSE InputStream close). Bump this number when a new
+        // capability lands on Built-in.
+        assertEquals(17, caps.size());
     }
 
     @Test
