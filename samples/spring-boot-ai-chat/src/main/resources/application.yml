@@ -16,13 +16,6 @@ atmosphere:
     demo-token: ${ATMOSPHERE_AUTH_TOKEN:demo-token}
   cache:
     enabled: true
-  # Stateful Interactions API surfaced in the Console "Interactions" tab.
-  # http-write-enabled + demo-principal are DEMO-ONLY: they open the mutating
-  # endpoints to a fixed local user so the Console can drive them. Do not
-  # enable in production — see InteractionsEndpoint (default-deny, Invariant #6).
-  interactions:
-    http-write-enabled: true
-    demo-principal: demo-user
 
 # LLM Configuration
 # Set via .envrc, environment variables, or override here.

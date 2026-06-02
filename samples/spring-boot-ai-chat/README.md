@@ -133,24 +133,6 @@ spring-boot-ai-chat/
         └── static/                  # Built frontend assets
 ```
 
-## Stateful Interactions (Console → Interactions tab)
-
-This sample includes `atmosphere-interactions`, so the Atmosphere Console
-(`/atmosphere/console/`) shows an **Interactions** tab backed by
-`POST/GET /api/interactions`. From there you can:
-
-- **Run a turn** synchronously or in the **background** — a background turn
-  returns immediately and its durable `steps[]` timeline fills in as the run
-  progresses (retrievable even after a disconnect).
-- **Continue** a finished interaction — the follow-up chains via
-  `previous_interaction_id`, so the next turn sees the prior turn's history
-  (ask "name three primary colors", then "now name three secondary colors").
-
-The mutating endpoints are default-deny (Correctness Invariant #6). For this
-local demo, `application.yml` sets `atmosphere.interactions.http-write-enabled=true`
-plus `demo-principal: demo-user` to supply a fixed identity — **never enable
-either in production.**
-
 ## See Also
 
 - [AI Tools sample](../spring-boot-ai-tools/) — framework-agnostic tool calling with real-time tool events
