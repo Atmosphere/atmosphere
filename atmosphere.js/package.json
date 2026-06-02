@@ -56,6 +56,11 @@
       "types": "./dist/history.d.ts",
       "import": "./dist/history.js",
       "require": "./dist/history.cjs"
+    },
+    "./interactions": {
+      "types": "./dist/interactions.d.ts",
+      "import": "./dist/interactions.js",
+      "require": "./dist/interactions.cjs"
     }
   },
   "peerDependencies": {

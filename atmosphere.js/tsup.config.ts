@@ -12,6 +12,7 @@ export default defineConfig([
       streaming: 'src/streaming-entry.ts',
       queue: 'src/queue.ts',
       history: 'src/history.ts',
+      interactions: 'src/interactions.ts',
     },
     format: ['esm', 'cjs'],
     dts: true,

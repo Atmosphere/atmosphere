@@ -1053,6 +1053,46 @@ is the template for every other AI sample frontend.
 
 ---
 
+## Interactions API
+
+Typed client for the server's stateful **Interactions API** (`/api/interactions`,
+`org.atmosphere.interactions`). An interaction is one agent turn carrying a durable
+`steps[]` log; turns chain via `previousInteractionId`. Use it for the
+**background "fire-and-retrieve"** pattern — launch a long-running turn, get its id
+immediately, and poll the durable timeline (retrievable after a disconnect):
+
+```ts
+import { InteractionsClient } from 'atmosphere.js/interactions';
+
+const client = new InteractionsClient(); // same-origin; or { baseUrl, headers, fetch }
+
+// Launch detached and poll the durable step timeline until it finishes.
+const run = await client.create({ message: 'Summarize the repo', background: true });
+const done = await client.pollUntilTerminal(run.id, {
+  onUpdate: (it) => render(it.steps),
+});
+
+// Or stream progressive updates with an async iterator:
+for await (const it of client.watch(run.id)) {
+  render(it.steps);
+}
+
+// Continue the conversation — chains via previousInteractionId.
+const next = await client.continue(done.id, { message: 'Now list the risks' });
+```
+
+`create` · `get` · `list({ conversationId })` · `continue` · `cancel` ·
+`pollUntilTerminal` · `watch`. Errors throw `InteractionsError` (`.status`,
+`.message`). Live reattach to an in-flight background run over the socket
+(`X-Atmosphere-Run-Id`) is a server/`wasync` feature and is not bridged here —
+poll via the helpers above.
+
+The Atmosphere Console (`/atmosphere/console/`) ships a full **Interactions** tab
+built on this surface; `samples/spring-boot-coding-agent` and
+`samples/spring-boot-multi-agent-startup-team` enable it.
+
+---
+
 ## Browser Compatibility
 
 - Chrome/Edge: Last 2 versions
