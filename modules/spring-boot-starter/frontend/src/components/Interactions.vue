@@ -9,6 +9,7 @@ import {
   getInteraction,
   listInteractions,
 } from '../composables/useInteractions'
+import { InteractionsClient } from 'atmosphere.js/interactions'
 
 const props = defineProps<{ active: boolean }>()
 const active = computed(() => props.active)
@@ -21,7 +22,12 @@ const selected = ref<Interaction | null>(null)
 const error = ref<string | null>(null)
 const busy = ref(false)
 const copiedId = ref<string | null>(null)
+const liveActive = ref(false)
 
+// Live socket streaming for the selected run — durable steps pushed over
+// WebSocket/SSE (no detail polling). Falls back to polling if subscribe fails.
+const ix = new InteractionsClient()
+let liveSub: { close: () => void | Promise<void> } | null = null
 let listTimer: ReturnType<typeof setInterval> | null = null
 let detailTimer: ReturnType<typeof setInterval> | null = null
 
@@ -72,12 +78,43 @@ function startDetailPoll() {
 
 function stopDetailPoll() {
   if (detailTimer) { clearInterval(detailTimer); detailTimer = null }
+  closeLive()
+}
+
+function closeLive() {
+  if (liveSub) {
+    try { void liveSub.close() } catch { /* best-effort */ }
+    liveSub = null
+  }
+  liveActive.value = false
+}
+
+/** Merge a live-streamed step into the selected interaction (dedupe by seq). */
+function mergeStep(id: string, step: InteractionStep) {
+  const cur = selected.value
+  if (!cur || cur.id !== id) return
+  if (cur.steps.some((s) => s.seq === step.seq)) return
+  selected.value = { ...cur, steps: [...cur.steps, step] }
 }
 
 async function select(it: Interaction) {
+  closeLive()
+  stopDetailPoll()
   selected.value = it
-  await pollSelected()
-  startDetailPoll()
+  await pollSelected() // one fetch for full metadata + steps-so-far
+  if (!selected.value || terminal(selected.value.status)) return
+  // Prefer the live socket; fall back to polling if the subscription fails.
+  try {
+    liveSub = await ix.subscribe(it.id, {
+      onStep: (step) => mergeStep(it.id, step),
+      onTerminal: async () => { closeLive(); await pollSelected() },
+      onError: () => { closeLive(); startDetailPoll() },
+      onClose: () => { liveActive.value = false },
+    })
+    liveActive.value = true
+  } catch {
+    startDetailPoll()
+  }
 }
 
 async function run() {
@@ -318,6 +355,8 @@ watch(active, (on) => { if (on) start(); else stop() })
             {{ selected.status }}
           </span>
           <span v-if="selected.background" class="chip">BG</span>
+          <span v-if="liveActive" class="ix-live" data-testid="interaction-live"
+                title="Streaming live over the Atmosphere socket">● LIVE</span>
           <button class="ix-id-copy mono" :title="'Copy ' + selected.id"
                   @click="copyId(selected.id)">
             {{ selected.id }}
@@ -506,6 +545,11 @@ watch(active, (on) => { if (on) start(); else stop() })
   border-radius: 9999px; background: var(--border-color); color: var(--text-secondary);
 }
 .ix-running-flag { color: #ef6c00; text-transform: none; font-weight: 500; margin-left: auto; }
+.ix-live {
+  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.04em;
+  color: #2e7d32; background: rgba(46, 125, 50, 0.12);
+  padding: 0.0625rem 0.375rem; border-radius: 9999px;
+}
 .ix-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.375rem; }
 .ix-item {
   background: var(--bg-surface); border: 1px solid var(--border-color);

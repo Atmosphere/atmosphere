@@ -3,6 +3,7 @@ import {
   InteractionsClient,
   InteractionsError,
   isTerminal,
+  parseFrames,
   type Interaction,
 } from '../../src/interactions/client';
 
@@ -191,5 +192,38 @@ describe('InteractionsClient', () => {
     expect(isTerminal('CANCELLED')).toBe(true);
     expect(isTerminal('RUNNING')).toBe(false);
     expect(isTerminal('CREATED')).toBe(false);
+  });
+
+  describe('parseFrames (live stream)', () => {
+    it('parses a single frame', () => {
+      const out = parseFrames('{"type":"interaction-step","step":{"seq":0}}');
+      expect(out).toHaveLength(1);
+      expect(out[0].type).toBe('interaction-step');
+    });
+
+    it('splits concatenated frames at top-level object boundaries', () => {
+      const out = parseFrames(
+        '{"type":"interaction-step","step":{"seq":0}}{"type":"interaction-terminal","status":"COMPLETED"}',
+      );
+      expect(out).toHaveLength(2);
+      expect(out[1].status).toBe('COMPLETED');
+    });
+
+    it('does not split on braces inside string values', () => {
+      const out = parseFrames('{"type":"interaction-step","step":{"text":"a {nested} brace"}}');
+      expect(out).toHaveLength(1);
+      expect((out[0].step as { text: string }).text).toBe('a {nested} brace');
+    });
+
+    it('passes through an already-parsed object', () => {
+      const out = parseFrames({ type: 'interaction-terminal', status: 'FAILED' });
+      expect(out).toEqual([{ type: 'interaction-terminal', status: 'FAILED' }]);
+    });
+
+    it('returns empty for blank or non-JSON input', () => {
+      expect(parseFrames('')).toEqual([]);
+      expect(parseFrames(null)).toEqual([]);
+      expect(parseFrames('not json')).toEqual([]);
+    });
   });
 });

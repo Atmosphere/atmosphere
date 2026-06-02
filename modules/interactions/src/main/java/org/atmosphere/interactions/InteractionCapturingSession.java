@@ -60,6 +60,7 @@ public final class InteractionCapturingSession extends DelegatingStreamingSessio
     private final InteractionStore store;
     private final InteractionStepMapper mapper;
     private final int maxSteps;
+    private final java.util.function.Consumer<InteractionStep> stepListener;
 
     private final AtomicLong seq = new AtomicLong();
     private final Object lock = new Object();
@@ -79,11 +80,26 @@ public final class InteractionCapturingSession extends DelegatingStreamingSessio
     public InteractionCapturingSession(StreamingSession delegate, String interactionId,
                                        InteractionStore store, InteractionStepMapper mapper,
                                        int maxSteps) {
+        this(delegate, interactionId, store, mapper, maxSteps, null);
+    }
+
+    /**
+     * @param stepListener optional sink notified of every durable step as it is
+     *                     captured (after coalescing), or {@code null}. The
+     *                     live-stream broadcaster uses this so socket frames are
+     *                     exactly the durable steps — same coalescing, no
+     *                     divergence between the streamed and stored timelines.
+     */
+    public InteractionCapturingSession(StreamingSession delegate, String interactionId,
+                                       InteractionStore store, InteractionStepMapper mapper,
+                                       int maxSteps,
+                                       java.util.function.Consumer<InteractionStep> stepListener) {
         super(delegate);
         this.interactionId = interactionId;
         this.store = store;
         this.mapper = mapper;
         this.maxSteps = maxSteps;
+        this.stepListener = stepListener;
     }
 
     @Override
@@ -217,6 +233,15 @@ public final class InteractionCapturingSession extends DelegatingStreamingSessio
             capturedSteps.add(step);
             if (!terminal) {
                 nonTerminalCount++;
+            }
+        }
+        if (stepListener != null) {
+            try {
+                stepListener.accept(step);
+            } catch (RuntimeException e) {
+                // A live-broadcast failure must never break durable capture or
+                // the terminal write (Correctness Invariant #2).
+                LOGGER.debug("step listener failed for {}: {}", interactionId, e.getMessage(), e);
             }
         }
         if (store != null) {

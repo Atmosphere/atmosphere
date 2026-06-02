@@ -24,10 +24,12 @@
  * {@link InteractionsClient.pollUntilTerminal} / {@link InteractionsClient.watch}
  * helpers for the background "retrieve-after-disconnect" pattern.
  *
- * Live reattach to an in-flight background run over the Atmosphere socket
- * (the server's `X-Atmosphere-Run-Id` path) is a server / `wasync` feature
- * and is intentionally NOT bridged here; poll instead via the helpers below.
+ * For live socket streaming of a background run — durable steps pushed as they
+ * happen over WebSocket/SSE — use {@link InteractionsClient.subscribe}, which
+ * connects to the server's per-interaction stream channel.
  */
+import { Atmosphere } from '../core/atmosphere';
+import type { Subscription } from '../types';
 
 export type InteractionStatus =
   | 'CREATED'
@@ -118,6 +120,29 @@ export interface PollOptions {
   onUpdate?: (interaction: Interaction) => void;
 }
 
+/** Handlers for {@link InteractionsClient.subscribe} live socket streaming. */
+export interface LiveHandlers {
+  /** A durable step arrived (deduped by sequence; replay + live merged). */
+  onStep?: (step: InteractionStep) => void;
+  /** The run reached a terminal state; the subscription auto-closes after this. */
+  onTerminal?: (info: { status: InteractionStatus; finalText: string | null; errorMessage: string | null }) => void;
+  /** Transport opened. */
+  onOpen?: () => void;
+  /** Transport closed. */
+  onClose?: () => void;
+  /** Transport error. */
+  onError?: (error: Error) => void;
+}
+
+export interface SubscribeOptions {
+  /** Primary transport. Default 'websocket'. */
+  transport?: 'websocket' | 'sse' | 'long-polling';
+  /** Fallback when the primary fails. Default 'sse'. */
+  fallbackTransport?: 'websocket' | 'sse' | 'long-polling';
+  /** Path the live-stream handler is mounted at. Default '/atmosphere/interactions-stream'. */
+  streamPath?: string;
+}
+
 /** Error thrown when the Interactions API returns a non-2xx response. */
 export class InteractionsError extends Error {
   readonly status: number;
@@ -146,6 +171,7 @@ export class InteractionsClient {
   private readonly doFetch: typeof fetch;
   private readonly headers: Record<string, string>;
   private readonly credentials: RequestCredentials;
+  private liveClient?: Atmosphere;
 
   constructor(options: InteractionsClientOptions = {}) {
     const f = options.fetch ?? globalThis.fetch;
@@ -192,6 +218,69 @@ export class InteractionsClient {
   async cancel(id: string): Promise<boolean> {
     const res = await this.raw('POST', `/${encodeURIComponent(id)}/cancel`);
     return res.ok;
+  }
+
+  /**
+   * Subscribe to an interaction's LIVE step stream over the Atmosphere socket
+   * (WebSocket, falling back to SSE). The server replays the steps captured so
+   * far on connect, then pushes each new durable step as it happens — no
+   * polling. Steps are deduped by sequence (replay + live overlap), and the
+   * subscription auto-closes once a terminal frame arrives.
+   *
+   * ```ts
+   * const sub = await client.subscribe(id, {
+   *   onStep: (s) => append(s),
+   *   onTerminal: ({ status }) => console.log('done', status),
+   * });
+   * // sub.close() to stop early
+   * ```
+   */
+  async subscribe(
+    id: string,
+    handlers: LiveHandlers = {},
+    options: SubscribeOptions = {},
+  ): Promise<Subscription> {
+    const streamPath = options.streamPath ?? '/atmosphere/interactions-stream';
+    const url = `${this.baseUrl}${streamPath}?id=${encodeURIComponent(id)}`;
+    const seen = new Set<number>();
+    const atm = (this.liveClient ??= new Atmosphere());
+
+    const onFrame = (raw: unknown) => {
+      for (const frame of parseFrames(raw)) {
+        if (frame.type === 'interaction-step' && frame.step) {
+          const step = frame.step as InteractionStep;
+          if (!seen.has(step.seq)) {
+            seen.add(step.seq);
+            handlers.onStep?.(step);
+          }
+        } else if (frame.type === 'interaction-terminal') {
+          handlers.onTerminal?.({
+            status: frame.status as InteractionStatus,
+            finalText: (frame.finalText ?? null) as string | null,
+            errorMessage: (frame.errorMessage ?? null) as string | null,
+          });
+          // Terminal reached — tear down the socket.
+          void subscription.close();
+        }
+      }
+    };
+
+    const subscription = await atm.subscribe(
+      {
+        url,
+        transport: options.transport ?? 'websocket',
+        fallbackTransport: options.fallbackTransport ?? 'sse',
+        headers: this.headers,
+        withCredentials: this.credentials === 'include',
+      },
+      {
+        message: (response) => onFrame(response.responseBody),
+        open: () => handlers.onOpen?.(),
+        close: () => handlers.onClose?.(),
+        error: (e) => handlers.onError?.(e instanceof Error ? e : new Error(String(e))),
+      },
+    );
+    return subscription;
   }
 
   /**
@@ -289,6 +378,42 @@ async function errorMessage(res: Response): Promise<string> {
     // non-JSON error body — fall through to the status line
   }
   return `${res.status} ${res.statusText}`;
+}
+
+/**
+ * Parse one transport message into zero or more interaction frames. Normally a
+ * message carries exactly one JSON frame, but consecutive server writes can
+ * arrive concatenated (`{...}{...}`) — split on top-level object boundaries so
+ * none are dropped.
+ */
+export function parseFrames(raw: unknown): Array<Record<string, unknown>> {
+  if (raw && typeof raw === 'object') {
+    return [raw as Record<string, unknown>];
+  }
+  if (typeof raw !== 'string' || raw.length === 0) {
+    return [];
+  }
+  const frames: Array<Record<string, unknown>> = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (escaped) { escaped = false; continue; }
+    if (c === '\\') { escaped = true; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) { continue; }
+    if (c === '{') { if (depth === 0) start = i; depth++; }
+    else if (c === '}') {
+      depth--;
+      if (depth === 0 && start >= 0) {
+        try { frames.push(JSON.parse(raw.slice(start, i + 1))); } catch { /* skip non-JSON chunk */ }
+        start = -1;
+      }
+    }
+  }
+  return frames;
 }
 
 function delay(ms: number, signal?: AbortSignal): Promise<void> {

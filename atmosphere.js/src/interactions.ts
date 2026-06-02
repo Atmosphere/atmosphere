@@ -39,4 +39,6 @@ export type {
   ListQuery,
   InteractionsClientOptions,
   PollOptions,
+  LiveHandlers,
+  SubscribeOptions,
 } from './interactions/client';

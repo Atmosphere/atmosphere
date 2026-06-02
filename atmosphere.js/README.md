@@ -1072,20 +1072,29 @@ const done = await client.pollUntilTerminal(run.id, {
   onUpdate: (it) => render(it.steps),
 });
 
-// Or stream progressive updates with an async iterator:
+// Or stream progressive updates with an async iterator (HTTP polling):
 for await (const it of client.watch(run.id)) {
   render(it.steps);
 }
+
+// LIVE over the socket — durable steps pushed as they happen, no polling.
+const sub = await client.subscribe(run.id, {
+  onStep: (step) => append(step),
+  onTerminal: ({ status }) => console.log('done', status),  // auto-closes
+});
+// sub.close() to stop early
 
 // Continue the conversation — chains via previousInteractionId.
 const next = await client.continue(done.id, { message: 'Now list the risks' });
 ```
 
 `create` · `get` · `list({ conversationId })` · `continue` · `cancel` ·
-`pollUntilTerminal` · `watch`. Errors throw `InteractionsError` (`.status`,
-`.message`). Live reattach to an in-flight background run over the socket
-(`X-Atmosphere-Run-Id`) is a server/`wasync` feature and is not bridged here —
-poll via the helpers above.
+`pollUntilTerminal` · `watch` · `subscribe`. Errors throw `InteractionsError`
+(`.status`, `.message`). `subscribe` opens an Atmosphere WebSocket (fallback
+SSE) to the server's per-interaction stream channel: the server replays the
+steps captured so far on connect, then pushes each new durable step live;
+frames are deduped by sequence and the subscription auto-closes on the terminal
+frame.
 
 The Atmosphere Console (`/atmosphere/console/`) ships a full **Interactions** tab
 built on this surface; `samples/spring-boot-coding-agent` and

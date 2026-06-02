@@ -72,7 +72,8 @@ public class InteractionsAutoConfiguration {
     @ConditionalOnMissingBean(InteractionService.class)
     public InteractionService atmosphereInteractionService(
             InteractionStore store,
-            ObjectProvider<AiConversationMemory> memoryProvider) {
+            ObjectProvider<AiConversationMemory> memoryProvider,
+            ObjectProvider<org.atmosphere.cpr.AtmosphereFramework> frameworkProvider) {
         var runtime = AgentRuntimeResolver.resolve();
         // Resolve the configured default model lazily (at request time, not bean
         // creation) so a Console request that omits a model still reaches the
@@ -82,12 +83,82 @@ public class InteractionsAutoConfiguration {
             var settings = AiConfig.get();
             return settings != null ? settings.model() : null;
         };
+        // Live-stream factory: broadcasts each step to a per-interaction channel
+        // browsers join via /atmosphere/interactions-stream. BroadcasterFactory is
+        // resolved lazily (it exists only after the servlet inits).
+        var liveStream = new InteractionStreamBroadcast(() -> {
+            var f = frameworkProvider.getIfAvailable();
+            return f != null ? f.getBroadcasterFactory() : null;
+        });
         var service = new InteractionService(runtime, store, memoryProvider.getIfAvailable(),
                 new org.atmosphere.interactions.InteractionStepMapper(),
                 InteractionService.DEFAULT_MAX_STEPS, InteractionService.DEFAULT_SYNC_TIMEOUT,
-                java.time.Clock.systemUTC(), null, null, defaultModel);
+                java.time.Clock.systemUTC(), null, null, defaultModel, liveStream);
         service.start();
         return service;
+    }
+
+    /**
+     * Registers the live-stream Atmosphere handler after the servlet initializes
+     * (mirrors the admin event handler lifecycle). The browser connects to
+     * {@code /atmosphere/interactions-stream?id=<id>} and receives the run live.
+     */
+    @Bean
+    @ConditionalOnProperty(name = "atmosphere.interactions.demo-principal")
+    public org.springframework.context.SmartLifecycle atmosphereInteractionStreamLifecycle(
+            org.atmosphere.cpr.AtmosphereFramework framework, InteractionService service,
+            org.springframework.core.env.Environment env) {
+        var demoPrincipal = env.getProperty("atmosphere.interactions.demo-principal", "");
+        return new org.springframework.context.SmartLifecycle() {
+            private volatile boolean running;
+
+            @Override
+            public void start() {
+                if (running) {
+                    return;
+                }
+                try {
+                    var handler = new InteractionStreamHandler(service);
+                    java.util.List<org.atmosphere.cpr.AtmosphereInterceptor> interceptors =
+                            new java.util.LinkedList<>();
+                    org.atmosphere.annotation.AnnotationUtil
+                            .defaultManagedServiceInterceptors(framework, interceptors);
+                    // The demo principal arrives via a servlet Filter for the REST
+                    // endpoints, but a filter-set request attribute does not survive
+                    // the WebSocket upgrade into the AtmosphereResource's request. An
+                    // interceptor runs inside Atmosphere's lifecycle for every
+                    // transport, so it stamps ai.userId for the live socket too.
+                    if (!demoPrincipal.isBlank()) {
+                        interceptors.add(0,
+                                new InteractionsDemoPrincipalInterceptor(demoPrincipal));
+                    }
+                    framework.addAtmosphereHandler(
+                            InteractionStreamFrames.STREAM_PATH, handler, interceptors);
+                    running = true;
+                    LOGGER.info("Interactions live stream at {}?id=<interactionId>",
+                            InteractionStreamFrames.STREAM_PATH);
+                } catch (Exception e) {
+                    LOGGER.warn("Interactions live-stream setup failed (REST + polling "
+                            + "still work): {}", e.getMessage());
+                }
+            }
+
+            @Override
+            public void stop() {
+                running = false;
+                framework.removeAtmosphereHandler(InteractionStreamFrames.STREAM_PATH);
+            }
+
+            @Override
+            public boolean isRunning() {
+                return running;
+            }
+
+            @Override
+            public int getPhase() {
+                return Integer.MAX_VALUE - 2;
+            }
+        };
     }
 
     /**
@@ -115,14 +186,16 @@ public class InteractionsAutoConfiguration {
         Filter filter = (request, response, chain) -> {
             if (request instanceof HttpServletRequest http
                     && http.getRequestURI() != null
-                    && http.getRequestURI().startsWith("/api/interactions")
+                    && (http.getRequestURI().startsWith("/api/interactions")
+                        || http.getRequestURI().startsWith(InteractionStreamFrames.STREAM_PATH))
                     && http.getAttribute("ai.userId") == null) {
                 http.setAttribute("ai.userId", principal);
             }
             chain.doFilter(request, response);
         };
         var registration = new FilterRegistrationBean<>(filter);
-        registration.addUrlPatterns("/api/interactions/*", "/api/interactions");
+        registration.addUrlPatterns("/api/interactions/*", "/api/interactions",
+                InteractionStreamFrames.STREAM_PATH, InteractionStreamFrames.STREAM_PATH + "/*");
         registration.setName("atmosphereInteractionsDemoPrincipal");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
         return registration;

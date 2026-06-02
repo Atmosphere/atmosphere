@@ -89,6 +89,7 @@ public class InteractionService {
     private final boolean ownsExecutor;
     private final RunRegistry runRegistry;
     private final java.util.function.Supplier<String> defaultModelSupplier;
+    private final InteractionLiveStream.Factory liveStreamFactory;
 
     public InteractionService(AgentRuntime runtime, InteractionStore store) {
         this(runtime, store, null, new InteractionStepMapper(), DEFAULT_MAX_STEPS,
@@ -148,6 +149,23 @@ public class InteractionService {
                               int maxSteps, Duration syncTimeout, Clock clock,
                               ExecutorService executor, RunRegistry runRegistry,
                               java.util.function.Supplier<String> defaultModelSupplier) {
+        this(runtime, store, memory, mapper, maxSteps, syncTimeout, clock,
+                executor, runRegistry, defaultModelSupplier, null);
+    }
+
+    /**
+     * Canonical constructor with a live-stream factory.
+     *
+     * @param liveStreamFactory mints a {@link InteractionLiveStream} per background
+     *                          interaction so a transport layer can stream it live;
+     *                          {@code null} disables live streaming (poll instead).
+     */
+    public InteractionService(AgentRuntime runtime, InteractionStore store,
+                              AiConversationMemory memory, InteractionStepMapper mapper,
+                              int maxSteps, Duration syncTimeout, Clock clock,
+                              ExecutorService executor, RunRegistry runRegistry,
+                              java.util.function.Supplier<String> defaultModelSupplier,
+                              InteractionLiveStream.Factory liveStreamFactory) {
         this.runtime = Objects.requireNonNull(runtime, "runtime");
         this.store = Objects.requireNonNull(store, "store");
         this.memory = memory;
@@ -162,6 +180,7 @@ public class InteractionService {
         this.executor = executor != null ? executor : Executors.newVirtualThreadPerTaskExecutor();
         this.runRegistry = runRegistry != null ? runRegistry : new RunRegistry();
         this.defaultModelSupplier = defaultModelSupplier;
+        this.liveStreamFactory = liveStreamFactory;
     }
 
     /** Initialize service-owned resources. */
@@ -256,11 +275,16 @@ public class InteractionService {
             store.save(plan.initial());
         }
 
+        // Optional live stream: every captured step is also pushed here so a
+        // transport layer can broadcast the run to subscribed browsers in real time.
+        var live = liveStreamFactory != null ? liveStreamFactory.open(plan.initial()) : null;
+
         var collecting = new CollectingSession("interaction-" + plan.id());
         var replayBuffer = new RunEventReplayBuffer();
         StreamingSession replaying = new RunEventCapturingSession(collecting, replayBuffer);
         var capturing = new InteractionCapturingSession(replaying, plan.id(),
-                req.store() ? store : null, mapper, maxSteps);
+                req.store() ? store : null, mapper, maxSteps,
+                live != null ? live::onStep : null);
 
         // A control handle bridges the runtime's native handle (obtained only once
         // the task runs) to the registry and to cancel(): cancelling the control
@@ -278,7 +302,7 @@ public class InteractionService {
         var finalized = new AtomicBoolean();
         control.whenDone().whenComplete((v, e) -> {
             if (finalized.compareAndSet(false, true)) {
-                finalizeBackground(plan, capturing, control, cancelled.get());
+                finalizeBackground(plan, capturing, control, cancelled.get(), live);
             }
         });
 
@@ -462,7 +486,8 @@ public class InteractionService {
 
     /** Build the terminal record for a background run, honoring cancellation. */
     private void finalizeBackground(Plan plan, InteractionCapturingSession capturing,
-                                    ExecutionHandle.Settable control, boolean cancelled) {
+                                    ExecutionHandle.Settable control, boolean cancelled,
+                                    InteractionLiveStream live) {
         InteractionStatus status;
         if (cancelled || control.terminalReason() == ExecutionHandle.TerminalReason.CANCELLED) {
             status = InteractionStatus.CANCELLED;
@@ -477,7 +502,14 @@ public class InteractionService {
         var error = status == InteractionStatus.FAILED
                 ? Optional.ofNullable(capturing.errorMessage()).orElse("execution failed")
                 : null;
-        persistResult(plan, capturing, status, error);
+        var result = persistResult(plan, capturing, status, error);
+        if (live != null) {
+            try {
+                live.onTerminal(result);
+            } catch (RuntimeException e) {
+                LOGGER.debug("live onTerminal failed for {}: {}", plan.id(), e.getMessage(), e);
+            }
+        }
     }
 
     private void persistHistory(Plan plan, InteractionStatus status, String finalText) {
