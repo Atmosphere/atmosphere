@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Interactions API** (`org.atmosphere.interactions`, artifact `atmosphere-interactions`)
+  — a stateful agent-turn resource layered above the `AgentRuntime` SPI, so it
+  works for every adapter with no per-runtime code. An `Interaction` carries a
+  stable id, a durable `steps[]` event log, and chains turns via
+  `previousInteractionId` (the server holds history; the client does not resend
+  it). Turns run **synchronously** or in the **background** (`background=true`
+  returns a `RUNNING` record immediately and is retrievable after a disconnect),
+  and `store=false` streams without persisting. The starter exposes the resource
+  over `POST /api/interactions`, `POST /api/interactions/{id}/continue`,
+  `GET /api/interactions/{id}`, `GET /api/interactions`,
+  `POST /api/interactions/{id}/cancel`, and `DELETE /api/interactions/{id}` —
+  every mutating route is default-deny behind `atmosphere.interactions.http-write-enabled`
+  plus an authenticated principal (Correctness Invariant #6). Two `InteractionStore`
+  backends ship: `InMemoryInteractionStore` (default) and `SqliteInteractionStore`;
+  the SPI is pluggable for others. `atmosphere.js` gains a typed `InteractionsClient`
+  (`atmosphere.js/interactions`) covering the REST surface plus `pollUntilTerminal`
+  / `watch` helpers.
+- **Interactions live streaming** — a background interaction now streams its
+  durable `steps[]` to a subscribed browser as they are produced, over the
+  Atmosphere transport (`/atmosphere/interactions-stream?id=<id>`, WebSocket/SSE).
+  On connect the handler replays the steps captured so far (late-joiner catch-up,
+  deduped client-side by sequence), then pushes each new step live and a terminal
+  frame on completion; ownership is enforced per-interaction, same scope as the
+  REST read. `InteractionsClient.subscribe(id, handlers)` bridges it on the client
+  and the Atmosphere Console's **Interactions** tab renders the live step timeline.
+  An `AtmosphereInterceptor` resolves the principal for the stream socket so
+  ownership holds across all transports (a servlet filter's request attribute does
+  not survive the WebSocket upgrade). Demonstrated in `spring-boot-coding-agent`
+  and `spring-boot-multi-agent-startup-team`.
+
 - `ToolKind` + `@AiTool(kind = …)` — tools declare a behavioural category
   (`EDIT`, `READ`, `EXECUTE`, `NETWORK`, `DELETE`, `OTHER`; default `OTHER`).
   This makes `PermissionMode.ACCEPT_EDITS` a real behaviour instead of a

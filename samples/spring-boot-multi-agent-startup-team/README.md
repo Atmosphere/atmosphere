@@ -357,10 +357,14 @@ When you send a prompt, the console shows:
 This sample includes `atmosphere-interactions`, so the Atmosphere Console
 (`/atmosphere/console/`) gains an **Interactions** tab over
 `POST/GET /api/interactions`. Launch a turn in the **background** and the
-detached run returns immediately while its durable `steps[]` timeline streams
-in — the natural fit for a long-running multi-agent task you kick off and poll
-(or reattach to) rather than hold a connection open. Finished interactions can
-be **continued**, chaining context via `previous_interaction_id`.
+detached run returns immediately — the natural fit for a long-running
+multi-agent task you kick off rather than hold a connection open. While it runs,
+the Console subscribes to the per-interaction stream
+(`/atmosphere/interactions-stream?id=<id>`) over WebSocket and renders each
+durable `steps[]` entry **live** as the agents produce it, falling back to
+polling the `GET /api/interactions/{id}` snapshot if the socket cannot open.
+Finished interactions can be **continued**, chaining context via
+`previous_interaction_id`.
 
 The mutating endpoints are default-deny (Correctness Invariant #6); for this
 local demo `application.yml` sets `atmosphere.interactions.http-write-enabled=true`

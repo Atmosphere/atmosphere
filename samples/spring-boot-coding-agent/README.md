@@ -65,9 +65,12 @@ annotation wires a method to a sandbox backend, and `Sandbox.writeFile` +
 This sample includes `atmosphere-interactions`, so the Atmosphere Console
 (`/atmosphere/console/`) gains an **Interactions** tab over
 `POST/GET /api/interactions`. A coding task is long-running, so launching it as
-a **background** interaction — returning immediately and polling the durable
-`steps[]` timeline — is the natural pattern; the run is retrievable after a
-disconnect and can be **continued** via `previous_interaction_id`.
+a **background** interaction — returning immediately — is the natural pattern;
+the run is retrievable after a disconnect and can be **continued** via
+`previous_interaction_id`. While it runs, the Console subscribes to the
+per-interaction stream (`/atmosphere/interactions-stream?id=<id>`) over WebSocket
+and renders each durable `steps[]` entry **live** as it is produced, falling back
+to polling the `GET /api/interactions/{id}` snapshot if the socket cannot open.
 
 The mutating endpoints are default-deny (Correctness Invariant #6); for this
 local demo `application.yml` sets `atmosphere.interactions.http-write-enabled=true`
