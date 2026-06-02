@@ -82,6 +82,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   would advertise capability that cannot run (Runtime-Truth, Correctness
   Invariant #5). `RegoPolicyParserTest` / `CedarPolicyParserTest` pin the
   discovery.
+- **Four new pre-push drift-prevention gates**, each closing a class the
+  `.harness/drift-log.md` had recorded but left un-automated, wired into
+  `scripts/pre-push-validate.sh` Tier-1:
+  `validate-runtime-overlay-coverage.sh` (every snapshot runtime must have a
+  CLI overlay and a `bom/pom.xml` artifact — drift #59);
+  `validate-dangling-doc-comments.sh` (parse-only `javac -Xlint:dangling-doc-comments`
+  under a JDK ≥ 23 to catch detached Javadoc locally, not only on the Native
+  Image lane — drift #80);
+  `validate-doc-version-alignment.sh` (third-party dependency versions in
+  Markdown must match the pinned `pom.xml`/`package.json` — drift #12/#18/#75);
+  and `validate-doc-symbols.sh` (annotation references in Markdown must resolve
+  to an in-tree declaration or a curated external allowlist — drift #72). Two of the
+  gates caught a pre-existing drift on first run: `atmosphere-semantic-kernel`
+  was missing from `bom/pom.xml` (now added), and `modules/langchain4j/README.md`
+  named LangChain4j 1.12.2 while the pom pins 1.15.0 (now corrected). CLI overlay
+  coverage was also extended to the three native runtimes (`anthropic`, `cohere`,
+  `crewai`) in `cli-e2e.yml` path filters and the `test-cli.sh` scaffold+compile
+  matrix.
 
 ## [4.0.49] - 2026-05-28
 

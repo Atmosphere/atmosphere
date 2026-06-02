@@ -1,0 +1,13 @@
+# Allowlist for scripts/validate-doc-version-alignment.sh
+#
+# One substring per line. If a flagged "<file>:<line>: <Label> <version>"
+# record contains any of these substrings, it is exempted. Use for
+# intentional mentions of a non-pinned version: transitive dependencies,
+# historical comparisons, or upgrade-path prose.
+#
+# Lines starting with '#' are comments. Keep each entry justified.
+#
+# (No active exceptions today. Spring AI / Spring AI Alibaba are not tracked
+#  by the gate at all — the tree legitimately carries two Spring AI lines,
+#  2.0.0-M6 on the main classpath and 1.1.x via the Alibaba adapter — so no
+#  allowlist entry is needed for them.)

@@ -1,0 +1,76 @@
+# Allowlist for scripts/validate-doc-symbols.sh
+#
+# Annotation names (without the leading @) that are referenced in Markdown
+# code spans/fences but are NOT declared in this repository — because they
+# belong to a third-party framework, the JDK, or are deliberate references to
+# a removed/not-needed symbol. One name per line; '#' starts a comment.
+#
+# A NEW @Annotation in any *.md that is neither declared under
+# modules|samples/**/src/main nor listed here fails the gate — that is the
+# phantom-annotation signal (drift #72: @AgUiEndpoint / @Param / ActionResult
+# / TaskResult were documented as Atmosphere API but never existed). Adding an
+# external annotation to a doc example is a one-line, conscious "this is real
+# and external" entry here.
+
+# ── Java SE ──
+Override
+SuppressWarnings
+FunctionalInterface
+
+# ── Spring Framework / Spring Boot ──
+AutoConfiguration
+Autowired
+Bean
+Component
+ConditionalOnMissingBean
+Configuration
+EventListener
+RestController
+GetMapping
+PostMapping
+PutMapping
+DeleteMapping
+RequestMapping
+SpringBootApplication
+
+# ── Jakarta CDI / EE ──
+Inject
+Observes
+PostConstruct
+PreDestroy
+Produces
+Startup
+Context
+Path
+Provider
+
+# ── Servlet API ──
+HandlesTypes
+
+# ── Quarkus ──
+BuildStep
+
+# ── JMH (benchmark docs) ──
+Measurement
+Warmup
+Timeout
+
+# ── LangChain4j ──
+RegisterAiService
+SystemMessage
+UserMessage
+Tool
+
+# ── Embabel ──
+AgentAction
+
+# ── JSR-305 / Guava ──
+Beta
+
+# ── Deliberate references to symbols that do NOT exist in-tree ──
+# @MeteorService: removed legacy annotation, named in MIGRATION.md as the
+#   thing you migrate AWAY from (to @ManagedService).
+MeteorService
+# @McpServer: mcp/README explicitly states no @McpServer annotation is needed
+#   (MCP auto-registers); also a historical CHANGELOG mention.
+McpServer

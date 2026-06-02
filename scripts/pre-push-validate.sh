@@ -157,6 +157,10 @@ DRIFT_LOG_REGEX='^\.harness/drift-log\.md$|^scripts/validate-drift-log\.sh$'
 BACKEND_CLASS_REFS_REGEX='\.java$|\.md$|^scripts/validate-backend-class-refs\.sh$|^\.harness/external-class-allowlist\.txt$'
 PRIVATE_HANDLE_REGEX='\.(java|kt|kts|md|yml|yaml|ts|tsx|js|json|properties|xml|sh)$|^scripts/validate-no-private-handle\.sh$|^\.harness/private-handle-allowlist\.txt$'
 NO_BETA_REGEX='\.(java|kt|kts|md|mdx|yml|yaml|ts|tsx|js|json|properties|xml|sh|py|astro)$|^scripts/validate-no-beta-on-main\.sh$|^\.harness/no-beta-allowlist\.txt$|^CHANGELOG\.md$'
+OVERLAY_COVERAGE_REGEX='^cli/runtime-overlays\.json$|^bom/pom\.xml$|^\.harness/capabilities\.snapshot\.json$|^scripts/validate-runtime-overlay-coverage\.sh$|^modules/.*/src/main/.*AgentRuntime\.(java|kt)$'
+DANGLING_DOC_REGEX='^(modules|samples)/.*/src/(main|test)/.*\.java$|^scripts/validate-dangling-doc-comments\.sh$'
+DOC_VERSION_REGEX='\.md$|^pom\.xml$|^atmosphere\.js/package\.json$|^scripts/validate-doc-version-alignment\.sh$|^\.harness/doc-version-allowlist\.txt$'
+DOC_SYMBOLS_REGEX='\.md$|^(modules|samples)/.*/src/main/.*\.java$|^scripts/validate-doc-symbols\.sh$|^\.harness/doc-symbol-allowlist\.txt$'
 
 SIGNIFICANT_FILES=""
 IGNORED_FILES=""
@@ -167,6 +171,10 @@ RUN_DRIFT_LOG=false
 RUN_BACKEND_CLASS_REFS=false
 RUN_PRIVATE_HANDLE=false
 RUN_NO_BETA=false
+RUN_OVERLAY_COVERAGE=false
+RUN_DANGLING_DOC=false
+RUN_DOC_VERSION=false
+RUN_DOC_SYMBOLS=false
 while IFS= read -r file; do
     [ -z "$file" ] && continue
     if echo "$file" | grep -qE "$ARCHITECTURAL_REGEX"; then
@@ -186,6 +194,18 @@ while IFS= read -r file; do
     fi
     if echo "$file" | grep -qE "$NO_BETA_REGEX"; then
         RUN_NO_BETA=true
+    fi
+    if echo "$file" | grep -qE "$OVERLAY_COVERAGE_REGEX"; then
+        RUN_OVERLAY_COVERAGE=true
+    fi
+    if echo "$file" | grep -qE "$DANGLING_DOC_REGEX"; then
+        RUN_DANGLING_DOC=true
+    fi
+    if echo "$file" | grep -qE "$DOC_VERSION_REGEX"; then
+        RUN_DOC_VERSION=true
+    fi
+    if echo "$file" | grep -qE "$DOC_SYMBOLS_REGEX"; then
+        RUN_DOC_SYMBOLS=true
     fi
     if echo "$file" | grep -qE "$HIGH_BLAST_REGEX"; then
         HAS_HIGH_BLAST=true
@@ -209,6 +229,10 @@ if [ "$FORCE_FULL" = true ]; then
     RUN_BACKEND_CLASS_REFS=true
     RUN_PRIVATE_HANDLE=true
     RUN_NO_BETA=true
+    RUN_OVERLAY_COVERAGE=true
+    RUN_DANGLING_DOC=true
+    RUN_DOC_VERSION=true
+    RUN_DOC_SYMBOLS=true
 fi
 
 PL_LIST=""
@@ -306,6 +330,58 @@ if [ "$DRY_RUN" = false ]; then
         echo "Skipping no-@Beta-on-main validation."
     fi
     echo ""
+
+    if [ "$RUN_OVERLAY_COVERAGE" = true ]; then
+        echo "Running runtime overlay/BOM coverage validation."
+        if ! ./scripts/validate-runtime-overlay-coverage.sh; then
+            echo ""
+            echo "A contract-tested runtime is not fully scaffoldable — add its CLI overlay"
+            echo "in cli/runtime-overlays.json and/or its atmosphere-<x> entry in bom/pom.xml."
+            exit 1
+        fi
+    else
+        echo "Skipping runtime overlay/BOM coverage validation."
+    fi
+    echo ""
+
+    if [ "$RUN_DANGLING_DOC" = true ]; then
+        echo "Running dangling-doc-comment validation."
+        if ! BASE_REF="$BASE_REF" ./scripts/validate-dangling-doc-comments.sh; then
+            echo ""
+            echo "Detached/dangling Javadoc comment — would fail the JDK 25 Native Image lane."
+            echo "Move the doc comment to immediately precede its declaration, or delete it."
+            exit 1
+        fi
+    else
+        echo "Skipping dangling-doc-comment validation."
+    fi
+    echo ""
+
+    if [ "$RUN_DOC_VERSION" = true ]; then
+        echo "Running doc dependency-version alignment validation."
+        if ! ./scripts/validate-doc-version-alignment.sh; then
+            echo ""
+            echo "A third-party dependency version in Markdown drifted from the pinned source"
+            echo "of truth — update the prose, or allowlist an intentional mention."
+            exit 1
+        fi
+    else
+        echo "Skipping doc dependency-version alignment validation."
+    fi
+    echo ""
+
+    if [ "$RUN_DOC_SYMBOLS" = true ]; then
+        echo "Running doc-symbol (phantom annotation) validation."
+        if ! ./scripts/validate-doc-symbols.sh; then
+            echo ""
+            echo "A Markdown @Annotation does not resolve to any in-tree declaration."
+            echo "Fix the doc, ship the annotation, or allowlist an external one."
+            exit 1
+        fi
+    else
+        echo "Skipping doc-symbol (phantom annotation) validation."
+    fi
+    echo ""
 else
     echo "Dry-run — selected Tier 1 checks:"
     echo "  architectural validation : $RUN_ARCHITECTURAL"
@@ -314,6 +390,10 @@ else
     echo "  backend-class refs       : $RUN_BACKEND_CLASS_REFS"
     echo "  private-handle leak      : $RUN_PRIVATE_HANDLE"
     echo "  no-@Beta-on-main         : $RUN_NO_BETA"
+    echo "  overlay/BOM coverage     : $RUN_OVERLAY_COVERAGE"
+    echo "  dangling-doc comments    : $RUN_DANGLING_DOC"
+    echo "  doc version alignment    : $RUN_DOC_VERSION"
+    echo "  doc-symbol (annotations) : $RUN_DOC_SYMBOLS"
     echo ""
 fi
 

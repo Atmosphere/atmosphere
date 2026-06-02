@@ -975,6 +975,52 @@ Investigating why `LongTermMemoryHttpE2eTest.disconnectFiresInterceptorAndPersis
 
 ---
 
+## 2026-06-02 — Built four structural gates from the drift-log's own backlog; two pre-existing drifts surfaced on first run (`feat/drift-gate-coverage`)
+
+A gate-building session rather than a drift-catching one: several drift
+classes in this log proposed an automated gate but left it unbuilt
+(#18 doc-vs-pom version alignment, #59 runtime overlay/BOM coverage,
+#72 phantom doc symbols, #80 dangling-doc-comments). This session built
+four of them and wired each into `scripts/pre-push-validate.sh` Tier-1:
+
+- `validate-runtime-overlay-coverage.sh` — every snapshot runtime must have a
+  CLI overlay (`cli/runtime-overlays.json`) and a `bom/pom.xml` artifact
+  (closes the #59 class structurally).
+- `validate-dangling-doc-comments.sh` — parse-only `javac -Xlint:dangling-doc-comments`
+  under a JDK ≥ 23 (the lint JDK 21 lacks); catches #80's detached-Javadoc class
+  locally, not only on the JDK 25 Native Image lane. Degrades gracefully where
+  no JDK ≥ 23 is installed.
+- `validate-doc-version-alignment.sh` — third-party dependency versions in `*.md`
+  must match the pinned `pom.xml`/`package.json` source of truth (closes the
+  #12/#18/#75 class). Spring AI / Alibaba are intentionally untracked (the tree
+  legitimately carries two Spring AI lines at once).
+- `validate-doc-symbols.sh` — `@Annotation`s referenced in Markdown must resolve
+  to an in-tree `@interface` or an entry in a curated external allowlist
+  (closes the #72 phantom-annotation class for in-repo docs).
+
+Plus CLI overlay coverage: `cli-e2e.yml` path filters and the `test-cli.sh`
+scaffold+compile matrix were missing the three native runtimes
+(`anthropic`, `cohere`, `crewai`) — added so an overlay change to any of them
+triggers CLI validation. The Ollama real-LLM lane's path filter was
+deliberately **not** widened to runtimes the lane does not actually exercise:
+the lane drives the Built-in OpenAI-compatible bridge against Ollama, and
+advertising it as koog/anthropic/cohere coverage would be a Runtime-Truth
+violation (the lane would go green without testing those wires). Per-runtime
+real-LLM coverage needs the `AiFeatureTestServer`/Ollama harness extended to
+parameterize the runtime — a separately-validatable follow-up, not faked here.
+
+Two of the four gates caught a real, pre-existing drift on their first run —
+the intended demonstration that the gate earns its keep immediately.
+
+### Factual drift (caught by the new gates this session)
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 84 | The capability snapshot pins 12 contract-tested runtimes and the top-level README documents Semantic Kernel as a drop-in `--runtime semantic-kernel` adapter — implying it is as scaffoldable/resolvable as the other eleven. | `atmosphere-semantic-kernel` was **absent from `bom/pom.xml`**. SemanticKernel shipped with a module, a snapshot entry, a contract test, and a CLI overlay, but no BOM `dependencyManagement` entry — so a scaffolded or hand-edited pom that relied on the BOM for the version would fail Maven resolution. Exactly the #59 class (anthropic/cohere were unscaffoldable for days with module+test+README green but BOM/overlay missing), one runtime over and on the BOM surface specifically. | When SemanticKernel landed, the runtime-add touched module + snapshot + contract test + CLI overlay but not `bom/pom.xml`; the capability-snapshot gate validates counts and capability sets, not BOM membership, so nothing cross-checked the runtime set against the BOM. The #59 entry named six runtime-add surfaces but left the BOM/overlay one un-gated. | **`scripts/validate-runtime-overlay-coverage.sh`** (new, this session) diffs the snapshot runtime set against both `cli/runtime-overlays.json` and `bom/pom.xml`; it failed on first run naming `atmosphere-semantic-kernel`. Fix: added the `atmosphere-semantic-kernel` `<dependency>` to `bom/pom.xml`. Wired into pre-push Tier-1 (triggers on `cli/runtime-overlays.json`, `bom/pom.xml`, the snapshot, or any `*AgentRuntime.{java,kt}` change). |
+| 85 | `modules/langchain4j/README.md:134` listed "LangChain4j 1.12.2+" as the runtime's requirement. | `pom.xml` pins `<langchain4j.version>1.15.0</langchain4j.version>`; every other runtime README states its pinned version (e.g. Embabel "0.3.5+"). The "1.12.2" was correct when written and never swept when the property bumped to 1.15.0. Same class as #12 (Quarkus 3.31.3 prose), #18 (Spring AI M2 prose), #75 (Embabel 0.3.4 / atmosphere.js 5.0.24 prose) — narrative trailing a `pom.xml` version property. | The langchain4j version property was bumped without sweeping the module README; no gate correlated dependency-version strings in `*.md` with the pinned source of truth (the proposed `check-readme-pom-version-alignment.sh` from #18 was never built). | **`scripts/validate-doc-version-alignment.sh`** (new, this session) reads each tracked dependency's pinned version from `pom.xml`/`package.json` and fails when a different full version of that dependency appears in any `*.md`; it failed on first run naming `modules/langchain4j/README.md:134`. Fix: README → "LangChain4j 1.15.0+". Wired into pre-push Tier-1. |
+
+---
+
 
 1. Catch the drift (the project maintainer flags it, or self-caught via `git grep` /
    `find` after spotting memory ↔ code disagreement).

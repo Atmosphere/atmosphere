@@ -16,6 +16,9 @@ on:
       - 'modules/embabel/**'
       - 'modules/semantic-kernel/**'
       - 'modules/agentscope/**'
+      - 'modules/anthropic/**'
+      - 'modules/cohere/**'
+      - 'modules/crewai/**'
       - '.github/workflows/cli-e2e.yml'
     branches: [main]
   pull_request:
@@ -33,6 +36,9 @@ on:
       - 'modules/embabel/**'
       - 'modules/semantic-kernel/**'
       - 'modules/agentscope/**'
+      - 'modules/anthropic/**'
+      - 'modules/cohere/**'
+      - 'modules/crewai/**'
       - '.github/workflows/cli-e2e.yml'
   workflow_dispatch:
 

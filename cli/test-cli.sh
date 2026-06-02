@@ -457,8 +457,8 @@ SKILLEOF
         fi
 
         # ── --runtime scaffold + compile ──────────────────────────────────
-        # For each of the 7 overlay runtimes, scaffold ai-chat with the
-        # adapter dep injected and confirm the resulting standalone pom.xml
+        # For each scaffold-and-compile overlay runtime, scaffold ai-chat with
+        # the adapter dep injected and confirm the resulting standalone pom.xml
         # resolves and compiles. Catches the things unit tests can't:
         # malformed XML in the injected block, missing transitive deps,
         # version-property refs that don't resolve outside the reactor,
@@ -499,6 +499,14 @@ SKILLEOF
         # SB3-compatible AI adapter chain.
         rt_compile embabel "-Pspring-boot3"
         rt_compile semantic-kernel ""
+        # Native HTTP+SSE runtimes (no third-party SDK, no provider deps): they
+        # shipped without scaffold coverage and went unscaffoldable for days
+        # (drift #59). Single atmosphere-<x> dep on top of the ai-chat template,
+        # so they compile like the built-in control. crewai's Python sidecar is
+        # a runtime dependency only — the Java app compiles standalone.
+        rt_compile anthropic ""
+        rt_compile cohere ""
+        rt_compile crewai ""
     else
         printf "  ${DIM}— skipping sparse-clone compile regression (mvn not on PATH)${RESET}\n"
     fi

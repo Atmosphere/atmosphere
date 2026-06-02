@@ -104,6 +104,11 @@
                 <artifactId>atmosphere-crewai</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-semantic-kernel</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- RAG -->
             <dependency>
