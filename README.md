@@ -171,6 +171,7 @@ Atmosphere keeps governance on the critical path rather than as an afterthought.
 | Scope enforcement | `atmosphere-ai` | `@AgentScope` blocks out-of-purpose prompts before runtime dispatch |
 | Human approval | `atmosphere-agent`, `atmosphere-ai` | command confirmations, permission modes, tool approval policies |
 | Durable HITL workflows | `atmosphere-checkpoint`, `atmosphere-durable-sessions` | checkpointed approval gates, REST approve/reject/resume endpoints, and reconnect-safe replay for long-running agent work |
+| Stateful interactions | `atmosphere-interactions` | stateful agent turns with a durable `steps[]` log, `background` runs retrievable after disconnect, conversation chaining via `previous_interaction_id`, and live step streaming over WebSocket; REST surface at `/api/interactions` (mutations default-deny) |
 | Plan-and-verify | `atmosphere-verifier` | verifies LLM-emitted tool workflows before execution; supports allowlist, well-formedness, capability, taint, automaton, and SMT verifiers |
 | PII and cost controls | `atmosphere-ai` | stream-level PII redaction, token usage, per-tenant cost ceilings |
 | Admin control plane | `atmosphere-admin` | dashboard, REST/MCP control surfaces, kill switches, journal flow viewer, governance decisions, **workflow authoring UI**, **eval dashboard** |
