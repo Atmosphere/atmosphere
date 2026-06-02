@@ -1,6 +1,6 @@
 # Choosing an `AgentRuntime`
 
-Atmosphere ships nine `AgentRuntime` adapters. Every adapter implements the
+Atmosphere ships twelve contract-tested `AgentRuntime` adapters. Every adapter implements the
 same Java SPI, so switching between them is a one-line Maven dependency
 swap — but each one is wrapped around a different upstream agent framework
 with different strengths. This guide is the decision tree you should walk
@@ -82,6 +82,20 @@ Walk these questions in order; stop at the first match.
    **Pin Spring Boot 3 today** — the framework is not yet Spring Boot 4
    compatible (Alibaba `1.1.2.0` hardcodes Spring AI 1.1.2 types).
 
+10. **Do you need a native Anthropic Messages API client without a third-party SDK?**
+    -> **Anthropic (`atmosphere-anthropic`)**. Direct HTTP+SSE client with
+    tool calling, structured output, token usage, and per-request retry.
+
+11. **Do you need a native Cohere v2 Chat client?**
+    -> **Cohere (`atmosphere-cohere`)**. Direct `POST /v2/chat` client with
+    tool calling, structured output, vision, multi-modal input, token usage,
+    per-request retry, and tool-call argument deltas.
+
+12. **Do you need to run a CrewAI crew from a JVM application?**
+    -> **CrewAI (`atmosphere-crewai`)**. Java HTTP+SSE runtime bridge to a
+    Python CrewAI sidecar, with runtime availability based on a live sidecar
+    health probe.
+
 If multiple options match, pick the lowest-numbered one — the runtimes are
 ordered from "most-general / most-portable" at the top to
 "most-specialized" at the bottom.
@@ -99,6 +113,9 @@ ordered from "most-general / most-portable" at the top to
 | Semantic Kernel | Microsoft / .NET ecosystem parity on JVM | You don't need SK plugins/planners | Token-by-token | ✅ | ✅ |
 | AgentScope | Qwen-native ReAct, Alibaba Cloud AI Studio | You want anything other than Qwen | Token-by-token | ✅ + `CANCELLATION` | — |
 | Spring AI Alibaba | DashScope / `ReactAgent` graph on Spring Boot 3 | You're on Spring Boot 4 | **Buffered** (one chunk + complete) | ✅ | ✅ |
+| Anthropic | Native Anthropic Messages API without a third-party SDK | You need audio input | Token-by-token | ✅ | — |
+| Cohere | Native Cohere v2 Chat API | You need audio input | Token-by-token | ✅ + `TOOL_CALL_DELTA` | — |
+| CrewAI | Python CrewAI orchestration from JVM apps | You cannot run the sidecar process | Token-by-token or full-result frame | ✅ + `AGENT_ORCHESTRATION` | — |
 
 ## What's the same on every runtime
 

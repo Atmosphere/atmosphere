@@ -33,8 +33,9 @@ import java.util.Optional;
  * prompt-cache primitive that is actually portable across providers today.
  * ADK's {@code ContextCacheConfig} is app-scoped and therefore configured at
  * runtime-bootstrap time, not per-request; the per-request hint is logged and
- * ignored on ADK. Koog 0.7.3 only ships Bedrock cache-control variants, so
- * Koog also logs and ignores until an OpenAI/Anthropic variant ships upstream.
+ * ignored on ADK. Koog maps the hint to Koog 1.0's Bedrock cache-control
+ * buckets when the selected Koog provider honors them; other Koog providers
+ * ignore the provider-specific marker upstream.
  *
  * @param policy    caller's intent: opt-in or not
  * @param cacheKey  provider-specific cache key (e.g. OpenAI

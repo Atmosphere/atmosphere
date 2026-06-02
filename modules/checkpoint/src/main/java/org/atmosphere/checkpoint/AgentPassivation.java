@@ -47,10 +47,10 @@ import java.util.Objects;
  * {@link org.atmosphere.ai.AiCapability#PASSIVATION} commits to driving
  * its execution through {@code context.history()} so the snapshot is
  * meaningful — that is, the resumed call observes the same conversation
- * the paused call was seeing. All nine framework runtimes meet this
- * contract because they all delegate to
- * {@code AbstractAgentRuntime.assembleMessages} (or an equivalent that
- * threads {@code context.history()} into the outgoing model request).</p>
+ * the paused call was seeing. Runtimes that declare {@code PASSIVATION}
+ * meet this contract by delegating to
+ * {@code AbstractAgentRuntime.assembleMessages} or by using an equivalent
+ * history-threading path in their native bridge.</p>
  */
 public final class AgentPassivation {
 

@@ -285,7 +285,7 @@ enforcement when the upstream library exposes a mappable knob.
 | ADK (`AdkAgentRuntime`) | ✓ via guard | hint only — native wiring planned | ADK 1.0.0 ships `LlmAgent.Builder.maxSteps(int)` at agent construction. Native per-request wiring (rebuild leaf `LlmAgent` per request, or counting `BeforeModelCallback` reading session state) is tractable but not yet implemented |
 | Semantic Kernel (`SemanticKernelAgentRuntime`) | ✓ via guard | hint only | SK 1.4.0 `ToolCallBehavior.getMaximumAutoInvokeAttempts()` is a getter only; the constructor and `allowAllKernelFunctions(...)` factory chain do not accept a max-attempts integer. Subclassing requires reflection on package-private fields |
 | AgentScope (`AgentScopeAgentRuntime`) | ✓ via guard | hint only — native wiring planned | AgentScope 1.0.12 ships `ReActAgent.Builder.maxIters(int)` at agent construction. Native per-request wiring (rebuild via builder when policy attached) is tractable but not yet implemented |
-| Embabel (`EmbabelAgentRuntime`) | ✓ via guard | hint only | Embabel 0.3.4 `PromptRunner` does not expose a per-request iteration knob. Embabel 0.3.5 adds `withToolLoopInspectors` + `ToolLoopInspector.afterIteration(AfterIterationContext)` which would translate a policy directly to `MaxIterationsExceededException`; native wiring is staged for the 0.3.5 upgrade |
+| Embabel (`EmbabelAgentRuntime`) | ✓ via guard | hint only | Embabel 0.3.5 exposes `withToolLoopInspectors` + `ToolLoopInspector.afterIteration(AfterIterationContext)`, which could translate a policy directly to `MaxIterationsExceededException`; native wiring is not implemented yet |
 
 **Honest distinction.** `strict(N)` is honored on every runtime via a hard
 wire-level abort: when `onModelStart` count exceeds `N`, the guard calls
@@ -297,7 +297,7 @@ result is a hard cap.
 
 `COMPLETE_WITHOUT_TOOLS` ("stop tool calling but keep running, complete
 with whatever text you have") can only be synthesized from inside the
-tool loop. Built-in and Koog do this natively; on the other seven runtimes
+tool loop. Built-in and Koog do this natively; on the other runtimes
 the upstream's own default cap takes over and the policy serves as a
 hint. Use `ToolLoopPolicy.strict(N)` for safety-critical hard caps (works
 everywhere); reserve `ToolLoopPolicy.maxIterations(N)` for runtimes that

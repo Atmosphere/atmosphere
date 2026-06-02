@@ -55,8 +55,8 @@ import static org.mockito.Mockito.when;
  * at runtime (a refactor could reintroduce a non-admitting dispatch path
  * behind a feature flag, say, and the grep would still pass). This test
  * drives the real reactor pipeline through a mocked {@link ChatClient} — a
- * pattern follow-ups can replicate for LangChain4j, ADK, Koog, Embabel, and
- * Semantic Kernel to close exec-level parity across all seven runtimes.</p>
+ * pattern follow-ups can replicate for other runtime adapters to close
+ * exec-level parity across the contract-tested runtime set.</p>
  */
 class SpringAiGatewayAdmissionTest {
 

@@ -16,10 +16,9 @@ it consumes a remote server's tools as a tool source for the local agent.
 Anthropic's [Claude Managed Agents](https://platform.claude.com/docs/en/managed-agents/overview)
 lists MCP servers as a first-class field on the Agent definition — when the
 managed agent runs, the harness wires remote MCP tools into its loop by
-default. Atmosphere's per-runtime audit found that none of the nine
-`AgentRuntime` implementations natively wires outbound MCP servers; this
-module fills that gap at the framework-agnostic tool layer rather than
-duplicating the wiring nine times.
+default. Atmosphere's per-runtime audit found that outbound MCP belongs at
+the framework-agnostic tool layer; this module fills that gap without
+duplicating the wiring in every runtime adapter.
 
 ## Coordinates
 

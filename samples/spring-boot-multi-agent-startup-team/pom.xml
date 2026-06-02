@@ -59,7 +59,7 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Koog 0.7.3 ABI requires Kotlin 2.x stdlib (kotlin.time.Clock)
+            <!-- Koog 1.0.0 ABI requires Kotlin 2.x stdlib (kotlin.time.Clock)
                  and kotlinx-serialization 1.10.0 (the typeParametersSerializers
                  method shape changed). Spring Boot 3.5's BOM pins both at older
                  versions, so we override here so the SB3-profile Koog wiring

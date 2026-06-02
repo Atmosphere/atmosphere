@@ -639,9 +639,9 @@ class KoogAgentRuntime : AgentRuntime {
         // ToolExecutionHelper.executeWithApproval, so @RequiresApproval
         // gates fire uniformly with the other runtimes.
         AiCapability.TOOL_APPROVAL,
-        // TOKEN_USAGE: the StreamFrame.End handler reads Koog's usage
-        // totals and emits a typed TokenUsage record via session.usage()
-        // after drain — see executeWithAgent lines 223-232.
+        // TOKEN_USAGE: the Koog LLM-call-completed event exposes usage
+        // totals; wireFeatureHandlers converts them to TokenUsage and
+        // emits them via session.usage().
         AiCapability.TOKEN_USAGE,
         // VISION / AUDIO / MULTI_MODAL are honest on the no-tools path:
         // atmosphereContentsToKoogParts translates Content.Image /
@@ -657,10 +657,9 @@ class KoogAgentRuntime : AgentRuntime {
         AiCapability.MULTI_MODAL,
         // PROMPT_CACHING is honest on Bedrock-backed Koog models:
         // resolveBedrockCacheControl maps Atmosphere's portable CacheHint to
-        // one of Koog 0.7.3's CacheControl.Bedrock.{FiveMinutes,OneHour}
-        // singletons and attaches it to the outgoing Message.User via the
-        // parts-list + cacheControl PromptBuilder overload. Non-Bedrock
-        // providers silently drop the cache control — the same shape
+        // one of Koog 1.0's BedrockCacheControl buckets and attaches it to the
+        // outgoing Message.User via the parts-list + cacheControl
+        // PromptBuilder overload. Non-Bedrock providers silently drop it — same shape
         // Spring AI / LangChain4j take for OpenAI prompt_cache_key.
         AiCapability.PROMPT_CACHING,
         // CANCELLATION: executeWithHandle returns an ExecutionHandle whose
@@ -676,9 +675,9 @@ class KoogAgentRuntime : AgentRuntime {
         AiCapability.PER_REQUEST_RETRY,
         // BUDGET_ENFORCEMENT: framework-level circuit breaker via the
         // AiPipeline BudgetCapturingSession decorator — honest because
-        // executeWithAgent emits typed TokenUsage on StreamFrame.End
-        // through session.usage(), the signal BudgetCapturingSession taps
-        // for token / step abort. Wall-clock limits trip universally.
+        // wireFeatureHandlers emits typed TokenUsage through session.usage(),
+        // the signal BudgetCapturingSession taps for token / step abort.
+        // Wall-clock limits trip universally.
         AiCapability.BUDGET_ENFORCEMENT,
         // CONFIDENCE_SCORES: framework-level — AiPipeline's
         // ConfidenceCapturingSession parses the model-reported

@@ -52,7 +52,8 @@ Implementations include:
 
 ## Supported AI Runtime Adapters
 
-Through `AgentRuntime` implementations, Atmosphere supports nine AI runtimes:
+Through `AgentRuntime` implementations, Atmosphere supports the runtimes
+listed in the capability matrix:
 - **Built-in** — OpenAI-compatible client that works with Gemini, OpenAI, Ollama, etc.
 - **Spring AI** (`atmosphere-spring-ai`) — integrates with Spring AI ChatClient
 - **LangChain4j** (`atmosphere-langchain4j`) — integrates with LangChain4j streaming models
@@ -62,6 +63,9 @@ Through `AgentRuntime` implementations, Atmosphere supports nine AI runtimes:
 - **Semantic Kernel** (`atmosphere-semantic-kernel`) — Microsoft Semantic Kernel
 - **AgentScope** (`atmosphere-agentscope`) — Alibaba AgentScope
 - **Spring AI Alibaba** (`atmosphere-spring-ai-alibaba`) — Alibaba Cloud AI on Spring AI
+- **Anthropic** (`atmosphere-anthropic`) — native Anthropic Messages API client
+- **Cohere** (`atmosphere-cohere`) — native Cohere v2 Chat API client
+- **CrewAI** (`atmosphere-crewai`) — CrewAI sidecar bridge
 
 Capability sets vary by runtime; the adapter matrix in `modules/ai/README.md`
 pins the current source of truth.

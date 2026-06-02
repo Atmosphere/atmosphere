@@ -221,8 +221,8 @@ public final class OwaspAgenticMatrix {
                                     "Scope-confinement preamble blunts injected instructions")),
                     "COVERED via three-tier InjectionClassifier SPI + SafetyContextProvider decorator. "
                             + "Default rule-based tier requires no runtime; embedding-similarity tier "
-                            + "leverages any installed EmbeddingRuntime (5 adapters); LLM-classifier "
-                            + "tier uses any AgentRuntime (7 adapters). Every flagged document is "
+                            + "leverages any installed EmbeddingRuntime; LLM-classifier "
+                            + "tier uses any installed AgentRuntime. Every flagged document is "
                             + "audited through GovernanceDecisionLog and honours drop / flag / "
                             + "sanitize breach policies."),
 

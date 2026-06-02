@@ -4,12 +4,14 @@
 # modules/ai/README.md agree with the canonical snapshot at
 # .harness/capabilities.snapshot.json.
 #
-# Two checks:
+# Three checks:
 #   1. The snapshot itself is fresh (matches the source of truth in
 #      modules/ai/src/main/java/org/atmosphere/ai/AiCapability.java + the
 #      per-runtime *RuntimeContractTest files). Delegates to
 #      scripts/regen-capability-snapshot.sh --check.
-#   2. README count claims agree with the snapshot. Looks for tight,
+#   2. The modules/ai/README.md AgentRuntime table has one row per runtime
+#      and each row's capability tokens match the snapshot.
+#   3. README count claims agree with the snapshot. Looks for tight,
 #      unambiguous patterns:
 #        - `All N runtimes`        (the "All" anchor → unambiguous total)
 #        - `N AiCapability` / `N capabilities total`
@@ -71,12 +73,84 @@ fi
 runtime_count=$(python3 -c 'import json,sys; print(json.load(open(".harness/capabilities.snapshot.json"))["runtimes"]["count"])')
 capability_count=$(python3 -c 'import json,sys; print(json.load(open(".harness/capabilities.snapshot.json"))["capabilities"]["count"])')
 
-# 2. README claim validation.
+# 2. README table validation.
 if [ ! -f "$README" ]; then
     echo "validate-capability-claims.sh: $README not found" >&2
     exit 1
 fi
 
+if ! python3 - "$SNAPSHOT" "$README" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+snapshot_path = Path(sys.argv[1])
+readme_path = Path(sys.argv[2])
+snapshot = json.loads(snapshot_path.read_text())
+readme = readme_path.read_text()
+
+expected = {
+    runtime["name"]: set(runtime["expected_capabilities"])
+    for runtime in snapshot["runtimes"]["items"]
+}
+
+rows = {}
+for line_no, line in enumerate(readme.splitlines(), 1):
+    if not line.startswith("| `atmosphere-"):
+        continue
+    cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+    if len(cells) < 4:
+        continue
+    implementation = re.search(r"`([A-Za-z0-9]+AgentRuntime)`", cells[1])
+    if implementation is None:
+        continue
+    capabilities = set(re.findall(r"\b[A-Z][A-Z0-9_]+\b", cells[3]))
+    rows[implementation.group(1)] = (line_no, capabilities)
+
+failed = False
+for implementation, capabilities in sorted(expected.items()):
+    row = rows.get(implementation)
+    if row is None:
+        print(
+            f"validate-capability-claims.sh: {readme_path} is missing "
+            f"AgentRuntime table row for {implementation}",
+            file=sys.stderr,
+        )
+        failed = True
+        continue
+    line_no, actual = row
+    missing = sorted(capabilities - actual)
+    extra = sorted(actual - capabilities)
+    if missing or extra:
+        print(
+            f"validate-capability-claims.sh: {readme_path}:{line_no} "
+            f"capabilities for {implementation} drifted from snapshot",
+            file=sys.stderr,
+        )
+        if missing:
+            print(f"    missing: {', '.join(missing)}", file=sys.stderr)
+        if extra:
+            print(f"    extra: {', '.join(extra)}", file=sys.stderr)
+        failed = True
+
+for implementation, (line_no, _) in sorted(rows.items()):
+    if implementation not in expected:
+        print(
+            f"validate-capability-claims.sh: {readme_path}:{line_no} "
+            f"documents unknown runtime {implementation}",
+            file=sys.stderr,
+        )
+        failed = True
+
+if failed:
+    sys.exit(1)
+PY
+then
+    fail=1
+fi
+
+# 3. README claim validation.
 while IFS=: read -r lineno text; do
     n=$(echo "$text" | grep -oE 'All [0-9]+ runtimes?' | grep -oE '[0-9]+' | head -1)
     if [ -n "$n" ] && [ "$n" != "$runtime_count" ]; then
@@ -95,7 +169,7 @@ while IFS=: read -r lineno text; do
     fi
 done < <(grep -nE '[0-9]+ (AiCapability|capabilities total|capabilities count)' "$README" || true)
 
-# 3. Top-level README count claims. The same drift class bit us when
+# 4. Top-level README count claims. The same drift class bit us when
 # the eleventh adapter (Cohere) landed and prose on README.md was only
 # updated in one of four spots. Patterns guarded here:
 #   - `N runtime adapters`     (matches "11 runtime adapters")

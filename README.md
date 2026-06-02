@@ -140,7 +140,7 @@ public class MyAgent {
 
 ## AI Runtime Adapters
 
-`atmosphere-ai` ships the `AgentRuntime` SPI plus the Built-in OpenAI-compatible adapter. Ten additional adapters live in separate modules — eight wrap a third-party framework, and two (`atmosphere-anthropic`, `atmosphere-cohere`) are native HTTP+SSE clients for the Anthropic Messages API and the Cohere v2 chat API respectively. Drop one runtime adapter on the classpath and the same `@Agent` code dispatches through it.
+`atmosphere-ai` ships the `AgentRuntime` SPI plus the Built-in OpenAI-compatible adapter. Eleven additional adapters live in separate modules — nine wrap a third-party framework, and two (`atmosphere-anthropic`, `atmosphere-cohere`) are native HTTP+SSE clients for the Anthropic Messages API and the Cohere v2 chat API respectively. Drop one runtime adapter on the classpath and the same `@Agent` code dispatches through it.
 
 Capabilities are intentionally not identical. The authoritative matrix is pinned by `AbstractAgentRuntimeContractTest.expectedCapabilities()`, so a runtime cannot drift from its declared feature set without breaking tests.
 
@@ -148,15 +148,16 @@ Capabilities are intentionally not identical. The authoritative matrix is pinned
 |---|---|---|---|---|
 | `atmosphere-ai` (Built-in) | OpenAI-compatible HTTP client | 3.5 / 4.0 | tool calling, JSON mode, vision, audio, prompt caching, token usage, native retry, tool-call deltas | Default. Works with OpenAI-compatible endpoints such as OpenAI, Gemini compatibility endpoints, Ollama, and local proxies. |
 | `atmosphere-spring-ai` | Spring AI 2.0.0-M6 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | Best fit for Spring Boot applications already using Spring AI. |
-| `atmosphere-langchain4j` | LangChain4j 1.14.0 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | Best fit for LangChain4j tool ecosystems and non-Spring services. |
+| `atmosphere-langchain4j` | LangChain4j 1.15.0 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | Best fit for LangChain4j tool ecosystems and non-Spring services. |
 | `atmosphere-adk` | Google ADK 1.2.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching | Multi-agent runtime with `AGENT_ORCHESTRATION`. |
-| `atmosphere-koog` | JetBrains Koog 0.8.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching, cancellation | Multi-agent runtime. |
-| `atmosphere-semantic-kernel` | Microsoft Semantic Kernel 1.5.0 | 4.0 | tool calling, structured output, token usage | No vision/audio path through the SK Java SDK today. |
-| `atmosphere-agentscope` | Alibaba AgentScope 1.0.12 | 4.0 | tool calling, structured output, conversation memory, token usage, cancellation | `AgentScopeToolBridge` routes every `@AiTool` invocation through `ToolExecutionHelper.executeWithApproval`. |
+| `atmosphere-koog` | JetBrains Koog 1.0.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching, cancellation | Multi-agent runtime. |
+| `atmosphere-semantic-kernel` | Microsoft Semantic Kernel 1.5.0 | 4.0 | tool calling, structured output, vision, token usage | No audio path through the SK Java SDK today. |
+| `atmosphere-agentscope` | Alibaba AgentScope 1.0.12 | 4.0 | tool calling, structured output, vision, audio, conversation memory, token usage, cancellation | `AgentScopeToolBridge` routes every `@AiTool` invocation through `ToolExecutionHelper.executeWithApproval`. |
 | `atmosphere-embabel` | Embabel 0.3.5 | 3.5 only | agent orchestration, tool calling, vision, conversation memory | Requires `atmosphere-spring-boot3-starter` and the `-Pspring-boot3` profile. |
-| `atmosphere-spring-ai-alibaba` | Spring AI Alibaba 1.1.2.2 | 3.5 only | tool calling, structured output, conversation memory, token usage | Buffered streaming (the upstream `ReactAgent.call()` returns one `AssistantMessage`); `UsageCapturingChatModel` decorator threads token usage. Token-by-token streaming should use another adapter until Alibaba ships a Spring AI 2.x-aligned agent framework. |
+| `atmosphere-spring-ai-alibaba` | Spring AI Alibaba 1.1.2.2 | 3.5 only | tool calling, structured output, vision, audio, conversation memory, token usage | Buffered streaming (the upstream `ReactAgent.call()` returns one `AssistantMessage`); `UsageCapturingChatModel` decorator threads token usage. Token-by-token streaming should use another adapter until Alibaba ships a Spring AI 2.x-aligned agent framework. |
 | `atmosphere-anthropic` | Anthropic Messages API (no third-party SDK) | 3.5 / 4.0 | tool calling, structured output, conversation memory, token usage, per-request retry | Native HTTP+SSE client; tool loop capped at five rounds, cancellation-aware. Configure via `anthropic.api.key` (system property or `AiConfig.LlmSettings`); custom headers (`Helicone-Auth`, tenant IDs, tracing) are passthrough with reserved-header filtering. |
 | `atmosphere-cohere` | Cohere v2 chat API (no third-party SDK) | 3.5 / 4.0 | tool calling, structured output, vision, multi-modal, conversation memory, token usage, per-request retry | Native HTTP+SSE client against `POST /v2/chat`; tool dispatch routes through `ToolExecutionHelper.executeWithApproval`. Configure via `cohere.api.key` (system property or `AiConfig.LlmSettings`). |
+| `atmosphere-crewai` | CrewAI 1.14+ sidecar bridge | 3.5 / 4.0 | agent orchestration, tool calling, structured output, token usage, cancellation | Java HTTP+SSE bridge to a Python CrewAI sidecar. Availability is gated by a live `/health` probe, not classpath presence. |
 
 See the full [capability matrix](modules/ai/README.md#capability-matrix) for text streaming, tool calling, structured output, system prompts, agent orchestration, conversation memory, tool approval, vision, audio, multi-modal, prompt caching, token usage, retry, passivation, and tool-call deltas.
 

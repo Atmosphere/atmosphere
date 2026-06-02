@@ -18,16 +18,19 @@ package org.atmosphere.ai;
 import java.util.List;
 
 /**
- * Phase 8 of the unified {@code @Agent} API: a sibling SPI to
- * {@link AgentRuntime} for text embedding generation. Each runtime adapter
- * (Spring AI {@code EmbeddingModel}, LangChain4j {@code EmbeddingModel}, ADK
- * {@code Embedder}, Koog {@code Embedder}, Embabel via Spring AI) ships an
- * implementation discovered through the same {@code ServiceLoader} mechanism
- * as {@link AgentRuntime}.
+ * A sibling SPI to {@link AgentRuntime} for text embedding generation. Each AI
+ * adapter module ships an implementation backed by the framework's native
+ * embedding API (Spring AI {@code EmbeddingModel}, LangChain4j
+ * {@code EmbeddingModel}, Koog {@code Embedder}, and others), discovered through
+ * the same {@code ServiceLoader} mechanism as {@link AgentRuntime}. A built-in
+ * implementation ({@link org.atmosphere.ai.llm.BuiltInEmbeddingRuntime}) posts
+ * to an OpenAI-compatible {@code /v1/embeddings} endpoint with no extra adapter
+ * on the classpath.
  *
- * <p>The {@code rag} module currently consumes provider-specific embedding
- * APIs directly; Phase 8 lifts that into a runtime-agnostic SPI so RAG
- * pipelines can swap backends without code changes.</p>
+ * <p>The {@code rag} module's context providers resolve their embedding backend
+ * through this SPI (see {@link EmbeddingRuntimeResolver}), so RAG pipelines swap
+ * providers by changing the adapter on the classpath rather than editing
+ * provider-specific code.</p>
  */
 public interface EmbeddingRuntime {
 
