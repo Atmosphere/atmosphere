@@ -19,7 +19,7 @@ The assistant has four tools registered via Atmosphere's `@AiTool` annotation:
 - **`AiEvent` tool events** — `ToolStart` and `ToolResult` events streamed to the frontend in real-time
 - **Cost metering** — `CostMeteringInterceptor` tracks tokens, cost, and latency per response
 - **Conversation memory** — multi-turn history with configurable window size
-- **Demo mode** — works out-of-the-box without an API key (simulated tool responses with events)
+- **Demo mode** — works out-of-the-box without an API key (the built-in runtime returns canned LLM responses). Note: the example tools themselves (e.g. `get_weather`) return illustrative data in **every** mode — this sample demonstrates `@AiTool` wiring, not a live weather service
 
 ## Running
 

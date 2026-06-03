@@ -71,7 +71,9 @@ public class AssistantTools {
     public String getWeather(
             @Param(value = "city", description = "City name to get weather for")
             String city) {
-        // Simulated weather — in production, call a real weather API
+        // Illustrative canned data: this sample demonstrates @AiTool tool-calling
+        // wiring, not a live weather service. Replace the body with a real
+        // weather API call to make it production-grade.
         return switch (city.toLowerCase()) {
             case "london" -> "London: Cloudy, 15°C / 59°F, 80% humidity";
             case "paris" -> "Paris: Partly cloudy, 20°C / 68°F, 65% humidity";
