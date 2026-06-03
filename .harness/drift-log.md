@@ -1103,6 +1103,18 @@ deliberate fix. Entries below collapse the repeated count drift into two rows pl
 
 ---
 
+## 2026-06-03 — Top-level README Terminology table still enumerated 9 runtime adapters (fleet miss, self-caught) (`feat/release-audit`)
+
+While rebasing the audit branch onto an advanced `origin/main`, re-reading the
+top-level `README.md` surfaced one more nine-vs-twelve drift the Phase-1
+claim-audit fleet had missed.
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 101 | `README.md:95` (the "Terminology" table's *Runtime adapter* row) enumerated nine adapters: "Built-in, Spring AI, LangChain4j, Google ADK, Embabel, Koog, Semantic Kernel, AgentScope, Spring AI Alibaba" — omitting Anthropic, Cohere, CrewAI — while the same README's line 28 ("twelve runtime adapters"), line 41 ("12 adapters"), and lines 143/158-160 (which document `atmosphere-anthropic` / `-cohere` / `-crewai`) all correctly reflect twelve. | There are **12** adapters (`.harness/capabilities.snapshot.json` `runtimes.count = 12`). The Terminology row was an enumerated *list* that went stale when anthropic/cohere/crewai landed, even though the count claims elsewhere in the same file were updated. | The Phase-1 cross-runtime dimension checked "every runtime does X" prose and count claims, but did not diff enumerated runtime *lists* inside tables against the snapshot — so a stale 9-name list beside a correct "12" count slipped through. Same class as the website `nine`-list (#99) and the CLI README list (#86/#87). | Prose fix (added Anthropic, Cohere, CrewAI to README:95). Confirms the proposed capability-prose gate (#94/#99) must diff *enumerated runtime-name lists* in `*.md`, not only `\bnine\b`/count tokens. |
+
+---
+
 
 1. Catch the drift (the project maintainer flags it, or self-caught via `git grep` /
    `find` after spotting memory ↔ code disagreement).

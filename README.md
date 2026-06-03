@@ -92,7 +92,7 @@ LLM_API_KEY=your-key ./mvnw spring-boot:run
 | Term | Meaning in Atmosphere | Examples |
 |---|---|---|
 | Model provider | The model/API vendor or endpoint that serves tokens | OpenAI, Gemini compatibility endpoint, Ollama, DashScope, local OpenAI-compatible proxies |
-| Runtime adapter | The Atmosphere integration that implements `AgentRuntime` | Built-in, Spring AI, LangChain4j, Google ADK, Embabel, Koog, Semantic Kernel, AgentScope, Spring AI Alibaba |
+| Runtime adapter | The Atmosphere integration that implements `AgentRuntime` | Built-in, Spring AI, LangChain4j, Google ADK, Embabel, Koog, Semantic Kernel, AgentScope, Spring AI Alibaba, Anthropic, Cohere, CrewAI |
 | Capability | A feature advertised by a runtime adapter and pinned by contract tests | tool calling, embeddings, streaming, structured output, prompt caching |
 
 Use **provider** for model vendors and **runtime adapter** for Atmosphere integrations. Not every runtime adapter exposes every capability.
