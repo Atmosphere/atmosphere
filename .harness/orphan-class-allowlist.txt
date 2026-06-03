@@ -1,0 +1,12 @@
+# Orphan-class allowlist for scripts/validate-no-orphan-classes.sh
+#
+# One simple class name OR fully-qualified name per line. Lines starting with #
+# are comments. List a class here ONLY when it is a genuine public-API entry
+# point (instantiated by downstream users, not in-repo) that the diff-aware
+# gate would otherwise flag when newly added — with a one-line justification.
+#
+# Empty on purpose: the gate is diff-aware, so the existing public-API classes
+# the full-tree (--all) sweep surfaces (e.g. the pgvector/qdrant/pinecone
+# ContextProviders and the cpr WebSocket*/WebTransport* adapters) are NOT
+# flagged in normal (diff) operation — they are pre-existing, not added in a
+# changeset. Add entries here only as genuinely-new public-API classes land.

@@ -1115,6 +1115,40 @@ claim-audit fleet had missed.
 
 ---
 
+## 2026-06-03 — Built the orphan-class gate that would have caught the 10 dead classes (`feat/release-audit`)
+
+Structural follow-through on the dead-code removal. Git archaeology showed all
+ten removed classes were born inside large multi-artifact `feat` commits beside
+a sibling that got wired, while their own consumer/registration never landed —
+and no gate flagged "concrete class with zero production consumers" (the
+existing checks cover unwired NOOP *constants*, dead *interfaces*, and empty SPI
+files, not dead concrete classes).
+
+Built `scripts/validate-no-orphan-classes.sh` and wired it into pre-push Tier-1
+(triggers on `modules/*/src/main/*.java`, the script, or the allowlist).
+
+**Honest design note — why diff-aware, not full-tree.** A first cut scanned the
+whole tree for concrete classes with zero in-repo references and flagged **18** —
+but on inspection nearly all were **public-API extension points** that
+legitimately have no in-repo caller (users wire them): the pgvector/qdrant/
+pinecone `ContextProvider`s, the cpr `WebSocketHandlerAdapter` / `EchoProtocol` /
+WebTransport adapters, integration-test fixtures. A full-tree "zero consumers"
+heuristic cannot distinguish *dead internal class* from *public API* on a
+published library, so a blocking full-tree gate would have meant an ever-growing
+allowlist that risks laundering real dead code. The gate was therefore made
+**diff-aware**: it inspects only classes *added in the current changeset* and
+fails when a brand-new concrete class ships with no consumer — the exact failure
+mode of all ten, while pre-existing public API is never touched. Test-support
+modules (`ai-test`, `integration-tests`, `benchmarks`) are excluded — their
+`src/main` classes are consumed by other modules' tests or a JMH harness by
+design, so "no production consumer" is expected there. `--all` remains for a
+human-triaged full-tree sweep (it surfaces ~39 public-API/util classes — proof
+that a *blocking* full-tree gate would be unworkable on a library). Verified: catches a synthetic newly-added
+orphan; clean (0) against the current branch. Java-only in v1 (Kotlin candidate
+detection is a documented follow-up).
+
+---
+
 
 1. Catch the drift (the project maintainer flags it, or self-caught via `git grep` /
    `find` after spotting memory ↔ code disagreement).

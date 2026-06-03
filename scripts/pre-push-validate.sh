@@ -161,6 +161,7 @@ OVERLAY_COVERAGE_REGEX='^cli/runtime-overlays\.json$|^bom/pom\.xml$|^\.harness/c
 DANGLING_DOC_REGEX='^(modules|samples)/.*/src/(main|test)/.*\.java$|^scripts/validate-dangling-doc-comments\.sh$'
 DOC_VERSION_REGEX='\.md$|^pom\.xml$|^atmosphere\.js/package\.json$|^scripts/validate-doc-version-alignment\.sh$|^\.harness/doc-version-allowlist\.txt$'
 DOC_SYMBOLS_REGEX='\.md$|^(modules|samples)/.*/src/main/.*\.java$|^scripts/validate-doc-symbols\.sh$|^\.harness/doc-symbol-allowlist\.txt$'
+ORPHAN_CLASS_REGEX='^modules/.*/src/main/.*\.java$|^scripts/validate-no-orphan-classes\.sh$|^\.harness/orphan-class-allowlist\.txt$'
 
 SIGNIFICANT_FILES=""
 IGNORED_FILES=""
@@ -172,6 +173,7 @@ RUN_BACKEND_CLASS_REFS=false
 RUN_PRIVATE_HANDLE=false
 RUN_NO_BETA=false
 RUN_OVERLAY_COVERAGE=false
+RUN_ORPHAN_CLASS=false
 RUN_DANGLING_DOC=false
 RUN_DOC_VERSION=false
 RUN_DOC_SYMBOLS=false
@@ -197,6 +199,9 @@ while IFS= read -r file; do
     fi
     if echo "$file" | grep -qE "$OVERLAY_COVERAGE_REGEX"; then
         RUN_OVERLAY_COVERAGE=true
+    fi
+    if echo "$file" | grep -qE "$ORPHAN_CLASS_REGEX"; then
+        RUN_ORPHAN_CLASS=true
     fi
     if echo "$file" | grep -qE "$DANGLING_DOC_REGEX"; then
         RUN_DANGLING_DOC=true
@@ -230,6 +235,7 @@ if [ "$FORCE_FULL" = true ]; then
     RUN_PRIVATE_HANDLE=true
     RUN_NO_BETA=true
     RUN_OVERLAY_COVERAGE=true
+    RUN_ORPHAN_CLASS=true
     RUN_DANGLING_DOC=true
     RUN_DOC_VERSION=true
     RUN_DOC_SYMBOLS=true
@@ -344,6 +350,19 @@ if [ "$DRY_RUN" = false ]; then
     fi
     echo ""
 
+    if [ "$RUN_ORPHAN_CLASS" = true ]; then
+        echo "Running orphan-class validation (newly-added classes with no consumer)."
+        if ! BASE_REF="$BASE_REF" ./scripts/validate-no-orphan-classes.sh; then
+            echo ""
+            echo "A newly-added concrete class has no production consumer. Wire it to a"
+            echo "real caller, delete it, or allowlist it in .harness/orphan-class-allowlist.txt."
+            exit 1
+        fi
+    else
+        echo "Skipping orphan-class validation."
+    fi
+    echo ""
+
     if [ "$RUN_DANGLING_DOC" = true ]; then
         echo "Running dangling-doc-comment validation."
         if ! BASE_REF="$BASE_REF" ./scripts/validate-dangling-doc-comments.sh; then
@@ -391,6 +410,7 @@ else
     echo "  private-handle leak      : $RUN_PRIVATE_HANDLE"
     echo "  no-@Beta-on-main         : $RUN_NO_BETA"
     echo "  overlay/BOM coverage     : $RUN_OVERLAY_COVERAGE"
+    echo "  orphan-class check       : $RUN_ORPHAN_CLASS"
     echo "  dangling-doc comments    : $RUN_DANGLING_DOC"
     echo "  doc version alignment    : $RUN_DOC_VERSION"
     echo "  doc-symbol (annotations) : $RUN_DOC_SYMBOLS"
