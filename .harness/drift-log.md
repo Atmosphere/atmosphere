@@ -1086,6 +1086,23 @@ claiming-absent-what-is-present and claiming-present-what-is-absent.
 
 ---
 
+## 2026-06-02 — Sibling website repo (`atmosphere.github.io`) lagged the runtime/event counts badly (`feat/release-audit`)
+
+A read-only fan-out audited `~/workspace/atmosphere/atmosphere.github.io` against this repo's
+source + snapshot. The website is "as critical as the main repo" (release-gating) but has no
+count gate, so it never got swept when runtimes grew 9→12 and `AiEvent` grew 13→15. 44 unique
+drifts confirmed. The mechanical count drift was auto-fixed in the website working tree (NOT
+committed/pushed — external repo, maintainer's call); the structural items are reported for a
+deliberate fix. Entries below collapse the repeated count drift into two rows plus the matrix.
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 99 | The website stated "**nine** `AgentRuntime` runtimes/adapters/implementations/swappable runtimes" in 10 places across `whats-new.md`, `tutorial/{09-ai-endpoint,10-ai-tools,11-ai-adapters,26-foundation-primitives}.md`, `reference/{runtime-selection,ai}.md`, `integrations/semantic-kernel.md`, and `website/src/components/WhyAtmosphere.astro` (one of which listed only the 9 older runtime names; another, `WhyAtmosphere.astro`, contradicted itself — `:171` "nine" vs `:261` "all 12"). | **12** runtimes (`.harness/capabilities.snapshot.json` `runtimes.count = 12`); the 3 omitted are Anthropic, Cohere, CrewAI. Same "narrative trailing a runtime-add" class as #55/#59/#85 — but in the sibling repo, which the main repo's `validate-capability-claims.sh` does not reach. | Each runtime-add (anthropic/cohere/crewai) swept the code repo's README/snapshot/BOM/overlay but never the website; no gate correlates website counts with the snapshot. | Auto-fixed all 10 sites (`nine`→`twelve`, `eight adapter modules`→`eleven`, expanded the runtime enumeration) in the website working tree. Proposed gate: a website-side CI check (or an extension of `validate-capability-claims.sh` run against a checked-out `atmosphere.github.io`) that greps the docs for runtime/event/capability counts and diffs them against the code repo's snapshot. |
+| 100 | The website stated `AiEvent` has "**13** structured event types" in 4 places (`whats-new.md:231`, `tutorial/09-ai-endpoint.md:219` table + `:764`, `reference/ai.md:441`); the `:219` table enumerated only 13 rows. | **15** records in `modules/ai/src/main/java/org/atmosphere/ai/AiEvent.java` (`grep -cE '^\s*record ' = 15`); the two missing are `Handoff(fromAgent,toAgent,reason)` and `ApprovalRequired(approvalId,toolName,arguments,message,expiresIn)`. (`reference/ai.md:589` already said 15 — internal inconsistency.) | `Handoff`/`ApprovalRequired` were added to `AiEvent` without sweeping the website count + the enumerating table; no count gate on the website. | Auto-fixed all 4 sites (`13`→`15`) and added the two missing rows to the `:219` table. Same proposed website count gate as #99. |
+| — | (Structural, REPORTED — not auto-fixed) `tutorial/11-ai-adapters.md` capability matrix shows `—` (not-declared) for capabilities the snapshot says runtimes DO declare: `CANCELLATION` for ~9 runtimes, `AUDIO`/`VISION`/`MULTI_MODAL` for AgentScope/Alibaba/SK, `TOOL_CALL_DELTA` for Cohere, plus a stale CrewAI row. The website also lists 22 samples in `whats-new.md` vs the true 26. | The matrix under-claims (opposite of dangerous over-claim) but is still wrong vs `capabilities.snapshot.json`. | The website matrix was built from an older snapshot and never regenerated as capabilities were added per runtime. | No auto-fix (contract-pinned-class structural table + sample-table content). Recommended: regenerate the website matrix directly from `capabilities.snapshot.json` (mirroring `modules/ai/README.md`'s pinned matrix) and add the 4 missing sample rows — pending maintainer go-ahead, since it is a large change to the release-gating external repo. |
+
+---
+
 
 1. Catch the drift (the project maintainer flags it, or self-caught via `git grep` /
    `find` after spotting memory ↔ code disagreement).
