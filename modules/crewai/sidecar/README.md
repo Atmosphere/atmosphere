@@ -216,11 +216,6 @@ ends.
 
 ## What's NOT in this package
 
-* **Tool calling.** The Java→Python tool-RPC bridge ships in a
-  follow-up release. The Java runtime's `capabilities()` honestly
-  omits `TOOL_CALLING` until that arrives.
-* **System prompt threading.** The wire protocol does not yet carry a
-  dedicated system-prompt field; lands alongside tools.
 * **Structured output.** CrewAI's `output_pydantic` / `output_json`
   knobs are not bridged yet.
 * **Conversation memory checkpoint.** History is forwarded on every

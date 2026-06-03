@@ -1069,6 +1069,23 @@ logged below.
 
 ---
 
+## 2026-06-02 — Three CrewAI/admin Runtime-Truth doc drifts (surfaced by the dead-code fleet, verified by hand) (`feat/release-audit`)
+
+The Phase-2 fleet's prose finders flagged three docs that disagree with runtime state. (Process
+note: those finder agents *edited* the files directly in the shared worktree rather than only
+reporting; the edits were reverted, re-verified independently against the source, and re-applied
+deliberately here — subsequent audit fleets are run read-only. The findings themselves were
+correct.) Two are inversions worth recording because they cut in *opposite* directions —
+claiming-absent-what-is-present and claiming-present-what-is-absent.
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 96 | `modules/crewai/sidecar/README.md:219-223` "What's NOT in this package" listed **"Tool calling — the Java→Python tool-RPC bridge ships in a follow-up release; `capabilities()` honestly omits `TOOL_CALLING`"** and **"System prompt threading — the wire protocol does not yet carry a dedicated system-prompt field"**. | Both shipped and are tested. `CrewAiSidecarClient.StartRequest` carries `systemPrompt`, `tools`, and `toolCallbackUrl` (CrewAiSidecarClient.java:80-104); the Python sidecar's `tools.py` `build_remote_tool` POSTs `{call_id,name,arguments}` to the Java `ToolCallbackServer` loopback listener; `CrewAiRuntimeContractTest` (Javadoc:46,50-57) explicitly exercises "the tool-callback round trip". `capabilities()` declares both `TOOL_CALLING` and `SYSTEM_PROMPT`. A **Runtime-Truth inversion**: the doc denied a feature that is present *and* contract-tested. | The sidecar README's "NOT in this package" list was written before the tool-bridge landed and never swept when `ToolCallbackServer` + the sidecar `tools.py` callback + the `systemPrompt` wire field shipped (and `capabilities()` gained `TOOL_CALLING`/`SYSTEM_PROMPT`). | Removed the two stale bullets. Gate: the proposed `validate-capability-prose.sh` (#94) should also fail when a README's "NOT supported" prose names a capability the snapshot **declares** — the inverse check. |
+| 97 | `modules/admin/README.md:241` "`WorkflowManifest` is the JSON record **the runtime executes** through `@Coordinator` + `AgentFleet`." | No executor exists. `git grep WorkflowManifest` over `src/main` shows only authoring/validation (`WorkflowManifest`, `create`, `withRevision`), persistence (`WorkflowStore`/`InMemoryWorkflowStore` `save/list/findById`), and admin CRUD (`WorkflowController`, `AtmosphereAdminEndpoint`) — nothing dispatches a manifest's nodes through `@Coordinator`/`AgentFleet`. The format, validation, and storage ship; the executing runtime does not. An **overclaim** (opposite direction to #96: claims-present what is absent) — the OfflineQueue/#27 "primitive without the hook" class, in doc form. | The README was written from the intended end-state ("the runtime executes") while only the authoring/storage half shipped; never reconciled against the absence of a manifest executor. | Reworded to state format/validation/storage ship and the node-dispatch runtime is not yet wired. No automated gate — "X executes Y" prose isn't grep-pinnable; the discipline is Runtime Truth (#5). |
+| 98 | `modules/crewai/README.md:63` heading "## Quickstart (**after Python sidecar lands**)" and a placeholder install `pipx install atmosphere-crewai-bridge` ("actual command ships with the Python package"). | The sidecar has landed: `modules/crewai/sidecar/` is an in-tree Python package (`pyproject.toml` `name = "atmosphere-crewai-bridge"` v0.1.0, `src/`, `tests/`, `examples/`). Its own README documents the real install `pipx install ./modules/crewai/sidecar`. There is no PyPI-publish workflow, so the published-package command was a forward-reference that never resolved. | The parent module README's quickstart was written before the sidecar source landed in-tree and never updated to the from-source install the sidecar README already documents. | Dropped the "after sidecar lands" framing; pointed the install at the in-tree from-source path matching `sidecar/README.md`. No automated gate (cross-file install-command consistency); discipline is to verify the install path resolves to a real artifact. |
+
+---
+
 
 1. Catch the drift (the project maintainer flags it, or self-caught via `git grep` /
    `find` after spotting memory ↔ code disagreement).

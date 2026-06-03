@@ -238,8 +238,12 @@ grant from `ControlAuthorizer`.
 
 ### Workflow Authoring
 
-`WorkflowManifest` is the JSON record the runtime executes through
-`@Coordinator` + `AgentFleet`. The admin endpoint lets operators
+`WorkflowManifest` is the JSON authoring/persistence record for a
+workflow — a directed graph of nodes (agent / branch / fan-out /
+approval) connected by edges, intended to be dispatched through
+`@Coordinator` + `AgentFleet`. The manifest format, validation, and
+storage ship today; the runtime that executes a manifest by dispatching
+each node is not yet wired. The admin endpoint lets operators
 list / create / edit / delete workflows from the UI at
 `/atmosphere/admin/workflow.html`:
 

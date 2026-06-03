@@ -60,7 +60,7 @@ Boot / Quarkus service, and:
 - You want JVM ownership of session lifecycle: cancel, timeout,
   budget, governance — Java decides, Python executes.
 
-## Quickstart (after Python sidecar lands)
+## Quickstart
 
 Add the dependency:
 
@@ -72,11 +72,11 @@ Add the dependency:
 </dependency>
 ```
 
-Run the sidecar (placeholder — actual command ships with the Python
-package):
+Install and run the sidecar from source (`sidecar/README.md` has the
+full install/run guide):
 
 ```bash
-pipx install atmosphere-crewai-bridge
+pipx install ./modules/crewai/sidecar
 atmosphere-crewai-bridge --host 127.0.0.1 --port 8765 --crew my_crew:Crew
 ```
 
