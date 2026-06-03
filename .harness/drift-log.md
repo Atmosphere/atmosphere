@@ -1021,6 +1021,19 @@ the intended demonstration that the gate earns its keep immediately.
 
 ---
 
+## 2026-06-02 — Release-readiness audit surfaced two un-swept CLI-README lists (`feat/release-audit`)
+
+Pre-announcement honesty audit. The count-reconciliation pass pins the source-of-truth counts (`.harness/release-audit-truth.md`)
+before any doc or announcement states a number. Reconciling the CLI surfaces against their
+machine-readable sources caught two stale prose lists in `cli/README.md`.
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 86 | `cli/README.md:69` listed the available CLI templates as `chat, ai-chat, ai-tools, mcp-server, rag, agent, koog, embabel, multi-agent, classroom, browser-agent` and claimed the list is exhaustive ("Each template sparse-clones the matching sample"). | `koog` and `embabel` are **runtimes** (`--runtime` overlay keys in `cli/runtime-overlays.json`), not templates. The authoritative template set is the 13-entry `case "$template"` block in `cli/atmosphere` `cmd_new()`: chat, ai-chat, ai-tools, mcp-server, rag, agent, multi-agent, classroom, ms-governance, coding-agent, guarded-agent, assistant, browser-agent. The README invented two template names and omitted four real ones (`ms-governance`, `coding-agent`, `guarded-agent`, `assistant`). | When the ms-governance/coding-agent/guarded-agent/assistant templates were added to the `cmd_new` case block, the README's "Available templates:" prose was never swept, and two runtime names leaked into it. `validate-runtime-overlay-coverage.sh` checks the overlay JSON ↔ BOM ↔ snapshot, but nothing correlates the README template list against the shell `case` keys. | Prose fix this session (README → the 13-template `case`-block set). Proposed gate (logged for the next gate-building pass): a `validate-cli-doc-lists.sh` that diffs the `cmd_new` `case` keys against the README "Available templates:" line and the overlay keys against "Available runtimes:". |
+| 87 | `cli/README.md:71` listed the available `--runtime` values as nine: `builtin, spring-ai, langchain4j, adk, koog, semantic-kernel, agentscope, embabel, spring-ai-alibaba`. | `cli/runtime-overlays.json` defines **12** overlay keys; `anthropic`, `cohere`, and `crewai` were omitted from the prose although all three are valid `--runtime` values, have overlays, and are enforced into the overlay set by `validate-runtime-overlay-coverage.sh`. Direct residual of **drift #59**, whose fix swept the overlay JSON, `bom/pom.xml`, and parent-pom `<dependencyManagement>` but not this README sentence. | #59's fix touched the machine-readable runtime surfaces but not `cli/README.md` prose; the overlay-coverage gate validates JSON/BOM, not README prose — exactly the "JSON allowlist is gated, the prose list is not" shape called out in #59 itself. | Prose fix this session (README → the 12-overlay set). Same proposed `validate-cli-doc-lists.sh` gate as #86. |
+
+---
+
 
 1. Catch the drift (the project maintainer flags it, or self-caught via `git grep` /
    `find` after spotting memory ↔ code disagreement).
