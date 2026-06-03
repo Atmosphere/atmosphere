@@ -1171,6 +1171,25 @@ test together — a deliberate API-surface call for the maintainer.
 
 ---
 
+## 2026-06-03 — Resolved two follow-ups from the maintainer: dead Maven channel + stale high CVEs (`feat/release-audit`)
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 103 | `atmosphere.js/PUBLISHING.md` had a "Maven Central (Optional)" section telling Java developers to depend on `org.atmosphere:atmosphere-javascript` `4.0.0` — documenting a Maven/WebJar distribution channel. (In #102 I left the `4.0.0` unchanged as unverifiable.) | The maintainer confirmed atmosphere.js has shipped **npm-only for years** — the `atmosphere-javascript` WebJar is no longer published. The section documents a dead distribution channel, so the right fix was to remove it, not to chase its version. | The publishing doc carried a Maven section from the era when a WebJar was published; never removed when distribution went npm-only. The version was correctly *not* guessed in #102 (it was an external artifact); the maintainer's clarification resolved it. | Removed the "Maven Central (Optional)" section from `PUBLISHING.md`. No automated gate. |
+
+**Dependabot follow-up (maintainer asked to fix the 2 high CVEs).** Both highs
+(`#5`, `#1`) were `org.json:json` in a cited manifest `modules/runtime/pom.xml`.
+Verified: `org.json:json` was retired in 4.0.42-SNAPSHOT (replaced by Jackson 3,
+`tools.jackson.*`); `mvn dependency:tree` over `modules/cpr` shows **zero**
+`org.json:json` (direct or transitive), and `modules/runtime/pom.xml` does not
+exist. Both alerts were **stale** and were dismissed as `not_used` with that
+rationale — no code change needed. (Separately, 10 *medium* `io.vertx:vertx-core`
+4.5.x DoS alerts remain — real, transitive via the Quarkus stack, patched in
+4.5.27; reported to the maintainer as a Quarkus/vertx bump decision, not part of
+the "2 high" ask.)
+
+---
+
 
 1. Catch the drift (the project maintainer flags it, or self-caught via `git grep` /
    `find` after spotting memory ↔ code disagreement).

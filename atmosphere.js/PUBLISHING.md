@@ -108,17 +108,6 @@ npm install atmosphere.js@alpha
 - CDN (auto): https://unpkg.com/atmosphere.js@5.0.28/dist/atmosphere.global.js
 - CDN (auto): https://cdn.jsdelivr.net/npm/atmosphere.js@5.0.28/dist/atmosphere.global.js
 
-### Maven Central (Optional)
-Package atmosphere.js in Maven artifact for Java developers:
-
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-javascript</artifactId>
-    <version>4.0.0</version>
-</dependency>
-```
-
 ## Usage Examples
 
 ### Browser (CDN)
