@@ -207,7 +207,10 @@ public final class ToolBridgeUtils {
         int i = from;
         while (i < s.length()) {
             if (s.charAt(i) == '\\') {
-                i += 2;
+                // Skip the escaped character, but never advance past the end:
+                // a trailing backslash in malformed input must not overshoot
+                // s.length() (boundary safety — Correctness Invariant #4).
+                i += (i + 1 < s.length()) ? 2 : 1;
             } else if (s.charAt(i) == '"') {
                 return i;
             } else {

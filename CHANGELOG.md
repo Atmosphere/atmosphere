@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ListTaskPushNotificationConfigs` method returns `ERROR_PUSH_NOT_SUPPORTED`,
   so the response type was never constructed).
 
+### Fixed
+
+- `ToolBridgeUtils.findUnescapedQuote` no longer advances the scan index past
+  the end of the string when malformed tool-call JSON ends in a lone backslash
+  — the escaped-character skip is now bounds-checked (boundary safety,
+  Correctness Invariant #4). Regression test added.
+
 ### Added
 
 - **Interactions API** (`org.atmosphere.interactions`, artifact `atmosphere-interactions`)

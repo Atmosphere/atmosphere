@@ -236,4 +236,12 @@ public class ToolBridgeUtilsTest {
     public void testFindUnescapedQuoteNotFound() {
         assertEquals(5, ToolBridgeUtils.findUnescapedQuote("hello", 0));
     }
+
+    @Test
+    public void testFindUnescapedQuoteTrailingBackslashDoesNotOvershoot() {
+        // Malformed input ending in a lone backslash must return s.length()
+        // (quote not found) without advancing the index past the end of the
+        // string or throwing. "hello\\" is the 6-char string hello\ .
+        assertEquals(6, ToolBridgeUtils.findUnescapedQuote("hello\\", 0));
+    }
 }
