@@ -127,20 +127,21 @@ only plugs in where it differs:
 - **`SYSTEM_PROMPT`** (every runtime)
 - **`STRUCTURED_OUTPUT`** (every runtime — pipeline wraps the session in
   `StructuredOutputCapturingSession` with system-prompt schema injection)
-- **`CONVERSATION_MEMORY`** (every runtime — `AbstractAgentRuntime.assembleMessages`
-  threads `context.history()` into the outgoing message list)
+- **`CONVERSATION_MEMORY`** (11 of 12 runtimes — CrewAI omits it; the other
+  eleven thread `context.history()` into the outgoing message list via
+  `AbstractAgentRuntime.assembleMessages`)
 - **`TOOL_CALLING` / `TOOL_APPROVAL`** (every runtime — each ships a tool
   bridge that routes through `ToolExecutionHelper.executeWithApproval`)
 - **`TOKEN_USAGE`** (every runtime — Spring AI Alibaba captures via the
   `UsageCapturingChatModel` decorator)
 - **`PER_REQUEST_RETRY`** (every runtime — `executeWithOuterRetry` baseline
   plus the upstream native retry layer)
-- **`BUDGET_ENFORCEMENT`** (every runtime — wall-clock + token / step
-  budgets honored uniformly)
-- **`CONFIDENCE_SCORES`** (every runtime — pipeline parses
-  `{"confidence": …}` field on stream completion)
-- **`PASSIVATION`** (every runtime — `AgentPassivation` snapshots
-  `context.history()` into a `CheckpointStore`)
+- **`BUDGET_ENFORCEMENT`** (11 of 12 runtimes — CrewAI omits it; wall-clock +
+  token / step budgets honored uniformly by the other eleven)
+- **`CONFIDENCE_SCORES`** (11 of 12 runtimes — CrewAI omits it; the pipeline
+  parses the `{"confidence": …}` field on stream completion for the other eleven)
+- **`PASSIVATION`** (11 of 12 runtimes — CrewAI omits it; `AgentPassivation`
+  snapshots `context.history()` into a `CheckpointStore` for the other eleven)
 
 Use the table at the top to decide on the specialized capabilities
 (`AGENT_ORCHESTRATION`, `CANCELLATION`, multi-modal vision/audio,

@@ -139,9 +139,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   HTTP/1.1 200 OK` against the local Ollama instance.
 - `modules/coordinator/journal` — **event-sourced execution log** for
   the coordinator. Layers four additive pieces onto the existing
-  `CoordinationJournal` SPI without breaking any of the 94 existing
+  `CoordinationJournal` SPI without breaking any of the 119 existing
   `new CoordinationEvent.*` call sites across coordinator / admin /
-  checkpoint / integration-tests / samples:
+  checkpoint / integration-tests:
   1. `EventEnvelope(eventId, parentEventId, event)` + default-method
      `recordEnveloped` / `retrieveEnveloped` on `CoordinationJournal`.
      `JournalingAgentFleet` threads parent IDs through every dispatch
@@ -171,7 +171,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      Pre-flight check rejects unknown `parentEventId` with a fast
      `IllegalArgumentException`.
 
-  Backed by 38 tests in `modules/coordinator/src/test/java/.../journal/`
+  Backed by 78 tests in `modules/coordinator/src/test/java/.../journal/`
   including a three-process integration test that runs a parallel
   coordination, restart-replays from disk, projects the DAG, forks an
   alternate, restart-replays again, and verifies both the original and
@@ -344,9 +344,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bug that drift #53 logged on the original `LongTermMemory`
   Javadoc).
 - Per-runtime `SKILLCARD.yaml` manifests with OpenSSF Model Signing
-  (`32a8e8b935` + this commit) — capability + provenance documents
-  signed and verified through the same Sigstore-keyless toolchain
-  NVIDIA's verified-agent-skills programme uses.
+  (`32a8e8b935` + this commit) — capability + provenance documents that
+  are signable via the same Sigstore-keyless toolchain NVIDIA's
+  verified-agent-skills programme uses. Cards ship unsigned
+  (`signing.status: unsigned`); signatures are produced at release-tag
+  time by `.github/workflows/sign-skillcards.yml`.
   `scripts/regen-skillcards.sh` emits one card per
   snapshot-pinned runtime at `modules/<X>/SKILLCARD.yaml`, derived
   from `.harness/capabilities.snapshot.json` and each module's

@@ -873,7 +873,7 @@ public String askAi(
         @McpParam(name = "topic") String topic,
         StreamingSession session) {
     // session broadcasts to all clients on the topic
-    session.send("Thinking...", StreamingSession.MessageType.PROGRESS);
+    session.progress("Thinking...");
     settings.client().streamChatCompletion(request, session);
     return "streaming";
 }
@@ -995,11 +995,21 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   `runtime.execute(...)`. The helper lives in `modules/checkpoint` rather than
   on `AgentRuntime` itself because `modules/ai → modules/checkpoint` introduces
   a dependency cycle (`ai → checkpoint → coordinator → ai`); the reverse
-  direction is acyclic. Capability flag declared on every runtime because
-  every runtime threads `context.history()` through its dispatch path — a
-  resumed call observes the same conversation the paused call saw.
+  direction is acyclic. Capability flag declared on 11 of 12 runtimes —
+  CrewAI omits it (and `CONVERSATION_MEMORY`) because its Python sidecar does
+  not own a checkpoint/memory store. The other eleven thread
+  `context.history()` through their dispatch path, so a resumed call observes
+  the same conversation the paused call saw.
 
 **Per-runtime gaps, honestly described:**
+
+- **CrewAI** declares 9 capabilities and omits four the in-process runtimes
+  have: `CONVERSATION_MEMORY`, `BUDGET_ENFORCEMENT`, `CONFIDENCE_SCORES`, and
+  `PASSIVATION`. History is forwarded to the sidecar on every start, but the
+  Python sidecar does not own a memory/checkpoint store, so the runtime cannot
+  persist conversation state, enforce token/step budgets, score confidence, or
+  passivate across the sidecar boundary. Left undeclared until a sidecar-side
+  checkpoint contract lands.
 
 - **Built-in** `AGENT_ORCHESTRATION` is not declared because Built-in is a
   single-LLM runtime by design — it owns neither multi-step planning nor a

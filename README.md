@@ -197,7 +197,7 @@ policies:
 Or annotation-driven:
 
 ```java
-@AiEndpoint("/support")
+@AiEndpoint(path = "/support")
 @AgentScope(
     purpose = "Customer support: orders, billing, store hours",
     forbiddenTopics = {"code", "programming", "medical advice"},

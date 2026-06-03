@@ -1,6 +1,6 @@
 # Atmosphere Coordinator
 
-Multi-agent orchestration module for Atmosphere. Provides `@Coordinator`, `@Fleet`, `@AgentRef`, `AgentFleet` injection for parallel fan-out, sequential pipelines, a pluggable coordination journal, and quality evaluation — all wired at startup with no boilerplate.
+Multi-agent orchestration module for Atmosphere. Provides `@Coordinator`, `@Fleet`, `@AgentRef`, `AgentFleet` injection for parallel fan-out, sequential pipelines, and quality evaluation — all wired at startup with no boilerplate. A pluggable coordination journal is also available, but opt-in: it defaults to `NOOP` (events are discarded) until you register a `CoordinationJournal` `ServiceLoader` provider.
 
 ## Maven Coordinates
 
