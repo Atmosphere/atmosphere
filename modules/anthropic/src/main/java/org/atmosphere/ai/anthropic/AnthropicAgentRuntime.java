@@ -23,8 +23,6 @@ import org.atmosphere.ai.StreamingSession;
 
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * {@link org.atmosphere.ai.AgentRuntime} backed by a native
@@ -45,6 +43,7 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
     private static final String VERSION_PROPERTY = "anthropic.version";
     private static final String BASE_URL_PROPERTY = "anthropic.base.url";
     private static final String MAX_TOKENS_PROPERTY = "anthropic.max.tokens";
+    private static final String DEFAULT_MODEL = "claude-opus-4-7";
 
     @Override
     public String name() {
@@ -124,64 +123,14 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
     protected void doExecute(AnthropicMessagesClient client,
                              AgentExecutionContext context,
                              StreamingSession session) {
-        admitThroughGateway(context);
-        client.stream(
-                effectiveModel(context),
-                assembleMessages(context),
-                context.systemPrompt(),
-                context.message(),
-                context,
-                session,
-                null);
+        streamThroughGateway(context, session, DEFAULT_MODEL, client::stream);
     }
 
     @Override
     protected org.atmosphere.ai.ExecutionHandle doExecuteWithHandle(
             AnthropicMessagesClient client, AgentExecutionContext context,
             StreamingSession session) {
-        admitThroughGateway(context);
-        var cancelled = new AtomicBoolean();
-        var done = new CompletableFuture<Void>();
-        Thread.startVirtualThread(() -> {
-            try {
-                client.stream(
-                        effectiveModel(context),
-                        assembleMessages(context),
-                        context.systemPrompt(),
-                        context.message(),
-                        context,
-                        session,
-                        cancelled);
-                done.complete(null);
-            } catch (Throwable t) {
-                done.completeExceptionally(t);
-            }
-        });
-        return new org.atmosphere.ai.ExecutionHandle() {
-            @Override public void cancel() {
-                cancelled.set(true);
-            }
-
-            @Override public boolean isDone() { return done.isDone(); }
-
-            @Override public CompletableFuture<Void> whenDone() { return done; }
-        };
-    }
-
-    private static String effectiveModel(AgentExecutionContext context) {
-        if (context != null && context.model() != null && !context.model().isBlank()) {
-            return context.model();
-        }
-        var settings = AiConfig.get();
-        if (settings != null && settings.model() != null && !settings.model().isBlank()) {
-            return settings.model();
-        }
-        return "claude-opus-4-7";
-    }
-
-    private static String systemProperty(String key, String fallback) {
-        var value = System.getProperty(key);
-        return (value == null || value.isBlank()) ? fallback : value;
+        return streamThroughGatewayWithHandle(context, session, DEFAULT_MODEL, client::stream);
     }
 
     @Override

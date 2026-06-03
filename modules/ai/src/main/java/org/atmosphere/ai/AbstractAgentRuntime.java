@@ -22,6 +22,8 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Base class for {@link AgentRuntime} implementations. Provides classpath-based
@@ -93,6 +95,88 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
             C client, AgentExecutionContext context, StreamingSession session) {
         doExecute(client, context, session);
         return ExecutionHandle.completed();
+    }
+
+    /**
+     * Functional adapter over a native client's streaming entry point. The
+     * hand-rolled HTTP runtimes (Anthropic, Cohere, and any future provider
+     * with a direct {@code /messages}-style endpoint) share the same seven-arg
+     * streaming signature, so their dispatch funnels through
+     * {@link #streamThroughGateway} / {@link #streamThroughGatewayWithHandle}
+     * via a {@code client::stream} method reference instead of copy-pasting the
+     * gateway-admission + virtual-thread + cancellation boilerplate per adapter.
+     */
+    @FunctionalInterface
+    protected interface NativeStreamCall {
+        void stream(String model, List<ChatMessage> messages, String systemPrompt,
+                    String message, AgentExecutionContext context,
+                    StreamingSession session, AtomicBoolean cancelled);
+    }
+
+    /**
+     * Synchronous streaming dispatch: admit through the gateway, then invoke the
+     * native stream with the resolved model and the assembled history.
+     */
+    protected final void streamThroughGateway(AgentExecutionContext context,
+            StreamingSession session, String defaultModel, NativeStreamCall call) {
+        admitThroughGateway(context);
+        call.stream(effectiveModel(context, defaultModel), assembleMessages(context),
+                context.systemPrompt(), context.message(), context, session, null);
+    }
+
+    /**
+     * Cancellation-aware streaming dispatch on a virtual thread. The returned
+     * {@link ExecutionHandle#cancel()} flips a flag the native stream polls, and
+     * {@link ExecutionHandle#whenDone()} settles when the worker terminates
+     * (success or failure).
+     */
+    protected final ExecutionHandle streamThroughGatewayWithHandle(AgentExecutionContext context,
+            StreamingSession session, String defaultModel, NativeStreamCall call) {
+        admitThroughGateway(context);
+        var cancelled = new AtomicBoolean();
+        var done = new CompletableFuture<Void>();
+        Thread.startVirtualThread(() -> {
+            try {
+                call.stream(effectiveModel(context, defaultModel), assembleMessages(context),
+                        context.systemPrompt(), context.message(), context, session, cancelled);
+                done.complete(null);
+            } catch (Throwable t) {
+                done.completeExceptionally(t);
+            }
+        });
+        return new ExecutionHandle() {
+            @Override public void cancel() { cancelled.set(true); }
+
+            @Override public boolean isDone() { return done.isDone(); }
+
+            @Override public CompletableFuture<Void> whenDone() { return done; }
+        };
+    }
+
+    /**
+     * Resolve the effective model: an explicit {@code context.model()} wins,
+     * else the framework-resolved {@link AiConfig} model, else the provider
+     * default supplied by the adapter.
+     */
+    protected static String effectiveModel(AgentExecutionContext context, String defaultModel) {
+        if (context != null && context.model() != null && !context.model().isBlank()) {
+            return context.model();
+        }
+        var settings = AiConfig.get();
+        if (settings != null && settings.model() != null && !settings.model().isBlank()) {
+            return settings.model();
+        }
+        return defaultModel;
+    }
+
+    /**
+     * Read a system property, returning {@code fallback} when it is unset or
+     * blank. Shared by the hand-rolled HTTP runtimes for API-key / version /
+     * base-url resolution.
+     */
+    protected static String systemProperty(String key, String fallback) {
+        var value = System.getProperty(key);
+        return (value == null || value.isBlank()) ? fallback : value;
     }
 
     /**

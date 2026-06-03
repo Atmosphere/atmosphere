@@ -23,8 +23,6 @@ import org.atmosphere.ai.StreamingSession;
 
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * {@link org.atmosphere.ai.AgentRuntime} backed by a native
@@ -130,64 +128,14 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
     protected void doExecute(CohereChatClient client,
                              AgentExecutionContext context,
                              StreamingSession session) {
-        admitThroughGateway(context);
-        client.stream(
-                effectiveModel(context),
-                assembleMessages(context),
-                context.systemPrompt(),
-                context.message(),
-                context,
-                session,
-                null);
+        streamThroughGateway(context, session, DEFAULT_MODEL, client::stream);
     }
 
     @Override
     protected org.atmosphere.ai.ExecutionHandle doExecuteWithHandle(
             CohereChatClient client, AgentExecutionContext context,
             StreamingSession session) {
-        admitThroughGateway(context);
-        var cancelled = new AtomicBoolean();
-        var done = new CompletableFuture<Void>();
-        Thread.startVirtualThread(() -> {
-            try {
-                client.stream(
-                        effectiveModel(context),
-                        assembleMessages(context),
-                        context.systemPrompt(),
-                        context.message(),
-                        context,
-                        session,
-                        cancelled);
-                done.complete(null);
-            } catch (Throwable t) {
-                done.completeExceptionally(t);
-            }
-        });
-        return new org.atmosphere.ai.ExecutionHandle() {
-            @Override public void cancel() {
-                cancelled.set(true);
-            }
-
-            @Override public boolean isDone() { return done.isDone(); }
-
-            @Override public CompletableFuture<Void> whenDone() { return done; }
-        };
-    }
-
-    private static String effectiveModel(AgentExecutionContext context) {
-        if (context != null && context.model() != null && !context.model().isBlank()) {
-            return context.model();
-        }
-        var settings = AiConfig.get();
-        if (settings != null && settings.model() != null && !settings.model().isBlank()) {
-            return settings.model();
-        }
-        return DEFAULT_MODEL;
-    }
-
-    private static String systemProperty(String key, String fallback) {
-        var value = System.getProperty(key);
-        return (value == null || value.isBlank()) ? fallback : value;
+        return streamThroughGatewayWithHandle(context, session, DEFAULT_MODEL, client::stream);
     }
 
     @Override
