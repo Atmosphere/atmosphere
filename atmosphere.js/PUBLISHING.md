@@ -25,7 +25,7 @@ rm -rf node_modules package-lock.json
 npm install
 
 # Run all checks
-npm run type-check   # TypeScript compilation check
+npm run typecheck    # TypeScript compilation check
 npm run lint         # Code quality check
 npm run test:ci      # Run tests with coverage
 npm run build        # Build all distribution formats
@@ -105,8 +105,8 @@ npm install atmosphere.js@alpha
 ### NPM Registry
 - Published at: https://www.npmjs.com/package/atmosphere.js
 - Install: `npm install atmosphere.js`
-- CDN (auto): https://unpkg.com/atmosphere.js@5.0.0/dist/index.global.js
-- CDN (auto): https://cdn.jsdelivr.net/npm/atmosphere.js@5.0.0/dist/index.global.js
+- CDN (auto): https://unpkg.com/atmosphere.js@5.0.28/dist/atmosphere.global.js
+- CDN (auto): https://cdn.jsdelivr.net/npm/atmosphere.js@5.0.28/dist/atmosphere.global.js
 
 ### Maven Central (Optional)
 Package atmosphere.js in Maven artifact for Java developers:
@@ -123,7 +123,7 @@ Package atmosphere.js in Maven artifact for Java developers:
 
 ### Browser (CDN)
 ```html
-<script src="https://unpkg.com/atmosphere.js@5/dist/index.global.js"></script>
+<script src="https://unpkg.com/atmosphere.js@5/dist/atmosphere.global.js"></script>
 <script>
   const client = await atmosphere.subscribe(config, handlers);
 </script>
@@ -131,16 +131,16 @@ Package atmosphere.js in Maven artifact for Java developers:
 
 ### ES Modules
 ```javascript
-import { subscribe } from 'atmosphere.js';
+import { atmosphere } from 'atmosphere.js';
 
-const client = await subscribe(config, handlers);
+const subscription = await atmosphere.subscribe(config, handlers);
 ```
 
 ### CommonJS
 ```javascript
-const { subscribe } = require('atmosphere.js');
+const { atmosphere } = require('atmosphere.js');
 
-const client = await subscribe(config, handlers);
+const subscription = await atmosphere.subscribe(config, handlers);
 ```
 
 ### TypeScript

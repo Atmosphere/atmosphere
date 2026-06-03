@@ -1149,6 +1149,28 @@ detection is a documented follow-up).
 
 ---
 
+## 2026-06-03 — atmosphere.js (TypeScript client) audit: broken API example + stale publish doc (`feat/release-audit`)
+
+The TS client (~71 impl + ~46 test files, v5.0.28) was out of scope for the
+Java pass; audited it on request with a read-only Explore fleet (README/claim
+accuracy, dead exports, hollow tests, type-stubs). Type-stubs and tests came
+back clean; `PUBLISHING.md` carried real drift.
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 102 | `atmosphere.js/PUBLISHING.md` published a non-compiling usage example: `import { subscribe } from 'atmosphere.js'; const client = await subscribe(config, handlers);` (ES + CommonJS blocks), plus `npm run type-check` and CDN URLs `dist/index.global.js`. | `src/index.ts` exports **no named `subscribe`** — it exports the `Atmosphere` class and a default `atmosphere` singleton (`export const atmosphere = new Atmosphere()`, index.ts:69); the API is `atmosphere.subscribe(config, handlers)` (matches `README.md:31`). The npm script is `typecheck` (package.json:103), and the tsup IIFE emits `dist/atmosphere.global.js` (tsup.config.ts:46/57), not `index.global.js`. | `PUBLISHING.md` examples were written against an imagined flat `subscribe` export and an `index`-named global, and never reconciled against `src/index.ts` / `tsup.config.ts` / the README. The Java honesty gates do not reach `atmosphere.js`. | Prose fix: corrected both code blocks to `import { atmosphere }` + `atmosphere.subscribe(...)`, `npm run typecheck`, and `dist/atmosphere.global.js` (CDN pinned to the current 5.0.28). The `atmosphere-javascript` Maven WebJar `<version>4.0.0</version>` was **left unchanged** — it is an external artifact whose published version cannot be verified from this repo, and guessing it would itself be a fabricated claim. No automated gate yet; the TS client needs its own doc-vs-export check (follow-up). |
+
+Also reported (not fixed — published-API judgment): six CSS-in-JS style exports
+in `src/chat` are referenced only by tests, never by production —
+`welcomeStyle` / `joinInputStyle` / `joinButtonStyle` (styles.ts, 0 production
+use) and a redundant `cursorStyle`/`progressStyle`/`errorStyle` re-export
+(StreamingMessage.tsx:167; used internally, not in the public `chat/index.ts`).
+Same dead-but-tested shape as the Java orphans. Recommendation: promote to the
+public `chat/index.ts` if intended as API, else remove the export **and** its
+test together — a deliberate API-surface call for the maintainer.
+
+---
+
 
 1. Catch the drift (the project maintainer flags it, or self-caught via `git grep` /
    `find` after spotting memory ↔ code disagreement).
