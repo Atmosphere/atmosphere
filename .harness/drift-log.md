@@ -1054,6 +1054,21 @@ collapsed into #94 since they share one class and one fix.
 
 ---
 
+## 2026-06-02 — Release-readiness dead-code sweep removed 10 unreachable classes; one was a soft availability overclaim (`feat/release-audit`)
+
+A find→adversarial-verify fan-out for dead-end code (each candidate re-checked against
+ServiceLoader / reflection / Spring / annotation wiring before confirming). Ten classes had
+zero production consumers and were removed with maintainer sign-off (full list in the
+CHANGELOG `[Unreleased]` → Removed). Nine were pure dead code (superseded or structurally
+uninstantiable) — a cleanup, not a claim drift. The tenth doubled as a claim drift and is
+logged below.
+
+| # | Claim | Truth | Slip path | Gate added |
+|---|---|---|---|---|
+| 95 | `modules/ai/src/main/java/org/atmosphere/ai/bridge/package-info.java:29` listed ``{@code GrpcProtocolBridge} — {@code modules/grpc}`` among the available `ProtocolBridge` implementations, beside the genuinely-wired InMemory / MCP / A2A / AG-UI bridges — advertising gRPC protocol bridging as an available bridge. | `GrpcProtocolBridge` had **no server-startup wiring and zero consumers**: `git grep GrpcProtocolBridge` outside its own file returned only this package-info `<li>` and a `modules/grpc/pom.xml` comment; the grpc module never constructs it, and no `META-INF/services` registers it. Same "primitive shipped without a framework hook" class as #27 (OfflineQueue) — the package-info advertised an availability the wiring never delivered. | The bridge class and its package-info listing landed together as scaffolding; the listing was written from intent, and nothing correlates the package-info bridge list against actual construction/ServiceLoader sites. | Removed the unwired `GrpcProtocolBridge`, its package-info `<li>`, and the now-unused `grpc → atmosphere-ai` optional dependency (maintainer-approved). Proposed gate: extend the SPI-consumer check to assert every `ProtocolBridge` named in `bridge/package-info.java` has an in-tree construction or `META-INF/services` site. Logged for the next gate-building pass. |
+
+---
+
 
 1. Catch the drift (the project maintainer flags it, or self-caught via `git grep` /
    `find` after spotting memory ↔ code disagreement).

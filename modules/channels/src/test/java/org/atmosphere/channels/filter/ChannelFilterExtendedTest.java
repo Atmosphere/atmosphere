@@ -32,8 +32,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests for {@link MessageSplittingFilter}, {@link AuditLoggingFilter},
- * and {@link ChannelFilterChain} — edge cases beyond the existing ChannelFilterTest.
+ * Tests for {@link MessageSplittingFilter} and {@link ChannelFilterChain}
+ * — edge cases beyond the existing ChannelFilterTest.
  */
 class ChannelFilterExtendedTest {
 
@@ -110,42 +110,6 @@ class ChannelFilterExtendedTest {
         var msg = makeIncoming("test message");
         // Default implementation: passes through
         assertEquals(msg, filter.onIncoming(msg));
-    }
-
-    // ── AuditLoggingFilter ──
-
-    @Test
-    void auditFilter_passesIncomingThrough() {
-        var filter = new AuditLoggingFilter();
-        var msg = makeIncoming("hello");
-        var result = filter.onIncoming(msg);
-        assertNotNull(result);
-        assertEquals("hello", result.text());
-    }
-
-    @Test
-    void auditFilter_passesOutgoingThrough() {
-        var filter = new AuditLoggingFilter();
-        var msg = new OutgoingMessage("r1", "response");
-        var result = filter.onOutgoing(msg, ChannelType.SLACK);
-        assertNotNull(result);
-        assertEquals("response", result.text());
-    }
-
-    @Test
-    void auditFilter_orderIs10() {
-        assertEquals(10, new AuditLoggingFilter().order());
-    }
-
-    @Test
-    void auditFilter_handlesLongText() {
-        var filter = new AuditLoggingFilter();
-        var longText = "L".repeat(500);
-        var msg = makeIncoming(longText);
-        // Should not throw — truncates to 200 chars for logging
-        var result = filter.onIncoming(msg);
-        assertNotNull(result);
-        assertEquals(longText, result.text());
     }
 
     // ── ChannelFilterChain additional tests ──

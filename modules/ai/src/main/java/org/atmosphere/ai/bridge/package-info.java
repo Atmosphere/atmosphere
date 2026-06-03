@@ -26,7 +26,6 @@
  *   <li>{@code McpProtocolBridge} — {@code modules/mcp}</li>
  *   <li>{@code A2aProtocolBridge} — {@code modules/a2a}</li>
  *   <li>{@code AgUiProtocolBridge} — {@code modules/agui}</li>
- *   <li>{@code GrpcProtocolBridge} — {@code modules/grpc}</li>
  * </ul>
  */
 package org.atmosphere.ai.bridge;

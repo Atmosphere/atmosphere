@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Pruned dead/unwired internal classes found during a release-readiness audit —
+  none was documented, advertised, or reachable from a user code path:
+  `McpWebSocketHandler` (superseded by `McpHandler`'s direct WebSocket-frame
+  handling), `AgUiSession` (superseded by `ResourceAgUiStreamingSession`),
+  `AiCoalescingBroadcasterCache` (a delegate-only `BroadcasterCache` that the
+  no-arg reflective cache-wiring path cannot instantiate), `AdkArtifactBridge`,
+  `AdkCompactionBridge`, `AtmosphereRequestBridge`, `AtmosphereResponseBridge`,
+  the channels `AuditLoggingFilter` (never registered as a bean, so it never
+  reached the filter chain), the unwired `GrpcProtocolBridge`, and the A2A
+  `ListTaskPushNotificationConfigsResponse` DTO (the
+  `ListTaskPushNotificationConfigs` method returns `ERROR_PUSH_NOT_SUPPORTED`,
+  so the response type was never constructed).
+
 ### Added
 
 - **Interactions API** (`org.atmosphere.interactions`, artifact `atmosphere-interactions`)
