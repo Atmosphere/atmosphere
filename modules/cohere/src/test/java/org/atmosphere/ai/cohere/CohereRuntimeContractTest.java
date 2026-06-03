@@ -19,24 +19,16 @@ import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.test.AbstractAgentRuntimeContractTest;
+import org.atmosphere.ai.test.HttpRuntimeTestSupport;
 import org.junit.jupiter.api.Test;
 
-import java.io.ByteArrayInputStream;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Flow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Concrete TCK test for {@link CohereAgentRuntime}. The native HTTP client
@@ -62,7 +54,7 @@ class CohereRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
     protected AgentRuntime createRuntime() {
-        var httpClient = mockHttpClient(200, TEXT_SSE);
+        var httpClient = HttpRuntimeTestSupport.mockHttpClient(200, TEXT_SSE, CONTRACT_ERROR_SENTINEL);
         var client = CohereChatClient.builder()
                 .apiKey("test-key")
                 .httpClient(httpClient)
@@ -140,81 +132,7 @@ class CohereRuntimeContractTest extends AbstractAgentRuntimeContractTest {
         assertTrue(createRuntime().capabilities().contains(AiCapability.TOOL_CALLING));
     }
 
-    @SuppressWarnings("unchecked")
-    private static HttpClient mockHttpClient(int statusCode, String body) {
-        try {
-            var httpClient = mock(HttpClient.class);
-            // Per-invocation answer: inspect the outgoing request body for
-            // the contract error sentinel. When present, return a 500 with
-            // an error payload so the runtime's session.error(...) path
-            // fires (errorContextTriggersSessionError). Otherwise return the
-            // canned 200/SSE body the happy-path assertions consume.
-            when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                    .thenAnswer(inv -> {
-                        HttpRequest req = inv.getArgument(0);
-                        var requestBody = readBody(req);
-                        var response = mock(HttpResponse.class);
-                        if (requestBody.contains(CONTRACT_ERROR_SENTINEL)) {
-                            when(response.statusCode()).thenReturn(500);
-                            when(response.body()).thenReturn(new ByteArrayInputStream(
-                                    "{\"error\":\"forced contract error\"}"
-                                            .getBytes(StandardCharsets.UTF_8)));
-                        } else {
-                            when(response.statusCode()).thenReturn(statusCode);
-                            when(response.body()).thenReturn(new ByteArrayInputStream(
-                                    body.getBytes(StandardCharsets.UTF_8)));
-                        }
-                        return response;
-                    });
-            return httpClient;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
 
-    /**
-     * Subscribe to the request's body publisher and accumulate the bytes into
-     * a UTF-8 string. Mirrors the wire-level boundary inspection the runtime's
-     * actual HttpClient does, so the sentinel detection lives at the same
-     * layer as the production error-routing logic.
-     */
-    private static String readBody(HttpRequest req) {
-        var publisher = req.bodyPublisher().orElse(null);
-        if (publisher == null) {
-            return "";
-        }
-        var collector = new BodyCollector();
-        publisher.subscribe(collector);
-        return collector.toString();
-    }
-
-    private static final class BodyCollector implements Flow.Subscriber<ByteBuffer> {
-        private final java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
-        @Override
-        public void onSubscribe(Flow.Subscription subscription) {
-            subscription.request(Long.MAX_VALUE);
-        }
-        @Override
-        public void onNext(ByteBuffer item) {
-            var copy = new byte[item.remaining()];
-            item.get(copy);
-            out.write(copy, 0, copy.length);
-        }
-        @Override
-        public void onError(Throwable throwable) {
-            // Body capture is best-effort for contract testing; downstream
-            // sentinel match falls through to the happy path when capture
-            // partially fails — preferable to crashing the test.
-        }
-        @Override
-        public void onComplete() {
-            // No-op — toString() reads whatever has been buffered.
-        }
-        @Override
-        public String toString() {
-            return out.toString(StandardCharsets.UTF_8);
-        }
-    }
 
     /** Test subclass that injects the mocked client directly. */
     static class TestableCohereRuntime extends CohereAgentRuntime {

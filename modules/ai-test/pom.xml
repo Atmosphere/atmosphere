@@ -40,7 +40,11 @@
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
             <version>${mockito.version}</version>
-            <scope>test</scope>
+            <!-- provided (like junit-jupiter above) so the shared HTTP-runtime
+                 test support (HttpRuntimeTestSupport) can offer Mockito-based
+                 helpers from src/main without leaking Mockito onto any runtime
+                 classpath (provided deps are not transitive). -->
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
