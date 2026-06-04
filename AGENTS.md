@@ -324,7 +324,7 @@ This frees up runners for the new push. Without this, stale queued runs accumula
 - Override parent POM's SLF4J/Logback versions for Spring Boot 4 compatibility
 
 ## Quarkus Extension Notes
-- Target: Quarkus 3.21+ (tested on 3.35.2)
+- Target: Quarkus 3.21+ (tested on 3.36.0)
 - Config prefix: `quarkus.atmosphere.*`
 - `loadOnStartup` must be > 0 (Quarkus skips if <=0)
 - Use `BUILD_AND_RUN_TIME_FIXED` for config used in `@BuildStep`

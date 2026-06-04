@@ -2,7 +2,7 @@
 
 Example applications demonstrating Atmosphere 4.0 across different deployment targets.
 
-All samples inherit their Atmosphere version from the parent POM. The target stack is Java 21, Spring Boot 4.0.6, and Quarkus 3.35.2.
+All samples inherit their Atmosphere version from the parent POM. The target stack is Java 21, Spring Boot 4.0.6, and Quarkus 3.36.0.
 
 ### Chat & Messaging
 
@@ -10,8 +10,8 @@ All samples inherit their Atmosphere version from the parent POM. The target sta
 |--------|-------|-----------|-------|---------|-------------|
 | [chat](chat/) | Servlet (WAR) | WAR | — | — | — |
 | [spring-boot-chat](spring-boot-chat/) | Spring Boot 4.0.6 | JAR | ✅ | ✅ | ✅ |
-| [quarkus-chat](quarkus-chat/) | Quarkus 3.35.2 | JAR | — | — | ✅ |
-| [quarkus-ai-chat](quarkus-ai-chat/) | Quarkus 3.35.2 + LangChain4j | JAR | — | — | ✅ |
+| [quarkus-chat](quarkus-chat/) | Quarkus 3.36.0 | JAR | — | — | ✅ |
+| [quarkus-ai-chat](quarkus-ai-chat/) | Quarkus 3.36.0 + LangChain4j | JAR | — | — | ✅ |
 | [embedded-jetty-websocket-chat](embedded-jetty-websocket-chat/) | Embedded Jetty | JAR | — | — | — |
 | [grpc-chat](grpc-chat/) | gRPC + Spring Boot | JAR | — | — | — |
 

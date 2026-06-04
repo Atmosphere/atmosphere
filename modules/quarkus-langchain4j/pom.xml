@@ -15,14 +15,16 @@
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <properties>
-        <quarkus.version>3.35.2</quarkus.version>
+        <quarkus.version>3.36.0</quarkus.version>
         <netty.version>4.1.133.Final</netty.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- Netty BOM imported BEFORE quarkus-bom so its 4.1.133.Final pins
-                 win over Quarkus 3.35.2's hardcoded 4.1.132.Final. 4.1.133
+            <!-- Netty BOM pinned to 4.1.133.Final, the version Quarkus 3.36.0
+                 ships (up from 4.1.132.Final in 3.35.x). Imported BEFORE
+                 quarkus-bom and retained as an explicit floor so the patched
+                 netty stays in place regardless of transitive drift. 4.1.133
                  patches CVE-2026-42577 (handler-proxy header injection),
                  CVE-2026-42578 (chunked-extension request smuggling), and
                  CVE-2026-41417 (Transfer-Encoding smuggling). Maven

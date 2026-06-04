@@ -288,7 +288,7 @@ Add only what you need:
 
 For Spring Boot 3.5 deployments, including Embabel or Spring AI Alibaba, use `atmosphere-spring-boot3-starter` and build with `-Pspring-boot3`.
 
-**Requirements:** Java 21+ · Spring Boot 4.0.6 or Spring Boot 3.5 via `-Pspring-boot3` · Quarkus 3.35.2+ · current release from the Maven Central badge above.
+**Requirements:** Java 21+ · Spring Boot 4.0.6 or Spring Boot 3.5 via `-Pspring-boot3` · Quarkus 3.36.0+ · current release from the Maven Central badge above.
 
 ## Documentation
 

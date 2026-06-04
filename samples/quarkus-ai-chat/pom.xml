@@ -23,13 +23,13 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Netty BOM 4.1.133.Final imported BEFORE quarkus-bom so its
-                 pins win over Quarkus 3.35.2's hardcoded 4.1.132.Final.
-                 Closes sample-scope CVE-2026-42577 (handler-proxy header
-                 injection), CVE-2026-42578 (chunked-extension request
-                 smuggling), CVE-2026-41417 (TE smuggling), and the
-                 netty-codec / codec-http / codec-http2 / codec-dns CVE
-                 family. -->
+            <!-- Netty BOM pinned to 4.1.133.Final, the version Quarkus 3.36.0
+                 ships (up from 4.1.132.Final in 3.35.x). Imported BEFORE
+                 quarkus-bom and retained as an explicit sample-scope floor
+                 closing CVE-2026-42577 (handler-proxy header injection),
+                 CVE-2026-42578 (chunked-extension request smuggling),
+                 CVE-2026-41417 (TE smuggling), and the netty-codec /
+                 codec-http / codec-http2 / codec-dns CVE family. -->
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
@@ -37,13 +37,14 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Netty 4.1.133's BrotliDecoder.decompress was recompiled
-                 against brotli4j 1.23.0 (calls DecoderJNI$Wrapper.pull(int)
-                 which only exists in 1.23+). Quarkus 3.35.2 pins brotli4j
-                 1.16.0 which has only no-arg pull() — that mismatch breaks
+            <!-- brotli4j pinned to 1.23.0, the version Quarkus 3.36.0 ships
+                 (up from 1.16.0 in 3.35.x). 1.23.0 is the release Netty
+                 4.1.133's BrotliDecoder.decompress was compiled against — it
+                 calls DecoderJNI$Wrapper.pull(int), absent from 1.16.0's
+                 no-arg pull(), so 4.1.133 paired with an older brotli4j breaks
                  native-image build with "unresolved method during parsing".
-                 Override every brotli4j artifact to 1.23.0 to keep the
-                 native-image graph closed. -->
+                 Pinning every brotli4j artifact to 1.23.0 keeps the
+                 native-image graph closed regardless of transitive drift. -->
             <dependency>
                 <groupId>com.aayushatharva.brotli4j</groupId>
                 <artifactId>brotli4j</artifactId>

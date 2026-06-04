@@ -15,7 +15,7 @@
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <properties>
-        <quarkus.version>3.35.2</quarkus.version>
+        <quarkus.version>3.36.0</quarkus.version>
         <netty.version>4.1.133.Final</netty.version>
     </properties>
 

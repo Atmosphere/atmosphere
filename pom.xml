@@ -1257,7 +1257,7 @@
         <jakarta-enterprise-cdi-api.version>4.1.0</jakarta-enterprise-cdi-api.version>
         <testcontainers.version>1.20.6</testcontainers.version>
         <awaitility.version>4.2.2</awaitility.version>
-        <grpc.version>1.80.0</grpc.version>
+        <grpc.version>1.81.0</grpc.version>
         <protobuf.version>4.34.1</protobuf.version>
         <tomcat-annotations-api.version>6.0.53</tomcat-annotations-api.version>
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
@@ -1272,7 +1272,7 @@
              from caller properties, so this win precedence over the BOM pin
              without forcing a netty-bom import. -->
         <netty.version>4.2.13.Final</netty.version>
-        <quarkus.version>3.35.2</quarkus.version>
+        <quarkus.version>3.36.0</quarkus.version>
         <atmosphere.module.name>org.atmosphere</atmosphere.module.name>
         <!-- AI framework versions (single source of truth) -->
         <spring-ai.version>2.0.0-M6</spring-ai.version>
