@@ -89,6 +89,7 @@ public final class McpProtocolHandler {
     private final AtmosphereConfig config;
     private final List<String> guardrails;
     private final long cacheTtlMs;
+    private final McpAuthorization authorization;
     private final McpTaskManager taskManager = new McpTaskManager();
     private volatile McpTracing tracing;
 
@@ -122,6 +123,15 @@ public final class McpProtocolHandler {
         this.config = config;
         this.guardrails = guardrails != null ? List.copyOf(guardrails) : List.of();
         this.cacheTtlMs = resolveCacheTtl(config);
+        this.authorization = McpAuthorization.from(config);
+    }
+
+    /**
+     * The OAuth resource-server authorization glue (RFC 9728), resolved from
+     * config. Disabled unless configured — see {@link McpAuthorization}.
+     */
+    public McpAuthorization authorization() {
+        return authorization;
     }
 
     /**

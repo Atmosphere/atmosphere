@@ -115,6 +115,22 @@ public final class McpHandler implements AtmosphereHandler {
             return;
         }
 
+        // OAuth resource-server enforcement (MCP authorization spec, RFC 9728).
+        // When authorization is configured the framework's resource-server
+        // filter validates the bearer token and sets the request principal; if
+        // it did not, the request is unauthenticated and we challenge with 401 +
+        // WWW-Authenticate so the client can discover the authorization server.
+        // Default-deny (Invariant #6): no principal ⇒ no access when enabled.
+        var auth = protocolHandler.authorization();
+        if (auth.enabled() && request.getUserPrincipal() == null) {
+            response.setStatus(401);
+            response.setHeader("WWW-Authenticate", auth.wwwAuthenticate());
+            response.setContentType(APPLICATION_JSON);
+            response.getWriter().write(
+                    "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32001,\"message\":\"Unauthorized\"}}");
+            return;
+        }
+
         var method = request.getMethod();
 
         switch (method.toUpperCase()) {

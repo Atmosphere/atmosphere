@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.mcp.annotation.McpParam;
 import org.atmosphere.mcp.annotation.McpTool;
 import org.atmosphere.mcp.registry.McpRegistry;
+import org.atmosphere.mcp.runtime.McpAuthorization;
 import org.atmosphere.mcp.runtime.McpHandler;
 import org.atmosphere.mcp.runtime.McpProtocolHandler;
 import org.atmosphere.mcp.runtime.McpSession;
@@ -31,6 +32,7 @@ import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.security.Principal;
 
 import static org.mockito.Mockito.*;
 
@@ -406,6 +408,64 @@ public class McpStreamableHttpTest {
         verify(resource.getResponse()).setStatus(400);
         assertTrue(mapper.readTree(output.toString()).get("error").get("message")
                 .asString().contains("Mcp-Name"));
+    }
+
+    // ── OAuth resource-server enforcement (RFC 9728) ─────────────────────
+
+    private McpHandler authEnabledHandler() {
+        var registry = new McpRegistry();
+        registry.scan(new SimpleMcpServer());
+        var config = mock(AtmosphereConfig.class);
+        when(config.getInitParameter(McpAuthorization.RESOURCE)).thenReturn("https://mcp.example.com/mcp");
+        when(config.getInitParameter(McpAuthorization.AUTHORIZATION_SERVERS))
+                .thenReturn("https://auth.example.com");
+        return new McpHandler(new McpProtocolHandler("test-server", "1.0.0", registry, config));
+    }
+
+    @Test
+    public void testUnauthenticatedRequestReturns401WithChallenge() throws Exception {
+        var output = new StringWriter();
+        var resource = mockResource("POST", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}",
+                "application/json", null);
+        when(resource.getResponse().getWriter()).thenReturn(new PrintWriter(output));
+        // No principal set on the request → unauthenticated.
+
+        authEnabledHandler().onRequest(resource);
+
+        verify(resource.getResponse()).setStatus(401);
+        verify(resource.getResponse()).setHeader(eq("WWW-Authenticate"),
+                argThat(v -> v != null && v.contains("resource_metadata=")));
+    }
+
+    @Test
+    public void testAuthenticatedRequestProceeds() throws Exception {
+        var output = new StringWriter();
+        var resource = mockResource("POST", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}",
+                "application/json", null);
+        when(resource.getResponse().getWriter()).thenReturn(new PrintWriter(output));
+        // The framework's resource-server filter validated the token → principal present.
+        var principal = mock(Principal.class);
+        when(principal.getName()).thenReturn("alice");
+        when(resource.getRequest().getUserPrincipal()).thenReturn(principal);
+
+        authEnabledHandler().onRequest(resource);
+
+        verify(resource.getResponse(), never()).setStatus(401);
+        verify(resource.getResponse()).setStatus(200);
+    }
+
+    @Test
+    public void testAuthDisabledLeavesEndpointOpen() throws Exception {
+        // The default handler (no auth config) must not challenge — back-compat.
+        var output = new StringWriter();
+        var resource = mockResource("POST", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}",
+                "application/json", null);
+        when(resource.getResponse().getWriter()).thenReturn(new PrintWriter(output));
+
+        handler.onRequest(resource);
+
+        verify(resource.getResponse(), never()).setStatus(401);
+        verify(resource.getResponse()).setStatus(200);
     }
 
     // ── Helper ───────────────────────────────────────────────────────────
