@@ -114,7 +114,7 @@ final class StatelessDialect implements ProtocolDialect {
             case McpMethod.TOOLS_LIST -> cacheable(core.handleToolsList(ctx.id()));
             case McpMethod.TOOLS_CALL -> handleToolsCall(ctx);
             case McpMethod.RESOURCES_LIST -> cacheable(core.handleResourcesList(ctx.id()));
-            case McpMethod.RESOURCES_READ -> cacheable(core.handleResourcesRead(ctx.id(), ctx.params()));
+            case McpMethod.RESOURCES_READ -> handleResourcesRead(ctx);
             case McpMethod.PROMPTS_LIST -> cacheable(core.handlePromptsList(ctx.id()));
             case McpMethod.PROMPTS_GET -> complete(core.handlePromptsGet(ctx.id(), ctx.params()));
             // Tasks extension (SEP-2663) — gated on the negotiated capability.
@@ -311,6 +311,23 @@ final class StatelessDialect implements ProtocolDialect {
             }
         }
         return out;
+    }
+
+    /**
+     * {@code resources/read}: SEP-2164 requires a missing resource to be
+     * reported as {@code -32602} (Invalid Params), not the custom code the
+     * session model uses, so the stateless dialect checks existence first and
+     * otherwise delegates to the shared reader (which also carries the SEP-2549
+     * cache metadata).
+     */
+    private JsonRpc.Response handleResourcesRead(McpRequestContext ctx) {
+        var params = ctx.params();
+        if (params != null && params.has("uri") && params.get("uri").isString()
+                && core.registry().resource(params.get("uri").stringValue()).isEmpty()) {
+            return JsonRpc.Response.error(ctx.id(), JsonRpc.INVALID_PARAMS,
+                    "Resource not found: " + params.get("uri").stringValue());
+        }
+        return cacheable(core.handleResourcesRead(ctx.id(), params));
     }
 
     /** Result of resolving a {@code taskId} param: exactly one of task/error is set. */

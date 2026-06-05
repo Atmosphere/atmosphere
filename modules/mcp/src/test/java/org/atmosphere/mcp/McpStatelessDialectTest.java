@@ -333,4 +333,52 @@ public class McpStatelessDialectTest {
         assertNotNull(result, "dispatch with trace context must still produce a result");
         assertEquals("Hello, Trace!", result.get("content").get(0).get("text").stringValue());
     }
+
+    // ── SEP-2106 JSON Schema 2020-12 + SEP-2164 resource-not-found ───────
+
+    @Test
+    public void testInputSchemaDeclares2020_12Dialect() throws Exception {
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{" + meta() + "}}";
+        var tools = mapper.readTree(handler.handleMessage(resource, req)).get("result").get("tools");
+        var schema = tools.get(0).get("inputSchema");
+        assertEquals("https://json-schema.org/draft/2020-12/schema",
+                schema.get("$schema").stringValue(), "SEP-2106: declare the JSON Schema dialect");
+        assertEquals("object", schema.get("type").stringValue(), "root stays type:object");
+    }
+
+    @Test
+    public void testUnknownResourceReturns32602() throws Exception {
+        var req = """
+                {"jsonrpc":"2.0","id":1,"method":"resources/read","params":{
+                    "uri":"test://does/not/exist",
+                    "_meta":{
+                        "io.modelcontextprotocol/protocolVersion":"2026-07-28",
+                        "io.modelcontextprotocol/clientInfo":{"name":"c","version":"1"},
+                        "io.modelcontextprotocol/clientCapabilities":{}
+                    }
+                }}""";
+        var error = mapper.readTree(handler.handleMessage(resource, req)).get("error");
+        assertNotNull(error);
+        assertEquals(-32602, error.get("code").asInt(),
+                "SEP-2164: a missing resource MUST be Invalid Params (-32602)");
+    }
+
+    @Test
+    public void testKnownResourceStillReads() throws Exception {
+        var req = """
+                {"jsonrpc":"2.0","id":1,"method":"resources/read","params":{
+                    "uri":"test://data/status",
+                    "_meta":{
+                        "io.modelcontextprotocol/protocolVersion":"2026-07-28",
+                        "io.modelcontextprotocol/clientInfo":{"name":"c","version":"1"},
+                        "io.modelcontextprotocol/clientCapabilities":{}
+                    }
+                }}""";
+        var result = mapper.readTree(handler.handleMessage(resource, req)).get("result");
+        assertNotNull(result, "a known resource still reads");
+        assertEquals("{\"status\":\"ok\"}",
+                result.get("contents").get(0).get("text").stringValue());
+        // SEP-2549 cache metadata still rides the read result.
+        assertEquals("public", result.get("cacheScope").stringValue());
+    }
 }

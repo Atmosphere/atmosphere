@@ -413,7 +413,18 @@ public final class McpRegistry {
     }
 
     /**
-     * Generate JSON Schema-like input schema for a tool's parameters.
+     * The JSON Schema dialect declared on generated tool input schemas
+     * (SEP-2106). {@code 2025-11-25} already defaults to 2020-12 and the
+     * {@code 2026-07-28} RC formalizes it, so we declare it explicitly.
+     */
+    public static final String JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema";
+
+    /**
+     * Generate the JSON Schema 2020-12 input schema for a tool's parameters
+     * (SEP-2106). The root keeps {@code type: "object"} (tool arguments are
+     * always an object) and declares the {@code $schema} dialect; richer
+     * compositions ({@code anyOf}/{@code oneOf}/{@code $ref}) are permitted but
+     * not synthesized from {@code @McpParam} metadata.
      */
     public static Map<String, Object> inputSchema(ToolEntry tool) {
         var properties = new LinkedHashMap<String, Object>();
@@ -432,6 +443,7 @@ public final class McpRegistry {
         }
 
         var schema = new LinkedHashMap<String, Object>();
+        schema.put("$schema", JSON_SCHEMA_DIALECT);
         schema.put("type", "object");
         schema.put("properties", properties);
         if (!required.isEmpty()) {
