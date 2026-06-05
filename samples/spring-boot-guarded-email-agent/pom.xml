@@ -62,6 +62,18 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!--
+          The SMT backend. Its presence on the classpath is the entire wiring:
+          SmtVerifier (already in the chain) calls SmtChecker.resolve(), which
+          picks up SmtInterpolChecker (pure-JVM) from this module. Add the Z3
+          native classifiers to upgrade to Z3 — see modules/verifier-smt/README.
+        -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-verifier-smt</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

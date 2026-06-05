@@ -38,7 +38,7 @@ One agent class — slash commands and AI work on Web, Slack, Telegram, Discord,
 | [spring-boot-multi-agent-startup-team](spring-boot-multi-agent-startup-team/) | `@Coordinator`, `@Fleet`, A2A, SQLite checkpoints, WebTransport | Web | 5 collaborating agents (CEO + 4 specialists) with parallel/sequential dispatch |
 | [spring-boot-personal-assistant](spring-boot-personal-assistant/) | `@Coordinator`, `@Fleet`, `AgentState`, `AgentWorkspace`, `AgentIdentity`, `ToolExtensibilityPoint`, `InMemoryProtocolBridge` | Web | Long-lived memory-bearing assistant — primary delegates to scheduler / research / drafter crew over `InMemoryProtocolBridge`; ships an OpenClaw-compatible workspace |
 | [spring-boot-coding-agent](spring-boot-coding-agent/) | `@Agent`, `Sandbox` | Web | Coding agent — clones a repo into a Docker sandbox, reads files, proposes a patch |
-| [spring-boot-guarded-email-agent](spring-boot-guarded-email-agent/) | `PlanVerifier`, `@Sink`, `@RequiresCapability`, `WorkflowExecutor` | Web | Plan-and-Verify (Meijer) — refuses prompt-injection plans before any tool fires |
+| [spring-boot-guarded-email-agent](spring-boot-guarded-email-agent/) | `PlanVerifier`, `@Sink`, `NumericInvariant`, `SmtChecker`, `WorkflowExecutor` | Web | Plan-and-Verify (Meijer) — refuses unsafe plans before any tool fires: taint (exfiltration) + SMT (over-quota bulk send) |
 
 ### Agent Protocols
 

@@ -59,6 +59,7 @@ public final class AtmosphereAdmin {
     private Object taskController;
     private Object aiRuntimeController;
     private Object governanceController;
+    private Object verifierController;
     private Object mcpController;
     private Object metricsController;
     private FlowController flowController;
@@ -194,6 +195,15 @@ public final class AtmosphereAdmin {
     @SuppressWarnings("unchecked")
     public <T> T governanceController() {
         return (T) governanceController;
+    }
+
+    public void setVerifierController(Object controller) {
+        this.verifierController = controller;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T verifierController() {
+        return (T) verifierController;
     }
 
     public void setMcpController(Object controller) {

@@ -78,4 +78,34 @@ public class EmailTools {
         // — the verifier refuses such plans before this method runs.
         return "OK — sent " + body.length() + " bytes to " + to;
     }
+
+    @AiTool(name = "check_quota",
+            description = "Return the remaining daily bulk-send quota (number of messages)")
+    public String checkQuota() {
+        // A real tool reads the rate limiter; the demo returns a fixed
+        // figure. The actual number is irrelevant to the SMT proof, which
+        // is symbolic — it holds for every possible quota.
+        return "50";
+    }
+
+    @AiTool(name = "request_count",
+            description = "Return the number of messages the user asked to send (externally-supplied)")
+    public String requestCount() {
+        // Attacker-influenceable: there is no runtime guarantee this is
+        // <= quota, so a plan that bulk-sends @requested cannot be proven
+        // safe and is refused by the SMT layer.
+        return "5000";
+    }
+
+    @AiTool(name = "send_bulk",
+            description = "Send the same message to 'count' recipients (subject to the daily quota)")
+    public String sendBulk(
+            @Param(value = "count", description = "Number of messages to send")
+            String count,
+            @Param(value = "message", description = "Message body")
+            String message) {
+        // Unreachable for any plan the SMT layer cannot prove keeps
+        // count <= quota — the verifier refuses such plans before this runs.
+        return "OK — queued " + count + " message(s)";
+    }
 }

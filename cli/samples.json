@@ -3,7 +3,7 @@
   "samples": [
     {
       "name": "spring-boot-checkpoint-agent",
-      "description": "Durable agent execution \u2014 @Coordinator + CheckpointStore + HITL approval via REST",
+      "description": "Durable agent execution — @Coordinator + CheckpointStore + HITL approval via REST",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -37,12 +37,12 @@
       "packaging": "spring-boot",
       "hasFrontend": true,
       "envVars": {
-        "GEMINI_API_KEY": "Google Gemini API key (optional \u2014 demo mode without)"
+        "GEMINI_API_KEY": "Google Gemini API key (optional — demo mode without)"
       }
     },
     {
       "name": "spring-boot-dentist-agent",
-      "description": "Dr. Molar \u2014 dental emergency agent with @Agent, slash commands, AI tools, Slack and Telegram",
+      "description": "Dr. Molar — dental emergency agent with @Agent, slash commands, AI tools, Slack and Telegram",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -59,7 +59,7 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider (optional \u2014 demo mode without)",
+        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)",
         "TELEGRAM_BOT_TOKEN": "Telegram bot token from @BotFather",
         "TELEGRAM_WEBHOOK_SECRET": "Any random string for webhook verification",
         "SLACK_BOT_TOKEN": "Slack bot token (xoxb-...)",
@@ -68,7 +68,7 @@
     },
     {
       "name": "spring-boot-orchestration-demo",
-      "description": "Support Desk \u2014 handoffs, approval gates, commands",
+      "description": "Support Desk — handoffs, approval gates, commands",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -84,12 +84,12 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider (optional \u2014 demo mode without)"
+        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)"
       }
     },
     {
       "name": "spring-boot-channels-chat",
-      "description": "Omnichannel AI chat \u2014 Web, Telegram, Slack, Discord, WhatsApp, Messenger",
+      "description": "Omnichannel AI chat — Web, Telegram, Slack, Discord, WhatsApp, Messenger",
       "category": "ai",
       "tags": [
         "spring-boot",
@@ -106,12 +106,12 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider (optional \u2014 demo mode without)"
+        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)"
       }
     },
     {
       "name": "spring-boot-ai-chat",
-      "description": "AI streaming chat \u2014 React useChat UI, WebTransport fallback, swap backend via one dependency",
+      "description": "AI streaming chat — React useChat UI, WebTransport fallback, swap backend via one dependency",
       "category": "ai",
       "tags": [
         "spring-boot",
@@ -137,7 +137,7 @@
     },
     {
       "name": "spring-boot-browser-agent",
-      "description": "Code-as-action agent \u2014 the model writes Playwright that drives a headless browser in an isolated sandbox container; screenshots stream to the Console live (requires Docker)",
+      "description": "Code-as-action agent — the model writes Playwright that drives a headless browser in an isolated sandbox container; screenshots stream to the Console live (requires Docker)",
       "category": "ai",
       "tags": [
         "spring-boot",
@@ -158,7 +158,7 @@
     },
     {
       "name": "spring-boot-ai-classroom",
-      "description": "AI classroom \u2014 multiple clients share streaming AI responses",
+      "description": "AI classroom — multiple clients share streaming AI responses",
       "category": "ai",
       "tags": [
         "spring-boot",
@@ -197,7 +197,7 @@
     },
     {
       "name": "spring-boot-ai-tools",
-      "description": "Enterprise AI starter \u2014 portable @AiTool calls, HITL approval, cost metering, audit listener",
+      "description": "Enterprise AI starter — portable @AiTool calls, HITL approval, cost metering, audit listener",
       "category": "tools",
       "tags": [
         "spring-boot",
@@ -216,7 +216,7 @@
     },
     {
       "name": "spring-boot-rag-chat",
-      "description": "RAG agent \u2014 chunked vector-store ingestion, @Agent tools for knowledge search, slash commands",
+      "description": "RAG agent — chunked vector-store ingestion, @Agent tools for knowledge search, slash commands",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -236,7 +236,7 @@
     },
     {
       "name": "spring-boot-mcp-server",
-      "description": "MCP server \u2014 expose tools, resources, and prompts to AI agents",
+      "description": "MCP server — expose tools, resources, and prompts to AI agents",
       "category": "mcp",
       "tags": [
         "spring-boot",
@@ -252,7 +252,7 @@
     },
     {
       "name": "spring-boot-a2a-agent",
-      "description": "Headless A2A agent \u2014 AI-powered skills discoverable via Agent Card",
+      "description": "Headless A2A agent — AI-powered skills discoverable via Agent Card",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -267,12 +267,12 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for Gemini/OpenAI/Ollama (optional \u2014 demo mode without)"
+        "LLM_API_KEY": "API key for Gemini/OpenAI/Ollama (optional — demo mode without)"
       }
     },
     {
       "name": "spring-boot-agui-chat",
-      "description": "AG-UI chat \u2014 streaming agent state to frontends via SSE (CopilotKit compatible)",
+      "description": "AG-UI chat — streaming agent state to frontends via SSE (CopilotKit compatible)",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -307,7 +307,7 @@
     },
     {
       "name": "spring-boot-durable-sessions",
-      "description": "Durable sessions \u2014 survive server restarts with SQLite",
+      "description": "Durable sessions — survive server restarts with SQLite",
       "category": "infrastructure",
       "tags": [
         "spring-boot",
@@ -430,14 +430,16 @@
     },
     {
       "name": "spring-boot-guarded-email-agent",
-      "description": "Plan-and-Verify (Meijer) — statically refuses unsafe LLM-emitted plans before any tool fires",
+      "description": "Plan-and-Verify (Meijer) — statically refuses unsafe LLM-emitted plans before any tool fires: taint (inbox exfiltration) and SMT (over-quota bulk send)",
       "category": "governance",
       "tags": [
         "spring-boot",
         "ai",
         "governance",
         "verifier",
-        "plan-and-verify"
+        "plan-and-verify",
+        "smt",
+        "z3"
       ],
       "port": 8080,
       "runnable": true,

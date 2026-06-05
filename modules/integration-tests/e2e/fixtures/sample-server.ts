@@ -184,8 +184,9 @@ export const SAMPLES: Record<string, SampleConfig> = {
     dir: 'spring-boot-guarded-email-agent',
     port: 8099,
     type: 'spring-boot',
-    // Plan-and-Verify (Meijer). REST endpoint + verifier UI;
-    // no websocket transport needed for the inbox-exfiltration demo.
+    // Plan-and-Verify (Meijer). Driven through the Atmosphere Console's
+    // Validation tab (/atmosphere/console/); / redirects there. No bespoke
+    // UI and no websocket transport needed for the taint + SMT demos.
     httpOnlyReady: true,
   },
   'spring-boot-personal-assistant': {

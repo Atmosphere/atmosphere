@@ -97,6 +97,62 @@ public class DemoPlanRuntime implements AgentRuntime {
             }
             """;
 
+    /**
+     * SMT-safe: bulk-send exactly the remaining quota. {@code count} is the
+     * same symbolic binding the invariant bounds it against, so
+     * {@code count <= ref(quota)} is proven (the negation is UNSAT).
+     */
+    static final String WITHIN_QUOTA_PLAN = """
+            {
+              "goal": "Send a bulk newsletter within the daily quota",
+              "steps": [
+                {
+                  "label": "quota",
+                  "toolName": "check_quota",
+                  "arguments": {},
+                  "resultBinding": "quota"
+                },
+                {
+                  "label": "blast",
+                  "toolName": "send_bulk",
+                  "arguments": { "count": "@quota", "message": "Weekly digest" },
+                  "resultBinding": "receipt"
+                }
+              ]
+            }
+            """;
+
+    /**
+     * SMT-unsafe: bulk-send an externally-requested count. {@code @requested}
+     * is an unrelated symbol, so {@code requested <= quota} is not provable —
+     * the SMT layer refuses the plan before send_bulk fires.
+     */
+    static final String OVER_QUOTA_PLAN = """
+            {
+              "goal": "Bulk-send the requested number of newsletters",
+              "steps": [
+                {
+                  "label": "quota",
+                  "toolName": "check_quota",
+                  "arguments": {},
+                  "resultBinding": "quota"
+                },
+                {
+                  "label": "ask",
+                  "toolName": "request_count",
+                  "arguments": {},
+                  "resultBinding": "requested"
+                },
+                {
+                  "label": "blast",
+                  "toolName": "send_bulk",
+                  "arguments": { "count": "@requested", "message": "Promo" },
+                  "resultBinding": "receipt"
+                }
+              ]
+            }
+            """;
+
     @Override
     public String name() {
         return "demo-plan";
@@ -134,8 +190,14 @@ public class DemoPlanRuntime implements AgentRuntime {
     public String generate(AgentExecutionContext context) {
         String goal = context.message() == null ? "" : context.message().toLowerCase();
         logger.info("DemoPlanRuntime received goal: '{}'", context.message());
-        if (goal.contains("send") || goal.contains("leak") || goal.contains("exfiltrat")
-                || goal.contains("forward")) {
+        if (goal.contains("within")) {
+            return WITHIN_QUOTA_PLAN;
+        }
+        if (goal.contains("requested") || goal.contains("bulk")) {
+            return OVER_QUOTA_PLAN;
+        }
+        if (goal.contains("leak") || goal.contains("exfiltrat")
+                || goal.contains("forward") || goal.contains("attacker")) {
             return MALICIOUS_PLAN;
         }
         if (goal.contains("summary") || goal.contains("summarize")

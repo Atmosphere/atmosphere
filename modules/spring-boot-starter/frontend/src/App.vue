@@ -7,9 +7,10 @@ import GovernanceOwasp from './components/GovernanceOwasp.vue'
 import GovernanceCommitments from './components/GovernanceCommitments.vue'
 import Sessions from './components/Sessions.vue'
 import Interactions from './components/Interactions.vue'
+import Validation from './components/Validation.vue'
 import logoUrl from './assets/logo.svg'
 
-type Tab = 'chat' | 'sessions' | 'interactions' | 'policies' | 'decisions' | 'owasp' | 'commitments'
+type Tab = 'chat' | 'sessions' | 'interactions' | 'validation' | 'policies' | 'decisions' | 'owasp' | 'commitments'
 
 const subtitle = ref('')
 const endpoint = ref('/atmosphere/ai-chat')
@@ -24,6 +25,7 @@ const governanceAvailable = ref(false)
 const governancePolicyCount = ref<number | null>(null)
 const agentsAvailable = ref(false)
 const interactionsAvailable = ref(false)
+const validationAvailable = ref(false)
 
 async function probeGovernance() {
   try {
@@ -64,6 +66,19 @@ async function probeInteractions() {
   }
 }
 
+async function probeValidation() {
+  try {
+    // 200 means atmosphere-verifier + a PlanAndVerify bean are wired — show
+    // the Validation tab. A 404 (controller absent) hides it.
+    const res = await fetch('/api/admin/verifier/summary', { headers: { Accept: 'application/json' } })
+    if (res.ok) {
+      validationAvailable.value = true
+    }
+  } catch {
+    // atmosphere-verifier not on the classpath — hide the Validation tab.
+  }
+}
+
 const tabs = computed(() => {
   const list: Array<{ id: Tab; label: string; badge?: string }> = [
     { id: 'chat', label: 'Chat' },
@@ -73,6 +88,9 @@ const tabs = computed(() => {
   }
   if (interactionsAvailable.value) {
     list.push({ id: 'interactions', label: 'Interactions' })
+  }
+  if (validationAvailable.value) {
+    list.push({ id: 'validation', label: 'Validation' })
   }
   if (governanceAvailable.value) {
     list.push({
@@ -100,7 +118,7 @@ onMounted(async () => {
   } catch {
     // Console info not available — use defaults
   }
-  await Promise.all([probeGovernance(), probeAgents(), probeInteractions()])
+  await Promise.all([probeGovernance(), probeAgents(), probeInteractions(), probeValidation()])
   ready.value = true
 })
 </script>
@@ -135,6 +153,8 @@ onMounted(async () => {
                 :active="activeTab === 'sessions'" />
       <Interactions v-if="ready && interactionsAvailable" v-show="activeTab === 'interactions'"
                     :active="activeTab === 'interactions'" />
+      <Validation v-if="ready && validationAvailable" v-show="activeTab === 'validation'"
+                  :active="activeTab === 'validation'" />
       <GovernancePolicies v-if="ready" v-show="activeTab === 'policies'"
                           :active="activeTab === 'policies'" />
       <GovernanceDecisions v-if="ready" v-show="activeTab === 'decisions'"

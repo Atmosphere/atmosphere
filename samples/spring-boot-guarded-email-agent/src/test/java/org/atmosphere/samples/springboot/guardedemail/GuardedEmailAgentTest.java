@@ -17,6 +17,7 @@ package org.atmosphere.samples.springboot.guardedemail;
 
 import org.atmosphere.verifier.PlanAndVerify;
 import org.atmosphere.verifier.PlanVerificationException;
+import org.atmosphere.verifier.spi.SmtChecker;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +26,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -103,6 +105,46 @@ class GuardedEmailAgentTest {
                 () -> "taint verifier missing from chain: " + names);
         assertTrue(names.contains("allowlist"),
                 () -> "allowlist verifier missing from chain: " + names);
+        assertTrue(names.contains("smt"),
+                () -> "smt verifier missing from chain: " + names);
         assertFalse(chain.isEmpty());
+    }
+
+    @Test
+    void aRealSmtSolverIsWiredNotTheNoOpDefault() {
+        // atmosphere-verifier-smt on the classpath must give resolve() a real
+        // solver; if it drops off, the over-quota test would silently pass.
+        String solver = SmtChecker.resolve().name();
+        assertNotEquals("noop", solver,
+                "SMT backend missing — resolve() fell back to the no-op default");
+        assertTrue(solver.equals("smtinterpol") || solver.equals("z3"),
+                () -> "expected a real SMT solver, got: " + solver);
+    }
+
+    @Test
+    void withinQuotaBulkSendIsProvenAndExecutes() {
+        // send_bulk count=@quota: the SMT layer proves count <= ref(quota)
+        // for every runtime value (negation quota > quota is UNSAT).
+        Map<String, Object> env = planAndVerify.run(
+                "send a bulk newsletter within my daily quota", Map.of());
+        assertNotNull(env.get("quota"), "check_quota binding missing");
+        assertNotNull(env.get("receipt"), "send_bulk did not execute");
+    }
+
+    @Test
+    void overQuotaBulkSendIsRefusedBySmt() {
+        // send_bulk count=@requested: the SMT layer cannot prove
+        // requested <= quota, so the plan is refused before send_bulk fires.
+        PlanVerificationException ex = assertThrows(
+                PlanVerificationException.class,
+                () -> planAndVerify.run(
+                        "bulk-send the requested number of newsletters", Map.of()));
+        assertEquals(1, ex.result().violations().size(),
+                () -> "expected one smt violation; got: " + ex.result().violations());
+        var v = ex.result().violations().get(0);
+        assertEquals("smt", v.category());
+        assertEquals("send_bulk.count", v.astPath());
+        assertTrue(v.message().toLowerCase().contains("provable"));
+        assertEquals(3, ex.workflow().steps().size());
     }
 }

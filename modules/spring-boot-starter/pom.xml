@@ -152,6 +152,15 @@
             <artifactId>atmosphere-admin</artifactId>
         </dependency>
 
+        <!-- Plan-and-verify: optional. When present (with a PlanAndVerify
+             bean) the admin endpoint exposes /api/admin/verifier/** and the
+             console shows the Validation tab. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-verifier</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-mcp</artifactId>

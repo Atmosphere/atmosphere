@@ -19,6 +19,7 @@ import org.atmosphere.admin.AtmosphereAdmin;
 import org.atmosphere.admin.a2a.TaskController;
 import org.atmosphere.admin.ai.AiRuntimeController;
 import org.atmosphere.admin.ai.GovernanceController;
+import org.atmosphere.admin.ai.VerifierController;
 import org.atmosphere.admin.coordinator.CoordinatorController;
 import org.atmosphere.admin.flow.FlowController;
 import org.atmosphere.admin.mcp.McpController;
@@ -702,6 +703,49 @@ public class AtmosphereAdminEndpoint {
             return ResponseEntity.ok(Map.of("policyCount", 0, "sources", List.of()));
         }
         return ResponseEntity.ok(controller.summary());
+    }
+
+    // ── Validation / plan-and-verify plane ──────────────────────────────
+    // Read-only surface backing the console's Validation tab. Returns 404
+    // when atmosphere-verifier (and a PlanAndVerify bean) are absent so the
+    // console probe hides the tab instead of showing an empty panel.
+
+    @GetMapping("/verifier/summary")
+    public ResponseEntity<Map<String, Object>> verifierSummary() {
+        VerifierController controller = admin.verifierController();
+        if (controller == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(controller.summary());
+    }
+
+    @GetMapping("/verifier/examples")
+    public ResponseEntity<List<Map<String, Object>>> verifierExamples() {
+        VerifierController controller = admin.verifierController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(controller.examples());
+    }
+
+    /**
+     * Plan + verify a goal and return the plan AST, the per-verifier pass/fail
+     * breakdown, the merged violations, and (on a clean pass) the executed
+     * environment. Read-only with respect to admin state; 400 on a missing
+     * {@code goal} (Correctness Invariant #4, Boundary Safety).
+     */
+    @PostMapping("/verifier/check")
+    public ResponseEntity<Map<String, Object>> verifierCheck(
+            @RequestBody(required = false) Map<String, Object> body) {
+        VerifierController controller = admin.verifierController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "verifier controller not installed"));
+        }
+        var goal = stringField(body, "goal");
+        if (goal == null || goal.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "missing 'goal'"));
+        }
+        return ResponseEntity.ok(controller.check(goal));
     }
 
     /**

@@ -262,6 +262,25 @@ public final class PlanAndVerify {
         return verifiers;
     }
 
+    /**
+     * @return the declarative policy this orchestrator verifies against.
+     *         Exposed so admin/console tooling can render the policy
+     *         (allowlist, taint rules, numeric invariants) and run a
+     *         per-verifier breakdown without reconstructing it.
+     */
+    public Policy policy() {
+        return policy;
+    }
+
+    /**
+     * @return the tool registry the verifier chain cross-checks against.
+     *         Exposed for the same per-verifier introspection use as
+     *         {@link #policy()}; callers must not mutate it.
+     */
+    public ToolRegistry registry() {
+        return registry;
+    }
+
     private static List<PlanVerifier> sortByPriority(List<PlanVerifier> input) {
         var copy = new ArrayList<>(input);
         copy.sort(Comparator.comparingInt(PlanVerifier::priority));

@@ -437,6 +437,33 @@ public class AtmosphereAdminAutoConfiguration {
     }
 
     /**
+     * Wires the plan-and-verify controller backing the console's Validation
+     * tab. Only active when {@code atmosphere-verifier} is on the classpath
+     * AND the application exposes a {@link org.atmosphere.verifier.PlanAndVerify}
+     * bean — the controller reflects the runtime chain, so without a real
+     * orchestrator there is nothing to report (Correctness Invariant #5,
+     * Runtime Truth). The example source is optional.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.atmosphere.verifier.PlanAndVerify")
+    static class VerifierAdminConfiguration {
+
+        @Bean
+        @ConditionalOnBean(org.atmosphere.verifier.PlanAndVerify.class)
+        org.atmosphere.admin.ai.VerifierController atmosphereAdminVerifierController(
+                AtmosphereAdmin admin,
+                org.atmosphere.verifier.PlanAndVerify planAndVerify,
+                org.springframework.beans.factory.ObjectProvider<
+                        org.atmosphere.admin.ai.VerifierExampleSource> exampleSource) {
+            var controller = new org.atmosphere.admin.ai.VerifierController(
+                    planAndVerify, exampleSource.getIfAvailable());
+            admin.setVerifierController(controller);
+            logger.debug("Atmosphere Admin: plan-and-verify controller wired");
+            return controller;
+        }
+    }
+
+    /**
      * Wires the MCP controller when an McpRegistry bean is available.
      */
     @Configuration(proxyBeanMethods = false)
