@@ -14,7 +14,7 @@ The core framework for building real-time web applications in Java. Provides a p
 
 ## Key Features
 
-- **Transports** — WebTransport/HTTP3, WebSocket, SSE, Long-Polling, and gRPC with automatic fallback negotiation
+- **Transports** — WebSocket, SSE, Long-Polling, and gRPC with automatic fallback negotiation; WebTransport/HTTP-3 is optional (requires the optional `jetty-http3-server` dependency)
 - **`@ManagedService`** annotation-driven endpoints with `@Ready`, `@Disconnect`, `@Message`
 - **Rooms** -- `RoomManager`, `@RoomService`, presence tracking, message history
 - **Virtual threads** enabled by default (JDK 21+)

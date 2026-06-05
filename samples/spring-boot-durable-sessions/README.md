@@ -46,6 +46,8 @@ public SessionStore sessionStore() {
 }
 ```
 
+This sample bundles only the SQLite backend; the Redis path additionally requires adding the `org.atmosphere:atmosphere-durable-sessions-redis` Maven module to the sample pom (in place of `-sqlite`).
+
 ## Client Integration
 
 In atmosphere.js, provide the session token on reconnect:

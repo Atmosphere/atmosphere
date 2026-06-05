@@ -5,10 +5,11 @@ patch. Exercises the primitives the personal-assistant sample does not
 touch:
 
 - **`Sandbox`** — every file and command goes through the SPI. Docker is
-  the production default; the in-process provider is the dev fallback.
-- **`AgentResumeHandle`** — a long-running clone + patch flow registers
-  with the `RunRegistry` so a disconnected client can reattach by
-  `runId` and replay missed events (wire-in lands in Phase 1.5).
+  the production default; the in-process provider is the dev fallback. The
+  sample clones a Git repository into the sandbox and reads the first ~800
+  characters of its README.
+- **`RunRegistry` reattach** — not wired in this sample. The primitive that
+  lets a disconnected client reattach by `runId` lives in `modules/agent`.
 
 ## Running
 
@@ -45,9 +46,10 @@ input in production.
 3. Clones the repository at depth 1.
 4. Reads `README.md` (or `README`) and returns the first 800 characters.
 
-Extending to real patch proposals is left to the reader — the `@SandboxTool`
+The sample reads a file; it does not generate a patch. The `@SandboxTool`
 annotation wires a method to a sandbox backend, and `Sandbox.writeFile` +
-`Sandbox.exec(List.of("git", "diff", ...))` produce the diff.
+`Sandbox.exec(List.of("git", "diff", ...))` are the primitives a patch flow
+would build on.
 
 ## Notes
 
@@ -55,10 +57,10 @@ annotation wires a method to a sandbox backend, and `Sandbox.writeFile` +
   coding agent pairs this flow with `PermissionMode.PLAN` from the
   `AgentIdentity` primitive so the user approves before the commit
   lands.
-- Egress policy extension (per v0.6 follow-up): swap `SandboxLimits.network`
-  from boolean to `NetworkPolicy` (`NONE` / `GIT_ONLY` / `ALLOWLIST`) so
-  the clone step can reach GitHub while downstream tool calls cannot reach
-  the wider internet.
+- The sample sets `NetworkPolicy.FULL` so the clone step can reach GitHub.
+  A tighter egress posture uses `SandboxLimits.network` as a
+  `NetworkPolicy` (`NONE` / `GIT_ONLY` / `ALLOWLIST`) so the clone can
+  reach GitHub while downstream tool calls cannot reach the wider internet.
 
 ## Stateful Interactions (Console → Interactions tab)
 

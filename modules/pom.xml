@@ -51,10 +51,13 @@
         <module>agent</module>
         <module>coordinator</module>
         <module>verifier</module>
+        <module>verifier-smt</module>
         <module>admin</module>
         <module>admin-bundle</module>
         <module>checkpoint</module>
+        <module>checkpoint-postgres</module>
         <module>interactions</module>
+        <module>interactions-postgres</module>
         <module>channels</module>
         <module>sandbox</module>
         <module>quarkus-extension</module>

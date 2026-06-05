@@ -37,6 +37,9 @@ import java.util.Set;
  *   <li>{@code grantedCapabilities} +
  *       {@code toolCapabilityRequirements} — Phase 5
  *       {@code CapabilityVerifier}.</li>
+ *   <li>{@code numericInvariants} — the SMT-backed {@code SmtChecker}
+ *       (e.g. {@code atmosphere-verifier-smt}); proves numeric constraints
+ *       over symbolic tool-call arguments.</li>
  * </ul>
  *
  * @param name                       identifier surfaced in diagnostics; non-blank.
@@ -53,13 +56,18 @@ import java.util.Set;
  *                                   names a tool whose required set has any
  *                                   member not in {@code grantedCapabilities};
  *                                   defensively copied; may be empty.
+ * @param numericInvariants          numeric constraints proved by the
+ *                                   SMT-backed {@code SmtChecker} over symbolic
+ *                                   tool-call arguments; defensively copied;
+ *                                   may be empty.
  */
 public record Policy(String name,
                      Set<String> allowedTools,
                      List<TaintRule> taintRules,
                      List<SecurityAutomaton> automata,
                      Set<String> grantedCapabilities,
-                     Map<String, Set<String>> toolCapabilityRequirements) {
+                     Map<String, Set<String>> toolCapabilityRequirements,
+                     List<NumericInvariant> numericInvariants) {
 
     public Policy {
         Objects.requireNonNull(name, "name");
@@ -71,6 +79,7 @@ public record Policy(String name,
         Objects.requireNonNull(automata, "automata");
         Objects.requireNonNull(grantedCapabilities, "grantedCapabilities");
         Objects.requireNonNull(toolCapabilityRequirements, "toolCapabilityRequirements");
+        Objects.requireNonNull(numericInvariants, "numericInvariants");
         allowedTools = Set.copyOf(allowedTools);
         taintRules = List.copyOf(taintRules);
         automata = List.copyOf(automata);
@@ -82,11 +91,28 @@ public record Policy(String name,
             copiedReqs.put(entry.getKey(), Set.copyOf(entry.getValue()));
         }
         toolCapabilityRequirements = Map.copyOf(copiedReqs);
+        numericInvariants = List.copyOf(numericInvariants);
+    }
+
+    /**
+     * Capability-aware 6-arg overload — preserved for callers that declare
+     * capability data but no numeric invariants. Defaults
+     * {@code numericInvariants} to empty, delegating to the 7-arg canonical
+     * constructor.
+     */
+    public Policy(String name,
+                  Set<String> allowedTools,
+                  List<TaintRule> taintRules,
+                  List<SecurityAutomaton> automata,
+                  Set<String> grantedCapabilities,
+                  Map<String, Set<String>> toolCapabilityRequirements) {
+        this(name, allowedTools, taintRules, automata,
+                grantedCapabilities, toolCapabilityRequirements, List.of());
     }
 
     /**
      * Phase-1 4-arg shim — preserved for callers that don't yet declare
-     * capability data. Defaults both new fields to empty.
+     * capability or numeric-invariant data. Defaults all new fields to empty.
      */
     public Policy(String name,
                   Set<String> allowedTools,
@@ -105,11 +131,21 @@ public record Policy(String name,
 
     /**
      * Returns a copy of this policy with the supplied capability grants
-     * and tool-requirement map.
+     * and tool-requirement map. Numeric invariants are preserved.
      */
     public Policy withCapabilities(Set<String> grants,
                                     Map<String, Set<String>> requirements) {
         return new Policy(name, allowedTools, taintRules, automata,
-                grants, requirements);
+                grants, requirements, numericInvariants);
+    }
+
+    /**
+     * Returns a copy of this policy with the supplied numeric invariants,
+     * preserving all other fields. Used to attach SMT proof obligations to an
+     * existing policy.
+     */
+    public Policy withNumericInvariants(List<NumericInvariant> invariants) {
+        return new Policy(name, allowedTools, taintRules, automata,
+                grantedCapabilities, toolCapabilityRequirements, invariants);
     }
 }

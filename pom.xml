@@ -855,7 +855,17 @@
             </dependency>
             <dependency>
                 <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-checkpoint-postgres</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-interactions</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-interactions-postgres</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

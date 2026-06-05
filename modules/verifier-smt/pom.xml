@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-project</artifactId>
+        <version>4.0.50-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>atmosphere-verifier-smt</artifactId>
+    <packaging>jar</packaging>
+    <name>atmosphere-verifier-smt</name>
+    <description>SMT-backed SmtChecker for the plan verifier — proves numeric invariants over symbolic tool-call data flow (java-smt + SMTInterpol, pure-JVM)</description>
+    <url>https://github.com/Atmosphere/atmosphere</url>
+
+    <properties>
+        <atmosphere.module.name>org.atmosphere.verifier.smt</atmosphere.module.name>
+        <javasmt.version>5.0.1</javasmt.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-verifier</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!--
+          java-smt (Apache-2.0) is the unified SMT API. It transitively brings
+          the pure-JVM SMTInterpol solver (LGPL-3.0, linear integer arithmetic) —
+          no native library, so the checker loads on every OS/arch including
+          Apple Silicon. Princess (the other bundled pure-JVM solver) is excluded
+          since we drive SMTInterpol only. Native solvers (Z3/CVC5) can be added
+          later as a higher-priority SmtChecker without touching this module.
+        -->
+        <dependency>
+            <groupId>org.sosy-lab</groupId>
+            <artifactId>java-smt</artifactId>
+            <version>${javasmt.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.github.uuverifiers</groupId>
+                    <artifactId>princess_2.13</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback-version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

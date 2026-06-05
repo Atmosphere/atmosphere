@@ -1,0 +1,2 @@
+org.atmosphere.verifier.smt.Z3SmtChecker
+org.atmosphere.verifier.smt.SmtInterpolChecker

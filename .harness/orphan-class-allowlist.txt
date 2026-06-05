@@ -10,3 +10,10 @@
 # ContextProviders and the cpr WebSocket*/WebTransport* adapters) are NOT
 # flagged in normal (diff) operation — they are pre-existing, not added in a
 # changeset. Add entries here only as genuinely-new public-API classes land.
+
+# Operator-instantiated JDBC backends — constructor takes a javax.sql.DataSource,
+# mirroring the JdbcAuditSink and pgvector/Qdrant/Pinecone ContextProvider pattern:
+# genuine public-API SPI implementations wired by downstream apps (not in-repo),
+# tested against H2 PostgreSQL mode and documented in their module READMEs.
+org.atmosphere.checkpoint.postgres.PostgresCheckpointStore
+org.atmosphere.interactions.postgres.PostgresInteractionStore

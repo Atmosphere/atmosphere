@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-project</artifactId>
+        <version>4.0.50-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>atmosphere-checkpoint-postgres</artifactId>
+    <packaging>jar</packaging>
+    <name>atmosphere-checkpoint-postgres</name>
+    <description>JDBC-backed CheckpointStore (targets Postgres; works with any JSR-221 DataSource)</description>
+    <url>https://github.com/Atmosphere/atmosphere</url>
+
+    <properties>
+        <atmosphere.module.name>org.atmosphere.checkpoint.postgres</atmosphere.module.name>
+        <h2.version>2.3.232</h2.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-checkpoint</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j-version}</version>
+        </dependency>
+
+        <!--
+          JDBC ships with the JDK; we do NOT pin a Postgres driver as a runtime
+          dep so operators can choose postgresql-42.x, HikariCP, pgjdbc-ng, etc.
+          The store takes a DataSource — the classpath contract ends at JDBC.
+        -->
+
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>${h2.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback-version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

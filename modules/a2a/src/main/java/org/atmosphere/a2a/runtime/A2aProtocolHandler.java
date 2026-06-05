@@ -29,6 +29,7 @@ import org.atmosphere.a2a.types.Role;
 import org.atmosphere.a2a.types.SendMessageResponse;
 import org.atmosphere.a2a.types.TaskState;
 import org.atmosphere.protocol.JsonRpc;
+import org.atmosphere.protocol.ProtocolTracing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,6 +75,8 @@ public final class A2aProtocolHandler {
 
     private final Set<String> warnedLegacyAliases = ConcurrentHashMap.newKeySet();
 
+    private volatile ProtocolTracing tracing;
+
     public A2aProtocolHandler(A2aRegistry registry, TaskManager taskManager, AgentCard agentCard) {
         this(registry, taskManager, agentCard, null);
     }
@@ -103,6 +106,21 @@ public final class A2aProtocolHandler {
         }
     }
 
+    /**
+     * Install the optional A2A tracing instance for OpenTelemetry
+     * instrumentation. Passing {@code null} disables tracing. Unwraps the
+     * {@link ProtocolTracing} backing the supplied {@link A2aTracing} so the
+     * dispatch hot path holds the shared protocol-tracing helper directly.
+     */
+    public void setTracing(A2aTracing t) {
+        this.tracing = (t == null) ? null : t.tracing();
+    }
+
+    /** Return the installed protocol tracing instance, or {@code null} if none. */
+    public ProtocolTracing tracing() {
+        return tracing;
+    }
+
     public String handleMessage(String message) {
         try {
             var node = mapper.readTree(message);
@@ -124,23 +142,17 @@ public final class A2aProtocolHandler {
             var idVal = isNotification ? null : idValue(id);
             var params = node.get("params");
 
-            var response = switch (method) {
-                case A2aMethod.SEND_MESSAGE, A2aMethod.SEND_STREAMING_MESSAGE ->
-                        handleSendMessage(idVal, params);
-                case A2aMethod.GET_TASK -> handleGetTask(idVal, params);
-                case A2aMethod.LIST_TASKS -> handleListTasks(idVal, params);
-                case A2aMethod.CANCEL_TASK -> handleCancelTask(idVal, params);
-                case A2aMethod.SUBSCRIBE_TO_TASK -> handleSubscribeToTask(idVal, params);
-                case A2aMethod.CREATE_TASK_PUSH_NOTIFICATION_CONFIG,
-                     A2aMethod.GET_TASK_PUSH_NOTIFICATION_CONFIG,
-                     A2aMethod.LIST_TASK_PUSH_NOTIFICATION_CONFIGS,
-                     A2aMethod.DELETE_TASK_PUSH_NOTIFICATION_CONFIG ->
-                        JsonRpc.Response.error(idVal, ERROR_PUSH_NOT_SUPPORTED,
-                                "Push notifications are not supported by this agent");
-                case A2aMethod.GET_EXTENDED_AGENT_CARD -> handleGetExtendedAgentCard(idVal);
-                default -> JsonRpc.Response.error(idVal, JsonRpc.METHOD_NOT_FOUND,
-                        "Unknown method: " + rawMethod);
-            };
+            JsonRpc.Response response;
+            if (tracing != null) {
+                final var fMethod = method;
+                final var fRawMethod = rawMethod;
+                final var fIdVal = idVal;
+                final var fParams = params;
+                response = tracing.traced("rpc", fMethod, fParams != null ? 1 : 0,
+                        () -> dispatch(fMethod, fRawMethod, fIdVal, fParams));
+            } else {
+                response = dispatch(method, rawMethod, idVal, params);
+            }
 
             if (isNotification) {
                 return null;
@@ -155,6 +167,26 @@ public final class A2aProtocolHandler {
             return serialize(JsonRpc.Response.error(null, JsonRpc.INTERNAL_ERROR,
                     e.getMessage()));
         }
+    }
+
+    private JsonRpc.Response dispatch(String method, String rawMethod, Object idVal, JsonNode params) {
+        return switch (method) {
+            case A2aMethod.SEND_MESSAGE, A2aMethod.SEND_STREAMING_MESSAGE ->
+                    handleSendMessage(idVal, params);
+            case A2aMethod.GET_TASK -> handleGetTask(idVal, params);
+            case A2aMethod.LIST_TASKS -> handleListTasks(idVal, params);
+            case A2aMethod.CANCEL_TASK -> handleCancelTask(idVal, params);
+            case A2aMethod.SUBSCRIBE_TO_TASK -> handleSubscribeToTask(idVal, params);
+            case A2aMethod.CREATE_TASK_PUSH_NOTIFICATION_CONFIG,
+                 A2aMethod.GET_TASK_PUSH_NOTIFICATION_CONFIG,
+                 A2aMethod.LIST_TASK_PUSH_NOTIFICATION_CONFIGS,
+                 A2aMethod.DELETE_TASK_PUSH_NOTIFICATION_CONFIG ->
+                    JsonRpc.Response.error(idVal, ERROR_PUSH_NOT_SUPPORTED,
+                            "Push notifications are not supported by this agent");
+            case A2aMethod.GET_EXTENDED_AGENT_CARD -> handleGetExtendedAgentCard(idVal);
+            default -> JsonRpc.Response.error(idVal, JsonRpc.METHOD_NOT_FOUND,
+                    "Unknown method: " + rawMethod);
+        };
     }
 
     /**

@@ -86,6 +86,13 @@ public final class McpHandler implements AtmosphereHandler {
                 sessionTtlMs, Math.max(sessionTtlMs / 2, 60_000L), TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * Return the underlying {@link McpProtocolHandler} backing this handler.
+     */
+    public McpProtocolHandler protocolHandler() {
+        return protocolHandler;
+    }
+
     @Override
     public void onRequest(AtmosphereResource resource) throws IOException {
         var request = resource.getRequest();

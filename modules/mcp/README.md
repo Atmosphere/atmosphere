@@ -224,6 +224,10 @@ With the Spring Boot starter, `McpTracing` is auto-configured when an `OpenTelem
 | `mcp.tool.arg_count` | Number of arguments provided |
 | `mcp.tool.error` | `true` if invocation failed |
 
+## Tool-Call Governance
+
+MCP `tools/call` admission requires `atmosphere-ai` on the classpath. When it is present, every MCP tool call flows through `PolicyAdmissionGate` (the same seam `@AiTool` dispatch uses), so YAML rules over `tool_name` apply to MCP invocations identically to first-party tools. Without `atmosphere-ai`, the gateway runs in open mode — it admits all calls and logs a startup `WARN` at class-load. `McpPolicyGateway.isActive()` reports the live state.
+
 ## Full Documentation
 
 See <https://atmosphere.github.io/docs/reference/mcp/> for complete documentation.

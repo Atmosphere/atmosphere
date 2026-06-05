@@ -37,14 +37,18 @@
  *       {@code Violation}.</li>
  *   <li>{@link org.atmosphere.verifier.checks} — Built-in verifier
  *       implementations: {@code AllowlistVerifier},
- *       {@code WellFormednessVerifier}.</li>
+ *       {@code WellFormednessVerifier}, {@code CapabilityVerifier},
+ *       {@code TaintVerifier}, {@code AutomatonVerifier}, and
+ *       {@code SmtVerifier}. The {@code SmtVerifier} SMT layer
+ *       ({@link org.atmosphere.verifier.spi.SmtChecker}) ships a no-op SPI
+ *       default; a real SMT backend (SMTInterpol, pure-JVM) ships as the
+ *       {@code atmosphere-verifier-smt} module.</li>
  *   <li>{@link org.atmosphere.verifier.execute} — {@code WorkflowExecutor}
  *       resolving symbolic references and dispatching through a pluggable
  *       {@code ToolDispatcher} (default wraps
  *       {@link org.atmosphere.ai.tool.ToolRegistry}).</li>
  *   <li>{@link org.atmosphere.verifier.prompt} — System-prompt builders that
- *       coax LLMs into producing well-formed {@code Workflow} JSON. Filled in
- *       Phase 2.</li>
+ *       coax LLMs into producing well-formed {@code Workflow} JSON.</li>
  * </ul>
  */
 package org.atmosphere.verifier;

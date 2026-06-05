@@ -140,7 +140,8 @@ user_extensible = [
 # have a canonical registration point. The in-tree bridge is registered
 # programmatically (requires AtmosphereFramework reference at construction).
 allowed = [
-    "modules/coordinator/src/main/resources/META-INF/services/org.atmosphere.ai.bridge.ProtocolBridge"
+    "modules/coordinator/src/main/resources/META-INF/services/org.atmosphere.ai.bridge.ProtocolBridge",
+    "modules/mcp/src/main/resources/META-INF/services/org.atmosphere.ai.bridge.ProtocolBridge"
 ]
 
 # ============================================================================

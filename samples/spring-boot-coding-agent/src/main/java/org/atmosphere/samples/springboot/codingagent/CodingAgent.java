@@ -41,15 +41,15 @@ import java.util.ServiceLoader;
  *
  * The agent picks the first available {@code SandboxProvider} in priority
  * order: Docker if a daemon is running, in-process otherwise. In production
- * you would pin the Docker provider and fail hard when it is unavailable
- * (per v0.6 plan open question #2); the sample is permissive on purpose so
- * it demonstrates the shape on any developer machine.
+ * you would pin the Docker provider and fail hard when it is unavailable;
+ * the sample is permissive on purpose so it demonstrates the shape on any
+ * developer machine.
  *
  * <h2>AgentResumeHandle</h2>
  *
- * The clone + patch flow is long-running. In production the run would
- * register with the {@code RunRegistry} and a disconnecting client would
- * reattach via {@code runId}. Wiring lands in Phase 1.5.
+ * The clone + read flow is long-running. The {@code RunRegistry} reattach
+ * flow — which lets a disconnecting client reattach via {@code runId} — is
+ * not wired in this sample.
  */
 @Agent(
         name = "coding-agent",

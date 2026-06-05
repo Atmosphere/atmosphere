@@ -1,0 +1,7 @@
+# McpProtocolBridge is registered programmatically because it requires an
+# AtmosphereFramework reference at construction (it has only the framework-arg
+# constructor McpProtocolBridge(AtmosphereFramework) — no no-arg constructor).
+# A no-arg ServiceLoader entry would not be usable and would raise a
+# ServiceConfigurationError, so do not list the bridge class here. Leave this
+# file present as the contract-visible registration point for third-party
+# bridges.

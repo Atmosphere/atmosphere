@@ -23,6 +23,7 @@ Autowired
 Bean
 Component
 ConditionalOnMissingBean
+ConditionalOnExpression
 Configuration
 EventListener
 RestController

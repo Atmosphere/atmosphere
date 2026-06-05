@@ -51,6 +51,8 @@ import java.util.Objects;
  * meet this contract by delegating to
  * {@code AbstractAgentRuntime.assembleMessages} or by using an equivalent
  * history-threading path in their native bridge.</p>
+ *
+ * <p><b>@Experimental</b> — no production {@code @AiEndpoint} request path invokes passivate/resume yet; the only callers today are the durable-execution integration test and the ai-passivation e2e spec. Runtimes that declare {@code PASSIVATION} satisfy the history-threading contract, but wiring a user-facing pause/resume endpoint is left to the application. This status will be revisited by 2026-Q4.</p>
  */
 public final class AgentPassivation {
 

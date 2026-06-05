@@ -33,6 +33,38 @@ model.chat(ChatMessage.userMessage(prompt),
     new AtmosphereStreamingResponseHandler(session));
 ```
 
+## Out-of-box provider reach
+
+The bundled `AtmosphereLangChain4jAutoConfiguration` auto-builds an
+OpenAI-compatible `OpenAiStreamingChatModel` from `llm.api-key` /
+`llm.base-url` / `llm.model` **only** (gated on `@ConditionalOnExpression`
+for a non-empty `llm.api-key`):
+
+```yaml
+llm:
+  api-key: ${OPENAI_API_KEY}
+  base-url: https://api.openai.com/v1   # any OpenAI-compatible endpoint
+  model: gpt-4o-mini
+```
+
+For Anthropic, Ollama, Bedrock, or any other non-OpenAI-compatible provider,
+declare your own `StreamingChatModel` `@Bean` — it wins via
+`@ConditionalOnMissingBean(StreamingChatModel.class)` and the runtime bridges
+whichever model bean is present:
+
+```java
+@Bean
+StreamingChatModel chatModel() {
+    return AnthropicStreamingChatModel.builder()
+            .apiKey(System.getenv("ANTHROPIC_API_KEY"))
+            .modelName("claude-3-5-sonnet-20241022")
+            .build();
+}
+```
+
+There is no multi-provider auto-wiring: the zero-config path is OpenAI-compatible
+only, and every other provider is a one-`@Bean` opt-in.
+
 ## Key Classes
 
 | Class | Purpose |

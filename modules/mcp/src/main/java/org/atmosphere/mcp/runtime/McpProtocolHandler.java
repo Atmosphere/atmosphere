@@ -36,6 +36,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Core MCP protocol handler. Processes incoming JSON-RPC messages and dispatches
@@ -96,6 +98,13 @@ public final class McpProtocolHandler {
      */
     public void setTracing(McpTracing tracing) {
         this.tracing = tracing;
+    }
+
+    /**
+     * Return the optional MCP tracing instance, or {@code null} if none is set.
+     */
+    public McpTracing tracing() {
+        return tracing;
     }
 
     /**
@@ -513,14 +522,17 @@ public final class McpProtocolHandler {
         var task = taskOpt.get();
         try {
             // Spec: tasks/result blocks until the task reaches a terminal
-            // status. With our in-process executor this is bounded by tool
-            // runtime; production deployments may want a wall-clock cap.
-            var resultMap = task.result().get();
+            // status. The wall-clock cap is enforced at task.ttlMs(): if the
+            // task does not complete within its TTL the get() times out.
+            var resultMap = task.result().get(task.ttlMs(), TimeUnit.MILLISECONDS);
             var withMeta = new LinkedHashMap<String, Object>(resultMap);
             withMeta.merge("_meta", Map.of(
                     "io.modelcontextprotocol/related-task",
                     Map.of("taskId", task.taskId())), (a, b) -> a);
             return JsonRpc.Response.success(id, withMeta);
+        } catch (TimeoutException te) {
+            return JsonRpc.Response.error(id, JsonRpc.INTERNAL_ERROR,
+                    "tasks/result timed out after " + task.ttlMs() + "ms");
         } catch (Exception e) {
             return JsonRpc.Response.error(id, JsonRpc.INTERNAL_ERROR,
                     "tasks/result failed: " + e.getMessage());
@@ -565,6 +577,11 @@ public final class McpProtocolHandler {
      * {@code session} and return a future that completes with the client's
      * response envelope. The response payload follows MCP {@code ElicitResult}
      * shape: {@code {action: "accept|decline|cancel", content: {...}}}.
+     *
+     * <p><b>@Experimental</b> — server-initiated MCP elicitation (spec
+     * 2025-06-18). Opt-in extension point with no default in-tree caller;
+     * invoke it from your own {@code @McpTool} handler. The wire shape may
+     * change by 2026-Q4 as the MCP elicitation spec stabilizes.</p>
      *
      * <p>Failure modes:</p>
      * <ul>

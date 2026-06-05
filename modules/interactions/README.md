@@ -56,9 +56,10 @@ Two implementations ship in this module:
 |----------------|----------|
 | `InMemoryInteractionStore` | Default. `ConcurrentHashMap`, copy-on-write step append. Lost on restart. |
 | `SqliteInteractionStore` | Single-node durability. Persists to `atmosphere-interactions.db` (mirrors `SqliteCheckpointStore`). |
+| `PostgresInteractionStore` | JDBC store (ships as `atmosphere-interactions-postgres`); targets Postgres, works with any JSR-221 `DataSource`. Operator supplies the driver + pooling. |
 
-Implement the SPI for other backends (Redis, Postgres, …); they are pluggable,
-not in-tree.
+A JDBC/Postgres store ships in-tree as `atmosphere-interactions-postgres`
+(`PostgresInteractionStore`). Other backends (Redis, …) are pluggable via the SPI.
 
 ## Sync vs. Background
 

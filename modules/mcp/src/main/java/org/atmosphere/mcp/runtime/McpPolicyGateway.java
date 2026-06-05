@@ -62,7 +62,9 @@ public final class McpPolicyGateway {
             deniedPolicyName = denied.getMethod("policyName");
             deniedReason = denied.getMethod("reason");
         } catch (ClassNotFoundException | NoSuchMethodException e) {
-            logger.debug("atmosphere-ai not on classpath — McpPolicyGateway will admit all calls");
+            logger.warn("atmosphere-ai not on classpath — MCP tools/call governance is DISABLED; "
+                    + "every MCP tool call is admitted. Add the atmosphere-ai dependency to "
+                    + "enforce PolicyAdmissionGate rules.");
         }
         ADMIT_TOOL_CALL = admit;
         DENIED_CLASS = denied;

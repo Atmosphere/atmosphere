@@ -24,7 +24,7 @@ Atmosphere is built for teams that need AI agents to behave like production serv
 
 | Need | What Atmosphere provides |
 |---|---|
-| Stream to real clients | WebTransport over HTTP/3, WebSocket, SSE, long-polling, and gRPC through the same broadcaster pipeline |
+| Stream to real clients | WebSocket, SSE, and long-polling are the always-on defaults; WebTransport over HTTP/3 is optional (needs `jetty-http3-server` or `reactor-netty-http` on the classpath plus a dev cert), all through the same broadcaster pipeline, with gRPC |
 | Swap AI integrations | One `AgentRuntime` SPI with twelve runtime adapters and contract-tested capability flags |
 | Govern execution | Policy admission, `@AgentScope`, human approval, plan-and-verify, cost ceilings, PII rewriting, and admin kill switches |
 | Pause for humans | Durable HITL approvals park virtual threads, persist workflow state, and resume through REST approval surfaces |
@@ -37,7 +37,7 @@ Atmosphere is a JVM framework, not an agent-hosting platform. We ship the primit
 
 | Layer | What Atmosphere ships | Provided by your stack |
 |---|---|---|
-| Streaming transport | `atmosphere-runtime` over WebTransport/HTTP3, WebSocket, SSE, long-polling, gRPC | — |
+| Streaming transport | `atmosphere-runtime` over WebSocket, SSE, long-polling (always-on defaults), gRPC, plus optional WebTransport/HTTP-3 (needs `jetty-http3-server` or `reactor-netty-http` on the classpath plus a dev cert) | — |
 | Runtime dispatch | `atmosphere-ai` `AgentRuntime` SPI + 12 adapters with contract-tested capability flags | Model hosting (we call providers; we do not host weights) |
 | Orchestration | `@Coordinator`, `AgentFleet`, handoffs, conditional routing, event-sourced coordination journal (`CoordinationJournal` SPI with causal `EventEnvelope` lineage, `CoordinationProjection` DAG-from-log, `FileCoordinationJournal` append-only NDJSON persistence, `CoordinationFork` what-if branching), result evaluation, and durable hibernating `Workflow<S>` over `CheckpointStore` (per-step retry, resume across JVM restart, no thread held while hibernated) — durable step execution, not wall-clock triggering | Cron / wall-clock scheduling (your container scheduler or a dedicated scheduler fires the workflow) |
 | Memory | `AiConversationMemory` per-conversation history (in-memory, plus durable SQLite/Redis through the `ConversationPersistence` SPI in `atmosphere-durable-sessions{-sqlite,-redis}`), `LongTermMemory` per-user facts (`InMemoryLongTermMemory`, `SqliteLongTermMemory`, `RedisLongTermMemory`), `SemanticRecallInterceptor` for BYO vector-store recall | Managed vector stores (use Spring AI's `VectorStore`, LangChain4j embeddings, or your own) |
@@ -172,7 +172,7 @@ Atmosphere keeps governance on the critical path rather than as an afterthought.
 | Human approval | `atmosphere-agent`, `atmosphere-ai` | command confirmations, permission modes, tool approval policies |
 | Durable HITL workflows | `atmosphere-checkpoint`, `atmosphere-durable-sessions` | checkpointed approval gates, REST approve/reject/resume endpoints, and reconnect-safe replay for long-running agent work |
 | Stateful interactions | `atmosphere-interactions` | stateful agent turns with a durable `steps[]` log, `background` runs retrievable after disconnect, conversation chaining via `previous_interaction_id`, and live step streaming over WebSocket; REST surface at `/api/interactions` (mutations default-deny) |
-| Plan-and-verify | `atmosphere-verifier` | verifies LLM-emitted tool workflows before execution; supports allowlist, well-formedness, capability, taint, automaton, and SMT verifiers |
+| Plan-and-verify | `atmosphere-verifier` | verifies LLM-emitted tool workflows before execution; five structural verifiers run today (allowlist, well-formedness, capability, taint, automaton); an SMT backend ships as `atmosphere-verifier-smt` (SMTInterpol, pure-JVM) proving numeric invariants over symbolic tool-call data flow; the no-op default applies only when that module is absent |
 | PII and cost controls | `atmosphere-ai` | stream-level PII redaction, token usage, per-tenant cost ceilings |
 | Admin control plane | `atmosphere-admin` | dashboard, REST/MCP control surfaces, kill switches, journal flow viewer, governance decisions, **workflow authoring UI**, **eval dashboard** |
 | Enterprise console bundle | `atmosphere-admin-bundle` | single Maven dep aggregating `spring-boot-starter` + `admin` + `ai` + `coordinator` + `agent` + `rag` + `checkpoint` + `durable-sessions` |
@@ -240,7 +240,7 @@ For Java/Kotlin clients, use [wAsync](modules/wasync/) for async WebSocket, SSE,
 | Sample | Shows |
 |---|---|
 | [startup team](samples/spring-boot-multi-agent-startup-team/) | `@Coordinator` with A2A specialists, governance, checkpoints, skills, admin control plane |
-| [ai-chat](samples/spring-boot-ai-chat/) | Streaming AI chat with auth, WebTransport, caching, and runtime adapter portability |
+| [ai-chat](samples/spring-boot-ai-chat/) | Streaming AI chat with auth, caching, and runtime adapter portability |
 | [ai-tools](samples/spring-boot-ai-tools/) | Framework-agnostic `@AiTool` methods and approval gates |
 | [durable-hitl](samples/spring-boot-durable-hitl/) | Human approval gates that persist, resume, and replay across reconnects |
 | [checkpoint-agent](samples/spring-boot-checkpoint-agent/) | Checkpointed `@Coordinator` workflow with REST approval/resume |

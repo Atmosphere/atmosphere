@@ -26,8 +26,13 @@
  *
  * <p>Verifiers register via
  * {@code META-INF/services/org.atmosphere.verifier.spi.PlanVerifier}.
- * The Phase 1 module ships {@code AllowlistVerifier} and
- * {@code WellFormednessVerifier}; downstream modules add taint, automaton,
- * and Z3-backed precondition checks.</p>
+ * The module ships six structural verifiers — {@code AllowlistVerifier},
+ * {@code WellFormednessVerifier}, {@code CapabilityVerifier},
+ * {@code TaintVerifier}, {@code AutomatonVerifier}, and {@code SmtVerifier}.
+ * {@code SmtVerifier} wraps the {@link SmtChecker} SPI. The in-tree no-op
+ * default is {@code NoOpSmtChecker}; a real SMT backend (SMTInterpol, pure-JVM)
+ * ships as the {@code atmosphere-verifier-smt} module and is selected by
+ * {@link SmtChecker#resolve()} when present. A native Z3/CVC5 backend can be
+ * added as a higher-priority {@code SmtChecker} without code changes here.</p>
  */
 package org.atmosphere.verifier.spi;

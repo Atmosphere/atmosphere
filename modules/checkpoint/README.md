@@ -32,12 +32,14 @@ not persist agent workflow state. This module fills that gap.
 | `CheckpointListener` | Callback for lifecycle events |
 | `InMemoryCheckpointStore` | Default in-memory implementation, thread-safe, with eviction |
 | `SqliteCheckpointStore` | Durable single-file SQLite store — survives JVM restart, used by `spring-boot-checkpoint-agent` for the flagship HITL workflow demo |
+| `PostgresCheckpointStore` | JDBC store (ships as `atmosphere-checkpoint-postgres`); targets Postgres, works with any JSR-221 `DataSource`. Operator supplies the driver + pooling. |
 
 Application code owns the workflow state type `S` and its serialization.
 The in-memory store keeps the state as-is; the SQLite store JSON-serializes
 the state through Jackson by default and accepts a caller-supplied
-serializer for non-trivial types. Out-of-tree backends (Redis, JDBC,
-Postgres) can be added by implementing the `CheckpointStore` SPI directly.
+serializer for non-trivial types. A JDBC/Postgres store ships in-tree as
+`atmosphere-checkpoint-postgres` (`PostgresCheckpointStore`); other backends
+(Redis, …) can be added by implementing the `CheckpointStore` SPI directly.
 
 ## Quick Start
 

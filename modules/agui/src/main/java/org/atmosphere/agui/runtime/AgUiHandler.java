@@ -50,6 +50,7 @@ public final class AgUiHandler implements AtmosphereHandler {
     private final Object endpoint;
     private final Method actionMethod;
     private final org.atmosphere.ai.AiPipeline pipeline;
+    private volatile org.atmosphere.protocol.ProtocolTracing tracing;
 
     public AgUiHandler(Object endpoint, Method actionMethod) {
         this(endpoint, actionMethod, null);
@@ -60,6 +61,22 @@ public final class AgUiHandler implements AtmosphereHandler {
         this.endpoint = endpoint;
         this.actionMethod = actionMethod;
         this.pipeline = pipeline;
+    }
+
+    /**
+     * Installs OpenTelemetry tracing for AG-UI action execution. Pass {@code null}
+     * to disable.
+     */
+    public void setTracing(AgUiTracing t) {
+        this.tracing = (t == null) ? null : t.tracing();
+    }
+
+    /**
+     * Returns the underlying {@link org.atmosphere.protocol.ProtocolTracing} instance,
+     * or {@code null} if tracing is disabled.
+     */
+    public org.atmosphere.protocol.ProtocolTracing tracing() {
+        return tracing;
     }
 
     @Override
@@ -132,9 +149,21 @@ public final class AgUiHandler implements AtmosphereHandler {
                 var delegateSession = new NoOpStreamingSession();
                 var session = new ResourceAgUiStreamingSession(
                         delegateSession, sseWriter, finalRunContext, pipeline);
-                actionMethod.invoke(endpoint, finalRunContext, session);
-                if (!session.isClosed()) {
-                    session.complete();
+                var localTracing = tracing;
+                if (localTracing != null) {
+                    localTracing.traced("action", actionMethod.getName(),
+                            actionMethod.getParameterCount(), () -> {
+                                actionMethod.invoke(endpoint, finalRunContext, session);
+                                if (!session.isClosed()) {
+                                    session.complete();
+                                }
+                                return null;
+                            });
+                } else {
+                    actionMethod.invoke(endpoint, finalRunContext, session);
+                    if (!session.isClosed()) {
+                        session.complete();
+                    }
                 }
             } catch (Exception e) {
                 logger.error("AG-UI action failed", e);

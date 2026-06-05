@@ -17,9 +17,12 @@
 /**
  * Built-in {@link org.atmosphere.verifier.spi.PlanVerifier} implementations.
  *
- * <p>Phase 1 ships the two cheapest checks — running them upfront filters
- * out the bulk of malformed or off-policy plans before more expensive
- * verifiers (taint analysis, automata, Z3) ever look at the AST:</p>
+ * <p>These two run first and filter out the bulk of malformed or off-policy
+ * plans before the more expensive structural verifiers (capability, taint
+ * analysis, automata) and the SMT layer ever look at the AST. The SMT layer
+ * ({@code SmtVerifier} -&gt; {@link org.atmosphere.verifier.spi.SmtChecker})
+ * ships a no-op default in-tree; a real SMT backend (SMTInterpol, pure-JVM)
+ * ships as the {@code atmosphere-verifier-smt} module:</p>
  *
  * <ul>
  *   <li>{@link org.atmosphere.verifier.checks.AllowlistVerifier} — every

@@ -32,6 +32,9 @@ import java.util.concurrent.TimeUnit;
  * Bidirectional tool invocation between server and client. Allows the server to call
  * tools on connected clients (e.g. browser-side JavaScript functions) and receive
  * results asynchronously via {@link CompletableFuture}.
+ *
+ * <p><b>@Experimental</b> — opt-in extension point; not auto-registered. Wire it
+ * manually via {@code framework.addAtmosphereHandler(...)}. API may change by 2026-Q4.</p>
  */
 public class BiDirectionalToolBridge {
 

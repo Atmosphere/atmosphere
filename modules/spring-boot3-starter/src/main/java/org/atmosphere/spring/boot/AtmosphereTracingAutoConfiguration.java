@@ -60,10 +60,50 @@ public class AtmosphereTracingAutoConfiguration {
     }
 
     /**
+     * Attach an MCP tracer to every registered {@code McpHandler}'s protocol handler.
+     * Called from a framework startup hook so it runs after handlers are registered.
+     */
+    static void attachMcp(AtmosphereFramework framework, org.atmosphere.mcp.runtime.McpTracing tracing) {
+        for (var w : framework.getAtmosphereHandlers().values()) {
+            if (w.atmosphereHandler() instanceof org.atmosphere.mcp.runtime.McpHandler h) {
+                h.protocolHandler().setTracing(tracing);
+            }
+        }
+    }
+
+    /**
+     * Attach an A2A tracer to every registered {@code A2aHandler}'s protocol handler.
+     * Called from a framework startup hook so it runs after handlers are registered.
+     */
+    static void attachA2a(AtmosphereFramework framework, org.atmosphere.a2a.runtime.A2aTracing tracing) {
+        for (var w : framework.getAtmosphereHandlers().values()) {
+            if (w.atmosphereHandler() instanceof org.atmosphere.a2a.runtime.A2aHandler h) {
+                h.protocolHandler().setTracing(tracing);
+            }
+        }
+    }
+
+    /**
+     * Attach an AG-UI tracer to every registered {@code AgUiHandler}.
+     * Called from a framework startup hook so it runs after handlers are registered.
+     */
+    static void attachAgUi(AtmosphereFramework framework, org.atmosphere.agui.runtime.AgUiTracing tracing) {
+        for (var w : framework.getAtmosphereHandlers().values()) {
+            if (w.atmosphereHandler() instanceof org.atmosphere.agui.runtime.AgUiHandler h) {
+                h.setTracing(tracing);
+            }
+        }
+    }
+
+    /**
      * Nested configuration that only loads when {@code atmosphere-mcp} is on the
      * classpath.  Using a separate class with {@code @ConditionalOnClass(name = ...)}
      * prevents the JVM from resolving {@code McpTracing} at class-load time when
      * the MCP module is absent.
+     *
+     * <p>The {@code McpTracing} bean is auto-attached to every {@code McpHandler}'s
+     * protocol handler via a framework startup hook, so MCP tool/resource/prompt
+     * calls emit spans out of the box.</p>
      */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(name = "org.atmosphere.mcp.runtime.McpTracing")
@@ -72,14 +112,21 @@ public class AtmosphereTracingAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean(name = "mcpTracing")
-        public org.atmosphere.mcp.runtime.McpTracing mcpTracing(OpenTelemetry openTelemetry) {
-            return new org.atmosphere.mcp.runtime.McpTracing(openTelemetry);
+        public org.atmosphere.mcp.runtime.McpTracing mcpTracing(OpenTelemetry openTelemetry,
+                                                                AtmosphereFramework framework) {
+            var tracing = new org.atmosphere.mcp.runtime.McpTracing(openTelemetry);
+            framework.getAtmosphereConfig().startupHook(f -> attachMcp(f, tracing));
+            return tracing;
         }
     }
 
     /**
      * Nested configuration for A2A tracing — only loads when {@code atmosphere-a2a}
      * is on the classpath.
+     *
+     * <p>The {@code A2aTracing} bean is auto-attached to every {@code A2aHandler}'s
+     * protocol handler via a framework startup hook, so A2A skill calls emit spans
+     * out of the box.</p>
      */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(name = "org.atmosphere.a2a.runtime.A2aTracing")
@@ -88,14 +135,20 @@ public class AtmosphereTracingAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean(name = "a2aTracing")
-        public org.atmosphere.a2a.runtime.A2aTracing a2aTracing(OpenTelemetry openTelemetry) {
-            return new org.atmosphere.a2a.runtime.A2aTracing(openTelemetry);
+        public org.atmosphere.a2a.runtime.A2aTracing a2aTracing(OpenTelemetry openTelemetry,
+                                                                AtmosphereFramework framework) {
+            var tracing = new org.atmosphere.a2a.runtime.A2aTracing(openTelemetry);
+            framework.getAtmosphereConfig().startupHook(f -> attachA2a(f, tracing));
+            return tracing;
         }
     }
 
     /**
      * Nested configuration for AG-UI tracing — only loads when {@code atmosphere-agui}
      * is on the classpath.
+     *
+     * <p>The {@code AgUiTracing} bean is auto-attached to every {@code AgUiHandler}
+     * via a framework startup hook, so AG-UI action calls emit spans out of the box.</p>
      */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(name = "org.atmosphere.agui.runtime.AgUiTracing")
@@ -104,8 +157,11 @@ public class AtmosphereTracingAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean(name = "agUiTracing")
-        public org.atmosphere.agui.runtime.AgUiTracing agUiTracing(OpenTelemetry openTelemetry) {
-            return new org.atmosphere.agui.runtime.AgUiTracing(openTelemetry);
+        public org.atmosphere.agui.runtime.AgUiTracing agUiTracing(OpenTelemetry openTelemetry,
+                                                                   AtmosphereFramework framework) {
+            var tracing = new org.atmosphere.agui.runtime.AgUiTracing(openTelemetry);
+            framework.getAtmosphereConfig().startupHook(f -> attachAgUi(f, tracing));
+            return tracing;
         }
     }
 }

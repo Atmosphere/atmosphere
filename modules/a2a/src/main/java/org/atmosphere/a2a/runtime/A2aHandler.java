@@ -57,6 +57,11 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
         this.protocolHandler = protocolHandler;
     }
 
+    /** Return the underlying protocol handler (e.g. to install tracing). */
+    public A2aProtocolHandler protocolHandler() {
+        return protocolHandler;
+    }
+
     @Override
     public String dispatchLocal(String jsonRpcRequest) {
         return protocolHandler.handleMessage(jsonRpcRequest);
