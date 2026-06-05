@@ -1208,3 +1208,37 @@ the "2 high" ask.)
 The point of this log is not blame; it is **measurement**. Whether AI
 accelerates or regresses a codebase depends on whether the feedback loop
 on claim quality is instrumented. This log is Atmosphere's loop.
+
+---
+
+## 2026-06-05 — Claimed Z3 "doesn't load on Apple Silicon" from one under-equipped probe (diligence-gap closure, squash-merged to `main`)
+
+### Factual drift (broad platform conclusion from a missing-setup result)
+
+**Claim (false, stated to the maintainer):** "I used SMTInterpol (pure-JVM) not
+Z3-native because the probe proved Z3's native lib doesn't load on this
+Apple-Silicon machine — it would have broken local validation."
+
+**Truth:** Z3 loads fine on macOS arm64. The `org.sosy-lab:javasmt-solver-z3`
+jar ships only the Java bindings (`com.microsoft.z3.*`); the native libraries are
+**separate Maven classifier artifacts** — `javasmt-solver-z3:<ver>:libz3-arm64:dylib`
+and `:libz3java-arm64:dylib`. My first probe pulled only the bindings jar, so
+java-smt reported `no z3 in java.library.path`. After resolving the two arm64
+`.dylib` classifiers, staging them as `libz3.dylib`/`libz3java.dylib`, and setting
+`-Djava.library.path`, Z3 loaded and proved correctly
+(`isUnsat(x>b && x==b) = true`). A **missing-setup** result, not a platform
+incompatibility.
+
+**Slip path:** Generalised a "never/always" platform claim from a single failed
+probe without checking java-smt's native-distribution mechanism first — the exact
+`feedback_verify_claims` failure mode ("never claim never/always without checking
+the full data"). The maintainer flagged it ("Hum that's strange no").
+
+**Gate added:** `modules/verifier-smt/README.md` §5 now documents the verified
+per-platform Z3 setup (bindings + `libz3-<arch>`/`libz3java-<arch>` classifiers +
+`java.library.path`), with macOS-arm64 marked **verified**. Runtime safety:
+`Z3SmtChecker.isAvailable()` reports confirmed native-load state (Correctness
+Invariant #5), so the SPI never advertises Z3 on classpath presence alone —
+`resolve()` falls back to the pure-JVM SMTInterpol default when the natives are
+absent. Automated gate: none beyond the doc + the `isAvailable()` runtime probe
+(no static check meaningfully verifies "a native solver loads on platform X").
