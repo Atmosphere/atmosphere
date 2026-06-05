@@ -58,7 +58,7 @@ class AtmosphereTracingAttachTest {
         assertNull(mcpHandler.protocolHandler().tracing(),
                 "MCP protocol handler should start without a tracer");
 
-        AtmosphereTracingAutoConfiguration.attachMcp(framework, new McpTracing(OpenTelemetry.noop()));
+        AtmosphereTracingAutoConfiguration.McpTracingAutoConfiguration.attach(framework, new McpTracing(OpenTelemetry.noop()));
 
         assertNotNull(mcpHandler.protocolHandler().tracing(),
                 "attachMcp must install the MCP tracer on the registered McpHandler");
@@ -77,7 +77,7 @@ class AtmosphereTracingAttachTest {
         assertNull(a2aHandler.protocolHandler().tracing(),
                 "A2A protocol handler should start without a tracer");
 
-        AtmosphereTracingAutoConfiguration.attachA2a(framework, new A2aTracing(OpenTelemetry.noop()));
+        AtmosphereTracingAutoConfiguration.A2aTracingAutoConfiguration.attach(framework, new A2aTracing(OpenTelemetry.noop()));
 
         assertNotNull(a2aHandler.protocolHandler().tracing(),
                 "attachA2a must install the A2A tracer on the registered A2aHandler");
@@ -94,7 +94,7 @@ class AtmosphereTracingAttachTest {
         assertNull(aguiHandler.tracing(),
                 "AG-UI handler should start without a tracer");
 
-        AtmosphereTracingAutoConfiguration.attachAgUi(framework, new AgUiTracing(OpenTelemetry.noop()));
+        AtmosphereTracingAutoConfiguration.AgUiTracingAutoConfiguration.attach(framework, new AgUiTracing(OpenTelemetry.noop()));
 
         assertNotNull(aguiHandler.tracing(),
                 "attachAgUi must install the AG-UI tracer on the registered AgUiHandler");
