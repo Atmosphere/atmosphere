@@ -19,6 +19,9 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.mcp.protocol.Mcp2026;
 import tools.jackson.databind.JsonNode;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * A single parsed JSON-RPC request handed to a {@link ProtocolDialect},
  * decoupled from any session assumption.
@@ -66,6 +69,29 @@ record McpRequestContext(AtmosphereResource resource, Object id, String method,
             return info.get("name").stringValue();
         }
         return "unknown";
+    }
+
+    /**
+     * The W3C Trace Context carried in {@code _meta} (SEP-414) as a propagation
+     * carrier: the bare keys {@code traceparent}/{@code tracestate}/{@code baggage}
+     * that are present. Empty when the request carries no trace context.
+     */
+    Map<String, String> traceContext() {
+        if (meta == null) {
+            return Map.of();
+        }
+        var carrier = new LinkedHashMap<String, String>();
+        putIfString(carrier, Mcp2026.META_TRACEPARENT);
+        putIfString(carrier, Mcp2026.META_TRACESTATE);
+        putIfString(carrier, Mcp2026.META_BAGGAGE);
+        return carrier;
+    }
+
+    private void putIfString(Map<String, String> carrier, String key) {
+        var v = meta.get(key);
+        if (v != null && v.isString()) {
+            carrier.put(key, v.stringValue());
+        }
     }
 
     private String metaString(String key) {

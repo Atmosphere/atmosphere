@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * The stateless dialect for MCP {@code 2026-07-28} (SEP-2567 remove sessions,
@@ -40,13 +41,15 @@ import java.util.Map;
  * <p>Tool/resource/prompt execution is identical to the session model — it
  * delegates straight back to {@link McpProtocolHandler}'s shared handlers — so
  * the two dialects can never diverge on what a tool returns (mode parity). The
- * only stateless-specific shaping is the mandatory {@code resultType} envelope
- * field and the {@code server/discover} reply.</p>
+ * stateless-specific shaping is the envelope: the mandatory {@code resultType}
+ * field, the {@code CacheableResult} fields ({@code ttlMs}/{@code cacheScope},
+ * SEP-2549) on list/read/discover results, W3C trace-context propagation from
+ * {@code _meta} (SEP-414), and the {@code server/discover} reply.</p>
  *
  * <p>Session-only methods ({@code resources/subscribe}, {@code tasks/*}) report
- * {@code METHOD_NOT_FOUND} here; their stateless equivalents (cache-TTL change
- * detection, the restructured Tasks extension) land in later slices and are not
- * advertised until they exist.</p>
+ * {@code METHOD_NOT_FOUND} here; their stateless equivalents (the restructured
+ * Tasks extension) land in a later slice and are not advertised until they
+ * exist.</p>
  */
 final class StatelessDialect implements ProtocolDialect {
 
@@ -58,15 +61,34 @@ final class StatelessDialect implements ProtocolDialect {
         this.core = core;
     }
 
+    // The trace scope's only purpose is to be closed after dispatch (restoring
+    // the prior OTel context); -Xlint:try flags the unreferenced resource, same
+    // as McpTracing.traced(). Suppression is intentional and local.
     @Override
+    @SuppressWarnings("try")
     public JsonRpc.Response dispatch(McpRequestContext ctx) {
+        // SEP-414: if the request carries W3C trace context in _meta and tracing
+        // is active, make it the current OTel context so any span created during
+        // dispatch parents off the caller's distributed trace. The TraceScope is
+        // a plain AutoCloseable (no OpenTelemetry type leaks here — OTel is an
+        // optional dependency confined to McpTracing).
+        var tracing = core.tracing();
+        if (tracing == null) {
+            return dispatch0(ctx);
+        }
+        try (var ignored = tracing.withRemoteContext(ctx.traceContext())) {
+            return dispatch0(ctx);
+        }
+    }
+
+    private JsonRpc.Response dispatch0(McpRequestContext ctx) {
         var method = ctx.method();
 
         // server/discover is the one method that must answer regardless of the
         // version the client guessed — it exists precisely so the client can
         // learn what we support. Every other method is gated on a version match.
         if (McpMethod.SERVER_DISCOVER.equals(method)) {
-            return complete(handleDiscover(ctx.id()));
+            return handleDiscover(ctx.id());
         }
 
         var requested = ctx.protocolVersion();
@@ -77,14 +99,17 @@ final class StatelessDialect implements ProtocolDialect {
         logger.debug("Stateless MCP request '{}' from {} (v{})",
                 method, ctx.clientName(), requested);
 
+        // tools/list, resources/list, resources/read, prompts/list are
+        // CacheableResult per schema → carry ttlMs + cacheScope (SEP-2549).
+        // tools/call, prompts/get and ping are not cacheable → resultType only.
         return switch (method) {
             case McpMethod.PING -> complete(JsonRpc.Response.success(ctx.id(), Map.of()));
-            case McpMethod.TOOLS_LIST -> complete(core.handleToolsList(ctx.id()));
+            case McpMethod.TOOLS_LIST -> cacheable(core.handleToolsList(ctx.id()));
             case McpMethod.TOOLS_CALL ->
                     complete(core.handleToolsCall(ctx.resource(), ctx.id(), ctx.params()));
-            case McpMethod.RESOURCES_LIST -> complete(core.handleResourcesList(ctx.id()));
-            case McpMethod.RESOURCES_READ -> complete(core.handleResourcesRead(ctx.id(), ctx.params()));
-            case McpMethod.PROMPTS_LIST -> complete(core.handlePromptsList(ctx.id()));
+            case McpMethod.RESOURCES_LIST -> cacheable(core.handleResourcesList(ctx.id()));
+            case McpMethod.RESOURCES_READ -> cacheable(core.handleResourcesRead(ctx.id(), ctx.params()));
+            case McpMethod.PROMPTS_LIST -> cacheable(core.handlePromptsList(ctx.id()));
             case McpMethod.PROMPTS_GET -> complete(core.handlePromptsGet(ctx.id(), ctx.params()));
             default -> JsonRpc.Response.error(ctx.id(), JsonRpc.METHOD_NOT_FOUND,
                     "Method '" + method + "' is not available in the "
@@ -110,16 +135,12 @@ final class StatelessDialect implements ProtocolDialect {
         result.put("supportedVersions", supported);
         result.put("capabilities", statelessCapabilities());
         result.put("serverInfo", serverInfo());
-        // DiscoverResult extends CacheableResult, so ttlMs + cacheScope are
-        // required. Tools/resources/prompts can be (un)registered at runtime via
-        // McpRegistry, which makes capabilities mutable — advertise ttlMs:0
-        // (always revalidate) rather than a cache window we cannot honor
-        // (Runtime Truth). cacheScope is public: capabilities are not
-        // principal-specific. The broader SEP-2549 cache metadata on
-        // list/read results is a later slice.
-        result.put(Mcp2026.CACHE_TTL_MS, 0L);
-        result.put(Mcp2026.CACHE_SCOPE, Mcp2026.CACHE_SCOPE_PUBLIC);
-        return JsonRpc.Response.success(id, result);
+        // DiscoverResult extends CacheableResult → cacheable() stamps the
+        // required ttlMs + cacheScope alongside resultType. The default ttlMs is
+        // 0 (always revalidate), honest about capabilities being mutable via
+        // runtime registry changes; a deployment with a static catalog can raise
+        // it via the cacheTtlMs init-param.
+        return cacheable(JsonRpc.Response.success(id, result));
     }
 
     /**
@@ -170,16 +191,42 @@ final class StatelessDialect implements ProtocolDialect {
 
     /**
      * Stamp the mandatory {@code resultType: "complete"} discriminator onto a
-     * successful result (servers on this revision MUST include it; errors are
-     * passed through untouched).
+     * non-cacheable result (servers on this revision MUST include it).
      */
     private static JsonRpc.Response complete(JsonRpc.Response response) {
+        return stamp(response, null);
+    }
+
+    /**
+     * Stamp {@code resultType} plus the {@code CacheableResult} fields
+     * ({@code ttlMs}/{@code cacheScope}, SEP-2549) onto a list/read/discover
+     * result. {@code cacheScope} is {@code "public"}: tool/resource/prompt
+     * catalogs and reads are not principal-specific in this server.
+     */
+    private JsonRpc.Response cacheable(JsonRpc.Response response) {
+        var ttl = core.cacheTtlMs();
+        return stamp(response, fields -> {
+            fields.put(Mcp2026.CACHE_TTL_MS, ttl);
+            fields.put(Mcp2026.CACHE_SCOPE, Mcp2026.CACHE_SCOPE_PUBLIC);
+        });
+    }
+
+    /**
+     * Rebuild a successful result map with {@code resultType} first, then any
+     * {@code extra} envelope fields, then the original payload. Errors and
+     * non-map results pass through untouched.
+     */
+    private static JsonRpc.Response stamp(JsonRpc.Response response,
+                                          Consumer<Map<String, Object>> extra) {
         if (response.error() != null || !(response.result() instanceof Map<?, ?> existing)) {
             return response;
         }
-        var withType = new LinkedHashMap<String, Object>();
-        withType.put(Mcp2026.RESULT_TYPE, Mcp2026.RESULT_TYPE_COMPLETE);
-        existing.forEach((k, v) -> withType.put(String.valueOf(k), v));
-        return JsonRpc.Response.success(response.id(), withType);
+        var out = new LinkedHashMap<String, Object>();
+        out.put(Mcp2026.RESULT_TYPE, Mcp2026.RESULT_TYPE_COMPLETE);
+        if (extra != null) {
+            extra.accept(out);
+        }
+        existing.forEach((k, v) -> out.put(String.valueOf(k), v));
+        return JsonRpc.Response.success(response.id(), out);
     }
 }

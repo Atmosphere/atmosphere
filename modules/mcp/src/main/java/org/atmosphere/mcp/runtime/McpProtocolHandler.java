@@ -70,11 +70,23 @@ public final class McpProtocolHandler {
             "2024-11-05"
     );
 
+    /**
+     * Init-parameter (SEP-2549) setting the {@code ttlMs} cache hint, in
+     * milliseconds, advertised on the stateless {@code 2026-07-28} cacheable
+     * results ({@code server/discover}, {@code tools/list}, {@code resources/list},
+     * {@code resources/read}, {@code prompts/list}). Defaults to {@code 0} —
+     * clients revalidate every time — which is the safe choice because the
+     * registry can be mutated at runtime. A deployment with a static catalog may
+     * raise it to let shared gateways cache list results.
+     */
+    public static final String CACHE_TTL_INIT_PARAM = "org.atmosphere.mcp.cacheTtlMs";
+
     private final String serverName;
     private final String serverVersion;
     private final McpRegistry registry;
     private final AtmosphereConfig config;
     private final List<String> guardrails;
+    private final long cacheTtlMs;
     private final McpTaskManager taskManager = new McpTaskManager();
     private volatile McpTracing tracing;
 
@@ -99,6 +111,33 @@ public final class McpProtocolHandler {
         this.registry = registry;
         this.config = config;
         this.guardrails = guardrails != null ? List.copyOf(guardrails) : List.of();
+        this.cacheTtlMs = resolveCacheTtl(config);
+    }
+
+    /**
+     * Resolve the SEP-2549 cache-TTL hint from {@link #CACHE_TTL_INIT_PARAM},
+     * defaulting to {@code 0} (no caching) when unset, blank, or unparseable.
+     */
+    private static long resolveCacheTtl(AtmosphereConfig config) {
+        if (config == null) {
+            return 0L;
+        }
+        String raw;
+        try {
+            raw = config.getInitParameter(CACHE_TTL_INIT_PARAM);
+        } catch (RuntimeException e) {
+            logger.trace("Could not read {}; defaulting cache TTL to 0", CACHE_TTL_INIT_PARAM, e);
+            return 0L;
+        }
+        if (raw == null || raw.isBlank()) {
+            return 0L;
+        }
+        try {
+            return Math.max(0L, Long.parseLong(raw.trim()));
+        } catch (NumberFormatException e) {
+            logger.warn("Invalid {} '{}'; defaulting to 0 (no caching)", CACHE_TTL_INIT_PARAM, raw);
+            return 0L;
+        }
     }
 
     /**
@@ -131,6 +170,11 @@ public final class McpProtocolHandler {
 
     List<String> guardrails() {
         return guardrails;
+    }
+
+    /** The SEP-2549 {@code ttlMs} cache hint advertised on cacheable results. */
+    long cacheTtlMs() {
+        return cacheTtlMs;
     }
 
     /**

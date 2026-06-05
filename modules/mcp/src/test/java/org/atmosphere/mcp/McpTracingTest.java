@@ -121,4 +121,34 @@ public class McpTracingTest {
 
         verify(span).end();
     }
+
+    // ── SEP-414 W3C trace context propagation ────────────────────────────
+
+    @Test
+    void withRemoteContextPropagatesW3CTraceparent() {
+        // The W3C propagator parses the carrier and makes the remote span the
+        // current context — asserted SDK-free via Span.current().
+        var carrier = java.util.Map.of(
+                "traceparent", "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01");
+        var scope = tracing.withRemoteContext(carrier);
+        try {
+            var sc = Span.current().getSpanContext();
+            assertEquals("0af7651916cd43dd8448eb211c80319c", sc.getTraceId());
+            assertEquals("00f067aa0ba902b7", sc.getSpanId());
+            assertTrue(sc.isRemote(), "extracted span context must be flagged remote");
+        } finally {
+            scope.close();
+        }
+    }
+
+    @Test
+    void withRemoteContextEmptyCarrierIsNoop() {
+        var scope = tracing.withRemoteContext(java.util.Map.of());
+        try {
+            assertFalse(Span.current().getSpanContext().isValid(),
+                    "no carrier → no remote span context");
+        } finally {
+            scope.close();
+        }
+    }
 }

@@ -55,6 +55,20 @@ public final class Mcp2026 {
     /** Required {@code params._meta} key carrying the client's per-request {@code ClientCapabilities}. */
     public static final String META_CLIENT_CAPABILITIES = "io.modelcontextprotocol/clientCapabilities";
 
+    // ── W3C Trace Context in _meta (SEP-414) ─────────────────────────────────
+    // These three keys are an explicit exception to the reverse-DNS prefix rule
+    // for _meta keys (per docs/specification/draft/basic/index.mdx): they carry
+    // standard W3C Trace Context verbatim so OpenTelemetry propagators interop.
+
+    /** {@code params._meta} key carrying the W3C {@code traceparent}. */
+    public static final String META_TRACEPARENT = "traceparent";
+
+    /** {@code params._meta} key carrying the W3C {@code tracestate}. */
+    public static final String META_TRACESTATE = "tracestate";
+
+    /** {@code params._meta} key carrying W3C {@code baggage}. */
+    public static final String META_BAGGAGE = "baggage";
+
     // ── Result envelope (Result.resultType in schema.ts) ─────────────────────
 
     /** Result discriminator field; servers on this revision MUST include it. */

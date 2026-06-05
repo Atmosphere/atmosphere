@@ -250,4 +250,87 @@ public class McpStatelessDialectTest {
         assertEquals(-32601, node.get("error").get("code").asInt(),
                 "tasks/list is session-scoped and not part of the 2026-07-28 stateless dialect");
     }
+
+    // ── SEP-2549 cache metadata on cacheable results ─────────────────────
+
+    @Test
+    public void testCacheMetadataOnListAndReadResults() throws Exception {
+        // tools/list, resources/list, resources/read, prompts/list are
+        // CacheableResult per schema → every one MUST carry ttlMs + cacheScope.
+        for (var req : List.of(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{" + meta() + "}}",
+                "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"resources/list\",\"params\":{" + meta() + "}}",
+                "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"resources/read\",\"params\":{"
+                        + "\"uri\":\"test://data/status\"," + meta() + "}}",
+                "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"prompts/list\",\"params\":{" + meta() + "}}")) {
+            var result = mapper.readTree(handler.handleMessage(resource, req)).get("result");
+            assertNotNull(result, () -> "no result for: " + req);
+            assertEquals("complete", result.get("resultType").stringValue());
+            assertEquals(0, result.get("ttlMs").asInt(), () -> "default ttlMs is 0 for: " + req);
+            assertEquals("public", result.get("cacheScope").stringValue(), () -> "cacheScope for: " + req);
+        }
+    }
+
+    @Test
+    public void testNonCacheableResultsHaveNoCacheFields() throws Exception {
+        // tools/call is not a CacheableResult — resultType only, no ttlMs.
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{"
+                + "\"name\":\"greet\",\"arguments\":{\"name\":\"World\"}," + meta() + "}}";
+        var result = mapper.readTree(handler.handleMessage(resource, req)).get("result");
+        assertEquals("complete", result.get("resultType").stringValue());
+        assertNull(result.get("ttlMs"), "tools/call result is not cacheable");
+        assertNull(result.get("cacheScope"));
+    }
+
+    @Test
+    public void testConfiguredCacheTtlIsAdvertised() throws Exception {
+        // A deployment with a static catalog can opt into a cache window via the
+        // init-param; it must surface as ttlMs on cacheable results.
+        var config = mock(AtmosphereConfig.class);
+        when(config.getInitParameter(McpProtocolHandler.CACHE_TTL_INIT_PARAM)).thenReturn("60000");
+        var registry = new McpRegistry();
+        registry.scan(new TestMcpServer());
+        var tunedHandler = new McpProtocolHandler("test-server", "1.0.0", registry, config);
+
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{" + meta() + "}}";
+        var result = mapper.readTree(tunedHandler.handleMessage(resource, req)).get("result");
+        assertEquals(60000, result.get("ttlMs").asInt());
+        assertEquals("public", result.get("cacheScope").stringValue());
+    }
+
+    // ── SEP-414 trace context propagation does not break dispatch ────────
+
+    // Raw OpenTelemetry AttributeKey in the Mockito matcher is unavoidable
+    // (third-party generic), same as McpTracingTest's class-level suppression.
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testTraceContextInMetaDoesNotBreakDispatch() throws Exception {
+        // A real McpTracing (mock tracer) is attached; a request carrying W3C
+        // trace context in _meta must dispatch normally with the scope applied.
+        // (The W3C propagation itself is asserted in McpTracingTest.)
+        var tracer = mock(io.opentelemetry.api.trace.Tracer.class);
+        var spanBuilder = mock(io.opentelemetry.api.trace.SpanBuilder.class);
+        var span = mock(io.opentelemetry.api.trace.Span.class);
+        when(tracer.spanBuilder(anyString())).thenReturn(spanBuilder);
+        when(spanBuilder.setSpanKind(any())).thenReturn(spanBuilder);
+        when(spanBuilder.setAttribute(any(io.opentelemetry.api.common.AttributeKey.class), any()))
+                .thenReturn(spanBuilder);
+        when(spanBuilder.startSpan()).thenReturn(span);
+        when(span.makeCurrent()).thenReturn(io.opentelemetry.context.Scope.noop());
+        handler.setTracing(new org.atmosphere.mcp.runtime.McpTracing(tracer));
+
+        var req = """
+                {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
+                    "name":"greet","arguments":{"name":"Trace"},
+                    "_meta":{
+                        "io.modelcontextprotocol/protocolVersion":"2026-07-28",
+                        "io.modelcontextprotocol/clientInfo":{"name":"c","version":"1"},
+                        "io.modelcontextprotocol/clientCapabilities":{},
+                        "traceparent":"00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01"
+                    }
+                }}""";
+        var result = mapper.readTree(handler.handleMessage(resource, req)).get("result");
+        assertNotNull(result, "dispatch with trace context must still produce a result");
+        assertEquals("Hello, Trace!", result.get("content").get(0).get("text").stringValue());
+    }
 }
