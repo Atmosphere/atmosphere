@@ -46,10 +46,12 @@ import java.util.function.Consumer;
  * SEP-2549) on list/read/discover results, W3C trace-context propagation from
  * {@code _meta} (SEP-414), and the {@code server/discover} reply.</p>
  *
- * <p>Session-only methods ({@code resources/subscribe}, {@code tasks/*}) report
- * {@code METHOD_NOT_FOUND} here; their stateless equivalents (the restructured
- * Tasks extension) land in a later slice and are not advertised until they
- * exist.</p>
+ * <p>Long-running tools (marked {@code @McpTool(longRunning=true)}) are served
+ * via the negotiated {@code io.modelcontextprotocol/tasks} extension (SEP-2663):
+ * {@code tools/call} returns a {@code CreateTaskResult} handle the client polls
+ * with {@code tasks/get}, plus {@code tasks/cancel}/{@code tasks/update}. There
+ * is no {@code tasks/list} on the stateless model. {@code resources/subscribe}
+ * remains session-only and reports {@code METHOD_NOT_FOUND}.</p>
  */
 final class StatelessDialect implements ProtocolDialect {
 
@@ -105,16 +107,167 @@ final class StatelessDialect implements ProtocolDialect {
         return switch (method) {
             case McpMethod.PING -> complete(JsonRpc.Response.success(ctx.id(), Map.of()));
             case McpMethod.TOOLS_LIST -> cacheable(core.handleToolsList(ctx.id()));
-            case McpMethod.TOOLS_CALL ->
-                    complete(core.handleToolsCall(ctx.resource(), ctx.id(), ctx.params()));
+            case McpMethod.TOOLS_CALL -> handleToolsCall(ctx);
             case McpMethod.RESOURCES_LIST -> cacheable(core.handleResourcesList(ctx.id()));
             case McpMethod.RESOURCES_READ -> cacheable(core.handleResourcesRead(ctx.id(), ctx.params()));
             case McpMethod.PROMPTS_LIST -> cacheable(core.handlePromptsList(ctx.id()));
             case McpMethod.PROMPTS_GET -> complete(core.handlePromptsGet(ctx.id(), ctx.params()));
+            // Tasks extension (SEP-2663) — gated on the negotiated capability.
+            case McpMethod.TASKS_GET -> handleTasksGet(ctx);
+            case McpMethod.TASKS_CANCEL -> handleTasksCancel(ctx);
+            case McpMethod.TASKS_UPDATE -> handleTasksUpdate(ctx);
             default -> JsonRpc.Response.error(ctx.id(), JsonRpc.METHOD_NOT_FOUND,
                     "Method '" + method + "' is not available in the "
                             + Mcp2026.VERSION + " stateless dialect");
         };
+    }
+
+    // ── Tasks extension: io.modelcontextprotocol/tasks (SEP-2663) ────────────
+
+    /**
+     * {@code tools/call} on the stateless transport. A tool flagged
+     * {@code @McpTool(longRunning=true)} is materialized as a <em>task</em>
+     * (server-directed, SEP-2663): if the client negotiated the tasks
+     * extension we return a {@code CreateTaskResult} handle and run the tool
+     * off-thread; if it did not, we reject with {@code -32003} rather than
+     * block. Ordinary tools answer synchronously as before. Policy admission
+     * runs on both paths (mode parity) so a task can't bypass governance.
+     */
+    private JsonRpc.Response handleToolsCall(McpRequestContext ctx) {
+        var params = ctx.params();
+        if (params == null || !params.has("name")) {
+            return complete(core.handleToolsCall(ctx.resource(), ctx.id(), params));
+        }
+        var toolName = params.get("name").stringValue();
+        if (!core.registry().isLongRunning(toolName)) {
+            return complete(core.handleToolsCall(ctx.resource(), ctx.id(), params));
+        }
+        var toolOpt = core.registry().tool(toolName);
+        if (toolOpt.isEmpty()) {
+            return JsonRpc.Response.error(ctx.id(), JsonRpc.METHOD_NOT_FOUND, "Unknown tool: " + toolName);
+        }
+        if (!ctx.clientSupportsExtension(Mcp2026.EXT_TASKS)) {
+            return missingTasksCapability(ctx.id());
+        }
+        var arguments = params.has("arguments") ? params.get("arguments") : null;
+        var denial = core.checkToolPolicy(ctx.id(), toolName, arguments);
+        if (denial != null) {
+            return denial;
+        }
+        var task = core.startToolTask(ctx.resource(), toolOpt.get(), params);
+        // CreateTaskResult = Result & Task with resultType:"task".
+        var m = new LinkedHashMap<String, Object>();
+        m.put(Mcp2026.RESULT_TYPE, Mcp2026.RESULT_TYPE_TASK);
+        m.putAll(taskFields(task));
+        return JsonRpc.Response.success(ctx.id(), m);
+    }
+
+    private JsonRpc.Response handleTasksGet(McpRequestContext ctx) {
+        var taskId = requireTask(ctx);
+        if (taskId.error() != null) {
+            return taskId.error();
+        }
+        var m = new LinkedHashMap<String, Object>();
+        m.put(Mcp2026.RESULT_TYPE, Mcp2026.RESULT_TYPE_COMPLETE);
+        m.putAll(taskFields(taskId.task()));
+        return JsonRpc.Response.success(ctx.id(), m);
+    }
+
+    private JsonRpc.Response handleTasksCancel(McpRequestContext ctx) {
+        var lookup = requireTask(ctx);
+        if (lookup.error() != null) {
+            return lookup.error();
+        }
+        if (lookup.task().status().isTerminal()) {
+            return JsonRpc.Response.error(ctx.id(), JsonRpc.INVALID_PARAMS,
+                    "Cannot cancel task: already in terminal status '"
+                            + lookup.task().status().wireValue() + "'");
+        }
+        var cancelled = core.taskManager().cancel(lookup.task().taskId(), "Cancelled by request");
+        var task = cancelled.orElse(lookup.task());
+        var m = new LinkedHashMap<String, Object>();
+        m.put(Mcp2026.RESULT_TYPE, Mcp2026.RESULT_TYPE_COMPLETE);
+        m.putAll(taskFields(task));
+        return JsonRpc.Response.success(ctx.id(), m);
+    }
+
+    private JsonRpc.Response handleTasksUpdate(McpRequestContext ctx) {
+        var lookup = requireTask(ctx);
+        if (lookup.error() != null) {
+            return lookup.error();
+        }
+        // tasks/update supplies inputResponses to an input_required task. This
+        // server only produces non-interactive tasks (working → terminal); no
+        // tool pauses for mid-flight input yet. The interactive input_required
+        // round-trip — where this would apply inputResponses and resume — lands
+        // with SEP-2322. Until then a task is never awaiting input, so we
+        // reject per the method's contract rather than advertise a flow we
+        // don't drive.
+        if (lookup.task().status() != McpTask.Status.INPUT_REQUIRED) {
+            return JsonRpc.Response.error(ctx.id(), JsonRpc.INVALID_REQUEST,
+                    "Task '" + lookup.task().taskId() + "' is not awaiting input (status: "
+                            + lookup.task().status().wireValue() + ")");
+        }
+        return JsonRpc.Response.error(ctx.id(), JsonRpc.INTERNAL_ERROR,
+                "Interactive input_required tasks are not yet produced by this server");
+    }
+
+    /** Result of resolving a {@code taskId} param: exactly one of task/error is set. */
+    private record TaskLookup(McpTask task, JsonRpc.Response error) {}
+
+    private TaskLookup requireTask(McpRequestContext ctx) {
+        if (!ctx.clientSupportsExtension(Mcp2026.EXT_TASKS)) {
+            return new TaskLookup(null, missingTasksCapability(ctx.id()));
+        }
+        var params = ctx.params();
+        if (params == null || !params.has(Mcp2026.TASK_ID) || !params.get(Mcp2026.TASK_ID).isString()) {
+            return new TaskLookup(null, JsonRpc.Response.error(ctx.id(),
+                    JsonRpc.INVALID_PARAMS, "Missing taskId"));
+        }
+        var taskId = params.get(Mcp2026.TASK_ID).stringValue();
+        var task = core.taskManager().get(taskId);
+        if (task.isEmpty()) {
+            return new TaskLookup(null, JsonRpc.Response.error(ctx.id(),
+                    JsonRpc.INVALID_PARAMS, "Unknown task: " + taskId));
+        }
+        return new TaskLookup(task.get(), null);
+    }
+
+    /** Build the {@code Task} wire fields (SEP-2663), inlining result/error for terminal states. */
+    private Map<String, Object> taskFields(McpTask task) {
+        var m = new LinkedHashMap<String, Object>();
+        m.put(Mcp2026.TASK_ID, task.taskId());
+        m.put(Mcp2026.TASK_STATUS, task.status().wireValue());
+        if (task.statusMessage() != null && !task.statusMessage().isEmpty()) {
+            m.put(Mcp2026.TASK_STATUS_MESSAGE, task.statusMessage());
+        }
+        m.put(Mcp2026.TASK_TTL_MS, task.ttlMs());
+        if (task.pollIntervalMs() != null) {
+            m.put(Mcp2026.TASK_POLL_INTERVAL_MS, task.pollIntervalMs());
+        }
+        switch (task.status()) {
+            case COMPLETED -> {
+                if (task.result().getNow(null) instanceof Map<?, ?> rm) {
+                    var resultObj = new LinkedHashMap<String, Object>();
+                    resultObj.put(Mcp2026.RESULT_TYPE, Mcp2026.RESULT_TYPE_COMPLETE);
+                    rm.forEach((k, v) -> resultObj.put(String.valueOf(k), v));
+                    m.put(Mcp2026.TASK_RESULT, resultObj);
+                }
+            }
+            case FAILED -> m.put(Mcp2026.TASK_ERROR, Map.of(
+                    "code", JsonRpc.INTERNAL_ERROR,
+                    "message", task.statusMessage() != null ? task.statusMessage() : "Task failed"));
+            default -> { /* working / input_required / cancelled carry no inlined payload */ }
+        }
+        return m;
+    }
+
+    private JsonRpc.Response missingTasksCapability(Object id) {
+        var data = new LinkedHashMap<String, Object>();
+        data.put("requiredCapabilities", Map.of(Mcp2026.CAPABILITY_EXTENSIONS,
+                Map.of(Mcp2026.EXT_TASKS, Map.of())));
+        return JsonRpc.Response.error(id, Mcp2026.MISSING_REQUIRED_CLIENT_CAPABILITY,
+                "This request requires the " + Mcp2026.EXT_TASKS + " extension", data);
     }
 
     /**
@@ -161,6 +314,12 @@ final class StatelessDialect implements ProtocolDialect {
         }
         if (!core.registry().prompts().isEmpty()) {
             caps.put("prompts", Map.of());
+        }
+        // SEP-2133 extensions map. Advertise the Tasks extension only when the
+        // server actually has a long-running tool to materialize a task from —
+        // never advertise an extension we wouldn't exercise (Runtime Truth).
+        if (core.registry().hasLongRunningTools()) {
+            caps.put(Mcp2026.CAPABILITY_EXTENSIONS, Map.of(Mcp2026.EXT_TASKS, Map.of()));
         }
         return caps;
     }

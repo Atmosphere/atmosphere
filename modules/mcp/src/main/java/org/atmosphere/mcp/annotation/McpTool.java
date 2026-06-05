@@ -55,4 +55,16 @@ public @interface McpTool {
      * string omits the {@code icons} field from the wire response.
      */
     String iconUrl() default "";
+
+    /**
+     * Marks this tool as long-running. On the stateless {@code 2026-07-28}
+     * transport this is the server-side signal (SEP-2663) to materialize a
+     * <em>task</em>: a {@code tools/call} answers with a {@code CreateTaskResult}
+     * handle that the client polls via {@code tasks/get}, instead of blocking
+     * for the final {@code CallToolResult}. Requires the client to have
+     * negotiated the {@code io.modelcontextprotocol/tasks} extension; otherwise
+     * the call is rejected with {@code -32003}. Has no effect on the legacy
+     * session transport.
+     */
+    boolean longRunning() default false;
 }

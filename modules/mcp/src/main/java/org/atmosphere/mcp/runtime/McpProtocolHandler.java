@@ -419,20 +419,9 @@ public final class McpProtocolHandler {
         int argCount = arguments != null ? arguments.size() : 0;
         var principalName = resolvePrincipal(resource);
 
-        // MCP security gateway. Consult the governance plane (if
-        // atmosphere-ai is on the classpath) before dispatching the tool
-        // handler. MS-schema YAML rules over `tool_name` fire for MCP
-        // invocations the same way they do for first-party @AiTool
-        // dispatches. Partial coverage of OWASP Agentic Top-10 A08.
-        var framework = config != null ? config.framework() : null;
-        var previewArgs = jsonNodeToPreview(arguments);
-        var gateOutcome = McpPolicyGateway.admit(framework, toolName, previewArgs);
-        if (gateOutcome instanceof McpPolicyGateway.Outcome.Denied denied) {
-            logger.warn("MCP tool '{}' denied by policy '{}': {}",
-                    toolName, denied.policyName(), denied.reason());
-            return JsonRpc.Response.error(id, JsonRpc.INVALID_REQUEST,
-                    "Tool '" + toolName + "' denied by policy '" + denied.policyName()
-                            + "': " + denied.reason());
+        var denial = checkToolPolicy(id, toolName, arguments);
+        if (denial != null) {
+            return denial;
         }
 
         try {
@@ -457,6 +446,72 @@ public final class McpProtocolHandler {
                             "Tool invocation failed: " + e.getMessage())),
                     "isError", true
             ));
+        }
+    }
+
+    /**
+     * Consult the MCP governance plane (if atmosphere-ai is on the classpath)
+     * before dispatching a tool. MS-schema YAML rules over {@code tool_name}
+     * fire for MCP invocations the same way they do for first-party
+     * {@code @AiTool} dispatches (partial OWASP Agentic Top-10 A08 coverage).
+     * Returns the JSON-RPC denial response, or {@code null} when admitted —
+     * shared by the synchronous call path and the stateless task path so a
+     * long-running tool cannot bypass policy by being run as a task.
+     */
+    JsonRpc.Response checkToolPolicy(Object id, String toolName, JsonNode arguments) {
+        var framework = config != null ? config.framework() : null;
+        var previewArgs = jsonNodeToPreview(arguments);
+        var gateOutcome = McpPolicyGateway.admit(framework, toolName, previewArgs);
+        if (gateOutcome instanceof McpPolicyGateway.Outcome.Denied denied) {
+            logger.warn("MCP tool '{}' denied by policy '{}': {}",
+                    toolName, denied.policyName(), denied.reason());
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_REQUEST,
+                    "Tool '" + toolName + "' denied by policy '" + denied.policyName()
+                            + "': " + denied.reason());
+        }
+        return null;
+    }
+
+    /**
+     * Materialize a long-running {@code tools/call} as a durable task on the
+     * stateless {@code 2026-07-28} transport (SEP-2663). Creates the task,
+     * dispatches the tool on a virtual thread, and returns the handle
+     * immediately. The caller (the stateless dialect) has already run policy
+     * admission via {@link #checkToolPolicy}. The eventual {@code CallToolResult}
+     * is stored on the task and surfaced through {@code tasks/get}.
+     */
+    McpTask startToolTask(AtmosphereResource resource, McpRegistry.ToolEntry tool, JsonNode params) {
+        var arguments = params != null && params.has("arguments") ? params.get("arguments") : null;
+        var principal = resolvePrincipal(resource);
+        var task = taskManager.create(McpTaskManager.DEFAULT_TTL_MS);
+        Thread.startVirtualThread(() -> runToolIntoTask(task, tool, arguments, principal));
+        return task;
+    }
+
+    private void runToolIntoTask(McpTask task, McpRegistry.ToolEntry tool,
+                                 JsonNode arguments, String principal) {
+        try {
+            var underlying = executeToolCall(null, tool, arguments, principal);
+            if (underlying.error() == null && underlying.result() instanceof Map<?, ?> rawMap) {
+                // Same unchecked cast pattern as acceptToolCallAsTask: the
+                // result map is the CallToolResult envelope we just built.
+                @SuppressWarnings("unchecked")
+                var resMap = (Map<String, Object>) rawMap;
+                var isError = resMap.get("isError") instanceof Boolean b && b;
+                if (isError) {
+                    task.fail(resMap, "Tool reported isError=true");
+                } else {
+                    task.complete(resMap, "Tool completed");
+                }
+            } else {
+                var msg = underlying.error() != null ? underlying.error().message() : "Unknown failure";
+                task.fail(Map.of("content", List.of(Map.of("type", "text",
+                        "text", "Tool execution failed: " + msg)), "isError", true), msg);
+            }
+        } catch (Exception e) {
+            logger.warn("Async MCP task tool execution threw", e);
+            task.fail(Map.of("content", List.of(Map.of("type", "text",
+                    "text", "Tool threw: " + e.getMessage())), "isError", true), e.getMessage());
         }
     }
 

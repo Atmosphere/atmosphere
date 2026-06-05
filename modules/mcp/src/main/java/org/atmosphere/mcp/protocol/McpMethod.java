@@ -63,4 +63,8 @@ public final class McpMethod {
     public static final String TASKS_LIST = "tasks/list";
     public static final String TASKS_CANCEL = "tasks/cancel";
     public static final String TASKS_STATUS = "notifications/tasks/status";
+
+    // tasks/update — client-to-server input for the stateless Tasks extension
+    // (SEP-2663). Supplies inputResponses to an input_required task.
+    public static final String TASKS_UPDATE = "tasks/update";
 }

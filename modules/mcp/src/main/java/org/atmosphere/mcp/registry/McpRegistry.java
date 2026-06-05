@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -192,6 +193,10 @@ public final class McpRegistry {
     private final Map<String, EntryMetadata> toolMetadata = new ConcurrentHashMap<>();
     private final Map<String, EntryMetadata> resourceMetadata = new ConcurrentHashMap<>();
     private final Map<String, EntryMetadata> promptMetadata = new ConcurrentHashMap<>();
+    // Tools flagged @McpTool(longRunning=true) — the server-side trigger to
+    // materialize a Task on the stateless 2026-07-28 transport (SEP-2663).
+    // Kept as a sidecar set so the ToolEntry record signature is unchanged.
+    private final Set<String> longRunningTools = ConcurrentHashMap.newKeySet();
 
     /**
      * Scan the given instance for @McpTool, @McpResource, @McpPrompt methods.
@@ -205,6 +210,9 @@ public final class McpRegistry {
                 var meta = new EntryMetadata(a.title(), a.iconUrl(), Map.of());
                 if (!meta.isEmpty()) {
                     toolMetadata.put(a.name(), meta);
+                }
+                if (a.longRunning()) {
+                    longRunningTools.add(a.name());
                 }
             }
             if (method.isAnnotationPresent(McpResource.class)) {
@@ -257,7 +265,29 @@ public final class McpRegistry {
      * @return true if the tool was found and removed
      */
     public boolean removeTool(String name) {
+        longRunningTools.remove(name);
         return tools.remove(name) != null;
+    }
+
+    /**
+     * Mark a programmatically-registered tool as long-running (the equivalent
+     * of {@code @McpTool(longRunning=true)} for lambda-registered tools).
+     */
+    public void markLongRunning(String name) {
+        longRunningTools.add(name);
+    }
+
+    /**
+     * Whether {@code name} is a long-running tool — the server-side trigger to
+     * materialize a Task on the stateless transport (SEP-2663).
+     */
+    public boolean isLongRunning(String name) {
+        return longRunningTools.contains(name);
+    }
+
+    /** Whether any long-running tool is registered (gates Tasks-extension advertisement). */
+    public boolean hasLongRunningTools() {
+        return !longRunningTools.isEmpty();
     }
 
     // ── Programmatic Resource Registration ───────────────────────────────

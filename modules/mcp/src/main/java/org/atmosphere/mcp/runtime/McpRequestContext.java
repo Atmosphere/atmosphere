@@ -94,6 +94,24 @@ record McpRequestContext(AtmosphereResource resource, Object id, String method,
         }
     }
 
+    /**
+     * Whether the client declared the given reverse-DNS extension in its
+     * per-request capabilities (SEP-2133): {@code _meta.clientCapabilities.extensions[extId]}.
+     * Extension negotiation is per-request on the stateless model, so this is
+     * read fresh from each request rather than from any session state.
+     */
+    boolean clientSupportsExtension(String extId) {
+        if (meta == null) {
+            return false;
+        }
+        var caps = meta.get(Mcp2026.META_CLIENT_CAPABILITIES);
+        if (caps == null) {
+            return false;
+        }
+        var extensions = caps.get(Mcp2026.CAPABILITY_EXTENSIONS);
+        return extensions != null && extensions.has(extId);
+    }
+
     private String metaString(String key) {
         if (meta == null) {
             return null;

@@ -80,6 +80,35 @@ public final class Mcp2026 {
     /** {@link #RESULT_TYPE} value for an {@code InputRequiredResult} (multi round-trip, SEP-2322). */
     public static final String RESULT_TYPE_INPUT_REQUIRED = "input_required";
 
+    /** {@link #RESULT_TYPE} value for a {@code CreateTaskResult} (Tasks extension, SEP-2663). */
+    public static final String RESULT_TYPE_TASK = "task";
+
+    // ── Extensions framework (SEP-2133) + Tasks extension (SEP-2663) ──────────
+
+    /** Sub-field of client/server capabilities holding the reverse-DNS extension map. */
+    public static final String CAPABILITY_EXTENSIONS = "extensions";
+
+    /** Reverse-DNS identifier of the official Tasks extension. */
+    public static final String EXT_TASKS = "io.modelcontextprotocol/tasks";
+
+    // Tasks extension `Task` wire fields (seps/2663-tasks-extension.md).
+    /** Task identifier. */
+    public static final String TASK_ID = "taskId";
+    /** Task status: working/input_required/completed/failed/cancelled. */
+    public static final String TASK_STATUS = "status";
+    /** Optional human-readable status detail. */
+    public static final String TASK_STATUS_MESSAGE = "statusMessage";
+    /** Task freshness/lifetime hint, {@code number | null}. */
+    public static final String TASK_TTL_MS = "ttlMs";
+    /** Suggested client polling interval for {@code tasks/get}. */
+    public static final String TASK_POLL_INTERVAL_MS = "pollIntervalMs";
+    /** Inlined final result on a {@code completed} task. */
+    public static final String TASK_RESULT = "result";
+    /** Inlined JSON-RPC error on a {@code failed} task. */
+    public static final String TASK_ERROR = "error";
+    /** Outstanding server-to-client requests on an {@code input_required} task. */
+    public static final String TASK_INPUT_REQUESTS = "inputRequests";
+
     // ── Cacheable result (CacheableResult in schema.ts, SEP-2549) ────────────
 
     /**
