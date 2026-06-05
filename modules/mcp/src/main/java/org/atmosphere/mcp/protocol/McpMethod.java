@@ -27,6 +27,12 @@ public final class McpMethod {
     public static final String INITIALIZED = "notifications/initialized";
     public static final String PING = "ping";
 
+    // Discovery (MCP 2026-07-28, SEP-2575) — stateless replacement for the
+    // initialize handshake. Servers MUST implement it; clients MAY call it to
+    // fetch supported versions + capabilities up front. Version negotiation can
+    // also happen inline via per-request {@code _meta}.
+    public static final String SERVER_DISCOVER = "server/discover";
+
     // Tools
     public static final String TOOLS_LIST = "tools/list";
     public static final String TOOLS_CALL = "tools/call";

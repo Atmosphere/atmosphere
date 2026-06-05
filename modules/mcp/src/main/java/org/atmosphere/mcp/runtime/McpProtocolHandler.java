@@ -78,6 +78,14 @@ public final class McpProtocolHandler {
     private final McpTaskManager taskManager = new McpTaskManager();
     private volatile McpTracing tracing;
 
+    // Protocol dialects (plugin/adapter pattern). The session model and the
+    // stateless 2026-07-28 model run side by side; the per-request dialect is
+    // selected in handleSingleMessage from the presence of a _meta protocol
+    // version. Both delegate tool/resource/prompt execution back to the shared
+    // handlers below, so the two can never diverge on what a tool returns.
+    private final ProtocolDialect sessionDialect = new SessionDialect(this);
+    private final ProtocolDialect statelessDialect = new StatelessDialect(this);
+
     public McpProtocolHandler(String serverName, String serverVersion,
                               McpRegistry registry, AtmosphereConfig config) {
         this(serverName, serverVersion, registry, config, List.of());
@@ -105,6 +113,24 @@ public final class McpProtocolHandler {
      */
     public McpTracing tracing() {
         return tracing;
+    }
+
+    // Accessors for the protocol dialects. Package-private: the dialects live in
+    // this package and build their own discovery/capability views from these.
+    McpRegistry registry() {
+        return registry;
+    }
+
+    String serverName() {
+        return serverName;
+    }
+
+    String serverVersion() {
+        return serverVersion;
+    }
+
+    List<String> guardrails() {
+        return guardrails;
     }
 
     /**
@@ -169,24 +195,49 @@ public final class McpProtocolHandler {
         }
 
         var idVal = idValue(id);
-        return serialize(switch (method) {
-            case McpMethod.INITIALIZE -> handleInitialize(resource, idVal, node.get("params"));
+        var ctx = McpRequestContext.from(resource, idVal, method, node.get("params"));
+        return serialize(dialectFor(ctx).dispatch(ctx));
+    }
+
+    /**
+     * Select the protocol dialect for a request. A {@code _meta} protocol
+     * version is the signal that the client speaks the stateless
+     * {@code 2026-07-28} model — legacy clients negotiate via the
+     * {@code initialize} handshake and never set it. {@code server/discover} is
+     * the stateless entry point even before the client has pinned a version.
+     */
+    private ProtocolDialect dialectFor(McpRequestContext ctx) {
+        if (ctx.protocolVersion() != null || McpMethod.SERVER_DISCOVER.equals(ctx.method())) {
+            return statelessDialect;
+        }
+        return sessionDialect;
+    }
+
+    /**
+     * Session-model ({@code 2024-11-05 … 2025-11-25}) method dispatch, extracted
+     * verbatim from the original monolithic switch so {@link SessionDialect} can
+     * own it as a peer of {@link StatelessDialect}. Behavior is unchanged.
+     */
+    JsonRpc.Response dispatchSession(AtmosphereResource resource, Object idVal,
+                                     String method, JsonNode params) {
+        return switch (method) {
+            case McpMethod.INITIALIZE -> handleInitialize(resource, idVal, params);
             case McpMethod.PING -> JsonRpc.Response.success(idVal, Map.of());
             case McpMethod.TOOLS_LIST -> handleToolsList(idVal);
-            case McpMethod.TOOLS_CALL -> handleToolsCall(resource, idVal, node.get("params"));
+            case McpMethod.TOOLS_CALL -> handleToolsCall(resource, idVal, params);
             case McpMethod.RESOURCES_LIST -> handleResourcesList(idVal);
-            case McpMethod.RESOURCES_READ -> handleResourcesRead(idVal, node.get("params"));
-            case McpMethod.RESOURCES_SUBSCRIBE -> handleResourcesSubscribe(resource, idVal, node.get("params"));
-            case McpMethod.RESOURCES_UNSUBSCRIBE -> handleResourcesUnsubscribe(resource, idVal, node.get("params"));
+            case McpMethod.RESOURCES_READ -> handleResourcesRead(idVal, params);
+            case McpMethod.RESOURCES_SUBSCRIBE -> handleResourcesSubscribe(resource, idVal, params);
+            case McpMethod.RESOURCES_UNSUBSCRIBE -> handleResourcesUnsubscribe(resource, idVal, params);
             case McpMethod.PROMPTS_LIST -> handlePromptsList(idVal);
-            case McpMethod.PROMPTS_GET -> handlePromptsGet(idVal, node.get("params"));
-            case McpMethod.TASKS_GET -> handleTasksGet(idVal, node.get("params"));
-            case McpMethod.TASKS_RESULT -> handleTasksResult(idVal, node.get("params"));
-            case McpMethod.TASKS_LIST -> handleTasksList(idVal, node.get("params"));
-            case McpMethod.TASKS_CANCEL -> handleTasksCancel(idVal, node.get("params"));
+            case McpMethod.PROMPTS_GET -> handlePromptsGet(idVal, params);
+            case McpMethod.TASKS_GET -> handleTasksGet(idVal, params);
+            case McpMethod.TASKS_RESULT -> handleTasksResult(idVal, params);
+            case McpMethod.TASKS_LIST -> handleTasksList(idVal, params);
+            case McpMethod.TASKS_CANCEL -> handleTasksCancel(idVal, params);
             default -> JsonRpc.Response.error(idVal, JsonRpc.METHOD_NOT_FOUND,
                     "Unknown method: " + method);
-        });
+        };
     }
 
     // ── Lifecycle ────────────────────────────────────────────────────────
@@ -272,7 +323,7 @@ public final class McpProtocolHandler {
 
     // ── Tools ────────────────────────────────────────────────────────────
 
-    private JsonRpc.Response handleToolsList(Object id) {
+    JsonRpc.Response handleToolsList(Object id) {
         var toolList = new ArrayList<Map<String, Object>>();
         for (var entry : registry.tools().values()) {
             var tool = new LinkedHashMap<String, Object>();
@@ -300,7 +351,7 @@ public final class McpProtocolHandler {
         return JsonRpc.Response.success(id, Map.of("tools", toolList));
     }
 
-    private JsonRpc.Response handleToolsCall(AtmosphereResource resource, Object id, JsonNode params) {
+    JsonRpc.Response handleToolsCall(AtmosphereResource resource, Object id, JsonNode params) {
         if (params == null || !params.has("name")) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing tool name");
         }
@@ -637,7 +688,7 @@ public final class McpProtocolHandler {
 
     // ── Resources ────────────────────────────────────────────────────────
 
-    private JsonRpc.Response handleResourcesList(Object id) {
+    JsonRpc.Response handleResourcesList(Object id) {
         var resourceList = new ArrayList<Map<String, Object>>();
         for (var entry : registry.resources().values()) {
             var res = new LinkedHashMap<String, Object>();
@@ -665,7 +716,7 @@ public final class McpProtocolHandler {
         return JsonRpc.Response.success(id, Map.of("resources", resourceList));
     }
 
-    private JsonRpc.Response handleResourcesRead(Object id, JsonNode params) {
+    JsonRpc.Response handleResourcesRead(Object id, JsonNode params) {
         if (params == null || !params.has("uri")) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing resource URI");
         }
@@ -746,7 +797,7 @@ public final class McpProtocolHandler {
 
     // ── Prompts ──────────────────────────────────────────────────────────
 
-    private JsonRpc.Response handlePromptsList(Object id) {
+    JsonRpc.Response handlePromptsList(Object id) {
         var promptList = new ArrayList<Map<String, Object>>();
         for (var entry : registry.prompts().values()) {
             var prompt = new LinkedHashMap<String, Object>();
@@ -783,7 +834,7 @@ public final class McpProtocolHandler {
         return JsonRpc.Response.success(id, Map.of("prompts", promptList));
     }
 
-    private JsonRpc.Response handlePromptsGet(Object id, JsonNode params) {
+    JsonRpc.Response handlePromptsGet(Object id, JsonNode params) {
         if (params == null || !params.has("name")) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing prompt name");
         }

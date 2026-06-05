@@ -19,8 +19,11 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.mcp.protocol.Mcp2026;
+import org.atmosphere.mcp.protocol.McpMethod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -238,6 +241,21 @@ public final class McpHandler implements AtmosphereHandler {
             return;
         }
 
+        // SEP-2243 (MCP 2026-07-28): when the stateless client mirrors the
+        // method/target into the Mcp-Method/Mcp-Name routing headers, they MUST
+        // agree with the body so a load balancer can dispatch on headers alone.
+        var headerMismatch = validateOperabilityHeaders(sb.toString(),
+                request.getHeader(Mcp2026.HEADER_MCP_METHOD),
+                request.getHeader(Mcp2026.HEADER_MCP_NAME));
+        if (headerMismatch != null) {
+            response.setStatus(400);
+            response.setContentType(APPLICATION_JSON);
+            response.getWriter().write(MAPPER.writeValueAsString(Map.of(
+                    "jsonrpc", "2.0",
+                    "error", Map.of("code", -32600, "message", headerMismatch))));
+            return;
+        }
+
         // Restore session from Mcp-Session-Id header if present
         var sessionId = request.getHeader(McpSession.SESSION_ID_HEADER);
         McpSession existingSession = null;
@@ -298,6 +316,64 @@ public final class McpHandler implements AtmosphereHandler {
             response.getWriter().write(jsonResponse);
             response.getWriter().flush();
         }
+    }
+
+    /**
+     * SEP-2243 operability-header consistency check for the stateless
+     * Streamable-HTTP transport. When {@code Mcp-Method} is present the server
+     * MUST reject any disagreement with the JSON-RPC body (and likewise
+     * {@code Mcp-Name} against the addressed tool/resource/prompt), so a router
+     * can trust the headers without reading the body. Returns an error message
+     * to send back, or {@code null} when the headers are absent or consistent.
+     * A body that fails to parse here returns {@code null} so the protocol
+     * handler can surface the parse error through the normal path.
+     */
+    private String validateOperabilityHeaders(String body, String methodHeader, String nameHeader) {
+        if (methodHeader == null) {
+            return null;
+        }
+        JsonNode node;
+        try {
+            node = MAPPER.readTree(body);
+        } catch (RuntimeException e) {
+            logger.trace("Mcp-Method header present but body did not parse; "
+                    + "deferring to protocol handler for the parse error", e);
+            return null;
+        }
+        var bodyMethod = node.has("method") && node.get("method").isString()
+                ? node.get("method").stringValue() : null;
+        if (bodyMethod == null || !bodyMethod.equals(methodHeader)) {
+            return "Mcp-Method header '" + methodHeader + "' does not match body method '"
+                    + bodyMethod + "'";
+        }
+        if (nameHeader != null) {
+            var bodyName = operationName(bodyMethod, node.get("params"));
+            if (bodyName != null && !bodyName.equals(nameHeader)) {
+                return "Mcp-Name header '" + nameHeader + "' does not match body target '"
+                        + bodyName + "'";
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The tool/resource/prompt name a request targets, used for the
+     * {@code Mcp-Name} consistency check. Returns {@code null} for methods that
+     * do not address a named entity.
+     */
+    private static String operationName(String method, JsonNode params) {
+        if (params == null) {
+            return null;
+        }
+        return switch (method) {
+            case McpMethod.TOOLS_CALL, McpMethod.PROMPTS_GET ->
+                    params.has("name") && params.get("name").isString()
+                            ? params.get("name").stringValue() : null;
+            case McpMethod.RESOURCES_READ ->
+                    params.has("uri") && params.get("uri").isString()
+                            ? params.get("uri").stringValue() : null;
+            default -> null;
+        };
     }
 
     /**

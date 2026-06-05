@@ -348,6 +348,66 @@ public class McpStreamableHttpTest {
         assertTrue(msg.contains("999-fake"), "Message should still echo the hostile header value (escaped)");
     }
 
+    // ── SEP-2243 operability headers (MCP 2026-07-28) ────────────────────
+
+    @Test
+    public void testOperabilityHeadersMatchPasses() throws Exception {
+        var body = """
+                {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
+                    "name":"echo","arguments":{"text":"hi"}
+                }}""";
+        var output = new StringWriter();
+        var resource = mockResource("POST", body, "application/json", null);
+        when(resource.getRequest().getHeader("Mcp-Method")).thenReturn("tools/call");
+        when(resource.getRequest().getHeader("Mcp-Name")).thenReturn("echo");
+        when(resource.getResponse().getWriter()).thenReturn(new PrintWriter(output));
+
+        handler.onRequest(resource);
+
+        verify(resource.getResponse(), never()).setStatus(400);
+        verify(resource.getResponse()).setStatus(200);
+    }
+
+    @Test
+    public void testMcpMethodHeaderMismatchReturns400() throws Exception {
+        var body = """
+                {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
+                    "name":"echo","arguments":{"text":"hi"}
+                }}""";
+        var output = new StringWriter();
+        var resource = mockResource("POST", body, "application/json", null);
+        // Router header says tools/list but the body is tools/call — SEP-2243
+        // requires the server to reject the disagreement.
+        when(resource.getRequest().getHeader("Mcp-Method")).thenReturn("tools/list");
+        when(resource.getResponse().getWriter()).thenReturn(new PrintWriter(output));
+
+        handler.onRequest(resource);
+
+        verify(resource.getResponse()).setStatus(400);
+        var node = mapper.readTree(output.toString());
+        assertEquals(-32600, node.get("error").get("code").asInt());
+        assertTrue(node.get("error").get("message").asString().contains("Mcp-Method"));
+    }
+
+    @Test
+    public void testMcpNameHeaderMismatchReturns400() throws Exception {
+        var body = """
+                {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
+                    "name":"echo","arguments":{"text":"hi"}
+                }}""";
+        var output = new StringWriter();
+        var resource = mockResource("POST", body, "application/json", null);
+        when(resource.getRequest().getHeader("Mcp-Method")).thenReturn("tools/call");
+        when(resource.getRequest().getHeader("Mcp-Name")).thenReturn("not-echo");
+        when(resource.getResponse().getWriter()).thenReturn(new PrintWriter(output));
+
+        handler.onRequest(resource);
+
+        verify(resource.getResponse()).setStatus(400);
+        assertTrue(mapper.readTree(output.toString()).get("error").get("message")
+                .asString().contains("Mcp-Name"));
+    }
+
     // ── Helper ───────────────────────────────────────────────────────────
 
     private AtmosphereResource mockResource(String method, String body,
