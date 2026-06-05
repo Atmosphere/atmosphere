@@ -501,15 +501,26 @@ public final class McpProtocolHandler {
     private void runToolIntoTask(McpTask task, McpRegistry.ToolEntry tool,
                                  JsonNode arguments, String principal) {
         var run = runToolWithPrincipal(tool, arguments, principal, McpInputContext.empty());
+        applyRunToTask(task, tool, arguments, principal, McpInputContext.empty(), run);
+    }
+
+    /**
+     * Apply a {@link ToolRun} outcome to a task. A {@code needsInput} outcome
+     * parks the task in {@code input_required} with a {@link TaskResumption}
+     * continuation (SEP-2663 + SEP-2322), so {@code tasks/update} can resume it;
+     * otherwise the task completes or fails. The {@code input} carried in is the
+     * responses the tool saw on this run, which become the accumulated base for
+     * the next round.
+     */
+    private void applyRunToTask(McpTask task, McpRegistry.ToolEntry tool, JsonNode arguments,
+                                String principal, McpInputContext input, ToolRun run) {
         if (run.needsInput()) {
-            // A long-running tool requested mid-flight input. Driving that
-            // through the task (tasks/update resume) builds directly on these
-            // MRTR primitives and is the next step; for now fail cleanly so the
-            // client gets a terminal state, not a task stuck in 'working'.
-            task.fail(errorCallResult("Tool requires interactive input, which is not yet "
-                    + "supported for long-running tasks"), "input_required not supported in task mode");
+            task.resumption(new TaskResumption(tool, arguments, principal,
+                    input.responses(), run.inputRequests()));
+            task.transition(McpTask.Status.INPUT_REQUIRED, "Awaiting client input");
             return;
         }
+        task.resumption(null);
         if (run.paramError() != null) {
             task.fail(errorCallResult(run.paramError()), run.paramError());
             return;
@@ -521,6 +532,32 @@ public final class McpProtocolHandler {
         } else {
             task.complete(resMap, "Tool completed");
         }
+    }
+
+    /**
+     * Resume an {@code input_required} task (SEP-2663 {@code tasks/update}) with
+     * the client's {@code newResponses}. Merges them onto the responses gathered
+     * in prior rounds, flips the task back to {@code working}, and re-runs the
+     * tool off-thread — which may complete it, fail it, or park it in
+     * {@code input_required} again for further input. Returns {@code false} when
+     * the task has no continuation (not awaiting input).
+     */
+    boolean resumeTask(McpTask task, Map<String, Object> newResponses) {
+        var prev = task.resumption();
+        if (prev == null) {
+            return false;
+        }
+        var merged = new LinkedHashMap<String, Object>(prev.accumulated());
+        if (newResponses != null) {
+            merged.putAll(newResponses);
+        }
+        var input = new McpInputContext(merged);
+        task.transition(McpTask.Status.WORKING, "Resuming with client input");
+        Thread.startVirtualThread(() -> {
+            var run = runToolWithPrincipal(prev.tool(), prev.arguments(), prev.principal(), input);
+            applyRunToTask(task, prev.tool(), prev.arguments(), prev.principal(), input, run);
+        });
+        return true;
     }
 
     /**

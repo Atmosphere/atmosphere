@@ -282,20 +282,35 @@ final class StatelessDialect implements ProtocolDialect {
         if (lookup.error() != null) {
             return lookup.error();
         }
-        // tasks/update supplies inputResponses to an input_required task. This
-        // server only produces non-interactive tasks (working → terminal); no
-        // tool pauses for mid-flight input yet. The interactive input_required
-        // round-trip — where this would apply inputResponses and resume — lands
-        // with SEP-2322. Until then a task is never awaiting input, so we
-        // reject per the method's contract rather than advertise a flow we
-        // don't drive.
-        if (lookup.task().status() != McpTask.Status.INPUT_REQUIRED) {
+        var task = lookup.task();
+        // tasks/update applies inputResponses to a task that is awaiting input.
+        if (task.status() != McpTask.Status.INPUT_REQUIRED) {
             return JsonRpc.Response.error(ctx.id(), JsonRpc.INVALID_REQUEST,
-                    "Task '" + lookup.task().taskId() + "' is not awaiting input (status: "
-                            + lookup.task().status().wireValue() + ")");
+                    "Task '" + task.taskId() + "' is not awaiting input (status: "
+                            + task.status().wireValue() + ")");
         }
-        return JsonRpc.Response.error(ctx.id(), JsonRpc.INTERNAL_ERROR,
-                "Interactive input_required tasks are not yet produced by this server");
+        if (!core.resumeTask(task, parseInputResponses(ctx.params()))) {
+            return JsonRpc.Response.error(ctx.id(), JsonRpc.INTERNAL_ERROR,
+                    "Task '" + task.taskId() + "' has no resumable continuation");
+        }
+        // The tool re-runs off-thread; report the task's state after kicking it
+        // off (working, or already terminal if it finished fast). Client polls.
+        var m = new LinkedHashMap<String, Object>();
+        m.put(Mcp2026.RESULT_TYPE, Mcp2026.RESULT_TYPE_COMPLETE);
+        m.putAll(taskFields(task));
+        return JsonRpc.Response.success(ctx.id(), m);
+    }
+
+    /** Extract the {@code inputResponses} map (SEP-2322) from a {@code tasks/update}. */
+    private Map<String, Object> parseInputResponses(JsonNode params) {
+        var out = new LinkedHashMap<String, Object>();
+        var responses = params == null ? null : params.get(Mcp2026.INPUT_RESPONSES);
+        if (responses != null && responses.isObject()) {
+            for (var e : responses.properties()) {
+                out.put(e.getKey(), MAPPER.convertValue(e.getValue(), Object.class));
+            }
+        }
+        return out;
     }
 
     /** Result of resolving a {@code taskId} param: exactly one of task/error is set. */
@@ -343,7 +358,14 @@ final class StatelessDialect implements ProtocolDialect {
             case FAILED -> m.put(Mcp2026.TASK_ERROR, Map.of(
                     "code", JsonRpc.INTERNAL_ERROR,
                     "message", task.statusMessage() != null ? task.statusMessage() : "Task failed"));
-            default -> { /* working / input_required / cancelled carry no inlined payload */ }
+            case INPUT_REQUIRED -> {
+                // InputRequiredTask inlines the outstanding requests (SEP-2663).
+                var r = task.resumption();
+                if (r != null) {
+                    m.put(Mcp2026.TASK_INPUT_REQUESTS, r.inputRequests());
+                }
+            }
+            default -> { /* working / cancelled carry no inlined payload */ }
         }
         return m;
     }

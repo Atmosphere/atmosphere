@@ -22,8 +22,12 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.mcp.annotation.McpParam;
 import org.atmosphere.mcp.annotation.McpTool;
+import org.atmosphere.mcp.protocol.McpInputContext;
+import org.atmosphere.mcp.protocol.McpInputRequiredException;
 import org.atmosphere.mcp.registry.McpRegistry;
 import org.atmosphere.mcp.runtime.McpProtocolHandler;
+
+import java.util.Map;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -65,6 +69,15 @@ public class McpTasksExtensionTest {
         @McpTool(name = "greet", description = "Greet")
         public String greet(@McpParam(name = "name") String name) {
             return "Hi " + name;
+        }
+
+        @McpTool(name = "confirm_job", description = "Long job needing confirmation", longRunning = true)
+        public String confirmJob(McpInputContext input) {
+            if (!input.has("ok")) {
+                throw new McpInputRequiredException(Map.of("ok",
+                        Map.of("method", "elicitation/create", "params", Map.of("message", "Proceed?"))));
+            }
+            return "job done ok=" + input.get("ok");
         }
     }
 
@@ -205,8 +218,33 @@ public class McpTasksExtensionTest {
         var taskId = create.get("result").get("taskId").stringValue();
         var update = call("{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tasks/update\",\"params\":{"
                 + "\"taskId\":\"" + taskId + "\",\"inputResponses\":{}," + metaWithTasks() + "}}");
-        // No tool produces input_required yet → update is rejected, not silently accepted.
+        // A working (non-input_required) task rejects tasks/update per its contract.
         assertNotNull(update.get("error"));
+    }
+
+    // ── Interactive task: input_required → tasks/update resume (SEP-2663+2322) ──
+
+    @Test
+    public void testTaskInputRequiredResumeViaUpdate() throws Exception {
+        // A long-running tool that pauses for input parks the task in
+        // input_required; tasks/update supplies the response and resumes it.
+        var create = call("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{"
+                + "\"name\":\"confirm_job\"," + metaWithTasks() + "}}");
+        assertEquals("task", create.get("result").get("resultType").stringValue());
+        var taskId = create.get("result").get("taskId").stringValue();
+
+        var paused = pollUntilStatus(taskId, "input_required");
+        assertTrue(paused.get("result").get("inputRequests").has("ok"),
+                "tasks/get on an input_required task inlines the outstanding requests");
+
+        var update = call("{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tasks/update\",\"params\":{"
+                + "\"taskId\":\"" + taskId + "\",\"inputResponses\":{\"ok\":\"yes\"}," + metaWithTasks() + "}}");
+        assertNull(update.get("error"), "tasks/update on an input_required task is accepted");
+
+        var done = pollUntilTerminal(taskId);
+        assertEquals("completed", done.get("result").get("status").stringValue());
+        assertEquals("job done ok=yes",
+                done.get("result").get("result").get("content").get(0).get("text").stringValue());
     }
 
     @Test
@@ -248,6 +286,23 @@ public class McpTasksExtensionTest {
             Thread.sleep(20);
         }
         fail("task " + taskId + " did not reach a terminal status");
+        return null;
+    }
+
+    private JsonNode pollUntilStatus(String taskId, String target) throws Exception {
+        for (int i = 0; i < 150; i++) {
+            var node = call("{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"tasks/get\",\"params\":{"
+                    + "\"taskId\":\"" + taskId + "\"," + metaWithTasks() + "}}");
+            var status = node.get("result").get("status").stringValue();
+            if (status.equals(target)) {
+                return node;
+            }
+            if (status.equals("completed") || status.equals("failed") || status.equals("cancelled")) {
+                fail("task " + taskId + " reached terminal '" + status + "' before '" + target + "'");
+            }
+            Thread.sleep(20);
+        }
+        fail("task " + taskId + " did not reach status '" + target + "'");
         return null;
     }
 }

@@ -81,6 +81,13 @@ public final class McpTask {
     /** Resolved when the task reaches a terminal status; carries the underlying request's result. */
     private final CompletableFuture<Map<String, Object>> result = new CompletableFuture<>();
 
+    /**
+     * Continuation for a stateless {@code input_required} task (SEP-2663 +
+     * SEP-2322), or {@code null} for ordinary tasks. Held on the task so it is
+     * evicted with it — no separate resumption store to grow unbounded.
+     */
+    private final AtomicReference<TaskResumption> resumption = new AtomicReference<>();
+
     public McpTask(long ttlMs, Long pollIntervalMs) {
         this.taskId = UUID.randomUUID().toString();
         this.createdAt = Instant.now();
@@ -91,6 +98,16 @@ public final class McpTask {
 
     public String taskId() {
         return taskId;
+    }
+
+    /** The {@code input_required} continuation, or {@code null}. Package-private. */
+    TaskResumption resumption() {
+        return resumption.get();
+    }
+
+    /** Set or clear the {@code input_required} continuation. Package-private. */
+    void resumption(TaskResumption value) {
+        resumption.set(value);
     }
 
     public Status status() {
