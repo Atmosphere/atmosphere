@@ -83,6 +83,22 @@ public final class Mcp2026 {
     /** {@link #RESULT_TYPE} value for a {@code CreateTaskResult} (Tasks extension, SEP-2663). */
     public static final String RESULT_TYPE_TASK = "task";
 
+    // ── Multi-round-trip (InputRequiredResult, SEP-2322) ─────────────────────
+
+    /** Server-to-client requests the client must fulfill before retrying ({@code InputRequiredResult}). */
+    public static final String INPUT_REQUESTS = "inputRequests";
+
+    /** Client responses to a prior {@code inputRequests}, supplied on the retry request. */
+    public static final String INPUT_RESPONSES = "inputResponses";
+
+    /**
+     * Opaque, client-echoed continuation token. Carries the accumulated
+     * input responses from prior rounds so any server instance can resume a
+     * paused request without server-side session state (the client must treat
+     * it as a blob and not interpret it).
+     */
+    public static final String REQUEST_STATE = "requestState";
+
     // ── Extensions framework (SEP-2133) + Tasks extension (SEP-2663) ──────────
 
     /** Sub-field of client/server capabilities holding the reverse-DNS extension map. */

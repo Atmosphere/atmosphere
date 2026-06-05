@@ -24,6 +24,8 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.mcp.protocol.JsonRpc;
+import org.atmosphere.mcp.protocol.McpInputContext;
+import org.atmosphere.mcp.protocol.McpInputRequiredException;
 import org.atmosphere.mcp.protocol.McpMethod;
 import org.atmosphere.mcp.registry.McpRegistry;
 import org.slf4j.Logger;
@@ -97,6 +99,14 @@ public final class McpProtocolHandler {
     // handlers below, so the two can never diverge on what a tool returns.
     private final ProtocolDialect sessionDialect = new SessionDialect(this);
     private final ProtocolDialect statelessDialect = new StatelessDialect(this);
+
+    // Per-invocation multi-round-trip input (SEP-2322), made available to a
+    // tool handler that injects an McpInputContext parameter. Set and cleared
+    // around each tool execution in runToolWithPrincipal — on whatever thread
+    // runs the tool (the request thread for a sync call, the task's virtual
+    // thread for a long-running call), so each invocation sees only its own.
+    private static final ThreadLocal<McpInputContext> CURRENT_INPUT =
+            ThreadLocal.withInitial(McpInputContext::empty);
 
     public McpProtocolHandler(String serverName, String serverVersion,
                               McpRegistry registry, AtmosphereConfig config) {
@@ -490,29 +500,94 @@ public final class McpProtocolHandler {
 
     private void runToolIntoTask(McpTask task, McpRegistry.ToolEntry tool,
                                  JsonNode arguments, String principal) {
-        try {
-            var underlying = executeToolCall(null, tool, arguments, principal);
-            if (underlying.error() == null && underlying.result() instanceof Map<?, ?> rawMap) {
-                // Same unchecked cast pattern as acceptToolCallAsTask: the
-                // result map is the CallToolResult envelope we just built.
-                @SuppressWarnings("unchecked")
-                var resMap = (Map<String, Object>) rawMap;
-                var isError = resMap.get("isError") instanceof Boolean b && b;
-                if (isError) {
-                    task.fail(resMap, "Tool reported isError=true");
-                } else {
-                    task.complete(resMap, "Tool completed");
-                }
-            } else {
-                var msg = underlying.error() != null ? underlying.error().message() : "Unknown failure";
-                task.fail(Map.of("content", List.of(Map.of("type", "text",
-                        "text", "Tool execution failed: " + msg)), "isError", true), msg);
-            }
-        } catch (Exception e) {
-            logger.warn("Async MCP task tool execution threw", e);
-            task.fail(Map.of("content", List.of(Map.of("type", "text",
-                    "text", "Tool threw: " + e.getMessage())), "isError", true), e.getMessage());
+        var run = runToolWithPrincipal(tool, arguments, principal, McpInputContext.empty());
+        if (run.needsInput()) {
+            // A long-running tool requested mid-flight input. Driving that
+            // through the task (tasks/update resume) builds directly on these
+            // MRTR primitives and is the next step; for now fail cleanly so the
+            // client gets a terminal state, not a task stuck in 'working'.
+            task.fail(errorCallResult("Tool requires interactive input, which is not yet "
+                    + "supported for long-running tasks"), "input_required not supported in task mode");
+            return;
         }
+        if (run.paramError() != null) {
+            task.fail(errorCallResult(run.paramError()), run.paramError());
+            return;
+        }
+        var resMap = run.callResult();
+        var isError = resMap.get("isError") instanceof Boolean b && b;
+        if (isError) {
+            task.fail(resMap, "Tool reported isError=true");
+        } else {
+            task.complete(resMap, "Tool completed");
+        }
+    }
+
+    /**
+     * Outcome of a tool invocation through {@link #runToolWithPrincipal}: exactly
+     * one of {@code callResult} (the {@code CallToolResult} map, success or
+     * tool-level error), {@code inputRequests} (the handler paused for input,
+     * SEP-2322), or {@code paramError} (invalid arguments → {@code -32602}).
+     */
+    record ToolRun(Map<String, Object> callResult, Map<String, Object> inputRequests, String paramError) {
+        boolean needsInput() {
+            return inputRequests != null;
+        }
+    }
+
+    /**
+     * Run a tool for the stateless transport with a multi-round-trip input
+     * context (SEP-2322), resolving the principal from the live request.
+     */
+    ToolRun runToolCall(AtmosphereResource resource, McpRegistry.ToolEntry tool,
+                        JsonNode arguments, McpInputContext input) {
+        return runToolWithPrincipal(tool, arguments, resolvePrincipal(resource), input);
+    }
+
+    /**
+     * Invoke a tool with {@code input} bound to the per-invocation
+     * {@link McpInputContext} (so a handler that injects one sees the client's
+     * accumulated responses). A handler that needs more input throws
+     * {@link McpInputRequiredException}; we surface that as {@code inputRequests}
+     * rather than a failure so the dialect can return an {@code InputRequiredResult}.
+     */
+    private ToolRun runToolWithPrincipal(McpRegistry.ToolEntry tool, JsonNode arguments,
+                                         String principal, McpInputContext input) {
+        CURRENT_INPUT.set(input == null ? McpInputContext.empty() : input);
+        try {
+            int argCount = arguments != null ? arguments.size() : 0;
+            // Keep the tool span (SEP-414/observability) on this path too.
+            var resp = tracing != null
+                    ? tracing.traced("tool", tool.name(), argCount,
+                            () -> executeToolCall(null, tool, arguments, principal))
+                    : executeToolCall(null, tool, arguments, principal);
+            // executeToolCall returns a success envelope on a normal return.
+            @SuppressWarnings("unchecked")
+            var callResult = (Map<String, Object>) resp.result();
+            return new ToolRun(callResult, null, null);
+        } catch (InvocationTargetException e) {
+            if (e.getCause() instanceof McpInputRequiredException ire) {
+                return new ToolRun(null, ire.inputRequests(), null);
+            }
+            var cause = e.getCause() != null ? e.getCause() : e;
+            logger.warn("MCP tool invocation failed", cause);
+            return new ToolRun(errorCallResult(cause.getMessage()), null, null);
+        } catch (McpInputRequiredException ire) {
+            // A dynamic (lambda) handler throws directly, not via reflection.
+            return new ToolRun(null, ire.inputRequests(), null);
+        } catch (IllegalArgumentException e) {
+            return new ToolRun(null, null, e.getMessage());
+        } catch (Exception e) {
+            logger.warn("MCP tool invocation failed", e);
+            return new ToolRun(errorCallResult("Tool invocation failed: " + e.getMessage()), null, null);
+        } finally {
+            CURRENT_INPUT.remove();
+        }
+    }
+
+    private static Map<String, Object> errorCallResult(String message) {
+        return Map.of("content", List.of(Map.of("type", "text",
+                "text", message != null ? message : "error")), "isError", true);
     }
 
     private JsonRpc.Response executeToolCall(Object id,
@@ -1028,6 +1103,9 @@ public final class McpProtocolHandler {
      * Resolve framework-injectable types for @McpTool method parameters.
      */
     private Object resolveInjectable(Class<?> type, String topic) {
+        if (type == McpInputContext.class) {
+            return CURRENT_INPUT.get();
+        }
         if (type == AtmosphereConfig.class) {
             return config;
         }

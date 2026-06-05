@@ -472,6 +472,10 @@ public final class McpRegistry {
                 || type == org.atmosphere.cpr.AtmosphereFramework.class) {
             return true;
         }
+        // Multi-round-trip input context (SEP-2322) — injected per invocation.
+        if (type == org.atmosphere.mcp.protocol.McpInputContext.class) {
+            return true;
+        }
         // atmosphere-ai StreamingSession (optional dependency)
         try {
             var streamingSessionClass = Class.forName("org.atmosphere.ai.StreamingSession");

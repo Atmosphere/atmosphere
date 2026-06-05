@@ -17,11 +17,15 @@ package org.atmosphere.mcp.runtime;
 
 import org.atmosphere.mcp.protocol.JsonRpc;
 import org.atmosphere.mcp.protocol.Mcp2026;
+import org.atmosphere.mcp.protocol.McpInputContext;
 import org.atmosphere.mcp.protocol.McpMethod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +60,7 @@ import java.util.function.Consumer;
 final class StatelessDialect implements ProtocolDialect {
 
     private static final Logger logger = LoggerFactory.getLogger(StatelessDialect.class);
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final McpProtocolHandler core;
 
@@ -130,36 +135,117 @@ final class StatelessDialect implements ProtocolDialect {
      * (server-directed, SEP-2663): if the client negotiated the tasks
      * extension we return a {@code CreateTaskResult} handle and run the tool
      * off-thread; if it did not, we reject with {@code -32003} rather than
-     * block. Ordinary tools answer synchronously as before. Policy admission
-     * runs on both paths (mode parity) so a task can't bypass governance.
+     * block. Ordinary tools answer synchronously, and may pause for input via
+     * the multi-round-trip protocol (SEP-2322): a handler that throws
+     * {@code McpInputRequiredException} yields an {@code InputRequiredResult}
+     * the client fulfils and retries with {@code inputResponses}. Policy
+     * admission runs on every path (mode parity) so neither a task nor a paused
+     * call can bypass governance.
      */
     private JsonRpc.Response handleToolsCall(McpRequestContext ctx) {
         var params = ctx.params();
         if (params == null || !params.has("name")) {
-            return complete(core.handleToolsCall(ctx.resource(), ctx.id(), params));
+            return JsonRpc.Response.error(ctx.id(), JsonRpc.INVALID_PARAMS, "Missing tool name");
         }
         var toolName = params.get("name").stringValue();
-        if (!core.registry().isLongRunning(toolName)) {
-            return complete(core.handleToolsCall(ctx.resource(), ctx.id(), params));
-        }
         var toolOpt = core.registry().tool(toolName);
         if (toolOpt.isEmpty()) {
             return JsonRpc.Response.error(ctx.id(), JsonRpc.METHOD_NOT_FOUND, "Unknown tool: " + toolName);
         }
-        if (!ctx.clientSupportsExtension(Mcp2026.EXT_TASKS)) {
-            return missingTasksCapability(ctx.id());
-        }
         var arguments = params.has("arguments") ? params.get("arguments") : null;
+
+        if (core.registry().isLongRunning(toolName)) {
+            // Long-running → task (SEP-2663), gated on the negotiated extension.
+            if (!ctx.clientSupportsExtension(Mcp2026.EXT_TASKS)) {
+                return missingTasksCapability(ctx.id());
+            }
+            var denial = core.checkToolPolicy(ctx.id(), toolName, arguments);
+            if (denial != null) {
+                return denial;
+            }
+            var task = core.startToolTask(ctx.resource(), toolOpt.get(), params);
+            // CreateTaskResult = Result & Task with resultType:"task".
+            var m = new LinkedHashMap<String, Object>();
+            m.put(Mcp2026.RESULT_TYPE, Mcp2026.RESULT_TYPE_TASK);
+            m.putAll(taskFields(task));
+            return JsonRpc.Response.success(ctx.id(), m);
+        }
+
+        // Synchronous tool with multi-round-trip input support (SEP-2322): the
+        // handler may pause for client input and resume on retry.
         var denial = core.checkToolPolicy(ctx.id(), toolName, arguments);
         if (denial != null) {
             return denial;
         }
-        var task = core.startToolTask(ctx.resource(), toolOpt.get(), params);
-        // CreateTaskResult = Result & Task with resultType:"task".
+        var input = inputContext(params);
+        var run = core.runToolCall(ctx.resource(), toolOpt.get(), arguments, input);
+        if (run.paramError() != null) {
+            return JsonRpc.Response.error(ctx.id(), JsonRpc.INVALID_PARAMS, run.paramError());
+        }
+        if (run.needsInput()) {
+            // requestState carries the responses accumulated so far so the next
+            // round (on any instance) resumes without server-side state.
+            return inputRequiredResult(ctx.id(), run.inputRequests(), encodeState(input.responses()));
+        }
+        return complete(JsonRpc.Response.success(ctx.id(), run.callResult()));
+    }
+
+    /**
+     * Build the {@code InputRequiredResult} (SEP-2322): {@code resultType:"input_required"}
+     * with the handler's {@code inputRequests} and an opaque {@code requestState}.
+     */
+    private JsonRpc.Response inputRequiredResult(Object id, Map<String, Object> inputRequests,
+                                                 String requestState) {
         var m = new LinkedHashMap<String, Object>();
-        m.put(Mcp2026.RESULT_TYPE, Mcp2026.RESULT_TYPE_TASK);
-        m.putAll(taskFields(task));
-        return JsonRpc.Response.success(ctx.id(), m);
+        m.put(Mcp2026.RESULT_TYPE, Mcp2026.RESULT_TYPE_INPUT_REQUIRED);
+        m.put(Mcp2026.INPUT_REQUESTS, inputRequests);
+        m.put(Mcp2026.REQUEST_STATE, requestState);
+        return JsonRpc.Response.success(id, m);
+    }
+
+    /**
+     * Assemble the accumulated input responses for this round: the prior-round
+     * responses decoded from {@code requestState} plus this request's
+     * {@code inputResponses}. The result is injected into the handler as an
+     * {@link McpInputContext}.
+     */
+    private McpInputContext inputContext(JsonNode params) {
+        var accumulated = new LinkedHashMap<String, Object>();
+        var state = params.get(Mcp2026.REQUEST_STATE);
+        if (state != null && state.isString()) {
+            accumulated.putAll(decodeState(state.stringValue()));
+        }
+        var responses = params.get(Mcp2026.INPUT_RESPONSES);
+        if (responses != null && responses.isObject()) {
+            for (var e : responses.properties()) {
+                accumulated.put(e.getKey(), MAPPER.convertValue(e.getValue(), Object.class));
+            }
+        }
+        return new McpInputContext(accumulated);
+    }
+
+    private static String encodeState(Map<String, Object> responses) {
+        try {
+            return Base64.getEncoder().encodeToString(MAPPER.writeValueAsBytes(responses));
+        } catch (RuntimeException e) {
+            logger.trace("Could not encode requestState; returning empty", e);
+            return "";
+        }
+    }
+
+    @SuppressWarnings("unchecked") // Jackson readValue(Map.class) is an unavoidable raw type
+    private static Map<String, Object> decodeState(String state) {
+        if (state == null || state.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            return MAPPER.readValue(Base64.getDecoder().decode(state), Map.class);
+        } catch (RuntimeException e) {
+            // Malformed or forged requestState (it is client-controlled): treat
+            // as no prior responses rather than fail — the handler re-requests.
+            logger.debug("Ignoring unparseable requestState", e);
+            return Map.of();
+        }
     }
 
     private JsonRpc.Response handleTasksGet(McpRequestContext ctx) {
