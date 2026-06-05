@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.50] - 2026-06-05
+
 ### Removed
 
 - Pruned dead/unwired internal classes found during a release-readiness audit —
