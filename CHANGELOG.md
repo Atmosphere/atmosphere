@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.51] - 2026-06-06
+
 ### Added
 
 - **MCP `2026-07-28` release candidate** — the largest MCP revision since launch,
