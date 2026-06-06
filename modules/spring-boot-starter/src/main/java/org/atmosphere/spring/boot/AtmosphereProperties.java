@@ -240,6 +240,15 @@ public class AtmosphereProperties {
     /** Whether to register admin write tools as MCP tools (default false). */
     private String adminMcpWriteTools = "false";
 
+    /** Dedicated origin the console uses to host the MCP Apps sandbox proxy
+     *  (SEP-1865). When set (e.g. {@code https://mcp-sandbox.example.com}), the
+     *  console loads untrusted MCP App HTML through a proxy iframe at this
+     *  origin, which MUST differ from the console's own origin. The configured
+     *  origin MUST serve the console's {@code /atmosphere/console/sandbox.html}.
+     *  When blank, the console derives a distinct dev origin (localhost ↔
+     *  127.0.0.1) and otherwise falls back to the opaque-origin direct sandbox. */
+    private String mcpSandboxOrigin = "";
+
     public String getConsoleSubtitle() {
         return consoleSubtitle;
     }
@@ -254,6 +263,14 @@ public class AtmosphereProperties {
 
     public void setConsoleEndpoint(String consoleEndpoint) {
         this.consoleEndpoint = consoleEndpoint;
+    }
+
+    public String getMcpSandboxOrigin() {
+        return mcpSandboxOrigin;
+    }
+
+    public void setMcpSandboxOrigin(String mcpSandboxOrigin) {
+        this.mcpSandboxOrigin = mcpSandboxOrigin;
     }
 
     public String getAdminMcpWriteTools() {

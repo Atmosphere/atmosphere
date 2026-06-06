@@ -13,7 +13,9 @@ The `DemoMcpServer` exposes:
 - `send_message` — send a private message to a specific user by UUID
 - `atmosphere_version` — return the Atmosphere framework version and runtime info
 - `clock_app` — an **MCP App** (SEP-1865): declares a `ui://` UI resource that a
-  host renders in a sandboxed iframe
+  host renders in a sandboxed iframe. The app itself registers a `cycle_theme`
+  tool the host can call back into it (Host→App), and can call server tools
+  (e.g. `atmosphere_version`) back out through the host (App→Host→Server).
 
 **Resources** (agents can read these):
 - `atmosphere://server/status` — server status and uptime
@@ -25,8 +27,23 @@ The `DemoMcpServer` exposes:
 server advertises the `io.modelcontextprotocol/apps` extension. The bundled
 Atmosphere **console** (`http://localhost:8083/atmosphere/console/`) acts as the
 host: its **MCP Apps** tab lists app tools, reads the `ui://` HTML over the
-stateless `2026-07-28` protocol, and renders it in a sandboxed
-(`allow-scripts`, no same-origin) iframe.
+stateless `2026-07-28` protocol, and renders it.
+
+The App Bridge (JSON-RPC 2.0 over `postMessage`) is **bidirectional**: the app
+calls server tools through the host (App→Host→Server — the server's policy
+gateway still gates the call), and the host lists and calls the app's own
+registered tools (Host→App — try the *Cycle theme* button under the app frame).
+
+**Sandbox isolation.** When a distinct sandbox origin is available, the host
+renders the app through a **separate-origin sandbox proxy**
+(`/atmosphere/console/sandbox.html`): the proxy iframe loads at a different
+origin and renders the app HTML in a nested opaque-origin iframe with a CSP. On
+`localhost` the console uses the `127.0.0.1` sibling origin automatically so the
+proxy path works out of the box; in production set
+`atmosphere.mcp-sandbox-origin` to a dedicated origin (which must serve the same
+`sandbox.html`). With no distinct origin the host falls back to rendering the
+HTML directly in an opaque-origin sandboxed iframe (`allow-scripts`, no
+same-origin) — still isolated from the host.
 
 **Prompts** (reusable prompt templates):
 - `chat_summary` — summarize current chat status

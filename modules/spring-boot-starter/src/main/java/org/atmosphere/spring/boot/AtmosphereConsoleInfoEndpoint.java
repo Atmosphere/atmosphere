@@ -76,6 +76,14 @@ public class AtmosphereConsoleInfoEndpoint {
         var mcpEndpoint = detectMcpEndpoint();
         if (mcpEndpoint != null) {
             result.put("mcpEndpoint", mcpEndpoint);
+            // Dedicated origin for the MCP Apps sandbox proxy (SEP-1865), when a
+            // deployer configured one. Only surfaced alongside a live MCP
+            // endpoint and only when non-blank, so the console derives its own
+            // dev origin otherwise (Runtime Truth — no empty config echoed back).
+            var sandboxOrigin = properties.getMcpSandboxOrigin();
+            if (sandboxOrigin != null && !sandboxOrigin.isBlank()) {
+                result.put("mcpSandboxOrigin", sandboxOrigin.trim());
+            }
         }
         return result;
     }

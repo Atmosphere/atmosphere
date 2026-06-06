@@ -24,6 +24,7 @@ const ready = ref(false)
 const activeTab = ref<Tab>('chat')
 // The live MCP endpoint, when one is registered — enables the MCP Apps host tab.
 const mcpEndpoint = ref<string | null>(null)
+const mcpSandboxOrigin = ref<string | null>(null)
 const governanceAvailable = ref(false)
 const governancePolicyCount = ref<number | null>(null)
 const agentsAvailable = ref(false)
@@ -121,6 +122,7 @@ onMounted(async () => {
       if (data.endpoint) endpoint.value = data.endpoint
       if (data.mode === 'broadcast' || data.mode === 'ai') mode.value = data.mode
       if (data.mcpEndpoint) mcpEndpoint.value = data.mcpEndpoint
+      if (data.mcpSandboxOrigin) mcpSandboxOrigin.value = data.mcpSandboxOrigin
     }
   } catch {
     // Console info not available — use defaults
@@ -163,7 +165,8 @@ onMounted(async () => {
       <Validation v-if="ready && validationAvailable" v-show="activeTab === 'validation'"
                   :active="activeTab === 'validation'" />
       <McpApps v-if="ready && mcpEndpoint" v-show="activeTab === 'apps'"
-               :endpoint="mcpEndpoint" :active="activeTab === 'apps'" />
+               :endpoint="mcpEndpoint" :active="activeTab === 'apps'"
+               :sandbox-origin="mcpSandboxOrigin ?? undefined" />
       <GovernancePolicies v-if="ready" v-show="activeTab === 'policies'"
                           :active="activeTab === 'policies'" />
       <GovernanceDecisions v-if="ready" v-show="activeTab === 'decisions'"

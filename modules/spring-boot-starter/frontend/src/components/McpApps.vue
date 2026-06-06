@@ -15,13 +15,26 @@ import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 //   • Host→App — when the app declares appCapabilities.tools in ui/initialize,
 //     the host lists the app-registered tools (tools/list sent INTO the iframe)
 //     and can invoke them (tools/call), letting the host drive the app's UI.
-// NOTE: the separate-origin sandbox-proxy hardening is tracked separately; this
-// host uses the opaque-origin sandboxed iframe (no allow-same-origin).
+// Isolation: when a distinct sandbox origin is available, the app HTML is
+// rendered through a separate-origin SANDBOX PROXY (SEP-1865 "Sandbox proxy",
+// sandbox.html): the host loads the proxy in an iframe at a different origin
+// (allow-scripts allow-same-origin) and hands it the untrusted HTML via
+// ui/notifications/sandbox-resource-ready; the proxy renders the app in a nested
+// opaque-origin iframe with a CSP and transparently relays every non-sandbox-*
+// message. The sandbox origin is the deployer-configured mcpSandboxOrigin, or in
+// dev the localhost↔127.0.0.1 sibling origin. When no distinct origin exists
+// (a single real domain with no config), the host falls back to rendering the
+// HTML directly in an opaque-origin sandboxed iframe (allow-scripts, no
+// allow-same-origin) — still isolated from the host, just without the proxy hop.
 
-const props = defineProps<{ endpoint: string; active: boolean }>()
+const props = defineProps<{ endpoint: string; active: boolean; sandboxOrigin?: string }>()
 
 const frameEl = ref<HTMLIFrameElement | null>(null)
 const bridgeReady = ref(false)
+
+// Whether the current render goes through the separate-origin sandbox proxy.
+const useProxy = ref(false)
+const proxySrc = ref('')
 
 interface AppTool {
   name: string
@@ -104,6 +117,22 @@ async function loadApps() {
   }
 }
 
+// Resolve the origin that should host the sandbox proxy. It MUST differ from
+// the console's own origin to isolate the proxy from the host.
+function resolveSandboxOrigin(): string | null {
+  const configured = props.sandboxOrigin?.trim().replace(/\/$/, '')
+  if (configured) {
+    return configured !== window.location.origin ? configured : null
+  }
+  // Dev convenience: localhost and 127.0.0.1 are distinct origins served by the
+  // same process, so we can exercise the real separate-origin path locally.
+  const { protocol, hostname, port } = window.location
+  const portPart = port ? `:${port}` : ''
+  if (hostname === 'localhost') return `${protocol}//127.0.0.1${portPart}`
+  if (hostname === '127.0.0.1') return `${protocol}//localhost${portPart}`
+  return null
+}
+
 async function open(app: AppTool) {
   selected.value = app
   html.value = ''
@@ -112,6 +141,8 @@ async function open(app: AppTool) {
   appTools.value = []
   appToolResult.value = ''
   appDeclaresTools = false
+  useProxy.value = false
+  proxySrc.value = ''
   rejectAllAppRequests('app reloaded')
   try {
     const result = await rpc('resources/read', { uri: app.resourceUri })
@@ -120,6 +151,15 @@ async function open(app: AppTool) {
       throw new Error('UI resource returned no HTML')
     }
     html.value = content.text
+    const origin = resolveSandboxOrigin()
+    if (origin) {
+      // sandbox.html lives next to the console document, served from the
+      // distinct origin. The HTML is delivered later via postMessage, never
+      // injected into the host DOM.
+      const base = window.location.pathname.replace(/[^/]*$/, '')
+      proxySrc.value = `${origin}${base}sandbox.html`
+      useProxy.value = true
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   }
@@ -218,6 +258,15 @@ async function onBridgeMessage(event: MessageEvent) {
 
   // Notification (no id).
   if (msg.id === undefined || msg.id === null) {
+    if (msg.method === 'ui/notifications/sandbox-proxy-ready') {
+      // The separate-origin proxy is live: hand it the untrusted HTML to render
+      // in its nested opaque-origin iframe. The HTML never enters the host DOM.
+      frameEl.value?.contentWindow?.postMessage(
+        { jsonrpc: '2.0', method: 'ui/notifications/sandbox-resource-ready', params: { html: html.value } },
+        '*',
+      )
+      return
+    }
     if (msg.method === 'ui/notifications/initialized') {
       bridgeReady.value = true
       // App is live; if it registered tools, enumerate them (Host→App tools/list).
@@ -274,13 +323,27 @@ watch(() => props.active, (a) => { if (a) loadApps() }, { immediate: true })
       </button>
     </aside>
     <section class="app-stage">
+      <!-- Separate-origin sandbox proxy: the proxy needs allow-same-origin to
+           script in its OWN distinct origin; isolation comes from that origin
+           differing from the host's, and from the nested opaque-origin View. -->
       <iframe
-        v-if="html"
+        v-if="html && useProxy"
+        ref="frameEl"
+        :src="proxySrc"
+        sandbox="allow-scripts allow-same-origin"
+        class="app-frame"
+        data-testid="mcp-app-frame"
+        data-sandbox-mode="proxy"
+        title="MCP App"
+      ></iframe>
+      <iframe
+        v-else-if="html"
         ref="frameEl"
         :srcdoc="html"
         sandbox="allow-scripts"
         class="app-frame"
         data-testid="mcp-app-frame"
+        data-sandbox-mode="direct"
         title="MCP App"
       ></iframe>
       <p v-else-if="!loading && !error" class="muted stage-empty">
