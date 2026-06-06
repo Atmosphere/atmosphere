@@ -8,9 +8,10 @@ import GovernanceCommitments from './components/GovernanceCommitments.vue'
 import Sessions from './components/Sessions.vue'
 import Interactions from './components/Interactions.vue'
 import Validation from './components/Validation.vue'
+import McpApps from './components/McpApps.vue'
 import logoUrl from './assets/logo.svg'
 
-type Tab = 'chat' | 'sessions' | 'interactions' | 'validation' | 'policies' | 'decisions' | 'owasp' | 'commitments'
+type Tab = 'chat' | 'sessions' | 'interactions' | 'validation' | 'apps' | 'policies' | 'decisions' | 'owasp' | 'commitments'
 
 const subtitle = ref('')
 const endpoint = ref('/atmosphere/ai-chat')
@@ -21,6 +22,8 @@ const endpoint = ref('/atmosphere/ai-chat')
 const mode = ref<'ai' | 'broadcast'>('ai')
 const ready = ref(false)
 const activeTab = ref<Tab>('chat')
+// The live MCP endpoint, when one is registered — enables the MCP Apps host tab.
+const mcpEndpoint = ref<string | null>(null)
 const governanceAvailable = ref(false)
 const governancePolicyCount = ref<number | null>(null)
 const agentsAvailable = ref(false)
@@ -92,6 +95,9 @@ const tabs = computed(() => {
   if (validationAvailable.value) {
     list.push({ id: 'validation', label: 'Validation' })
   }
+  if (mcpEndpoint.value) {
+    list.push({ id: 'apps', label: 'MCP Apps' })
+  }
   if (governanceAvailable.value) {
     list.push({
       id: 'policies',
@@ -114,6 +120,7 @@ onMounted(async () => {
       if (data.subtitle) subtitle.value = data.subtitle
       if (data.endpoint) endpoint.value = data.endpoint
       if (data.mode === 'broadcast' || data.mode === 'ai') mode.value = data.mode
+      if (data.mcpEndpoint) mcpEndpoint.value = data.mcpEndpoint
     }
   } catch {
     // Console info not available — use defaults
@@ -155,6 +162,8 @@ onMounted(async () => {
                     :active="activeTab === 'interactions'" />
       <Validation v-if="ready && validationAvailable" v-show="activeTab === 'validation'"
                   :active="activeTab === 'validation'" />
+      <McpApps v-if="ready && mcpEndpoint" v-show="activeTab === 'apps'"
+               :endpoint="mcpEndpoint" :active="activeTab === 'apps'" />
       <GovernancePolicies v-if="ready" v-show="activeTab === 'policies'"
                           :active="activeTab === 'policies'" />
       <GovernanceDecisions v-if="ready" v-show="activeTab === 'decisions'"

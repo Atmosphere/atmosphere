@@ -12,10 +12,21 @@ The `DemoMcpServer` exposes:
 - `broadcast_message` — send a message to all connected chat users
 - `send_message` — send a private message to a specific user by UUID
 - `atmosphere_version` — return the Atmosphere framework version and runtime info
+- `clock_app` — an **MCP App** (SEP-1865): declares a `ui://` UI resource that a
+  host renders in a sandboxed iframe
 
 **Resources** (agents can read these):
 - `atmosphere://server/status` — server status and uptime
 - `atmosphere://server/capabilities` — what the server can do
+- `ui://atmosphere/clock-app.html` — the `clock_app` UI, served as
+  `text/html;profile=mcp-app`
+
+**MCP App (SEP-1865):** `clock_app` advertises `_meta.ui.resourceUri` and the
+server advertises the `io.modelcontextprotocol/apps` extension. The bundled
+Atmosphere **console** (`http://localhost:8083/atmosphere/console/`) acts as the
+host: its **MCP Apps** tab lists app tools, reads the `ui://` HTML over the
+stateless `2026-07-28` protocol, and renders it in a sandboxed
+(`allow-scripts`, no same-origin) iframe.
 
 **Prompts** (reusable prompt templates):
 - `chat_summary` — summarize current chat status

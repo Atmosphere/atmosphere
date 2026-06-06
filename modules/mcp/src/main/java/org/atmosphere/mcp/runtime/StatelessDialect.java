@@ -440,11 +440,18 @@ final class StatelessDialect implements ProtocolDialect {
         if (!core.registry().prompts().isEmpty()) {
             caps.put("prompts", Map.of());
         }
-        // SEP-2133 extensions map. Advertise the Tasks extension only when the
-        // server actually has a long-running tool to materialize a task from —
-        // never advertise an extension we wouldn't exercise (Runtime Truth).
+        // SEP-2133 extensions map. Advertise each extension only when the server
+        // actually has something to back it (Runtime Truth): Tasks when a
+        // long-running tool exists, Apps when a tool declares a ui:// resource.
+        var extensions = new LinkedHashMap<String, Object>();
         if (core.registry().hasLongRunningTools()) {
-            caps.put(Mcp2026.CAPABILITY_EXTENSIONS, Map.of(Mcp2026.EXT_TASKS, Map.of()));
+            extensions.put(Mcp2026.EXT_TASKS, Map.of());
+        }
+        if (core.registry().hasAppTools()) {
+            extensions.put(Mcp2026.EXT_APPS, Map.of("mimeTypes", List.of(Mcp2026.APP_MIME_TYPE)));
+        }
+        if (!extensions.isEmpty()) {
+            caps.put(Mcp2026.CAPABILITY_EXTENSIONS, extensions);
         }
         return caps;
     }

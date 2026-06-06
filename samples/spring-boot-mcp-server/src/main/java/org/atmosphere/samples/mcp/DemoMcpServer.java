@@ -152,8 +152,64 @@ public class DemoMcpServer {
                 - List connected users, broadcast messages, ban users
                 - WebSocket transport with SSE fallback
                 - Automatic reconnection and message replay
+                - An interactive MCP App (SEP-1865) rendered in the console
                 """;
     }
+
+    // ── MCP App (SEP-1865) ────────────────────────────────────────────────
+    // A tool that declares a ui:// resource: the host (here, the Atmosphere
+    // console) fetches the HTML and renders it in a sandboxed iframe.
+
+    static final String CLOCK_APP_URI = "ui://atmosphere/clock-app.html";
+
+    @McpTool(name = "clock_app", uiResource = CLOCK_APP_URI,
+            title = "Server Clock",
+            description = "An interactive live clock, rendered as an MCP App in the host UI")
+    public Map<String, Object> clockApp() {
+        // The tool result is delivered to the app; the app itself is the ui://
+        // resource below. Keeping it tiny: just the server's current time.
+        return Map.of("serverTime", Instant.now().toString());
+    }
+
+    @McpResource(uri = CLOCK_APP_URI,
+            name = "Clock App UI",
+            description = "Self-contained interactive clock (MCP App)",
+            mimeType = "text/html;profile=mcp-app")
+    public String clockAppHtml() {
+        return CLOCK_APP_HTML;
+    }
+
+    private static final String CLOCK_APP_HTML = """
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <title>Atmosphere Clock</title>
+              <style>
+                html,body{margin:0;height:100%;font-family:system-ui,-apple-system,sans-serif}
+                .app{height:100%;display:flex;flex-direction:column;align-items:center;
+                     justify-content:center;gap:8px;
+                     background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#e2e8f0}
+                .label{font-size:13px;letter-spacing:.18em;text-transform:uppercase;opacity:.7}
+                .time{font-size:48px;font-weight:700;font-variant-numeric:tabular-nums}
+              </style>
+            </head>
+            <body>
+              <div class="app">
+                <div class="label" data-testid="mcp-app-label">Atmosphere MCP App</div>
+                <div class="time" id="clock" data-testid="mcp-clock">--:--:--</div>
+              </div>
+              <script>
+                function tick() {
+                  document.getElementById('clock').textContent =
+                    new Date().toLocaleTimeString();
+                }
+                tick();
+                setInterval(tick, 1000);
+              </script>
+            </body>
+            </html>
+            """;
 
     // ── Prompts ──────────────────────────────────────────────────────────
 

@@ -69,7 +69,34 @@ public class AtmosphereConsoleInfoEndpoint {
         result.put("endpoint", endpoint);
         result.put("runtime", detectRuntime());
         result.put("mode", mode);
+        // Report the live MCP endpoint (if any) so the console can host MCP Apps
+        // (SEP-1865) against it. Omitted when no MCP handler is registered, so
+        // the console only surfaces the Apps tab when there's truly one to talk
+        // to (Runtime Truth).
+        var mcpEndpoint = detectMcpEndpoint();
+        if (mcpEndpoint != null) {
+            result.put("mcpEndpoint", mcpEndpoint);
+        }
         return result;
+    }
+
+    /**
+     * The path of the registered MCP endpoint ({@code McpHandler}), or
+     * {@code null} when none is registered. Class-name matched so this
+     * controller keeps no compile-time dependency on {@code modules/mcp}.
+     */
+    private String detectMcpEndpoint() {
+        try {
+            for (var e : framework.getAtmosphereHandlers().entrySet()) {
+                if ("org.atmosphere.mcp.runtime.McpHandler"
+                        .equals(e.getValue().atmosphereHandler().getClass().getName())) {
+                    return e.getKey();
+                }
+            }
+        } catch (Exception ex) {
+            logger.debug("Could not detect MCP endpoint", ex);
+        }
+        return null;
     }
 
     /**

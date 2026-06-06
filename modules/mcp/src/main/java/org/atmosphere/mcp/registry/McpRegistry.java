@@ -197,6 +197,9 @@ public final class McpRegistry {
     // materialize a Task on the stateless 2026-07-28 transport (SEP-2663).
     // Kept as a sidecar set so the ToolEntry record signature is unchanged.
     private final Set<String> longRunningTools = ConcurrentHashMap.newKeySet();
+    // Tools flagged @McpTool(uiResource=...) — MCP App tools (SEP-1865) that
+    // declare a ui:// UI resource. Sidecar set, like longRunningTools.
+    private final Set<String> appTools = ConcurrentHashMap.newKeySet();
 
     /**
      * Scan the given instance for @McpTool, @McpResource, @McpPrompt methods.
@@ -207,7 +210,15 @@ public final class McpRegistry {
                 var a = method.getAnnotation(McpTool.class);
                 var params = extractParams(method);
                 tools.put(a.name(), new ToolEntry(a.name(), a.description(), method, instance, params));
-                var meta = new EntryMetadata(a.title(), a.iconUrl(), Map.of());
+                // An MCP App tool (SEP-1865) carries _meta.ui.resourceUri so a host
+                // knows which ui:// resource to render in its sandboxed iframe.
+                Map<String, Object> metaMap = Map.of();
+                if (!a.uiResource().isEmpty()) {
+                    metaMap = Map.of(org.atmosphere.mcp.protocol.Mcp2026.META_UI,
+                            Map.of(org.atmosphere.mcp.protocol.Mcp2026.META_UI_RESOURCE_URI, a.uiResource()));
+                    appTools.add(a.name());
+                }
+                var meta = new EntryMetadata(a.title(), a.iconUrl(), metaMap);
                 if (!meta.isEmpty()) {
                     toolMetadata.put(a.name(), meta);
                 }
@@ -266,6 +277,7 @@ public final class McpRegistry {
      */
     public boolean removeTool(String name) {
         longRunningTools.remove(name);
+        appTools.remove(name);
         return tools.remove(name) != null;
     }
 
@@ -288,6 +300,16 @@ public final class McpRegistry {
     /** Whether any long-running tool is registered (gates Tasks-extension advertisement). */
     public boolean hasLongRunningTools() {
         return !longRunningTools.isEmpty();
+    }
+
+    /** Mark a programmatically-registered tool as an MCP App tool (SEP-1865). */
+    public void markAppTool(String name) {
+        appTools.add(name);
+    }
+
+    /** Whether any MCP App tool is registered (gates Apps-extension advertisement). */
+    public boolean hasAppTools() {
+        return !appTools.isEmpty();
     }
 
     // ── Programmatic Resource Registration ───────────────────────────────

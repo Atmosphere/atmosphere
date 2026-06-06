@@ -107,6 +107,18 @@ public final class Mcp2026 {
     /** Reverse-DNS identifier of the official Tasks extension. */
     public static final String EXT_TASKS = "io.modelcontextprotocol/tasks";
 
+    /** Reverse-DNS identifier of the official MCP Apps extension (SEP-1865). */
+    public static final String EXT_APPS = "io.modelcontextprotocol/apps";
+
+    /** Required MIME type for an MCP App UI resource (SEP-1865): {@code text/html;profile=mcp-app}. */
+    public static final String APP_MIME_TYPE = "text/html;profile=mcp-app";
+
+    /** The {@code _meta.ui} object on a tool/resource (MCP Apps). */
+    public static final String META_UI = "ui";
+
+    /** {@code _meta.ui.resourceUri} — the {@code ui://} resource a tool's UI renders from. */
+    public static final String META_UI_RESOURCE_URI = "resourceUri";
+
     // Tasks extension `Task` wire fields (seps/2663-tasks-extension.md).
     /** Task identifier. */
     public static final String TASK_ID = "taskId";
