@@ -2,6 +2,8 @@
 
 MCP (Model Context Protocol) server module for Atmosphere. Exposes annotation-driven tools, resources, and prompt templates to AI agents over Streamable HTTP, WebSocket, or SSE transport. MCP is auto-registered when `atmosphere-mcp` is on the classpath — no `@McpServer` annotation needed on your `@Agent` class.
 
+It is a **self-contained server implementation** (no external MCP SDK) that speaks two protocol generations side by side: the session-based wire protocol (`2024-11-05` through `2025-11-25`, negotiated via the `initialize` handshake) **and** the stateless **`2026-07-28` release candidate** — selected per request, so existing clients keep working unchanged. See [MCP 2026-07-28](#mcp-2026-07-28-release-candidate) below.
+
 ## Maven Coordinates
 
 ```xml
@@ -59,6 +61,70 @@ public class MyTools {
 | SSE | `GET http://host:port/atmosphere/mcp` |
 
 Agents get automatic reconnection, heartbeats, and transport fallback from Atmosphere's transport layer.
+
+## MCP 2026-07-28 (Release Candidate)
+
+Atmosphere implements the **`2026-07-28`** MCP revision — the largest since launch —
+as a **stateless dialect that coexists** with the session model. A request is served
+by the stateless dialect when it carries the protocol version in `params._meta` or
+calls `server/discover`; everything else (the `initialize` handshake) stays on the
+session dialect. No flag day: every `2024-11-05 … 2025-11-25` client is unaffected.
+
+| Capability | What it gives you |
+|-----------|-------------------|
+| **Stateless core** | No `Mcp-Session-Id`, no handshake — client info/capabilities/version ride `_meta` on every request, so the server runs behind a plain round-robin load balancer with no sticky sessions |
+| **Operability headers** | `Mcp-Method` / `Mcp-Name` routing headers, validated against the body |
+| **Cacheable list/read** | `ttlMs` + `cacheScope` (`public`/`private`) on `tools/list`, `resources/list`, `resources/read` results |
+| **W3C trace context** | `traceparent` / `tracestate` / `baggage` read from `_meta` and bridged into the OpenTelemetry span (with `atmosphere-tracing`) |
+| **Tasks extension** | `io.modelcontextprotocol/tasks` — a `@McpTool(longRunning = true)` call returns a task handle the client polls via `tasks/get` |
+| **Multi-round-trip** | `InputRequiredResult` + base64 `requestState`: the server can ask the client for more input mid-call and resume statelessly |
+| **JSON Schema 2020-12** | tool input schemas advertise the `2020-12` dialect (`$schema`) |
+| **Extensions framework** | reverse-DNS capability map; Tasks and Apps register as official extensions |
+| **MCP Apps** | tools advertise a `ui://` UI resource — see [MCP Apps](#mcp-apps-sep-1865) |
+| **Authorization** | OAuth 2.0 Resource Server glue — see [Authorization](#authorization-oauth-resource-server) |
+
+The relevant `@McpTool` attributes:
+
+| Attribute | Default | Purpose |
+|-----------|---------|---------|
+| `longRunning` | `false` | Run the call as a Tasks-extension task; the client gets a handle and polls `tasks/get` |
+| `uiResource` | `""` | A `ui://` resource URI advertised in the tool's `_meta.ui.resourceUri` (MCP Apps) |
+| `title` / `iconUrl` | `""` | Display title / icon (MCP `2025-06-18` / `2025-11-25`) |
+
+> **Client scope (honest caveat):** this is the **server** track. The outbound
+> `atmosphere-mcp-client` wraps the official MCP Java SDK and cannot yet negotiate the
+> `2026-07-28` stateless model — that waits on upstream SDK support.
+
+### MCP Apps (SEP-1865)
+
+A `@McpTool(uiResource = "ui://…")` paired with an `@McpResource` whose `mimeType` is
+`text/html;profile=mcp-app` becomes an **MCP App**: a host renders its HTML in a
+sandboxed iframe. The bundled **Atmosphere console** is a working host — its **MCP Apps**
+tab lists app tools, reads the `ui://` HTML over the stateless protocol, and renders it.
+The **App Bridge** (JSON-RPC over `postMessage`) is **bidirectional**:
+
+- **App → Host → Server** — the app calls server tools through the host; the host still
+  runs them through the policy gateway, so an app inherits governance.
+- **Host → App** — the app declares `appCapabilities.tools` and the host lists and calls
+  the app's own registered tools.
+
+For isolation the console renders apps through a **separate-origin sandbox proxy** when a
+distinct origin is available (`atmosphere.mcp-sandbox-origin`, or the `localhost`↔
+`127.0.0.1` sibling in dev), falling back to an opaque-origin sandboxed iframe otherwise.
+
+### Authorization (OAuth Resource Server)
+
+When enabled, the MCP server acts as an **OAuth 2.0 Resource Server**: it serves RFC 9728
+protected-resource metadata at `/.well-known/oauth-protected-resource` and answers
+unauthenticated requests with `401` + a `WWW-Authenticate` challenge pointing at it. Token
+**validation is delegated to the host framework** (Spring Security resource server /
+`quarkus-oidc`) — `atmosphere-mcp` owns only the protocol glue. Opt in via init params:
+
+```properties
+org.atmosphere.mcp.auth.resource=https://api.example.com/atmosphere/mcp
+org.atmosphere.mcp.auth.authorizationServers=https://auth.example.com
+org.atmosphere.mcp.auth.scopes=mcp:tools mcp:resources
+```
 
 ## Connecting Clients
 

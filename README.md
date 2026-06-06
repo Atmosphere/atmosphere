@@ -29,7 +29,7 @@ Atmosphere is built for teams that need AI agents to behave like production serv
 | Govern execution | Policy admission, `@AgentScope`, human approval, plan-and-verify, cost ceilings, PII rewriting, and admin kill switches |
 | Pause for humans | Durable HITL approvals park virtual threads, persist workflow state, and resume through REST approval surfaces |
 | Resume long runs | Durable sessions, run IDs, replay buffers, checkpoints, and reconnect-safe continuation |
-| Expose the same agent everywhere | Browser endpoints plus MCP, A2A, AG-UI, Slack, Telegram, Discord, WhatsApp, and Messenger modules |
+| Expose the same agent everywhere | Browser endpoints plus MCP (stateless **2026-07-28** RC + sessions back to 2024-11-05), A2A, AG-UI, Slack, Telegram, Discord, WhatsApp, and Messenger modules |
 
 ## Scope
 
@@ -131,7 +131,7 @@ public class MyAgent {
 | Module on classpath | What gets registered |
 |---|---|
 | `atmosphere-agent` | Browser endpoint at `/atmosphere/agent/my-agent`, streaming AI dispatch, memory, commands, `/help` |
-| `atmosphere-mcp` | MCP endpoint at `/atmosphere/agent/my-agent/mcp` |
+| `atmosphere-mcp` | MCP endpoint at `/atmosphere/agent/my-agent/mcp` — session protocol + stateless 2026-07-28 RC (Tasks, MCP Apps, OAuth resource server) |
 | `atmosphere-a2a` | A2A endpoint at `/atmosphere/agent/my-agent/a2a` with Agent Card discovery |
 | `atmosphere-agui` | AG-UI endpoint at `/atmosphere/agent/my-agent/agui` |
 | `atmosphere-channels` | Slack, Telegram, Discord, WhatsApp, and Messenger dispatch |
@@ -247,7 +247,7 @@ For Java/Kotlin clients, use [wAsync](modules/wasync/) for async WebSocket, SSE,
 | [ai-classroom](samples/spring-boot-ai-classroom/) | Multi-room collaborative AI with React Native / Expo client |
 | [guarded-email-agent](samples/spring-boot-guarded-email-agent/) | Plan-and-verify taint protection before any email tool fires |
 | [ms-governance-chat](samples/spring-boot-ms-governance-chat/) | Microsoft Agent Governance Toolkit-compatible YAML and decision endpoint |
-| [mcp-server](samples/spring-boot-mcp-server/) | MCP tools, resources, prompts, and streamable HTTP |
+| [mcp-server](samples/spring-boot-mcp-server/) | MCP tools, resources, prompts, and an MCP App (SEP-1865) with a bidirectional bridge, rendered in the console |
 | [rag-chat](samples/spring-boot-rag-chat/) | Retrieval-augmented generation with `ContextProvider` |
 | [channels-chat](samples/spring-boot-channels-chat/) | Slack, Telegram, Discord, WhatsApp, and Messenger channel dispatch |
 | [coding-agent](samples/spring-boot-coding-agent/) | Docker sandbox provider for clone/read/stream coding workflows |

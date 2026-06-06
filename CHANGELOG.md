@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **MCP `2026-07-28` release candidate** — the largest MCP revision since launch,
+  implemented as a **stateless dialect that coexists** with the session-based protocol
+  (`2024-11-05` through `2025-11-25`). The dialect is selected per request (the client
+  carries the protocol version in `params._meta` or calls `server/discover`), so existing
+  clients are unaffected. Stateless core has no `Mcp-Session-Id` and no `initialize`
+  handshake, so the server runs behind a plain round-robin load balancer with no session
+  affinity.
+- **MCP operability** — `Mcp-Method` / `Mcp-Name` routing headers (validated against the
+  body), `ttlMs` + `cacheScope` cache metadata on `tools/list` / `resources/list` /
+  `resources/read`, and W3C Trace Context (`traceparent` / `tracestate` / `baggage`) read
+  from `_meta` and bridged into the OpenTelemetry span.
+- **MCP Tasks extension** (`io.modelcontextprotocol/tasks`) and multi-round-trip input —
+  `@McpTool(longRunning = true)` returns a task handle polled via `tasks/get`, and the
+  stateless dialect can return `InputRequiredResult` with a base64 `requestState` to
+  request more input mid-call and resume on any instance.
+- **JSON Schema 2020-12** dialect (`$schema`) on generated tool input schemas, and a
+  standardized resource-not-found error (`-32602`) on the stateless dialect.
+- **MCP Apps (SEP-1865)** — `@McpTool(uiResource = "ui://…")` plus a
+  `text/html;profile=mcp-app` resource makes a tool an MCP App. The Atmosphere console is a
+  working host: it renders the app in a sandboxed iframe, runs a **bidirectional App
+  Bridge** (apps call server tools through the host under the policy gateway; the host
+  lists and calls the app's own `appCapabilities.tools`), and uses a **separate-origin
+  sandbox proxy** for isolation (`atmosphere.mcp-sandbox-origin`, with a `localhost`↔
+  `127.0.0.1` dev fallback, otherwise an opaque-origin direct sandbox).
+- **MCP authorization** — the server acts as an OAuth 2.0 Resource Server: RFC 9728
+  protected-resource metadata at `/.well-known/oauth-protected-resource` and a `401` +
+  `WWW-Authenticate` challenge for unauthenticated requests. Token validation is delegated
+  to the host framework (Spring Security resource server / `quarkus-oidc`); opt in via the
+  `org.atmosphere.mcp.auth.*` init parameters.
+
 ## [4.0.50] - 2026-06-05
 
 ### Removed
