@@ -8,12 +8,15 @@ import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 // app can never touch the console's DOM, cookies, or storage).
 //
 // It also implements the App Bridge: JSON-RPC 2.0 over postMessage between the
-// app (iframe) and this host. The app handshakes via ui/initialize and may then
-// call MCP methods (tools/call, tools/list); the host forwards non-ui/ requests
-// to the MCP server — which still enforces its policy gateway on tools/call, so
-// an app can't bypass governance. NOTE: this implements the App→Host→Server
-// direction and the ui/initialize handshake; the separate-origin sandbox-proxy
-// hardening and Host→App-registered-tools are not implemented here.
+// app (iframe) and this host. tools/call and tools/list flow BIDIRECTIONALLY:
+//   • App→Host→Server — the app calls MCP methods (tools/call, tools/list); the
+//     host forwards non-ui/ requests to the MCP server, which still enforces its
+//     policy gateway on tools/call, so an app can't bypass governance.
+//   • Host→App — when the app declares appCapabilities.tools in ui/initialize,
+//     the host lists the app-registered tools (tools/list sent INTO the iframe)
+//     and can invoke them (tools/call), letting the host drive the app's UI.
+// NOTE: the separate-origin sandbox-proxy hardening is tracked separately; this
+// host uses the opaque-origin sandboxed iframe (no allow-same-origin).
 
 const props = defineProps<{ endpoint: string; active: boolean }>()
 
@@ -32,6 +35,17 @@ const html = ref('')
 const loading = ref(false)
 const error = ref('')
 let loaded = false
+
+// Host→App: tools the running app registers (filled from a tools/list sent INTO
+// the iframe once the app declares appCapabilities.tools).
+interface RegisteredTool {
+  name: string
+  title: string
+  description: string
+}
+const appTools = ref<RegisteredTool[]>([])
+const appToolResult = ref('')
+let appDeclaresTools = false
 
 // Per-request _meta for the stateless protocol, declaring the apps extension.
 function meta() {
@@ -95,6 +109,10 @@ async function open(app: AppTool) {
   html.value = ''
   error.value = ''
   bridgeReady.value = false
+  appTools.value = []
+  appToolResult.value = ''
+  appDeclaresTools = false
+  rejectAllAppRequests('app reloaded')
   try {
     const result = await rpc('resources/read', { uri: app.resourceUri })
     const content = (result?.contents ?? [])[0]
@@ -117,22 +135,101 @@ function replyError(id: unknown, code: number, message: string) {
   frameEl.value?.contentWindow?.postMessage({ jsonrpc: '2.0', id, error: { code, message } }, '*')
 }
 
+// Host→App requests: the host is the JSON-RPC client and the app the server.
+// Each outbound request gets a unique id; the matching response arrives back
+// through onBridgeMessage and resolves the pending entry. A timeout bounds the
+// wait so a silent app can never leak a pending promise (terminal-path safety).
+let appReqId = 0
+const appPending = new Map<
+  number,
+  { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }
+>()
+
+function rejectAllAppRequests(reason: string) {
+  for (const [, p] of appPending) {
+    clearTimeout(p.timer)
+    p.reject(new Error(reason))
+  }
+  appPending.clear()
+}
+
+function sendToApp(method: string, params: Record<string, unknown>): Promise<any> {
+  const win = frameEl.value?.contentWindow
+  if (!win) return Promise.reject(new Error('app not loaded'))
+  const id = ++appReqId
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      appPending.delete(id)
+      reject(new Error(`${method} → app did not respond`))
+    }, 5000)
+    appPending.set(id, { resolve, reject, timer })
+    win.postMessage({ jsonrpc: '2.0', id, method, params }, '*')
+  })
+}
+
+async function refreshAppTools() {
+  try {
+    const r = await sendToApp('tools/list', {})
+    const tools: any[] = (r as any)?.tools ?? []
+    appTools.value = tools.map((t) => ({
+      name: t.name,
+      title: t.title || t.name,
+      description: t.description || '',
+    }))
+  } catch {
+    // App declared the tools capability but did not answer tools/list; show none.
+    appTools.value = []
+  }
+}
+
+async function callAppTool(tool: RegisteredTool) {
+  appToolResult.value = `Calling ${tool.name}…`
+  try {
+    const r = await sendToApp('tools/call', { name: tool.name, arguments: {} })
+    const content = (r as any)?.content
+    appToolResult.value =
+      content?.[0]?.text ?? JSON.stringify((r as any)?.structuredContent ?? r)
+  } catch (e) {
+    appToolResult.value = e instanceof Error ? e.message : String(e)
+  }
+}
+
 async function onBridgeMessage(event: MessageEvent) {
   // Only accept messages from the app iframe we rendered — never a foreign
   // window. The sandboxed iframe has an opaque ("null") origin, so the source
   // check (not the origin) is the trustworthy guard.
   if (!frameEl.value || event.source !== frameEl.value.contentWindow) return
   const msg = event.data
-  if (!msg || msg.jsonrpc !== '2.0' || typeof msg.method !== 'string') return
+  if (!msg || msg.jsonrpc !== '2.0') return
+
+  // Response to a Host→App request (has id, no method): resolve the pending call.
+  if (typeof msg.method !== 'string') {
+    if (msg.id !== undefined && msg.id !== null) {
+      const pending = appPending.get(msg.id)
+      if (pending) {
+        appPending.delete(msg.id)
+        clearTimeout(pending.timer)
+        if (msg.error) pending.reject(new Error(msg.error.message ?? 'app error'))
+        else pending.resolve(msg.result)
+      }
+    }
+    return
+  }
 
   // Notification (no id).
   if (msg.id === undefined || msg.id === null) {
-    if (msg.method === 'ui/notifications/initialized') bridgeReady.value = true
+    if (msg.method === 'ui/notifications/initialized') {
+      bridgeReady.value = true
+      // App is live; if it registered tools, enumerate them (Host→App tools/list).
+      if (appDeclaresTools) refreshAppTools()
+    }
     return
   }
   // Request.
   if (msg.method === 'ui/initialize') {
-    reply(msg.id, { hostCapabilities: { serverTools: {} }, hostContext: {} })
+    appDeclaresTools = !!msg.params?.appCapabilities?.tools
+    // serverTools/serverResources: this host proxies both to the MCP server.
+    reply(msg.id, { hostCapabilities: { serverTools: {}, serverResources: {} }, hostContext: {} })
     return
   }
   if (msg.method.startsWith('ui/')) {
@@ -149,7 +246,10 @@ async function onBridgeMessage(event: MessageEvent) {
 }
 
 onMounted(() => window.addEventListener('message', onBridgeMessage))
-onBeforeUnmount(() => window.removeEventListener('message', onBridgeMessage))
+onBeforeUnmount(() => {
+  window.removeEventListener('message', onBridgeMessage)
+  rejectAllAppRequests('host unmounted')
+})
 
 watch(() => props.active, (a) => { if (a) loadApps() }, { immediate: true })
 </script>
@@ -186,6 +286,24 @@ watch(() => props.active, (a) => { if (a) loadApps() }, { immediate: true })
       <p v-else-if="!loading && !error" class="muted stage-empty">
         Select an app to render it in a sandboxed iframe.
       </p>
+      <div v-if="html && appTools.length > 0" class="app-tools" data-testid="mcp-app-tools">
+        <div class="app-tools-title">App-registered tools (Host → App)</div>
+        <div class="app-tools-row">
+          <button
+            v-for="t in appTools"
+            :key="t.name"
+            class="app-tool-btn"
+            :data-testid="`mcp-app-tool-${t.name}`"
+            :title="t.description"
+            @click="callAppTool(t)"
+          >
+            {{ t.title }}
+          </button>
+        </div>
+        <p v-if="appToolResult" class="app-tool-result" data-testid="mcp-app-tool-result">
+          {{ appToolResult }}
+        </p>
+      </div>
     </section>
   </div>
 </template>
@@ -239,17 +357,63 @@ watch(() => props.active, (a) => { if (a) loadApps() }, { immediate: true })
 .app-stage {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: stretch;
   justify-content: stretch;
+  gap: 0.5rem;
   padding: 0.75rem;
+  overflow: hidden;
 }
 
 .app-frame {
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   background: var(--bg-surface);
+}
+
+.app-tools {
+  flex-shrink: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.5rem 0.625rem;
+  background: var(--bg-surface);
+}
+
+.app-tools-title {
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 0.375rem;
+}
+
+.app-tools-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.app-tool-btn {
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  color: var(--accent-color);
+  background: var(--accent-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.app-tool-btn:hover {
+  background: var(--bg-hover);
+}
+
+.app-tool-result {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
 }
 
 .muted {

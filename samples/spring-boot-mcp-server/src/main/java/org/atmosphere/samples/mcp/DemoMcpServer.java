@@ -219,7 +219,9 @@ public class DemoMcpServer {
                   return new Promise((resolve, reject) => {
                     window.addEventListener('message', function listener(event) {
                       const d = event.data;
-                      if (!d || d.id !== id) return;
+                      // Only our matching response — never a host-initiated
+                      // request (those carry a method and are handled below).
+                      if (!d || d.id !== id || typeof d.method === 'string') return;
                       window.removeEventListener('message', listener);
                       if (d.error) reject(new Error(d.error.message || 'bridge error'));
                       else resolve(d.result);
@@ -230,9 +232,62 @@ public class DemoMcpServer {
                 function notify(method, params) {
                   window.parent.postMessage({ jsonrpc: '2.0', method, params }, '*');
                 }
+                function reply(id, result) {
+                  window.parent.postMessage({ jsonrpc: '2.0', id, result }, '*');
+                }
+                function replyErr(id, code, message) {
+                  window.parent.postMessage({ jsonrpc: '2.0', id, error: { code, message } }, '*');
+                }
 
-                // Handshake: announce the app, then signal initialized.
-                sendRequest('ui/initialize', { appCapabilities: {} })
+                // ── App-registered tools (Host -> App, SEP-1865) ──────────
+                // This app exposes a tool the HOST can call back into it. The
+                // host lists it via tools/list and invokes it via tools/call;
+                // the app handles both as the server of the JSON-RPC channel.
+                var THEMES = [
+                  { name: 'Blue',   a: '#0f172a', b: '#1e3a8a', accent: '#38bdf8', text: '#06283d' },
+                  { name: 'Purple', a: '#3b0764', b: '#7e22ce', accent: '#e9d5ff', text: '#3b0764' },
+                  { name: 'Green',  a: '#064e3b', b: '#047857', accent: '#6ee7b7', text: '#064e3b' },
+                  { name: 'Amber',  a: '#7c2d12', b: '#c2410c', accent: '#fed7aa', text: '#7c2d12' }
+                ];
+                var themeIdx = 0;
+                function applyTheme(i) {
+                  var t = THEMES[i % THEMES.length];
+                  document.querySelector('.app').style.background =
+                    'linear-gradient(135deg,' + t.a + ',' + t.b + ')';
+                  var btn = document.getElementById('fetch');
+                  btn.style.background = t.accent;
+                  btn.style.color = t.text;
+                  return t.name;
+                }
+                var APP_TOOLS = [{
+                  name: 'cycle_theme',
+                  title: 'Cycle theme',
+                  description: 'Cycle the clock through its color themes',
+                  inputSchema: { type: 'object', properties: {}, additionalProperties: false }
+                }];
+
+                // Handle requests the host sends INTO this app.
+                window.addEventListener('message', function (event) {
+                  var d = event.data;
+                  if (!d || d.jsonrpc !== '2.0' || typeof d.method !== 'string' || d.id == null) return;
+                  if (d.method === 'tools/list') {
+                    reply(d.id, { tools: APP_TOOLS });
+                  } else if (d.method === 'tools/call') {
+                    var name = d.params && d.params.name;
+                    if (name === 'cycle_theme') {
+                      themeIdx += 1;
+                      var theme = applyTheme(themeIdx);
+                      document.getElementById('result').textContent =
+                        'Theme -> ' + theme + ' (set by host)';
+                      reply(d.id, { content: [{ type: 'text', text: 'Theme set to ' + theme }] });
+                    } else {
+                      replyErr(d.id, -32602, 'Unknown app tool: ' + name);
+                    }
+                  }
+                });
+
+                // Handshake: announce the app + its tools capability, then init.
+                sendRequest('ui/initialize', { appCapabilities: { tools: {} } })
                   .then(() => notify('ui/notifications/initialized', {}))
                   .catch(() => {});
 
