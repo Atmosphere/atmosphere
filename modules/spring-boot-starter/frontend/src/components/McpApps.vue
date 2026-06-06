@@ -1,13 +1,24 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 
 // MCP Apps host (SEP-1865). The console acts as a stateless 2026-07-28 MCP
 // client: it lists tools, finds those that declare a ui:// UI resource via
 // _meta.ui.resourceUri, reads that resource's HTML, and renders it in a
 // SANDBOXED iframe (allow-scripts, NO allow-same-origin → opaque origin, so the
 // app can never touch the console's DOM, cookies, or storage).
+//
+// It also implements the App Bridge: JSON-RPC 2.0 over postMessage between the
+// app (iframe) and this host. The app handshakes via ui/initialize and may then
+// call MCP methods (tools/call, tools/list); the host forwards non-ui/ requests
+// to the MCP server — which still enforces its policy gateway on tools/call, so
+// an app can't bypass governance. NOTE: this implements the App→Host→Server
+// direction and the ui/initialize handshake; the separate-origin sandbox-proxy
+// hardening and Host→App-registered-tools are not implemented here.
 
 const props = defineProps<{ endpoint: string; active: boolean }>()
+
+const frameEl = ref<HTMLIFrameElement | null>(null)
+const bridgeReady = ref(false)
 
 interface AppTool {
   name: string
@@ -83,6 +94,7 @@ async function open(app: AppTool) {
   selected.value = app
   html.value = ''
   error.value = ''
+  bridgeReady.value = false
   try {
     const result = await rpc('resources/read', { uri: app.resourceUri })
     const content = (result?.contents ?? [])[0]
@@ -94,6 +106,50 @@ async function open(app: AppTool) {
     error.value = e instanceof Error ? e.message : String(e)
   }
 }
+
+// ── App Bridge (SEP-1865): JSON-RPC over postMessage ─────────────────────
+
+function reply(id: unknown, result: unknown) {
+  frameEl.value?.contentWindow?.postMessage({ jsonrpc: '2.0', id, result }, '*')
+}
+
+function replyError(id: unknown, code: number, message: string) {
+  frameEl.value?.contentWindow?.postMessage({ jsonrpc: '2.0', id, error: { code, message } }, '*')
+}
+
+async function onBridgeMessage(event: MessageEvent) {
+  // Only accept messages from the app iframe we rendered — never a foreign
+  // window. The sandboxed iframe has an opaque ("null") origin, so the source
+  // check (not the origin) is the trustworthy guard.
+  if (!frameEl.value || event.source !== frameEl.value.contentWindow) return
+  const msg = event.data
+  if (!msg || msg.jsonrpc !== '2.0' || typeof msg.method !== 'string') return
+
+  // Notification (no id).
+  if (msg.id === undefined || msg.id === null) {
+    if (msg.method === 'ui/notifications/initialized') bridgeReady.value = true
+    return
+  }
+  // Request.
+  if (msg.method === 'ui/initialize') {
+    reply(msg.id, { hostCapabilities: { serverTools: {} }, hostContext: {} })
+    return
+  }
+  if (msg.method.startsWith('ui/')) {
+    replyError(msg.id, -32601, `Unsupported ui/ method: ${msg.method}`)
+    return
+  }
+  // Forward MCP methods (tools/call, tools/list, …) to the server. The server's
+  // policy gateway still gates tools/call, so the app inherits governance.
+  try {
+    reply(msg.id, await rpc(msg.method, (msg.params as Record<string, unknown>) ?? {}))
+  } catch (e) {
+    replyError(msg.id, -32000, e instanceof Error ? e.message : String(e))
+  }
+}
+
+onMounted(() => window.addEventListener('message', onBridgeMessage))
+onBeforeUnmount(() => window.removeEventListener('message', onBridgeMessage))
 
 watch(() => props.active, (a) => { if (a) loadApps() }, { immediate: true })
 </script>
@@ -120,6 +176,7 @@ watch(() => props.active, (a) => { if (a) loadApps() }, { immediate: true })
     <section class="app-stage">
       <iframe
         v-if="html"
+        ref="frameEl"
         :srcdoc="html"
         sandbox="allow-scripts"
         class="app-frame"

@@ -192,12 +192,17 @@ public class DemoMcpServer {
                      background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#e2e8f0}
                 .label{font-size:13px;letter-spacing:.18em;text-transform:uppercase;opacity:.7}
                 .time{font-size:48px;font-weight:700;font-variant-numeric:tabular-nums}
+                button{margin-top:14px;padding:8px 16px;font-size:13px;border:0;border-radius:6px;
+                       background:#38bdf8;color:#06283d;font-weight:600;cursor:pointer}
+                .result{margin-top:10px;font-size:13px;opacity:.85;min-height:18px}
               </style>
             </head>
             <body>
               <div class="app">
                 <div class="label" data-testid="mcp-app-label">Atmosphere MCP App</div>
                 <div class="time" id="clock" data-testid="mcp-clock">--:--:--</div>
+                <button id="fetch" data-testid="fetch-version">Fetch server version</button>
+                <div class="result" id="result" data-testid="bridge-result"></div>
               </div>
               <script>
                 function tick() {
@@ -206,6 +211,45 @@ public class DemoMcpServer {
                 }
                 tick();
                 setInterval(tick, 1000);
+
+                // App Bridge (SEP-1865): JSON-RPC 2.0 over postMessage to the host.
+                let nextId = 0;
+                function sendRequest(method, params) {
+                  const id = ++nextId;
+                  return new Promise((resolve, reject) => {
+                    window.addEventListener('message', function listener(event) {
+                      const d = event.data;
+                      if (!d || d.id !== id) return;
+                      window.removeEventListener('message', listener);
+                      if (d.error) reject(new Error(d.error.message || 'bridge error'));
+                      else resolve(d.result);
+                    });
+                    window.parent.postMessage({ jsonrpc: '2.0', id, method, params }, '*');
+                  });
+                }
+                function notify(method, params) {
+                  window.parent.postMessage({ jsonrpc: '2.0', method, params }, '*');
+                }
+
+                // Handshake: announce the app, then signal initialized.
+                sendRequest('ui/initialize', { appCapabilities: {} })
+                  .then(() => notify('ui/notifications/initialized', {}))
+                  .catch(() => {});
+
+                // Call a server tool through the host and show the result.
+                document.getElementById('fetch').addEventListener('click', async () => {
+                  const out = document.getElementById('result');
+                  out.textContent = 'Calling atmosphere_version…';
+                  try {
+                    const res = await sendRequest('tools/call',
+                      { name: 'atmosphere_version', arguments: {} });
+                    const v = res && res.structuredContent ? res.structuredContent.version
+                      : (res.content && res.content[0] ? res.content[0].text : '?');
+                    out.textContent = 'Server version: ' + v;
+                  } catch (e) {
+                    out.textContent = 'Error: ' + e.message;
+                  }
+                });
               </script>
             </body>
             </html>
