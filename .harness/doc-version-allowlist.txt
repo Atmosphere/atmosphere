@@ -11,3 +11,9 @@
 #  by the gate at all — the tree legitimately carries two Spring AI lines,
 #  2.0.0-M6 on the main classpath and 1.1.x via the Alibaba adapter — so no
 #  allowlist entry is needed for them.)
+
+# Historical fact in the 4.0.51 MCP oversell post-mortem timeline: atmosphere.js
+# 5.0.29 is the version that was actually published during that release. The
+# pinned dev version is now 5.0.30; rewriting the post-mortem to 5.0.30 would
+# falsify the record (5.0.30 was never published). Intentional historical mention.
+atmosphere.js 5.0.29

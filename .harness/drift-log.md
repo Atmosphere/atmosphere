@@ -1242,3 +1242,49 @@ Invariant #5), so the SPI never advertises Z3 on classpath presence alone —
 `resolve()` falls back to the pure-JVM SMTInterpol default when the natives are
 absent. Automated gate: none beyond the doc + the `isAvailable()` runtime probe
 (no static check meaningfully verifies "a native solver loads on platform X").
+
+---
+
+## 2026-06-07 — Advertised MCP "OAuth resource server" + "stateless, round-robin LB" in the shipped 4.0.51 release without a working path or E2E proof
+
+### Runtime-truth drift (capability advertised ahead of a usable/proven implementation)
+
+**Claim (false, shipped in the 4.0.51 README, CHANGELOG, and the live website):**
+the MCP server "acts as an OAuth 2.0 Resource Server" (listed as a headline
+capability alongside Tasks and MCP Apps), and the stateless `2026-07-28` model
+"runs behind a plain round-robin load balancer with no session affinity."
+
+**Truth:** the authz work is **protocol glue only** — `modules/mcp` publishes
+RFC 9728 protected-resource metadata and returns `401` + `WWW-Authenticate`, but
+there is **no token-validation wiring in either framework** (zero
+`oauth2ResourceServer`/`SecurityFilterChain` hits in `modules/spring-boot-starter`,
+zero `quarkus-oidc` hits in `modules/quarkus-extension`) and **no sample** — so a
+user who enables auth is challenged but has no shipped path that validates a
+token. The statelessness claim was advertised on `modules/mcp` **unit tests
+alone**; the embedded-server round-robin E2E the plan itself required ("two
+`tools/call` with no session header, both succeed … not just unit-mock it") was
+never written (zero stateless hits in `modules/integration-tests`).
+
+**Slip path:** I went docs→release with **no pre-advertisement completeness /
+runtime-truth gate**. I conflated the plan's *intent* ("authz = framework-
+delegated"), the *presence* of glue classes + unit tests, and a memory that the
+campaign was "complete," with *verified working capability*. "Delegated to the
+framework" read as "done" rather than "half-built, unwired." This is the exact
+failure mode of Correctness Invariant #5 (advertise only confirmed runtime
+state), [[feedback_no_claim_without_e2e_validation]], and
+[[feedback_primitive_needs_consumer]] (SPI/glue presence ≠ runtime capability).
+The gap was only caught because the maintainer asked "0 to 10, what's missing?"
+**after** the release. Compounding: the drift-log hook flagged me three times and
+I waved it off as "no false claim reached an artifact" — but the false claim had
+already shipped in 4.0.51; I was wrong to defer this entry.
+
+**Gate added:** (1) the matrix is being closed — Spring Security + quarkus-oidc
+resource-server wiring + opt-in sample auth + the round-robin stateless E2E — so
+the advertisement becomes true in 4.0.52; (2) `feedback_release_gap_audit.md` (new
+memory): before any doc that advertises a capability and before any release,
+run a per-claim audit — each advertised capability must have a user-reachable
+production consumer **and** a test proving it, or it is not advertised; (3) a
+blameless post-mortem at `.harness/postmortem-4.0.51-mcp-oversell.md`. Automated
+gate: the pre-push doc-symbol validator catches phantom *annotations* but not
+"advertised-capability-without-consumer"; closing that with a heuristic check is
+tracked in the post-mortem's corrective actions.
