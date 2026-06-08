@@ -1323,3 +1323,37 @@ replaced with the actual two-path `authenticate()` behavior. Process gate alread
 place: [[feedback_release_gap_audit]] (per-claim consumer+test check before any doc
 advertises a capability). No automated gate catches "doc names an integration with no
 code"; the per-claim audit is the control.
+
+---
+
+## 2026-06-08 — Cut 4.0.52 on a "100%-verified" doc ledger that checked overstatement but not completeness
+
+### Process drift (claimed docs release-ready; a shipped capability was undocumented)
+
+**Claim (to the maintainer):** I built a "claim-by-claim, 100%-verified ledger" of
+the MCP docs and cut the 4.0.52 release on it — presenting the docs as ready, "state
+only what exists, 100% right."
+
+**Truth:** the ledger verified that every doc claim mapped to code + a passing test
+(no OVERSTATEMENT) but never checked COMPLETENESS. A capability that shipped in
+4.0.52 — running `@Agent`-based MCP **servers on Quarkus** (JVM) — was documented
+only in the `CHANGELOG` and as an aside in the auth section, NOT where a user looks
+(the MCP reference, the MCP tutorial, or the Quarkus tutorial). The maintainer caught
+it ("Is it well documented? … So why cutting a release then?"). So 4.0.52 went public
+with an undocumented capability.
+
+**Slip path:** the release gate ([[feedback_release_gap_audit]]) was framed as
+"don't advertise what doesn't exist" — a one-directional check. I treated
+non-overstatement as release-readiness and never ran the inverse: "is every
+capability that ships documented where users find it?" Same family as the 4.0.51
+oversell (advertise/release without the full gate), opposite direction
+(under-documentation instead of over-claim).
+
+**Gate added:** (1) `feedback_release_gap_audit` extended to be **bidirectional** —
+the pre-release audit must verify both that no claim overstates AND that every shipped
+capability is documented in the reference/tutorial where users look, not only the
+CHANGELOG. (2) Corrective docs added before this entry: `modules/mcp/README.md`
+§Running on Quarkus, website `reference/mcp.md` §Running on Quarkus, and
+`tutorial/15-quarkus.md` §MCP servers on Quarkus — all JVM-scoped (no native, no
+sample). No automated gate detects "shipped-but-undocumented"; the bidirectional
+per-claim audit is the control.
