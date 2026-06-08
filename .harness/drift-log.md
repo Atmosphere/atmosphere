@@ -1288,3 +1288,38 @@ blameless post-mortem at `.harness/postmortem-4.0.51-mcp-oversell.md`. Automated
 gate: the pre-push doc-symbol validator catches phantom *annotations* but not
 "advertised-capability-without-consumer"; closing that with a heuristic check is
 tracked in the post-mortem's corrective actions.
+
+---
+
+## 2026-06-08 — Shipped 4.0.51 docs named a "quarkus-oidc" auth delegation that was never built
+
+### Factual drift (named a non-existent integration; understated own behavior)
+
+**Claim (shipped in 4.0.51 — `modules/mcp/README.md` §Authorization, website
+`reference/mcp.md`, `whats-new.md`):** MCP authorization "token **validation is
+delegated to the host framework** (Spring Security resource server / **`quarkus-oidc`**);
+`atmosphere-mcp` owns **only the protocol glue**."
+
+**Truth (verified on `main` building the docs ground-truth ledger):** (1) there is
+**no `quarkus-oidc` integration** anywhere — `git grep quarkus-oidc -- ':!**/*.md'`
+is empty; MCP auth on Quarkus uses the generic `TokenValidator` path, not
+quarkus-oidc. Naming quarkus-oidc as the delegation target asserts an integration
+that does not exist. (2) `atmosphere-mcp` no longer owns "only glue" — since the
+gap-closure (`McpAuthorization.authenticate`) it validates `Authorization: Bearer`
+itself via a configured `TokenValidator` (or honors a framework-set principal). The
+wording both **overstates** (quarkus-oidc) and **understates** (own validation).
+
+**Slip path:** the auth wording was written from the implementation plan's *intent*
+(its Slice 6 listed "Spring Security resource-server wiring + quarkus-oidc wiring" as
+delegation targets) rather than from shipped code — the same "advertise the plan, not
+the code" pattern as the parent 4.0.51 oversell entry above. Caught only while
+building a claim-by-claim ledger before the corrective docs pass, because the
+maintainer asked for "docs must only state what exists, 100% right."
+
+**Gate added:** the verified docs ledger (this session) drives the corrective edits —
+the quarkus-oidc claim is removed, Quarkus auth is documented as the JVM-verified
+`TokenValidator` path (NOT native, NOT quarkus-oidc), and the "only glue" wording is
+replaced with the actual two-path `authenticate()` behavior. Process gate already in
+place: [[feedback_release_gap_audit]] (per-claim consumer+test check before any doc
+advertises a capability). No automated gate catches "doc names an integration with no
+code"; the per-claim audit is the control.
