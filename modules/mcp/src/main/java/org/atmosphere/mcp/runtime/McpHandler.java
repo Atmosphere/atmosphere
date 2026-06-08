@@ -116,13 +116,13 @@ public final class McpHandler implements AtmosphereHandler {
         }
 
         // OAuth resource-server enforcement (MCP authorization spec, RFC 9728).
-        // When authorization is configured the framework's resource-server
-        // filter validates the bearer token and sets the request principal; if
-        // it did not, the request is unauthenticated and we challenge with 401 +
-        // WWW-Authenticate so the client can discover the authorization server.
-        // Default-deny (Invariant #6): no principal ⇒ no access when enabled.
+        // McpAuthorization.authenticate() accepts a framework-set principal
+        // (Spring Security oauth2ResourceServer / AuthInterceptor) OR validates
+        // the Authorization: Bearer token against a configured TokenValidator.
+        // Default-deny (Invariant #6): unauthenticated ⇒ 401 + WWW-Authenticate
+        // so the client can discover the authorization server.
         var auth = protocolHandler.authorization();
-        if (auth.enabled() && request.getUserPrincipal() == null) {
+        if (auth.enabled() && !auth.authenticate(request)) {
             response.setStatus(401);
             response.setHeader("WWW-Authenticate", auth.wwwAuthenticate());
             response.setContentType(APPLICATION_JSON);

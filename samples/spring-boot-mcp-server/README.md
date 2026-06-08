@@ -49,6 +49,39 @@ same-origin) — still isolated from the host.
 - `chat_summary` — summarize current chat status
 - `analyze_topic` — analyze a topic with configurable depth
 
+## Authorization (optional, MCP OAuth resource server)
+
+By default the MCP endpoint is open. The **`auth` profile** turns the server into
+an OAuth 2.0 **resource server** (MCP authorization spec, RFC 9728): unauthenticated
+requests get `401` + a `WWW-Authenticate` challenge pointing at the Protected
+Resource Metadata (served at `/.well-known/oauth-protected-resource`), and a valid
+`Authorization: Bearer` token is required to call tools.
+
+```bash
+./mvnw spring-boot:run -pl samples/spring-boot-mcp-server -Dspring-boot.run.profiles=auth
+```
+
+`application-auth.properties` enables the resource-server init-parameters and names
+a `TokenValidator`. The sample ships `DemoHmacTokenValidator` — **real** HMAC-SHA256
+verification (JDK-only, no extra dependency), provided as an SPI demonstration. Mint
+a demo token for subject `alice` and call a tool:
+
+```bash
+# token = "<subject>.<base64url(HMAC-SHA256(subject, secret))>"; secret defaults to
+# "atmosphere-mcp-demo-secret" (override with MCP_DEMO_AUTH_SECRET).
+SECRET=atmosphere-mcp-demo-secret
+SIG=$(printf 'alice' | openssl dgst -sha256 -hmac "$SECRET" -binary | basenc --base64url | tr -d '=')
+curl -s -H "Authorization: Bearer alice.$SIG" -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"atmosphere_version","arguments":{}}}' \
+  http://localhost:8083/atmosphere/mcp
+```
+
+**For production**, validate real OIDC/JWT access tokens — the idiomatic Spring path
+is `spring-boot-starter-oauth2-resource-server` with
+`spring.security.oauth2.resourceserver.jwt.issuer-uri`; that filter sets the servlet
+principal, which the MCP authorization gate also honors (no `TokenValidator` needed).
+`McpAuthProfileE2ETest` boots this profile and asserts the 401 / 200 flow end-to-end.
+
 ## Running
 
 ```bash

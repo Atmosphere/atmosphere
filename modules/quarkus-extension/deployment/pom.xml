@@ -76,6 +76,28 @@
             <scope>test</scope>
         </dependency>
 
+        <!--
+            Test-scope only — the runtime extension does NOT depend on
+            atmosphere-mcp / atmosphere-agent (MCP is opt-in on Quarkus, same as
+            elsewhere). They are forced onto a single test's app classpath via
+            setForcedDependencies(...) to prove @Agent-based MCP registration and
+            OAuth resource-server authorization work on Quarkus. agent declares
+            mcp OPTIONAL (it links MCP types reflectively), so mcp is declared
+            explicitly for the test's @McpTool/@McpParam compile.
+        -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-agent</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-mcp</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Test-scope: the observability build-step tests pull these in
              via setForcedDependencies on the per-test QuarkusExtensionTest
              instance rather than relying on the flat reactor classpath
@@ -118,6 +140,9 @@
                 <configuration>
                     <systemPropertyVariables>
                         <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+                        <!-- Exposes the reactor version to setForcedDependencies(...) in
+                             the MCP-on-Quarkus auth test so it forces the right SNAPSHOT. -->
+                        <atmosphere.project.version>${project.version}</atmosphere.project.version>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>

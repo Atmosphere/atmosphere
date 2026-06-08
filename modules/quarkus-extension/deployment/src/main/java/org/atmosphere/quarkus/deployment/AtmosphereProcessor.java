@@ -65,16 +65,21 @@ class AtmosphereProcessor {
     private static final String FEATURE = "atmosphere";
 
     // Source of truth: AtmosphereAnnotations.coreAnnotationNames(), augmented with
-    // optional AI annotations resolved by string so atmosphere-cpr keeps no hard
-    // dependency on atmosphere-ai. If the AI module is absent the index simply
-    // returns no instances and the slot is dropped.
-    private static final List<String> OPTIONAL_AI_ANNOTATIONS = List.of(
-            "org.atmosphere.ai.annotation.AiEndpoint");
+    // optional annotations resolved by string so the extension keeps no hard
+    // dependency on the modules that declare them. If a module is absent the
+    // index returns no instances and the slot is simply dropped.
+    //   - @AiEndpoint (atmosphere-ai)
+    //   - @Agent      (atmosphere-agent) — drives MCP / A2A / AG-UI registration
+    //                 via AgentProcessor; without it @Agent-based endpoints
+    //                 (including MCP) never register on Quarkus.
+    private static final List<String> OPTIONAL_ANNOTATIONS = List.of(
+            "org.atmosphere.ai.annotation.AiEndpoint",
+            "org.atmosphere.agent.annotation.Agent");
 
     private static final DotName[] ATMOSPHERE_ANNOTATIONS =
             java.util.stream.Stream.concat(
                             AtmosphereAnnotations.coreAnnotationNames().stream(),
-                            OPTIONAL_AI_ANNOTATIONS.stream())
+                            OPTIONAL_ANNOTATIONS.stream())
                     .map(DotName::createSimple)
                     .toArray(DotName[]::new);
 
@@ -86,6 +91,20 @@ class AtmosphereProcessor {
     @BuildStep
     IndexDependencyBuildItem indexAtmosphereRuntime() {
         return new IndexDependencyBuildItem("org.atmosphere", "atmosphere-runtime");
+    }
+
+    /**
+     * Index the optional {@code atmosphere-agent} and {@code atmosphere-mcp} jars
+     * when present so their {@code @AtmosphereAnnotation} processors — notably
+     * {@code AgentProcessor}, which turns an {@code @Agent} class into MCP / A2A /
+     * AG-UI endpoints — are in the Jandex index and get registered as annotation
+     * handlers. Marking an absent dependency for indexing is a no-op, so this is
+     * safe whether or not the app pulls MCP in.
+     */
+    @BuildStep
+    void indexOptionalAgentModules(BuildProducer<IndexDependencyBuildItem> indexDependency) {
+        indexDependency.produce(new IndexDependencyBuildItem("org.atmosphere", "atmosphere-agent"));
+        indexDependency.produce(new IndexDependencyBuildItem("org.atmosphere", "atmosphere-mcp"));
     }
 
 

@@ -18,7 +18,9 @@ package org.atmosphere.agent.processor;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.mcp.registry.McpRegistry;
+import org.atmosphere.mcp.runtime.McpAuthorization;
 import org.atmosphere.mcp.runtime.McpHandler;
+import org.atmosphere.mcp.runtime.McpProtectedResourceHandler;
 import org.atmosphere.mcp.runtime.McpProtocolHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,6 +112,18 @@ final class McpAgentRegistration {
             protocols.add("mcp");
             logger.info("MCP endpoint registered at {} with {} tools",
                     mcpPath, mcpRegistry.tools().size());
+
+            // When OAuth resource-server authorization is configured, publish the
+            // RFC 9728 Protected Resource Metadata at the well-known path so a
+            // challenged client can discover the authorization server. Without
+            // this the WWW-Authenticate challenge would point at a 404.
+            var authorization = protocolHandler.authorization();
+            if (authorization.enabled()) {
+                framework.addAtmosphereHandler(McpAuthorization.WELL_KNOWN_PATH,
+                        new McpProtectedResourceHandler(authorization), new ArrayList<>());
+                logger.info("MCP protected-resource metadata published at {}",
+                        McpAuthorization.WELL_KNOWN_PATH);
+            }
         } catch (Exception e) {
             logger.warn("Failed to register MCP endpoint for agent '{}': {}",
                     agentName, e.getMessage());
