@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.52] - 2026-06-08
+
 ### Added
 
 - **MCP authorization now validates bearer tokens end-to-end.** A request is authenticated

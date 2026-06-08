@@ -132,20 +132,20 @@ the solver, `libz3java` = the JNI bridge) on `java.library.path`.
 <dependency>
   <groupId>org.sosy-lab</groupId>
   <artifactId>javasmt-solver-z3</artifactId>
-  <version>4.0.51</version>
+  <version>4.0.52</version>
 </dependency>
 <!-- Z3 solver native + JNI bridge native (pick YOUR platform's classifier/type) -->
 <dependency>
   <groupId>org.sosy-lab</groupId>
   <artifactId>javasmt-solver-z3</artifactId>
-  <version>4.0.51</version>
+  <version>4.0.52</version>
   <classifier>libz3-arm64</classifier>     <!-- macOS arm64 -->
   <type>dylib</type>
 </dependency>
 <dependency>
   <groupId>org.sosy-lab</groupId>
   <artifactId>javasmt-solver-z3</artifactId>
-  <version>4.0.51</version>
+  <version>4.0.52</version>
   <classifier>libz3java-arm64</classifier>
   <type>dylib</type>
 </dependency>
@@ -179,12 +179,12 @@ under those names and point the JVM at it. A reproducible Maven wiring:
         <artifactItems>
           <artifactItem>
             <groupId>org.sosy-lab</groupId><artifactId>javasmt-solver-z3</artifactId>
-            <version>4.0.51</version><classifier>libz3-arm64</classifier><type>dylib</type>
+            <version>4.0.52</version><classifier>libz3-arm64</classifier><type>dylib</type>
             <destFileName>libz3.dylib</destFileName>
           </artifactItem>
           <artifactItem>
             <groupId>org.sosy-lab</groupId><artifactId>javasmt-solver-z3</artifactId>
-            <version>4.0.51</version><classifier>libz3java-arm64</classifier><type>dylib</type>
+            <version>4.0.52</version><classifier>libz3java-arm64</classifier><type>dylib</type>
             <destFileName>libz3java.dylib</destFileName>
           </artifactItem>
         </artifactItems>
