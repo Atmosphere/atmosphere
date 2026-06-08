@@ -30,6 +30,7 @@ import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.annotations.ExecutionTime;
 import io.quarkus.deployment.annotations.Record;
+import io.quarkus.deployment.builditem.ApplicationIndexBuildItem;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.IndexDependencyBuildItem;
@@ -95,14 +96,22 @@ class AtmosphereProcessor {
 
     /**
      * Index the optional {@code atmosphere-agent} and {@code atmosphere-mcp} jars
-     * when present so their {@code @AtmosphereAnnotation} processors — notably
+     * so their {@code @AtmosphereAnnotation} processors — notably
      * {@code AgentProcessor}, which turns an {@code @Agent} class into MCP / A2A /
-     * AG-UI endpoints — are in the Jandex index and get registered as annotation
-     * handlers. Marking an absent dependency for indexing is a no-op, so this is
-     * safe whether or not the app pulls MCP in.
+     * AG-UI endpoints — are in the Jandex index and registered as annotation
+     * handlers. Gated on the application actually declaring an {@code @Agent}
+     * class: indexing them unconditionally would pull {@code AgentProcessor} into
+     * native link-at-build-time even for apps that don't use {@code @Agent}, and
+     * {@code AgentProcessor} references optional sibling modules (e.g. AG-UI
+     * {@code RunContext}) that may be absent — which fails native image analysis.
      */
     @BuildStep
-    void indexOptionalAgentModules(BuildProducer<IndexDependencyBuildItem> indexDependency) {
+    void indexOptionalAgentModules(ApplicationIndexBuildItem applicationIndex,
+                                   BuildProducer<IndexDependencyBuildItem> indexDependency) {
+        var agent = DotName.createSimple("org.atmosphere.agent.annotation.Agent");
+        if (applicationIndex.getIndex().getAnnotations(agent).isEmpty()) {
+            return;
+        }
         indexDependency.produce(new IndexDependencyBuildItem("org.atmosphere", "atmosphere-agent"));
         indexDependency.produce(new IndexDependencyBuildItem("org.atmosphere", "atmosphere-mcp"));
     }
