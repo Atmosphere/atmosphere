@@ -307,6 +307,25 @@ With the Spring Boot starter, `McpTracing` is auto-configured when an `OpenTelem
 
 MCP `tools/call` admission requires `atmosphere-ai` on the classpath. When it is present, every MCP tool call flows through `PolicyAdmissionGate` (the same seam `@AiTool` dispatch uses), so YAML rules over `tool_name` apply to MCP invocations identically to first-party tools. Without `atmosphere-ai`, the gateway runs in open mode — it admits all calls and logs a startup `WARN` at class-load. `McpPolicyGateway.isActive()` reports the live state.
 
+## Running on Quarkus
+
+MCP servers also run on the Quarkus extension. Add `atmosphere-agent` and
+`atmosphere-mcp` alongside `atmosphere-quarkus-extension`, and point the build
+scan at your `@Agent` package:
+
+```properties
+quarkus.atmosphere.packages=com.example.mcp
+```
+
+The Quarkus build step recognizes `@Agent` and indexes the agent/mcp jars so the
+endpoint, tools, and OAuth authorization register exactly as on Spring Boot
+(proven by the extension's MCP-on-Quarkus authorization test).
+
+> **JVM only.** Native image is not yet supported for `@Agent`-based MCP — the
+> agent processor links optional sibling modules (e.g. AG-UI) at build time,
+> which native-image analysis rejects when they are absent. No Quarkus MCP sample
+> ships today; the capability is covered by the extension test suite.
+
 ## Full Documentation
 
 See <https://atmosphere.github.io/docs/reference/mcp/> for complete documentation.
