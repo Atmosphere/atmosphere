@@ -5,7 +5,7 @@
 <h1 align="center">Atmosphere</h1>
 
 <p align="center">
-  JVM runtime for streaming, governable AI agents. Declare behavior with <code>@Agent</code>; Atmosphere owns the transport, runtime dispatch, reconnect, authorization, observability, and governance path.
+  The real-time JVM engine for streaming, governable AI agents. Atmosphere's broadcaster transport — WebSocket, SSE, long-polling, gRPC — is the foundation; declare behavior with <code>@Agent</code> and Atmosphere owns runtime dispatch, reconnect, authorization, observability, and the governance path.
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@ Atmosphere is built for teams that need AI agents to behave like production serv
 
 | Need | What Atmosphere provides |
 |---|---|
-| Stream to real clients | WebSocket, SSE, and long-polling are the always-on defaults; WebTransport over HTTP/3 is optional (needs `jetty-http3-server` or `reactor-netty-http` on the classpath plus a dev cert), all through the same broadcaster pipeline, with gRPC |
+| Stream to real clients | WebSocket, SSE, long-polling, and gRPC run through one broadcaster pipeline as always-on defaults; WebTransport over HTTP/3 is optional (needs `jetty-http3-server` or `reactor-netty-http` on the classpath plus a dev cert) |
 | Swap AI integrations | One `AgentRuntime` SPI with twelve runtime adapters and contract-tested capability flags |
 | Govern execution | Policy admission, `@AgentScope`, human approval, plan-and-verify, cost ceilings, PII rewriting, and admin kill switches |
 | Pause for humans | Durable HITL approvals park virtual threads, persist workflow state, and resume through REST approval surfaces |
