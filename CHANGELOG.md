@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **MCP authorization now validates bearer tokens end-to-end.** A request is authenticated
+  when either a servlet resource-server filter set the request principal (e.g. Spring
+  Security `oauth2ResourceServer`) **or** a configured `TokenValidator` accepts the
+  `Authorization: Bearer` token (loaded from `org.atmosphere.auth.tokenValidator`, validated
+  by `atmosphere-mcp` itself — no framework-specific wiring). The RFC 9728 metadata is now
+  served on the agent registration path too. Proven end-to-end on the embedded server,
+  Spring Boot, and Quarkus (JVM). The `spring-boot-mcp-server` sample gains an opt-in `auth`
+  profile (default off) demonstrating it.
+- **MCP runs on Quarkus.** `@Agent`-based MCP endpoints now register under the Quarkus
+  extension (the build scan recognizes `@Agent` and indexes the optional
+  `atmosphere-agent` / `atmosphere-mcp` jars when an `@Agent` class is present). JVM mode;
+  native image is not yet supported for `@Agent`-based MCP.
+
+### Tested
+
+- Added a stateless `2026-07-28` round-robin end-to-end test (two `tools/call` with no
+  session header both succeed, plus `server/discover` and `Mcp-Method` mismatch) in
+  `modules/integration-tests`, proving the no-session-affinity claim over live HTTP.
+
 ## [4.0.51] - 2026-06-06
 
 ### Added
@@ -35,11 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lists and calls the app's own `appCapabilities.tools`), and uses a **separate-origin
   sandbox proxy** for isolation (`atmosphere.mcp-sandbox-origin`, with a `localhost`↔
   `127.0.0.1` dev fallback, otherwise an opaque-origin direct sandbox).
-- **MCP authorization** — the server acts as an OAuth 2.0 Resource Server: RFC 9728
-  protected-resource metadata at `/.well-known/oauth-protected-resource` and a `401` +
-  `WWW-Authenticate` challenge for unauthenticated requests. Token validation is delegated
-  to the host framework (Spring Security resource server / `quarkus-oidc`); opt in via the
-  `org.atmosphere.mcp.auth.*` init parameters.
+- **MCP authorization (protocol glue)** — the server acts as an OAuth 2.0 Resource Server:
+  RFC 9728 protected-resource metadata at `/.well-known/oauth-protected-resource` and a
+  `401` + `WWW-Authenticate` challenge for unauthenticated requests; opt in via the
+  `org.atmosphere.mcp.auth.*` init parameters. This release shipped the protocol glue only;
+  bearer-token validation was wired end-to-end in 4.0.52 (see Unreleased).
 
 ## [4.0.50] - 2026-06-05
 

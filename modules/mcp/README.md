@@ -81,7 +81,7 @@ session dialect. No flag day: every `2024-11-05 … 2025-11-25` client is unaffe
 | **JSON Schema 2020-12** | tool input schemas advertise the `2020-12` dialect (`$schema`) |
 | **Extensions framework** | reverse-DNS capability map; Tasks and Apps register as official extensions |
 | **MCP Apps** | tools advertise a `ui://` UI resource — see [MCP Apps](#mcp-apps-sep-1865) |
-| **Authorization** | OAuth 2.0 Resource Server glue — see [Authorization](#authorization-oauth-resource-server) |
+| **Authorization** | OAuth 2.0 Resource Server — RFC 9728 metadata + bearer-token validation (via a `TokenValidator`) or a framework-set principal; see [Authorization](#authorization-oauth-resource-server) |
 
 The relevant `@McpTool` attributes:
 
@@ -116,15 +116,28 @@ distinct origin is available (`atmosphere.mcp-sandbox-origin`, or the `localhost
 
 When enabled, the MCP server acts as an **OAuth 2.0 Resource Server**: it serves RFC 9728
 protected-resource metadata at `/.well-known/oauth-protected-resource` and answers
-unauthenticated requests with `401` + a `WWW-Authenticate` challenge pointing at it. Token
-**validation is delegated to the host framework** (Spring Security resource server /
-`quarkus-oidc`) — `atmosphere-mcp` owns only the protocol glue. Opt in via init params:
+unauthenticated requests with `401` + a `WWW-Authenticate` challenge pointing at it
+(default-deny). A request is authenticated when **either**:
+
+- a servlet resource-server filter has set the request principal — e.g. Spring Security
+  `oauth2ResourceServer` validating a JWT against your issuer; **or**
+- a configured `TokenValidator` accepts the `Authorization: Bearer` token. MCP loads the
+  validator from the `org.atmosphere.auth.tokenValidator` init-param and validates the
+  bearer token itself, so this works on any container — servlet, Spring Boot, and Quarkus
+  (on the JVM) — with no framework-specific wiring.
+
+Opt in via init params:
 
 ```properties
 org.atmosphere.mcp.auth.resource=https://api.example.com/atmosphere/mcp
 org.atmosphere.mcp.auth.authorizationServers=https://auth.example.com
 org.atmosphere.mcp.auth.scopes=mcp:tools mcp:resources
+# Validate bearer tokens with your own TokenValidator — or omit this and let a servlet
+# security filter (e.g. Spring Security) set the request principal instead:
+org.atmosphere.auth.tokenValidator=com.example.MyJwtTokenValidator
 ```
+
+The flow is end-to-end tested on the embedded server, Spring Boot, and Quarkus (JVM).
 
 ## Connecting Clients
 
