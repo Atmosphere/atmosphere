@@ -161,7 +161,8 @@ files = [
 [ci_allowlist]
 # CI workflow files where continue-on-error: true is acceptable
 continue_on_error = [
-    "atmosphere-js-ci.yml"   # JS CI may fail on optional browser tests
+    "atmosphere-js-ci.yml",   # JS CI may fail on optional browser tests
+    "release-4x.yml"          # trailing website-sync dispatch must not skip the publish jobs
 ]
 
 # CI commands where -DskipTests is acceptable

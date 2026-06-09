@@ -260,6 +260,15 @@ jobs:
       # sibling docs because no cross-repo sync existed. This step closes
       # that gap for every future release.
       if: inputs.dry_run == false
+      # Non-fatal: this is the LAST step of release-maven and only fires a
+      # convenience repository_dispatch at the sibling docs repo. It must never
+      # fail the job — if it did, the downstream publish jobs (GitHub Packages,
+      # NPM, GitHub Release, CLI/Homebrew) would be skipped even though Maven
+      # Central already published, leaving a partial release. (That happened on
+      # 4.0.52 when this step hit a transient GitHub API rate limit.) The website
+      # also has its own scheduled/triggered rebuild, so a missed dispatch
+      # self-heals; allowlisted in scripts/validation-patterns.toml.
+      continue-on-error: true
       uses: peter-evans/repository-dispatch@v4
       with:
         token: ${{ secrets.SITE_DISPATCH_TOKEN }}
