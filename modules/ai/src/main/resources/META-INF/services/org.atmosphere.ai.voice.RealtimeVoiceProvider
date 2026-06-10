@@ -1,0 +1,3 @@
+# Default dependency-free reference voice provider (echoes audio back).
+# Production deployments register an OpenAI Realtime / Gemini Live provider.
+org.atmosphere.ai.voice.LoopbackVoiceProvider
