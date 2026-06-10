@@ -84,7 +84,7 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     private final static String HEARTBEAT_TEMPLATE = "{\"heartbeat\": \"%s\", \"time\": %d}";
     private final static long DEFAULT_HEARTBEAT_INTERVAL = 60;
 
-    // Lenient parsing — the legacy org.json backend accepted single-quoted
+    // Lenient parsing — the legacy JSON backend accepted single-quoted
     // keys/values, so we keep that contract on the wire to avoid breaking
     // existing SimpleRestInterceptor clients.
     private static final ObjectMapper MAPPER = JsonMapper.builder()
@@ -386,8 +386,8 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
      * into a Jackson tree.
      *
      * <p><strong>API change in 4.0.42:</strong> the return type changed
-     * from the legacy {@code org.json.JSONObject} to Jackson's
-     * {@link JsonNode} when the {@code org.json:json} dependency was
+     * from a legacy third-party {@code JSONObject} to Jackson's
+     * {@link JsonNode} when that legacy JSON dependency was
      * dropped (CVE hygiene). External subclasses that read the parsed
      * JSON should migrate to {@link JsonNode} or
      * {@link tools.jackson.databind.ObjectMapper#convertValue} for a

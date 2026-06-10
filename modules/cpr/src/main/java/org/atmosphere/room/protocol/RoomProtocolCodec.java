@@ -30,8 +30,8 @@ import java.util.Map;
 /**
  * JSON encoder/decoder for the room protocol, backed by Jackson 3
  * ({@code tools.jackson.databind}). Jackson is the project's single
- * JSON dependency; the legacy {@code org.json:json} backend was
- * retired to avoid the periodic CVE churn that library carries.
+ * JSON dependency; a legacy third-party JSON backend was retired to
+ * avoid the periodic CVE churn that library carried.
  *
  * <h3>Wire format (client → server)</h3>
  * <pre>{@code
@@ -238,7 +238,7 @@ public final class RoomProtocolCodec {
      * Convert a {@link JsonNode} into the closest plain-Java value: {@code String},
      * {@code Number}, {@code Boolean}, {@code null}, {@code Map<String, Object>}
      * for objects, or {@code List<Object>} for arrays. Mirrors the surface
-     * the legacy {@code org.json} backend exposed via {@code obj.get(key)}.
+     * the legacy JSON backend exposed via {@code obj.get(key)}.
      */
     private static Object nodeToValue(JsonNode node) {
         if (node == null || node.isNull()) {
