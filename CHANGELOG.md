@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rich human-in-the-loop approval payloads.** A reviewer can now resolve a tool
+  approval with more than approve/deny: **approve-with-edited-arguments** (the
+  tool runs with the reviewer's arguments) or **respond** (the reviewer answers on
+  the tool's behalf — structured JSON or free-form text — and the tool does not
+  run). Wire protocol: `/__approval/<id>/approve {"arguments":{…}}` and
+  `/__approval/<id>/respond {…}`. Fail-safe: a malformed edited-args payload denies.
+  Session-scoped in-memory (not crash-durable). The legacy boolean resolution path
+  is unchanged.
+- **Eval flywheel.** `JournalDatasetPromoter` turns a recorded `CoordinationJournal`
+  interaction into an `EvalCase` dataset row (trace→dataset), and `SampledLiveScorer`
+  grades a configurable fraction of live turns into `EvalRun` verdicts (online
+  scoring). Both are wired into `EvalController` with admin REST routes
+  (`/api/admin/evals/dataset`, `/dataset/promote`, `/score`).
+- **OAuth on-behalf-of credential vault.** `OAuthOnBehalfOfCredentialStore` is a
+  concrete `CredentialStore` that performs an RFC 8693 token exchange — swapping a
+  user's stored subject token for a short-lived access token scoped to a downstream
+  tool, so an agent calls external APIs *as the user*. Fail-closed (no token →
+  no fallback credential), token-cached until expiry. Opt in with
+  `atmosphere.ai.identity.oauth-obo.enabled=true`.
+- **Realtime voice bridge.** `VoiceBridge` + the `RealtimeVoiceProvider` SPI bridge
+  client audio frames over the existing WebSocket broadcaster to a speech-to-speech
+  provider, fanning synthesized audio (`Content.Audio`) and transcripts back to the
+  client. A dependency-free `LoopbackVoiceProvider` ships as the runnable reference
+  (echoes audio); OpenAI Realtime / Gemini Live providers implement the same SPI.
 - **Content-safety moderation guardrail.** `ModerationGuardrail` blocks turns
   whose request and/or response is flagged for hate / harassment / self-harm /
   sexual / violence / illicit content, on the existing fail-closed guardrail
