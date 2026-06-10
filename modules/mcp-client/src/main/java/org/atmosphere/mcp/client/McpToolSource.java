@@ -114,6 +114,18 @@ public final class McpToolSource implements AutoCloseable {
      *                          an unavailable tool source and fail fast
      */
     public static McpToolSource connect(java.net.URI endpoint) {
+        return connect(endpoint, McpClientOptions.defaults());
+    }
+
+    /**
+     * Connect over Streamable HTTP with {@link McpClientOptions} — per-server
+     * tool filtering/renaming for collision-free aggregation, plus optional
+     * elicitation/sampling callback handlers.
+     *
+     * @param endpoint base URL (with optional explicit MCP path)
+     * @param options  filtering, renaming, and callback configuration
+     */
+    public static McpToolSource connect(java.net.URI endpoint, McpClientOptions options) {
         Objects.requireNonNull(endpoint, "endpoint");
         var path = endpoint.getPath();
         var baseUrl = stripPath(endpoint);
@@ -121,7 +133,7 @@ public final class McpToolSource implements AutoCloseable {
         if (path != null && !path.isEmpty() && !"/".equals(path)) {
             builder.endpoint(path);
         }
-        return connect(builder.build(), endpoint.toString());
+        return connect(builder.build(), endpoint.toString(), options);
     }
 
     private static String stripPath(java.net.URI uri) {
@@ -143,8 +155,37 @@ public final class McpToolSource implements AutoCloseable {
      * messages so multiple sources can be distinguished.
      */
     public static McpToolSource connect(McpClientTransport transport, String label) {
+        return connect(transport, label, McpClientOptions.defaults());
+    }
+
+    /**
+     * Connect using a caller-supplied transport with {@link McpClientOptions}.
+     * Tools are filtered and renamed per the options (rename is display-only —
+     * the executor still calls the server's original tool name), and any
+     * elicitation/sampling handlers are wired into the client with their
+     * capabilities advertised during {@code initialize}.
+     */
+    public static McpToolSource connect(McpClientTransport transport, String label,
+                                        McpClientOptions options) {
         Objects.requireNonNull(transport, "transport");
-        var client = McpClient.sync(transport).build();
+        var opts = options == null ? McpClientOptions.defaults() : options;
+        var spec = McpClient.sync(transport);
+        var capabilities = McpSchema.ClientCapabilities.builder();
+        var advertise = false;
+        if (opts.elicitationHandler() != null) {
+            spec.elicitation(opts.elicitationHandler()::apply);
+            capabilities.elicitation();
+            advertise = true;
+        }
+        if (opts.samplingHandler() != null) {
+            spec.sampling(opts.samplingHandler()::apply);
+            capabilities.sampling();
+            advertise = true;
+        }
+        if (advertise) {
+            spec.capabilities(capabilities.build());
+        }
+        var client = spec.build();
         // Ownership: this method created the client, so the transport is
         // ours to close on any failure path until the constructed
         // McpToolSource takes over ownership on the success branch
@@ -159,9 +200,14 @@ public final class McpToolSource implements AutoCloseable {
             var defs = new ArrayList<ToolDefinition>(tools.size());
             Map<String, McpToolMetrics> perTool = new ConcurrentHashMap<>();
             for (var tool : tools) {
+                if (!opts.includes(tool.name())) {
+                    LOG.debug("McpToolSource[{}] filtered out tool '{}'", label, tool.name());
+                    continue;
+                }
                 var toolMetrics = new McpToolMetrics();
                 perTool.put(tool.name(), toolMetrics);
-                defs.add(toDefinition(tool, client, label, toolMetrics));
+                defs.add(rename(toDefinition(tool, client, label, toolMetrics),
+                        opts.displayName(tool.name())));
             }
             LOG.info("McpToolSource connected to {} — loaded {} tool(s)", label, defs.size());
             return new McpToolSource(client, Collections.unmodifiableList(defs), label,
@@ -174,6 +220,20 @@ public final class McpToolSource implements AutoCloseable {
             }
             throw re;
         }
+    }
+
+    /**
+     * Return a copy of {@code def} renamed to {@code displayName}, preserving
+     * the executor (which still calls the server's original tool name). A no-op
+     * when the name is unchanged.
+     */
+    static ToolDefinition rename(ToolDefinition def, String displayName) {
+        if (displayName == null || displayName.equals(def.name())) {
+            return def;
+        }
+        return new ToolDefinition(displayName, def.description(), def.parameters(),
+                def.returnType(), def.executor(), def.approvalMessage(),
+                def.approvalTimeout(), def.kind());
     }
 
     /**
