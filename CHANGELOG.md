@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Content-safety moderation guardrail.** `ModerationGuardrail` blocks turns
+  whose request and/or response is flagged for hate / harassment / self-harm /
+  sexual / violence / illicit content, on the existing fail-closed guardrail
+  pipeline. Pluggable detector: zero-dep `RuleBasedModerationDetector` (default)
+  or cross-runtime `LlmModerationDetector`. Fail-closed by default (a detector
+  outage blocks the turn; `.failOpen()` is the explicit opt-out). Opt in with
+  `atmosphere.ai.guardrails.moderation.enabled=true`
+  (`...detector=llm` for the model tier).
+- **Self-healing structured output.** `@AiEndpoint(structuredOutputRetries = N)`
+  (or the `ai.structured.retry` request-metadata key on the `AiPipeline` path)
+  re-prompts the model with the schema-validation error as feedback when a typed
+  response fails to parse, up to `N` extra attempts, then fails closed. Works
+  identically on the websocket and channel-bridge paths.
+- **OpenAPI → governed tools.** `OpenApiToolImporter` turns an OpenAPI 3.x spec
+  (JSON or YAML, with local `$ref` resolution) into `ToolDefinition`s whose
+  executor performs the HTTP call. The imported operations ride the same
+  policy-admission and plan-and-verify path as hand-written `@AiTool` methods;
+  `approvalForWrites` routes mutating verbs through the HITL gate.
+- **MCP client depth.** `McpClientOptions` adds per-server tool filtering and
+  display-only renaming (the executor still calls the server's original tool
+  name), plus elicitation/sampling callback handlers advertised during
+  `initialize`. `McpServerRegistry` aggregates several servers into one
+  collision-free tool list (first-wins) and owns their lifecycle.
+
 ## [4.0.52] - 2026-06-08
 
 ### Added

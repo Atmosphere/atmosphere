@@ -669,9 +669,9 @@ Resolution order inside the handler:
 2. `ServiceLoader.load(FactResolver.class)` — plain servlet / Quarkus
 3. `DefaultFactResolver` — supplies `time.now` + `time.timezone` only
 
-### Guardrails — PII redaction, drift, cost ceiling
+### Guardrails — PII redaction, drift, cost ceiling, moderation
 
-Three zero-dep implementations ship in-tree:
+Four zero-dep implementations ship in-tree:
 
 - `PiiRedactionGuardrail` — regex-based redaction of email / phone /
   credit card / US SSN / IPv4 in requests AND responses. Default mode
@@ -689,12 +689,61 @@ Three zero-dep implementations ship in-tree:
   a shared `__default__` bucket. Automatically fed via
   `CostAccountingSession` → `CostCeilingAccountant` → `addCost` whenever
   a runtime reports `TokenUsage` (see Cost accounting wire below).
+- `ModerationGuardrail` — content-safety tier on the same fail-closed
+  pipeline. Blocks a turn whose request and/or response is flagged for
+  hate / harassment / self-harm / sexual / violence / illicit content.
+  The detector is pluggable: `RuleBasedModerationDetector` (zero-dep,
+  default — conservative intent-phrase matching, cheap enough for every
+  streamed chunk) or `LlmModerationDetector` (cross-runtime zero-shot
+  classification via the installed `AgentRuntime`, like the injection /
+  scope classifier families). **Fail-closed by default** — a detector
+  outage blocks the turn; `.failOpen()` is the explicit, non-default
+  opt-out. Select the LLM tier with
+  `atmosphere.ai.guardrails.moderation.detector=llm`.
 
-All three opt in via Spring property
-(`atmosphere.ai.guardrails.{pii,drift,cost}.enabled=true`) or
+All four opt in via Spring property
+(`atmosphere.ai.guardrails.{pii,drift,cost,moderation}.enabled=true`) or
 ServiceLoader. `AiEndpointProcessor` merges annotation-declared,
 ServiceLoader, and framework-property guardrails so user-defined
 `@AiEndpoint` paths get the same wiring as the default endpoint.
+
+### Self-healing structured output
+
+A typed (`responseAs = …` / structured-output) endpoint can re-prompt
+itself when the model returns content that fails schema validation,
+instead of failing the turn. Set
+`@AiEndpoint(structuredOutputRetries = N)` (or thread an
+`AiStructuredRetry` under the `ai.structured.retry` request-metadata key
+on the `AiPipeline` path). On a parse failure the runtime is re-invoked
+with the validation error and the prior invalid output appended as
+feedback, up to `N` extra attempts, then **fails closed** — an
+unparseable final attempt surfaces a `StructuredOutputException` rather
+than a silent empty success. Distinct from `@AiEndpoint.retry()`, which
+is transport-error backoff; the two compose. Identical behavior across
+the `@AiEndpoint` websocket path and the resource-free `AiPipeline`
+channel-bridge path (Mode Parity).
+
+### OpenAPI → governed tools
+
+`OpenApiToolImporter` turns an OpenAPI 3.x spec (JSON or YAML) into
+Atmosphere `ToolDefinition`s whose executor performs the HTTP call:
+
+```java
+int n = OpenApiToolImporter.importInto(registry, specYamlOrJson,
+        OpenApiImportOptions.builder()
+                .baseUrl("https://api.example.com")
+                .header("Authorization", "Bearer " + token)
+                .approvalForWrites(true)   // POST/PUT/PATCH/DELETE → HITL gate
+                .build());
+```
+
+Local `#/components/...` `$ref`s are resolved; path/query/header
+parameters and a JSON request body (top-level properties flattened) are
+mapped to tool parameters, every dynamic value URL-encoded at the
+boundary. Because the output is an ordinary `ToolDefinition` in the
+registry, the imported operations **ride the same policy-admission and
+plan-and-verify path** as hand-written `@AiTool` methods — there is no
+separate, ungoverned code path.
 
 ### Governance policy plane
 

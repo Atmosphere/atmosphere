@@ -68,6 +68,37 @@ For the Spring Boot interceptor pattern, see
   `@AiTool` failure semantics and lets the agent loop decide to retry,
   recover, or surface the error to the user.
 
+## Multi-server aggregation, filtering & renaming
+
+`McpClientOptions` configures a source per server:
+
+```java
+var weather = McpToolSource.connect(URI.create("http://weather:8080"),
+        McpClientOptions.builder()
+                .toolNamePrefix("weather_")          // collision-free names
+                .includeTools(Set.of("forecast"))    // allow-list
+                .build());
+var calendar = McpToolSource.connect(URI.create("http://calendar:8080"),
+        McpClientOptions.builder().toolNamePrefix("cal_").build());
+
+try (var registry = McpServerRegistry.builder()
+        .add(weather).add(calendar).build()) {
+    var tools = registry.tools();   // merged, collision-free (first-wins + warn)
+}
+```
+
+* **Filtering** — `toolFilter` / `includeTools` import only a subset of a
+  server's tools, keeping the model's tool list focused.
+* **Renaming** — `toolNamePrefix` or a custom `nameMapper` give each server's
+  tools unique names. The rename is **display-only**: the executor still calls
+  the server's original tool name on the wire.
+* **Aggregation** — `McpServerRegistry` merges several sources into one
+  collision-free list (first source wins on a name clash; prefix to avoid it)
+  and owns their lifecycle (`close()` closes them all).
+* **Elicitation / sampling callbacks** — `McpClientOptions.elicitationHandler`
+  / `samplingHandler` register the server→client handlers and advertise the
+  corresponding client capability during `initialize`.
+
 ## What it deliberately does NOT do
 
 * **No reconnection logic.** The SDK throws from `callTool` on transport
