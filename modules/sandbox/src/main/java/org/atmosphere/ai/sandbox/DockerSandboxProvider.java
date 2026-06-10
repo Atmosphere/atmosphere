@@ -62,6 +62,11 @@ public final class DockerSandboxProvider implements SandboxProvider {
     }
 
     @Override
+    public IsolationTier tier() {
+        return IsolationTier.CONTAINER;
+    }
+
+    @Override
     public boolean isAvailable() {
         try {
             var result = runProcess(List.of("docker", "version", "--format", "{{.Server.Version}}"),

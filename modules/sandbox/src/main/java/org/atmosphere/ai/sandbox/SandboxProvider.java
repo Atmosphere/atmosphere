@@ -47,4 +47,15 @@ public interface SandboxProvider {
      * @param metadata optional labels surfaced on the admin control plane
      */
     Sandbox create(String image, SandboxLimits limits, Map<String, String> metadata);
+
+    /**
+     * The isolation strength this backend offers, so callers (and policy
+     * admission) can demand a minimum via {@link Sandboxes#select(IsolationTier)}.
+     * Defaults to the weakest tier ({@link IsolationTier#PROCESS}) — a provider
+     * advertises stronger isolation only by overriding, so an unclassified
+     * backend is never mistaken for a hardened one (Runtime Truth, Invariant #5).
+     */
+    default IsolationTier tier() {
+        return IsolationTier.PROCESS;
+    }
 }

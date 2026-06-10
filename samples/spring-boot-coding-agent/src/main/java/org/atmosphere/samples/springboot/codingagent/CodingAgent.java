@@ -19,9 +19,11 @@ import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.sandbox.NetworkPolicy;
+import org.atmosphere.ai.sandbox.IsolationTier;
 import org.atmosphere.ai.sandbox.Sandbox;
 import org.atmosphere.ai.sandbox.SandboxLimits;
 import org.atmosphere.ai.sandbox.SandboxProvider;
+import org.atmosphere.ai.sandbox.Sandboxes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +31,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.ServiceLoader;
 
 /**
  * Coding agent that clones a repository into a sandbox, reads files, and
@@ -159,12 +160,12 @@ public class CodingAgent {
     }
 
     private static SandboxProvider resolveProvider() {
-        for (var provider : ServiceLoader.load(SandboxProvider.class)) {
-            if (provider.isAvailable()) {
-                return provider;
-            }
-        }
-        return null;
+        // Tier-aware selection: a PROCESS floor keeps the in-process dev opt-in
+        // usable while preferring the strongest available isolation (Docker's
+        // CONTAINER tier when the daemon is reachable). A deployment running
+        // fully untrusted code should raise the floor to
+        // {@link IsolationTier#CONTAINER} so the in-process backend is excluded.
+        return Sandboxes.select(IsolationTier.PROCESS).orElse(null);
     }
 
     /**
