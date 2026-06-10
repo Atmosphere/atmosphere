@@ -108,6 +108,18 @@ export interface PolicyDenial {
 }
 
 /**
+ * A typed generative-UI tool part — the lifecycle of a single tool call as the
+ * agent runs it. Parsed from the server's {@code tool-start} / {@code tool-result}
+ * / {@code tool-error} AiEvents (see {@code parseToolPart}) so UI code can render
+ * a tool widget without hand-parsing the untyped {@link StreamingHandlers.onAiEvent}
+ * payload.
+ */
+export type ToolPart =
+  | { type: 'tool-call'; toolName: string; arguments: Record<string, unknown>; state: 'started' }
+  | { type: 'tool-result'; toolName: string; result: unknown; state: 'completed' }
+  | { type: 'tool-error'; toolName: string; error: string; state: 'error' };
+
+/**
  * Event handlers for a streaming session.
  */
 export interface StreamingHandlers {
@@ -132,6 +144,12 @@ export interface StreamingHandlers {
   onMetadata?: (key: string, value: unknown) => void;
   /** Called for structured AiEvent messages (tool calls, agent steps, entities, etc.). */
   onAiEvent?: (event: string, data: Record<string, unknown>) => void;
+  /**
+   * Called for each typed tool-part lifecycle event (tool-call started, result,
+   * error). The typed counterpart to {@link #onAiEvent} for tool events; both
+   * fire so existing untyped consumers keep working.
+   */
+  onToolPart?: (part: ToolPart) => void;
   /** Called when the session completes or errors, with aggregated stats and routing info. */
   onSessionComplete?: (stats: SessionStats, routing: RoutingInfo) => void;
   /**

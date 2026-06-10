@@ -18,6 +18,7 @@ import type { AtmosphereRequest, Subscription } from '../types';
 import type { StreamingHandlers, StreamingHandle, StreamingMessage, SessionStats, RoutingInfo, SendOptions, PolicyDenial } from './types';
 import { parseStreamingMessage } from './decoder';
 import { parsePolicyDenial } from './policy-denial';
+import { parseToolPart } from './tool-part';
 import { Atmosphere } from '../core/atmosphere';
 import { ConnectionStatus } from '../resilience';
 
@@ -241,10 +242,17 @@ function dispatch(
         handlers.onSessionComplete?.(stats, { ...state.routing });
         break;
       }
-      default:
-        // All other event types (tool-start, tool-result, agent-step, etc.)
+      default: {
+        // Typed tool-part lifecycle for tool-start/tool-result/tool-error;
+        // null for any other event type (agent-step, entities, ...).
+        const toolPart = parseToolPart(msg.event, data);
+        if (toolPart) {
+          handlers.onToolPart?.(toolPart);
+        }
+        // Always fire onAiEvent too, so existing untyped consumers keep working.
         handlers.onAiEvent?.(msg.event, data);
         break;
+      }
     }
     return;
   }
