@@ -104,6 +104,8 @@ public class AiStreamingSession implements StreamingSession {
     private volatile org.atmosphere.ai.llm.CacheHint.CachePolicy cachePolicy;
     /** Endpoint-configured per-request retry policy from {@code @AiEndpoint.retry()}. */
     private volatile org.atmosphere.ai.RetryPolicy endpointRetryPolicy;
+    /** Endpoint-scoped structured-output reprompt budget; 0 disables the loop. */
+    private volatile int endpointStructuredRetries;
     /**
      * Framework-scoped injectables stashed by the endpoint handler and
      * threaded into {@code @AiTool} dispatch so tool methods can declare
@@ -449,6 +451,16 @@ public class AiStreamingSession implements StreamingSession {
      */
     public void setRetryPolicy(org.atmosphere.ai.RetryPolicy policy) {
         this.endpointRetryPolicy = policy;
+    }
+
+    /**
+     * Set the endpoint-scoped structured-output reprompt budget from
+     * {@code @AiEndpoint.structuredOutputRetries()}. Applies only to endpoints
+     * that declare a typed response; {@code 0} disables the self-healing loop.
+     * A per-request {@code ai.structured.retry} metadata override still wins.
+     */
+    public void setStructuredOutputRetries(int retries) {
+        this.endpointStructuredRetries = Math.max(0, retries);
     }
 
     /**
@@ -807,7 +819,22 @@ public class AiStreamingSession implements StreamingSession {
             // (BuiltInAgentRuntime, etc.) return a real handle backed by
             // their native cancel primitive, so cancelInflight() actually
             // closes the HTTP stream and unwinds the tool loop.
-            var handle = runtime.executeWithHandle(context, streamingTarget);
+            // Self-healing structured-output reprompt loop (Mode Parity with the
+            // AiPipeline channel-bridge path). Only active when a typed response
+            // is declared AND a retry budget is configured — endpoint-scoped via
+            // @AiEndpoint.structuredOutputRetries(), per-request override via the
+            // ai.structured.retry metadata key. Disabled → identical single-shot
+            // behavior.
+            var hasStructured = effectiveResponseType != null
+                    && effectiveResponseType != Void.class;
+            var requestRetry = AiStructuredRetry.from(effectiveMetadata);
+            var effectiveRetries = requestRetry != null
+                    ? requestRetry.maxRetries()
+                    : endpointStructuredRetries;
+            var handle = hasStructured && effectiveRetries > 0
+                    ? StructuredOutputRetry.executeWithHandle(runtime, context, streamingTarget,
+                            StructuredOutputParser.resolve(), effectiveResponseType, effectiveRetries)
+                    : runtime.executeWithHandle(context, streamingTarget);
             this.currentHandle = handle;
             // Close the publish-then-cancel race: a disconnect that fired
             // between executeWithHandle returning and currentHandle being

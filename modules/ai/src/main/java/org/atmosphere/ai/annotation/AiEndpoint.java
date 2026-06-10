@@ -323,6 +323,19 @@ public @interface AiEndpoint {
     int heartbeatSeconds() default 0;
 
     /**
+     * Number of additional self-healing reprompt attempts for typed
+     * (structured-output) endpoints. When the model's response fails schema
+     * validation, the runtime is re-invoked with the validation error appended
+     * as feedback, up to this many extra attempts, then <strong>fails closed</strong>.
+     *
+     * <p>Distinct from {@link #retry()} (which is transport-error backoff): this
+     * is a <em>semantic</em> reprompt for a well-formed response whose content
+     * did not parse. Defaults to {@code 0} (single shot, no reprompt). Ignored on
+     * endpoints without a declared response type.</p>
+     */
+    int structuredOutputRetries() default 0;
+
+    /**
      * Inline retry-policy configuration for {@link AiEndpoint#retry()}.
      * Default values match {@link org.atmosphere.ai.RetryPolicy#DEFAULT}
      * except for the sentinel {@code maxRetries = -1} which signals "use

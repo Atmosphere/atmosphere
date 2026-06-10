@@ -245,12 +245,19 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     /** Endpoint-scoped retry policy from {@code @AiEndpoint.retry()}. */
     private volatile org.atmosphere.ai.RetryPolicy endpointRetryPolicy;
 
+    /** Endpoint-scoped structured-output reprompt budget from {@code @AiEndpoint.structuredOutputRetries()}. */
+    private volatile int structuredOutputRetries;
+
     public void setCachePolicy(org.atmosphere.ai.llm.CacheHint.CachePolicy policy) {
         this.cachePolicy = policy;
     }
 
     public void setRetryPolicy(org.atmosphere.ai.RetryPolicy policy) {
         this.endpointRetryPolicy = policy;
+    }
+
+    public void setStructuredOutputRetries(int retries) {
+        this.structuredOutputRetries = Math.max(0, retries);
     }
 
     @Override
@@ -437,6 +444,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
         if (endpointRetryPolicy != null) {
             session.setRetryPolicy(endpointRetryPolicy);
+        }
+        if (structuredOutputRetries > 0) {
+            session.setStructuredOutputRetries(structuredOutputRetries);
         }
 
         // Publish the handler's injectables map (AgentFleet, AgentIdentity,

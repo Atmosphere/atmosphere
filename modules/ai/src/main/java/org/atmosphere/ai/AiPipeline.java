@@ -97,6 +97,14 @@ public class AiPipeline {
      */
     private volatile AiConfidenceElicitation defaultConfidenceElicitation;
     /**
+     * Pipeline-level default {@link AiStructuredRetry}. When set and enabled,
+     * every {@link #execute(String, String, StreamingSession)} call seeds it
+     * into the request metadata so structured-output turns self-heal on schema
+     * failures. Per-request callers override via the {@code ai.structured.retry}
+     * metadata key, mirroring how {@link AiBudget} is threaded.
+     */
+    private volatile AiStructuredRetry defaultStructuredRetry;
+    /**
      * Metadata key emitted on both cache hit ({@code true}) and cache miss
      * ({@code false}) when the pipeline's cache gate fires. Mirrors the
      * naming convention of {@code ai.tokens.input}/{@code ai.tokens.output}
@@ -268,6 +276,23 @@ public class AiPipeline {
         return defaultConfidenceElicitation;
     }
 
+    /**
+     * Install a pipeline-level default {@link AiStructuredRetry}. Applies only
+     * to structured-output turns (those with a declared response type). Per-request
+     * callers override via the {@code ai.structured.retry} metadata key in the
+     * 4-arg execute overload — caller-supplied retry wins.
+     *
+     * @param retry retry to install, or {@code null} to disable
+     */
+    public void setDefaultStructuredRetry(AiStructuredRetry retry) {
+        this.defaultStructuredRetry = retry;
+    }
+
+    /** The currently configured pipeline default structured retry; {@code null} when none. */
+    public AiStructuredRetry defaultStructuredRetry() {
+        return defaultStructuredRetry;
+    }
+
     /** Exposed so callers can share the registry for cross-pipeline deduplication. */
     public ApprovalRegistry approvalRegistry() {
         return approvalRegistry;
@@ -352,6 +377,11 @@ public class AiPipeline {
         if (pipelineElicitation != null) {
             baseMetadata.putIfAbsent(
                     AiConfidenceElicitation.METADATA_KEY, pipelineElicitation);
+        }
+        // Seed the structured-output retry default. Caller-supplied retry wins.
+        var pipelineRetry = this.defaultStructuredRetry;
+        if (pipelineRetry != null && pipelineRetry.enabled()) {
+            baseMetadata.putIfAbsent(AiStructuredRetry.METADATA_KEY, pipelineRetry);
         }
 
         // Per-request ScopePolicy install — an interceptor (e.g., classroom's
@@ -663,7 +693,19 @@ public class AiPipeline {
             // pipeline has no AtmosphereResource and therefore no transport
             // disconnect to drive cancel. Direct callers can now hold the
             // handle externally if they want it.
-            var handle = runtime.executeWithHandle(context, effectiveTarget);
+            // Self-healing structured-output reprompt loop. When the request
+            // declares a response type AND opts in via AiStructuredRetry, a
+            // schema/parse failure re-invokes the runtime with the validation
+            // error as feedback (bounded, fail-closed) instead of silently
+            // emitting nothing. Disabled by default → identical single-shot
+            // behavior. Lives at the runtime seam because the structured
+            // capturing session can't re-invoke the runtime itself.
+            var structuredRetry = hasStructured ? AiStructuredRetry.from(baseMetadata) : null;
+            var handle = structuredRetry != null && structuredRetry.enabled()
+                    ? StructuredOutputRetry.executeWithHandle(runtime, context, effectiveTarget,
+                            StructuredOutputParser.resolve(), effectiveResponseType,
+                            structuredRetry.maxRetries())
+                    : runtime.executeWithHandle(context, effectiveTarget);
             // Bind the budget's cancel hook to the runtime handle so a
             // wall-clock or token trip cancels the in-flight runtime call
             // instead of leaving the provider hung after the error frame.

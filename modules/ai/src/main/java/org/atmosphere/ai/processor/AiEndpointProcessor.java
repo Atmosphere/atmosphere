@@ -179,6 +179,10 @@ public class AiEndpointProcessor implements Processor<Object> {
                         retry.backoffMultiplier(),
                         org.atmosphere.ai.RetryPolicy.DEFAULT.retryableErrors()));
             }
+            // Endpoint-scoped self-healing structured-output reprompt budget.
+            if (annotation.structuredOutputRetries() > 0) {
+                handler.setStructuredOutputRetries(annotation.structuredOutputRetries());
+            }
 
             // Per-endpoint stream cache: set the framework's cache class name
             // before the broadcaster is created so the new broadcaster picks up
