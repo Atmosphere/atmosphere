@@ -20,11 +20,13 @@ import java.util.List;
 /**
  * Atmosphere's self-assessment against the <a
  * href="https://genai.owasp.org/resource/agentic-ai-top-10/">OWASP Agentic AI
- * Top 10</a> (December 2025). Every row points at (a) the shipped feature
- * that defends against the threat, (b) a regression test that fires on the
- * evidence path, and (c) a production-consumer grep pattern so reviewers
- * can confirm the primitive is reached on a real turn — per CLAUDE.md
- * "SPI presence ≠ runtime presence."
+ * Top 10</a> (December 2025). Every addressed (COVERED / PARTIAL / DESIGN)
+ * row points at (a) the shipped feature that defends against the threat,
+ * (b) a regression test that fires on the evidence path, and (c) a
+ * production-consumer grep pattern so reviewers can confirm the primitive
+ * is reached on a real turn — per CLAUDE.md "SPI presence ≠ runtime presence."
+ * {@link Coverage#NOT_ADDRESSED} rows carry no evidence and state the gap in
+ * their notes column.
  *
  * <h2>Coverage vocabulary</h2>
  * <ul>

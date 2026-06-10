@@ -49,7 +49,7 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 | `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOOL_CALLING, TOOL_APPROVAL, TOKEN_USAGE, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, AUDIO, MULTI_MODAL, CANCELLATION (cooperative) *(see runtime caveats below)* |
 | `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, MULTI_MODAL, CANCELLATION |
 
-Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build. The aggregate counts ("12 runtimes") and the per-row capability lists are additionally pinned against `.harness/capabilities.snapshot.json` by `CapabilitySnapshotTest` and `scripts/validate-capability-claims.sh` (run from pre-push), so prose claims about the matrix break the build alongside code drift.
+Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build. The aggregate counts ("12 runtimes") and the per-row capability lists are additionally pinned against `.harness/capabilities.snapshot.json` by `CapabilitySnapshotTest` and `scripts/validate-capability-claims.sh` (run from pre-push). That enforcement covers the structured table rows and the tight count claims (`All N runtimes`, `N AiCapability`/`N capabilities total`) only; free-form per-runtime narrative below is **not** machine-checked, so keep that prose in sync with the table by hand.
 
 Each runtime additionally ships a portable signed manifest at `modules/<X>/SKILLCARD.yaml` (and `SKILLCARD.yaml.sig` after a tagged release). `scripts/regen-skillcards.sh` emits the YAML from the snapshot + module `pom.xml`; `.github/workflows/sign-skillcards.yml` signs every card on tag push via OpenSSF Model Signing (Sigstore keyless OIDC — short-lived Fulcio cert + Rekor transparency-log entry, OIDC identity bound to the workflow path). Both the card and its `.sig` bundle are packaged into each runtime jar at `META-INF/atmosphere/` so a downstream consumer can verify integrity without unpacking the source tree. `SkillCardSnapshotTest` enforces drift detection, shape conformance, and signature verification when a `.sig` is present; verify locally with `./scripts/verify-skillcards.sh --identity https://github.com/Atmosphere/atmosphere/.github/workflows/sign-skillcards.yml@refs/tags/<TAG> --identity-provider https://token.actions.githubusercontent.com`. Cards on `main` between releases are unsigned by design — the workflow runs at tag time.
 
@@ -1090,26 +1090,34 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   is called per request, and `assembleMessages` also threads a
   `SystemMessage` into the `List<Message>` dispatched to `call(...)`.
   `CONVERSATION_MEMORY` is honored because the same message list carries
-  `context.history()`. `TOKEN_USAGE` is **not** declared because
-  `ReactAgent.call()` returns `org.springframework.ai.chat.messages.AssistantMessage`
-  which has no surface for the `ChatResponse` usage metadata as of v1.1.2.0;
-  the agent framework's `CompiledGraph` captures usage internally but does not
-  return it through the `call(...)` API. `TOOL_CALLING` is not declared because
-  Spring AI Alibaba's tool surface bridges Spring AI `FunctionCallback`s, which
-  would need a separate `SpringAiAlibabaToolBridge` to satisfy
-  `TOOL_APPROVAL`. **Spring Boot 3.5 only**: Spring AI Alibaba 1.1.2.0
+  `context.history()`. `TOKEN_USAGE` is declared because
+  `AtmosphereSpringAiAlibabaAutoConfiguration` wraps the Spring AI `ChatModel`
+  bean in the `UsageCapturingChatModel` decorator (see footnote ² above), which
+  accumulates `ChatResponseMetadata.getUsage()` across every step of the ReAct
+  graph into a per-thread collector the runtime emits via `session.usage(...)`
+  after each dispatch — `ReactAgent.call()` returns an
+  `org.springframework.ai.chat.messages.AssistantMessage` with no usage surface,
+  so the decorator is what closes the gap. `TOOL_CALLING` and `TOOL_APPROVAL`
+  are declared because `doExecute` builds a per-request `ReactAgent` with
+  `SpringAiAlibabaToolBridge` attached when `context.tools()` is non-empty; the
+  bridge routes every tool invocation through
+  `ToolExecutionHelper.executeWithApproval` so `@RequiresApproval` gates fire
+  uniformly. **Spring Boot 3.5 only**: Spring AI Alibaba 1.1.2.0
   transitively pulls Spring AI 1.1.2 which references Spring Boot 3.x
   autoconfigure classes (e.g. `RestClientAutoConfiguration`) that don't exist
   in Spring Boot 4 — the CLI overlay must be applied with `-Pspring-boot3`,
   same situation as Embabel.
-- **`TOOL_CALL_DELTA`** is declared only by `BuiltInAgentRuntime`. Built-in's
-  `OpenAiCompatibleClient` forwards every `delta.tool_calls[].function.arguments`
-  fragment through `session.toolCallDelta(acc.id(), argChunk)` on both the
-  chat-completions and responses-API streaming paths (see
-  `OpenAiCompatibleClient.java` lines ~530 and ~892), so browser UIs receive
-  `ai.toolCall.delta.*` metadata frames before the consolidated `AiEvent.ToolStart`
-  fires. The tool-capable framework bridges (Spring AI, LangChain4j, ADK,
-  Embabel, Koog, Semantic Kernel) honor the default `StreamingSession.toolCallDelta()` no-op
+- **`TOOL_CALL_DELTA`** is declared by `BuiltInAgentRuntime` and
+  `CohereAgentRuntime`. Built-in's `OpenAiCompatibleClient` forwards every
+  `delta.tool_calls[].function.arguments` fragment through
+  `session.toolCallDelta(acc.id(), argChunk)` on both the chat-completions and
+  responses-API streaming paths (see `OpenAiCompatibleClient.java` lines ~530
+  and ~892), and Cohere's `CohereChatClient` emits the same frames via
+  `session.toolCallDelta(acc.id, chunk)` from `handleToolCallDelta`, so browser
+  UIs receive `ai.toolCall.delta.*` metadata frames before the consolidated
+  `AiEvent.ToolStart` fires. The remaining tool-capable framework bridges
+  (Spring AI, LangChain4j, ADK, Embabel, Koog, Semantic Kernel) honor the
+  default `StreamingSession.toolCallDelta()` no-op
   contract but do not emit chunks from their streaming loops — their high-level
   APIs surface only consolidated tool calls, and the negative assertion in
   `modules/integration-tests/e2e/ai-tool-call-delta.spec.ts` pins the gap
@@ -1123,9 +1131,11 @@ Seven `EmbeddingRuntime` implementations are registered via `ServiceLoader`. The
 | Runtime | Module | Priority | Notes |
 |---------|--------|----------|-------|
 | `SpringAiEmbeddingRuntime` | `atmosphere-spring-ai` | 200 | Wraps Spring AI `EmbeddingModel` |
+| `SpringAiAlibabaEmbeddingRuntime` | `atmosphere-spring-ai-alibaba` | 200 | Wraps Spring AI Alibaba `EmbeddingModel` |
 | `LangChain4jEmbeddingRuntime` | `atmosphere-langchain4j` | 190 | Wraps LC4j `EmbeddingModel`; unwraps `Response<Embedding>` |
 | `SemanticKernelEmbeddingRuntime` | `atmosphere-semantic-kernel` | 180 | Wraps SK `TextEmbeddingGenerationService`; `Mono.block()` sync boundary |
 | `EmbabelEmbeddingRuntime` | `atmosphere-embabel` | 170 | Wraps Embabel `EmbeddingService` (1:1 SPI map) |
+| `KoogEmbeddingRuntime` | `atmosphere-koog` | 100 (default) | Wraps Koog `LLMEmbeddingProvider` |
 | `BuiltInEmbeddingRuntime` | `atmosphere-ai` | 50 | HTTP POST to `/v1/embeddings`; zero-dep fallback |
 
 See <https://atmosphere.github.io/docs/reference/ai/> for the Astro reference page (maintained in the `atmosphere.github.io` repo).

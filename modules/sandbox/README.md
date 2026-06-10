@@ -12,7 +12,7 @@ JVM.
 | `Sandbox` | Per-instance resource with `exec`, `writeFile`, `readFile`, optional `expose(port)`, `snapshot()`, `hibernate()`. Never leaks to the hosting JVM. |
 | `SandboxProvider` | Factory. Discovered via `ServiceLoader` — applications never `new` a provider directly. |
 | `SandboxLimits` | Memory / CPU / wall-clock ceilings. Enforced by each backend; exceeding a limit terminates the sandbox. |
-| `NetworkPolicy` | `NONE`, `ALLOWLIST`, `FULL`. Per-sandbox, not global. |
+| `NetworkPolicy` | Egress policy. `Mode` is `NONE`, `GIT_ONLY`, `ALLOWLIST`, `FULL`; pre-built constants are `NetworkPolicy.NONE`, `NetworkPolicy.GIT_ONLY`, `NetworkPolicy.FULL` (build an allowlist with `NetworkPolicy.allowlist(host...)`). Per-sandbox, not global. |
 | `@SandboxTool` | Annotation that binds an `@AiTool` method to a specific provider's capabilities. |
 
 ## Backends shipped in-tree
@@ -37,25 +37,39 @@ foundation stays dependency-free.
 
 ## Minimal usage
 
+The `spring-boot-coding-agent` sample resolves a provider through
+`ServiceLoader` (picking the first `isAvailable()` backend) and drives it
+with the real SPI — there is no fluent builder, `allocate`, or varargs
+`exec`:
+
 ```java
 @Agent(name = "coding-agent")
 public class CodingAgent {
 
-    @jakarta.inject.Inject
-    private SandboxProvider sandboxes;
+    // Discover a backend via ServiceLoader; pick the first available one.
+    private static SandboxProvider resolveProvider() {
+        for (var provider : ServiceLoader.load(SandboxProvider.class)) {
+            if (provider.isAvailable()) {
+                return provider;
+            }
+        }
+        return null;
+    }
 
-    @AiTool(description = "Clone a GitHub repo into a sandbox and read a file")
-    @SandboxTool(network = NetworkPolicy.ALLOWLIST,
-                 allowlist = { "github.com" })
-    public String readFile(
-            @Param("url") String gitUrl,
-            @Param("path") String path) throws Exception {
-        var limits = SandboxLimits.builder()
-                .memoryMb(512).cpuQuotaMicros(100_000).wallClockMillis(30_000)
-                .build();
-        try (var sandbox = sandboxes.allocate(limits)) {
-            sandbox.exec("git", "clone", "--depth=1", gitUrl, "/workspace");
-            return sandbox.readFile("/workspace/" + path);
+    public String readFile(String gitUrl, String path) {
+        var provider = resolveProvider();
+        // SandboxLimits is a record: (cpuFraction, memoryBytes, wallTime, networkPolicy).
+        // Cloning needs egress, so override the default NONE policy.
+        var limits = new SandboxLimits(
+                1.0, 512L * 1024L * 1024L, Duration.ofSeconds(30),
+                NetworkPolicy.FULL);
+        try (Sandbox sandbox = provider.create("alpine:3.20", limits,
+                Map.of("owner", "coding-agent"))) {
+            // exec takes a List<String> command and a per-call timeout.
+            sandbox.exec(
+                    List.of("git", "clone", "--depth", "1", gitUrl, "/workspace"),
+                    Duration.ofMinutes(2));
+            return sandbox.readFile(Path.of("/workspace/" + path));
         }
     }
 }
@@ -73,17 +87,27 @@ leaks — the provider's lifecycle is tied to the `Sandbox` handle.
 - `DockerSandboxProvider` rejects volume mounts outside the
   per-sandbox workdir; path traversal is blocked by
   `Path.resolve().normalize().startsWith(workdir)`.
-- `NetworkPolicy.FULL` is never the default. Apps that need it declare
-  it explicitly per-tool via `@SandboxTool(network = NetworkPolicy.FULL)`
-  — the annotation acts as the authorization receipt.
+- `NetworkPolicy.FULL` is never the default. The `@SandboxTool`
+  annotation (members: `backend`, required `image`, `cpuFraction`,
+  `memoryBytes`, `wallTimeSeconds`, and `boolean network()` defaulting to
+  `false`) opts a tool into egress with `@SandboxTool(image = "ubuntu:24.04", network = true)`
+  — the explicit `network = true` acts as the authorization receipt.
+  Note: no production code consumes `@SandboxTool` yet; the sample wires
+  limits and the policy directly via the `SandboxProvider` SPI.
 
 ## Testing notes
 
-- `DockerSandboxProviderTest` is skipped when the Docker daemon is
-  unavailable (local macOS developer without Docker Desktop). CI
-  (ubuntu-latest) ships with Docker, so the test runs there on every PR.
-- `InProcessSandboxProviderTest` runs unconditionally with the insecure
-  flag set — it's a reference-impl test, not a security test.
+- `SandboxTest` covers both providers in one class. Its
+  `dockerProviderReportsAvailabilityHonestly` test asserts
+  `DockerSandboxProvider.isAvailable()` returns a truthful boolean without
+  throwing (so it passes whether or not the Docker daemon is present —
+  e.g. a local macOS developer without Docker Desktop).
+- The same `SandboxTest` class exercises `InProcessSandboxProvider` via the
+  insecure opt-in: `inProcessProviderStaysUnavailableWithoutExplicitOptIn`
+  verifies it is unavailable by default, while
+  `inProcessProviderAvailableWhenOptInSet` plus the `inProcessSandbox*`
+  exec/file tests set `InProcessSandboxProvider.INSECURE_OPT_IN` — they are
+  reference-impl tests, not security tests.
 - Regression for the command-injection hardening lives in
   `spring-boot-coding-agent`'s clone/read Playwright spec. The
   `foundation-e2e.yml` workflow used to skip this with

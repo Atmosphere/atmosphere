@@ -18,7 +18,7 @@ Walk these questions in order; stop at the first match.
 
 1. **Are you new to Atmosphere AI and just need it to work?**
    → **Built-in (`atmosphere-ai`)**. Zero extra deps, OpenAI-compatible
-   client out of the box, one of three runtimes (with Anthropic and Cohere)
+   client out of the box, one of two runtimes (with Cohere)
    that emit `TOOL_CALL_DELTA` for token-streaming tool-call argument deltas. Use
    `--model` / `LLM_API_KEY` to point at OpenAI / Gemini / Ollama / any
    compatible endpoint.
@@ -109,9 +109,9 @@ ordered from "most-general / most-portable" at the top to
 | LangChain4j | Vendor-neutral JVM (Quarkus, Micronaut, Vert.x) | You want OpenAI-only | Token-by-token | ✅ | ✅ |
 | Google ADK | Gemini-native + sub-agent orchestration | You're not using Gemini | Token-by-token | ✅ + `AGENT_ORCHESTRATION` | — |
 | Embabel | Goal-graph planner workflows | You want imperative dispatch | Token-by-token | ✅ + `AGENT_ORCHESTRATION` | ✅ |
-| Koog | Kotlin coroutine + native `CANCELLATION` | You're not on Kotlin | Token-by-token | ✅ + `AGENT_ORCHESTRATION` + `CANCELLATION` | ✅ |
+| Koog | Kotlin coroutine + native cancellation mechanism | You're not on Kotlin | Token-by-token | ✅ + `AGENT_ORCHESTRATION` | ✅ |
 | Semantic Kernel | Microsoft / .NET ecosystem parity on JVM | You don't need SK plugins/planners | Token-by-token | ✅ | ✅ |
-| AgentScope | Qwen-native ReAct, Alibaba Cloud AI Studio | You want anything other than Qwen | Token-by-token | ✅ + `CANCELLATION` | — |
+| AgentScope | Qwen-native ReAct, Alibaba Cloud AI Studio | You want anything other than Qwen | Token-by-token | ✅ | — |
 | Spring AI Alibaba | DashScope / `ReactAgent` graph on Spring Boot 3 | You're on Spring Boot 4 | **Buffered** (one chunk + complete) | ✅ | ✅ |
 | Anthropic | Native Anthropic Messages API without a third-party SDK | You need audio input | Token-by-token | ✅ | — |
 | Cohere | Native Cohere v2 Chat API | You need audio input | Token-by-token | ✅ + `TOOL_CALL_DELTA` | — |
@@ -124,6 +124,8 @@ them once in the pipeline layer or in `AbstractAgentRuntime` — the adapter
 only plugs in where it differs:
 
 - **`TEXT_STREAMING`** (every runtime; Spring AI Alibaba is buffered)
+- **`CANCELLATION`** (every runtime — the mechanism differs per adapter, e.g.
+  native coroutine cancel on Koog, Reactor subscription cancel on AgentScope)
 - **`SYSTEM_PROMPT`** (every runtime)
 - **`STRUCTURED_OUTPUT`** (every runtime — pipeline wraps the session in
   `StructuredOutputCapturingSession` with system-prompt schema injection)
@@ -144,8 +146,7 @@ only plugs in where it differs:
   snapshots `context.history()` into a `CheckpointStore` for the other eleven)
 
 Use the table at the top to decide on the specialized capabilities
-(`AGENT_ORCHESTRATION`, `CANCELLATION`, multi-modal vision/audio,
-`PROMPT_CACHING`).
+(`AGENT_ORCHESTRATION`, multi-modal vision/audio, `PROMPT_CACHING`).
 
 ## Swapping runtimes
 
@@ -161,7 +162,9 @@ atmosphere new my-app --template ai-chat --runtime spring-ai --force
 ```
 
 `--runtime` accepts `builtin`, `spring-ai`, `langchain4j`, `adk`, `embabel`,
-`koog`, `semantic-kernel`, `agentscope`, `spring-ai-alibaba`. The `--force`
+`koog`, `semantic-kernel`, `agentscope`, `spring-ai-alibaba`, `anthropic`,
+`cohere`, `crewai` — any key defined in `cli/runtime-overlays.json` (12 today).
+The `--force`
 flag (only valid with `--runtime`) wipes any existing adapter dependency
 declared in `cli/runtime-overlays.json` from the scaffolded `pom.xml`
 *before* injecting the chosen overlay — required for samples that already

@@ -397,7 +397,7 @@ atmosphere:
   packages: com.yourapp.atmosphere
   servlet-path: /atmosphere/*
   session-support: false
-  heartbeat-interval-in-seconds: 60
+  heartbeat-interval: 60s
   init-params:
     org.atmosphere.websocket.maxIdleTime: "300000"
 ```
@@ -615,7 +615,7 @@ Configuration is done via init-params:
 ## 6. Client Library Migration (atmosphere.js)
 
 This is a **breaking change**. The old `atmosphere.js` (jQuery-based, 2.x/3.x)
-has been replaced with a modern TypeScript library (5.0.0).
+has been replaced with a modern TypeScript library (5.x).
 
 ### Installation
 
@@ -929,8 +929,8 @@ Spring Boot configuration:
 atmosphere:
   durable-sessions:
     enabled: true
-    session-ttl-minutes: 1440
-    cleanup-interval-seconds: 60
+    session-ttl: 1440m
+    cleanup-interval: 60s
 ```
 
 ### AI/LLM Streaming

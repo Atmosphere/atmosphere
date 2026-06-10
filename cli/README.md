@@ -190,7 +190,7 @@ Every template sparse-clones the matching sample from `cli/samples.json` into th
 | `guarded-agent` ⭐ | `spring-boot-guarded-email-agent` | Plan-and-Verify (Meijer) — refuses unsafe LLM-emitted plans before any tool fires |
 | `ms-governance` ⭐ | `spring-boot-ms-governance-chat` | Governance demo: policy admission, decision viewer, kill switch, write-gated admin endpoints |
 | `assistant` | `spring-boot-personal-assistant` | Long-lived memory-bearing assistant: AgentState + AgentWorkspace + AgentIdentity + ProtocolBridge |
-| `multi-agent` | `spring-boot-multi-agent-startup-team` | Fleet of 5 independent `@Agent` classes collaborating over A2A |
+| `multi-agent` | `spring-boot-multi-agent-startup-team` | A `@Coordinator` (CEO) dispatching to 4 `@Agent` specialists over A2A |
 | `classroom` | `spring-boot-ai-classroom` | Shared streaming AI responses across web + Expo React Native clients |
 
 ⭐ marks the five **flagship enterprise templates** — the canonical agent

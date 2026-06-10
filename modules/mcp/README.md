@@ -74,7 +74,7 @@ session dialect. No flag day: every `2024-11-05 … 2025-11-25` client is unaffe
 |-----------|-------------------|
 | **Stateless core** | No `Mcp-Session-Id`, no handshake — client info/capabilities/version ride `_meta` on every request, so the server runs behind a plain round-robin load balancer with no sticky sessions |
 | **Operability headers** | `Mcp-Method` / `Mcp-Name` routing headers, validated against the body |
-| **Cacheable list/read** | `ttlMs` + `cacheScope` (`public`/`private`) on `tools/list`, `resources/list`, `resources/read` results |
+| **Cacheable list/read** | `ttlMs` + `cacheScope` (always `public` — catalogs/reads are not principal-specific) on `tools/list`, `resources/list`, `resources/read` results |
 | **W3C trace context** | `traceparent` / `tracestate` / `baggage` read from `_meta` and bridged into the OpenTelemetry span (with `atmosphere-tracing`) |
 | **Tasks extension** | `io.modelcontextprotocol/tasks` — a `@McpTool(longRunning = true)` call returns a task handle the client polls via `tasks/get` |
 | **Multi-round-trip** | `InputRequiredResult` + base64 `requestState`: the server can ask the client for more input mid-call and resume statelessly |

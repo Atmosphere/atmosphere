@@ -180,7 +180,7 @@ Typical use cases: evaluation tooling (compare agent A vs B for a logged prompt)
 
 ## Agent Activity Streaming
 
-`AgentActivity` is a sealed interface that models what an agent is doing right now. `DefaultAgentProxy` emits activity transitions at key lifecycle points — `Thinking` before dispatch, `Executing` during tool calls, `Retrying` during backoff, and `Completed`/`Failed` after the call resolves. Listeners receive these transitions in real time on the calling thread.
+`AgentActivity` is a sealed interface that models what an agent is doing right now. `DefaultAgentProxy` emits activity transitions at key lifecycle points — `Thinking` before dispatch and on each retry, `Retrying` during backoff, and `Completed`/`Failed` after the call resolves. Listeners receive these transitions in real time on the calling thread. (`Executing`, `CircuitOpen`, and `Evaluated` are emitted by other paths — `CircuitOpen` by `ResilientAgentProxy`, `Evaluated` by the journaling fleet.)
 
 `StreamingActivityListener` converts each `AgentActivity` variant into an `AiEvent.AgentStep` event and delivers it to the client via `StreamingSession.emit()`. This means clients receive live agent progress over the same WebSocket/SSE connection without any additional wiring — the existing event pipeline (interceptors, filters, AG-UI bridge) processes activity events automatically.
 
@@ -221,6 +221,7 @@ Clients receive `agent-step` JSON events as agents progress:
 | `CircuitOpen` | agentName, reason, cooldownUntil | `circuit-open` |
 | `Completed` | agentName, skill, elapsed | `completed` |
 | `Failed` | agentName, skill, error, elapsed | `failed` |
+| `Evaluated` | agentName, evaluatorName, score, passed, reason | `eval` |
 
 `AgentActivityListener` is a `@FunctionalInterface` and is also discoverable via `ServiceLoader` — add it to `META-INF/services/org.atmosphere.coordinator.fleet.AgentActivityListener` to attach a global listener to all fleet instances. Per-session listeners registered via `withActivityListener()` stack on top of any ServiceLoader-discovered listeners.
 

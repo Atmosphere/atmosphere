@@ -87,7 +87,7 @@ atmosphere new my-fleet --template multi-agent
 atmosphere new my-classroom --template classroom
 ```
 
-Available `--template` values: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `multi-agent`, `classroom`, `ms-governance`, `coding-agent`, `guarded-agent`, `assistant`. See [cli/README.md](../cli/README.md#available-templates) for the template-to-sample mapping.
+Available `--template` values: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `multi-agent`, `classroom`, `ms-governance`, `coding-agent`, `guarded-agent`, `assistant`, `browser-agent`. See [cli/README.md](../cli/README.md#available-templates) for the template-to-sample mapping.
 
 ### Flagship enterprise templates
 

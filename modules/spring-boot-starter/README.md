@@ -76,7 +76,7 @@ All properties are under the `atmosphere.*` prefix:
 | `atmosphere.session-support` | `false` | Enable HTTP session support |
 | `atmosphere.websocket-support` | (auto) | Explicitly enable/disable WebSocket |
 | `atmosphere.broadcaster-class` | (default) | Custom `Broadcaster` implementation |
-| `atmosphere.heartbeat-interval-in-seconds` | (default) | Heartbeat interval |
+| `atmosphere.heartbeat-interval` | (default) | Heartbeat interval (e.g. `60s`) |
 
 ## Auto-Configured Beans
 

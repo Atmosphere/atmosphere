@@ -27,7 +27,7 @@ Atmosphere is built for teams that need AI agents to behave like production serv
 | Stream to real clients | WebSocket, SSE, long-polling, and gRPC run through one broadcaster pipeline as always-on defaults; WebTransport over HTTP/3 is optional (needs `jetty-http3-server` or `reactor-netty-http` on the classpath plus a dev cert) |
 | Swap AI integrations | One `AgentRuntime` SPI with twelve runtime adapters and contract-tested capability flags |
 | Govern execution | Policy admission, `@AgentScope`, human approval, plan-and-verify, cost ceilings, PII rewriting, and admin kill switches |
-| Pause for humans | Durable HITL approvals park virtual threads, persist workflow state, and resume through REST approval surfaces |
+| Pause for humans | Durable HITL approvals hibernate without holding a thread, persist workflow state, and resume through REST approval surfaces |
 | Resume long runs | Durable sessions, run IDs, replay buffers, checkpoints, and reconnect-safe continuation |
 | Expose the same agent everywhere | Browser endpoints plus MCP (stateless **2026-07-28** RC + sessions back to 2024-11-05), A2A, AG-UI, Slack, Telegram, Discord, WhatsApp, and Messenger modules |
 
@@ -242,7 +242,6 @@ For Java/Kotlin clients, use [wAsync](modules/wasync/) for async WebSocket, SSE,
 | [startup team](samples/spring-boot-multi-agent-startup-team/) | `@Coordinator` with A2A specialists, governance, checkpoints, skills, admin control plane |
 | [ai-chat](samples/spring-boot-ai-chat/) | Streaming AI chat with auth, caching, and runtime adapter portability |
 | [ai-tools](samples/spring-boot-ai-tools/) | Framework-agnostic `@AiTool` methods and approval gates |
-| [durable-hitl](samples/spring-boot-durable-hitl/) | Human approval gates that persist, resume, and replay across reconnects |
 | [checkpoint-agent](samples/spring-boot-checkpoint-agent/) | Checkpointed `@Coordinator` workflow with REST approval/resume |
 | [ai-classroom](samples/spring-boot-ai-classroom/) | Multi-room collaborative AI with React Native / Expo client |
 | [guarded-email-agent](samples/spring-boot-guarded-email-agent/) | Plan-and-verify taint protection before any email tool fires |
