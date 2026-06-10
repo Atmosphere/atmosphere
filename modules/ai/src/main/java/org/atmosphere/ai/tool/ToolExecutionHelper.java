@@ -23,6 +23,8 @@ import org.atmosphere.ai.approval.PendingApproval;
 import org.atmosphere.ai.approval.ToolApprovalPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -43,6 +45,9 @@ import java.util.Map;
 public final class ToolExecutionHelper {
 
     private static final Logger logger = LoggerFactory.getLogger(ToolExecutionHelper.class);
+
+    /** Serializes reviewer-supplied structured approval responses to JSON. */
+    private static final ObjectMapper RESPONSE_JSON = JsonMapper.builder().build();
 
     private ToolExecutionHelper() {
     }
@@ -383,11 +388,24 @@ public final class ToolExecutionHelper {
                 Instant.now().plusSeconds(timeout)
         );
 
-        var outcome = strategy.awaitApproval(approval, session);
-        return finishAndEmit(toolName, session, switch (outcome) {
+        var resolution = strategy.awaitApprovalDetailed(approval, session);
+        return finishAndEmit(toolName, session, switch (resolution.outcome()) {
             case APPROVED -> {
-                logger.info("Tool {} approved, executing", toolName);
-                yield executeAndFormat(toolName, tool.executor(), args, scope);
+                if (resolution.hasResponsePayload()) {
+                    // Reviewer answered on the tool's behalf — do NOT run the
+                    // tool; hand their structured / free-form value back to the
+                    // model as the tool result.
+                    logger.info("Tool {} approved with a reviewer-supplied response (tool not run)",
+                            toolName);
+                    yield formatResponsePayload(resolution.responsePayload());
+                }
+                // Approve-with-edited-args: the reviewer's arguments replace the
+                // model's proposal when supplied.
+                var effectiveArgs = resolution.hasModifiedArguments()
+                        ? resolution.modifiedArguments() : args;
+                logger.info("Tool {} approved, executing{}", toolName,
+                        resolution.hasModifiedArguments() ? " with reviewer-edited arguments" : "");
+                yield executeAndFormat(toolName, tool.executor(), effectiveArgs, scope);
             }
             case DENIED -> {
                 logger.info("Tool {} denied by user", toolName);
@@ -398,6 +416,26 @@ public final class ToolExecutionHelper {
                 yield "{\"status\":\"timeout\",\"message\":\"Approval timed out\"}";
             }
         });
+    }
+
+    /**
+     * Format a reviewer-supplied response payload as a tool result string. A
+     * plain {@link String} is returned verbatim (free-form answer); anything
+     * else is serialized to JSON (structured answer), matching the
+     * {@code ToolExecutor} "result serialized to JSON" contract.
+     */
+    private static String formatResponsePayload(Object payload) {
+        if (payload == null) {
+            return "null";
+        }
+        if (payload instanceof String s) {
+            return s;
+        }
+        try {
+            return RESPONSE_JSON.writeValueAsString(payload);
+        } catch (RuntimeException e) {
+            return payload.toString();
+        }
     }
 
     private static String finishAndEmit(String toolName, StreamingSession session, String result) {

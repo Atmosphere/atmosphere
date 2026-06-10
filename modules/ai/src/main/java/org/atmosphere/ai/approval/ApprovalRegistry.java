@@ -17,9 +17,12 @@ package org.atmosphere.ai.approval;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,6 +42,8 @@ public final class ApprovalRegistry {
     /** Approval response prefix used in the message protocol. */
     public static final String APPROVAL_PREFIX = "/__approval/";
 
+    private static final ObjectMapper JSON = JsonMapper.builder().build();
+
     private final ConcurrentHashMap<String, PendingEntry> pending = new ConcurrentHashMap<>();
 
     /**
@@ -49,7 +54,20 @@ public final class ApprovalRegistry {
      * @return a future that resolves to {@code true} (approved) or {@code false} (denied)
      */
     public CompletableFuture<Boolean> register(PendingApproval approval) {
-        var future = new CompletableFuture<Boolean>();
+        return registerForResolution(approval).thenApply(ApprovalResolution::approved);
+    }
+
+    /**
+     * Register a pending approval and return a future that resolves to the rich
+     * {@link ApprovalResolution} (decision + optional edited arguments / response
+     * payload). The bare-boolean {@link #register(PendingApproval)} is a view over
+     * this same future, so callers pick whichever shape they need.
+     *
+     * @param approval the pending approval details
+     * @return a future completed when the client responds (or the approval is cancelled)
+     */
+    public CompletableFuture<ApprovalResolution> registerForResolution(PendingApproval approval) {
+        var future = new CompletableFuture<ApprovalResolution>();
         pending.put(approval.approvalId(), new PendingEntry(approval, future));
         logger.debug("Registered pending approval: {} for tool {}",
                 approval.approvalId(), approval.toolName());
@@ -92,7 +110,14 @@ public final class ApprovalRegistry {
         }
 
         var approvalId = path.substring(0, slashIdx);
-        var action = path.substring(slashIdx + 1).trim().toLowerCase();
+        // The remainder is "<action>" optionally followed by whitespace and a
+        // JSON (or free-form) payload, e.g.
+        //   /__approval/<id>/approve {"arguments":{"limit":10}}
+        //   /__approval/<id>/respond {"answer":"42"}
+        var rest = path.substring(slashIdx + 1);
+        var ws = firstWhitespace(rest);
+        var action = (ws < 0 ? rest : rest.substring(0, ws)).trim().toLowerCase();
+        var payload = ws < 0 ? "" : rest.substring(ws + 1).trim();
 
         var entry = pending.remove(approvalId);
         if (entry == null) {
@@ -100,11 +125,91 @@ public final class ApprovalRegistry {
             return ResolveResult.UNKNOWN_ID;
         }
 
-        var approved = "approve".equals(action) || "yes".equals(action);
+        var resolution = toResolution(action, payload, approvalId, entry.approval.toolName());
         logger.debug("Approval {} resolved: {} (tool: {})",
-                approvalId, approved ? "APPROVED" : "DENIED", entry.approval.toolName());
-        entry.future.complete(approved);
+                approvalId, resolution.outcome(), entry.approval.toolName());
+        entry.future.complete(resolution);
         return ResolveResult.RESOLVED;
+    }
+
+    /**
+     * Map a wire {@code action} + optional {@code payload} to an
+     * {@link ApprovalResolution}. Payload handling is fail-safe at the boundary:
+     * a malformed edited-arguments payload <strong>denies</strong> rather than
+     * running the tool with possibly-wrong arguments.
+     */
+    private static ApprovalResolution toResolution(String action, String payload,
+                                                   String approvalId, String toolName) {
+        switch (action) {
+            case "approve", "yes" -> {
+                if (payload.isEmpty()) {
+                    return ApprovalResolution.approve();
+                }
+                var args = parseArguments(payload);
+                if (args == null) {
+                    logger.warn("Approval {} sent edited arguments that did not parse as a JSON "
+                            + "object — denying tool {} (fail-safe)", approvalId, toolName);
+                    return ApprovalResolution.deny();
+                }
+                return ApprovalResolution.approveWithArguments(args);
+            }
+            case "respond" -> {
+                if (payload.isEmpty()) {
+                    logger.warn("Approval {} 'respond' with no payload — denying tool {} (fail-safe)",
+                            approvalId, toolName);
+                    return ApprovalResolution.deny();
+                }
+                return ApprovalResolution.respond(parseResponse(payload));
+            }
+            default -> {
+                return ApprovalResolution.deny();
+            }
+        }
+    }
+
+    /**
+     * Parse an edited-arguments payload. Accepts either a bare JSON object
+     * ({@code {...}}) or {@code {"arguments": {...}}}. Returns {@code null} when
+     * the payload is not a JSON object (fail-safe signal to the caller).
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> parseArguments(String payload) {
+        try {
+            var node = JSON.readTree(payload);
+            if (!node.isObject()) {
+                return null;
+            }
+            var args = node.has("arguments") ? node.get("arguments") : node;
+            if (!args.isObject()) {
+                return null;
+            }
+            return (Map<String, Object>) JSON.treeToValue(args, Map.class);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Parse a free-form / structured respond payload. A valid JSON value is
+     * returned as the parsed object (Map / List / scalar); anything else is
+     * returned verbatim as the free-form string the reviewer typed.
+     */
+    private static Object parseResponse(String payload) {
+        try {
+            var node = JSON.readTree(payload);
+            return JSON.treeToValue(node, Object.class);
+        } catch (RuntimeException e) {
+            return payload;
+        }
+    }
+
+    private static int firstWhitespace(String s) {
+        for (var i = 0; i < s.length(); i++) {
+            if (Character.isWhitespace(s.charAt(i))) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /**
@@ -146,7 +251,7 @@ public final class ApprovalRegistry {
         while (it.hasNext()) {
             var entry = it.next();
             it.remove();
-            entry.future.complete(false);
+            entry.future.complete(ApprovalResolution.deny());
             cancelled++;
         }
         if (cancelled > 0) {
@@ -165,6 +270,23 @@ public final class ApprovalRegistry {
      * @throws ApprovalTimeoutException if the approval expires
      */
     public boolean awaitApproval(PendingApproval approval, CompletableFuture<Boolean> future) {
+        return await(approval, future);
+    }
+
+    /**
+     * Wait for the rich {@link ApprovalResolution}, blocking the current
+     * (virtual) thread. Same parking semantics and timeout handling as
+     * {@link #awaitApproval}, but returns the reviewer's edited arguments /
+     * response payload alongside the decision.
+     *
+     * @throws ApprovalTimeoutException if the approval expires
+     */
+    public ApprovalResolution awaitResolution(PendingApproval approval,
+                                              CompletableFuture<ApprovalResolution> future) {
+        return await(approval, future);
+    }
+
+    private <T> T await(PendingApproval approval, CompletableFuture<T> future) {
         var timeout = Duration.between(Instant.now(), approval.expiresAt());
         if (timeout.isNegative() || timeout.isZero()) {
             pending.remove(approval.approvalId());
@@ -196,7 +318,8 @@ public final class ApprovalRegistry {
         return message != null && message.startsWith(APPROVAL_PREFIX);
     }
 
-    private record PendingEntry(PendingApproval approval, CompletableFuture<Boolean> future) {}
+    private record PendingEntry(PendingApproval approval,
+                                CompletableFuture<ApprovalResolution> future) {}
 
     /**
      * Thrown when an approval request times out.

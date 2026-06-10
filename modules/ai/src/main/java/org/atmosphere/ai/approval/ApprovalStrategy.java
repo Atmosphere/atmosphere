@@ -36,6 +36,20 @@ public interface ApprovalStrategy {
     ApprovalOutcome awaitApproval(PendingApproval approval, StreamingSession session);
 
     /**
+     * Wait for the rich {@link ApprovalResolution} — the approve/deny/timeout
+     * decision plus the reviewer's optional edited arguments or substitute
+     * response payload.
+     *
+     * <p>The default adapts {@link #awaitApproval} (no payload), so existing
+     * strategies keep working unchanged. Strategies that support rich payloads
+     * (e.g. {@link VirtualThreadApprovalStrategy}) override this.</p>
+     */
+    default ApprovalResolution awaitApprovalDetailed(PendingApproval approval,
+                                                     StreamingSession session) {
+        return new ApprovalResolution(awaitApproval(approval, session), null, null);
+    }
+
+    /**
      * The default strategy: park the virtual thread.
      */
     static ApprovalStrategy virtualThread(ApprovalRegistry registry) {

@@ -42,8 +42,13 @@ final class VirtualThreadApprovalStrategy implements ApprovalStrategy {
 
     @Override
     public ApprovalOutcome awaitApproval(PendingApproval approval, StreamingSession session) {
+        return awaitApprovalDetailed(approval, session).outcome();
+    }
+
+    @Override
+    public ApprovalResolution awaitApprovalDetailed(PendingApproval approval, StreamingSession session) {
         // Register the future before emitting the event to avoid race conditions
-        var future = registry.register(approval);
+        var future = registry.registerForResolution(approval);
 
         // Emit approval request to client
         var expiresIn = Duration.between(Instant.now(), approval.expiresAt()).toSeconds();
@@ -60,11 +65,10 @@ final class VirtualThreadApprovalStrategy implements ApprovalStrategy {
 
         // Park the virtual thread — cheap, no carrier thread consumed
         try {
-            var approved = registry.awaitApproval(approval, future);
-            return approved ? ApprovalOutcome.APPROVED : ApprovalOutcome.DENIED;
+            return registry.awaitResolution(approval, future);
         } catch (ApprovalRegistry.ApprovalTimeoutException e) {
             logger.debug("Approval {} timed out", approval.approvalId());
-            return ApprovalOutcome.TIMED_OUT;
+            return ApprovalResolution.timedOut();
         }
     }
 }

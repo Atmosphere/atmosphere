@@ -51,24 +51,24 @@ class VirtualThreadApprovalStrategyTest {
     @Test
     void approvedPathReturnsApproved() {
         var approval = createApproval();
-        var future = new CompletableFuture<Boolean>();
-        when(registry.register(approval)).thenReturn(future);
-        when(registry.awaitApproval(eq(approval), eq(future))).thenReturn(true);
+        var future = new CompletableFuture<ApprovalResolution>();
+        when(registry.registerForResolution(approval)).thenReturn(future);
+        when(registry.awaitResolution(eq(approval), eq(future))).thenReturn(ApprovalResolution.approve());
 
         var outcome = strategy.awaitApproval(approval, session);
 
         assertEquals(ApprovalOutcome.APPROVED, outcome);
-        verify(registry).register(approval);
-        verify(registry).awaitApproval(eq(approval), eq(future));
+        verify(registry).registerForResolution(approval);
+        verify(registry).awaitResolution(eq(approval), eq(future));
         verify(session).emit(any(AiEvent.ApprovalRequired.class));
     }
 
     @Test
     void deniedPathReturnsDenied() {
         var approval = createApproval();
-        var future = new CompletableFuture<Boolean>();
-        when(registry.register(approval)).thenReturn(future);
-        when(registry.awaitApproval(eq(approval), eq(future))).thenReturn(false);
+        var future = new CompletableFuture<ApprovalResolution>();
+        when(registry.registerForResolution(approval)).thenReturn(future);
+        when(registry.awaitResolution(eq(approval), eq(future))).thenReturn(ApprovalResolution.deny());
 
         var outcome = strategy.awaitApproval(approval, session);
 
@@ -78,9 +78,9 @@ class VirtualThreadApprovalStrategyTest {
     @Test
     void timeoutPathReturnsTimedOut() {
         var approval = createApproval();
-        var future = new CompletableFuture<Boolean>();
-        when(registry.register(approval)).thenReturn(future);
-        when(registry.awaitApproval(eq(approval), eq(future)))
+        var future = new CompletableFuture<ApprovalResolution>();
+        when(registry.registerForResolution(approval)).thenReturn(future);
+        when(registry.awaitResolution(eq(approval), eq(future)))
                 .thenThrow(new ApprovalRegistry.ApprovalTimeoutException(approval));
 
         var outcome = strategy.awaitApproval(approval, session);
@@ -89,11 +89,25 @@ class VirtualThreadApprovalStrategyTest {
     }
 
     @Test
+    void detailedPathSurfacesEditedArgumentsAndResponse() {
+        var approval = createApproval();
+        var future = new CompletableFuture<ApprovalResolution>();
+        when(registry.registerForResolution(approval)).thenReturn(future);
+        when(registry.awaitResolution(eq(approval), eq(future)))
+                .thenReturn(ApprovalResolution.approveWithArguments(Map.of("path", "/safe.txt")));
+
+        var resolution = strategy.awaitApprovalDetailed(approval, session);
+
+        assertEquals(ApprovalOutcome.APPROVED, resolution.outcome());
+        assertEquals(Map.of("path", "/safe.txt"), resolution.modifiedArguments());
+    }
+
+    @Test
     void emitsApprovalRequiredEventWithCorrectFields() {
         var approval = createApproval();
-        var future = new CompletableFuture<Boolean>();
-        when(registry.register(approval)).thenReturn(future);
-        when(registry.awaitApproval(eq(approval), eq(future))).thenReturn(true);
+        var future = new CompletableFuture<ApprovalResolution>();
+        when(registry.registerForResolution(approval)).thenReturn(future);
+        when(registry.awaitResolution(eq(approval), eq(future))).thenReturn(ApprovalResolution.approve());
 
         strategy.awaitApproval(approval, session);
 
@@ -109,15 +123,15 @@ class VirtualThreadApprovalStrategyTest {
     @Test
     void registersBeforeEmitting() {
         var approval = createApproval();
-        var future = new CompletableFuture<Boolean>();
-        when(registry.register(approval)).thenReturn(future);
-        when(registry.awaitApproval(eq(approval), eq(future))).thenReturn(true);
+        var future = new CompletableFuture<ApprovalResolution>();
+        when(registry.registerForResolution(approval)).thenReturn(future);
+        when(registry.awaitResolution(eq(approval), eq(future))).thenReturn(ApprovalResolution.approve());
 
         strategy.awaitApproval(approval, session);
 
         var inOrder = org.mockito.Mockito.inOrder(registry, session);
-        inOrder.verify(registry).register(approval);
+        inOrder.verify(registry).registerForResolution(approval);
         inOrder.verify(session).emit(any(AiEvent.ApprovalRequired.class));
-        inOrder.verify(registry).awaitApproval(eq(approval), eq(future));
+        inOrder.verify(registry).awaitResolution(eq(approval), eq(future));
     }
 }
