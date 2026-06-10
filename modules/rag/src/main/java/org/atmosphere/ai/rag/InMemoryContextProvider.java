@@ -77,6 +77,31 @@ public class InMemoryContextProvider implements ContextProvider {
     }
 
     /**
+     * Build a provider from any {@link DocumentSource} — the Extract step of the
+     * RAG pipeline. Pairs a loader (filesystem directory, classpath, or a custom
+     * source) with in-memory retrieval in one call.
+     *
+     * @param source the document source to load (e.g.
+     *               {@code new FileSystemDocumentSource(dir)})
+     */
+    public static InMemoryContextProvider fromSource(DocumentSource source) {
+        return new InMemoryContextProvider(new ArrayList<>(source.load()));
+    }
+
+    /**
+     * Build a provider from a {@link DocumentSource}, chunking each loaded
+     * document for retrieval (Extract → Transform → index in one call).
+     */
+    public static InMemoryContextProvider fromSourceChunked(DocumentSource source,
+                                                            int maxChars, int overlapChars) {
+        var docs = new ArrayList<Document>();
+        for (var document : source.load()) {
+            docs.addAll(RagChunker.chunk(document, maxChars, overlapChars));
+        }
+        return new InMemoryContextProvider(docs);
+    }
+
+    /**
      * Loads text files from the classpath and chunks each resource for retrieval.
      *
      * @param maxChars maximum characters per chunk
