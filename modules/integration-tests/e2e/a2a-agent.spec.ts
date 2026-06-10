@@ -35,8 +35,9 @@ async function sendTask(
   text: string,
   extraArgs: Record<string, unknown> = {},
   id: number | string = 1,
+  contextId?: string,
 ) {
-  return a2aRequest(baseUrl, 'SendMessage', {
+  const params: Record<string, unknown> = {
     message: {
       messageId: `msg-${id}`,
       role: 'ROLE_USER',
@@ -44,7 +45,11 @@ async function sendTask(
       metadata: { skillId },
     },
     arguments: extraArgs,
-  }, id);
+  };
+  if (contextId) {
+    params.contextId = contextId;
+  }
+  return a2aRequest(baseUrl, 'SendMessage', params, id);
 }
 
 /** Unwrap the v1.0.0 SendMessageResponse oneof: result.task | result.message. */
@@ -143,10 +148,14 @@ test.describe('A2A Agent Protocol', () => {
   });
 
   test('ListTasks returns paginated executed tasks', async () => {
-    await sendTask(server.baseUrl, 'ask', 'First question', {}, 10);
-    await sendTask(server.baseUrl, 'ask', 'Second question', {}, 11);
+    // Both tasks share a contextId so ListTasks can scope to them — listing
+    // across all contexts is rejected (IDOR guard).
+    const ctx = 'e2e-list-ctx';
+    await sendTask(server.baseUrl, 'ask', 'First question', {}, 10, ctx);
+    await sendTask(server.baseUrl, 'ask', 'Second question', {}, 11, ctx);
 
-    const { body } = await a2aRequest(server.baseUrl, 'ListTasks', { pageSize: 50 }, 12);
+    const { body } = await a2aRequest(
+      server.baseUrl, 'ListTasks', { contextId: ctx, pageSize: 50 }, 12);
 
     const result = body.result as Record<string, unknown>;
     expect(result).toBeDefined();

@@ -114,11 +114,11 @@ class A2aProtocolHandlerTest {
 
     @Test
     void listTasksReturnsPaginatedResponse() throws Exception {
-        handler.handleMessage(sendRequest(1, "SendMessage", "Alice"));
-        handler.handleMessage(sendRequest(2, "SendMessage", "Bob"));
+        handler.handleMessage(sendRequestCtx(1, "SendMessage", "Alice", "ctx-list"));
+        handler.handleMessage(sendRequestCtx(2, "SendMessage", "Bob", "ctx-list"));
 
         var req = "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"ListTasks\","
-                + "\"params\":{\"pageSize\":10}}";
+                + "\"params\":{\"contextId\":\"ctx-list\",\"pageSize\":10}}";
         var node = mapper.readTree(handler.handleMessage(req));
         var result = node.get("result");
         assertTrue(result.get("tasks").isArray());
@@ -128,15 +128,41 @@ class A2aProtocolHandlerTest {
 
     @Test
     void listTasksRespectsPageSize() throws Exception {
-        handler.handleMessage(sendRequest(1, "SendMessage", "A"));
-        handler.handleMessage(sendRequest(2, "SendMessage", "B"));
-        handler.handleMessage(sendRequest(3, "SendMessage", "C"));
+        handler.handleMessage(sendRequestCtx(1, "SendMessage", "A", "ctx-page"));
+        handler.handleMessage(sendRequestCtx(2, "SendMessage", "B", "ctx-page"));
+        handler.handleMessage(sendRequestCtx(3, "SendMessage", "C", "ctx-page"));
 
         var req = "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"ListTasks\","
-                + "\"params\":{\"pageSize\":2}}";
+                + "\"params\":{\"contextId\":\"ctx-page\",\"pageSize\":2}}";
         var node = mapper.readTree(handler.handleMessage(req));
         assertEquals(2, node.get("result").get("tasks").size());
         assertFalse(node.get("result").get("nextPageToken").stringValue().isEmpty());
+    }
+
+    @Test
+    void listTasksWithoutContextIdIsRejected() throws Exception {
+        // IDOR guard: listing across all contexts would leak other callers'
+        // request messages and artifact text. A contextId is required.
+        handler.handleMessage(sendRequestCtx(1, "SendMessage", "Alice", "ctx-A"));
+
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"ListTasks\","
+                + "\"params\":{\"pageSize\":10}}";
+        var node = mapper.readTree(handler.handleMessage(req));
+        assertEquals(JsonRpc.INVALID_PARAMS, node.get("error").get("code").asInt(),
+                "ListTasks without a contextId must be rejected, not return all tasks");
+    }
+
+    @Test
+    void listTasksScopedToOwnContextDoesNotLeakOthers() throws Exception {
+        handler.handleMessage(sendRequestCtx(1, "SendMessage", "Alice", "ctx-A"));
+        handler.handleMessage(sendRequestCtx(2, "SendMessage", "Bob", "ctx-B"));
+        handler.handleMessage(sendRequestCtx(3, "SendMessage", "Carol", "ctx-B"));
+
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"ListTasks\","
+                + "\"params\":{\"contextId\":\"ctx-A\",\"pageSize\":10}}";
+        var node = mapper.readTree(handler.handleMessage(req));
+        assertEquals(1, node.get("result").get("totalSize").asInt(),
+                "ListTasks must return only the requested context's tasks");
     }
 
     @Test
@@ -224,6 +250,13 @@ class A2aProtocolHandlerTest {
     private String sendRequest(int id, String method, String name) {
         return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"method\":\"" + method + "\","
                 + "\"params\":{\"message\":{\"messageId\":\"m\",\"role\":\"ROLE_USER\","
+                + "\"parts\":[{\"text\":\"hi\"}]},\"arguments\":{\"name\":\"" + name + "\"}}}";
+    }
+
+    private String sendRequestCtx(int id, String method, String name, String contextId) {
+        return "{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"method\":\"" + method + "\","
+                + "\"params\":{\"contextId\":\"" + contextId + "\","
+                + "\"message\":{\"messageId\":\"m\",\"role\":\"ROLE_USER\","
                 + "\"parts\":[{\"text\":\"hi\"}]},\"arguments\":{\"name\":\"" + name + "\"}}}";
     }
 }

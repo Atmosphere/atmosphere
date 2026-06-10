@@ -32,7 +32,7 @@ import java.util.Objects;
  * {@code proof} for VC; {@code delegationChain} and {@code scope} for
  * AP2's cross-agent dispatch tracing.</p>
  *
- * <p><b>@Experimental</b> — the shape of this record is not frozen.
+ * <p><b>Schema stability:</b> the shape of this record is not frozen.
  * Standards-track convergence with W3C CCG + AP2 + Visa TAP (target
  * 2026-Q4) may cause a v2 schema migration. Default posture is flag-off
  * via {@link CommitmentRecordsFlag}; operators who flip it on are

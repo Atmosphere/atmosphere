@@ -62,12 +62,35 @@ public final class PolicyAsGuardrail implements AiGuardrail {
 
     @Override
     public GuardrailResult inspectRequest(AiRequest request) {
-        var decision = policy.evaluate(PolicyContext.preAdmission(request));
-        return switch (decision) {
-            case PolicyDecision.Admit ignored -> GuardrailResult.pass();
-            case PolicyDecision.Transform transform -> GuardrailResult.modify(transform.modifiedRequest());
-            case PolicyDecision.Deny deny -> GuardrailResult.block(deny.reason());
-        };
+        var ctx = PolicyContext.preAdmission(request);
+        var startNs = System.nanoTime();
+        try {
+            var decision = policy.evaluate(ctx);
+            var evalMs = (System.nanoTime() - startNs) / 1_000_000.0;
+            return switch (decision) {
+                case PolicyDecision.Admit ignored -> {
+                    record(ctx, "admit", "", evalMs);
+                    yield GuardrailResult.pass();
+                }
+                case PolicyDecision.Transform transform -> {
+                    record(ctx, "transform", "request rewritten", evalMs);
+                    yield GuardrailResult.modify(transform.modifiedRequest());
+                }
+                case PolicyDecision.Deny deny -> {
+                    record(ctx, "deny", deny.reason(), evalMs);
+                    yield GuardrailResult.block(deny.reason());
+                }
+            };
+        } catch (RuntimeException e) {
+            // Mirror the PolicyAdmissionGate / AiPipeline contract: a policy that
+            // throws is recorded to the decision log before the exception
+            // propagates (the caller fails closed). Without this, the Kafka /
+            // Postgres audit sinks miss policy decisions on the @AiEndpoint path,
+            // where installed policies arrive wrapped as PolicyAsGuardrail.
+            record(ctx, "error", "evaluate threw: " + e.getMessage(),
+                    (System.nanoTime() - startNs) / 1_000_000.0);
+            throw e;
+        }
     }
 
     @Override
@@ -77,17 +100,44 @@ public final class PolicyAsGuardrail implements AiGuardrail {
         // working. Policies that require the original request on the response
         // path will observe an empty placeholder — intentional, documented on
         // the class.
-        var decision = policy.evaluate(
-                PolicyContext.postResponse(new AiRequest(""), accumulatedResponse));
-        return switch (decision) {
-            case PolicyDecision.Admit ignored -> GuardrailResult.pass();
-            case PolicyDecision.Transform ignored -> {
-                logger.warn("Policy {} returned Transform on POST_RESPONSE; "
-                        + "ignored — guardrail response SPI cannot rewrite streamed text",
-                        policy.name());
-                yield GuardrailResult.pass();
-            }
-            case PolicyDecision.Deny deny -> GuardrailResult.block(deny.reason());
-        };
+        var ctx = PolicyContext.postResponse(new AiRequest(""), accumulatedResponse);
+        var startNs = System.nanoTime();
+        try {
+            var decision = policy.evaluate(ctx);
+            var evalMs = (System.nanoTime() - startNs) / 1_000_000.0;
+            return switch (decision) {
+                case PolicyDecision.Admit ignored -> {
+                    record(ctx, "admit", "", evalMs);
+                    yield GuardrailResult.pass();
+                }
+                case PolicyDecision.Transform ignored -> {
+                    record(ctx, "transform",
+                            "ignored — guardrail response SPI cannot rewrite streamed text", evalMs);
+                    logger.warn("Policy {} returned Transform on POST_RESPONSE; "
+                            + "ignored — guardrail response SPI cannot rewrite streamed text",
+                            policy.name());
+                    yield GuardrailResult.pass();
+                }
+                case PolicyDecision.Deny deny -> {
+                    record(ctx, "deny", deny.reason(), evalMs);
+                    yield GuardrailResult.block(deny.reason());
+                }
+            };
+        } catch (RuntimeException e) {
+            record(ctx, "error", "evaluate threw: " + e.getMessage(),
+                    (System.nanoTime() - startNs) / 1_000_000.0);
+            throw e;
+        }
+    }
+
+    /**
+     * Record the policy decision to the installed {@link GovernanceDecisionLog}
+     * so it reaches the admin decisions view and any registered persistent audit
+     * sinks (Kafka / Postgres) — parity with {@link PolicyAdmissionGate} and
+     * {@code AiPipeline}, which record every decision they make.
+     */
+    private void record(PolicyContext ctx, String decision, String reason, double evalMs) {
+        GovernanceDecisionLog.installed().record(
+                GovernanceDecisionLog.entry(policy, ctx, decision, reason, evalMs));
     }
 }

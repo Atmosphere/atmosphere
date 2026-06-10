@@ -3,6 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Content-Security-Policy: defence-in-depth for the v-html markdown sinks.
+      Scripts load only from this origin (no 'unsafe-inline'), so an injected
+      inline event handler that slips past DOMPurify still cannot execute.
+      style-src allows inline styles for Vue's scoped <style> injection;
+      connect-src allows the WebSocket/SSE transports.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
     <title>Atmosphere AI Console</title>
   </head>
   <body>

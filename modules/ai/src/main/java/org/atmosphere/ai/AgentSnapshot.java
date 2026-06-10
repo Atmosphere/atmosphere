@@ -34,12 +34,12 @@ import java.util.Objects;
  * references — tools, memory provider, listeners, multi-modal binary
  * parts, approval strategy, retry policy — are intentionally NOT
  * serialized; the caller reinjects them when reviving the agent (see
- * {@link AgentRuntime#resume}).</p>
+ * {@code AgentPassivation#resume}).</p>
  *
- * <p>Stored in a {@code CheckpointStore} via
- * {@link AgentRuntime#passivate(AgentExecutionContext, org.atmosphere.checkpoint.CheckpointStore, String)},
- * loaded back via
- * {@link AgentRuntime#resume(org.atmosphere.checkpoint.CheckpointStore, org.atmosphere.checkpoint.CheckpointId, String, AgentExecutionContext, StreamingSession)}.
+ * <p>Stored in a {@code CheckpointStore} via {@code AgentPassivation#passivate}
+ * and loaded back via {@code AgentPassivation#resume} (in
+ * {@code atmosphere-checkpoint}; referenced in {@code @code} font here because
+ * {@code atmosphere-ai} does not depend on that module).
  * The Sqlite store deserializes through Jackson; the in-memory store
  * preserves references — both shapes round-trip this record because the
  * record only uses Strings, Maps&lt;String,String&gt;, and the

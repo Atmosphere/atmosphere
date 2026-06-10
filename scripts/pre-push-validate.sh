@@ -145,8 +145,12 @@ echo ""
 HIGH_BLAST_REGEX='^(pom\.xml|modules/pom\.xml|\.mvn/.*|config/.*|bom/pom\.xml|assembly/pom\.xml)$'
 
 # Paths that can never cause Java/Maven behavior change. Filtered out before
-# module computation so a docs-only push is a no-op for Maven.
-IGNORE_REGEX='(^|/)(\.gitignore|\.editorconfig|LICENSE|NOTICE|README(\.md)?|.*\.md|.*\.txt)$|^docs/|^\.github/|^atmosphere\.js/|^\.claude/|^scripts/'
+# module computation so a docs-only push is a no-op for Maven. Playwright e2e
+# specs (modules/integration-tests/e2e/ and top-level e2e/) are TypeScript run
+# by the e2e.yml workflow, not compiled or tested by the Maven reactor, so an
+# e2e-spec-only change must not trigger a Maven build (a mixed change still
+# builds because the accompanying Java files remain Maven-significant).
+IGNORE_REGEX='(^|/)(\.gitignore|\.editorconfig|LICENSE|NOTICE|README(\.md)?|.*\.md|.*\.txt)$|^docs/|^\.github/|^atmosphere\.js/|^\.claude/|^scripts/|^e2e/|^modules/integration-tests/e2e/'
 
 # Tier-1 checks are selected by committed paths. This keeps README/docs pushes
 # fast while preserving the heavier architectural scan for Java/config/workflow

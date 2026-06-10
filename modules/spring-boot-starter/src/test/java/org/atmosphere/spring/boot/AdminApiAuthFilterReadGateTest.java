@@ -127,6 +127,44 @@ class AdminApiAuthFilterReadGateTest {
         verify(chain, times(1)).doFilter(any(), any());
     }
 
+    @Test
+    void readAuthEnabled_noValidatorBean_anonymousGetStillDenied() throws Exception {
+        // The filter is now registered unconditionally, so when no
+        // TokenValidator bean exists the validator is null. With the read-auth
+        // flag on, reads must fail closed (no principal can ever be resolved)
+        // rather than the flag being silently ignored — the bug was that
+        // @ConditionalOnBean skipped the whole filter without a validator.
+        var env = new MockEnvironment()
+                .withProperty("atmosphere.admin.http-read-auth-required", "true");
+        var filter = new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(null, env);
+        var req = new MockHttpServletRequest("GET", "/api/admin/overview");
+        var res = new MockHttpServletResponse();
+        var chain = Mockito.mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        assertEquals(401, res.getStatus(),
+                "with the flag on and no validator, admin reads must be denied "
+                + "(fail closed), not silently allowed");
+        verify(chain, never()).doFilter(any(), any());
+    }
+
+    @Test
+    void noValidatorBean_flagOff_anonymousGetPassesThrough() throws Exception {
+        // Default posture with no auth stack: filter present but inert.
+        var filter = new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
+                null, new MockEnvironment());
+        var req = new MockHttpServletRequest("GET", "/api/admin/overview");
+        var res = new MockHttpServletResponse();
+        var chain = Mockito.mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        assertEquals(200, res.getStatus(),
+                "no validator and flag off must remain an open read plane");
+        verify(chain, times(1)).doFilter(any(), any());
+    }
+
     private static TokenValidator tokenValidatorRejectingEverything() {
         var v = Mockito.mock(TokenValidator.class);
         when(v.validate(Mockito.anyString()))

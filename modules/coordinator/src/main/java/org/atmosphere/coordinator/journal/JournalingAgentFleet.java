@@ -70,8 +70,7 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
      * every dispatch emits a signed {@link CommitmentRecord} alongside
      * the existing {@code AgentDispatched} event. Flag-off default (null)
      * so existing coordinators don't pay the signing cost unless operators
-     * opt in.
-     * <b>@Experimental</b> — shape may migrate by 2026-Q4.
+     * opt in. The {@code CommitmentRecord} schema may migrate by 2026-Q4.
      */
     private volatile CommitmentSigner commitmentSigner;
     /** Optional principal identifier stamped onto every emitted record. */
@@ -117,8 +116,8 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
      * operators enable this for deployments that need verifiable audit
      * trails (financial, medical, legal-adjacent coordinators).
      *
-     * @apiNote Experimental — shape may migrate by 2026-Q4 when the W3C CCG +
-     *          AP2 + Visa TAP standards-track convergence resolves.
+     * @apiNote the {@code CommitmentRecord} shape may migrate by 2026-Q4 when
+     *          the W3C CCG + AP2 + Visa TAP standards-track convergence resolves.
      */
     public JournalingAgentFleet signer(CommitmentSigner signer) {
         this.commitmentSigner = signer;
@@ -327,7 +326,7 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
                                       AgentCall call, String outcome) {
         // Flag-off default: even when a signer is wired, emission is gated
         // on the runtime flag so operators explicitly opt into the
-        // @Experimental schema.
+        // commitment-record schema.
         if (!CommitmentRecordsFlag.isEnabled()) {
             return;
         }

@@ -630,6 +630,20 @@ public class AiPipeline {
                     hasTools, registryHasTools, hasStructured, hasRag, hasGuardrails);
         }
 
+        // Thread the effective governance policy chain through the tool-execution
+        // injectables so ToolExecutionHelper runs per-tool-call admission on this
+        // resource-free dispatch path (channel bridges, A2A, AG-UI, coordinator-
+        // local). The pipeline has no AtmosphereResource to read policies off, so
+        // without this the MS-schema tool_name deny rules that fire on the
+        // @AiEndpoint path would be silently skipped here (Mode Parity #7,
+        // Security #6). Mutually exclusive with the resource branch in
+        // ToolExecutionHelper — no double admission.
+        if (!effectivePolicies.isEmpty()) {
+            effectiveTarget = new GovernancePolicyInjectingSession(
+                    effectiveTarget,
+                    new org.atmosphere.ai.governance.GovernancePolicyChain(effectivePolicies));
+        }
+
         // Per-stage input breakdown — only emitted on the path that actually
         // dispatches to the runtime (the cache-hit branch returned above).
         // Cache misses through CachingStreamingSession DO reach the runtime,

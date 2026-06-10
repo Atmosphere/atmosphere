@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { marked } from 'marked'
+import { renderMarkdown } from '../lib/markdown'
 import type { ToolCall } from '../composables/useAtmosphereChat'
-
-marked.setOptions({ breaks: true, gfm: true })
 
 const props = defineProps<{
   tool: ToolCall
@@ -27,7 +25,7 @@ const renderedResult = computed(() => {
     : props.tool.result
   // Render markdown (tables, bold, lists) if content has markdown syntax
   if (text.includes('|') || text.includes('**') || text.includes('- ')) {
-    return marked.parse(text) as string
+    return renderMarkdown(text)
   }
   return ''
 })

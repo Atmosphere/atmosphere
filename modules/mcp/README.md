@@ -168,6 +168,7 @@ For clients that only support stdio, build the bridge JAR with `mvn package -Pst
 | `AtmosphereConfig` | The framework's `AtmosphereConfig` | Nothing |
 | `BroadcasterFactory` | The framework's `BroadcasterFactory` | Nothing |
 | `AtmosphereFramework` | The framework instance | Nothing |
+| `McpInputContext` | Accumulated input from prior elicitation rounds (empty on the first call) | Nothing |
 
 ### Example: Push Messages to Browser Clients
 
@@ -211,7 +212,7 @@ See [atmosphere-ai README](../ai/README.md) for more on `StreamingSession` and w
 
 ## Bidirectional Tool Invocation
 
-`BiDirectionalToolBridge` enables the **server to call tools on connected clients** (e.g., browser-side JavaScript functions) and receive results asynchronously. This complements the standard MCP flow (client calls server tools) with a reverse channel.
+`BiDirectionalToolBridge` is an **opt-in primitive** (not auto-registered) for the **server to call tools on connected clients** (e.g., browser-side JavaScript functions) and receive results asynchronously. It complements the standard MCP flow (client calls server tools) with a reverse channel. You wire it yourself with `framework.addAtmosphereHandler(...)` as shown below; the framework does not register it for you. (The MCP Apps console host ships a separate, fully-wired bidirectional bridge over `postMessage` — see the Spring Boot starter's `McpApps.vue`.)
 
 ```java
 var bridge = new BiDirectionalToolBridge();

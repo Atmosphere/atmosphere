@@ -33,8 +33,10 @@ import java.util.concurrent.TimeUnit;
  * tools on connected clients (e.g. browser-side JavaScript functions) and receive
  * results asynchronously via {@link CompletableFuture}.
  *
- * <p><b>@Experimental</b> — opt-in extension point; not auto-registered. Wire it
- * manually via {@code framework.addAtmosphereHandler(...)}. API may change by 2026-Q4.</p>
+ * <p>This is an opt-in primitive: it is not auto-registered. Wire it manually
+ * via {@code framework.addAtmosphereHandler(...)} alongside a
+ * {@link ToolResponseHandler} (see the module README). The wire shape may
+ * change by 2026-Q4 as the reverse-channel pattern settles.</p>
  */
 public class BiDirectionalToolBridge {
 

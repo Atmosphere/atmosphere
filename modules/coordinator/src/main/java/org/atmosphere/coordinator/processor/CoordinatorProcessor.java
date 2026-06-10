@@ -266,8 +266,13 @@ public class CoordinatorProcessor implements Processor<Object> {
             var model = settings != null ? settings.model() : null;
             AiPipeline pipeline = null;
             if (runtime != null) {
+                // Install the framework's governance policies so the coordinator
+                // A2A / AG-UI / channel pipelines admit against the same chain as
+                // @AiEndpoint (Mode Parity #7) instead of an empty policy list.
                 pipeline = new AiPipeline(runtime, systemPrompt, model, memory,
-                        toolRegistry, List.of(), List.of(), metrics);
+                        toolRegistry, List.of(),
+                        org.atmosphere.ai.governance.GovernancePolicies.installed(framework),
+                        List.of(), metrics, null);
             } else {
                 logger.warn("Coordinator '{}': no AgentRuntime on classpath — "
                         + "session.stream() will buffer text instead of invoking LLM",

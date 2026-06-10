@@ -21,13 +21,13 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Pin netty 4.2.x to 4.2.13.Final. Koog 1.0.0 transitively ships
+            <!-- Pin netty 4.2.x to 4.2.15.Final. Koog 1.0.0 transitively ships
                  netty 4.2.5.Final via ktor-client-cio, missing the 4.2.13 patches
                  in netty-codec-dns / netty-common. -->
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.2.13.Final</version>
+                <version>4.2.15.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

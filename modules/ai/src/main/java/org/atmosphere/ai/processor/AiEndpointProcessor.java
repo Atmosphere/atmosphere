@@ -34,6 +34,7 @@ import org.atmosphere.ai.RoutingAiSupport;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.governance.GovernancePolicies;
 import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.governance.PolicyAsGuardrail;
 import org.atmosphere.ai.governance.scope.ScopeConfig;
@@ -437,33 +438,12 @@ public class AiEndpointProcessor implements Processor<Object> {
     /**
      * Merge declarative governance policies from ServiceLoader and the
      * framework-scoped {@link GovernancePolicy#POLICIES_PROPERTY} bag.
-     * Deduplicates by {@link GovernancePolicy#name()} so repeat wiring
-     * (Spring + ServiceLoader + YAML pre-loaded into the property) cannot
-     * double-install the same policy.
+     * Delegates to {@link GovernancePolicies#installed(AtmosphereFramework)} so
+     * the {@code @AiEndpoint} path and the {@code @Agent} / {@code @Coordinator}
+     * pipelines resolve the same installed policy set (Mode Parity).
      */
     private List<GovernancePolicy> instantiatePolicies(AtmosphereFramework framework) {
-        var merged = new java.util.LinkedHashMap<String, GovernancePolicy>();
-        try {
-            for (var p : ServiceLoader.load(GovernancePolicy.class)) {
-                if (p != null) {
-                    merged.putIfAbsent(p.name(), p);
-                }
-            }
-        } catch (java.util.ServiceConfigurationError e) {
-            logger.warn("GovernancePolicy ServiceLoader lookup failed: {}", e.getMessage());
-        }
-        var cfg = framework.getAtmosphereConfig();
-        if (cfg != null) {
-            var bridged = cfg.properties().get(GovernancePolicy.POLICIES_PROPERTY);
-            if (bridged instanceof List<?> list) {
-                for (var p : list) {
-                    if (p instanceof GovernancePolicy policy) {
-                        merged.putIfAbsent(policy.name(), policy);
-                    }
-                }
-            }
-        }
-        return List.copyOf(merged.values());
+        return GovernancePolicies.installed(framework);
     }
 
     private List<ContextProvider> instantiateContextProviders(Class<? extends ContextProvider>[] classes,

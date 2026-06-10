@@ -21,7 +21,7 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Pin netty 4.1.x line to 4.1.133.Final. Azure SDK
+            <!-- Pin netty 4.1.x line to 4.1.135.Final. Azure SDK
                  (azure-core-http-netty 1.15.x) pulled in by semantickernel
                  ships netty 4.1.118.Final, which lacks CVE-2026-42577
                  (handler-proxy header injection), CVE-2026-42578 (chunked-
@@ -30,7 +30,7 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.1.133.Final</version>
+                <version>4.1.135.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

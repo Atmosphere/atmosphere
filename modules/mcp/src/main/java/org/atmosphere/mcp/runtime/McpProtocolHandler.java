@@ -421,14 +421,6 @@ public final class McpProtocolHandler {
         }
         var toolName = params.get("name").stringValue();
         var toolOpt = registry.tool(toolName);
-
-        // Task-augmented call (MCP 2025-11-25 experimental). When the
-        // requestor includes params.task, we accept the task, return a
-        // CreateTaskResult immediately, and run the underlying tool
-        // off-thread so subsequent tasks/get / tasks/result poll it.
-        if (toolOpt.isPresent() && params.has("task")) {
-            return acceptToolCallAsTask(resource, id, toolOpt.get(), params);
-        }
         if (toolOpt.isEmpty()) {
             return JsonRpc.Response.error(id, JsonRpc.METHOD_NOT_FOUND,
                     "Unknown tool: " + toolName);
@@ -436,13 +428,29 @@ public final class McpProtocolHandler {
 
         var tool = toolOpt.get();
         var arguments = params.has("arguments") ? params.get("arguments") : null;
-        int argCount = arguments != null ? arguments.size() : 0;
-        var principalName = resolvePrincipal(resource);
 
+        // Governance policy gate runs BEFORE the task branch so it is shared by
+        // the synchronous call path AND the task-augmented path — a long-running
+        // tool cannot bypass policy by being run as a task. Previously the
+        // params.task branch returned early into acceptToolCallAsTask before this
+        // check, so a session-dialect client could invoke an otherwise-denied
+        // tool by adding "task":{} to tools/call (Correctness Invariant #6
+        // Security and #7 Mode Parity — the stateless dialect already gates first).
         var denial = checkToolPolicy(id, toolName, arguments);
         if (denial != null) {
             return denial;
         }
+
+        // Task-augmented call (MCP 2025-11-25 experimental). When the
+        // requestor includes params.task, we accept the task, return a
+        // CreateTaskResult immediately, and run the underlying tool
+        // off-thread so subsequent tasks/get / tasks/result poll it.
+        if (params.has("task")) {
+            return acceptToolCallAsTask(resource, id, tool, params);
+        }
+
+        int argCount = arguments != null ? arguments.size() : 0;
+        var principalName = resolvePrincipal(resource);
 
         try {
             if (tracing != null) {
@@ -850,10 +858,10 @@ public final class McpProtocolHandler {
      * response envelope. The response payload follows MCP {@code ElicitResult}
      * shape: {@code {action: "accept|decline|cancel", content: {...}}}.
      *
-     * <p><b>@Experimental</b> — server-initiated MCP elicitation (spec
-     * 2025-06-18). Opt-in extension point with no default in-tree caller;
-     * invoke it from your own {@code @McpTool} handler. The wire shape may
-     * change by 2026-Q4 as the MCP elicitation spec stabilizes.</p>
+     * <p>Server-initiated MCP elicitation (spec 2025-06-18). This is an opt-in
+     * extension point with no default in-tree caller; invoke it from your own
+     * {@code @McpTool} handler. The wire shape tracks the MCP elicitation spec
+     * and may change by 2026-Q4 as that specification stabilizes.</p>
      *
      * <p>Failure modes:</p>
      * <ul>

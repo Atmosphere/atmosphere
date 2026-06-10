@@ -209,17 +209,30 @@ public final class ToolExecutionHelper {
         // fire here, before the tool executor runs. Covers OWASP Agentic
         // Top-10 #A02 (Tool Misuse). Safe when no policies are installed —
         // PolicyAdmissionGate admits implicitly on empty chains.
+        //
+        // Two resolution paths, mutually exclusive: the @AiEndpoint path carries
+        // an AtmosphereResource and reads policies off the framework behind it;
+        // the resource-free AiPipeline paths (channel bridges, A2A, AG-UI,
+        // coordinator-local) instead thread the pipeline's effective policy chain
+        // through the injectables as a GovernancePolicyChain. Before this, the
+        // resource-free paths skipped tool-call admission entirely — a Mode
+        // Parity (#7) and Security (#6) gap.
         var resource = (org.atmosphere.cpr.AtmosphereResource) scope.get(
                 org.atmosphere.cpr.AtmosphereResource.class);
+        org.atmosphere.ai.governance.PolicyAdmissionGate.Result gateResult = null;
         if (resource != null) {
-            var gateResult = org.atmosphere.ai.governance.PolicyAdmissionGate
+            gateResult = org.atmosphere.ai.governance.PolicyAdmissionGate
                     .admitToolCall(resource, toolName, args);
-            if (gateResult instanceof org.atmosphere.ai.governance.PolicyAdmissionGate.Result.Denied denied) {
-                logger.info("Tool {} denied by governance policy {}: {}",
-                        toolName, denied.policyName(), denied.reason());
-                return buildGovernanceDenyJson(toolName,
-                        denied.policyName(), denied.reason());
-            }
+        } else if (scope.get(org.atmosphere.ai.governance.GovernancePolicyChain.class)
+                instanceof org.atmosphere.ai.governance.GovernancePolicyChain chain) {
+            gateResult = org.atmosphere.ai.governance.PolicyAdmissionGate
+                    .admitToolCall(chain.policies(), toolName, args);
+        }
+        if (gateResult instanceof org.atmosphere.ai.governance.PolicyAdmissionGate.Result.Denied denied) {
+            logger.info("Tool {} denied by governance policy {}: {}",
+                    toolName, denied.policyName(), denied.reason());
+            return buildGovernanceDenyJson(toolName,
+                    denied.policyName(), denied.reason());
         }
 
         // Tool-level @Authorize check (Correctness Invariant #6: default-deny

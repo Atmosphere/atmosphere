@@ -47,6 +47,13 @@ public final class AgUiHandler implements AtmosphereHandler {
     private static final Logger logger = LoggerFactory.getLogger(AgUiHandler.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /**
+     * Cap on the request-body read so an unauthenticated caller cannot exhaust
+     * the heap with an unbounded payload (Correctness Invariant #3). 1 MiB is
+     * well above any legitimate AG-UI RunContext.
+     */
+    private static final int MAX_BODY_CHARS = 1 << 20;
+
     private final Object endpoint;
     private final Method actionMethod;
     private final org.atmosphere.ai.AiPipeline pipeline;
@@ -99,9 +106,18 @@ public final class AgUiHandler implements AtmosphereHandler {
 
         var reader = request.getReader();
         var sb = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            sb.append(line);
+        var buf = new char[8192];
+        int total = 0;
+        int n;
+        while ((n = reader.read(buf)) != -1) {
+            total += n;
+            if (total > MAX_BODY_CHARS) {
+                response.setStatus(413);
+                response.getWriter().write(
+                        "{\"error\":\"Request body exceeds " + MAX_BODY_CHARS + " characters\"}");
+                return;
+            }
+            sb.append(buf, 0, n);
         }
 
         if (sb.isEmpty()) {
@@ -114,8 +130,10 @@ public final class AgUiHandler implements AtmosphereHandler {
         try {
             runContext = MAPPER.readValue(sb.toString(), RunContext.class);
         } catch (JacksonException e) {
+            // Do not reflect the parser's exception text to the caller; log it.
+            logger.warn("Failed to parse AG-UI RunContext", e);
             response.setStatus(400);
-            response.getWriter().write("{\"error\":\"Invalid request: " + e.getMessage() + "\"}");
+            response.getWriter().write("{\"error\":\"Invalid request body\"}");
             return;
         }
 

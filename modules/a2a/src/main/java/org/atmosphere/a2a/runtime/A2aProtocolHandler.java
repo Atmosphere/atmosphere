@@ -159,13 +159,18 @@ public final class A2aProtocolHandler {
             }
             return serialize(response);
         } catch (JacksonException e) {
+            // Do not reflect the parser's exception text to the remote caller —
+            // it can echo internal detail. The full cause is logged.
             logger.warn("Failed to parse A2A message", e);
             return serialize(JsonRpc.Response.error(null, JsonRpc.PARSE_ERROR,
-                    "Invalid JSON: " + e.getMessage()));
+                    "Invalid JSON"));
         } catch (Exception e) {
+            // Return a generic error; the exception message may carry internal
+            // paths, SQL, or other detail an attacker can use (info disclosure).
+            // The detail is logged server-side for operators.
             logger.error("Error handling A2A message", e);
             return serialize(JsonRpc.Response.error(null, JsonRpc.INTERNAL_ERROR,
-                    e.getMessage()));
+                    "Internal error"));
         }
     }
 
@@ -291,6 +296,15 @@ public final class A2aProtocolHandler {
 
     private JsonRpc.Response handleListTasks(Object id, JsonNode params) {
         var contextId = textParam(params, "contextId");
+        // Require a contextId: listing every task across all contexts leaks
+        // other callers' request messages and artifact text (IDOR). The
+        // contextId scopes the listing to the caller's own conversation —
+        // server-generated as a random UUID on SendMessage, so a caller can
+        // only enumerate contexts it created (Correctness Invariant #6).
+        if (contextId == null || contextId.isBlank()) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS,
+                    "ListTasks requires a contextId; listing across all contexts is not permitted");
+        }
         TaskState statusFilter = null;
         if (params != null && params.has("status") && !params.get("status").isNull()) {
             try {

@@ -105,6 +105,19 @@ public final class PolicyAdmissionGate {
                 effectiveChain.add(gp);
             }
         }
+        return runChain(effectiveChain, current);
+    }
+
+    /**
+     * Evaluate an explicit, already-composed policy chain against a request and
+     * record every decision to {@link GovernanceDecisionLog}. Shared by
+     * {@link #admit(AtmosphereFramework, AiRequest)} (which resolves the chain
+     * off the framework config) and the explicit-chain tool-call overload used
+     * by the resource-free {@code AiPipeline} dispatch paths. Fail-closed: a
+     * policy that throws denies.
+     */
+    private static Result runChain(List<GovernancePolicy> effectiveChain, AiRequest request) {
+        var current = request;
         for (var policy : effectiveChain) {
             var ctx = PolicyContext.preAdmission(current);
             var tracer = GovernanceTracer.start(policy, ctx);
@@ -174,17 +187,7 @@ public final class PolicyAdmissionGate {
         if (toolName == null || toolName.isBlank()) {
             return new Result.Admitted(new AiRequest(""));
         }
-        var metadata = new LinkedHashMap<String, Object>();
-        metadata.put("tool_name", toolName);
-        metadata.put("action", "call_tool");
-        if (args != null && !args.isEmpty()) {
-            metadata.put("tool_args_preview", previewArgs(args));
-        }
-        var request = new AiRequest(
-                "call_tool:" + toolName,
-                "", null, null, null, null, null,
-                Map.copyOf(metadata), List.of());
-        return admit(framework, request);
+        return admit(framework, toolCallRequest(toolName, args));
     }
 
     /** Resource-aware overload — reads the framework off the resource. */
@@ -195,6 +198,47 @@ public final class PolicyAdmissionGate {
         }
         var config = resource.getAtmosphereConfig();
         return admitToolCall(config == null ? null : config.framework(), toolName, args);
+    }
+
+    /**
+     * Explicit-chain overload — admits a tool call against an already-composed
+     * policy chain rather than resolving policies off a framework or resource.
+     * Used by the resource-free {@code AiPipeline} dispatch paths (channel
+     * bridges, A2A, AG-UI, coordinator-local) where no
+     * {@link AtmosphereResource} is in scope, so per-tool-call admission would
+     * otherwise be skipped entirely (Correctness Invariant #6 Security and #7
+     * Mode Parity). The chain is the pipeline's effective policy list, which has
+     * already had any per-request {@code ScopePolicy} composed in, so this path
+     * does not re-extract scope.
+     */
+    public static Result admitToolCall(List<GovernancePolicy> policies, String toolName,
+                                        Map<String, Object> args) {
+        if (toolName == null || toolName.isBlank()
+                || policies == null || policies.isEmpty()) {
+            return new Result.Admitted(new AiRequest(
+                    toolName == null ? "" : "call_tool:" + toolName));
+        }
+        return runChain(List.copyOf(policies), toolCallRequest(toolName, args));
+    }
+
+    /**
+     * Build the synthetic {@link AiRequest} whose metadata carries
+     * {@code tool_name}, {@code action}, and (when present) a preview of the
+     * tool arguments so MS-schema rules like
+     * {@code {field: tool_name, operator: eq, value: delete_database, action: deny}}
+     * fire before the tool executes.
+     */
+    private static AiRequest toolCallRequest(String toolName, Map<String, Object> args) {
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("tool_name", toolName);
+        metadata.put("action", "call_tool");
+        if (args != null && !args.isEmpty()) {
+            metadata.put("tool_args_preview", previewArgs(args));
+        }
+        return new AiRequest(
+                "call_tool:" + toolName,
+                "", null, null, null, null, null,
+                Map.copyOf(metadata), List.of());
     }
 
     private static String previewArgs(Map<String, Object> args) {

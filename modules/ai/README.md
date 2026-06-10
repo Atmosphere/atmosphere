@@ -1117,7 +1117,7 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
 
 ### EmbeddingRuntime SPI
 
-Five `EmbeddingRuntime` implementations are registered via `ServiceLoader`. The
+Seven `EmbeddingRuntime` implementations are registered via `ServiceLoader`. The
 `EmbeddingRuntimeResolver` selects the highest-priority available runtime.
 
 | Runtime | Module | Priority | Notes |

@@ -23,7 +23,7 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Netty BOM pinned to 4.1.133.Final, the version Quarkus 3.36.0
+            <!-- Netty BOM pinned to 4.1.135.Final, the version Quarkus 3.36.0
                  ships (up from 4.1.132.Final in 3.35.x). Imported BEFORE
                  quarkus-bom and retained as an explicit sample-scope floor
                  closing CVE-2026-42577 (handler-proxy header injection),
@@ -33,7 +33,7 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.1.133.Final</version>
+                <version>4.1.135.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

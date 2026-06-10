@@ -21,7 +21,7 @@
     },
     {
       "name": "spring-boot-multi-agent-startup-team",
-      "description": "True multi-agent: 5 independent @Agent classes collaborate via A2A protocol",
+      "description": "True multi-agent: 4 @Agent specialists + 1 @Coordinator collaborate via A2A protocol",
       "category": "agent",
       "tags": [
         "spring-boot",

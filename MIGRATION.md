@@ -955,7 +955,7 @@ First-party modules for clustering Atmosphere across multiple server instances.
 
 ### Test Framework
 
-- **Core module (`atmosphere-runtime`):** Tests use **TestNG**. This is unchanged from 2.x/3.x.
+- **Core module (`atmosphere-runtime`):** Tests use **JUnit 5** (`org.junit.jupiter`), migrated from TestNG in the 4.x line.
 - **Spring Boot starter:** Tests use **JUnit 5** via `spring-boot-starter-test`.
 - **Quarkus extension:** Tests use **JUnit 5** via `quarkus-junit5`.
 - For new application code, either TestNG or JUnit 5 works fine.

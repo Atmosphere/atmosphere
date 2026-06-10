@@ -18,8 +18,8 @@ Walk these questions in order; stop at the first match.
 
 1. **Are you new to Atmosphere AI and just need it to work?**
    → **Built-in (`atmosphere-ai`)**. Zero extra deps, OpenAI-compatible
-   client out of the box, the only runtime that emits
-   `TOOL_CALL_DELTA` for token-streaming tool-call argument deltas. Use
+   client out of the box, one of three runtimes (with Anthropic and Cohere)
+   that emit `TOOL_CALL_DELTA` for token-streaming tool-call argument deltas. Use
    `--model` / `LLM_API_KEY` to point at OpenAI / Gemini / Ollama / any
    compatible endpoint.
 
@@ -46,8 +46,8 @@ Walk these questions in order; stop at the first match.
 
 5. **Are you a Kotlin shop and want JetBrains' coroutine-first agent
    framework with native cancellation?**
-   → **Koog (`atmosphere-koog`)**. Only runtime that declares
-   `CANCELLATION` natively (`AIAgent.cancel()` propagates from
+   → **Koog (`atmosphere-koog`)**. Declares `CANCELLATION` with native
+   coroutine cancellation (`AIAgent.cancel()` propagates from
    `StreamingSession.isCancelled()`); Bedrock prompt-cache control,
    coroutine-cancel + JNI interrupt + Reactor dispose all wired through
    `executeWithHandle`.
@@ -68,9 +68,9 @@ Walk these questions in order; stop at the first match.
 8. **Do you need Alibaba's AgentScope reasoning loop (Qwen-native
    ReAct, Alibaba Cloud AI Studio)?**
    → **AgentScope (`atmosphere-agentscope`)**. Reactor-backed streaming,
-   `AgentScopeToolBridge` for portable `@AiTool` calls, the second
-   runtime to declare native `CANCELLATION` (Reactor subscription
-   cancellation on every event tick).
+   `AgentScopeToolBridge` for portable `@AiTool` calls, with
+   `CANCELLATION` wired through Reactor subscription cancellation on every
+   event tick.
 
 9. **Do you need Spring AI Alibaba's `ReactAgent` graph and Alibaba
    Cloud DashScope models on Spring Boot 3?**

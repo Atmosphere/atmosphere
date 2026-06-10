@@ -87,7 +87,7 @@ atmosphere/
 │   └── quarkus-chat/
 ├── atmosphere.js/                 (TypeScript client library)
 ├── assembly/
-└── pom.xml                        (4.0.2-SNAPSHOT, JDK 21)
+└── pom.xml                        (4.0.53-SNAPSHOT, JDK 21)
 ```
 
 ### Key Artifacts
@@ -318,7 +318,7 @@ This frees up runners for the new push. Without this, stale queued runs accumula
 ```
 
 ## Spring Boot Starter Notes
-- Target: Spring Boot 4.0.5, Spring Framework 6.2.8
+- Target: Spring Boot 4.0.6, Spring Framework 7.0
 - Set object factory BEFORE init()
 - Expose AtmosphereFramework bean but NOT BroadcasterFactory
 - Override parent POM's SLF4J/Logback versions for Spring Boot 4 compatibility
@@ -335,7 +335,7 @@ This frees up runners for the new push. Without this, stale queued runs accumula
 - Package manager: npm (uses package-lock.json)
 - Build: `npm run build`
 - Test: `npm test`
-- Version: 5.0.0
+- Version: 5.0.31
 
 ## Sample Applications
 

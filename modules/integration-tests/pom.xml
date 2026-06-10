@@ -21,12 +21,12 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Pin netty 4.1.x to 4.1.133.Final. Integration tests pull
+            <!-- Pin netty 4.1.x to 4.1.135.Final. Integration tests pull
                  lettuce/grpc-netty-shaded transitively with older netty. -->
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.1.133.Final</version>
+                <version>4.1.135.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

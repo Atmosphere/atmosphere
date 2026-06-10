@@ -20,14 +20,14 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Pin netty 4.2.x line to 4.2.13.Final. docker-java-transport-netty
+            <!-- Pin netty 4.2.x line to 4.2.15.Final. docker-java-transport-netty
                  3.7.0 (pulled by google-adk's image-build tooling) ships netty
                  4.2.7.Final, which lacks the 4.2.13 CVE patches in netty-codec-http,
                  netty-codec-http2, and netty-common. -->
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.2.13.Final</version>
+                <version>4.2.15.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

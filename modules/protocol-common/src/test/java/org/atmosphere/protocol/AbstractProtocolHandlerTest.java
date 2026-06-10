@@ -22,8 +22,10 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.List;
 
@@ -268,6 +270,37 @@ class AbstractProtocolHandlerTest {
         assertEquals(0, session.pendingCount());
     }
 
+    // ── body cap (DoS guard) ──
+
+    @Test
+    void readBodyCapped_rejectsOversizedBodyWith413() throws IOException {
+        var resource = mock(AtmosphereResource.class);
+        var request = mock(AtmosphereRequest.class);
+        var response = mock(AtmosphereResponse.class);
+        var sw = new StringWriter();
+        var oversized = "a".repeat((1 << 20) + 1024);
+        when(resource.getRequest()).thenReturn(request);
+        when(resource.getResponse()).thenReturn(response);
+        when(request.getReader()).thenReturn(new BufferedReader(new StringReader(oversized)));
+        when(response.getWriter()).thenReturn(new PrintWriter(sw));
+
+        var body = handler.readBody(resource);
+
+        assertNull(body, "a body over the cap must return null so the caller stops");
+        verify(response).setStatus(413);
+    }
+
+    @Test
+    void readBodyCapped_returnsBodyUnderCap() throws IOException {
+        var resource = mock(AtmosphereResource.class);
+        var request = mock(AtmosphereRequest.class);
+        when(resource.getRequest()).thenReturn(request);
+        when(request.getReader()).thenReturn(
+                new BufferedReader(new StringReader("{\"ok\":true}")));
+
+        assertEquals("{\"ok\":true}", handler.readBody(resource));
+    }
+
     // ── helpers ──
 
     private AtmosphereResource mockResource(String method) {
@@ -309,6 +342,11 @@ class AbstractProtocolHandlerTest {
         @Override
         protected void handleDelete(AtmosphereResource resource) {
             lastMethod = "DELETE";
+        }
+
+        /** Expose the protected capped body reader for testing. */
+        String readBody(AtmosphereResource resource) throws IOException {
+            return readBodyCapped(resource);
         }
     }
 }

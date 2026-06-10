@@ -161,12 +161,15 @@ public enum AiCapability {
     CONFIDENCE_SCORES,
 
     /**
-     * Runtime supports passivation: snapshot the in-flight conversation state
-     * to a {@code CheckpointStore} and resume on an external signal hours or
-     * days later. Surfaced via {@link AgentRuntime#passivate} and
-     * {@link AgentRuntime#resume}. Closes the long-pause human-in-the-loop
-     * gap — agents waiting on human approval drop out of RAM, then rehydrate
-     * with full context when the approval arrives.
+     * Runtime threads {@code context.history()} through its dispatch path so an
+     * in-flight conversation can be snapshotted to a {@code CheckpointStore} and
+     * resumed on an external signal hours or days later. The snapshot/resume
+     * helpers are {@code AgentPassivation#passivate} and
+     * {@code AgentPassivation#resume} in {@code atmosphere-checkpoint}; this flag
+     * advertises only the history-threading cooperation contract they rely on,
+     * not a user-facing pause/resume endpoint (that is application policy).
+     * Closes the long-pause human-in-the-loop gap — agents waiting on human
+     * approval can drop out of RAM, then rehydrate with full context.
      */
     PASSIVATION
 }

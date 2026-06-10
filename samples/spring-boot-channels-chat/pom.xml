@@ -18,7 +18,7 @@
     <properties>
         <!-- Self-contained netty pin: covers samples scaffolded standalone against
              a released parent POM that may not yet declare netty.version. -->
-        <netty.version>4.2.13.Final</netty.version>
+        <netty.version>4.2.15.Final</netty.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
     </properties>
@@ -106,7 +106,7 @@
             <id>spring-boot3</id>
             <properties>
                 <spring-boot.version>3.5.14</spring-boot.version>
-                <netty.version>4.1.133.Final</netty.version>
+                <netty.version>4.1.135.Final</netty.version>
                 <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
             </properties>
         </profile>

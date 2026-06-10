@@ -1286,12 +1286,12 @@
         <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
         <lettuce.version>6.5.5.RELEASE</lettuce.version>
         <spring-boot.version>4.0.6</spring-boot.version>
-        <!-- Override Spring Boot 4.0.6's netty 4.2.12.Final pin to 4.2.13.Final
-             which patches CVE-2025-58056 (netty-codec-http) and the linked
-             4.2.x DoS family. spring-boot-dependencies reads ${netty.version}
-             from caller properties, so this win precedence over the BOM pin
-             without forcing a netty-bom import. -->
-        <netty.version>4.2.13.Final</netty.version>
+        <!-- Override Spring Boot 4.0.6's netty 4.2.x pin to 4.2.15.Final, which
+             patches CVE-2025-58056 (netty-codec-http) plus the later 4.2.x
+             netty-handler / netty-codec-http3 advisories. spring-boot-dependencies
+             reads ${netty.version} from caller properties, so this wins precedence
+             over the BOM pin without forcing a netty-bom import. -->
+        <netty.version>4.2.15.Final</netty.version>
         <quarkus.version>3.36.0</quarkus.version>
         <atmosphere.module.name>org.atmosphere</atmosphere.module.name>
         <!-- AI framework versions (single source of truth) -->

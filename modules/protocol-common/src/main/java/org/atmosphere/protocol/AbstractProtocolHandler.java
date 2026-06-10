@@ -89,6 +89,44 @@ public abstract class AbstractProtocolHandler<S extends ProtocolSession>
     }
 
     /**
+     * Maximum request-body size (characters) read by {@link #readBodyCapped}.
+     * Bounds the in-memory accumulation of a single POST body so an
+     * unauthenticated caller cannot exhaust the heap by streaming an unbounded
+     * payload (Correctness Invariant #3, Backpressure). 1 MiB is well above any
+     * legitimate JSON-RPC agent message.
+     */
+    protected static final int MAX_BODY_CHARS = 1 << 20;
+
+    /**
+     * Read the request body into a String, capped at {@link #MAX_BODY_CHARS}.
+     * When the cap is exceeded the read is abandoned, a {@code 413} response is
+     * written, and {@code null} is returned — callers must return immediately
+     * without writing further to the response.
+     *
+     * @return the body, or {@code null} if the cap was exceeded (413 already sent)
+     */
+    protected String readBodyCapped(AtmosphereResource resource) throws IOException {
+        var reader = resource.getRequest().getReader();
+        var sb = new StringBuilder();
+        var buf = new char[8192];
+        int total = 0;
+        int n;
+        while ((n = reader.read(buf)) != -1) {
+            total += n;
+            if (total > MAX_BODY_CHARS) {
+                var response = resource.getResponse();
+                response.setStatus(413);
+                response.setContentType(APPLICATION_JSON);
+                response.getWriter().write(
+                        "{\"error\":\"Request body exceeds " + MAX_BODY_CHARS + " characters\"}");
+                return null;
+            }
+            sb.append(buf, 0, n);
+        }
+        return sb.toString();
+    }
+
+    /**
      * Handle POST requests (JSON-RPC messages).
      */
     protected abstract void handlePost(AtmosphereResource resource) throws IOException;

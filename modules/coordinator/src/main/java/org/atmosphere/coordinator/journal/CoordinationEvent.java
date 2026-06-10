@@ -193,8 +193,8 @@ public sealed interface CoordinationEvent {
      * key. Drops back to unsigned if no signer is installed (no event is
      * emitted — callers test for the signer before recording).
      *
-     * <p><b>@Experimental</b> — schema may migrate by 2026-Q4 after
-     * standards-track convergence with W3C CCG + AP2 + Visa TAP.</p>
+     * <p><b>Schema stability:</b> the record schema may migrate by 2026-Q4
+     * after standards-track convergence with W3C CCG + AP2 + Visa TAP.</p>
      */
     record CommitmentRecorded(
             String coordinationId,

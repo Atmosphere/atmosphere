@@ -35,8 +35,9 @@ async function sendTask(
   text: string,
   extraArgs: Record<string, unknown> = {},
   id: number | string = 1,
+  contextId?: string,
 ) {
-  return a2aRequest(baseUrl, 'SendMessage', {
+  const params: Record<string, unknown> = {
     message: {
       messageId: `msg-${id}`,
       role: 'ROLE_USER',
@@ -44,7 +45,11 @@ async function sendTask(
       metadata: { skillId },
     },
     arguments: extraArgs,
-  }, id);
+  };
+  if (contextId) {
+    params.contextId = contextId;
+  }
+  return a2aRequest(baseUrl, 'SendMessage', params, id);
 }
 
 /** Unwrap the v1.0.0 SendMessageResponse oneof: result.task | result.message. */
@@ -130,9 +135,13 @@ test.describe('A2A Multi-Hop Agent Chains', () => {
   });
 
   test('ListTasks returns all executed tasks', async () => {
-    await sendTask(server.baseUrl, 'ask', 'List test', {}, 300);
+    // Scope the listing to a known contextId — listing across all contexts is
+    // rejected (IDOR guard).
+    const ctx = 'e2e-multihop-list-ctx';
+    await sendTask(server.baseUrl, 'ask', 'List test', {}, 300, ctx);
 
-    const { body } = await a2aRequest(server.baseUrl, 'ListTasks', { pageSize: 50 }, 301);
+    const { body } = await a2aRequest(
+      server.baseUrl, 'ListTasks', { contextId: ctx, pageSize: 50 }, 301);
 
     const result = body.result as Record<string, unknown>;
     expect(result).toBeDefined();

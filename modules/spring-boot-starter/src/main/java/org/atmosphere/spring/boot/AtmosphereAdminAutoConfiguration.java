@@ -196,15 +196,28 @@ public class AtmosphereAdminAutoConfiguration {
      * reject the token-carrying writes with 401 because
      * {@code guardWrite}'s principal lookup finds nothing.
      *
-     * <p>Only registered when a {@code TokenValidator} bean is present —
-     * applications without the Atmosphere auth stack keep the legacy
-     * "bring your own Spring Security filter chain" path.</p>
+     * <p>Registered unconditionally. The {@code TokenValidator} is optional: when
+     * absent, the filter resolves no principal, so the
+     * {@code atmosphere.admin.http-read-auth-required} gate denies every admin
+     * read (fail closed) rather than being silently ignored — the previous
+     * {@code @ConditionalOnBean} skipped the whole filter without a validator,
+     * turning the flag into a no-op (Correctness Invariant #6: default deny).
+     * Writes always go through {@code guardWrite}, which already denies without
+     * a principal regardless of this filter.</p>
      */
     @Bean
-    @ConditionalOnBean(org.atmosphere.auth.TokenValidator.class)
     public FilterRegistrationBean<AdminApiAuthFilter> adminApiAuthFilter(
-            org.atmosphere.auth.TokenValidator validator,
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.auth.TokenValidator>
+                    validatorProvider,
             org.springframework.core.env.Environment env) {
+        var validator = validatorProvider.getIfAvailable();
+        if (validator == null && Boolean.parseBoolean(
+                env.getProperty("atmosphere.admin.http-read-auth-required", "false"))) {
+            logger.warn("atmosphere.admin.http-read-auth-required=true but no "
+                    + "TokenValidator bean is present — all /api/admin/* reads will be "
+                    + "denied (fail closed). Define a TokenValidator bean to authenticate "
+                    + "admin reads, or unset the flag for an open read plane.");
+        }
         var reg = new FilterRegistrationBean<>(new AdminApiAuthFilter(validator, env));
         reg.addUrlPatterns("/api/admin/*");
         reg.setOrder(0);
@@ -220,6 +233,7 @@ public class AtmosphereAdminAutoConfiguration {
      */
     static class AdminApiAuthFilter implements Filter {
 
+        /** May be {@code null} when no {@code TokenValidator} bean is present. */
         private final org.atmosphere.auth.TokenValidator validator;
         private final org.springframework.core.env.Environment env;
 
@@ -243,7 +257,7 @@ public class AtmosphereAdminAutoConfiguration {
                 token = httpReq.getParameter("X-Atmosphere-Auth");
             }
             java.security.Principal principal = null;
-            if (token != null && !token.isBlank()
+            if (validator != null && token != null && !token.isBlank()
                     && validator.validate(token)
                             instanceof org.atmosphere.auth.TokenValidator.Valid valid) {
                 principal = valid.principal();

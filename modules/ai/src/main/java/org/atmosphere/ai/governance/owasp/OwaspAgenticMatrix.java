@@ -178,7 +178,7 @@ public final class OwaspAgenticMatrix {
                                     "CommitmentRecord",
                                     "Ed25519-signed dispatch records — verifiable audit trail for "
                                             + "any memory mutation that rides through the coordinator "
-                                            + "(@Experimental, flag-off default)"),
+                                            + "(flag-off default)"),
                             new Evidence("org.atmosphere.coordinator.commitment.Ed25519CommitmentSigner",
                                     "org.atmosphere.coordinator.commitment.CommitmentRecordTest",
                                     "Ed25519CommitmentSigner",

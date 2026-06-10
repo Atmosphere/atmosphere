@@ -52,7 +52,16 @@ import java.util.Objects;
  * {@code AbstractAgentRuntime.assembleMessages} or by using an equivalent
  * history-threading path in their native bridge.</p>
  *
- * <p><b>@Experimental</b> — no production {@code @AiEndpoint} request path invokes passivate/resume yet; the only callers today are the durable-execution integration test and the ai-passivation e2e spec. Runtimes that declare {@code PASSIVATION} satisfy the history-threading contract, but wiring a user-facing pause/resume endpoint is left to the application. This status will be revisited by 2026-Q4.</p>
+ * <p><b>Scope.</b> {@code AgentPassivation} is the durable building block:
+ * snapshot capture and history-threaded resume. The
+ * {@link org.atmosphere.ai.AiCapability#PASSIVATION} flag advertises only that
+ * a runtime threads {@code context.history()} through its dispatch path so a
+ * snapshot round-trips — verified by {@code AgentPassivationTest} and the
+ * {@code ai-passivation} e2e spec. Deciding <i>when</i> to pause and on which
+ * external signal to resume (human approval, scheduled tick, upstream event)
+ * is application policy: an {@code @AiEndpoint} wires {@link #passivate} and
+ * {@link #resume} to its own trigger. The capability flag is not a claim that
+ * such an endpoint ships in the framework.</p>
  */
 public final class AgentPassivation {
 

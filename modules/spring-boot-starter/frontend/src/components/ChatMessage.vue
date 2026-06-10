@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { marked } from 'marked'
+import { renderMarkdown } from '../lib/markdown'
 import type { ChatMessage } from '../composables/useAtmosphereChat'
-
-marked.setOptions({ breaks: true, gfm: true })
 
 const props = defineProps<{
   message: ChatMessage
@@ -12,7 +10,7 @@ const props = defineProps<{
 const isUser = computed(() => props.message.role === 'user')
 
 function formattedContent(): string {
-  return marked.parse(props.message.content) as string
+  return renderMarkdown(props.message.content)
 }
 
 const timeString = computed(() => {

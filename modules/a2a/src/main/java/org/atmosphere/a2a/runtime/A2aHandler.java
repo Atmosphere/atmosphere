@@ -78,13 +78,11 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
         var request = resource.getRequest();
         var response = resource.getResponse();
 
-        var reader = request.getReader();
-        var sb = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            sb.append(line);
+        var body = readBodyCapped(resource);
+        if (body == null) {
+            // Body exceeded MAX_BODY_CHARS; readBodyCapped already sent 413.
+            return;
         }
-        var body = sb.toString();
 
         restoreSession(resource);
         var session = ensureSession(resource);

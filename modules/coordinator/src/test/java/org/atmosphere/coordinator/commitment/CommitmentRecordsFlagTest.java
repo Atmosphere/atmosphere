@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Pins the flag-off-default contract. The property defaults to
  * {@code false}; operators who explicitly opt in accept the
- * {@code @Experimental} schema and its 2026-Q4 migration horizon.
+ * commitment-record schema and its 2026-Q4 migration horizon.
  */
 class CommitmentRecordsFlagTest {
 

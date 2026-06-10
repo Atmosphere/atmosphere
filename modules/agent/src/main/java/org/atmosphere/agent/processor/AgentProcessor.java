@@ -141,9 +141,15 @@ public class AgentProcessor implements Processor<Object> {
 
             // Step 8-11: Optional cross-protocol registration
             var protocols = new ArrayList<String>();
+            // Install the framework's governance policies so the A2A / AG-UI /
+            // channel pipelines admit against the same chain as @AiEndpoint
+            // (Mode Parity #7). Previously these pipelines were built with an
+            // empty policy list, leaving governance absent on those surfaces.
             var pipeline = new org.atmosphere.ai.AiPipeline(
                     runtime, systemPrompt, settings.model(), memory,
-                    toolRegistry, List.of(), List.of(), metrics);
+                    toolRegistry, List.of(),
+                    org.atmosphere.ai.governance.GovernancePolicies.installed(framework),
+                    List.of(), metrics, null);
             registerA2a(framework, annotation, skillFile, commandRegistry,
                     commandRouter, promptTarget, promptMethod, pipeline,
                     path, protocols);

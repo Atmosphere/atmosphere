@@ -330,7 +330,7 @@ Circular fleet dependencies (coordinator A manages coordinator B which manages A
 | `JournalingAgentFleet` | Transparent `AgentFleet` decorator; records events and triggers auto-evaluation |
 | `ResultEvaluator` | SPI for quality assessment; ServiceLoader-discovered |
 | `Evaluation` | Record: `score` (0.0–1.0), `passed`, `reason`, `metadata`; `pass()` and `fail()` factories |
-| `AgentActivity` | Sealed interface modeling an agent's current state; 8 record variants: `Idle`, `Thinking`, `Executing`, `WaitingForInput`, `Retrying`, `CircuitOpen`, `Completed`, `Failed` |
+| `AgentActivity` | Sealed interface modeling an agent's current state; 9 record variants: `Idle`, `Thinking`, `Executing`, `WaitingForInput`, `Retrying`, `CircuitOpen`, `Completed`, `Failed`, `Evaluated` |
 | `AgentActivityListener` | `@FunctionalInterface` SPI callback for activity state transitions; ServiceLoader-discoverable |
 | `StreamingActivityListener` | Bridges `AgentActivity` transitions to `AiEvent.AgentStep` events via `StreamingSession.emit()` |
 | `AgentTransport` | SPI for agent-to-agent communication |

@@ -17,17 +17,17 @@ package org.atmosphere.coordinator.commitment;
 
 /**
  * Runtime gate for {@link CommitmentRecord} emission — flag-off default so
- * operators explicitly opt into the {@code @Experimental} schema.
+ * operators explicitly opt into commitment-record emission.
  *
  * <h2>Contract</h2>
  * <ul>
  *   <li>Default: <b>disabled</b>. Operators who install a
  *       {@link CommitmentSigner} but don't flip this flag do not emit
  *       records — protecting existing deployments against a silent
- *       dependency on an experimental schema.</li>
- *   <li>Operators opting in acknowledge that the record shape may migrate
- *       when the standards-track convergence with W3C CCG + AP2 +
- *       Visa TAP resolves (target 2026-Q4).</li>
+ *       dependency on the record schema.</li>
+ *   <li>Operators opting in acknowledge that the record shape tracks the
+ *       W3C CCG + AP2 + Visa TAP standards work and may migrate as those
+ *       specifications converge (target 2026-Q4).</li>
  * </ul>
  *
  * <h2>Sources of truth (checked in order)</h2>
@@ -48,7 +48,7 @@ public final class CommitmentRecordsFlag {
 
     /**
      * System-property name gating commitment-record emission. Default off
-     * so operators explicitly opt into the experimental schema. Enable with
+     * so operators explicitly opt into commitment-record emission. Enable with
      * {@code -Datmosphere.ai.governance.commitment-records.enabled=true}.
      */
     public static final String PROPERTY_NAME = "atmosphere.ai.governance.commitment-records.enabled";

@@ -20,12 +20,12 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Pin netty 4.1.x to 4.1.133.Final. Lettuce/Jedis ships netty
+            <!-- Pin netty 4.1.x to 4.1.135.Final. Lettuce/Jedis ships netty
                  4.1.118.Final transitively, missing the 4.1.133 patches. -->
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.1.133.Final</version>
+                <version>4.1.135.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

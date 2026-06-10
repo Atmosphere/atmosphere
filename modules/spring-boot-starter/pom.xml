@@ -21,7 +21,7 @@
     <dependencyManagement>
         <dependencies>
             <!-- netty-bom imported BEFORE spring-boot-dependencies so its
-                 first-wins resolution rule pulls 4.2.13.Final across every
+                 first-wins resolution rule pulls 4.2.15.Final across every
                  transitive netty artifact, patching the netty-codec-http /
                  codec-compression / transport-native-epoll CVEs that are
                  still on Spring Boot 4.0.6's pinned 4.2.12.Final line. -->
