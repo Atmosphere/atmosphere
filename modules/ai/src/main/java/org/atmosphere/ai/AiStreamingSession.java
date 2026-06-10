@@ -106,6 +106,9 @@ public class AiStreamingSession implements StreamingSession {
     private volatile org.atmosphere.ai.RetryPolicy endpointRetryPolicy;
     /** Endpoint-scoped structured-output reprompt budget; 0 disables the loop. */
     private volatile int endpointStructuredRetries;
+
+    /** Endpoint-scoped cap on tools injected per turn; 0 injects every tool. */
+    private volatile int endpointMaxToolsPerRequest;
     /**
      * Framework-scoped injectables stashed by the endpoint handler and
      * threaded into {@code @AiTool} dispatch so tool methods can declare
@@ -464,6 +467,16 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     /**
+     * Set the endpoint-scoped per-turn tool cap from
+     * {@code @AiEndpoint.maxToolsPerRequest()}. When the registered catalog
+     * exceeds the cap, tools are pre-filtered to the most relevant for the
+     * message; {@code 0} injects every tool.
+     */
+    public void setMaxToolsPerRequest(int maxToolsPerRequest) {
+        this.endpointMaxToolsPerRequest = Math.max(0, maxToolsPerRequest);
+    }
+
+    /**
      * Publish the framework-scoped injectables the endpoint handler collected
      * (live {@code AgentFleet}, {@code AgentIdentity}, {@code AgentState},
      * ...). Threaded into the tool-call loop so {@code @AiTool} methods can
@@ -530,9 +543,12 @@ public class AiStreamingSession implements StreamingSession {
         var request = new AiRequest(message, systemPrompt, model,
                 userId, sessionId, agentId, conversationId, Map.of(), history);
 
-        // Attach available tools to the request
+        // Attach available tools, dynamically pre-filtered to the most relevant
+        // when maxToolsPerRequest caps a large catalog (Mode Parity with
+        // AiPipeline; <= 0 injects every tool).
         if (toolRegistry != null && !toolRegistry.allTools().isEmpty()) {
-            request = request.withTools(toolRegistry.allTools());
+            request = request.withTools(org.atmosphere.ai.tool.ToolSelection.select(
+                    toolRegistry, message, endpointMaxToolsPerRequest));
         }
 
         // Guardrails: inspect request (pre)

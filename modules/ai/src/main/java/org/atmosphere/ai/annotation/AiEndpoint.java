@@ -336,6 +336,17 @@ public @interface AiEndpoint {
     int structuredOutputRetries() default 0;
 
     /**
+     * Cap on the number of tools handed to the model per turn. When the endpoint
+     * registers more tools than this, the set is dynamically pre-filtered to the
+     * most relevant for the user's message (lexical token-overlap scoring) before
+     * the LLM call — keeping the prompt focused for agents with large catalogs.
+     *
+     * <p>Defaults to {@code 0} (inject every registered tool, unchanged). Applied
+     * identically on the websocket and channel-bridge paths.</p>
+     */
+    int maxToolsPerRequest() default 0;
+
+    /**
      * Inline retry-policy configuration for {@link AiEndpoint#retry()}.
      * Default values match {@link org.atmosphere.ai.RetryPolicy#DEFAULT}
      * except for the sentinel {@code maxRetries = -1} which signals "use

@@ -248,6 +248,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     /** Endpoint-scoped structured-output reprompt budget from {@code @AiEndpoint.structuredOutputRetries()}. */
     private volatile int structuredOutputRetries;
 
+    /** Endpoint-scoped per-turn tool cap from {@code @AiEndpoint.maxToolsPerRequest()}. */
+    private volatile int maxToolsPerRequest;
+
     public void setCachePolicy(org.atmosphere.ai.llm.CacheHint.CachePolicy policy) {
         this.cachePolicy = policy;
     }
@@ -258,6 +261,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     public void setStructuredOutputRetries(int retries) {
         this.structuredOutputRetries = Math.max(0, retries);
+    }
+
+    public void setMaxToolsPerRequest(int maxToolsPerRequest) {
+        this.maxToolsPerRequest = Math.max(0, maxToolsPerRequest);
     }
 
     @Override
@@ -447,6 +454,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
         if (structuredOutputRetries > 0) {
             session.setStructuredOutputRetries(structuredOutputRetries);
+        }
+        if (maxToolsPerRequest > 0) {
+            session.setMaxToolsPerRequest(maxToolsPerRequest);
         }
 
         // Publish the handler's injectables map (AgentFleet, AgentIdentity,

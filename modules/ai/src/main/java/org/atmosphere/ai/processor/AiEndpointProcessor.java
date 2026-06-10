@@ -183,6 +183,10 @@ public class AiEndpointProcessor implements Processor<Object> {
             if (annotation.structuredOutputRetries() > 0) {
                 handler.setStructuredOutputRetries(annotation.structuredOutputRetries());
             }
+            // Endpoint-scoped dynamic tool-catalog cap.
+            if (annotation.maxToolsPerRequest() > 0) {
+                handler.setMaxToolsPerRequest(annotation.maxToolsPerRequest());
+            }
 
             // Per-endpoint stream cache: set the framework's cache class name
             // before the broadcaster is created so the new broadcaster picks up

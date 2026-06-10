@@ -105,6 +105,12 @@ public class AiPipeline {
      */
     private volatile AiStructuredRetry defaultStructuredRetry;
     /**
+     * Cap on tools handed to the model per turn; {@code <= 0} injects every
+     * registered tool. When a larger catalog exists, the tools are pre-filtered
+     * to the most relevant for the message via {@link org.atmosphere.ai.tool.ToolSelection}.
+     */
+    private volatile int maxToolsPerRequest;
+    /**
      * Metadata key emitted on both cache hit ({@code true}) and cache miss
      * ({@code false}) when the pipeline's cache gate fires. Mirrors the
      * naming convention of {@code ai.tokens.input}/{@code ai.tokens.output}
@@ -293,6 +299,15 @@ public class AiPipeline {
         return defaultStructuredRetry;
     }
 
+    /**
+     * Cap the number of tools handed to the model per turn (dynamic pre-filtering
+     * to the most relevant for the message). {@code <= 0} disables the cap and
+     * injects every registered tool.
+     */
+    public void setMaxToolsPerRequest(int maxToolsPerRequest) {
+        this.maxToolsPerRequest = Math.max(0, maxToolsPerRequest);
+    }
+
     /** Exposed so callers can share the registry for cross-pipeline deduplication. */
     public ApprovalRegistry approvalRegistry() {
         return approvalRegistry;
@@ -406,9 +421,12 @@ public class AiPipeline {
                 null, clientId, null, clientId,
                 java.util.Map.copyOf(baseMetadata), history);
 
-        // Attach available tools
+        // Attach available tools, dynamically pre-filtered to the most relevant
+        // when maxToolsPerRequest caps a large catalog (Mode Parity with
+        // AiStreamingSession; <= 0 injects every tool).
         if (toolRegistry != null && !toolRegistry.allTools().isEmpty()) {
-            request = request.withTools(toolRegistry.allTools());
+            request = request.withTools(org.atmosphere.ai.tool.ToolSelection.select(
+                    toolRegistry, message, maxToolsPerRequest));
         }
 
         // Guardrails: inspect request (pre)
