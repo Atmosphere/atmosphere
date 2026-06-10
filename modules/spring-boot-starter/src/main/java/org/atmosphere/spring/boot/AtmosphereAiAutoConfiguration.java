@@ -273,6 +273,51 @@ public class AtmosphereAiAutoConfiguration {
     }
 
     /**
+     * Opt-in content-safety moderation guardrail. Off by default — enable with
+     * {@code atmosphere.ai.guardrails.moderation.enabled=true}. Blocks turns
+     * whose request and/or response are flagged for hate, harassment, self-harm,
+     * sexual, violent, or illicit content.
+     *
+     * <p>Detector tier is selected by
+     * {@code atmosphere.ai.guardrails.moderation.detector}:</p>
+     * <ul>
+     *   <li>{@code rule} (default) — zero-dependency phrase matching
+     *       ({@link org.atmosphere.ai.guardrails.RuleBasedModerationDetector}),
+     *       cheap enough for {@link org.atmosphere.ai.guardrails.ModerationGuardrail.Scope#BOTH}.</li>
+     *   <li>{@code llm} — cross-runtime zero-shot classification
+     *       ({@link org.atmosphere.ai.guardrails.LlmModerationDetector}) via the
+     *       installed {@code AgentRuntime}; pinned to
+     *       {@link org.atmosphere.ai.guardrails.ModerationGuardrail.Scope#REQUEST}
+     *       so the model is consulted once per turn, not on every streamed chunk.</li>
+     * </ul>
+     *
+     * <p>Fail-closed by default (a detector outage blocks the turn); set
+     * {@code atmosphere.ai.guardrails.moderation.fail-open=true} to admit on
+     * detector error instead.</p>
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereModerationGuardrail")
+    @ConditionalOnProperty(name = "atmosphere.ai.guardrails.moderation.enabled", havingValue = "true")
+    public org.atmosphere.ai.guardrails.ModerationGuardrail atmosphereModerationGuardrail(
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.moderation.detector:rule}") String detector,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.moderation.fail-open:false}") boolean failOpen) {
+        var llm = "llm".equalsIgnoreCase(detector);
+        var guardrail = llm
+                ? new org.atmosphere.ai.guardrails.ModerationGuardrail(
+                        new org.atmosphere.ai.guardrails.LlmModerationDetector())
+                        .scope(org.atmosphere.ai.guardrails.ModerationGuardrail.Scope.REQUEST)
+                : new org.atmosphere.ai.guardrails.ModerationGuardrail();
+        if (failOpen) {
+            guardrail = guardrail.failOpen();
+        }
+        logger.info("ModerationGuardrail registered (detector={}, failClosed={})",
+                llm ? "llm" : "rule", !failOpen);
+        return guardrail;
+    }
+
+    /**
      * Publishes a {@link org.atmosphere.ai.cost.CostAccountant} into the
      * process-wide holder the {@code AiStreamingSession} decorator chain
      * reads. Priority:
