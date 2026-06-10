@@ -318,6 +318,58 @@ public class AtmosphereAiAutoConfiguration {
     }
 
     /**
+     * Opt-in OAuth on-behalf-of (RFC 8693 token-exchange) credential vault. Off
+     * by default — enable with {@code atmosphere.ai.identity.oauth-obo.enabled=true}
+     * and configure the {@code token-endpoint} / {@code client-id} /
+     * {@code client-secret}. The resulting
+     * {@link org.atmosphere.ai.identity.CredentialStore} exchanges each user's
+     * stored subject token for a short-lived access token scoped to the
+     * downstream tool — applications inject this bean as the {@code CredentialStore}
+     * backing their {@code AgentIdentity}.
+     *
+     * <p>Set {@code master-key} (base64) to back subject-token storage with the
+     * AES-GCM encrypted store; without it tokens are held unencrypted in memory
+     * (a startup warning fires).</p>
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereOAuthOboCredentialStore")
+    @ConditionalOnProperty(name = "atmosphere.ai.identity.oauth-obo.enabled", havingValue = "true")
+    public org.atmosphere.ai.identity.OAuthOnBehalfOfCredentialStore atmosphereOAuthOboCredentialStore(
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.identity.oauth-obo.token-endpoint}") String tokenEndpoint,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.identity.oauth-obo.client-id}") String clientId,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.identity.oauth-obo.client-secret:}") String clientSecret,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.identity.oauth-obo.default-scope:}") String scope,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.identity.oauth-obo.default-audience:}") String audience,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.identity.oauth-obo.subject-token-key:oauth.subject_token}") String subjectKey,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.identity.oauth-obo.master-key:}") String masterKeyB64) {
+        org.atmosphere.ai.identity.CredentialStore backing;
+        if (masterKeyB64 != null && !masterKeyB64.isBlank()) {
+            backing = new org.atmosphere.ai.identity.AtmosphereEncryptedCredentialStore(
+                    java.util.Base64.getDecoder().decode(masterKeyB64));
+        } else {
+            logger.warn("atmosphere.ai.identity.oauth-obo.master-key not set — subject tokens "
+                    + "are stored UNENCRYPTED in memory; set a base64 master key for production");
+            backing = new org.atmosphere.ai.identity.InMemoryCredentialStore();
+        }
+        var config = org.atmosphere.ai.identity.OAuthOboConfig.builder(
+                        java.net.URI.create(tokenEndpoint), clientId, clientSecret)
+                .defaultScope(scope == null || scope.isBlank() ? null : scope)
+                .defaultAudience(audience == null || audience.isBlank() ? null : audience)
+                .subjectTokenKey(subjectKey)
+                .build();
+        logger.info("OAuthOnBehalfOfCredentialStore registered (endpoint={}, encryptedBacking={})",
+                tokenEndpoint, masterKeyB64 != null && !masterKeyB64.isBlank());
+        return new org.atmosphere.ai.identity.OAuthOnBehalfOfCredentialStore(backing, config);
+    }
+
+    /**
      * Publishes a {@link org.atmosphere.ai.cost.CostAccountant} into the
      * process-wide holder the {@code AiStreamingSession} decorator chain
      * reads. Priority:
