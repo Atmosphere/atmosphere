@@ -15,10 +15,12 @@
  */
 package org.atmosphere.samples.springboot.personalassistant;
 
+import org.atmosphere.mcp.client.McpServerRegistry;
 import org.atmosphere.mcp.client.McpToolSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,6 +48,7 @@ public class RemoteToolsConfig implements DisposableBean {
 
     private final String endpoint;
     private McpToolSource source;
+    private McpServerRegistry registry;
 
     public RemoteToolsConfig(@Value("${atmosphere.mcp.client.endpoint:}") String endpoint) {
         this.endpoint = endpoint;
@@ -72,10 +75,33 @@ public class RemoteToolsConfig implements DisposableBean {
         }
     }
 
+    /**
+     * The collision-free aggregation point for remote MCP tools. With a single
+     * upstream today it wraps one source; this is where additional
+     * {@link McpToolSource} connections (each with its own
+     * {@code McpClientOptions} prefix) plug in to expose several servers' tools
+     * to one agent without name clashes. Owns the source lifecycle so
+     * {@link #destroy()} closes everything through {@link McpServerRegistry#close()}.
+     */
+    @Bean
+    public McpServerRegistry mcpServerRegistry(ObjectProvider<McpToolSource> sources) {
+        var builder = McpServerRegistry.builder();
+        var src = sources.getIfAvailable();
+        if (src != null) {
+            builder.add(src);
+        }
+        registry = builder.build();
+        LOG.info("MCP server registry aggregates {} tool(s) across {} source(s)",
+                registry.tools().size(), registry.sources().size());
+        return registry;
+    }
+
     @Override
     public void destroy() {
         McpToolSourceHolder.clear();
-        if (source != null) {
+        if (registry != null) {
+            registry.close();
+        } else if (source != null) {
             source.close();
         }
     }
