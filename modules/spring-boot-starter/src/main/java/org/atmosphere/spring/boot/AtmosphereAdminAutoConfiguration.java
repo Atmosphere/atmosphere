@@ -585,13 +585,30 @@ public class AtmosphereAdminAutoConfiguration {
         org.atmosphere.admin.evals.EvalController atmosphereAdminEvalController(
                 AtmosphereAdmin admin,
                 org.springframework.beans.factory.ObjectProvider<
-                        org.atmosphere.admin.evals.EvalRunStore> storeProvider) {
+                        org.atmosphere.admin.evals.EvalRunStore> storeProvider,
+                org.springframework.beans.factory.ObjectProvider<
+                        org.atmosphere.admin.evals.EvalDatasetStore> datasetStoreProvider,
+                org.springframework.beans.factory.ObjectProvider<
+                        org.atmosphere.coordinator.journal.CoordinationJournal> journalProvider,
+                org.springframework.beans.factory.ObjectProvider<
+                        org.atmosphere.admin.evals.SampledLiveScorer> liveScorerProvider) {
             var store = storeProvider.getIfAvailable(
                     org.atmosphere.admin.evals.InMemoryEvalRunStore::new);
+            var datasetStore = datasetStoreProvider.getIfAvailable(
+                    org.atmosphere.admin.evals.InMemoryEvalDatasetStore::new);
+            // Journaling is opt-in (NOOP by default) — promotion is reachable
+            // but returns empty until an app registers a CoordinationJournal.
+            var journal = journalProvider.getIfAvailable(
+                    () -> org.atmosphere.coordinator.journal.CoordinationJournal.NOOP);
+            // Online scoring is opt-in — an app supplies a SampledLiveScorer bean
+            // (with its own LiveScorer judge) to enable it.
+            var liveScorer = liveScorerProvider.getIfAvailable();
             var controller = new org.atmosphere.admin.evals.EvalController(
-                    store, admin.authorizer(), admin.auditLog());
+                    store, datasetStore, journal, liveScorer, admin.authorizer(), admin.auditLog());
             admin.setEvalController(controller);
-            logger.debug("Atmosphere Admin: Eval controller wired (store={})", store.name());
+            logger.debug("Atmosphere Admin: Eval controller wired (store={}, dataset={}, "
+                            + "liveScoring={})",
+                    store.name(), datasetStore.name(), liveScorer != null);
             return controller;
         }
     }

@@ -642,6 +642,87 @@ public class AtmosphereAdminEndpoint {
         }
     }
 
+    // ── Eval flywheel: dataset + online scoring ──
+
+    @GetMapping("/evals/dataset")
+    public ResponseEntity<List<org.atmosphere.admin.evals.EvalCase>> listEvalDataset() {
+        org.atmosphere.admin.evals.EvalController controller = admin.evalController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(controller.listDataset());
+    }
+
+    @GetMapping("/evals/dataset/{id}")
+    public ResponseEntity<org.atmosphere.admin.evals.EvalCase> getEvalCase(
+            @PathVariable("id") String id) {
+        org.atmosphere.admin.evals.EvalController controller = admin.evalController();
+        if (controller == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return controller.getDatasetCase(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/evals/dataset/promote")
+    public ResponseEntity<Map<String, Object>> promoteEvalCase(
+            @org.springframework.web.bind.annotation.RequestBody Map<String, Object> body,
+            HttpServletRequest request) {
+        var coordinationId = body.get("coordinationId");
+        if (coordinationId == null || coordinationId.toString().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "coordinationId is required"));
+        }
+        var guard = guardWrite(request, "evals.write", coordinationId.toString());
+        if (guard != null) {
+            return guard;
+        }
+        org.atmosphere.admin.evals.EvalController controller = admin.evalController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "Eval controller not wired"));
+        }
+        try {
+            var tags = body.get("tags") instanceof List<?> raw
+                    ? raw.stream().map(String::valueOf).toList() : List.<String>of();
+            return controller.promoteFromJournal(coordinationId.toString(), tags,
+                            resolvePrincipal(request))
+                    .<ResponseEntity<Map<String, Object>>>map(c -> ResponseEntity.ok(Map.of(
+                            "id", c.id(), "prompt", c.prompt(), "source", c.source())))
+                    .orElse(ResponseEntity.status(404).body(Map.of(
+                            "error", "coordination has no result to promote (unknown id or no completion)")));
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("error", se.getMessage()));
+        } catch (IllegalArgumentException | IllegalStateException invalid) {
+            return ResponseEntity.badRequest().body(Map.of("error", invalid.getMessage()));
+        }
+    }
+
+    @PostMapping("/evals/score")
+    public ResponseEntity<Map<String, Object>> observeLiveTurn(
+            @org.springframework.web.bind.annotation.RequestBody Map<String, Object> body,
+            HttpServletRequest request) {
+        var guard = guardWrite(request, "evals.write", "live");
+        if (guard != null) {
+            return guard;
+        }
+        org.atmosphere.admin.evals.EvalController controller = admin.evalController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "Eval controller not wired"));
+        }
+        var prompt = body.getOrDefault("prompt", "").toString();
+        var response = body.getOrDefault("response", "").toString();
+        try {
+            return controller.observeLive(prompt, response, resolvePrincipal(request))
+                    .<ResponseEntity<Map<String, Object>>>map(run -> ResponseEntity.ok(Map.of(
+                            "scored", true, "id", run.id(), "passed", run.passed())))
+                    .orElse(ResponseEntity.ok(Map.of(
+                            "scored", false,
+                            "reason", controller.liveScoringEnabled() ? "not sampled" : "no live scorer configured")));
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("error", se.getMessage()));
+        }
+    }
+
     // ── A2A Tasks ──
 
     @GetMapping("/tasks")

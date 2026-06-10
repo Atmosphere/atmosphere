@@ -17,6 +17,7 @@ package org.atmosphere.admin.evals;
 
 import org.atmosphere.admin.ControlAuditLog;
 import org.atmosphere.admin.ControlAuthorizer;
+import org.atmosphere.coordinator.journal.CoordinationJournal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,12 +51,30 @@ public final class EvalController {
     private static final Logger logger = LoggerFactory.getLogger(EvalController.class);
 
     private final EvalRunStore store;
+    private final EvalDatasetStore datasetStore;
+    private final JournalDatasetPromoter promoter;
+    private final SampledLiveScorer liveScorer;
     private final ControlAuthorizer authorizer;
     private final ControlAuditLog auditLog;
 
     public EvalController(EvalRunStore store, ControlAuthorizer authorizer,
                           ControlAuditLog auditLog) {
+        this(store, new InMemoryEvalDatasetStore(), CoordinationJournal.NOOP, null,
+                authorizer, auditLog);
+    }
+
+    /**
+     * Full constructor wiring the eval-flywheel surfaces: the dataset store +
+     * {@link CoordinationJournal} back the trace→dataset promotion, the optional
+     * {@link SampledLiveScorer} backs online scoring of production traffic.
+     */
+    public EvalController(EvalRunStore store, EvalDatasetStore datasetStore,
+                          CoordinationJournal journal, SampledLiveScorer liveScorer,
+                          ControlAuthorizer authorizer, ControlAuditLog auditLog) {
         this.store = store != null ? store : new InMemoryEvalRunStore();
+        this.datasetStore = datasetStore != null ? datasetStore : new InMemoryEvalDatasetStore();
+        this.promoter = new JournalDatasetPromoter(journal != null ? journal : CoordinationJournal.NOOP);
+        this.liveScorer = liveScorer;
         this.authorizer = authorizer != null ? authorizer : ControlAuthorizer.DENY_ALL;
         this.auditLog = auditLog;
     }
@@ -134,6 +153,74 @@ public final class EvalController {
         }
         store.delete(id);
         audit("evals.delete", id, principal, "eval deleted");
+    }
+
+    // --- Eval flywheel: dataset + online scoring ------------------------------
+
+    /** Read-only list of dataset cases, most recently captured first. */
+    public List<EvalCase> listDataset() {
+        return datasetStore.list();
+    }
+
+    /** Single dataset case by id. */
+    public Optional<EvalCase> getDatasetCase(String id) {
+        return datasetStore.findById(id);
+    }
+
+    /**
+     * Promote a recorded {@code CoordinationJournal} interaction into a dataset
+     * case — the trace→dataset half of the flywheel. Mutating; requires
+     * {@code evals.write}.
+     *
+     * @return the new case, or empty when the coordination produced no result to
+     *         capture as a reference
+     */
+    public Optional<EvalCase> promoteFromJournal(String coordinationId, List<String> tags,
+                                                 String principal) {
+        requireWrite("promote:" + coordinationId, principal);
+        var promoted = promoter.promote(coordinationId, tags);
+        if (promoted.isEmpty()) {
+            return Optional.empty();
+        }
+        var saved = datasetStore.save(promoted.get());
+        audit("evals.write", saved.id(), principal,
+                "dataset case promoted from coordination " + coordinationId);
+        return Optional.of(saved);
+    }
+
+    /** Manually add a dataset case. Mutating; requires {@code evals.write}. */
+    public EvalCase recordDatasetCase(EvalCase evalCase, String principal) {
+        requireWrite(evalCase.id(), principal);
+        var saved = datasetStore.save(evalCase);
+        audit("evals.write", saved.id(), principal, "dataset case recorded (" + saved.source() + ")");
+        return saved;
+    }
+
+    /**
+     * Submit a completed live turn for sampled online scoring — the online half
+     * of the flywheel. Returns the recorded verdict when the turn was sampled in
+     * (and a scorer is configured), otherwise empty. Mutating; requires
+     * {@code evals.write}.
+     */
+    public Optional<EvalRun> observeLive(String prompt, String response, String principal) {
+        requireWrite("live", principal);
+        if (liveScorer == null) {
+            return Optional.empty();
+        }
+        return liveScorer.observe(prompt, response);
+    }
+
+    /** Whether an online scorer is configured. */
+    public boolean liveScoringEnabled() {
+        return liveScorer != null;
+    }
+
+    private void requireWrite(String target, String principal) {
+        if (!authorizer.authorize("evals.write", target, principal)) {
+            logger.warn("evals.write denied: principal={} target={}", principal, target);
+            throw new SecurityException(
+                    "principal " + principal + " is not authorized for evals.write on " + target);
+        }
     }
 
     private void audit(String action, String target, String principal, String detail) {
