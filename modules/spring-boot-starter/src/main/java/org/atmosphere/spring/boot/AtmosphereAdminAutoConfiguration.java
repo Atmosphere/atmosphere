@@ -611,5 +611,30 @@ public class AtmosphereAdminAutoConfiguration {
                     store.name(), datasetStore.name(), liveScorer != null);
             return controller;
         }
+
+        /**
+         * Opt-in inner-loop dev inspector. Off by default — enable with
+         * {@code atmosphere.ai.dev-inspector.enabled=true}. Installs a bounded
+         * in-memory recorder so the {@code AiStreamingSession} decorator captures
+         * each turn (prompt/response/tools/usage), and wires the read controller
+         * the {@code /api/admin/ai/dev/inspector} routes serve.
+         *
+         * <p><strong>Dev-only:</strong> records prompt/response content — do not
+         * enable in production (a startup warning fires).</p>
+         */
+        @Bean
+        @ConditionalOnProperty(name = "atmosphere.ai.dev-inspector.enabled", havingValue = "true")
+        org.atmosphere.admin.ai.DevInspectorController atmosphereDevInspectorController(
+                AtmosphereAdmin admin,
+                @org.springframework.beans.factory.annotation.Value(
+                        "${atmosphere.ai.dev-inspector.capacity:100}") int capacity) {
+            var recorder = new org.atmosphere.ai.devinspector.InMemoryDevInspectorRecorder(capacity);
+            org.atmosphere.ai.devinspector.DevInspectorRecorderHolder.install(recorder);
+            var controller = new org.atmosphere.admin.ai.DevInspectorController(recorder);
+            admin.setDevInspectorController(controller);
+            logger.warn("Atmosphere dev inspector ENABLED (capacity={}) — records prompt/response "
+                    + "content; dev-only, do not enable in production.", capacity);
+            return controller;
+        }
     }
 }

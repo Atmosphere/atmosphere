@@ -723,6 +723,32 @@ public class AtmosphereAdminEndpoint {
         }
     }
 
+    // ── Dev Inspector (inner-loop, dev-only) ──
+
+    @GetMapping("/ai/dev/inspector")
+    public ResponseEntity<List<org.atmosphere.ai.devinspector.DevInspectorEntry>> devInspectorRecent(
+            @RequestParam(value = "limit", required = false, defaultValue = "50") int limit) {
+        org.atmosphere.admin.ai.DevInspectorController controller = admin.devInspectorController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(controller.recent(limit));
+    }
+
+    @DeleteMapping("/ai/dev/inspector")
+    public ResponseEntity<Map<String, Object>> devInspectorClear(HttpServletRequest request) {
+        var guard = guardWrite(request, "ai.dev.inspector.clear", "dev-inspector");
+        if (guard != null) {
+            return guard;
+        }
+        org.atmosphere.admin.ai.DevInspectorController controller = admin.devInspectorController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "Dev inspector not wired"));
+        }
+        controller.clear();
+        return ResponseEntity.ok(Map.of("cleared", true));
+    }
+
     // ── A2A Tasks ──
 
     @GetMapping("/tasks")
