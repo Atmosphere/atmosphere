@@ -79,4 +79,34 @@ public interface LongTermMemory {
      * @param userId the user identifier
      */
     void clear(String userId);
+
+    /**
+     * Number of facts currently stored for a user. Used by
+     * {@link MemoryConsolidationStrategy} to decide when to consolidate. The
+     * default counts via {@link #getFacts}; implementations with a cheaper
+     * count (a SQL {@code COUNT}, a Redis {@code LLEN}) should override.
+     *
+     * @param userId the user identifier
+     * @return the stored fact count
+     */
+    default int factCount(String userId) {
+        return getFacts(userId, Integer.MAX_VALUE).size();
+    }
+
+    /**
+     * Replace a user's entire fact set in one operation — the apply step of
+     * {@link MemoryConsolidationStrategy memory consolidation}. The default
+     * is {@link #clear} followed by {@link #saveFacts}; implementations that
+     * can do this atomically (a transaction, a single key write) should
+     * override so a concurrent read never observes an empty store mid-replace
+     * (Correctness Invariant #2 — terminal/replace path leaves a consistent
+     * state).
+     *
+     * @param userId the user identifier
+     * @param facts  the new fact set, oldest first
+     */
+    default void replaceFacts(String userId, List<String> facts) {
+        clear(userId);
+        saveFacts(userId, facts);
+    }
 }

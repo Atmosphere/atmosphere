@@ -71,6 +71,41 @@ public class InMemoryLongTermMemory implements LongTermMemory {
         }
     }
 
+    @Override
+    public int factCount(String userId) {
+        var uf = facts.get(userId);
+        if (uf == null) {
+            return 0;
+        }
+        uf.lock.lock();
+        try {
+            return uf.entries.size();
+        } finally {
+            uf.lock.unlock();
+        }
+    }
+
+    @Override
+    public void replaceFacts(String userId, List<String> newFacts) {
+        if (newFacts == null || newFacts.isEmpty()) {
+            facts.remove(userId);
+            return;
+        }
+        var uf = facts.computeIfAbsent(userId, k -> new UserFacts());
+        uf.lock.lock();
+        try {
+            // Atomic swap under the user lock so a concurrent getFacts never
+            // observes an empty store mid-consolidation.
+            uf.entries.clear();
+            uf.entries.addAll(newFacts);
+            while (uf.entries.size() > maxFacts) {
+                uf.entries.removeFirst();
+            }
+        } finally {
+            uf.lock.unlock();
+        }
+    }
+
     private static final class UserFacts {
         final ReentrantLock lock = new ReentrantLock();
         final List<String> entries = new ArrayList<>();

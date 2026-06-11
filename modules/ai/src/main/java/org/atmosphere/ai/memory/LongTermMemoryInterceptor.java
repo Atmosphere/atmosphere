@@ -44,6 +44,7 @@ public class LongTermMemoryInterceptor implements AiInterceptor {
     private final MemoryExtractionStrategy strategy;
     private final AgentRuntime extractionRuntime;
     private final int maxFactsToInject;
+    private final MemoryConsolidationStrategy consolidation;
     private final ConcurrentMap<String, AtomicInteger> messageCounts = new ConcurrentHashMap<>();
 
     /**
@@ -51,21 +52,35 @@ public class LongTermMemoryInterceptor implements AiInterceptor {
      * @param strategy          when/how to extract facts
      * @param extractionRuntime the runtime to use for fact extraction (can be cheap/fast model)
      * @param maxFactsToInject  max facts to inject into system prompt
+     * @param consolidation     how/when to consolidate the accumulated fact set
+     *                          ({@link MemoryConsolidationStrategy#disabled()} to keep
+     *                          the prior behaviour)
      */
     public LongTermMemoryInterceptor(LongTermMemory memory,
                                      MemoryExtractionStrategy strategy,
                                      AgentRuntime extractionRuntime,
-                                     int maxFactsToInject) {
+                                     int maxFactsToInject,
+                                     MemoryConsolidationStrategy consolidation) {
         this.memory = memory;
         this.strategy = strategy;
         this.extractionRuntime = extractionRuntime;
         this.maxFactsToInject = maxFactsToInject;
+        this.consolidation = consolidation != null
+                ? consolidation : MemoryConsolidationStrategy.disabled();
+    }
+
+    public LongTermMemoryInterceptor(LongTermMemory memory,
+                                     MemoryExtractionStrategy strategy,
+                                     AgentRuntime extractionRuntime,
+                                     int maxFactsToInject) {
+        this(memory, strategy, extractionRuntime, maxFactsToInject,
+                MemoryConsolidationStrategy.disabled());
     }
 
     public LongTermMemoryInterceptor(LongTermMemory memory,
                                      MemoryExtractionStrategy strategy,
                                      AgentRuntime extractionRuntime) {
-        this(memory, strategy, extractionRuntime, 20);
+        this(memory, strategy, extractionRuntime, 20, MemoryConsolidationStrategy.disabled());
     }
 
     @Override
@@ -110,6 +125,7 @@ public class LongTermMemoryInterceptor implements AiInterceptor {
                         memory.saveFacts(userId, facts);
                         logger.debug("Extracted {} facts for user {} (strategy: {})",
                                 facts.size(), userId, strategy.getClass().getSimpleName());
+                        maybeConsolidate(userId);
                     }
                 } catch (Exception e) {
                     logger.warn("Fact extraction failed for user {}: {}", userId, e.getMessage());
@@ -146,12 +162,42 @@ public class LongTermMemoryInterceptor implements AiInterceptor {
                 memory.saveFacts(userId, facts);
                 logger.info("Extracted {} facts for user {} on disconnect",
                         facts.size(), userId);
+                maybeConsolidate(userId);
             }
         } catch (Exception e) {
             logger.warn("Fact extraction on disconnect failed for user {}: {}",
                     userId, e.getMessage());
         }
         messageCounts.remove(conversationId);
+    }
+
+    /**
+     * Consolidate a user's accumulated facts when the configured
+     * {@link MemoryConsolidationStrategy} says so. Best-effort: a model error,
+     * timeout, or empty/garbled result leaves the store untouched, and the
+     * consolidated set is applied only when it is non-empty and no larger than
+     * the original (so consolidation can never grow or empty the store).
+     */
+    private void maybeConsolidate(String userId) {
+        if (consolidation == MemoryConsolidationStrategy.disabled()) {
+            return;
+        }
+        try {
+            var count = memory.factCount(userId);
+            if (!consolidation.shouldConsolidate(userId, count)) {
+                return;
+            }
+            var all = memory.getFacts(userId, Integer.MAX_VALUE);
+            var consolidated = consolidation.consolidate(all, extractionRuntime);
+            if (!consolidated.isEmpty() && consolidated.size() <= all.size()
+                    && !consolidated.equals(all)) {
+                memory.replaceFacts(userId, consolidated);
+                logger.info("Consolidated long-term memory for user {}: {} -> {} facts",
+                        userId, all.size(), consolidated.size());
+            }
+        } catch (Exception e) {
+            logger.warn("Memory consolidation failed for user {}: {}", userId, e.getMessage());
+        }
     }
 
     private static String buildConversationText(AiRequest request) {
