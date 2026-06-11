@@ -626,7 +626,12 @@ public class AiPipeline {
         var cacheSafe = !hasTools && !registryHasTools && !hasStructured && !hasRag && !hasGuardrails;
         StreamingSession effectiveTarget = target;
         if (cache != null && cacheHint.enabled() && cacheSafe) {
-            var key = org.atmosphere.ai.cache.CacheKey.compute(context);
+            // A SemanticResponseCache matches near-duplicate prompts by embedding
+            // similarity, so it keys on the RAW message rather than the exact
+            // CacheKey hash. Exact caches (the default) key on the hash.
+            var key = cache instanceof org.atmosphere.ai.cache.SemanticResponseCache
+                    ? message
+                    : org.atmosphere.ai.cache.CacheKey.compute(context);
             var hit = cache.get(key);
             if (hit.isPresent()) {
                 logger.debug("Pipeline response-cache HIT: key={}", key);
