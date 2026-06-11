@@ -19,7 +19,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.atmosphere.checkpoint.CheckpointStore;
+import org.atmosphere.checkpoint.DurableTimerService;
 import org.atmosphere.checkpoint.InMemoryCheckpointStore;
+import org.atmosphere.checkpoint.InMemoryDurableTimerStore;
 import org.atmosphere.checkpoint.SqliteCheckpointStore;
 import org.atmosphere.checkpoint.coordinator.CheckpointingCoordinationJournal;
 import org.atmosphere.checkpoint.coordinator.CoordinationStateExtractor;
@@ -94,6 +96,25 @@ public class CheckpointConfig {
         };
         store.start();
         return store;
+    }
+
+    /**
+     * Wall-clock durable timer service for restart-surviving deadlines — e.g.
+     * auto-rejecting an approval that no human acted on within its window. The
+     * {@code approval-auto-reject} callback is registered here; a controller arms
+     * a timer via {@link DurableTimerService#schedule} and the service fires it on
+     * the poll after its deadline (even across a restart). {@code close()} stops
+     * the poller on shutdown.
+     */
+    @Bean(destroyMethod = "close")
+    public DurableTimerService durableTimerService() {
+        var service = new DurableTimerService(new InMemoryDurableTimerStore());
+        service.onFire("approval-auto-reject", timer ->
+                logger.warn("Durable timer fired: auto-rejecting approval {} (deadline reached)",
+                        timer.payload().get("approvalId")));
+        service.start();
+        logger.info("DurableTimerService started — restart-surviving timers armed.");
+        return service;
     }
 
     @Bean
