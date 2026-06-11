@@ -576,7 +576,10 @@ public class AiStreamingSession implements StreamingSession {
 
         // Context providers: RAG augmentation with query transform + filter/rerank/post-process
         if (!contextProviders.isEmpty()) {
-            var contextBuilder = new StringBuilder();
+            // Collect each retriever's ranked list, then fuse with Reciprocal
+            // Rank Fusion when more than one retriever is wired so documents the
+            // retrievers agree on rank first. A single retriever needs no fusion.
+            var perProvider = new java.util.ArrayList<java.util.List<ContextProvider.Document>>();
             for (var provider : contextProviders) {
                 try {
                     var query = ContextProvider.normalizeQuery(provider.transformQuery(request.message()));
@@ -587,16 +590,22 @@ public class AiStreamingSession implements StreamingSession {
                     docs = provider.filter(query, docs);
                     docs = provider.rerank(query, docs);
                     docs = provider.postProcess(query, docs);
-                    for (var doc : docs) {
-                        contextBuilder.append("\n---\nSource: ").append(ContextProvider.formatCitation(doc))
-                                .append("\n").append(doc.content());
-                    }
+                    perProvider.add(docs);
                 } catch (Exception e) {
                     logger.error("ContextProvider.retrieve failed: {}",
                             provider.getClass().getName(), e);
                     delegate.sendMetadata("rag.error",
                             provider.getClass().getSimpleName() + ": " + e.getMessage());
                 }
+            }
+            var fused = perProvider.size() > 1
+                    ? RrfFusion.fuse(perProvider, RrfFusion.DEFAULT_K, 8)
+                    : (perProvider.isEmpty() ? java.util.List.<ContextProvider.Document>of()
+                            : perProvider.get(0));
+            var contextBuilder = new StringBuilder();
+            for (var doc : fused) {
+                contextBuilder.append("\n---\nSource: ").append(ContextProvider.formatCitation(doc))
+                        .append("\n").append(doc.content());
             }
             if (!contextBuilder.isEmpty()) {
                 var augmented = request.message()
