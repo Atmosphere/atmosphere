@@ -188,29 +188,21 @@ class LongTermMemoryHttpE2eTest {
         assertTrue(LAST_PROMPT_MESSAGE.get().contains("Hello"),
                 "@Prompt received: " + LAST_PROMPT_MESSAGE.get());
 
-        // Close the WebSocket — this fires the framework's disconnect
-        // event, which calls handleDisconnect → notifyInterceptorsOnDisconnect
-        // → LongTermMemoryInterceptor.onDisconnect → strategy.extractFacts
-        // (returns CANNED_FACTS) → memory.saveFacts.
-        socket.close();
-
-        // Framework e2e proof: the interceptor chain fires through the
-        // real AiEndpointHandler resource-disconnect lifecycle. The
-        // DisconnectRecorder captures the exact (userId, conversationId,
-        // history) tuple the framework hands the interceptor — no
-        // mocking, no in-process invocation. onDisconnect fires via the
-        // clean WebSocket-close path (~2s) or, if that close frame is lost
-        // (the JDK 26 lane flake), via the IdleReaper fallback (~7s — see
-        // the @SpringBootTest init-param). onDisconnect normally lands in
-        // ~2-7s; the 90s await (under the 120s @Timeout) is generous headroom
-        // for the reaper's platform-thread scheduler being CPU-starved when
-        // the Core lane shares the runner with other heavy jobs — that load
-        // starvation blew past the previous 30s await. The await returns as
-        // soon as onDisconnect fires, so the common case is unaffected.
-        await().atMost(Duration.ofSeconds(90))
+        // Do NOT close the WebSocket from the client. A client close intermittently
+        // delivers only a partial frame in CI that half-sets the resource's
+        // `disconnected` flag, which then makes the IdleReaper's onDisconnect a
+        // skipped no-op ("already disconnected") — the exact failure mode that hung
+        // this test. Instead let the resource go idle: the IdleReaper
+        // (maxInactiveActivity = 5s, set via the @SpringBootTest init-param above)
+        // reaps it through webSocket.close(), firing the real handleDisconnect →
+        // notifyInterceptorsOnDisconnect → LongTermMemoryInterceptor.onDisconnect →
+        // strategy.extractFacts (CANNED_FACTS) → memory.saveFacts chain. The reaper
+        // runs on a platform-thread scheduler the sibling idleReaper* test proves is
+        // deterministic in CI; 60s (under the 120s @Timeout) is ample headroom.
+        await().atMost(Duration.ofSeconds(60))
                 .pollInterval(Duration.ofMillis(250))
                 .untilAsserted(() -> assertNotNull(DisconnectRecorder.LAST.get(),
-                        "framework should have fired onDisconnect on socket.close()"));
+                        "IdleReaper should have fired onDisconnect on the idle resource"));
         var record = DisconnectRecorder.LAST.get();
 
         // userId propagated correctly: UserIdAttributeInterceptor copied
