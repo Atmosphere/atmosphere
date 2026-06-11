@@ -31,9 +31,14 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Server-Sent Events (SSE) {@link org.atmosphere.wasync.Transport} using {@link HttpClient}.
- * Parses SSE protocol frames ({@code data:}, {@code event:}, {@code id:}).
+ * Parses every SSE protocol field — {@code data:} (multi-line events joined
+ * with {@code \n}), {@code event:}, {@code id:}, {@code retry:}, and comments —
+ * via {@link SseFrameParser}, and resumes with {@code Last-Event-ID} on
+ * reconnect.
  */
 public class SSETransport extends StreamTransport {
+
+    private final SseFrameParser sseParser = new SseFrameParser();
 
     public SSETransport(HttpClient httpClient, Options options) {
         super(httpClient, options);
@@ -52,6 +57,11 @@ public class SSETransport extends StreamTransport {
         var reqBuilder = HttpRequest.newBuilder(uri);
         request.headers().forEach((name, values) -> values.forEach(v -> reqBuilder.header(name, v)));
         reqBuilder.header("Accept", "text/event-stream");
+        // Resume the stream from the last event seen on a prior connection (SSE
+        // reconnection contract). No-op on the first connect.
+        if (sseParser.lastEventId() != null) {
+            reqBuilder.header("Last-Event-ID", sseParser.lastEventId());
+        }
         reqBuilder.GET();
 
         return httpClient.sendAsync(reqBuilder.build(), HttpResponse.BodyHandlers.ofInputStream())
@@ -76,19 +86,17 @@ public class SSETransport extends StreamTransport {
                     readThread = Thread.ofVirtual().name("wasync-sse").start(() -> {
                         try (var reader = new BufferedReader(
                                 new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
-                            var dataBuffer = new StringBuilder();
                             String line;
                             while ((line = reader.readLine()) != null) {
-                                if (line.startsWith("data:")) {
-                                    var data = line.substring(5).stripLeading();
-                                    dataBuffer.append(data);
-                                } else if (line.isEmpty() && !dataBuffer.isEmpty()) {
-                                    // Empty line marks end of an event
-                                    dispatchMessage(Event.MESSAGE, dataBuffer.toString(),
+                                var frame = sseParser.accept(line);
+                                if (frame != null) {
+                                    // wasync's Event model has no custom-event
+                                    // routing, so every SSE frame dispatches as
+                                    // MESSAGE; id:/retry: are captured on the
+                                    // parser for reconnection.
+                                    dispatchMessage(Event.MESSAGE, frame.data(),
                                             decoders, resolver);
-                                    dataBuffer.setLength(0);
                                 }
-                                // Ignore event:, id:, retry: for now
                             }
                         } catch (Exception e) {
                             if (status != Socket.STATUS.CLOSE) {
