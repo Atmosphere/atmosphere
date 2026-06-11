@@ -466,6 +466,79 @@ public class AtmosphereAiAutoConfiguration {
         }
     }
 
+    /**
+     * Opt-in crash-durable run resume. Off by default — enable with
+     * {@code atmosphere.ai.resume.durable.enabled=true}. Installs a
+     * {@link org.atmosphere.ai.resume.RunJournal}-backed
+     * {@code RunRegistry} into the process-wide
+     * {@code RunRegistryHolder} so in-flight agent runs and their replay
+     * buffers are persisted; on startup the registry rehydrates any runs the
+     * journal still holds so a reconnecting client can replay what a run
+     * produced before a crash or rolling redeploy.
+     *
+     * <p>Supply a durable {@code RunJournal} bean (Redis/Postgres/disk
+     * backed) for real crash survival. Without one, the bundled
+     * {@link org.atmosphere.ai.resume.InMemoryRunJournal} is used — it proves
+     * the rehydration wiring but is NOT crash-durable, and the installer logs
+     * a WARN to that effect (Correctness Invariant #5 — never advertise
+     * crash-durability that the runtime cannot honour).</p>
+     */
+    @Bean
+    @ConditionalOnMissingBean(RunRegistryInstaller.class)
+    @ConditionalOnProperty(name = "atmosphere.ai.resume.durable.enabled", havingValue = "true")
+    public RunRegistryInstaller atmosphereRunRegistryInstaller(
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.resume.RunJournal>
+                    journalProvider) {
+        var journal = journalProvider.getIfAvailable(org.atmosphere.ai.resume.InMemoryRunJournal::new);
+        return new RunRegistryInstaller(journal);
+    }
+
+    /**
+     * Builds a {@link org.atmosphere.ai.resume.RunJournal}-backed
+     * {@code RunRegistry}, rehydrates persisted runs, and installs it into
+     * the process-wide {@code RunRegistryHolder} on startup; restores the
+     * default in-memory registry on shutdown so the holder does not carry
+     * stale state across hot-redeploy and test-context restarts.
+     */
+    static final class RunRegistryInstaller
+            implements org.springframework.beans.factory.SmartInitializingSingleton,
+                       org.springframework.beans.factory.DisposableBean {
+
+        private final org.atmosphere.ai.resume.RunJournal journal;
+
+        RunRegistryInstaller(org.atmosphere.ai.resume.RunJournal journal) {
+            this.journal = journal;
+        }
+
+        @Override
+        public void afterSingletonsInstantiated() {
+            var registry = new org.atmosphere.ai.resume.RunRegistry(
+                    java.time.Clock.systemUTC(),
+                    org.atmosphere.ai.resume.RunRegistry.DEFAULT_TTL,
+                    journal);
+            var rehydrated = registry.rehydrate();
+            org.atmosphere.ai.resume.RunRegistryHolder.install(registry);
+            if (journal.durable()) {
+                logger.info("Crash-durable run resume enabled (journal={}, rehydrated={} run(s))",
+                        journal.getClass().getSimpleName(), rehydrated);
+            } else {
+                logger.warn("Run resume journaling enabled but journal {} is in-memory — "
+                                + "NOT crash-durable. Supply a durable RunJournal bean for "
+                                + "crash survival. (rehydrated={} run(s))",
+                        journal.getClass().getSimpleName(), rehydrated);
+            }
+        }
+
+        @Override
+        public void destroy() {
+            org.atmosphere.ai.resume.RunRegistryHolder.reset();
+        }
+
+        /** Exposed so tests can assert the resolved journal. */
+        org.atmosphere.ai.resume.RunJournal journal() {
+            return journal;
+        }
+    }
 
 
     @Bean
