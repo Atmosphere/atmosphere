@@ -1,121 +1,181 @@
 name: "Security: Dependency Check"
 
+# Detects new releases of the AI/JVM libraries Atmosphere tracks.
+#
+# Two tiers:
+#   1. AUTO-BUMP  -> opens/refreshes a single PR that bumps the root-pom
+#      version property to the newest release *within an allowed version
+#      track* (so it can never jump release lines, e.g. Spring AI 2.0.x
+#      must not be "downgraded" to a newer-by-date 1.1.x maintenance build).
+#   2. WATCH-ONLY -> opens a tracking issue for libraries we follow but do
+#      NOT auto-bump: things with no root-pom property (our A2A is a native
+#      implementation, not a dependency) or version-locked-in-lockstep deps
+#      (Quarkus/gRPC) where a human must decide.
+#
+# Selection never leaves the per-dep track regex; among in-track versions it
+# prefers a stable release and only falls back to the newest pre-release
+# (-M/-RC/.CR/...) when no stable exists yet (e.g. Spring AI 2.0 today).
+#
+# Source of truth for every version is the root pom.xml. To track another
+# dependency, append a line to AUTO_BUMP or WATCH below.
+
 on:
   schedule:
-    - cron: '0 9 * * 1'
+    - cron: '0 9 * * *'   # daily 09:00 UTC
   workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
-  check-ai-dependencies:
-    name: Check AI Framework Dependencies
+  check-dependencies:
+    name: Check tracked dependencies
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v6
 
-    - name: Check and update dependencies
+    - name: Detect new releases
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -euo pipefail
-
-        # ──────────────────────────────────────────────────────────
-        # Dependency registry
-        # Format: "Name|groupId|artifactId|propertyName|file1|file2|..."
-        # To add a dependency, append a line.
-        # ──────────────────────────────────────────────────────────
-        # All versions are declared once in the root pom.xml.
-        # Format: "Name|groupId|artifactId|propertyName"
-        DEPS=(
-          "Spring AI|org.springframework.ai|spring-ai-client-chat|spring-ai.version"
-          "Embabel|com.embabel.agent|embabel-agent-api|embabel.version"
-          "Google ADK|com.google.adk|google-adk|google-adk.version"
-          "Koog|ai.koog|koog-agents-jvm|koog.version"
-          "LangChain4j|dev.langchain4j|langchain4j-core|langchain4j.version"
-        )
         ROOT_POM="pom.xml"
 
+        # ── AUTO-BUMP registry ──────────────────────────────────────────
+        # "Name|groupId|artifactId|propertyName|trackRegex"
+        # trackRegex pins the release line so we never cross-grade.
+        AUTO_BUMP=(
+          "Spring Boot|org.springframework.boot|spring-boot|spring-boot.version|^4\.0\."
+          "Spring AI|org.springframework.ai|spring-ai-client-chat|spring-ai.version|^2\.0\."
+          "Spring AI (Alibaba overlay)|org.springframework.ai|spring-ai-client-chat|spring-ai-alibaba-spring-ai.version|^1\.1\."
+          "Spring AI Alibaba|com.alibaba.cloud.ai|spring-ai-alibaba-bom|spring-ai-alibaba.version|^1\.1\."
+          "LangChain4j|dev.langchain4j|langchain4j-core|langchain4j.version|^1\."
+          "Embabel|com.embabel.agent|embabel-agent-api|embabel.version|^0\."
+          "Google ADK|com.google.adk|google-adk|google-adk.version|^1\."
+          "Koog|ai.koog|koog-agents-jvm|koog.version|^1\."
+          "AgentScope|io.agentscope|agentscope-core|agentscope.version|^1\."
+          "Netty|io.netty|netty-bom|netty.version|^4\.2\."
+        )
+
+        # ── WATCH-ONLY registry ─────────────────────────────────────────
+        # "Name|groupId|artifactId|trackRegex|propertyName|fallbackBaseline|note"
+        # current = root-pom property if given, else fallbackBaseline.
+        WATCH_DEPS=(
+          "A2A Java SDK|org.a2aproject.sdk|a2a-java-sdk-bom|^1\.||1.0.0.Final|Atmosphere ships a native A2A implementation (no a2a-sdk dependency). Track for protocol-compliance / Integration Test Kit interop, not a version bump."
+          "Quarkus|io.quarkus|quarkus-core|^3\.|quarkus.version||Version-locked in lockstep with grpc/netty (AbstractMethodError on skew) — bump deliberately, not automatically."
+          "gRPC|io.grpc|grpc-bom|^1\.|grpc.version||Lockstep with the Quarkus baseline — bump deliberately."
+        )
+
+        # Highest release matching the track regex; prefers stable, else
+        # newest pre-release. Echoes nothing if the artifact/track is empty.
+        latest_in_track() {
+          local group="$1" art="$2" track="$3" gp versions cand stable
+          gp=$(echo "$group" | tr '.' '/')
+          versions=$(curl -sf --retry 3 --retry-delay 5 \
+            "https://repo1.maven.org/maven2/${gp}/${art}/maven-metadata.xml" 2>/dev/null \
+            | grep -oE '<version>[^<]+</version>' | sed -E 's#</?version>##g' || true)
+          cand=$(echo "$versions" | grep -E "$track" || true)
+          [ -z "$cand" ] && return 0
+          stable=$(echo "$cand" \
+            | grep -ivE '(-|\.)(m[0-9]+|rc[0-9]*|alpha|beta|cr[0-9]*|snapshot|pre|dev|b[0-9])' \
+            | sort -V | tail -1)
+          echo "${stable:-$(echo "$cand" | sort -V | tail -1)}"
+        }
+
+        # True if $2 is strictly newer than $1 (version sort).
+        is_newer() {
+          [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" = "$2" ]
+        }
+
+        # Read a single <property>value</property> from the root pom.
+        # sed (not grep -P) so it is portable across GNU/BSD and locally testable.
+        pom_prop() {
+          sed -nE "s#.*<$1>([^<]+)</$1>.*#\1#p" "$ROOT_POM" | head -1
+        }
+
+        # ── Tier 1: auto-bump ───────────────────────────────────────────
         BRANCH="deps/ai-framework-updates"
-        TABLE_HEADER="| Framework | Current | Latest | Status |\n|-----------|---------|--------|--------|"
+        TABLE_HEADER="| Library | Current | Latest (in track) | Status |\n|---------|---------|-------------------|--------|"
         TABLE_ROWS=""
         HAS_UPDATES=false
         UPDATED_NAMES=""
 
-        for dep in "${DEPS[@]}"; do
-          IFS='|' read -ra P <<< "$dep"
-          NAME="${P[0]}"
-          GROUP="${P[1]}"
-          ARTIFACT="${P[2]}"
-          PROP="${P[3]}"
-
-          CURRENT=$(grep -oP "<${PROP}>\K[^<]+" "$ROOT_POM" 2>/dev/null || true)
-
+        for dep in "${AUTO_BUMP[@]}"; do
+          IFS='|' read -r NAME GROUP ARTIFACT PROP TRACK <<< "$dep"
+          CURRENT=$(pom_prop "$PROP" || true)
           if [ -z "$CURRENT" ]; then
-            TABLE_ROWS="${TABLE_ROWS}\n| ${NAME} | ? | - | Could not read version |"
+            TABLE_ROWS="${TABLE_ROWS}\n| ${NAME} | ? | - | property \`${PROP}\` not found |"
             continue
           fi
-
-          # Query Maven Central
-          LATEST=$(curl -sf --retry 3 --retry-delay 5 \
-            "https://search.maven.org/solrsearch/select?q=g:\"${GROUP}\"+AND+a:\"${ARTIFACT}\"&rows=1&wt=json" \
-            | jq -r '.response.docs[0].latestVersion // empty' 2>/dev/null || true)
-
+          LATEST=$(latest_in_track "$GROUP" "$ARTIFACT" "$TRACK")
           if [ -z "$LATEST" ]; then
-            TABLE_ROWS="${TABLE_ROWS}\n| ${NAME} | \`${CURRENT}\` | - | Not on Maven Central |"
+            TABLE_ROWS="${TABLE_ROWS}\n| ${NAME} | \`${CURRENT}\` | - | nothing in track \`${TRACK}\` |"
             continue
           fi
-
-          if [ "$CURRENT" = "$LATEST" ]; then
+          if is_newer "$CURRENT" "$LATEST"; then
+            echo "BUMP ${NAME}: ${CURRENT} -> ${LATEST}"
+            HAS_UPDATES=true
+            UPDATED_NAMES="${UPDATED_NAMES:+${UPDATED_NAMES}, }${NAME}"
+            sed "s|<${PROP}>[^<]*</${PROP}>|<${PROP}>${LATEST}</${PROP}>|g" "$ROOT_POM" > "${ROOT_POM}.tmp" \
+              && mv "${ROOT_POM}.tmp" "$ROOT_POM"
+            TABLE_ROWS="${TABLE_ROWS}\n| ${NAME} | \`${CURRENT}\` | **\`${LATEST}\`** | Updated |"
+          else
             TABLE_ROWS="${TABLE_ROWS}\n| ${NAME} | \`${CURRENT}\` | \`${LATEST}\` | Up to date |"
-            continue
           fi
-
-          echo "${NAME}: ${CURRENT} -> ${LATEST}"
-          HAS_UPDATES=true
-          UPDATED_NAMES="${UPDATED_NAMES:+${UPDATED_NAMES}, }${NAME}"
-          sed -i "s|<${PROP}>[^<]*</${PROP}>|<${PROP}>${LATEST}</${PROP}>|g" "$ROOT_POM"
-
-          TABLE_ROWS="${TABLE_ROWS}\n| ${NAME} | \`${CURRENT}\` | **\`${LATEST}\`** | Updated |"
         done
 
-        if [ "$HAS_UPDATES" != "true" ]; then
-          echo "All AI dependencies are up to date."
-          exit 0
+        if [ "$HAS_UPDATES" = "true" ]; then
+          # Idempotency: if the target branch already encodes exactly these
+          # versions, do nothing (don't churn the PR on every daily run).
+          git fetch origin "$BRANCH" 2>/dev/null || true
+          if git rev-parse --verify "origin/${BRANCH}" >/dev/null 2>&1 \
+             && git show "origin/${BRANCH}:${ROOT_POM}" 2>/dev/null | diff -q - "$ROOT_POM" >/dev/null 2>&1; then
+            echo "Branch ${BRANCH} already at target versions; skipping PR refresh."
+          else
+            EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number' || true)
+            [ -n "$EXISTING_PR" ] && gh pr close "$EXISTING_PR" --delete-branch 2>/dev/null || true
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git checkout -B "$BRANCH"
+            git add -A
+            git commit -m "chore(deps): update tracked library versions (${UPDATED_NAMES})"
+            git push -u origin "$BRANCH" --force-with-lease
+            TABLE=$(echo -e "${TABLE_HEADER}\n${TABLE_ROWS}")
+            gh pr create \
+              --title "chore(deps): update tracked library versions (${UPDATED_NAMES})" \
+              --body "$(printf '## Tracked dependency updates\n\nNewest in-track releases on [Maven Central](https://search.maven.org/). Versions are pinned to a release track so no bump ever crosses a major/minor line.\n\n%s\n\n**Updated:** %s\n\n### Review checklist\n- [ ] Read release notes for breaking API changes (Spring AI 2.0 moved the tool loop to ChatClient/ToolCallingAdvisor)\n- [ ] ./mvnw compile to verify zero warnings\n- [ ] ./mvnw test for affected modules\n- [ ] Verify samples still compile\n' "$TABLE" "$UPDATED_NAMES")" \
+              --label "dependencies" \
+              --base main
+          fi
+        else
+          echo "All auto-bump dependencies are within track and up to date."
         fi
 
-        # Close stale PR on same branch if one exists
-        EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number' || true)
-        [ -n "$EXISTING_PR" ] && gh pr close "$EXISTING_PR" --delete-branch 2>/dev/null || true
+        # ── Tier 2: watch-only (tracking issues) ────────────────────────
+        for w in "${WATCH_DEPS[@]}"; do
+          IFS='|' read -r NAME GROUP ARTIFACT TRACK PROP BASELINE NOTE <<< "$w"
+          if [ -n "$PROP" ]; then
+            CURRENT=$(pom_prop "$PROP" || true)
+          else
+            CURRENT="$BASELINE"
+          fi
+          LATEST=$(latest_in_track "$GROUP" "$ARTIFACT" "$TRACK")
+          { [ -z "$LATEST" ] || [ -z "$CURRENT" ]; } && continue
+          is_newer "$CURRENT" "$LATEST" || continue
 
-        # Create branch, commit, push
-        git checkout -B "$BRANCH"
-        git add -A
-        git commit -m "chore(deps): update AI framework versions (${UPDATED_NAMES})"
-        git push -u origin "$BRANCH" --force-with-lease
-
-        TABLE=$(echo -e "${TABLE_HEADER}\n${TABLE_ROWS}")
-
-        gh pr create \
-          --title "chore(deps): update AI framework versions (${UPDATED_NAMES})" \
-          --body "$(cat <<EOF
-        ## AI Framework Dependency Updates
-
-        Automated check found newer versions on [Maven Central](https://search.maven.org/).
-
-        ${TABLE}
-
-        **Updated:** ${UPDATED_NAMES}
-
-        ### Review checklist
-        - [ ] Check release notes for breaking API changes
-        - [ ] Run \`./mvnw compile\` to verify compilation
-        - [ ] Run \`./mvnw test\` for affected modules
-        - [ ] Verify sample applications still compile
-        EOF
-        )" \
-          --label "dependencies" \
-          --base main
+          TITLE="deps(watch): ${NAME} ${LATEST} released"
+          EXISTS=$(gh issue list --search "in:title \"${TITLE}\"" --state all --json number -q '.[0].number' || true)
+          if [ -n "$EXISTS" ]; then
+            echo "WATCH ${NAME}: issue for ${LATEST} already exists (#${EXISTS})."
+            continue
+          fi
+          echo "WATCH ${NAME}: ${CURRENT} -> ${LATEST} (opening issue)."
+          gh issue create \
+            --title "$TITLE" \
+            --body "$(printf '**%s** has a newer in-track release.\n\n- Current: `%s`\n- Latest (`%s`): `%s`\n- Coordinate: `%s:%s`\n- [Maven Central](https://central.sonatype.com/artifact/%s/%s)\n\n> %s\n\nThis is a *watch-only* notification — no automatic version bump was made.' \
+              "$NAME" "$CURRENT" "$TRACK" "$LATEST" "$GROUP" "$ARTIFACT" "$GROUP" "$ARTIFACT" "$NOTE")" \
+            --label "dependencies" || echo "issue create failed for ${NAME} (continuing)"
+        done
