@@ -21,16 +21,20 @@ import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.verifier.PlanAndVerify;
 import org.atmosphere.verifier.annotation.SinkScanner;
+import org.atmosphere.verifier.planner.GoapAction;
+import org.atmosphere.verifier.planner.GoapPlanRuntime;
 import org.atmosphere.verifier.policy.NumericInvariant;
 import org.atmosphere.verifier.policy.Policy;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -104,12 +108,38 @@ public class GuardedEmailAgentApplication {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "email.planner", havingValue = "demo", matchIfMissing = true)
     public AgentRuntime planRuntime() {
         // Real deployments swap this for any AgentRuntime on the
         // classpath (Spring AI / LangChain4j / ADK / Built-in). The
         // sample uses a deterministic stub so the demonstration runs
         // without an API key.
         return new DemoPlanRuntime();
+    }
+
+    /**
+     * Deterministic alternative plan source: with {@code email.planner=goap},
+     * a {@link GoapPlanRuntime} <em>derives</em> the workflow by GOAP search
+     * over the email-tool domain instead of emitting a canned blob — yet flows
+     * through the identical {@link PlanAndVerify} chain. Because the planner
+     * only assembles actions that advance the declared goal, it cannot produce
+     * the exfiltration plan the verifier exists to catch: the goal predicate
+     * {@code summarized} is reachable, an off-goal {@code send_email} step is
+     * not. This is the planning-side analogue of the verifier's refusal.
+     */
+    @Bean
+    @ConditionalOnProperty(name = "email.planner", havingValue = "goap")
+    public AgentRuntime goapPlanRuntime() {
+        var actions = List.of(
+                new GoapAction("fetch", "fetch_emails", Set.of(), Set.of("fetched"),
+                        Map.of("folder", "inbox"), "emails"),
+                new GoapAction("summarize", "summarize", Set.of("fetched"), Set.of("summarized"),
+                        Map.of("input", "@emails"), "summary"));
+        return new GoapPlanRuntime(actions, Set.of(),
+                goal -> {
+                    var g = goal.toLowerCase();
+                    return g.contains("summ") || g.contains("inbox") ? Set.of("summarized") : Set.of();
+                });
     }
 
     @Bean
