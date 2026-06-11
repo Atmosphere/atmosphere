@@ -144,7 +144,7 @@ class LongTermMemoryHttpE2eTest {
         DisconnectRecorder.LAST.set(null);
     }
 
-    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Timeout(value = 120, unit = TimeUnit.SECONDS)
     @Test
     void disconnectFiresInterceptorAndPersistsFactsViaRealFramework() throws Exception {
         var userId = "user-http-e2e";
@@ -201,10 +201,13 @@ class LongTermMemoryHttpE2eTest {
         // mocking, no in-process invocation. onDisconnect fires via the
         // clean WebSocket-close path (~2s) or, if that close frame is lost
         // (the JDK 26 lane flake), via the IdleReaper fallback (~7s — see
-        // the @SpringBootTest init-param). 30s covers both with headroom;
-        // it can no longer hang, because the reaper's platform-thread
-        // scheduler fires independently of the dropped-close path.
-        await().atMost(Duration.ofSeconds(30))
+        // the @SpringBootTest init-param). onDisconnect normally lands in
+        // ~2-7s; the 90s await (under the 120s @Timeout) is generous headroom
+        // for the reaper's platform-thread scheduler being CPU-starved when
+        // the Core lane shares the runner with other heavy jobs — that load
+        // starvation blew past the previous 30s await. The await returns as
+        // soon as onDisconnect fires, so the common case is unaffected.
+        await().atMost(Duration.ofSeconds(90))
                 .pollInterval(Duration.ofMillis(250))
                 .untilAsserted(() -> assertNotNull(DisconnectRecorder.LAST.get(),
                         "framework should have fired onDisconnect on socket.close()"));
@@ -248,7 +251,7 @@ class LongTermMemoryHttpE2eTest {
      * contention. Runs identically on every JDK because the reaper's scheduler
      * is platform-threaded.
      */
-    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Timeout(value = 120, unit = TimeUnit.SECONDS)
     @Test
     void idleReaperFiresDisconnectWhenCleanCloseNeverArrives() throws Exception {
         var userId = "user-http-e2e";
@@ -279,8 +282,9 @@ class LongTermMemoryHttpE2eTest {
 
             // Deliberately do NOT close the socket — the connection just goes
             // idle, simulating a lost close frame. The IdleReaper must still
-            // fire onDisconnect after maxInactiveActivity (5s) + scheduler tick.
-            await().atMost(Duration.ofSeconds(30))
+            // fire onDisconnect after maxInactiveActivity (5s) + scheduler tick;
+            // 90s await absorbs reaper-scheduler starvation under a saturated runner.
+            await().atMost(Duration.ofSeconds(90))
                     .pollInterval(Duration.ofMillis(250))
                     .untilAsserted(() -> assertNotNull(DisconnectRecorder.LAST.get(),
                             "IdleReaper should have fired onDisconnect on the silent resource"));
