@@ -225,11 +225,6 @@ public class AgentProcessor implements Processor<Object> {
     }
 
     /**
-     * Handles a headless agent by registering only protocol endpoints (A2A, MCP)
-     * without a WebSocket UI handler. Uses the same {@link org.atmosphere.a2a.registry.A2aRegistry}
-     * pattern as {@code A2aServerProcessor}.
-     */
-    /**
      * Sign the served A2A {@code AgentCard} when
      * {@code org.atmosphere.a2a.signCards=true}. Uses an ephemeral Ed25519
      * key whose public JWK is embedded in the signature, so any verifier can
@@ -254,6 +249,51 @@ public class AgentProcessor implements Processor<Object> {
         return signer.sign(card);
     }
 
+    /**
+     * Whether A2A push notifications are enabled
+     * ({@code org.atmosphere.a2a.pushNotifications=true}). Off by default.
+     */
+    private static boolean pushNotificationsEnabled(AtmosphereFramework framework) {
+        var config = framework.getAtmosphereConfig();
+        return config != null && Boolean.parseBoolean(
+                config.getInitParameter("org.atmosphere.a2a.pushNotifications", "false"));
+    }
+
+    /**
+     * Flip the card's {@code pushNotifications} capability to {@code true} —
+     * advertised only when push is actually wired (Correctness Invariant #5).
+     */
+    private static org.atmosphere.a2a.types.AgentCard advertisePush(
+            org.atmosphere.a2a.types.AgentCard card) {
+        var caps = card.capabilities();
+        var updated = caps == null
+                ? new org.atmosphere.a2a.types.AgentCapabilities(true, true, null, true)
+                : new org.atmosphere.a2a.types.AgentCapabilities(
+                        caps.streaming(), true, caps.extensions(), caps.extendedAgentCard());
+        return card.withCapabilities(updated);
+    }
+
+    /**
+     * Wire a {@link org.atmosphere.a2a.runtime.PushNotificationService} into
+     * the handler and register its shutdown with the framework so the owned
+     * HTTP client and task listener are released on stop (Correctness
+     * Invariant #1).
+     */
+    private static void wirePushNotifications(AtmosphereFramework framework,
+            org.atmosphere.a2a.runtime.A2aProtocolHandler handler,
+            org.atmosphere.a2a.runtime.TaskManager taskManager, String agentName) {
+        var service = new org.atmosphere.a2a.runtime.PushNotificationService(taskManager);
+        framework.getAtmosphereConfig().shutdownHook(service::close);
+        handler.setPushNotificationService(service);
+        logger.info("A2A push notifications enabled for '{}' (webhook delivery on terminal task state)",
+                agentName);
+    }
+
+    /**
+     * Handles a headless agent by registering only protocol endpoints (A2A, MCP)
+     * without a WebSocket UI handler. Uses the same {@link org.atmosphere.a2a.registry.A2aRegistry}
+     * pattern as {@code A2aServerProcessor}.
+     */
     private void handleHeadless(AtmosphereFramework framework, Agent annotation,
                                 Object instance, String agentName) {
         var protocols = new ArrayList<String>();
@@ -276,12 +316,19 @@ public class AgentProcessor implements Processor<Object> {
                             ? "Headless agent: " + agentName
                             : annotation.description();
 
+                    var pushOn = pushNotificationsEnabled(framework);
                     var card = maybeSignCard(
                             registry.buildAgentCard(agentName, description, version, a2aEndpoint),
                             framework, agentName);
+                    if (pushOn) {
+                        card = advertisePush(card);
+                    }
                     var taskManager = new org.atmosphere.a2a.runtime.TaskManager();
                     var protocolHandler = new org.atmosphere.a2a.runtime.A2aProtocolHandler(
                             registry, taskManager, card);
+                    if (pushOn) {
+                        wirePushNotifications(framework, protocolHandler, taskManager, agentName);
+                    }
                     var a2aHandler = new org.atmosphere.a2a.runtime.A2aHandler(protocolHandler);
 
                     framework.addAtmosphereHandler(a2aEndpoint, a2aHandler, new java.util.ArrayList<>());
@@ -539,6 +586,10 @@ public class AgentProcessor implements Processor<Object> {
                     skills,
                     null, null);
             card = maybeSignCard(card, framework, annotation.name());
+            var pushOn = pushNotificationsEnabled(framework);
+            if (pushOn) {
+                card = advertisePush(card);
+            }
 
             var registry = new org.atmosphere.a2a.registry.A2aRegistry();
 
@@ -569,6 +620,9 @@ public class AgentProcessor implements Processor<Object> {
             var taskManager = new org.atmosphere.a2a.runtime.TaskManager();
             var protocolHandler = new org.atmosphere.a2a.runtime.A2aProtocolHandler(
                     registry, taskManager, card);
+            if (pushOn) {
+                wirePushNotifications(framework, protocolHandler, taskManager, annotation.name());
+            }
             var a2aHandler = new org.atmosphere.a2a.runtime.A2aHandler(protocolHandler);
 
             var a2aPath = annotation.endpoint().isEmpty() ? basePath + "/a2a" : annotation.endpoint();

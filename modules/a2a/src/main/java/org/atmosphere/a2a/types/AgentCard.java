@@ -76,4 +76,15 @@ public record AgentCard(
                 documentationUrl, capabilities, securitySchemes, securityRequirements,
                 defaultInputModes, defaultOutputModes, skills, newSignatures, iconUrl);
     }
+
+    /**
+     * A copy of this card with its {@link #capabilities} replaced. Used to
+     * advertise a capability (e.g. push notifications) only once it is
+     * actually wired at runtime (Correctness Invariant #5).
+     */
+    public AgentCard withCapabilities(AgentCapabilities newCapabilities) {
+        return new AgentCard(name, description, supportedInterfaces, provider, version,
+                documentationUrl, newCapabilities, securitySchemes, securityRequirements,
+                defaultInputModes, defaultOutputModes, skills, signatures, iconUrl);
+    }
 }

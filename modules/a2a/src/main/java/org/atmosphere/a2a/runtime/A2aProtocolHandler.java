@@ -24,6 +24,7 @@ import org.atmosphere.a2a.registry.A2aRegistry;
 import org.atmosphere.a2a.types.AgentCard;
 import org.atmosphere.a2a.types.ListTasksResponse;
 import org.atmosphere.a2a.types.Message;
+import org.atmosphere.a2a.types.TaskPushNotificationConfig;
 import org.atmosphere.a2a.types.Part;
 import org.atmosphere.a2a.types.Role;
 import org.atmosphere.a2a.types.SendMessageResponse;
@@ -77,6 +78,15 @@ public final class A2aProtocolHandler {
 
     private volatile ProtocolTracing tracing;
 
+    /**
+     * Optional push-notification service. When {@code null} (the default),
+     * the {@code tasks/pushNotificationConfig/*} methods report
+     * {@link #ERROR_PUSH_NOT_SUPPORTED} — the honest runtime state for an
+     * agent that has not enabled push (Correctness Invariant #5). Installed
+     * via {@link #setPushNotificationService} when push is wired.
+     */
+    private volatile PushNotificationService pushService;
+
     public A2aProtocolHandler(A2aRegistry registry, TaskManager taskManager, AgentCard agentCard) {
         this(registry, taskManager, agentCard, null);
     }
@@ -119,6 +129,20 @@ public final class A2aProtocolHandler {
     /** Return the installed protocol tracing instance, or {@code null} if none. */
     public ProtocolTracing tracing() {
         return tracing;
+    }
+
+    /**
+     * Install the push-notification service that backs the
+     * {@code tasks/pushNotificationConfig/*} methods. Passing {@code null}
+     * disables push (methods report {@link #ERROR_PUSH_NOT_SUPPORTED}).
+     */
+    public void setPushNotificationService(PushNotificationService service) {
+        this.pushService = service;
+    }
+
+    /** The installed push-notification service, or {@code null} if push is off. */
+    public PushNotificationService pushNotificationService() {
+        return pushService;
     }
 
     public String handleMessage(String message) {
@@ -182,12 +206,14 @@ public final class A2aProtocolHandler {
             case A2aMethod.LIST_TASKS -> handleListTasks(idVal, params);
             case A2aMethod.CANCEL_TASK -> handleCancelTask(idVal, params);
             case A2aMethod.SUBSCRIBE_TO_TASK -> handleSubscribeToTask(idVal, params);
-            case A2aMethod.CREATE_TASK_PUSH_NOTIFICATION_CONFIG,
-                 A2aMethod.GET_TASK_PUSH_NOTIFICATION_CONFIG,
-                 A2aMethod.LIST_TASK_PUSH_NOTIFICATION_CONFIGS,
-                 A2aMethod.DELETE_TASK_PUSH_NOTIFICATION_CONFIG ->
-                    JsonRpc.Response.error(idVal, ERROR_PUSH_NOT_SUPPORTED,
-                            "Push notifications are not supported by this agent");
+            case A2aMethod.CREATE_TASK_PUSH_NOTIFICATION_CONFIG ->
+                    handleCreatePushConfig(idVal, params);
+            case A2aMethod.GET_TASK_PUSH_NOTIFICATION_CONFIG ->
+                    handleGetPushConfig(idVal, params);
+            case A2aMethod.LIST_TASK_PUSH_NOTIFICATION_CONFIGS ->
+                    handleListPushConfigs(idVal, params);
+            case A2aMethod.DELETE_TASK_PUSH_NOTIFICATION_CONFIG ->
+                    handleDeletePushConfig(idVal, params);
             case A2aMethod.GET_EXTENDED_AGENT_CARD -> handleGetExtendedAgentCard(idVal);
             default -> JsonRpc.Response.error(idVal, JsonRpc.METHOD_NOT_FOUND,
                     "Unknown method: " + rawMethod);
@@ -472,6 +498,125 @@ public final class A2aProtocolHandler {
     private String resolveSkillId(Message message) {
         if (message.metadata() != null && message.metadata().containsKey("skillId")) {
             return message.metadata().get("skillId").toString();
+        }
+        return null;
+    }
+
+    // ── Push notification config (tasks/pushNotificationConfig/*) ──
+
+    private JsonRpc.Response handleCreatePushConfig(Object id, JsonNode params) {
+        var svc = pushService;
+        if (svc == null) {
+            return JsonRpc.Response.error(id, ERROR_PUSH_NOT_SUPPORTED,
+                    "Push notifications are not supported by this agent");
+        }
+        if (params == null) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing params");
+        }
+        var configNode = params.has("pushNotificationConfig")
+                ? params.get("pushNotificationConfig") : params;
+        var taskId = pushTaskId(params, configNode);
+        var notFound = requirePushTask(id, taskId);
+        if (notFound != null) {
+            return notFound;
+        }
+        TaskPushNotificationConfig requested;
+        try {
+            requested = mapper.treeToValue(configNode, TaskPushNotificationConfig.class);
+        } catch (RuntimeException e) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS,
+                    "Invalid pushNotificationConfig: " + e.getMessage());
+        }
+        // Force the resolved taskId so a client cannot register a webhook
+        // under a different task's id than the one it addressed.
+        var toStore = new TaskPushNotificationConfig(requested.tenant(), requested.id(),
+                taskId, requested.url(), requested.token(), requested.authentication());
+        try {
+            return JsonRpc.Response.success(id, svc.create(toStore));
+        } catch (IllegalArgumentException e) {
+            // Boundary rejection (bad URL) — malformed input, not a server fault.
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, e.getMessage());
+        } catch (IllegalStateException e) {
+            return JsonRpc.Response.error(id, JsonRpc.INTERNAL_ERROR, e.getMessage());
+        }
+    }
+
+    private JsonRpc.Response handleGetPushConfig(Object id, JsonNode params) {
+        var svc = pushService;
+        if (svc == null) {
+            return JsonRpc.Response.error(id, ERROR_PUSH_NOT_SUPPORTED,
+                    "Push notifications are not supported by this agent");
+        }
+        var taskId = textParam(params, "taskId");
+        var notFound = requirePushTask(id, taskId);
+        if (notFound != null) {
+            return notFound;
+        }
+        var configId = pushConfigId(params);
+        var config = svc.get(taskId, configId);
+        if (config == null) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS,
+                    "Unknown push notification config: " + configId);
+        }
+        return JsonRpc.Response.success(id, config);
+    }
+
+    private JsonRpc.Response handleListPushConfigs(Object id, JsonNode params) {
+        var svc = pushService;
+        if (svc == null) {
+            return JsonRpc.Response.error(id, ERROR_PUSH_NOT_SUPPORTED,
+                    "Push notifications are not supported by this agent");
+        }
+        var taskId = textParam(params, "taskId");
+        var notFound = requirePushTask(id, taskId);
+        if (notFound != null) {
+            return notFound;
+        }
+        return JsonRpc.Response.success(id, svc.list(taskId));
+    }
+
+    private JsonRpc.Response handleDeletePushConfig(Object id, JsonNode params) {
+        var svc = pushService;
+        if (svc == null) {
+            return JsonRpc.Response.error(id, ERROR_PUSH_NOT_SUPPORTED,
+                    "Push notifications are not supported by this agent");
+        }
+        var taskId = textParam(params, "taskId");
+        var notFound = requirePushTask(id, taskId);
+        if (notFound != null) {
+            return notFound;
+        }
+        var removed = svc.delete(taskId, pushConfigId(params));
+        return JsonRpc.Response.success(id, java.util.Map.of("deleted", removed));
+    }
+
+    /** Resolve the task id from the request or the nested config node. */
+    private static String pushTaskId(JsonNode params, JsonNode configNode) {
+        var taskId = textParam(params, "taskId");
+        return taskId != null ? taskId : textParam(configNode, "taskId");
+    }
+
+    /** Resolve the config id under any of the accepted A2A param names. */
+    private static String pushConfigId(JsonNode params) {
+        var configId = textParam(params, "pushNotificationConfigId");
+        if (configId == null) {
+            configId = textParam(params, "configId");
+        }
+        return configId != null ? configId : textParam(params, "id");
+    }
+
+    /**
+     * Reject when the task id is missing or unknown. The task id is a
+     * server-generated UUID acting as the capability to address a task's push
+     * configs (same ownership model as {@code tasks/get}); requiring the task
+     * to exist prevents registering webhooks against arbitrary ids.
+     */
+    private JsonRpc.Response requirePushTask(Object id, String taskId) {
+        if (taskId == null || taskId.isBlank()) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing taskId");
+        }
+        if (taskManager.getTask(taskId).isEmpty()) {
+            return JsonRpc.Response.error(id, ERROR_TASK_NOT_FOUND, "Unknown task: " + taskId);
         }
         return null;
     }

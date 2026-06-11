@@ -113,6 +113,16 @@ public final class TaskManager {
         statusListeners.add(listener);
     }
 
+    /**
+     * Remove a previously registered status listener. Symmetric with
+     * {@link #onStatusUpdate} so a component that registers on start can
+     * unregister on stop (Correctness Invariant #1 — registrations must have
+     * an explicit removal path). No-op if the listener was never added.
+     */
+    public void removeStatusListener(Consumer<TaskStatusUpdateEvent> listener) {
+        statusListeners.remove(listener);
+    }
+
     public void onArtifactUpdate(Consumer<TaskArtifactUpdateEvent> listener) {
         artifactListeners.add(listener);
     }
