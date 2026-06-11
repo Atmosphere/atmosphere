@@ -64,4 +64,16 @@ public record AgentCard(
         skills = skills != null ? List.copyOf(skills) : List.of();
         signatures = signatures != null ? List.copyOf(signatures) : null;
     }
+
+    /**
+     * A copy of this card with its {@link #signatures} replaced. Used by the
+     * JWS signing/verification path: the signed payload is the card with
+     * {@code signatures} cleared, and the served card carries the resulting
+     * {@link AgentCardSignature}s.
+     */
+    public AgentCard withSignatures(List<AgentCardSignature> newSignatures) {
+        return new AgentCard(name, description, supportedInterfaces, provider, version,
+                documentationUrl, capabilities, securitySchemes, securityRequirements,
+                defaultInputModes, defaultOutputModes, skills, newSignatures, iconUrl);
+    }
 }

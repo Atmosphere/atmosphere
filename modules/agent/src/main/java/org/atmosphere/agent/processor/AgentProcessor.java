@@ -229,6 +229,31 @@ public class AgentProcessor implements Processor<Object> {
      * without a WebSocket UI handler. Uses the same {@link org.atmosphere.a2a.registry.A2aRegistry}
      * pattern as {@code A2aServerProcessor}.
      */
+    /**
+     * Sign the served A2A {@code AgentCard} when
+     * {@code org.atmosphere.a2a.signCards=true}. Uses an ephemeral Ed25519
+     * key whose public JWK is embedded in the signature, so any verifier can
+     * detect tampering of the card in transit (Correctness Invariant #4 —
+     * boundary integrity). The key rotates on restart; supply a stable key
+     * out-of-band for identity binding. Off by default — an unsigned card is
+     * the prior behaviour, so the capability is advertised only when actually
+     * signing (Correctness Invariant #5).
+     */
+    private static org.atmosphere.a2a.types.AgentCard maybeSignCard(
+            org.atmosphere.a2a.types.AgentCard card, AtmosphereFramework framework, String agentName) {
+        var config = framework.getAtmosphereConfig();
+        if (config == null
+                || !Boolean.parseBoolean(
+                        config.getInitParameter("org.atmosphere.a2a.signCards", "false"))) {
+            return card;
+        }
+        var signer = org.atmosphere.a2a.security.AgentCardSigner.ephemeral();
+        logger.info("Signing A2A AgentCard for '{}' with an ephemeral Ed25519 key "
+                        + "(tamper-detection; rotates on restart — supply a stable key for identity)",
+                agentName);
+        return signer.sign(card);
+    }
+
     private void handleHeadless(AtmosphereFramework framework, Agent annotation,
                                 Object instance, String agentName) {
         var protocols = new ArrayList<String>();
@@ -251,7 +276,9 @@ public class AgentProcessor implements Processor<Object> {
                             ? "Headless agent: " + agentName
                             : annotation.description();
 
-                    var card = registry.buildAgentCard(agentName, description, version, a2aEndpoint);
+                    var card = maybeSignCard(
+                            registry.buildAgentCard(agentName, description, version, a2aEndpoint),
+                            framework, agentName);
                     var taskManager = new org.atmosphere.a2a.runtime.TaskManager();
                     var protocolHandler = new org.atmosphere.a2a.runtime.A2aProtocolHandler(
                             registry, taskManager, card);
@@ -511,6 +538,7 @@ public class AgentProcessor implements Processor<Object> {
                     null, null, null, null,
                     skills,
                     null, null);
+            card = maybeSignCard(card, framework, annotation.name());
 
             var registry = new org.atmosphere.a2a.registry.A2aRegistry();
 
