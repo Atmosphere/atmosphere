@@ -744,6 +744,17 @@ public class AiStreamingSession implements StreamingSession {
             target = new org.atmosphere.ai.cost.CostAccountingSession(target, accountant);
         }
 
+        // Inner-loop dev inspector: record prompt/response/tool-calls/usage for
+        // the admin "Dev" surface. Wrapped only when a recorder is installed
+        // (dev-only opt-in) so the hot path stays flat and allocation-free by
+        // default. The decorator is exception-isolated — a recorder fault never
+        // breaks the user's stream.
+        var devInspector = org.atmosphere.ai.devinspector.DevInspectorRecorderHolder.get();
+        if (devInspector != org.atmosphere.ai.devinspector.DevInspectorRecorder.NOOP) {
+            target = new DevInspectorCapturingSession(target, devInspector,
+                    request.model() != null ? request.model() : model, request.message());
+        }
+
         // Wrap in GuardrailCapturingSession for post-LLM response inspection.
         // `effectiveGuardrails` adds the per-request ScopePolicy (wrapped as a
         // PolicyAsGuardrail) when one was installed via request metadata so
