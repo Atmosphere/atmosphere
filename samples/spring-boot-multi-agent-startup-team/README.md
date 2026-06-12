@@ -363,6 +363,83 @@ agent runs, and no tool fires, for a plan the verifier refuses.** Regression
 coverage is in
 [`StartupTeamVerifierTest`](src/test/java/org/atmosphere/samples/springboot/a2astartup/StartupTeamVerifierTest.java).
 
+### The team plan as a verifiable Workflow
+
+The team's intended work compiles to a flat JSON **`Workflow`** — the same AST the
+chain reasons over. In the sample a deterministic `StartupPlanRuntime` emits it so
+the demo runs without an API key; a real deployment swaps in any `AgentRuntime`
+(Spring AI, LangChain4j, ADK, …) and the `PlanAndVerify` contract is identical.
+Each step is a tool call; `@binding` references (`SymRef`s) thread one step's
+result into a later step's argument and are resolved **only after** the whole plan
+passes:
+
+```json
+{ "goal": "Analyze the market and brief the board", "steps": [
+  { "toolName": "web_search",      "arguments": { "query": "target market" },        "resultBinding": "research" },
+  { "toolName": "financial_model", "arguments": { "market": "…", "tam_estimate": "15" }, "resultBinding": "financials" },
+  { "toolName": "analyze_strategy","arguments": { "research": "@research" },          "resultBinding": "strategy" },
+  { "toolName": "write_report",    "arguments": { "key_findings": "@strategy" },      "resultBinding": "report" },
+  { "toolName": "check_runway",    "arguments": {},                                   "resultBinding": "runway" },
+  { "toolName": "commit_budget",   "arguments": { "amount": "@runway" },              "resultBinding": "receipt" },
+  { "toolName": "publish_to_board","arguments": { "body": "@report" },               "resultBinding": "published" }
+] }
+```
+
+This plan **passes**: `@report` is derived from `@strategy`/`@research`, never from
+`@financials`, so nothing confidential reaches the board; `commit_budget` binds
+`@runway` against the `ref(runway)` bound; and `web_search` runs before the model.
+
+### How each refusal is decided
+
+- **Taint — forward dataflow.** The `TaintVerifier` walks the steps keeping a
+  `Map<binding, Set<sourceTool>>`. `financial_model` is a rule source, so its
+  `@financials` binding is tainted; `publish_to_board.body` is the `@Sink`. The
+  *leak* plan binds `body: "@financials"` → tainted binding reaches the forbidden
+  sink → **refused**. Taint propagates transitively and through both arms of a
+  conditional, so a summary-of-a-summary still carries the taint.
+- **SMT — proof by refutation.** For `commit_budget.amount <= ref(runway)` the
+  solver asserts the *negation* and checks satisfiability. Benign binds
+  `amount: "@runway"` — the same symbol on both sides, so `runway > runway` is
+  **UNSAT** (proven). The *over-budget* plan binds `amount: "@requested"` (an
+  unrelated symbol from `request_budget`) — `requested > runway` is **SAT**, a
+  concrete counterexample → **refused**.
+- **Automaton — symbolic execution over a state set.** Starting at
+  `research_pending`, `financial_model` / `analyze_strategy` have a transition to
+  an **error** state; `web_search` transitions to `researched` (from which the
+  models are unconstrained). The *skip-research* plan calls `financial_model`
+  first → error state reachable → **refused**.
+
+### Wiring — the lines that matter
+
+```java
+// StartupVerifierConfig: one Policy, single-sourced from annotations
+new Policy("startup-team", allowedTools,
+        SinkScanner.scan(StartupTools.class),           // @Sink   -> taint rules
+        List.of(researchBeforeFinanceAutomaton()),      // ordering
+        Set.of("treasury"),                              // granted capabilities
+        CapabilityScanner.scan(StartupTools.class))      // @RequiresCapability
+    .withNumericInvariants(List.of(new NumericInvariant(
+        "commit_budget", "amount", Op.LE, new RefBound("runway"))));   // SMT
+
+// CeoCoordinator.onPrompt — Approach 1: verify before any agent is dispatched
+Workflow plan = planAndVerify.plan(message);
+if (!planAndVerify.verify(plan).isOk()) { session.error(...); return; }
+
+// CeoCoordinator — Approach 2: fail-closed gate on the consequential action
+new GatedToolDispatcher(new RegistryToolDispatcher(registry), approvalGate)
+    .dispatch("commit_budget", Map.of("amount", "50000"));  // throws if denied
+```
+
+### Posture
+
+The policy runs in `ControlFlowMode.LINEAR_ONLY` (the default): plans are flat, so
+the proof covers the single sequence that runs. Switching to `BRANCHING` admits
+`ConditionalNode` plans, and **every** verifier — the structural checks *and* the
+SMT layer — descends into both arms (the runtime predicate is never trusted to
+keep an unsafe arm from firing). Full algorithms — taint dataflow, the
+subset-construction automaton, the SMT encoding, and the `Condition` guard grammar
+— are in the **[Plan-and-Verify tutorial](https://async-io.live/docs/tutorial/33-plan-and-verify/)**.
+
 ## Admin Dashboard
 
 The `atmosphere-admin` dependency enables a real-time management dashboard at `/atmosphere/admin/`:
