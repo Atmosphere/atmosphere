@@ -1391,3 +1391,70 @@ asserting severity is the control. (Same session also had a non-drift fix-qualit
 LTM-disconnect timeout band-aid declared green that a re-test later failed — corrected by
 root-causing the reaper-poisoning client close; noted here as context, not a separate
 factual-drift entry.)
+
+---
+
+## 2026-06-12 — Fabricated verifier "control flow / subset-construction / pipeline-wiring" in a doc bound for the paper's author (caught pre-publish)
+
+### Factual drift (capabilities invented around a class that does not exist)
+
+**Claim (in the draft of `tutorial/33-plan-and-verify.md`, while deepening it to send to
+the author of "Guardians of the Agents"):** that the verifier AST has a `ConditionalNode`;
+that **both** `TaintVerifier` and `AutomatonVerifier` are "branch-aware" and "union over both
+arms"; that `AutomatonVerifier` performs **subset/powerset construction**, tracks "the set of
+reachable states", `advance()`-es that set, and "handles nondeterministic automata, path-aware,
+not first-match-wins"; and that the chain is "wired into the `AgentRuntime` SPI and the
+`@AiEndpoint` pipeline … the same way across every runtime adapter."
+
+**Truth (read from current `main`):** `PlanNode` is `sealed interface PlanNode permits
+ToolCallNode` — **only** `ToolCallNode`; there is no `ConditionalNode` anywhere (AST package =
+`PlanNode`, `SymRef`, `ToolCallNode`, `Workflow`, `WorkflowStep`). `TaintVerifier` walks
+`workflow.steps()` **linearly** (its own comment: "Phase 5 control-flow nodes recurse into
+their bodies here" = future, not present). `AutomatonVerifier` tracks a **single `String
+current` state**, `findTransition` is **first-match-wins**, Javadoc: "the verifier is
+intentionally not exploring all paths." `git grep` for verifier usage in `modules/ai/**`
+returns **nothing** — the verifier is NOT in the AgentRuntime/@AiEndpoint hot path; the only
+production consumers are `VerifierController` (admin/Console), the Spring Boot admin
+auto-config, `VerifyCli`, and the `spring-boot-guarded-email-agent` sample.
+
+**Slip path:** I carried a prior-turn assertion from my own session summary ("ConditionalNode
+confirmed to exist") across a context boundary **without re-grepping the AST package**, then
+built three sections of capability prose on top of it, and additionally invented the
+automaton's "subset construction / `advance()` / nondeterministic" behaviour and the
+"AgentRuntime / @AiEndpoint / every runtime adapter" wiring — none of which I had read in
+`AutomatonVerifier.java` or grepped in `modules/ai`. This is the "infer from the narrative
+instead of reading the code" failure, compounded by the "SPI/feature presence ≠ runtime
+presence / all-N-runtimes-do-X" pattern. **Self-caught in a pre-publish verification pass**
+that grepped every named symbol (filename = declaration) and read each described algorithm
+body, BEFORE the commit — so nothing fabricated reached the live page or the author. The
+removed "Limitations" section (linear AST, single-shot first-match automaton) had in fact been
+**correct**, and my "deepening" had replaced true limits with invented capabilities.
+
+**Gate added:** before publishing an externally-facing technical description — especially to a
+domain expert — (1) grep **every** named class/method/annotation against the reactor and treat
+"not found" as a hard stop, (2) **read the algorithm body** of any verifier/analysis whose
+behaviour is being characterised rather than paraphrasing intent, and (3) never carry a
+"confirmed to exist" claim across a context/summary boundary without re-verifying against
+current source. Extends No-Hallucinations "API surface claims require a source read" and
+Correctness Invariant #5 (runtime truth, not classpath/SPI presence) to documentation prose.
+Process gate; the pre-publish symbol-grep + algorithm-read is the control.
+
+**Addendum (same day, after `git fetch`).** The "Truth" above was read from a *local*
+checkout that was two commits behind `origin/main`. While I was correcting the doc the
+maintainer pushed `974969212e` ("conditional plans, deep taint, automaton guards, approval
+gate"), which **implemented several of the very capabilities I had fabricated**: `PlanNode`
+now `permits ToolCallNode, ConditionalNode`; `TaintVerifier` forks/​unions both arms and
+resolves `SymRef`s at any depth; `AutomatonVerifier` executes over a *set* of states with a
+`Condition` tristate guard grammar; and `GatedToolDispatcher` adds a fail-closed approval gate.
+So my conservative "correction" (linear AST, shallow taint, single-path automaton) was itself
+stale the moment it published — it **understated** the new reality and had to be re-synced
+*up* (commit `b971158` on the website repo). Two compounding lessons: (a) **a fabrication that
+later comes true is still a fabrication** — I claimed those capabilities from a stale summary,
+never verified, and merely got lucky the maintainer was building them in parallel; (b)
+**verify against the remote tip, not a possibly-behind local checkout** — `git fetch` before
+treating "the AST has only ToolCallNode" (or any structural fact) as ground truth. One genuine
+gap surfaced and was reported to the maintainer separately: under `BRANCHING`,
+`AbstractJavaSmtChecker.checkInvariant` iterates `workflow.steps()` and skips `ConditionalNode`,
+so SMT numeric invariants on calls inside branch arms are not discharged — the doc therefore
+scopes the "both arms" guarantee to the six *structural* verifiers and never claims SMT covers
+branches.
