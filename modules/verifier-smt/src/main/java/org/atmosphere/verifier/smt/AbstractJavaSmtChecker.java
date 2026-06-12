@@ -15,9 +15,11 @@
  */
 package org.atmosphere.verifier.smt;
 
+import org.atmosphere.verifier.ast.ConditionalNode;
 import org.atmosphere.verifier.ast.SymRef;
 import org.atmosphere.verifier.ast.ToolCallNode;
 import org.atmosphere.verifier.ast.Workflow;
+import org.atmosphere.verifier.ast.WorkflowStep;
 import org.atmosphere.verifier.policy.NumericInvariant;
 import org.atmosphere.verifier.policy.Policy;
 import org.atmosphere.verifier.spi.SmtChecker;
@@ -177,14 +179,37 @@ public abstract class AbstractJavaSmtChecker implements SmtChecker {
                                 NumericInvariant inv,
                                 List<Violation> violations) {
         String astPath = inv.toolName() + "." + inv.argName();
-        for (var step : workflow.steps()) {
-            if (!(step.node() instanceof ToolCallNode node)) {
+        checkInvariantInSteps(ctx, imgr, bmgr, workflow.steps(), inv, astPath, violations);
+    }
+
+    /**
+     * Discharge {@code inv} against every matching tool call in {@code steps},
+     * descending into both arms of any {@link ConditionalNode}. A tool that
+     * only appears inside a conditional branch must still be proven — under
+     * {@code BRANCHING} the branch may run, so skipping it would be fail-open
+     * (Mode Parity, Correctness Invariant #7).
+     */
+    private void checkInvariantInSteps(SolverContext ctx,
+                                       IntegerFormulaManager imgr,
+                                       BooleanFormulaManager bmgr,
+                                       List<WorkflowStep> steps,
+                                       NumericInvariant inv,
+                                       String astPath,
+                                       List<Violation> violations) {
+        for (WorkflowStep step : steps) {
+            var node = step.node();
+            if (node instanceof ConditionalNode cond) {
+                checkInvariantInSteps(ctx, imgr, bmgr, cond.thenSteps(), inv, astPath, violations);
+                checkInvariantInSteps(ctx, imgr, bmgr, cond.elseSteps(), inv, astPath, violations);
                 continue;
             }
-            if (!node.toolName().equals(inv.toolName())) {
+            if (!(node instanceof ToolCallNode call)) {
                 continue;
             }
-            Map<String, Object> args = node.arguments();
+            if (!call.toolName().equals(inv.toolName())) {
+                continue;
+            }
+            Map<String, Object> args = call.arguments();
             if (!args.containsKey(inv.argName())) {
                 // Argument absent — invariant vacuously satisfied for this call.
                 continue;

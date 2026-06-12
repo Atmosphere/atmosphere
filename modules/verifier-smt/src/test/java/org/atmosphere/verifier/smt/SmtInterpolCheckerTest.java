@@ -15,6 +15,7 @@
  */
 package org.atmosphere.verifier.smt;
 
+import org.atmosphere.verifier.ast.ConditionalNode;
 import org.atmosphere.verifier.ast.SymRef;
 import org.atmosphere.verifier.ast.ToolCallNode;
 import org.atmosphere.verifier.ast.Workflow;
@@ -148,6 +149,39 @@ class SmtInterpolCheckerTest {
         var unprovenWf = workflow("grant", Map.of("amount", new SymRef("free")));
         assertFalse(checker.check(unprovenWf, policyWith(unprovenInv)).isOk(),
                 "amount = 42 for a free symbol is not provable");
+    }
+
+    @Test
+    void invariantViolationInsideConditionalBranchIsCaught() {
+        // The constrained tool appears ONLY inside a conditional branch. A
+        // checker that walks just top-level steps would silently pass this
+        // (fail-open under BRANCHING); the proof must descend into the arm.
+        var inv = new NumericInvariant("transfer", "amount",
+                NumericInvariant.Op.LE, new NumericInvariant.LiteralBound(1000));
+        var charge = new ToolCallNode("transfer", Map.of("amount", 5000), null);
+        var cond = new ConditionalNode("flag == approved",
+                List.of(new WorkflowStep("inner", charge)), List.of());
+        var wf = new Workflow("branchy", List.of(new WorkflowStep("decide", cond)));
+
+        VerificationResult result = checker.check(wf, policyWith(inv));
+
+        assertFalse(result.isOk(),
+                "invariant breach inside a conditional branch must be caught");
+        assertEquals("transfer.amount", result.violations().get(0).astPath());
+    }
+
+    @Test
+    void invariantSatisfiedInsideConditionalBranchPasses() {
+        var inv = new NumericInvariant("transfer", "amount",
+                NumericInvariant.Op.LE, new NumericInvariant.LiteralBound(1000));
+        var charge = new ToolCallNode("transfer", Map.of("amount", 500), null);
+        var cond = new ConditionalNode("flag == approved",
+                List.of(),
+                List.of(new WorkflowStep("inner", charge)));
+        var wf = new Workflow("branchy", List.of(new WorkflowStep("decide", cond)));
+
+        assertTrue(checker.check(wf, policyWith(inv)).isOk(),
+                () -> "500 <= 1000 inside the else-arm should be proven");
     }
 
     @Test
