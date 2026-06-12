@@ -35,6 +35,15 @@ import org.atmosphere.coordinator.journal.JournalFormat;
 import org.atmosphere.coordinator.journal.JournalingAgentFleet;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.ai.tool.ToolRegistry;
+import org.atmosphere.verifier.PlanAndVerify;
+import org.atmosphere.verifier.ast.Workflow;
+import org.atmosphere.verifier.execute.ApprovalDeniedException;
+import org.atmosphere.verifier.execute.ApprovalGate;
+import org.atmosphere.verifier.execute.GatedToolDispatcher;
+import org.atmosphere.verifier.execute.RegistryToolDispatcher;
+import org.atmosphere.verifier.spi.VerificationResult;
+import org.atmosphere.verifier.spi.Violation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -133,6 +142,24 @@ public class CeoCoordinator {
     @Autowired(required = false)
     private CommitmentSigner commitmentSigner;
 
+    /**
+     * Plan-and-verify chain ({@link StartupVerifierConfig}). When present, the
+     * coordinator statically verifies the team's plan against the startup-team
+     * {@code Policy} BEFORE dispatching any specialist agent — a plan that would
+     * leak confidential financials to the board, over-commit the budget, or
+     * model finances before research is refused here.
+     */
+    @Autowired(required = false)
+    private PlanAndVerify planAndVerify;
+
+    /** Tools backing the consequential action gated below. */
+    @Autowired(required = false)
+    private ToolRegistry teamToolRegistry;
+
+    /** Fail-closed human-in-the-loop gate for the CEO's consequential action. */
+    @Autowired(required = false)
+    private ApprovalGate budgetApprovalGate;
+
     /** Called when a browser client connects via WebSocket. */
     @Ready
     public void onReady(AtmosphereResource resource) {
@@ -186,6 +213,14 @@ public class CeoCoordinator {
             session.error(new SecurityException(
                     "Request denied by policy '" + denied.policyName()
                             + "': " + denied.reason()));
+            return;
+        }
+
+        // Plan-and-verify (Approach 1): statically verify the team's plan against
+        // the startup-team Policy BEFORE dispatching any specialist agent. A plan
+        // that would leak confidential financials to the board, over-commit the
+        // budget, or model finances before research is refused here — no agent runs.
+        if (!verifyTeamPlan(message, session)) {
             return;
         }
 
@@ -271,6 +306,12 @@ public class CeoCoordinator {
         // Journal is auto-emitted by the framework via journalFormat = Markdown.class
         // (PostPromptHook fires after @Prompt returns, before async LLM streaming completes)
 
+        // --- Consequential action (Approach 2): commit the recommended budget
+        // through a fail-closed human-in-the-loop gate. The plan already passed
+        // static verification; the GatedToolDispatcher still consults the
+        // ApprovalGate before commit_budget fires — defense in depth. ---
+        commitRecommendedBudget(session);
+
         // --- Step 4: CEO synthesis via LLM ---
         // Trim agent results to fit within the LLM context window, then stream
         // the executive briefing to the browser in real-time via session.stream().
@@ -286,5 +327,57 @@ public class CeoCoordinator {
                 + "Executive Summary (3 bullets), GO/NO-GO recommendation with rationale, "
                 + "4 key risks, and 4 next steps. Research: %s Strategy: %s Finance: %s",
                 researchSummary, strategySummary, financeSummary));
+    }
+
+    /**
+     * (Approach 1) Plan the team's work for {@code message} and run it through
+     * the {@link PlanAndVerify} chain before any agent is dispatched. Emits a
+     * verification card to the console and returns {@code false} — blocking the
+     * run — when the plan is refused. When the verifier is not on the classpath
+     * the coordinator runs unguarded (returns {@code true}).
+     */
+    private boolean verifyTeamPlan(String message, StreamingSession session) {
+        if (planAndVerify == null) {
+            return true;
+        }
+        Workflow plan = planAndVerify.plan(message);
+        session.emit(new AiEvent.ToolStart("verify_plan",
+                Map.of("steps", plan.steps().size())));
+        VerificationResult verdict = planAndVerify.verify(plan);
+        if (verdict.isOk()) {
+            session.emit(new AiEvent.ToolResult("verify_plan",
+                    "VERIFIED — " + plan.steps().size() + " steps cleared the chain"));
+            return true;
+        }
+        List<String> reasons = verdict.violations().stream().map(Violation::message).toList();
+        session.emit(new AiEvent.ToolResult("verify_plan",
+                "REFUSED — no agent will run:\n- " + String.join("\n- ", reasons)));
+        logger.warn("Team plan refused by verifier: {}", reasons);
+        session.error(new SecurityException("Plan refused by verifier: " + reasons));
+        return false;
+    }
+
+    /**
+     * (Approach 2) Execute the CEO's consequential {@code commit_budget} action
+     * through a {@link GatedToolDispatcher} wrapping the registry dispatcher, so
+     * a fail-closed {@link ApprovalGate} clears the call before the tool fires.
+     * A denied (or throwing) gate blocks the commit; the tool never runs.
+     */
+    private void commitRecommendedBudget(StreamingSession session) {
+        if (teamToolRegistry == null || budgetApprovalGate == null) {
+            return;
+        }
+        var gated = new GatedToolDispatcher(
+                new RegistryToolDispatcher(teamToolRegistry), budgetApprovalGate);
+        var args = Map.<String, Object>of("amount", "50000");
+        session.emit(new AiEvent.ToolStart("commit_budget", args));
+        try {
+            String receipt = gated.dispatch("commit_budget", args);
+            session.emit(new AiEvent.ToolResult("commit_budget", receipt));
+        } catch (ApprovalDeniedException denied) {
+            session.emit(new AiEvent.ToolResult("commit_budget",
+                    "BLOCKED by approval gate — " + denied.getMessage()));
+            logger.info("Budget commit blocked by gate: {}", denied.getMessage());
+        }
     }
 }

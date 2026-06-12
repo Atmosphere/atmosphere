@@ -130,6 +130,18 @@
             <artifactId>atmosphere-ai</artifactId>
         </dependency>
 
+        <!-- Plan-and-verify: static verification of the team's plan + HITL gate -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-verifier</artifactId>
+        </dependency>
+
+        <!-- SMT backend (SMTInterpol, pure-JVM) — discharges the commit_budget <= runway invariant -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-verifier-smt</artifactId>
+        </dependency>
+
         <!-- Stateful Interactions API (background runs, durable steps[]) -->
         <dependency>
             <groupId>org.atmosphere</groupId>

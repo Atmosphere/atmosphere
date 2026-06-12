@@ -12,6 +12,7 @@ This sample demonstrates:
 - **Agent Activity Streaming** — real-time `agent-step` events (thinking/completed) streamed to the browser via `StreamingActivityListener`
 - **Coordination Journal** with rendered markdown tables showing the full execution graph
 - **Governance policy plane** — `@AgentScope` on the coordinator, `PolicyAdmissionGate.admit` at user input, `GovernanceFleetInterceptor` at every cross-agent dispatch, signed `CommitmentRecord`s on the journal. See [§ Governance](#governance--what-you-can-do-at-runtime).
+- **Plan-and-verify guardrails** — Atmosphere's [verifier](https://async-io.live/docs/tutorial/33-plan-and-verify/) statically checks the team's plan *before any agent runs* (cross-agent taint, an SMT budget bound, and a research-before-finance ordering automaton), plus a fail-closed human-in-the-loop gate on the consequential action. See [§ Plan-and-Verify](#plan-and-verify--guardians-of-the-agents).
 - **Result Evaluation** — dual evaluators (`SanityCheckEvaluator` + `LlmResultEvaluator`) auto-score agent responses with EVAL rows in the journal
 - **SQLite Checkpoints** — `CheckpointingCoordinationJournal` persists coordination state to `atmosphere-checkpoints.db`
 - **Skill files from GitHub** — `skill:` prefix loads prompts from [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills) with SHA-256 integrity verification
@@ -317,6 +318,50 @@ The combination below isn't possible in any other JVM AI framework:
   user-facing entry.
 - **Signed audit trail over the same transport**: the admin Commitments tab
   renders Ed25519-signed `CommitmentRecord`s as they land on the journal.
+
+## Plan-and-Verify — Guardians of the Agents
+
+Governance gates each *dispatch*; the **verifier** checks the *plan*. This sample
+wires Atmosphere's [`atmosphere-verifier`](https://async-io.live/docs/tutorial/33-plan-and-verify/)
+— the native-Java implementation of Erik Meijer's "Guardians of the Agents"
+pattern (CACM, Jan 2026) — over the team's consequential actions, modelled as
+tools in [`StartupTools`](src/main/java/org/atmosphere/samples/springboot/a2astartup/StartupTools.java).
+One [`Policy`](src/main/java/org/atmosphere/samples/springboot/a2astartup/StartupVerifierConfig.java)
+enforces three properties:
+
+| Property | Rule | Refusal |
+|----------|------|---------|
+| **Taint** (cross-agent) | `financial_model` output must not reach `publish_to_board.body` — confidential financials never leave for the board portal | `@Sink` on `StartupTools.publishToBoard`, derived by `SinkScanner` |
+| **SMT** (numeric) | `commit_budget.amount <= ref(runway)`, proven for every runtime value | `NumericInvariant` discharged by SMTInterpol (`atmosphere-verifier-smt`) |
+| **Automaton** (ordering) | `web_search` (research) must precede `financial_model` / `analyze_strategy` | `SecurityAutomaton` — finances-before-research drives an error state |
+
+The same policy drives three integration points:
+
+1. **Live plan verification (before any agent runs).** `CeoCoordinator.onPrompt`
+   calls `planAndVerify.verify(plan)` right after admission and *before* the first
+   dispatch. A plan that would leak financials, over-commit, or skip research is
+   refused — **no specialist agent is dispatched** — and a `verify_plan` card
+   shows the verdict in the console.
+2. **Fail-closed approval gate (Approach 2).** The CEO's consequential
+   `commit_budget` runs through a `GatedToolDispatcher` + `ApprovalGate` at
+   execution time — defense in depth *on top of* the static proof. Set
+   `startup.approvals.auto-approve=false` to see the commit denied even on a
+   verified plan (the tool never fires).
+3. **Console Validation tab.** `VerifierExampleSource` surfaces four one-click
+   goals at `/atmosphere/console/` → **Validation**: one passes, and one each is
+   refused by taint, SMT, and the automaton.
+
+```
+Analyze the market for AI fitness apps …          → VERIFIED (research→model→report→publish→commit)
+Publish our confidential financial model …        → REFUSED (taint)
+Commit the full requested budget …                → REFUSED (SMT: amount ≤ runway unprovable)
+Skip research and jump straight to the model …    → REFUSED (automaton)
+```
+
+The headline guarantee carries over from a single agent to a whole team: **no
+agent runs, and no tool fires, for a plan the verifier refuses.** Regression
+coverage is in
+[`StartupTeamVerifierTest`](src/test/java/org/atmosphere/samples/springboot/a2astartup/StartupTeamVerifierTest.java).
 
 ## Admin Dashboard
 
