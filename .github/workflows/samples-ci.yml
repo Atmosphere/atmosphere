@@ -37,6 +37,7 @@ jobs:
           - embedded-jetty-websocket-chat
           - spring-boot-ai-chat
           - spring-boot-rag-chat
+          - spring-boot-multi-agent-startup-team
         spring-boot-version: [4]
         include:
           # Run Spring Boot samples with SB3 as well
