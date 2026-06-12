@@ -1458,3 +1458,8 @@ gap surfaced and was reported to the maintainer separately: under `BRANCHING`,
 so SMT numeric invariants on calls inside branch arms are not discharged — the doc therefore
 scopes the "both arms" guarantee to the six *structural* verifiers and never claims SMT covers
 branches.
+
+**Resolved (same day).** The maintainer fixed the gap in `cc7f31f777`
+(`AbstractJavaSmtChecker` now recurses into `thenSteps`/`elseSteps`), confirming it was real.
+The doc was then broadened in `55db963` (website repo) so the "both arms" guarantee covers all
+seven verifiers, the SMT layer included. So the scope note above is now historical.
