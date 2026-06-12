@@ -86,10 +86,11 @@ public class AtmosphereAiAutoConfiguration {
 
     /**
      * Servlet filter that redirects {@code GET /} →
-     * {@code /atmosphere/console/} so sample apps that don't ship their own
-     * root page don't land on Spring's Whitelabel 404. Only fires when the
-     * request URI is exactly {@code /} — static resources such as a sample's
-     * own {@code src/main/resources/static/index.html} are served by the
+     * {@code /atmosphere/console/} (preserving any query string) so sample
+     * apps that don't ship their own root page don't land on Spring's
+     * Whitelabel 404. Only fires when the request URI is exactly {@code /} —
+     * static resources such as a sample's own
+     * {@code src/main/resources/static/index.html} are served by the
      * dispatcher before this filter sees them (ORDER + chain.doFilter()
      * order leaves samples with a bundled root untouched).
      *
@@ -116,7 +117,13 @@ public class AtmosphereAiAutoConfiguration {
                     && res instanceof jakarta.servlet.http.HttpServletResponse httpRes
                     && "GET".equalsIgnoreCase(httpReq.getMethod())
                     && "/".equals(httpReq.getRequestURI())) {
-                httpRes.sendRedirect("/atmosphere/console/");
+                // Preserve the query string so a landing token (e.g.
+                // ?token=… for the admin write surface) survives the redirect.
+                // The query came off the request line, so it cannot carry raw
+                // CR/LF; the container encodes the Location header.
+                String query = httpReq.getQueryString();
+                httpRes.sendRedirect("/atmosphere/console/"
+                        + (query != null && !query.isBlank() ? "?" + query : ""));
                 return;
             }
             chain.doFilter(req, res);

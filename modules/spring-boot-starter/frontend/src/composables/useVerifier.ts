@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { authHeaders } from '../lib/authToken'
 
 /** One stage of the verifier chain (allowlist, taint, capability, automaton, smt, …). */
 export interface VerifierStage {
@@ -64,10 +65,14 @@ export interface CheckResult {
 }
 
 /**
- * Client for the read-only plan-and-verify admin surface
+ * Client for the plan-and-verify admin surface
  * ({@code /api/admin/verifier/**}). The Validation tab calls {@link probe} on
  * mount to decide whether to render, then {@link check}s goals on demand. No
  * polling — verification is a user-triggered action, not a background gauge.
+ *
+ * {@link check} POSTs to a write-guarded endpoint (a passing plan executes its
+ * tools), so every call carries the {@code X-Atmosphere-Auth} token via
+ * {@link authHeaders} when one is present.
  */
 export function useVerifier() {
   const summary = ref<VerifierSummary | null>(null)
@@ -80,14 +85,14 @@ export function useVerifier() {
   async function probe(): Promise<boolean> {
     try {
       const res = await fetch('/api/admin/verifier/summary', {
-        headers: { Accept: 'application/json' },
+        headers: authHeaders({ Accept: 'application/json' }),
       })
       if (!res.ok) return false
       summary.value = (await res.json()) as VerifierSummary
       available.value = true
       if (summary.value.hasExamples) {
         const exRes = await fetch('/api/admin/verifier/examples', {
-          headers: { Accept: 'application/json' },
+          headers: authHeaders({ Accept: 'application/json' }),
         })
         if (exRes.ok) {
           examples.value = (await exRes.json()) as VerifierExample[]
@@ -106,7 +111,7 @@ export function useVerifier() {
     try {
       const res = await fetch('/api/admin/verifier/check', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' }),
         body: JSON.stringify({ goal }),
       })
       if (!res.ok) {

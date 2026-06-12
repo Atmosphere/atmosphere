@@ -1,5 +1,6 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue'
 import { Atmosphere, ConnectionStatus } from 'atmosphere.js'
+import { resolveAuthToken } from '../lib/authToken'
 import type {
   Subscription,
   AtmosphereResponse,
@@ -364,22 +365,13 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
   /**
    * Append the auth token (if any) to the WebSocket URL as the
    * X-Atmosphere-Auth query parameter the server's TokenValidator reads.
-   * Token source: a `?token=` URL parameter (persisted to localStorage so it
-   * survives reconnects and navigation), else a previously stored token.
-   * Returns the URL unchanged when no token is available, so anonymous
-   * backends connect exactly as before.
+   * The token is resolved by the shared {@link resolveAuthToken} helper
+   * (also used by the admin REST surface), so the WS and REST paths can
+   * never drift. Returns the URL unchanged when no token is available, so
+   * anonymous backends connect exactly as before.
    */
   function withAuthToken(wsUrl: string): string {
-    let token: string | null = null
-    try {
-      const fromUrl = new URLSearchParams(window.location.search).get('token')
-      if (fromUrl) {
-        localStorage.setItem('atmosphere-auth-token', fromUrl)
-        token = fromUrl
-      } else {
-        token = localStorage.getItem('atmosphere-auth-token')
-      }
-    } catch { /* storage unavailable — connect anonymously */ }
+    const token = resolveAuthToken()
     if (!token) return wsUrl
     return wsUrl + (wsUrl.includes('?') ? '&' : '?') + 'X-Atmosphere-Auth=' + encodeURIComponent(token)
   }
