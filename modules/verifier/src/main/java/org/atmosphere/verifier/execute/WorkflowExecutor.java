@@ -15,11 +15,13 @@
  */
 package org.atmosphere.verifier.execute;
 
+import org.atmosphere.verifier.ast.ConditionalNode;
 import org.atmosphere.verifier.ast.PlanNode;
 import org.atmosphere.verifier.ast.SymRef;
 import org.atmosphere.verifier.ast.ToolCallNode;
 import org.atmosphere.verifier.ast.Workflow;
 import org.atmosphere.verifier.ast.WorkflowStep;
+import org.atmosphere.verifier.policy.Condition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,12 +89,14 @@ public final class WorkflowExecutor {
         Objects.requireNonNull(initialEnv, "initialEnv");
 
         Map<String, Object> env = new LinkedHashMap<>(initialEnv);
-        var steps = workflow.steps();
-        for (int i = 0; i < steps.size(); i++) {
-            WorkflowStep step = steps.get(i);
-            executeStep(step, i, env);
-        }
+        executeSteps(workflow.steps(), env);
         return Map.copyOf(env);
+    }
+
+    private void executeSteps(List<WorkflowStep> steps, Map<String, Object> env) {
+        for (int i = 0; i < steps.size(); i++) {
+            executeStep(steps.get(i), i, env);
+        }
     }
 
     private void executeStep(WorkflowStep step, int index, Map<String, Object> env) {
@@ -101,12 +105,40 @@ public final class WorkflowExecutor {
             executeToolCall(call, step.label(), index, env);
             return;
         }
-        // Sealed hierarchy — Phase 5 adds Conditional / Loop. The
-        // exhaustive pattern match is the contract that forces every
-        // verifier and the executor to be updated together.
+        if (node instanceof ConditionalNode cond) {
+            executeConditional(cond, step.label(), index, env);
+            return;
+        }
+        // Exhaustive over the sealed hierarchy; this is unreachable unless a
+        // new PlanNode kind is added without updating the executor.
         throw new IllegalStateException(
                 "Unhandled PlanNode kind at step " + index + ": "
                         + node.getClass().getName());
+    }
+
+    private void executeConditional(ConditionalNode cond,
+                                    String stepLabel,
+                                    int stepIndex,
+                                    Map<String, Object> env) {
+        boolean taken;
+        try {
+            taken = Condition.parse(cond.predicate()).evaluate(env);
+        } catch (RuntimeException ex) {
+            // A predicate that references an unbound variable (or is
+            // malformed) is a verifier-contract breach; surface it as a
+            // typed terminal path carrying the env produced so far rather
+            // than a bare NPE (Correctness Invariant #2).
+            throw new WorkflowExecutionException(
+                    "Workflow aborted at step " + stepIndex + " ('" + stepLabel
+                            + "') — conditional predicate '" + cond.predicate()
+                            + "' could not be evaluated: " + ex.getMessage(),
+                    env,
+                    null,
+                    stepLabel,
+                    stepIndex,
+                    ex);
+        }
+        executeSteps(taken ? cond.thenSteps() : cond.elseSteps(), env);
     }
 
     private void executeToolCall(ToolCallNode call,

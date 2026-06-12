@@ -27,12 +27,10 @@ import java.util.Objects;
  * {@link ToolResult#success() failed} result as a runtime exception so
  * the executor can wrap it with partial-environment context.
  *
- * <p>Phase 2 introduces a sibling {@code GatedToolDispatcher} that
- * routes through
- * {@link org.atmosphere.ai.tool.ToolExecutionHelper#executeWithApproval}
- * and so requires a {@code StreamingSession} + approval policy at
- * construction time. The two are intended to be drop-in interchangeable
- * via this interface.</p>
+ * <p>{@link GatedToolDispatcher} is the sibling that inserts a
+ * human-in-the-loop {@link ApprovalGate} ahead of dispatch. The two are
+ * drop-in interchangeable via this interface, so an application picks its
+ * execution posture at wiring time.</p>
  */
 public final class RegistryToolDispatcher implements ToolDispatcher {
 

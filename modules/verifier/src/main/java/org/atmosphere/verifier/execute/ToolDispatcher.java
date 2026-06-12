@@ -21,11 +21,10 @@ import java.util.Map;
  * Pluggable strategy for dispatching a single tool call after SymRef
  * resolution. The default implementation
  * ({@link RegistryToolDispatcher}) delegates straight to
- * {@link org.atmosphere.ai.tool.ToolRegistry#execute}; a Phase 2 gated
- * dispatcher will route through
- * {@link org.atmosphere.ai.tool.ToolExecutionHelper#executeWithApproval}
- * to preserve {@code @RequiresApproval} gates and the existing audit
- * trail.
+ * {@link org.atmosphere.ai.tool.ToolRegistry#execute};
+ * {@link GatedToolDispatcher} wraps any dispatcher with an
+ * {@link ApprovalGate} so each call clears human-in-the-loop approval
+ * before it fires. The two are drop-in interchangeable.
  *
  * <p>Returns the tool's result as a String — matching the JSON-string
  * return convention of {@link org.atmosphere.ai.tool.ToolResult#result()}.

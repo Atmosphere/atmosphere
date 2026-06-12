@@ -104,8 +104,9 @@ public final class PlanAndVerify {
 
     /**
      * Full constructor — takes an explicit verifier list and a custom
-     * {@link ToolDispatcher} (e.g.,
-     * {@code GatedToolDispatcher} introduced in Phase 2 for HITL approval).
+     * {@link ToolDispatcher} (e.g.
+     * {@link org.atmosphere.verifier.execute.GatedToolDispatcher} for
+     * human-in-the-loop approval before each tool fires).
      */
     public PlanAndVerify(AgentRuntime runtime,
                          ToolRegistry registry,

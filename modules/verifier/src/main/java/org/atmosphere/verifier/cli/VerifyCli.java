@@ -17,6 +17,9 @@ package org.atmosphere.verifier.cli;
 
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.verifier.ast.Workflow;
+import org.atmosphere.verifier.policy.AutomatonState;
+import org.atmosphere.verifier.policy.AutomatonTransition;
+import org.atmosphere.verifier.policy.ControlFlowMode;
 import org.atmosphere.verifier.policy.Policy;
 import org.atmosphere.verifier.policy.SecurityAutomaton;
 import org.atmosphere.verifier.policy.TaintRule;
@@ -31,6 +34,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.ServiceLoader;
 import java.util.Set;
 
@@ -304,23 +308,76 @@ public final class VerifyCli {
                     rules.add(new TaintRule(t.name(), t.sourceTool(), t.sinkTool(), t.sinkParam()));
                 }
             }
-            // Phase-5 minimum — automata declared in JSON are passed
-            // through to the policy as-is. The CLI doesn't currently
-            // expose a JSON shape for them; the field is reserved.
-            List<SecurityAutomaton> automata = List.of();
-            return new Policy(raw.name(), allowed, rules, automata);
+            List<SecurityAutomaton> automata = parseAutomata(raw.automata());
+            Policy policy = new Policy(raw.name(), allowed, rules, automata);
+            return policy.withControlFlow(parseMode(raw.controlFlow()));
+        }
+
+        private static List<SecurityAutomaton> parseAutomata(List<AutomatonRecord> raw) {
+            if (raw == null) {
+                return List.of();
+            }
+            var automata = new ArrayList<SecurityAutomaton>(raw.size());
+            for (AutomatonRecord a : raw) {
+                var states = new ArrayList<AutomatonState>();
+                if (a.states() != null) {
+                    for (StateRecord s : a.states()) {
+                        states.add(new AutomatonState(s.name(), s.error()));
+                    }
+                }
+                var transitions = new ArrayList<AutomatonTransition>();
+                if (a.transitions() != null) {
+                    for (TransitionRecord t : a.transitions()) {
+                        transitions.add(new AutomatonTransition(
+                                t.fromState(), t.toState(), t.toolName(), t.condition()));
+                    }
+                }
+                automata.add(new SecurityAutomaton(
+                        a.name(), states, transitions, a.initialState()));
+            }
+            return automata;
+        }
+
+        private static ControlFlowMode parseMode(String raw) {
+            if (raw == null || raw.isBlank()) {
+                return ControlFlowMode.LINEAR_ONLY;
+            }
+            try {
+                return ControlFlowMode.valueOf(raw.strip().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException(
+                        "unknown controlFlow mode '" + raw
+                                + "' (expected LINEAR_ONLY or BRANCHING)");
+            }
         }
 
         /** Wire-format record matching the JSON shape. */
         public record PolicyRecord(String name,
                                    List<String> allowedTools,
-                                   List<TaintRuleRecord> taintRules) {
+                                   List<TaintRuleRecord> taintRules,
+                                   List<AutomatonRecord> automata,
+                                   String controlFlow) {
         }
 
         public record TaintRuleRecord(String name,
                                       String sourceTool,
                                       String sinkTool,
                                       String sinkParam) {
+        }
+
+        public record AutomatonRecord(String name,
+                                      List<StateRecord> states,
+                                      List<TransitionRecord> transitions,
+                                      String initialState) {
+        }
+
+        public record StateRecord(String name, boolean error) {
+        }
+
+        public record TransitionRecord(String fromState,
+                                       String toState,
+                                       String toolName,
+                                       String condition) {
         }
     }
 }

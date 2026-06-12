@@ -21,14 +21,18 @@ import java.util.Objects;
  * Single transition in a {@link SecurityAutomaton}: when a step calls
  * {@code toolName}, advance from {@code fromState} to {@code toState}.
  *
- * <p>The optional {@code condition} field carries a Phase-5 condition
- * expression evaluated against the call's resolved arguments. Phase 1 and
- * Phase 3 ignore it; Phase 5 wires the condition grammar.</p>
+ * <p>The optional {@code condition} field carries a guard expression in the
+ * {@link Condition} grammar, evaluated against the triggering call's
+ * arguments. When {@code null} the transition is unconditional. When set,
+ * the {@link org.atmosphere.verifier.checks.AutomatonVerifier} fires the
+ * transition only when the guard can hold — and, when the guard's truth is
+ * not statically known (e.g. an argument is a symbolic reference), it
+ * soundly explores both the taken and not-taken successors.</p>
  *
  * @param fromState origin state name.
  * @param toState   destination state name.
  * @param toolName  the tool whose invocation triggers this transition.
- * @param condition optional condition expression; may be {@code null}.
+ * @param condition optional guard expression; may be {@code null}.
  */
 public record AutomatonTransition(String fromState,
                                   String toState,

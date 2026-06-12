@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Read-only admin-plane controller backing the Atmosphere Console's
+ * Admin-plane controller backing the Atmosphere Console's
  * <em>Validation</em> tab. Surfaces the Meijer-style plan-and-verify stack so
  * operators can answer, from the console, "what does this deployment's
  * verifier chain refuse, and why?".
@@ -47,11 +47,11 @@ import java.util.Map;
  * resolved at boot (never classpath presence), and {@link #check(String)}
  * runs the real chain over the real planner — no fixture verdicts.</p>
  *
- * <p>The surface is read-only: {@code check} plans and verifies a goal and,
- * only when the plan passes every verifier, executes it. The sample tools it
- * drives have no external side effects; an app wiring this against
- * mutating tools should gate {@code /api/admin/**} behind the admin auth
- * chain (Correctness Invariant #6) — which the starter does by default.</p>
+ * <p>{@code summary} and {@code examples} are read-only. {@code check} plans
+ * and verifies a goal and, only when the plan passes every verifier, executes
+ * it. The Spring Boot starter gates that endpoint through the admin write
+ * guard because an application can wire this controller against mutating
+ * tools (Correctness Invariant #6).</p>
  */
 public final class VerifierController {
 
@@ -174,8 +174,10 @@ public final class VerifierController {
     private Map<String, Object> renderPolicy(Policy policy) {
         var out = new LinkedHashMap<String, Object>();
         out.put("name", policy.name());
+        out.put("controlFlow", policy.controlFlow().name());
         out.put("allowedTools", new ArrayList<>(policy.allowedTools()));
         out.put("taintRuleCount", policy.taintRules().size());
+        out.put("automatonCount", policy.automata().size());
         var invariants = new ArrayList<String>();
         for (NumericInvariant inv : policy.numericInvariants()) {
             invariants.add(inv.toolName() + "." + inv.argName()

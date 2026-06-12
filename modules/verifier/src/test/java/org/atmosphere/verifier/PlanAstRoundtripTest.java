@@ -101,7 +101,7 @@ class PlanAstRoundtripTest {
             assertNotNull(v.name(), "Verifier returned null name");
         }
         for (String expected : new String[]{
-                "allowlist", "well-formed", "capability",
+                "structure", "allowlist", "well-formed", "capability",
                 "taint", "automaton", "smt"}) {
             assertTrue(found.contains(expected),
                     () -> expected + " verifier missing from ServiceLoader; found: " + found);

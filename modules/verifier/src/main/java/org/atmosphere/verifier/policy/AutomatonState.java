@@ -19,8 +19,8 @@ import java.util.Objects;
 
 /**
  * Single state in a {@link SecurityAutomaton}. {@code error} states cause
- * the automaton verifier (Phase 5) to emit a violation when reached during
- * symbolic execution of the plan's tool sequence.
+ * the automaton verifier to emit a violation when reached during symbolic
+ * execution of the plan's tool sequence.
  *
  * @param name    state identifier; non-blank.
  * @param isError true if entering this state represents a policy violation.

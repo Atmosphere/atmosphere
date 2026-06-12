@@ -27,9 +27,14 @@
  * runtime {@code GovernancePolicy} chain — defense in depth from a single
  * declaration.</p>
  *
- * <p>In Phase 1 only {@code allowedTools} is consumed (by
- * {@link org.atmosphere.verifier.checks.AllowlistVerifier}). {@code TaintRule}
- * and {@code SecurityAutomaton} are present as data carriers but unused; the
- * matching verifiers ship in Phase 3 (taint) and Phase 5 (automata).</p>
+ * <p>Every field has a matching verifier in
+ * {@link org.atmosphere.verifier.checks}: {@code allowedTools} →
+ * {@code AllowlistVerifier}, {@code taintRules} → {@code TaintVerifier},
+ * {@code automata} → {@code AutomatonVerifier}, capability data →
+ * {@code CapabilityVerifier}, {@code numericInvariants} → the SMT-backed
+ * {@code SmtChecker}, and
+ * {@link org.atmosphere.verifier.policy.ControlFlowMode} →
+ * {@code StructureVerifier}. The {@link org.atmosphere.verifier.policy.Condition}
+ * grammar backs automaton guards and conditional-branch predicates.</p>
  */
 package org.atmosphere.verifier.policy;

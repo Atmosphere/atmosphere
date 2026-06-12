@@ -21,11 +21,10 @@ import java.util.Objects;
  * Declarative dataflow ban: data produced by {@code sourceTool} must not
  * flow into {@code sinkParam} of {@code sinkTool}.
  *
- * <p>The matching {@code TaintVerifier} ships in Phase 3. Phase 1 stores
- * these rules without consulting them — they are present so that
- * {@link Policy} authors can declare the full security policy from day one
- * and adopt the static dataflow check the moment Phase 3 lands without
- * touching their YAML.</p>
+ * <p>The {@link org.atmosphere.verifier.checks.TaintVerifier} enforces this
+ * rule statically: it refuses any plan that routes data from
+ * {@code sourceTool}'s output — directly or transitively, at any argument
+ * depth — into {@code sinkParam} of {@code sinkTool}.</p>
  *
  * @param name       short identifier for diagnostics; non-blank.
  * @param sourceTool name of the tool whose return value is tainted.

@@ -16,12 +16,13 @@
 package org.atmosphere.verifier.checks;
 
 import org.atmosphere.ai.tool.ToolRegistry;
-import org.atmosphere.verifier.ast.PlanNode;
+import org.atmosphere.verifier.ast.ConditionalNode;
 import org.atmosphere.verifier.ast.ToolCallNode;
 import org.atmosphere.verifier.ast.Workflow;
 import org.atmosphere.verifier.ast.WorkflowStep;
 import org.atmosphere.verifier.policy.AutomatonState;
 import org.atmosphere.verifier.policy.AutomatonTransition;
+import org.atmosphere.verifier.policy.Condition;
 import org.atmosphere.verifier.policy.Policy;
 import org.atmosphere.verifier.policy.SecurityAutomaton;
 import org.atmosphere.verifier.spi.PlanVerifier;
@@ -29,9 +30,9 @@ import org.atmosphere.verifier.spi.VerificationResult;
 import org.atmosphere.verifier.spi.Violation;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 /**
  * Symbolic-execution check over the workflow's tool-call sequence
@@ -43,34 +44,36 @@ import java.util.Map;
  * follow."
  *
  * <h3>Algorithm</h3>
- * <p>For each automaton, set the current state to the declared
- * {@link SecurityAutomaton#initialState()}. Walk the plan's tool calls
- * in order; on each call, look for a transition with matching
- * {@code fromState} + {@code toolName}. If found, advance the state.
- * If the new state is an {@link AutomatonState#isError() error state},
- * emit a violation. If no matching transition exists, the call is a
- * no-op for this automaton (an unmatched call doesn't violate — it's
- * just outside the automaton's vocabulary).</p>
- *
- * <h3>Phase-5 minimum scope</h3>
+ * <p>The plan is executed symbolically over a <em>set</em> of possible
+ * automaton states (initially just {@link SecurityAutomaton#initialState()}).
+ * On each tool call, every current state advances through its matching
+ * transitions:</p>
  * <ul>
- *   <li>Only equality on {@code fromState} + {@code toolName} is matched.
- *       The {@link AutomatonTransition#condition()} field is ignored;
- *       guarded transitions reduce to unconditional ones until the
- *       condition grammar lands.</li>
- *   <li>The first matching transition wins. Authors writing nondeterministic
- *       automata (multiple matching transitions) get the first one in
- *       declaration order; the verifier is intentionally not exploring
- *       all paths in this phase.</li>
- *   <li>Reaching an error state emits one violation per automaton even
- *       if the state is re-entered later — the goal is to surface every
- *       <em>distinct</em> failure, not every step that perpetuates it.</li>
+ *   <li>An unconditional transition (or one whose
+ *       {@link AutomatonTransition#condition() guard} is statically
+ *       <em>true</em>) moves to its target state.</li>
+ *   <li>A guard that is statically <em>false</em> blocks its transition.</li>
+ *   <li>A guard whose truth is not statically known (e.g. it compares a
+ *       symbolic reference resolved only at run time) is treated as
+ *       possibly-true <em>and</em> possibly-false: both the target state
+ *       and the staying state are kept. This is the sound over-approximation
+ *       — the verifier never misses an error state a runtime value could
+ *       reach.</li>
+ *   <li>A call with no matching transition leaves each state unchanged.</li>
  * </ul>
+ * <p>If any reachable state is an {@link AutomatonState#isError() error
+ * state}, a violation is emitted — once per automaton, so re-entry on a
+ * later step doesn't re-fire.</p>
+ *
+ * <h3>Conditional branches</h3>
+ * <p>Each arm of a {@link ConditionalNode} is explored from the state set
+ * at the branch point; the resulting state sets are unioned. An error
+ * reachable through either arm is a violation.</p>
  *
  * <p>Priority 40 — last in the built-in chain. Cheaper checks
- * (allowlist 10, well-formed 20, capability 25, taint 30) run first;
- * the automaton walk is paid only for plans that survived everything
- * else.</p>
+ * (structure 5, allowlist 10, well-formed 20, capability 25, taint 30)
+ * run first; the automaton walk is paid only for plans that survived
+ * everything else.</p>
  */
 public final class AutomatonVerifier implements PlanVerifier {
 
@@ -93,63 +96,121 @@ public final class AutomatonVerifier implements PlanVerifier {
         }
         List<Violation> violations = new ArrayList<>();
         for (SecurityAutomaton automaton : policy.automata()) {
-            walk(automaton, workflow, violations);
+            boolean[] errorEmitted = {false};
+            walk(automaton, workflow.steps(), Set.of(automaton.initialState()),
+                    errorEmitted, violations, "steps");
         }
         return VerificationResult.of(violations);
     }
 
-    private void walk(SecurityAutomaton automaton,
-                      Workflow workflow,
-                      List<Violation> out) {
-        Map<String, AutomatonState> stateByName = indexStates(automaton);
-        String current = automaton.initialState();
-        boolean errorEmitted = false;
-        var steps = workflow.steps();
+    /**
+     * Symbolically execute a step list from {@code entry}, returning the
+     * set of states reachable afterward.
+     */
+    private Set<String> walk(SecurityAutomaton automaton,
+                             List<WorkflowStep> steps,
+                             Set<String> entry,
+                             boolean[] errorEmitted,
+                             List<Violation> out,
+                             String prefix) {
+        Set<String> current = new HashSet<>(entry);
         for (int i = 0; i < steps.size(); i++) {
             WorkflowStep step = steps.get(i);
-            PlanNode node = step.node();
-            if (!(node instanceof ToolCallNode call)) {
+            String stepPath = prefix + "[" + i + "]";
+            var node = step.node();
+            if (node instanceof ToolCallNode call) {
+                current = advance(automaton, current, call);
+                detectError(automaton, current, stepPath,
+                        step.label(), call.toolName(), errorEmitted, out);
+            } else if (node instanceof ConditionalNode cond) {
+                Set<String> thenStates = walk(automaton, cond.thenSteps(), current,
+                        errorEmitted, out, stepPath + ".then");
+                Set<String> elseStates = walk(automaton, cond.elseSteps(), current,
+                        errorEmitted, out, stepPath + ".otherwise");
+                current = new HashSet<>(thenStates);
+                current.addAll(elseStates);
+            }
+        }
+        return current;
+    }
+
+    /** Compute the successor state set for a single tool call. */
+    private static Set<String> advance(SecurityAutomaton automaton,
+                                       Set<String> current,
+                                       ToolCallNode call) {
+        Set<String> next = new HashSet<>();
+        for (String state : current) {
+            List<AutomatonTransition> matching = matchingTransitions(automaton, state, call.toolName());
+            if (matching.isEmpty()) {
+                next.add(state);
                 continue;
             }
-            AutomatonTransition match = findTransition(automaton, current, call.toolName());
-            if (match == null) {
-                continue;
+            boolean stayPossible = false;
+            for (AutomatonTransition t : matching) {
+                Condition.Tristate guard = evalGuard(t.condition(), call);
+                if (guard != Condition.Tristate.FALSE) {
+                    next.add(t.toState());
+                }
+                if (guard != Condition.Tristate.TRUE) {
+                    stayPossible = true;
+                }
             }
-            current = match.toState();
-            AutomatonState destination = stateByName.get(current);
-            if (destination != null && destination.isError() && !errorEmitted) {
+            if (stayPossible) {
+                next.add(state);
+            }
+        }
+        return next;
+    }
+
+    private static Condition.Tristate evalGuard(String condition, ToolCallNode call) {
+        if (condition == null) {
+            return Condition.Tristate.TRUE;
+        }
+        try {
+            return Condition.parse(condition).evaluateStatic(call.arguments());
+        } catch (IllegalArgumentException malformed) {
+            // A malformed guard can't be proven false; treat it as unknown
+            // so the verifier soundly explores the transition rather than
+            // silently dropping it.
+            return Condition.Tristate.UNKNOWN;
+        }
+    }
+
+    private void detectError(SecurityAutomaton automaton,
+                             Set<String> current,
+                             String stepPath,
+                             String stepLabel,
+                             String toolName,
+                             boolean[] errorEmitted,
+                             List<Violation> out) {
+        if (errorEmitted[0]) {
+            return;
+        }
+        // Iterate declared-state order for a deterministic message when
+        // more than one error state is reachable at once.
+        for (AutomatonState state : automaton.states()) {
+            if (state.isError() && current.contains(state.name())) {
                 out.add(new Violation(
                         CATEGORY,
                         "Automaton '" + automaton.name() + "' entered error state '"
-                                + current + "' after step " + i + " ('"
-                                + step.label() + "' calling '" + call.toolName() + "')",
-                        "steps[" + i + "].toolName"));
-                // One violation per automaton — re-entry into the error
-                // state on later steps doesn't re-fire to keep the
-                // diagnostic noise down. A second automaton in the
-                // policy still produces its own independent violation.
-                errorEmitted = true;
+                                + state.name() + "' after step " + stepPath + " ('"
+                                + stepLabel + "' calling '" + toolName + "')",
+                        stepPath + ".toolName"));
+                errorEmitted[0] = true;
+                return;
             }
         }
     }
 
-    private static AutomatonTransition findTransition(SecurityAutomaton automaton,
-                                                      String fromState,
-                                                      String toolName) {
+    private static List<AutomatonTransition> matchingTransitions(SecurityAutomaton automaton,
+                                                                 String fromState,
+                                                                 String toolName) {
+        var matches = new ArrayList<AutomatonTransition>();
         for (AutomatonTransition t : automaton.transitions()) {
             if (t.fromState().equals(fromState) && t.toolName().equals(toolName)) {
-                // Phase-5 minimum: ignore t.condition(); first match wins.
-                return t;
+                matches.add(t);
             }
         }
-        return null;
-    }
-
-    private static Map<String, AutomatonState> indexStates(SecurityAutomaton automaton) {
-        var map = new HashMap<String, AutomatonState>(automaton.states().size());
-        for (AutomatonState s : automaton.states()) {
-            map.put(s.name(), s);
-        }
-        return map;
+        return matches;
     }
 }

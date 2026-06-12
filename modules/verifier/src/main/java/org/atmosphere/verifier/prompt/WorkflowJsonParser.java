@@ -16,6 +16,7 @@
 package org.atmosphere.verifier.prompt;
 
 import org.atmosphere.ai.StructuredOutputParser;
+import org.atmosphere.verifier.ast.ConditionalNode;
 import org.atmosphere.verifier.ast.SymRef;
 import org.atmosphere.verifier.ast.ToolCallNode;
 import org.atmosphere.verifier.ast.Workflow;
@@ -99,6 +100,9 @@ public final class WorkflowJsonParser {
             throw new StructuredOutputParser.StructuredOutputException(
                     "Workflow JSON step is null");
         }
+        if (step.condition() != null) {
+            return toConditionalStep(step);
+        }
         if (step.toolName() == null || step.toolName().isBlank()) {
             throw new StructuredOutputParser.StructuredOutputException(
                     "Workflow step '" + step.label()
@@ -107,20 +111,39 @@ public final class WorkflowJsonParser {
         Map<String, Object> args = new LinkedHashMap<>();
         if (step.arguments() != null) {
             for (var entry : step.arguments().entrySet()) {
-                args.put(entry.getKey(), convertSymRefMarker(entry.getValue()));
+                args.put(entry.getKey(), convertValue(entry.getValue()));
             }
         }
         ToolCallNode call = new ToolCallNode(step.toolName(), args, step.resultBinding());
         return new WorkflowStep(step.label(), call);
     }
 
+    private WorkflowStep toConditionalStep(StepJsonRecord step) {
+        ConditionalNode cond = new ConditionalNode(
+                step.condition(),
+                toSteps(step.then()),
+                toSteps(step.otherwise()));
+        return new WorkflowStep(step.label(), cond);
+    }
+
+    private List<WorkflowStep> toSteps(List<StepJsonRecord> raw) {
+        if (raw == null) {
+            return List.of();
+        }
+        var out = new ArrayList<WorkflowStep>(raw.size());
+        for (StepJsonRecord s : raw) {
+            out.add(toStep(s));
+        }
+        return out;
+    }
+
     /**
-     * Convert {@code "@name"} string markers into {@link SymRef}. Literal
-     * {@code "@@..."} strings are unescaped to {@code "@..."}. Non-string
-     * values pass through untouched (Phase 5 widens this to recurse into
-     * nested lists / maps).
+     * Convert {@code "@name"} string markers into {@link SymRef}, recursing
+     * into nested lists and maps so a reference at any depth is rebuilt as a
+     * {@code SymRef}. Literal {@code "@@..."} strings are unescaped to
+     * {@code "@..."}; every other leaf passes through untouched.
      */
-    private Object convertSymRefMarker(Object value) {
+    private Object convertValue(Object value) {
         if (value instanceof String s) {
             if (s.startsWith(SYM_REF_PREFIX + SYM_REF_PREFIX)) {
                 return s.substring(1);
@@ -128,25 +151,46 @@ public final class WorkflowJsonParser {
             if (s.startsWith(SYM_REF_PREFIX) && s.length() > 1) {
                 return new SymRef(s.substring(1));
             }
+            return s;
+        }
+        if (value instanceof Map<?, ?> map) {
+            var out = new LinkedHashMap<String, Object>(map.size());
+            for (var entry : map.entrySet()) {
+                out.put(String.valueOf(entry.getKey()), convertValue(entry.getValue()));
+            }
+            return out;
+        }
+        if (value instanceof List<?> list) {
+            var out = new ArrayList<Object>(list.size());
+            for (Object element : list) {
+                out.add(convertValue(element));
+            }
+            return out;
         }
         return value;
     }
 
     /**
-     * Wire-format JSON record. Flat shape, one wire type per concrete
-     * Phase 1 plan node — no polymorphism, no @type discriminator. Phase 5
-     * extends with optional {@code conditional} / {@code loop} sibling
-     * fields keyed off step kind.
+     * Wire-format JSON record. Flat shape, no JSON polymorphism: a step is a
+     * tool call by default, or a conditional branch when it carries a
+     * {@code condition} (see {@link StepJsonRecord}).
      */
     public record PlanJsonRecord(String goal, List<StepJsonRecord> steps) {
     }
 
     /**
-     * Wire-format step record.
+     * Wire-format step record. A tool-call step sets {@code toolName} (and
+     * optionally {@code arguments} / {@code resultBinding}); a conditional
+     * step sets {@code condition} plus {@code then} and (optionally)
+     * {@code otherwise} sub-step lists. The two forms are mutually exclusive
+     * — presence of {@code condition} selects the conditional shape.
      */
     public record StepJsonRecord(String label,
                                   String toolName,
                                   Map<String, Object> arguments,
-                                  String resultBinding) {
+                                  String resultBinding,
+                                  String condition,
+                                  List<StepJsonRecord> then,
+                                  List<StepJsonRecord> otherwise) {
     }
 }

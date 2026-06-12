@@ -19,18 +19,19 @@
  *
  * <p>{@link org.atmosphere.verifier.execute.WorkflowExecutor} walks the
  * verified {@link org.atmosphere.verifier.ast.Workflow} step-by-step,
- * resolving {@link org.atmosphere.verifier.ast.SymRef} arguments against an
- * environment of bound results, and dispatches each
+ * resolving {@link org.atmosphere.verifier.ast.SymRef} arguments (at any
+ * depth) against an environment of bound results, evaluating
+ * {@link org.atmosphere.verifier.ast.ConditionalNode} predicates to pick a
+ * branch, and dispatching each
  * {@link org.atmosphere.verifier.ast.ToolCallNode} through a pluggable
  * {@link org.atmosphere.verifier.execute.ToolDispatcher}.</p>
  *
  * <p>The default dispatcher
  * ({@link org.atmosphere.verifier.execute.RegistryToolDispatcher}) delegates
- * straight to {@link org.atmosphere.ai.tool.ToolRegistry#execute}. Phase 2
- * adds a gated dispatcher that routes through
- * {@link org.atmosphere.ai.tool.ToolExecutionHelper#executeWithApproval} so
- * verified plans still honor {@code @RequiresApproval} gates and the existing
- * audit trail.</p>
+ * straight to {@link org.atmosphere.ai.tool.ToolRegistry#execute};
+ * {@link org.atmosphere.verifier.execute.GatedToolDispatcher} wraps any
+ * dispatcher with a human-in-the-loop
+ * {@link org.atmosphere.verifier.execute.ApprovalGate} that fails closed.</p>
  *
  * <p><strong>Terminal-path completeness (correctness invariant #2):</strong>
  * on any tool failure, {@code WorkflowExecutor} throws

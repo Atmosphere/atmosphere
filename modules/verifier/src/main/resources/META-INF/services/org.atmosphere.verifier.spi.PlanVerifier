@@ -1,3 +1,4 @@
+org.atmosphere.verifier.checks.StructureVerifier
 org.atmosphere.verifier.checks.AllowlistVerifier
 org.atmosphere.verifier.checks.WellFormednessVerifier
 org.atmosphere.verifier.checks.CapabilityVerifier

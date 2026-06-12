@@ -16,10 +16,8 @@
 package org.atmosphere.verifier.checks;
 
 import org.atmosphere.ai.tool.ToolRegistry;
-import org.atmosphere.verifier.ast.PlanNode;
 import org.atmosphere.verifier.ast.ToolCallNode;
 import org.atmosphere.verifier.ast.Workflow;
-import org.atmosphere.verifier.ast.WorkflowStep;
 import org.atmosphere.verifier.policy.Policy;
 import org.atmosphere.verifier.spi.PlanVerifier;
 import org.atmosphere.verifier.spi.VerificationResult;
@@ -29,17 +27,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Asserts every {@link ToolCallNode} in the workflow names a tool that
- * (a) appears in {@link Policy#allowedTools()} and (b) is actually
- * registered with the supplied {@link ToolRegistry}.
+ * Asserts every {@link ToolCallNode} in the workflow — including those
+ * nested in conditional branches — names a tool that (a) appears in
+ * {@link Policy#allowedTools()} and (b) is actually registered with the
+ * supplied {@link ToolRegistry}.
  *
  * <p>The dual check matters: the policy might allow {@code send_email}
  * even though no implementation is registered (deployment drift), or a
  * tool might be registered but absent from the policy (drift the other
  * way). Both surface as violations — distinct categories, same family.</p>
  *
- * <p>Priority 10 — runs first so downstream verifiers don't waste effort
- * on a plan that already names disallowed or missing tools.</p>
+ * <p>Priority 10 — runs first (after the structural gate) so downstream
+ * verifiers don't waste effort on a plan that already names disallowed or
+ * missing tools.</p>
  */
 public final class AllowlistVerifier implements PlanVerifier {
 
@@ -58,20 +58,13 @@ public final class AllowlistVerifier implements PlanVerifier {
     @Override
     public VerificationResult verify(Workflow workflow, Policy policy, ToolRegistry registry) {
         List<Violation> violations = new ArrayList<>();
-        var steps = workflow.steps();
-        for (int i = 0; i < steps.size(); i++) {
-            WorkflowStep step = steps.get(i);
-            PlanNode node = step.node();
-            if (node instanceof ToolCallNode call) {
-                checkOneCall(call, i, policy, registry, violations);
-            }
-            // Phase 5 control-flow nodes recurse into their bodies here.
-        }
+        PlanWalk.forEachCall(workflow.steps(),
+                (call, stepPath) -> checkOneCall(call, stepPath, policy, registry, violations));
         return VerificationResult.of(violations);
     }
 
     private void checkOneCall(ToolCallNode call,
-                              int stepIndex,
+                              String stepPath,
                               Policy policy,
                               ToolRegistry registry,
                               List<Violation> out) {
@@ -81,7 +74,7 @@ public final class AllowlistVerifier implements PlanVerifier {
                     CATEGORY,
                     "Tool '" + toolName + "' is not in policy allowlist "
                             + policy.allowedTools(),
-                    "steps[" + stepIndex + "].toolName"));
+                    stepPath + ".toolName"));
             return;
         }
         if (registry.getTool(toolName).isEmpty()) {
@@ -90,7 +83,7 @@ public final class AllowlistVerifier implements PlanVerifier {
                     "Tool '" + toolName
                             + "' is allowed by policy but not registered "
                             + "with the ToolRegistry",
-                    "steps[" + stepIndex + "].toolName"));
+                    stepPath + ".toolName"));
         }
     }
 }

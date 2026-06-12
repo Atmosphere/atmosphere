@@ -31,10 +31,10 @@ import java.util.Objects;
  * blank, the result is discarded — fire-and-forget steps (e.g.
  * notifications) use this form.</p>
  *
- * <p><strong>Deep SymRef resolution is deferred to Phase 5.</strong> The
- * executor today resolves SymRefs only at the top level of the argument
- * map; nested SymRefs inside lists or sub-maps pass through unresolved.
- * Plans are expected to use top-level binding for now.</p>
+ * <p>SymRefs resolve at any depth: a {@link SymRef} nested inside a list
+ * or sub-map argument is resolved by the executor and inspected by the
+ * verifiers exactly as a top-level one is, so a tainted flow cannot hide
+ * behind a wrapper structure.</p>
  *
  * @param toolName       name of the tool to invoke; must match a registered
  *                       {@link org.atmosphere.ai.tool.ToolDefinition}.

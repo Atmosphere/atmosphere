@@ -18,6 +18,7 @@ package org.atmosphere.verifier.prompt;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolParameter;
 import org.atmosphere.ai.tool.ToolRegistry;
+import org.atmosphere.verifier.policy.ControlFlowMode;
 import org.atmosphere.verifier.policy.Policy;
 
 import java.util.Collection;
@@ -92,6 +93,7 @@ public final class PlanPromptBuilder {
         sb.append("  '@' is a symbolic reference; \"@@text\" escapes to the literal \"@text\".\n");
         sb.append("- A step that does not need to bind its result may omit\n");
         sb.append("  'resultBinding' or set it to null.\n");
+        appendControlFlowConvention(sb);
         sb.append('\n');
         sb.append("Example:\n");
         sb.append(EXAMPLE_PLAN);
@@ -99,6 +101,20 @@ public final class PlanPromptBuilder {
         sb.append('\n');
         sb.append("Goal: ").append(userGoal).append('\n');
         return sb.toString();
+    }
+
+    private void appendControlFlowConvention(StringBuilder sb) {
+        if (policy.controlFlow() == ControlFlowMode.BRANCHING) {
+            sb.append("- You MAY use a conditional step: "
+                    + "{ \"label\": ..., \"condition\": \"<expr>\", "
+                    + "\"then\": [ ...steps... ], \"otherwise\": [ ...steps... ] }.\n");
+            sb.append("  A condition is '<var> <op> <value>' where <op> is one of "
+                    + "==, !=, <, <=, >, >= — e.g. \"score >= 80\" or "
+                    + "\"status == approved\". Reference earlier bindings by name.\n");
+        } else {
+            sb.append("- Emit a flat list of tool-call steps only; "
+                    + "conditional/branching steps are not permitted.\n");
+        }
     }
 
     private void appendToolList(StringBuilder sb) {

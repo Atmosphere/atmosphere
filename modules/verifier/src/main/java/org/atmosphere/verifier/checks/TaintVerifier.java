@@ -16,8 +16,7 @@
 package org.atmosphere.verifier.checks;
 
 import org.atmosphere.ai.tool.ToolRegistry;
-import org.atmosphere.verifier.ast.PlanNode;
-import org.atmosphere.verifier.ast.SymRef;
+import org.atmosphere.verifier.ast.ConditionalNode;
 import org.atmosphere.verifier.ast.ToolCallNode;
 import org.atmosphere.verifier.ast.Workflow;
 import org.atmosphere.verifier.ast.WorkflowStep;
@@ -52,13 +51,12 @@ import java.util.Set;
  * source tools whose data could have flowed into that binding:</p>
  * <ol>
  *   <li><b>Sink check</b> — if the current call matches any
- *       {@link TaintRule#sinkTool()} and the call's
- *       {@link TaintRule#sinkParam() forbidden param} is a
- *       {@link SymRef} into a binding tainted by the rule's source,
- *       emit a violation.</li>
+ *       {@link TaintRule#sinkTool()} and a {@link org.atmosphere.verifier.ast.SymRef}
+ *       at <em>any depth</em> inside the call's
+ *       {@link TaintRule#sinkParam() forbidden param} points at a binding
+ *       tainted by the rule's source, emit a violation.</li>
  *   <li><b>Propagate inbound</b> — union the taint of every SymRef
- *       argument's referenced binding into the call's outgoing taint
- *       set.</li>
+ *       argument (at any depth) into the call's outgoing taint set.</li>
  *   <li><b>Direct source</b> — if the call's tool itself is a source
  *       per any rule, add that source to the outgoing set.</li>
  *   <li><b>Bind</b> — if the call has a result binding, record the
@@ -71,16 +69,17 @@ import java.util.Set;
  * a translation tool that reads sensitive content and emits transformed
  * content) still has its inbound taint checked against the sink rule.</p>
  *
- * <h3>Limitations (Phase 3)</h3>
- * <ul>
- *   <li>Shallow taint — a {@link SymRef} buried inside a list/map
- *       argument is not unwrapped. Same constraint as
- *       {@link org.atmosphere.verifier.execute.WorkflowExecutor}; the
- *       Phase 5 deep-resolution pass closes both gaps in lockstep.</li>
- *   <li>String concatenation / partial-data flows are not modelled —
- *       this verifier reasons over <em>references</em>, not over the
- *       contents of any value.</li>
- * </ul>
+ * <h3>Conditional branches</h3>
+ * <p>Each arm of a {@link ConditionalNode} is walked over a copy of the
+ * taint state at the branch point; the taint produced by either arm is
+ * unioned back into the post-branch state. A sink reached in either arm is
+ * a violation — the predicate that selects an arm is never trusted to keep
+ * a leak from firing.</p>
+ *
+ * <p>This verifier reasons over symbolic <em>references</em>, not over the
+ * contents of any value: the plan AST has no string-concatenation or
+ * arithmetic nodes, so there is no sub-value flow for a reference-level
+ * analysis to miss.</p>
  *
  * <p>Priority 30 — runs after the cheaper allowlist (10) and
  * well-formedness (20) checks; their guarantees (every tool name is
@@ -110,58 +109,79 @@ public final class TaintVerifier implements PlanVerifier {
         }
         var violations = new ArrayList<Violation>();
         var bindingTaint = new HashMap<String, Set<String>>();
-        var steps = workflow.steps();
-        for (int i = 0; i < steps.size(); i++) {
-            WorkflowStep step = steps.get(i);
-            PlanNode node = step.node();
-            if (node instanceof ToolCallNode call) {
-                processCall(call, i, policy.taintRules(), bindingTaint, violations);
-            }
-            // Phase 5 control-flow nodes recurse into their bodies here.
-        }
+        taintSteps(workflow.steps(), policy.taintRules(), bindingTaint, "steps", violations);
         return VerificationResult.of(violations);
     }
 
+    /**
+     * Walk a step list, mutating {@code bindingTaint} in place. After a
+     * conditional, {@code bindingTaint} holds the union of the taint each
+     * arm produced (conservative: a binding tainted on either path is
+     * tainted afterward).
+     */
+    private void taintSteps(List<WorkflowStep> steps,
+                            List<TaintRule> rules,
+                            Map<String, Set<String>> bindingTaint,
+                            String prefix,
+                            List<Violation> violations) {
+        for (int i = 0; i < steps.size(); i++) {
+            WorkflowStep step = steps.get(i);
+            String stepPath = prefix + "[" + i + "]";
+            var node = step.node();
+            if (node instanceof ToolCallNode call) {
+                processCall(call, stepPath, rules, bindingTaint, violations);
+            } else if (node instanceof ConditionalNode cond) {
+                Map<String, Set<String>> thenTaint = deepCopy(bindingTaint);
+                taintSteps(cond.thenSteps(), rules, thenTaint, stepPath + ".then", violations);
+                Map<String, Set<String>> elseTaint = deepCopy(bindingTaint);
+                taintSteps(cond.elseSteps(), rules, elseTaint, stepPath + ".otherwise", violations);
+                mergeInto(bindingTaint, thenTaint);
+                mergeInto(bindingTaint, elseTaint);
+            }
+        }
+    }
+
     private void processCall(ToolCallNode call,
-                             int stepIndex,
+                             String stepPath,
                              List<TaintRule> rules,
                              Map<String, Set<String>> bindingTaint,
                              List<Violation> violations) {
-        // Step 1 — sink check. Examine each rule whose sinkTool matches
-        // this call's tool. If the call's argument map carries a SymRef
-        // into a tainted binding at the rule's sinkParam, emit a
-        // violation. We do this BEFORE propagation so a tool that is
-        // both a source for one rule and a sink for another is checked
-        // on its inbound flow first.
+        // Step 1 — sink check. For each rule whose sinkTool matches this
+        // call, inspect the forbidden parameter's value for a SymRef (at
+        // any depth) into a binding tainted by the rule's source. Done
+        // BEFORE propagation so a tool that is both a source for one rule
+        // and a sink for another is checked on its inbound flow first.
         for (TaintRule rule : rules) {
             if (!call.toolName().equals(rule.sinkTool())) {
                 continue;
             }
             Object sinkValue = call.arguments().get(rule.sinkParam());
-            if (!(sinkValue instanceof SymRef ref)) {
+            if (sinkValue == null) {
                 continue;
             }
-            Set<String> taintsOnSink = bindingTaint.getOrDefault(ref.ref(), Set.of());
-            if (taintsOnSink.contains(rule.sourceTool())) {
-                violations.add(new Violation(
-                        CATEGORY,
-                        "Tainted dataflow from '" + rule.sourceTool()
-                                + "' reaches '" + call.toolName() + "."
-                                + rule.sinkParam() + "' (rule '"
-                                + rule.name() + "', via @" + ref.ref() + ")",
-                        "steps[" + stepIndex + "].arguments." + rule.sinkParam()));
-            }
+            String basePath = stepPath + ".arguments." + rule.sinkParam();
+            SymRefs.forEach(sinkValue, basePath, (ref, path) -> {
+                Set<String> taintsOnSink = bindingTaint.getOrDefault(ref.ref(), Set.of());
+                if (taintsOnSink.contains(rule.sourceTool())) {
+                    violations.add(new Violation(
+                            CATEGORY,
+                            "Tainted dataflow from '" + rule.sourceTool()
+                                    + "' reaches '" + call.toolName() + "."
+                                    + rule.sinkParam() + "' (rule '"
+                                    + rule.name() + "', via @" + ref.ref() + ")",
+                            path));
+                }
+            });
         }
 
-        // Step 2 — compute outgoing taint set: the union of the taint
-        // sets of every SymRef arg's referenced binding plus any direct
-        // source rule whose sourceTool matches this call. The result
-        // becomes the taint set of this call's resultBinding.
+        // Step 2 — compute outgoing taint: the union of the taint sets of
+        // every SymRef argument (at any depth) plus any direct source rule
+        // whose sourceTool matches this call. The result becomes the taint
+        // set of this call's resultBinding.
         Set<String> outgoing = new HashSet<>();
         for (Object value : call.arguments().values()) {
-            if (value instanceof SymRef ref) {
-                outgoing.addAll(bindingTaint.getOrDefault(ref.ref(), Set.of()));
-            }
+            SymRefs.forEach(value, "", (ref, path) ->
+                    outgoing.addAll(bindingTaint.getOrDefault(ref.ref(), Set.of())));
         }
         for (TaintRule rule : rules) {
             if (call.toolName().equals(rule.sourceTool())) {
@@ -169,11 +189,25 @@ public final class TaintVerifier implements PlanVerifier {
             }
         }
 
-        // Step 3 — record under the result binding if any. Defensive
-        // copy + immutable is overkill here (HashMap value, single
-        // owner) so we keep the live HashSet for downstream union.
+        // Step 3 — record under the result binding if any.
         if (call.hasResultBinding()) {
             bindingTaint.put(call.resultBinding(), outgoing);
+        }
+    }
+
+    private static Map<String, Set<String>> deepCopy(Map<String, Set<String>> src) {
+        var copy = new HashMap<String, Set<String>>(src.size());
+        for (var entry : src.entrySet()) {
+            copy.put(entry.getKey(), new HashSet<>(entry.getValue()));
+        }
+        return copy;
+    }
+
+    private static void mergeInto(Map<String, Set<String>> target,
+                                  Map<String, Set<String>> src) {
+        for (var entry : src.entrySet()) {
+            target.computeIfAbsent(entry.getKey(), k -> new HashSet<>())
+                    .addAll(entry.getValue());
         }
     }
 }

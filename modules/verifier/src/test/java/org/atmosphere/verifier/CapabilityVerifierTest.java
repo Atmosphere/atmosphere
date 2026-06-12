@@ -94,7 +94,7 @@ class CapabilityVerifierTest {
     @Test
     void emptyRequirementsMapShortCircuits() {
         // No requirement map at all → no work, no violations regardless
-        // of grants. Lets a Phase-1-style policy stay green.
+        // of grants. Lets an allowlist-only policy stay green.
         Policy policy = new Policy("p", Set.of(PlanFixtures.FETCH, PlanFixtures.SUMMARIZE),
                 java.util.List.of(), java.util.List.of());
         VerificationResult result = verifier.verify(

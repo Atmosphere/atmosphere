@@ -23,9 +23,9 @@ import java.util.Objects;
  * can refer to steps by name rather than index.
  *
  * <p>The wrapping layer is deliberately separate from the AST node so that
- * future Phase 2+ work can attach step-level metadata
- * (timeouts, retry hints, telemetry tags) without invalidating the
- * {@code PlanNode} sealed hierarchy.</p>
+ * step-level metadata (timeouts, retry hints, telemetry tags) can be
+ * attached here without invalidating the {@code PlanNode} sealed
+ * hierarchy.</p>
  *
  * @param label a short, human-readable identifier; non-blank.
  * @param node  the AST node executed at this step.

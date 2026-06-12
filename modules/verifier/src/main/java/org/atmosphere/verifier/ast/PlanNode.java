@@ -18,12 +18,13 @@ package org.atmosphere.verifier.ast;
 /**
  * Sealed root of the workflow plan AST.
  *
- * <p>Phase 1 admits a single concrete shape — {@link ToolCallNode}. Phase 5
- * extends the {@code permits} list with control-flow nodes (conditionals,
- * loops). Verifiers exhaustively pattern-match on this interface, so adding
- * a new node kind is intentionally a typed-source-incompatible change: every
+ * <p>Two concrete shapes: {@link ToolCallNode} (a single tool invocation)
+ * and {@link ConditionalNode} (a data-dependent branch, admitted only under
+ * {@link org.atmosphere.verifier.policy.ControlFlowMode#BRANCHING}).
+ * Verifiers exhaustively pattern-match on this interface, so adding a new
+ * node kind is intentionally a typed-source-incompatible change: every
  * verifier sees the new branch at compile time and must decide how to handle
  * it.</p>
  */
-public sealed interface PlanNode permits ToolCallNode {
+public sealed interface PlanNode permits ToolCallNode, ConditionalNode {
 }

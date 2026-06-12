@@ -16,10 +16,8 @@
 package org.atmosphere.verifier.checks;
 
 import org.atmosphere.ai.tool.ToolRegistry;
-import org.atmosphere.verifier.ast.PlanNode;
 import org.atmosphere.verifier.ast.ToolCallNode;
 import org.atmosphere.verifier.ast.Workflow;
-import org.atmosphere.verifier.ast.WorkflowStep;
 import org.atmosphere.verifier.policy.Policy;
 import org.atmosphere.verifier.spi.PlanVerifier;
 import org.atmosphere.verifier.spi.VerificationResult;
@@ -72,19 +70,13 @@ public final class CapabilityVerifier implements PlanVerifier {
         }
         List<Violation> violations = new ArrayList<>();
         Set<String> grants = policy.grantedCapabilities();
-        var steps = workflow.steps();
-        for (int i = 0; i < steps.size(); i++) {
-            WorkflowStep step = steps.get(i);
-            PlanNode node = step.node();
-            if (node instanceof ToolCallNode call) {
-                checkOneCall(call, i, grants, policy, violations);
-            }
-        }
+        PlanWalk.forEachCall(workflow.steps(),
+                (call, stepPath) -> checkOneCall(call, stepPath, grants, policy, violations));
         return VerificationResult.of(violations);
     }
 
     private void checkOneCall(ToolCallNode call,
-                              int stepIndex,
+                              String stepPath,
                               Set<String> grants,
                               Policy policy,
                               List<Violation> out) {
@@ -106,6 +98,6 @@ public final class CapabilityVerifier implements PlanVerifier {
                 "Tool '" + call.toolName() + "' requires capabilities "
                         + new TreeSet<>(required) + " but the policy only grants "
                         + new TreeSet<>(grants) + " (missing: " + missing + ")",
-                "steps[" + stepIndex + "].toolName"));
+                stepPath + ".toolName"));
     }
 }

@@ -24,22 +24,22 @@ import java.util.Set;
  * Declarative security policy consumed by the static
  * {@link org.atmosphere.verifier.spi.PlanVerifier} chain.
  *
- * <p>The same record is intended to feed Atmosphere's runtime
- * {@code GovernancePolicy} chain in a follow-up phase, so that a single
- * declaration enforces at both layers — defense in depth from one
- * source.</p>
+ * <p>The same record can feed Atmosphere's runtime {@code GovernancePolicy}
+ * chain, so a single declaration enforces at both layers — defense in depth
+ * from one source.</p>
  *
  * <p>Field consumers:</p>
  * <ul>
- *   <li>{@code allowedTools} — Phase 1 {@code AllowlistVerifier}.</li>
- *   <li>{@code taintRules} — Phase 3 {@code TaintVerifier}.</li>
- *   <li>{@code automata} — Phase 5 {@code AutomatonVerifier}.</li>
+ *   <li>{@code allowedTools} — {@code AllowlistVerifier}.</li>
+ *   <li>{@code taintRules} — {@code TaintVerifier}.</li>
+ *   <li>{@code automata} — {@code AutomatonVerifier}.</li>
  *   <li>{@code grantedCapabilities} +
- *       {@code toolCapabilityRequirements} — Phase 5
- *       {@code CapabilityVerifier}.</li>
+ *       {@code toolCapabilityRequirements} — {@code CapabilityVerifier}.</li>
  *   <li>{@code numericInvariants} — the SMT-backed {@code SmtChecker}
  *       (e.g. {@code atmosphere-verifier-smt}); proves numeric constraints
  *       over symbolic tool-call arguments.</li>
+ *   <li>{@code controlFlow} — {@code StructureVerifier}; selects whether the
+ *       plan may contain {@code ConditionalNode} branches.</li>
  * </ul>
  *
  * @param name                       identifier surfaced in diagnostics; non-blank.
@@ -60,6 +60,9 @@ import java.util.Set;
  *                                   SMT-backed {@code SmtChecker} over symbolic
  *                                   tool-call arguments; defensively copied;
  *                                   may be empty.
+ * @param controlFlow                which plan shapes are admitted; defaults to
+ *                                   {@link ControlFlowMode#LINEAR_ONLY} when
+ *                                   {@code null}.
  */
 public record Policy(String name,
                      Set<String> allowedTools,
@@ -67,7 +70,8 @@ public record Policy(String name,
                      List<SecurityAutomaton> automata,
                      Set<String> grantedCapabilities,
                      Map<String, Set<String>> toolCapabilityRequirements,
-                     List<NumericInvariant> numericInvariants) {
+                     List<NumericInvariant> numericInvariants,
+                     ControlFlowMode controlFlow) {
 
     public Policy {
         Objects.requireNonNull(name, "name");
@@ -92,13 +96,30 @@ public record Policy(String name,
         }
         toolCapabilityRequirements = Map.copyOf(copiedReqs);
         numericInvariants = List.copyOf(numericInvariants);
+        // Default to the strongest posture: a flat, linear plan.
+        controlFlow = controlFlow == null ? ControlFlowMode.LINEAR_ONLY : controlFlow;
+    }
+
+    /**
+     * Pre-control-flow 7-arg overload — preserved for callers that declare
+     * numeric invariants but no control-flow mode. Defaults
+     * {@code controlFlow} to {@link ControlFlowMode#LINEAR_ONLY}.
+     */
+    public Policy(String name,
+                  Set<String> allowedTools,
+                  List<TaintRule> taintRules,
+                  List<SecurityAutomaton> automata,
+                  Set<String> grantedCapabilities,
+                  Map<String, Set<String>> toolCapabilityRequirements,
+                  List<NumericInvariant> numericInvariants) {
+        this(name, allowedTools, taintRules, automata, grantedCapabilities,
+                toolCapabilityRequirements, numericInvariants, ControlFlowMode.LINEAR_ONLY);
     }
 
     /**
      * Capability-aware 6-arg overload — preserved for callers that declare
      * capability data but no numeric invariants. Defaults
-     * {@code numericInvariants} to empty, delegating to the 7-arg canonical
-     * constructor.
+     * {@code numericInvariants} to empty.
      */
     public Policy(String name,
                   Set<String> allowedTools,
@@ -111,8 +132,9 @@ public record Policy(String name,
     }
 
     /**
-     * Phase-1 4-arg shim — preserved for callers that don't yet declare
-     * capability or numeric-invariant data. Defaults all new fields to empty.
+     * Allowlist-plus-rules 4-arg shim — preserved for callers that don't
+     * declare capability or numeric-invariant data. Defaults all later
+     * fields to empty / {@link ControlFlowMode#LINEAR_ONLY}.
      */
     public Policy(String name,
                   Set<String> allowedTools,
@@ -122,8 +144,7 @@ public record Policy(String name,
     }
 
     /**
-     * Convenience: build a Policy that only declares an allowlist (the
-     * common Phase 1 case).
+     * Convenience: build a Policy that only declares an allowlist.
      */
     public static Policy allowlist(String name, String... tools) {
         return new Policy(name, Set.of(tools), List.of(), List.of());
@@ -131,12 +152,12 @@ public record Policy(String name,
 
     /**
      * Returns a copy of this policy with the supplied capability grants
-     * and tool-requirement map. Numeric invariants are preserved.
+     * and tool-requirement map. All other fields are preserved.
      */
     public Policy withCapabilities(Set<String> grants,
                                     Map<String, Set<String>> requirements) {
         return new Policy(name, allowedTools, taintRules, automata,
-                grants, requirements, numericInvariants);
+                grants, requirements, numericInvariants, controlFlow);
     }
 
     /**
@@ -146,6 +167,17 @@ public record Policy(String name,
      */
     public Policy withNumericInvariants(List<NumericInvariant> invariants) {
         return new Policy(name, allowedTools, taintRules, automata,
-                grantedCapabilities, toolCapabilityRequirements, invariants);
+                grantedCapabilities, toolCapabilityRequirements, invariants, controlFlow);
+    }
+
+    /**
+     * Returns a copy of this policy in the supplied control-flow mode,
+     * preserving all other fields. Opt into
+     * {@link ControlFlowMode#BRANCHING} to admit conditional plans.
+     */
+    public Policy withControlFlow(ControlFlowMode mode) {
+        return new Policy(name, allowedTools, taintRules, automata,
+                grantedCapabilities, toolCapabilityRequirements, numericInvariants,
+                Objects.requireNonNull(mode, "mode"));
     }
 }

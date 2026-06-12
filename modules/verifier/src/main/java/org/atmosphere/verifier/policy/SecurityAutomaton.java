@@ -21,12 +21,11 @@ import java.util.Objects;
 /**
  * Finite-state security automaton over a workflow's tool-call sequence.
  *
- * <p>The Phase 5 {@code AutomatonVerifier} symbolically executes a plan
- * against every {@code SecurityAutomaton} in the {@link Policy}: each
+ * <p>The {@code AutomatonVerifier} symbolically executes a plan against
+ * every {@code SecurityAutomaton} in the {@link Policy}: each
  * {@code ToolCallNode} advances the automaton via the matching
  * {@link AutomatonTransition}; if any reachable state has
- * {@link AutomatonState#isError()} set, the verifier emits a violation.
- * Phase 1 stores these records but does not execute them.</p>
+ * {@link AutomatonState#isError()} set, the verifier emits a violation.</p>
  *
  * @param name         identifier surfaced in diagnostics; non-blank.
  * @param states       all states; must include {@code initialState}.
