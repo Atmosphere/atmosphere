@@ -1357,3 +1357,37 @@ CHANGELOG. (2) Corrective docs added before this entry: `modules/mcp/README.md`
 `tutorial/15-quarkus.md` §MCP servers on Quarkus — all JVM-scoped (no native, no
 sample). No automated gate detects "shipped-but-undocumented"; the bidirectional
 per-claim audit is the control.
+
+---
+
+## 2026-06-11 — Called a skipped XSS test suite an "open security hole" without reading the sanitizer
+
+### Factual drift (security severity asserted from an audit memo, not the code)
+
+**Claim (to the maintainer):** While triaging the deferral inventory I told the maintainer
+the disabled `xss-protection.spec.ts` e2e suite was "a security hole hiding behind green" —
+the security-embarrassing item tied to the known console v-html XSS blocker — and ranked
+re-enabling it as the highest-urgency drain target.
+
+**Truth:** the console v-html XSS is already fixed and tested. `markdown.ts` routes every
+render through `DOMPurify.sanitize()`; both `v-html` sinks (`ChatMessage.vue` via
+`renderMarkdown(message.content)`, `ToolCard.vue` via `renderMarkdown(text)`) use it; and a
+LIVE (non-skipped) unit test `markdown.test.ts` asserts `<script>`, `onerror`, `javascript:`,
+and `<iframe>` are stripped. The skipped `xss-protection.spec.ts` is a browser-level coverage
+gap, NOT an open vulnerability.
+
+**Slip path:** I inferred the severity from the 2026-06-11 deferral-audit memo (which filed
+"XSS suite disabled" under test-debt) plus the older gap-analysis "console v-html XSS" blocker,
+and propagated it to the maintainer BEFORE reading `markdown.ts` / the `v-html` sinks — the
+exact "infer from the narrative instead of reading the code" failure the No-Hallucinations rule
+names. Self-caught one turn later by reading the sink + sanitizer, and corrected the severity
+to the maintainer in the same session.
+
+**Gate added:** before characterizing a skipped/quarantined SECURITY test as an open
+vulnerability, verify the underlying control in code first — grep the sink, its
+sanitizer/encoder, and any live unit test — and distinguish "control absent (real vuln)" from
+"control present, e2e coverage skipped (hygiene gap)". Process gate; reading the code before
+asserting severity is the control. (Same session also had a non-drift fix-quality lapse — an
+LTM-disconnect timeout band-aid declared green that a re-test later failed — corrected by
+root-causing the reaper-poisoning client close; noted here as context, not a separate
+factual-drift entry.)
