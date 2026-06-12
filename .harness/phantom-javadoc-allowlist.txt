@@ -1,0 +1,26 @@
+# External (JDK / Spring / library / competitor) class names referenced in
+# Javadoc {@code}/{@link} that legitimately have no class in this reactor.
+# Checked by scripts/validate-no-phantom-javadoc-refs.sh. One token per line.
+ExecutorService          # java.util.concurrent
+ScheduledExecutorService # java.util.concurrent
+InvocationHandler        # java.lang.reflect
+MeterRegistry            # Micrometer
+VectorStore              # Spring AI
+ChatCompletionService    # Semantic Kernel
+EmbeddingGenerationService     # Semantic Kernel
+TextEmbeddingGenerationService # Semantic Kernel
+PromptExecutorInterceptor      # Koog
+PolicyProviderHandler          # Microsoft Agent Framework
+ConfigProvider                 # MicroProfile Config
+ResourceHttpRequestHandler     # Spring MVC
+ClassPathScanningCandidateComponentProvider # Spring
+HTTP3ServerConnectionFactory   # Jetty
+TlsConfigurationRegistry       # Jetty
+PooledObjectFactory      # Apache Commons Pool
+SimpleVectorStore        # Spring AI
+StreamingChatResponseHandler # LangChain4j
+ThreadPoolExecutor       # java.util.concurrent
+BaseSessionService       # Google ADK
+SessionService           # Google ADK
+AIAgentStrategy          # JetBrains Koog
+KoogStrategy             # JetBrains Koog
