@@ -26,6 +26,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 
 /**
@@ -44,10 +45,19 @@ import org.springframework.context.annotation.Bean;
  * }</pre>
  *
  * <p>Optionally provide a {@link TokenRefresher} bean for server-side token refresh.</p>
+ *
+ * <p>The interceptor enforces auth on the Atmosphere <em>transport</em>
+ * (WebSocket/SSE/long-poll). Set
+ * {@code atmosphere.auth.transport-enabled=false} to keep a
+ * {@code TokenValidator} bean — e.g. for the admin write surface, which
+ * validates {@code X-Atmosphere-Auth} via its own filter — without gating
+ * the transport. The default ({@code true}) installs the interceptor
+ * whenever a validator is present, preserving existing behavior.</p>
  */
 @AutoConfiguration(after = AtmosphereAutoConfiguration.class)
 @ConditionalOnClass(AuthInterceptor.class)
 @ConditionalOnBean(TokenValidator.class)
+@ConditionalOnProperty(name = "atmosphere.auth.transport-enabled", matchIfMissing = true)
 public class AtmosphereAuthAutoConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereAuthAutoConfiguration.class);
