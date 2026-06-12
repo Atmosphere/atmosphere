@@ -813,9 +813,10 @@ public class AtmosphereAdminEndpoint {
     }
 
     // ── Validation / plan-and-verify plane ──────────────────────────────
-    // Read-only surface backing the console's Validation tab. Returns 404
-    // when atmosphere-verifier (and a PlanAndVerify bean) are absent so the
-    // console probe hides the tab instead of showing an empty panel.
+    // Validation surface backing the console tab. Summary/examples are
+    // read-only; check is write-guarded because verifier-approved plans can
+    // execute application tools. Returns 404 when atmosphere-verifier (and a
+    // PlanAndVerify bean) are absent so the console probe hides the tab.
 
     @GetMapping("/verifier/summary")
     public ResponseEntity<Map<String, Object>> verifierSummary() {
@@ -838,11 +839,13 @@ public class AtmosphereAdminEndpoint {
     /**
      * Plan + verify a goal and return the plan AST, the per-verifier pass/fail
      * breakdown, the merged violations, and (on a clean pass) the executed
-     * environment. Read-only with respect to admin state; 400 on a missing
-     * {@code goal} (Correctness Invariant #4, Boundary Safety).
+     * environment. Guarded like every admin write surface because successful
+     * plans may execute tools; 400 on a missing {@code goal} (Correctness
+     * Invariant #4, Boundary Safety).
      */
     @PostMapping("/verifier/check")
     public ResponseEntity<Map<String, Object>> verifierCheck(
+            HttpServletRequest request,
             @RequestBody(required = false) Map<String, Object> body) {
         VerifierController controller = admin.verifierController();
         if (controller == null) {
@@ -852,7 +855,13 @@ public class AtmosphereAdminEndpoint {
         if (goal == null || goal.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "missing 'goal'"));
         }
-        return ResponseEntity.ok(controller.check(goal));
+        var denied = guardWrite(request, "verifier.check", goal);
+        if (denied != null) return denied;
+        var principalName = resolvePrincipalName(request);
+        var result = controller.check(goal);
+        admin.auditLog().record(principalName, "verifier.check", goal,
+                !"error".equals(result.get("status")), null);
+        return ResponseEntity.ok(result);
     }
 
     /**

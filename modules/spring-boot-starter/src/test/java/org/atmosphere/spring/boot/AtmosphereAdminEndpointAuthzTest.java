@@ -17,6 +17,7 @@ package org.atmosphere.spring.boot;
 
 import org.atmosphere.admin.AtmosphereAdmin;
 import org.atmosphere.admin.ControlAuthorizer;
+import org.atmosphere.admin.ai.VerifierController;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -25,6 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.security.Principal;
+import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -129,5 +131,38 @@ class AtmosphereAdminEndpointAuthzTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"broadcasterId\":\"/chat\",\"message\":\"x\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void verifierCheckReturns401ForAnonymousCallerWhenFlagEnabled() throws Exception {
+        var verifier = Mockito.mock(VerifierController.class);
+        Mockito.when(admin.verifierController()).thenReturn(verifier);
+        Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+
+        mockMvcGateOpen.perform(post("/api/admin/verifier/check")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"goal\":\"send a newsletter\"}"))
+                .andExpect(status().isUnauthorized());
+
+        Mockito.verify(verifier, Mockito.never()).check(Mockito.anyString());
+    }
+
+    @Test
+    void verifierCheckReturns200ForAuthenticatedCallerUnderRequirePrincipal()
+            throws Exception {
+        var verifier = Mockito.mock(VerifierController.class);
+        Mockito.when(verifier.check("send a newsletter"))
+                .thenReturn(Map.of("status", "executed"));
+        Mockito.when(admin.verifierController()).thenReturn(verifier);
+        Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+        Principal alice = () -> "alice@example.com";
+
+        mockMvcGateOpen.perform(post("/api/admin/verifier/check")
+                        .principal(alice)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"goal\":\"send a newsletter\"}"))
+                .andExpect(status().isOk());
+
+        Mockito.verify(verifier).check("send a newsletter");
     }
 }
