@@ -56,7 +56,7 @@ public final class SpringAiToolBridge {
      * @param tools    the framework-agnostic tool definitions
      * @param session  the streaming session (for emitting approval events)
      * @param strategy session-scoped HITL gate (may be null — falls back to direct execution)
-     * @return Spring AI callbacks ready for {@code promptSpec.toolCallbacks(...)}
+     * @return Spring AI callbacks ready for {@code promptSpec.tools(...)}
      */
     public static List<ToolCallback> toToolCallbacks(
             List<ToolDefinition> tools, StreamingSession session, ApprovalStrategy strategy,

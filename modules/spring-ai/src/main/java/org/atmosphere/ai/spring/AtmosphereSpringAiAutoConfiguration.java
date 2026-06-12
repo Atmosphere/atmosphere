@@ -17,6 +17,8 @@ package org.atmosphere.ai.spring;
 
 import com.openai.client.OpenAIClient;
 import com.openai.client.OpenAIClientAsync;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.micrometer.observation.ObservationRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -32,6 +34,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -74,14 +77,20 @@ public class AtmosphereSpringAiAutoConfiguration {
         }
         // OpenAi SDK Kotlin builders reject null Duration/int for timeout/maxRetries;
         // use the SDK's published defaults rather than guessing values.
+        // Spring AI 2.0.0 GA added three trailing params to OpenAiSetup
+        // (observation registry, meter registry, http-client customizers).
+        // Pass no-op values to preserve the M6 behaviour (no external
+        // observability wiring); customizers list is empty.
         OpenAIClient syncClient = OpenAiSetup.setupSyncClient(
                 baseUrl, apiKey, null, null, null, null, false, false, model,
                 AbstractOpenAiOptions.DEFAULT_TIMEOUT, AbstractOpenAiOptions.DEFAULT_MAX_RETRIES,
-                null, Map.of());
+                null, Map.<String, String>of(),
+                ObservationRegistry.NOOP, new SimpleMeterRegistry(), List.of());
         OpenAIClientAsync asyncClient = OpenAiSetup.setupAsyncClient(
                 baseUrl, apiKey, null, null, null, null, false, false, model,
                 AbstractOpenAiOptions.DEFAULT_TIMEOUT, AbstractOpenAiOptions.DEFAULT_MAX_RETRIES,
-                null, Map.of());
+                null, Map.<String, String>of(),
+                ObservationRegistry.NOOP, new SimpleMeterRegistry(), List.of());
         var chatModel = OpenAiChatModel.builder()
                 .openAiClient(syncClient)
                 .openAiClientAsync(asyncClient)

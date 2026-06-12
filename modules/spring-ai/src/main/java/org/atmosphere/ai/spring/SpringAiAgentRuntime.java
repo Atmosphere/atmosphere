@@ -181,7 +181,10 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
             var callbacks = SpringAiToolBridge.toToolCallbacks(
                     tools, session, context.approvalStrategy(), context.listeners(),
                     context.approvalPolicy());
-            promptSpec = promptSpec.toolCallbacks(callbacks);
+            // Spring AI 2.0.0 GA: every toolCallbacks(...) overload is deprecated
+            // for removal; the replacement is the generic tools(Object...), which
+            // accepts ToolCallback instances directly.
+            promptSpec = promptSpec.tools(callbacks.toArray());
         }
 
         // Per-request Spring AI Advisor chain: caller attaches via

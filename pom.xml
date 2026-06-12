@@ -1295,7 +1295,7 @@
         <quarkus.version>3.36.0</quarkus.version>
         <atmosphere.module.name>org.atmosphere</atmosphere.module.name>
         <!-- AI framework versions (single source of truth) -->
-        <spring-ai.version>2.0.0-M6</spring-ai.version>
+        <spring-ai.version>2.0.0</spring-ai.version>
         <embabel.version>0.3.5</embabel.version>
         <google-adk.version>1.2.0</google-adk.version>
         <koog.version>1.0.0</koog.version>

@@ -88,8 +88,10 @@ public final class UsageCapturingChatModel implements ChatModel {
     }
 
     @Override
-    public ChatOptions getDefaultOptions() {
-        return delegate.getDefaultOptions();
+    public ChatOptions getOptions() {
+        // Spring AI 2.0.0 GA: getDefaultOptions() is deprecated for removal in
+        // favour of getOptions(); the decorator passes the delegate's through.
+        return delegate.getOptions();
     }
 
     private void recordUsage(ChatResponse response) {
