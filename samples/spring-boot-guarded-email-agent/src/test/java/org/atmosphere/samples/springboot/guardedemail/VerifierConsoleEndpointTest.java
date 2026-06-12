@@ -19,7 +19,12 @@ import org.atmosphere.admin.ai.VerifierController;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.env.Environment;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
 
@@ -31,16 +36,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Pins the console-facing plan-and-verify surface — the {@link VerifierController}
- * that backs the Atmosphere Console's Validation tab. The browser E2E drives
- * the same controller over HTTP; this test asserts the controller contract
- * (chain introspection, examples, and the taint/SMT verdicts) so a regression
- * in the admin surface breaks the build, not just the UI.
+ * that backs the Atmosphere Console's Validation tab. The controller-contract
+ * tests assert the chain introspection and the taint/SMT verdicts; the
+ * {@link #checkOverHttpRequiresTheOperatorToken() HTTP test} drives the real
+ * {@code POST /api/admin/verifier/check} through the running servlet stack —
+ * including the {@code AdminApiAuthFilter} and write-guard — so a regression
+ * in the authz path (the kind only the browser caught) breaks the build, not
+ * just the UI.
  */
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class VerifierConsoleEndpointTest {
 
     @Autowired
     private VerifierController verifier;
+
+    @Autowired
+    private Environment env;
 
     @Test
     void summaryReportsTheRealChainAndARealSmtSolver() {
@@ -99,6 +110,71 @@ class VerifierConsoleEndpointTest {
         var v = (Map<?, ?>) ((List<?>) out.get("violations")).get(0);
         assertEquals("taint", v.get("category"));
         assertEquals(Boolean.FALSE, verdictFor(out, "taint"));
+    }
+
+    /**
+     * Exercises the real HTTP write-guard the autowired-controller tests
+     * bypass. {@code /verifier/check} executes a verified plan, so it is an
+     * admin write: an anonymous caller is refused (401), and the same call
+     * with the demo operator token is authorized (200). This is the
+     * regression the browser surfaced when the Validation tab POST came back
+     * 403/401 — the unit tests went green because they called the controller
+     * directly, never the guarded endpoint.
+     */
+    @Test
+    void checkOverHttpRequiresTheOperatorToken() throws Exception {
+        var client = HttpClient.newHttpClient();
+        var url = URI.create("http://localhost:" + env.getProperty("local.server.port")
+                + "/api/admin/verifier/check");
+        String body = "{\"goal\":\"summarize my inbox\"}";
+
+        // Anonymous → the write-guard refuses (no operator principal). This is
+        // the regression the browser surfaced: the Validation tab POST was
+        // anonymous, so the guarded endpoint returned 403/401.
+        HttpResponse<String> anon = client.send(
+                HttpRequest.newBuilder(url)
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(body)).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(401, anon.statusCode(),
+                () -> "anonymous admin write should be 401, got " + anon.statusCode());
+
+        // With the demo operator token → AdminApiAuthFilter resolves a
+        // principal → write-guard authorizes → the plan verifies and executes.
+        HttpResponse<String> authed = client.send(
+                HttpRequest.newBuilder(url)
+                        .header("Content-Type", "application/json")
+                        .header("X-Atmosphere-Auth",
+                                GuardedEmailAgentApplication.DEMO_OPERATOR_TOKEN)
+                        .POST(HttpRequest.BodyPublishers.ofString(body)).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, authed.statusCode(),
+                () -> "authenticated admin write should be 200, got "
+                        + authed.statusCode() + " body=" + authed.body());
+    }
+
+    /**
+     * The framework's root redirect must preserve the query string, so
+     * {@code /?token=…} lands on the console with the operator token and the
+     * write-guarded tab works out-of-box. (The redirect previously dropped
+     * the query — this pins the preservation.)
+     */
+    @Test
+    void rootRedirectPreservesTheOperatorToken() throws Exception {
+        var client = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.NEVER).build();
+        HttpResponse<String> resp = client.send(
+                HttpRequest.newBuilder(URI.create("http://localhost:"
+                        + env.getProperty("local.server.port") + "/?token="
+                        + GuardedEmailAgentApplication.DEMO_OPERATOR_TOKEN)).GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+
+        assertEquals(302, resp.statusCode(),
+                () -> "/ should redirect, got " + resp.statusCode());
+        String location = resp.headers().firstValue("Location").orElse("");
+        assertTrue(location.contains("/atmosphere/console/")
+                        && location.contains("token=" + GuardedEmailAgentApplication.DEMO_OPERATOR_TOKEN),
+                () -> "root redirect must preserve the operator token; Location=" + location);
     }
 
     /** Pull the {@code ok} flag for a named verifier out of the check breakdown. */

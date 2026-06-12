@@ -19,6 +19,7 @@ import org.atmosphere.admin.ai.VerifierExampleSource;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
+import org.atmosphere.auth.TokenValidator;
 import org.atmosphere.verifier.PlanAndVerify;
 import org.atmosphere.verifier.annotation.SinkScanner;
 import org.atmosphere.verifier.planner.GoapAction;
@@ -29,9 +30,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.List;
 import java.util.Map;
@@ -64,15 +62,51 @@ import java.util.Set;
  * ./mvnw spring-boot:run -pl samples/spring-boot-guarded-email-agent
  * }</pre>
  *
- * <p>then open {@code http://localhost:8080/} (it redirects to
- * {@code /atmosphere/console/}) and use the <b>Validation</b> tab — there
- * is no bespoke UI; the sample drives the shared Atmosphere Console.</p>
+ * <p>then open {@code http://localhost:8080/?token=demo-operator} (the
+ * framework's root redirect preserves the query, landing on
+ * {@code /atmosphere/console/?token=demo-operator}) and use the
+ * <b>Validation</b> tab — there is no bespoke UI; the sample drives the
+ * shared Atmosphere Console.</p>
+ *
+ * <p>Running a goal from the tab executes a verified plan, which is an admin
+ * <em>write</em> and so requires an authenticated operator. The sample wires
+ * a demo {@link #operatorTokenValidator() TokenValidator}; the console picks
+ * up the {@code ?token=} operator token, persists it, and replays it as
+ * {@code X-Atmosphere-Auth} on admin writes — demonstrating the full
+ * token &rarr; principal &rarr; write-guard path (Correctness Invariant
+ * #6). An anonymous caller is refused with 401.</p>
  */
 @SpringBootApplication
 public class GuardedEmailAgentApplication {
 
+    /**
+     * Demo operator token. A stand-in for real operator authentication
+     * (OIDC / JWT / mTLS): the console presents it on admin writes and the
+     * {@link #operatorTokenValidator() validator} resolves it to a principal.
+     */
+    static final String DEMO_OPERATOR_TOKEN = "demo-operator";
+
     public static void main(String[] args) {
         SpringApplication.run(GuardedEmailAgentApplication.class, args);
+    }
+
+    /**
+     * Authentication for the admin write surface. The Validation tab's
+     * {@code POST /api/admin/verifier/check} executes a plan once it passes
+     * every verifier — an admin <em>write</em> — so the framework's
+     * write-guard requires an authenticated principal (Correctness Invariant
+     * #6). This validator is a deliberately trivial stand-in for real
+     * operator auth: it accepts the single {@link #DEMO_OPERATOR_TOKEN} and
+     * resolves it to the {@code operator} principal; everything else is
+     * rejected. The console presents the token (auto-provisioned by the
+     * front-door redirect) as {@code X-Atmosphere-Auth}; an anonymous caller
+     * is refused with 401.
+     */
+    @Bean
+    public TokenValidator operatorTokenValidator() {
+        return token -> DEMO_OPERATOR_TOKEN.equals(token)
+                ? new TokenValidator.Valid("operator")
+                : new TokenValidator.Invalid("unrecognized operator token");
     }
 
     @Bean
@@ -181,17 +215,4 @@ public class GuardedEmailAgentApplication {
                         "Refused — SMT cannot prove send_bulk.count <= ref(quota)."));
     }
 
-    /**
-     * Front-door redirect from {@code /} to the Atmosphere Console. The
-     * console's Validation tab is the sample's UI — there is no bespoke
-     * page (every sample drives the shared console, per the framework's
-     * console-always convention).
-     */
-    @Configuration
-    static class IndexRedirect implements WebMvcConfigurer {
-        @Override
-        public void addViewControllers(ViewControllerRegistry registry) {
-            registry.addRedirectViewController("/", "/atmosphere/console/");
-        }
-    }
 }

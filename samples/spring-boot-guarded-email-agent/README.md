@@ -43,6 +43,7 @@ catches injection.
 | Planning runtime | [`DemoPlanRuntime`](src/main/java/org/atmosphere/samples/springboot/guardedemail/DemoPlanRuntime.java) — keyword-matches the goal and returns one of several canned workflow JSON blobs so the demo runs deterministically without an API key. Real deployments swap any classpath `AgentRuntime` (Built-in, Spring AI, LangChain4j, Google ADK, Embabel, Koog, Semantic Kernel, AgentScope, or Spring AI Alibaba) — the `PlanAndVerify` contract is identical. |
 | Deterministic planner (opt-in) | Set `email.planner=goap` to derive the workflow with `GoapPlanRuntime` (bounded GOAP search over tool pre-/post-conditions) instead of an LLM. It plans only toward the declared goal, so it cannot assemble the exfiltration step — the planning-side analogue of the verifier's refusal. Same `PlanAndVerify` chain. |
 | UI | The shared **Atmosphere Console** (`/atmosphere/console/`). When `atmosphere-verifier` and a `PlanAndVerify` bean are present, the console shows a **Validation** tab backed by `GET/POST /api/admin/verifier/**`. The four example goals are supplied by the [`VerifierExampleSource` bean](src/main/java/org/atmosphere/samples/springboot/guardedemail/GuardedEmailAgentApplication.java) — there is no bespoke page. |
+| Admin auth | The Validation tab's `POST /verifier/check` executes a verified plan, so it is an admin **write** (Invariant #6). A demo [`TokenValidator` bean](src/main/java/org/atmosphere/samples/springboot/guardedemail/GuardedEmailAgentApplication.java) resolves an operator token to a principal; the front-door redirect auto-provisions the token (`?token=demo-operator`) so the guarded tab works out-of-box while still exercising the real token → principal → write-guard path. `atmosphere.admin.http-write-enabled=true` is set in `application.properties`; production apps keep it off. |
 
 ## Run it
 
@@ -51,10 +52,12 @@ catches injection.
 ./mvnw spring-boot:run -pl samples/spring-boot-guarded-email-agent
 ```
 
-Open `http://localhost:8080/` (it redirects to `/atmosphere/console/`) and
-click the **Validation** tab. The tab shows the live verifier chain
-(`allowlist → well-formed → capability → taint → automaton → smt`), the
-resolved SMT solver, and the `guarded-email` policy. Click an example —
+Open `http://localhost:8080/?token=demo-operator` (the root redirect
+preserves the query, landing on `/atmosphere/console/?token=demo-operator`
+and provisioning the operator token the write-guarded tab needs) and click
+the **Validation** tab. The tab shows the live verifier chain
+(`structure → allowlist → well-formed → capability → taint → automaton → smt`),
+the resolved SMT solver, and the `guarded-email` policy. Click an example —
 or type a goal — to plan it, run the chain over the plan AST, and see the
 verdict.
 
