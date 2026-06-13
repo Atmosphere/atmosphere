@@ -162,7 +162,7 @@ Add Spring AI to your dependencies:
 <dependency>
     <groupId>org.springframework.ai</groupId>
     <artifactId>spring-ai-vector-store</artifactId>
-    <version>2.0.0-M6</version>
+    <version>4.0.54</version>
 </dependency>
 ```
 
@@ -185,7 +185,7 @@ Add LangChain4j to your dependencies:
 <dependency>
     <groupId>dev.langchain4j</groupId>
     <artifactId>langchain4j-core</artifactId>
-    <version>1.15.0</version>
+    <version>4.0.54</version>
 </dependency>
 ```
 
