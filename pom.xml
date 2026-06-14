@@ -1285,7 +1285,7 @@
         <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
         <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
         <lettuce.version>6.5.5.RELEASE</lettuce.version>
-        <spring-boot.version>4.0.6</spring-boot.version>
+        <spring-boot.version>4.0.7</spring-boot.version>
         <!-- Override Spring Boot 4.0.6's netty 4.2.x pin to 4.2.15.Final, which
              patches CVE-2025-58056 (netty-codec-http) plus the later 4.2.x
              netty-handler / netty-codec-http3 advisories. spring-boot-dependencies
@@ -1296,11 +1296,11 @@
         <atmosphere.module.name>org.atmosphere</atmosphere.module.name>
         <!-- AI framework versions (single source of truth) -->
         <spring-ai.version>2.0.0</spring-ai.version>
-        <embabel.version>0.3.5</embabel.version>
-        <google-adk.version>1.2.0</google-adk.version>
+        <embabel.version>0.4.0</embabel.version>
+        <google-adk.version>1.4.0</google-adk.version>
         <koog.version>1.0.0</koog.version>
         <agentscope.version>1.0.12</agentscope.version>
-        <spring-ai-alibaba.version>1.1.2.2</spring-ai-alibaba.version>
+        <spring-ai-alibaba.version>1.1.2.3</spring-ai-alibaba.version>
         <!-- Quarkus LangChain4j 1.9.2 ships LangChain4j 1.13.0 transitively;
              our parent already pins langchain4j 1.12.2 (compatible minor). -->
         <quarkus-langchain4j.version>1.9.2</quarkus-langchain4j.version>
@@ -1315,7 +1315,7 @@
              - GHSA FilterExpression Converter injection (< 1.1.5)
              spring-ai-alibaba 1.1.2.2 is source-compatible with the 1.1.x
              Spring AI line since both share the same 1.1.x ABI. -->
-        <spring-ai-alibaba-spring-ai.version>1.1.6</spring-ai-alibaba-spring-ai.version>
-        <langchain4j.version>1.15.0</langchain4j.version>
+        <spring-ai-alibaba-spring-ai.version>1.1.8</spring-ai-alibaba-spring-ai.version>
+        <langchain4j.version>1.16.2</langchain4j.version>
     </properties>
 </project>
