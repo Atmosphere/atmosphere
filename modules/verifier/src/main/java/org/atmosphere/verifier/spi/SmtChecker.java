@@ -73,8 +73,9 @@ public interface SmtChecker {
 
     /**
      * Higher wins. The shipped {@link NoOpSmtChecker} uses priority 0;
-     * a Z3 backend uses 100; future Lean / Verifast / etc. backends
-     * pick a tier above whatever they replace.
+     * the SMTInterpol backend uses 100 and the Z3 backend uses 200;
+     * future Lean / Verifast / etc. backends pick a tier above whatever
+     * they replace.
      */
     default int priority() {
         return 0;
