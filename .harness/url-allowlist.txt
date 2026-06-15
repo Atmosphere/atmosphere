@@ -22,6 +22,10 @@ token.actions.githubusercontent.com
 # Illustrative placeholder org in SKILLCARD registry examples (not a real repo).
 github.com/my-org/
 
+# Real repo (confirmed by the maintainer); GitHub 404s blob deep-links to bot
+# probes, and some referenced skill files (e.g. dentist/SKILL.md) are illustrative.
+github.com/Atmosphere/atmosphere-skills
+
 # Documented LLM/provider API base endpoints — 404/405 a bare browser probe
 # (POST + auth only), cited as base URLs in prose. Not link rot.
 api.anthropic.com
