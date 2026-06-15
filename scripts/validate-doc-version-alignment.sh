@@ -17,9 +17,16 @@
 # any tracked *.md. It deliberately:
 #   - matches only full X.Y.Z[-q] versions (unambiguous "this exact version"
 #     claims); fuzzy minimums like "3.21+" are out of scope to avoid noise;
-#   - skips .harness/drift-log.md and CHANGELOG.md (append-only history that
-#     legitimately quotes superseded versions);
+#   - skips .harness/drift-log.md, CHANGELOG.md and the site's whats-new.md
+#     (append-only history that legitimately quotes superseded versions);
 #   - honours .harness/doc-version-allowlist.txt for documented exceptions.
+#
+# The sibling atmosphere.github.io site (located via $ATMOSPHERE_SITE_DIR,
+# else ../atmosphere.github.io, else ~/workspace/atmosphere/atmosphere.github.io)
+# is ALSO scanned when present, but its findings are ADVISORY only (exit 0):
+# per drift-log #20 the cross-repo coupling is loose by design, and a hard
+# gate would diverge local-vs-CI since CI has no sibling checkout. Main-repo
+# findings remain hard failures.
 #
 # Spring AI and Spring AI Alibaba are intentionally NOT tracked: the tree
 # legitimately carries two Spring AI lines at once (2.0.0-M6 on the main
@@ -38,6 +45,7 @@ ALLOWLIST=".harness/doc-version-allowlist.txt"
 
 python3 - "$ALLOWLIST" <<'PY'
 import json
+import os
 import re
 import subprocess
 import sys
@@ -79,17 +87,37 @@ def allowed(record):
     return any(token in record for token in allow)
 
 SEMVER = r"[0-9]+\.[0-9]+\.[0-9]+(?:[.-][A-Za-z0-9.]+)?"
-SKIP_SUBSTR = (".harness/drift-log.md", "CHANGELOG.md", "node_modules")
+SKIP_SUBSTR = (".harness/drift-log.md", "CHANGELOG.md", "whats-new.md", "node_modules")
 
-files = subprocess.check_output(["git", "ls-files", "*.md"]).decode().split()
+# (path, is_site) — main-repo tracked Markdown is strict; sibling site advisory.
+entries = [(f, False) for f in
+           subprocess.check_output(["git", "ls-files", "*.md"]).decode().split()]
 
-failed = False
+site_dir = os.environ.get("ATMOSPHERE_SITE_DIR")
+if not site_dir:
+    for cand in ("../atmosphere.github.io",
+                 os.path.expanduser("~/workspace/atmosphere/atmosphere.github.io")):
+        if Path(cand).is_dir():
+            site_dir = cand
+            break
+if site_dir and Path(site_dir).is_dir():
+    site_root = Path(site_dir)
+    SITE_PRUNE = {"node_modules", ".git", "dist", ".astro", "build", ".output"}
+    for ext in ("*.astro", "*.md", "*.mdx"):
+        for p in site_root.rglob(ext):
+            if any(part in SITE_PRUNE for part in p.parts):
+                continue
+            entries.append((str(p), True))
+    print("validate-doc-version-alignment.sh: scanning sibling site at "
+          f"{site_dir} (advisory)", file=sys.stderr)
+
+hard_fail = False
 for label, current in TRACKED.items():
     if not current:
         print(f"validate-doc-version-alignment.sh: no source-of-truth version for /{label}/ — skipping", file=sys.stderr)
         continue
     rx = re.compile(rf"{label}\s+`?v?({SEMVER})")
-    for f in files:
+    for f, is_site in entries:
         if any(s in f for s in SKIP_SUBSTR):
             continue
         try:
@@ -105,15 +133,17 @@ for label, current in TRACKED.items():
                 if allowed(record):
                     continue
                 clean = label.replace("\\", "")
+                tag = "[advisory/site] " if is_site else ""
                 print(
-                    f"validate-doc-version-alignment.sh: {f}:{line_no} names "
+                    f"validate-doc-version-alignment.sh: {tag}{f}:{line_no} names "
                     f"'{clean} {found}' but the pinned version is {current}",
                     file=sys.stderr,
                 )
                 print(f"    line: {line.strip()}", file=sys.stderr)
-                failed = True
+                if not is_site:
+                    hard_fail = True
 
-if failed:
+if hard_fail:
     print("", file=sys.stderr)
     print("Update the prose to the pinned version, or (if the mention is intentional, e.g. a", file=sys.stderr)
     print(f"transitive/historical version) add a substring to {sys.argv[1]}.", file=sys.stderr)

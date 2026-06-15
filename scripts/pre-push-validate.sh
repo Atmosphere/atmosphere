@@ -156,7 +156,10 @@ IGNORE_REGEX='(^|/)(\.gitignore|\.editorconfig|LICENSE|NOTICE|README(\.md)?|.*\.
 # fast while preserving the heavier architectural scan for Java/config/workflow
 # changes that can affect runtime behavior.
 ARCHITECTURAL_REGEX='^pom\.xml$|^(modules|samples)/.*(pom\.xml|src/(main|test)/.*\.(java|kt|kts))$|^(bom|assembly)/pom\.xml$|^config/|^\.mvn/|^\.github/workflows/|^scripts/(architectural-validation|pre-push-validate)\.sh$'
-CAPABILITY_CLAIMS_REGEX='(^|/)(README\.md|.*capabilit.*\.md)$|^modules/ai/README\.md$|^\.harness/capabilities\.snapshot\.json$|^scripts/validate-capability-claims\.sh$|^scripts/(regen|sign|verify|scan)-skillcards\.sh$|^modules/[^/]+/SKILLCARD\.yaml(\.sig)?$|^\.github/workflows/sign-skillcards\.yml$|^SKILLCARDS\.md$'
+# `\.md$` is included because validate-capability-claims.sh now also checks
+# "N of M runtimes" enumeration denominators across ALL Markdown (e.g.
+# docs/runtime-selection.md), not just README/capability files.
+CAPABILITY_CLAIMS_REGEX='\.md$|^\.harness/capabilities\.snapshot\.json$|^scripts/validate-capability-claims\.sh$|^\.harness/enumeration-allowlist\.txt$|^scripts/(regen|sign|verify|scan)-skillcards\.sh$|^modules/[^/]+/SKILLCARD\.yaml(\.sig)?$|^\.github/workflows/sign-skillcards\.yml$|^SKILLCARDS\.md$'
 DRIFT_LOG_REGEX='^\.harness/drift-log\.md$|^scripts/validate-drift-log\.sh$'
 BACKEND_CLASS_REFS_REGEX='\.java$|\.md$|^scripts/validate-backend-class-refs\.sh$|^\.harness/external-class-allowlist\.txt$'
 PRIVATE_HANDLE_REGEX='\.(java|kt|kts|md|yml|yaml|ts|tsx|js|json|properties|xml|sh)$|^scripts/validate-no-private-handle\.sh$|^\.harness/private-handle-allowlist\.txt$'
@@ -166,6 +169,7 @@ DANGLING_DOC_REGEX='^(modules|samples)/.*/src/(main|test)/.*\.java$|^scripts/val
 DOC_VERSION_REGEX='\.md$|^pom\.xml$|^atmosphere\.js/package\.json$|^scripts/validate-doc-version-alignment\.sh$|^\.harness/doc-version-allowlist\.txt$'
 DOC_SYMBOLS_REGEX='\.md$|^(modules|samples)/.*/src/main/.*\.java$|^scripts/validate-doc-symbols\.sh$|^\.harness/doc-symbol-allowlist\.txt$'
 ORPHAN_CLASS_REGEX='^modules/.*/src/main/.*\.java$|^scripts/validate-no-orphan-classes\.sh$|^\.harness/orphan-class-allowlist\.txt$'
+FACTS_REGISTRY_REGEX='\.md$|^\.harness/facts\.json$|^scripts/validate-facts-registry\.sh$'
 
 SIGNIFICANT_FILES=""
 IGNORED_FILES=""
@@ -181,6 +185,7 @@ RUN_ORPHAN_CLASS=false
 RUN_DANGLING_DOC=false
 RUN_DOC_VERSION=false
 RUN_DOC_SYMBOLS=false
+RUN_FACTS_REGISTRY=false
 while IFS= read -r file; do
     [ -z "$file" ] && continue
     if echo "$file" | grep -qE "$ARCHITECTURAL_REGEX"; then
@@ -216,6 +221,9 @@ while IFS= read -r file; do
     if echo "$file" | grep -qE "$DOC_SYMBOLS_REGEX"; then
         RUN_DOC_SYMBOLS=true
     fi
+    if echo "$file" | grep -qE "$FACTS_REGISTRY_REGEX"; then
+        RUN_FACTS_REGISTRY=true
+    fi
     if echo "$file" | grep -qE "$HIGH_BLAST_REGEX"; then
         HAS_HIGH_BLAST=true
     fi
@@ -243,6 +251,7 @@ if [ "$FORCE_FULL" = true ]; then
     RUN_DANGLING_DOC=true
     RUN_DOC_VERSION=true
     RUN_DOC_SYMBOLS=true
+    RUN_FACTS_REGISTRY=true
 fi
 
 PL_LIST=""
@@ -405,6 +414,20 @@ if [ "$DRY_RUN" = false ]; then
         echo "Skipping doc-symbol (phantom annotation) validation."
     fi
     echo ""
+
+    if [ "$RUN_FACTS_REGISTRY" = true ]; then
+        echo "Running facts-registry (business dates + superlatives) validation."
+        if ! ./scripts/validate-facts-registry.sh; then
+            echo ""
+            echo "A pinned fact (business date / superlative) in prose drifted from"
+            echo ".harness/facts.json — fix the prose, or update the registry if the"
+            echo "fact legitimately changed. Sibling-site findings are advisory only."
+            exit 1
+        fi
+    else
+        echo "Skipping facts-registry validation."
+    fi
+    echo ""
 else
     echo "Dry-run — selected Tier 1 checks:"
     echo "  architectural validation : $RUN_ARCHITECTURAL"
@@ -418,6 +441,7 @@ else
     echo "  dangling-doc comments    : $RUN_DANGLING_DOC"
     echo "  doc version alignment    : $RUN_DOC_VERSION"
     echo "  doc-symbol (annotations) : $RUN_DOC_SYMBOLS"
+    echo "  facts registry           : $RUN_FACTS_REGISTRY"
     echo ""
 fi
 

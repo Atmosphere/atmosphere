@@ -1,6 +1,6 @@
 # Spring Boot A2A Agent Sample
 
-An AI-powered agent that speaks the [A2A (Agent-to-Agent)](https://google.github.io/A2A/) protocol. Other agents discover it via its Agent Card, then delegate tasks using JSON-RPC 2.0 over HTTP. Uses Gemini/OpenAI/Ollama when an API key is configured, with built-in demo fallback.
+An AI-powered agent that speaks the [A2A (Agent-to-Agent)](https://a2a-protocol.org/) protocol. Other agents discover it via its Agent Card, then delegate tasks using JSON-RPC 2.0 over HTTP. Uses Gemini/OpenAI/Ollama when an API key is configured, with built-in demo fallback.
 
 ## What It Does
 

@@ -1,0 +1,50 @@
+{
+  "_comment": "Pinned source of truth for the ungreppable doc-claim classes: business dates, marketing superlatives, and canonical external URLs. Free-prose copies of these facts across the main repo AND the sibling atmosphere.github.io repo are validated against this file by scripts/validate-facts-registry.sh. Born from drift-log entries #21 (unverified 'first Java framework' superlative) and #22 ('support since 2014' should have been 2013). Edit THIS file when a fact legitimately changes; the validator then forces the prose to follow.",
+
+  "date_assertions": [
+    {
+      "label": "open source since",
+      "pattern": "open[ -]?source since ([0-9]{4})",
+      "expect": "2008"
+    },
+    {
+      "label": "continuous production since",
+      "pattern": "continuous production since ([0-9]{4})",
+      "expect": "2008"
+    },
+    {
+      "label": "real-time infrastructure for the JVM since",
+      "pattern": "infrastructure for the JVM since ([0-9]{4})",
+      "expect": "2008"
+    },
+    {
+      "label": "enterprise/commercial support since",
+      "pattern": "(?:enterprise|commercial) support since ([0-9]{4})",
+      "expect": "2013"
+    },
+    {
+      "label": "shipping/bridge-authorship since",
+      "pattern": "every bridge on this page since ([0-9]{4})",
+      "expect": "2013"
+    },
+    {
+      "label": "abstraction-and-swap coverage since",
+      "pattern": "the swap since ([0-9]{4})",
+      "expect": "2013"
+    }
+  ],
+
+  "forbidden_superlatives": [
+    "first Java (?:framework|library)",
+    "only Java (?:framework|library)",
+    "world'?s first",
+    "industry'?s first",
+    "the first framework to"
+  ],
+
+  "allowed_superlatives": [],
+
+  "canonical_urls": {
+    "a2a_spec": "https://a2a-protocol.org/"
+  }
+}

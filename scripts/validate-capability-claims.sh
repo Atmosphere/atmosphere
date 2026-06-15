@@ -15,9 +15,17 @@
 #      unambiguous patterns:
 #        - `All N runtimes`        (the "All" anchor → unambiguous total)
 #        - `N AiCapability` / `N capabilities total`
-#      Loose patterns ("the other N runtimes", "N out of M") are not
-#      validated here — they describe subsets that depend on which
-#      runtimes opt into a feature, which the snapshot does not encode.
+#   4. Enumeration DENOMINATORS across *.md ("N of M runtimes",
+#      "N out of M runtimes", "N/M runtimes"): M is the global total and
+#      must equal the snapshot's runtime count. This catches drift-log
+#      #6/#7/#8's class — "seven of nine runtimes" left stale when the
+#      runtime count grew. The NUMERATOR N (the feature subset) is NOT
+#      validated: it depends on which runtimes opt into a feature, which
+#      the snapshot does not encode — that judgment is left to the
+#      doc-drift auditor. Feature-scoped denominators (e.g. "one of two
+#      runtimes that emit TOOL_CALL_DELTA") are exempted via
+#      .harness/enumeration-allowlist.txt; dated audits under docs/audits/
+#      are skipped wholesale.
 #
 # Run from repo root. Exits 0 on success, 1 on any drift.
 
@@ -205,6 +213,76 @@ if [ -f "$TOP_README" ]; then
             fail=1
         fi
     done < <(grep -nE '\b([0-9]+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen) (runtime )?adapters\b' "$TOP_README" -i || true)
+fi
+
+# 5. Enumeration denominators across all tracked *.md. "N of M runtimes"
+# claims drift when the runtime count grows but the prose total M is not
+# swept (drift-log #6/#7/#8). Validate M == runtime_count; the numerator
+# subset N is out of scope (see header). Historical/append-only surfaces
+# and dated audits are skipped; feature-scoped denominators are allowlisted.
+ENUM_ALLOWLIST=".harness/enumeration-allowlist.txt"
+if ! python3 - "$SNAPSHOT" "$ENUM_ALLOWLIST" <<'PY'
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+runtime_count = json.loads(Path(sys.argv[1]).read_text())["runtimes"]["count"]
+
+allow = []
+ap = Path(sys.argv[2])
+if ap.exists():
+    for line in ap.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            allow.append(line)
+
+WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+    "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+    "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
+}
+
+def num(tok):
+    tok = tok.lower()
+    return int(tok) if tok.isdigit() else WORDS.get(tok)
+
+NUM = (r"[0-9]+|one|two|three|four|five|six|seven|eight|nine|ten|"
+       r"eleven|twelve|thirteen|fourteen|fifteen|sixteen")
+rx_of = re.compile(rf"\b({NUM})\s+(?:of|out of)\s+({NUM})\s+runtimes?\b", re.IGNORECASE)
+rx_slash = re.compile(rf"\b({NUM})\s*/\s*({NUM})\s+runtimes?\b", re.IGNORECASE)
+
+SKIP_SUBSTR = (".harness/drift-log.md", "CHANGELOG.md", "docs/audits/")
+
+files = subprocess.check_output(["git", "ls-files", "*.md"]).decode().split()
+
+failed = False
+for f in files:
+    if any(s in f for s in SKIP_SUBSTR):
+        continue
+    try:
+        text = Path(f).read_text()
+    except (OSError, UnicodeDecodeError):
+        continue
+    for line_no, line in enumerate(text.splitlines(), 1):
+        for m in list(rx_of.finditer(line)) + list(rx_slash.finditer(line)):
+            denom = num(m.group(2))
+            if denom is None or denom == runtime_count:
+                continue
+            if any(tok in line for tok in allow):
+                continue
+            print(f"validate-capability-claims.sh: {f}:{line_no} says "
+                  f"'{m.group(0).strip()}' but the snapshot has {runtime_count} runtimes",
+                  file=sys.stderr)
+            print(f"    line: {line.strip()}", file=sys.stderr)
+            failed = True
+
+if failed:
+    sys.exit(1)
+PY
+then
+    fail=1
 fi
 
 if [ "$fail" -ne 0 ]; then

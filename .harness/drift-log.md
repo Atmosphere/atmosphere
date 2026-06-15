@@ -1463,3 +1463,69 @@ branches.
 (`AbstractJavaSmtChecker` now recurses into `thenSteps`/`elseSteps`), confirming it was real.
 The doc was then broadened in `55db963` (website repo) so the "both arms" guarantee covers all
 seven verifiers, the SMT layer included. So the scope note above is now historical.
+
+---
+
+## 2026-06-15 — Systematic doc-drift gates + two live drifts caught
+
+Built the systematic doc-drift toolkit the project maintainer asked for: a
+pinned-facts registry (`.harness/facts.json` + `scripts/validate-facts-registry.sh`),
+a "N of M runtimes" enumeration-denominator check in
+`scripts/validate-capability-claims.sh`, sibling-repo (atmosphere.github.io)
+coverage in `scripts/validate-doc-version-alignment.sh` (advisory per #20), a
+parallel external-link checker (`scripts/check-website-urls.sh`), and an on-demand
+`.claude/workflows/doc-drift-audit.js` for the ungreppable classes. Two of the new
+gates caught real drift on their very first run.
+
+### Superlative recurrence — "first Java framework with WebTransport"
+
+**Claim:** `atmosphere.github.io/docs/src/content/docs/reference/webtransport.md`
+(frontmatter line 3 + body line 8) called Atmosphere "the first Java framework with
+WebTransport support."
+
+**Truth:** Unverified superlative — the *same* phrasing drift #21 softened on the
+website's `Atmosphere.astro` on 2026-05-11 (commit `5404f5f`). The #21 fix had
+metastasized-by-omission: it landed in the marketing component but never reached the
+tutorial reference doc, so the oversell survived in a second file for a month.
+
+**Slip path:** No structural gate existed for superlatives — drift #21 itself recorded
+"no automated gate — superlatives are categorically unverifiable from grep." That was
+true for a *free* grep, but a *registry-backed* grep (`forbidden_superlatives` in
+facts.json) makes the class tractable: a superlative is allowed only if registered with
+evidence.
+
+**Gate added:** `scripts/validate-facts-registry.sh` — hard-fails the main repo and
+advisory-warns the sibling on any unregistered "first/only Java framework", "world's
+first", etc. Both webtransport.md lines softened to "native WebTransport support for the
+JVM" (sibling working tree; the commit lands on the website's own publish lifecycle).
+First time the superlative class is closed structurally.
+
+### Dead external link — A2A spec URL
+
+**Claim:** `samples/spring-boot-a2a-agent/README.md:3` linked the A2A protocol to
+`https://google.github.io/A2A/`.
+
+**Truth:** That URL 404s — the spec moved to the Linux Foundation at
+`https://a2a-protocol.org/`. This is the identical dead link drift #19 fixed on the
+website (commit `5404f5f`) on 2026-05-11; the sample README was outside that sweep, so it
+kept the rotted link for a month — the same metastasis pattern as the superlative above.
+
+**Gate added:** `scripts/check-website-urls.sh` (parallel curl probe of every external
+URL in both repos; 404/410/5xx = dead, 401/403/405/429 = blocked/alive advisory, 000 =
+unreachable advisory; template `<>{}$` URLs skipped; offline → skip). Link fixed to
+`a2a-protocol.org`. Not wired into pre-push (network calls do not belong on the push
+hot-path) — it is the auditor's / a scheduled CI lane's job.
+
+### Surfaced, advisory (left for the maintainer)
+
+- **`atmosphere.js 5.0.24`** in `atmosphere.github.io/.../clients/react-native.md:8`
+  while the pin is `5.0.32` (drift-#18 class, cross-repo). The new sibling-aware version
+  scan reports it as **advisory** per drift #20 ("sibling coupling is loose by design");
+  to be fixed on the website's lifecycle. The site's `whats-new.md` copies are correctly
+  skipped as changelog history.
+- **`https://github.com/Atmosphere/atmosphere-skills`** 404s, yet it is wired as a real
+  BOM artifact + CLI skills-registry base (`README.md:304`, `cli/atmosphere`
+  `SKILLS_REGISTRY_URL`). Either the repo is not yet public (runtime-truth /
+  shipped-without-consumer drift) or it bot-blocks the probe. Needs the maintainer to
+  confirm the repo exists or correct the references — deliberately NOT allowlisted, so the
+  link checker keeps flagging it.

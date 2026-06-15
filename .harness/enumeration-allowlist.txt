@@ -1,0 +1,14 @@
+# Allowlist for validate-capability-claims.sh's "N of M runtimes" denominator
+# check. Each non-comment line is a substring; if it appears in the flagged
+# "<file>:<line>: <matched text>" record, the mismatch is suppressed.
+#
+# Use this ONLY for denominators that are a feature-scoped SUBSET total, not
+# the global runtime count — e.g. "one of two runtimes that emit TOOL_CALL_DELTA"
+# describes the 2 runtimes with that one capability, not all 12 runtimes.
+#
+# Dated point-in-time audits under docs/audits/ are skipped wholesale by the
+# validator (like the drift-log), so they do NOT need entries here.
+
+# docs/runtime-selection.md: the two runtimes shipping an OpenAI-compatible
+# client + TOOL_CALL_DELTA out of the box (Built-in + Cohere), not the global total.
+one of two runtimes (with Cohere)

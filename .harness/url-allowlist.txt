@@ -1,0 +1,30 @@
+# Allowlist for scripts/check-website-urls.sh (substring match against the URL).
+# Use ONLY for URLs that are valid but 4xx an automated bare probe (API/CDN
+# bases, OIDC endpoints) or are intentionally illustrative placeholders in prose.
+#
+# localhost / 127.0.0.1 / example.com / example.org and the w3.org SVG XML
+# namespace are skipped intrinsically and do NOT need entries here.
+#
+# 401/403/429 (auth walls, bot blocks, rate limits — e.g. npmjs.com, openai.com)
+# are already classified as "blocked" advisories, NOT dead links, so they do
+# NOT need entries here either.
+
+# Google Fonts CSS/font CDN — 404s a bare base probe, valid with a font query.
+fonts.googleapis.com
+fonts.gstatic.com
+
+# Gemini OpenAI-compat API base — 404s without a path/auth; cited as a base URL.
+generativelanguage.googleapis.com
+
+# GitHub Actions OIDC token endpoint — 404s a bare GET; cited in CI/OIDC docs.
+token.actions.githubusercontent.com
+
+# Illustrative placeholder org in SKILLCARD registry examples (not a real repo).
+github.com/my-org/
+
+# Documented LLM/provider API base endpoints — 404/405 a bare browser probe
+# (POST + auth only), cited as base URLs in prose. Not link rot.
+api.anthropic.com
+api.openai.com
+api.cohere.com
+api.telegram.org
