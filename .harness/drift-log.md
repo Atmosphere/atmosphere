@@ -1639,3 +1639,18 @@ its stale "NOT declared" list (TOKEN_USAGE/TOOL_CALLING are declared+wired);
 crewai's overlay bullet (entry landed — confirm sidecar-package completeness
 before editing); embedded-jetty's "vanilla JavaScript" (ships React/Vite);
 admin-bundle's `DENY_ALL` effective-default claim (check the bundle auto-config).
+
+Then closed two of those after the checks: embedded-jetty ships a React/Vite client
+(`frontend/src/App.tsx`, built `assets/`) — and so does the WAR chat sample it
+points at — so "vanilla JavaScript" was corrected to "React/Vite". admin-bundle's
+"defaults to `DENY_ALL`" was a misstated security posture: `AtmosphereAdminAutoConfiguration`
+defaults `atmosphere.admin.require-principal=true`, so the effective default is
+`REQUIRE_PRINCIPAL` (anonymous mutations rejected; authenticated principals allowed;
+`DENY_ALL` only when require-principal is disabled). Rewritten to state the real
+default. Still genuinely pending careful work (precise data captured, not rushed):
+spring-ai-alibaba declares 15 caps but its "Honest declared set" lists 5 and its
+"NOT declared (and why)" lists TOKEN_USAGE/TOOL_CALLING (declared+wired) — the real
+not-declared set is AGENT_ORCHESTRATION, MODEL_ENUMERATION, MULTI_AGENT_HANDOFF,
+PROMPT_CACHING, TOOL_CALL_DELTA; crewai overlay bullet (sidecar publish status
+unverified); ms-governance:61 (audit evidence was truncated — exact mismatch not
+reproduced); admin-bundle:64 Journal-flow URL (audit citation flag, unverified).

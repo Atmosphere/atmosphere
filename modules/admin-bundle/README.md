@@ -69,8 +69,11 @@ Run the app and visit:
 
 The bundle ships fail-closed by default:
 
-- `ControlAuthorizer` defaults to `DENY_ALL` — install a tenant-aware
-  authorizer at startup.
+- `ControlAuthorizer` defaults to `REQUIRE_PRINCIPAL` (with
+  `atmosphere.admin.require-principal=true`) — every mutating admin action
+  requires an authenticated principal; anonymous calls are rejected. Supply a
+  `@Bean ControlAuthorizer` for fine-grained role/scope checks, or set
+  `atmosphere.admin.require-principal=false` to harden all the way to `DENY_ALL`.
 - `atmosphere.admin.http-write-enabled` defaults to `false` — mutating
   REST endpoints return 403 until an operator opts in.
 - `InMemoryWorkflowStore` and `InMemoryEvalRunStore` lose state on JVM

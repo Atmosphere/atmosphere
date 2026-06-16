@@ -56,7 +56,7 @@ public class WebSocketChat extends WebSocketStreamingHandlerAdapter {
 
 ## Client Side
 
-Same vanilla JavaScript client as the WAR chat sample — connects to `/chat` with WebSocket transport, prompts for a name, and exchanges JSON messages.
+Same React/Vite client as the WAR chat sample — connects to `/chat` with WebSocket transport, prompts for a name, and exchanges JSON messages.
 
 ## Build & Run
 
