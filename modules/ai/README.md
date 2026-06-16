@@ -64,7 +64,7 @@ Capability flags advertise a coarse contract: "this runtime cooperates with the 
 
 If a per-runtime cell needs a caveat, document it in the row footnote (Spring AI Alibaba already does for buffered streaming) rather than weakening the capability semantics across all rows.
 
-**Spring AI Alibaba runtime — Spring Boot 3 only today.** Spring AI Alibaba `1.1.2.0` is compiled against Spring AI `1.1.2` and `spring-ai-alibaba-graph-core-1.1.2.0` hardcodes references to Spring AI 1.1.2-only types (e.g. `org.springframework.ai.deepseek.DeepSeekAssistantMessage`), so the runtime requires Spring AI 1.1.2 on the classpath. Spring AI 1.1.2 in turn requires Spring Boot 3 (it references the SB3-era FQN `org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration`; Spring Boot 4 has the same class but at the renamed FQN `org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration`). Net result: `atmosphere-spring-ai-alibaba` runs end-to-end on Spring Boot 3 today (verified via chrome-devtools through the bundled Console against Ollama, qwen2.5:0.5b round-trip succeeded); a Spring Boot 4 path will become possible once Alibaba publishes a Spring AI 2.x-aligned `spring-ai-alibaba-agent-framework`. Forcing Spring AI 2.0.0 across the classpath today fails at `ReactAgent` construction with `NoClassDefFoundError`. AgentScope (`atmosphere-agentscope`) is unaffected — it builds its OpenAI-compatible client through `AiConfig` directly and is validated end-to-end on Spring Boot 4.
+**Spring AI Alibaba runtime — Spring Boot 3 only today.** Spring AI Alibaba `1.1.2.2` is compiled against Spring AI `1.1.6` and `spring-ai-alibaba-graph-core-1.1.2.2` hardcodes references to Spring AI 1.1.x-only types (e.g. `org.springframework.ai.deepseek.DeepSeekAssistantMessage`), so the runtime requires Spring AI 1.1.6 on the classpath. Spring AI 1.1.6 in turn requires Spring Boot 3 (it references the SB3-era FQN `org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration`; Spring Boot 4 has the same class but at the renamed FQN `org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration`). Net result: `atmosphere-spring-ai-alibaba` runs end-to-end on Spring Boot 3 today (verified via chrome-devtools through the bundled Console against Ollama, qwen2.5:0.5b round-trip succeeded); a Spring Boot 4 path will become possible once Alibaba publishes a Spring AI 2.x-aligned `spring-ai-alibaba-agent-framework`. Forcing Spring AI 2.0.0 across the classpath today fails at `ReactAgent` construction with `NoClassDefFoundError`. AgentScope (`atmosphere-agentscope`) is unaffected — it builds its OpenAI-compatible client through `AiConfig` directly and is validated end-to-end on Spring Boot 4.
 
 ### AiInterceptor
 
@@ -282,8 +282,8 @@ enforcement when the upstream library exposes a mappable knob.
 | LangChain4j (`LangChain4jAgentRuntime`) | ✓ via guard | hint via sidecar (caller-controlled) | When the caller routes through the `LangChain4jAiServices` sidecar, the cap lives on `AiServices.builder().maxSequentialToolsInvocations(int).build()` (set once at construction) |
 | Spring AI (`SpringAiAgentRuntime`) | ✓ via guard | hint only — falls through to Spring AI default | Spring AI 2.0.0 exposes `OpenAiChatModel.Builder.toolExecutionEligibilityPredicate(...)` at ChatModel construction time (not per-request); per-request wiring would require Atmosphere to wrap user-supplied ChatModels |
 | Spring AI Alibaba | ✓ via guard | hint only | Inherits Spring AI's lack of per-request knob. `ReactAgent` and Alibaba's `RunnableConfig` do not expose an iteration cap |
-| ADK (`AdkAgentRuntime`) | ✓ via guard | hint only — native wiring planned | ADK 1.0.0 ships `LlmAgent.Builder.maxSteps(int)` at agent construction. Native per-request wiring (rebuild leaf `LlmAgent` per request, or counting `BeforeModelCallback` reading session state) is tractable but not yet implemented |
-| Semantic Kernel (`SemanticKernelAgentRuntime`) | ✓ via guard | hint only | SK 1.4.0 `ToolCallBehavior.getMaximumAutoInvokeAttempts()` is a getter only; the constructor and `allowAllKernelFunctions(...)` factory chain do not accept a max-attempts integer. Subclassing requires reflection on package-private fields |
+| ADK (`AdkAgentRuntime`) | ✓ via guard | hint only — native wiring planned | ADK 1.2.0 ships `LlmAgent.Builder.maxSteps(int)` at agent construction. Native per-request wiring (rebuild leaf `LlmAgent` per request, or counting `BeforeModelCallback` reading session state) is tractable but not yet implemented |
+| Semantic Kernel (`SemanticKernelAgentRuntime`) | ✓ via guard | hint only | SK 1.5.0 `ToolCallBehavior.getMaximumAutoInvokeAttempts()` is a getter only; the constructor and `allowAllKernelFunctions(...)` factory chain do not accept a max-attempts integer. Subclassing requires reflection on package-private fields |
 | AgentScope (`AgentScopeAgentRuntime`) | ✓ via guard | hint only — native wiring planned | AgentScope 1.0.12 ships `ReActAgent.Builder.maxIters(int)` at agent construction. Native per-request wiring (rebuild via builder when policy attached) is tractable but not yet implemented |
 | Embabel (`EmbabelAgentRuntime`) | ✓ via guard | hint only | Embabel 0.3.5 exposes `withToolLoopInspectors` + `ToolLoopInspector.afterIteration(AfterIterationContext)`, which could translate a policy directly to `MaxIterationsExceededException`; native wiring is not implemented yet |
 
@@ -964,7 +964,7 @@ TCD=TOOL_CALL_DELTA, BE=BUDGET_ENFORCEMENT, CS=CONFIDENCE_SCORES, PSV=PASSIVATIO
 final reply ships as a single `session.send()` chunk and Atmosphere's transport
 still streams that chunk to the client over WebSocket / SSE / long-poll. The
 limitation is that the LLM round-trip itself is **buffered** — Spring AI Alibaba's
-`ReactAgent.call()` is synchronous as of v1.1.2.0, so there are no incremental
+`ReactAgent.call()` is synchronous as of v1.1.2.2, so there are no incremental
 token deltas from the LLM. Callers who need token-by-token streaming should drive
 Spring AI's `StreamingChatModel` directly via `atmosphere-spring-ai`.
 
@@ -1117,7 +1117,7 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   needed a compile-time annotation processor or bytecode synthesis; that claim was
   wrong — `KernelFunction`'s protected constructor and abstract `invokeAsync` are
   designed exactly for this use case. `VISION` / `AUDIO` / `MULTI_MODAL` /
-  `PROMPT_CACHING` / `AGENT_ORCHESTRATION` remain undeclared because SK 1.4.0's
+  `PROMPT_CACHING` / `AGENT_ORCHESTRATION` remain undeclared because SK 1.5.0's
   `ChatCompletionService.getStreamingChatMessageContentsAsync` does not expose
   those surfaces on the Atmosphere bridge path.
 - **AgentScope Java** declares the minimum honest set: `TEXT_STREAMING` rides
@@ -1151,8 +1151,8 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   `SpringAiAlibabaToolBridge` attached when `context.tools()` is non-empty; the
   bridge routes every tool invocation through
   `ToolExecutionHelper.executeWithApproval` so `@RequiresApproval` gates fire
-  uniformly. **Spring Boot 3.5 only**: Spring AI Alibaba 1.1.2.0
-  transitively pulls Spring AI 1.1.2 which references Spring Boot 3.x
+  uniformly. **Spring Boot 3.5 only**: Spring AI Alibaba 1.1.2.2
+  transitively pulls Spring AI 1.1.6 which references Spring Boot 3.x
   autoconfigure classes (e.g. `RestClientAutoConfiguration`) that don't exist
   in Spring Boot 4 — the CLI overlay must be applied with `-Pspring-boot3`,
   same situation as Embabel.

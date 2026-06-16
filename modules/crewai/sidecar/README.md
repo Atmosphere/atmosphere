@@ -209,7 +209,7 @@ source .venv/bin/activate
 python -m pytest tests/ -v
 ```
 
-The Java side has its own 8-test suite (`CrewAiAgentRuntimeBridgeTest`)
+The Java side has its own 9-test suite (`CrewAiAgentRuntimeBridgeTest`)
 that drives the runtime against an embedded HTTP server speaking the
 same wire shape. Together the two suites pin the protocol from both
 ends.

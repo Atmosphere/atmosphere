@@ -37,7 +37,7 @@ cd my-app && ./mvnw -Pspring-boot3 spring-boot:run
 ## Buffered streaming — important
 
 Spring AI Alibaba's `ReactAgent.call(List<Message>) → AssistantMessage`
-is **synchronous** as of v1.1.2.0; there is no native `Flux<...>` /
+is **synchronous** as of v1.1.2.2; there is no native `Flux<...>` /
 streaming agent method. This adapter wraps `call(...)` and delivers the
 full reply as a single `session.send(text)` chunk followed by
 `session.complete()`. The Atmosphere transport still frames that chunk
@@ -169,8 +169,8 @@ cross-runtime view.
 
 ## Requirements
 
-- **Spring Boot 3.5 only.** Spring AI Alibaba 1.1.2.0 transitively
-  pulls Spring AI 1.1.2 which references Spring Boot 3.x autoconfigure
+- **Spring Boot 3.5 only.** Spring AI Alibaba 1.1.2.2 transitively
+  pulls Spring AI 1.1.6 which references Spring Boot 3.x autoconfigure
   classes (e.g. `RestClientAutoConfiguration`) that don't exist in
   Spring Boot 4 — same situation as `atmosphere-embabel`. The CLI
   overlay must be applied with `-Pspring-boot3` and the parent
@@ -180,7 +180,7 @@ cross-runtime view.
   adapter.
 - Java 21+
 - `atmosphere-ai` (transitive)
-- Spring AI Alibaba 1.1.2.0+
-- Spring AI 1.1.2 (pinned via `spring-ai-alibaba-spring-ai.version` to
-  avoid clashing with Atmosphere's broader Spring AI 2.0.0-Mx baseline
+- Spring AI Alibaba 1.1.2.2+
+- Spring AI 1.1.6 (pinned via `spring-ai-alibaba-spring-ai.version` to
+  avoid clashing with Atmosphere's broader Spring AI 2.0.0 baseline
   used in `atmosphere-spring-ai`)

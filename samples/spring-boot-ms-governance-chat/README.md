@@ -42,8 +42,8 @@ The console header reads *"Microsoft Agent Governance Toolkit — rules-over-con
 ```yaml
 # src/main/resources/atmosphere-policies.yaml
 version: "1.0"
-name: ms-governance-demo
-description: Demonstrates Atmosphere running Microsoft Agent Governance Toolkit YAML unchanged
+name: ms-customer-service-demo
+description: Customer-support governance matching MS Agent OS customer-service example
 
 rules:
   - name: block-destructive-sql
@@ -107,9 +107,9 @@ Open the console at `http://localhost:8090/atmosphere/console/`:
 
 | Prompt | Expected bubble | Operator exercised |
 |---|---|---|
-| `please DROP TABLE users` | **Error:** *Denied by policy 'ms-governance-demo': Destructive SQL statements are not permitted in this chat.* | `matches` (regex) |
-| `I will sue us if this isn't fixed` | **Error:** *Denied by policy 'ms-governance-demo': Legal-language queries are routed to a human agent — the AI cannot handle them.* | `matches` (regex) |
-| `my SSN is 123-45-6789` | **Error:** *Denied by policy 'ms-governance-demo': The message looks like it contains a US Social Security number; refusing to process.* | `matches` (regex) |
+| `please DROP TABLE users` | **Error:** *Denied by policy 'ms-customer-service-demo': Destructive SQL statements are not permitted in this chat.* | `matches` (regex) |
+| `I will sue us if this isn't fixed` | **Error:** *Denied by policy 'ms-customer-service-demo': Legal-language queries are routed to a human agent — the AI cannot handle them.* | `matches` (regex) |
+| `my SSN is 123-45-6789` | **Error:** *Denied by policy 'ms-customer-service-demo': The message looks like it contains a US Social Security number; refusing to process.* | `matches` (regex) |
 | `hello, what services do you offer?` | **AI:** *Got it — you said: "hello, what services do you offer?". …* | No rule matched → `defaults.action: allow` |
 
 Every denial surfaces MS's exact `message:` field — no re-phrasing, no editorializing.
@@ -129,7 +129,7 @@ curl -s http://localhost:8090/api/admin/governance/policies | jq
 ```json
 [
   {
-    "name": "ms-governance-demo",
+    "name": "ms-customer-service-demo",
     "source": "classpath:atmosphere-policies.yaml",
     "version": "1.0",
     "className": "org.atmosphere.ai.governance.MsAgentOsPolicy"
@@ -161,7 +161,7 @@ curl -s -X POST http://localhost:8090/api/admin/governance/check \
   "allowed": false,
   "decision": "deny",
   "reason": "Destructive SQL statements are not permitted in this chat.",
-  "matched_policy": "ms-governance-demo",
+  "matched_policy": "ms-customer-service-demo",
   "matched_source": "classpath:atmosphere-policies.yaml",
   "evaluation_ms": 3.27
 }

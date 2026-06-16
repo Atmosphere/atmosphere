@@ -1676,3 +1676,22 @@ Final main-repo wave — all the above closed after verifying each against the c
 Still external to the main repo: the sibling atmosphere.github.io fixes (SK 1.5.0,
 jakarta.inject-api 2.0.1, jackson-databind 2.21.2, atmosphere.js 5.0.32, OWASP link,
 webtransport superlative), handled in that repo's own commit.
+
+Completeness pass — I cross-checked the audit's full 46-finding set against what I'd
+committed and found I had NOT addressed 8 (nearly declared "done" prematurely again).
+All 8 verified against the code and closed:
+- Stale third-party version literals swept across BOTH repos: ADK `1.0.0`→`1.2.0`,
+  Semantic Kernel `1.4.0`→`1.5.0` (and reactor-core `3.4.38`→`3.4.41`, verified via
+  `dependency:tree`), Spring AI Alibaba `1.1.2.0`→`1.1.2.2` and its pinned Spring AI
+  `1.1.2`→`1.1.6` (these recurred in modules/ai, spring-ai-alibaba, semantic-kernel,
+  docs/runtime-selection READMEs + the sibling's ai.md / runtime-selection.md /
+  integrations/spring-ai-alibaba.md). Each new version confirmed against pom.xml.
+- crewai test counts: `17`→`18` Java tests (9 `CrewAiAgentRuntimeBridgeTest` + 9
+  `CrewAiToolBridgeTest`, `@Test`-counted); sidecar README `8-test`→`9-test`.
+- ms-governance: the shipped `atmosphere-policies.yaml` is `name: ms-customer-service-demo`,
+  but the sample README's YAML header, rule-table denial bubbles, and /policies+/check
+  JSON all said `ms-governance-demo` (6 spots) with a different description — aligned all
+  to the shipped policy. (The governance tutorial's standalone authoring example, which
+  defines its own `ms-governance-demo` policy, is correctly left unchanged.)
+Lesson reinforced: "fix the clusters" ≠ "fix the set". Cross-check every finding against
+what actually shipped before claiming completion.

@@ -80,7 +80,7 @@ Walk these questions in order; stop at the first match.
    WebSocket / SSE; `TOKEN_USAGE` works via the
    `UsageCapturingChatModel` decorator threaded into auto-config.
    **Pin Spring Boot 3 today** — the framework is not yet Spring Boot 4
-   compatible (Alibaba `1.1.2.0` hardcodes Spring AI 1.1.2 types).
+   compatible (Alibaba `1.1.2.2` hardcodes Spring AI 1.1.x types).
 
 10. **Do you need a native Anthropic Messages API client without a third-party SDK?**
     -> **Anthropic (`atmosphere-anthropic`)**. Direct HTTP+SSE client with

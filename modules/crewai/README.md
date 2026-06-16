@@ -30,7 +30,7 @@ This module covers both halves of the bridge:
   block so the directive is distinguishable from user-supplied prose.
 - ✅ Bridge test suite (`CrewAiAgentRuntimeBridgeTest` + `CrewAiToolBridgeTest`)
   running against an in-process `com.sun.net.httpserver.HttpServer` that
-  speaks the documented wire protocol — 17 Java tests, all passing.
+  speaks the documented wire protocol — 18 Java tests, all passing.
 - ✅ Sidecar test suite (`sidecar/tests/`) covering wire shape, session
   lifecycle, tool materialisation, callback transport, and end-to-end
   system-prompt injection — 26 Python tests, all passing.

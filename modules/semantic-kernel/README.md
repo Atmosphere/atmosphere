@@ -62,11 +62,11 @@ SK's non-null `ToolCallBehavior` requirement satisfied.
 
 ## Known limitations
 
-- **Sync boundary**: both `AgentRuntime.execute()` and `EmbeddingRuntime.embed()` call Reactor `.block()` inside the SPI. SK 1.4.0 transitively ships `reactor-core:3.4.38` which can pin carrier threads on virtual-thread runtimes. Atmosphere's Spring Boot starter overrides this to Reactor 3.7+ (VT-safe); standalone users without Spring Boot should force `reactor-core >= 3.6.0` via `dependencyManagement`.
+- **Sync boundary**: both `AgentRuntime.execute()` and `EmbeddingRuntime.embed()` call Reactor `.block()` inside the SPI. SK 1.5.0 transitively ships `reactor-core:3.4.41` which can pin carrier threads on virtual-thread runtimes. Atmosphere's Spring Boot starter overrides this to Reactor 3.7+ (VT-safe); standalone users without Spring Boot should force `reactor-core >= 3.6.0` via `dependencyManagement`.
 - **Model selection**: `models()` returns the deployment name from the configured `OpenAIAsyncClient` when available, empty list otherwise.
 
 ## Requirements
 
 - Java 21+
-- `com.microsoft.semantic-kernel:semantickernel-api:1.4.0+`
-- `com.microsoft.semantic-kernel:semantickernel-aiservices-openai:1.4.0+` (provided scope)
+- `com.microsoft.semantic-kernel:semantickernel-api:1.5.0+`
+- `com.microsoft.semantic-kernel:semantickernel-aiservices-openai:1.5.0+` (provided scope)
