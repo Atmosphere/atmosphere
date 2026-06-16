@@ -225,12 +225,12 @@ so only the dependency set changes.
 
 - **Theory:** linear integer arithmetic over tool-call arguments and symbolic
   bindings. Real/rational and bit-vector reasoning are not wired today.
-- **Plan shape:** the verifier AST (`PlanNode`) is currently linear
-  (`ToolCallNode` only); there is **no control-flow** (conditionals/loops) yet.
-  The SMT layer therefore proves value relationships across a straight-line
-  plan. When control-flow nodes are added to the AST, path-sensitive cost/budget
-  proofs become the natural next invariant class — and Z3 (vs SMTInterpol) earns
-  a larger margin there.
+- **Plan shape:** the verifier AST (`PlanNode`) covers linear tool-call
+  sequences and `ConditionalNode` branches (loops are not modeled yet). The SMT
+  layer proves value relationships across straight-line plans and both arms of a
+  conditional (`AbstractJavaSmtChecker` recurses into `thenSteps`/`elseSteps`).
+  Loop/iteration nodes would be the natural next invariant class — and Z3 (vs
+  SMTInterpol) earns a larger margin there.
 - **Nested SymRefs:** only top-level argument values are lowered; deeply nested
   `SymRef`s inside lists/maps are treated as non-numeric (mirrors the executor's
   top-level resolution).

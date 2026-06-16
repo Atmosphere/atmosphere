@@ -110,7 +110,7 @@ came from the expected coordinator, (b) the request is unmodified,
 ./mvnw spring-boot:run -pl samples/spring-boot-checkpoint-agent
 
 # Fire a request
-wscat -c ws://localhost:8080/atmosphere/dispatch
+wscat -c ws://localhost:8095/atmosphere/dispatch
 > please refund order 1234
 
 # Inspect the Commitments tab at /atmosphere/admin/ — each analyzer hop
@@ -119,7 +119,7 @@ wscat -c ws://localhost:8080/atmosphere/dispatch
 # (published at /api/admin/governance/health → policies[].digest).
 
 # Hours later — approve via REST (resumes the workflow from the checkpoint)
-curl -X POST http://localhost:8080/api/checkpoints/{id}/approve
+curl -X POST http://localhost:8095/api/checkpoints/{id}/approve
 # The approver agent's dispatch ALSO emits a signed CommitmentRecord,
 # cryptographically linked to the original analyzer snapshot.
 ```

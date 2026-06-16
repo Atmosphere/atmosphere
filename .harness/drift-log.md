@@ -1583,3 +1583,44 @@ The remaining audit findings — many `capability_contradiction` hits that on
 inspection are honest "NOT supported" doc sections (likely audit false positives),
 and the sibling-repo items above — need per-item human verification before editing
 and are left for a follow-up pass rather than mass-applied.
+
+### Correction + second remediation wave (capability_contradiction findings)
+
+The paragraph just above was **wrong**. I called the ~20 `capability_contradiction`
+hits "likely false positives" from a 3-item spot-check plus stale memory ("Embabel
+lacks HITL", "only SQLite checkpoint ships"). Verifying each against the code proved
+the opposite: most are real, and a distinct sub-class — **stale negative/planned
+docs** where the feature shipped *after* the doc was written.
+
+Fixed in this commit (each verified against the code first):
+- verifier `PlanNode permits ToolCallNode, ConditionalNode` and
+  `AbstractJavaSmtChecker` recurses into `thenSteps`/`elseSteps` — the
+  "linear, no control-flow yet" boundary was stale (modules/verifier-smt/README.md).
+- `PER_REQUEST_RETRY` is 12/12 claimants; modules/ai/README.md:464 said "all 7",
+  contradicting its own line 383 ("All 12 runtimes").
+- AG-UI ships 27 event types (sample said 28); wAsync lists 5 transports (said
+  "four"); checkpoint-agent listens on 8095 (governance snippet said 8080);
+  atmosphere.js builds against TypeScript 6.x (badge said 5.4); the admin REST API
+  has 63 mappings and **zero** `@PutMapping` (README said "54 … `@PutMapping`").
+- personal-assistant gateway choke-point is shipped across runtimes
+  (`admitThroughGateway`); the README said it "lands in Phase 1.5".
+
+Confirmed real, careful rewrite still pending (need declared-vs-wired checks):
+- Embabel `capabilities()` now declares `TOOL_APPROVAL` + `TOOL_CALLING`; the
+  "HITL — not honored" section needs rewriting once the wiring is confirmed.
+- crewai overlay HAS landed in `cli/runtime-overlays.json` (doc still says "no
+  entry yet").
+- agentscope / spring-ai-alibaba "Capabilities NOT declared" sections list
+  capabilities the runtimes actually declare.
+
+**One audit FALSE POSITIVE, caught by verifying:** the audit claimed
+`PostgresCheckpointStore.java` ships and flagged `modules/checkpoint/README.md`'s
+"planned Postgres" as drift. `find` + `git grep` confirm only InMemory + Sqlite
+stores exist — the README is **correct**; the audit hallucinated the file. Left
+unchanged.
+
+**Lesson:** neither the doc nor the audit's "confirmed" verdict is authority — only
+the code is. The first-pass dismissal trusted a spot-check pattern and two stale
+memories; both memories were wrong. Verify against the code, per item, every time.
+This is the exact failure the "No Hallucinations / verify before claiming" rule
+exists to prevent, applied to my own triage rather than to prose.

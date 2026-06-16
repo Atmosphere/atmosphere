@@ -11,7 +11,7 @@ When you send a message, the assistant:
 3. Streams **text word by word** (`TEXT_MESSAGE_CONTENT`) with a blinking cursor
 4. Finishes with `RUN_FINISHED`
 
-All 28 AG-UI event types are supported (lifecycle, text, tools, state, reasoning, activity).
+All 27 AG-UI event types are supported (lifecycle, text, tools, state, reasoning, activity).
 
 ## Running
 

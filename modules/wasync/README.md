@@ -42,7 +42,7 @@ socket.fire("Hello from wAsync!");
 
 ## Transports
 
-wAsync supports four transports. Specify one or chain them for automatic fallback:
+wAsync supports five transports. Specify one or chain them for automatic fallback:
 
 | Transport | Protocol | Use Case |
 |-----------|----------|----------|

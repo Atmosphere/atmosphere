@@ -461,7 +461,7 @@ bridge into these hooks from their adapter module — see the per-module
 README for the cross-runtime adoption status. Same posture as
 `ToolLoopPolicy`: Built-in honors it natively, and the SPI is in place
 for framework-runtime authors to wire up their bridges. (Distinct from
-`PER_REQUEST_RETRY`, which all 7 claimants honor today via two distinct
+`PER_REQUEST_RETRY`, which all 12 claimants honor today via two distinct
 implementations — see "Per-Request Retry Architecture" below.)
 
 `AiEventForwardingListener` is a built-in adapter that translates these

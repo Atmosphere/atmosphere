@@ -25,7 +25,7 @@ crew (scheduler, research, drafter) dispatched through
   surface to the drafter / research agents with credentials resolved
   through the trust provider backed by the user's `CredentialStore`.
 - **`AiGateway`** — every LLM call enters the gateway for rate limiting
-  and trace emission (choke-point wire-in lands in Phase 1.5).
+  and trace emission.
 
 ## Running
 

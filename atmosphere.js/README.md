@@ -3,7 +3,7 @@
 TypeScript client for the Atmosphere Framework. Supports WebSocket, SSE, Long-Polling, Streaming, and WebTransport transports.
 
 [![npm version](https://img.shields.io/npm/v/atmosphere.js)](https://www.npmjs.com/package/atmosphere.js)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## Features
