@@ -111,6 +111,18 @@ authoritative cross-runtime view. Honest declared set:
   `AbstractAgentRuntime.executeWithOuterRetry`. The base class wraps
   `doExecute(...)` so any `RuntimeException` thrown before the first
   `session.send(...)` is retried up to `policy.maxRetries()`.
+- **Tool calling / approval** — `SpringAiAlibabaToolBridge` bridges Atmosphere
+  `ToolDefinition`s into Spring AI Alibaba's tool surface and routes every
+  invocation through `ToolExecutionHelper.executeWithApproval`, so
+  `@RequiresApproval` fires the same cross-runtime approval/parking flow.
+- **Vision / audio / multi-modal** — `attachMediaToTrailingUserMessage` maps
+  Atmosphere `Content.Image` / `Content.Audio` parts onto the trailing user
+  message before dispatch.
+- **Token usage** — `ReactAgent.call(...)` returns a usage-less
+  `AssistantMessage`, so a per-dispatch `UsageCollector` captures token counts
+  and reports them via `StreamingSession.usage(TokenUsage)`.
+- **Cancellation, budget enforcement, confidence scores, passivation** —
+  provided by the shared `AbstractAgentRuntime` base and the AI pipeline.
 
 ## Per-Request RunnableConfig (`SpringAiAlibabaRunnableConfig`)
 
@@ -146,25 +158,14 @@ behavior.
 
 ## Capabilities NOT declared (and why)
 
-- `TOKEN_USAGE` — `ReactAgent.call(...)` returns `AssistantMessage`,
-  which has no surface for the `ChatResponse` usage metadata. The
-  agent framework's `CompiledGraph` captures usage internally but does
-  not expose it through the `call(...)` API as of v1.1.2.0; reading
-  the graph's run state is brittle across versions.
-- `TOOL_CALLING` / `TOOL_APPROVAL` — Spring AI Alibaba's tool surface
-  bridges Spring AI `FunctionCallback`s. A dedicated
-  `SpringAiAlibabaToolBridge` (one that satisfies the cross-runtime
-  `TOOL_APPROVAL` invariant by routing through
-  `ToolExecutionHelper.executeWithApproval`) is the prerequisite to
-  declaring these honestly. This first cut leaves them off.
-- `VISION` / `AUDIO` / `MULTI_MODAL` — Atmosphere's `Content.Image` /
-  `Content.Audio` parts need mapping to Spring AI's `Media` types on
-  the `UserMessage`. Same approach as
-  `LangChain4jAgentRuntime.doExecuteWithHandle`, scaled down for
-  buffered dispatch.
 - `PROMPT_CACHING` — would need threading `CacheHint` into Spring AI
   Alibaba's per-request `RunnableConfig`; the framework does not
   expose a portable cache-control primitive at the agent level today.
+
+`TOOL_CALL_DELTA`, `AGENT_ORCHESTRATION`, `MODEL_ENUMERATION`, and
+`MULTI_AGENT_HANDOFF` are likewise not declared — see the
+[capability matrix](../ai/README.md#capability-matrix) for the authoritative
+cross-runtime view.
 
 ## Requirements
 

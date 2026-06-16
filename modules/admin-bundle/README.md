@@ -61,7 +61,7 @@ Run the app and visit:
 | Page | URL | What it shows |
 |------|-----|---------------|
 | Dashboard | `/atmosphere/admin/` | Overview: broadcasters, agents, governance summary, runtime status |
-| Journal flow | `/atmosphere/admin/flow.html` | Live agent-to-agent dispatch graph (read-only) |
+| Journal flow | `/atmosphere/admin/` (Flow tab) | Live agent-to-agent dispatch graph (read-only), data via `GET /api/admin/flow` |
 | Workflow authoring | `/atmosphere/admin/workflow.html` | Create / edit `WorkflowManifest` JSON saved through `WorkflowStore` |
 | Eval dashboard | `/atmosphere/admin/evals.html` | Pass-rate per golden eval baseline + recent run table |
 

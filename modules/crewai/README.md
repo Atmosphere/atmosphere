@@ -245,10 +245,6 @@ Per [`feedback_no_per_runtime_samples.md`](../../.claude/memory/feedback_no_per_
   ships, the existing `samples/spring-boot-ai-chat` will pick CrewAI
   up via `ServiceLoader` as long as `ATMOSPHERE_CREWAI_SIDECAR_URL` is
   set. One sample, many runtimes.
-- **No `cli/runtime-overlays.json` entry yet.** The CLI scaffolder
-  must not produce broken samples. The overlay lands together with
-  the sidecar package so `atmosphere new my-app --runtime crewai`
-  scaffolds an app that can actually run.
 
 ## Architecture
 

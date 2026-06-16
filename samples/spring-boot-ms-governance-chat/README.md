@@ -58,11 +58,11 @@ rules:
   - name: block-legal-escalation
     condition:
       field: message
-      operator: contains
-      value: "sue us"
+      operator: matches
+      value: '(?i)\b(lawsuit|lawyer|attorney|legal\s+action|sue|discriminat|harass|racist|sexist)\b'
     action: deny
     priority: 90
-    message: "Legal-threat language is routed to a human agent — the AI cannot handle it."
+    message: "Legal-language queries are routed to a human agent — the AI cannot handle them."
 
   - name: block-ssn-shape
     condition:
@@ -108,7 +108,7 @@ Open the console at `http://localhost:8090/atmosphere/console/`:
 | Prompt | Expected bubble | Operator exercised |
 |---|---|---|
 | `please DROP TABLE users` | **Error:** *Denied by policy 'ms-governance-demo': Destructive SQL statements are not permitted in this chat.* | `matches` (regex) |
-| `I will sue us if this isn't fixed` | **Error:** *Denied by policy 'ms-governance-demo': Legal-threat language is routed to a human agent — the AI cannot handle it.* | `contains` (substring) |
+| `I will sue us if this isn't fixed` | **Error:** *Denied by policy 'ms-governance-demo': Legal-language queries are routed to a human agent — the AI cannot handle them.* | `matches` (regex) |
 | `my SSN is 123-45-6789` | **Error:** *Denied by policy 'ms-governance-demo': The message looks like it contains a US Social Security number; refusing to process.* | `matches` (regex) |
 | `hello, what services do you offer?` | **AI:** *Got it — you said: "hello, what services do you offer?". …* | No rule matched → `defaults.action: allow` |
 

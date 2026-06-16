@@ -1654,3 +1654,25 @@ not-declared set is AGENT_ORCHESTRATION, MODEL_ENUMERATION, MULTI_AGENT_HANDOFF,
 PROMPT_CACHING, TOOL_CALL_DELTA; crewai overlay bullet (sidecar publish status
 unverified); ms-governance:61 (audit evidence was truncated — exact mismatch not
 reproduced); admin-bundle:64 Journal-flow URL (audit citation flag, unverified).
+
+Final main-repo wave — all the above closed after verifying each against the code:
+- spring-ai-alibaba: rewrote both capability sections. All 15 declared caps now
+  listed with verified mechanics (tool calling/approval via `SpringAiAlibabaToolBridge`
+  → `executeWithApproval`; vision/audio/multi-modal via `attachMediaToTrailingUserMessage`;
+  token usage via a per-dispatch `UsageCollector` since `ReactAgent.call` returns a
+  usage-less `AssistantMessage`); "NOT declared" trimmed to the real set
+  (`PROMPT_CACHING` + `TOOL_CALL_DELTA`/`AGENT_ORCHESTRATION`/`MODEL_ENUMERATION`/`MULTI_AGENT_HANDOFF`).
+- crewai: the overlay entry IS present and complete in `cli/runtime-overlays.json`
+  (deps + `pipx install atmosphere-crewai-bridge` sidecar note), so the "no entry yet"
+  bullet was removed (my earlier top-level `.get("crewai")` returned `{}` only because
+  the entry is nested under a parent key).
+- ms-governance: the README's `block-legal-escalation` YAML + rule-table said
+  `operator: contains, value: "sue us"`, but the shipped `atmosphere-policies.yaml`
+  uses `operator: matches` with a regex (`(?i)\b(lawsuit|...|sue|...)\b`). Aligned the
+  README YAML, the rule-table operator column, and the deny message to the shipped policy.
+- admin-bundle: `flow.html` does not exist — the Journal flow is a dashboard TAB backed
+  by `GET /api/admin/flow` (`AtmosphereAdminEndpoint:450`). Fixed the table URL.
+
+Still external to the main repo: the sibling atmosphere.github.io fixes (SK 1.5.0,
+jakarta.inject-api 2.0.1, jackson-databind 2.21.2, atmosphere.js 5.0.32, OWASP link,
+webtransport superlative), handled in that repo's own commit.
