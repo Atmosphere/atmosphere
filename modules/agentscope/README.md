@@ -139,16 +139,11 @@ default — preserving prior behavior.
 
 ## Capabilities NOT declared (and why)
 
-Bridging these would mean adding a translation seam this first cut
-doesn't yet ship. They will be declared honestly only when the bridge
-exists:
+`TOOL_CALLING` / `TOOL_APPROVAL` (via `AgentScopeToolBridge` →
+`ToolExecutionHelper.executeWithApproval`) and `VISION` / `AUDIO` /
+`MULTI_MODAL` (via `ContentBlock` mapping) now ship and are declared. The one
+remaining gap:
 
-- `TOOL_CALLING` / `TOOL_APPROVAL` — AgentScope's `Toolkit` and
-  `ToolExecutor` need translation into Atmosphere's `ToolDefinition`
-  surface, routed through `ToolExecutionHelper.executeWithApproval`.
-- `VISION` / `AUDIO` / `MULTI_MODAL` — Atmosphere's `Content.Image` /
-  `Content.Audio` parts need mapping to AgentScope `ContentBlock`
-  subtypes.
 - `PROMPT_CACHING` — AgentScope does not expose a portable cache-key
   primitive on the `Model` interface as of v1.0.12.
 

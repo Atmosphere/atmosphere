@@ -1624,3 +1624,18 @@ the code is. The first-pass dismissal trusted a spot-check pattern and two stale
 memories; both memories were wrong. Verify against the code, per item, every time.
 This is the exact failure the "No Hallucinations / verify before claiming" rule
 exists to prevent, applied to my own triage rather than to prose.
+
+Closed after verifying the wiring (not just the declaration): Embabel's
+Atmosphere-native dispatch path routes every tool through
+`ToolExecutionHelper.executeWithApproval` (`EmbabelAgentRuntime.kt:454`), so the
+"HITL — not honored" section was rewritten to "honored". AgentScope declares +
+wires `TOOL_CALLING`/`TOOL_APPROVAL` (`AgentScopeToolBridge` → `ToolExecutionHelper`)
+and `VISION`/`AUDIO`/`MULTI_MODAL`, so its "Capabilities NOT declared" list was
+trimmed to the one real gap (`PROMPT_CACHING`). coding-agent's summary said
+"proposes a patch" while its own body says "does not generate a patch" — summary
+corrected. Still pending careful rewrites (verified real, not rushed at session
+tail): spring-ai-alibaba's "Honest declared set" (lists 5 of 15 declared caps) +
+its stale "NOT declared" list (TOKEN_USAGE/TOOL_CALLING are declared+wired);
+crewai's overlay bullet (entry landed — confirm sidecar-package completeness
+before editing); embedded-jetty's "vanilla JavaScript" (ships React/Vite);
+admin-bundle's `DENY_ALL` effective-default claim (check the bundle auto-config).

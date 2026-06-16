@@ -1,7 +1,6 @@
 # spring-boot-coding-agent
 
-Clones a Git repository into a sandbox, reads files, and proposes a
-patch. Exercises the primitives the personal-assistant sample does not
+Clones a Git repository into a sandbox and reads files. Exercises the primitives the personal-assistant sample does not
 touch:
 
 - **`Sandbox`** — every file and command goes through the SPI. Docker is
