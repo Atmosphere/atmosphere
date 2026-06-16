@@ -143,9 +143,16 @@ public class DefaultSocket implements Socket {
         }
         status = STATUS.INIT;
 
-        // Sync socket status when the transport fires OPEN
+        // Sync socket status when the transport fires OPEN. A user-initiated
+        // close() is authoritative: once status is CLOSE, a late OPEN event
+        // (an in-flight connect completing, or a gRPC stream re-establishing
+        // after a server disconnect) must not resurrect the socket to OPEN.
+        // Without this guard the OPEN callback races close() and clobbers the
+        // CLOSE the caller just set (GrpcWasyncTransportTest.testWasyncGrpcDisconnect).
         transport.registerFunction(new FunctionBinding(Event.OPEN.name(), (Function<Object>) o -> {
-            status = STATUS.OPEN;
+            if (status != STATUS.CLOSE) {
+                status = STATUS.OPEN;
+            }
         }));
 
         var uri = buildUri(request);

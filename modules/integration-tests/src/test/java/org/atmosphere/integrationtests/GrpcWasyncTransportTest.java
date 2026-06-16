@@ -241,15 +241,13 @@ public class GrpcWasyncTransportTest {
         socket.close();
 
         assertTrue(closeLatch.await(5, TimeUnit.SECONDS), "CLOSE event should fire");
-        // wAsync updates Socket.status() on its dispatch thread AFTER the
-        // CLOSE event callback returns, so a straight read right here races
-        // the transition. Earlier attempts bumped the poll budget from 2s
-        // to 5s; on JDK 26 CI runners the scheduler gap between the
-        // callback and the status CAS still occasionally exceeds that.
-        // Widen to 20s — the same order of magnitude as the @Timeout that
-        // bounds the whole test — so the assertion fails only on a real
-        // protocol regression, not on scheduler latency variance.
-        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
+        // close() sets STATUS.CLOSE authoritatively, and DefaultSocket no longer
+        // lets a late transport OPEN event clobber it (the root cause of the old
+        // expected:CLOSE/was:OPEN flake — fixed in DefaultSocket's OPEN handler).
+        // Status is therefore CLOSE as soon as close() returns; this short poll
+        // only covers the gap between the CLOSE-event callback firing and close()
+        // finishing activeTransport.close().
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (socket.status() != Socket.STATUS.CLOSE && System.nanoTime() < deadline) {
             Thread.sleep(20);
         }
