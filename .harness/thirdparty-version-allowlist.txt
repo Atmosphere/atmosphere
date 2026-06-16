@@ -1,0 +1,4 @@
+# Allowlist for scripts/validate-doc-thirdparty-versions.sh (substring match
+# against "<file>: <groupId>:<artifactId>:<version>"). Use ONLY for a genuine
+# third-party artifact whose real upstream version legitimately sits on a 4.0.x
+# line. None known today.

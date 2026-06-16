@@ -170,6 +170,7 @@ DOC_VERSION_REGEX='\.md$|^pom\.xml$|^atmosphere\.js/package\.json$|^scripts/vali
 DOC_SYMBOLS_REGEX='\.md$|^(modules|samples)/.*/src/main/.*\.java$|^scripts/validate-doc-symbols\.sh$|^\.harness/doc-symbol-allowlist\.txt$'
 ORPHAN_CLASS_REGEX='^modules/.*/src/main/.*\.java$|^scripts/validate-no-orphan-classes\.sh$|^\.harness/orphan-class-allowlist\.txt$'
 FACTS_REGISTRY_REGEX='\.md$|^\.harness/facts\.json$|^scripts/validate-facts-registry\.sh$'
+THIRDPARTY_VERSION_REGEX='\.md$|^pom\.xml$|^scripts/validate-doc-thirdparty-versions\.sh$|^\.harness/thirdparty-version-allowlist\.txt$'
 
 SIGNIFICANT_FILES=""
 IGNORED_FILES=""
@@ -186,6 +187,7 @@ RUN_DANGLING_DOC=false
 RUN_DOC_VERSION=false
 RUN_DOC_SYMBOLS=false
 RUN_FACTS_REGISTRY=false
+RUN_THIRDPARTY_VERSION=false
 while IFS= read -r file; do
     [ -z "$file" ] && continue
     if echo "$file" | grep -qE "$ARCHITECTURAL_REGEX"; then
@@ -224,6 +226,9 @@ while IFS= read -r file; do
     if echo "$file" | grep -qE "$FACTS_REGISTRY_REGEX"; then
         RUN_FACTS_REGISTRY=true
     fi
+    if echo "$file" | grep -qE "$THIRDPARTY_VERSION_REGEX"; then
+        RUN_THIRDPARTY_VERSION=true
+    fi
     if echo "$file" | grep -qE "$HIGH_BLAST_REGEX"; then
         HAS_HIGH_BLAST=true
     fi
@@ -252,6 +257,7 @@ if [ "$FORCE_FULL" = true ]; then
     RUN_DOC_VERSION=true
     RUN_DOC_SYMBOLS=true
     RUN_FACTS_REGISTRY=true
+    RUN_THIRDPARTY_VERSION=true
 fi
 
 PL_LIST=""
@@ -428,6 +434,20 @@ if [ "$DRY_RUN" = false ]; then
         echo "Skipping facts-registry validation."
     fi
     echo ""
+
+    if [ "$RUN_THIRDPARTY_VERSION" = true ]; then
+        echo "Running third-party dependency-version validation."
+        if ! ./scripts/validate-doc-thirdparty-versions.sh; then
+            echo ""
+            echo "A third-party dependency example in docs carries an Atmosphere 4.0.x"
+            echo "version (likely a release-bump find/replace). Use the real upstream"
+            echo "version. Sibling-site findings are advisory only."
+            exit 1
+        fi
+    else
+        echo "Skipping third-party dependency-version validation."
+    fi
+    echo ""
 else
     echo "Dry-run — selected Tier 1 checks:"
     echo "  architectural validation : $RUN_ARCHITECTURAL"
@@ -442,6 +462,7 @@ else
     echo "  doc version alignment    : $RUN_DOC_VERSION"
     echo "  doc-symbol (annotations) : $RUN_DOC_SYMBOLS"
     echo "  facts registry           : $RUN_FACTS_REGISTRY"
+    echo "  third-party dep versions : $RUN_THIRDPARTY_VERSION"
     echo ""
 fi
 

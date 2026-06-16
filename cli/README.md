@@ -192,6 +192,7 @@ Every template sparse-clones the matching sample from `cli/samples.json` into th
 | `assistant` | `spring-boot-personal-assistant` | Long-lived memory-bearing assistant: AgentState + AgentWorkspace + AgentIdentity + ProtocolBridge |
 | `multi-agent` | `spring-boot-multi-agent-startup-team` | A `@Coordinator` (CEO) dispatching to 4 `@Agent` specialists over A2A |
 | `classroom` | `spring-boot-ai-classroom` | Shared streaming AI responses across web + Expo React Native clients |
+| `browser-agent` | `spring-boot-browser-agent` | Code-as-action agent — the model writes Playwright that drives a headless browser in an isolated sandbox container; screenshots stream to the Console live (requires Docker) |
 
 ⭐ marks the five **flagship enterprise templates** — the canonical agent
 shapes most teams reach for first. Each one is a real sample with a working

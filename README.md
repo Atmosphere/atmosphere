@@ -147,7 +147,7 @@ Capabilities are intentionally not identical. The authoritative matrix is pinned
 | Runtime adapter | Backing framework | Spring Boot | Capability highlights | Notes |
 |---|---|---|---|---|
 | `atmosphere-ai` (Built-in) | OpenAI-compatible HTTP client | 3.5 / 4.0 | tool calling, JSON mode, vision, audio, prompt caching, token usage, native retry, tool-call deltas | Default. Works with OpenAI-compatible endpoints such as OpenAI, Gemini compatibility endpoints, Ollama, and local proxies. |
-| `atmosphere-spring-ai` | Spring AI 2.0.0-M6 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | Best fit for Spring Boot applications already using Spring AI. |
+| `atmosphere-spring-ai` | Spring AI 2.0.0 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | Best fit for Spring Boot applications already using Spring AI. |
 | `atmosphere-langchain4j` | LangChain4j 1.15.0 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | Best fit for LangChain4j tool ecosystems and non-Spring services. |
 | `atmosphere-adk` | Google ADK 1.2.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching | Multi-agent runtime with `AGENT_ORCHESTRATION`. |
 | `atmosphere-koog` | JetBrains Koog 1.0.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching, cancellation | Multi-agent runtime. |

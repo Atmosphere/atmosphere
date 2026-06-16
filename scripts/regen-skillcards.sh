@@ -319,7 +319,7 @@ at `META-INF/atmosphere/SKILLCARD.yaml[.sig]`, so downstream consumers
 can verify integrity without re-fetching from this repository.
 
 Inspired by NVIDIA's verified-agent-skills catalog
-(<https://developer.nvidia.com/blog/nvidia-verified-agent-skills-...>);
+(<https://developer.nvidia.com/blog/nvidia-verified-agent-skills-provide-capability-governance-for-ai-agents/>);
 the signature envelope is the same OpenSSF Model Signing format
 NVIDIA uses (`https://github.com/sigstore/model-transparency`).
 

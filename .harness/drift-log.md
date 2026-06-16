@@ -1529,3 +1529,57 @@ hot-path) — it is the auditor's / a scheduled CI lane's job.
   shipped-without-consumer drift) or it bot-blocks the probe. Needs the maintainer to
   confirm the repo exists or correct the references — deliberately NOT allowlisted, so the
   link checker keeps flagging it.
+
+---
+
+## 2026-06-16 — doc-drift-audit run: third-party version stamping + stale citations
+
+Ran the `doc-drift-audit` workflow (16 groups, 98 agents) across both repos. It
+confirmed 46 drifts (the verify pass and synthesis were partly truncated by an
+upstream rate-limit, so the real count is higher). The dominant, clearly-real
+main-repo cluster is fixed here, plus a structural gate for the worst class.
+
+### Third-party dependency versions stamped with Atmosphere's release number
+
+**Claim:** dependency-block examples named third-party artifacts at Atmosphere's
+version: `com.google.adk:google-adk:4.0.54` (modules/adk/README.md:26),
+`io.grpc:grpc-netty-shaded:4.0.54` (modules/wasync/README.md:110),
+`org.springframework.ai:spring-ai-vector-store:4.0.54` (modules/rag/README.md:165),
+`dev.langchain4j:langchain4j-core:4.0.54` (modules/rag/README.md:188), plus four on
+the website (semantickernel-api / -aiservices-openai, jakarta.inject-api,
+jackson-databind).
+
+**Truth:** the real upstream versions are google-adk 1.2.0, grpc 1.81.0, Spring AI
+2.0.0, langchain4j 1.15.0, Semantic Kernel 1.5.0 (verified against pom.xml
+properties). A release-bump find/replace rewrote every `<version>4.0.x</version>`
+in the docs — including the ones inside non-Atmosphere `<dependency>` blocks. A
+reader copying the snippet gets a Maven artifact that does not exist. Same class as
+the hand-fixed Z3 binding (commit aaf1fbf2fb); this time the audit found the whole
+set at once.
+
+**Gate added:** `scripts/validate-doc-thirdparty-versions.sh` (+ pom-derived 4.0.5x
+band, allowlist, pre-push wiring) — parses `<dependency>` blocks in docs and fails
+when a non-`org.atmosphere` groupId carries an Atmosphere version. Main-repo
+hard-fail, sibling advisory (per #20). All four main-repo instances fixed; the four
+sibling instances are advisory, left for the website's lifecycle.
+
+### Stale framework-version + citation prose (also fixed)
+
+- **Spring AI 2.0.0-M6 → 2.0.0 (GA).** The adapter upgraded to GA in f844e80691
+  (2026-06-12) but four narrative mentions lagged: README.md:150,
+  modules/ai/README.md:67 & :283, modules/spring-ai/README.md:85. Same drift class
+  as #12/#18 (prose trailing a pom property); fixed.
+- **NVIDIA citation was a truncated placeholder.** `…/nvidia-verified-agent-skills-...`
+  (a literal ellipsis) 404s; the canonical post is `…-provide-capability-governance-for-ai-agents/`
+  (verified 200). Fixed in the generator (scripts/regen-skillcards.sh,
+  sign-skillcards.sh) AND the generated SKILLCARDS.md so a regen won't reintroduce it.
+- **`browser-agent` template missing from the cli/README.md table.** It exists in the
+  `cmd_new` map, `cli/samples.json`, and the prose list, but the "Available Templates"
+  table under-enumerated it (12 of 13). Row added.
+
+### Not auto-fixed (surfaced)
+
+The remaining audit findings — many `capability_contradiction` hits that on
+inspection are honest "NOT supported" doc sections (likely audit false positives),
+and the sibling-repo items above — need per-item human verification before editing
+and are left for a follow-up pass rather than mass-applied.

@@ -4,7 +4,7 @@
 # (OMS) toolchain, emitting modules/<X>/SKILLCARD.yaml.sig — a sigstore
 # bundle (DSSE envelope wrapping an in-toto statement of the card's
 # digest). The sig format is exactly what NVIDIA's verified-skills
-# programme uses; see https://developer.nvidia.com/blog/nvidia-verified-agent-skills-...
+# programme uses; see https://developer.nvidia.com/blog/nvidia-verified-agent-skills-provide-capability-governance-for-ai-agents/
 # and https://github.com/sigstore/model-transparency.
 #
 # Modes (PKI methods, in order of trust):
