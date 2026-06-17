@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Static verifier over MCP.** The plan-and-verify ("Guardians") stack is
+  reachable as read-only MCP tools when `atmosphere-verifier` is on the
+  classpath: `atmosphere_verifier_summary`, `atmosphere_verifier_examples`, and
+  `atmosphere_verifier_check`. The check tool plans a goal and runs every
+  verifier over the resulting plan **without executing it** (status
+  `verified`/`refused` with the per-verifier violations); the mutating
+  verify-then-execute path stays behind the admin write gate.
+
+### Fixed
+
+- **wasync: a user `close()` is no longer resurrected by a late OPEN event** —
+  a close requested before the transport finished opening is now honored when
+  the OPEN arrives, instead of reviving the connection.
+- **Documentation accuracy sweep** — corrected the Z3 binding version (4.14.0)
+  and `SmtChecker` priority (200); aligned ADK / Semantic Kernel / Alibaba
+  versions, crewai test counts, and the ms-governance policy name; fixed the
+  embedded-jetty client type, the admin-bundle default authorizer, and
+  runtime-truth claims in the embabel / agentscope / coding-agent docs;
+  corrected third-party dependency versions and citations.
+
+### Changed
+
+- **CI doc-drift gates** — fact/enumeration checks, link-rot detection, and
+  sibling-site (atmosphere.github.io) verification, plus an `atmosphere-skills`
+  link-checker allowlist.
+
 ## [4.0.54] - 2026-06-13
 
 ### Added
