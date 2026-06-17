@@ -30,7 +30,7 @@ var kafka = new KafkaAuditSink(
 
 // Wrap with AsyncAuditSink so the admission thread never blocks
 // on Kafka — bounded drop-on-full queue (Backpressure invariant).
-GovernanceDecisionLog.installed().addSink(new AsyncAuditSink(kafka));
+GovernanceDecisionLog.installed().addSink(new AsyncAuditSink(kafka, 10_000));
 ```
 
 ## Producer defaults

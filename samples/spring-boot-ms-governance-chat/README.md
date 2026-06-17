@@ -40,7 +40,7 @@ The console header reads *"Microsoft Agent Governance Toolkit — rules-over-con
 ## The policy file — a verbatim MS artifact
 
 ```yaml
-# src/main/resources/atmosphere-policies.yaml
+# src/main/resources/atmosphere-policies.yaml (first rules shown; full file has 11)
 version: "1.0"
 name: ms-customer-service-demo
 description: Customer-support governance matching MS Agent OS customer-service example
@@ -50,7 +50,7 @@ rules:
     condition:
       field: message
       operator: matches
-      value: '(?i)\bdrop\s+(table|database)\b'
+      value: '(?i)\b(drop|truncate)\s+(table|database)\b'
     action: deny
     priority: 100
     message: "Destructive SQL statements are not permitted in this chat."

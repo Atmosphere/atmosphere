@@ -4,7 +4,7 @@ Framework-agnostic AI tool calling with **real-time tool events** — tools decl
 
 ## What It Does
 
-The assistant has four tools registered via Atmosphere's `@AiTool` annotation:
+The assistant has five tools registered via Atmosphere's `@AiTool` annotation:
 
 | Tool | Description |
 |------|-------------|
@@ -12,10 +12,11 @@ The assistant has four tools registered via Atmosphere's `@AiTool` annotation:
 | `get_city_time` | Returns the time in a specific city (New York, London, Paris, Tokyo, Sydney) |
 | `get_weather` | Returns a weather report for a city |
 | `convert_temperature` | Converts between Celsius and Fahrenheit |
+| `reset_city_data` | Resets cached weather/time data for a city — a destructive operation gated by `@RequiresApproval` |
 
 ## Key Features
 
-- **`@AiEndpoint(requires = TOOL_CALLING)`** — capability validation ensures the backend supports tool calling
+- **`@AiEndpoint(tools = AssistantTools.class)`** — `@AiTool` methods auto-bridged to whichever AI backend is active
 - **`AiEvent` tool events** — `ToolStart` and `ToolResult` events streamed to the frontend in real-time
 - **Cost metering** — `CostMeteringInterceptor` tracks tokens, cost, and latency per response
 - **Conversation memory** — multi-turn history with configurable window size
@@ -47,7 +48,7 @@ Open http://localhost:8090 in your browser.
 
 | File | Purpose |
 |------|---------|
-| `AiToolsChat.java` | `@AiEndpoint` with `tools`, `requires`, and `conversationMemory` |
+| `AiToolsChat.java` | `@AiEndpoint` with `tools`, `conversationMemory`, and cost/lifecycle interceptors |
 | `AssistantTools.java` | `@AiTool`-annotated methods (portable across backends) |
 | `DemoResponseProducer.java` | Fallback with `AiEvent.ToolStart`/`ToolResult` events |
 | `CostMeteringInterceptor.java` | `AiInterceptor` for cost/latency tracking |
@@ -56,7 +57,7 @@ Open http://localhost:8090 in your browser.
 ## Architecture
 
 ```
-Browser ──WebSocket──> @AiEndpoint(requires=TOOL_CALLING)
+Browser ──WebSocket──> @AiEndpoint(tools=AssistantTools.class)
                            │
                     ToolRegistry.execute(name, args, session)
                            │         │

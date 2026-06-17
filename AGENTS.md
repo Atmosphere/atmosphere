@@ -87,7 +87,7 @@ atmosphere/
 │   └── quarkus-chat/
 ├── atmosphere.js/                 (TypeScript client library)
 ├── assembly/
-└── pom.xml                        (4.0.53-SNAPSHOT, JDK 21)
+└── pom.xml                        (4.0.55-SNAPSHOT, JDK 21)
 ```
 
 ### Key Artifacts
@@ -335,7 +335,7 @@ This frees up runners for the new push. Without this, stale queued runs accumula
 - Package manager: npm (uses package-lock.json)
 - Build: `npm run build`
 - Test: `npm test`
-- Version: 5.0.31
+- Version: 5.0.32
 
 ## Sample Applications
 
@@ -375,8 +375,10 @@ costs credibility and has to be chased down and rolled back.
    - Capability rows → the `capabilities()` method of each runtime (pinned via
      `AbstractAgentRuntimeContractTest.expectedCapabilities()` — do not bypass)
    - Module/backend counts → `ls modules/` for the relevant family (e.g., CheckpointStore
-     backends live in `modules/checkpoint/src/main/**` — only `InMemory` and `Sqlite` exist today,
-     Redis/Postgres are pluggable via the SPI, NOT in-tree)
+     backends: `InMemory` + `Sqlite` ship in `modules/checkpoint/src/main/**`, and `Postgres`
+     ships as the separate `modules/checkpoint-postgres` reactor module; Redis is pluggable via
+     the SPI, NOT in-tree. Always check sibling `*-postgres` modules — a too-narrow
+     `ls modules/checkpoint/` is what made an earlier audit pass wrongly call the Postgres store "not shipped")
 
 2. **CHANGELOG entries must match real commits.** Before writing a "Fixed" or "Added" bullet,
    run `git log --oneline --grep='<keyword>'` and confirm the described change exists. If the

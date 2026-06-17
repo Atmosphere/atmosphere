@@ -33,10 +33,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Coding agent that clones a repository into a sandbox, reads files, and
- * proposes a patch. Exercises the {@code Sandbox} primitive end-to-end
- * without requiring an LLM key — the sample uses a deterministic patch
- * strategy so it runs on CI.
+ * Coding agent that clones a repository into a sandbox and reads files,
+ * previewing repository contents. Exercises the {@code Sandbox} primitive
+ * end-to-end without requiring an LLM key — the sample uses a
+ * deterministic read strategy so it runs on CI.
  *
  * <h2>Sandbox discovery</h2>
  *
@@ -55,7 +55,7 @@ import java.util.Map;
 @Agent(
         name = "coding-agent",
         skillFile = "skill:coding-agent",
-        description = "Clones a repo into a sandbox, reads files, and proposes patches.")
+        description = "Clones a repo into a sandbox and reads files.")
 public class CodingAgent {
 
     private static final Logger logger = LoggerFactory.getLogger(CodingAgent.class);

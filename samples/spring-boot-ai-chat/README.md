@@ -26,7 +26,7 @@ An `@AiEndpoint` at `/atmosphere/ai-chat`:
 
 ```java
 @AiEndpoint(path = "/atmosphere/ai-chat",
-        systemPromptResource = "prompts/system-prompt.md",
+        systemPromptResource = "skill:ai-assistant",
         requires = {AiCapability.TEXT_STREAMING, AiCapability.SYSTEM_PROMPT},
         conversationMemory = true)
 public class AiChat {
@@ -129,7 +129,6 @@ spring-boot-ai-chat/
     │   └── LlmConfig.java          # Spring properties → AiConfig bridge
     └── resources/
         ├── application.yml          # LLM config (model, mode, API key)
-        ├── prompts/system-prompt.md # System prompt loaded at startup
         └── static/                  # Built frontend assets
 ```
 

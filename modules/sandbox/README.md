@@ -37,23 +37,18 @@ foundation stays dependency-free.
 
 ## Minimal usage
 
-The `spring-boot-coding-agent` sample resolves a provider through
-`ServiceLoader` (picking the first `isAvailable()` backend) and drives it
-with the real SPI — there is no fluent builder, `allocate`, or varargs
-`exec`:
+The `spring-boot-coding-agent` sample resolves a provider through the
+tier-aware `Sandboxes.select(IsolationTier.PROCESS)` call (a PROCESS floor
+that prefers the strongest available isolation) and drives it with the real
+SPI — there is no fluent builder, `allocate`, or varargs `exec`:
 
 ```java
 @Agent(name = "coding-agent")
 public class CodingAgent {
 
-    // Discover a backend via ServiceLoader; pick the first available one.
+    // Tier-aware selection: PROCESS floor, preferring the strongest backend.
     private static SandboxProvider resolveProvider() {
-        for (var provider : ServiceLoader.load(SandboxProvider.class)) {
-            if (provider.isAvailable()) {
-                return provider;
-            }
-        }
-        return null;
+        return Sandboxes.select(IsolationTier.PROCESS).orElse(null);
     }
 
     public String readFile(String gitUrl, String path) {
@@ -109,7 +104,7 @@ leaks — the provider's lifecycle is tied to the `Sandbox` handle.
   exec/file tests set `InProcessSandboxProvider.INSECURE_OPT_IN` — they are
   reference-impl tests, not security tests.
 - Regression for the command-injection hardening lives in
-  `spring-boot-coding-agent`'s clone/read Playwright spec. The
+  `e2e/tests/coding-agent.spec.ts`. The
   `foundation-e2e.yml` workflow used to skip this with
   `SKIP_SANDBOX_E2E=true`; that flag was removed in Phase 6 so the
   hardening stays gated on every PR.

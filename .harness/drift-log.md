@@ -1695,3 +1695,47 @@ All 8 verified against the code and closed:
   defines its own `ms-governance-demo` policy, is correctly left unchanged.)
 Lesson reinforced: "fix the clusters" ≠ "fix the set". Cross-check every finding against
 what actually shipped before claiming completion.
+
+---
+
+## 2026-06-17 — Agent-verification pass closes the rate-limited gap (and corrects #checkpoint-postgres)
+
+The post-mortem admitted an honest gap: the `doc-drift-audit` workflow rate-limited on
+every re-run (98-agent fan-out → server-side limit), so its "No confirmed drift" was a
+false-green and the ungreppable semantic classes were never fully verified. Closed it with
+**controlled concurrency**: 4 background audit agents (well under the fan-out that tripped
+the limit), each verifying claims against the code, then 2 fix-agents — all re-verifying
+before editing. ~28 confirmed findings fixed across both repos (version literals: ADK/SK/
+alibaba/atmosphere.js/Spring-AI mirror copies; counts: 5 tools not 4, 37 endpoints not ~25,
+18/9 crewai tests; paths: `/atmosphere/agent/dispatch`, `/atmosphere/mcp`; citations:
+`AsyncAuditSink` arity, `OpenAiCompatibleClient` line numbers, `DemoResponseProducer`,
+`systemPromptResource`, cpr meter names, reactor-core 3.8.5; capability prose).
+
+### CORRECTION to the 2026-06-16 entry — the "PostgresCheckpointStore false positive" was MINE, not the audit's
+
+The 2026-06-16 entry recorded the audit's PostgresCheckpointStore finding as a hallucination
+and the checkpoint README's "planned Postgres" as correct. **That was wrong.** Postgres
+**does** ship — as the separate reactor module `modules/checkpoint-postgres`
+(`modules/pom.xml:58`). My verification scoped `find`/`git grep` to `modules/checkpoint/`
+only and missed the sibling `-postgres` module, so I "confirmed" a false negative and logged
+the audit as the one at fault. The same too-narrow check had also left stale the
+`modules/checkpoint/README.md` (190/263), `modules/interactions/README.md` (Postgres is in
+`interactions-postgres`), `AGENTS.md` "only InMemory + Sqlite" guidance, and the project
+memory. All corrected this pass. **Lesson: when checking "does X ship", search the whole
+reactor, not one module dir — sibling `*-postgres`/`*-redis` modules are easy to miss; and
+the audit's verdict deserves the same verify-against-code scrutiny as the doc's.**
+
+### Gate added — the auditor no longer false-greens
+
+`.claude/workflows/doc-drift-audit.js` now tags every failed agent (inventory/audit/verify
+returning `null`) and returns an explicit `incomplete: true` verdict listing the failed
+groups, instead of the bare "No confirmed documentation drift." It only reports clean when
+**every** agent completed. The detector had the exact false-green disease it exists to catch.
+
+### Caught an agent error too (verify both directions)
+
+A fix-finding agent claimed `@AiEndpoint` has no `requires` attribute (so "remove the claim").
+Verifying: `@AiEndpoint` DOES declare `AiCapability[] requires()`. The real drift was narrower
+— the ai-tools *sample* doesn't use `requires`, so the README overclaimed it; aligned the doc
+to the sample's actual annotation rather than deleting a reference to a real API. Neither the
+doc, the first audit's verdict, nor a sub-agent's verdict is authority — only the code is.

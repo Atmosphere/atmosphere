@@ -37,7 +37,7 @@ One agent class — slash commands and AI work on Web, Slack, Telegram, Discord,
 | [spring-boot-checkpoint-agent](spring-boot-checkpoint-agent/) | `@Coordinator`, `@Agent`, `CheckpointStore` | Web | Durable HITL workflow — approval-gated agent chaining |
 | [spring-boot-multi-agent-startup-team](spring-boot-multi-agent-startup-team/) | `@Coordinator`, `@Fleet`, A2A, SQLite checkpoints, WebTransport | Web | A `@Coordinator` (CEO) dispatching to 4 `@Agent` specialists with parallel/sequential dispatch |
 | [spring-boot-personal-assistant](spring-boot-personal-assistant/) | `@Coordinator`, `@Fleet`, `AgentState`, `AgentWorkspace`, `AgentIdentity`, `ToolExtensibilityPoint`, `InMemoryProtocolBridge` | Web | Long-lived memory-bearing assistant — primary delegates to scheduler / research / drafter crew over `InMemoryProtocolBridge`; ships an OpenClaw-compatible workspace |
-| [spring-boot-coding-agent](spring-boot-coding-agent/) | `@Agent`, `Sandbox` | Web | Coding agent — clones a repo into a Docker sandbox, reads files, proposes a patch |
+| [spring-boot-coding-agent](spring-boot-coding-agent/) | `@Agent`, `Sandbox` | Web | Coding agent — clones a repo into a Docker sandbox, reads files |
 | [spring-boot-guarded-email-agent](spring-boot-guarded-email-agent/) | `PlanVerifier`, `@Sink`, `NumericInvariant`, `SmtChecker`, `WorkflowExecutor` | Web | Plan-and-Verify (Meijer) — refuses unsafe plans before any tool fires: taint (exfiltration) + SMT (over-quota bulk send) |
 
 ### Agent Protocols

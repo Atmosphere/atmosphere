@@ -96,7 +96,7 @@ With Spring Boot, this is auto-configured — see the [spring-boot-starter](../s
 AtmosphereMetrics.install(framework, meterRegistry);
 ```
 
-Registers `atmosphere.connections`, `atmosphere.messages`, and `atmosphere.broadcasters` gauges/counters.
+Registers the `atmosphere.connections.*` (active/total/disconnects), `atmosphere.messages.*` (broadcast/delivered), and `atmosphere.broadcasters.active` gauges/counters.
 
 ## Samples
 

@@ -50,7 +50,7 @@ public interface InteractionStore {
 }
 ```
 
-Two implementations ship in this module:
+In-memory and SQLite ship in this module; Postgres ships as `atmosphere-interactions-postgres`:
 
 | Implementation | Use case |
 |----------------|----------|

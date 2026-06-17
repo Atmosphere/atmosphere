@@ -234,7 +234,7 @@ every `tools/call` — the policy chain evaluates before the
 # Run the sample
 ./mvnw spring-boot:run -pl samples/spring-boot-mcp-server
 
-# Connect an MCP client to ws://localhost:8083/mcp and call an admitted tool
+# Connect an MCP client to ws://localhost:8083/atmosphere/mcp and call an admitted tool
 # → list_users succeeds (on the allow-list)
 
 # Try a non-allowlisted tool

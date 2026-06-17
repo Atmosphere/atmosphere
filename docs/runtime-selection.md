@@ -60,7 +60,7 @@ Walk these questions in order; stop at the first match.
 
 7. **Do you need Microsoft Semantic Kernel's plugin / planner ecosystem
    (.NET-equivalent surface on the JVM)?**
-   → **Semantic Kernel (`atmosphere-semantic-kernel`)**. SK 1.4 surface
+   → **Semantic Kernel (`atmosphere-semantic-kernel`)**. SK 1.5 surface
    with `KernelFunction` tool bridge through Atmosphere's
    `ToolExecutionHelper`, sidecar bridge for per-request
    `InvocationContext` / `KernelHooks` / `withMaxAutoInvokeAttempts`.

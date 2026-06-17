@@ -110,7 +110,7 @@ came from the expected coordinator, (b) the request is unmodified,
 ./mvnw spring-boot:run -pl samples/spring-boot-checkpoint-agent
 
 # Fire a request
-wscat -c ws://localhost:8095/atmosphere/dispatch
+wscat -c ws://localhost:8095/atmosphere/agent/dispatch
 > please refund order 1234
 
 # Inspect the Commitments tab at /atmosphere/admin/ — each analyzer hop

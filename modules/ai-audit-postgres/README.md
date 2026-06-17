@@ -33,7 +33,7 @@ var jdbc = new JdbcAuditSink(ds);
 
 // Wrap with AsyncAuditSink so admission threads never stall on
 // connection-pool exhaustion (Backpressure invariant).
-GovernanceDecisionLog.installed().addSink(new AsyncAuditSink(jdbc));
+GovernanceDecisionLog.installed().addSink(new AsyncAuditSink(jdbc, 10_000));
 ```
 
 ## Schema

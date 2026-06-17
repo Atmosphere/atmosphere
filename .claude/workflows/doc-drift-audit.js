@@ -122,14 +122,19 @@ the group is clean. Do NOT flag append-only history (CHANGELOG.md, .harness/drif
 the site's whats-new.md) or dated audits under docs/audits/ — those legitimately quote
 superseded facts.`
 
+// agent() returns null when a subagent dies on a terminal error after retries
+// (e.g. server rate-limiting). A failed audit/verify agent must NOT be silently
+// read as "no drift" — that is the exact false-green this auditor exists to catch.
+// We tag failures so the run reports INCOMPLETE instead of clean.
 phase('Audit')
 const perGroup = await pipeline(
   groups,
   (g) => agent(
     `${AUDIT_CHECKLIST}\n\nGROUP "${g.name}" (${g.repo} repo). Files:\n${(g.files || []).join('\n')}`,
     { schema: FINDINGS_SCHEMA, phase: 'Audit', label: `audit:${g.name}` },
-  ),
+  ).then((a) => (a === null ? { __failed: true, name: g.name } : a)),
   (audit, g) => {
+    if (audit && audit.__failed) return [{ __failed: true, name: g.name }]
     const findings = (audit && audit.findings) ? audit.findings : []
     if (!findings.length) return []
     return parallel(findings.map((f) => () =>
@@ -145,16 +150,49 @@ const perGroup = await pipeline(
          .harness/facts.json). Decide confirmed (real drift) or not, give the corrected
          ground truth if confirmed, and whether a deterministic gate could catch this class.`,
         { schema: VERDICT_SCHEMA, phase: 'Verify', label: `verify:${f.drift_class}` },
-      ).then((v) => ({ ...f, verdict: v })),
+      ).then((v) => ({ ...f, verdict: (v === null ? { __failed: true } : v) })),
     ))
   },
 )
 
-const confirmed = perGroup.flat().filter(Boolean).filter((f) => f.verdict && f.verdict.confirmed)
-log(`confirmed drift: ${confirmed.length}`)
+const flat = perGroup.flat().filter(Boolean)
+const failedGroups = flat.filter((x) => x && x.__failed).map((x) => x.name)
+const verifyFailed = flat.filter((x) => x.verdict && x.verdict.__failed).length
+const confirmed = flat.filter((f) => f.verdict && f.verdict.confirmed === true)
+const inventoryFailed = inventory === null || !groups.length
+const incomplete = inventoryFailed || failedGroups.length > 0 || verifyFailed > 0
+log(`confirmed: ${confirmed.length} | failed audit groups: ${failedGroups.length} | failed verifies: ${verifyFailed} | incomplete: ${incomplete}`)
+
+// COMPLETENESS GUARD: never report "clean" on partial coverage. If any agent
+// failed (inventory, an audit group, or a verification), the result is
+// INCOMPLETE — the caller must re-run (spaced out, or scope smaller / per-group
+// to stay under server rate limits), not treat it as drift-free.
+if (incomplete) {
+  return {
+    scope,
+    groups: groups.length,
+    incomplete: true,
+    inventoryFailed,
+    failedGroups,
+    verifyFailed,
+    confirmedSoFar: confirmed,
+    summary: `INCOMPLETE — coverage is PARTIAL (most likely server rate-limiting). `
+      + `${inventoryFailed ? 'inventory failed; ' : ''}`
+      + `${failedGroups.length} audit group(s) failed${failedGroups.length ? ' [' + failedGroups.join(', ') + ']' : ''}; `
+      + `${verifyFailed} verification(s) failed. Do NOT treat as clean. `
+      + `Re-run spaced out, or run scope="main"/"site" or one group at a time. `
+      + `${confirmed.length} finding(s) confirmed before the failures.`,
+  }
+}
 
 if (!confirmed.length) {
-  return { scope, groups: groups.length, confirmed: [], summary: 'No confirmed documentation drift.' }
+  return {
+    scope,
+    groups: groups.length,
+    incomplete: false,
+    confirmed: [],
+    summary: 'No confirmed documentation drift (full coverage — every audit and verification agent completed).',
+  }
 }
 
 // ── Synthesize ──────────────────────────────────────────────────────────────
@@ -171,4 +209,4 @@ const report = await agent(
   { phase: 'Synthesize', label: 'synthesize' },
 )
 
-return { scope, groups: groups.length, confirmedCount: confirmed.length, confirmed, report }
+return { scope, groups: groups.length, incomplete: false, confirmedCount: confirmed.length, confirmed, report }

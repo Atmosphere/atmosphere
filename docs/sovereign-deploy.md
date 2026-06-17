@@ -98,8 +98,7 @@ Everything Atmosphere adds on top of the model call is wire-agnostic:
   history.
 - **Tool calling + approval gates** — `@AiTool` and
   `@RequiresApproval` work identically on any runtime that declares
-  `TOOL_CALLING` (Cohere, Anthropic, Spring AI, LC4j, ADK, Built-in,
-  Spring AI Alibaba, AgentScope, Semantic Kernel).
+  `TOOL_CALLING` — every runtime; all twelve declare it.
 - **Token usage + budget enforcement** — `AiBudget` clamps spend per
   call regardless of which runtime is dispatching.
 - **Passivation** — durable agents survive process restarts via the

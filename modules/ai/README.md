@@ -1160,8 +1160,9 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   `CohereAgentRuntime`. Built-in's `OpenAiCompatibleClient` forwards every
   `delta.tool_calls[].function.arguments` fragment through
   `session.toolCallDelta(acc.id(), argChunk)` on both the chat-completions and
-  responses-API streaming paths (see `OpenAiCompatibleClient.java` lines ~530
-  and ~892), and Cohere's `CohereChatClient` emits the same frames via
+  responses-API streaming paths (see the chat-completions tool-loop path and
+  the responses-API stream handler in `OpenAiCompatibleClient.java`), and
+  Cohere's `CohereChatClient` emits the same frames via
   `session.toolCallDelta(acc.id, chunk)` from `handleToolCallDelta`, so browser
   UIs receive `ai.toolCall.delta.*` metadata frames before the consolidated
   `AiEvent.ToolStart` fires. The remaining tool-capable framework bridges

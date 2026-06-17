@@ -187,7 +187,7 @@ problems and should be understood together.
 | Lifecycle | One session per client connection; replaced on reconnect | Many snapshots per coordination; form a parent-chained history |
 | Mutation model | Overwrite-on-update | Append-only + fork |
 | Triggered by | `DurableSessionInterceptor` on connect/disconnect | `CheckpointingCoordinationJournal` on `CoordinationEvent` |
-| Backends | In-memory, SQLite, Redis (already shipped) | In-memory + SQLite (this module); JDBC / Redis / Postgres pluggable via the `CheckpointStore` SPI |
+| Backends | In-memory, SQLite, Redis (already shipped) | In-memory + SQLite (this module); Postgres/JDBC ships as `atmosphere-checkpoint-postgres` (in-tree); Redis pluggable via the `CheckpointStore` SPI |
 | Primary consumer | WebSocket/SSE reconnect handler | Agent fleet / HITL approval flow |
 
 ### Why separate modules
@@ -260,8 +260,6 @@ the SPI surface without benefit.
 
 ## Planned Follow-ups
 
-- `atmosphere-checkpoint-jdbc` — first-party JDBC store (PostgreSQL, H2)
-  beyond the SQLite implementation that already ships
 - `atmosphere-checkpoint-redis` — first-party clustered store reusing the
   existing `atmosphere-redis` infrastructure
 - `fleet.resume(CheckpointId)` convenience API on `AgentFleet`

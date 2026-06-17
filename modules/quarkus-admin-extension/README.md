@@ -27,7 +27,7 @@ You also need a Quarkus REST implementation for the admin endpoints:
 |-----|-------------|
 | `/admin/` | Real-time dashboard UI with live event feed |
 | `/api/admin/overview` | System overview JSON |
-| `/api/admin/*` | Full REST API (~25 endpoints) |
+| `/api/admin/*` | Full REST API (37 endpoints) |
 | `/atmosphere/admin/events` | WebSocket event stream (via Atmosphere) |
 
 The dashboard is at `/admin/` (not `/atmosphere/admin/`) because Quarkus routes `/atmosphere/*` through the Atmosphere servlet.
@@ -50,7 +50,7 @@ Installed features: [atmosphere, atmosphere-admin, cdi, rest, rest-jackson, ...]
 
 ## REST API
 
-Same as the Spring Boot admin module — see [atmosphere-admin README](../admin/README.md) for the full endpoint reference.
+A subset of the Spring Boot admin module's surface (37 endpoints here vs. 63 in Spring) — see [atmosphere-admin README](../admin/README.md) for the full endpoint reference.
 
 ## Requirements
 

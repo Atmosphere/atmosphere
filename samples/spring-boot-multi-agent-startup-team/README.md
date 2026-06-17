@@ -85,7 +85,7 @@ src/main/java/.../a2astartup/
   FinanceAgent.java                # @Agent: financial modeling
   WriterAgent.java                 # @Agent: report synthesis
   CheckpointConfig.java            # SQLite-backed CoordinationJournal via ServiceLoader
-  DemoResponseProducer.java        # Fallback when no API key
+  StartupPlanRuntime.java          # Fallback when no API key
   LlmConfig.java                   # LLM settings from env vars
 
 src/main/resources/
