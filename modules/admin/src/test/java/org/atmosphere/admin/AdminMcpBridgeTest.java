@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -248,6 +249,39 @@ class AdminMcpBridgeTest {
         assertEquals(8, registry.tools().size());
     }
 
+    @Test
+    void testOptionalVerifierToolsRegistered() {
+        admin.setVerifierController(new FakeVerifierController());
+        bridge.registerReadTools();
+        var tools = registry.tools();
+        assertTrue(tools.containsKey("atmosphere_verifier_summary"));
+        assertTrue(tools.containsKey("atmosphere_verifier_examples"));
+        assertTrue(tools.containsKey("atmosphere_verifier_check"));
+    }
+
+    /**
+     * The MCP {@code atmosphere_verifier_check} read tool must route to the
+     * verify-only {@code dryCheck} — surfacing violations without executing —
+     * and never to the mutating {@code check}. The fake's {@code check} throws
+     * an {@link AssertionError}, so any wiring that reaches it fails the test.
+     */
+    @Test
+    void testVerifierCheckToolRoutesToDryCheckNotExecute() throws Exception {
+        admin.setVerifierController(new FakeVerifierController());
+        bridge.registerReadTools();
+
+        var tool = registry.tools().get("atmosphere_verifier_check");
+        assertNotNull(tool);
+        @SuppressWarnings("unchecked")
+        var result = (Map<String, Object>) tool.handler().execute(Map.of("goal", "drop the db"));
+
+        assertEquals("refused", result.get("status"));
+        assertFalse(((List<?>) result.get("violations")).isEmpty(),
+                "verifier check tool must surface the violations from dryCheck");
+        assertFalse(result.containsKey("env"),
+                "the read tool must not carry an executed environment");
+    }
+
     // ── Write tool produces audit entry ──
 
     @Test
@@ -259,5 +293,40 @@ class AdminMcpBridgeTest {
         var entries = admin.auditLog().entries();
         assertEquals(1, entries.size());
         assertEquals("broadcast", entries.getFirst().action());
+    }
+
+    /**
+     * Stand-in for the real {@code VerifierController}, wired via the
+     * reflection-based optional-controller bridge. Public so the bridge's
+     * {@code getMethod(...).invoke(...)} reaches its methods. {@code check}
+     * throws to guard against a regression that wires the read tool to the
+     * mutating path.
+     */
+    public static final class FakeVerifierController {
+        @SuppressWarnings("unused")
+        public Map<String, Object> summary() {
+            return Map.of("verifiers", List.of(), "smtSolver", "none");
+        }
+
+        @SuppressWarnings("unused")
+        public List<Map<String, Object>> examples() {
+            return List.of();
+        }
+
+        @SuppressWarnings("unused")
+        public Map<String, Object> dryCheck(String goal) {
+            return Map.of(
+                    "goal", goal,
+                    "status", "refused",
+                    "violations", List.of(Map.of(
+                            "category", "allowlist",
+                            "message", "tool 'delete_database' not in allowlist")));
+        }
+
+        @SuppressWarnings("unused")
+        public Map<String, Object> check(String goal) {
+            throw new AssertionError(
+                    "MCP read tool must call dryCheck (verify-only), never check (executes)");
+        }
     }
 }

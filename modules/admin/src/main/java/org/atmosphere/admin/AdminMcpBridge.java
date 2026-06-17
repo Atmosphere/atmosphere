@@ -285,5 +285,64 @@ public final class AdminMcpBridge {
                 logger.trace("Could not register MCP registry tools", e);
             }
         }
+
+        // Verifier tools (static plan-and-verify "Guardians" stack). All three
+        // are read-only: summary/examples describe the active chain, and the
+        // check tool routes to VerifierController.dryCheck — it plans and
+        // verifies a goal but NEVER executes it, so no tool fires from an MCP
+        // read call. The mutating path (VerifierController.check, which runs a
+        // clean plan) stays behind the admin write gate and is intentionally
+        // not bridged here (Correctness Invariant #6).
+        var verifierCtrl = admin.verifierController();
+        if (verifierCtrl != null) {
+            try {
+                var summaryMethod = verifierCtrl.getClass().getMethod("summary");
+                registry.registerTool("atmosphere_verifier_summary",
+                        "Describe the active static plan-and-verify chain: verifier names, "
+                                + "the resolved SMT solver, and the declarative policy "
+                                + "(allowlist, taint rules, numeric invariants)",
+                        args -> {
+                            try {
+                                return (Map<String, Object>) summaryMethod.invoke(verifierCtrl);
+                            } catch (Exception e) {
+                                logger.trace("atmosphere_verifier_summary invocation failed", e);
+                                return Map.of();
+                            }
+                        });
+
+                var examplesMethod = verifierCtrl.getClass().getMethod("examples");
+                registry.registerTool("atmosphere_verifier_examples",
+                        "List the example goals this deployment ships for the verifier",
+                        args -> {
+                            try {
+                                return (List<Map<String, Object>>) examplesMethod.invoke(verifierCtrl);
+                            } catch (Exception e) {
+                                logger.trace("atmosphere_verifier_examples invocation failed", e);
+                                return List.of();
+                            }
+                        });
+
+                var dryCheckMethod = verifierCtrl.getClass().getMethod("dryCheck", String.class);
+                registry.registerTool("atmosphere_verifier_check",
+                        "Plan a goal and run every verifier over the resulting plan WITHOUT "
+                                + "executing it. Returns the plan AST, per-verifier pass/fail "
+                                + "verdicts, and the merged violations (status verified|refused). "
+                                + "Read-only: no tool fires",
+                        List.of(new ParamEntry("goal",
+                                "The natural-language goal to plan and verify", true, String.class)),
+                        args -> {
+                            try {
+                                return (Map<String, Object>) dryCheckMethod.invoke(
+                                        verifierCtrl, args.get("goal"));
+                            } catch (Exception e) {
+                                logger.trace("atmosphere_verifier_check invocation failed", e);
+                                return Map.of("status", "error",
+                                        "error", "verifier invocation failed");
+                            }
+                        });
+            } catch (NoSuchMethodException e) {
+                logger.trace("Could not register verifier MCP tools", e);
+            }
+        }
     }
 }

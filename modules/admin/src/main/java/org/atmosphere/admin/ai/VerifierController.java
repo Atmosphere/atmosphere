@@ -47,11 +47,12 @@ import java.util.Map;
  * resolved at boot (never classpath presence), and {@link #check(String)}
  * runs the real chain over the real planner — no fixture verdicts.</p>
  *
- * <p>{@code summary} and {@code examples} are read-only. {@code check} plans
- * and verifies a goal and, only when the plan passes every verifier, executes
- * it. The Spring Boot starter gates that endpoint through the admin write
- * guard because an application can wire this controller against mutating
- * tools (Correctness Invariant #6).</p>
+ * <p>{@code summary}, {@code examples} and {@code dryCheck} are read-only:
+ * {@code dryCheck} plans and verifies a goal and reports what the chain
+ * would refuse, but never executes. {@code check} additionally executes the
+ * plan when it passes every verifier; the Spring Boot starter gates that
+ * endpoint through the admin write guard because an application can wire this
+ * controller against mutating tools (Correctness Invariant #6).</p>
  */
 public final class VerifierController {
 
@@ -112,22 +113,82 @@ public final class VerifierController {
      * only when the whole chain passes — execute it. Returns the plan AST,
      * a per-verifier pass/fail breakdown, the merged violations, and (on
      * success) the executed environment.
+     *
+     * <p>This is the <em>mutating</em> path: a clean plan runs its tools.
+     * For a side-effect-free "what would the chain refuse?" inspection that
+     * never executes, use {@link #dryCheck(String)}.</p>
      */
     public Map<String, Object> check(String goal) {
         var out = new LinkedHashMap<String, Object>();
         out.put("goal", goal);
+        Boolean ok = planAndCollect(goal, out);
+        if (ok == null) {
+            // Planning failed; status/error already recorded by planAndCollect.
+            return out;
+        }
+        if (ok) {
+            try {
+                out.put("env", planAndVerify.run(goal, Map.of()));
+                out.put("status", "executed");
+            } catch (RuntimeException e) {
+                // A verifier passed but execution threw — report honestly
+                // rather than claim success (Correctness Invariant #2).
+                logger.debug("Execution failed after a clean verify for goal '{}'", goal, e);
+                out.put("status", "error");
+                out.put("error", e.getMessage());
+            }
+        } else {
+            out.put("status", "refused");
+        }
+        return out;
+    }
 
+    /**
+     * Plan {@code goal} and run every verifier over the resulting AST
+     * <em>without ever executing it</em>. Returns the same plan AST,
+     * per-verifier pass/fail breakdown, and merged violations as
+     * {@link #check(String)}, but the status is {@code "verified"} (the chain
+     * passed) or {@code "refused"} (a verifier rejected the plan) — never
+     * {@code "executed"} — and the response carries no {@code env}.
+     *
+     * <p>Because it has no side effects, this is the path safe to expose on
+     * read-only surfaces such as the {@code atmosphere_verifier_check} MCP
+     * tool: an operator agent can ask "what would the Guardians refuse about
+     * this goal?" without any tool firing. The mutating {@link #check(String)}
+     * stays behind the admin write gate (Correctness Invariant #6).</p>
+     */
+    public Map<String, Object> dryCheck(String goal) {
+        var out = new LinkedHashMap<String, Object>();
+        out.put("goal", goal);
+        Boolean ok = planAndCollect(goal, out);
+        if (ok == null) {
+            return out;
+        }
+        out.put("status", ok ? "verified" : "refused");
+        return out;
+    }
+
+    /**
+     * Shared plan-and-verify core for {@link #check(String)} and
+     * {@link #dryCheck(String)}. Plans {@code goal}, renders the AST into
+     * {@code out}, runs every verifier and records the per-verifier verdicts
+     * plus merged violations. Returns {@code TRUE} when the whole chain
+     * passes, {@code FALSE} when any verifier refuses, or {@code null} when
+     * planning itself failed (in which case {@code out} already carries
+     * {@code status=error}). Never executes the plan.
+     */
+    private Boolean planAndCollect(String goal, Map<String, Object> out) {
         Workflow workflow;
         try {
             workflow = planAndVerify.plan(goal);
         } catch (RuntimeException e) {
             // Planning itself failed (e.g. the planner emitted malformed
-            // JSON). Surface it as a refusal rather than a 500 so the tab can
-            // render it (Correctness Invariant #4, Boundary Safety).
+            // JSON). Surface it as a refusal rather than a 500 so the caller
+            // can render it (Correctness Invariant #4, Boundary Safety).
             logger.debug("Planning failed for goal '{}'", goal, e);
             out.put("status", "error");
             out.put("error", e.getMessage());
-            return out;
+            return null;
         }
 
         out.put("plan", renderWorkflow(workflow));
@@ -151,22 +212,7 @@ public final class VerifierController {
         }
         out.put("verifiers", perVerifier);
         out.put("violations", renderViolations(allViolations));
-
-        if (ok) {
-            try {
-                out.put("env", planAndVerify.run(goal, Map.of()));
-                out.put("status", "executed");
-            } catch (RuntimeException e) {
-                // A verifier passed but execution threw — report honestly
-                // rather than claim success (Correctness Invariant #2).
-                logger.debug("Execution failed after a clean verify for goal '{}'", goal, e);
-                out.put("status", "error");
-                out.put("error", e.getMessage());
-            }
-        } else {
-            out.put("status", "refused");
-        }
-        return out;
+        return ok;
     }
 
     // ── rendering helpers ──────────────────────────────────────────────

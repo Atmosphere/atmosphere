@@ -317,6 +317,8 @@ When `atmosphere-mcp` is on the classpath, admin operations are registered as MC
 
 **Read tools** (always registered): `atmosphere_overview`, `atmosphere_list_broadcasters`, `atmosphere_list_resources`, `atmosphere_list_agents`, `atmosphere_agent_sessions`, `atmosphere_list_handlers`, `atmosphere_list_interceptors`, `atmosphere_audit_log`, plus optional subsystem tools.
 
+When `atmosphere-verifier` is on the classpath, the static plan-and-verify ("Guardians") stack is also exposed read-only: `atmosphere_verifier_summary` (active chain, SMT solver, policy), `atmosphere_verifier_examples`, and `atmosphere_verifier_check` (plan a goal and run every verifier over the resulting plan *without executing it* — status `verified`/`refused` with the per-verifier violations). The mutating verify-then-execute path stays behind the admin write gate.
+
 **Write tools** (opt-in via `atmosphere.admin.mcp-write-tools=true`): `atmosphere_broadcast`, `atmosphere_disconnect_resource`, `atmosphere_destroy_broadcaster`, `atmosphere_cancel_task`. Gated by `ControlAuthorizer` SPI.
 
 ## Configuration
