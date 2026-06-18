@@ -1739,3 +1739,28 @@ Verifying: `@AiEndpoint` DOES declare `AiCapability[] requires()`. The real drif
 — the ai-tools *sample* doesn't use `requires`, so the README overclaimed it; aligned the doc
 to the sample's actual annotation rather than deleting a reference to a real API. Neither the
 doc, the first audit's verdict, nor a sub-agent's verdict is authority — only the code is.
+
+## 2026-06-18 — README undercounted the verifier chain ("five structural verifiers") while deep-linking the docs
+
+**Claim (README, Enterprise Controls table):** plan-and-verify ships "five structural
+verifiers (allowlist, well-formedness, capability, taint, automaton)" plus a separate SMT
+backend.
+
+**Truth:** the default chain registers **seven** `PlanVerifier` providers via
+`modules/verifier/src/main/resources/META-INF/services/org.atmosphere.verifier.spi.PlanVerifier`:
+`StructureVerifier`, `AllowlistVerifier`, `WellFormednessVerifier`, `CapabilityVerifier`,
+`TaintVerifier`, `AutomatonVerifier`, `SmtVerifier`. The README enumerated five and silently
+dropped `StructureVerifier` (priority 5, the always-on `ControlFlowMode` gate). The tutorial
+page `tutorial/33-plan-and-verify.md` correctly says "seven-verifier chain", so the README was
+the side that drifted. Corrected the README to "six structural verifiers (control-flow gate,
+allowlist, well-formedness, capability, taint, automaton)" plus "a seventh SMT backend" — six
+structural + SMT = seven, matching both the ServiceLoader file and the tutorial.
+
+**Slip path:** the count lived in prose that enumerated the *named* checks; whoever wrote it
+counted the five with memorable names and treated the control-flow gate as plumbing rather
+than a verifier. Caught while deep-linking the README's concept tables to the github.io docs —
+cross-reading the README row against the tutorial it now links to surfaced the mismatch.
+
+**Gate:** the README plan-and-verify row now links straight to the tutorial, so the two numbers
+sit one click apart and a future drift between them is visible on sight. The `doc-drift-audit`
+skill (capability/subset-enumeration class) covers this class of drift on its next run.

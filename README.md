@@ -37,14 +37,14 @@ Atmosphere is a JVM framework, not an agent-hosting platform. We ship the primit
 
 | Layer | What Atmosphere ships | Provided by your stack |
 |---|---|---|
-| Streaming transport | `atmosphere-runtime` over WebSocket, SSE, long-polling (always-on defaults), gRPC, plus optional WebTransport/HTTP-3 (needs `jetty-http3-server` or `reactor-netty-http` on the classpath plus a dev cert) | — |
-| Runtime dispatch | `atmosphere-ai` `AgentRuntime` SPI + 12 adapters with contract-tested capability flags | Model hosting (we call providers; we do not host weights) |
-| Orchestration | `@Coordinator`, `AgentFleet`, handoffs, conditional routing, event-sourced coordination journal (`CoordinationJournal` SPI with causal `EventEnvelope` lineage, `CoordinationProjection` DAG-from-log, `FileCoordinationJournal` append-only NDJSON persistence, `CoordinationFork` what-if branching), result evaluation, and durable hibernating `Workflow<S>` over `CheckpointStore` (per-step retry, resume across JVM restart, no thread held while hibernated) — durable step execution, not wall-clock triggering | Cron / wall-clock scheduling (your container scheduler or a dedicated scheduler fires the workflow) |
-| Memory | `AiConversationMemory` per-conversation history (in-memory, plus durable SQLite/Redis through the `ConversationPersistence` SPI in `atmosphere-durable-sessions{-sqlite,-redis}`), `LongTermMemory` per-user facts (`InMemoryLongTermMemory`, `SqliteLongTermMemory`, `RedisLongTermMemory`), `SemanticRecallInterceptor` for BYO vector-store recall | Managed vector stores (use Spring AI's `VectorStore`, LangChain4j embeddings, or your own) |
-| Governance | Policy admission, `@AgentScope`, plan-and-verify, PII redaction, cost ceilings, durable HITL approvals, admin kill switches | — |
-| Protocol surface | MCP, A2A, AG-UI, Slack/Telegram/Discord/WhatsApp/Messenger channel adapters | — |
-| Code execution | `atmosphere-sandbox` `SandboxProvider` SPI + `DockerSandboxProvider` default | Browser automation, headless Chromium |
-| SDK | `atmosphere.js` (React, Vue, Svelte, React Native, vanilla TS), `wasync` (JVM client) | — |
+| [Streaming transport](https://atmosphere.github.io/docs/reference/core/) | `atmosphere-runtime` over WebSocket, SSE, long-polling (always-on defaults), gRPC, plus optional WebTransport/HTTP-3 (needs `jetty-http3-server` or `reactor-netty-http` on the classpath plus a dev cert) | — |
+| [Runtime dispatch](https://atmosphere.github.io/docs/tutorial/11-ai-adapters/) | `atmosphere-ai` `AgentRuntime` SPI + 12 adapters with contract-tested capability flags | Model hosting (we call providers; we do not host weights) |
+| [Orchestration](https://atmosphere.github.io/docs/agents/coordinator/) | `@Coordinator`, `AgentFleet`, handoffs, conditional routing, event-sourced coordination journal (`CoordinationJournal` SPI with causal `EventEnvelope` lineage, `CoordinationProjection` DAG-from-log, `FileCoordinationJournal` append-only NDJSON persistence, `CoordinationFork` what-if branching), result evaluation, and durable hibernating `Workflow<S>` over `CheckpointStore` (per-step retry, resume across JVM restart, no thread held while hibernated) — durable step execution, not wall-clock triggering | Cron / wall-clock scheduling (your container scheduler or a dedicated scheduler fires the workflow) |
+| [Memory](https://atmosphere.github.io/docs/reference/durable-sessions/) | `AiConversationMemory` per-conversation history (in-memory, plus durable SQLite/Redis through the `ConversationPersistence` SPI in `atmosphere-durable-sessions{-sqlite,-redis}`), `LongTermMemory` per-user facts (`InMemoryLongTermMemory`, `SqliteLongTermMemory`, `RedisLongTermMemory`), `SemanticRecallInterceptor` for BYO vector-store recall | Managed vector stores (use Spring AI's `VectorStore`, LangChain4j embeddings, or your own) |
+| [Governance](https://atmosphere.github.io/docs/reference/governance/) | Policy admission, `@AgentScope`, plan-and-verify, PII redaction, cost ceilings, durable HITL approvals, admin kill switches | — |
+| [Protocol surface](https://atmosphere.github.io/docs/reference/mcp/) | MCP, A2A, AG-UI, Slack/Telegram/Discord/WhatsApp/Messenger channel adapters | — |
+| [Code execution](https://atmosphere.github.io/docs/reference/sandbox/) | `atmosphere-sandbox` `SandboxProvider` SPI + `DockerSandboxProvider` default | Browser automation, headless Chromium |
+| [SDK](https://atmosphere.github.io/docs/clients/javascript/) | `atmosphere.js` (React, Vue, Svelte, React Native, vanilla TS), `wasync` (JVM client) | — |
 
 The differentiator is the streaming + JVM + governance combination: long-lived stateful agent sessions over real-time transports, with policy admission on the critical path. For stateless, bursty, autonomous agents that should hibernate when idle, a serverless agent platform is usually the better fit. For human-in-the-loop, multi-channel, governed agents inside an existing JVM stack, Atmosphere is the fit.
 
@@ -130,12 +130,12 @@ public class MyAgent {
 
 | Module on classpath | What gets registered |
 |---|---|
-| `atmosphere-agent` | Browser endpoint at `/atmosphere/agent/my-agent`, streaming AI dispatch, memory, commands, `/help` |
-| `atmosphere-mcp` | MCP endpoint at `/atmosphere/agent/my-agent/mcp` — session protocol + stateless 2026-07-28 RC (Tasks, MCP Apps, OAuth resource server) |
-| `atmosphere-a2a` | A2A endpoint at `/atmosphere/agent/my-agent/a2a` with Agent Card discovery |
-| `atmosphere-agui` | AG-UI endpoint at `/atmosphere/agent/my-agent/agui` |
-| `atmosphere-channels` | Slack, Telegram, Discord, WhatsApp, and Messenger dispatch |
-| `atmosphere-admin` | Admin dashboard and `/api/admin/*` control surfaces |
+| [`atmosphere-agent`](https://atmosphere.github.io/docs/agents/agent/) | Browser endpoint at `/atmosphere/agent/my-agent`, streaming AI dispatch, memory, commands, `/help` |
+| [`atmosphere-mcp`](https://atmosphere.github.io/docs/reference/mcp/) | MCP endpoint at `/atmosphere/agent/my-agent/mcp` — session protocol + stateless 2026-07-28 RC (Tasks, MCP Apps, OAuth resource server) |
+| [`atmosphere-a2a`](https://atmosphere.github.io/docs/agents/a2a/) | A2A endpoint at `/atmosphere/agent/my-agent/a2a` with Agent Card discovery |
+| [`atmosphere-agui`](https://atmosphere.github.io/docs/agents/agui/) | AG-UI endpoint at `/atmosphere/agent/my-agent/agui` |
+| [`atmosphere-channels`](https://atmosphere.github.io/docs/tutorial/23-channels/) | Slack, Telegram, Discord, WhatsApp, and Messenger dispatch |
+| [`atmosphere-admin`](https://atmosphere.github.io/docs/reference/admin/) | Admin dashboard and `/api/admin/*` control surfaces |
 | built-in console | Console UI at `/atmosphere/console/` |
 
 ## AI Runtime Adapters
@@ -146,18 +146,18 @@ Capabilities are intentionally not identical. The authoritative matrix is pinned
 
 | Runtime adapter | Backing framework | Spring Boot | Capability highlights | Notes |
 |---|---|---|---|---|
-| `atmosphere-ai` (Built-in) | OpenAI-compatible HTTP client | 3.5 / 4.0 | tool calling, JSON mode, vision, audio, prompt caching, token usage, native retry, tool-call deltas | Default. Works with OpenAI-compatible endpoints such as OpenAI, Gemini compatibility endpoints, Ollama, and local proxies. |
-| `atmosphere-spring-ai` | Spring AI 2.0.0 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | Best fit for Spring Boot applications already using Spring AI. |
-| `atmosphere-langchain4j` | LangChain4j 1.15.0 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | Best fit for LangChain4j tool ecosystems and non-Spring services. |
-| `atmosphere-adk` | Google ADK 1.2.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching | Multi-agent runtime with `AGENT_ORCHESTRATION`. |
-| `atmosphere-koog` | JetBrains Koog 1.0.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching, cancellation | Multi-agent runtime. |
-| `atmosphere-semantic-kernel` | Microsoft Semantic Kernel 1.5.0 | 4.0 | tool calling, structured output, vision, token usage | No audio path through the SK Java SDK today. |
-| `atmosphere-agentscope` | Alibaba AgentScope 1.0.12 | 4.0 | tool calling, structured output, vision, audio, conversation memory, token usage, cancellation | `AgentScopeToolBridge` routes every `@AiTool` invocation through `ToolExecutionHelper.executeWithApproval`. |
-| `atmosphere-embabel` | Embabel 0.3.5 | 3.5 only | agent orchestration, tool calling, vision, conversation memory | Requires `atmosphere-spring-boot3-starter` and the `-Pspring-boot3` profile. |
-| `atmosphere-spring-ai-alibaba` | Spring AI Alibaba 1.1.2.2 | 3.5 only | tool calling, structured output, vision, audio, conversation memory, token usage | Buffered streaming (the upstream `ReactAgent.call()` returns one `AssistantMessage`); `UsageCapturingChatModel` decorator threads token usage. Token-by-token streaming should use another adapter until Alibaba ships a Spring AI 2.x-aligned agent framework. |
-| `atmosphere-anthropic` | Anthropic Messages API (no third-party SDK) | 3.5 / 4.0 | tool calling, structured output, conversation memory, token usage, per-request retry | Native HTTP+SSE client; tool loop capped at five rounds, cancellation-aware. Configure via `anthropic.api.key` (system property or `AiConfig.LlmSettings`); custom headers (`Helicone-Auth`, tenant IDs, tracing) are passthrough with reserved-header filtering. |
-| `atmosphere-cohere` | Cohere v2 chat API (no third-party SDK) | 3.5 / 4.0 | tool calling, structured output, vision, multi-modal, conversation memory, token usage, per-request retry | Native HTTP+SSE client against `POST /v2/chat`; tool dispatch routes through `ToolExecutionHelper.executeWithApproval`. Configure via `cohere.api.key` (system property or `AiConfig.LlmSettings`). |
-| `atmosphere-crewai` | CrewAI 1.14+ sidecar bridge | 3.5 / 4.0 | agent orchestration, tool calling, structured output, token usage, cancellation | Java HTTP+SSE bridge to a Python CrewAI sidecar. Availability is gated by a live `/health` probe, not classpath presence. |
+| [`atmosphere-ai`](https://atmosphere.github.io/docs/reference/ai/) (Built-in) | OpenAI-compatible HTTP client | 3.5 / 4.0 | tool calling, JSON mode, vision, audio, prompt caching, token usage, native retry, tool-call deltas | Default. Works with OpenAI-compatible endpoints such as OpenAI, Gemini compatibility endpoints, Ollama, and local proxies. |
+| [`atmosphere-spring-ai`](https://atmosphere.github.io/docs/integrations/spring-ai/) | Spring AI 2.0.0 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | Best fit for Spring Boot applications already using Spring AI. |
+| [`atmosphere-langchain4j`](https://atmosphere.github.io/docs/integrations/langchain4j/) | LangChain4j 1.15.0 | 4.0 | tool calling, structured output, vision, audio, prompt caching, token usage | Best fit for LangChain4j tool ecosystems and non-Spring services. |
+| [`atmosphere-adk`](https://atmosphere.github.io/docs/integrations/adk/) | Google ADK 1.2.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching | Multi-agent runtime with `AGENT_ORCHESTRATION`. |
+| [`atmosphere-koog`](https://atmosphere.github.io/docs/integrations/koog/) | JetBrains Koog 1.0.0 | 4.0 | agent orchestration, tool calling, multi-modal, prompt caching, cancellation | Multi-agent runtime. |
+| [`atmosphere-semantic-kernel`](https://atmosphere.github.io/docs/integrations/semantic-kernel/) | Microsoft Semantic Kernel 1.5.0 | 4.0 | tool calling, structured output, vision, token usage | No audio path through the SK Java SDK today. |
+| [`atmosphere-agentscope`](https://atmosphere.github.io/docs/integrations/agentscope/) | Alibaba AgentScope 1.0.12 | 4.0 | tool calling, structured output, vision, audio, conversation memory, token usage, cancellation | `AgentScopeToolBridge` routes every `@AiTool` invocation through `ToolExecutionHelper.executeWithApproval`. |
+| [`atmosphere-embabel`](https://atmosphere.github.io/docs/integrations/embabel/) | Embabel 0.3.5 | 3.5 only | agent orchestration, tool calling, vision, conversation memory | Requires `atmosphere-spring-boot3-starter` and the `-Pspring-boot3` profile. |
+| [`atmosphere-spring-ai-alibaba`](https://atmosphere.github.io/docs/integrations/spring-ai-alibaba/) | Spring AI Alibaba 1.1.2.2 | 3.5 only | tool calling, structured output, vision, audio, conversation memory, token usage | Buffered streaming (the upstream `ReactAgent.call()` returns one `AssistantMessage`); `UsageCapturingChatModel` decorator threads token usage. Token-by-token streaming should use another adapter until Alibaba ships a Spring AI 2.x-aligned agent framework. |
+| [`atmosphere-anthropic`](https://atmosphere.github.io/docs/integrations/anthropic/) | Anthropic Messages API (no third-party SDK) | 3.5 / 4.0 | tool calling, structured output, conversation memory, token usage, per-request retry | Native HTTP+SSE client; tool loop capped at five rounds, cancellation-aware. Configure via `anthropic.api.key` (system property or `AiConfig.LlmSettings`); custom headers (`Helicone-Auth`, tenant IDs, tracing) are passthrough with reserved-header filtering. |
+| [`atmosphere-cohere`](https://atmosphere.github.io/docs/integrations/cohere/) | Cohere v2 chat API (no third-party SDK) | 3.5 / 4.0 | tool calling, structured output, vision, multi-modal, conversation memory, token usage, per-request retry | Native HTTP+SSE client against `POST /v2/chat`; tool dispatch routes through `ToolExecutionHelper.executeWithApproval`. Configure via `cohere.api.key` (system property or `AiConfig.LlmSettings`). |
+| [`atmosphere-crewai`](https://atmosphere.github.io/docs/integrations/crewai/) | CrewAI 1.14+ sidecar bridge | 3.5 / 4.0 | agent orchestration, tool calling, structured output, token usage, cancellation | Java HTTP+SSE bridge to a Python CrewAI sidecar. Availability is gated by a live `/health` probe, not classpath presence. |
 
 See the full [capability matrix](modules/ai/README.md#capability-matrix) for text streaming, tool calling, structured output, system prompts, agent orchestration, conversation memory, tool approval, vision, audio, multi-modal, prompt caching, token usage, retry, passivation, and tool-call deltas.
 
@@ -167,17 +167,17 @@ Atmosphere keeps governance on the critical path rather than as an afterthought.
 
 | Control | Module | What it does |
 |---|---|---|
-| Policy admission | `atmosphere-ai` | `GovernancePolicy`, `PolicyRing`, allow/deny lists, rate limits, time windows, metadata requirements |
-| Scope enforcement | `atmosphere-ai` | `@AgentScope` blocks out-of-purpose prompts before runtime dispatch |
-| Human approval | `atmosphere-agent`, `atmosphere-ai` | command confirmations, permission modes, tool approval policies |
-| Durable HITL workflows | `atmosphere-checkpoint`, `atmosphere-durable-sessions` | checkpointed approval gates, REST approve/reject/resume endpoints, and reconnect-safe replay for long-running agent work |
-| Stateful interactions | `atmosphere-interactions` | stateful agent turns with a durable `steps[]` log, `background` runs retrievable after disconnect, conversation chaining via `previous_interaction_id`, and live step streaming over WebSocket; REST surface at `/api/interactions` (mutations default-deny) |
-| Plan-and-verify | `atmosphere-verifier` | verifies LLM-emitted tool workflows before execution; five structural verifiers run today (allowlist, well-formedness, capability, taint, automaton); an SMT backend ships as `atmosphere-verifier-smt` (SMTInterpol pure-JVM default, Z3 opt-in via native libs) proving numeric invariants over symbolic tool-call data flow; the no-op default applies only when that module is absent |
-| PII and cost controls | `atmosphere-ai` | stream-level PII redaction, token usage, per-tenant cost ceilings |
-| Admin control plane | `atmosphere-admin` | dashboard, REST/MCP control surfaces, kill switches, journal flow viewer, governance decisions, **workflow authoring UI**, **eval dashboard** |
+| [Policy admission](https://atmosphere.github.io/docs/reference/governance/) | `atmosphere-ai` | `GovernancePolicy`, `PolicyRing`, allow/deny lists, rate limits, time windows, metadata requirements |
+| [Scope enforcement](https://atmosphere.github.io/docs/tutorial/31-agent-scope/) | `atmosphere-ai` | `@AgentScope` blocks out-of-purpose prompts before runtime dispatch |
+| [Human approval](https://atmosphere.github.io/docs/reference/tool-approval-policy/) | `atmosphere-agent`, `atmosphere-ai` | command confirmations, permission modes, tool approval policies |
+| [Durable HITL workflows](https://atmosphere.github.io/docs/tutorial/24-durable-hitl/) | `atmosphere-checkpoint`, `atmosphere-durable-sessions` | checkpointed approval gates, REST approve/reject/resume endpoints, and reconnect-safe replay for long-running agent work |
+| [Stateful interactions](https://atmosphere.github.io/docs/reference/interactions/) | `atmosphere-interactions` | stateful agent turns with a durable `steps[]` log, `background` runs retrievable after disconnect, conversation chaining via `previous_interaction_id`, and live step streaming over WebSocket; REST surface at `/api/interactions` (mutations default-deny) |
+| [Plan-and-verify](https://atmosphere.github.io/docs/tutorial/33-plan-and-verify/) | `atmosphere-verifier` | verifies LLM-emitted tool workflows before execution; six structural verifiers run today (control-flow gate, allowlist, well-formedness, capability, taint, automaton); a seventh SMT backend ships as `atmosphere-verifier-smt` (SMTInterpol pure-JVM default, Z3 opt-in via native libs) proving numeric invariants over symbolic tool-call data flow; the no-op default applies only when that module is absent. A native-Java implementation of Erik Meijer's [*Guardians of the Agents*](https://cacm.acm.org/practice/guardians-of-the-agents/) (CACM, Jan 2026) pattern |
+| [PII and cost controls](https://atmosphere.github.io/docs/reference/governance/) | `atmosphere-ai` | stream-level PII redaction, token usage, per-tenant cost ceilings |
+| [Admin control plane](https://atmosphere.github.io/docs/reference/admin/) | `atmosphere-admin` | dashboard, REST/MCP control surfaces, kill switches, journal flow viewer, governance decisions, **workflow authoring UI**, **eval dashboard** |
 | Enterprise console bundle | `atmosphere-admin-bundle` | single Maven dep aggregating `spring-boot-starter` + `admin` + `ai` + `coordinator` + `agent` + `rag` + `checkpoint` + `durable-sessions` |
-| Compliance evidence | `atmosphere-ai`, `atmosphere-admin` | OWASP Agentic Top 10, EU AI Act, HIPAA, SOC 2 matrices and AGT-compatible verification output |
-| Sandbox execution | `atmosphere-sandbox` | `DockerSandboxProvider` default and `SandboxProvider` SPI for isolated code execution |
+| [Compliance evidence](https://atmosphere.github.io/docs/tutorial/32-owasp-agentic-matrix/) | `atmosphere-ai`, `atmosphere-admin` | OWASP Agentic Top 10, EU AI Act, HIPAA, SOC 2 matrices and AGT-compatible verification output |
+| [Sandbox execution](https://atmosphere.github.io/docs/reference/sandbox/) | `atmosphere-sandbox` | `DockerSandboxProvider` default and `SandboxProvider` SPI for isolated code execution |
 
 Governance policy can be YAML-driven:
 
@@ -274,16 +274,16 @@ For Java/Kotlin clients, use [wAsync](modules/wasync/) for async WebSocket, SSE,
 Add only what you need:
 
 - **AI runtime**: `atmosphere-ai` or one runtime adapter from the [runtime table](#ai-runtime-adapters)
-- **Protocols**: `atmosphere-mcp`, `atmosphere-a2a`, `atmosphere-agui`
-- **Channels**: `atmosphere-channels`
-- **Multi-agent**: `atmosphere-coordinator`
-- **Admin/control plane**: `atmosphere-admin`
-- **Plan-and-verify**: `atmosphere-verifier`
-- **Sandbox**: `atmosphere-sandbox`
-- **Durable sessions**: `atmosphere-durable-sessions` plus `atmosphere-durable-sessions-sqlite` or `atmosphere-durable-sessions-redis`
-- **Checkpoints**: `atmosphere-checkpoint`
+- **Protocols**: [`atmosphere-mcp`](https://atmosphere.github.io/docs/reference/mcp/), [`atmosphere-a2a`](https://atmosphere.github.io/docs/agents/a2a/), [`atmosphere-agui`](https://atmosphere.github.io/docs/agents/agui/)
+- **Channels**: [`atmosphere-channels`](https://atmosphere.github.io/docs/tutorial/23-channels/)
+- **Multi-agent**: [`atmosphere-coordinator`](https://atmosphere.github.io/docs/agents/coordinator/)
+- **Admin/control plane**: [`atmosphere-admin`](https://atmosphere.github.io/docs/reference/admin/)
+- **Plan-and-verify**: [`atmosphere-verifier`](https://atmosphere.github.io/docs/tutorial/33-plan-and-verify/)
+- **Sandbox**: [`atmosphere-sandbox`](https://atmosphere.github.io/docs/reference/sandbox/)
+- **Durable sessions**: [`atmosphere-durable-sessions`](https://atmosphere.github.io/docs/reference/durable-sessions/) plus `atmosphere-durable-sessions-sqlite` or `atmosphere-durable-sessions-redis`
+- **Checkpoints**: [`atmosphere-checkpoint`](https://atmosphere.github.io/docs/reference/checkpoint/)
 - **Audit sinks**: `atmosphere-ai-audit-kafka`, `atmosphere-ai-audit-postgres`
-- **Policy engines**: `atmosphere-ai-policy-rego` (OPA), `atmosphere-ai-policy-cedar` (AWS Cedar)
+- **[Policy engines](https://atmosphere.github.io/docs/reference/governance/)**: `atmosphere-ai-policy-rego` (OPA), `atmosphere-ai-policy-cedar` (AWS Cedar)
 
 For Spring Boot 3.5 deployments, including Embabel or Spring AI Alibaba, use `atmosphere-spring-boot3-starter` and build with `-Pspring-boot3`.
 
@@ -292,6 +292,16 @@ For Spring Boot 3.5 deployments, including Embabel or Spring AI Alibaba, use `at
 ## Documentation
 
 [Tutorial](https://atmosphere.github.io/docs/tutorial/01-introduction/) · [Full docs](https://atmosphere.github.io/docs/) · [CLI](cli/README.md) · [Javadoc](https://atmosphere.github.io/apidocs/) · [Samples](samples/)
+
+| Topic | Reference docs |
+|---|---|
+| Architecture & transports | [Architecture](https://atmosphere.github.io/docs/architecture/) · [Transports](https://atmosphere.github.io/docs/tutorial/04-transports/) · [Broadcaster](https://atmosphere.github.io/docs/tutorial/05-broadcaster/) · [WebTransport](https://atmosphere.github.io/docs/reference/webtransport/) · [Clustering](https://atmosphere.github.io/docs/tutorial/16-clustering/) |
+| AI runtimes | [AI adapters](https://atmosphere.github.io/docs/tutorial/11-ai-adapters/) · [Runtime selection](https://atmosphere.github.io/docs/reference/runtime-selection/) · [AI reference](https://atmosphere.github.io/docs/reference/ai/) |
+| Agents & protocols | [`@Agent`](https://atmosphere.github.io/docs/agents/agent/) · [MCP](https://atmosphere.github.io/docs/reference/mcp/) · [A2A](https://atmosphere.github.io/docs/agents/a2a/) · [AG-UI](https://atmosphere.github.io/docs/agents/agui/) · [Coordinator](https://atmosphere.github.io/docs/agents/coordinator/) · [Channels](https://atmosphere.github.io/docs/tutorial/23-channels/) |
+| Governance & verification | [Governance](https://atmosphere.github.io/docs/reference/governance/) · [Agent scope](https://atmosphere.github.io/docs/tutorial/31-agent-scope/) · [Plan-and-verify (Meijer)](https://atmosphere.github.io/docs/tutorial/33-plan-and-verify/) · [Tool approval](https://atmosphere.github.io/docs/reference/tool-approval-policy/) · [OWASP Agentic matrix](https://atmosphere.github.io/docs/tutorial/32-owasp-agentic-matrix/) |
+| Durability & state | [Durable sessions](https://atmosphere.github.io/docs/reference/durable-sessions/) · [Durable HITL](https://atmosphere.github.io/docs/tutorial/24-durable-hitl/) · [Checkpoints](https://atmosphere.github.io/docs/reference/checkpoint/) · [Interactions](https://atmosphere.github.io/docs/reference/interactions/) |
+| Operations | [Admin & control plane](https://atmosphere.github.io/docs/reference/admin/) · [Observability](https://atmosphere.github.io/docs/reference/observability/) · [Benchmarks](https://atmosphere.github.io/docs/reference/benchmarks/) |
+| Clients | [JavaScript](https://atmosphere.github.io/docs/clients/javascript/) · [React Native](https://atmosphere.github.io/docs/clients/react-native/) · [Java / wAsync](https://atmosphere.github.io/docs/clients/java/) |
 
 ## Commercial Support
 
