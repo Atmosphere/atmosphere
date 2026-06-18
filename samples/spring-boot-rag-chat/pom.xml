@@ -71,10 +71,14 @@
             <artifactId>atmosphere-rag</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-spring-ai</artifactId>
-        </dependency>
+        <!--
+          Chat runs on the built-in AgentRuntime (tool-calling works against the
+          Gemini OpenAI-compatible endpoint). Spring AI is kept below purely for
+          the VectorStore + embeddings (the RAG retrieval this sample showcases);
+          the atmosphere-spring-ai runtime adapter is intentionally NOT a
+          dependency, because its openai-java streaming path rejects Gemini's
+          tool-call deltas (missing `index`).
+        -->
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-skills</artifactId>

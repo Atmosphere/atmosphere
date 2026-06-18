@@ -41,7 +41,7 @@ import java.util.Map;
 @Agent(name = "atmosphere-demo", version = "1.0.0", endpoint = "/atmosphere/mcp", headless = true)
 public class DemoMcpServer {
 
-    private static final String CHAT_PATH = "/atmosphere/ai-chat";
+    private static final String CHAT_PATH = "/atmosphere/chat";
     private static final String CHAT_SUMMARY_SYSTEM_PROMPT = org.atmosphere.ai.PromptLoader.resolve("skill:mcp-chat-summary");
     private static final String ANALYZE_TOPIC_SYSTEM_PROMPT = org.atmosphere.ai.PromptLoader.resolve("skill:mcp-analyze-topic");
 

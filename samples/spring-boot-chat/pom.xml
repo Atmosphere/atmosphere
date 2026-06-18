@@ -139,6 +139,13 @@
                 <spring-boot.version>3.5.14</spring-boot.version>
                 <netty.version>4.1.135.Final</netty.version>
                 <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
+                <!-- The root POM pins only tomcat-embed-core to ${tomcat-version}
+                     (11.0.22) for the Spring Boot 4 / Tomcat 11 baseline. Under
+                     Spring Boot 3.5.14 that core is skewed against the BOM's
+                     tomcat-embed-el / -websocket 10.1.x, and the mismatched
+                     SocketWrapperBase throws NoSuchMethodError(getLock) during
+                     long-polling. Align core back to Spring Boot 3.5.14's Tomcat. -->
+                <tomcat-version>10.1.54</tomcat-version>
             </properties>
         </profile>
         <profile>

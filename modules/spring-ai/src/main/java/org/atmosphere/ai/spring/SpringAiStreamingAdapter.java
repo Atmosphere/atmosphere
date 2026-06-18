@@ -112,8 +112,12 @@ public class SpringAiStreamingAdapter implements AiStreamingAdapter<SpringAiStre
                     }
                 })
                 .doOnComplete(session::complete)
-                .doOnError(session::error)
-                .subscribe();
+                // Terminal error path (Correctness Invariant #2): handle the
+                // error in the subscriber's onError consumer so an upstream
+                // failure reaches session.error instead of slipping past a
+                // handler-less subscribe() into Reactor's default
+                // onErrorDropped, where it is silently swallowed.
+                .subscribe(ignored -> { }, session::error);
     }
 
     /**

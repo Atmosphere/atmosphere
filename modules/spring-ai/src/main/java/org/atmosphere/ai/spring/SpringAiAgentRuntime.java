@@ -262,15 +262,28 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                     session.complete();
                     completion.complete(null);
                 })
-                .doOnError(error -> {
-                    org.atmosphere.ai.AgentLifecycleListener.fireModelError(
-                            listeners, modelName, error);
-                    logger.error("Spring AI streaming error: {}", error.getMessage());
-                    session.error(error);
-                    completion.complete(null);
-                })
                 .doOnCancel(() -> completion.complete(null))
-                .subscribe();
+                .subscribe(
+                        ignored -> { },
+                        error -> {
+                            // Terminal error path (Correctness Invariant #2). The
+                            // error handling lives in the subscriber's onError
+                            // consumer — not a doOnError side-effect — so that an
+                            // error raised in the upstream publisher (e.g. the
+                            // OpenAI SDK rejecting a provider's tool-call streaming
+                            // delta) reaches session.error and resolves the
+                            // completion future, instead of slipping past a
+                            // handler-less subscribe() into Reactor's default
+                            // onErrorDropped where it is silently swallowed and the
+                            // session is left hanging.
+                            org.atmosphere.ai.AgentLifecycleListener.fireModelError(
+                                    listeners, modelName, error);
+                            logger.error("Spring AI streaming error: {}", error.getMessage());
+                            if (!session.isClosed()) {
+                                session.error(error);
+                            }
+                            completion.complete(null);
+                        });
 
         return new ExecutionHandle() {
             private final java.util.concurrent.atomic.AtomicBoolean cancelled =

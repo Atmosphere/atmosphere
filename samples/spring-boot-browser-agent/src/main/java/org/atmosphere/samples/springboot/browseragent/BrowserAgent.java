@@ -15,7 +15,6 @@
  */
 package org.atmosphere.samples.springboot.browseragent;
 
-import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
@@ -102,8 +101,13 @@ public class BrowserAgent {
     public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
         logger.info("Task from {}: {}", resource.uuid(), message);
 
-        var settings = AiConfig.get();
-        if (settings == null || settings.apiKey() == null || settings.apiKey().isBlank()) {
+        // Require an explicit Cohere key. This sample pins the Cohere runtime, so
+        // we must check COHERE_API_KEY directly rather than the resolved
+        // AiConfig.apiKey(): the generic resolver falls back to LLM_API_KEY /
+        // OPENAI_API_KEY / GEMINI_API_KEY, and handing one of those to Cohere
+        // produces a confusing 401 instead of a clear "set COHERE_API_KEY" hint.
+        var cohereKey = System.getenv("COHERE_API_KEY");
+        if (cohereKey == null || cohereKey.isBlank()) {
             session.send("This sample needs a Cohere key for tool calling. Set COHERE_API_KEY "
                     + "and ensure Docker is running, then ask me to browse a site — "
                     + "e.g. \"What's the top story on news.ycombinator.com?\"");
