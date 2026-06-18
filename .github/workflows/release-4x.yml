@@ -155,6 +155,12 @@ jobs:
     - name: Update documentation versions
       run: ./scripts/update-doc-versions.sh ${{ inputs.release_version }}
 
+    - name: Regenerate SKILLCARD manifests
+      # SKILLCARD.yaml stamps the artifact version from each module pom. Without
+      # regenerating after versions:set, the manifests lag the bump and the
+      # capability-snapshot gate in pre-push-validate.sh fails on the next push.
+      run: ./scripts/regen-skillcards.sh
+
     - name: Promote CHANGELOG [Unreleased] to versioned heading
       run: python3 ./scripts/promote-changelog.py ${{ inputs.release_version }}
 
@@ -221,7 +227,7 @@ jobs:
     - name: Commit release version
       if: inputs.dry_run == false
       run: |
-        git add -- pom.xml '**/pom.xml' README.md '**/README.md' CHANGELOG.md || true
+        git add -- pom.xml '**/pom.xml' README.md '**/README.md' '**/SKILLCARD.yaml' CHANGELOG.md || true
         git commit -m "release: Atmosphere ${{ inputs.release_version }}"
         # Remove stale tag from a previous failed attempt (if any)
         git tag -d "atmosphere-${{ inputs.release_version }}" 2>/dev/null || true
@@ -232,7 +238,8 @@ jobs:
       if: inputs.dry_run == false
       run: |
         ./mvnw -B versions:set -DnewVersion=${{ inputs.next_dev_version }} -DgenerateBackupPoms=false
-        git add -- pom.xml '**/pom.xml'
+        ./scripts/regen-skillcards.sh
+        git add -- pom.xml '**/pom.xml' '**/SKILLCARD.yaml'
         git commit -m "chore: prepare for next development iteration ${{ inputs.next_dev_version }}"
 
     - name: Push commits and tag

@@ -36,30 +36,74 @@ sedi() {
     fi
 }
 
-# ── 1. Maven <version> tags in docs/*.md ──
-echo "── docs/*.md Maven snippets"
-if [ -d "$ROOT/docs" ]; then
-{ find "$ROOT/docs" -name '*.md' -exec grep -l '<version>[0-9]' {} + 2>/dev/null || true; } | while read -r f; do
-    sedi "s|<version>[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^<]*</version>|<version>$VERSION</version>|g" "$f"
-    echo "   $f"
-    UPDATED=$((UPDATED + 1))
-done
-fi
+# ── 1-3. Maven <version> tags for org.atmosphere deps in docs/*.md, module
+#         README.md, and the root README.md ──
+#
+# Only bump a <version> that lives inside an Atmosphere <dependency>/<parent>
+# block (groupId org.atmosphere, or — for BOM-style snippets that omit the
+# groupId — an atmosphere-* artifactId). Third-party dependency examples
+# (com.google.adk:google-adk, dev.langchain4j:*, io.grpc:*, org.sosy-lab:*,
+# org.springframework.ai:*, ...) MUST keep their real upstream versions.
+#
+# A blanket `s|<version>X.Y.Z</version>|<version>$VERSION</version>|g` used to
+# clobber every <version> tag here, stamping the Atmosphere release version onto
+# third-party deps so readers copied coordinates that do not exist. The rule
+# below mirrors scripts/validate-doc-thirdparty-versions.sh (the gate that
+# catches the same drift), so generator and validator stay consistent.
+echo "── Atmosphere <version> tags (docs/*.md, module README.md, root README.md)"
+python3 - "$VERSION" "$ROOT" <<'PY'
+import re
+import sys
+from pathlib import Path
 
-# ── 2. Maven <version> tags in module README.md ──
-echo "── Module README.md files"
-{ find "$ROOT/modules" -name 'README.md' -exec grep -l '<version>[0-9]' {} + 2>/dev/null || true; } | while read -r f; do
-    sedi "s|<version>[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^<]*</version>|<version>$VERSION</version>|g" "$f"
-    echo "   $f"
-    UPDATED=$((UPDATED + 1))
-done
+version = sys.argv[1]
+root = Path(sys.argv[2])
 
-# ── 3. Root README.md ──
-echo "── Root README.md"
-if grep -q '<version>[0-9]' "$ROOT/README.md" 2>/dev/null; then
-    sedi "s|<version>[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^<]*</version>|<version>$VERSION</version>|g" "$ROOT/README.md"
-    echo "   README.md (xml version tag)"
-fi
+files = []
+docs = root / "docs"
+if docs.is_dir():
+    files += docs.rglob("*.md")
+files += (root / "modules").rglob("README.md")
+readme = root / "README.md"
+if readme.exists():
+    files.append(readme)
+
+# A <dependency>/<parent> block (xml-fenced or inline), non-greedy.
+BLOCK = re.compile(r"<(dependency|parent)>(.*?)</\1>", re.DOTALL | re.IGNORECASE)
+GROUP = re.compile(r"<groupId>\s*([^<]+?)\s*</groupId>", re.IGNORECASE)
+ARTIFACT = re.compile(r"<artifactId>\s*([^<]+?)\s*</artifactId>", re.IGNORECASE)
+# A literal release version only — never clobber ${...} property placeholders.
+VER = re.compile(
+    r"(<version>\s*)\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?(\s*</version>)", re.IGNORECASE
+)
+
+
+def is_atmosphere(block):
+    g = GROUP.search(block)
+    if g:
+        return g.group(1).strip().startswith("org.atmosphere")
+    a = ARTIFACT.search(block)
+    return bool(a and a.group(1).strip().startswith("atmosphere-"))
+
+
+def bump_block(m):
+    block = m.group(2)
+    if not is_atmosphere(block):
+        return m.group(0)
+    new_block = VER.sub(rf"\g<1>{version}\g<2>", block)
+    return m.group(0).replace(block, new_block, 1)
+
+
+for f in sorted(set(files)):
+    try:
+        text = f.read_text()
+    except (OSError, UnicodeDecodeError):
+        continue
+    new = BLOCK.sub(bump_block, text)
+    if new != text:
+        f.write_text(new)
+        print(f"   {f.relative_to(root)}")
+PY
 # "Current release: `X.Y.Z[-qualifier]`" pattern — markdown inline code,
 # not an XML tag. Release 4.0.36 shipped with 4.0.36-SNAPSHOT here because
 # this line slipped the tag-only regex above.
