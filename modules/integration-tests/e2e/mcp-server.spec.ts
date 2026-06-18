@@ -14,15 +14,17 @@ test.afterAll(async () => {
 
 test.describe('MCP Server Chat', () => {
   test('WebSocket connects to chat endpoint', async () => {
-    const client = await connectWebSocket(server.baseUrl, '/atmosphere/ai-chat');
+    const client = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
     expect(client.ws.readyState).toBe(1); // OPEN
     client.close();
   });
 
-  // Known issue: @ManagedService chat broadcast doesn't work alongside @Agent(headless) in CI
-  test.skip('user can send and receive messages', async () => {
-    const sender = await connectWebSocket(server.baseUrl, '/atmosphere/ai-chat');
-    const receiver = await connectWebSocket(server.baseUrl, '/atmosphere/ai-chat');
+  // Regression: the chat @ManagedService was mis-mapped to /atmosphere/ai-chat
+  // while the frontend connects to /atmosphere/chat, so messages 404'd and never
+  // delivered. With the paths aligned, the broadcast round-trips.
+  test('user can send and receive messages', async () => {
+    const sender = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
+    const receiver = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
     await new Promise(r => setTimeout(r, 500));
 
     const msg = JSON.stringify({ author: 'Alice', message: 'Hello from MCP!' });
@@ -40,10 +42,9 @@ test.describe('MCP Server Chat', () => {
     receiver.close();
   });
 
-  // Known issue: @ManagedService chat broadcast doesn't work alongside @Agent(headless) in CI
-  test.skip('message includes author', async () => {
-    const sender = await connectWebSocket(server.baseUrl, '/atmosphere/ai-chat');
-    const receiver = await connectWebSocket(server.baseUrl, '/atmosphere/ai-chat');
+  test('message includes author', async () => {
+    const sender = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
+    const receiver = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
     await new Promise(r => setTimeout(r, 500));
 
     const msg = JSON.stringify({ author: 'Eve', message: 'MCP chat works!' });
@@ -58,10 +59,9 @@ test.describe('MCP Server Chat', () => {
     receiver.close();
   });
 
-  // Known issue: @ManagedService chat broadcast doesn't work alongside @Agent(headless) in CI
-  test.skip('multiple messages delivered in order', async () => {
-    const sender = await connectWebSocket(server.baseUrl, '/atmosphere/ai-chat');
-    const receiver = await connectWebSocket(server.baseUrl, '/atmosphere/ai-chat');
+  test('multiple messages delivered in order', async () => {
+    const sender = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
+    const receiver = await connectWebSocket(server.baseUrl, '/atmosphere/chat');
     await new Promise(r => setTimeout(r, 500));
 
     for (let i = 1; i <= 3; i++) {

@@ -87,4 +87,19 @@ test.describe('RAG Chat', () => {
     await expect(page.getByText('What is Atmosphere?')).toBeVisible();
     await expect(page.getByText('Tell me about RAG')).toBeVisible();
   });
+
+  // Non-flaky regression for the rag-chat failure: a prompt must produce an
+  // assistant response in the browser. Pre-fix, chat ran on the SpringAI
+  // runtime and crashed on the Gemini OpenAI-compat tool-call deltas before any
+  // answer streamed back; routing through the built-in runtime (pinned by the
+  // RuntimeSelectionTest unit test) makes the end-to-end flow work. LLM_MODE=fake
+  // keeps the response deterministic so this is safe to run in CI.
+  test('prompt produces an assistant response (browser e2e)', async ({ page }) => {
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await page.getByTestId('chat-input').fill('What does the Atmosphere RAG agent do?');
+    await page.getByTestId('chat-send').click();
+
+    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+      .not.toBeEmpty({ timeout: 30_000 });
+  });
 });

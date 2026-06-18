@@ -95,7 +95,7 @@ jobs:
           # admin-coverage, and orchestration-primitives specs are now
           # remapped into their matching legs.
           - name: protocols
-            projects: "mcp-server,mcp-tools,a2a-agent,a2a-discovery,agui-chat,multi-agent-startup-team"
+            projects: "mcp-server,mcp-tools,a2a-agent,a2a-discovery,agui-chat,multi-agent-startup-team,browser-agent"
           - name: protocols-extra
             projects: "grpc-browser,rooms-api,room-typing-direct,channels-chat"
           - name: resilience

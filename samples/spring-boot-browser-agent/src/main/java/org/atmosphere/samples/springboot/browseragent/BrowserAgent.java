@@ -106,7 +106,7 @@ public class BrowserAgent {
         // AiConfig.apiKey(): the generic resolver falls back to LLM_API_KEY /
         // OPENAI_API_KEY / GEMINI_API_KEY, and handing one of those to Cohere
         // produces a confusing 401 instead of a clear "set COHERE_API_KEY" hint.
-        var cohereKey = System.getenv("COHERE_API_KEY");
+        var cohereKey = cohereApiKey();
         if (cohereKey == null || cohereKey.isBlank()) {
             session.send("This sample needs a Cohere key for tool calling. Set COHERE_API_KEY "
                     + "and ensure Docker is running, then ask me to browse a site — "
@@ -119,5 +119,14 @@ public class BrowserAgent {
         // offers the code_exec tool, lifts the tool-loop ceiling, and streams
         // each round's AgentStep + screenshots back to the Console.
         session.stream(message);
+    }
+
+    /**
+     * The Cohere API key for this sample, read from the environment. Extracted
+     * as a package-private seam so tests can override it deterministically —
+     * {@code System.getenv} cannot be set or cleared in-process.
+     */
+    String cohereApiKey() {
+        return System.getenv("COHERE_API_KEY");
     }
 }

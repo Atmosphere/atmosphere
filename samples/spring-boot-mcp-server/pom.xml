@@ -90,6 +90,12 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-wasync</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Parent POM restricts logback to test scope; override for runtime logging -->
         <dependency>
             <groupId>ch.qos.logback</groupId>

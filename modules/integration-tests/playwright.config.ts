@@ -151,6 +151,10 @@ export default defineConfig({
       testMatch: /rag-chat\.spec\.ts/,
     },
     {
+      name: 'browser-agent',
+      testMatch: /browser-agent\.spec\.ts/,
+    },
+    {
       name: 'a2a-agent',
       testMatch: /a2a-agent\.spec\.ts/,
     },

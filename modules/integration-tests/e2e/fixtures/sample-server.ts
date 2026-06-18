@@ -80,7 +80,7 @@ export const SAMPLES: Record<string, SampleConfig> = {
     dir: 'spring-boot-mcp-server',
     port: 8083,
     type: 'spring-boot',
-    readyPath: '/atmosphere/ai-chat',
+    readyPath: '/atmosphere/chat',
   },
   'spring-boot-ai-classroom': {
     name: 'spring-boot-ai-classroom',
@@ -119,6 +119,13 @@ export const SAMPLES: Record<string, SampleConfig> = {
     name: 'spring-boot-ai-tools',
     dir: 'spring-boot-ai-tools',
     port: 8091,
+    type: 'spring-boot',
+    readyPath: '/atmosphere/ai-chat',
+  },
+  'spring-boot-browser-agent': {
+    name: 'spring-boot-browser-agent',
+    dir: 'spring-boot-browser-agent',
+    port: 8103,
     type: 'spring-boot',
     readyPath: '/atmosphere/ai-chat',
   },
